@@ -2161,6 +2161,8 @@ pub enum PaymentAttemptUpdate {
         external_threeds_authentication_type: Option<common_enums::DecoupledAuthenticationType>,
         authentication_connector: Option<String>,
         authentication_id: Option<id_type::AuthenticationId>,
+        payment_method: Option<storage_enums::PaymentMethod>,
+        payment_method_type: Option<storage_enums::PaymentMethodType>,
         updated_by: String,
     },
     ManualUpdate {
@@ -2721,6 +2723,8 @@ impl PaymentAttemptUpdate {
                 external_threeds_authentication_type,
                 authentication_connector,
                 authentication_id,
+                payment_method,
+                payment_method_type,
                 updated_by,
             } => DieselPaymentAttemptUpdate::AuthenticationUpdate {
                 status,
@@ -2728,6 +2732,8 @@ impl PaymentAttemptUpdate {
                 external_threeds_authentication_type,
                 authentication_connector,
                 authentication_id,
+                payment_method,
+                payment_method_type,
                 updated_by,
             },
             Self::ManualUpdate {

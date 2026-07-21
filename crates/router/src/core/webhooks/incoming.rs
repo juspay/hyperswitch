@@ -1992,15 +1992,86 @@ async fn external_authentication_incoming_webhook_flow(
                     )
                     .await
                     .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+                let processor_merchant_id = platform.get_processor().get_account().get_id().clone();
                 let payment_confirm_req = api::PaymentsRequest {
                     payment_id: Some(api_models::payments::PaymentIdType::PaymentIntentId(
                         payment_intent.payment_id.clone(),
                     )),
-                    merchant_id: Some(platform.get_processor().get_account().get_id().clone()),
+                    merchant_id: Some(processor_merchant_id.clone()),
                     ..Default::default()
                 };
                 let is_setup_mandate = payment_intent.is_setup_mandate();
-                let payments_response = if is_setup_mandate {
+                let provider_business_profile = payments::helpers::resolve_provider_profile(
+                    &state,
+                    &platform,
+                    &business_profile,
+                )
+                .await?;
+                let payments_response = if provider_business_profile
+                    .external_vault_details
+                    .is_external_vault_enabled()
+                {
+                    let attempt_id = payment_intent.active_attempt.get_id().clone();
+                    let payment_attempt = state
+                        .store
+                        .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
+                            &payment_intent.payment_id,
+                            &processor_merchant_id,
+                            &attempt_id,
+                            platform.get_processor().get_account().storage_scheme,
+                            platform.get_processor().get_key_store(),
+                        )
+                        .await
+                        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+                    let payment_token = payment_attempt
+                        .payment_token
+                        .clone()
+                        .get_required_value("payment_token")
+                        .attach_printable(
+                            "payment_token missing on attempt for external vault 3DS webhook authorize",
+                        )?;
+                    let external_vault_req = api::PaymentsRequest {
+                        payment_id: Some(api_models::payments::PaymentIdType::PaymentIntentId(
+                            payment_intent.payment_id.clone(),
+                        )),
+                        merchant_id: Some(processor_merchant_id.clone()),
+                        payment_token: Some(payment_token),
+                        payment_method: Some(common_enums::PaymentMethod::Card),
+                        payment_method_type: payment_attempt.payment_method_type,
+                        payment_method_data: Some(api_models::payments::PaymentMethodDataRequest {
+                            payment_method_data: Some(
+                                api_models::payments::PaymentMethodData::VaultCardTokenData(
+                                    api_models::payments::VaultCardToken {
+                                        card_holder_name: None,
+                                        card_cvc: None,
+                                    },
+                                ),
+                            ),
+                            billing: None,
+                        }),
+                        ..Default::default()
+                    };
+                    Box::pin(payments::external_vault_proxy_for_payments_core::<
+                        api::ExternalVaultProxy,
+                        api::PaymentsResponse,
+                        _,
+                        _,
+                        _,
+                        payments::PaymentData<api::ExternalVaultProxy>,
+                    >(
+                        state.clone(),
+                        req_state,
+                        platform.clone(),
+                        payment_intent.profile_id.clone(),
+                        payments::PaymentExternalVaultProxyConfirm,
+                        external_vault_req,
+                        services::api::AuthFlow::Merchant,
+                        payments::CallConnectorAction::Trigger,
+                        HeaderPayload::with_source(enums::PaymentSource::ExternalAuthenticator),
+                        None,
+                    ))
+                    .await?
+                } else if is_setup_mandate {
                     Box::pin(payments::payments_core::<
                         api::SetupMandate,
                         api::PaymentsResponse,

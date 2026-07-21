@@ -1787,7 +1787,7 @@ pub fn build_unified_connector_service_payment_method_for_external_proxy(
                 card_number: Some(external_vault_card.card_number.expose().into()),
                 card_exp_month: Some(external_vault_card.card_exp_month.expose().into()),
                 card_exp_year: Some(external_vault_card.card_exp_year.expose().into()),
-                card_cvc: Some(external_vault_card.card_cvc.expose().into()),
+                card_cvc: external_vault_card.card_cvc.map(|cvc| cvc.expose().into()),
                 card_holder_name: external_vault_card.card_holder_name.map(|name| name.expose().into()),
                 card_issuer: external_vault_card.card_issuer.clone(),
                 card_network: card_network.map(|card_network| card_network.into()),
@@ -1823,6 +1823,53 @@ fn get_ucs_client(
             error_stack::report!(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("UCS client is not available")
         })
+}
+
+#[cfg(feature = "v1")]
+pub fn build_connector_feature_data_from_auth_mca(
+    merchant_connector_account: &MerchantConnectorAccountType,
+    force_3ds_challenge: Option<bool>,
+    results_response_notification_url: Option<String>,
+    notification_url: Option<common_utils::types::Url>,
+    acquirer_metadata: Option<serde_json::Value>,
+) -> CustomResult<Option<Secret<String>>, UnifiedConnectorServiceError> {
+    merchant_connector_account
+        .get_metadata()
+        .map(|metadata| {
+            let mut metadata_value = metadata.expose();
+            if let Some(obj) = metadata_value.as_object_mut() {
+                if let Some(force) = force_3ds_challenge {
+                    obj.insert(
+                        "force_3ds_challenge".to_string(),
+                        serde_json::Value::Bool(force),
+                    );
+                }
+                if let Some(url) = results_response_notification_url {
+                    obj.insert(
+                        "results_response_notification_url".to_string(),
+                        serde_json::Value::String(url),
+                    );
+                }
+                if let Some(url) = notification_url {
+                    obj.insert(
+                        "notification_url".to_string(),
+                        serde_json::Value::String(url.get_string_repr().to_string()),
+                    );
+                }
+                if let Some(serde_json::Value::Object(acquirer)) = acquirer_metadata {
+                    for (key, value) in acquirer {
+                        obj.insert(key, value);
+                    }
+                }
+            }
+            serde_json::to_string(&metadata_value)
+                .change_context(UnifiedConnectorServiceError::RequestEncodingFailed)
+                .attach_printable(
+                    "Failed to serialize authentication connector MCA metadata for connector_feature_data",
+                )
+                .map(Secret::new)
+        })
+        .transpose()
 }
 
 pub fn build_unified_connector_service_auth_metadata(
@@ -1923,6 +1970,17 @@ pub fn build_unified_connector_service_auth_metadata(
             auth_key_map: None,
             merchant_id: Secret::new(merchant_id.to_string()),
             connector_config,
+        }),
+        ConnectorAuthType::CertificateAuth { .. } => Ok(ConnectorAuthMetadata {
+            connector_name,
+            auth_type: consts::UCS_AUTH_NO_KEY.to_string(),
+            api_key: None,
+            key1: None,
+            key2: None,
+            api_secret: None,
+            auth_key_map: None,
+            merchant_id: Secret::new(merchant_id.to_string()),
+            connector_config: None,
         }),
         _ => Err(UnifiedConnectorServiceError::FailedToObtainAuthType)
             .attach_printable("Unsupported ConnectorAuthType for header injection"),

@@ -3082,102 +3082,21 @@ where
         )
         .await?;
 
-    // Dispatch on the resolved connector call type, mirroring `payments_operation_core`: the
-    // prerequisites and the unified-connector-service decision both happen inside the match arm.
-    // The external vault proxy flow currently supports only a single, predetermined connector.
-    let (connector, merchant_connector_account, router_data) = match connector {
+    let (connector, is_predetermined) = match connector {
         Some(ConnectorCallType::PreDetermined(connector_routing_data)) => {
-            let connector = connector_routing_data.connector_data;
-
-            // `choose_connector` does not persist the chosen connector in the payment attempt for
-            // this flow, so set it explicitly — the confirm update tracker reads it back.
-            payment_data
-                .set_connector_in_payment_attempt(Some(connector.connector_name.to_string()));
-
-            let (
-                merchant_connector_account,
-                external_vault_merchant_connector_account,
-                router_data,
-            ) = call_connector_service_prerequisites_for_external_vault_proxy_v1(
-                state,
-                &platform,
-                &mut payment_data,
-                &connector,
-                &business_profile,
-                header_payload.clone(),
-            )
-            .await?;
-
-            let router_data = decide_unified_connector_service_call_for_external_vault_proxy_v1(
-                state,
-                req_state.clone(),
-                &platform,
-                &operation,
-                &mut payment_data,
-                &connector,
-                merchant_connector_account.clone(),
-                external_vault_merchant_connector_account,
-                router_data,
-                call_connector_action.clone(),
-                header_payload.clone(),
-                &business_profile,
-                &dimensions,
-                return_raw_connector_response,
-            )
-            .await?;
-
-            (connector, merchant_connector_account, router_data)
+            (connector_routing_data.connector_data, true)
         }
-        Some(ConnectorCallType::Retryable(connectors)) => {
-            // The proxy flow does not retry — use the first eligible connector.
-            let connector = connectors
+        Some(ConnectorCallType::Retryable(connectors)) => (
+            connectors
                 .into_iter()
                 .next()
                 .ok_or_else(|| {
                     error_stack::report!(errors::ApiErrorResponse::InternalServerError)
                         .attach_printable("No eligible connector resolved for external vault proxy")
                 })?
-                .connector_data;
-
-            // `choose_connector` does not persist the chosen connector in the payment attempt for
-            // this flow, so set it explicitly — the confirm update tracker reads it back.
-            payment_data
-                .set_connector_in_payment_attempt(Some(connector.connector_name.to_string()));
-
-            let (
-                merchant_connector_account,
-                external_vault_merchant_connector_account,
-                router_data,
-            ) = call_connector_service_prerequisites_for_external_vault_proxy_v1(
-                state,
-                &platform,
-                &mut payment_data,
-                &connector,
-                &business_profile,
-                header_payload.clone(),
-            )
-            .await?;
-
-            let router_data = decide_unified_connector_service_call_for_external_vault_proxy_v1(
-                state,
-                req_state.clone(),
-                &platform,
-                &operation,
-                &mut payment_data,
-                &connector,
-                merchant_connector_account.clone(),
-                external_vault_merchant_connector_account,
-                router_data,
-                call_connector_action.clone(),
-                header_payload.clone(),
-                &business_profile,
-                &dimensions,
-                return_raw_connector_response,
-            )
-            .await?;
-
-            (connector, merchant_connector_account, router_data)
-        }
+                .connector_data,
+            false,
+        ),
         Some(ConnectorCallType::SessionMultiple(_)) => {
             return Err(
                 error_stack::report!(errors::ApiErrorResponse::InternalServerError)
@@ -3193,6 +3112,88 @@ where
             )
         }
     };
+
+    payment_data.set_connector_in_payment_attempt(Some(connector.connector_name.to_string()));
+
+    let (merchant_connector_account, external_vault_merchant_connector_account, router_data) =
+        call_connector_service_prerequisites_for_external_vault_proxy_v1(
+            state,
+            &platform,
+            &mut payment_data,
+            &connector,
+            &business_profile,
+            header_payload.clone(),
+        )
+        .await?;
+
+    let pre_auth_decision = call_external_three_ds_authentication_if_eligible_for_external_proxy(
+        state,
+        &platform,
+        &mut payment_data,
+        &connector,
+        external_vault_merchant_connector_account.clone(),
+        &router_data,
+        &business_profile,
+        mandate_type,
+        call_connector_action.clone(),
+        header_payload.clone(),
+    )
+    .await?;
+
+    if matches!(
+        pre_auth_decision,
+        ExternalVaultProxyPreAuthDecision::HaltForSdkChallenge
+            | ExternalVaultProxyPreAuthDecision::HaltWithAuthenticationFailure
+    ) {
+        let (_, payment_data) = operation
+            .to_update_tracker()?
+            .update_trackers(
+                state,
+                req_state.clone(),
+                platform.get_processor(),
+                payment_data,
+                None,
+                header_payload.clone(),
+                &dimensions.without_profile_id(),
+            )
+            .await?;
+        return Ok((payment_data, req, None, None));
+    }
+
+    let router_data = if is_predetermined {
+        payment_data
+            .construct_router_data(
+                state,
+                connector.connector.id(),
+                platform.get_processor(),
+                &merchant_connector_account,
+                None,
+                Some(header_payload.clone()),
+                payment_data.get_payment_attempt().payment_method,
+                payment_data.get_payment_attempt().payment_method_type,
+            )
+            .await?
+    } else {
+        router_data
+    };
+
+    let router_data = decide_unified_connector_service_call_for_external_vault_proxy_v1(
+        state,
+        req_state.clone(),
+        &platform,
+        &operation,
+        &mut payment_data,
+        &connector,
+        merchant_connector_account.clone(),
+        external_vault_merchant_connector_account,
+        router_data,
+        call_connector_action.clone(),
+        header_payload.clone(),
+        &business_profile,
+        &dimensions,
+        return_raw_connector_response,
+    )
+    .await?;
 
     let op_ref = &operation;
     let should_trigger_post_processing_flows = is_operation_confirm(&operation);
@@ -3320,8 +3321,9 @@ where
         payment_data.set_merchant_connector_id_in_attempt(merchant_connector_account.get_mca_id());
     }
 
-    // Fetch the external vault MCA from business_profile
-    let external_vault_mca_id = business_profile
+    let provider_business_profile =
+        helpers::resolve_provider_profile(state, platform, business_profile).await?;
+    let external_vault_mca_id = provider_business_profile
         .external_vault_details
         .get_vault_connector_id()
         .ok_or_else(|| {
@@ -3329,24 +3331,22 @@ where
                 .attach_printable("external vault is not enabled for this business profile")
         })?;
 
-    let profile_id = payment_data
-        .get_payment_intent()
-        .profile_id
-        .as_ref()
-        .get_required_value("profile_id")
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("profile_id is not set in payment_intent")?
-        .clone();
-
-    let external_vault_merchant_connector_account = helpers::get_merchant_connector_account(
-        state,
-        platform.get_processor(),
-        None,
-        &profile_id,
-        &connector.connector_name.to_string(),
-        Some(&external_vault_mca_id),
-    )
-    .await?;
+    let external_vault_merchant_connector_account =
+        helpers::MerchantConnectorAccountType::DbVal(Box::new(
+            state
+                .store
+                .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+                    platform.get_provider().get_account().get_id(),
+                    &external_vault_mca_id,
+                    platform.get_provider().get_key_store(),
+                )
+                .await
+                .to_not_found_response(
+                    errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                        id: external_vault_mca_id.get_string_repr().to_string(),
+                    },
+                )?,
+        ));
 
     let router_data = payment_data
         .construct_router_data(
@@ -3431,6 +3431,14 @@ where
             }
         },
     )?;
+
+    if payment_data.get_payment_attempt().status
+        == common_enums::AttemptStatus::AuthenticationPending
+    {
+        let mut authorize_attempt = payment_data.get_payment_attempt().clone();
+        authorize_attempt.status = common_enums::AttemptStatus::Pending;
+        payment_data.set_payment_attempt(authorize_attempt);
+    }
 
     // Update trackers before calling connector
     (_, *payment_data) = operation
@@ -3535,6 +3543,970 @@ where
 }
 
 #[cfg(feature = "v1")]
+async fn resolve_external_vault_authentication_connector(
+    state: &SessionState,
+    processor: &domain::Processor,
+    business_profile: &domain::Profile,
+) -> RouterResult<(
+    common_enums::connector_enums::Connector,
+    helpers::MerchantConnectorAccountType,
+)> {
+    let auth_connector = business_profile
+        .authentication_connector_details
+        .as_ref()
+        .and_then(|details| details.authentication_connectors.first().copied())
+        .ok_or(errors::ApiErrorResponse::PreconditionFailed {
+            message: "authentication_connector_details is not configured on the business profile; \
+                      external 3DS over the vault proxy requires an authentication connector"
+                .to_string(),
+        })
+        .attach_printable(
+            "No authentication connector configured for external vault 3DS auth step",
+        )?;
+
+    let auth_connector_enum =
+        common_enums::connector_enums::Connector::from_str(auth_connector.to_string().as_str())
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable(
+                "Invalid authentication connector name for UCS external vault 3DS auth leg",
+            )?;
+
+    let auth_merchant_connector_account = helpers::get_merchant_connector_account(
+        state,
+        processor,
+        None,
+        business_profile.get_id(),
+        auth_connector.to_string().as_str(),
+        None,
+    )
+    .await
+    .attach_printable("Failed to load the authentication connector MCA for external vault 3DS")?;
+
+    Ok((auth_connector_enum, auth_merchant_connector_account))
+}
+
+/// External-vault-proxy analogue of `helpers::PaymentExternalAuthenticationFlow`. Variants carry no
+/// data (the alias lives on `payment_data.external_vault_pmd`); `None` = not eligible, continue to
+/// the PSP authorize.
+#[cfg(feature = "v1")]
+enum PaymentExternalAuthenticationFlowForExternalProxy {
+    PreAuthenticationFlow,
+    PostAuthenticationFlow {
+        authentication_id: id_type::AuthenticationId,
+    },
+}
+
+#[cfg(feature = "v1")]
+fn get_payment_external_authentication_flow_during_confirm_for_external_proxy<F, D>(
+    payment_data: &D,
+    connector: &api::ConnectorData,
+    mandate_type: Option<mandates::MandateTransactionType>,
+) -> Option<PaymentExternalAuthenticationFlowForExternalProxy>
+where
+    D: OperationSessionGetters<F>,
+{
+    let separate_three_ds_authentication_attempted = payment_data
+        .get_payment_attempt()
+        .external_three_ds_authentication_attempted
+        .unwrap_or(false);
+    let authentication_id = payment_data.get_payment_attempt().authentication_id.clone();
+    let is_authentication_type_3ds = payment_data.get_payment_attempt().authentication_type
+        == Some(common_enums::AuthenticationType::ThreeDs);
+    let separate_authentication_requested = payment_data
+        .get_payment_intent()
+        .request_external_three_ds_authentication
+        .unwrap_or(false);
+    let connector_supports_separate_authn = connector
+        .connector_name
+        .is_separate_authentication_supported();
+    let is_recurring_mandate =
+        mandate_type == Some(mandates::MandateTransactionType::RecurringMandateTransaction);
+
+    if separate_three_ds_authentication_attempted && authentication_id.is_some() {
+        authentication_id.map(|authentication_id| {
+            PaymentExternalAuthenticationFlowForExternalProxy::PostAuthenticationFlow {
+                authentication_id,
+            }
+        })
+    } else if separate_authentication_requested
+        && is_authentication_type_3ds
+        && connector_supports_separate_authn
+        && !is_recurring_mandate
+        && payment_data.get_external_vault_pmd().is_some()
+    {
+        Some(PaymentExternalAuthenticationFlowForExternalProxy::PreAuthenticationFlow)
+    } else {
+        None
+    }
+}
+
+#[cfg(feature = "v1")]
+#[allow(clippy::too_many_arguments)]
+pub async fn call_external_three_ds_authentication_if_eligible_for_external_proxy<F, FData, D>(
+    state: &SessionState,
+    platform: &domain::Platform,
+    payment_data: &mut D,
+    connector: &api::ConnectorData,
+    external_vault_merchant_connector_account: helpers::MerchantConnectorAccountType,
+    router_data: &RouterData<F, FData, router_types::PaymentsResponseData>,
+    business_profile: &domain::Profile,
+    mandate_type: Option<mandates::MandateTransactionType>,
+    call_connector_action: CallConnectorAction,
+    header_payload: HeaderPayload,
+) -> RouterResult<ExternalVaultProxyPreAuthDecision>
+where
+    F: Send + Clone + Sync,
+    FData: Send + Sync + Clone,
+    D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
+{
+    match get_payment_external_authentication_flow_during_confirm_for_external_proxy(
+        payment_data,
+        connector,
+        mandate_type,
+    ) {
+        None => Ok(ExternalVaultProxyPreAuthDecision::ContinueToAuthorize),
+        Some(PaymentExternalAuthenticationFlowForExternalProxy::PostAuthenticationFlow {
+            authentication_id,
+        }) => {
+            perform_post_authentication_for_external_proxy(
+                state,
+                platform,
+                payment_data,
+                external_vault_merchant_connector_account,
+                router_data,
+                business_profile,
+                authentication_id,
+                call_connector_action,
+                header_payload,
+            )
+            .await
+        }
+        Some(PaymentExternalAuthenticationFlowForExternalProxy::PreAuthenticationFlow) => {
+            perform_pre_authentication_for_external_proxy(
+                state,
+                platform,
+                payment_data,
+                external_vault_merchant_connector_account,
+                router_data,
+                business_profile,
+                call_connector_action,
+                header_payload,
+            )
+            .await
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
+fn build_external_vault_pre_authenticate_router_data<F, FData, D>(
+    payment_data: &D,
+    router_data: &RouterData<F, FData, router_types::PaymentsResponseData>,
+    connector_enum: common_enums::connector_enums::Connector,
+    webhook_url: Option<String>,
+) -> RouterData<
+    api::PreAuthenticate,
+    router_types::PaymentsPreAuthenticateData,
+    router_types::PaymentsResponseData,
+>
+where
+    F: Clone,
+    FData: Clone,
+    D: OperationSessionGetters<F>,
+{
+    let amount = payment_data.get_payment_attempt().get_total_amount();
+    let pre_authenticate_request_data = router_types::PaymentsPreAuthenticateData {
+        payment_method_data: domain::PaymentMethodData::Card(domain::Card::default()),
+        amount: amount.get_amount_as_i64(),
+        minor_amount: amount,
+        email: None,
+        capture_method: payment_data.get_payment_attempt().capture_method,
+        currency: Some(payment_data.get_currency()),
+        payment_method_type: payment_data.get_payment_attempt().payment_method_type,
+        router_return_url: payment_data.get_payment_intent().return_url.clone(),
+        complete_authorize_url: None,
+        browser_info: None,
+        enrolled_for_3ds: true,
+        customer_name: None,
+        metadata: None,
+        webhook_url,
+    };
+    let mut pre_authenticate_router_data =
+        helpers::router_data_type_conversion::<_, api::PreAuthenticate, _, _, _, _>(
+            router_data.clone(),
+            pre_authenticate_request_data,
+            Err(router_types::ErrorResponse::default()),
+        );
+    pre_authenticate_router_data.connector = connector_enum.to_string();
+    pre_authenticate_router_data
+}
+
+/// External-vault-proxy 3DS pre-authenticate (versioning + AReq dispatch over the Unified Connector
+/// Service). Corresponds to `authentication::perform_pre_authentication`, but drives UCS with the
+/// vaulted `ProxyCard` alias instead of a real `Card`.
+#[cfg(feature = "v1")]
+#[allow(clippy::too_many_arguments)]
+pub async fn perform_pre_authentication_for_external_proxy<F, FData, D>(
+    state: &SessionState,
+    platform: &domain::Platform,
+    payment_data: &mut D,
+    external_vault_merchant_connector_account: helpers::MerchantConnectorAccountType,
+    router_data: &RouterData<F, FData, router_types::PaymentsResponseData>,
+    business_profile: &domain::Profile,
+    call_connector_action: CallConnectorAction,
+    header_payload: HeaderPayload,
+) -> RouterResult<ExternalVaultProxyPreAuthDecision>
+where
+    F: Send + Clone + Sync,
+    FData: Send + Sync + Clone,
+    D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
+{
+    let external_vault_pmd = payment_data
+        .get_external_vault_pmd()
+        .cloned()
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable(
+            "external_vault_pmd missing in pre-authentication (guaranteed present by eligibility)",
+        )?;
+    let (execution_path, updated_state) = should_call_unified_connector_service(
+        state,
+        platform.get_processor(),
+        router_data,
+        extract_gateway_system_from_payment_intent(payment_data),
+        call_connector_action,
+        None,
+        common_enums::TransactionType::Payment,
+    )
+    .await?;
+    let execution_mode = match execution_path {
+        ExecutionPath::UnifiedConnectorService => ExecutionMode::Primary,
+        ExecutionPath::ShadowUnifiedConnectorService => ExecutionMode::Shadow,
+        ExecutionPath::Direct => {
+            return Ok(ExternalVaultProxyPreAuthDecision::ContinueToAuthorize);
+        }
+    };
+
+    let (connector_enum, auth_merchant_connector_account) =
+        resolve_external_vault_authentication_connector(
+            state,
+            platform.get_processor(),
+            business_profile,
+        )
+        .await?;
+
+    let auth_webhook_url = auth_merchant_connector_account.get_mca_id().map(|mca_id| {
+        helpers::create_webhook_url(
+            &state.base_url,
+            &business_profile.merchant_id,
+            mca_id.get_string_repr(),
+        )
+    });
+
+    let pre_authenticate_router_data = build_external_vault_pre_authenticate_router_data(
+        payment_data,
+        router_data,
+        connector_enum,
+        auth_webhook_url,
+    );
+
+    let lineage_ids = grpc_client::LineageIds::new(
+        business_profile.merchant_id.clone(),
+        business_profile.get_id().clone(),
+    );
+
+    let pre_authenticate_router_data =
+        flows::authorize_flow::call_unified_connector_service_pre_authenticate_for_external_proxy(
+            &pre_authenticate_router_data,
+            &external_vault_pmd,
+            &updated_state,
+            &header_payload,
+            lineage_ids,
+            auth_merchant_connector_account,
+            external_vault_merchant_connector_account,
+            platform.get_processor(),
+            connector_enum,
+            execution_mode,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to call UCS pre-authenticate for external vault proxy")?;
+
+    let ucs_authentication_data = match &pre_authenticate_router_data.response {
+        Ok(router_types::PaymentsResponseData::TransactionResponse {
+            authentication_data,
+            ..
+        }) => authentication_data.clone().map(|boxed| *boxed),
+        Ok(_) => None,
+        Err(_) => return Ok(ExternalVaultProxyPreAuthDecision::HaltForSdkChallenge),
+    };
+
+    persist_external_vault_pre_auth_and_prepare_sdk_invoke(
+        state,
+        platform,
+        payment_data,
+        business_profile,
+        ucs_authentication_data,
+    )
+    .await
+}
+
+#[cfg(feature = "v1")]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ExternalVaultProxyPreAuthDecision {
+    /// Frictionless / not-eligible / UCS-disabled: proceed to the PSP authorize leg.
+    ContinueToAuthorize,
+    /// Challenge or separate-authentication required: skip authorize, emit a `ThreeDsInvoke`
+    /// next_action and let the SDK drive the `/3ds/authentication` flow (Phase 4b-2).
+    HaltForSdkChallenge,
+    /// Authentication failed (declined / cardholder cancelled the challenge): the payment has been
+    /// transitioned to a terminal `Failed` state, so skip the authorize and route the failed
+    /// `payment_data` to the response builder (mirroring how normal payments end an auth failure)
+    /// instead of surfacing an error that would leave the payment stuck at `RequiresCustomerAction`.
+    HaltWithAuthenticationFailure,
+}
+
+#[cfg(feature = "v1")]
+pub async fn tokenize_external_vault_alias_for_external_proxy(
+    state: &SessionState,
+    external_vault_pmd: &hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData,
+    payment_method: common_enums::PaymentMethod,
+    business_profile: &domain::Profile,
+    key_store: &domain::MerchantKeyStore,
+) -> RouterResult<String> {
+    let alias_json = serde_json::to_string(external_vault_pmd)
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to serialize external_vault_pmd for temp-locker tokenization")?;
+    let token = common_utils::generate_id(consts::ID_LENGTH, "token");
+    let intent_fulfillment_time = business_profile
+        .get_order_fulfillment_time()
+        .unwrap_or(consts::DEFAULT_FULFILLMENT_TIME);
+    vault::create_tokenize_with_configurable_expiry(
+        state,
+        alias_json,
+        None,
+        token.clone(),
+        key_store.key.get_inner(),
+        Some(intent_fulfillment_time),
+    )
+    .await
+    .attach_printable("Failed to store external_vault alias in temp locker")?;
+    let token_data = storage::PaymentTokenData::temporary_generic(token.clone());
+    ParentPaymentMethodToken::create_key_for_token((&token, payment_method))
+        .insert(intent_fulfillment_time, token_data, state)
+        .await?;
+    Ok(token)
+}
+
+#[cfg(feature = "v1")]
+pub(crate) async fn read_external_vault_alias_from_temp_locker(
+    state: &SessionState,
+    token: &str,
+    key_store: &domain::MerchantKeyStore,
+) -> RouterResult<hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData> {
+    let alias_json = vault::get_tokenized_data(state, token, false, key_store.key.get_inner())
+        .await
+        .attach_printable("Failed to read external_vault alias from temp locker")?
+        .value1;
+    serde_json::from_str(&alias_json)
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to parse external_vault alias from temp locker")
+}
+
+#[cfg(feature = "v1")]
+pub(crate) async fn resolve_external_vault_alias_from_payment_token(
+    state: &SessionState,
+    platform: &domain::Platform,
+    business_profile: &domain::Profile,
+    payment_token: String,
+    payment_method: common_enums::PaymentMethod,
+) -> RouterResult<hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData> {
+    let key_store = platform.get_processor().get_key_store();
+    let token_data =
+        helpers::retrieve_payment_token_data(state, payment_token, Some(payment_method)).await?;
+
+    match token_data {
+        storage::PaymentTokenData::TemporaryGeneric(generic) => {
+            read_external_vault_alias_from_temp_locker(state, &generic.token, key_store).await
+        }
+        storage::PaymentTokenData::Permanent(card)
+        | storage::PaymentTokenData::PermanentCard(card) => {
+            let payment_method_id = card
+                .payment_method_id
+                .get_required_value("payment_method_id")
+                .attach_printable("could not resolve a payment_method_id from the payment_token")?;
+            let pm_with_raw = pm_transformers::fetch_payment_method_from_modular_service(
+                state,
+                platform,
+                business_profile.get_id(),
+                &payment_method_id,
+                None,
+                false,
+            )
+            .await
+            .attach_printable(
+                "Failed to re-fetch external vault token data from the modular service",
+            )?;
+            let vault_card = match pm_with_raw.vault_payment_method_token_data {
+                Some(
+                    hyperswitch_domain_models::payment_methods::VaultPaymentMethodData::VaultCardData(
+                        vault_card,
+                    ),
+                ) => vault_card,
+                _ => Err(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("external vault token data not returned by the modular service")?,
+            };
+            Ok(
+                hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData::Card(
+                    Box::new(hyperswitch_domain_models::payment_method_data::ExternalVaultCard {
+                        card_number: vault_card.card_number,
+                        card_exp_month: vault_card.card_exp_month.unwrap_or_default(),
+                        card_exp_year: vault_card.card_exp_year.unwrap_or_default(),
+                        card_cvc: None,
+                        bin_number: None,
+                        last_four: None,
+                        card_issuer: None,
+                        card_network: None,
+                        card_type: None,
+                        card_issuing_country: None,
+                        bank_code: None,
+                        nick_name: None,
+                        card_holder_name: None,
+                        co_badged_card_data: None,
+                    }),
+                ),
+            )
+        }
+        other => Err(errors::ApiErrorResponse::InternalServerError).attach_printable(format!(
+            "unexpected payment_token kind for external vault alias resolution: {other:?}"
+        ))?,
+    }
+}
+
+#[cfg(feature = "v1")]
+async fn persist_external_vault_pre_auth_and_prepare_sdk_invoke<F, D>(
+    state: &SessionState,
+    platform: &domain::Platform,
+    payment_data: &mut D,
+    business_profile: &domain::Profile,
+    ucs_authentication_data: Option<
+        hyperswitch_domain_models::router_request_types::UcsAuthenticationData,
+    >,
+) -> RouterResult<ExternalVaultProxyPreAuthDecision>
+where
+    F: Send + Clone + Sync,
+    D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
+{
+    use hyperswitch_domain_models::authentication::AuthenticationUpdate;
+
+    let processor = platform.get_processor();
+    let key_store = processor.get_key_store();
+    let key_manager_state = state.into();
+    let storage_scheme = processor.get_account().storage_scheme;
+
+    let payment_id = payment_data.get_payment_attempt().payment_id.clone();
+    let organization_id = payment_data.get_payment_attempt().organization_id.clone();
+    let profile_id = business_profile.get_id().clone();
+    let merchant_id = business_profile.merchant_id.clone();
+
+    let merchant_connector_id = payment_data
+        .get_payment_attempt()
+        .merchant_connector_id
+        .clone()
+        .get_required_value("merchant_connector_id")
+        .attach_printable(
+            "merchant_connector_id missing on payment_attempt for external vault 3DS challenge",
+        )?;
+
+    let authentication_connector_name =
+        common_enums::AuthenticationConnectors::UnifiedAuthenticationService.to_string();
+
+    let authentication = authentication_core::utils::create_new_authentication(
+        state,
+        merchant_id.clone(),
+        authentication_connector_name.clone(),
+        payment_id.get_string_repr().to_string(),
+        profile_id,
+        payment_id.clone(),
+        merchant_connector_id,
+        organization_id,
+        payment_data.get_payment_intent().force_3ds_challenge,
+        payment_data.get_payment_intent().psd2_sca_exemption_type,
+        processor,
+        platform.get_initiator(),
+    )
+    .await?;
+
+    let default_message_version = common_utils::types::SemanticVersion::new(2, 2, 0);
+    let message_version = ucs_authentication_data
+        .as_ref()
+        .and_then(|data| data.message_version.clone())
+        .unwrap_or(default_message_version);
+    let threeds_server_transaction_id = ucs_authentication_data
+        .as_ref()
+        .and_then(|data| data.threeds_server_transaction_id.clone())
+        .unwrap_or_default();
+    let connector_authentication_id = ucs_authentication_data
+        .as_ref()
+        .and_then(|data| data.transaction_id.clone())
+        .filter(|txn_id| !txn_id.is_empty())
+        .unwrap_or_else(|| threeds_server_transaction_id.clone());
+    let directory_server_id = ucs_authentication_data
+        .as_ref()
+        .and_then(|data| data.ds_trans_id.clone());
+
+    let authentication_update = AuthenticationUpdate::PreAuthenticationUpdate {
+        threeds_server_transaction_id,
+        maximum_supported_3ds_version: message_version.clone(),
+        connector_authentication_id,
+        three_ds_method_data: None,
+        three_ds_method_url: None,
+        message_version: message_version.clone(),
+        connector_metadata: None,
+        // Pending: the challenge has not yet been completed; cavv stays None
+        authentication_status: common_enums::AuthenticationStatus::Pending,
+        acquirer_bin: None,
+        acquirer_merchant_id: None,
+        directory_server_id,
+        acquirer_country_code: None,
+        billing_address: Box::new(None),
+        shipping_address: Box::new(None),
+        browser_info: Box::new(payment_data.get_payment_attempt().browser_info.clone()),
+        email: None,
+        scheme_id: None,
+        merchant_category_code: None,
+        merchant_country_code: None,
+        billing_country: None,
+        shipping_country: None,
+        earliest_supported_version: Some(message_version.clone()),
+        latest_supported_version: Some(message_version.clone()),
+        updated_by: storage_scheme.to_string(),
+    };
+
+    let authentication = state
+        .store
+        .update_authentication_by_processor_merchant_id_authentication_id(
+            authentication,
+            authentication_update,
+            key_store,
+            &key_manager_state,
+            storage_scheme,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to update external vault pre-auth authentication record")?;
+
+    let authentication_id = authentication.authentication_id.clone();
+    let authentication_connector = authentication.authentication_connector.clone();
+
+    let payment_method = payment_data
+        .get_payment_attempt()
+        .payment_method
+        .unwrap_or(common_enums::PaymentMethod::Card);
+    let existing_token = payment_data.get_payment_attempt().payment_token.clone();
+    let alias_payment_token = match existing_token {
+        Some(token) => Some(token),
+        None => match payment_data.get_payment_attempt().payment_method_id.clone() {
+            Some(payment_method_id) => {
+                let parent_payment_method_token =
+                    common_utils::generate_id(consts::ID_LENGTH, "token");
+                let token_data = storage::PaymentTokenData::PermanentCard(
+                    storage::payment_method::CardTokenData {
+                        payment_method_id: Some(payment_method_id),
+                        locker_id: None,
+                        token: parent_payment_method_token.clone(),
+                        network_token_locker_id: None,
+                    },
+                );
+                let intent_fulfillment_time = business_profile
+                    .get_order_fulfillment_time()
+                    .unwrap_or(consts::DEFAULT_FULFILLMENT_TIME);
+                ParentPaymentMethodToken::create_key_for_token((
+                    &parent_payment_method_token,
+                    payment_method,
+                ))
+                .insert(intent_fulfillment_time, token_data, state)
+                .await?;
+                Some(parent_payment_method_token)
+            }
+            None => {
+                router_env::logger::warn!(
+                    "External vault 3DS challenge: no payment_method_id available to mint a re-fetchable alias token; /3ds/authentication resume will need an alternate source"
+                );
+                None
+            }
+        },
+    };
+
+    let mut updated_attempt = payment_data.get_payment_attempt().clone();
+    updated_attempt.status = common_enums::AttemptStatus::AuthenticationPending;
+    updated_attempt.payment_token = alias_payment_token.clone();
+    updated_attempt.external_three_ds_authentication_attempted = Some(true);
+    updated_attempt.external_threeds_authentication_type =
+        Some(common_enums::DecoupledAuthenticationType::Challenge);
+    updated_attempt.authentication_connector = authentication_connector.clone();
+    updated_attempt.authentication_id = Some(authentication_id.clone());
+    payment_data.set_payment_attempt(updated_attempt);
+
+    if let Some(token) = alias_payment_token {
+        payment_data.set_token(token);
+    }
+
+    payment_data.set_payment_intent_status(common_enums::IntentStatus::RequiresCustomerAction);
+
+    let authentication_store =
+        hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore {
+            cavv: None,
+            authentication,
+        };
+    payment_data.set_authentication(Some(authentication_store));
+
+    Ok(ExternalVaultProxyPreAuthDecision::HaltForSdkChallenge)
+}
+
+#[cfg(feature = "v1")]
+#[allow(clippy::too_many_arguments)]
+async fn perform_post_authentication_for_external_proxy<F, FData, D>(
+    state: &SessionState,
+    platform: &domain::Platform,
+    payment_data: &mut D,
+    external_vault_merchant_connector_account: helpers::MerchantConnectorAccountType,
+    router_data: &RouterData<F, FData, router_types::PaymentsResponseData>,
+    business_profile: &domain::Profile,
+    authentication_id: id_type::AuthenticationId,
+    call_connector_action: CallConnectorAction,
+    header_payload: HeaderPayload,
+) -> RouterResult<ExternalVaultProxyPreAuthDecision>
+where
+    F: Send + Clone + Sync,
+    FData: Send + Sync + Clone,
+    D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
+{
+    use hyperswitch_domain_models::authentication::AuthenticationUpdate;
+
+    let processor = platform.get_processor();
+    let key_store = processor.get_key_store();
+    let key_manager_state = state.into();
+    let storage_scheme = processor.get_account().storage_scheme;
+    let processor_merchant_id = processor.get_account().get_id();
+
+    let authentication = state
+        .store
+        .find_authentication_by_processor_merchant_id_authentication_id(
+            processor_merchant_id,
+            &authentication_id,
+            key_store,
+            &key_manager_state,
+            storage_scheme,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable(
+            "Error while fetching external vault authentication record for post-authenticate resume",
+        )?;
+
+    if authentication.authentication_status == common_enums::AuthenticationStatus::Success {
+        let mut frictionless_cavv = authentication.cavv.clone();
+        if frictionless_cavv.is_none() {
+            logger::debug!(
+                authentication_id = authentication_id.get_string_repr(),
+                "retrieving tokenised CAVV from vault for external vault post-authenticate resume"
+            );
+            frictionless_cavv = vault::get_tokenized_data(
+                state,
+                authentication_id.get_string_repr(),
+                false,
+                key_store.key.get_inner(),
+            )
+            .await
+            .inspect_err(|err| logger::error!(external_vault_cavv_vault_lookup_error=?err))
+            .ok()
+            .map(|data| data.value1);
+        }
+        if let Some(cavv) = frictionless_cavv {
+            let mut authentication = authentication;
+            authentication.cavv = Some(cavv.clone());
+            let authentication_store =
+                hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore {
+                    cavv: Some(Secret::new(cavv)),
+                    authentication,
+                };
+            payment_data.set_authentication(Some(authentication_store));
+            return Ok(ExternalVaultProxyPreAuthDecision::ContinueToAuthorize);
+        }
+    }
+
+    let (auth_connector_enum, auth_merchant_connector_account) =
+        resolve_external_vault_authentication_connector(state, processor, business_profile).await?;
+    let is_pull_mechanism_enabled =
+        utils::check_if_pull_mechanism_for_external_3ds_enabled_from_connector_metadata(
+            auth_merchant_connector_account
+                .get_metadata()
+                .map(|metadata| metadata.expose()),
+        );
+    if authentication.authentication_status.is_terminal_status() || !is_pull_mechanism_enabled {
+        return fail_external_vault_post_authenticate(
+            state,
+            processor,
+            payment_data,
+            authentication,
+            Some(
+                "External vault 3DS authentication is not complete at resume and pull is disabled \
+                 (or already terminal); the RRes webhook must drive it to Success first"
+                    .to_string(),
+            ),
+        )
+        .await;
+    }
+
+    let (execution_path, updated_state) = should_call_unified_connector_service(
+        state,
+        processor,
+        router_data,
+        extract_gateway_system_from_payment_intent(payment_data),
+        call_connector_action,
+        None,
+        common_enums::TransactionType::Payment,
+    )
+    .await?;
+    let execution_mode = match execution_path {
+        ExecutionPath::UnifiedConnectorService => ExecutionMode::Primary,
+        ExecutionPath::ShadowUnifiedConnectorService => ExecutionMode::Shadow,
+        ExecutionPath::Direct => Err(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable(
+                "UCS is not enabled for this connector; external vault 3DS post-authenticate over UCS is unavailable",
+            )?,
+    };
+
+    let amount = payment_data.get_payment_attempt().get_total_amount();
+    let browser_info: Option<BrowserInformation> = payment_data
+        .get_payment_attempt()
+        .browser_info
+        .clone()
+        .map(|browser_information| browser_information.parse_value("BrowserInformation"))
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InvalidDataValue {
+            field_name: "browser_info",
+        })?;
+
+    let post_authenticate_request_data = router_types::PaymentsPostAuthenticateData {
+        payment_method_data: None,
+        payment_method_type: payment_data.get_payment_attempt().payment_method_type,
+        amount: Some(amount.get_amount_as_i64()),
+        minor_amount: Some(amount),
+        email: None,
+        currency: Some(payment_data.get_currency()),
+        capture_method: payment_data.get_payment_attempt().capture_method,
+        browser_info,
+        connector_transaction_id: authentication.threeds_server_transaction_id.clone(),
+        redirect_response: authentication
+            .threeds_server_transaction_id
+            .clone()
+            .map(|tds| {
+                hyperswitch_domain_models::router_request_types::CompleteAuthorizeRedirectResponse {
+                    params: Some(Secret::new(tds)),
+                    payload: None,
+                }
+            }),
+        metadata: None,
+        complete_authorize_url: None,
+    };
+
+    let mut post_authenticate_router_data =
+        helpers::router_data_type_conversion::<_, api::PostAuthenticate, _, _, _, _>(
+            router_data.clone(),
+            post_authenticate_request_data,
+            Err(router_types::ErrorResponse::default()),
+        );
+    // Point router_data.connector at the auth connector so X-Connector-Config targets it.
+    post_authenticate_router_data.connector = auth_connector_enum.to_string();
+
+    let lineage_ids = grpc_client::LineageIds::new(
+        business_profile.merchant_id.clone(),
+        business_profile.get_id().clone(),
+    );
+
+    let post_auth_payment_token = payment_data
+        .get_payment_attempt()
+        .payment_token
+        .clone()
+        .get_required_value("payment_token")
+        .attach_printable(
+            "payment_token missing on attempt for external vault 3DS post-authenticate",
+        )?;
+    let post_auth_payment_method = payment_data
+        .get_payment_attempt()
+        .payment_method
+        .unwrap_or(common_enums::PaymentMethod::Card);
+    let external_vault_pmd = resolve_external_vault_alias_from_payment_token(
+        state,
+        platform,
+        business_profile,
+        post_auth_payment_token,
+        post_auth_payment_method,
+    )
+    .await?;
+
+    let post_authenticate_router_data =
+        flows::authorize_flow::call_unified_connector_service_post_authenticate_for_external_proxy(
+            &post_authenticate_router_data,
+            &external_vault_pmd,
+            &updated_state,
+            &header_payload,
+            lineage_ids,
+            auth_merchant_connector_account,
+            external_vault_merchant_connector_account,
+            processor,
+            execution_mode,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to call UCS post-authenticate for external vault proxy")?;
+
+    let post_auth_authentication_data = match &post_authenticate_router_data.response {
+        Ok(router_types::PaymentsResponseData::TransactionResponse {
+            authentication_data,
+            ..
+        }) => authentication_data.clone().map(|boxed| *boxed),
+        Ok(_) => None,
+        Err(err) => {
+            return fail_external_vault_post_authenticate(
+                state,
+                processor,
+                payment_data,
+                authentication,
+                Some(err.message.clone()),
+            )
+            .await;
+        }
+    };
+
+    let trans_status = post_auth_authentication_data
+        .as_ref()
+        .and_then(|data| data.trans_status.clone())
+        .or_else(|| authentication.trans_status.clone())
+        .unwrap_or(common_enums::TransactionStatus::VerificationNotPerformed);
+    let eci = post_auth_authentication_data
+        .as_ref()
+        .and_then(|data| data.eci.clone())
+        .or_else(|| authentication.eci.clone());
+
+    let cavv = post_auth_authentication_data
+        .as_ref()
+        .and_then(|data| data.cavv.as_ref().map(|cavv| cavv.peek().clone()))
+        .or_else(|| authentication.cavv.clone());
+
+    let authentication_status =
+        common_enums::AuthenticationStatus::foreign_from(trans_status.clone());
+
+    if authentication_status != common_enums::AuthenticationStatus::Success || cavv.is_none() {
+        return fail_external_vault_post_authenticate(
+            state,
+            processor,
+            payment_data,
+            authentication,
+            Some(format!(
+                "External vault 3DS post-authenticate did not succeed (trans_status: {trans_status:?})"
+            )),
+        )
+        .await;
+    }
+
+    let authentication_update = AuthenticationUpdate::PostAuthenticationUpdate {
+        trans_status: trans_status.clone(),
+        eci: eci.clone(),
+        authentication_status,
+        challenge_cancel: None,
+        challenge_code_reason: None,
+        updated_by: storage_scheme.to_string(),
+    };
+    let mut authentication = state
+        .store
+        .update_authentication_by_processor_merchant_id_authentication_id(
+            authentication,
+            authentication_update,
+            key_store,
+            &key_manager_state,
+            storage_scheme,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable(
+            "Failed to update external vault post-authenticate authentication record",
+        )?;
+
+    authentication.cavv = cavv.clone();
+    authentication.eci = eci;
+    authentication.trans_status = Some(trans_status);
+
+    let authentication_store =
+        hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore {
+            cavv: cavv.map(Secret::new),
+            authentication,
+        };
+    payment_data.set_authentication(Some(authentication_store));
+
+    Ok(ExternalVaultProxyPreAuthDecision::ContinueToAuthorize)
+}
+
+#[cfg(feature = "v1")]
+async fn fail_external_vault_post_authenticate<F, D>(
+    state: &SessionState,
+    processor: &domain::Processor,
+    payment_data: &mut D,
+    authentication: hyperswitch_domain_models::authentication::Authentication,
+    error_message: Option<String>,
+) -> RouterResult<ExternalVaultProxyPreAuthDecision>
+where
+    F: Send + Clone + Sync,
+    D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
+{
+    use hyperswitch_domain_models::authentication::AuthenticationUpdate;
+
+    let key_store = processor.get_key_store();
+    let key_manager_state = state.into();
+    let storage_scheme = processor.get_account().storage_scheme;
+
+    // 1. Mark the authentication record Failed.
+    let authentication_update = AuthenticationUpdate::ErrorUpdate {
+        error_message: error_message.clone(),
+        error_code: None,
+        authentication_status: common_enums::AuthenticationStatus::Failed,
+        connector_authentication_id: authentication.connector_authentication_id.clone(),
+        updated_by: storage_scheme.to_string(),
+    };
+    state
+        .store
+        .update_authentication_by_processor_merchant_id_authentication_id(
+            authentication,
+            authentication_update,
+            key_store,
+            &key_manager_state,
+            storage_scheme,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable(
+            "Failed to update external vault authentication record on post-authenticate failure",
+        )?;
+
+    let error_reason =
+        error_message.unwrap_or_else(|| "external authentication failure".to_string());
+    let mut updated_attempt = payment_data.get_payment_attempt().clone();
+    updated_attempt.status = common_enums::AttemptStatus::Failure;
+    updated_attempt.error_code = Some("EXTERNAL_AUTHENTICATION_FAILURE".to_string());
+    updated_attempt.error_message = Some(error_reason.clone());
+    updated_attempt.error_reason = Some(error_reason.clone());
+    payment_data.set_payment_attempt(updated_attempt);
+    payment_data.set_payment_intent_status(common_enums::IntentStatus::Failed);
+
+    logger::warn!(
+        external_vault_authentication_failed = true,
+        "External vault 3DS authentication failed; payment marked failed: {error_reason}"
+    );
+
+    Ok(ExternalVaultProxyPreAuthDecision::HaltWithAuthenticationFailure)
+}
+
+#[cfg(feature = "v1")]
 #[allow(clippy::too_many_arguments)]
 pub async fn external_vault_proxy_for_payments_core<F, Res, Req, Op, FData, D>(
     state: SessionState,
@@ -3555,15 +4527,12 @@ where
     Req: Debug + Authenticate + Clone,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
     Res: transformers::ToResponse<F, D, Op>,
-    // To create connector flow specific interface data
     D: ConstructFlowSpecificData<F, FData, router_types::PaymentsResponseData>,
     RouterData<F, FData, router_types::PaymentsResponseData>: Feature<F, FData>,
 
-    // To construct connector flow specific api
     dyn api::Connector:
         services::api::ConnectorIntegration<F, FData, router_types::PaymentsResponseData>,
 
-    // To perform router related operation for PaymentResponse
     PaymentResponse: Operation<F, FData, Data = D>,
 {
     let dimensions = Dimensions::new()
@@ -5150,28 +6119,92 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+        // Post-challenge authorize arrives via MerchantIdAuth, which builds platform with
+        // provider == processor == connected merchant. If this connected merchant belongs to a
+        // platform org, the external-vault config (and VGS MCA) lives on the platform merchant's
+        // profile. Reconstruct platform with provider = platform merchant so that
+        // resolve_provider_profile and the downstream vault MCA lookup both work correctly.
+        let platform = if platform.get_provider().get_account().get_id()
+            == platform.get_processor().get_account().get_id()
+        {
+            match services::authentication::get_platform_account_and_key_store(
+                state,
+                platform.get_processor().get_account(),
+            )
+            .await
+            {
+                Ok((platform_account, platform_key_store)) => {
+                    router_env::logger::info!(
+                        provider_merchant_id = %platform_account.get_id().get_string_repr(),
+                        processor_merchant_id = %platform.get_processor().get_account().get_id().get_string_repr(),
+                        "post_3ds_authorize: rebuilding platform with platform merchant as provider"
+                    );
+                    domain::Platform::new(
+                        platform_account,
+                        platform_key_store,
+                        platform.get_processor().get_account().clone(),
+                        platform.get_processor().get_key_store().clone(),
+                        platform.get_initiator().cloned(),
+                    )
+                }
+                // Not a connected merchant under a platform org — keep platform unchanged.
+                Err(_) => platform,
+            }
+        } else {
+            platform
+        };
+
         let authentication_id = payment_attempt
             .authentication_id
             .ok_or(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("missing authentication_id in payment_attempt")?;
         // Fetching merchant_connector_account to check if pull_mechanism is enabled for 3ds connector
+        let profile_id = payment_intent
+            .profile_id
+            .clone()
+            .ok_or(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("missing profile_id in payment_intent")?;
 
-        let authentication_merchant_connector_account = helpers::get_merchant_connector_account(
-            state,
-            platform.get_processor(),
-            None,
-            &payment_intent
-                .profile_id
-                .clone()
-                .ok_or(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("missing profile_id in payment_intent")?,
-            &payment_attempt
-                .authentication_connector
-                .ok_or(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("missing authentication connector in payment_intent")?,
-            None,
-        )
-        .await?;
+        let business_profile = state
+            .store
+            .find_business_profile_by_profile_id(
+                platform.get_processor().get_key_store(),
+                &profile_id,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::ProfileNotFound {
+                id: profile_id.get_string_repr().to_owned(),
+            })?;
+        let provider_business_profile =
+            helpers::resolve_provider_profile(state, &platform, &business_profile).await?;
+        let is_external_vault_payment = provider_business_profile
+            .external_vault_details
+            .is_external_vault_enabled()
+            && payment_attempt.payment_token.is_some();
+        let authentication_merchant_connector_account = if is_external_vault_payment {
+            resolve_external_vault_authentication_connector(
+                state,
+                platform.get_processor(),
+                &business_profile,
+            )
+            .await?
+            .1
+        } else {
+            helpers::get_merchant_connector_account(
+                state,
+                platform.get_processor(),
+                None,
+                &profile_id,
+                &payment_attempt
+                    .authentication_connector
+                    .clone()
+                    .ok_or(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("missing authentication connector in payment_intent")?,
+                None,
+            )
+            .await?
+        };
         let is_pull_mechanism_enabled =
             utils::check_if_pull_mechanism_for_external_3ds_enabled_from_connector_metadata(
                 authentication_merchant_connector_account
@@ -5201,10 +6234,74 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
                     })?;
                 authentication.authentication_type
             };
-        let response = if is_pull_mechanism_enabled
+        // For a challenge with pull=false the RRes webhook drives the authorize, so this call is
+        // status-only; frictionless (or pull=true) completes here.
+        let authorization_completes_in_this_call = is_pull_mechanism_enabled
             || payment_external_authentication_type
-                != Some(common_enums::DecoupledAuthenticationType::Challenge)
-        {
+                != Some(common_enums::DecoupledAuthenticationType::Challenge);
+
+        router_env::logger::info!(
+            is_external_vault_payment,
+            is_pull_mechanism_enabled,
+            ?payment_external_authentication_type,
+            authorization_completes_in_this_call,
+            "external 3DS authentication completion: selecting authorize path"
+        );
+
+        let response = if is_external_vault_payment && authorization_completes_in_this_call {
+            router_env::logger::info!(
+                "external 3DS authentication completion: branch=external_vault_proxy_authorize"
+            );
+            let payment_token = payment_attempt
+                .payment_token
+                .clone()
+                .get_required_value("payment_token")
+                .attach_printable(
+                    "payment_token missing on attempt for external vault 3DS authorize",
+                )?;
+            let external_vault_req = api::PaymentsRequest {
+                payment_id: Some(api_models::payments::PaymentIdType::PaymentIntentId(
+                    payment_intent.payment_id.clone(),
+                )),
+                merchant_id: req.merchant_id.clone(),
+                payment_token: Some(payment_token),
+                payment_method: Some(common_enums::PaymentMethod::Card),
+                // From the attempt: the resolved PM may not surface it for a connected PM (IR_04).
+                payment_method_type: payment_attempt.payment_method_type,
+                payment_method_data: Some(api_models::payments::PaymentMethodDataRequest {
+                    payment_method_data: Some(
+                        api_models::payments::PaymentMethodData::VaultCardTokenData(
+                            api_models::payments::VaultCardToken {
+                                card_holder_name: None,
+                                card_cvc: None,
+                            },
+                        ),
+                    ),
+                    billing: None,
+                }),
+                ..Default::default()
+            };
+            Box::pin(external_vault_proxy_for_payments_core::<
+                api::ExternalVaultProxy,
+                api::PaymentsResponse,
+                _,
+                _,
+                _,
+                PaymentData<api::ExternalVaultProxy>,
+            >(
+                state.clone(),
+                req_state,
+                platform.clone(),
+                payment_intent.profile_id.clone(),
+                PaymentExternalVaultProxyConfirm,
+                external_vault_req,
+                services::api::AuthFlow::Merchant,
+                CallConnectorAction::Trigger,
+                HeaderPayload::with_source(enums::PaymentSource::ExternalAuthenticator),
+                None,
+            ))
+            .await?
+        } else if authorization_completes_in_this_call {
             let payment_confirm_req = api::PaymentsRequest {
                 payment_id: Some(req.resource_id.clone()),
                 merchant_id: req.merchant_id.clone(),
@@ -5226,6 +6323,9 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
             };
             let is_setup_mandate = payment_intent.is_setup_mandate();
             if is_setup_mandate {
+                router_env::logger::info!(
+                    "external 3DS authentication completion: branch=redirect_authorize (setup_mandate)"
+                );
                 Box::pin(payments_core::<
                     api::SetupMandate,
                     api::PaymentsResponse,
@@ -5249,6 +6349,9 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
                 ))
                 .await?
             } else {
+                router_env::logger::info!(
+                    "external 3DS authentication completion: branch=redirect_authorize (authorize)"
+                );
                 Box::pin(payments_core::<
                     api::Authorize,
                     api::PaymentsResponse,
@@ -5273,11 +6376,14 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
                 .await?
             }
         } else {
+            router_env::logger::info!(
+                "external 3DS authentication completion: branch=status_sync_only (challenge pull=false, RRes webhook authorizes)"
+            );
             let payment_sync_req = api::PaymentsRetrieveRequest {
                 resource_id: req.resource_id,
                 merchant_id: req.merchant_id,
                 param: req.param,
-                force_sync: req.force_sync,
+                force_sync: !is_external_vault_payment && req.force_sync,
                 connector: req.connector,
                 merchant_connector_details: req.creds_identifier.map(|creds_id| {
                     api::MerchantConnectorDetailsWrap {
@@ -12680,6 +13786,450 @@ pub async fn payment_external_authentication(
 }
 
 #[cfg(feature = "v1")]
+#[allow(clippy::too_many_arguments)]
+async fn perform_external_vault_authentication_v1(
+    state: &SessionState,
+    platform: &domain::Platform,
+    payment_intent: &storage::PaymentIntent,
+    payment_attempt: &storage::PaymentAttempt,
+    business_profile: &domain::Profile,
+    amount: MinorUnit,
+    currency: storage_enums::Currency,
+    billing_address: Option<hyperswitch_domain_models::address::Address>,
+    optional_email: Option<pii::Email>,
+    header_payload: HeaderPayload,
+    device_channel: api_models::payments::DeviceChannel,
+    sdk_information: Option<api_models::payments::SdkInformation>,
+) -> RouterResult<authentication::AuthenticationResponse> {
+    use hyperswitch_domain_models::authentication::AuthenticationUpdate;
+
+    let processor = platform.get_processor();
+    let key_store = processor.get_key_store();
+    let key_manager_state = state.into();
+    let storage_scheme = processor.get_account().storage_scheme;
+    let processor_merchant_id = processor.get_account().get_id();
+
+    let payment_token = payment_attempt
+        .payment_token
+        .clone()
+        .get_required_value("payment_token")
+        .attach_printable("payment_token missing on attempt for external vault 3DS authenticate")?;
+    let payment_method = payment_attempt
+        .payment_method
+        .unwrap_or(common_enums::PaymentMethod::Card);
+    let external_vault_pmd = resolve_external_vault_alias_from_payment_token(
+        state,
+        platform,
+        business_profile,
+        payment_token,
+        payment_method,
+    )
+    .await?;
+
+    let provider_business_profile =
+        helpers::resolve_provider_profile(state, platform, business_profile).await?;
+    let external_vault_mca_id = provider_business_profile
+        .external_vault_details
+        .get_vault_connector_id()
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("external vault is not enabled for this business profile")?;
+    let external_vault_merchant_connector_account =
+        helpers::MerchantConnectorAccountType::DbVal(Box::new(
+            state
+                .store
+                .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+                    platform.get_provider().get_account().get_id(),
+                    &external_vault_mca_id,
+                    platform.get_provider().get_key_store(),
+                )
+                .await
+                .to_not_found_response(
+                    errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                        id: external_vault_mca_id.get_string_repr().to_string(),
+                    },
+                )?,
+        ));
+
+    let profile_id = business_profile.get_id();
+    let psp_connector_name = payment_attempt
+        .connector
+        .clone()
+        .get_required_value("connector")
+        .attach_printable("connector missing on attempt for external vault 3DS authenticate")?;
+    let psp_merchant_connector_account = helpers::get_merchant_connector_account(
+        state,
+        processor,
+        None,
+        profile_id,
+        psp_connector_name.as_str(),
+        payment_attempt.merchant_connector_id.as_ref(),
+    )
+    .await?;
+
+    let authentication_id = payment_attempt
+        .authentication_id
+        .clone()
+        .get_required_value("authentication_id")
+        .attach_printable(
+            "missing authentication_id on attempt for external vault 3DS authenticate",
+        )?;
+    let authentication = state
+        .store
+        .find_authentication_by_processor_merchant_id_authentication_id(
+            processor_merchant_id,
+            &authentication_id,
+            key_store,
+            &key_manager_state,
+            storage_scheme,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Error while fetching external vault authentication record")?;
+
+    // Build the Authenticate (AReq) router data with the persisted pre-auth result; authentication_data
+    // carries the negotiated 3DS handshake fields so the connector can resume.
+    let ucs_authentication_data =
+        hyperswitch_domain_models::router_request_types::UcsAuthenticationData {
+            eci: authentication.eci.clone(),
+            cavv: authentication.cavv.clone().map(Secret::new),
+            threeds_server_transaction_id: authentication.threeds_server_transaction_id.clone(),
+            message_version: authentication.message_version.clone(),
+            ds_trans_id: authentication.ds_trans_id.clone(),
+            acs_trans_id: authentication.acs_trans_id.clone(),
+            trans_status: authentication.trans_status.clone(),
+            transaction_id: authentication.connector_authentication_id.clone(),
+            ucaf_collection_indicator: None,
+        };
+
+    let browser_info: Option<BrowserInformation> = authentication
+        .browser_info
+        .clone()
+        .map(|browser_information| browser_information.parse_value("BrowserInformation"))
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InvalidDataValue {
+            field_name: "browser_info",
+        })?;
+
+    let authenticate_request_data = router_types::PaymentsAuthenticateData {
+        payment_method_data: None,
+        payment_method_type: payment_attempt.payment_method_type,
+        amount: Some(amount.get_amount_as_i64()),
+        minor_amount: Some(amount),
+        email: optional_email,
+        currency: Some(currency),
+        complete_authorize_url: None,
+        browser_info,
+        redirect_response: None,
+        capture_method: payment_attempt.capture_method,
+        authentication_data: Some(ucs_authentication_data),
+        sdk_information,
+        device_channel: Some(device_channel),
+    };
+
+    let payment_address = PaymentAddress::new(None, billing_address, None, None);
+
+    let (auth_connector_enum, auth_merchant_connector_account) =
+        resolve_external_vault_authentication_connector(state, processor, business_profile).await?;
+
+    let authenticate_router_data: RouterData<
+        api::Authenticate,
+        router_types::PaymentsAuthenticateData,
+        router_types::PaymentsResponseData,
+    > = authentication_core::transformers::construct_router_data(
+        state,
+        auth_connector_enum.to_string(),
+        payment_method,
+        business_profile.merchant_id.clone(),
+        payment_address,
+        authenticate_request_data,
+        &auth_merchant_connector_account,
+        payment_intent.psd2_sca_exemption_type,
+        payment_intent.payment_id.clone(),
+    )?;
+
+    let (execution_path, updated_state) = should_call_unified_connector_service(
+        state,
+        processor,
+        &authenticate_router_data,
+        None,
+        CallConnectorAction::Trigger,
+        None,
+        common_enums::TransactionType::Payment,
+    )
+    .await?;
+    let execution_mode = match execution_path {
+        ExecutionPath::UnifiedConnectorService => ExecutionMode::Primary,
+        ExecutionPath::ShadowUnifiedConnectorService => ExecutionMode::Shadow,
+        ExecutionPath::Direct => Err(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable(
+                "UCS is not enabled for this connector; external vault 3DS authenticate over UCS is unavailable",
+            )?,
+    };
+
+    let lineage_ids = grpc_client::LineageIds::new(
+        business_profile.merchant_id.clone(),
+        business_profile.get_id().clone(),
+    );
+
+    let netcetera_notification_url = Some(common_utils::types::Url::wrap(
+        url::Url::parse(&helpers::create_authorize_url(
+            &state.base_url,
+            payment_attempt,
+            &psp_connector_name,
+        ))
+        .change_context(errors::ApiErrorResponse::InternalServerError)?,
+    ));
+
+    let netcetera_acquirer_metadata =
+        psp_merchant_connector_account
+            .get_metadata()
+            .and_then(|metadata| {
+                let value = metadata.expose();
+                let obj = value.as_object()?;
+                let acquirer: serde_json::Map<String, serde_json::Value> = [
+                    "acquirer_bin",
+                    "acquirer_merchant_id",
+                    "acquirer_country_code",
+                ]
+                .into_iter()
+                .filter_map(|key| obj.get(key).map(|val| (key.to_string(), val.clone())))
+                .collect();
+                (!acquirer.is_empty()).then_some(serde_json::Value::Object(acquirer))
+            });
+
+    let authenticate_router_data =
+        flows::authorize_flow::call_unified_connector_service_authenticate_for_external_proxy(
+            &authenticate_router_data,
+            &external_vault_pmd,
+            &updated_state,
+            &header_payload,
+            lineage_ids,
+            auth_merchant_connector_account,
+            external_vault_merchant_connector_account,
+            processor,
+            execution_mode,
+            // Resolve the challenge preference the same way normal payments do: per-payment
+            // `force_3ds_challenge` from the intent, falling back to the business-profile default.
+            Some(
+                payment_intent
+                    .force_3ds_challenge
+                    .unwrap_or(business_profile.force_3ds_challenge),
+            ),
+            netcetera_notification_url,
+            netcetera_acquirer_metadata,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to call UCS authenticate for external vault proxy")?;
+
+    let (areq_authentication_data, redirection_data, areq_error_message, connector_metadata) =
+        match &authenticate_router_data.response {
+            Ok(router_types::PaymentsResponseData::TransactionResponse {
+                authentication_data,
+                redirection_data,
+                connector_metadata,
+                ..
+            }) => (
+                authentication_data.clone().map(|boxed| *boxed),
+                (**redirection_data).clone(),
+                None,
+                connector_metadata.clone(),
+            ),
+            Ok(_) => (None, None, None, None),
+            Err(err) => (None, None, Some(err.message.clone()), None),
+        };
+
+    #[derive(serde::Deserialize)]
+    struct AppChallengeAcsMetadata {
+        acs_signed_content: Option<String>,
+        acs_reference_number: Option<String>,
+        acs_trans_id: Option<String>,
+    }
+    let app_acs = connector_metadata
+        .as_ref()
+        .and_then(|m| serde_json::from_value::<AppChallengeAcsMetadata>(m.clone()).ok());
+
+    let (acs_url, challenge_request, acs_signed_content, acs_reference_number, form_acs_trans_id) =
+        match &redirection_data {
+            Some(services::RedirectForm::Form {
+                endpoint,
+                form_fields,
+                ..
+            }) => (
+                Some(endpoint.clone()),
+                form_fields
+                    .get(consts::CREQ_CHALLENGE_REQUEST_KEY)
+                    .or_else(|| form_fields.get("creq"))
+                    .cloned(),
+                form_fields.get("acsSignedContent").cloned(),
+                form_fields.get("acsReferenceNumber").cloned(),
+                form_fields.get("acsTransID").cloned(),
+            ),
+            _ => (None, None, None, None, None),
+        };
+    let acs_signed_content =
+        acs_signed_content.or_else(|| app_acs.as_ref().and_then(|m| m.acs_signed_content.clone()));
+    let acs_reference_number = acs_reference_number.or_else(|| {
+        app_acs
+            .as_ref()
+            .and_then(|m| m.acs_reference_number.clone())
+    });
+
+    let trans_status = areq_authentication_data
+        .as_ref()
+        .and_then(|data| data.trans_status.clone())
+        .unwrap_or_else(|| {
+            if acs_url.is_some() || acs_signed_content.is_some() {
+                common_enums::TransactionStatus::ChallengeRequired
+            } else {
+                common_enums::TransactionStatus::VerificationNotPerformed
+            }
+        });
+    let acs_trans_id = areq_authentication_data
+        .as_ref()
+        .and_then(|data| data.acs_trans_id.clone())
+        .or(form_acs_trans_id)
+        .or_else(|| app_acs.as_ref().and_then(|m| m.acs_trans_id.clone()));
+    let eci = areq_authentication_data
+        .as_ref()
+        .and_then(|data| data.eci.clone());
+    let ds_trans_id = areq_authentication_data
+        .as_ref()
+        .and_then(|data| data.ds_trans_id.clone());
+    let three_ds_server_transaction_id = areq_authentication_data
+        .as_ref()
+        .and_then(|data| data.threeds_server_transaction_id.clone())
+        .or_else(|| authentication.threeds_server_transaction_id.clone());
+
+    // Frictionless authentications (trans_status Y) carry the cavv in the ARes. The `cavv` DB column
+    // is only writable at creation, so vault the cavv (encrypted, keyed by authentication_id) after
+    // the update below — the same store the challenge RRes webhook uses — instead of stashing it
+    // plaintext in `connector_metadata`. The resume reads it back from the vault.
+    let areq_cavv = areq_authentication_data
+        .as_ref()
+        .and_then(|data| data.cavv.as_ref().map(|cavv| cavv.peek().clone()));
+
+    let authentication_type = match trans_status {
+        common_enums::TransactionStatus::ChallengeRequired
+        | common_enums::TransactionStatus::ChallengeRequiredDecoupledAuthentication => {
+            common_enums::DecoupledAuthenticationType::Challenge
+        }
+        _ => common_enums::DecoupledAuthenticationType::Frictionless,
+    };
+    let authentication_status = match trans_status {
+        common_enums::TransactionStatus::Success => common_enums::AuthenticationStatus::Success,
+        common_enums::TransactionStatus::Failure
+        | common_enums::TransactionStatus::Rejected
+        | common_enums::TransactionStatus::VerificationNotPerformed
+        | common_enums::TransactionStatus::NotVerified => {
+            common_enums::AuthenticationStatus::Failed
+        }
+        common_enums::TransactionStatus::ChallengeRequired
+        | common_enums::TransactionStatus::ChallengeRequiredDecoupledAuthentication
+        | common_enums::TransactionStatus::InformationOnly => {
+            common_enums::AuthenticationStatus::Pending
+        }
+    };
+
+    let authentication_update = AuthenticationUpdate::AuthenticationUpdate {
+        trans_status: trans_status.clone(),
+        authentication_type,
+        acs_url: acs_url.clone(),
+        challenge_request: challenge_request.clone(),
+        acs_reference_number: acs_reference_number.clone(),
+        acs_trans_id: acs_trans_id.clone(),
+        acs_signed_content: acs_signed_content.clone(),
+        // cavv is vaulted (encrypted) below, not stashed here.
+        connector_metadata: None,
+        authentication_status,
+        ds_trans_id,
+        eci,
+        challenge_code: None,
+        challenge_cancel: None,
+        challenge_code_reason: None,
+        message_extension: None,
+        challenge_request_key: None,
+        device_type: None,
+        device_brand: None,
+        device_os: None,
+        device_display: None,
+        updated_by: storage_scheme.to_string(),
+    };
+    let authentication = state
+        .store
+        .update_authentication_by_processor_merchant_id_authentication_id(
+            authentication,
+            authentication_update,
+            key_store,
+            &key_manager_state,
+            storage_scheme,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to update external vault authentication record")?;
+
+    // Vault the frictionless cavv (encrypted, keyed by authentication_id) so the post-authenticate
+    // resume reads it back from the vault — the same store/key the challenge RRes webhook uses. This
+    // keeps the cavv out of plaintext DB columns / connector_metadata. (Challenge AReqs have no cavv
+    // yet; it arrives on the RRes and is vaulted by the external-authentication webhook flow.)
+    if let Some(cavv) = areq_cavv {
+        vault::create_tokenize_without_configurable_expiry(
+            state,
+            cavv,
+            None,
+            authentication_id.get_string_repr().to_string(),
+            key_store.key.get_inner(),
+        )
+        .await
+        .attach_printable(
+            "Failed to vault frictionless cavv for external vault 3DS authenticate",
+        )?;
+    }
+
+    let attempt_update = storage::PaymentAttemptUpdate::AuthenticationUpdate {
+        status: payment_attempt.status,
+        external_three_ds_authentication_attempted: Some(true),
+        external_threeds_authentication_type: Some(authentication_type),
+        authentication_connector: authentication.authentication_connector.clone(),
+        authentication_id: Some(authentication_id),
+        payment_method: None,
+        payment_method_type: None,
+        updated_by: storage_scheme.to_string(),
+    };
+    state
+        .store
+        .update_payment_attempt_with_attempt_id(
+            payment_attempt.clone(),
+            attempt_update,
+            storage_scheme,
+            key_store,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
+        .attach_printable(
+            "Error while updating the payment_attempt for external vault authenticate",
+        )?;
+
+    let acs_url = acs_url
+        .map(|url| url::Url::from_str(&url))
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("acs_url returned by UCS authenticate is not a valid URL")?;
+
+    Ok(authentication::AuthenticationResponse {
+        trans_status,
+        acs_url,
+        challenge_request,
+        acs_reference_number,
+        acs_trans_id,
+        three_dsserver_trans_id: three_ds_server_transaction_id,
+        acs_signed_content,
+        challenge_request_key: None,
+        error_message: areq_error_message,
+    })
+}
+
+#[cfg(feature = "v1")]
 #[instrument(skip_all)]
 pub async fn payment_external_authentication<F: Clone + Sync>(
     state: SessionState,
@@ -12775,21 +14325,6 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
         storage_scheme,
     )
     .await?;
-    let authentication_connector = payment_attempt
-        .authentication_connector
-        .clone()
-        .ok_or(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("authentication_connector not found in payment_attempt")?;
-    let merchant_connector_account = helpers::get_merchant_connector_account(
-        &state,
-        platform.get_processor(),
-        None,
-        profile_id,
-        authentication_connector.as_str(),
-        None,
-    )
-    .await?;
-
     let business_profile = state
         .store
         .find_business_profile_by_profile_id(platform.get_processor().get_key_store(), profile_id)
@@ -12798,16 +14333,50 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
             id: profile_id.get_string_repr().to_owned(),
         })?;
 
-    let payment_method_details = helpers::get_payment_method_details_from_payment_token(
-        &state,
-        &payment_attempt,
-        &payment_intent,
-        &platform,
-        storage_scheme,
-    )
-    .await?
-    .ok_or(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("missing payment_method_details")?;
+    let provider_business_profile =
+        helpers::resolve_provider_profile(&state, &platform, &business_profile).await?;
+    let is_external_vault_payment = provider_business_profile
+        .external_vault_details
+        .is_external_vault_enabled()
+        && payment_attempt.payment_token.is_some();
+
+    let authentication_connector = payment_attempt
+        .authentication_connector
+        .clone()
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("authentication_connector not found in payment_attempt")?;
+    let merchant_connector_account = if is_external_vault_payment {
+        resolve_external_vault_authentication_connector(
+            &state,
+            platform.get_processor(),
+            &business_profile,
+        )
+        .await?
+        .1
+    } else {
+        helpers::get_merchant_connector_account(
+            &state,
+            platform.get_processor(),
+            None,
+            profile_id,
+            authentication_connector.as_str(),
+            None,
+        )
+        .await?
+    };
+
+    let payment_method_details = if is_external_vault_payment {
+        None
+    } else {
+        helpers::get_payment_method_details_from_payment_token(
+            &state,
+            &payment_attempt,
+            &payment_intent,
+            &platform,
+            storage_scheme,
+        )
+        .await?
+    };
     let browser_info: Option<BrowserInformation> = payment_attempt
         .browser_info
         .clone()
@@ -12843,66 +14412,81 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
         .clone()
         .get_required_value("authentication_connector_details")
         .attach_printable("authentication_connector_details not configured by the merchant")?;
-    let authentication_response =
-        if helpers::is_merchant_eligible_authentication_service(platform.get_processor(), &state)
-            .await?
+
+    // `is_external_vault_payment` was resolved above (before the MCA lookup), because the
+    // external-vault path needs the real authentication-connector MCA rather than the
+    // `unified_authentication_service` placeholder recorded on the attempt.
+    let authentication_response = if is_external_vault_payment {
+        Box::pin(perform_external_vault_authentication_v1(
+            &state,
+            &platform,
+            &payment_intent,
+            &payment_attempt,
+            &business_profile,
+            amount,
+            currency,
+            billing_address.as_ref().map(|address| address.into()),
+            optional_customer
+                .as_ref()
+                .and_then(|customer| customer.email.clone().map(pii::Email::from)),
+            HeaderPayload::default(),
+            req.device_channel,
+            req.sdk_information.clone(),
+        ))
+        .await?
+    } else if helpers::is_merchant_eligible_authentication_service(platform.get_processor(), &state)
+        .await?
+    {
+        let authentication_id = payment_attempt
+            .authentication_id
+            .clone()
+            .ok_or(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("missing authentication_id in payment_attempt")?;
+
+        let authenticate_req = api_models::authentication::AuthenticationAuthenticateRequest {
+            authentication_id: authentication_id.clone(),
+            client_secret: None,
+            sdk_information: req.sdk_information.clone(),
+            device_channel: req.device_channel,
+            threeds_method_comp_ind: req.threeds_method_comp_ind,
+        };
+        // If micro service is enabled we do api call else do internal function call
+        let response = if let Some(auth_config) = &state.conf.micro_services.authentication_service
         {
-            let authentication_id = payment_attempt
-                .authentication_id
-                .clone()
-                .ok_or(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("missing authentication_id in payment_attempt")?;
+            let req_identifier = router_env::RequestIdentifier::new("x-request-id");
+            let client = crate::core::authentication_client::AuthenticationServiceClient::new(
+                auth_config,
+                &req_identifier,
+            )
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to create auth client")?;
 
-            let authenticate_req = api_models::authentication::AuthenticationAuthenticateRequest {
-                authentication_id: authentication_id.clone(),
-                client_secret: None,
-                sdk_information: req.sdk_information.clone(),
-                device_channel: req.device_channel,
-                threeds_method_comp_ind: req.threeds_method_comp_ind,
-            };
-            // If micro service is enabled we do api call else do internal function call
-            let response = if let Some(auth_config) =
-                &state.conf.micro_services.authentication_service
-            {
-                let req_identifier = router_env::RequestIdentifier::new("x-request-id");
-                let client = crate::core::authentication_client::AuthenticationServiceClient::new(
-                    auth_config,
-                    &req_identifier,
-                )
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to create auth client")?;
+            crate::core::authentication_client::AuthenticationAuthenticateFlow::call(
+                &state,
+                &client,
+                authenticate_req,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to call authentication authenticate flow")?
+        } else {
+            crate::core::unified_authentication_service::authentication_authenticate_core(
+                state.clone(),
+                platform.clone(),
+                authenticate_req,
+                services::api::AuthFlow::Client,
+            )
+            .await?
+            .get_json_body()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to get json body from authentication authenticate response")?
+        };
 
-                crate::core::authentication_client::AuthenticationAuthenticateFlow::call(
-                    &state,
-                    &client,
-                    authenticate_req,
-                )
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to call authentication authenticate flow")?
-            } else {
-                crate::core::unified_authentication_service::authentication_authenticate_core(
-                    state.clone(),
-                    platform.clone(),
-                    authenticate_req,
-                    services::api::AuthFlow::Client,
-                )
-                .await?
-                .get_json_body()
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable(
-                    "Failed to get json body from authentication authenticate response",
-                )?
-            };
-
-            let attempt_update = storage::PaymentAttemptUpdate::AuthenticationUpdate {
-                status: payment_attempt.status,
-                external_three_ds_authentication_attempted: Some(true),
-                external_threeds_authentication_type: response
-                    .transaction_status
-                    .as_ref()
-                    .and_then(|transaction_status| {
-                        match transaction_status {
+        let attempt_update = storage::PaymentAttemptUpdate::AuthenticationUpdate {
+            status: payment_attempt.status,
+            external_three_ds_authentication_attempted: Some(true),
+            external_threeds_authentication_type: response.transaction_status.as_ref().and_then(
+                |transaction_status| match transaction_status {
                     common_enums::TransactionStatus::ChallengeRequired
                     | common_enums::TransactionStatus::ChallengeRequiredDecoupledAuthentication => {
                         Some(common_enums::DecoupledAuthenticationType::Challenge)
@@ -12911,86 +14495,93 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
                         Some(common_enums::DecoupledAuthenticationType::Frictionless)
                     }
                     _ => None,
-                }
-                    }),
-                authentication_connector: response.authentication_connector.map(|c| c.to_string()),
-                authentication_id: Some(response.authentication_id.clone()),
-                updated_by: storage_scheme.to_string(),
-            };
+                },
+            ),
+            authentication_connector: response.authentication_connector.map(|c| c.to_string()),
+            authentication_id: Some(response.authentication_id.clone()),
+            payment_method: None,
+            payment_method_type: None,
+            updated_by: storage_scheme.to_string(),
+        };
 
-            db.update_payment_attempt_with_attempt_id(
-                payment_attempt.clone(),
-                attempt_update,
-                storage_scheme,
+        db.update_payment_attempt_with_attempt_id(
+            payment_attempt.clone(),
+            attempt_update,
+            storage_scheme,
+            platform.get_processor().get_key_store(),
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
+        .attach_printable("Error while updating the payment_attempt")?;
+
+        authentication::AuthenticationResponse {
+            trans_status: response
+                .transaction_status
+                .unwrap_or(common_enums::TransactionStatus::VerificationNotPerformed),
+            acs_url: response.acs_url,
+            challenge_request: response.challenge_request,
+            acs_reference_number: response.acs_reference_number,
+            acs_trans_id: response.acs_trans_id,
+            three_dsserver_trans_id: response.three_ds_server_transaction_id,
+            acs_signed_content: response.acs_signed_content,
+            challenge_request_key: None,
+            error_message: response.error_message,
+        }
+    } else {
+        let authentication = db
+            .find_authentication_by_processor_merchant_id_authentication_id(
+                processor_merchant_id,
+                &payment_attempt
+                    .authentication_id
+                    .clone()
+                    .ok_or(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("missing authentication_id in payment_attempt")?,
                 platform.get_processor().get_key_store(),
+                key_manager_state,
+                storage_scheme,
             )
             .await
-            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
-            .attach_printable("Error while updating the payment_attempt")?;
-
-            authentication::AuthenticationResponse {
-                trans_status: response
-                    .transaction_status
-                    .unwrap_or(common_enums::TransactionStatus::VerificationNotPerformed),
-                acs_url: response.acs_url,
-                challenge_request: response.challenge_request,
-                acs_reference_number: response.acs_reference_number,
-                acs_trans_id: response.acs_trans_id,
-                three_dsserver_trans_id: response.three_ds_server_transaction_id,
-                acs_signed_content: response.acs_signed_content,
-                challenge_request_key: None,
-                error_message: response.error_message,
-            }
-        } else {
-            let authentication = db
-                .find_authentication_by_processor_merchant_id_authentication_id(
-                    processor_merchant_id,
-                    &payment_attempt
-                        .authentication_id
-                        .clone()
-                        .ok_or(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("missing authentication_id in payment_attempt")?,
-                    platform.get_processor().get_key_store(),
-                    key_manager_state,
-                    storage_scheme,
-                )
-                .await
-                .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Error while fetching authentication record")?;
-            Box::pin(authentication_core::perform_authentication(
-                &state,
-                business_profile.merchant_id,
-                authentication_connector,
-                payment_method_details.0,
-                payment_method_details.1,
-                billing_address
-                    .as_ref()
-                    .map(|address| address.into())
-                    .ok_or(errors::ApiErrorResponse::MissingRequiredField {
-                        field_name: "billing_address",
-                    })?,
-                shipping_address.as_ref().map(|address| address.into()),
-                browser_info,
-                merchant_connector_account,
-                Some(amount),
-                Some(currency),
-                authentication::MessageCategory::Payment,
-                req.device_channel,
-                authentication,
-                return_url,
-                req.sdk_information,
-                req.threeds_method_comp_ind,
-                optional_customer.and_then(|customer| customer.email.map(pii::Email::from)),
-                webhook_url,
-                authentication_details.three_ds_requestor_url.clone(),
-                payment_intent.psd2_sca_exemption_type,
-                payment_intent.payment_id,
-                payment_intent.force_3ds_challenge_trigger.unwrap_or(false),
-                platform.get_processor().get_key_store(),
-                storage_scheme,
-            ))
-            .await?
-        };
+            .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Error while fetching authentication record")?;
+        let payment_method_details = payment_method_details
+            .ok_or(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable(
+                "payment_method_details missing for the legacy authentication path",
+            )?;
+        Box::pin(authentication_core::perform_authentication(
+            &state,
+            business_profile.merchant_id,
+            authentication_connector,
+            payment_method_details.0,
+            payment_method_details.1,
+            billing_address
+                .as_ref()
+                .map(|address| address.into())
+                .ok_or(errors::ApiErrorResponse::MissingRequiredField {
+                    field_name: "billing_address",
+                })?,
+            shipping_address.as_ref().map(|address| address.into()),
+            browser_info,
+            merchant_connector_account,
+            Some(amount),
+            Some(currency),
+            authentication::MessageCategory::Payment,
+            req.device_channel,
+            authentication,
+            return_url,
+            req.sdk_information,
+            req.threeds_method_comp_ind,
+            optional_customer.and_then(|customer| customer.email.map(pii::Email::from)),
+            webhook_url,
+            authentication_details.three_ds_requestor_url.clone(),
+            payment_intent.psd2_sca_exemption_type,
+            payment_intent.payment_id,
+            payment_intent.force_3ds_challenge_trigger.unwrap_or(false),
+            platform.get_processor().get_key_store(),
+            storage_scheme,
+        ))
+        .await?
+    };
     Ok(services::ApplicationResponse::Json(
         api_models::payments::PaymentsExternalAuthenticationResponse {
             transaction_status: authentication_response.trans_status,
@@ -14413,6 +16004,16 @@ pub trait OperationSessionSetters<F> {
             hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData,
         >,
     );
+    // Set the orchestrated 3DS authentication record (carries CAVV/ECI). Used by the
+    // external-vault proxy UCS pre-authenticate (frictionless) path. No-op on the v2 data
+    // types, which do not yet carry an `authentication` field.
+    fn set_authentication(
+        &mut self,
+        _authentication: Option<
+            hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore,
+        >,
+    ) {
+    }
 }
 
 #[cfg(feature = "v1")]
@@ -14790,6 +16391,15 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentData<F> {
         >,
     ) {
         self.external_vault_pmd = external_vault_pmd;
+    }
+
+    fn set_authentication(
+        &mut self,
+        authentication: Option<
+            hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore,
+        >,
+    ) {
+        self.authentication = authentication;
     }
 }
 

@@ -193,7 +193,9 @@ pub enum ConnectorSpecificConfig {
         disable_cvn: Option<bool>,
     },
     /// Stripe connector configuration
-    Stripe { api_key: Secret<String> },
+    Stripe {
+        api_key: Secret<String>,
+    },
     /// PayPal connector configuration
     Paypal {
         client_id: Secret<String>,
@@ -210,7 +212,9 @@ pub enum ConnectorSpecificConfig {
         kid: Option<Secret<String>>,
     },
     /// Revolv3 connector configuration
-    Revolv3 { api_key: Secret<String> },
+    Revolv3 {
+        api_key: Secret<String>,
+    },
     /// Payconex connector configuration
     Payconex {
         api_key: Secret<String>,
@@ -287,7 +291,9 @@ pub enum ConnectorSpecificConfig {
         api_secret: Option<Secret<String>>,
     },
     /// Shift4 connector configuration
-    Shift4 { api_key: Secret<String> },
+    Shift4 {
+        api_key: Secret<String>,
+    },
     /// Globalpay connector configuration
     Globalpay {
         app_id: Secret<String>,
@@ -329,7 +335,9 @@ pub enum ConnectorSpecificConfig {
         profile_token: Option<Secret<String>>,
     },
     /// Multisafepay connector configuration
-    Multisafepay { api_key: Secret<String> },
+    Multisafepay {
+        api_key: Secret<String>,
+    },
     /// Rapyd connector configuration
     Rapyd {
         access_key: Secret<String>,
@@ -360,9 +368,13 @@ pub enum ConnectorSpecificConfig {
         auth_key_map: HashMap<Currency, common_utils::pii::SecretSerdeValue>,
     },
     /// Xendit connector configuration
-    Xendit { api_key: Secret<String> },
+    Xendit {
+        api_key: Secret<String>,
+    },
     /// Helcim connector configuration
-    Helcim { api_key: Secret<String> },
+    Helcim {
+        api_key: Secret<String>,
+    },
     /// Airwallex connector configuration
     Airwallex {
         api_key: Secret<String>,
@@ -537,13 +549,21 @@ pub enum ConnectorSpecificConfig {
         api_secret: Secret<String>,
     },
     /// Nexixpay connector configuration
-    Nexixpay { api_key: Secret<String> },
+    Nexixpay {
+        api_key: Secret<String>,
+    },
     /// Calida connector configuration
-    Calida { api_key: Secret<String> },
+    Calida {
+        api_key: Secret<String>,
+    },
     /// Celero connector configuration
-    Celero { api_key: Secret<String> },
+    Celero {
+        api_key: Secret<String>,
+    },
     /// Stax connector configuration
-    Stax { api_key: Secret<String> },
+    Stax {
+        api_key: Secret<String>,
+    },
     /// Silverflow connector configuration
     Silverflow {
         api_key: Secret<String>,
@@ -610,6 +630,7 @@ pub enum ConnectorSpecificConfig {
         api_key: Secret<String>,
         base_url: Option<String>,
     },
+    Netcetera,
 }
 
 impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
@@ -1574,6 +1595,7 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                 }),
                 _ => Err(err("Interpayments requires HeaderKey auth type")),
             },
+            Connector::Netcetera => Ok(Self::Netcetera),
             // --- Unsupported connectors ---
             _ => Err(
                 error_stack::report!(errors::ApiErrorResponse::InternalServerError)

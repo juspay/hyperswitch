@@ -136,7 +136,7 @@ pub async fn perform_post_authentication(
     let authentication = state
         .store
         .find_authentication_by_processor_merchant_id_authentication_id(
-            &business_profile.merchant_id,
+            processor.get_account().get_id(),
             &authentication_id,
             processor.get_key_store(),
             key_state,

@@ -893,7 +893,16 @@ pub async fn construct_external_vault_proxy_payment_router_data_v1<'a>(
             Some(RequestIncrementalAuthorization::True)
         ),
         metadata: payment_data.payment_intent.metadata.clone(),
-        authentication_data: None,
+        authentication_data: payment_data
+            .authentication
+            .as_ref()
+            .map(AuthenticationData::foreign_try_from)
+            .transpose()?
+            .or(payment_data
+                .external_authentication_data
+                .as_ref()
+                .map(AuthenticationData::foreign_try_from)
+                .transpose()?),
         customer_acceptance: payment_data.customer_acceptance,
         split_payments: None,
         merchant_order_reference_id: None,
