@@ -291,7 +291,6 @@ pub struct NetceteraMetaData {
     pub mcc: Option<String>,
     pub merchant_country_code: Option<String>,
     pub merchant_name: Option<String>,
-    pub endpoint_prefix: String,
     pub three_ds_requestor_name: Option<String>,
     pub three_ds_requestor_id: Option<String>,
     pub merchant_configuration_id: Option<String>,

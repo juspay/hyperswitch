@@ -1279,11 +1279,12 @@ impl ConnectorSpecifications for Nordea {
             ),
             api::CurrentFlowInfo::CompleteAuthorize { .. } => false,
             api::CurrentFlowInfo::SetupMandate { .. } => false,
-            api::CurrentFlowInfo::Psync { .. } | api::CurrentFlowInfo::UpdatePostConfirm { .. } => {
-                false
-            }
+            api::CurrentFlowInfo::Psync { .. }
+            | api::CurrentFlowInfo::UpdatePostConfirm { .. }
+            | api::CurrentFlowInfo::ConnectorWebhookRegister { .. } => false,
         }
     }
+
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
         Some(&*NORDEA_CONNECTOR_INFO)
     }

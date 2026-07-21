@@ -85,6 +85,10 @@ pub struct Settings<S: SecretState> {
     pub chat: SecretStateContainer<ChatSettings, S>,
     pub sage: SecretStateContainer<SageSettings, S>,
     pub master_database: SecretStateContainer<Database, S>,
+    /// Falls back to `master_database` when not configured.
+    pub accounts_database: Option<SecretStateContainer<Database, S>>,
+    /// Falls back to `master_database` when not configured.
+    pub global_database: Option<SecretStateContainer<Database, S>>,
     #[cfg(feature = "olap")]
     pub replica_database: SecretStateContainer<Database, S>,
     pub redis: RedisSettings,
@@ -491,6 +495,8 @@ impl TenantConfig {
                 &event_handler,
                 conf,
                 tenant,
+                conf.master_database.clone().into_inner(),
+                conf.accounts_database_config(),
                 cache_store.clone(),
                 testable,
             ))
@@ -524,6 +530,8 @@ impl TenantConfig {
                 &event_handler,
                 conf,
                 tenant,
+                conf.master_database.clone().into_inner(),
+                conf.accounts_database_config(),
                 cache_store.clone(),
                 testable,
             ))
@@ -1387,6 +1395,12 @@ impl Settings<SecuredSecret> {
     pub fn validate(&self) -> ApplicationResult<()> {
         self.server.validate()?;
         self.master_database.get_inner().validate()?;
+        if let Some(accounts_database) = &self.accounts_database {
+            accounts_database.get_inner().validate()?;
+        }
+        if let Some(global_database) = &self.global_database {
+            global_database.get_inner().validate()?;
+        }
         #[cfg(feature = "olap")]
         self.replica_database.get_inner().validate()?;
 
@@ -1512,6 +1526,24 @@ impl Settings<RawSecret> {
     #[cfg(not(feature = "kv_store"))]
     pub fn is_kv_soft_kill_mode(&self) -> bool {
         false
+    }
+
+    /// Returns the accounts database config, falling back to `master_database` if
+    /// `accounts_database` is not configured.
+    pub fn accounts_database_config(&self) -> Database {
+        self.accounts_database
+            .clone()
+            .map(SecretStateContainer::into_inner)
+            .unwrap_or_else(|| self.master_database.clone().into_inner())
+    }
+
+    /// Returns the global database config, falling back to `master_database` if
+    /// `global_database` is not configured.
+    pub fn global_database_config(&self) -> Database {
+        self.global_database
+            .clone()
+            .map(SecretStateContainer::into_inner)
+            .unwrap_or_else(|| self.master_database.clone().into_inner())
     }
 }
 
