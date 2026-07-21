@@ -17,9 +17,12 @@ use common_utils::{
 };
 use diesel_models::types::FeatureMetadata;
 use error_stack::ResultExt;
-use external_services::grpc_client::{
-    unified_connector_service::{ConnectorAuthMetadata, UnifiedConnectorServiceError},
-    LineageIds,
+use external_services::{
+    grpc_client::{
+        unified_connector_service::{ConnectorAuthMetadata, UnifiedConnectorServiceError},
+        LineageIds,
+    },
+    superposition,
 };
 use hyperswitch_connectors::utils::CardData;
 #[cfg(feature = "v2")]
@@ -46,7 +49,7 @@ use crate::{
         errors::{self, RouterResult},
         payments::{
             helpers::{
-                is_ucs_enabled, should_execute_based_on_rollout,
+                get_ucs_enabled_mode, should_execute_based_on_rollout,
                 should_execute_based_on_rollout_with_precedence, MerchantConnectorAccountType,
                 ProxyOverride, WebhookRolloutConfig, WebhookRolloutExecutionResult,
             },
@@ -236,22 +239,26 @@ type UnifiedConnectorServiceCreateOrderResult = CustomResult<
 async fn check_ucs_availability(state: &SessionState) -> UcsAvailability {
     let is_client_available = state.grpc_client.unified_connector_service_client.is_some();
 
-    let is_enabled = is_ucs_enabled(state, consts::UCS_ENABLED).await;
+    let ucs_mode = get_ucs_enabled_mode(state, consts::UCS_ENABLED).await;
 
-    match (is_client_available, is_enabled) {
-        (true, true) => {
+    match (is_client_available, &ucs_mode) {
+        (true, UcsAvailability::Enabled) => {
             router_env::logger::debug!("UCS is available and enabled");
             UcsAvailability::Enabled
         }
+        (true, UcsAvailability::ShadowKilled) => {
+            router_env::logger::debug!("UCS is available but shadow is killed");
+            UcsAvailability::ShadowKilled
+        }
         _ => {
             router_env::logger::debug!(
-                "UCS client is {} and UCS is {} in configuration",
+                "UCS client is {} and UCS mode is {:?} in configuration",
                 if is_client_available {
                     "available"
                 } else {
                     "not available"
                 },
-                if is_enabled { "enabled" } else { "not enabled" }
+                ucs_mode
             );
             UcsAvailability::Disabled
         }
@@ -318,11 +325,11 @@ where
     // Check UCS availability using idiomatic helper
     let ucs_availability = check_ucs_availability(state).await;
 
-    // Build rollout keys in ascending precedence order.
+    // Build rollout keys and superposition context in ascending precedence order.
     // Payments use org-level hierarchy; payouts use a single merchant-level key for now.
-    let rollout_keys = match transaction_type {
+    let (rollout_keys, superposition_context) = match transaction_type {
         common_enums::TransactionType::Payment
-        | common_enums::TransactionType::ThreeDsAuthentication => build_rollout_keys(
+        | common_enums::TransactionType::ThreeDsAuthentication => build_rollout_keys_and_context(
             org_id,
             merchant_id,
             connector_name,
@@ -330,7 +337,7 @@ where
             router_data.payment_method,
             router_data.payment_method_type,
         ),
-        common_enums::TransactionType::Payout => build_rollout_keys_for_payouts(
+        common_enums::TransactionType::Payout => build_rollout_keys_and_context_for_payouts(
             merchant_id,
             connector_name,
             &flow_name,
@@ -343,8 +350,13 @@ where
         determine_connector_integration_type(state, connector_enum).await?;
 
     // Try keys highest → lowest precedence, use first match found
-    let rollout_result =
-        should_execute_based_on_rollout_with_precedence(state, &rollout_keys).await?;
+    let rollout_result = should_execute_based_on_rollout_with_precedence(
+        state,
+        consts::superposition::UCS_ROLLOUT_CONFIG,
+        Some(superposition_context),
+        &rollout_keys,
+    )
+    .await?;
 
     // Single decision point using pattern matching
     let (gateway_system, mut execution_path) = if ucs_availability == UcsAvailability::Disabled {
@@ -390,13 +402,15 @@ where
             | CallConnectorAction::HandleResponseWithoutBuildRequest
             | CallConnectorAction::Avoid
             | CallConnectorAction::StatusUpdate { .. } => {
-                // If a rollout config key exists use its execution mode,
-                // otherwise default to Shadow so all traffic mirrors through UCS.
                 let execution_mode = if rollout_result.should_execute {
                     rollout_result.execution_mode
                 } else {
-                    ExecutionMode::Shadow
+                    ExecutionMode::NotApplicable
                 };
+
+                let execution_mode =
+                    resolve_execution_mode(state, execution_mode, ucs_availability);
+
                 decide_execution_path(connector_integration_type, previous_gateway, execution_mode)?
             }
         }
@@ -462,6 +476,44 @@ fn create_updated_session_state_with_proxy(
     updated_state.conf = std::sync::Arc::new(updated_conf);
 
     updated_state
+}
+
+/// Resolves the effective execution mode by applying the shadow kill switch.
+/// If the resolved mode is Shadow and ucs_enabled is "shadow_killed",
+/// falls back to the default_execution_mode from env config.
+fn resolve_execution_mode(
+    state: &SessionState,
+    execution_mode: ExecutionMode,
+    ucs_availability: UcsAvailability,
+) -> ExecutionMode {
+    let default_mode = state
+        .conf
+        .grpc_client
+        .unified_connector_service
+        .as_ref()
+        .map(|c| c.default_execution_mode)
+        .unwrap_or(ExecutionMode::NotApplicable);
+
+    let execution_mode = if !matches!(execution_mode, ExecutionMode::NotApplicable) {
+        execution_mode
+    } else {
+        router_env::logger::debug!(
+            ?default_mode,
+            "Rollout not selected, using default execution mode from env config"
+        );
+        default_mode
+    };
+
+    if execution_mode == ExecutionMode::Shadow && ucs_availability == UcsAvailability::ShadowKilled
+    {
+        router_env::logger::info!(
+            ?default_mode,
+            "UCS shadow kill switch is enabled, falling back to env default"
+        );
+        default_mode
+    } else {
+        execution_mode
+    }
 }
 
 fn decide_execution_path(
@@ -546,16 +598,23 @@ fn decide_execution_path(
 /// 4. `ucs_rollout_config_<merchant_id>_<connector>_...`                    — merchant + connector (highest)
 ///
 /// The caller iterates highest → lowest and uses the first match found.
-fn build_rollout_keys(
+fn build_rollout_keys_and_context(
     org_id: &str,
     merchant_id: &str,
     connector_name: &str,
     flow_name: &str,
     payment_method: common_enums::PaymentMethod,
     payment_method_type: Option<PaymentMethodType>,
-) -> Vec<String> {
+) -> (Vec<String>, superposition::ConfigContext) {
     let prefix = consts::UCS_ROLLOUT_PERCENT_CONFIG_PREFIX;
     let is_refund_flow = matches!(flow_name, "Execute" | "RSync");
+
+    // Build base context (common for all flows)
+    let mut context = superposition::ConfigContext::new()
+        .with("organization_id", org_id)
+        .with("provider_merchant_id", merchant_id)
+        .with("connector", connector_name)
+        .with("flow_name", flow_name);
 
     let (merchant_connector_key, org_merchant_connector_key) = if is_refund_flow {
         // Refund flows: ucs_rollout_config_<merchant_id>_<connector>_<flow>
@@ -573,6 +632,12 @@ fn build_rollout_keys(
                 let payment_method_type_str = payment_method_type
                     .map(|pmt| pmt.to_string())
                     .unwrap_or_else(|| "unknown".to_string());
+
+                // Add payment_method and payment_method_type to context
+                context = context
+                    .with("payment_method", &payment_method_str)
+                    .with("payment_method_type", &payment_method_type_str);
+
                 (
                     format!("{prefix}_{merchant_id}_{connector_name}_{payment_method_str}_{payment_method_type_str}_{flow_name}"),
                     format!("{prefix}_{org_id}_{merchant_id}_{connector_name}_{payment_method_str}_{payment_method_type_str}_{flow_name}"),
@@ -592,6 +657,10 @@ fn build_rollout_keys(
             | common_enums::PaymentMethod::OpenBanking => {
                 // For other payment methods, use a generic format without specific payment method type details
                 let payment_method_str = payment_method.to_string();
+
+                // Add payment_method to context
+                context = context.with("payment_method", &payment_method_str);
+
                 (
                     format!("{prefix}_{merchant_id}_{connector_name}_{payment_method_str}_{flow_name}"),
                     format!("{prefix}_{org_id}_{merchant_id}_{connector_name}_{payment_method_str}_{flow_name}"),
@@ -601,33 +670,43 @@ fn build_rollout_keys(
     };
 
     // Ascending precedence order (lowest first, highest last)
-    vec![
+    let keys = vec![
         format!("{prefix}_{org_id}"),
         format!("{prefix}_{org_id}_{merchant_id}"),
         org_merchant_connector_key,
         merchant_connector_key,
-    ]
+    ];
+
+    (keys, context)
 }
 
 /// Build rollout key for payouts — single key, org-level precedence not applied to payouts yet.
-fn build_rollout_keys_for_payouts(
+fn build_rollout_keys_and_context_for_payouts(
     merchant_id: &str,
     connector_name: &str,
     flow_name: &str,
     payment_method_type: Option<PaymentMethodType>,
-) -> Vec<String> {
+) -> (Vec<String>, superposition::ConfigContext) {
     let pmt = payment_method_type
         .map(|t| t.to_string())
         .unwrap_or_else(|| "unknown".to_string());
 
-    vec![format!(
+    let context = superposition::ConfigContext::new()
+        .with("provider_merchant_id", merchant_id)
+        .with("connector", connector_name)
+        .with("flow_name", flow_name)
+        .with("payment_method_type", &pmt);
+
+    let keys = vec![format!(
         "{}_{}_{}_{}_{}",
         consts::UCS_ROLLOUT_PERCENT_CONFIG_PREFIX,
         merchant_id,
         connector_name,
         pmt,
         flow_name
-    )]
+    )];
+
+    (keys, context)
 }
 
 /// Extracts the gateway system from the payment intent's feature metadata
@@ -721,26 +800,36 @@ pub async fn should_call_unified_connector_service_for_webhooks(
         flow_name
     );
 
+    // Build context for Superposition (webhooks don't use payment method)
+    let superposition_context = superposition::ConfigContext::new()
+        .with("provider_merchant_id", merchant_id)
+        .with("connector", connector_name)
+        .with("flow_name", flow_name);
+
     // For webhooks, there is no previous gateway system to consider (webhooks are stateless)
     let previous_gateway = None;
 
-    let rollout_result = should_execute_based_on_rollout::<
-        WebhookRolloutConfig,
-        WebhookRolloutExecutionResult,
-    >(state, &rollout_key)
-    .await?;
+    let rollout_result =
+        should_execute_based_on_rollout::<WebhookRolloutConfig, WebhookRolloutExecutionResult>(
+            state,
+            consts::superposition::UCS_ROLLOUT_CONFIG,
+            Some(superposition_context),
+            &rollout_key,
+        )
+        .await?;
 
     // Use the same decision logic as payments, with no call_connector_action to consider
     let (gateway_system, execution_path) = if ucs_availability == UcsAvailability::Disabled {
         router_env::logger::debug!("UCS is disabled for webhooks, using Direct gateway");
         (GatewaySystem::Direct, ExecutionPath::Direct)
     } else {
-        // UCS is enabled, use decide function with no previous gateway for webhooks
-        decide_execution_path(
-            connector_integration_type,
-            previous_gateway,
+        let execution_mode = resolve_execution_mode(
+            state,
             rollout_result.rollout_execution_result.execution_mode,
-        )?
+            ucs_availability,
+        );
+
+        decide_execution_path(connector_integration_type, previous_gateway, execution_mode)?
     };
 
     router_env::logger::info!(

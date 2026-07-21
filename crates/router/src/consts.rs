@@ -438,6 +438,10 @@ pub mod superposition {
     pub const INCOMING_WEBHOOK_DISABLED_EVENTS: &str = "incoming_webhook_disabled_events";
     /// save wallet decrypted data in locker
     pub const SAVE_WALLET_DECRYPTED_DATA: &str = "save_wallet_decrypted_data";
+    /// UCS rollout configuration key (contains RolloutConfig with percentage, URLs, etc.)
+    pub const UCS_ROLLOUT_CONFIG: &str = "ucs_rollout_config";
+    /// UCS enabled configuration key (controls UCS mode: disabled, enabled, shadow_killed)
+    pub const UCS_ENABLED: &str = "ucs_enabled";
 }
 
 #[cfg(test)]

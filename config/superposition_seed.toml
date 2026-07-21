@@ -71,6 +71,12 @@ schema = { type = "string" }
 description = "Business profile identifier"
 change_reason = "Initial setup"
 
+[dimensions.flow_name]
+position = 10
+schema = { type = "string" }
+description = "Payment flow name (e.g. Authorize, PSync, Execute, RSync, Webhooks)"
+change_reason = "Initial setup"
+
 [default-configs.requires_cvv]
 value = true
 schema = { type = "boolean" }
@@ -290,3 +296,18 @@ value = false
 schema = { type = "boolean" }
 description = "Whether to save wallet decrypted data"
 change_reason = "Initial setup"
+
+[default-configs.ucs_enabled]
+value = "disabled"
+schema = { type = "string", enum = ["disabled", "enabled", "shadow_killed"] }
+description = "UCS mode: disabled (off), enabled (on with shadow allowed), shadow_killed (on but shadow traffic stopped)"
+change_reason = "Initial setup"
+
+[default-configs.ucs_rollout_config]
+schema = { type = "object" }
+description = "UCS rollout configuration controlling traffic routing percentage to Unified Connector Service"
+change_reason = "Initial setup"
+
+[default-configs.ucs_rollout_config.value]
+rollout_percent = 0.0
+execution_mode = "primary"
