@@ -813,6 +813,7 @@ jobs:
                   "parallel": 5,
                   "report_artifact_name": "cypress-mock-test-results-payments-batch-4",
                   "server_logs_artifact": "mock-server-logs-payments-batch-4"
+                },
                   "name": "mock-payments-batch-5",
                   "payments_connectors": "'"${MOCK_PAYMENTS_CONNECTORS_BATCH_5}"'",
                   "payouts_connectors": "",
