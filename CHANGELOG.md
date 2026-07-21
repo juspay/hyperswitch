@@ -4,6 +4,38 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.07.21.0
+
+### Features
+
+- **connector:** [Netcetera] Update Base URL and WASM ([#13145](https://github.com/juspay/hyperswitch/pull/13145)) ([`fca1740`](https://github.com/juspay/hyperswitch/commit/fca17403e7c5e55624edb5c40d1dd010f46f1f32))
+
+### Bug Fixes
+
+- **authentication:** Fixed race condition for authentication cavv update and authentication status update ([#13386](https://github.com/juspay/hyperswitch/pull/13386)) ([`5c26e7f`](https://github.com/juspay/hyperswitch/commit/5c26e7f0f016dbb697e20c778264f1c0205a03b2))
+- **config:** Tsys_transit base_url + ucs_only_connectors + drop bogus country filter ([#13249](https://github.com/juspay/hyperswitch/pull/13249)) ([`7f51f8e`](https://github.com/juspay/hyperswitch/commit/7f51f8ec2501e20196cb8535cab7e1468f369102))
+- **connector:** [finix] webhook handling | custom header ([#13308](https://github.com/juspay/hyperswitch/pull/13308)) ([`5f14fcf`](https://github.com/juspay/hyperswitch/commit/5f14fcf5a6c44491145897b8d3deb2f4e9557f23))
+- **novalnet:** Carry connector_transaction_id through on setup_mandate decline ([#13235](https://github.com/juspay/hyperswitch/pull/13235)) ([`bb924e5`](https://github.com/juspay/hyperswitch/commit/bb924e543ccfd7de3968f46ee53fcf1f9f137b84))
+- **payment_link:** Drop runtime router_env dependency to unblock wasm build ([#13369](https://github.com/juspay/hyperswitch/pull/13369)) ([`6da8cef`](https://github.com/juspay/hyperswitch/commit/6da8cefa45dd91e08b0b37f24f00ce4f9636700a))
+
+### Refactors
+
+- **router:** Separate DB pool configs for master, accounts, and global schemas ([#13335](https://github.com/juspay/hyperswitch/pull/13335)) ([`e492baa`](https://github.com/juspay/hyperswitch/commit/e492baa34c5fcb02c17f8d25706c02fb13c02c4f))
+
+### Testing
+
+- **cypress:**
+  - Add Test Coverage for GlobePay Wallets (AliPay, WeChat Pay) and Inespay SEPA Bank Redirect ([#12065](https://github.com/juspay/hyperswitch/pull/12065)) ([`0a84bae`](https://github.com/juspay/hyperswitch/commit/0a84bae2aa8d4faf4e1e4ea933b7dfc0b8f5b8a5))
+  - Add refund coverage for facilitapay ([#13275](https://github.com/juspay/hyperswitch/pull/13275)) ([`a9b7238`](https://github.com/juspay/hyperswitch/commit/a9b723832392a5f9ff0deb2328815832bd972819))
+
+### Miscellaneous Tasks
+
+- **ci:** Split cashtocode and fiuu into new mock connectors batch 5 ([#13377](https://github.com/juspay/hyperswitch/pull/13377)) ([`f001d53`](https://github.com/juspay/hyperswitch/commit/f001d5347f22d041dea315ed171674bae57621a3))
+
+**Full Changelog:** [`2026.07.17.1...2026.07.21.0`](https://github.com/juspay/hyperswitch/compare/2026.07.17.1...2026.07.21.0)
+
+- - -
+
 ## 2026.07.17.1
 
 ### Features
