@@ -4,7 +4,7 @@ use hyperswitch_masking::{PeekInterface, Secret};
 
 use crate::{kv_router_store, DatabaseStore, MockDb, RouterStore};
 
-#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Deserialize)]
 pub struct Database {
     pub username: String,
     pub password: Secret<String>,
