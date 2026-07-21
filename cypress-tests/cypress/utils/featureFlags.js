@@ -196,7 +196,7 @@ export function determineConnectorConfig(config) {
 }
 
 export function execConfig(configs) {
-  if (configs?.DELAY?.STATUS) {
+  if (configs?.DELAY?.STATUS && String(Cypress.env("MOCK_SERVER")) !== "true") {
     cy.wait(configs.DELAY.TIMEOUT);
   }
 
