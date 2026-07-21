@@ -113,6 +113,9 @@ pub struct ApiModelMetaData {
     pub platform_url: Option<String>,
     pub account_id: Option<serde_json::Value>,
     pub site: Option<String>,
+    pub merchant_street_address: Option<String>,
+    pub customer_service_number: Option<String>,
+    pub merchant_url: Option<String>,
 }
 
 #[serde_with::skip_serializing_none]

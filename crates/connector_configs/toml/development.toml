@@ -5350,6 +5350,24 @@ key1="Transaction Key"
 api_secret="Developer Id"
 [tsys_transit.connector_webhook_details]
 merchant_secret="Source verification key"
+[tsys_transit.metadata.merchant_street_address]
+name="merchant_street_address"
+label="Merchant Street Address"
+placeholder="Enter street address"
+required=false
+type="Text"
+[tsys_transit.metadata.customer_service_number]
+name="customer_service_number"
+label="Customer Service Number"
+placeholder="Enter customer service phone number"
+required=false
+type="Text"
+[tsys_transit.metadata.merchant_url]
+name="merchant_url"
+label="Merchant Url"
+placeholder="Enter merchant url"
+required=false
+type="Text"
 
 [volt]
 [[volt.bank_redirect]]
