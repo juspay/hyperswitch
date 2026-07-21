@@ -109,7 +109,7 @@ async fn fetch_access_token_for_webhook(
             let refresh_token_request_data = types::AccessTokenRequestData::try_from((
                 router_data.connector_auth_type.clone(),
                 None,
-                current_flow_info.clone(),
+                current_flow_info,
             ))
             .map_err(to_error_response)?;
 
