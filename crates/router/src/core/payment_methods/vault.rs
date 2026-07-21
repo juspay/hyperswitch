@@ -1996,6 +1996,30 @@ pub async fn call_to_vault<V: pm_types::VaultingInterface>(
     let locker = &state.conf.locker;
     let jwekey = state.conf.jwekey.get_inner();
 
+    // `mock_locker` has no real vault backend, so synthesize the decrypted
+    // responses the callers parse — mirroring the mock branch the legacy card
+    // locker already has (`add_card_to_vault`). This makes wallet, bank_debit and
+    // v2 vaulting work in local dev instead of failing on a live call to a vault
+    // that isn't running. Only the flows the tokenization path exercises are
+    // mocked; the rest fall through to the real call (unchanged behaviour).
+    if locker.mock_locker {
+        let flow_name = V::get_vaulting_flow_name();
+        if flow_name == consts::V2_VAULT_GET_FINGERPRINT_FLOW_TYPE {
+            return Ok(serde_json::json!({
+                "fingerprint_id": generate_id_with_default_len("fingerprint"),
+            })
+            .to_string());
+        }
+        if flow_name == consts::V2_VAULT_ADD_FLOW_TYPE {
+            return Ok(serde_json::json!({
+                "entity_id": null,
+                "vault_id": generate_id_with_default_len("vault"),
+                "fingerprint_id": null,
+            })
+            .to_string());
+        }
+    }
+
     let request = create_vault_request::<V>(
         jwekey,
         locker,
