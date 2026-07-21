@@ -2143,6 +2143,7 @@ impl
                 .map(|data| Secret::new(data.peek().to_string())),
             l2_l3_data: None,
             setup_mandate_details: None,
+            partner_merchant_identifier_details: None,
         })
     }
 }
@@ -2350,6 +2351,13 @@ impl
                 .mit_category
                 .map(payments_grpc::MitCategory::foreign_from)
                 .map(|mit_category| mit_category.into()),
+            payment_channel: router_data
+                .request
+                .payment_channel
+                .as_ref()
+                .map(payments_grpc::PaymentChannel::foreign_try_from)
+                .transpose()?
+                .map(|payment_channel| payment_channel.into()),
             shipping_cost: router_data
                 .request
                 .shipping_cost
@@ -2419,6 +2427,7 @@ impl
                     }),
                 }),
             auth_type: Some(auth_type.into()),
+            complete_authorize_url: None,
         })
     }
 }
