@@ -62,7 +62,29 @@ const onlineCustomerAcceptance = {
   acceptance_type: "online",
 };
 
-const chargebeeTestPriceId = Cypress.env("CHARGEBEE_TEST_PRICE_ID") || "";
+const chargebeeTestPriceId =
+  Cypress.env("CHARGEBEE_TEST_ITEM_PRICE_ID") ||
+  Cypress.env("CHARGEBEE_TEST_PRICE_ID") ||
+  "";
+
+const subscriptionBilling = {
+  email: "guest@juspay.in",
+  address: {
+    line1: "1467",
+    line2: "Harrison Street",
+    line3: "Harrison Street",
+    city: "San Francisco",
+    state: "California",
+    zip: "94122",
+    country: "US",
+    first_name: "joseph",
+    last_name: "Doe",
+  },
+  phone: {
+    number: "8056599999",
+    country_code: "+1",
+  },
+};
 
 const payment_method_data_3ds = {
   card: {
@@ -83,7 +105,7 @@ const payment_method_data_3ds = {
   billing: null,
 };
 
-export default {
+export const connectorDetails = {
   card_pm: {
     PaymentIntent: getCustomExchange({
       Request: {
@@ -176,24 +198,40 @@ export default {
   },
   subscription_pm: {
     Create: getCustomExchange({
+      Configs: {
+        USE_SUBSCRIPTION_CREATE_ENDPOINT: true,
+      },
       Request: {
         item_price_id: chargebeeTestPriceId,
+        billing: subscriptionBilling,
         payment_details: {
+          payment_type: "setup_mandate",
+          authentication_type: "no_three_ds",
+          setup_future_usage: "off_session",
+          capture_method: "automatic",
           return_url: "https://example.com/subscription/return",
         },
       },
       Response: {
         status: 200,
         body: {
-          status: "active",
+          status: "created",
         },
       },
     }),
     CreateInvalidCustomer: getCustomExchange({
+      Configs: {
+        USE_SUBSCRIPTION_CREATE_ENDPOINT: true,
+      },
       Request: {
         customer_id: "cust_invalid_nonexistent",
         item_price_id: chargebeeTestPriceId,
+        billing: subscriptionBilling,
         payment_details: {
+          payment_type: "setup_mandate",
+          authentication_type: "no_three_ds",
+          setup_future_usage: "off_session",
+          capture_method: "automatic",
           return_url: "https://example.com/subscription/return",
         },
       },
@@ -209,6 +247,9 @@ export default {
       },
     }),
     CreateMissingFields: getCustomExchange({
+      Configs: {
+        USE_SUBSCRIPTION_CREATE_ENDPOINT: true,
+      },
       Request: {
         skip_dynamic_fields: true,
         description: "Test subscription missing required fields",
@@ -229,11 +270,14 @@ export default {
       Response: {
         status: 200,
         body: {
-          status: "active",
+          status: "created",
         },
       },
     }),
     RetrieveCancelled: getCustomExchange({
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {},
       Response: {
         status: 200,
@@ -243,6 +287,9 @@ export default {
       },
     }),
     Update: getCustomExchange({
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         plan_id: chargebeeTestPriceId,
         item_price_id: chargebeeTestPriceId,
@@ -255,6 +302,9 @@ export default {
       },
     }),
     Cancel: getCustomExchange({
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         cancel_reason_code: "requested_by_customer",
       },
@@ -266,6 +316,9 @@ export default {
       },
     }),
     Resume: getCustomExchange({
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {},
       Response: {
         status: 200,

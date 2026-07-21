@@ -73,8 +73,6 @@ const bankDebitCredentialIndex = {
   Bacs: 3,
 };
 
-const stripeTestPriceId = Cypress.env("STRIPE_TEST_PRICE_ID") || "";
-
 const bankDebitConnectorCredential = (paymentMethodType) =>
   connectorCredential(
     bankDebitCredentialIndex[paymentMethodType] ?? bankDebitCredentialIndex.Sepa
@@ -2002,109 +2000,6 @@ export const connectorDetails = {
       path: "data.object.id",
       type: "string",
     },
-  },
-  subscription_pm: {
-    // These configs define the request/response expectations for subscription tests.
-    // customer_id is dynamically populated by the createSubscriptionTest command from globalState.
-    Create: getCustomExchange({
-      Request: {
-        item_price_id: stripeTestPriceId,
-        payment_details: {
-          return_url: "https://example.com/subscription/return",
-        },
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "active",
-        },
-      },
-    }),
-    CreateInvalidCustomer: getCustomExchange({
-      Request: {
-        customer_id: "cust_invalid_nonexistent", // Intentionally invalid for negative test case
-        item_price_id: stripeTestPriceId,
-        payment_details: {
-          return_url: "https://example.com/subscription/return",
-        },
-      },
-      Response: {
-        status: 404,
-        body: {
-          error: {
-            type: "invalid_request",
-            code: "HE_02",
-            message: "Customer does not exist in our records",
-          },
-        },
-      },
-    }),
-    CreateMissingFields: getCustomExchange({
-      Request: {
-        skip_dynamic_fields: true,
-        description: "Test subscription missing required fields",
-      },
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            error_type: "invalid_request",
-            code: "IR_06",
-            message: "Json deserialize error: missing field `item_price_id`",
-          },
-        },
-      },
-    }),
-    Retrieve: getCustomExchange({
-      Request: {},
-      Response: {
-        status: 200,
-        body: {
-          status: "active",
-        },
-      },
-    }),
-    RetrieveCancelled: getCustomExchange({
-      Request: {},
-      Response: {
-        status: 200,
-        body: {
-          status: "cancelled",
-        },
-      },
-    }),
-    Update: getCustomExchange({
-      Request: {
-        plan_id: stripeTestPriceId,
-        item_price_id: stripeTestPriceId,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "active",
-        },
-      },
-    }),
-    Cancel: getCustomExchange({
-      Request: {
-        cancel_reason_code: "requested_by_customer",
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "cancelled",
-        },
-      },
-    }),
-    Resume: getCustomExchange({
-      Request: {},
-      Response: {
-        status: 200,
-        body: {
-          status: "active",
-        },
-      },
-    }),
   },
   wallet_pm: {
     PaymentIntent: (walletType, overrideCurrency) => {

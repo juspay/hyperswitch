@@ -71,6 +71,46 @@ function isStripeConnect(globalState) {
   );
 }
 
+function getConnectorListFromResponse(body) {
+  if (Array.isArray(body)) {
+    return body;
+  }
+
+  return (
+    body?.data ||
+    body?.merchant_connector_accounts ||
+    body?.connector_accounts ||
+    []
+  );
+}
+
+function findExistingConnector(
+  connectors,
+  connectorName,
+  profileId,
+  connectorLabel
+) {
+  const matchingConnectors = connectors.filter(
+    (connector) =>
+      connector.connector_name === connectorName &&
+      (!profileId || connector.profile_id === profileId)
+  );
+
+  return (
+    matchingConnectors.find(
+      (connector) => connector.connector_label === connectorLabel
+    ) || matchingConnectors[0]
+  );
+}
+
+function getApiErrorCode(body) {
+  return body?.error?.code || body?.code;
+}
+
+function getApiErrorMessage(body) {
+  return body?.error?.message || body?.message || JSON.stringify(body);
+}
+
 function updateConnectorState(globalState, responseConnector) {
   if (isStripeConnect(globalState)) {
     const originalConnectorId = getOriginalConnectorId(globalState);
@@ -10862,16 +10902,34 @@ function getRequiredSubscriptionId(globalState) {
 }
 
 function getRequiredSubscriptionPriceId() {
-  const priceId = Cypress.env("STRIPE_TEST_PRICE_ID");
+  const priceId = String(
+    Cypress.env("CHARGEBEE_TEST_ITEM_PRICE_ID") ||
+      Cypress.env("CHARGEBEE_TEST_PRICE_ID") ||
+      ""
+  ).trim();
   if (!priceId) {
     throw new Error(
-      "STRIPE_TEST_PRICE_ID missing from Cypress env - subscription price id is required"
+      "CHARGEBEE_TEST_ITEM_PRICE_ID missing from Cypress env - Chargebee item_price_id is required"
+    );
+  }
+  if (priceId.startsWith("ev_")) {
+    throw new Error(
+      "CHARGEBEE_TEST_ITEM_PRICE_ID must be a Chargebee item price id, not an event id starting with ev_"
+    );
+  }
+  if (priceId.endsWith("export")) {
+    throw new Error(
+      `CHARGEBEE_TEST_ITEM_PRICE_ID has an invalid suffix: ${priceId}`
     );
   }
   return priceId;
 }
 
-function fillSubscriptionDynamicFields(subscriptionBody, globalState) {
+function fillSubscriptionDynamicFields(
+  subscriptionBody,
+  globalState,
+  options = {}
+) {
   if (subscriptionBody.skip_dynamic_fields) {
     delete subscriptionBody.skip_dynamic_fields;
     return subscriptionBody;
@@ -10890,6 +10948,10 @@ function fillSubscriptionDynamicFields(subscriptionBody, globalState) {
   if (!subscriptionBody.item_price_id) {
     subscriptionBody.item_price_id = getRequiredSubscriptionPriceId();
   }
+  cy.task(
+    "cli_log",
+    "subscription item_price_id -> " + subscriptionBody.item_price_id
+  );
 
   if (
     Object.prototype.hasOwnProperty.call(subscriptionBody, "plan_id") &&
@@ -10898,7 +10960,11 @@ function fillSubscriptionDynamicFields(subscriptionBody, globalState) {
     subscriptionBody.plan_id = getRequiredSubscriptionPriceId();
   }
 
-  if (subscriptionBody.payment_details) {
+  if (
+    subscriptionBody.payment_details &&
+    !subscriptionBody.payment_details.payment_method_data &&
+    !options.useCreateEndpoint
+  ) {
     if (!subscriptionBody.payment_details.payment_method_id) {
       const paymentMethodId = globalState.get("paymentMethodId");
       if (!paymentMethodId) {
@@ -10947,7 +11013,10 @@ Cypress.Commands.add(
     }
     const subscriptionBody = fillSubscriptionDynamicFields(
       mergedSubscriptionBody,
-      globalState
+      globalState,
+      {
+        useCreateEndpoint: validatedConfigs?.USE_SUBSCRIPTION_CREATE_ENDPOINT,
+      }
     );
 
     const headers = {
@@ -10958,7 +11027,9 @@ Cypress.Commands.add(
 
     cy.request({
       method: "POST",
-      url: `${baseUrl}/subscriptions`,
+      url: `${baseUrl}/subscriptions${
+        validatedConfigs?.USE_SUBSCRIPTION_CREATE_ENDPOINT ? "/create" : ""
+      }`,
       headers: headers,
       failOnStatusCode: false,
       body: subscriptionBody,
@@ -10967,6 +11038,12 @@ Cypress.Commands.add(
 
       const resData = data.Response;
       cy.wrap(response).then(() => {
+        if (response.status !== resData.status) {
+          cy.task(
+            "cli_log",
+            "create subscription response -> " + JSON.stringify(response.body)
+          );
+        }
         expect(response.status, "status_code").to.equal(resData.status);
 
         const subscriptionId =
@@ -10989,7 +11066,15 @@ Cypress.Commands.add(
 
 Cypress.Commands.add("retrieveSubscriptionTest", (data, globalState) => {
   const { Configs: configs = {} } = data;
-  execConfig(validateConfig(configs));
+  const validatedConfigs = validateConfig(configs);
+  if (validatedConfigs?.TRIGGER_SKIP) {
+    cy.task(
+      "cli_log",
+      "TRIGGER_SKIP enabled, skipping retrieveSubscriptionTest"
+    );
+    return;
+  }
+  execConfig(validatedConfigs);
 
   const apiKey = globalState.get("apiKey");
   const baseUrl = globalState.get("baseUrl");
@@ -11028,7 +11113,15 @@ Cypress.Commands.add(
   "updateSubscriptionTest",
   (updateSubscriptionBody, data, globalState) => {
     const { Configs: configs = {} } = data;
-    execConfig(validateConfig(configs));
+    const validatedConfigs = validateConfig(configs);
+    if (validatedConfigs?.TRIGGER_SKIP) {
+      cy.task(
+        "cli_log",
+        "TRIGGER_SKIP enabled, skipping updateSubscriptionTest"
+      );
+      return;
+    }
+    execConfig(validatedConfigs);
 
     const apiKey = globalState.get("apiKey");
     const baseUrl = globalState.get("baseUrl");
@@ -11077,7 +11170,15 @@ Cypress.Commands.add(
 
 Cypress.Commands.add("cancelSubscriptionTest", (data, globalState) => {
   const { Configs: configs = {} } = data;
-  execConfig(validateConfig(configs));
+  const validatedConfigs = validateConfig(configs);
+  if (validatedConfigs?.TRIGGER_SKIP) {
+    cy.task(
+      "cli_log",
+      "TRIGGER_SKIP enabled, skipping cancelSubscriptionTest"
+    );
+    return;
+  }
+  execConfig(validatedConfigs);
 
   const apiKey = globalState.get("apiKey");
   const baseUrl = globalState.get("baseUrl");
@@ -11119,7 +11220,15 @@ Cypress.Commands.add("cancelSubscriptionTest", (data, globalState) => {
 
 Cypress.Commands.add("resumeSubscriptionTest", (data, globalState) => {
   const { Configs: configs = {} } = data;
-  execConfig(validateConfig(configs));
+  const validatedConfigs = validateConfig(configs);
+  if (validatedConfigs?.TRIGGER_SKIP) {
+    cy.task(
+      "cli_log",
+      "TRIGGER_SKIP enabled, skipping resumeSubscriptionTest"
+    );
+    return;
+  }
+  execConfig(validatedConfigs);
 
   const apiKey = globalState.get("apiKey");
   const baseUrl = globalState.get("baseUrl");
@@ -11167,11 +11276,16 @@ Cypress.Commands.add(
   ) => {
     const merchantId = globalState.get("merchantId");
     const profileId = globalState.get("profileId");
-
-    createConnectorBody.profile_id = profileId;
-    createConnectorBody.connector_type = "payment_processor";
-    createConnectorBody.connector_name = targetConnectorName;
-    createConnectorBody.payment_methods_enabled = paymentMethodsEnabled;
+    const connectorLabel =
+      createConnectorBody.connector_label || `${targetConnectorName}_US_default`;
+    const billingConnectorBody = {
+      ...createConnectorBody,
+      metadata: { ...createConnectorBody.metadata },
+      profile_id: profileId,
+      connector_type: "payment_processor",
+      connector_name: targetConnectorName,
+      payment_methods_enabled: paymentMethodsEnabled,
+    };
 
     cy.readFile(globalState.get("connectorAuthFilePath")).then(
       (jsonContent) => {
@@ -11179,8 +11293,21 @@ Cypress.Commands.add(
           JSON.stringify(jsonContent),
           authConnectorName
         );
-        createConnectorBody.connector_account_details =
+        if (!authDetails) {
+          throw new Error(
+            `No credentials found for ${authConnectorName} in creds.json`
+          );
+        }
+        billingConnectorBody.connector_account_details =
           authDetails.connector_account_details;
+
+        if (authDetails.metadata) {
+          billingConnectorBody.metadata = {
+            ...billingConnectorBody.metadata,
+            ...authDetails.metadata,
+          };
+        }
+
         cy.request({
           method: "POST",
           url: `${globalState.get("baseUrl")}/account/${merchantId}/connectors`,
@@ -11189,7 +11316,7 @@ Cypress.Commands.add(
             Accept: "application/json",
             "api-key": globalState.get("apiKey"),
           },
-          body: createConnectorBody,
+          body: billingConnectorBody,
           failOnStatusCode: false,
         }).then((response) => {
           logRequestId(response.headers["x-request-id"]);
@@ -11200,6 +11327,51 @@ Cypress.Commands.add(
                 response.body.connector_name
               );
               globalState.set(mcaKey, response.body.merchant_connector_id);
+            } else if (
+              response.status === 400 &&
+              getApiErrorCode(response.body) === "HE_01"
+            ) {
+              cy.task(
+                "cli_log",
+                `${targetConnectorName} billing connector already exists, reusing existing connector`
+              );
+
+              return cy
+                .request({
+                  method: "GET",
+                  url: `${globalState.get("baseUrl")}/account/${merchantId}/connectors`,
+                  headers: {
+                    "Content-Type": "application/json",
+                    Accept: "application/json",
+                    "api-key": globalState.get("apiKey"),
+                    "X-Merchant-Id": merchantId,
+                  },
+                  failOnStatusCode: false,
+                })
+                .then((listResponse) => {
+                  logRequestId(listResponse.headers["x-request-id"]);
+                  expect(listResponse.status, "connector_list_status").to.equal(
+                    200
+                  );
+
+                  const existingConnector = findExistingConnector(
+                    getConnectorListFromResponse(listResponse.body),
+                    targetConnectorName,
+                    profileId,
+                    connectorLabel
+                  );
+
+                  if (!existingConnector?.merchant_connector_id) {
+                    throw new Error(
+                      `Billing connector already exists, but existing ${targetConnectorName} connector id was not found`
+                    );
+                  }
+
+                  globalState.set(
+                    mcaKey,
+                    existingConnector.merchant_connector_id
+                  );
+                });
             } else {
               cy.task(
                 "cli_log",
@@ -11207,7 +11379,7 @@ Cypress.Commands.add(
               );
 
               throw new Error(
-                `Billing Connector Create Call Failed ${response.body.error.message}`
+                `Billing Connector Create Call Failed ${getApiErrorMessage(response.body)}`
               );
             }
           });

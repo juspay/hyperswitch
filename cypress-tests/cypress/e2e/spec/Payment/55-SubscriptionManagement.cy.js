@@ -5,15 +5,19 @@ import { payment_methods_enabled } from "../../configs/Payment/Commons";
 import getConnectorDetails from "../../configs/Payment/Utils";
 
 let globalState;
+const subscriptionConnector = "chargebee";
 
 describe("Subscription Management tests", () => {
   before("seed global state", () => {
     cy.task("getGlobalState").then((state) => {
       globalState = new State(state);
-      if (!Cypress.env("STRIPE_TEST_PRICE_ID")) {
+      if (
+        !Cypress.env("CHARGEBEE_TEST_ITEM_PRICE_ID") &&
+        !Cypress.env("CHARGEBEE_TEST_PRICE_ID")
+      ) {
         cy.task(
           "cli_log",
-          "STRIPE_TEST_PRICE_ID is required for subscription create/update tests. Configure a valid Stripe test price ID before running this spec."
+          "CHARGEBEE_TEST_ITEM_PRICE_ID is required for subscription create/update tests. Configure a valid Chargebee item price ID before running this spec."
         );
       }
     });
@@ -40,8 +44,8 @@ describe("Subscription Management tests", () => {
         fixtures.createConnectorBody,
         payment_methods_enabled,
         globalState,
-        globalState.get("connectorId"),
-        "stripebilling"
+        subscriptionConnector,
+        subscriptionConnector
       );
     });
 
@@ -64,9 +68,8 @@ describe("Subscription Management tests", () => {
 
   context("Create Subscription", () => {
     it("create-subscription-test", function () {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "subscription_pm"
-      ]["Create"];
+      const data =
+        getConnectorDetails(subscriptionConnector)["subscription_pm"]["Create"];
 
       cy.createSubscriptionTest(
         fixtures.createSubscriptionBody,
@@ -76,9 +79,10 @@ describe("Subscription Management tests", () => {
     });
 
     it("retrieve-created-subscription-test", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "subscription_pm"
-      ]["Retrieve"];
+      const data =
+        getConnectorDetails(subscriptionConnector)["subscription_pm"][
+          "Retrieve"
+        ];
 
       cy.retrieveSubscriptionTest(data, globalState);
     });
@@ -86,9 +90,10 @@ describe("Subscription Management tests", () => {
 
   context("Create Subscription - Negative Cases", () => {
     it("create-subscription-invalid-customer-test", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "subscription_pm"
-      ]["CreateInvalidCustomer"];
+      const data =
+        getConnectorDetails(subscriptionConnector)["subscription_pm"][
+          "CreateInvalidCustomer"
+        ];
 
       cy.createSubscriptionTest(
         fixtures.createSubscriptionInvalidCustomerBody,
@@ -98,9 +103,10 @@ describe("Subscription Management tests", () => {
     });
 
     it("create-subscription-missing-fields-test", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "subscription_pm"
-      ]["CreateMissingFields"];
+      const data =
+        getConnectorDetails(subscriptionConnector)["subscription_pm"][
+          "CreateMissingFields"
+        ];
 
       cy.createSubscriptionTest(
         fixtures.createSubscriptionMissingFieldsBody,
@@ -112,9 +118,8 @@ describe("Subscription Management tests", () => {
 
   context("Update Subscription", () => {
     it("update-subscription-test", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "subscription_pm"
-      ]["Update"];
+      const data =
+        getConnectorDetails(subscriptionConnector)["subscription_pm"]["Update"];
 
       cy.updateSubscriptionTest(
         fixtures.updateSubscriptionBody,
@@ -124,9 +129,10 @@ describe("Subscription Management tests", () => {
     });
 
     it("verify-updated-subscription-test", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "subscription_pm"
-      ]["Retrieve"];
+      const data =
+        getConnectorDetails(subscriptionConnector)["subscription_pm"][
+          "Retrieve"
+        ];
 
       cy.retrieveSubscriptionTest(data, globalState);
     });
@@ -134,17 +140,17 @@ describe("Subscription Management tests", () => {
 
   context("Cancel Subscription", () => {
     it("cancel-subscription-test", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "subscription_pm"
-      ]["Cancel"];
+      const data =
+        getConnectorDetails(subscriptionConnector)["subscription_pm"]["Cancel"];
 
       cy.cancelSubscriptionTest(data, globalState);
     });
 
     it("verify-cancelled-subscription-test", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "subscription_pm"
-      ]["RetrieveCancelled"];
+      const data =
+        getConnectorDetails(subscriptionConnector)["subscription_pm"][
+          "RetrieveCancelled"
+        ];
 
       cy.retrieveSubscriptionTest(data, globalState);
     });
@@ -152,17 +158,17 @@ describe("Subscription Management tests", () => {
 
   context("Resume Subscription", () => {
     it("resume-subscription-test", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "subscription_pm"
-      ]["Resume"];
+      const data =
+        getConnectorDetails(subscriptionConnector)["subscription_pm"]["Resume"];
 
       cy.resumeSubscriptionTest(data, globalState);
     });
 
     it("verify-resumed-subscription-test", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "subscription_pm"
-      ]["Retrieve"];
+      const data =
+        getConnectorDetails(subscriptionConnector)["subscription_pm"][
+          "Retrieve"
+        ];
 
       cy.retrieveSubscriptionTest(data, globalState);
     });

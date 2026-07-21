@@ -4,6 +4,7 @@ const config_fields = [
   "DELAY",
   "TRIGGER_SKIP",
   "LOCAL_VAULT_REQUIRED",
+  "USE_SUBSCRIPTION_CREATE_ENDPOINT",
 ];
 
 const DEFAULT_CONNECTOR = "connector_1";
@@ -81,6 +82,7 @@ function validateConfigValue(key, value) {
 
       case "TRIGGER_SKIP":
       case "LOCAL_VAULT_REQUIRED":
+      case "USE_SUBSCRIPTION_CREATE_ENDPOINT":
       case "DELAY.STATUS":
         if (!validateType(value, "boolean")) return false;
         break;
