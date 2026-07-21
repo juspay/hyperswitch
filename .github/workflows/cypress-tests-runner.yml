@@ -27,7 +27,7 @@ env:
   EXTENDED_PAYMENTS_CONNECTORS_BATCH_1: "bluesnap gigadat loonio nmi"
   EXTENDED_PAYMENTS_CONNECTORS_BATCH_2: "paypal redsys zift"
   EXTENDED_PAYOUTS_CONNECTORS: "adyenplatform wise"
-  MOCK_PAYMENTS_CONNECTORS_BATCH_1: "bluesnap gigadat zift loonio"
+  MOCK_PAYMENTS_CONNECTORS_BATCH_1: "gigadat zift loonio"
   MOCK_PAYMENTS_CONNECTORS_BATCH_2: "redsys worldpayxml cybersource braintree"
   MOCK_PAYMENTS_CONNECTORS_BATCH_3: "nmi calida adyen peachpayments"
   MOCK_PAYMENTS_CONNECTORS_BATCH_4: "novalnet checkout"
