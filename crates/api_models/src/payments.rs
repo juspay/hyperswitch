@@ -8820,7 +8820,7 @@ pub struct ExternalAuthenticationDetailsResponse {
     pub error_message: Option<String>,
     /// Challenge Cancel Code
     pub challenge_cancel_code: Option<String>,
-    /// Challenge Cancel Reason Code
+    /// Trans Status Reason Code
     pub trans_status_reason: Option<String>,
 }
 
