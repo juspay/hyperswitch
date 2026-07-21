@@ -30,7 +30,7 @@ pub(crate) async fn deja_route_replay_schema<T: DatabaseStore>(
         return;
     }
 
-    // (B1.ii) Replay is active but the store carries no request id. Two cases,
+    // Replay is active but the store carries no request id. Two cases,
     // deliberately distinguished so a real stamping bug fails loud without a
     // background actor spuriously killing the pod:
     //  - a correlation context IS active -> the store id should have been stamped
@@ -50,7 +50,7 @@ pub(crate) async fn deja_route_replay_schema<T: DatabaseStore>(
     };
 
     let sql = deja::replay_search_path_sql_for(&corr);
-    // (B1.i) The SET must succeed under replay — a swallowed failure leaves the
+    // The SET must succeed under replay — a swallowed failure leaves the
     // connection on the wrong schema. Propagate loudly (replay-only code).
     let corr_for_set = corr.clone();
     conn.run(move |c| diesel::connection::SimpleConnection::batch_execute(c, &sql))
@@ -59,7 +59,7 @@ pub(crate) async fn deja_route_replay_schema<T: DatabaseStore>(
             panic!("deja replay: SET search_path failed for correlation {corr_for_set}: {e:?}")
         });
 
-    // (B1.iii) `SET search_path TO "<schema>", public` does NOT error when
+    // `SET search_path TO "<schema>", public` does NOT error when
     // <schema> is missing — it silently resolves to `public`. Assert the
     // correlation's schema actually resolved, once per correlation (a replay-only
     // roundtrip, cached to avoid per-connection cost). `current_schema() == public`
@@ -85,7 +85,7 @@ pub(crate) async fn deja_route_replay_schema<T: DatabaseStore>(
     }
 }
 
-// Per-correlation cache of schemas already asserted-present, so B1.iii's
+// Per-correlation cache of schemas already asserted-present, so the
 // existence roundtrip runs once per correlation rather than per leased connection.
 #[cfg(feature = "deja")]
 fn deja_replay_schema_verified() -> &'static std::sync::Mutex<HashSet<String>> {
