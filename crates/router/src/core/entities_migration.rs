@@ -9,7 +9,9 @@ use common_utils::{
 use router_env::logger;
 
 use super::{errors, payment_methods::vault};
-use crate::{routes::SessionState, services::ApplicationResponse, types::payment_methods as pm_types};
+use crate::{
+    routes::SessionState, services::ApplicationResponse, types::payment_methods as pm_types,
+};
 
 const ENTITIES_MIGRATION_PARALLELISM: usize = 10;
 
