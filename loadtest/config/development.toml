@@ -25,6 +25,30 @@ min_idle_pool_size = 2
 idle_timeout = 300
 max_lifetime = 1800
 
+[accounts_database]
+username = "postgres"
+password = "postgres"
+host = "db"
+port = 5432
+dbname = "loadtest_router"
+max_pool_size = 20
+connection_timeout = 10
+min_idle_pool_size = 2
+idle_timeout = 300
+max_lifetime = 1800
+
+[global_database]
+username = "postgres"
+password = "postgres"
+host = "db"
+port = 5432
+dbname = "loadtest_router"
+max_pool_size = 20
+connection_timeout = 10
+min_idle_pool_size = 2
+idle_timeout = 300
+max_lifetime = 1800
+
 [server]
 host = "0.0.0.0"
 
