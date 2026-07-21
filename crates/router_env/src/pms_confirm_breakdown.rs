@@ -35,6 +35,14 @@ pub enum Operation {
     DatabaseWrite,
     DatabasePoolReadWait,
     DatabasePoolWriteWait,
+    /// Pool acquisition for the customer read performed by PMS Confirm.
+    DatabasePoolCustomerLookupWait,
+    /// Pool acquisition for the payment-method lookup by locker fingerprint.
+    DatabasePoolPaymentMethodFingerprintLookupWait,
+    /// Pool acquisition for the payment-method insert.
+    DatabasePoolPaymentMethodInsertWait,
+    /// Pool acquisition for the payment-method update after vault insertion.
+    DatabasePoolPaymentMethodUpdateWait,
     Superposition,
     RedisRead,
     RedisWrite,
@@ -72,6 +80,10 @@ struct Collector {
     database_write: Aggregate,
     database_pool_read_wait: Aggregate,
     database_pool_write_wait: Aggregate,
+    database_pool_customer_lookup_wait: Aggregate,
+    database_pool_payment_method_fingerprint_lookup_wait: Aggregate,
+    database_pool_payment_method_insert_wait: Aggregate,
+    database_pool_payment_method_update_wait: Aggregate,
     superposition: Aggregate,
     superposition_success_count: AtomicU64,
     superposition_fallback_count: AtomicU64,
@@ -92,6 +104,16 @@ impl Collector {
             Operation::DatabaseWrite => &self.database_write,
             Operation::DatabasePoolReadWait => &self.database_pool_read_wait,
             Operation::DatabasePoolWriteWait => &self.database_pool_write_wait,
+            Operation::DatabasePoolCustomerLookupWait => &self.database_pool_customer_lookup_wait,
+            Operation::DatabasePoolPaymentMethodFingerprintLookupWait => {
+                &self.database_pool_payment_method_fingerprint_lookup_wait
+            }
+            Operation::DatabasePoolPaymentMethodInsertWait => {
+                &self.database_pool_payment_method_insert_wait
+            }
+            Operation::DatabasePoolPaymentMethodUpdateWait => {
+                &self.database_pool_payment_method_update_wait
+            }
             Operation::Superposition => &self.superposition,
             Operation::RedisRead => &self.redis_read,
             Operation::RedisWrite => &self.redis_write,
@@ -100,6 +122,25 @@ impl Collector {
     }
 
     fn snapshot(&self, total_ms: f64) -> Snapshot {
+        let database_pool_read_wait = self.database_pool_read_wait.snapshot();
+        let database_pool_write_wait = self.database_pool_write_wait.snapshot();
+        let database_pool_customer_lookup_wait = self.database_pool_customer_lookup_wait.snapshot();
+        let database_pool_payment_method_fingerprint_lookup_wait = self
+            .database_pool_payment_method_fingerprint_lookup_wait
+            .snapshot();
+        let database_pool_payment_method_insert_wait =
+            self.database_pool_payment_method_insert_wait.snapshot();
+        let database_pool_payment_method_update_wait =
+            self.database_pool_payment_method_update_wait.snapshot();
+        let database_pool_other_read_wait = database_pool_read_wait.saturating_sub(
+            database_pool_customer_lookup_wait
+                .saturating_add(database_pool_payment_method_fingerprint_lookup_wait),
+        );
+        let database_pool_other_write_wait = database_pool_write_wait.saturating_sub(
+            database_pool_payment_method_insert_wait
+                .saturating_add(database_pool_payment_method_update_wait),
+        );
+
         let snapshot = Snapshot {
             total_ms,
             vault_primary_fingerprint: self.vault_primary_fingerprint.snapshot(),
@@ -109,8 +150,14 @@ impl Collector {
             encryption_service: self.encryption_service.snapshot(),
             database_read: self.database_read.snapshot(),
             database_write: self.database_write.snapshot(),
-            database_pool_read_wait: self.database_pool_read_wait.snapshot(),
-            database_pool_write_wait: self.database_pool_write_wait.snapshot(),
+            database_pool_read_wait,
+            database_pool_write_wait,
+            database_pool_customer_lookup_wait,
+            database_pool_payment_method_fingerprint_lookup_wait,
+            database_pool_payment_method_insert_wait,
+            database_pool_payment_method_update_wait,
+            database_pool_other_read_wait,
+            database_pool_other_write_wait,
             superposition: self.superposition.snapshot(),
             superposition_success_count: self.superposition_success_count.load(Ordering::Relaxed),
             superposition_fallback_count: self.superposition_fallback_count.load(Ordering::Relaxed),
@@ -151,6 +198,22 @@ pub struct OperationSnapshot {
     pub ms: f64,
 }
 
+impl OperationSnapshot {
+    fn saturating_add(self, other: Self) -> Self {
+        Self {
+            count: self.count.saturating_add(other.count),
+            ms: self.ms + other.ms,
+        }
+    }
+
+    fn saturating_sub(self, other: Self) -> Self {
+        Self {
+            count: self.count.saturating_sub(other.count),
+            ms: (self.ms - other.ms).max(0.0),
+        }
+    }
+}
+
 /// Fixed-field summary emitted once for a PMS Confirm request.
 #[derive(Clone, Debug, Default, Serialize)]
 pub struct Snapshot {
@@ -165,6 +228,15 @@ pub struct Snapshot {
     pub database_write: OperationSnapshot,
     pub database_pool_read_wait: OperationSnapshot,
     pub database_pool_write_wait: OperationSnapshot,
+    /// Nested diagnostics for named pool acquisitions. These are excluded from
+    /// `instrumented_ms` because the aggregate pool-wait fields already include them.
+    pub database_pool_customer_lookup_wait: OperationSnapshot,
+    pub database_pool_payment_method_fingerprint_lookup_wait: OperationSnapshot,
+    pub database_pool_payment_method_insert_wait: OperationSnapshot,
+    pub database_pool_payment_method_update_wait: OperationSnapshot,
+    /// Aggregate pool waits which were not classified as one of the operations above.
+    pub database_pool_other_read_wait: OperationSnapshot,
+    pub database_pool_other_write_wait: OperationSnapshot,
     pub superposition: OperationSnapshot,
     pub superposition_success_count: u64,
     pub superposition_fallback_count: u64,
@@ -271,6 +343,24 @@ mod tests {
         assert_eq!(snapshot.database_read.count, 1);
         assert!(snapshot.payment_method_fingerprint_lookup.ms >= snapshot.database_read.ms);
         assert_eq!(snapshot.instrumented_ms, snapshot.database_read.ms);
+    }
+
+    #[tokio::test]
+    async fn named_pool_waits_are_reported_without_double_counting() {
+        let (_, snapshot) = scope(async {
+            let _aggregate_read = start(Operation::DatabasePoolReadWait);
+            let _customer = start(Operation::DatabasePoolCustomerLookupWait);
+            tokio::time::sleep(Duration::from_millis(2)).await;
+        })
+        .await;
+
+        assert_eq!(snapshot.database_pool_read_wait.count, 1);
+        assert_eq!(snapshot.database_pool_customer_lookup_wait.count, 1);
+        assert_eq!(snapshot.database_pool_other_read_wait.count, 0);
+        assert_eq!(
+            snapshot.instrumented_ms,
+            snapshot.database_pool_read_wait.ms
+        );
     }
 
     #[tokio::test]

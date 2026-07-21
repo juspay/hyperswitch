@@ -26,7 +26,10 @@ use crate::{
     diesel_error_to_data_error, errors,
     kv_router_store::{FindResourceBy, KVRouterStore},
     redis::kv_store::KvStorePartition,
-    utils::{pg_connection_read, pg_connection_write},
+    utils::{
+        pg_connection_read, pg_connection_read_with_breakdown_operation, pg_connection_write,
+        pg_connection_write_with_breakdown_operation,
+    },
     DatabaseStore, RouterStore,
 };
 #[cfg(feature = "v1")]
@@ -613,7 +616,11 @@ impl<T: DatabaseStore> PaymentMethodInterface for RouterStore<T> {
             .await
             .change_context(errors::StorageError::DecryptionError)?;
 
-        let conn = pg_connection_write(self).await?;
+        let conn = pg_connection_write_with_breakdown_operation(
+            self,
+            router_env::pms_confirm_breakdown::Operation::DatabasePoolPaymentMethodInsertWait,
+        )
+        .await?;
         let payment_method: DomainPaymentMethod = self
             .call_database(key_store, payment_method_new.insert(&conn))
             .await?;
@@ -667,7 +674,11 @@ impl<T: DatabaseStore> PaymentMethodInterface for RouterStore<T> {
         let payment_method = Conversion::convert(payment_method)
             .await
             .change_context(errors::StorageError::DecryptionError)?;
-        let conn = pg_connection_write(self).await?;
+        let conn = pg_connection_write_with_breakdown_operation(
+            self,
+            router_env::pms_confirm_breakdown::Operation::DatabasePoolPaymentMethodUpdateWait,
+        )
+        .await?;
         let payment_method: DomainPaymentMethod = self
             .call_database(
                 key_store,
@@ -869,7 +880,11 @@ impl<T: DatabaseStore> PaymentMethodInterface for RouterStore<T> {
         let _lookup_timer = router_env::pms_confirm_breakdown::start(
             router_env::pms_confirm_breakdown::Operation::PaymentMethodFingerprintLookup,
         );
-        let conn = pg_connection_read(self).await?;
+        let conn = pg_connection_read_with_breakdown_operation(
+            self,
+            router_env::pms_confirm_breakdown::Operation::DatabasePoolPaymentMethodFingerprintLookupWait,
+        )
+        .await?;
         self.call_database(
             key_store,
             PaymentMethod::find_by_fingerprint_id(&conn, fingerprint_id),

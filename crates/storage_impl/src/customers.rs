@@ -16,7 +16,7 @@ use crate::{
     kv_router_store,
     redis::kv_store::{decide_storage_scheme, KvStorePartition, Op, PartitionKey},
     store::enums::MerchantStorageScheme,
-    utils::{pg_connection_read, pg_connection_write},
+    utils::{pg_connection_read, pg_connection_read_with_breakdown_operation, pg_connection_write},
     CustomResult, DatabaseStore, MockDb, RouterStore,
 };
 
@@ -487,7 +487,11 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
         key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::Customer, StorageError> {
-        let conn = pg_connection_read(self).await?;
+        let conn = pg_connection_read_with_breakdown_operation(
+            self,
+            router_env::pms_confirm_breakdown::Operation::DatabasePoolCustomerLookupWait,
+        )
+        .await?;
         let result: domain::Customer = self
             .find_resource_by_id(
                 key_store,
@@ -896,7 +900,11 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
         key_store: &MerchantKeyStore,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::Customer, StorageError> {
-        let conn = pg_connection_read(self).await?;
+        let conn = pg_connection_read_with_breakdown_operation(
+            self,
+            router_env::pms_confirm_breakdown::Operation::DatabasePoolCustomerLookupWait,
+        )
+        .await?;
         let customer: domain::Customer = self
             .call_database(
                 key_store,

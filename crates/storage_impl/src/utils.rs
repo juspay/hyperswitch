@@ -36,6 +36,20 @@ pub async fn pg_connection_read<T: DatabaseStore>(
         .change_context(StorageError::DatabaseConnectionError)
 }
 
+/// Acquire a read connection while attributing the wait to a named PMS Confirm
+/// operation. The existing aggregate read-pool timer remains the source of total
+/// accounting; this nested timer is diagnostic only and is inactive outside that route.
+pub async fn pg_connection_read_with_breakdown_operation<T: DatabaseStore>(
+    store: &T,
+    operation: router_env::pms_confirm_breakdown::Operation,
+) -> error_stack::Result<
+    PooledConnection<'_, async_bb8_diesel::ConnectionManager<PgConnection>>,
+    StorageError,
+> {
+    let _operation_timer = router_env::pms_confirm_breakdown::start(operation);
+    pg_connection_read(store).await
+}
+
 pub async fn pg_connection_write<T: DatabaseStore>(
     store: &T,
 ) -> error_stack::Result<
@@ -51,6 +65,19 @@ pub async fn pg_connection_write<T: DatabaseStore>(
     pool.get()
         .await
         .change_context(StorageError::DatabaseConnectionError)
+}
+
+/// Acquire a write connection while attributing the wait to a named PMS Confirm
+/// operation. See [`pg_connection_read_with_breakdown_operation`].
+pub async fn pg_connection_write_with_breakdown_operation<T: DatabaseStore>(
+    store: &T,
+    operation: router_env::pms_confirm_breakdown::Operation,
+) -> error_stack::Result<
+    PooledConnection<'_, async_bb8_diesel::ConnectionManager<PgConnection>>,
+    StorageError,
+> {
+    let _operation_timer = router_env::pms_confirm_breakdown::start(operation);
+    pg_connection_write(store).await
 }
 
 pub async fn pg_accounts_connection_read<T: DatabaseStore>(

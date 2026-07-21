@@ -1930,6 +1930,22 @@ pub async fn payment_method_session_confirm(
         db_pool_read_wait_ms = breakdown.database_pool_read_wait.ms,
         db_pool_write_wait_count = breakdown.database_pool_write_wait.count,
         db_pool_write_wait_ms = breakdown.database_pool_write_wait.ms,
+        db_pool_customer_lookup_wait_count = breakdown.database_pool_customer_lookup_wait.count,
+        db_pool_customer_lookup_wait_ms = breakdown.database_pool_customer_lookup_wait.ms,
+        db_pool_pm_fingerprint_lookup_wait_count = breakdown
+            .database_pool_payment_method_fingerprint_lookup_wait
+            .count,
+        db_pool_pm_fingerprint_lookup_wait_ms = breakdown
+            .database_pool_payment_method_fingerprint_lookup_wait
+            .ms,
+        db_pool_pm_insert_wait_count = breakdown.database_pool_payment_method_insert_wait.count,
+        db_pool_pm_insert_wait_ms = breakdown.database_pool_payment_method_insert_wait.ms,
+        db_pool_pm_update_wait_count = breakdown.database_pool_payment_method_update_wait.count,
+        db_pool_pm_update_wait_ms = breakdown.database_pool_payment_method_update_wait.ms,
+        db_pool_other_read_wait_count = breakdown.database_pool_other_read_wait.count,
+        db_pool_other_read_wait_ms = breakdown.database_pool_other_read_wait.ms,
+        db_pool_other_write_wait_count = breakdown.database_pool_other_write_wait.count,
+        db_pool_other_write_wait_ms = breakdown.database_pool_other_write_wait.ms,
         superposition_count = breakdown.superposition.count,
         superposition_ms = breakdown.superposition.ms,
         superposition_success_count = breakdown.superposition_success_count,
