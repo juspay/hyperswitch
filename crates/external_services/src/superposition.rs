@@ -91,7 +91,11 @@ mod deja_boundary {
             return Reconstructed::Failed;
         };
         match object.get("result").and_then(serde_json::Value::as_str) {
-            Some("Ok") => match object.get("value").cloned().map(serde_json::from_value::<T>) {
+            Some("Ok") => match object
+                .get("value")
+                .cloned()
+                .map(serde_json::from_value::<T>)
+            {
                 Some(Ok(value)) => Reconstructed::Value(Ok(value)),
                 _ => Reconstructed::Failed,
             },
@@ -171,8 +175,9 @@ mod deja_boundary {
                 deja::BoundaryDeclaration::default().operation(deja::OperationKind::ExternalCall),
             ),
         };
-        let spec =
-            deja::__private::BoundarySpec::with_semantics(BOUNDARY, COMPONENT, operation, semantics);
+        let spec = deja::__private::BoundarySpec::with_semantics(
+            BOUNDARY, COMPONENT, operation, semantics,
+        );
         let observation = deja::__private::CrossingObservation::with_correlation(
             spec,
             identity,
