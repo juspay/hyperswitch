@@ -76,7 +76,7 @@ pub struct TsysTransitMetadataObject {
     pub tsys_transit: Option<serde_json::Value>,
     pub merchant_street_address: Option<Secret<String>>,
     pub customer_service_number: Option<Secret<String>>,
-    pub merchant_url: Option<Secret<String>>,
+    pub merchant_url: Option<String>,
 }
 
 impl TryFrom<&Option<common_utils::pii::SecretSerdeValue>> for TsysTransitMetadataObject {
