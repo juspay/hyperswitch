@@ -5,8 +5,6 @@ import {
   payment_methods_enabled,
   connectorDetails as paymentCommonDetails,
 } from "../../configs/Payment/Commons";
-import { isMockServer } from "../../../support/mitmProxy";
-
 const pmCollectLinkConnectorDetails = paymentCommonDetails.pm_collect_link;
 
 let globalState;
@@ -165,8 +163,7 @@ describe("Core flows", () => {
   });
 
   context("Client Secret Session Expiry", () => {
-    const SESSION_EXPIRY_SECS = isMockServer() ? 1 : 60;
-    const SESSION_EXPIRY_WAIT = isMockServer() ? 2000 : 65000;
+    const SESSION_EXPIRY_WAIT = 65000;
     let shouldContinue = true;
 
     before("seed global state", () => {
@@ -187,7 +184,7 @@ describe("Core flows", () => {
 
     it("Update business profile with session_expiry", () => {
       const updateBusinessProfileBody = {
-        session_expiry: SESSION_EXPIRY_SECS,
+        session_expiry: 60,
       };
       cy.UpdateBusinessProfileTest(
         updateBusinessProfileBody,
