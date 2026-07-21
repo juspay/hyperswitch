@@ -310,7 +310,12 @@ impl MerchantConnectorAccount {
         merchant_id: &common_utils::id_type::MerchantId,
         profile_id: &common_utils::id_type::ProfileId,
     ) -> StorageResult<Vec<Self>> {
-        generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
+        generics::generic_filter::<
+            <Self as HasTable>::Table,
+            _,
+            <<Self as HasTable>::Table as Table>::PrimaryKey,
+            _,
+        >(
             conn,
             dsl::merchant_id
                 .eq(merchant_id.to_owned())
