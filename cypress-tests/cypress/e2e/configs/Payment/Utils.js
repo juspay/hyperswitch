@@ -40,9 +40,11 @@ import { connectorDetails as forteConnectorDetails } from "./Forte.js";
 import { connectorDetails as getnetConnectorDetails } from "./Getnet.js";
 import { connectorDetails as gigadatConnectorDetails } from "./Gigadat.js";
 import { connectorDetails as globalpayConnectorDetails } from "./Globalpay.js";
+import { connectorDetails as globepayConnectorDetails } from "./Globepay.js";
 import { connectorDetails as helcimConnectorDetails } from "./Helcim.js";
 import { connectorDetails as hipayConnectorDetails } from "./Hipay.js";
 import { connectorDetails as iatapayConnectorDetails } from "./Iatapay.js";
+import { connectorDetails as inespayConnectorDetails } from "./Inespay.js";
 import { connectorDetails as itaubankConnectorDetails } from "./ItauBank.js";
 import { connectorDetails as jpmorganConnectorDetails } from "./Jpmorgan.js";
 import { connectorDetails as klarnaConnectorDetails } from "./Klarna.js";
@@ -125,9 +127,11 @@ const connectorDetails = {
   getnet: getnetConnectorDetails,
   gigadat: gigadatConnectorDetails,
   globalpay: globalpayConnectorDetails,
+  globepay: globepayConnectorDetails,
   helcim: helcimConnectorDetails,
   hipay: hipayConnectorDetails,
   iatapay: iatapayConnectorDetails,
+  inespay: inespayConnectorDetails,
   itaubank: itaubankConnectorDetails,
   jpmorgan: jpmorganConnectorDetails,
   klarna: klarnaConnectorDetails,
@@ -610,6 +614,7 @@ export const CONNECTOR_LISTS = {
     ],
     BANK_DEBIT: [
       "adyen",
+      "inespay",
       "novalnet",
       "payload",
       "stax",
@@ -628,8 +633,8 @@ export const CONNECTOR_LISTS = {
       "paypal",
     ],
     MIFINITY_WALLET: ["mifinity"],
-    ALIPAY_WALLET: ["stripe", "multisafepay"],
-    WECHATPAY_WALLET: ["stripe", "multisafepay"],
+    ALIPAY_WALLET: ["globepay", "stripe", "multisafepay"],
+    WECHATPAY_WALLET: ["globepay", "stripe", "multisafepay"],
     MBWAY_WALLET: ["multisafepay"],
     SKRILL_WALLET: ["paysafe"],
     PAYSAFECARD_GIFT_CARD: ["paysafe"],
