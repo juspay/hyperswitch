@@ -1196,6 +1196,7 @@ impl
             connector_feature_data: None,
             capture_method: capture_method.map(|capture_method| capture_method.into()),
             webhook_url: None,
+            domain_data: None,
         })
     }
 }
@@ -2401,6 +2402,7 @@ impl
                         }
                     }),
                 }),
+            auth_type: None,
         })
     }
 }
@@ -4441,6 +4443,12 @@ impl transformers::ForeignTryFrom<AuthenticationData> for payments_grpc::Authent
                 .cb_network_params
                 .map(payments_grpc::NetworkParams::foreign_try_from)
                 .transpose()?,
+            authentication_type: None,
+            challenge_cancel: None,
+            challenge_code: None,
+            created_at: None,
+            challenge_code_reason: None,
+            message_extension: None,
         })
     }
 }
@@ -4470,6 +4478,12 @@ impl transformers::ForeignTryFrom<router_request_types::UcsAuthenticationData>
             ucaf_collection_indicator: authentication_data.ucaf_collection_indicator,
             exemption_indicator: None,
             network_params: None,
+            authentication_type: None,
+            message_extension: None,
+            challenge_code_reason: None,
+            challenge_code: None,
+            challenge_cancel: None,
+            created_at: None,
         })
     }
 }
@@ -4653,6 +4667,12 @@ impl transformers::ForeignTryFrom<payments_grpc::AuthenticationData>
             ucaf_collection_indicator,
             exemption_indicator: _,
             network_params: _,
+            authentication_type: _,
+            challenge_cancel: _,
+            challenge_code: _,
+            created_at: _,
+            challenge_code_reason: _,
+            message_extension: _,
         } = response;
         let trans_status = trans_status
             .map(payments_grpc::TransactionStatus::try_from)
