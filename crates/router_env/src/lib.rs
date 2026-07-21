@@ -10,6 +10,9 @@ pub mod env;
 pub mod logger;
 pub mod metrics;
 pub mod pms_confirm_breakdown;
+/// Generic name for the request-scoped payment-method route breakdown collector.
+/// The original module name remains available for compatibility with existing hooks.
+pub use pms_confirm_breakdown as payment_method_breakdown;
 #[cfg(feature = "actix_web")]
 pub mod request_id;
 #[cfg(feature = "actix_web")]

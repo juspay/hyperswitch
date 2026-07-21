@@ -1,8 +1,8 @@
-//! Request-scoped latency accounting for the payment-method-session Confirm route.
+//! Request-scoped latency accounting for selected payment-method service routes.
 //!
-//! The collector is installed only by that route. Shared database, Redis, encryption,
-//! superposition, and vault code can therefore record timings without emitting extra
-//! logs or affecting the observability cardinality of other API flows.
+//! The collector is installed only by explicitly instrumented routes. Shared database,
+//! Redis, encryption, superposition, and vault code can therefore record timings without
+//! emitting extra logs or affecting the observability cardinality of other API flows.
 
 use std::{
     future::Future,
@@ -19,7 +19,7 @@ tokio::task_local! {
     static COLLECTOR: Arc<Collector>;
 }
 
-/// A timed dependency category in the PMS Confirm request.
+/// A timed dependency or diagnostic step in an instrumented payment-method request.
 #[derive(Clone, Copy, Debug)]
 pub enum Operation {
     VaultPrimaryFingerprint,
@@ -43,6 +43,35 @@ pub enum Operation {
     DatabasePoolPaymentMethodInsertWait,
     /// Pool acquisition for the payment-method update after vault insertion.
     DatabasePoolPaymentMethodUpdateWait,
+    /// End-to-end named DB calls. These include pool acquisition, SQL execution,
+    /// row conversion, and decryption, so they are diagnostic and excluded from
+    /// `instrumented_ms` to avoid double-counting the nested DB categories.
+    DatabasePaymentMethodFind,
+    DatabasePaymentMethodSessionFind,
+    DatabaseConnectorAccountsList,
+    DatabaseCustomerPaymentMethodsList,
+    DatabaseCustomerFind,
+    DatabasePaymentMethodSessionUpdate,
+    /// Retrieve-route high-level steps. These are diagnostic spans and excluded
+    /// from `instrumented_ms` because dependency timers run inside them.
+    RetrieveResolveStorage,
+    RetrieveFetchPaymentMethod,
+    RetrieveRawAccessPolicy,
+    RetrieveSingleUseToken,
+    RetrieveCvc,
+    RetrieveRawPaymentMethod,
+    RetrieveRawNetworkToken,
+    RetrieveResponseTransform,
+    /// List-route high-level steps. These are diagnostic spans for explaining
+    /// route wall time and are also excluded from `instrumented_ms`.
+    ListSessionLookup,
+    ListConnectorAccounts,
+    ListCustomerPaymentMethods,
+    ListSessionUpdate,
+    ListResponseTransform,
+    /// Distinct vault dependencies used by payment-method retrieve.
+    VaultRetrievePaymentMethod,
+    VaultRetrieveNetworkToken,
     Superposition,
     RedisRead,
     RedisWrite,
@@ -84,6 +113,27 @@ struct Collector {
     database_pool_payment_method_fingerprint_lookup_wait: Aggregate,
     database_pool_payment_method_insert_wait: Aggregate,
     database_pool_payment_method_update_wait: Aggregate,
+    database_payment_method_find: Aggregate,
+    database_payment_method_session_find: Aggregate,
+    database_connector_accounts_list: Aggregate,
+    database_customer_payment_methods_list: Aggregate,
+    database_customer_find: Aggregate,
+    database_payment_method_session_update: Aggregate,
+    retrieve_resolve_storage: Aggregate,
+    retrieve_fetch_payment_method: Aggregate,
+    retrieve_raw_access_policy: Aggregate,
+    retrieve_single_use_token: Aggregate,
+    retrieve_cvc: Aggregate,
+    retrieve_raw_payment_method: Aggregate,
+    retrieve_raw_network_token: Aggregate,
+    retrieve_response_transform: Aggregate,
+    list_session_lookup: Aggregate,
+    list_connector_accounts: Aggregate,
+    list_customer_payment_methods: Aggregate,
+    list_session_update: Aggregate,
+    list_response_transform: Aggregate,
+    vault_retrieve_payment_method: Aggregate,
+    vault_retrieve_network_token: Aggregate,
     superposition: Aggregate,
     superposition_success_count: AtomicU64,
     superposition_fallback_count: AtomicU64,
@@ -114,6 +164,33 @@ impl Collector {
             Operation::DatabasePoolPaymentMethodUpdateWait => {
                 &self.database_pool_payment_method_update_wait
             }
+            Operation::DatabasePaymentMethodFind => &self.database_payment_method_find,
+            Operation::DatabasePaymentMethodSessionFind => {
+                &self.database_payment_method_session_find
+            }
+            Operation::DatabaseConnectorAccountsList => &self.database_connector_accounts_list,
+            Operation::DatabaseCustomerPaymentMethodsList => {
+                &self.database_customer_payment_methods_list
+            }
+            Operation::DatabaseCustomerFind => &self.database_customer_find,
+            Operation::DatabasePaymentMethodSessionUpdate => {
+                &self.database_payment_method_session_update
+            }
+            Operation::RetrieveResolveStorage => &self.retrieve_resolve_storage,
+            Operation::RetrieveFetchPaymentMethod => &self.retrieve_fetch_payment_method,
+            Operation::RetrieveRawAccessPolicy => &self.retrieve_raw_access_policy,
+            Operation::RetrieveSingleUseToken => &self.retrieve_single_use_token,
+            Operation::RetrieveCvc => &self.retrieve_cvc,
+            Operation::RetrieveRawPaymentMethod => &self.retrieve_raw_payment_method,
+            Operation::RetrieveRawNetworkToken => &self.retrieve_raw_network_token,
+            Operation::RetrieveResponseTransform => &self.retrieve_response_transform,
+            Operation::ListSessionLookup => &self.list_session_lookup,
+            Operation::ListConnectorAccounts => &self.list_connector_accounts,
+            Operation::ListCustomerPaymentMethods => &self.list_customer_payment_methods,
+            Operation::ListSessionUpdate => &self.list_session_update,
+            Operation::ListResponseTransform => &self.list_response_transform,
+            Operation::VaultRetrievePaymentMethod => &self.vault_retrieve_payment_method,
+            Operation::VaultRetrieveNetworkToken => &self.vault_retrieve_network_token,
             Operation::Superposition => &self.superposition,
             Operation::RedisRead => &self.redis_read,
             Operation::RedisWrite => &self.redis_write,
@@ -158,6 +235,33 @@ impl Collector {
             database_pool_payment_method_update_wait,
             database_pool_other_read_wait,
             database_pool_other_write_wait,
+            database_payment_method_find: self.database_payment_method_find.snapshot(),
+            database_payment_method_session_find: self
+                .database_payment_method_session_find
+                .snapshot(),
+            database_connector_accounts_list: self.database_connector_accounts_list.snapshot(),
+            database_customer_payment_methods_list: self
+                .database_customer_payment_methods_list
+                .snapshot(),
+            database_customer_find: self.database_customer_find.snapshot(),
+            database_payment_method_session_update: self
+                .database_payment_method_session_update
+                .snapshot(),
+            retrieve_resolve_storage: self.retrieve_resolve_storage.snapshot(),
+            retrieve_fetch_payment_method: self.retrieve_fetch_payment_method.snapshot(),
+            retrieve_raw_access_policy: self.retrieve_raw_access_policy.snapshot(),
+            retrieve_single_use_token: self.retrieve_single_use_token.snapshot(),
+            retrieve_cvc: self.retrieve_cvc.snapshot(),
+            retrieve_raw_payment_method: self.retrieve_raw_payment_method.snapshot(),
+            retrieve_raw_network_token: self.retrieve_raw_network_token.snapshot(),
+            retrieve_response_transform: self.retrieve_response_transform.snapshot(),
+            list_session_lookup: self.list_session_lookup.snapshot(),
+            list_connector_accounts: self.list_connector_accounts.snapshot(),
+            list_customer_payment_methods: self.list_customer_payment_methods.snapshot(),
+            list_session_update: self.list_session_update.snapshot(),
+            list_response_transform: self.list_response_transform.snapshot(),
+            vault_retrieve_payment_method: self.vault_retrieve_payment_method.snapshot(),
+            vault_retrieve_network_token: self.vault_retrieve_network_token.snapshot(),
             superposition: self.superposition.snapshot(),
             superposition_success_count: self.superposition_success_count.load(Ordering::Relaxed),
             superposition_fallback_count: self.superposition_fallback_count.load(Ordering::Relaxed),
@@ -172,6 +276,8 @@ impl Collector {
         let instrumented_ms = snapshot.vault_primary_fingerprint.ms
             + snapshot.vault_auxiliary_fingerprint.ms
             + snapshot.vault_add_card.ms
+            + snapshot.vault_retrieve_payment_method.ms
+            + snapshot.vault_retrieve_network_token.ms
             + snapshot.encryption_service.ms
             + snapshot.database_read.ms
             + snapshot.database_write.ms
@@ -214,7 +320,7 @@ impl OperationSnapshot {
     }
 }
 
-/// Fixed-field summary emitted once for a PMS Confirm request.
+/// Fixed-field summary emitted once for an instrumented payment-method request.
 #[derive(Clone, Debug, Default, Serialize)]
 pub struct Snapshot {
     pub total_ms: f64,
@@ -237,6 +343,32 @@ pub struct Snapshot {
     /// Aggregate pool waits which were not classified as one of the operations above.
     pub database_pool_other_read_wait: OperationSnapshot,
     pub database_pool_other_write_wait: OperationSnapshot,
+    /// Named end-to-end DB calls. These diagnostic spans include nested pool and
+    /// SQL timings and are therefore excluded from `instrumented_ms`.
+    pub database_payment_method_find: OperationSnapshot,
+    pub database_payment_method_session_find: OperationSnapshot,
+    pub database_connector_accounts_list: OperationSnapshot,
+    pub database_customer_payment_methods_list: OperationSnapshot,
+    pub database_customer_find: OperationSnapshot,
+    pub database_payment_method_session_update: OperationSnapshot,
+    /// Retrieve-route high-level diagnostic steps.
+    pub retrieve_resolve_storage: OperationSnapshot,
+    pub retrieve_fetch_payment_method: OperationSnapshot,
+    pub retrieve_raw_access_policy: OperationSnapshot,
+    pub retrieve_single_use_token: OperationSnapshot,
+    pub retrieve_cvc: OperationSnapshot,
+    pub retrieve_raw_payment_method: OperationSnapshot,
+    pub retrieve_raw_network_token: OperationSnapshot,
+    pub retrieve_response_transform: OperationSnapshot,
+    /// List-route high-level diagnostic steps.
+    pub list_session_lookup: OperationSnapshot,
+    pub list_connector_accounts: OperationSnapshot,
+    pub list_customer_payment_methods: OperationSnapshot,
+    pub list_session_update: OperationSnapshot,
+    pub list_response_transform: OperationSnapshot,
+    /// Distinct retrieve-route vault dependencies.
+    pub vault_retrieve_payment_method: OperationSnapshot,
+    pub vault_retrieve_network_token: OperationSnapshot,
     pub superposition: OperationSnapshot,
     pub superposition_success_count: u64,
     pub superposition_fallback_count: u64,
@@ -248,7 +380,7 @@ pub struct Snapshot {
     pub parallel_overlap_ms: f64,
 }
 
-/// Run a future with PMS Confirm accounting enabled.
+/// Run a future with payment-method route accounting enabled.
 pub async fn scope<F>(future: F) -> (F::Output, Snapshot)
 where
     F: Future,
@@ -260,7 +392,7 @@ where
     (output, snapshot)
 }
 
-/// Start a category timer. Outside the PMS Confirm scope this is a zero-cost `None`.
+/// Start a category timer. Outside an installed route scope this is a zero-cost `None`.
 pub fn start(operation: Operation) -> Option<OperationTimer> {
     COLLECTOR
         .try_with(|collector| OperationTimer {
@@ -361,6 +493,22 @@ mod tests {
             snapshot.instrumented_ms,
             snapshot.database_pool_read_wait.ms
         );
+    }
+
+    #[tokio::test]
+    async fn route_steps_and_named_db_calls_are_diagnostic_only() {
+        let (_, snapshot) = scope(async {
+            let _step = start(Operation::ListSessionLookup);
+            let _named_db = start(Operation::DatabasePaymentMethodSessionFind);
+            let _read = start(Operation::DatabaseRead);
+            tokio::time::sleep(Duration::from_millis(2)).await;
+        })
+        .await;
+
+        assert_eq!(snapshot.list_session_lookup.count, 1);
+        assert_eq!(snapshot.database_payment_method_session_find.count, 1);
+        assert_eq!(snapshot.database_read.count, 1);
+        assert_eq!(snapshot.instrumented_ms, snapshot.database_read.ms);
     }
 
     #[tokio::test]

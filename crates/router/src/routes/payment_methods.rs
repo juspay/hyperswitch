@@ -285,25 +285,80 @@ pub async fn payment_method_retrieve_api(
         Err(err) => return api::log_and_return_error_response(error_stack::report!(err)),
     };
 
-    Box::pin(api::server_wrap(
-        flow,
-        state,
-        &req,
-        payload,
-        |state, auth: auth::AuthenticationData, pm, _| {
-            payment_methods_routes::retrieve_payment_method(
-                state,
-                pm,
-                auth.profile,
-                auth.platform,
-                api_key_type,
-                query_payload.fetch_raw_detail,
-            )
-        },
-        &*auth_type,
-        api_locking::LockAction::NotApplicable,
-    ))
-    .await
+    let (response, breakdown) =
+        router_env::payment_method_breakdown::scope(Box::pin(api::server_wrap(
+            flow,
+            state,
+            &req,
+            payload,
+            |state, auth: auth::AuthenticationData, pm, _| {
+                payment_methods_routes::retrieve_payment_method(
+                    state,
+                    pm,
+                    auth.profile,
+                    auth.platform,
+                    api_key_type,
+                    query_payload.fetch_raw_detail,
+                )
+            },
+            &*auth_type,
+            api_locking::LockAction::NotApplicable,
+        )))
+        .await;
+
+    logger::info!(
+        tag = "PmRetrieveBreakdown",
+        success = response.status().is_success(),
+        total_ms = breakdown.total_ms,
+        instrumented_ms = breakdown.instrumented_ms,
+        unattributed_ms = breakdown.unattributed_ms,
+        parallel_overlap_ms = breakdown.parallel_overlap_ms,
+        resolve_storage_count = breakdown.retrieve_resolve_storage.count,
+        resolve_storage_ms = breakdown.retrieve_resolve_storage.ms,
+        fetch_payment_method_count = breakdown.retrieve_fetch_payment_method.count,
+        fetch_payment_method_ms = breakdown.retrieve_fetch_payment_method.ms,
+        raw_access_policy_count = breakdown.retrieve_raw_access_policy.count,
+        raw_access_policy_ms = breakdown.retrieve_raw_access_policy.ms,
+        single_use_token_count = breakdown.retrieve_single_use_token.count,
+        single_use_token_ms = breakdown.retrieve_single_use_token.ms,
+        cvc_count = breakdown.retrieve_cvc.count,
+        cvc_ms = breakdown.retrieve_cvc.ms,
+        raw_payment_method_count = breakdown.retrieve_raw_payment_method.count,
+        raw_payment_method_ms = breakdown.retrieve_raw_payment_method.ms,
+        raw_network_token_count = breakdown.retrieve_raw_network_token.count,
+        raw_network_token_ms = breakdown.retrieve_raw_network_token.ms,
+        response_transform_count = breakdown.retrieve_response_transform.count,
+        response_transform_ms = breakdown.retrieve_response_transform.ms,
+        db_payment_method_find_count = breakdown.database_payment_method_find.count,
+        db_payment_method_find_ms = breakdown.database_payment_method_find.ms,
+        vault_retrieve_payment_method_count = breakdown.vault_retrieve_payment_method.count,
+        vault_retrieve_payment_method_ms = breakdown.vault_retrieve_payment_method.ms,
+        vault_retrieve_network_token_count = breakdown.vault_retrieve_network_token.count,
+        vault_retrieve_network_token_ms = breakdown.vault_retrieve_network_token.ms,
+        encryption_service_count = breakdown.encryption_service.count,
+        encryption_service_ms = breakdown.encryption_service.ms,
+        db_read_count = breakdown.database_read.count,
+        db_read_ms = breakdown.database_read.ms,
+        db_write_count = breakdown.database_write.count,
+        db_write_ms = breakdown.database_write.ms,
+        db_pool_read_wait_count = breakdown.database_pool_read_wait.count,
+        db_pool_read_wait_ms = breakdown.database_pool_read_wait.ms,
+        db_pool_write_wait_count = breakdown.database_pool_write_wait.count,
+        db_pool_write_wait_ms = breakdown.database_pool_write_wait.ms,
+        superposition_count = breakdown.superposition.count,
+        superposition_ms = breakdown.superposition.ms,
+        superposition_success_count = breakdown.superposition_success_count,
+        superposition_fallback_count = breakdown.superposition_fallback_count,
+        redis_read_count = breakdown.redis_read.count,
+        redis_read_ms = breakdown.redis_read.ms,
+        redis_write_count = breakdown.redis_write.count,
+        redis_write_ms = breakdown.redis_write.ms,
+        redis_other_count = breakdown.redis_other.count,
+        redis_other_ms = breakdown.redis_other.ms,
+        "PM Retrieve dependency breakdown"
+    );
+
+    response
 }
 
 #[cfg(feature = "v2")]
@@ -1800,37 +1855,92 @@ pub async fn payment_method_session_list_payment_methods(
     let flow = Flow::PaymentMethodsList;
     let payment_method_session_id = path.into_inner();
 
-    Box::pin(api::server_wrap(
-        flow,
-        state,
-        &req,
-        payment_method_session_id.clone(),
-        |state, auth: auth::AuthenticationData, payment_method_session_id, _| {
-            payment_methods_routes::list_payment_methods_for_session(
-                state,
-                auth.platform,
-                auth.profile,
-                payment_method_session_id,
-            )
-        },
-        auth::sdk_or_client_auth(
-            &auth::SdkAuthorizationAuth {
-                allow_connected_scope_operation: true,
-                allow_platform_self_operation: true,
-                resource_id: common_utils::types::authentication::ResourceId::PaymentMethodSession(
-                    payment_method_session_id.clone(),
-                ),
-            },
-            &auth::V2ClientAuth(
-                common_utils::types::authentication::ResourceId::PaymentMethodSession(
+    let (response, breakdown) =
+        router_env::payment_method_breakdown::scope(Box::pin(api::server_wrap(
+            flow,
+            state,
+            &req,
+            payment_method_session_id.clone(),
+            |state, auth: auth::AuthenticationData, payment_method_session_id, _| {
+                payment_methods_routes::list_payment_methods_for_session(
+                    state,
+                    auth.platform,
+                    auth.profile,
                     payment_method_session_id,
+                )
+            },
+            auth::sdk_or_client_auth(
+                &auth::SdkAuthorizationAuth {
+                    allow_connected_scope_operation: true,
+                    allow_platform_self_operation: true,
+                    resource_id:
+                        common_utils::types::authentication::ResourceId::PaymentMethodSession(
+                            payment_method_session_id.clone(),
+                        ),
+                },
+                &auth::V2ClientAuth(
+                    common_utils::types::authentication::ResourceId::PaymentMethodSession(
+                        payment_method_session_id,
+                    ),
                 ),
+                req.headers(),
             ),
-            req.headers(),
-        ),
-        api_locking::LockAction::NotApplicable,
-    ))
-    .await
+            api_locking::LockAction::NotApplicable,
+        )))
+        .await;
+
+    logger::info!(
+        tag = "PmListBreakdown",
+        success = response.status().is_success(),
+        total_ms = breakdown.total_ms,
+        instrumented_ms = breakdown.instrumented_ms,
+        unattributed_ms = breakdown.unattributed_ms,
+        parallel_overlap_ms = breakdown.parallel_overlap_ms,
+        session_lookup_count = breakdown.list_session_lookup.count,
+        session_lookup_ms = breakdown.list_session_lookup.ms,
+        connector_accounts_count = breakdown.list_connector_accounts.count,
+        connector_accounts_ms = breakdown.list_connector_accounts.ms,
+        customer_payment_methods_count = breakdown.list_customer_payment_methods.count,
+        customer_payment_methods_ms = breakdown.list_customer_payment_methods.ms,
+        session_update_count = breakdown.list_session_update.count,
+        session_update_ms = breakdown.list_session_update.ms,
+        response_transform_count = breakdown.list_response_transform.count,
+        response_transform_ms = breakdown.list_response_transform.ms,
+        db_session_find_count = breakdown.database_payment_method_session_find.count,
+        db_session_find_ms = breakdown.database_payment_method_session_find.ms,
+        db_connector_accounts_list_count = breakdown.database_connector_accounts_list.count,
+        db_connector_accounts_list_ms = breakdown.database_connector_accounts_list.ms,
+        db_customer_payment_methods_list_count =
+            breakdown.database_customer_payment_methods_list.count,
+        db_customer_payment_methods_list_ms = breakdown.database_customer_payment_methods_list.ms,
+        db_customer_find_count = breakdown.database_customer_find.count,
+        db_customer_find_ms = breakdown.database_customer_find.ms,
+        db_session_update_count = breakdown.database_payment_method_session_update.count,
+        db_session_update_ms = breakdown.database_payment_method_session_update.ms,
+        encryption_service_count = breakdown.encryption_service.count,
+        encryption_service_ms = breakdown.encryption_service.ms,
+        db_read_count = breakdown.database_read.count,
+        db_read_ms = breakdown.database_read.ms,
+        db_write_count = breakdown.database_write.count,
+        db_write_ms = breakdown.database_write.ms,
+        db_pool_read_wait_count = breakdown.database_pool_read_wait.count,
+        db_pool_read_wait_ms = breakdown.database_pool_read_wait.ms,
+        db_pool_write_wait_count = breakdown.database_pool_write_wait.count,
+        db_pool_write_wait_ms = breakdown.database_pool_write_wait.ms,
+        superposition_count = breakdown.superposition.count,
+        superposition_ms = breakdown.superposition.ms,
+        superposition_success_count = breakdown.superposition_success_count,
+        superposition_fallback_count = breakdown.superposition_fallback_count,
+        redis_read_count = breakdown.redis_read.count,
+        redis_read_ms = breakdown.redis_read.ms,
+        redis_write_count = breakdown.redis_write.count,
+        redis_write_ms = breakdown.redis_write.ms,
+        redis_other_count = breakdown.redis_other.count,
+        redis_other_ms = breakdown.redis_other.ms,
+        "PM List dependency breakdown"
+    );
+
+    response
 }
 
 #[cfg(feature = "v2")]

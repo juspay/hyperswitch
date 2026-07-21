@@ -3700,36 +3700,55 @@ pub async fn list_payment_methods_for_session(
 ) -> RouterResponse<api::PaymentMethodListResponseForSession> {
     let db = &*state.store;
 
-    let payment_method_session = db
-        .get_payment_methods_session(
+    let payment_method_session = {
+        let _step_timer = router_env::payment_method_breakdown::start(
+            router_env::payment_method_breakdown::Operation::ListSessionLookup,
+        );
+        let _db_timer = router_env::payment_method_breakdown::start(
+            router_env::payment_method_breakdown::Operation::DatabasePaymentMethodSessionFind,
+        );
+        db.get_payment_methods_session(
             platform.get_provider().get_key_store(),
             &payment_method_session_id,
         )
         .await
         .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
-        .attach_printable("Unable to find payment method")?;
+        .attach_printable("Unable to find payment method")?
+    };
 
-    let payment_connector_accounts = db
-        .list_enabled_connector_accounts_by_profile_id(
+    let payment_connector_accounts = {
+        let _step_timer = router_env::payment_method_breakdown::start(
+            router_env::payment_method_breakdown::Operation::ListConnectorAccounts,
+        );
+        let _db_timer = router_env::payment_method_breakdown::start(
+            router_env::payment_method_breakdown::Operation::DatabaseConnectorAccountsList,
+        );
+        db.list_enabled_connector_accounts_by_profile_id(
             profile.get_id(),
             platform.get_processor().get_key_store(),
             common_enums::ConnectorType::PaymentProcessor,
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("error when fetching merchant connector accounts")?;
+        .attach_printable("error when fetching merchant connector accounts")?
+    };
 
-    let customer_payment_methods = match payment_method_session.customer_id {
-        Some(ref customer_id) => {
-            list_customer_payment_methods_core(
-                &state,
-                platform.get_provider(),
-                customer_id,
-                payment_method_session.keep_alive,
-            )
-            .await?
+    let customer_payment_methods = {
+        let _step_timer = router_env::payment_method_breakdown::start(
+            router_env::payment_method_breakdown::Operation::ListCustomerPaymentMethods,
+        );
+        match payment_method_session.customer_id {
+            Some(ref customer_id) => {
+                list_customer_payment_methods_core(
+                    &state,
+                    platform.get_provider(),
+                    customer_id,
+                    payment_method_session.keep_alive,
+                )
+                .await?
+            }
+            None => Vec::new(),
         }
-        None => Vec::new(),
     };
 
     // Create associated payment methods from customer payment methods
@@ -3747,8 +3766,14 @@ pub async fn list_payment_methods_for_session(
         associated_payment_methods: Some(associated_payment_methods_vec.clone())
     };
 
-    let updated_payment_method_session = db
-        .update_payment_method_session(
+    let _updated_payment_method_session = {
+        let _step_timer = router_env::payment_method_breakdown::start(
+            router_env::payment_method_breakdown::Operation::ListSessionUpdate,
+        );
+        let _db_timer = router_env::payment_method_breakdown::start(
+            router_env::payment_method_breakdown::Operation::DatabasePaymentMethodSessionUpdate,
+        );
+        db.update_payment_method_session(
             platform.get_provider().get_key_store(),
             &payment_method_session_id,
             update_payment_method_session,
@@ -3758,13 +3783,18 @@ pub async fn list_payment_methods_for_session(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable(
             "Failed to update payment method session with associated payment methods",
-        )?;
+        )?
+    };
 
-    let response =
+    let response = {
+        let _step_timer = router_env::payment_method_breakdown::start(
+            router_env::payment_method_breakdown::Operation::ListResponseTransform,
+        );
         hyperswitch_domain_models::merchant_connector_account::FlattenedPaymentMethodsEnabled::from_payment_connectors_list(payment_connector_accounts)
             .perform_filtering()
             .get_required_fields(RequiredFieldsInput::new(state.conf.required_fields.clone()))
-            .generate_response_for_session(customer_payment_methods);
+            .generate_response_for_session(customer_payment_methods)
+    };
 
     Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
         response,
@@ -5220,8 +5250,11 @@ pub async fn list_customer_payment_methods_core(
     } else {
         vec![common_enums::PaymentMethodStatus::Active]
     };
-    let saved_payment_methods = db
-        .find_payment_method_by_global_customer_id_merchant_id_statuses(
+    let saved_payment_methods = {
+        let _db_timer = router_env::payment_method_breakdown::start(
+            router_env::payment_method_breakdown::Operation::DatabaseCustomerPaymentMethodsList,
+        );
+        db.find_payment_method_by_global_customer_id_merchant_id_statuses(
             provider.get_key_store(),
             customer_id,
             provider.get_account().get_id(),
@@ -5230,17 +5263,22 @@ pub async fn list_customer_payment_methods_core(
             provider.get_account().storage_scheme,
         )
         .await
-        .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
+        .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?
+    };
 
-    let customer = db
-        .find_customer_by_global_id_merchant_id(
+    let customer = {
+        let _db_timer = router_env::payment_method_breakdown::start(
+            router_env::payment_method_breakdown::Operation::DatabaseCustomerFind,
+        );
+        db.find_customer_by_global_id_merchant_id(
             customer_id,
             provider.get_account().get_id(),
             provider.get_key_store(),
             provider.get_account().storage_scheme,
         )
         .await
-        .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
+        .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?
+    };
 
     let default_payment_method_id = customer.default_payment_method_id;
 
@@ -5336,18 +5374,27 @@ pub async fn retrieve_payment_method(
         .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
 
     // 1. Resolve parent token (if any) -> storage type & optional token data
-    let (storage_type, pm_token_data_opt) =
-        resolve_storage_type_from_token(&state, &pm.payment_method_id).await?;
+    let (storage_type, pm_token_data_opt) = {
+        let _timer = router_env::payment_method_breakdown::start(
+            router_env::payment_method_breakdown::Operation::RetrieveResolveStorage,
+        );
+        resolve_storage_type_from_token(&state, &pm.payment_method_id).await
+    }?;
 
     // 2. Fetch payment method record based on resolved storage type
-    let (storage_type, payment_method) = fetch_payment_method_by_storage(
-        &state,
-        platform.get_provider(),
-        &pm,
-        storage_type,
-        pm_token_data_opt,
-    )
-    .await
+    let (storage_type, payment_method) = {
+        let _timer = router_env::payment_method_breakdown::start(
+            router_env::payment_method_breakdown::Operation::RetrieveFetchPaymentMethod,
+        );
+        fetch_payment_method_by_storage(
+            &state,
+            platform.get_provider(),
+            &pm,
+            storage_type,
+            pm_token_data_opt,
+        )
+        .await
+    }
     .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
     .attach_printable("Failed to fetch payment method by storage")?;
 
@@ -5363,33 +5410,51 @@ pub async fn retrieve_payment_method(
         },
     )?;
 
-    let raw_payment_method_fetch_access = get_raw_payment_method_data_fetch_access(
-        &state,
-        &dimensions,
-        api_key_type,
-        fetch_raw_detail_query_param,
-        payment_method.customer_id.as_ref(),
-    )
-    .await
+    let raw_payment_method_fetch_access = {
+        let _timer = router_env::payment_method_breakdown::start(
+            router_env::payment_method_breakdown::Operation::RetrieveRawAccessPolicy,
+        );
+        get_raw_payment_method_data_fetch_access(
+            &state,
+            &dimensions,
+            api_key_type,
+            fetch_raw_detail_query_param,
+            payment_method.customer_id.as_ref(),
+        )
+        .await
+    }
     .attach_printable("Failed to get raw payment method fetch access")?;
 
-    let single_use_token_in_cache = get_single_use_token_from_store(
-        &state.clone(),
-        domain::SingleUseTokenKey::store_key(&payment_method.id.clone()),
-    )
-    .await
+    let single_use_token_in_cache = {
+        let _timer = router_env::payment_method_breakdown::start(
+            router_env::payment_method_breakdown::Operation::RetrieveSingleUseToken,
+        );
+        get_single_use_token_from_store(
+            &state.clone(),
+            domain::SingleUseTokenKey::store_key(&payment_method.id.clone()),
+        )
+        .await
+    }
     .unwrap_or_default();
 
-    let card_cvc_expiry = vault::retrieve_key_and_ttl_for_cvc_from_payment_method_id(
-        &state,
-        payment_method.id.to_owned(),
-    )
-    .await
+    let card_cvc_expiry = {
+        let _timer = router_env::payment_method_breakdown::start(
+            router_env::payment_method_breakdown::Operation::RetrieveCvc,
+        );
+        vault::retrieve_key_and_ttl_for_cvc_from_payment_method_id(
+            &state,
+            payment_method.id.to_owned(),
+        )
+        .await
+    }
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to retrieve cvc from redis")
     .ok();
 
-    let raw_payment_method_data =
+    let raw_payment_method_data = {
+        let _timer = router_env::payment_method_breakdown::start(
+            router_env::payment_method_breakdown::Operation::RetrieveRawPaymentMethod,
+        );
         Box::pin(raw_payment_method_fetch_access.get_raw_payment_method_data(
             &state,
             &platform,
@@ -5398,9 +5463,13 @@ pub async fn retrieve_payment_method(
             storage_type,
         ))
         .await
-        .attach_printable("Failed to get raw payment method data")?;
+        .attach_printable("Failed to get raw payment method data")?
+    };
 
-    let raw_network_token_details =
+    let raw_network_token_details = {
+        let _timer = router_env::payment_method_breakdown::start(
+            router_env::payment_method_breakdown::Operation::RetrieveRawNetworkToken,
+        );
         Box::pin(raw_payment_method_fetch_access.get_raw_network_token_data(
             &state,
             &platform,
@@ -5412,7 +5481,8 @@ pub async fn retrieve_payment_method(
         .inspect_err(|err| {
             logger::warn!(?err, "Failed to fetch raw network token details");
         })
-        .ok();
+        .ok()
+    };
 
     let raw_payment_method_data = match (raw_payment_method_data, raw_network_token_details) {
         (
@@ -5433,19 +5503,24 @@ pub async fn retrieve_payment_method(
         .map(|billing| billing.into_inner())
         .map(From::from);
 
-    transformers::generate_payment_method_response(
-        &payment_method,
-        &single_use_token_in_cache,
-        storage_type,
-        card_cvc_expiry.map(|time| {
-            payment_methods::CardCVCTokenStorageDetails::generate_expiry_timestamp(time)
-        }),
-        payment_method.customer_id.clone(),
-        raw_payment_method_data,
-        billing,
-        None,
-    )
-    .map(services::ApplicationResponse::Json)
+    {
+        let _timer = router_env::payment_method_breakdown::start(
+            router_env::payment_method_breakdown::Operation::RetrieveResponseTransform,
+        );
+        transformers::generate_payment_method_response(
+            &payment_method,
+            &single_use_token_in_cache,
+            storage_type,
+            card_cvc_expiry.map(|time| {
+                payment_methods::CardCVCTokenStorageDetails::generate_expiry_timestamp(time)
+            }),
+            payment_method.customer_id.clone(),
+            raw_payment_method_data,
+            billing,
+            None,
+        )
+        .map(services::ApplicationResponse::Json)
+    }
 }
 
 #[cfg(all(feature = "v2", feature = "olap"))]
@@ -5712,6 +5787,9 @@ impl RawPaymentMethodFetchAccess {
                     logger::debug!("Skipping raw payment method fetch for wallet or bank redirect payment method");
                     Ok(None)
                 } else {
+                    let _vault_timer = router_env::payment_method_breakdown::start(
+                        router_env::payment_method_breakdown::Operation::VaultRetrievePaymentMethod,
+                    );
                     let vault_data = Box::pin(vault::retrieve_payment_method_data_from_storage(
                         state,
                         platform,
@@ -5773,7 +5851,10 @@ impl RawPaymentMethodFetchAccess {
                     Some(domain::VaultId::generate(network_token_locker_id));
                 network_token_payment_method.customer_id = Some(customer_id);
 
-                let network_token_vault_data =
+                let network_token_vault_data = {
+                    let _vault_timer = router_env::payment_method_breakdown::start(
+                        router_env::payment_method_breakdown::Operation::VaultRetrieveNetworkToken,
+                    );
                     Box::pin(vault::retrieve_payment_method_data_from_storage(
                         state,
                         platform,
@@ -5784,7 +5865,8 @@ impl RawPaymentMethodFetchAccess {
                     .await
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed to retrieve network token from vault")?
-                    .data;
+                    .data
+                };
 
                 let check_token_status_response =
                     network_tokenization::do_status_check_for_network_token(state, payment_method)
@@ -7096,6 +7178,9 @@ async fn fetch_payment_method(
     let merchant_account = provider.get_account();
     let key_store = provider.get_key_store();
 
+    let _timer = router_env::payment_method_breakdown::start(
+        router_env::payment_method_breakdown::Operation::DatabasePaymentMethodFind,
+    );
     db.find_payment_method(
         key_store,
         payment_method_id,
