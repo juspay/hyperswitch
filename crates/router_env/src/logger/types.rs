@@ -413,6 +413,8 @@ pub enum Flow {
     GsmRuleUpdate,
     /// Apple pay certificates migration
     ApplePayCertificatesMigration,
+    /// Locker entities migration
+    EntitiesMigration,
     /// Gsm Rule Delete flow
     GsmRuleDelete,
     /// Get data from embedded flow

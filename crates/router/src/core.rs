@@ -25,6 +25,8 @@ pub mod customers;
 pub mod debit_routing;
 pub mod disputes;
 pub mod encryption;
+#[cfg(all(feature = "olap", feature = "v1"))]
+pub mod entities_migration;
 pub mod errors;
 pub mod external_service_auth;
 pub mod files;

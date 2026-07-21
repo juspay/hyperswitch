@@ -72,7 +72,8 @@ use super::{
 };
 #[cfg(feature = "v1")]
 use super::{
-    apple_pay_certificates_migration, blocklist, payment_link, subscription, webhook_events,
+    apple_pay_certificates_migration, blocklist, entities_migration, payment_link, subscription,
+    webhook_events,
 };
 #[cfg(any(feature = "olap", feature = "oltp"))]
 use super::{configs::*, customers, payments};
@@ -2295,6 +2296,19 @@ impl ApplePayCertificatesMigration {
             .service(web::resource("").route(
                 web::post().to(apple_pay_certificates_migration::apple_pay_certificates_migration),
             ))
+    }
+}
+
+pub struct EntitiesMigration;
+
+#[cfg(all(feature = "olap", feature = "v1"))]
+impl EntitiesMigration {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/entities_migration")
+            .app_data(web::Data::new(state))
+            .service(
+                web::resource("").route(web::post().to(entities_migration::entities_migration)),
+            )
     }
 }
 
