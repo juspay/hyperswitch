@@ -14,6 +14,7 @@
 
     process-compose-flake.url = "github:Platonic-Systems/process-compose-flake";
     services-flake.url = "github:juspay/services-flake";
+    superposition.url = "https://github.com/juspay/superposition/archive/refs/tags/v0.102.0.tar.gz";
   };
 
   outputs = inputs:

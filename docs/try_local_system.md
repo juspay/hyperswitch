@@ -127,7 +127,7 @@ This will start the following services using `process-compose`
    - Creates database and an user to be used by the application
 - Redis
 - Superposition
-   - Configuration management service (uses a self-contained demo image)
+   - Configuration management service at `http://localhost:8082` (runs the Nix-built Superposition binary)
 
 ### Develop in a Nix environment
 
@@ -530,23 +530,16 @@ Once you're done with configuring the application, proceed with
 
 ### Run the application
 
-1. Start Superposition (configuration service) in Docker and seed it:
+1. Start the external services:
 
    ```shell
-   just superposition-up
-   just superposition-seed
+   nix run .#ext-services
    ```
 
-   This will start Superposition and seed it with default dimensions
+   This will start Postgres, Redis and Superposition. Superposition is run from
+   its Nix-built binary and seeded with default dimensions
    (organization_id, merchant_id, profile_id, connector) and default configs
    (requires_cvv, implicit_customer_update, payout_tracker_mapping).
-
-   > **Note:** If you prefer to run Superposition locally instead of Docker, refer to the [Superposition setup guide](https://juspay.io/superposition/docs/setup).
-
-   Available Superposition commands:
-   - `just superposition-up` - Start Superposition in Docker
-   - `just superposition-down` - Stop Superposition
-   - `just superposition-seed` - Seed dimensions and configs
 
 2. Compile and run the application using `cargo`:
 
