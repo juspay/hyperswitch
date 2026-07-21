@@ -26,14 +26,12 @@
 // Cypress.Commands.overwrite('visit', (originalFn, url, options) => { ... })
 // commands.js or your custom support file
 import getConnectorDetails, {
-  CONNECTOR_LISTS,
   defaultErrorHandler,
   extractIntegerAtEnd,
   getOriginalConnectorName,
   getValueByKey,
   injectHelcimTestCard,
   setNormalizedValue,
-  shouldExcludeConnector,
 } from "../e2e/configs/Payment/Utils";
 import { execConfig, validateConfig } from "../utils/featureFlags";
 import * as RequestBodyUtils from "../utils/RequestBodyUtils";
@@ -5243,12 +5241,14 @@ Cypress.Commands.add(
     globalState,
     connector_agnostic_mit
   ) => {
-    if (
-      shouldExcludeConnector(
-        globalState.get("connectorId"),
-        CONNECTOR_LISTS.EXCLUDE.MIT_USING_PMID
-      )
-    ) {
+    const {
+      Configs: configs = {},
+      Request: reqData,
+      Response: resData,
+    } = data || {};
+
+    const validatedConfigs = validateConfig(configs);
+    if (validatedConfigs?.TRIGGER_SKIP) {
       cy.log(
         `Skipping mitUsingPMId for connector: ${globalState.get("connectorId")}`
       );
@@ -5264,13 +5264,7 @@ Cypress.Commands.add(
       return;
     }
 
-    const {
-      Configs: configs = {},
-      Request: reqData,
-      Response: resData,
-    } = data || {};
-
-    const configInfo = execConfig(validateConfig(configs));
+    const configInfo = execConfig(validatedConfigs);
     const profileId = globalState.get(`${configInfo.profilePrefix}Id`);
 
     const apiKey = globalState.get("apiKey");

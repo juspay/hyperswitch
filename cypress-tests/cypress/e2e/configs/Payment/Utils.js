@@ -531,11 +531,10 @@ export const CONNECTOR_LISTS = {
       "worldpayxml",
     ],
     SAVE_CARD: ["helcim"],
-    // fiuu: connector-specific limitation (pre-existing).
-    MIT_USING_PMID: ["fiuu"],
     // Add more exclusion lists
-    // Note: mitForMandatesCallTest/listMandateCallTest check
-    // globalState's "mandateId" at runtime instead of a static list here.
+    // Note: mitUsingPMId/mitForMandatesCallTest/listMandateCallTest use
+    // per-config TRIGGER_SKIP or globalState checks instead of a static
+    // list here.
   },
 
   // Inclusion lists (only run for these connectors)

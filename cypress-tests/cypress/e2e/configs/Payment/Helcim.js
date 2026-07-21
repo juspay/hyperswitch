@@ -29,6 +29,14 @@ const cardMandateBaseRequest = {
   currency: "USD",
 };
 
+// Helcim's sandbox can't refund (transactions never settle into a closed
+// card batch) — a sandbox limitation, not a code bug.
+const helcimRefundFailureBody = {
+  status: "failed",
+  error_code: "No error code",
+  error_message: "Card Transaction cannot be refunded",
+};
+
 const failedNo3DSCardDetails = {
   card_number: "4000000000000002",
   card_exp_month: "08",
@@ -159,61 +167,38 @@ const card_pm = {
       },
     },
   }),
-  // Helcim's sandbox can't refund (transactions never settle into a closed
-  // card batch) — a sandbox limitation, not a code bug. Assert the actual
-  // "failed" status.
   SyncRefund: getCustomExchange({
     Response: {
       status: 200,
-      body: {
-        status: "failed",
-        error_code: "No error code",
-        error_message: "Card Transaction cannot be refunded",
-      },
+      body: helcimRefundFailureBody,
     },
   }),
   Refund: getCustomExchange({
     Request: { amount: 6000 },
     Response: {
       status: 200,
-      body: {
-        status: "failed",
-        error_code: "No error code",
-        error_message: "Card Transaction cannot be refunded",
-      },
+      body: helcimRefundFailureBody,
     },
   }),
   PartialRefund: getCustomExchange({
     Request: { amount: 2000 },
     Response: {
       status: 200,
-      body: {
-        status: "failed",
-        error_code: "No error code",
-        error_message: "Card Transaction cannot be refunded",
-      },
+      body: helcimRefundFailureBody,
     },
   }),
   manualPaymentRefund: getCustomExchange({
     Request: { amount: 6000 },
     Response: {
       status: 200,
-      body: {
-        status: "failed",
-        error_code: "No error code",
-        error_message: "Card Transaction cannot be refunded",
-      },
+      body: helcimRefundFailureBody,
     },
   }),
   manualPaymentPartialRefund: getCustomExchange({
     Request: { amount: 2000 },
     Response: {
       status: 200,
-      body: {
-        status: "failed",
-        error_code: "No error code",
-        error_message: "Card Transaction cannot be refunded",
-      },
+      body: helcimRefundFailureBody,
     },
   }),
   // Helcim's SetupMandate flow returns 501 NotImplemented.
@@ -351,9 +336,11 @@ const card_pm = {
       },
     },
   },
-  // MIT-via-PMID skips itself at runtime (commands.js) before sending any
-  // request, so these Response bodies are unused placeholders.
+  // Helcim never creates a real mandate to reuse for MIT (same reason as
+  // above), so these stay skipped via the standard TRIGGER_SKIP config,
+  // same as Fiuu.js's MITAutoCapture.
   MITAutoCapture: {
+    Configs: { TRIGGER_SKIP: true },
     Request: {},
     Response: {
       status: 200,
@@ -361,6 +348,7 @@ const card_pm = {
     },
   },
   MITManualCapture: {
+    Configs: { TRIGGER_SKIP: true },
     Request: {},
     Response: {
       status: 200,
@@ -368,6 +356,7 @@ const card_pm = {
     },
   },
   MITWithoutBillingAddress: {
+    Configs: { TRIGGER_SKIP: true },
     Request: { billing: null },
     Response: {
       status: 200,
