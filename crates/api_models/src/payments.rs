@@ -8705,6 +8705,10 @@ pub struct ExternalAuthenticationDetailsResponse {
     /// Error Message
     #[smithy(value_type = "Option<String>")]
     pub error_message: Option<String>,
+    /// Challenge Cancel Code
+    pub challenge_cancel_code: Option<String>,
+    /// Trans Status Reason Code
+    pub trans_status_reason: Option<String>,
 }
 
 #[cfg(feature = "v1")]

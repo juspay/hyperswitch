@@ -14470,6 +14470,16 @@
             "type": "string",
             "description": "Error Message",
             "nullable": true
+          },
+          "challenge_cancel_code": {
+            "type": "string",
+            "description": "Challenge Cancel Code",
+            "nullable": true
+          },
+          "trans_status_reason": {
+            "type": "string",
+            "description": "Trans Status Reason Code",
+            "nullable": true
           }
         }
       },
