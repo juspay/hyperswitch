@@ -164,8 +164,8 @@ where
         returns = Count,
         codec = deja::codec::ResultCodec::<usize, errors::DatabaseError>,
         args = deja::db::args("generic_update", table, sql.peek(), inputs.peek()),
-        state_touch = deja::db::query_state_key("generic_update", table, sql.peek(), inputs.peek()),
-        result = deja::db::recorded_output(deja::db::StateAxis::Touch, table, sql.peek(), __deja_result),
+        state_write = deja::db::query_state_key("generic_update", table, sql.peek(), inputs.peek()),
+        result = deja::db::recorded_output(deja::db::StateAxis::Write, table, sql.peek(), __deja_result),
     )
 )]
 async fn execute_generic_update<F>(
@@ -270,8 +270,8 @@ where
         returns = Bool,
         codec = deja::codec::ResultCodec::<bool, errors::DatabaseError>,
         args = deja::db::args("generic_delete", table, sql.peek(), inputs.peek()),
-        state_touch = deja::db::query_state_key("generic_delete", table, sql.peek(), inputs.peek()),
-        result = deja::db::recorded_output(deja::db::StateAxis::Touch, table, sql.peek(), __deja_result),
+        state_write = deja::db::query_state_key("generic_delete", table, sql.peek(), inputs.peek()),
+        result = deja::db::recorded_output(deja::db::StateAxis::Write, table, sql.peek(), __deja_result),
     )
 )]
 async fn execute_generic_delete<F>(
