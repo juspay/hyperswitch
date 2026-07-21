@@ -4418,11 +4418,14 @@ export const connectorDetails = {
       },
     }),
   },
-  threeds_routing_region_uas: {
+  threeds_routing_region_uas: (() => {
     // Region only selects which UAS deployment the pre/post-auth calls are
-    // routed to — it does not change the observable payment outcome, so
-    // Region1/Region2/NoConfigDefault all expect the same 3DS challenge.
-    Region1: getCustomExchange({
+    // routed to — it does not change the observable payment outcome. All
+    // scenarios below intentionally share one exchange definition, since a
+    // valid region, an invalid region (falls back to default), and no
+    // config at all (also falls back to default) are all expected to
+    // produce the same 3DS challenge.
+    const uasRoutingRegionExchange = getCustomExchange({
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -4438,59 +4441,14 @@ export const connectorDetails = {
           authentication_type: "three_ds",
         },
       },
-    }),
-    Region2: getCustomExchange({
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulThreeDSTestCardDetails,
-        },
-        currency: "USD",
-        amount: 6500,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_customer_action",
-          authentication_type: "three_ds",
-        },
-      },
-    }),
-    InvalidRegion: getCustomExchange({
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulThreeDSTestCardDetails,
-        },
-        currency: "USD",
-        amount: 6500,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_customer_action",
-          authentication_type: "three_ds",
-        },
-      },
-    }),
-    NoConfigDefault: getCustomExchange({
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulThreeDSTestCardDetails,
-        },
-        currency: "USD",
-        amount: 6500,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_customer_action",
-          authentication_type: "three_ds",
-        },
-      },
-    }),
-  },
+    });
+    return {
+      Region1: uasRoutingRegionExchange,
+      Region2: uasRoutingRegionExchange,
+      InvalidRegion: uasRoutingRegionExchange,
+      NoConfigDefault: uasRoutingRegionExchange,
+    };
+  })(),
   Dispute: {
     ListDisputes: {
       Response: {
