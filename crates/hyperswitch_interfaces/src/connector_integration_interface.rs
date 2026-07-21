@@ -1,5 +1,5 @@
 use api_models::{
-    merchant_connector_webhook_management::{Scope, ScopeIdentifier},
+    merchant_connector_webhook_management::Scope,
     webhooks::{IncomingWebhookEvent, ObjectReferenceId},
 };
 use common_enums::PaymentAction;
@@ -10,7 +10,9 @@ use hyperswitch_domain_models::{
     errors::api_error_response::ApiErrorResponse,
     router_data::{ConnectorAuthType, ErrorResponse, RouterData},
     router_data_v2::RouterDataV2,
-    router_request_types::CurrentFlowInfo,
+    router_request_types::{
+        merchant_connector_webhook_management::ScopeIdentifier, CurrentFlowInfo,
+    },
     router_response_types::{ConnectorInfo, SupportedPaymentMethods},
 };
 

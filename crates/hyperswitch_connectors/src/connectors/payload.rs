@@ -4,7 +4,7 @@ pub mod transformers;
 
 use std::sync::LazyLock;
 
-use api_models::merchant_connector_webhook_management::{Scope, ScopeIdentifier};
+use api_models::merchant_connector_webhook_management::Scope;
 use base64::Engine;
 use common_enums::enums;
 use common_utils::{
@@ -34,7 +34,7 @@ use hyperswitch_domain_models::{
     },
     router_request_types::{
         merchant_connector_webhook_management::{
-            ConnectorWebhookGenerateSecretRequest, ConnectorWebhookRegisterRequest,
+            ConnectorWebhookGenerateSecretRequest, ConnectorWebhookRegisterRequest, ScopeIdentifier,
         },
         AccessTokenRequestData, ConnectorCustomerData, PaymentMethodTokenizationData,
         PaymentsAuthorizeData, PaymentsCancelData, PaymentsCancelPostCaptureData,

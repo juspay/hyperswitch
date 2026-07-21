@@ -32,7 +32,7 @@ pub mod vault_v2;
 
 use std::fmt::Debug;
 
-use api_models::merchant_connector_webhook_management::{Scope, ScopeIdentifier};
+use api_models::merchant_connector_webhook_management::Scope;
 use common_enums::{
     enums::{
         self, CallConnectorAction, CaptureMethod, EventClass, IntentStatus, PaymentAction,
@@ -71,7 +71,7 @@ use hyperswitch_domain_models::{
     router_request_types::{
         self,
         merchant_connector_webhook_management::{
-            ConnectorWebhookGenerateSecretRequest, ConnectorWebhookRegisterRequest,
+            ConnectorWebhookGenerateSecretRequest, ConnectorWebhookRegisterRequest, ScopeIdentifier,
         },
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
