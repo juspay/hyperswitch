@@ -959,6 +959,21 @@ where
     }
 }
 
+/// RAII guard for the per-request recording decision. Clearing the
+/// `RECORD_DECISIONS` entry on drop (rather than with a straight-line call after
+/// the handler) means a cancelled or panicking record-mode request — whose
+/// future is dropped mid-flight, skipping the trailing clear — cannot leak a
+/// registry entry forever.
+#[cfg(feature = "deja")]
+struct RecordingDecisionGuard(String);
+
+#[cfg(feature = "deja")]
+impl Drop for RecordingDecisionGuard {
+    fn drop(&mut self) {
+        deja::clear_recording_decision(&self.0);
+    }
+}
+
 #[allow(clippy::type_complexity)]
 #[cfg(feature = "deja")]
 impl<S, B> Service<ServiceRequest> for RequestIdMiddleware<S>
@@ -1012,14 +1027,18 @@ where
             let mut response: ServiceResponse<
                 EitherBody<boundary::RecordingBody<B>, boundary::RecordingBody<B>>,
             > = if boundary::process_is_active() {
-                let mut recording_decision_installed = false;
+                // The guard clears the pushed decision on drop, covering the normal
+                // return, the `?` early-return, AND a panic / cancellation of the
+                // request future (any of which would otherwise skip a trailing clear
+                // and leak the RECORD_DECISIONS entry).
+                let mut _decision_guard: Option<RecordingDecisionGuard> = None;
                 let should_record_http_incoming = if boundary::process_is_record_mode() {
                     let decision = match recording_sampler {
                         Some(sampler) => sampler.should_record(request_facts.clone()).await,
                         None => true,
                     };
                     deja::set_recording_decision(request_id.to_string(), decision);
-                    recording_decision_installed = true;
+                    _decision_guard = Some(RecordingDecisionGuard(request_id.to_string()));
                     decision
                 } else {
                     false
@@ -1040,17 +1059,11 @@ where
                     let recorded_result = boundary::recorded_incoming(fut, incoming_record)
                         .instrument(request_span)
                         .await;
-                    if recording_decision_installed {
-                        deja::clear_recording_decision(request_id.as_str());
-                    }
                     let recorded = recorded_result?;
                     recorded.map_body(|_head, body| EitherBody::left(body))
                 } else {
                     // Correlation rides the ingress root span via DejaCorrelationLayer.
                     let response_result = service.call(request).await;
-                    if recording_decision_installed {
-                        deja::clear_recording_decision(request_id.as_str());
-                    }
                     let response = response_result?;
                     response.map_body(|_head, body| {
                         EitherBody::right(boundary::RecordingBody::passthrough(body))
