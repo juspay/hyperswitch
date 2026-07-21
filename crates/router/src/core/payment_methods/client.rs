@@ -69,6 +69,7 @@ fn to_client_pm(pm: CustomerPaymentMethod) -> CustomerPaymentMethodForClient {
         created: pm.created,
         last_used_at: pm.last_used_at,
         payment_method_data,
+        surcharge_details: None,
     }
 }
 
@@ -274,6 +275,7 @@ impl CustomerPaymentMethodsFetcher for ModularCustomerPaymentMethodsFetcher {
                     created: Some(pm.created),
                     last_used_at: Some(pm.last_used_at),
                     payment_method_data,
+                    surcharge_details: None,
                 });
             }
         }
@@ -423,6 +425,20 @@ async fn fetch_enabled_payment_methods(
     flat_pms.extend(merchant_enabled_pms_context.bank_redirect_pms_for_client(state)?);
     flat_pms.extend(merchant_enabled_pms_context.bank_debit_pms_for_client());
     flat_pms.extend(merchant_enabled_pms_context.bank_transfer_pms_for_client());
+
+    // Run the surcharge decision pass so card PM entries get card_network_surcharge_details populated.
+    let mut legacy_pms = cards::flat_pms_to_legacy_for_surcharge(&flat_pms);
+    Box::pin(cards::call_surcharge_decision_management(
+        state.clone(),
+        platform,
+        &payment_intent_context.business_profile,
+        &payment_intent_context.payment_attempt,
+        payment_intent_context.payment_intent.clone(),
+        payment_intent_context.billing_address.clone(),
+        &mut legacy_pms,
+    ))
+    .await?;
+    cards::copy_surcharge_to_flat_pms(&legacy_pms, &mut flat_pms);
 
     Ok(EnabledPmsResult {
         payment_methods_enabled: flat_pms,

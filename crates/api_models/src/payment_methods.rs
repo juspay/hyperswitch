@@ -2953,15 +2953,25 @@ pub struct PaymentMethodListIntentData {
 #[derive(Debug, Clone, serde::Serialize, ToSchema, PartialEq)]
 #[serde(untagged)]
 pub enum PaymentMethodSubtypeSpecificDataForClient {
-    /// Card payment method — contains card network info
+    /// Card payment method — contains the list of enabled card networks
     Card {
         #[schema(value_type = Vec<CardNetwork>)]
         card_networks: Vec<api_enums::CardNetwork>,
+        /// Per-network surcharge details; empty when no surcharge rules are configured.
+        #[serde(default, skip_serializing_if = "HashMap::is_empty")]
+        card_network_surcharge_details: HashMap<api_enums::CardNetwork, SurchargeDetailsResponse>,
     },
     /// Bank payment method (bank_redirect) — contains supported bank names
     Bank {
         #[schema(value_type = Vec<BankNames>)]
         bank_names: Vec<common_enums::BankNames>,
+    },
+    /// Wallet payment method — carries wallet-specific configuration flags
+    Wallet {
+        /// Whether to collect shipping details from the wallet connector
+        collect_shipping_details_from_wallets: Option<bool>,
+        /// Whether to collect billing details from the wallet connector
+        collect_billing_details_from_wallets: Option<bool>,
     },
 }
 
@@ -2977,18 +2987,13 @@ pub struct ResponsePaymentMethodsEnabledForClient {
     #[schema(value_type = PaymentMethodType)]
     pub payment_method_type: api_enums::PaymentMethodType,
 
-    /// Subtype-specific data (card_networks or bank list); absent (null) for wallets/pay_later/etc.
+    /// Subtype-specific data (card_networks, bank list, or wallet flags); absent for pay_later/etc.
+    /// For wallets this carries `collect_shipping/billing_details_from_wallets` flags.
     #[serde(flatten, skip_serializing_if = "Option::is_none")]
     pub data: Option<PaymentMethodSubtypeSpecificDataForClient>,
 
     /// Payment experience options for this method (wallets, pay_later, etc.)
     pub payment_experience: Option<Vec<api_enums::PaymentExperience>>,
-
-    /// Whether to collect shipping details from the wallet connector (null for non-wallet)
-    pub collect_shipping_details_from_wallets: Option<bool>,
-
-    /// Whether to collect billing details from the wallet connector (null for non-wallet)
-    pub collect_billing_details_from_wallets: Option<bool>,
 }
 
 /// Typed subtype-specific data for a saved customer payment method, returned in the
@@ -3089,6 +3094,10 @@ pub struct CustomerPaymentMethodForClient {
     /// Subtype-specific details (e.g. masked card info for card methods)
     #[schema(value_type = Option<CustomerPaymentMethodDataForClient>)]
     pub payment_method_data: Option<CustomerPaymentMethodDataForClient>,
+
+    /// Surcharge applicable for this saved payment method, if any
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub surcharge_details: Option<SurchargeDetailsResponse>,
 }
 
 /// Response for the GET /payments/{payment_id}/payment-methods/client endpoint

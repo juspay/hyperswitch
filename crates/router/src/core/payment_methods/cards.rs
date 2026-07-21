@@ -3865,20 +3865,24 @@ impl MerchantEnabledPmsContext {
                 let payment_experience_types: Vec<api_enums::PaymentExperience> =
                     pe_map.keys().copied().collect();
 
-                let is_wallet = *payment_method == api_enums::PaymentMethod::Wallet
-                    || *payment_method == api_enums::PaymentMethod::PayLater;
+                let is_wallet = *payment_method == api_enums::PaymentMethod::Wallet;
+
+                let data = if is_wallet {
+                    Some(PaymentMethodSubtypeSpecificDataForClient::Wallet {
+                        collect_shipping_details_from_wallets: self
+                            .collect_shipping_details_from_wallets,
+                        collect_billing_details_from_wallets: self
+                            .collect_billing_details_from_wallets,
+                    })
+                } else {
+                    None
+                };
 
                 out.push(ResponsePaymentMethodsEnabledForClient {
                     payment_method: *payment_method,
                     payment_method_type: *payment_method_type,
-                    data: None,
+                    data,
                     payment_experience: Some(payment_experience_types),
-                    collect_shipping_details_from_wallets: is_wallet
-                        .then_some(self.collect_shipping_details_from_wallets)
-                        .flatten(),
-                    collect_billing_details_from_wallets: is_wallet
-                        .then_some(self.collect_billing_details_from_wallets)
-                        .flatten(),
                 });
             }
         }
@@ -3896,10 +3900,11 @@ impl MerchantEnabledPmsContext {
                 out.push(ResponsePaymentMethodsEnabledForClient {
                     payment_method: *payment_method,
                     payment_method_type: *payment_method_type,
-                    data: Some(PaymentMethodSubtypeSpecificDataForClient::Card { card_networks }),
+                    data: Some(PaymentMethodSubtypeSpecificDataForClient::Card {
+                        card_networks,
+                        card_network_surcharge_details: HashMap::new(),
+                    }),
                     payment_experience: None,
-                    collect_shipping_details_from_wallets: None,
-                    collect_billing_details_from_wallets: None,
                 });
             }
         }
@@ -3930,8 +3935,6 @@ impl MerchantEnabledPmsContext {
                     })
                 },
                 payment_experience: None,
-                collect_shipping_details_from_wallets: None,
-                collect_billing_details_from_wallets: None,
             });
         }
         Ok(out)
@@ -3947,8 +3950,6 @@ impl MerchantEnabledPmsContext {
                     payment_method_type: *payment_method_type,
                     data: None,
                     payment_experience: None,
-                    collect_shipping_details_from_wallets: None,
-                    collect_billing_details_from_wallets: None,
                 },
             )
             .collect()
@@ -3964,8 +3965,6 @@ impl MerchantEnabledPmsContext {
                     payment_method_type: *payment_method_type,
                     data: None,
                     payment_experience: None,
-                    collect_shipping_details_from_wallets: None,
-                    collect_billing_details_from_wallets: None,
                 },
             )
             .collect()
@@ -5251,6 +5250,120 @@ pub async fn call_surcharge_decision_management(
             .attach_printable("Failed to update surcharge_applicable in Payment Intent");
     }
     Ok(merchant_sucharge_configs)
+}
+
+/// Converts flat client PMs into the legacy nested `ResponsePaymentMethodsEnabled` type
+/// so that `call_surcharge_decision_management` can run unchanged.
+///
+/// Only PM types whose surcharge is surfaced in the client API response are included here;
+/// skipped types are not passed to the surcharge engine so Redis stays consistent with
+/// what the response actually contains.
+///
+/// **Extending to a new PM type**: add an arm to the `match` that builds the appropriate
+/// `ResponsePaymentMethodTypes` fields (e.g. `bank_names`, `surcharge_details: None`), then
+/// add the corresponding copy-back arm in `copy_surcharge_to_flat_pms`.
+#[cfg(feature = "v1")]
+pub fn flat_pms_to_legacy_for_surcharge(
+    flat_pms: &[ResponsePaymentMethodsEnabledForClient],
+) -> Vec<ResponsePaymentMethodsEnabled> {
+    let mut map: HashMap<api_enums::PaymentMethod, Vec<ResponsePaymentMethodTypes>> =
+        HashMap::new();
+
+    for pm in flat_pms {
+        let card_networks = match &pm.data {
+            Some(PaymentMethodSubtypeSpecificDataForClient::Card { card_networks, .. }) => {
+                card_networks
+                    .iter()
+                    .map(|cn| CardNetworkTypes {
+                        card_network: cn.clone(),
+                        eligible_connectors: vec![],
+                        surcharge_details: None,
+                    })
+                    .collect()
+            }
+            // Surcharge for these PM types is not yet surfaced in the client API response.
+            // Skip them so Redis stays consistent with what the response contains.
+            // To add surcharge for a new type: replace its arm with real logic and mirror
+            // the change in `copy_surcharge_to_flat_pms`.
+            Some(PaymentMethodSubtypeSpecificDataForClient::Wallet { .. })
+            | Some(PaymentMethodSubtypeSpecificDataForClient::Bank { .. })
+            | None => continue,
+        };
+
+        map.entry(pm.payment_method)
+            .or_default()
+            .push(ResponsePaymentMethodTypes {
+                payment_method_type: pm.payment_method_type,
+                payment_experience: None,
+                card_networks: Some(card_networks),
+                bank_names: None,
+                bank_debits: None,
+                bank_transfers: None,
+                required_fields: None,
+                surcharge_details: None,
+                pm_auth_connector: None,
+            });
+    }
+
+    map.into_iter()
+        .map(
+            |(payment_method, payment_method_types)| ResponsePaymentMethodsEnabled {
+                payment_method,
+                payment_method_types,
+            },
+        )
+        .collect()
+}
+
+/// Copies surcharge results from the legacy nested structure back into the matching
+/// flat client PM entries.
+///
+/// The `match` arms mirror those in `flat_pms_to_legacy_for_surcharge` — only PM types
+/// that were included in the legacy slice will find a match in `legacy` and get data.
+/// Skipped types (Wallet, Bank, None) leave the flat PM unchanged.
+///
+/// **Extending to a new PM type**: add an arm here that reads `pmt.surcharge_details`
+/// (for PM-level surcharge) or the relevant nested field, and writes it back.
+#[cfg(feature = "v1")]
+pub fn copy_surcharge_to_flat_pms(
+    legacy: &[ResponsePaymentMethodsEnabled],
+    flat_pms: &mut [ResponsePaymentMethodsEnabledForClient],
+) {
+    for pm in flat_pms.iter_mut() {
+        match pm.data.as_mut() {
+            Some(PaymentMethodSubtypeSpecificDataForClient::Card {
+                card_network_surcharge_details,
+                ..
+            }) => {
+                let Some(legacy_enabled) = legacy
+                    .iter()
+                    .find(|l| l.payment_method == pm.payment_method)
+                else {
+                    continue;
+                };
+                let Some(pmt) = legacy_enabled
+                    .payment_method_types
+                    .iter()
+                    .find(|t| t.payment_method_type == pm.payment_method_type)
+                else {
+                    continue;
+                };
+                if let Some(card_networks) = &pmt.card_networks {
+                    for cn_type in card_networks {
+                        if let Some(sd) = &cn_type.surcharge_details {
+                            card_network_surcharge_details
+                                .insert(cn_type.card_network.clone(), sd.clone());
+                        }
+                    }
+                }
+            }
+            // Mirror the skip arms from flat_pms_to_legacy_for_surcharge.
+            // When a new PM type is added there, add its copy-back logic here.
+            Some(PaymentMethodSubtypeSpecificDataForClient::Wallet { .. })
+            | Some(PaymentMethodSubtypeSpecificDataForClient::Bank { .. })
+            | None => continue,
+        }
+    }
 }
 
 #[cfg(feature = "v1")]
