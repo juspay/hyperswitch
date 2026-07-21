@@ -120,6 +120,13 @@ fn build_payment_link_template(
     context.insert("rendered_css", &rendered_css);
     context.insert("rendered_js", &rendered_js);
     context.insert("logging_template", &logging_template);
+    context.insert(
+        "redirection_log_endpoint",
+        payment_link_data
+            .redirection_log_endpoint
+            .as_deref()
+            .unwrap_or(""),
+    );
 
     Ok((tera, context))
 }
@@ -170,6 +177,19 @@ pub fn get_payment_link_status(
     let rendered_js = tera
         .render("payment_link_js", &context)
         .change_context(PaymentLinkError::TemplateRenderError)?;
+
+    // Make the backend-computed redirection log endpoint available to the
+    // status.html template. The status page is rendered separately from the
+    // payment initiate page, so it needs its own copy of the endpoint to keep
+    // logs routed to the environment that generated the link. An empty string
+    // is rendered for the WASM preview, where no real endpoint is available.
+    context.insert(
+        "redirection_log_endpoint",
+        payment_link_data
+            .redirection_log_endpoint
+            .as_deref()
+            .unwrap_or(""),
+    );
 
     // Modify Html template with rendered js and rendered css files
     let html_template =

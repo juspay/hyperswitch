@@ -24,10 +24,22 @@ function parseRoute(url) {
     }
   }
 
+  /*
+   * Payment-link pages set `window.__REDIRECTION_LOG_ENDPOINT` from the
+   * backend, so prefer that value. It is authoritative because custom domains
+   * can hide the real router hostname
+   */
   function getEnvRoute(url) {
+    // If the backend rendered a log endpoint, use it unconditionally.
+    if (window.__REDIRECTION_LOG_ENDPOINT) {
+      return window.__REDIRECTION_LOG_ENDPOINT;
+    }
+    
     const route = new URL(url).hostname;
-    return route === "api.hyperswitch.io" ? "https://api.hyperswitch.io/logs/redirection" : "https://sandbox.hyperswitch.io/logs/redirection";
-}
+    return route === "api.hyperswitch.io"
+      ? "https://api.hyperswitch.io/logs/redirection"
+      : "https://app.hyperswitch.io/api/logs/redirection";
+  }
 
   
 async function postLog(log, urlToPost) {
