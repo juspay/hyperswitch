@@ -10642,47 +10642,17 @@ Cypress.Commands.add(
 // Stores userInfoToken, merchantId, profileId, and paypalConnectorId in globalState.
 Cypress.Commands.add("connectorOnboardingBootstrap", (globalState) => {
   const baseUrl = globalState.get("baseUrl");
-  const ts = Date.now();
 
-  cy.request({
-    method: "POST",
-    url: `${baseUrl}/user/signup`,
-    headers: { "Content-Type": "application/json" },
-    body: {
-      email: `qa_onboarding_${ts}@example.com`,
-      password: "Test@1234",
-      name: "QA Test",
-      country: "US",
-      company_name: "Test Co",
-    },
-    failOnStatusCode: false,
-  }).then((signupResp) => {
-    logRequestId(signupResp.headers["x-request-id"]);
-    expect(signupResp.status).to.equal(200);
-    const totpToken = signupResp.body.token;
-    globalState.set("totpToken", totpToken);
-
-    cy.request({
-      method: "GET",
-      url: `${baseUrl}/user/2fa/terminate?skip_two_factor_auth=true`,
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${totpToken}`,
-      },
-      failOnStatusCode: false,
-    }).then((terminateResp) => {
-      logRequestId(terminateResp.headers["x-request-id"]);
-      expect(terminateResp.status).to.equal(200);
-      const userInfoToken = terminateResp.body.token;
-      globalState.set("userInfoToken", userInfoToken);
-
-      const payload = JSON.parse(atob(userInfoToken.split(".")[1]));
-      globalState.set("merchantId", payload.merchant_id);
-      globalState.set("profileId", payload.profile_id);
+  cy.userLogin(globalState)
+    .then(() => cy.terminate2Fa(globalState))
+    .then(() => cy.userInfo(globalState))
+    .then(() => {
+      const merchantId = globalState.get("merchantId");
+      const userInfoToken = globalState.get("userInfoToken");
 
       cy.request({
         method: "POST",
-        url: `${baseUrl}/account/${payload.merchant_id}/connectors`,
+        url: `${baseUrl}/account/${merchantId}/connectors`,
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${userInfoToken}`,
@@ -10708,7 +10678,6 @@ Cypress.Commands.add("connectorOnboardingBootstrap", (globalState) => {
         );
       });
     });
-  });
 });
 
 Cypress.Commands.add(

@@ -24,6 +24,7 @@ env:
   OPTIONAL_PAYMENTS_CONNECTORS_BATCH_3: "loonio zift airwallex fiuu"
   ALPHA_PAYMENTS_CONNECTORS: "celero silverflow"
   PLATFORM_CONNECTORS: "stripe"
+  MISC_CONNECTORS: "misc"
   EXTENDED_PAYMENTS_CONNECTORS_BATCH_1: "bluesnap gigadat loonio nmi"
   EXTENDED_PAYMENTS_CONNECTORS_BATCH_2: "paypal redsys zift"
   EXTENDED_PAYOUTS_CONNECTORS: "adyenplatform wise"
@@ -192,6 +193,7 @@ jobs:
                   "name": "platform",
                   "connectors": "",
                   "platform_connectors": "'"${PLATFORM_CONNECTORS}"'",
+                  "misc_connectors": "'"${MISC_CONNECTORS}"'",
                   "parallel": 2,
                   "report_artifact_name": "cypress-mandatory-test-results-platform",
                   "server_logs_artifact": "mandatory-server-logs-platform"
@@ -405,6 +407,7 @@ jobs:
           ROUTER__SERVER__WORKERS: 4
           PAYMENTS_CONNECTORS: "${{ matrix.batch.connectors }}"
           PLATFORM_CONNECTORS: "${{ matrix.batch.platform_connectors }}"
+          MISC_CONNECTORS: "${{ matrix.batch.misc_connectors }}"
         shell: bash -leuo pipefail {0}
         run: |
           scripts/execute_cypress.sh --parallel ${{ matrix.batch.parallel }}
