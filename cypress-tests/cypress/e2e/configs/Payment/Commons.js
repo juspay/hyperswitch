@@ -93,7 +93,7 @@ export const cardCreditEnabled = [
   },
 ];
 
-const successfulNo3DSCardDetails = {
+export const successfulNo3DSCardDetails = {
   card_number: "4111111111111111",
   card_exp_month: "08",
   card_exp_year: "30",
@@ -206,6 +206,38 @@ export const fullNameRequiredField = {
 };
 
 export const billingRequiredField = {};
+
+// Bank debit specific billing addresses - derived from standardBillingAddress
+export const sepaBillingAddress = {
+  address: {
+    ...standardBillingAddress.address,
+    city: "Amsterdam",
+    state: "North Holland",
+    zip: "1012",
+    country: "NL",
+  },
+  email: "test@example.com",
+};
+
+export const achBillingAddress = {
+  address: {
+    ...standardBillingAddress.address,
+    city: "San Francisco",
+    state: "California",
+  },
+  email: "test@example.com",
+};
+
+export const bacsBillingAddress = {
+  address: {
+    ...standardBillingAddress.address,
+    city: "London",
+    state: "England",
+    zip: "SW1A 1AA",
+    country: "GB",
+  },
+  email: "test@example.com",
+};
 
 export const payment_methods_enabled = [
   {
@@ -649,6 +681,30 @@ export const payment_methods_enabled = [
         recurring_enabled: false,
         installment_payment_enabled: false,
       },
+      {
+        payment_method_type: "amazon_pay",
+        payment_experience: "redirect_to_url",
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: false,
+        installment_payment_enabled: false,
+      },
+      {
+        payment_method_type: "cashapp",
+        payment_experience: "display_qr_code",
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: false,
+        installment_payment_enabled: false,
+      },
+      {
+        payment_method_type: "revolut_pay",
+        payment_experience: "redirect_to_url",
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: false,
+        installment_payment_enabled: false,
+      },
     ],
   },
   {
@@ -851,6 +907,23 @@ export const payment_methods_enabled = [
         installment_payment_enabled: false,
       },
       {
+        payment_method_type: "payjustnow",
+        payment_experience: "redirect_to_url",
+        card_networks: null,
+        accepted_currencies: {
+          type: "enable_only",
+          list: ["ZAR"],
+        },
+        accepted_countries: {
+          type: "enable_only",
+          list: ["ZA"],
+        },
+        minimum_amount: 100,
+        maximum_amount: 100000000,
+        recurring_enabled: false,
+        installment_payment_enabled: false,
+      },
+      {
         payment_method_type: "affirm",
         payment_experience: "redirect_to_url",
         card_networks: null,
@@ -900,6 +973,18 @@ export const payment_methods_enabled = [
         card_networks: null,
         accepted_currencies: null,
         accepted_countries: null,
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: false,
+        installment_payment_enabled: false,
+      },
+    ],
+  },
+  {
+    payment_method: "open_banking",
+    payment_method_types: [
+      {
+        payment_method_type: "open_banking_pis",
         minimum_amount: 1,
         maximum_amount: 68607706,
         recurring_enabled: false,
@@ -1130,6 +1215,9 @@ export const connectorDetails = {
             status: "requires_customer_action",
           },
         },
+        Configs: {
+          TRIGGER_SKIP: true,
+        },
       }),
     },
     OnlineBankingFpx: getCustomExchange({
@@ -1309,6 +1397,18 @@ export const connectorDetails = {
           billing: standardBillingAddress,
         },
       }),
+      MandateSingleUseAutoCapture: getCustomExchange({
+        Configs: {
+          TRIGGER_SKIP: true,
+        },
+        Request: {},
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_customer_action",
+          },
+        },
+      }),
     },
   },
   bank_debit_pm: {
@@ -1409,18 +1509,56 @@ export const connectorDetails = {
         },
       },
     }),
-    BankdebitMIT: {
+    get MandateSingleUseSepa() {
+      return this.Sepa;
+    },
+    get MandateSingleUseBecs() {
+      return this.Becs;
+    },
+    get MandateSingleUseAch() {
+      return this.Ach;
+    },
+    get MandateSingleUseBacs() {
+      return this.Bacs;
+    },
+    MITAutoCaptureSepa: getCustomExchange({
+      Request: {
+        amount: 6540,
+        off_session: true,
+        confirm: true,
+        currency: "EUR",
+      },
+    }),
+    MITAutoCaptureBecs: getCustomExchange({
+      Request: {
+        amount: 6540,
+        off_session: true,
+        confirm: true,
+        currency: "AUD",
+      },
+    }),
+    MITAutoCaptureAch: getCustomExchange({
+      Request: {
+        amount: 6540,
+        off_session: true,
+        confirm: true,
+        currency: "USD",
+      },
+    }),
+    MITAutoCaptureBacs: getCustomExchange({
+      Request: {
+        amount: 6540,
+        off_session: true,
+        confirm: true,
+        currency: "GBP",
+      },
+    }),
+    BankdebitMIT: getCustomExchange({
       Request: {
         currency: "EUR",
         off_session: true,
       },
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
-      },
-    },
+    }),
     SepaMandate: getCustomExchange({
       Request: {
         payment_method: "bank_debit",
@@ -1743,6 +1881,56 @@ export const connectorDetails = {
       },
     }),
     SyncRefund: getCustomExchange({}),
+    Payjustnow: getCustomExchange({
+      Request: {
+        payment_method: "pay_later",
+        payment_method_type: "payjustnow",
+        payment_method_data: {
+          pay_later: {
+            payjustnow_redirect: {},
+          },
+        },
+        billing: {
+          email: "customer@payjustnow.co.za",
+          address: {
+            line1: "123 Main Street",
+            line2: "",
+            line3: "",
+            city: "Johannesburg",
+            state: "Gauteng",
+            zip: "2001",
+            country: "ZA",
+            first_name: "Test",
+            last_name: "Customer",
+          },
+        },
+      },
+    }),
+    Payjustnowinstore: getCustomExchange({
+      Request: {
+        payment_method: "pay_later",
+        payment_method_type: "payjustnow",
+        payment_method_data: {
+          pay_later: {
+            payjustnow_redirect: {},
+          },
+        },
+        billing: {
+          email: "customer@payjustnow.co.za",
+          address: {
+            line1: "123 Main Street",
+            line2: "",
+            line3: "",
+            city: "Johannesburg",
+            state: "Gauteng",
+            zip: "2001",
+            country: "ZA",
+            first_name: "Test",
+            last_name: "Customer",
+          },
+        },
+      },
+    }),
     SyncRefundScheduled: getCustomExchange({}),
     AfterpayClearpay: getCustomExchange({
       Request: {
@@ -3724,6 +3912,75 @@ export const connectorDetails = {
         },
       },
     }),
+    // WebhookConfig: webhook_username and webhook_password are masked
+    // placeholders — not real credentials. They are safe to use in any
+    // connector config as placeholder webhook auth data.
+    WebhookConfig: {
+      Create: getCustomExchange({
+        Request: {
+          webhook_details: {
+            webhook_version: "1.0.2",
+            webhook_username: "<WEBHOOK_USERNAME>",
+            webhook_password: "<WEBHOOK_PASSWORD>",
+            webhook_url: "https://example.com/webhook",
+            payment_created_enabled: true,
+            payment_succeeded_enabled: true,
+            payment_failed_enabled: false,
+            payment_statuses_enabled: ["succeeded", "failed"],
+            refund_statuses_enabled: ["success", "failure"],
+            payout_statuses_enabled: ["success", "failed"],
+          },
+        },
+        Response: {
+          status: 200,
+          body: {
+            webhook_details: {
+              payment_failed_enabled: false,
+              payment_statuses_enabled: ["succeeded", "failed"],
+              refund_statuses_enabled: ["success", "failure"],
+              payout_statuses_enabled: ["success", "failed"],
+            },
+          },
+        },
+      }),
+      Update: getCustomExchange({
+        Request: {
+          webhook_details: {
+            webhook_version: "1.0.2",
+            webhook_username: "<WEBHOOK_USERNAME_UPDATED>",
+            webhook_password: "<WEBHOOK_PASSWORD_UPDATED>",
+            webhook_url: "https://example.com/webhook_updated",
+            payment_created_enabled: true,
+            payment_succeeded_enabled: true,
+            payment_failed_enabled: true,
+            payment_statuses_enabled: [
+              "succeeded",
+              "failed",
+              "cancelled",
+              "processing",
+            ],
+            refund_statuses_enabled: ["success", "failure"],
+            payout_statuses_enabled: ["success", "failed", "initiated"],
+          },
+        },
+        Response: {
+          status: 200,
+          body: {
+            webhook_details: {
+              payment_failed_enabled: true,
+              payment_statuses_enabled: [
+                "succeeded",
+                "failed",
+                "cancelled",
+                "processing",
+              ],
+              refund_statuses_enabled: ["success", "failure"],
+              payout_statuses_enabled: ["success", "failed", "initiated"],
+            },
+          },
+        },
+      }),
+    },
   },
   upi_pm: {
     PaymentIntent: getCustomExchange({

@@ -32,9 +32,11 @@ pub mod vault_v2;
 
 use std::fmt::Debug;
 
+use api_models::merchant_connector_webhook_management::{Scope, ScopeIdentifier};
 use common_enums::{
     enums::{
-        self, CallConnectorAction, CaptureMethod, EventClass, PaymentAction, PaymentMethodType,
+        self, CallConnectorAction, CaptureMethod, EventClass, IntentStatus, PaymentAction,
+        PaymentMethodType,
     },
     PaymentMethod,
 };
@@ -476,6 +478,14 @@ pub trait ConnectorSpecifications {
     ) -> bool {
         false
     }
+    /// Check if connector should be called for UpdatePostConfirm
+    fn should_call_connector_for_update_post_confirm(
+        &self,
+        _payment_method_type: Option<PaymentMethodType>,
+        _intent_status: IntentStatus,
+    ) -> bool {
+        false
+    }
     /// Check if settlement split flow is required
     fn is_settlement_split_call_required(&self, _current_flow: CurrentFlowInfo) -> bool {
         false
@@ -632,11 +642,14 @@ pub trait ConnectorSpecifications {
         false
     }
 
-    /// Get connector's API webhook configuration object
-    fn get_api_webhook_config(
+    /// Returns the webhook registration plan for this connector.
+    /// Given the requested scope returns a list of (identifier, webhook_url)` tuples. Each tuple corresponds to one connector integration call.
+    fn get_webhook_registration_plan(
         &self,
-    ) -> &'static common_types::connector_webhook_configuration::WebhookSetupCapabilities {
-        &consts::DEFAULT_WEBHOOK_SETUP_CAPABILITIES
+        _scope: &Scope,
+        _connectors: &Connectors,
+    ) -> CustomResult<Vec<(ScopeIdentifier, String)>, errors::ConnectorError> {
+        Ok(Vec::new())
     }
 }
 

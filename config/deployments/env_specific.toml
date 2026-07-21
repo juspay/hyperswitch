@@ -22,9 +22,12 @@ password = "db_pass"      # Analytics DB Password
 host = "localhost"        # Analytics DB Host
 port = 5432               # Analytics DB Port
 dbname = "hyperswitch_db" # Name of Database
-pool_size = 5             # Number of connections to keep open
+max_pool_size = 5         # Maximum number of connections in the pool
+min_idle_pool_size = 2    # Minimum number of idle connections to maintain in the pool
 connection_timeout = 10   # Timeout for database connection in seconds
 queue_strategy = "Fifo"   # Add the queue strategy used by the database bb8 client
+idle_timeout = 300        # Maximum idle duration in seconds before a connection is closed
+max_lifetime = 1800       # Maximum lifetime in seconds before a connection is reaped
 
 [api_keys]
 hash_key = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef" # API key hashing key.
@@ -139,6 +142,7 @@ redis_temp_locker_encryption_key = "redis_temp_locker_encryption_key" # Encrypti
 ttl_for_storage_in_secs = 220752000                                   # Time to live for storage entries in locker
 
 
+
 [log.console]
 enabled = true
 level = "DEBUG"
@@ -161,6 +165,47 @@ use_xray_generator = false                            # Set this to true for AWS
 route_to_trace = ["*/confirm"]
 bg_metrics_collection_interval_in_secs = 15           # Interval for collecting the metrics in background thread
 
+
+[deja]
+mode = "disabled"
+run_id = ""
+
+[deja.recording]
+graph = "disabled"
+
+[deja.recording.kafka]
+brokers = []
+topic = "hyperswitch-deja-recording-events"
+client_id = "hyperswitch-deja-router"
+acks = "all"
+idempotence = true
+linger = 5
+message_timeout = 30000
+
+[deja.replay]
+source = ""
+lookup_dir = ""
+observed_sink = ""
+
+[deja.sampler]
+enabled = false
+record_key = "deja_record"
+timeout_ms = 25
+fail_closed = true
+
+[deja.identity]
+pod_name_env = "POD_NAME"
+git_sha_env = "VERGEN_GIT_SHA"
+instance_id = ""
+code_sha = ""
+
+[deja.writer]
+queue_capacity = 8192
+batch_size = 500
+flush_after_records = 500
+flush_interval_ms = 1000
+shutdown_flush_ms = 5000
+
 [lock_settings]
 delay_between_retries_in_milliseconds = 500 # Delay between retries in milliseconds
 redis_lock_expiry_seconds = 180             # Seconds before the redis lock expires
@@ -177,9 +222,12 @@ password = "db_pass"      # DB Password. Use base-64 encoded kms encrypted value
 host = "localhost"        # DB Host
 port = 5432               # DB Port
 dbname = "hyperswitch_db" # Name of Database
-pool_size = 5             # Number of connections to keep open
+max_pool_size = 5         # Maximum number of connections in the pool
+min_idle_pool_size = 2    # Minimum number of idle connections to maintain in the pool
 connection_timeout = 10   # Timeout for database connection in seconds
 queue_strategy = "Fifo"   # Add the queue strategy used by the database bb8 client
+idle_timeout = 300        # Maximum idle duration in seconds before a connection is closed
+max_lifetime = 1800       # Maximum lifetime in seconds before a connection is reaped
 
 [generic_link]
 [generic_link.payment_method_collect]
@@ -248,9 +296,40 @@ password = "db_pass"      # DB Password. Use base-64 encoded kms encrypted value
 host = "localhost"        # DB Host
 port = 5432               # DB Port
 dbname = "hyperswitch_db" # Name of Database
-pool_size = 5             # Number of connections to keep open
+max_pool_size = 5          # Maximum number of connections in the pool
+min_idle_pool_size = 2    # Minimum number of idle connections to maintain in the pool
 connection_timeout = 10   # Timeout for database connection in seconds
 queue_strategy = "Fifo"   # Add the queue strategy used by the database bb8 client
+idle_timeout = 300        # Maximum idle duration in seconds before a connection is closed
+max_lifetime = 1800       # Maximum lifetime in seconds before a connection is reaped
+
+# Accounts schema SQL data store credentials (merchant accounts, profiles, MCAs, key stores)
+[accounts_database]
+username = "db_user"      # DB Username
+password = "db_pass"      # DB Password. Use base-64 encoded kms encrypted value here when kms is enabled
+host = "localhost"        # DB Host
+port = 5432               # DB Port
+dbname = "hyperswitch_db" # Name of Database
+max_pool_size = 5         # Maximum number of connections in the pool
+min_idle_pool_size = 2    # Minimum number of idle connections to maintain in the pool
+connection_timeout = 10   # Timeout for database connection in seconds
+queue_strategy = "Fifo"   # Add the queue strategy used by the database bb8 client
+idle_timeout = 300        # Maximum idle duration in seconds before a connection is closed
+max_lifetime = 1800       # Maximum lifetime in seconds before a connection is reaped
+
+# Global tenant (users, roles) SQL data store credentials
+[global_database]
+username = "db_user"      # DB Username
+password = "db_pass"      # DB Password. Use base-64 encoded kms encrypted value here when kms is enabled
+host = "localhost"        # DB Host
+port = 5432               # DB Port
+dbname = "hyperswitch_db" # Name of Database
+max_pool_size = 5         # Maximum number of connections in the pool
+min_idle_pool_size = 2    # Minimum number of idle connections to maintain in the pool
+connection_timeout = 10   # Timeout for database connection in seconds
+queue_strategy = "Fifo"   # Add the queue strategy used by the database bb8 client
+idle_timeout = 300        # Maximum idle duration in seconds before a connection is closed
+max_lifetime = 1800       # Maximum lifetime in seconds before a connection is reaped
 
 [report_download_config]
 dispute_function = "report_download_config_dispute_function" # Config to download dispute report
@@ -412,7 +491,8 @@ payment_method = "payment_method_types" # <payment_method> = comma-separated clo
 [grpc_client.unified_connector_service]
 base_url = "http://localhost:8000"      # Unified Connector Service Base URL
 connection_timeout = 10                 # Connection Timeout Duration in Seconds
-ucs_only_connectors = "imerchantsolutions, paytm, phonepe, hyperpg, revolv3, fiservcommercehub, absa_sanlam, interpayments, payconex, dlocal"    # Comma-separated list of connectors that use UCS only
+request_timeout = 35                    # Per-RPC Request Timeout in Seconds
+ucs_only_connectors = "imerchantsolutions, paytm, phonepe, hyperpg, revolv3, fiservcommercehub, absa_sanlam, interpayments, payconex, dlocal, barclaycard, jpmorgan, datatrans, tsys_transit"    # Comma-separated list of connectors that use UCS only
 ucs_psync_disabled_connectors = "cashtocode, trustly"    # Comma-separated list of connectors to disable UCS PSync call
 
 [revenue_recovery]
@@ -449,6 +529,12 @@ redis_ttl_buffer_in_seconds=300 # buffer time in seconds to be added to redis tt
 enabled = false                                # Enable or disable chat features
 hyperswitch_ai_host = "http://0.0.0.0:8000"    # Hyperswitch ai workflow host
 encryption_key = ""                            # Key to encrypt and decrypt chats
+
+[sage]
+enabled = false                                # Master switch for sage sessions
+base_url = ""                                  # Sage base URL (e.g. https://sage.<env>.example.com)
+mint_path = ""                                 # Path on sage that mints a session (e.g. /api/session)
+infra_key = ""                                 # Shared bearer presented to sage; KMS-decrypted at boot
 
 [proxy_status_mapping]
 proxy_connector_http_status_code = false    # If enabled, the http status code of the connector will be proxied in the response

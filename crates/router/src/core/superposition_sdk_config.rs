@@ -153,10 +153,9 @@ pub async fn get_profile_superposition_sdk_config(
         })?;
 
     let all_mcas = db
-        .find_merchant_connector_account_by_merchant_id_and_disabled_list(
+        .find_merchant_connector_account_without_encrypted_by_merchant_id_and_disabled_list(
             platform.get_processor().get_account().get_id(),
             false,
-            platform.get_processor().get_key_store(),
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
@@ -291,7 +290,7 @@ pub async fn get_profile_superposition_sdk_config(
         serde_json::Value::String(profile_id.to_string()),
     );
     dimension_filter.insert(
-        "merchant_id".to_string(),
+        "processor_merchant_id".to_string(),
         serde_json::Value::String(merchant_account.get_id().get_string_repr().to_string()),
     );
     dimension_filter.insert(
@@ -389,7 +388,7 @@ pub async fn get_superposition_sdk_config(
         serde_json::Value::String(profile_id.get_string_repr().to_string()),
     );
     dimension_filter.insert(
-        "merchant_id".to_string(),
+        "processor_merchant_id".to_string(),
         serde_json::Value::String(merchant_account.get_id().get_string_repr().to_string()),
     );
     dimension_filter.insert(

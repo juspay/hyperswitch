@@ -156,6 +156,22 @@ impl ConnectorCommon for Trustpay {
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        if res.response.is_empty() {
+            return Ok(ErrorResponse {
+                status_code: res.status_code,
+                code: consts::NO_ERROR_CODE.to_string(),
+                message: consts::NO_ERROR_MESSAGE.to_string(),
+                reason: None,
+                attempt_status: None,
+                connector_transaction_id: None,
+                connector_response_reference_id: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
+                connector_metadata: None,
+            });
+        }
+
         let response: Result<
             trustpay::TrustpayErrorResponse,
             Report<common_utils::errors::ParsingError>,
@@ -338,28 +354,60 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> 
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: trustpay::TrustpayAccessTokenErrorResponse = res
+        if res.response.is_empty() {
+            return Ok(ErrorResponse {
+                status_code: res.status_code,
+                code: consts::NO_ERROR_CODE.to_string(),
+                message: consts::NO_ERROR_MESSAGE.to_string(),
+                reason: None,
+                attempt_status: None,
+                connector_transaction_id: None,
+                connector_response_reference_id: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
+                connector_metadata: None,
+            });
+        }
+
+        let response: Result<
+            trustpay::TrustpayAccessTokenErrorResponse,
+            Report<common_utils::errors::ParsingError>,
+        > = res
             .response
-            .parse_struct("Trustpay AccessTokenErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+            .parse_struct("Trustpay AccessTokenErrorResponse");
 
-        event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
+        match response {
+            Ok(response) => {
+                event_builder.map(|i| i.set_response_body(&response));
+                router_env::logger::info!(connector_response=?response);
 
-        Ok(ErrorResponse {
-            status_code: res.status_code,
-            code: response.result_info.result_code.to_string(),
-            // message vary for the same code, so relying on code alone as it is unique
-            message: response.result_info.result_code.to_string(),
-            reason: response.result_info.additional_info,
-            attempt_status: None,
-            connector_transaction_id: None,
-            connector_response_reference_id: None,
-            network_advice_code: None,
-            network_decline_code: None,
-            network_error_message: None,
-            connector_metadata: None,
-        })
+                Ok(ErrorResponse {
+                    status_code: res.status_code,
+                    code: response.result_info.result_code.to_string(),
+                    // message vary for the same code, so relying on code alone as it is unique
+                    message: response.result_info.result_code.to_string(),
+                    reason: response.result_info.additional_info,
+                    attempt_status: None,
+                    connector_transaction_id: None,
+                    connector_response_reference_id: None,
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
+                    connector_metadata: None,
+                })
+            }
+            Err(error_msg) => {
+                event_builder.map(|event| {
+                    event.set_error(serde_json::json!({
+                        "error": res.response.escape_ascii().to_string(),
+                        "status_code": res.status_code,
+                    }))
+                });
+                router_env::logger::error!(deserialization_error =? error_msg);
+                utils::handle_json_response_deserialization_failure(res, "trustpay")
+            }
+        }
     }
 }
 
@@ -1051,6 +1099,12 @@ impl webhooks::IncomingWebhook for Trustpay {
                     ))
                 }
             }
+            trustpay::CreditDebitIndicator::Unknown => Err(Report::new(
+                errors::ConnectorError::WebhookReferenceIdNotFound,
+            ))
+            .attach_printable(
+                "Unknown trustpay credit_debit_indicator received; cannot resolve object reference id",
+            ),
         }
     }
 
@@ -1059,6 +1113,10 @@ impl webhooks::IncomingWebhook for Trustpay {
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
         _context: Option<&webhooks::WebhookContext>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
+        if request.body.is_empty() {
+            return Ok(api_models::webhooks::IncomingWebhookEvent::EndpointVerification);
+        }
+
         let response: trustpay::TrustpayWebhookResponse = request
             .body
             .parse_struct("TrustpayWebhookResponse")
@@ -1087,7 +1145,9 @@ impl webhooks::IncomingWebhook for Trustpay {
             }
 
             (
-                trustpay::CreditDebitIndicator::Dbit | trustpay::CreditDebitIndicator::Crdt,
+                trustpay::CreditDebitIndicator::Dbit
+                | trustpay::CreditDebitIndicator::Crdt
+                | trustpay::CreditDebitIndicator::Unknown,
                 trustpay::WebhookStatus::Unknown,
             ) => Ok(api_models::webhooks::IncomingWebhookEvent::EventNotSupported),
             (trustpay::CreditDebitIndicator::Crdt, trustpay::WebhookStatus::Refunded) => {
@@ -1096,6 +1156,13 @@ impl webhooks::IncomingWebhook for Trustpay {
             (trustpay::CreditDebitIndicator::Crdt, trustpay::WebhookStatus::Chargebacked) => {
                 Ok(api_models::webhooks::IncomingWebhookEvent::EventNotSupported)
             }
+            (
+                trustpay::CreditDebitIndicator::Unknown,
+                trustpay::WebhookStatus::Paid
+                | trustpay::WebhookStatus::Rejected
+                | trustpay::WebhookStatus::Refunded
+                | trustpay::WebhookStatus::Chargebacked,
+            ) => Ok(api_models::webhooks::IncomingWebhookEvent::EventNotSupported),
         }
     }
 
@@ -1160,6 +1227,12 @@ impl webhooks::IncomingWebhook for Trustpay {
             .parse_struct("TrustpayWebhookResponse")
             .switch()?;
         let payment_info = trustpay_response.payment_information;
+        if matches!(payment_info.status, trustpay::WebhookStatus::Unknown) {
+            return Err(Report::new(errors::ConnectorError::WebhookBodyDecodingFailed))
+                .attach_printable(
+                    "Received unknown trustpay dispute status; cannot determine outcome without explicit mapping",
+                );
+        }
         let reason = payment_info.status_reason_information.unwrap_or_default();
         let connector_dispute_id = payment_info
             .references
@@ -1494,9 +1567,12 @@ impl ConnectorSpecifications for Trustpay {
             ),
             api::CurrentFlowInfo::CompleteAuthorize { .. } => false,
             api::CurrentFlowInfo::SetupMandate { .. } => false,
-            api::CurrentFlowInfo::Psync { .. } => false,
+            api::CurrentFlowInfo::Psync { .. }
+            | api::CurrentFlowInfo::UpdatePostConfirm { .. }
+            | api::CurrentFlowInfo::ConnectorWebhookRegister { .. } => false,
         }
     }
+
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
         Some(&TRUSTPAY_CONNECTOR_INFO)
     }

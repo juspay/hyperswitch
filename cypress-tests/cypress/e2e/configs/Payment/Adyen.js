@@ -2016,6 +2016,50 @@ export const connectorDetails = {
         },
       },
     }),
+    KlarnaMandateAutoCapture: getCustomExchange({
+      Request: {
+        payment_method: "pay_later",
+        payment_method_type: "klarna",
+        payment_experience: "redirect_to_url",
+        payment_method_data: {
+          pay_later: {
+            klarna_redirect: {
+              billing_email: "guest@juspay.in",
+              billing_country: "DE",
+            },
+          },
+        },
+        setup_future_usage: "off_session",
+        customer_acceptance: customerAcceptance,
+        billing: {
+          email: "guest@juspay.in",
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Fransico",
+            state: "California",
+            zip: "94122",
+            country: "DE",
+            first_name: "joseph",
+            last_name: "Doe",
+          },
+        },
+        order_details: [
+          {
+            product_name: "Test Product",
+            quantity: 1,
+            amount: 6000,
+          },
+        ],
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    }),
     AutoCapture: getCustomExchange({
       Request: {
         currency: "EUR",
@@ -3202,40 +3246,16 @@ export const connectorDetails = {
 
   bank_debit_pm: {
     PaymentIntent: (paymentMethodType) => {
-      if (paymentMethodType === "Ach") {
-        return {
-          Request: {
-            currency: "USD",
-          },
-          Response: {
-            status: 200,
-            body: {
-              status: "requires_payment_method",
-            },
-          },
-        };
-      }
-      if (paymentMethodType === "Sepa") {
-        return {
-          Request: {
-            currency: "EUR",
-          },
-          Response: {
-            status: 200,
-            body: {
-              status: "requires_payment_method",
-            },
-          },
-        };
-      }
-      const currencyMap = {
-        Becs: "AUD",
-        Bacs: "GBP",
-      };
+      const currencyMap = { Sepa: "EUR", Ach: "USD", Becs: "AUD", Bacs: "GBP" };
       return {
+        ...(paymentMethodType === "Ach"
+          ? { Configs: { TRIGGER_SKIP: true } }
+          : {}),
         Request: {
           currency: currencyMap[paymentMethodType] || "USD",
-          setup_future_usage: "off_session",
+          ...(paymentMethodType !== "Sepa"
+            ? { setup_future_usage: "off_session" }
+            : {}),
         },
         Response: {
           status: 200,
@@ -3269,6 +3289,7 @@ export const connectorDetails = {
             first_name: "John",
             last_name: "Doe",
           },
+          email: "test@example.com",
         },
         customer_acceptance: customerAcceptance,
       },
@@ -3351,6 +3372,7 @@ export const connectorDetails = {
             first_name: "John",
             last_name: "Doe",
           },
+          email: "test@example.com",
         },
         customer_acceptance: customerAcceptance,
         currency: "USD",
@@ -3387,6 +3409,7 @@ export const connectorDetails = {
             first_name: "John",
             last_name: "Doe",
           },
+          email: "test@example.com",
         },
         customer_acceptance: customerAcceptance,
         mandate_data: {
