@@ -469,6 +469,10 @@ pub struct DecisionConfig {
     pub base_url: String,
 }
 
+type StorageInterfaceMap = HashMap<id_type::TenantId, Box<dyn app::StorageInterface>>;
+type AccountsStorageInterfaceMap =
+    HashMap<id_type::TenantId, Box<dyn app::AccountsStorageInterface>>;
+
 #[derive(Debug, Clone, Default)]
 pub struct TenantConfig(pub HashMap<id_type::TenantId, Tenant>);
 
@@ -476,72 +480,47 @@ impl TenantConfig {
     /// # Panics
     ///
     /// Panics if Failed to create event handler
-    pub async fn get_store_interface_map(
+    pub async fn get_store_interface_maps(
         &self,
         storage_impl: &app::StorageImpl,
         conf: &configs::Settings,
         cache_store: Arc<storage_impl::redis::RedisStore>,
         testable: bool,
-    ) -> HashMap<id_type::TenantId, Box<dyn app::StorageInterface>> {
+    ) -> (StorageInterfaceMap, AccountsStorageInterfaceMap) {
         #[allow(clippy::expect_used)]
         let event_handler = conf
             .events
             .get_event_handler()
             .await
             .expect("Failed to create event handler");
-        futures::future::join_all(self.0.iter().map(|(tenant_name, tenant)| async {
-            let store = Box::pin(AppState::get_store_interface(
-                storage_impl,
-                &event_handler,
-                conf,
-                tenant,
-                conf.master_database.clone().into_inner(),
-                conf.accounts_database_config(),
-                cache_store.clone(),
-                testable,
-            ))
-            .await
-            .get_storage_interface();
-            (tenant_name.clone(), store)
-        }))
-        .await
-        .into_iter()
-        .collect()
-    }
-    /// # Panics
-    ///
-    /// Panics if Failed to create event handler
-    pub async fn get_accounts_store_interface_map(
-        &self,
-        storage_impl: &app::StorageImpl,
-        conf: &configs::Settings,
-        cache_store: Arc<storage_impl::redis::RedisStore>,
-        testable: bool,
-    ) -> HashMap<id_type::TenantId, Box<dyn app::AccountsStorageInterface>> {
-        #[allow(clippy::expect_used)]
-        let event_handler = conf
-            .events
-            .get_event_handler()
-            .await
-            .expect("Failed to create event handler");
-        futures::future::join_all(self.0.iter().map(|(tenant_name, tenant)| async {
-            let store = Box::pin(AppState::get_store_interface(
-                storage_impl,
-                &event_handler,
-                conf,
-                tenant,
-                conf.master_database.clone().into_inner(),
-                conf.accounts_database_config(),
-                cache_store.clone(),
-                testable,
-            ))
-            .await
-            .get_accounts_storage_interface();
-            (tenant_name.clone(), store)
-        }))
-        .await
-        .into_iter()
-        .collect()
+        let tenant_stores =
+            futures::future::join_all(self.0.iter().map(|(tenant_name, tenant)| async {
+                let store = Box::pin(AppState::get_store_interface(
+                    storage_impl,
+                    &event_handler,
+                    conf,
+                    tenant,
+                    conf.master_database.clone().into_inner(),
+                    conf.accounts_database_config(),
+                    cache_store.clone(),
+                    testable,
+                ))
+                .await;
+                (tenant_name.clone(), store)
+            }))
+            .await;
+
+        let stores = tenant_stores
+            .iter()
+            .map(|(tenant_name, store)| (tenant_name.clone(), store.get_storage_interface()))
+            .collect();
+        let accounts_store = tenant_stores
+            .iter()
+            .map(|(tenant_name, store)| {
+                (tenant_name.clone(), store.get_accounts_storage_interface())
+            })
+            .collect();
+        (stores, accounts_store)
     }
     #[cfg(feature = "olap")]
     pub async fn get_pools_map(
