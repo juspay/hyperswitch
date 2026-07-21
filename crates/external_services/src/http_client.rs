@@ -12,8 +12,10 @@ pub mod client;
 pub mod metrics;
 /// request module
 pub mod request;
+
 #[cfg(feature = "deja")]
-mod semantic_boundary;
+mod boundary;
+
 use std::{error::Error, time::Duration};
 
 pub use common_utils::request::{ContentType, Method, RequestBuilder};
@@ -70,14 +72,14 @@ pub fn serialize_to_xml_bytes<T: serde::Serialize>(
     deja::http(outgoing,
         component = "external_services::http_client",
         operation = "send_request",
-        correlation = semantic_boundary::request_id(&request),
+        correlation = boundary::request_id(&request),
         // The deja handoff: expose the Secret-wrapped payload so the tape
         // records full fidelity (Secret only redacts Debug/log output).
-        args = hyperswitch_masking::ExposeInterface::expose(semantic_boundary::request_args(&request, option_timeout_secs)),
+        args = hyperswitch_masking::ExposeInterface::expose(boundary::request_args(&request, option_timeout_secs)),
         // Rebuild the recorded reqwest::Response (status+headers+body) so the
         // outgoing call (e.g. Stripe) is served from the lookup table with no
         // network. A recorded error reconstructs to None -> falls through to live.
-        codec = semantic_boundary::HttpResponseCodec,
+        codec = boundary::HttpResponseCodec,
     )
 )]
 #[instrument(skip_all)]
@@ -242,8 +244,8 @@ pub async fn send_request(
     #[cfg(feature = "deja")]
     {
         match response {
-            Ok(response) if semantic_boundary::is_active() => {
-                semantic_boundary::response_with_captured_body(response).await
+            Ok(response) if boundary::is_active() => {
+                boundary::response_with_captured_body(response).await
             }
             response => response,
         }

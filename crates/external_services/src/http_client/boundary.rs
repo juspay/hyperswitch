@@ -166,11 +166,16 @@ impl deja::codec::ReplayCodec for HttpResponseCodec {
 /// Replay: reconstruct a `reqwest::Response` from a recorded `response_result`
 /// payload (`{status, response_headers, response_body: {raw_bytes: [...]}}`).
 ///
-/// Returns `None` for a recorded error (no `status` field) so the boundary
-/// falls through to live execution (the Ok-only replay policy). Connectors consume
-/// status + headers + body bytes from the response, all of which are
-/// reconstructed verbatim from the recording — so a replayed outgoing call
-/// (e.g. to Stripe) is served entirely from the lookup table with no network.
+/// A recorded SUCCESS reconstructs verbatim: connectors read status, headers
+/// and body bytes, and all three come from the tape, so that call touches no
+/// network.
+///
+/// A recorded ERROR carries no `status` field and reconstructs to `None`, which
+/// the boundary treats as a lookup miss and answers by executing LIVE. Replaying
+/// a request whose connector call failed therefore issues a real outbound request
+/// to the real endpoint. This is the current Ok-only replay policy: replay is
+/// egress-free only for as long as every recorded call succeeded, so it must not
+/// be relied on as an egress guarantee.
 pub(super) fn replay_response(recorded: &serde_json::Value) -> Option<reqwest::Response> {
     let status_code = u16::try_from(recorded.get("status")?.as_u64()?).ok()?;
     let status = http::StatusCode::from_u16(status_code).ok()?;
