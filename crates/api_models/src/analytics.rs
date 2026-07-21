@@ -151,10 +151,17 @@ pub struct ReportRequest {
     pub time_range: TimeRange,
     pub emails: Option<Vec<Email>>,
     pub return_url: Option<MerchantWebhookUrl>,
+    #[cfg(feature = "v2")]
     #[serde(default)]
     pub report_type: ReportType,
     #[serde(default)]
-    pub columns: Vec<PaymentReportColumn>,
+    pub columns: Option<ReportColumns>,
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ReportColumns {
+    Payment(Vec<PaymentReportColumn>),
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
@@ -553,15 +560,13 @@ pub struct AuthEventsAnalyticsMetadata {
     pub total_error_message_count: Option<u64>,
 }
 
+#[cfg(feature = "v2")]
 #[derive(Clone, Debug, Default, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ReportType {
-    #[cfg_attr(feature = "v1", default)]
-    V1Payments,
-    #[cfg_attr(feature = "v2", default)]
+    #[default]
     V2Payments,
     RevenueRecovery,
-    CustomPayments,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, PartialEq, Eq, Hash, PartialOrd)]
