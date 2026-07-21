@@ -2060,6 +2060,71 @@ export const connectorDetails = {
       },
     }),
   },
+  vault_tokenization: {
+    // Vault tokenization flag does not affect the API-observable payment
+    // outcome — both disabled (flag=true) and enabled (flag=false) states
+    // return status=succeeded with authentication_type=three_ds. The
+    // vault_token_data distinction is internal and cannot be asserted via
+    // the API layer.
+    VaultTokenizationDisabled: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: { card: externalThreeDSCardDetails },
+        currency: "USD",
+        amount: 6500,
+        authentication_type: "three_ds",
+        request_external_three_ds_authentication: true,
+        three_ds_data: {
+          authentication_cryptogram: {
+            cavv: {
+              authentication_cryptogram: "3q2+78r+ur7erb7vyv66vv////8=",
+            },
+          },
+          ds_trans_id: "c4e59ceb-a382-4d6a-bc87-385d591fa09d",
+          version: "2.1.0",
+          eci: "05",
+          transaction_status: "Y",
+          exemption_indicator: "low_value",
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          authentication_type: "three_ds",
+        },
+      },
+    }),
+    VaultTokenizationEnabled: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: { card: externalThreeDSCardDetails },
+        currency: "USD",
+        amount: 6500,
+        authentication_type: "three_ds",
+        request_external_three_ds_authentication: true,
+        three_ds_data: {
+          authentication_cryptogram: {
+            cavv: {
+              authentication_cryptogram: "3q2+78r+ur7erb7vyv66vv////8=",
+            },
+          },
+          ds_trans_id: "c4e59ceb-a382-4d6a-bc87-385d591fa09d",
+          version: "2.1.0",
+          eci: "05",
+          transaction_status: "Y",
+          exemption_indicator: "low_value",
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          authentication_type: "three_ds",
+        },
+      },
+    }),
+  },
   pm_list: {
     PmListResponse: {
       PmListNull: {
