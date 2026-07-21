@@ -817,8 +817,10 @@ impl RevenueRecoveryAttempt {
         key_store: &domain::MerchantKeyStore,
         billing_connector_account: &domain::MerchantConnectorAccount,
     ) -> CustomResult<Option<domain::MerchantConnectorAccount>, errors::RevenueRecoveryError> {
-        let payment_merchant_connector_account_id =
-            billing_connector_account.get_payment_merchant_connector_account_id();
+        let payment_merchant_connector_account_id = billing_connector_account
+            .get_payment_merchant_connector_account_id_using_account_reference_id(
+                self.0.connector_account_reference_id.clone(),
+            );
         let db = &*state.store;
         let payment_merchant_connector_account = payment_merchant_connector_account_id
             .as_ref()

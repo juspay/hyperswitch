@@ -306,32 +306,17 @@ impl MerchantConnectorAccount {
         self.connector_name
     }
 
-    pub fn get_payment_merchant_connector_account_id(
+    pub fn get_payment_merchant_connector_account_id_using_account_reference_id(
         &self,
+        account_reference_id: String,
     ) -> Option<id_type::MerchantConnectorAccountId> {
-        router_env::logger::info!(
-            has_feature_metadata = self.feature_metadata.is_some(),
-            billing_mca_id = %self.id.get_string_repr(),
-            recovery_to_billing_len = self.feature_metadata.as_ref()
-                .and_then(|m| m.revenue_recovery.as_ref())
-                .map(|r| r.mca_reference.recovery_to_billing.len())
-                .unwrap_or(0),
-            "payment MCA lookup debug"
-        );
         self.feature_metadata.as_ref().and_then(|metadata| {
             metadata.revenue_recovery.as_ref().and_then(|recovery| {
-                let result = recovery
+                recovery
                     .mca_reference
-                    .recovery_to_billing
-                    .get(&self.id)
-                    .and_then(|payment_mca_str| {
-                        id_type::MerchantConnectorAccountId::wrap(payment_mca_str.clone()).ok()
-                    });
-                router_env::logger::info!(
-                    lookup_result = ?result,
-                    "payment MCA lookup result"
-                );
-                result
+                    .billing_to_recovery
+                    .get(&account_reference_id)
+                    .cloned()
             })
         })
     }
@@ -343,9 +328,9 @@ impl MerchantConnectorAccount {
             metadata.revenue_recovery.as_ref().and_then(|recovery| {
                 recovery
                     .mca_reference
-                    .billing_to_recovery
-                    .get(payment_merchant_connector_account_id.get_string_repr())
-                    .map(|billing_mca_id| billing_mca_id.get_string_repr().to_string())
+                    .recovery_to_billing
+                    .get(&payment_merchant_connector_account_id)
+                    .cloned()
             })
         })
     }
@@ -763,13 +748,7 @@ impl behaviour::Conversion for MerchantConnectorAccount {
             connector_wallets_details: decrypted_data.connector_wallets_details,
             additional_merchant_data: decrypted_data.additional_merchant_data,
             version: other.version,
-            feature_metadata: {
-                router_env::logger::info!(
-                    diesel_has_feature_metadata = other.feature_metadata.is_some(),
-                    "diesel->domain feature_metadata conversion debug"
-                );
-                other.feature_metadata.map(From::from)
-            },
+            feature_metadata: other.feature_metadata.map(From::from),
         })
     }
 
