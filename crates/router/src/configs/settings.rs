@@ -510,8 +510,8 @@ impl TenantConfig {
             }))
             .await;
 
-        let mut stores = HashMap::new();
-        let mut accounts_store = HashMap::new();
+        let mut stores = HashMap::with_capacity(self.0.len());
+        let mut accounts_store = HashMap::with_capacity(self.0.len());
         for (tenant_name, store) in tenant_stores {
             stores.insert(tenant_name.clone(), store.get_storage_interface());
             accounts_store.insert(tenant_name, store.get_accounts_storage_interface());
