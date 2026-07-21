@@ -52,9 +52,12 @@ password = "db_pass"      # DB Password. Use base-64 encoded kms encrypted value
 host = "localhost"        # DB Host
 port = 5432               # DB Port
 dbname = "hyperswitch_db" # Name of Database
-pool_size = 5             # Number of connections to keep open
+max_pool_size = 5         # Maximum number of connections in the pool
+min_idle_pool_size = 2    # Minimum number of idle connections to maintain in the pool
 connection_timeout = 10   # Timeout for database connection in seconds
 queue_strategy = "Fifo"   # Add the queue strategy used by the database bb8 client
+idle_timeout = 300        # Maximum idle duration in seconds before a connection is closed
+max_lifetime = 1800       # Maximum lifetime in seconds before a connection is reaped
 
 # Replica SQL data store credentials
 [replica_database]
@@ -63,9 +66,40 @@ password = "db_pass"      # DB Password. Use base-64 encoded kms encrypted value
 host = "localhost"        # DB Host
 port = 5432               # DB Port
 dbname = "hyperswitch_db" # Name of Database
-pool_size = 5             # Number of connections to keep open
+max_pool_size = 5         # Maximum number of connections in the pool
+min_idle_pool_size = 2    # Minimum number of idle connections to maintain in the pool
 connection_timeout = 10   # Timeout for database connection in seconds
 queue_strategy = "Fifo"   # Add the queue strategy used by the database bb8 client
+idle_timeout = 300        # Maximum idle duration in seconds before a connection is closed
+max_lifetime = 1800       # Maximum lifetime in seconds before a connection is reaped
+
+# Accounts schema SQL data store credentials (merchant accounts, profiles, MCAs, key stores)
+[accounts_database]
+username = "db_user"      # DB Username
+password = "db_pass"      # DB Password. Use base-64 encoded kms encrypted value here when kms is enabled
+host = "localhost"        # DB Host
+port = 5432               # DB Port
+dbname = "hyperswitch_db" # Name of Database
+max_pool_size = 5         # Maximum number of connections in the pool
+min_idle_pool_size = 2    # Minimum number of idle connections to maintain in the pool
+connection_timeout = 10   # Timeout for database connection in seconds
+queue_strategy = "Fifo"   # Add the queue strategy used by the database bb8 client
+idle_timeout = 300        # Maximum idle duration in seconds before a connection is closed
+max_lifetime = 1800       # Maximum lifetime in seconds before a connection is reaped
+
+# Global tenant (users, roles) SQL data store credentials
+[global_database]
+username = "db_user"      # DB Username
+password = "db_pass"      # DB Password. Use base-64 encoded kms encrypted value here when kms is enabled
+host = "localhost"        # DB Host
+port = 5432               # DB Port
+dbname = "hyperswitch_db" # Name of Database
+max_pool_size = 5         # Maximum number of connections in the pool
+min_idle_pool_size = 2    # Minimum number of idle connections to maintain in the pool
+connection_timeout = 10   # Timeout for database connection in seconds
+queue_strategy = "Fifo"   # Add the queue strategy used by the database bb8 client
+idle_timeout = 300        # Maximum idle duration in seconds before a connection is closed
+max_lifetime = 1800       # Maximum lifetime in seconds before a connection is reaped
 
 # Redis credentials
 [redis]
@@ -97,6 +131,7 @@ data_expiration_delay_in_seconds = 21600   # Expiration time for data in cache a
 redis_lock_timeout_in_seconds = 100        # Redis remains write locked for 100 s once the acquire_redis_lock is called
 
 # Logging configuration. Logging can be either to file or console or both.
+
 
 # Logging configuration for file logging
 [log.file]
@@ -140,6 +175,48 @@ otel_exporter_otlp_timeout = 5000                     # timeout (in milliseconds
 use_xray_generator = false                            # Set this to true for AWS X-ray compatible traces
 route_to_trace = ["*/confirm"]
 bg_metrics_collection_interval_in_secs = 15           # Interval for collecting the metrics in background thread
+
+# Deja recording/replay configuration. Disabled by default in checked-in examples.
+[deja]
+mode = "disabled" # allowed values: "disabled", "record", "replay"
+run_id = ""       # stable run identifier; empty lets the runtime choose a safe default
+
+[deja.recording]
+graph = "disabled" # allowed values: "disabled", "enabled" — execution-graph nodes on the recording stream
+
+[deja.recording.kafka]
+brokers = []
+topic = "hyperswitch-deja-recording-events"
+client_id = "hyperswitch-deja-router"
+acks = "all"
+idempotence = true
+linger = 5
+message_timeout = 30000
+
+[deja.replay]
+source = ""
+lookup_dir = ""
+observed_sink = ""
+
+[deja.sampler]
+enabled = false
+record_key = "deja_record"
+timeout_ms = 25
+fail_closed = true
+
+[deja.identity]
+pod_name_env = "POD_NAME"
+git_sha_env = "VERGEN_GIT_SHA"
+instance_id = ""
+code_sha = ""
+
+[deja.writer]
+queue_capacity = 8192
+batch_size = 500
+flush_after_records = 500
+flush_interval_ms = 1000
+shutdown_flush_ms = 5000
+
 
 # This section provides some secret values.
 [secrets]
@@ -282,7 +359,7 @@ moneris.base_url = "https://api.sb.moneris.io"
 mpgs.base_url = "https://test-gateway.mastercard.com"
 mollie.secondary_base_url = "https://api.cc.mollie.com/v1/"
 multisafepay.base_url = "https://testapi.multisafepay.com/"
-netcetera.base_url = "https://{{merchant_endpoint_prefix}}.3ds-server.prev.netcetera-cloud-payment.ch"
+netcetera.base_url = "https://api.prev.euc1.acquiring.cloud.netcetera.com/3ds-server"
 nexinets.base_url = "https://apitest.payengine.de/v1"
 nexixpay.base_url = "https://xpaysandbox.nexigroup.com/api/phoenix-0.0/psp/api/v1"
 payconex.base_url = "https://cert.payconex.net"
@@ -709,8 +786,8 @@ credit = { country = "NA", currency = "AED, AFN, ALL, AMD, ANG, AOA, ARS, AUD, A
 debit = { country = "NA", currency = "AED, AFN, ALL, AMD, ANG, AOA, ARS, AUD, AWG, AZN, BAM, BBD, BDT, BGN, BHD, BIF, BMD, BND, BOB, BRL, BSD, BTN, BWP, BZD, CAD, CDF, CHF, CLP, CNY, COP, CRC, CUP, CVE, CZK, DJF, DKK, DOP, DZD, EGP, ERN, ETB, EUR, FJD, FKP, GBP, GEL, GHS, GIP, GMD, GNF, GTQ, GYD, HKD, HNL, HRK, HTG, HUF, IDR, ILS, INR, IQD, IRR, ISK, JMD, JOD, JPY, KES, KGS, KHR, KMF, KRW, KWD, KYD, KZT, LAK, LBP, LKR, LRD, LSL, LYD, MAD, MDL, MGA, MKD, MMK, MNT, MOP, MUR, MVR, MWK, MXN, MYR, MZN, NAD, NGN, NIO, NOK, NPR, NZD, OMR, PAB, PEN, PGK, PHP, PKR, PLN, PYG, QAR, RON, RSD, RUB, RWF, SAR, SBD, SCR, SDG, SEK, SGD, SHP, SLE, SOS, SRD, SSP, SVC, SYP, SZL, THB, TJS, TMT, TND, TOP, TRY, TTD, TWD, TZS, UAH, UGX, USD, UYU, UZS, VND, VUV, WST, XAF, XCD, XOF, XPF, YER, ZAR, ZMW, ZWL, BYN, KPW, STN, MRU, VES" }
 
 [pm_filters.tsys_transit]
-credit = { country = "NA", currency = "AED, AFN, ALL, AMD, ANG, AOA, ARS, AUD, AWG, AZN, BAM, BBD, BDT, BGN, BHD, BIF, BMD, BND, BOB, BRL, BSD, BTN, BWP, BZD, CAD, CDF, CHF, CLP, CNY, COP, CRC, CUP, CVE, CZK, DJF, DKK, DOP, DZD, EGP, ERN, ETB, EUR, FJD, FKP, GBP, GEL, GHS, GIP, GMD, GNF, GTQ, GYD, HKD, HNL, HRK, HTG, HUF, IDR, ILS, INR, IQD, IRR, ISK, JMD, JOD, JPY, KES, KGS, KHR, KMF, KRW, KWD, KYD, KZT, LAK, LBP, LKR, LRD, LSL, LYD, MAD, MDL, MGA, MKD, MMK, MNT, MOP, MUR, MVR, MWK, MXN, MYR, MZN, NAD, NGN, NIO, NOK, NPR, NZD, OMR, PAB, PEN, PGK, PHP, PKR, PLN, PYG, QAR, RON, RSD, RUB, RWF, SAR, SBD, SCR, SDG, SEK, SGD, SHP, SLE, SOS, SRD, SSP, SVC, SYP, SZL, THB, TJS, TMT, TND, TOP, TRY, TTD, TWD, TZS, UAH, UGX, USD, UYU, UZS, VND, VUV, WST, XAF, XCD, XOF, XPF, YER, ZAR, ZMW, ZWL, BYN, KPW, STN, MRU, VES" }
-debit = { country = "NA", currency = "AED, AFN, ALL, AMD, ANG, AOA, ARS, AUD, AWG, AZN, BAM, BBD, BDT, BGN, BHD, BIF, BMD, BND, BOB, BRL, BSD, BTN, BWP, BZD, CAD, CDF, CHF, CLP, CNY, COP, CRC, CUP, CVE, CZK, DJF, DKK, DOP, DZD, EGP, ERN, ETB, EUR, FJD, FKP, GBP, GEL, GHS, GIP, GMD, GNF, GTQ, GYD, HKD, HNL, HRK, HTG, HUF, IDR, ILS, INR, IQD, IRR, ISK, JMD, JOD, JPY, KES, KGS, KHR, KMF, KRW, KWD, KYD, KZT, LAK, LBP, LKR, LRD, LSL, LYD, MAD, MDL, MGA, MKD, MMK, MNT, MOP, MUR, MVR, MWK, MXN, MYR, MZN, NAD, NGN, NIO, NOK, NPR, NZD, OMR, PAB, PEN, PGK, PHP, PKR, PLN, PYG, QAR, RON, RSD, RUB, RWF, SAR, SBD, SCR, SDG, SEK, SGD, SHP, SLE, SOS, SRD, SSP, SVC, SYP, SZL, THB, TJS, TMT, TND, TOP, TRY, TTD, TWD, TZS, UAH, UGX, USD, UYU, UZS, VND, VUV, WST, XAF, XCD, XOF, XPF, YER, ZAR, ZMW, ZWL, BYN, KPW, STN, MRU, VES" }
+credit = { currency = "AED, AFN, ALL, AMD, ANG, AOA, ARS, AUD, AWG, AZN, BAM, BBD, BDT, BGN, BHD, BIF, BMD, BND, BOB, BRL, BSD, BTN, BWP, BZD, CAD, CDF, CHF, CLP, CNY, COP, CRC, CUP, CVE, CZK, DJF, DKK, DOP, DZD, EGP, ERN, ETB, EUR, FJD, FKP, GBP, GEL, GHS, GIP, GMD, GNF, GTQ, GYD, HKD, HNL, HRK, HTG, HUF, IDR, ILS, INR, IQD, IRR, ISK, JMD, JOD, JPY, KES, KGS, KHR, KMF, KRW, KWD, KYD, KZT, LAK, LBP, LKR, LRD, LSL, LYD, MAD, MDL, MGA, MKD, MMK, MNT, MOP, MUR, MVR, MWK, MXN, MYR, MZN, NAD, NGN, NIO, NOK, NPR, NZD, OMR, PAB, PEN, PGK, PHP, PKR, PLN, PYG, QAR, RON, RSD, RUB, RWF, SAR, SBD, SCR, SDG, SEK, SGD, SHP, SLE, SOS, SRD, SSP, SVC, SYP, SZL, THB, TJS, TMT, TND, TOP, TRY, TTD, TWD, TZS, UAH, UGX, USD, UYU, UZS, VND, VUV, WST, XAF, XCD, XOF, XPF, YER, ZAR, ZMW, ZWL, BYN, KPW, STN, MRU, VES" }
+debit = { currency = "AED, AFN, ALL, AMD, ANG, AOA, ARS, AUD, AWG, AZN, BAM, BBD, BDT, BGN, BHD, BIF, BMD, BND, BOB, BRL, BSD, BTN, BWP, BZD, CAD, CDF, CHF, CLP, CNY, COP, CRC, CUP, CVE, CZK, DJF, DKK, DOP, DZD, EGP, ERN, ETB, EUR, FJD, FKP, GBP, GEL, GHS, GIP, GMD, GNF, GTQ, GYD, HKD, HNL, HRK, HTG, HUF, IDR, ILS, INR, IQD, IRR, ISK, JMD, JOD, JPY, KES, KGS, KHR, KMF, KRW, KWD, KYD, KZT, LAK, LBP, LKR, LRD, LSL, LYD, MAD, MDL, MGA, MKD, MMK, MNT, MOP, MUR, MVR, MWK, MXN, MYR, MZN, NAD, NGN, NIO, NOK, NPR, NZD, OMR, PAB, PEN, PGK, PHP, PKR, PLN, PYG, QAR, RON, RSD, RUB, RWF, SAR, SBD, SCR, SDG, SEK, SGD, SHP, SLE, SOS, SRD, SSP, SVC, SYP, SZL, THB, TJS, TMT, TND, TOP, TRY, TTD, TWD, TZS, UAH, UGX, USD, UYU, UZS, VND, VUV, WST, XAF, XCD, XOF, XPF, YER, ZAR, ZMW, ZWL, BYN, KPW, STN, MRU, VES" }
 
 [pm_filters.billwerk]
 credit = { country = "DE, DK, FR, SE", currency = "DKK, NOK" }
@@ -1173,9 +1250,12 @@ password = "db_pass"      # Analytics DB Password
 host = "localhost"        # Analytics DB Host
 port = 5432               # Analytics DB Port
 dbname = "hyperswitch_db" # Name of Database
-pool_size = 5             # Number of connections to keep open
+max_pool_size = 5         # Maximum number of connections in the pool
+min_idle_pool_size = 2    # Minimum number of idle connections to maintain in the pool
 connection_timeout = 10   # Timeout for database connection in seconds
 queue_strategy = "Fifo"   # Add the queue strategy used by the database bb8 client
+idle_timeout = 300        # Maximum idle duration in seconds before a connection is closed
+max_lifetime = 1800       # Maximum lifetime in seconds before a connection is reaped
 
 # Config for KV setup
 [kv_config]
@@ -1348,7 +1428,7 @@ url = "http://localhost:8080"           # Open Router URL
 base_url = "http://localhost:8000"      # Unified Connector Service Base URL
 connection_timeout = 10                 # Connection Timeout Duration in Seconds
 request_timeout = 35                    # Per-RPC Request Timeout in Seconds
-ucs_only_connectors = "imerchantsolutions, paytm, phonepe, hyperpg, revolv3, fiservcommercehub, absa_sanlam, interpayments, dlocal, barclaycard, tsys_transit"    # Comma-separated list of connectors that use UCS only
+ucs_only_connectors = "imerchantsolutions, paytm, phonepe, hyperpg, revolv3, fiservcommercehub, absa_sanlam, interpayments, dlocal, barclaycard, tsys_transit, jpmorgan, datatrans"    # Comma-separated list of connectors that use UCS only
 ucs_psync_disabled_connectors = "cashtocode, trustly"    # Comma-separated list of connectors to disable UCS PSync call
 
 [grpc_client.recovery_decider_client] # Revenue recovery client base url

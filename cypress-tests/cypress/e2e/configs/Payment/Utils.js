@@ -2,6 +2,7 @@ import { execConfig, validateConfig } from "../../../utils/featureFlags.js";
 
 import { updateDefaultStatusCode } from "./Modifiers.js";
 
+import { connectorDetails as signifydConnectorDetails } from "../FRM/Signifyd.js";
 import { connectorDetails as aciConnectorDetails } from "./Aci.js";
 import { connectorDetails as adyenConnectorDetails } from "./Adyen.js";
 import { connectorDetails as affirmConnectorDetails } from "./Affirm.js";
@@ -39,9 +40,11 @@ import { connectorDetails as forteConnectorDetails } from "./Forte.js";
 import { connectorDetails as getnetConnectorDetails } from "./Getnet.js";
 import { connectorDetails as gigadatConnectorDetails } from "./Gigadat.js";
 import { connectorDetails as globalpayConnectorDetails } from "./Globalpay.js";
+import { connectorDetails as globepayConnectorDetails } from "./Globepay.js";
 import { connectorDetails as helcimConnectorDetails } from "./Helcim.js";
 import { connectorDetails as hipayConnectorDetails } from "./Hipay.js";
 import { connectorDetails as iatapayConnectorDetails } from "./Iatapay.js";
+import { connectorDetails as inespayConnectorDetails } from "./Inespay.js";
 import { connectorDetails as itaubankConnectorDetails } from "./ItauBank.js";
 import { connectorDetails as jpmorganConnectorDetails } from "./Jpmorgan.js";
 import { connectorDetails as klarnaConnectorDetails } from "./Klarna.js";
@@ -58,16 +61,18 @@ import { connectorDetails as novalnetConnectorDetails } from "./Novalnet.js";
 import { connectorDetails as nuveiConnectorDetails } from "./Nuvei.js";
 import { connectorDetails as payboxConnectorDetails } from "./Paybox.js";
 import { connectorDetails as payjustnowConnectorDetails } from "./Payjustnow.js";
+import { connectorDetails as payjustnowinstoreConnectorDetails } from "./Payjustnowinstore.js";
 import { connectorDetails as payloadConnectorDetails } from "./Payload.js";
 import { connectorDetails as paypalConnectorDetails } from "./Paypal.js";
 import { connectorDetails as paysafeConnectorDetails } from "./Paysafe.js";
 import { connectorDetails as payuConnectorDetails } from "./Payu.js";
 import { connectorDetails as peachpaymentsConnectorDetails } from "./Peachpayments.js";
+import { connectorDetails as placetopayConnectorDetails } from "./Placetopay.js";
+import { connectorDetails as plaidConnectorDetails } from "./Plaid.js";
 import { connectorDetails as powertranzConnectorDetails } from "./PowerTranz.js";
 import { connectorDetails as rapydConnectorDetails } from "./Rapyd.js";
 import { connectorDetails as redsysConnectorDetails } from "./Redsys.js";
 import { connectorDetails as shift4ConnectorDetails } from "./Shift4.js";
-import { connectorDetails as signifydConnectorDetails } from "../FRM/Signifyd.js";
 import { connectorDetails as silverflowConnectorDetails } from "./Silverflow.js";
 import { connectorDetails as squareConnectorDetails } from "./Square.js";
 import { connectorDetails as staxConnectorDetails } from "./Stax.js";
@@ -122,9 +127,11 @@ const connectorDetails = {
   getnet: getnetConnectorDetails,
   gigadat: gigadatConnectorDetails,
   globalpay: globalpayConnectorDetails,
+  globepay: globepayConnectorDetails,
   helcim: helcimConnectorDetails,
   hipay: hipayConnectorDetails,
   iatapay: iatapayConnectorDetails,
+  inespay: inespayConnectorDetails,
   itaubank: itaubankConnectorDetails,
   jpmorgan: jpmorganConnectorDetails,
   klarna: klarnaConnectorDetails,
@@ -139,9 +146,12 @@ const connectorDetails = {
   nuvei: nuveiConnectorDetails,
   paybox: payboxConnectorDetails,
   payjustnow: payjustnowConnectorDetails,
+  payjustnowinstore: payjustnowinstoreConnectorDetails,
   payload: payloadConnectorDetails,
   paypal: paypalConnectorDetails,
   paysafe: paysafeConnectorDetails,
+  placetopay: placetopayConnectorDetails,
+  plaid: plaidConnectorDetails,
   payu: payuConnectorDetails,
   peachpayments: peachpaymentsConnectorDetails,
   powertranz: powertranzConnectorDetails,
@@ -602,6 +612,7 @@ export const CONNECTOR_LISTS = {
     ],
     BANK_DEBIT: [
       "adyen",
+      "inespay",
       "novalnet",
       "payload",
       "stax",
@@ -609,7 +620,7 @@ export const CONNECTOR_LISTS = {
       "wellsfargo",
     ], // payload verified as working
     BANK_REDIRECT_BANCONTACT: ["adyen", "stripe"],
-    BANK_REDIRECT_MANDATE: ["adyen"],
+    BANK_REDIRECT_MANDATE: ["adyen", "stripe"],
     BLUECODE_WALLET: ["calida"],
     ALIPAY_HK_WALLET: [""],
     PAYPAL_WALLET: [
@@ -620,8 +631,8 @@ export const CONNECTOR_LISTS = {
       "paypal",
     ],
     MIFINITY_WALLET: ["mifinity"],
-    ALIPAY_WALLET: ["stripe", "multisafepay"],
-    WECHATPAY_WALLET: ["stripe", "multisafepay"],
+    ALIPAY_WALLET: ["globepay", "stripe", "multisafepay"],
+    WECHATPAY_WALLET: ["globepay", "stripe", "multisafepay"],
     MBWAY_WALLET: ["multisafepay"],
     SKRILL_WALLET: ["paysafe"],
     PAYSAFECARD_GIFT_CARD: ["paysafe"],
@@ -668,7 +679,7 @@ export const CONNECTOR_LISTS = {
     EXTERNAL_THREE_DS: ["stripe", "finix"],
     PARTNER_MERCHANT_IDENTIFIER: ["adyen", "checkout"],
     AFFIRM_PAY_LATER: ["affirm"],
-    AFTERPAY_CLEARPAY: ["adyen"],
+    AFTERPAY_CLEARPAY: ["adyen", "stripe"],
     ALMA: ["adyen"],
     WALLEY: ["adyen"],
     EXTEND_AUTHORIZATION: ["adyen", "paypal"],
@@ -687,13 +698,16 @@ export const CONNECTOR_LISTS = {
       "mollie",
       "affirm",
       "payjustnow",
+      "payjustnowinstore",
     ],
+    PAY_LATER_KLARNA_MANDATE: ["adyen"],
     AFFIRM: ["stripe"],
     ATOME: ["adyen"],
     PAYJUSTNOW: ["payjustnow"],
+    PAYJUSTNOWINSTORE: ["payjustnowinstore"],
     AUTH_SERVICE_ELIGIBILITY: ["stripe", "cybersource"],
     STEP_UP_AUTH: ["cybersource"],
-    PARTIAL_AUTH: ["nuvei", "checkout", "worldpay", "worldpayvantiv"],
+    PARTIAL_AUTH: ["nuvei", "checkout", "worldpayvantiv"],
     PAYMENT_RESPONSE_HASH: ["stripe"],
     MULTIPLE_CAPTURE: ["adyen", "checkout"],
     USE_BILLING_AS_PAYMENT_METHOD_BILLING: ["bankofamerica"],
@@ -742,7 +756,10 @@ export const CONNECTOR_LISTS = {
     FRM: ["stripe"],
     PAYOUT_PRIORITY: ["adyenplatform"],
     DELAYED_SESSION_TOKEN: ["trustpay", "payme"],
+    OPEN_BANKING_PIS: ["plaid"],
     CLIENT_SESSION_VALIDATION: ["stripe"],
+    WEBHOOK_CONFIG: ["stripe"],
+    REQUIRES_CVV: ["bankofamerica"],
     // Add more inclusion lists
   },
 };
