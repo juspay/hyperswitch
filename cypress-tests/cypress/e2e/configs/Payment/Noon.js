@@ -100,7 +100,7 @@ export const connectorDetails = {
       Request: {
         currency: "AED",
         shipping_cost: 50,
-        amount:9000
+        amount: 9000,
       },
       Response: {
         status: 200,
