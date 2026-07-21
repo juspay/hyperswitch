@@ -167,7 +167,7 @@ impl VaultingInterface for VaultDelete {
     }
 }
 
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
+#[derive(Debug)]
 pub struct EntityCreate;
 
 impl VaultingInterface for EntityCreate {
@@ -188,7 +188,8 @@ pub struct EntityCreateRequest {
 #[derive(Debug, serde::Deserialize)]
 pub struct EntityCreateResponse {
     pub entity_id: String,
-    pub created_at: String,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub created_at: time::PrimitiveDateTime,
 }
 
 #[cfg(feature = "v2")]
