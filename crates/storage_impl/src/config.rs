@@ -53,7 +53,7 @@ impl DbConnectionParams for Database {
     }
 }
 
-#[derive(Debug, serde::Deserialize, Clone, Copy, Default, PartialEq, Eq)]
+#[derive(Debug, serde::Deserialize, Clone, Copy, Default)]
 #[serde(rename_all = "PascalCase")]
 pub enum QueueStrategy {
     #[default]
