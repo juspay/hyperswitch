@@ -6038,12 +6038,6 @@ label="MCC"
 placeholder="Enter MCC"
 required=false
 type="Text"
-[netcetera.metadata.endpoint_prefix]
-name="endpoint_prefix"
-label="Live endpoint prefix"
-placeholder="string that will replace '{prefix}' in this base url 'https://{prefix}.3ds-server.prev.netcetera-cloud-payment.ch'"
-required=true
-type="Text"
 [netcetera.metadata.merchant_country_code]
 name="merchant_country_code"
 label="3 digit numeric country code"

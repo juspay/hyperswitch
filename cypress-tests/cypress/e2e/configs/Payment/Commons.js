@@ -988,6 +988,18 @@ export const payment_methods_enabled = [
       },
     ],
   },
+  {
+    payment_method: "open_banking",
+    payment_method_types: [
+      {
+        payment_method_type: "open_banking_pis",
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: false,
+        installment_payment_enabled: false,
+      },
+    ],
+  },
 ];
 
 export const connectorDetails = {
