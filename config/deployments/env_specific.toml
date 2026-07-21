@@ -140,6 +140,7 @@ locker_signing_key_id = "1"                                           # Key_id t
 locker_enabled = true                                                 # Boolean to enable or disable saving cards in locker
 redis_temp_locker_encryption_key = "redis_temp_locker_encryption_key" # Encryption key for redis temp locker
 ttl_for_storage_in_secs = 220752000                                   # Time to live for storage entries in locker
+create_entity_on_merchant_create = false                              # Boolean to call the locker's entity-create API during merchant account creation, aborting creation on locker failure
 
 
 

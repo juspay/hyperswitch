@@ -2026,6 +2026,27 @@ pub async fn call_to_vault<V: pm_types::VaultingInterface>(
     Ok(decrypted_payload)
 }
 
+pub async fn create_entity_in_locker(
+    state: &routes::SessionState,
+    entity_id: &id_type::MerchantId,
+) -> CustomResult<pm_types::EntityCreateResponse, errors::VaultError> {
+    let payload = pm_types::EntityCreateRequest {
+        entity_id: entity_id.get_string_repr().to_owned(),
+    }
+    .encode_to_vec()
+    .change_context(errors::VaultError::RequestEncodingFailed)?;
+
+    let response = call_to_vault::<pm_types::EntityCreate>(state, payload, None, None)
+        .await
+        .change_context(errors::VaultError::VaultAPIError)
+        .attach_printable("Call to vault failed while creating locker entity")?;
+
+    response
+        .parse_struct("EntityCreateResponse")
+        .change_context(errors::VaultError::ResponseDeserializationFailed)
+        .attach_printable("Failed to parse EntityCreateResponse")
+}
+
 #[cfg(feature = "v2")]
 pub async fn get_fingerprint_id_for_payment_method(
     state: &routes::SessionState,
