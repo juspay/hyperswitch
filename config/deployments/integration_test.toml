@@ -189,7 +189,7 @@ zen.base_url = "https://api.zen-test.com/"
 zen.secondary_base_url = "https://secure.zen-test.com/"
 zsl.base_url = "https://api.sitoffalb.net/"
 threedsecureio.base_url = "https://service.sandbox.3dsecure.io"
-netcetera.base_url = "https://{{merchant_endpoint_prefix}}.3ds-server.prev.netcetera-cloud-payment.ch"
+netcetera.base_url = "https://api.prev.euc1.acquiring.cloud.netcetera.com/3ds-server"
 
 [dummy_connector]
 enabled = true                                                          # Whether dummy connector is enabled or not
