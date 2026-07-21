@@ -2439,6 +2439,13 @@ impl
                 }),
             auth_type: Some(auth_type.into()),
             complete_authorize_url: router_data.request.complete_authorize_url.clone(),
+            payment_channel: router_data
+                .request
+                .payment_channel
+                .as_ref()
+                .map(payments_grpc::PaymentChannel::foreign_try_from)
+                .transpose()?
+                .map(|payment_channel| payment_channel.into()),
         })
     }
 }
