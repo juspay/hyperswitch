@@ -217,7 +217,6 @@ describe("Core flows", () => {
     });
 
     it("Confirm payment after session expiry - should fail with ClientSecretExpired", () => {
-      // eslint-disable-next-line cypress/no-unnecessary-waiting
       cy.wait(SESSION_EXPIRY_WAIT);
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "card_pm"
