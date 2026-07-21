@@ -9508,10 +9508,20 @@ pub struct OrderDetailsWithAmount {
     #[schema(value_type = Option<i64>)]
     #[smithy(value_type = "Option<i64>")]
     pub total_amount: Option<MinorUnit>, // total_amount,
+    /// Discount name applied to this item.
+    #[smithy(value_type = "Option<String>")]
+    pub discount_name: Option<String>,
     /// Discount amount applied to this item.
     #[schema(value_type = Option<i64>)]
     #[smithy(value_type = "Option<i64>")]
     pub unit_discount_amount: Option<MinorUnit>,
+    /// Discount percentage applied to this item.
+    #[schema(value_type = Option<f64>)]
+    #[smithy(value_type = "Option<f64>")]
+    pub discount_percentage: Option<f64>,
+    /// Discount type applied to this item.
+    #[smithy(value_type = "Option<String>")]
+    pub discount_type: Option<String>,
 }
 
 impl hyperswitch_masking::SerializableSecret for OrderDetailsWithAmount {}

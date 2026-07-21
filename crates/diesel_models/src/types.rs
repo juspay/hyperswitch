@@ -55,8 +55,14 @@ pub struct OrderDetailsWithAmount {
     pub unit_of_measure: Option<String>,
     /// total amount of the product
     pub total_amount: Option<MinorUnit>,
+    /// discount name on the unit
+    pub discount_name: Option<String>,
     /// discount amount on the unit
     pub unit_discount_amount: Option<MinorUnit>,
+    /// discount percentage on the unit
+    pub discount_percentage: Option<f64>,
+    /// discount type on the unit
+    pub discount_type: Option<String>,
 }
 
 impl hyperswitch_masking::SerializableSecret for OrderDetailsWithAmount {}

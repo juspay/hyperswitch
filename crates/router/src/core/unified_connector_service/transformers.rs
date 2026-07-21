@@ -120,6 +120,9 @@ fn build_ucs_order_details(
                     unit_discount_amount: detail
                         .unit_discount_amount
                         .map(|amount| amount.get_amount_as_i64()),
+                    discount_name: detail.discount_name.clone(),
+                    discount_percentage: detail.discount_percentage,
+                    discount_type: detail.discount_type.clone(),
                 })
                 .collect()
         })

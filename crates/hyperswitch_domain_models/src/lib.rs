@@ -1018,6 +1018,9 @@ impl ApiModelToDieselModelConvertor<ApiOrderDetailsWithAmount> for OrderDetailsW
             unit_of_measure,
             total_amount,
             unit_discount_amount,
+            discount_name,
+            discount_percentage,
+            discount_type,
         } = from;
         Self {
             product_name,
@@ -1040,6 +1043,9 @@ impl ApiModelToDieselModelConvertor<ApiOrderDetailsWithAmount> for OrderDetailsW
             unit_of_measure,
             total_amount,
             unit_discount_amount,
+            discount_name,
+            discount_percentage,
+            discount_type,
         }
     }
 
@@ -1065,6 +1071,9 @@ impl ApiModelToDieselModelConvertor<ApiOrderDetailsWithAmount> for OrderDetailsW
             unit_of_measure,
             total_amount,
             unit_discount_amount,
+            discount_name,
+            discount_percentage,
+            discount_type,
         } = self;
         ApiOrderDetailsWithAmount {
             product_name,
@@ -1087,6 +1096,9 @@ impl ApiModelToDieselModelConvertor<ApiOrderDetailsWithAmount> for OrderDetailsW
             unit_of_measure,
             total_amount,
             unit_discount_amount,
+            discount_name,
+            discount_percentage,
+            discount_type,
         }
     }
 }
