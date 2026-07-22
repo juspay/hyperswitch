@@ -100,6 +100,7 @@ export const connectorDetails = {
       Request: {
         currency: "AED",
         shipping_cost: 50,
+        amount: 9000,
       },
       Response: {
         status: 200,
@@ -107,6 +108,7 @@ export const connectorDetails = {
           status: "requires_payment_method",
           shipping_cost: 50,
           amount: 9000,
+          amount_capturable: 9050,
         },
       },
     },
