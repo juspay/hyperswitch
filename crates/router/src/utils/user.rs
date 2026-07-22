@@ -404,6 +404,23 @@ pub fn get_base_url(state: &SessionState) -> &str {
 }
 
 #[cfg(feature = "v1")]
+fn is_wallet_metadata_key(key: &str) -> bool {
+    let probe = serde_json::Value::Object(
+        std::iter::once((key.to_owned(), serde_json::Value::Null)).collect(),
+    );
+    serde_json::from_value::<admin_api::ConnectorWalletDetails>(probe).is_ok()
+}
+
+#[cfg(feature = "v1")]
+fn strip_wallet_metadata(metadata: Secret<serde_json::Value>) -> Secret<serde_json::Value> {
+    let mut metadata = metadata.expose();
+    if let Some(object) = metadata.as_object_mut() {
+        object.retain(|key, _| !is_wallet_metadata_key(key));
+    }
+    Secret::new(metadata)
+}
+
+#[cfg(feature = "v1")]
 #[instrument(skip_all)]
 pub async fn build_cloned_connector_create_request(
     source_mca: DomainMerchantConnectorAccount,
@@ -454,6 +471,8 @@ pub async fn build_cloned_connector_create_request(
                 .collect::<Vec<_>>()
         });
 
+    let metadata = source_mca.metadata.map(strip_wallet_metadata);
+
     let connector_webhook_details = source_mca
         .connector_webhook_details
         .map(|webhook_details| {
@@ -475,7 +494,7 @@ pub async fn build_cloned_connector_create_request(
         test_mode: source_mca.test_mode,
         disabled: source_mca.disabled,
         payment_methods_enabled,
-        metadata: source_mca.metadata,
+        metadata,
         business_country: source_mca.business_country,
         business_label: source_mca.business_label.clone(),
         business_sub_label: source_mca.business_sub_label.clone(),
