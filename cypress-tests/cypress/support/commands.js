@@ -35,7 +35,11 @@ import getConnectorDetails, {
 import { execConfig, validateConfig } from "../utils/featureFlags";
 import * as RequestBodyUtils from "../utils/RequestBodyUtils";
 import { isoTimeTomorrow, validateEnv } from "../utils/RequestBodyUtils.js";
-import { handleRedirection, MICRODEPOSIT_CONFIG } from "./redirectionHandler";
+import {
+  handleQRCodeRedirection,
+  handleRedirection,
+  MICRODEPOSIT_CONFIG,
+} from "./redirectionHandler";
 import {
   isMockServer,
   isRecordMode,
@@ -79,6 +83,26 @@ function updateConnectorState(globalState, responseConnector) {
   }
 
   globalState.set("connectorId", responseConnector);
+}
+
+function getExpectedMerchantConnectorId(
+  globalState,
+  merchantConnectorPrefix,
+  responseBody
+) {
+  const stateKey = `${merchantConnectorPrefix}Id`;
+  const merchantConnectorId = globalState.get(stateKey);
+
+  if (merchantConnectorId) {
+    return merchantConnectorId;
+  }
+
+  if (responseBody?.merchant_connector_id) {
+    globalState.set(stateKey, responseBody.merchant_connector_id);
+    return responseBody.merchant_connector_id;
+  }
+
+  return merchantConnectorId;
 }
 
 // Helper function for creating individual rollout config
@@ -1574,6 +1598,11 @@ Cypress.Commands.add(
           };
         }
 
+        if (authDetails && authDetails.additional_merchant_data) {
+          createConnectorBody.additional_merchant_data =
+            authDetails.additional_merchant_data;
+        }
+
         cy.request({
           method: "POST",
           url: url,
@@ -2629,6 +2658,45 @@ Cypress.Commands.add(
   }
 );
 
+Cypress.Commands.add("postSessionTokensCallTest", (data, globalState) => {
+  const { Request: reqData = {}, Response: resData } = data || {};
+
+  const paymentId = globalState.get("paymentID");
+  const clientSecret = globalState.get("clientSecret");
+
+  const body = {
+    payment_id: paymentId,
+    client_secret: clientSecret,
+    payment_method_type: reqData.payment_method_type,
+    payment_method: reqData.payment_method,
+  };
+
+  cy.request({
+    method: "POST",
+    url: `${globalState.get("baseUrl")}/payments/${paymentId}/post_session_tokens`,
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      "api-key": globalState.get("publishableKey"),
+      "x-client-platform": "web",
+    },
+    body: body,
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    cy.wrap(response).then(() => {
+      if (resData?.body?.status) {
+        expect(response.status).to.equal(resData.status || 200);
+        expect(response.body.status).to.equal(resData.body.status);
+        expect(response.body.payment_id).to.equal(paymentId);
+      } else {
+        defaultErrorHandler(response, resData);
+      }
+    });
+  });
+});
+
 Cypress.Commands.add(
   "createPaymentIntentTest",
   (
@@ -2690,6 +2758,11 @@ Cypress.Commands.add(
     globalState.set("paymentCurrency", body.currency);
     globalState.set("captureMethod", capture_method);
     globalState.set("setupFutureUsage", body.setup_future_usage);
+    // Clear stale next_action state from previous tests so that connectors
+    // which complete synchronously (e.g. Adyen SEPA) don't pick up a stale
+    // redirect URL from a prior test.
+    globalState.set("nextActionUrl", null);
+    globalState.set("nextActionType", null);
     cy.request({
       method: "POST",
       url: `${globalState.get("baseUrl")}/payments`,
@@ -3393,7 +3466,6 @@ Cypress.Commands.add(
       body: body,
     }).then((response) => {
       logRequestId(response.headers["x-request-id"]);
-
       cy.wrap(response).then(() => {
         if (response.status === 200) {
           expect(response.headers["content-type"]).to.include(
@@ -3468,7 +3540,17 @@ Cypress.Commands.add(
                 ) {
                   if (response.body.status !== "failed") {
                     expect(response.body).to.have.property("next_action");
-                    if (response.body.next_action?.redirect_to_url) {
+                    if (
+                      response.body.next_action?.type === "qr_code_information"
+                    ) {
+                      expect(response.body.next_action)
+                        .to.have.property("image_data_url")
+                        .to.be.a("string");
+                      globalState.set(
+                        "nextActionUrl",
+                        response.body.next_action.image_data_url
+                      );
+                    } else if (response.body.next_action?.redirect_to_url) {
                       globalState.set(
                         "nextActionUrl",
                         response.body.next_action.redirect_to_url
@@ -4279,9 +4361,6 @@ Cypress.Commands.add(
     const { Configs: configs = {} } = data || {};
 
     const configInfo = execConfig(validateConfig(configs));
-    const merchant_connector_id = globalState.get(
-      `${configInfo.merchantConnectorPrefix}Id`
-    );
     const payment_id = globalState.get("paymentID");
 
     const headers = {
@@ -4348,7 +4427,13 @@ Cypress.Commands.add(
               expect(
                 response.body.merchant_connector_id,
                 "connector_id"
-              ).to.equal(merchant_connector_id);
+              ).to.equal(
+                getExpectedMerchantConnectorId(
+                  globalState,
+                  configInfo.merchantConnectorPrefix,
+                  response.body
+                )
+              );
             }
           }
 
@@ -5578,6 +5663,7 @@ Cypress.Commands.add(
     }
 
     if (isRecordMode()) {
+      if (!nextActionUrl) return;
       mockRecordBankRedirect(
         globalState,
         nextActionUrl,
@@ -5594,6 +5680,23 @@ Cypress.Commands.add(
     }
 
     if (skipRedirectionInMockServer("handleBankRedirectRedirection")) {
+      return;
+    }
+
+    // Some connectors (e.g. adyen sepa_bank_debit) complete the payment
+    // synchronously without a next_action redirect URL.
+    if (!nextActionUrl) {
+      cy.task(
+        "cli_log",
+        `Skipping redirect: no nextActionUrl for ${connectorId} ${paymentMethodType} — payment already completed`
+      );
+      return;
+    }
+
+    // Some connectors return a data: URI (QR code) instead of a navigable URL.
+    // Detect this generically from the URL scheme rather than hardcoding connector IDs.
+    if (nextActionUrl.startsWith("data:")) {
+      handleQRCodeRedirection(nextActionUrl);
       return;
     }
 
@@ -5704,6 +5807,13 @@ Cypress.Commands.add(
         "cli_log",
         `Skipping wallet redirection: no redirect URL for ${paymentMethodType}`
       );
+      return;
+    }
+
+    // Some connectors return a data: URI (QR code) instead of a navigable URL.
+    // Detect this generically from the URL scheme rather than hardcoding connector IDs.
+    if (nextActionUrl.startsWith("data:")) {
+      handleQRCodeRedirection(nextActionUrl);
       return;
     }
 
@@ -5881,6 +5991,24 @@ Cypress.Commands.add(
                 }
                 break;
 
+              case "qris":
+                for (const key in resData.body) {
+                  expect(resData.body[key], [key]).to.deep.equal(
+                    response.body[key]
+                  );
+                }
+                if (response.body.status === "requires_customer_action") {
+                  expect(response.body)
+                    .to.have.property("next_action")
+                    .and.have.nested.property("image_data_url").and.not.be.null;
+                  globalState.set(
+                    "image_data_url",
+                    response.body.next_action.image_data_url
+                  );
+                  globalState.set("nextActionType", "image_data_url");
+                }
+                break;
+
               default:
                 expect(response.body)
                   .to.have.property("next_action")
@@ -6029,7 +6157,6 @@ Cypress.Commands.add(
                   "nextActionType",
                   "display_voucher_information"
                 );
-                globalState.set("nextActionUrl", null);
               } else if (response.body.next_action.redirect_to_url) {
                 globalState.set(
                   "nextActionUrl",
@@ -9512,6 +9639,7 @@ Cypress.Commands.add("updateCardIssuer", (id, body, globalState) => {
 Cypress.Commands.add("verifyIframeRedirection", (globalState, options = {}) => {
   const {
     expectRedirectInsidePopup = true,
+    expectNullNextActionUrl = true,
     expectedStatus = "requires_customer_action",
   } = options;
 
@@ -9525,8 +9653,10 @@ Cypress.Commands.add("verifyIframeRedirection", (globalState, options = {}) => {
       globalState.get("nextActionType"),
       "nextActionType should not be redirect_inside_popup"
     ).to.not.equal("redirect_inside_popup");
-    expect(globalState.get("nextActionUrl"), "nextActionUrl should be null").to
-      .be.null;
+    if (expectNullNextActionUrl) {
+      expect(globalState.get("nextActionUrl"), "nextActionUrl should be null")
+        .to.be.null;
+    }
   }
 });
 // ============================================
