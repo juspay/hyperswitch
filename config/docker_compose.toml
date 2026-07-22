@@ -150,6 +150,7 @@ host = ""
 mock_locker = true
 locker_enabled = true
 ttl_for_storage_in_secs = 220752000
+create_entity_on_merchant_create = false
 
 [jwekey]
 vault_encryption_key = ""
