@@ -17,16 +17,13 @@ describe("Dynamic Fields Verification", () => {
       });
     });
 
-    after("delete business profile and flush global state", () => {
-      cy.deleteBusinessProfileTest(globalState);
-      cy.then(() => {
-        globalState.set("profileId", globalState.get("originalProfileId"));
-        globalState.set(
-          "merchantConnectorId",
-          globalState.get("originalMerchantConnectorId")
-        );
-        cy.task("setGlobalState", globalState.data);
-      });
+    after("flush global state", () => {
+      globalState.set("profileId", globalState.get("originalProfileId"));
+      globalState.set(
+        "merchantConnectorId",
+        globalState.get("originalMerchantConnectorId")
+      );
+      cy.task("setGlobalState", globalState.data);
     });
 
     context(
@@ -181,6 +178,10 @@ describe("Dynamic Fields Verification", () => {
         ]["PmListResponse"]["pmListDynamicFieldWithEmail"];
         cy.paymentMethodListTestWithRequiredFields(data, globalState);
       });
+    });
+
+    it("Delete Business Profile", () => {
+      cy.deleteBusinessProfileTest(globalState);
     });
   });
 });
