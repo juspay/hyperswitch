@@ -331,6 +331,7 @@ pub struct ConnectorConfig {
     pub gpayments: Option<ConnectorTomlConfig>,
     pub hipay: Option<ConnectorTomlConfig>,
     pub hyperpg: Option<ConnectorTomlConfig>,
+    pub hyperswitch: Option<ConnectorTomlConfig>,
     pub helcim: Option<ConnectorTomlConfig>,
     pub hyperswitch_vault: Option<ConnectorTomlConfig>,
     pub hyperwallet: Option<ConnectorTomlConfig>,
