@@ -438,6 +438,8 @@ pub mod superposition {
     pub const INCOMING_WEBHOOK_DISABLED_EVENTS: &str = "incoming_webhook_disabled_events";
     /// save wallet decrypted data in locker
     pub const SAVE_WALLET_DECRYPTED_DATA: &str = "save_wallet_decrypted_data";
+    /// Revenue recovery A/B routing configuration key
+    pub const REVENUE_RECOVERY_ROUTING: &str = "revenue_recovery_routing";
 }
 
 #[cfg(test)]

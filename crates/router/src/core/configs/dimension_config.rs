@@ -609,6 +609,20 @@ impl DatabaseBackedConfig for PtMappingPcrRetries {
     }
 }
 
+// Revenue Recovery A/B routing decision. Resolved from Superposition; under an
+// experiment (keyed on the payment id targeting key) this is the assigned
+// variant's value. v2-only because the output type lives in the v2-gated
+// revenue_recovery module; gating the block keeps v1 builds from referencing it.
+#[cfg(feature = "v2")]
+config! {
+    superposition_key = REVENUE_RECOVERY_ROUTING,
+    output = crate::core::revenue_recovery::routing::RecoveryRoutingDecision,
+    default = crate::core::revenue_recovery::routing::RecoveryRoutingDecision::default(),
+    object = true,
+    requires = dimension_state::DimensionsWithProcessorMerchantIdAndConnector,
+    targeting_key = id_type::GlobalPaymentId
+}
+
 config! {
     superposition_key = PT_MAPPING_PAYMENT_SYNC,
     output = scheduler::types::process_data::ConnectorPTMapping,

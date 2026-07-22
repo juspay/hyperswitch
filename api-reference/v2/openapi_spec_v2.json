@@ -23728,6 +23728,11 @@
             "description": "First Payment Attempt Network Advice Code",
             "example": "02",
             "nullable": true
+          },
+          "recovery_routing": {
+            "type": "object",
+            "description": "Revenue recovery A/B routing assignment (opaque JSON; the typed shape is\nowned and (de)serialized by the router's revenue_recovery::routing module).",
+            "nullable": true
           }
         }
       },
