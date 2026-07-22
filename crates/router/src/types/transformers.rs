@@ -788,6 +788,8 @@ impl
             version,
             error_code: authn_data.error_code.clone(),
             error_message: authn_data.error_message.clone(),
+            challenge_cancel_code: authn_data.challenge_cancel.clone(),
+            trans_status_reason: authn_data.challenge_code_reason.clone(),
         }
     }
 }
