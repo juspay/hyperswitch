@@ -569,6 +569,12 @@ pub enum ConnectorSpecificConfig {
         merchant_account: Secret<String>,
         api_secret: Secret<String>,
     },
+    /// Tesouro connector configuration
+    Tesouro {
+        api_key: Secret<String>,
+        key1: Secret<String>,
+        api_secret: Secret<String>,
+    },
     /// Finix connector configuration
     Finix {
         finix_user_name: Secret<String>,
@@ -1084,6 +1090,18 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                     api_secret: api_secret.clone(),
                 }),
                 _ => Err(err("Barclaycard requires SignatureKey auth type")),
+            },
+            Connector::Tesouro => match auth {
+                ConnectorAuthType::SignatureKey {
+                    api_key,
+                    key1,
+                    api_secret,
+                } => Ok(Self::Tesouro {
+                    api_key: api_key.clone(),
+                    key1: key1.clone(),
+                    api_secret: api_secret.clone(),
+                }),
+                _ => Err(err("Tesouro requires SignatureKey auth type")),
             },
             Connector::Checkout => match auth {
                 ConnectorAuthType::SignatureKey {
