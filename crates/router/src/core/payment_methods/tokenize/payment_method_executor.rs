@@ -417,6 +417,7 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizePaymentMethodRequest> {
         let compat_action = payment_methods::payment_method_modular_forward_compat_action(
             self.state,
             &payment_method.merchant_id,
+            &self.merchant_account.organization_id,
             payment_method.customer_id.as_ref(),
         )
         .await;

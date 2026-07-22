@@ -6038,12 +6038,6 @@ label="MCC"
 placeholder="Enter MCC"
 required=false
 type="Text"
-[netcetera.metadata.endpoint_prefix]
-name="endpoint_prefix"
-label="Live endpoint prefix"
-placeholder="string that will replace '{prefix}' in this base url 'https://{prefix}.3ds-server.prev.netcetera-cloud-payment.ch'"
-required=true
-type="Text"
 [netcetera.metadata.merchant_country_code]
 name="merchant_country_code"
 label="3 digit numeric country code"
@@ -8733,3 +8727,37 @@ api_key = "API Key"
 [payconex.connector_auth.BodyKey]
 api_key = "API Key"
 key1 = "Account Id"
+
+[givepayments]
+[givepayments.connector_auth.HeaderKey]
+api_key = "API Key"
+[givepayments.connector_webhook_details]
+merchant_secret="Source verification key"
+[[givepayments.credit]]
+payment_method_type = "Mastercard"
+[[givepayments.credit]]
+payment_method_type = "Visa"
+[[givepayments.credit]]
+payment_method_type = "AmericanExpress"
+[[givepayments.credit]]
+payment_method_type = "JCB"
+[[givepayments.credit]]
+payment_method_type = "Discover"
+[[givepayments.credit]]
+payment_method_type = "DinersClub"
+[[givepayments.credit]]
+payment_method_type = "UnionPay"
+[[givepayments.debit]]
+payment_method_type = "Mastercard"
+[[givepayments.debit]]
+payment_method_type = "Visa"
+[[givepayments.debit]]
+payment_method_type = "AmericanExpress"
+[[givepayments.debit]]
+payment_method_type = "JCB"
+[[givepayments.debit]]
+payment_method_type = "Discover"
+[[givepayments.debit]]
+payment_method_type = "DinersClub"
+[[givepayments.debit]]
+payment_method_type = "UnionPay"
