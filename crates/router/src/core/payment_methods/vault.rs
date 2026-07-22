@@ -2031,7 +2031,7 @@ pub async fn create_entity_in_locker(
     entity_id: &id_type::MerchantId,
 ) -> CustomResult<pm_types::EntityCreateResponse, errors::VaultError> {
     let payload = pm_types::EntityCreateRequest {
-        entity_id: entity_id.get_string_repr().to_owned(),
+        entity_id: entity_id.clone(),
     }
     .encode_to_vec()
     .change_context(errors::VaultError::RequestEncodingFailed)?;
