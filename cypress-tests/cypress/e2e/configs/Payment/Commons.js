@@ -364,6 +364,17 @@ export const payment_methods_enabled = [
         recurring_enabled: true,
         installment_payment_enabled: true,
       },
+      {
+        payment_method_type: "eft",
+        payment_experience: null,
+        card_networks: null,
+        accepted_currencies: null,
+        accepted_countries: null,
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: true,
+        installment_payment_enabled: true,
+      },
     ],
   },
   {
@@ -989,6 +1000,22 @@ export const payment_methods_enabled = [
     ],
   },
   {
+    payment_method: "card_redirect",
+    payment_method_types: [
+      {
+        payment_method_type: "card_redirect",
+        payment_experience: null,
+        card_networks: null,
+        accepted_currencies: null,
+        accepted_countries: null,
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: true,
+        installment_payment_enabled: true,
+      },
+    ],
+  },
+  {
     payment_method: "open_banking",
     payment_method_types: [
       {
@@ -1418,6 +1445,19 @@ export const connectorDetails = {
         },
       }),
     },
+    Eft: getCustomExchange({
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "eft",
+        payment_method_data: {
+          bank_redirect: {
+            eft: {
+              provider: "ozow",
+            },
+          },
+        },
+      },
+    }),
   },
   bank_debit_pm: {
     PaymentIntent: (paymentMethodType) => {
@@ -5318,6 +5358,24 @@ export const connectorDetails = {
         },
       },
     },
+  },
+  card_redirect_pm: {
+    PaymentIntent: getCustomExchange({
+      Request: {
+        currency: "USD",
+      },
+    }),
+    CardRedirect: getCustomExchange({
+      Request: {
+        payment_method: "card_redirect",
+        payment_method_type: "card_redirect",
+        payment_method_data: {
+          card_redirect: {
+            card_redirect: {},
+          },
+        },
+      },
+    }),
   },
   step_up_auth: {
     PaymentIntentOnly: getCustomExchange({
