@@ -30,11 +30,15 @@ function parseRoute(url) {
    * can hide the real router hostname
    */
   function getEnvRoute(url) {
-    // If the backend rendered a log endpoint, use it unconditionally.
-    if (window.__REDIRECTION_LOG_ENDPOINT) {
-      return window.__REDIRECTION_LOG_ENDPOINT;
+    // If the backend rendered a non-empty log endpoint string, use it unconditionally.
+    const backendEndpoint = window.__REDIRECTION_LOG_ENDPOINT;
+    if (
+      typeof backendEndpoint === "string" &&
+      backendEndpoint.length > 0
+    ) {
+      return backendEndpoint;
     }
-    
+
     const route = new URL(url).hostname;
     return route === "api.hyperswitch.io"
       ? "https://api.hyperswitch.io/logs/redirection"

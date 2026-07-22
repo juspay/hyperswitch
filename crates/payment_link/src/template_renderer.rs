@@ -124,7 +124,8 @@ fn build_payment_link_template(
         "redirection_log_endpoint",
         payment_link_data
             .redirection_log_endpoint
-            .as_deref()
+            .as_ref()
+            .map(|endpoint| endpoint.as_str())
             .unwrap_or(""),
     );
 
@@ -187,7 +188,8 @@ pub fn get_payment_link_status(
         "redirection_log_endpoint",
         payment_link_data
             .redirection_log_endpoint
-            .as_deref()
+            .as_ref()
+            .map(|endpoint| endpoint.as_str())
             .unwrap_or(""),
     );
 
