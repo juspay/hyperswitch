@@ -515,6 +515,7 @@ export const CONNECTOR_LISTS = {
       "gigadat",
       "jpmorgan",
       "loonio",
+      "mifinity",
       "nexinets",
       "nmi",
       "noon",
@@ -538,6 +539,7 @@ export const CONNECTOR_LISTS = {
       "redsys",
       "worldpayxml",
       "helcim",
+      "mifinity",
     ],
     SAVE_CARD: ["helcim"],
     // Add more exclusion lists
