@@ -172,7 +172,7 @@ fn create_platform_merchant_account_request(
 ) -> admin_types::MerchantAccountCreate {
     admin_types::MerchantAccountCreate {
         merchant_id,
-        merchant_name: Some(Secret::new(merchant_name)),
+        merchant_name: Secret::new(merchant_name),
         organization_id: Some(organization_id),
         merchant_account_type: Some(MerchantAccountType::Platform),
         merchant_details: None,
