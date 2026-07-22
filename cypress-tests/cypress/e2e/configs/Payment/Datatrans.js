@@ -48,8 +48,8 @@ const paymentMethodData3Ds = {
     last4: "1111",
     card_type: "DEBIT",
     card_network: "Visa",
-    card_issuer: 'CONOTOXIA SP Z OO',
-    card_issuing_country: 'POLAND',
+    card_issuer: "CONOTOXIA SP Z OO",
+    card_issuing_country: "POLAND",
     card_isin: "411111",
     card_extended_bin: null,
     card_exp_month: "06",
@@ -57,7 +57,7 @@ const paymentMethodData3Ds = {
     card_holder_name: "joseph Doe",
     payment_checks: null,
     authentication_data: null,
-    auth_code: null 
+    auth_code: null,
   },
   billing: null,
 };
@@ -313,7 +313,7 @@ export const connectorDetails = {
       },
     },
     MandateMultiUseNo3DSAutoCapture: {
-       Configs: {
+      Configs: {
         TRIGGER_SKIP: true,
       },
       Request: {
@@ -506,23 +506,23 @@ export const connectorDetails = {
         },
       },
     },
-        SaveCardUse3DSAutoCaptureOffSession: {
-          Request: {
-            payment_method: "card",
-            payment_method_data: {
-              card: successfulNo3DSCardDetails,
-            },
-            setup_future_usage: "off_session",
-            customer_acceptance: customerAcceptance,
-            billing: billingWithNewline,
-          },
-          Response: {
-            status: 200,
-            body: {
-              status: "requires_customer_action",
-            },
-          },
+    SaveCardUse3DSAutoCaptureOffSession: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
         },
+        setup_future_usage: "off_session",
+        customer_acceptance: customerAcceptance,
+        billing: billingWithNewline,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
     SaveCardUseNo3DSManualCapture: {
       Request: {
         payment_method: "card",
@@ -762,7 +762,7 @@ export const connectorDetails = {
         },
       },
     },
-        PaymentWithBilling: {
+    PaymentWithBilling: {
       Request: {
         currency: "USD",
         setup_future_usage: "on_session",
