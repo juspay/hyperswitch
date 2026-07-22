@@ -109,6 +109,12 @@ connection_timeout = 10
 idle_timeout = 300
 max_lifetime = 1800
 
+[preprocessing_flow_config]
+authentication_bloated_connectors = "paypal,nmi,cybersource,barclaycard,shift4,braintree"
+order_create_bloated_connectors = "trustpay,payme,nordea"
+balance_check_bloated_connectors = "adyen"
+settlement_split_bloated_connectors = "xendit"
+
 [redis]
 host = "127.0.0.1"
 port = 6379
