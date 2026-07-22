@@ -9,10 +9,26 @@ describe("Dynamic Fields Verification", () => {
     before("seed global state", () => {
       cy.task("getGlobalState").then((state) => {
         globalState = new State(state);
+        globalState.set(
+          "originalProfileId",
+          globalState.get("profileId")
+        );
+        globalState.set(
+          "originalMerchantConnectorId",
+          globalState.get("merchantConnectorId")
+        );
       });
     });
 
     after("flush global state", () => {
+      globalState.set(
+        "profileId",
+        globalState.get("originalProfileId")
+      );
+      globalState.set(
+        "merchantConnectorId",
+        globalState.get("originalMerchantConnectorId")
+      );
       cy.task("setGlobalState", globalState.data);
     });
 
