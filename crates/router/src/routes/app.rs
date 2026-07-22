@@ -68,7 +68,7 @@ use super::verification::{apple_pay_merchant_registration, retrieve_apple_pay_ve
 use super::webhooks::*;
 use super::{
     admin, api_keys, cache::*, card_issuer, chat, connector_onboarding, disputes, files, gsm,
-    health::*, oidc, profiles, relay, user, user_role,
+    health::*, offer_engine, oidc, profiles, relay, user, user_role,
 };
 #[cfg(feature = "v1")]
 use super::{
@@ -721,6 +721,19 @@ impl Health {
             .app_data(web::Data::new(state))
             .service(web::resource("").route(web::get().to(health)))
             .service(web::resource("/ready").route(web::get().to(deep_health_check)))
+    }
+}
+
+pub struct OfferEngine;
+
+impl OfferEngine {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/offer_engine")
+            .app_data(web::Data::new(state))
+            .service(
+                web::resource("/connectivity")
+                    .route(web::post().to(offer_engine::offer_engine_connectivity_check)),
+            )
     }
 }
 
