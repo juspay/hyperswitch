@@ -204,7 +204,7 @@ pub struct ConfigMetadata {
     pub account_holder_name: Option<InputData>,
     pub private_key: Option<InputData>,
     pub merchant_street_address: Option<String>,
-    pub customer_service_number: Option<String>,
+    pub customer_service_phone_number: Option<String>,
     pub merchant_url: Option<String>,
 }
 

@@ -114,6 +114,13 @@ pub struct PeachpaymentsMetadata {
     merchant_payment_method_route_id: Secret<String>,
 }
 
+#[derive(Debug, serde::Deserialize)]
+pub struct TsysTransitMetadata {
+    merchant_street_address: Option<Secret<String>>,
+    customer_service_phone_number: Option<Secret<String>>,
+    merchant_url: Option<url::Url>,
+}
+
 /// Connector-specific configuration enum for all supported connectors
 #[derive(Debug, Clone, serde::Serialize)]
 pub enum ConnectorSpecificConfig {
@@ -428,6 +435,9 @@ pub enum ConnectorSpecificConfig {
         device_id: Secret<String>,
         transaction_key: Secret<String>,
         developer_id: Secret<String>,
+        merchant_street_address: Option<Secret<String>>,
+        customer_service_phone_number: Option<Secret<String>>,
+        merchant_url: Option<String>,
     },
     /// Bamboraapac connector configuration
     Bamboraapac {
@@ -1262,11 +1272,28 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                     api_key,
                     key1,
                     api_secret,
-                } => Ok(Self::TsysTransit {
+                } => {
+                    let tsys_transit_meta = metadata
+                        .map(|meta| {
+                            serde_json::from_value::<TsysTransitMetadata>(meta.clone())
+                                .map_err(|_| err("Invalid tsys transit metadata format"))
+                        })
+                        .transpose()?;
+
+                    Ok(Self::TsysTransit {
                     device_id: api_key.clone(),
                     transaction_key: key1.clone(),
                     developer_id: api_secret.clone(),
-                }),
+                    merchant_street_address: tsys_transit_meta
+                        .as_ref()
+                        .and_then(|metadata| metadata.merchant_street_address.clone()),
+                    customer_service_phone_number: tsys_transit_meta
+                        .as_ref()
+                        .and_then(|metadata| metadata.customer_service_phone_number.clone()),
+                    merchant_url: tsys_transit_meta
+                        .as_ref()
+                        .and_then(|metadata| metadata.merchant_url.to_string()),
+                })},
                 _ => Err(err("TsysTransit requires SignatureKey auth type")),
             },
             Connector::Wellsfargo => match auth {

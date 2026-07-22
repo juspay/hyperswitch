@@ -5356,8 +5356,8 @@ label="Merchant Street Address"
 placeholder="Enter street address"
 required=false
 type="Text"
-[tsys_transit.metadata.customer_service_number]
-name="customer_service_number"
+[tsys_transit.metadata.customer_service_phone_number]
+name="customer_service_phone_number"
 label="Customer Service Number"
 placeholder="Enter customer service phone number"
 required=false

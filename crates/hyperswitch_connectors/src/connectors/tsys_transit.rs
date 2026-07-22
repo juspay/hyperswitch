@@ -75,7 +75,7 @@ pub struct TsysTransitMetadataObject {
     #[serde(default)]
     pub tsys_transit: Option<serde_json::Value>,
     pub merchant_street_address: Option<Secret<String>>,
-    pub customer_service_number: Option<Secret<String>>,
+    pub customer_service_phone_number: Option<Secret<String>>,
     pub merchant_url: Option<url::Url>,
 }
 
