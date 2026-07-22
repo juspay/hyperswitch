@@ -836,6 +836,78 @@ export const connectorDetails = {
         },
       },
     },
+    // Novalnet SEPA Mandate — Connector Implementation Gap
+    //
+    // The SEPA CIT payment succeeds (status: "succeeded"), but mandate_id is
+    // always null. Downstream mandate tests (retrieve, MIT, list, revoke) are
+    // skipped via null mandateId guards in commands.js.
+    //
+    // Root cause (3 layers in the Hyperswitch backend):
+    //   1. Config gap: Novalnet is NOT listed in
+    //      mandates.supported_payment_methods.bank_debit.sepa — only
+    //      gocardless, adyen, stripe, deutschebank are. Without this, the
+    //      router downgrades setup_future_usage from "off_session" to
+    //      "on_session", so create_token=1 is never sent to Novalnet.
+    //   2. Response parser gap: NovalnetResponsePaymentData only has
+    //      Card and Paypal variants — no SEPA variant. Even if Novalnet
+    //      returned a mandate token, Hyperswitch cannot capture it.
+    //   3. SetupMandate flow gap: The SetupMandate implementation only
+    //      handles Card and Wallet — BankDebit falls through to
+    //      NotImplemented.
+    //
+    // To enable mandate tests, the following backend changes are needed:
+    //   - Add "novalnet" to mandates.supported_payment_methods.bank_debit.sepa
+    //   - Add a SEPA variant to NovalnetResponsePaymentData with a token field
+    //   - Implement get_token() for SEPA responses
+    //   - Implement the SetupMandate flow for BankDebit in novalnet transformers
+    SepaMandate: {
+      Request: {
+        payment_method: "bank_debit",
+        payment_method_type: "sepa",
+        payment_method_data: {
+          bank_debit: {
+            sepa_bank_debit: {
+              iban: "DE24300209002411761956",
+              bank_account_holder_name: "Max Mustermann",
+            },
+          },
+        },
+        billing: {
+          email: "test.accepted@novalnet.de",
+          address: {
+            country: "DE",
+            first_name: "Max",
+            last_name: "Mustermann",
+          },
+        },
+        customer_acceptance: customerAcceptance,
+        setup_future_usage: "off_session",
+        mandate_data: multiUseMandateData,
+        currency: "EUR",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    // BankdebitMIT — MIT payment config for SEPA bank debit.
+    // This config is present so that if/when the Novalnet connector gap is
+    // fixed and mandate_id is returned, the MIT test can run. Currently the
+    // test is skipped by the null mandateId guard in mitForMandatesCallTest.
+    BankdebitMIT: {
+      Request: {
+        currency: "EUR",
+        off_session: true,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
   },
   wallet_pm: {
     PaymentIntent: () =>

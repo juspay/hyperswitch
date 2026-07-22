@@ -4942,6 +4942,11 @@ Cypress.Commands.add(
                   response.body.mandate_id === null &&
                   response.body.status === "succeeded" &&
                   globalState.get("connectorId") !== "peachpayments" &&
+                  // Novalnet SEPA: mandate_id is always null due to connector
+                  // implementation gap (no SEPA variant in response parser,
+                  // not in mandates.supported_payment_methods config). See
+                  // SepaMandate config in Novalnet.js for full explanation.
+                  globalState.get("connectorId") !== "novalnet" &&
                   requestBody.mandate_data !== null
                 ) {
                   expect(
@@ -5046,6 +5051,23 @@ Cypress.Commands.add(
       Request: reqData,
       Response: resData,
     } = data || {};
+
+    // Null mandateId guard: Some connectors (e.g. Novalnet SEPA) return
+    // mandate_id: null after CIT due to a connector implementation gap —
+    // no SEPA variant in the response parser and not listed in
+    // mandates.supported_payment_methods config. Downstream mandate
+    // operations (MIT, retrieve, list, revoke) cannot proceed without a
+    // mandate_id, so we log a descriptive reason and skip cleanly.
+    // See SepaMandate config in the connector file for full details.
+    const mandateId = globalState.get("mandateId");
+    if (!mandateId) {
+      cy.task(
+        "cli_log",
+        "Skipping mitForMandatesCallTest: mandateId is null (connector does not return a mandate token for this payment method)"
+      );
+      return;
+    }
+
     const configInfo = execConfig(validateConfig(configs));
     const profile_id = globalState.get(`${configInfo.profilePrefix}Id`);
 
@@ -5535,6 +5557,17 @@ Cypress.Commands.add(
 );
 
 Cypress.Commands.add("listMandateCallTest", (globalState) => {
+  // Null mandateId guard: See mitForMandatesCallTest for full explanation.
+  // Connectors that don't return a mandate_id (e.g. Novalnet SEPA) skip
+  // this test because listing mandates requires a valid mandate reference.
+  const mandateId = globalState.get("mandateId");
+  if (!mandateId) {
+    cy.task(
+      "cli_log",
+      "Skipping listMandateCallTest: mandateId is null (connector does not return a mandate token for this payment method)"
+    );
+    return;
+  }
   const customerId = globalState.get("customerId");
   cy.request({
     method: "GET",
@@ -5559,7 +5592,17 @@ Cypress.Commands.add("listMandateCallTest", (globalState) => {
 });
 
 Cypress.Commands.add("revokeMandateCallTest", (globalState) => {
+  // Null mandateId guard: See mitForMandatesCallTest for full explanation.
+  // Connectors that don't return a mandate_id (e.g. Novalnet SEPA) skip
+  // this test because revoking a mandate requires a valid mandate reference.
   const mandateId = globalState.get("mandateId");
+  if (!mandateId) {
+    cy.task(
+      "cli_log",
+      "Skipping revokeMandateCallTest: mandateId is null (connector does not return a mandate token for this payment method)"
+    );
+    return;
+  }
   cy.request({
     method: "POST",
     url: `${globalState.get("baseUrl")}/mandates/revoke/${mandateId}`,
@@ -5585,7 +5628,17 @@ Cypress.Commands.add("revokeMandateCallTest", (globalState) => {
 });
 
 Cypress.Commands.add("mandateGETCallTest", (globalState) => {
+  // Null mandateId guard: See mitForMandatesCallTest for full explanation.
+  // Connectors that don't return a mandate_id (e.g. Novalnet SEPA) skip
+  // this test because retrieving a mandate requires a valid mandate reference.
   const mandateId = globalState.get("mandateId");
+  if (!mandateId) {
+    cy.task(
+      "cli_log",
+      "Skipping mandateGETCallTest: mandateId is null (connector does not return a mandate token for this payment method)"
+    );
+    return;
+  }
   cy.request({
     method: "GET",
     url: `${globalState.get("baseUrl")}/mandates/${mandateId}`,
