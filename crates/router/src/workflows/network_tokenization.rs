@@ -1,14 +1,11 @@
 #[cfg(feature = "v1")]
 use common_utils::ext_traits::ValueExt;
 #[cfg(feature = "v1")]
-use scheduler::{consumer::types::process_data, utils as pt_utils, workflows::ProcessTrackerWorkflow};
-
-use crate::{
-    errors,
-    logger,
-    routes::SessionState,
-    types::storage,
+use scheduler::{
+    consumer::types::process_data, utils as pt_utils, workflows::ProcessTrackerWorkflow,
 };
+
+use crate::{errors, logger, routes::SessionState, types::storage};
 
 pub struct NetworkTokenizationWorkflow;
 
@@ -70,11 +67,18 @@ impl ProcessTrackerWorkflow<SessionState> for NetworkTokenizationWorkflow {
         }
 
         let payment_method = db
-            .find_payment_method(&key_store, &tracking_data.payment_method_id, merchant_account.storage_scheme)
+            .find_payment_method(
+                &key_store,
+                &tracking_data.payment_method_id,
+                merchant_account.storage_scheme,
+            )
             .await?;
 
         // Skip if already tokenized
-        if payment_method.network_token_requestor_reference_id.is_some() {
+        if payment_method
+            .network_token_requestor_reference_id
+            .is_some()
+        {
             logger::info!(
                 payment_method_id=%tracking_data.payment_method_id,
                 "Payment method already has a network token, skipping"
