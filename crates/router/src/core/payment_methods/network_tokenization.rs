@@ -1330,3 +1330,174 @@ pub async fn evaluate_and_fetch_altid(
         Ok(None)
     }
 }
+
+#[cfg(feature = "v1")]
+/// Called from the `NetworkTokenizationWorkflow` process tracker job.
+/// Fetches the card from the locker for the given PM, generates a network token,
+/// and updates the payment method record with the token details.
+pub async fn generate_network_token_for_payment_method(
+    state: &routes::SessionState,
+    platform: &domain::Platform,
+    tracking_data: &crate::types::storage::NetworkTokenizationTrackingData,
+    payment_method: domain::PaymentMethod,
+) -> errors::RouterResult<()> {
+    use common_utils::ext_traits::AsyncExt;
+
+    use crate::{
+        core::{payments::tokenization::{
+            save_network_token_details_in_nt_mapper, save_network_token_in_locker,
+        }, utils::create_encrypted_data},
+        types::domain::PaymentMethodData,
+    };
+
+    let customer_id = &tracking_data.customer_id;
+    let locker_id = payment_method
+        .locker_id
+        .as_ref()
+        .unwrap_or(&payment_method.payment_method_id);
+
+    // Fetch the raw card from the locker
+    let card_from_locker =
+        payment_methods::cards::get_card_from_locker(state, customer_id, &tracking_data.merchant_id, locker_id)
+            .await
+            .map_err(|err| {
+                logger::error!(?err, payment_method_id=%payment_method.payment_method_id, "Failed to fetch card from locker for NT generation");
+                err
+            })?;
+
+    let locker_card = card_from_locker.get_card();
+
+    let card_data = domain::Card {
+        card_number: locker_card.card_number.clone(),
+        card_exp_month: locker_card.card_exp_month.clone(),
+        card_exp_year: locker_card.card_exp_year.clone(),
+        card_cvc: Secret::new("".to_string()),
+        card_issuer: None,
+        card_network: locker_card
+            .card_brand
+            .as_deref()
+            .and_then(|s| s.parse::<common_enums::CardNetwork>().ok()),
+        card_type: None,
+        card_issuing_country: None,
+        card_issuing_country_code: None,
+        bank_code: None,
+        card_holder_name: tracking_data.billing_name.clone(),
+        nick_name: locker_card.nick_name.clone().map(Secret::new),
+        co_badged_card_data: None,
+    };
+
+    logger::info!(
+        payment_method_id = %payment_method.payment_method_id,
+        locker_id = %locker_id,
+        card_network = ?card_data.card_network,
+        locker_card_brand = ?locker_card.card_brand,
+        card_exp_month = ?card_data.card_exp_month,
+        card_exp_year = ?card_data.card_exp_year,
+        "NT request: card fetched from locker, initiating network token generation"
+    );
+
+    let payment_method_data = PaymentMethodData::Card(card_data.clone());
+
+    let payment_method_create_request = payment_methods::get_payment_method_create_request(
+        Some(&payment_method_data),
+        Some(tracking_data.payment_method),
+        tracking_data.payment_method_type,
+        &Some(customer_id.clone()),
+        tracking_data.billing_name.clone(),
+        None,
+    )
+    .await?;
+
+    let (network_token_resp, _dc, network_token_requestor_ref_id) =
+        Box::pin(save_network_token_in_locker(
+            state,
+            platform.get_provider(),
+            &card_data,
+            None,
+            payment_method_create_request,
+        ))
+        .await
+        .map_err(|err| {
+            logger::error!(?err, "Failed to save network token in locker");
+            err
+        })?;
+
+    logger::info!(
+        payment_method_id = %payment_method.payment_method_id,
+        network_token_resp_present = network_token_resp.is_some(),
+        network_token_locker_id = ?network_token_resp.as_ref().map(|resp| &resp.payment_method_id),
+        network_token_requestor_ref_id = ?network_token_requestor_ref_id,
+        "NT response: received result from save_network_token_in_locker"
+    );
+
+    if let (Some(token_resp), Some(_)) = (network_token_resp.as_ref(), &network_token_requestor_ref_id) {
+        let network_token_locker_id = Some(token_resp.payment_method_id.clone());
+
+        let key_manager_state = state.into();
+        let pm_network_token_data_encrypted: Option<
+            common_utils::crypto::Encryptable<Secret<serde_json::Value>>,
+        > = {
+            let pm_token_details = token_resp.card.as_ref().map(|card| {
+                domain::PaymentMethodsData::Card(
+                    domain::CardDetailsPaymentMethod::from((card.clone(), None)),
+                )
+            });
+
+            pm_token_details
+                .async_map(|pm_card| {
+                    create_encrypted_data(
+                        &key_manager_state,
+                        platform.get_provider().get_key_store(),
+                        pm_card,
+                        common_utils::type_name!(diesel_models::payment_method::PaymentMethod),
+                    )
+                })
+                .await
+                .transpose()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Unable to encrypt network token payment method data")?
+        };
+
+        let db = &*state.store;
+        let compat_action = payment_methods::payment_method_modular_forward_compat_action(
+            state,
+            &payment_method.merchant_id,
+            payment_method.customer_id.as_ref(),
+        )
+        .await;
+
+        payment_methods::cards::update_payment_method_network_token_data(
+            platform.get_provider().get_key_store(),
+            db,
+            payment_method.clone(),
+            network_token_requestor_ref_id.clone(),
+            network_token_locker_id,
+            pm_network_token_data_encrypted,
+            platform.get_provider().get_account().storage_scheme,
+            platform.get_initiator(),
+            compat_action,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to update PM with network token details")?;
+
+        if let Some(nt_ref_id) = network_token_requestor_ref_id {
+            save_network_token_details_in_nt_mapper(
+                state,
+                platform.get_provider(),
+                customer_id,
+                payment_method.payment_method_id.clone(),
+                nt_ref_id,
+            )
+            .await
+            .attach_printable("Failed to save network token details in callback_mapper table")?;
+        }
+    } else {
+        logger::info!(
+            payment_method_id=%payment_method.payment_method_id,
+            "Network token generation returned no token response — skipping PM update"
+        );
+    }
+
+    Ok(())
+}

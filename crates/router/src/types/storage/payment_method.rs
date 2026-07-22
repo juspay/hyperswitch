@@ -237,3 +237,14 @@ pub struct PaymentMethodModularCompatTrackingData {
     pub merchant_id: common_utils::id_type::MerchantId,
     pub last_modified_by: Option<String>,
 }
+
+#[cfg(feature = "v1")]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
+pub struct NetworkTokenizationTrackingData {
+    pub payment_method_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
+    pub customer_id: common_utils::id_type::CustomerId,
+    pub payment_method: common_enums::PaymentMethod,
+    pub payment_method_type: Option<common_enums::PaymentMethodType>,
+    pub billing_name: Option<hyperswitch_masking::Secret<String>>,
+}

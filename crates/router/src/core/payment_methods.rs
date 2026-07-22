@@ -126,6 +126,10 @@ const PAYMENT_METHOD_MODULAR_COMPAT_PROCESS_TRACKER_ID_MAX_LENGTH: usize = 126;
 const PAYMENT_METHOD_MODULAR_COMPAT_PROCESS_TRACKER_ID_SUFFIX_LENGTH: usize = 8;
 #[cfg(feature = "v2")]
 const PAYMENT_METHOD_REDACTED_FINGERPRINT_ID: &str = "FINGERPRINT_ID_REDACTED";
+#[cfg(feature = "v1")]
+const NETWORK_TOKENIZATION_TASK: &str = "NETWORK_TOKENIZATION";
+#[cfg(feature = "v1")]
+const NETWORK_TOKENIZATION_TAG: &str = "NETWORK_TOKENIZATION";
 
 #[instrument(skip_all)]
 pub async fn retrieve_payment_method_core(
@@ -683,6 +687,63 @@ pub async fn add_payment_method_modular_forward_compat_task(
         .attach_printable_lazy(|| {
             format!(
                 "Failed while inserting PAYMENT_METHOD_MODULAR_FORWARD_COMPAT task to process_tracker for payment_method_id: {}",
+                payment_method.payment_method_id
+            )
+        })?;
+
+    Ok(())
+}
+
+#[cfg(feature = "v1")]
+pub async fn add_network_tokenization_task(
+    db: &dyn StorageInterface,
+    payment_method: &domain::PaymentMethod,
+    customer_id: &id_type::CustomerId,
+    merchant_id: &id_type::MerchantId,
+    payment_method_enum: common_enums::PaymentMethod,
+    payment_method_type: Option<common_enums::PaymentMethodType>,
+    billing_name: Option<Secret<String>>,
+    application_source: common_enums::ApplicationSource,
+) -> Result<(), ProcessTrackerError> {
+    use crate::types::storage::NetworkTokenizationTrackingData;
+
+    let tracking_data = NetworkTokenizationTrackingData {
+        payment_method_id: payment_method.payment_method_id.clone(),
+        merchant_id: merchant_id.to_owned(),
+        customer_id: customer_id.to_owned(),
+        payment_method: payment_method_enum,
+        payment_method_type,
+        billing_name,
+    };
+
+    let runner = storage::ProcessTrackerRunner::NetworkTokenizationWorkflow;
+    let task = NETWORK_TOKENIZATION_TASK;
+    let tag = [NETWORK_TOKENIZATION_TAG];
+    let process_tracker_id = format!(
+        "{runner}_{task}_{}",
+        payment_method.payment_method_id.as_str()
+    );
+
+    let process_tracker_entry = storage::ProcessTrackerNew::new(
+        process_tracker_id,
+        task,
+        runner,
+        tag,
+        tracking_data,
+        None,
+        common_utils::date_time::now(),
+        common_enums::ApiVersion::V1,
+        application_source,
+    )
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to construct NETWORK_TOKENIZATION process tracker task")?;
+
+    db.insert_process(process_tracker_entry)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable_lazy(|| {
+            format!(
+                "Failed while inserting NETWORK_TOKENIZATION task to process_tracker for payment_method_id: {}",
                 payment_method.payment_method_id
             )
         })?;

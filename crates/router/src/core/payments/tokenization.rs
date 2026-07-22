@@ -289,6 +289,7 @@ where
             let pm_id = if customer_acceptance.is_some() {
                 let payment_method_data =
                     save_payment_method_data.request.get_payment_method_data();
+                let billing_name_cloned = billing_name.clone();
                 let payment_method_create_request =
                     payment_methods::get_payment_method_create_request(
                         Some(&payment_method_data),
@@ -1019,6 +1020,61 @@ where
                                 }
                                 None => {
                                     logger::info!("Network token requestor reference ID is not available, skipping callback mapper insertion");
+                                    // PM was inserted without NT data. Schedule a process tracker
+                                    // job to generate the network token asynchronously.
+                                    let is_network_tokenization_enabled =
+                                        business_profile.is_network_tokenization_enabled;
+                                    if is_network_tokenization_enabled {
+                                        // Re-fetch the just-inserted PM so the process tracker
+                                        // task can be built from the domain::PaymentMethod.
+                                        let newly_inserted_pm = state
+                                            .store
+                                            .find_payment_method(
+                                                platform.get_provider().get_key_store(),
+                                                &resp.payment_method_id,
+                                                platform.get_provider().get_account().storage_scheme,
+                                            )
+                                            .await;
+
+                                        match newly_inserted_pm {
+                                            Ok(pm) => {
+                                                let db = &*state.store;
+                                                match payment_methods::add_network_tokenization_task(
+                                                    db,
+                                                    &pm,
+                                                    &customer_id,
+                                                    platform.get_provider().get_account().get_id(),
+                                                    save_payment_method_data.payment_method,
+                                                    payment_method_type,
+                                                    billing_name_cloned,
+                                                    state.conf.application_source,
+                                                )
+                                                .await
+                                                {
+                                                    Ok(()) => {
+                                                        logger::info!(
+                                                            payment_method_id=%resp.payment_method_id,
+                                                            "Scheduled NetworkTokenizationWorkflow process tracker task"
+                                                        );
+                                                    }
+                                                    Err(err) => {
+                                                        logger::error!(
+                                                            payment_method_id=%resp.payment_method_id,
+                                                            ?err,
+                                                            "Failed to schedule NetworkTokenizationWorkflow process tracker task"
+                                                        );
+                                                    }
+                                                }
+                                            }
+                                            Err(err) => {
+                                                logger::error!(
+                                                    payment_method_id=%resp.payment_method_id,
+                                                    ?err,
+                                                    "Failed to fetch newly created PM for NetworkTokenizationWorkflow process tracker task"
+                                                );
+                                            }
+                                        }
+                                    }
                                 }
                             };
                         };
@@ -1988,12 +2044,12 @@ pub async fn save_card_and_network_token_in_locker(
     state: &SessionState,
     customer_id: id_type::CustomerId,
     payment_method_status: common_enums::PaymentMethodStatus,
-    payment_method_data: domain::PaymentMethodData,
+    _payment_method_data: domain::PaymentMethodData,
     vault_operation: Option<hyperswitch_domain_models::payments::VaultOperation>,
     payment_method_info: Option<domain::PaymentMethod>,
     platform: &domain::Platform,
     payment_method_create_request: api::PaymentMethodCreate,
-    is_network_tokenization_enabled: bool,
+    _is_network_tokenization_enabled: bool,
     business_profile: &domain::Profile,
 ) -> RouterResult<(
     (
@@ -2126,32 +2182,10 @@ pub async fn save_card_and_network_token_in_locker(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Add Card In Locker Failed")?;
 
-            if is_network_tokenization_enabled {
-                match &payment_method_data {
-                    domain::PaymentMethodData::Card(card) => {
-                        let (
-                            network_token_resp,
-                            _network_token_duplication_check, //the duplication check is discarded, since each card has only one token, handling card duplication check will be suffice
-                            network_token_requestor_ref_id,
-                        ) = Box::pin(save_network_token_in_locker(
-                            state,
-                            platform.get_provider(),
-                            card,
-                            None,
-                            payment_method_create_request.clone(),
-                        ))
-                        .await?;
-
-                        Ok((
-                            (res, dc, network_token_requestor_ref_id),
-                            network_token_resp,
-                        ))
-                    }
-                    _ => Ok(((res, dc, None), None)), //network_token_resp is None in case of other payment methods
-                }
-            } else {
-                Ok(((res, dc, None), None))
-            }
+            // Network token generation is deferred to an async background task in save_payment_method()
+            // after the payment method is inserted into DB (so pm_id is available for the update).
+            // We return None here regardless of is_network_tokenization_enabled.
+            Ok(((res, dc, None), None))
         }
     }
 }
