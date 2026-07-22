@@ -534,11 +534,13 @@ export const CONNECTOR_LISTS = {
       "loonio",
       "redsys",
       "worldpayxml",
-      "helcim",
       "mifinity",
     ],
     SAVE_CARD: ["helcim"],
     // Add more exclusion lists
+    // Note: mitUsingPMId/mitForMandatesCallTest/listMandateCallTest use
+    // per-config TRIGGER_SKIP or globalState checks instead of a static
+    // list here.
   },
 
   // Inclusion lists (only run for these connectors)
