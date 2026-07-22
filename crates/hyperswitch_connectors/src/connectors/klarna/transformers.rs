@@ -474,6 +474,8 @@ pub enum KlarnaFraudStatus {
     Accepted,
     Pending,
     Rejected,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -481,6 +483,8 @@ pub enum KlarnaFraudStatus {
 pub enum KlarnaCheckoutStatus {
     CheckoutComplete,
     CheckoutIncomplete,
+    #[serde(other)]
+    Unknown,
 }
 
 fn get_fraud_status(
@@ -497,6 +501,10 @@ fn get_fraud_status(
         }
         KlarnaFraudStatus::Pending => common_enums::AttemptStatus::Pending,
         KlarnaFraudStatus::Rejected => common_enums::AttemptStatus::Failure,
+        KlarnaFraudStatus::Unknown => {
+            router_env::logger::warn!("Received unknown fraud status from klarna");
+            common_enums::AttemptStatus::Pending
+        }
     }
 }
 
@@ -513,6 +521,10 @@ fn get_checkout_status(
             }
         }
         KlarnaCheckoutStatus::CheckoutComplete => common_enums::AttemptStatus::Charged,
+        KlarnaCheckoutStatus::Unknown => {
+            router_env::logger::warn!("Received unknown checkout status from klarna");
+            common_enums::AttemptStatus::Pending
+        }
     }
 }
 
@@ -546,6 +558,8 @@ pub enum KlarnaPaymentStatus {
     Cancelled,
     Expired,
     Closed,
+    #[serde(other)]
+    Unknown,
 }
 
 impl From<KlarnaPaymentStatus> for enums::AttemptStatus {
@@ -556,6 +570,10 @@ impl From<KlarnaPaymentStatus> for enums::AttemptStatus {
             KlarnaPaymentStatus::Captured => Self::Charged,
             KlarnaPaymentStatus::Cancelled => Self::Voided,
             KlarnaPaymentStatus::Expired | KlarnaPaymentStatus::Closed => Self::Failure,
+            KlarnaPaymentStatus::Unknown => {
+                router_env::logger::warn!("Received unknown payment status from klarna");
+                Self::Pending
+            }
         }
     }
 }
