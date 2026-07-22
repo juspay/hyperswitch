@@ -12,7 +12,7 @@ describe("Dynamic Fields Verification", () => {
       });
     });
 
-    after("flush global state and cleanup", () => {
+    after("flush global state", () => {
       cy.task("setGlobalState", globalState.data);
     });
 
@@ -167,10 +167,6 @@ describe("Dynamic Fields Verification", () => {
           "pm_list"
         ]["PmListResponse"]["pmListDynamicFieldWithEmail"];
         cy.paymentMethodListTestWithRequiredFields(data, globalState);
-      });
-
-      it("Delete Business Profile", () => {
-        cy.deleteBusinessProfileTest(globalState);
       });
     });
   });
