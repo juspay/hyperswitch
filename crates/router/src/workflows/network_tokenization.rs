@@ -1,9 +1,8 @@
 #[cfg(feature = "v1")]
 use common_utils::ext_traits::ValueExt;
 #[cfg(feature = "v1")]
-use scheduler::{
-    consumer::types::process_data, utils as pt_utils, workflows::ProcessTrackerWorkflow,
-};
+use scheduler::{consumer::types::process_data, utils as pt_utils};
+use scheduler::workflows::ProcessTrackerWorkflow;
 
 use crate::{errors, logger, routes::SessionState, types::storage};
 
@@ -98,12 +97,12 @@ impl ProcessTrackerWorkflow<SessionState> for NetworkTokenizationWorkflow {
             None,
         );
 
-        let result = tokenization::generate_network_token_for_payment_method(
+        let result = Box::pin(tokenization::generate_network_token_for_payment_method(
             state,
             &platform,
             &tracking_data,
             payment_method,
-        )
+        ))
         .await;
 
         match result {

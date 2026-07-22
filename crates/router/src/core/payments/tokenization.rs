@@ -1071,13 +1071,15 @@ where
                 ) {
                     payment_methods::add_network_tokenization_task(
                         db,
-                        &pending_pm_id,
-                        &nt_customer_id,
-                        platform.get_provider().get_account().get_id(),
-                        save_payment_method_data.payment_method,
-                        payment_method_type,
-                        billing_name_for_network_tokenization,
-                        card_network_for_network_tokenization,
+                        types::storage::NetworkTokenizationTrackingData {
+                            payment_method_id: pending_pm_id.clone(),
+                            merchant_id: platform.get_provider().get_account().get_id().clone(),
+                            customer_id: nt_customer_id,
+                            payment_method: save_payment_method_data.payment_method,
+                            payment_method_type,
+                            billing_name: billing_name_for_network_tokenization,
+                            card_network: card_network_for_network_tokenization,
+                        },
                         state.conf.application_source,
                     )
                     .await
