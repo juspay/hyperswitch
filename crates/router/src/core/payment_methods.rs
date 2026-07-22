@@ -697,32 +697,31 @@ pub async fn add_payment_method_modular_forward_compat_task(
 #[cfg(feature = "v1")]
 pub async fn add_network_tokenization_task(
     db: &dyn StorageInterface,
-    payment_method: &domain::PaymentMethod,
+    payment_method_id: &str,
     customer_id: &id_type::CustomerId,
     merchant_id: &id_type::MerchantId,
     payment_method_enum: common_enums::PaymentMethod,
     payment_method_type: Option<common_enums::PaymentMethodType>,
     billing_name: Option<Secret<String>>,
+    card_network: Option<common_enums::CardNetwork>,
     application_source: common_enums::ApplicationSource,
 ) -> Result<(), ProcessTrackerError> {
     use crate::types::storage::NetworkTokenizationTrackingData;
 
     let tracking_data = NetworkTokenizationTrackingData {
-        payment_method_id: payment_method.payment_method_id.clone(),
+        payment_method_id: payment_method_id.to_owned(),
         merchant_id: merchant_id.to_owned(),
         customer_id: customer_id.to_owned(),
         payment_method: payment_method_enum,
         payment_method_type,
         billing_name,
+        card_network,
     };
 
     let runner = storage::ProcessTrackerRunner::NetworkTokenizationWorkflow;
     let task = NETWORK_TOKENIZATION_TASK;
     let tag = [NETWORK_TOKENIZATION_TAG];
-    let process_tracker_id = format!(
-        "{runner}_{task}_{}",
-        payment_method.payment_method_id.as_str()
-    );
+    let process_tracker_id = format!("{runner}_{task}_{payment_method_id}");
 
     let process_tracker_entry = storage::ProcessTrackerNew::new(
         process_tracker_id,
@@ -743,8 +742,7 @@ pub async fn add_network_tokenization_task(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable_lazy(|| {
             format!(
-                "Failed while inserting NETWORK_TOKENIZATION task to process_tracker for payment_method_id: {}",
-                payment_method.payment_method_id
+                "Failed while inserting NETWORK_TOKENIZATION task to process_tracker for payment_method_id: {payment_method_id}"
             )
         })?;
 

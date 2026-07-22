@@ -24,7 +24,7 @@ use hyperswitch_domain_models::{
     transformers::ForeignFrom as _,
 };
 use hyperswitch_interfaces::api::gateway;
-use hyperswitch_masking::{ExposeInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use router_env::{instrument, tracing};
 
 use super::helpers;
@@ -85,6 +85,35 @@ pub async fn save_network_token_details_in_nt_mapper(
         })
         .attach_printable("Failed to insert in Callback Mapper table")
         .ok();
+    Ok(())
+}
+
+#[cfg(feature = "v1")]
+/// Inserts the network token reference ID along with merchant id and customer id in the
+/// CallbackMapper table (for its respective webhooks), when a reference ID is available.
+///
+/// No-op when `network_token_requestor_ref_id` is `None`.
+pub async fn save_optional_network_token_details_in_nt_mapper(
+    state: &SessionState,
+    provider: &domain::Provider,
+    customer_id: &id_type::CustomerId,
+    payment_method_id: String,
+    network_token_requestor_ref_id: Option<String>,
+) -> RouterResult<()> {
+    network_token_requestor_ref_id
+        .async_map(|nt_ref_id| {
+            save_network_token_details_in_nt_mapper(
+                state,
+                provider,
+                customer_id,
+                payment_method_id,
+                nt_ref_id,
+            )
+        })
+        .await
+        .transpose()
+        .attach_printable("Failed to save network token details in callback_mapper table")?;
+
     Ok(())
 }
 
@@ -286,10 +315,24 @@ where
                     _ => (None, None, None),
                 };
 
+            // Details retained for scheduling the asynchronous network tokenization task,
+            // since `billing_name` / `customer_id` are consumed within the branches below.
+            let billing_name_for_network_tokenization = billing_name.clone();
+            let customer_id_for_network_tokenization = customer_id.clone();
+            // The card read back from the locker does not carry the brand, so capture the card
+            // network here, while the original card data is still available.
+            let card_network_for_network_tokenization =
+                match save_payment_method_data.request.get_payment_method_data() {
+                    domain::PaymentMethodData::Card(card) => card.card_network,
+                    _ => None,
+                };
+            // Payment method that was saved without a network token, and therefore still needs
+            // one to be generated asynchronously by the process tracker.
+            let mut payment_method_pending_network_tokenization: Option<String> = None;
+
             let pm_id = if customer_acceptance.is_some() {
                 let payment_method_data =
                     save_payment_method_data.request.get_payment_method_data();
-                let billing_name_cloned = billing_name.clone();
                 let payment_method_create_request =
                     payment_methods::get_payment_method_create_request(
                         Some(&payment_method_data),
@@ -543,20 +586,14 @@ where
                                     .change_context(errors::ApiErrorResponse::InternalServerError)
                                     .attach_printable("Failed to add payment method in db")?;
 
-                                    if let Some(nt_ref_id) = network_token_requestor_ref_id {
-                                        //Insert the network token reference ID along with merchant id, customer id in CallbackMapper table for its respective webooks
-                                        save_network_token_details_in_nt_mapper(
-                                            state,
-                                            platform.get_provider(),
-                                            &customer_id,
-                                            resp.payment_method_id.clone(),
-                                            nt_ref_id,
-                                        )
-                                        .await
-                                        .attach_printable(
-                                            "Failed to save network token details in callback_mapper table",
-                                        )?;
-                                    };
+                                    save_optional_network_token_details_in_nt_mapper(
+                                        state,
+                                        platform.get_provider(),
+                                        &customer_id,
+                                        resp.payment_method_id.clone(),
+                                        network_token_requestor_ref_id,
+                                    )
+                                    .await?;
                                 }
                                 Err(err) => {
                                     if err.current_context().is_db_not_found() {
@@ -694,23 +731,14 @@ where
                                         .change_context(errors::ApiErrorResponse::InternalServerError)
                                         .attach_printable("Failed to add payment method in db")?;
 
-                                        network_token_requestor_ref_id
-                                            .as_ref()
-                                            .async_map(|nt_ref_id| {
-                                                 //Insert the network token reference ID along with merchant id, customer id in CallbackMapper table for its respective webooks
-                                                save_network_token_details_in_nt_mapper(
-                                                    state,
-                                                    platform.get_provider(),
-                                                    &customer_id,
-                                                    resp.payment_method_id.clone(),
-                                                    nt_ref_id.clone(),
-                                                )
-                                            })
-                                            .await
-                                            .transpose()
-                                            .attach_printable(
-                                            "Failed to save network token details in callback_mapper table",
-                                        )?;
+                                        save_optional_network_token_details_in_nt_mapper(
+                                            state,
+                                            platform.get_provider(),
+                                            &customer_id,
+                                            resp.payment_method_id.clone(),
+                                            network_token_requestor_ref_id.clone(),
+                                        )
+                                        .await?;
 
                                         Ok(pm)
                                     }
@@ -1005,76 +1033,21 @@ where
 
                             match network_token_requestor_ref_id {
                                 Some(network_token_requestor_ref_id) => {
-                                    //Insert the network token reference ID along with merchant id, customer id in CallbackMapper table for its respective webooks
-                                    save_network_token_details_in_nt_mapper(
+                                    save_optional_network_token_details_in_nt_mapper(
                                         state,
                                         platform.get_provider(),
                                         &customer_id,
                                         resp.payment_method_id.clone(),
-                                        network_token_requestor_ref_id,
+                                        Some(network_token_requestor_ref_id),
                                     )
-                                    .await
-                                    .attach_printable(
-                                        "Failed to save network token details in callback_mapper table",
-                                    )?;
+                                    .await?;
                                 }
                                 None => {
                                     logger::info!("Network token requestor reference ID is not available, skipping callback mapper insertion");
-                                    // PM was inserted without NT data. Schedule a process tracker
-                                    // job to generate the network token asynchronously.
-                                    let is_network_tokenization_enabled =
-                                        business_profile.is_network_tokenization_enabled;
-                                    if is_network_tokenization_enabled {
-                                        // Re-fetch the just-inserted PM so the process tracker
-                                        // task can be built from the domain::PaymentMethod.
-                                        let newly_inserted_pm = state
-                                            .store
-                                            .find_payment_method(
-                                                platform.get_provider().get_key_store(),
-                                                &resp.payment_method_id,
-                                                platform.get_provider().get_account().storage_scheme,
-                                            )
-                                            .await;
-
-                                        match newly_inserted_pm {
-                                            Ok(pm) => {
-                                                let db = &*state.store;
-                                                match payment_methods::add_network_tokenization_task(
-                                                    db,
-                                                    &pm,
-                                                    &customer_id,
-                                                    platform.get_provider().get_account().get_id(),
-                                                    save_payment_method_data.payment_method,
-                                                    payment_method_type,
-                                                    billing_name_cloned,
-                                                    state.conf.application_source,
-                                                )
-                                                .await
-                                                {
-                                                    Ok(()) => {
-                                                        logger::info!(
-                                                            payment_method_id=%resp.payment_method_id,
-                                                            "Scheduled NetworkTokenizationWorkflow process tracker task"
-                                                        );
-                                                    }
-                                                    Err(err) => {
-                                                        logger::error!(
-                                                            payment_method_id=%resp.payment_method_id,
-                                                            ?err,
-                                                            "Failed to schedule NetworkTokenizationWorkflow process tracker task"
-                                                        );
-                                                    }
-                                                }
-                                            }
-                                            Err(err) => {
-                                                logger::error!(
-                                                    payment_method_id=%resp.payment_method_id,
-                                                    ?err,
-                                                    "Failed to fetch newly created PM for NetworkTokenizationWorkflow process tracker task"
-                                                );
-                                            }
-                                        }
-                                    }
+                                    // Payment method was created without network token data, so
+                                    // defer generation to the process tracker (handled below).
+                                    payment_method_pending_network_tokenization =
+                                        Some(resp.payment_method_id.clone());
                                 }
                             };
                         };
@@ -1083,34 +1056,48 @@ where
 
                 Some(resp.payment_method_id)
             } else {
-                // generate Network token and update payment method if not already done when
-                // network tokenization is enabled for the profile
-                let is_network_tokenization_enabled =
-                    business_profile.is_network_tokenization_enabled;
-                let is_payment_method_saved = payment_method_info.is_some();
-
-                if is_network_tokenization_enabled && is_payment_method_saved {
-                    generate_network_token_and_update_payment_method(
-                        state,
-                        platform,
-                        &save_payment_method_data.request.get_payment_method_data(),
-                        save_payment_method_data.payment_method,
-                        payment_method_type,
-                        customer_id,
-                        billing_name,
-                        payment_method_billing_address,
-                        payment_method_info,
-                    )
-                    .await
-                    .inspect_err(|err| {
-                        logger::error!("Failed to process network tokenization: {:?}", err);
-                    })
-                    .attach_printable("Failed to process network tokenization")
-                    .ok();
-                }
-
+                // No customer acceptance, so no payment method is created and no network
+                // tokenization is performed.
                 None
             };
+
+            // If network tokenization is enabled for the profile, trigger the process tracker
+            // workflow, which fetches the card, generates the network token and updates the
+            // payment method.
+            if business_profile.is_network_tokenization_enabled {
+                if let (Some(pending_pm_id), Some(nt_customer_id)) = (
+                    payment_method_pending_network_tokenization,
+                    customer_id_for_network_tokenization,
+                ) {
+                    payment_methods::add_network_tokenization_task(
+                        db,
+                        &pending_pm_id,
+                        &nt_customer_id,
+                        platform.get_provider().get_account().get_id(),
+                        save_payment_method_data.payment_method,
+                        payment_method_type,
+                        billing_name_for_network_tokenization,
+                        card_network_for_network_tokenization,
+                        state.conf.application_source,
+                    )
+                    .await
+                    .map_or_else(
+                        |err| {
+                            logger::error!(
+                                payment_method_id=%pending_pm_id,
+                                ?err,
+                                "Failed to schedule NetworkTokenizationWorkflow process tracker task"
+                            );
+                        },
+                        |()| {
+                            logger::info!(
+                                payment_method_id=%pending_pm_id,
+                                "Scheduled NetworkTokenizationWorkflow process tracker task"
+                            );
+                        },
+                    );
+                }
+            }
             // check if there needs to be a config if yes then remove it to a different place
             let connector_mandate_reference_id = if connector_mandate_id.is_some() {
                 if let Some(ref mut record) = original_connector_mandate_reference_id {
@@ -1620,7 +1607,11 @@ pub async fn save_network_token_in_locker(
                 .filter(|cn| network_tokenization_supported_card_networks.contains(cn))
                 .is_some()
             {
-                let optional_card_cvc = Some(card_data.card_cvc.clone());
+                // The CVC is never stored in the locker, so cards read back from it carry an
+                // empty CVC. Send no card security code at all in that case, rather than an
+                // empty one.
+                let optional_card_cvc =
+                    Some(card_data.card_cvc.clone()).filter(|cvc| !cvc.peek().is_empty());
                 match network_tokenization::make_card_network_tokenization_request(
                     state,
                     &domain::CardDetail::from(card_data),
@@ -2238,6 +2229,16 @@ async fn generate_network_token_and_update_payment_method(
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Add Network Token In Locker Failed")?;
 
+            logger::info!(
+                card_network = ?card_data.card_network,
+                network_token_resp_present = network_token_resp.is_some(),
+                network_token_locker_id = ?network_token_resp
+                    .as_ref()
+                    .map(|resp| &resp.payment_method_id),
+                ?network_token_requestor_ref_id,
+                "NT response: received result from save_network_token_in_locker"
+            );
+
             // Update payment method with network token details if available
             if let (Some(token_resp), Some(pm_info)) = (network_token_resp, payment_method_info) {
                 let network_token_locker_id = network_token_requestor_ref_id
@@ -2297,23 +2298,131 @@ async fn generate_network_token_and_update_payment_method(
                 .attach_printable("Failed to update payment method with network token details")?;
 
                 // Save network token details in callback_mapper table if network_token_requestor_ref_id is present
-                if let (Some(nt_ref_id), Some(cust_id)) =
-                    (network_token_requestor_ref_id, customer_id.clone())
-                {
-                    save_network_token_details_in_nt_mapper(
+                if let Some(cust_id) = customer_id.as_ref() {
+                    save_optional_network_token_details_in_nt_mapper(
                         state,
                         platform.get_provider(),
-                        &cust_id,
+                        cust_id,
                         pm_info.payment_method_id.clone(),
-                        nt_ref_id,
+                        network_token_requestor_ref_id,
                     )
-                    .await
-                    .attach_printable(
-                        "Failed to save network token details in callback_mapper table",
-                    )?;
+                    .await?;
                 }
             }
         }
         Ok(())
     }
+}
+
+#[cfg(feature = "v1")]
+/// Inputs used to build the card sent for network token generation from the process tracker.
+///
+/// This exists as a named type rather than a tuple because `domain::Card` is defined in
+/// another crate, so the orphan rule requires a local type as the conversion source.
+pub struct NetworkTokenizationCardData<'a> {
+    pub locker_card: &'a api_models::payment_methods::Card,
+    pub tracking_data: &'a types::storage::NetworkTokenizationTrackingData,
+}
+
+#[cfg(feature = "v1")]
+impl From<NetworkTokenizationCardData<'_>> for domain::Card {
+    /// Builds the card used for network token generation from the card fetched out of the
+    /// locker, falling back to the process tracker tracking data for details the locker does
+    /// not return.
+    fn from(card_data: NetworkTokenizationCardData<'_>) -> Self {
+        let NetworkTokenizationCardData {
+            locker_card,
+            tracking_data,
+        } = card_data;
+
+        Self {
+            card_number: locker_card.card_number.clone(),
+            card_exp_month: locker_card.card_exp_month.clone(),
+            card_exp_year: locker_card.card_exp_year.clone(),
+            // The CVC is never stored in the locker, so there is none to send with the
+            // network tokenization request.
+            card_cvc: Secret::new(String::new()),
+            card_issuer: None,
+            // Card details always come from the locker. The card read back from it does not
+            // currently carry the brand, so fall back to the card network captured at payment
+            // time and carried through the process tracker tracking data.
+            card_network: locker_card
+                .card_brand
+                .as_deref()
+                .and_then(|card_brand| card_brand.parse::<common_enums::CardNetwork>().ok())
+                .or_else(|| tracking_data.card_network.clone()),
+            card_type: None,
+            card_issuing_country: None,
+            card_issuing_country_code: None,
+            bank_code: None,
+            card_holder_name: tracking_data.billing_name.clone(),
+            nick_name: locker_card.nick_name.clone().map(Secret::new),
+            co_badged_card_data: None,
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
+/// Called from the `NetworkTokenizationWorkflow` process tracker job.
+///
+/// Fetches the card from the locker for the given payment method and delegates to
+/// `generate_network_token_and_update_payment_method`, which performs the actual
+/// network token generation and updates the payment method record.
+pub async fn generate_network_token_for_payment_method(
+    state: &SessionState,
+    platform: &domain::Platform,
+    tracking_data: &types::storage::NetworkTokenizationTrackingData,
+    payment_method: domain::PaymentMethod,
+) -> RouterResult<()> {
+    let customer_id = &tracking_data.customer_id;
+    let locker_id = payment_method
+        .locker_id
+        .as_ref()
+        .unwrap_or(&payment_method.payment_method_id);
+
+    // Fetch the raw card from the locker
+    let card_from_locker = payment_methods::cards::get_card_from_locker(
+        state,
+        customer_id,
+        &tracking_data.merchant_id,
+        locker_id,
+    )
+    .await
+    .inspect_err(|err| {
+        logger::error!(
+            ?err,
+            payment_method_id=%payment_method.payment_method_id,
+            "Failed to fetch card from locker for network token generation"
+        );
+    })?;
+
+    let locker_card = card_from_locker.get_card();
+
+    let card_data = domain::Card::from(NetworkTokenizationCardData {
+        locker_card: &locker_card,
+        tracking_data,
+    });
+
+    logger::info!(
+        payment_method_id = %payment_method.payment_method_id,
+        locker_id = %locker_id,
+        card_network = ?card_data.card_network,
+        locker_card_brand = ?locker_card.card_brand,
+        "NT request: card fetched from locker, initiating network token generation"
+    );
+
+    let payment_method_data = domain::PaymentMethodData::Card(card_data);
+
+    generate_network_token_and_update_payment_method(
+        state,
+        platform,
+        &payment_method_data,
+        tracking_data.payment_method,
+        tracking_data.payment_method_type,
+        Some(customer_id.clone()),
+        tracking_data.billing_name.clone(),
+        None,
+        Some(payment_method),
+    )
+    .await
 }

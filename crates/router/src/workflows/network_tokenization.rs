@@ -21,8 +21,7 @@ impl ProcessTrackerWorkflow<SessionState> for NetworkTokenizationWorkflow {
         process: storage::ProcessTracker,
     ) -> Result<(), errors::ProcessTrackerError> {
         use crate::{
-            core::payment_methods::network_tokenization,
-            types::storage::NetworkTokenizationTrackingData,
+            core::payments::tokenization, types::storage::NetworkTokenizationTrackingData,
         };
 
         let db = &*state.store;
@@ -95,7 +94,7 @@ impl ProcessTrackerWorkflow<SessionState> for NetworkTokenizationWorkflow {
             None,
         );
 
-        let result = network_tokenization::generate_network_token_for_payment_method(
+        let result = tokenization::generate_network_token_for_payment_method(
             state,
             &platform,
             &tracking_data,

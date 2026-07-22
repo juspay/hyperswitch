@@ -247,4 +247,11 @@ pub struct NetworkTokenizationTrackingData {
     pub payment_method: common_enums::PaymentMethod,
     pub payment_method_type: Option<common_enums::PaymentMethodType>,
     pub billing_name: Option<hyperswitch_masking::Secret<String>>,
+    /// Card network captured at payment time, used as a fallback when the card fetched from
+    /// the locker does not carry the brand (see `mk_get_card_response`).
+    ///
+    /// Only non-sensitive card metadata may be stored here: `tracking_data` is persisted
+    /// unencrypted and is included in process tracker log spans, so card number and CVC must
+    /// always be fetched from the locker instead.
+    pub card_network: Option<common_enums::CardNetwork>,
 }
