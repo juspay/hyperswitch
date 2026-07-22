@@ -64,7 +64,7 @@ async fn create_entity(
     let entity_id = merchant_id.get_string_repr().to_owned();
 
     let payload = match (pm_types::EntityCreateRequest {
-        entity_id: entity_id.clone(),
+        entity_id: merchant_id.clone(),
     })
     .encode_to_vec()
     {

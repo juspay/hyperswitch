@@ -182,7 +182,7 @@ impl VaultingInterface for EntityCreate {
 
 #[derive(Debug, serde::Serialize)]
 pub struct EntityCreateRequest {
-    pub entity_id: String,
+    pub entity_id: id_type::MerchantId,
 }
 
 #[derive(Debug, serde::Deserialize)]
