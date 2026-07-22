@@ -148,8 +148,8 @@ pub struct PayoutCreateRequest {
     pub description: Option<String>,
 
     /// Billing descriptor information for the payout. The reference is displayed on the beneficiary's bank statement.
-    #[schema(value_type = Option<common_types::payments::BillingDescriptor>)]
-    pub billing_descriptor: Option<common_types::payments::BillingDescriptor>,
+    #[schema(value_type = Option<common_types::payouts::PayoutsBillingDescriptor>)]
+    pub billing_descriptor: Option<common_types::payouts::PayoutsBillingDescriptor>,
 
     /// Type of entity to whom the payout is being carried out to, select from the given list of options
     #[schema(value_type = Option<PayoutEntityType>, example = "Individual")]
@@ -836,8 +836,8 @@ pub struct PayoutCreateResponse {
     pub description: Option<String>,
 
     /// Billing descriptor information for the payout
-    #[schema(value_type = Option<common_types::payments::BillingDescriptor>)]
-    pub billing_descriptor: Option<common_types::payments::BillingDescriptor>,
+    #[schema(value_type = Option<common_types::payouts::PayoutsBillingDescriptor>)]
+    pub billing_descriptor: Option<common_types::payouts::PayoutsBillingDescriptor>,
 
     /// Type of entity to whom the payout is being carried out to
     #[schema(value_type = PayoutEntityType, example = "Individual")]

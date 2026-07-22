@@ -40,7 +40,7 @@ pub struct Payouts {
     pub organization_id: Option<common_utils::id_type::OrganizationId>,
     pub processor_merchant_id: Option<common_utils::id_type::MerchantId>,
     pub created_by: Option<String>,
-    pub billing_descriptor: Option<common_types::payments::BillingDescriptor>,
+    pub billing_descriptor: Option<common_types::payouts::PayoutsBillingDescriptor>,
 }
 
 #[derive(
@@ -85,7 +85,7 @@ pub struct PayoutsNew {
     pub organization_id: Option<common_utils::id_type::OrganizationId>,
     pub processor_merchant_id: Option<common_utils::id_type::MerchantId>,
     pub created_by: Option<String>,
-    pub billing_descriptor: Option<common_types::payments::BillingDescriptor>,
+    pub billing_descriptor: Option<common_types::payouts::PayoutsBillingDescriptor>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -106,7 +106,7 @@ pub enum PayoutsUpdate {
         payout_type: Option<storage_enums::PayoutType>,
         address_id: Option<String>,
         customer_id: Option<common_utils::id_type::CustomerId>,
-        billing_descriptor: Option<common_types::payments::BillingDescriptor>,
+        billing_descriptor: Option<Box<common_types::payouts::PayoutsBillingDescriptor>>,
     },
     PayoutMethodIdUpdate {
         payout_method_id: String,
@@ -147,7 +147,7 @@ pub struct PayoutsUpdateInternal {
     pub payout_type: Option<common_enums::PayoutType>,
     pub address_id: Option<String>,
     pub customer_id: Option<common_utils::id_type::CustomerId>,
-    pub billing_descriptor: Option<common_types::payments::BillingDescriptor>,
+    pub billing_descriptor: Option<common_types::payouts::PayoutsBillingDescriptor>,
 }
 
 impl Default for PayoutsUpdateInternal {
@@ -212,7 +212,7 @@ impl From<PayoutsUpdate> for PayoutsUpdateInternal {
                 payout_type,
                 address_id,
                 customer_id,
-                billing_descriptor,
+                billing_descriptor: billing_descriptor.map(|descriptor| *descriptor),
                 ..Default::default()
             },
             PayoutsUpdate::PayoutMethodIdUpdate { payout_method_id } => Self {

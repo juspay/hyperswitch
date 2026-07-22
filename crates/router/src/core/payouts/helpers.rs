@@ -1464,7 +1464,8 @@ pub async fn update_payouts_and_payout_attempt(
         billing_descriptor: req
             .billing_descriptor
             .to_owned()
-            .or(payouts.billing_descriptor.clone()),
+            .or(payouts.billing_descriptor.clone())
+            .map(Box::new),
         recurring: req.recurring.to_owned().unwrap_or(payouts.recurring),
         auto_fulfill: req.auto_fulfill.to_owned().unwrap_or(payouts.auto_fulfill),
         return_url: req
