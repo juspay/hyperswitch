@@ -404,6 +404,30 @@ pub fn get_base_url(state: &SessionState) -> &str {
 }
 
 #[cfg(feature = "v1")]
+const WALLET_METADATA_KEYS_TO_STRIP: [&str; 5] = [
+    "apple_pay",
+    "google_pay",
+    "samsung_pay",
+    "paze",
+    "paypal_sdk",
+];
+
+#[cfg(feature = "v1")]
+fn strip_wallet_metadata(
+    metadata: Option<common_utils::pii::SecretSerdeValue>,
+) -> Option<common_utils::pii::SecretSerdeValue> {
+    metadata.map(|metadata| {
+        let mut value = metadata.expose();
+        if let serde_json::Value::Object(map) = &mut value {
+            for key in WALLET_METADATA_KEYS_TO_STRIP {
+                map.remove(key);
+            }
+        }
+        Secret::new(value)
+    })
+}
+
+#[cfg(feature = "v1")]
 #[instrument(skip_all)]
 pub async fn build_cloned_connector_create_request(
     source_mca: DomainMerchantConnectorAccount,
@@ -475,7 +499,7 @@ pub async fn build_cloned_connector_create_request(
         test_mode: source_mca.test_mode,
         disabled: source_mca.disabled,
         payment_methods_enabled,
-        metadata: source_mca.metadata,
+        metadata: strip_wallet_metadata(source_mca.metadata),
         business_country: source_mca.business_country,
         business_label: source_mca.business_label.clone(),
         business_sub_label: source_mca.business_sub_label.clone(),
