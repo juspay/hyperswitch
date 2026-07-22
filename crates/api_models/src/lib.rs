@@ -14,6 +14,7 @@ pub mod consts;
 pub mod currency;
 pub mod customers;
 pub mod disputes;
+pub mod entities_migration;
 pub mod enums;
 pub mod ephemeral_key;
 #[cfg(feature = "errors")]

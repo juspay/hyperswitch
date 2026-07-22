@@ -105,6 +105,7 @@ pub enum ApiEventsType {
     Keymanager,
     RustLocker,
     ApplePayCertificatesMigration,
+    EntitiesMigration,
     FraudCheck,
     Recon,
     ExternalServiceAuth,

@@ -223,6 +223,7 @@ pub fn mk_app(
                 .service(routes::Subscription::server(state.clone()))
                 .service(routes::Gsm::server(state.clone()))
                 .service(routes::ApplePayCertificatesMigration::server(state.clone()))
+                .service(routes::EntitiesMigration::server(state.clone()))
                 .service(routes::PaymentLink::server(state.clone()))
                 .service(routes::ConnectorOnboarding::server(state.clone()))
                 .service(routes::Analytics::server(state.clone()))
