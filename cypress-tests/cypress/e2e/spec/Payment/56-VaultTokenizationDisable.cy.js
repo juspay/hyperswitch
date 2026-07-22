@@ -4,6 +4,7 @@ import getConnectorDetails, {
   CONNECTOR_LISTS,
   shouldIncludeConnector,
 } from "../../configs/Payment/Utils";
+import { payment_methods_enabled } from "../../configs/Payment/Commons";
 
 let globalState;
 
@@ -28,6 +29,18 @@ describe("Vault Tokenization Disable", () => {
         if (skip) {
           this.skip();
         }
+      })
+      .then(() => {
+        cy.createBusinessProfileTest(
+          fixtures.businessProfile.bpCreate,
+          globalState
+        );
+        cy.createConnectorCallTest(
+          "payment_processor",
+          fixtures.createConnectorBody,
+          payment_methods_enabled,
+          globalState
+        );
       });
   });
 
