@@ -1059,3 +1059,48 @@ ucs_psync_disabled_connectors = "cashtocode, trustly"    # Comma-separated list 
 "28" = { description = "Retry after 6 days", recommended_action = "retry_after_6_days" }
 "29" = { description = "Retry after 8 days", recommended_action = "retry_after_8_days" }
 "30" = { description = "Retry after 10 days", recommended_action = "retry_after_10_days" }
+
+# Deja (record/replay instrumentation) — this environment's posture, stated in
+# its own file (single source: moved out of env_specific.toml so the README's
+# cat-merge of the two files does not declare the [deja] tables twice). Production is
+# explicitly DISABLED.
+# NOTE: deja config keys must match the typed DejaSettings struct exactly —
+# unknown or misspelled keys are silently ignored, not rejected.
+[deja]
+mode = "disabled"
+run_id = ""
+
+[deja.recording]
+
+[deja.recording.kafka]
+brokers = []
+topic = "hyperswitch-deja-recording-events"
+client_id = "hyperswitch-deja-router"
+acks = "all"
+idempotence = true
+linger = 5
+message_timeout = 30000
+
+[deja.replay]
+source = ""
+lookup_dir = ""
+observed_sink = ""
+
+[deja.sampler]
+enabled = false
+record_key = "deja_record"
+timeout_ms = 25
+fail_closed = true
+
+[deja.identity]
+pod_name_env = "POD_NAME"
+git_sha_env = "VERGEN_GIT_SHA"
+instance_id = ""
+code_sha = ""
+
+[deja.writer]
+queue_capacity = 8192
+batch_size = 500
+flush_after_records = 500
+flush_interval_ms = 1000
+shutdown_flush_ms = 5000

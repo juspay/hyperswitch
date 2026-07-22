@@ -126,8 +126,8 @@ cards = { version = "0.1.0", path = "../cards" }
 common_enums = { version = "0.1.0", path = "../common_enums" }
 common_utils = { version = "0.1.0", path = "../common_utils", features = ["signals", "async_ext", "logs", "metrics", "keymanager"] }
 common_types = { version = "0.1.0", path = "../common_types" }
-deja = { git = "https://github.com/juspay/deja", rev = "b42343778a83c68864a1361589c23ecc30483010", optional = true, default-features = false }
-deja-core = { git = "https://github.com/juspay/deja", rev = "b42343778a83c68864a1361589c23ecc30483010", optional = true }
+deja = { git = "https://github.com/juspay/deja", rev = "2ae840aa2b0a5160dc1719c83ad6d3c6bbcfa716", optional = true, default-features = false }
+deja-core = { git = "https://github.com/juspay/deja", rev = "2ae840aa2b0a5160dc1719c83ad6d3c6bbcfa716", optional = true }
 connector_configs = { version = "0.1.0", path = "../connector_configs" }
 currency_conversion = { version = "0.1.0", path = "../currency_conversion" }
 diesel_models = { version = "0.1.0", path = "../diesel_models", features = ["kv_store", "tokenization_v2"], default-features = false }

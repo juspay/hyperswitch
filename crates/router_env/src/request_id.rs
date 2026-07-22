@@ -110,7 +110,7 @@ pub(crate) mod boundary {
         let Some(hook) = hook() else {
             return;
         };
-        if !hook.mode().is_record() {
+        if !hook.capture_verdict().should_capture() {
             return;
         }
         // Expose only at the deja recording boundary — `EventBuilder` takes a raw
@@ -396,7 +396,7 @@ pub(crate) mod boundary {
         fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
             if self.event.is_none() {
                 if let (Some(hook), Some(record)) = (hook(), self.record.as_ref()) {
-                    if hook.mode().is_record() {
+                    if hook.capture_verdict().should_capture() {
                         let args = record.args();
                         self.event = Some(
                             deja::EventBuilder::start(
