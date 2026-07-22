@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.07.15.0-hotfix3
+
+### Bug Fixes
+
+- **authentication:** Fixed challenge Vs frictionless authentication flow type mismatch ([#13412](https://github.com/juspay/hyperswitch/pull/13412)) ([`e6ad14e`](https://github.com/juspay/hyperswitch/commit/e6ad14e89217d0cb967004d553e3b114df44f098))
+
+**Full Changelog:** [`2026.07.15.0-hotfix2...2026.07.15.0-hotfix3`](https://github.com/juspay/hyperswitch/compare/2026.07.15.0-hotfix2...2026.07.15.0-hotfix3)
+
+- - -
+
 ## 2026.07.15.0-hotfix2
 
 ### Bug Fixes
