@@ -4,6 +4,27 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.07.22.0
+
+### Features
+
+- **paysafe:** Drive Card 3DS via UCS PreAuthenticate + settle the frictionless flow ([#13352](https://github.com/juspay/hyperswitch/pull/13352)) ([`c37e8b8`](https://github.com/juspay/hyperswitch/commit/c37e8b81684c51bba0262fe6280ab08b3eb4d57d))
+- **ucs:** Add `payment_channel` field in Repeat Payment request ([#13398](https://github.com/juspay/hyperswitch/pull/13398)) ([`4fd03bc`](https://github.com/juspay/hyperswitch/commit/4fd03bca4157198398c63b4d3a0acf44d6d8fbc2))
+
+### Bug Fixes
+
+- **analytics:** Apply merchant_order_reference_id, authentication_type and card_discovery filters in global search ([#13353](https://github.com/juspay/hyperswitch/pull/13353)) ([`a21a790`](https://github.com/juspay/hyperswitch/commit/a21a7905a7c6d58f0c3fda1ba3e6368738d3c53d))
+- **authentication:** Fixed challenge Vs frictionless authentication flow type mismatch ([#13403](https://github.com/juspay/hyperswitch/pull/13403)) ([`d5188ed`](https://github.com/juspay/hyperswitch/commit/d5188edcae1d3b28f892e6a1e7cd9643854cadd5))
+- **core:** Propagate current_flow_info to access-token refresh for webhook registration ([#13384](https://github.com/juspay/hyperswitch/pull/13384)) ([`97afdfa`](https://github.com/juspay/hyperswitch/commit/97afdfa3aad315a1dc3e89fbb64d06d3152e561f))
+- **cypress:** Add PayPal card 3DS redirection handler and enable 3DS tests ([#13390](https://github.com/juspay/hyperswitch/pull/13390)) ([`da31aaf`](https://github.com/juspay/hyperswitch/commit/da31aafd33f7c6c5cd6d2219346c21990098c994))
+- **router:** Eliminate duplicate DB connection pools from building each tenant's store twice ([#13395](https://github.com/juspay/hyperswitch/pull/13395)) ([`77ebe44`](https://github.com/juspay/hyperswitch/commit/77ebe447408613d5e9ba22e9cbfe58f096691484))
+- **ucs:** Preserve construct-time amount_captured on psync when UCS reports none ([#18021](https://github.com/juspay/hyperswitch/pull/18021)) ([#13206](https://github.com/juspay/hyperswitch/pull/13206)) ([`e31ac8f`](https://github.com/juspay/hyperswitch/commit/e31ac8fdc3a09e41d081675ebec20ec49afef7e9))
+- **unified_connector_service:** Scope Google Pay decrypted-token substitution to connectors that consume it ([#13213](https://github.com/juspay/hyperswitch/pull/13213)) ([`924753b`](https://github.com/juspay/hyperswitch/commit/924753b583a77556fe66b18934cdbef693d5e0b3))
+
+**Full Changelog:** [`2026.07.21.0...2026.07.22.0`](https://github.com/juspay/hyperswitch/compare/2026.07.21.0...2026.07.22.0)
+
+- - -
+
 ## 2026.07.21.0
 
 ### Features

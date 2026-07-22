@@ -2984,6 +2984,19 @@ function threeDsRedirection(
     return;
   }
 
+  // PayPal card 3DS: Hyperswitch redirect page auto-submits a form to
+  // sandbox.paypal.com/webapps/helios which processes the 3DS challenge.
+  // In sandbox mode, the test card auto-approves and PayPal redirects back
+  // to the return URL without requiring browser-side user interaction.
+  // Using cy.origin() here causes a cross-origin crash because the sandbox
+  // auto-redirect fires before the origin block can execute.
+  if (connectorId === "paypal") {
+    cy.visit(redirectionUrl.href, { failOnStatusCode: false });
+    cy.url({ timeout: CONSTANTS.TIMEOUT }).should("include", expectedUrl.host);
+    verifyReturnUrl(redirectionUrl, expectedUrl, true);
+    return;
+  }
+
   // For all other connectors, use the standard flow
   waitForRedirect(redirectionUrl.href);
 
