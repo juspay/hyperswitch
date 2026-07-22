@@ -1,5 +1,5 @@
 use actix_web::{web, HttpRequest, HttpResponse};
-use router_env::{instrument, tracing, Flow};
+use router_env::{instrument, tracing, types, Flow};
 
 use super::app::AppState;
 #[cfg(feature = "v1")]
@@ -7,7 +7,8 @@ use crate::core::refunds::*;
 #[cfg(feature = "v2")]
 use crate::core::refunds_v2::*;
 use crate::{
-    core::api_locking,
+    core::api_locking::{self, GetLockingInput},
+    routes::lock_utils,
     services::{api, authentication as auth, authorization::permissions::Permission},
     types::api::refunds,
 };
@@ -27,6 +28,25 @@ mod internal_payload_types {
         pub payment_id: Option<common_utils::id_type::GlobalPaymentId>,
         #[serde(flatten)]
         pub payload: T,
+    }
+
+    impl<T: serde::Serialize> GetLockingInput for RefundsGenericRequestWithResourceId<T> {
+        fn get_locking_input<F>(&self, flow: F) -> api_locking::LockAction
+        where
+            F: types::FlowMetric,
+            lock_utils::ApiIdentifier: From<F>,
+        {
+            match self.payment_id.as_ref() {
+                Some(payment_id) => api_locking::LockAction::Hold {
+                    input: api_locking::LockingInput {
+                        unique_locking_key: payment_id.get_string_repr().to_owned(),
+                        api_identifier: lock_utils::ApiIdentifier::from(flow),
+                        override_lock_retries: None,
+                    },
+                },
+                None => api_locking::LockAction::NotApplicable,
+            }
+        }
     }
 
     impl<T: serde::Serialize> common_utils::events::ApiEventMetric
@@ -55,11 +75,13 @@ pub async fn refunds_create(
     json_payload: web::Json<refunds::RefundRequest>,
 ) -> HttpResponse {
     let flow = Flow::RefundsCreate;
+    let payload = json_payload.into_inner();
+    let locking_action = payload.get_locking_input(flow.clone());
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
-        json_payload.into_inner(),
+        payload,
         |state, auth: auth::AuthenticationData, req, _| {
             let profile_id = auth.profile.map(|profile| profile.get_id().clone());
             refund_create_core(state, auth.platform, profile_id, req)
@@ -76,7 +98,7 @@ pub async fn refunds_create(
             },
             req.headers(),
         ),
-        api_locking::LockAction::NotApplicable,
+        locking_action,
     ))
     .await
 }
@@ -101,7 +123,7 @@ pub async fn refunds_create(
             payment_id: Some(payload.payment_id.clone()),
             payload,
         };
-
+    let locking_action = internal_refund_create_payload.get_locking_input(flow.clone());
     let auth_type = if state.conf.merchant_id_auth.merchant_id_auth_enabled {
         &auth::MerchantIdAuth
     } else {
@@ -128,7 +150,7 @@ pub async fn refunds_create(
             refund_create_core(state, auth.platform, req.payload, global_refund_id.clone())
         },
         auth_type,
-        api_locking::LockAction::NotApplicable,
+        locking_action,
     ))
     .await
 }
@@ -728,4 +750,21 @@ pub async fn get_refunds_aggregate_profile(
         api_locking::LockAction::NotApplicable,
     ))
     .await
+}
+
+#[cfg(feature = "v1")]
+impl GetLockingInput for refunds::RefundRequest {
+    fn get_locking_input<F>(&self, flow: F) -> api_locking::LockAction
+    where
+        F: types::FlowMetric,
+        lock_utils::ApiIdentifier: From<F>,
+    {
+        api_locking::LockAction::Hold {
+            input: api_locking::LockingInput {
+                unique_locking_key: self.payment_id.get_string_repr().to_owned(),
+                api_identifier: lock_utils::ApiIdentifier::from(flow),
+                override_lock_retries: None,
+            },
+        }
+    }
 }
