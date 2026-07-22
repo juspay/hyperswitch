@@ -4267,9 +4267,7 @@ fn test_required_fields_to_json() {
                     .fields
                     .get(&Connector::TsysTransit)
                     .expect("tsys_transit required fields should be present");
-                assert!(tsys_fields
-                    .common
-                    .contains_key("billing.address.line1"));
+                assert!(tsys_fields.common.contains_key("billing.address.line1"));
                 assert!(tsys_fields.common.contains_key("billing.address.zip"));
                 assert!(tsys_fields
                     .common
