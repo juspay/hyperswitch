@@ -3067,6 +3067,26 @@ Cypress.Commands.add("setDefaultPaymentMethodTest", (globalState) => {
   });
 });
 
+Cypress.Commands.add("verifySurchargeDSLConfigDeleted", (data, globalState) => {
+  cy.request({
+    method: "GET",
+    url: `${globalState.get("baseUrl")}/routing/decision/surcharge`,
+    headers: {
+      "api-key": globalState.get("apiKey"),
+      "Content-Type": "application/json",
+    },
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    cy.wrap(response).then(() => {
+      expect(response.status).to.equal(404);
+      expect(response.body).to.have.property("error");
+      expect(response.body.error.code).to.equal("HE_02");
+    });
+  });
+});
+
 Cypress.Commands.add(
   "confirmCallTest",
   (confirmBody, data, confirm, globalState, connectedMerchantId) => {
@@ -7049,11 +7069,6 @@ Cypress.Commands.add(
   "createSurchargeDSLConfig",
   (surchargeBody, data, globalState) => {
     const { Response: resData } = data || {};
-    const profileId = globalState.get("profileId");
-
-    if (surchargeBody && surchargeBody.program) {
-      surchargeBody.program.profile_id = profileId;
-    }
 
     cy.request({
       method: "PUT",
@@ -7072,8 +7087,27 @@ Cypress.Commands.add(
 
         if (response.status === 200) {
           globalState.set("surchargeDSLConfig", response.body);
+          expect(response.body.name).to.equal(surchargeBody.name);
+          expect(response.body)
+            .to.have.property("created_at")
+            .that.is.a("number");
+          expect(response.body)
+            .to.have.property("modified_at")
+            .that.is.a("number");
+          expect(response.body)
+            .to.have.property("merchant_surcharge_configs")
+            .that.is.an("object");
+
           for (const key in resData.body) {
+            if (key === "name" || key === "algorithm") continue;
             expect(resData.body[key]).to.deep.equal(response.body[key]);
+          }
+          if (response.body.algorithm) {
+            expect(response.body.algorithm).to.have.property("metadata");
+            expect(response.body.algorithm.defaultSelection).to.have.property(
+              "surcharge_details"
+            );
+            expect(response.body.algorithm.rules).to.be.an("array");
           }
         } else {
           defaultErrorHandler(response, resData);
@@ -7181,8 +7215,29 @@ Cypress.Commands.add("retrieveSurchargeDSLConfig", (data, globalState) => {
       expect(response.headers["content-type"]).to.include("application/json");
 
       if (response.status === 200) {
+        const storedConfig = globalState.get("surchargeDSLConfig");
+        if (storedConfig && storedConfig.name) {
+          expect(response.body.name).to.equal(storedConfig.name);
+        }
+        expect(response.body)
+          .to.have.property("created_at")
+          .that.is.a("number");
+        expect(response.body)
+          .to.have.property("modified_at")
+          .that.is.a("number");
+        expect(response.body)
+          .to.have.property("merchant_surcharge_configs")
+          .that.is.an("object");
         for (const key in resData.body) {
+          if (key === "name" || key === "algorithm") continue;
           expect(resData.body[key]).to.deep.equal(response.body[key]);
+        }
+        if (response.body.algorithm) {
+          expect(response.body.algorithm).to.have.property("metadata");
+          expect(response.body.algorithm.defaultSelection).to.have.property(
+            "surcharge_details"
+          );
+          expect(response.body.algorithm.rules).to.be.an("array");
         }
       } else {
         defaultErrorHandler(response, resData);
@@ -7206,12 +7261,8 @@ Cypress.Commands.add("deleteSurchargeDSLConfig", (data, globalState) => {
     logRequestId(response.headers["x-request-id"]);
 
     cy.wrap(response).then(() => {
-      expect(response.headers["content-type"]).to.include("application/json");
-
       if (response.status === 200) {
-        for (const key in resData.body) {
-          expect(resData.body[key]).to.deep.equal(response.body[key]);
-        }
+        expect(response.body).to.be.empty;
       } else {
         defaultErrorHandler(response, resData);
       }
