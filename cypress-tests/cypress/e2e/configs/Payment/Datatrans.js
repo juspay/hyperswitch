@@ -46,10 +46,10 @@ const multiUseMandateData = {
 const paymentMethodData3Ds = {
   card: {
     last4: "1111",
-    card_type: "CREDIT",
+    card_type: "DEBIT",
     card_network: "Visa",
-    card_issuer: "JP Morgan",
-    card_issuing_country: "INDIA",
+    card_issuer: 'CONOTOXIA SP Z OO',
+    card_issuing_country: 'POLAND',
     card_isin: "411111",
     card_extended_bin: null,
     card_exp_month: "06",
@@ -57,6 +57,7 @@ const paymentMethodData3Ds = {
     card_holder_name: "joseph Doe",
     payment_checks: null,
     authentication_data: null,
+    auth_code: null 
   },
   billing: null,
 };
@@ -66,7 +67,7 @@ const paymentMethodDataNo3Ds = {
     last4: "0018",
     card_type: "CREDIT",
     card_network: "Visa",
-    card_issuer: "Intl Hdqtrs Center Owned",
+    card_issuer: "INTL HDQTRS CENTER OWNED",
     card_issuing_country: "UNITED STATES OF AMERICA",
     card_isin: "400000",
     card_extended_bin: null,
@@ -312,6 +313,9 @@ export const connectorDetails = {
       },
     },
     MandateMultiUseNo3DSAutoCapture: {
+       Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -493,6 +497,7 @@ export const connectorDetails = {
         currency: "USD",
         setup_future_usage: "on_session",
         customer_acceptance: customerAcceptance,
+        billing: billingWithNewline,
       },
       Response: {
         status: 200,
@@ -501,7 +506,23 @@ export const connectorDetails = {
         },
       },
     },
-
+        SaveCardUse3DSAutoCaptureOffSession: {
+          Request: {
+            payment_method: "card",
+            payment_method_data: {
+              card: successfulNo3DSCardDetails,
+            },
+            setup_future_usage: "off_session",
+            customer_acceptance: customerAcceptance,
+            billing: billingWithNewline,
+          },
+          Response: {
+            status: 200,
+            body: {
+              status: "requires_customer_action",
+            },
+          },
+        },
     SaveCardUseNo3DSManualCapture: {
       Request: {
         payment_method: "card",
@@ -511,6 +532,7 @@ export const connectorDetails = {
         currency: "USD",
         setup_future_usage: "on_session",
         customer_acceptance: customerAcceptance,
+        billing: billingWithNewline,
       },
       Response: {
         status: 200,
@@ -532,6 +554,7 @@ export const connectorDetails = {
         },
         setup_future_usage: "off_session",
         customer_acceptance: customerAcceptance,
+        billing: billingWithNewline,
       },
       Response: {
         status: 200,
@@ -554,6 +577,7 @@ export const connectorDetails = {
         },
         setup_future_usage: "off_session",
         customer_acceptance: customerAcceptance,
+        billing: billingWithNewline,
       },
       Response: {
         status: 200,
@@ -735,6 +759,20 @@ export const connectorDetails = {
           message:
             "You cannot confirm this payment using `manual_retry` because the allowed duration has expired",
           code: "IR_16",
+        },
+      },
+    },
+        PaymentWithBilling: {
+      Request: {
+        currency: "USD",
+        setup_future_usage: "on_session",
+        billing: billingWithNewline,
+        email: "hyperswitch.example@gmail.com",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
         },
       },
     },
