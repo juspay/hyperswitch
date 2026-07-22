@@ -36040,6 +36040,14 @@
             "example": "It's my first payout request",
             "nullable": true
           },
+          "billing_descriptor": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PayoutsBillingDescriptor"
+              }
+            ],
+            "nullable": true
+          },
           "entity_type": {
             "allOf": [
               {
@@ -36348,6 +36356,14 @@
             "type": "string",
             "description": "A description of the payout",
             "example": "It's my first payout request",
+            "nullable": true
+          },
+          "billing_descriptor": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PayoutsBillingDescriptor"
+              }
+            ],
             "nullable": true
           },
           "entity_type": {
@@ -37118,6 +37134,14 @@
             "example": "It's my first payout request",
             "nullable": true
           },
+          "billing_descriptor": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PayoutsBillingDescriptor"
+              }
+            ],
+            "nullable": true
+          },
           "entity_type": {
             "allOf": [
               {
@@ -37222,6 +37246,22 @@
                 "$ref": "#/components/schemas/BrowserInformation"
               }
             ],
+            "nullable": true
+          }
+        }
+      },
+      "PayoutsBillingDescriptor": {
+        "type": "object",
+        "description": "Billing descriptor information for a payout.",
+        "properties": {
+          "reference": {
+            "type": "string",
+            "description": "Reference displayed on the beneficiary's bank statement.",
+            "nullable": true
+          },
+          "statement_descriptor": {
+            "type": "string",
+            "description": "Statement descriptor displayed for the payout.",
             "nullable": true
           }
         }
@@ -37356,6 +37396,14 @@
             "type": "string",
             "description": "A description of the payout",
             "example": "It's my first payout request",
+            "nullable": true
+          },
+          "billing_descriptor": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PayoutsBillingDescriptor"
+              }
+            ],
             "nullable": true
           },
           "entity_type": {

@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use cards::CardNumber;
 use common_enums::CardNetwork;
+use common_types::payouts::PayoutsBillingDescriptor;
 #[cfg(feature = "v2")]
 use common_utils::types::BrowserInformation;
 use common_utils::{
@@ -148,8 +149,8 @@ pub struct PayoutCreateRequest {
     pub description: Option<String>,
 
     /// Billing descriptor information for the payout. The reference is displayed on the beneficiary's bank statement.
-    #[schema(value_type = Option<common_types::payouts::PayoutsBillingDescriptor>)]
-    pub billing_descriptor: Option<common_types::payouts::PayoutsBillingDescriptor>,
+    #[schema(value_type = Option<PayoutsBillingDescriptor>)]
+    pub billing_descriptor: Option<PayoutsBillingDescriptor>,
 
     /// Type of entity to whom the payout is being carried out to, select from the given list of options
     #[schema(value_type = Option<PayoutEntityType>, example = "Individual")]
@@ -836,8 +837,8 @@ pub struct PayoutCreateResponse {
     pub description: Option<String>,
 
     /// Billing descriptor information for the payout
-    #[schema(value_type = Option<common_types::payouts::PayoutsBillingDescriptor>)]
-    pub billing_descriptor: Option<common_types::payouts::PayoutsBillingDescriptor>,
+    #[schema(value_type = Option<PayoutsBillingDescriptor>)]
+    pub billing_descriptor: Option<PayoutsBillingDescriptor>,
 
     /// Type of entity to whom the payout is being carried out to
     #[schema(value_type = PayoutEntityType, example = "Individual")]

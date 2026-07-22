@@ -851,6 +851,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::NetworkTokenResponse,
         api_models::payments::Address,
         api_models::payments::BankCodeResponse,
+        common_types::payouts::PayoutsBillingDescriptor,
         api_models::payouts::CardPayout,
         api_models::payouts::Wallet,
         api_models::payouts::Paypal,
