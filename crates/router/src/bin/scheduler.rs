@@ -39,9 +39,17 @@ async fn main() -> CustomResult<(), ProcessTrackerError> {
     // opens redis/DB pools whose instrumented calls would otherwise resolve —
     // and permanently latch — the hook ahead of the configured install.
     #[cfg(feature = "deja")]
-    let deja_install_report = router::deja_boot::install(&conf.deja).map_err(|message| {
-        error_stack::report!(ProcessTrackerError::ConfigurationError).attach_printable(message)
-    })?;
+    let deja_install_report = {
+        // An empty deja broker list inherits the analytics Kafka brokers
+        // (shared cluster provisioning, separate producer client).
+        let analytics_brokers = match &conf.events.source {
+            router::events::EventsSource::Kafka { kafka } => Some(kafka.brokers()),
+            _ => None,
+        };
+        router::deja_boot::install(&conf.deja, analytics_brokers).map_err(|message| {
+            error_stack::report!(ProcessTrackerError::ConfigurationError).attach_printable(message)
+        })?
+    };
 
     let api_client = Box::new(
         services::ProxyClient::new(&conf.proxy)

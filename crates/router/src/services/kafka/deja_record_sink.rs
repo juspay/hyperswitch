@@ -3,13 +3,17 @@
 //! The `deja-record` crate intentionally has no Kafka dependency: it defines
 //! the `RecordSink<DejaRecord>` trait; this module supplies the transport.
 //! The sink owns a DEDICATED `rdkafka` producer — deliberately not the shared
-//! analytics producer — hardened for durability:
+//! analytics producer, though both are built from the same deployment-wide
+//! base client config so they share cluster provisioning — hardened for
+//! durability:
 //!
 //!   acks=all + enable.idempotence  → no acked-then-lost, no broker-side dupes
 //!   bounded buffering              → backpressure surfaces as enqueue errors
 //!                                    instead of unbounded memory
-//!   real `flush()`                 → the writer's flush drains the producer,
-//!                                    so shutdown (eof marker) means delivered
+//!   flush = short poll             → cadence flushes never park the writer
+//!                                    behind a slow broker; only the eof
+//!                                    marker drains fully, so end-of-run
+//!                                    means delivered
 //!
 //! Envelopes, all on the ONE topic: boundary events land as
 //! `deja.artifact_record/v2`; execution-graph nodes land as
@@ -47,7 +51,13 @@ const ARTIFACT_TYPE: &str = "deja_artifact_record";
 const GRAPH_SCHEMA_VERSION: u32 = 1;
 const GRAPH_ARTIFACT_TYPE: &str = "deja_graph_node";
 const MARKER_ARTIFACT_TYPE: &str = "deja_sink_marker";
-const FLUSH_TIMEOUT: Duration = Duration::from_secs(10);
+/// Cadence flushes are a short bounded poll: the threaded producer delivers on
+/// its own background thread, so waiting out a long drain here only parks the
+/// writer thread behind a slow broker.
+const CADENCE_FLUSH_POLL: Duration = Duration::from_millis(50);
+/// End-of-run drain: the eof marker means "everything before this landed", so
+/// shutdown waits for real delivery.
+const EOF_FLUSH_TIMEOUT: Duration = Duration::from_secs(10);
 
 #[derive(Serialize)]
 struct Capture<'a> {
@@ -141,9 +151,11 @@ impl HyperswitchKafkaRecordSink {
     /// Hyperswitch's events config (the brokers are shared; the producer and
     /// its delivery guarantees are not).
     pub fn new(config: HyperswitchKafkaRecordSinkConfig<'_>) -> io::Result<Self> {
-        let mut producer_config = rdkafka::ClientConfig::new();
+        // Start from the deployment-wide base client config (shared cluster
+        // provisioning), then layer the recording sink's delivery guarantees
+        // on top — a separate client with its own queue and delivery thread.
+        let mut producer_config = super::base_client_config(config.brokers);
         producer_config
-            .set("bootstrap.servers", config.brokers.join(","))
             .set("acks", config.acks)
             .set(
                 "enable.idempotence",
@@ -309,9 +321,19 @@ impl deja::RecordSink<deja::DejaRecord> for HyperswitchKafkaRecordSink {
     }
 
     fn flush(&mut self) -> io::Result<()> {
-        self.producer
-            .flush(FLUSH_TIMEOUT)
-            .map_err(|e| io::Error::other(format!("kafka flush: {e}")))
+        // Cadence flush: a short bounded poll. Delivery happens continuously on
+        // the producer's own background thread; a long synchronous drain here
+        // would park the writer thread behind a slow broker, backing up the
+        // record channel into the request path. Messages still in flight when
+        // the poll expires are NOT a sink failure — enqueue errors in
+        // write_batch are where saturation and broker loss actually surface.
+        match self.producer.flush(CADENCE_FLUSH_POLL) {
+            Ok(()) => Ok(()),
+            Err(rdkafka::error::KafkaError::Flush(
+                rdkafka::types::RDKafkaErrorCode::OperationTimedOut,
+            )) => Ok(()),
+            Err(e) => Err(io::Error::other(format!("kafka flush: {e}"))),
+        }
     }
 
     fn write_marker(
@@ -349,9 +371,10 @@ impl deja::RecordSink<deja::DejaRecord> for HyperswitchKafkaRecordSink {
                 value: Some(kind.as_str()),
             });
         self.send(&key, &bytes, headers)?;
-        // Markers bound delivery audits — make eof/checkpoint mean "landed".
+        // The eof marker bounds delivery audits — drain for real so "eof
+        // landed" means everything before it landed too.
         if matches!(kind, deja::MarkerKind::Eof) {
-            let _ = self.producer.flush(FLUSH_TIMEOUT);
+            let _ = self.producer.flush(EOF_FLUSH_TIMEOUT);
         }
         Ok(())
     }

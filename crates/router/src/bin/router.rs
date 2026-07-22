@@ -25,9 +25,17 @@ async fn main() -> ApplicationResult<()> {
     }
 
     #[cfg(feature = "deja")]
-    let deja_install_report = router::deja_boot::install(&conf.deja).map_err(|message| {
-        error_stack::report!(ApplicationError::ConfigurationError).attach_printable(message)
-    })?;
+    let deja_install_report = {
+        // An empty deja broker list inherits the analytics Kafka brokers
+        // (shared cluster provisioning, separate producer client).
+        let analytics_brokers = match &conf.events.source {
+            router::events::EventsSource::Kafka { kafka } => Some(kafka.brokers()),
+            _ => None,
+        };
+        router::deja_boot::install(&conf.deja, analytics_brokers).map_err(|message| {
+            error_stack::report!(ApplicationError::ConfigurationError).attach_printable(message)
+        })?
+    };
 
     let _guard = router_env::setup(
         &conf.log,

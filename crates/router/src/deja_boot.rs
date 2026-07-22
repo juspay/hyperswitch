@@ -127,15 +127,7 @@ fn install_disabled(detail: Option<String>) -> InstallReport {
     )
 }
 
-#[allow(clippy::print_stderr)] // The logger may not be initialized yet.
-fn install_record(settings: &DejaSettings) -> InstallReport {
-    if !settings.sampler.enabled {
-        eprintln!(
-            "deja: record mode with deja.sampler.enabled=false records NO requests; \
-             enable the sampler (and set deja.sampler.fail_closed=false on rigs without \
-             a superposition sampling source) to capture traffic"
-        );
-    }
+fn install_record(settings: &DejaSettings, inherited_brokers: Option<&[String]>) -> InstallReport {
     let kafka = &settings.recording.kafka;
     let Some(topic) = kafka.effective_topic() else {
         return install_disabled(Some(
@@ -143,15 +135,25 @@ fn install_record(settings: &DejaSettings) -> InstallReport {
         ));
     };
 
-    if kafka.brokers.is_empty() || kafka.brokers.iter().any(|broker| broker.trim().is_empty()) {
+    // Broker resolution: an explicit deja broker list wins; an empty list
+    // inherits the deployment's analytics Kafka brokers, so both producers
+    // share cluster provisioning while remaining separate clients.
+    let brokers: &[String] = if kafka.brokers.is_empty() {
+        inherited_brokers.unwrap_or_default()
+    } else {
+        kafka.brokers.as_slice()
+    };
+    if brokers.is_empty() || brokers.iter().any(|broker| broker.trim().is_empty()) {
         return install_disabled(Some(
-            "record mode requires non-empty deja.recording.kafka.brokers".to_owned(),
+            "record mode requires Kafka brokers: set deja.recording.kafka.brokers, or \
+             configure [events.kafka] brokers for the recording sink to inherit"
+                .to_owned(),
         ));
     }
 
     let run_id = configured_run_id(settings);
     let sink = match HyperswitchKafkaRecordSink::new(HyperswitchKafkaRecordSinkConfig {
-        brokers: kafka.brokers.as_slice(),
+        brokers,
         topic,
         recording_run_id: &run_id,
         instance_id: resolved_instance_id(settings),
@@ -272,12 +274,15 @@ fn install_replay(settings: &DejaSettings) -> Result<InstallReport, String> {
 /// invalid record configuration installs a disabled hook with a clear pre-logger
 /// error. Replay misconfiguration is fail-loud and aborts boot with the replay
 /// error before logger setup.
-pub fn install(settings: &DejaSettings) -> Result<InstallReport, String> {
+pub fn install(
+    settings: &DejaSettings,
+    inherited_brokers: Option<&[String]>,
+) -> Result<InstallReport, String> {
     // Graph capture is coupled to the mode (the graph layer rides the installed
     // Record/Replay hook), so there is no separate graph dial to declare here.
     match &settings.mode {
         DejaMode::Disabled => Ok(install_disabled(None)),
-        DejaMode::Record => Ok(install_record(settings)),
+        DejaMode::Record => Ok(install_record(settings, inherited_brokers)),
         DejaMode::Replay => install_replay(settings),
     }
 }

@@ -45,7 +45,6 @@ use crate::{configs::settings, core::errors};
 struct SuperpositionDejaRecordingSampler {
     superposition_service: std::sync::Arc<external_services::superposition::SuperpositionClient>,
     superposition_enabled: bool,
-    sampler_enabled: bool,
     record_key: String,
     timeout_ms: u64,
     /// Decision when the sampling source cannot answer (superposition
@@ -61,10 +60,6 @@ impl router_env::request_id::RequestRecordingSampler for SuperpositionDejaRecord
         &self,
         facts: router_env::request_id::RequestRecordingFacts,
     ) -> router_env::request_id::RequestRecordingSamplerFuture<'_> {
-        if !self.sampler_enabled {
-            return Box::pin(async { false });
-        }
-
         // No sampling source to consult: the configured failure default
         // decides, exactly as it does for lookup errors and timeouts below.
         let failure_default = !self.fail_closed;
@@ -195,24 +190,30 @@ pub fn mk_app(
         InitError = (),
     >,
 > {
+    // The recording sampler exists exactly when the process records: record
+    // mode always consults the sampling source per request, every other mode
+    // has nothing to sample.
     #[cfg(feature = "deja")]
-    let deja_recording_sampler: std::sync::Arc<
-        dyn router_env::request_id::RequestRecordingSampler,
-    > = std::sync::Arc::new(SuperpositionDejaRecordingSampler {
-        superposition_service: state.superposition_service.clone(),
-        superposition_enabled: state.conf.superposition.get_inner().validate().is_ok(),
-        sampler_enabled: state.conf.deja.sampler.enabled,
-        record_key: state
-            .conf
-            .deja
-            .sampler
-            .record_key
-            .as_deref()
-            .filter(|record_key| !record_key.is_empty())
-            .unwrap_or("deja_record")
-            .to_owned(),
-        timeout_ms: state.conf.deja.sampler.timeout_ms,
-        fail_closed: state.conf.deja.sampler.fail_closed,
+    let deja_recording_sampler: Option<
+        std::sync::Arc<dyn router_env::request_id::RequestRecordingSampler>,
+    > = matches!(state.conf.deja.mode, settings::DejaMode::Record).then(|| {
+        let sampler: std::sync::Arc<dyn router_env::request_id::RequestRecordingSampler> =
+            std::sync::Arc::new(SuperpositionDejaRecordingSampler {
+                superposition_service: state.superposition_service.clone(),
+                superposition_enabled: state.conf.superposition.get_inner().validate().is_ok(),
+                record_key: state
+                    .conf
+                    .deja
+                    .sampler
+                    .record_key
+                    .as_deref()
+                    .filter(|record_key| !record_key.is_empty())
+                    .unwrap_or("deja_record")
+                    .to_owned(),
+                timeout_ms: state.conf.deja.sampler.timeout_ms,
+                fail_closed: state.conf.deja.sampler.fail_closed,
+            });
+        sampler
     });
 
     let mut server_app = get_application_builder(
@@ -220,7 +221,7 @@ pub fn mk_app(
         state.conf.cors.clone(),
         state.conf.trace_header.clone(),
         #[cfg(feature = "deja")]
-        Some(deja_recording_sampler),
+        deja_recording_sampler,
     );
 
     #[cfg(feature = "dummy_connector")]

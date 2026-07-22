@@ -11,7 +11,7 @@ fn settings_for(mode: DejaMode) -> DejaSettings {
 
 #[test]
 fn replay_mode_without_source_or_lookup_dir_fails_loudly() {
-    let err = router::deja_boot::install(&settings_for(DejaMode::Replay))
+    let err = router::deja_boot::install(&settings_for(DejaMode::Replay), None)
         .expect_err("replay mode without source or lookup_dir must abort boot");
 
     assert!(
@@ -27,7 +27,7 @@ fn replay_mode_with_missing_lookup_source_fails_loudly() {
     let mut settings = settings_for(DejaMode::Replay);
     settings.replay.source = Some(missing_source.to_owned());
 
-    let err = router::deja_boot::install(&settings)
+    let err = router::deja_boot::install(&settings, None)
         .expect_err("replay mode with a missing lookup table source must abort boot");
 
     assert!(
@@ -38,7 +38,7 @@ fn replay_mode_with_missing_lookup_source_fails_loudly() {
 
 #[test]
 fn record_mode_without_kafka_topic_fails_open_with_disabled_report() {
-    let report = router::deja_boot::install(&settings_for(DejaMode::Record))
+    let report = router::deja_boot::install(&settings_for(DejaMode::Record), None)
         .expect("record-mode Kafka topic misconfiguration should fail open");
 
     assert_eq!(report.mode, "disabled");
