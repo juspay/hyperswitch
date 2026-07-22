@@ -4145,6 +4145,8 @@ Cypress.Commands.add(
 
           validateErrorMessage(response, resData);
 
+          const allowedPmStatuses = ["active", "inactive"];
+
           if (response.body.capture_method === "automatic") {
             if (response.body.authentication_type === "three_ds") {
               expect(response.body)
@@ -4162,7 +4164,7 @@ Cypress.Commands.add(
                 expect(
                   response.body.payment_method_status,
                   "payment_method_status"
-                ).to.equal("active");
+                ).to.be.oneOf(allowedPmStatuses);
               }
             } else if (response.body.authentication_type === "no_three_ds") {
               for (const key in resData.body) {
@@ -4193,7 +4195,7 @@ Cypress.Commands.add(
                 expect(
                   response.body.payment_method_status,
                   "payment_method_status"
-                ).to.equal("active");
+                ).to.be.oneOf(allowedPmStatuses);
               }
             } else {
               // Handle other authentication types as needed

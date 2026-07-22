@@ -244,6 +244,40 @@ impl AttemptStatus {
         }
     }
 
+    pub fn acknowledgement_status_for_mod_payment_method(self) -> AcknowledgementStatus {
+        match self {
+            Self::Charged
+            | Self::PartialCharged
+            | Self::Authorized
+            | Self::PartiallyAuthorized
+            | Self::AuthenticationSuccessful
+            | Self::PartialChargedAndChargeable => AcknowledgementStatus::Authenticated,
+            Self::Started
+            | Self::AuthenticationFailed
+            | Self::RouterDeclined
+            | Self::AuthenticationPending
+            | Self::AuthorizationFailed
+            | Self::Authorizing
+            | Self::CodInitiated
+            | Self::Voided
+            | Self::VoidedPostCharge
+            | Self::VoidInitiated
+            | Self::CaptureInitiated
+            | Self::CaptureFailed
+            | Self::VoidFailed
+            | Self::AutoRefunded
+            | Self::Unresolved
+            | Self::Pending
+            | Self::Failure
+            | Self::PaymentMethodAwaited
+            | Self::ConfirmationAwaited
+            | Self::DeviceDataCollectionPending
+            | Self::IntegrityFailure
+            | Self::Expired
+            | Self::CaptureReview => AcknowledgementStatus::Failed,
+        }
+    }
+
     pub fn is_success(self) -> bool {
         matches!(self, Self::Charged | Self::PartialCharged)
     }
@@ -11371,6 +11405,16 @@ impl From<AcknowledgementStatus> for PaymentMethodStatus {
         match ack {
             AcknowledgementStatus::Authenticated => Self::Active,
             AcknowledgementStatus::Failed => Self::Inactive,
+        }
+    }
+}
+
+impl From<PaymentMethodStatus> for Option<AcknowledgementStatus> {
+    fn from(status: PaymentMethodStatus) -> Self {
+        match status {
+            PaymentMethodStatus::Active => Self::Some(AcknowledgementStatus::Authenticated),
+            PaymentMethodStatus::Inactive => Self::Some(AcknowledgementStatus::Failed),
+            _ => Self::None,
         }
     }
 }

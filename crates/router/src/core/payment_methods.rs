@@ -5441,12 +5441,11 @@ pub async fn retrieve_payment_method(
     when(
         matches!(
             payment_method.status,
-            common_enums::PaymentMethodStatus::Inactive
-                | common_enums::PaymentMethodStatus::Redacted
+            common_enums::PaymentMethodStatus::Redacted
         ),
         || {
             Err(report!(errors::ApiErrorResponse::PaymentMethodNotFound)
-                .attach_printable("Payment method is inactive or redacted"))
+                .attach_printable("Payment method is redacted"))
         },
     )?;
 
@@ -5520,6 +5519,9 @@ pub async fn retrieve_payment_method(
         .map(|billing| billing.into_inner())
         .map(From::from);
 
+    let acknowledgement_status =
+        Option::<common_enums::AcknowledgementStatus>::from(payment_method.status);
+
     transformers::generate_payment_method_response(
         &payment_method,
         &single_use_token_in_cache,
@@ -5530,7 +5532,7 @@ pub async fn retrieve_payment_method(
         payment_method.customer_id.clone(),
         raw_payment_method_data,
         billing,
-        None,
+        acknowledgement_status,
     )
     .map(services::ApplicationResponse::Json)
 }
