@@ -14,7 +14,7 @@ networks:
 services:
   ### Dependencies
   pg:
-    image: docker.io/postgres:latest
+    image: docker.io/postgres:18
     ports:
       - "5432:5432"
     networks:
