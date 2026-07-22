@@ -5946,6 +5946,11 @@ pub async fn delete_payment_method_core(
         || Err(errors::ApiErrorResponse::PaymentMethodNotFound),
     )?;
 
+    when(
+        payment_method.status == enums::PaymentMethodStatus::Redacted,
+        || Err(errors::ApiErrorResponse::PaymentMethodRedacted),
+    )?;
+
     let _customer = db
         .find_customer_by_global_id_merchant_id(
             customer_id,
