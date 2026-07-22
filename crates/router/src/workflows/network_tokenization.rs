@@ -1,8 +1,8 @@
 #[cfg(feature = "v1")]
 use common_utils::ext_traits::ValueExt;
+use scheduler::workflows::ProcessTrackerWorkflow;
 #[cfg(feature = "v1")]
 use scheduler::{consumer::types::process_data, utils as pt_utils};
-use scheduler::workflows::ProcessTrackerWorkflow;
 
 use crate::{errors, logger, routes::SessionState, types::storage};
 
