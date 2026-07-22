@@ -402,9 +402,6 @@ impl ForeignTryFrom<(payments_grpc::PaymentServiceGetResponse, AttemptStatus)>
     ) -> Result<Self, Self::Error> {
         let status_code = convert_connector_service_status_code(response.status_code)?;
 
-        // `connector_transaction_id` is a plain proto3 string, so a connector that returned no
-        // transaction id reaches us as "" rather than as an absent field. Map it back to
-        // NoResponseId, the way the flows whose id is an `optional` proto field already do.
         let connector_transaction_id = if response.connector_transaction_id.is_empty() {
             hyperswitch_domain_models::router_request_types::ResponseId::NoResponseId
         } else {
