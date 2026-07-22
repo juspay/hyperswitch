@@ -1292,7 +1292,7 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                         .and_then(|metadata| metadata.customer_service_phone_number.clone()),
                     merchant_url: tsys_transit_meta
                         .as_ref()
-                        .and_then(|metadata| metadata.merchant_url.to_string()),
+                        .and_then(|metadata| metadata.merchant_url.as_ref().map(|merchant_url| merchant_url.to_string())),
                 })},
                 _ => Err(err("TsysTransit requires SignatureKey auth type")),
             },
