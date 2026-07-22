@@ -148,8 +148,9 @@ impl
     ) -> Result<Self, Self::Error> {
         let response = match item.response {
             NetceteraAuthenticationResponse::Success(response) => {
-                let authn_flow_type = match response.acs_challenge_mandated {
-                    Some(ACSChallengeMandatedIndicator::Y) => {
+                let authn_flow_type = match &response.trans_status {
+                    common_enums::TransactionStatus::ChallengeRequired
+                    | common_enums::TransactionStatus::ChallengeRequiredDecoupledAuthentication => {
                         AuthNFlowType::Challenge(Box::new(ChallengeParams {
                             acs_url: response.authentication_response.acs_url.clone(),
                             challenge_request: response.encoded_challenge_request,
@@ -162,7 +163,7 @@ impl
                             challenge_request_key: None,
                         }))
                     }
-                    Some(ACSChallengeMandatedIndicator::N) | None => AuthNFlowType::Frictionless,
+                    _ => AuthNFlowType::Frictionless,
                 };
 
                 let challenge_code = response
