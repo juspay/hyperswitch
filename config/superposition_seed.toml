@@ -116,6 +116,18 @@ schema = { type = "boolean" }
 description = "Whether the SDK should perform an eligibility check before confirming payment"
 change_reason = "Initial setup"
 
+[default-configs.offer_engine_enabled]
+value = false
+schema = { type = "boolean" }
+description = "Master gate for the Offer Engine integration. When false (default) Offer Engine is never called, regardless of offer_engine_credential_source. Set true (per tenant/env override) to allow Offer Engine calls."
+change_reason = "Offer Engine disabled by default; enable via Superposition override"
+
+[default-configs.offer_engine_credential_source]
+value = "none"
+schema = { type = "string", enum = ["none", "application"] }
+description = "Source of Offer Engine credentials once offer_engine_enabled is true: 'none' still skips Offer Engine; 'application' uses the static offer_engine application config. Future org/merchant/profile sources will extend this enum alongside their credential storage."
+change_reason = "Offer Engine credential source is a string enum (extensible to org/merchant/profile sources)"
+
 [default-configs.should_enable_mit_with_limited_card_data]
 value = false
 schema = { type = "boolean" }

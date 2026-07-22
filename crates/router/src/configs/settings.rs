@@ -190,6 +190,8 @@ pub struct Settings<S: SecretState> {
     #[serde(default)]
     pub enhancement: Option<HashMap<String, String>>,
     pub superposition: SecretStateContainer<SuperpositionClientConfig, S>,
+    #[serde(default)]
+    pub offer_engine: OfferEngineConfig,
     pub proxy_status_mapping: ProxyStatusMapping,
     pub trace_header: TraceHeaderConfig,
     pub internal_services: InternalServicesConfig,
@@ -662,6 +664,14 @@ pub struct ForexApi {
     pub data_expiration_delay_in_seconds: u32,
     pub redis_lock_timeout_in_seconds: u32,
     pub redis_ttl_in_seconds: u32,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(default)]
+pub struct OfferEngineConfig {
+    pub base_url: String,
+    pub api_key: Secret<String>,
+    pub merchant_id: String,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]

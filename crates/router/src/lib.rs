@@ -264,6 +264,7 @@ pub fn mk_app(
 
     server_app = server_app.service(routes::Cache::server(state.clone()));
     server_app = server_app.service(routes::Health::server(state.clone()));
+    server_app = server_app.service(routes::OfferEngine::server(state.clone()));
     // Registered at the end because this entry has an empty scope
     #[cfg(feature = "olap")]
     {
