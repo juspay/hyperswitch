@@ -519,6 +519,14 @@ export const payment_methods_enabled = [
         installment_payment_enabled: true,
         payment_experience: "redirect_to_url",
       },
+      {
+        payment_method_type: "qris",
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: true,
+        installment_payment_enabled: false,
+        payment_experience: "redirect_to_url",
+      },
     ],
   },
   {
@@ -973,6 +981,18 @@ export const payment_methods_enabled = [
         card_networks: null,
         accepted_currencies: null,
         accepted_countries: null,
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: false,
+        installment_payment_enabled: false,
+      },
+    ],
+  },
+  {
+    payment_method: "open_banking",
+    payment_method_types: [
+      {
+        payment_method_type: "open_banking_pis",
         minimum_amount: 1,
         maximum_amount: 68607706,
         recurring_enabled: false,
@@ -2157,6 +2177,41 @@ export const connectorDetails = {
           },
         },
         billing: standardBillingAddress,
+      },
+    }),
+    Qris: getCustomExchange({
+      Request: {
+        payment_method: "real_time_payment",
+        payment_method_type: "qris",
+        payment_method_data: {
+          real_time_payment: {
+            qris: {},
+          },
+        },
+        billing: standardBillingAddress,
+      },
+    }),
+    QrisMandate: getCustomExchange({
+      Request: {
+        payment_method: "real_time_payment",
+        payment_method_type: "qris",
+        payment_method_data: {
+          real_time_payment: {
+            qris: {},
+          },
+        },
+        billing: standardBillingAddress,
+        setup_future_usage: "off_session",
+        mandate_data: {
+          customer_acceptance: {
+            acceptance_type: "online",
+            accepted_at: "2026-07-13T18:09:53Z",
+            online: {
+              ip_address: "127.0.0.1",
+              user_agent: "test-agent",
+            },
+          },
+        },
       },
     }),
   },

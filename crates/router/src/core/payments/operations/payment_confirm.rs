@@ -2222,13 +2222,29 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                  )
                     .update_storage_scheme(platform.get_processor().get_account().storage_scheme);
 
-                let cryptogram = sync_response.authentication_details.and_then(|authentication_details| authentication_details.three_ds_data.and_then(|data| data.authentication_cryptogram)).ok_or(errors::ApiErrorResponse::MissingRequiredField{field_name:"authentication_cryptogram"})?;
+                let cavv = if updated_authentication_status
+                    == api_models::enums::AuthenticationStatus::Success
+                {
+                    let cryptogram = sync_response
+                        .authentication_details
+                        .and_then(|authentication_details| authentication_details.three_ds_data)
+                        .and_then(|data| data.authentication_cryptogram)
+                        .ok_or(errors::ApiErrorResponse::MissingRequiredField {
+                            field_name: "authentication_cryptogram",
+                        })?;
+
+                    match cryptogram {
+                        api_models::authentication::Cryptogram::Cavv {
+                            authentication_cryptogram,
+                        } => Some(authentication_cryptogram),
+                    }
+                } else {
+                    None
+                };
 
                 let authentication_store =
                         hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore {
-                            cavv: match cryptogram {
-                                api_models::authentication::Cryptogram::Cavv { authentication_cryptogram } => Some(authentication_cryptogram),
-                            },
+                            cavv,
                             authentication:authentication_domain_model
                         };
 
