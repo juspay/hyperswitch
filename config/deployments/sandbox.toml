@@ -736,7 +736,7 @@ open_banking = { currency = "GBP,EUR,PLN" }
 trustly = { currency = "BGN,GBP,EUR,PLN,CZK,DKK,HRK,HUF,NOK,PLN,RON,SEK" }
 
 [pm_filters.trustly]
-trustly = { currency = "BGN,GBP,EUR,PLN,CZK,DKK,HRK,HUF,NOK,PLN,RON,SEK" }
+open_banking = { currency = "BGN,GBP,EUR,PLN,CZK,DKK,HRK,HUF,NOK,PLN,RON,SEK" }
 
 [pm_filters.redsys]
 credit = { currency = "AUD,BGN,CAD,CHF,COP,CZK,DKK,EUR,GBP,HRK,HUF,ILS,INR,JPY,MYR,NOK,NZD,PEN,PLN,RUB,SAR,SEK,SGD,THB,USD,ZAR", country="ES" }
