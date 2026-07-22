@@ -545,6 +545,7 @@ export const CONNECTOR_LISTS = {
   INCLUDE: {
     MANDATES_USING_NTID_PROXY: ["cybersource", "checkout"],
     INCREMENTAL_AUTH: [
+      "wellsfargo",
       "archipel",
       // "cybersource",    // issues with MULTIPLE_CONNECTORS handling
       "paypal",
