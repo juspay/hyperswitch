@@ -169,64 +169,96 @@ impl ConnectorCommon for Nexixpay {
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: nexixpay::NexixpayErrorResponse = match res.status_code {
-            401 => nexixpay::NexixpayErrorResponse {
+        let response: Result<
+            nexixpay::NexixpayErrorResponse,
+            error_stack::Report<common_utils::errors::ParsingError>,
+        > = match res.status_code {
+            // 401 / 404 have no useful body from Nexixpay — fabricate a canonical error.
+            401 => Ok(nexixpay::NexixpayErrorResponse {
                 errors: vec![nexixpay::NexixpayErrorBody {
                     code: Some(consts::NO_ERROR_CODE.to_string()),
                     description: Some("UNAUTHORIZED".to_string()),
                 }],
-            },
-            404 => nexixpay::NexixpayErrorResponse {
+            }),
+            404 => Ok(nexixpay::NexixpayErrorResponse {
                 errors: vec![nexixpay::NexixpayErrorBody {
                     code: Some(consts::NO_ERROR_CODE.to_string()),
                     description: Some("NOT FOUND".to_string()),
                 }],
-            },
-            _ => res
-                .response
-                .parse_struct("NexixpayErrorResponse")
-                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?,
-        };
-
-        let concatenated_descriptions: Option<String> = {
-            let descriptions: Vec<String> = response
-                .errors
-                .iter()
-                .filter_map(|error| error.description.as_ref())
-                .cloned()
-                .collect();
-
-            if descriptions.is_empty() {
-                None
-            } else {
-                Some(descriptions.join(", "))
+            }),
+            _ => {
+                if res.response.is_empty() {
+                    return Ok(ErrorResponse {
+                        status_code: res.status_code,
+                        code: consts::NO_ERROR_CODE.to_string(),
+                        message: consts::NO_ERROR_MESSAGE.to_string(),
+                        reason: None,
+                        attempt_status: None,
+                        connector_transaction_id: None,
+                        connector_response_reference_id: None,
+                        network_advice_code: None,
+                        network_decline_code: None,
+                        network_error_message: None,
+                        connector_metadata: None,
+                    });
+                }
+                res.response.parse_struct("NexixpayErrorResponse")
             }
         };
 
-        event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
+        match response {
+            Ok(response) => {
+                let concatenated_descriptions: Option<String> = {
+                    let descriptions: Vec<String> = response
+                        .errors
+                        .iter()
+                        .filter_map(|error| error.description.as_ref())
+                        .cloned()
+                        .collect();
 
-        Ok(ErrorResponse {
-            status_code: res.status_code,
-            code: response
-                .errors
-                .first()
-                .and_then(|error| error.code.clone())
-                .unwrap_or(consts::NO_ERROR_CODE.to_string()),
-            message: response
-                .errors
-                .first()
-                .and_then(|error| error.description.clone())
-                .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
-            reason: concatenated_descriptions,
-            attempt_status: None,
-            connector_transaction_id: None,
-            connector_response_reference_id: None,
-            network_advice_code: None,
-            network_decline_code: None,
-            network_error_message: None,
-            connector_metadata: None,
-        })
+                    if descriptions.is_empty() {
+                        None
+                    } else {
+                        Some(descriptions.join(", "))
+                    }
+                };
+
+                event_builder.map(|i| i.set_response_body(&response));
+                router_env::logger::info!(connector_response=?response);
+
+                Ok(ErrorResponse {
+                    status_code: res.status_code,
+                    code: response
+                        .errors
+                        .first()
+                        .and_then(|error| error.code.clone())
+                        .unwrap_or(consts::NO_ERROR_CODE.to_string()),
+                    message: response
+                        .errors
+                        .first()
+                        .and_then(|error| error.description.clone())
+                        .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+                    reason: concatenated_descriptions,
+                    attempt_status: None,
+                    connector_transaction_id: None,
+                    connector_response_reference_id: None,
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
+                    connector_metadata: None,
+                })
+            }
+            Err(error_msg) => {
+                event_builder.map(|event| {
+                    event.set_error(serde_json::json!({
+                        "error": res.response.escape_ascii().to_string(),
+                        "status_code": res.status_code,
+                    }))
+                });
+                router_env::logger::error!(deserialization_error =? error_msg);
+                utils::handle_json_response_deserialization_failure(res, "nexixpay")
+            }
+        }
     }
 }
 
@@ -860,6 +892,7 @@ fn get_payment_id(
         nexixpay::NexixpayPaymentIntent::Cancel => nexixpay_meta_data.cancel_operation_id,
         nexixpay::NexixpayPaymentIntent::Capture => nexixpay_meta_data.capture_operation_id,
         nexixpay::NexixpayPaymentIntent::Authorize => nexixpay_meta_data.authorization_operation_id,
+        nexixpay::NexixpayPaymentIntent::Unknown => None,
     };
     payment_id.ok_or_else(|| {
         errors::ConnectorError::MissingRequiredField {
@@ -1356,7 +1389,9 @@ impl ConnectorSpecifications for Nexixpay {
                 ..
             } => payment_method == Some(enums::PaymentMethod::Card) && auth_type.is_three_ds(),
             api::CurrentFlowInfo::SetupMandate { .. } => false,
-            api::CurrentFlowInfo::Psync { .. } => false,
+            api::CurrentFlowInfo::Psync { .. }
+            | api::CurrentFlowInfo::UpdatePostConfirm { .. }
+            | api::CurrentFlowInfo::ConnectorWebhookRegister { .. } => false,
         }
     }
 
@@ -1384,7 +1419,9 @@ impl ConnectorSpecifications for Nexixpay {
             // No alternate flow for complete authorize
             api::CurrentFlowInfo::CompleteAuthorize { .. } => false,
             api::CurrentFlowInfo::SetupMandate { .. } => false,
-            api::CurrentFlowInfo::Psync { .. } => false,
+            api::CurrentFlowInfo::Psync { .. }
+            | api::CurrentFlowInfo::UpdatePostConfirm { .. }
+            | api::CurrentFlowInfo::ConnectorWebhookRegister { .. } => false,
         }
     }
 }

@@ -1,6 +1,7 @@
 pub mod transformers;
 use std::sync::LazyLock;
 
+use api_models::merchant_connector_webhook_management::ScopeIdentifier;
 use base64::Engine;
 use common_enums::enums::{self, PaymentMethodType};
 use common_utils::{
@@ -15,12 +16,14 @@ use common_utils::{
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
-    api::ApplicationResponse,
+    api::WebhookResponse,
     payment_method_data,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
-        merchant_connector_webhook_management::ConnectorWebhookRegister,
+        merchant_connector_webhook_management::{
+            ConnectorWebhookGenerateSecret, ConnectorWebhookRegister,
+        },
         payments::{
             Authorize, Capture, ExtendAuthorization, PSync, PaymentMethodToken, PreProcessing,
             Session, SetupMandate, Void,
@@ -29,7 +32,9 @@ use hyperswitch_domain_models::{
         Accept, Defend, Evidence, GiftCardBalanceCheck, Retrieve, Upload,
     },
     router_request_types::{
-        merchant_connector_webhook_management::ConnectorWebhookRegisterRequest,
+        merchant_connector_webhook_management::{
+            ConnectorWebhookGenerateSecretRequest, ConnectorWebhookRegisterRequest,
+        },
         AcceptDisputeRequestData, AccessTokenRequestData, DefendDisputeRequestData,
         GiftCardBalanceCheckRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
         PaymentsCancelData, PaymentsCaptureData, PaymentsExtendAuthorizationData,
@@ -38,17 +43,20 @@ use hyperswitch_domain_models::{
         SyncRequestType, UploadFileRequestData,
     },
     router_response_types::{
-        merchant_connector_webhook_management::ConnectorWebhookRegisterResponse,
+        merchant_connector_webhook_management::{
+            ConnectorWebhookGenerateSecretResponse, ConnectorWebhookRegisterResponse,
+        },
         AcceptDisputeResponse, ConnectorInfo, DefendDisputeResponse,
         GiftCardBalanceCheckResponseData, PaymentMethodDetails, PaymentsResponseData,
         RefundsResponseData, RetrieveFileResponse, SubmitEvidenceResponse, SupportedPaymentMethods,
         SupportedPaymentMethodsExt, UploadFileResponse,
     },
     types::{
-        ConnectorWebhookRegisterRouterData, PaymentsAuthorizeRouterData, PaymentsCancelRouterData,
-        PaymentsCaptureRouterData, PaymentsExtendAuthorizationRouterData,
-        PaymentsGiftCardBalanceCheckRouterData, PaymentsPreProcessingRouterData,
-        PaymentsSyncRouterData, RefundsRouterData, SetupMandateRouterData,
+        ConnectorWebhookGenerateSecretRouterData, ConnectorWebhookRegisterRouterData,
+        PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
+        PaymentsExtendAuthorizationRouterData, PaymentsGiftCardBalanceCheckRouterData,
+        PaymentsPreProcessingRouterData, PaymentsSyncRouterData, RefundsRouterData,
+        SetupMandateRouterData,
     },
 };
 #[cfg(feature = "payouts")]
@@ -67,15 +75,16 @@ use hyperswitch_interfaces::{
         disputes::{AcceptDispute, DefendDispute, Dispute, SubmitEvidence},
         files::{FilePurpose, FileUpload, RetrieveFile, UploadFile},
         CaptureSyncMethod, ConnectorCommon, ConnectorIntegration, ConnectorSpecifications,
-        ConnectorValidation, WebhookRegister,
+        ConnectorValidation, GenerateConnectorWebhookSecret, WebhookGenerateSecret,
+        WebhookRegister,
     },
     configs::Connectors,
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     disputes, errors,
     events::connector_api_logs::ConnectorEvent,
     types::{
-        AcceptDisputeType, ConnectorWebhookRegisterType, DefendDisputeType,
-        ExtendedAuthorizationType, PaymentsAuthorizeType, PaymentsCaptureType,
+        AcceptDisputeType, ConnectorWebhookGenerateSecretType, ConnectorWebhookRegisterType,
+        DefendDisputeType, ExtendedAuthorizationType, PaymentsAuthorizeType, PaymentsCaptureType,
         PaymentsGiftCardBalanceCheckType, PaymentsPreProcessingType, PaymentsSyncType,
         PaymentsVoidType, RefundExecuteType, Response, SetupMandateType, SubmitEvidenceType,
     },
@@ -152,27 +161,62 @@ impl ConnectorCommon for Adyen {
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        let response: adyen::AdyenErrorResponse = res
-            .response
-            .parse_struct("ErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        if res.response.is_empty() {
+            Ok(ErrorResponse {
+                status_code: res.status_code,
+                code: NO_ERROR_CODE.to_string(),
+                message: NO_ERROR_MESSAGE.to_string(),
+                reason: None,
+                attempt_status: None,
+                connector_transaction_id: None,
+                connector_response_reference_id: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
+                connector_metadata: None,
+            })
+        } else {
+            let response: Result<
+                adyen::AdyenErrorResponse,
+                error_stack::Report<common_utils::errors::ParsingError>,
+            > = res.response.parse_struct("ErrorResponse");
 
-        event_builder.map(|i| i.set_error_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
+            match response {
+                Ok(response) => {
+                    event_builder.map(|i| i.set_error_response_body(&response));
+                    router_env::logger::info!(connector_response=?response);
 
-        Ok(ErrorResponse {
-            status_code: res.status_code,
-            code: response.error_code,
-            message: response.message.to_owned(),
-            reason: Some(response.message),
-            attempt_status: None,
-            connector_transaction_id: response.psp_reference,
-            connector_response_reference_id: None,
-            network_advice_code: None,
-            network_decline_code: None,
-            network_error_message: None,
-            connector_metadata: None,
-        })
+                    let message = response
+                        .message
+                        .or(response.title)
+                        .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string());
+
+                    Ok(ErrorResponse {
+                        status_code: res.status_code,
+                        code: response.error_code,
+                        message: message.clone(),
+                        reason: Some(message),
+                        attempt_status: None,
+                        connector_transaction_id: response.psp_reference,
+                        connector_response_reference_id: None,
+                        network_advice_code: None,
+                        network_decline_code: None,
+                        network_error_message: None,
+                        connector_metadata: None,
+                    })
+                }
+                Err(error_msg) => {
+                    event_builder.map(|event| {
+                        event.set_error(serde_json::json!({
+                            "error": res.response.escape_ascii().to_string(),
+                            "status_code": res.status_code,
+                        }))
+                    });
+                    router_env::logger::error!(deserialization_error =? error_msg);
+                    crate::utils::handle_json_response_deserialization_failure(res, "adyen")
+                }
+            }
+        }
     }
 }
 
@@ -289,6 +333,7 @@ impl ConnectorValidation for Adyen {
                 | PaymentMethodType::Pix
                 | PaymentMethodType::PixKey
                 | PaymentMethodType::PixEmv
+                | PaymentMethodType::PixQr
                 | PaymentMethodType::Swish
                 | PaymentMethodType::TouchNGo
                 | PaymentMethodType::Trustly
@@ -1946,10 +1991,7 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Adyen {
         _req: &RefundsRouterData<RSync>,
         _connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
-        Err(
-            errors::ConnectorError::NotImplemented("Refund Sync flow not Implemented".to_string())
-                .into(),
-        )
+        Err(errors::ConnectorError::NotImplemented("Refund Sync flow".to_string()).into())
     }
 }
 
@@ -2101,6 +2143,10 @@ impl IncomingWebhook for Adyen {
         request: &IncomingWebhookRequestDetails<'_>,
         _context: Option<&WebhookContext>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
+        if request.body.is_empty() {
+            return Ok(api_models::webhooks::IncomingWebhookEvent::EndpointVerification);
+        }
+
         let notif = get_webhook_object_from_body(request.body)
             .change_context(errors::ConnectorError::WebhookResponseEncodingFailed)?;
 
@@ -2131,8 +2177,8 @@ impl IncomingWebhook for Adyen {
         _connector_authentication_type: Option<
             common_utils::crypto::Encryptable<Secret<serde_json::Value>>,
         >,
-    ) -> CustomResult<ApplicationResponse<serde_json::Value>, errors::ConnectorError> {
-        Ok(ApplicationResponse::TextPlain("[accepted]".to_string()))
+    ) -> CustomResult<WebhookResponse<serde_json::Value>, errors::ConnectorError> {
+        Ok(WebhookResponse::TextPlain("[accepted]".to_string()))
     }
 
     fn get_dispute_details(
@@ -2530,7 +2576,12 @@ impl FileUpload for Adyen {
     }
 }
 
-impl WebhookRegister for Adyen {}
+impl WebhookRegister for Adyen {
+    fn requires_webhook_secret_generation(&self) -> bool {
+        true
+    }
+}
+
 impl
     ConnectorIntegration<
         ConnectorWebhookRegister,
@@ -2557,13 +2608,15 @@ impl
     fn get_url(
         &self,
         req: &ConnectorWebhookRegisterRouterData,
-        connectors: &Connectors,
+        _connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let endpoint = connectors.adyen.management_base_url.as_str();
         let auth = adyen::AdyenAuthType::try_from(&req.connector_auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         let merchant_id = auth.merchant_account.expose();
-        Ok(format!("{endpoint}/v3/merchants/{merchant_id}/webhooks",))
+        let base_url = req.request.base_url.to_string();
+        Ok(base_url
+            .replace("{merchantId}", &merchant_id)
+            .replace("%7BmerchantId%7D", &merchant_id))
     }
 
     fn get_request_body(
@@ -2599,12 +2652,103 @@ impl
     fn handle_response(
         &self,
         data: &ConnectorWebhookRegisterRouterData,
-        _event_builder: Option<&mut ConnectorEvent>,
+        event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<ConnectorWebhookRegisterRouterData, errors::ConnectorError> {
         let response: adyen::AdyenWebhookRegisterResponse = res
             .response
             .parse_struct("AdyenWebhookRegisterResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+}
+
+impl WebhookGenerateSecret for Adyen {}
+impl GenerateConnectorWebhookSecret for Adyen {}
+impl
+    ConnectorIntegration<
+        ConnectorWebhookGenerateSecret,
+        ConnectorWebhookGenerateSecretRequest,
+        ConnectorWebhookGenerateSecretResponse,
+    > for Adyen
+{
+    fn get_headers(
+        &self,
+        req: &ConnectorWebhookGenerateSecretRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::ConnectorError> {
+        let mut header = vec![(
+            headers::CONTENT_TYPE.to_string(),
+            ConnectorWebhookGenerateSecretType::get_content_type(self)
+                .to_string()
+                .into(),
+        )];
+        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
+        header.append(&mut api_key);
+        Ok(header)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        req: &ConnectorWebhookGenerateSecretRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        let endpoint = connectors.adyen.management_base_url.as_str();
+        let auth = adyen::AdyenAuthType::try_from(&req.connector_auth_type)
+            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
+        let merchant_id = auth.merchant_account.expose();
+        let webhook_id = &req.request.connector_webhook_id;
+        Ok(format!(
+            "{endpoint}/v3/merchants/{merchant_id}/webhooks/{webhook_id}/generateHmac",
+        ))
+    }
+
+    fn build_request(
+        &self,
+        req: &ConnectorWebhookGenerateSecretRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        let request = RequestBuilder::new()
+            .method(Method::Post)
+            .url(&ConnectorWebhookGenerateSecretType::get_url(
+                self, req, connectors,
+            )?)
+            .attach_default_headers()
+            .headers(ConnectorWebhookGenerateSecretType::get_headers(
+                self, req, connectors,
+            )?)
+            .build();
+        Ok(Some(request))
+    }
+
+    fn handle_response(
+        &self,
+        data: &ConnectorWebhookGenerateSecretRouterData,
+        _event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<ConnectorWebhookGenerateSecretRouterData, errors::ConnectorError> {
+        let response: adyen::AdyenGenerateHmacResponse = res
+            .response
+            .parse_struct("AdyenGenerateHmacResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         RouterData::try_from(ResponseRouterData {
             response,
@@ -3407,16 +3551,6 @@ static ADYEN_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = Lazy
     adyen_supported_payment_methods
 });
 
-static ADYEN_WEBHOOK_SETUP_CAPABILITIES:
-    common_types::connector_webhook_configuration::WebhookSetupCapabilities =
-    common_types::connector_webhook_configuration::WebhookSetupCapabilities {
-        is_webhook_auto_configuration_supported: true,
-        requires_webhook_secret: Some(false),
-        config_type: Some(
-            common_types::connector_webhook_configuration::WebhookConfigType::AllEvents,
-        ),
-    };
-
 static ADYEN_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
         display_name: "Adyen",
         description: "Adyen is a Dutch payment company with the status of an acquiring bank that allows businesses to accept e-commerce, mobile, and point-of-sale payments. It is listed on the stock exchange Euronext Amsterdam",
@@ -3446,6 +3580,8 @@ impl ConnectorSpecifications for Adyen {
                 matches!(&request_data.payment_method_data, Some(payment_method_data::PaymentMethodData::GiftCard(giftcard_data)) if giftcard_data.is_givex())
             }
             api::CurrentFlowInfo::Psync { .. } => false,
+            api::CurrentFlowInfo::UpdatePostConfirm { .. } => false,
+            api::CurrentFlowInfo::ConnectorWebhookRegister { .. } => false,
         }
     }
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
@@ -3474,9 +3610,22 @@ impl ConnectorSpecifications for Adyen {
         })
     }
 
-    fn get_api_webhook_config(
+    fn get_webhook_registration_plan(
         &self,
-    ) -> &'static common_types::connector_webhook_configuration::WebhookSetupCapabilities {
-        &ADYEN_WEBHOOK_SETUP_CAPABILITIES
+        scope: &api_models::merchant_connector_webhook_management::Scope,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(ScopeIdentifier, String)>, errors::ConnectorError> {
+        use api_models::merchant_connector_webhook_management::{Scope, ScopeIdentifier};
+        let endpoint = connectors.adyen.management_base_url.as_str();
+        match scope {
+            Scope::NotSpecific => Ok(vec![(
+                ScopeIdentifier::NotSpecific,
+                format!("{endpoint}v3/merchants/{{merchantId}}/webhooks"),
+            )]),
+            _ => Err(errors::ConnectorError::NotSupported {
+                message: "Scope type not supported".to_string(),
+                connector: "Adyen",
+            })?,
+        }
     }
 }

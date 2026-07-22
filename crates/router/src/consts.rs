@@ -369,12 +369,15 @@ pub mod superposition {
     pub const REQUIRES_CVV: &str = "requires_cvv";
     /// implicit customer update configuration key
     pub const IMPLICIT_CUSTOMER_UPDATE: &str = "implicit_customer_update";
-    /// Fingerprint secret configuration key
+    /// Fingerprint secret configuration key retained for migration fallback
     pub const FINGERPRINT_SECRET: &str = "fingerprint_secret";
     /// Poll config for external 3DS authentication key
     pub const POLL_CONFIG_EXTERNAL_THREE_DS: &str = "poll_config_external_three_ds";
     /// Outgoing webhook retry process tracker mapping key
     pub const PT_MAPPING_OUTGOING_WEBHOOKS: &str = "pt_mapping_outgoing_webhooks";
+    /// Outgoing connector webhook retry process tracker mapping key
+    pub const PT_MAPPING_OUTGOING_CONNECTOR_WEBHOOKS: &str =
+        "pt_mapping_outgoing_connector_webhooks";
     /// PCR (Revenue Recovery) payments retry process tracker mapping key
     pub const PT_MAPPING_PCR_RETRIES: &str = "pt_mapping_pcr_retries";
     /// Payment sync (psync) retry process tracker mapping key
@@ -417,6 +420,10 @@ pub mod superposition {
         "should_trigger_backwards_compatibility_inline";
     /// Trigger fingerprint migration configuration key
     pub const SHOULD_TRIGGER_FINGERPRINT_MIGRATION: &str = "should_trigger_fingerprint_migration";
+    /// Perform SDK vaulting action configuration key. Acts as a merchant level override on top of
+    /// `should_call_pm_modular_service`: defaults to `true` for all merchants and can be set to
+    /// `false` for specific merchants to force the SDK to skip tokenization.
+    pub const SHOULD_PERFORM_SDK_VAULTING: &str = "should_perform_sdk_vaulting";
     /// dynamic fields configuration key for sdk config
     pub const DYNAMIC_FIELDS: &str = "dynamic_fields";
     /// payout sync tracker configuration key
@@ -429,6 +436,8 @@ pub mod superposition {
     pub const THREEDS_ROUTING_REGION_UAS: &str = "threeds_routing_region_uas";
     /// disabled webhook events configuration key per merchant and connector
     pub const INCOMING_WEBHOOK_DISABLED_EVENTS: &str = "incoming_webhook_disabled_events";
+    /// save wallet decrypted data in locker
+    pub const SAVE_WALLET_DECRYPTED_DATA: &str = "save_wallet_decrypted_data";
 }
 
 #[cfg(test)]

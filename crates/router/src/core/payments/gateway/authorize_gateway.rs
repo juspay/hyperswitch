@@ -64,7 +64,7 @@ where
         router_data: &RouterData<Self, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
         call_connector_action: CallConnectorAction,
         _connector_request: Option<Request>,
-        _return_raw_connector_response: Option<bool>,
+        return_raw_connector_response: Option<bool>,
         context: RouterGatewayContext,
     ) -> CustomResult<
         RouterData<Self, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
@@ -92,7 +92,7 @@ where
         let connector_auth_metadata =
             unified_connector_service::build_unified_connector_service_auth_metadata(
                 merchant_connector_account,
-                processor,
+                processor.get_account().get_id(),
                 router_data.connector.clone(),
             )
             .change_context(ConnectorError::RequestEncodingFailed)
@@ -149,35 +149,21 @@ where
                             if let UnifiedConnectorServiceError::ConnectorError(inner) =
                                 report.current_context()
                             {
-                                let (code, message, status_code, reason,
-                                     network_decline_code, network_advice_code,
-                                     network_error_message, connector) = (
-                                    &inner.code, &inner.message, inner.status_code,
-                                    &inner.reason, &inner.network_decline_code,
-                                    &inner.network_advice_code, &inner.network_error_message,
+                                let (code, message, status_code, connector) = (
+                                    &inner.code,
+                                    &inner.message,
+                                    inner.status_code,
                                     &inner.connector,
                                 );
-                                logger::info!(
+                                logger::debug!(
                                     "Connector error via UCS for recurring charge (connector {}, status {}): {} - {}",
                                     connector,
                                     status_code,
                                     code,
                                     message
                                 );
-                                router_data.response =
-                                    Err(hyperswitch_domain_models::router_data::ErrorResponse {
-                                        code: code.clone(),
-                                        message: message.clone(),
-                                        reason: reason.clone(),
-                                        status_code,
-                                        attempt_status: None,
-                                        connector_transaction_id: None,
-                                        connector_response_reference_id: None,
-                                        network_decline_code: network_decline_code.clone(),
-                                        network_advice_code: network_advice_code.clone(),
-                                        network_error_message: network_error_message.clone(),
-                                        connector_metadata: None,
-                                    });
+                                router_data.response = Err(inner.as_ref().into());
+                                router_data.connector_http_status_code = Some(status_code);
                                 return Ok((
                                     router_data,
                                     (),
@@ -217,10 +203,12 @@ where
                     router_data.minor_amount_captured = recurring_payment_charge_response
                         .captured_amount
                         .map(MinorUnit::new);
-                    router_data.raw_connector_response = recurring_payment_charge_response
-                        .raw_connector_response
-                        .clone()
-                        .map(|raw_connector_response| raw_connector_response.expose().into());
+                    if return_raw_connector_response.unwrap_or(false) {
+                        router_data.raw_connector_response = recurring_payment_charge_response
+                            .raw_connector_response
+                            .clone()
+                            .map(|raw_connector_response| raw_connector_response.expose().into());
+                    }
                     router_data.connector_http_status_code = Some(ucs_data.status_code);
 
                     ucs_data.connector_customer_id.map(|connector_customer_id| {
@@ -269,49 +257,24 @@ where
                             if let UnifiedConnectorServiceError::ConnectorError(inner) =
                                 report.current_context()
                             {
-                                let (
-                                    code,
-                                    message,
-                                    status_code,
-                                    reason,
-                                    network_decline_code,
-                                    network_advice_code,
-                                    network_error_message,
-                                    connector,
-                                ) = (
+                                let (code, message, status_code, connector) = (
                                     &inner.code,
                                     &inner.message,
                                     inner.status_code,
-                                    &inner.reason,
-                                    &inner.network_decline_code,
-                                    &inner.network_advice_code,
-                                    &inner.network_error_message,
                                     &inner.connector,
                                 );
-                                logger::info!(
+                                logger::debug!(
                                     "Connector error via UCS (connector {}, status {}): {} - {}",
                                     connector,
                                     status_code,
                                     code,
                                     message
                                 );
-                                router_data.response =
-                                    Err(hyperswitch_domain_models::router_data::ErrorResponse {
-                                        code: code.clone(),
-                                        message: message.clone(),
-                                        reason: reason.clone(),
-                                        status_code,
-                                        attempt_status: None,
-                                        connector_transaction_id: None,
-                                        connector_response_reference_id: None,
-                                        network_decline_code: network_decline_code.clone(),
-                                        network_advice_code: network_advice_code.clone(),
-                                        network_error_message: network_error_message.clone(),
-                                        connector_metadata: None,
-                                    });
+                                router_data.response = Err(inner.as_ref().into());
                                 // Return Ok with router_data containing the error response
                                 // This ensures the connector error flows through the normal
                                 // response handling path (same as direct connector errors)
+                                router_data.connector_http_status_code = Some(status_code);
                                 return Ok((
                                     router_data,
                                     (),
@@ -371,10 +334,12 @@ where
                     router_data.minor_amount_capturable = payment_authorize_response
                         .capturable_amount
                         .map(MinorUnit::new);
-                    router_data.raw_connector_response = payment_authorize_response
-                        .raw_connector_response
-                        .clone()
-                        .map(|raw_connector_response| raw_connector_response.expose().into());
+                    if return_raw_connector_response.unwrap_or(false) {
+                        router_data.raw_connector_response = payment_authorize_response
+                            .raw_connector_response
+                            .clone()
+                            .map(|raw_connector_response| raw_connector_response.expose().into());
+                    }
                     router_data.connector_http_status_code = Some(ucs_data.status_code);
 
                     ucs_data.connector_response.map(|connector_response| {

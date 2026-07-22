@@ -25,7 +25,9 @@ use error_stack::{report, ResultExt};
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::types::VaultRouterData;
 use hyperswitch_domain_models::{
-    merchant_connector_account::MerchantConnectorAccount,
+    merchant_connector_account::{
+        MerchantConnectorAccount, MerchantConnectorAccountWithoutEncrypted,
+    },
     payment_address::PaymentAddress,
     router_data::ErrorResponse,
     router_data_v2::flow_common_types::VaultConnectorFlowData,
@@ -56,6 +58,7 @@ use crate::{
     core::{
         configs::dimension_state,
         errors::{self, RouterResult, StorageErrorExt},
+        payment_methods,
         payments::PaymentData,
     },
     db::StorageInterface,
@@ -102,14 +105,10 @@ pub async fn get_feature_config(
                 .organization_id
                 .clone(),
         )
-        .without_provider_merchant_id()
         .without_processor_merchant_id();
 
-    let is_payment_method_modular_allowed = crate::core::payment_methods::utils::get_organization_eligibility_config_for_pm_modular_service(
-        state,
-        &dimensions,
-    )
-    .await;
+    let is_payment_method_modular_allowed =
+        payment_methods::utils::get_should_call_pm_modular_service(state, &dimensions, None).await;
     FeatureConfig {
         is_payment_method_modular_allowed,
     }
@@ -123,18 +122,29 @@ pub async fn validate_legacy_endpoint_access<E>(
 where
     E: From<errors::ApiErrorResponse> + error_stack::Context,
 {
+    // The dashboard authenticates via JWT and still relies on these legacy
+    // endpoints, so only merchant (API key) traffic is blocked from deprecated
+    // routes.
+    let is_dashboard_access = matches!(
+        platform.get_initiator(),
+        Some(domain::Initiator::Jwt { .. })
+    );
+
     let dimensions = dimension_state::Dimensions::new()
         .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
         .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
 
     let feature_config = get_feature_config(state, platform, &dimensions).await;
-    common_utils::fp_utils::when(feature_config.is_payment_method_modular_allowed, || {
-        Err(error_stack::report!(E::from(
-            errors::ApiErrorResponse::AccessForbidden {
-                resource: "Deprecated route".to_string(),
-            },
-        )))
-    })?;
+    common_utils::fp_utils::when(
+        feature_config.is_payment_method_modular_allowed && !is_dashboard_access,
+        || {
+            Err(error_stack::report!(E::from(
+                errors::ApiErrorResponse::AccessForbidden {
+                    resource: "Deprecated route".to_string(),
+                },
+            )))
+        },
+    )?;
     Ok(())
 }
 
@@ -242,12 +252,12 @@ pub async fn construct_payout_router_data<'a, F>(
     let router_data = types::RouterData {
         flow: PhantomData,
         merchant_id: platform.get_processor().get_account().get_id().to_owned(),
-        customer_id: customer_details.to_owned().map(|c| c.customer_id),
+        customer_id: customer_details.as_ref().map(|c| c.get_id().clone()),
         tenant_id: state.tenant.tenant_id.clone(),
         connector_customer: get_payout_connector_customer_id(
             connector_data,
             connector_customer_id.clone(),
-            &customer_details.to_owned().map(|c| c.customer_id),
+            &customer_details.as_ref().map(|c| c.get_id().clone()),
             &payout_data.payment_method,
             &payout_data.payout_attempt,
         )?,
@@ -282,7 +292,7 @@ pub async fn construct_payout_router_data<'a, F>(
             customer_details: customer_details
                 .to_owned()
                 .map(|c| payments::CustomerDetails {
-                    customer_id: Some(c.customer_id),
+                    customer_id: Some(c.get_id().clone()),
                     name: c.name.map(Encryptable::into_inner),
                     email: c.email.map(Email::from),
                     phone: c.phone.map(Encryptable::into_inner),
@@ -2563,6 +2573,12 @@ pub(crate) trait GetProfileId {
 }
 
 impl GetProfileId for MerchantConnectorAccount {
+    fn get_profile_id(&self) -> Option<&common_utils::id_type::ProfileId> {
+        Some(&self.profile_id)
+    }
+}
+
+impl GetProfileId for MerchantConnectorAccountWithoutEncrypted {
     fn get_profile_id(&self) -> Option<&common_utils::id_type::ProfileId> {
         Some(&self.profile_id)
     }

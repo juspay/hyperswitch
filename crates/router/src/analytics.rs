@@ -8,10 +8,16 @@ pub mod routes {
 
     use actix_web::{web, Responder, Scope};
     use analytics::{
-        api_event::api_events_core, connector_events::connector_events_core, enums::AuthInfo,
-        errors::AnalyticsError, lambda_utils::invoke_lambda, opensearch::OpenSearchError,
-        outgoing_webhook_event::outgoing_webhook_events_core, routing_events::routing_events_core,
-        sdk_events::sdk_events_core, AnalyticsFlow,
+        api_event::api_events_core,
+        connector_events::{connector_events_core, ConnectorEventSource},
+        enums::AuthInfo,
+        errors::AnalyticsError,
+        lambda_utils::invoke_lambda,
+        opensearch::OpenSearchError,
+        outgoing_webhook_event::outgoing_webhook_events_core,
+        routing_events::routing_events_core,
+        sdk_events::sdk_events_core,
+        AnalyticsFlow,
     };
     use api_models::analytics::{
         api_event::QueryType,
@@ -175,6 +181,10 @@ pub mod routes {
                                 .route(web::get().to(get_profile_connector_events)),
                         )
                         .service(
+                            web::resource("prism_connector_event_logs")
+                                .route(web::get().to(get_profile_prism_connector_events)),
+                        )
+                        .service(
                             web::resource("routing_event_logs")
                                 .route(web::get().to(get_profile_routing_events)),
                         )
@@ -266,6 +276,10 @@ pub mod routes {
                                 .service(
                                     web::resource("report/refunds")
                                         .route(web::post().to(generate_merchant_refund_report)),
+                                )
+                                .service(
+                                    web::resource("report/relay")
+                                        .route(web::post().to(generate_merchant_relay_report)),
                                 )
                                 .service(
                                     web::resource("report/payments")
@@ -429,6 +443,10 @@ pub mod routes {
                                         .route(web::get().to(get_profile_connector_events)),
                                 )
                                 .service(
+                                    web::resource("prism_connector_event_logs")
+                                        .route(web::get().to(get_profile_prism_connector_events)),
+                                )
+                                .service(
                                     web::resource("routing_event_logs")
                                         .route(web::get().to(get_profile_routing_events)),
                                 )
@@ -443,6 +461,10 @@ pub mod routes {
                                 .service(
                                     web::resource("report/refunds")
                                         .route(web::post().to(generate_profile_refund_report)),
+                                )
+                                .service(
+                                    web::resource("report/relay")
+                                        .route(web::post().to(generate_profile_relay_report)),
                                 )
                                 .service(
                                     web::resource("report/payments")
@@ -2151,6 +2173,247 @@ pub mod routes {
         .await
     }
     #[cfg(feature = "v1")]
+    pub async fn generate_merchant_relay_report(
+        state: web::Data<AppState>,
+        req: actix_web::HttpRequest,
+        json_payload: web::Json<ReportRequest>,
+    ) -> impl Responder {
+        let flow = AnalyticsFlow::GenerateRelayReport;
+        Box::pin(api::server_wrap(
+            flow,
+            state.clone(),
+            &req,
+            json_payload.into_inner(),
+            |state, (auth, user_id): auth::AuthenticationDataWithUserId, payload, _| async move {
+                let (user_email, optional_emails) = match user_id {
+                    Some(user_id) => {
+                        let user = state
+                            .global_store
+                            .find_active_user_by_user_id(&user_id)
+                            .await
+                            .change_context(AnalyticsError::UnknownError)?;
+
+                        let user_email = Email::try_from(
+                            UserEmail::from_pii_email(user.email)
+                                .change_context(AnalyticsError::UnknownError)?
+                                .get_secret()
+                                .expose()
+                                .to_string(),
+                        )
+                        .change_context(AnalyticsError::MissingEmail)?;
+
+                        (user_email, payload.emails)
+                    }
+                    None => {
+                        validate_report_request(&payload)?;
+                        let (primary_email, other_emails) = payload
+                            .emails
+                            .and_then(|mut emails| {
+                                if emails.is_empty() {
+                                    None
+                                } else {
+                                    let primary_email = emails.remove(0);
+                                    Some((primary_email, emails))
+                                }
+                            })
+                            .ok_or(AnalyticsError::MissingEmail)?;
+
+                        (primary_email, Some(other_emails))
+                    }
+                };
+
+                let payload = ReportRequest {
+                    emails: optional_emails,
+                    ..payload
+                };
+
+                let auth_info = auth.platform.to_merchant_level_auth_info();
+                let hash_key = match &payload.return_url {
+                    Some(_) => {
+                        get_payment_response_hash_key(
+                            state.store.as_ref(),
+                            auth.platform.get_processor().get_key_store(),
+                            &auth_info,
+                        )
+                        .await?
+                    }
+                    None => None,
+                };
+
+                let lambda_req = GenerateReportRequest {
+                    request: payload,
+                    merchant_id: Some(auth.platform.get_processor().get_account().get_id().clone()),
+                    auth: auth_info,
+                    email: user_email,
+                    payment_response_hash_key: hash_key,
+                };
+
+                let json_bytes =
+                    serde_json::to_vec(&lambda_req).map_err(|_| AnalyticsError::UnknownError)?;
+
+                let lambda_result = invoke_lambda(
+                    &state.conf.report_download_config.relay_function,
+                    &state.conf.report_download_config.region,
+                    &json_bytes,
+                )
+                .await;
+
+                match &lambda_result {
+                    Ok(_) => logger::info!(
+                        merchant_id = ?lambda_req.merchant_id,
+                        "Successfully invoked relay report lambda function"
+                    ),
+                    Err(error) => logger::error!(
+                        merchant_id = ?lambda_req.merchant_id,
+                        ?error,
+                        "Failed to invoke relay report lambda function"
+                    ),
+                }
+
+                lambda_result.map(ApplicationResponse::Json)
+            },
+            auth::auth_type(
+                &auth::ApiKeyAuth {
+                    allow_connected_scope_operation: true,
+                    allow_platform_self_operation: false,
+                },
+                &auth::JWTAuth {
+                    permission: Permission::MerchantReportRead,
+                    allow_connected: true,
+                    allow_platform: false,
+                },
+                req.headers(),
+            ),
+            api_locking::LockAction::NotApplicable,
+        ))
+        .await
+    }
+
+    #[cfg(feature = "v1")]
+    pub async fn generate_profile_relay_report(
+        state: web::Data<AppState>,
+        req: actix_web::HttpRequest,
+        json_payload: web::Json<ReportRequest>,
+    ) -> impl Responder {
+        let flow = AnalyticsFlow::GenerateRelayReport;
+        Box::pin(api::server_wrap(
+            flow,
+            state.clone(),
+            &req,
+            json_payload.into_inner(),
+            |state, (auth, user_id): auth::AuthenticationDataWithUserId, payload, _| async move {
+                let (user_email, optional_emails) = match user_id {
+                    Some(user_id) => {
+                        let user = state
+                            .global_store
+                            .find_active_user_by_user_id(&user_id)
+                            .await
+                            .change_context(AnalyticsError::UnknownError)?;
+
+                        let user_email = Email::try_from(
+                            UserEmail::from_pii_email(user.email)
+                                .change_context(AnalyticsError::UnknownError)?
+                                .get_secret()
+                                .expose()
+                                .to_string(),
+                        )
+                        .change_context(AnalyticsError::MissingEmail)?;
+
+                        (user_email, payload.emails)
+                    }
+                    None => {
+                        validate_report_request(&payload)?;
+                        let (primary_email, other_emails) = payload
+                            .emails
+                            .and_then(|mut emails| {
+                                if emails.is_empty() {
+                                    None
+                                } else {
+                                    let primary_email = emails.remove(0);
+                                    Some((primary_email, emails))
+                                }
+                            })
+                            .ok_or(AnalyticsError::MissingEmail)?;
+
+                        (primary_email, Some(other_emails))
+                    }
+                };
+
+                let payload = ReportRequest {
+                    emails: optional_emails,
+                    ..payload
+                };
+
+                let profile_id = auth
+                    .profile
+                    .ok_or(report!(UserErrors::JwtProfileIdMissing))
+                    .change_context(AnalyticsError::AccessForbiddenError)?
+                    .get_id()
+                    .clone();
+
+                let auth_info = auth.platform.to_profile_level_auth_info(profile_id);
+                let hash_key = match &payload.return_url {
+                    Some(_) => {
+                        get_payment_response_hash_key(
+                            state.store.as_ref(),
+                            auth.platform.get_processor().get_key_store(),
+                            &auth_info,
+                        )
+                        .await?
+                    }
+                    None => None,
+                };
+
+                let lambda_req = GenerateReportRequest {
+                    request: payload,
+                    merchant_id: Some(auth.platform.get_processor().get_account().get_id().clone()),
+                    auth: auth_info,
+                    email: user_email,
+                    payment_response_hash_key: hash_key,
+                };
+
+                let json_bytes =
+                    serde_json::to_vec(&lambda_req).map_err(|_| AnalyticsError::UnknownError)?;
+
+                let lambda_result = invoke_lambda(
+                    &state.conf.report_download_config.relay_function,
+                    &state.conf.report_download_config.region,
+                    &json_bytes,
+                )
+                .await;
+
+                match &lambda_result {
+                    Ok(_) => logger::info!(
+                        merchant_id = ?lambda_req.merchant_id,
+                        "Successfully invoked relay report lambda function"
+                    ),
+                    Err(error) => logger::error!(
+                        merchant_id = ?lambda_req.merchant_id,
+                        ?error,
+                        "Failed to invoke relay report lambda function"
+                    ),
+                }
+
+                lambda_result.map(ApplicationResponse::Json)
+            },
+            auth::auth_type(
+                &auth::ApiKeyAuth {
+                    allow_connected_scope_operation: true,
+                    allow_platform_self_operation: false,
+                },
+                &auth::JWTAuth {
+                    permission: Permission::ProfileReportRead,
+                    allow_connected: true,
+                    allow_platform: false,
+                },
+                req.headers(),
+            ),
+            api_locking::LockAction::NotApplicable,
+        ))
+        .await
+    }
+
+    #[cfg(feature = "v1")]
     pub async fn generate_merchant_dispute_report(
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,
@@ -3410,18 +3673,19 @@ pub mod routes {
         .await
     }
 
-    pub async fn get_profile_connector_events(
+    async fn connector_event_logs(
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,
         json_payload: web::Query<api_models::analytics::connector_events::ConnectorEventsRequest>,
+        flow: AnalyticsFlow,
+        source: ConnectorEventSource,
     ) -> impl Responder {
-        let flow = AnalyticsFlow::GetConnectorEvents;
         Box::pin(api::server_wrap(
             flow,
             state,
             &req,
             json_payload.into_inner(),
-            |state, auth: AuthenticationData, req, _| async move {
+            move |state, auth: AuthenticationData, req, _| async move {
                 #[cfg(feature = "v1")]
                 let profile_id = auth.profile.map(|profile| profile.get_id().clone());
                 #[cfg(feature = "v2")]
@@ -3439,6 +3703,7 @@ pub mod routes {
                     &state.pool,
                     req,
                     auth.platform.get_processor().get_account().get_id(),
+                    source,
                 )
                 .await
                 .map(ApplicationResponse::Json)
@@ -3450,6 +3715,36 @@ pub mod routes {
             },
             api_locking::LockAction::NotApplicable,
         ))
+        .await
+    }
+
+    pub async fn get_profile_connector_events(
+        state: web::Data<AppState>,
+        req: actix_web::HttpRequest,
+        json_payload: web::Query<api_models::analytics::connector_events::ConnectorEventsRequest>,
+    ) -> impl Responder {
+        connector_event_logs(
+            state,
+            req,
+            json_payload,
+            AnalyticsFlow::GetConnectorEvents,
+            ConnectorEventSource::Hyperswitch,
+        )
+        .await
+    }
+
+    pub async fn get_profile_prism_connector_events(
+        state: web::Data<AppState>,
+        req: actix_web::HttpRequest,
+        json_payload: web::Query<api_models::analytics::connector_events::ConnectorEventsRequest>,
+    ) -> impl Responder {
+        connector_event_logs(
+            state,
+            req,
+            json_payload,
+            AnalyticsFlow::GetPrismConnectorEvents,
+            ConnectorEventSource::Prism,
+        )
         .await
     }
 
@@ -3526,7 +3821,7 @@ pub mod routes {
                         let search_req = GetSearchRequestWithIndex {
                             index: SearchIndex::SessionizerPaymentIntents,
                             search_req: GetSearchRequest {
-                                query: String::new(),
+                                query: constraints.query.unwrap_or_default(),
                                 filters: Some(filters),
                                 time_range: constraints.time_range,
                                 offset: constraints.offset.map(i64::from).unwrap_or(0),
@@ -3599,7 +3894,7 @@ pub mod routes {
                         let search_req = GetSearchRequestWithIndex {
                             index: SearchIndex::SessionizerPaymentIntents,
                             search_req: GetSearchRequest {
-                                query: String::new(),
+                                query: constraints.query.unwrap_or_default(),
                                 filters: Some(filters),
                                 time_range: constraints.time_range,
                                 offset: constraints.offset.map(i64::from).unwrap_or(0),
@@ -3665,110 +3960,127 @@ pub mod routes {
                 .change_context(OpenSearchError::UnknownError)?;
                 let permission_groups = role_info.get_permission_groups();
                 if !permission_groups.contains(&common_enums::PermissionGroup::OperationsView) {
-                    return Err(OpenSearchError::AccessForbiddenError)?;
+                    Err(OpenSearchError::AccessForbiddenError)?;
                 }
-                let user_roles: HashSet<UserRole> = match role_info.get_entity_type() {
-                    EntityType::Tenant => state
-                        .global_store
-                        .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
-                            user_id: &auth.user_id,
-                            tenant_id: auth.tenant_id.as_ref().unwrap_or(&state.tenant.tenant_id),
-                            org_id: None,
-                            merchant_id: None,
-                            profile_id: None,
-                            entity_id: None,
-                            version: None,
-                            status: None,
-                            limit: None,
-                        })
-                        .await
-                        .change_context(UserErrors::InternalServerError)
-                        .change_context(OpenSearchError::UnknownError)?
-                        .into_iter()
-                        .collect(),
-                    EntityType::Organization | EntityType::Merchant | EntityType::Profile => state
-                        .global_store
-                        .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
-                            user_id: &auth.user_id,
-                            tenant_id: auth.tenant_id.as_ref().unwrap_or(&state.tenant.tenant_id),
-                            org_id: Some(&auth.org_id),
-                            merchant_id: None,
-                            profile_id: None,
-                            entity_id: None,
-                            version: None,
-                            status: None,
-                            limit: None,
-                        })
-                        .await
-                        .change_context(UserErrors::InternalServerError)
-                        .change_context(OpenSearchError::UnknownError)?
-                        .into_iter()
-                        .collect(),
-                };
-
                 let state = Arc::new(state);
-                let role_info_map: HashMap<String, RoleInfo> = user_roles
-                    .iter()
-                    .map(|user_role| {
-                        let state = Arc::clone(&state);
-                        let role_id = user_role.role_id.clone();
-                        let org_id = user_role.org_id.clone().unwrap_or_default();
-                        let tenant_id = &user_role.tenant_id;
-                        async move {
-                            RoleInfo::from_role_id_org_id_tenant_id(
-                                &state, &role_id, &org_id, tenant_id,
-                            )
+
+                let search_params: Vec<AuthInfo> = if role_info.is_internal() {
+                    vec![AuthInfo::MerchantLevel {
+                        org_id: auth.org_id.clone(),
+                        merchant_ids: vec![auth.merchant_id.clone()],
+                        processor_merchant_ids: None,
+                    }]
+                } else {
+                    let user_roles: HashSet<UserRole> = match role_info.get_entity_type() {
+                        EntityType::Tenant => state
+                            .global_store
+                            .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
+                                user_id: &auth.user_id,
+                                tenant_id: auth
+                                    .tenant_id
+                                    .as_ref()
+                                    .unwrap_or(&state.tenant.tenant_id),
+                                org_id: None,
+                                merchant_id: None,
+                                profile_id: None,
+                                entity_id: None,
+                                version: None,
+                                status: None,
+                                limit: None,
+                            })
                             .await
                             .change_context(UserErrors::InternalServerError)
-                            .change_context(OpenSearchError::UnknownError)
-                            .map(|role_info| (role_id, role_info))
+                            .change_context(OpenSearchError::UnknownError)?
+                            .into_iter()
+                            .collect(),
+                        EntityType::Organization | EntityType::Merchant | EntityType::Profile => {
+                            state
+                                .global_store
+                                .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
+                                    user_id: &auth.user_id,
+                                    tenant_id: auth
+                                        .tenant_id
+                                        .as_ref()
+                                        .unwrap_or(&state.tenant.tenant_id),
+                                    org_id: Some(&auth.org_id),
+                                    merchant_id: None,
+                                    profile_id: None,
+                                    entity_id: None,
+                                    version: None,
+                                    status: None,
+                                    limit: None,
+                                })
+                                .await
+                                .change_context(UserErrors::InternalServerError)
+                                .change_context(OpenSearchError::UnknownError)?
+                                .into_iter()
+                                .collect()
                         }
-                    })
-                    .collect::<FuturesUnordered<_>>()
-                    .collect::<Vec<_>>()
-                    .await
-                    .into_iter()
-                    .collect::<Result<HashMap<_, _>, _>>()?;
+                    };
 
-                let filtered_user_roles: Vec<&UserRole> = user_roles
-                    .iter()
-                    .filter(|user_role| {
-                        let user_role_id = &user_role.role_id;
-                        if let Some(role_info) = role_info_map.get(user_role_id) {
-                            let permissions = role_info.get_permission_groups();
-                            permissions.contains(&common_enums::PermissionGroup::OperationsView)
-                        } else {
-                            false
-                        }
-                    })
-                    .collect();
+                    let role_info_map: HashMap<String, RoleInfo> = user_roles
+                        .iter()
+                        .map(|user_role| {
+                            let state = Arc::clone(&state);
+                            let role_id = user_role.role_id.clone();
+                            let org_id = user_role.org_id.clone().unwrap_or_default();
+                            let tenant_id = &user_role.tenant_id;
+                            async move {
+                                RoleInfo::from_role_id_org_id_tenant_id(
+                                    &state, &role_id, &org_id, tenant_id,
+                                )
+                                .await
+                                .change_context(UserErrors::InternalServerError)
+                                .change_context(OpenSearchError::UnknownError)
+                                .map(|role_info| (role_id, role_info))
+                            }
+                        })
+                        .collect::<FuturesUnordered<_>>()
+                        .collect::<Vec<_>>()
+                        .await
+                        .into_iter()
+                        .collect::<Result<HashMap<_, _>, _>>()?;
 
-                let search_params: Vec<AuthInfo> = filtered_user_roles
-                    .iter()
-                    .filter_map(|user_role| {
-                        user_role
-                            .get_entity_id_and_type()
-                            .and_then(|(_, entity_type)| match entity_type {
-                                EntityType::Profile => Some(AuthInfo::ProfileLevel {
-                                    org_id: user_role.org_id.clone()?,
-                                    merchant_id: user_role.merchant_id.clone()?,
-                                    profile_ids: vec![user_role.profile_id.clone()?],
-                                    processor_merchant_id: None,
-                                }),
-                                EntityType::Merchant => Some(AuthInfo::MerchantLevel {
-                                    org_id: user_role.org_id.clone()?,
-                                    merchant_ids: vec![user_role.merchant_id.clone()?],
-                                    processor_merchant_ids: None,
-                                }),
-                                EntityType::Organization => Some(AuthInfo::OrgLevel {
-                                    org_id: user_role.org_id.clone()?,
-                                }),
-                                EntityType::Tenant => Some(AuthInfo::OrgLevel {
-                                    org_id: auth.org_id.clone(),
-                                }),
-                            })
-                    })
-                    .collect();
+                    let filtered_user_roles: Vec<&UserRole> = user_roles
+                        .iter()
+                        .filter(|user_role| {
+                            let user_role_id = &user_role.role_id;
+                            if let Some(role_info) = role_info_map.get(user_role_id) {
+                                let permissions = role_info.get_permission_groups();
+                                permissions.contains(&common_enums::PermissionGroup::OperationsView)
+                            } else {
+                                false
+                            }
+                        })
+                        .collect();
+
+                    filtered_user_roles
+                        .iter()
+                        .filter_map(|user_role| {
+                            user_role
+                                .get_entity_id_and_type()
+                                .and_then(|(_, entity_type)| match entity_type {
+                                    EntityType::Profile => Some(AuthInfo::ProfileLevel {
+                                        org_id: user_role.org_id.clone()?,
+                                        merchant_id: user_role.merchant_id.clone()?,
+                                        profile_ids: vec![user_role.profile_id.clone()?],
+                                        processor_merchant_id: None,
+                                    }),
+                                    EntityType::Merchant => Some(AuthInfo::MerchantLevel {
+                                        org_id: user_role.org_id.clone()?,
+                                        merchant_ids: vec![user_role.merchant_id.clone()?],
+                                        processor_merchant_ids: None,
+                                    }),
+                                    EntityType::Organization => Some(AuthInfo::OrgLevel {
+                                        org_id: user_role.org_id.clone()?,
+                                    }),
+                                    EntityType::Tenant => Some(AuthInfo::OrgLevel {
+                                        org_id: auth.org_id.clone(),
+                                    }),
+                                })
+                        })
+                        .collect()
+                };
 
                 analytics::search::msearch_results(
                     state
@@ -3822,109 +4134,127 @@ pub mod routes {
                 .change_context(OpenSearchError::UnknownError)?;
                 let permission_groups = role_info.get_permission_groups();
                 if !permission_groups.contains(&common_enums::PermissionGroup::OperationsView) {
-                    return Err(OpenSearchError::AccessForbiddenError)?;
+                    Err(OpenSearchError::AccessForbiddenError)?;
                 }
-                let user_roles: HashSet<UserRole> = match role_info.get_entity_type() {
-                    EntityType::Tenant => state
-                        .global_store
-                        .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
-                            user_id: &auth.user_id,
-                            tenant_id: auth.tenant_id.as_ref().unwrap_or(&state.tenant.tenant_id),
-                            org_id: None,
-                            merchant_id: None,
-                            profile_id: None,
-                            entity_id: None,
-                            version: None,
-                            status: None,
-                            limit: None,
-                        })
-                        .await
-                        .change_context(UserErrors::InternalServerError)
-                        .change_context(OpenSearchError::UnknownError)?
-                        .into_iter()
-                        .collect(),
-                    EntityType::Organization | EntityType::Merchant | EntityType::Profile => state
-                        .global_store
-                        .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
-                            user_id: &auth.user_id,
-                            tenant_id: auth.tenant_id.as_ref().unwrap_or(&state.tenant.tenant_id),
-                            org_id: Some(&auth.org_id),
-                            merchant_id: None,
-                            profile_id: None,
-                            entity_id: None,
-                            version: None,
-                            status: None,
-                            limit: None,
-                        })
-                        .await
-                        .change_context(UserErrors::InternalServerError)
-                        .change_context(OpenSearchError::UnknownError)?
-                        .into_iter()
-                        .collect(),
-                };
                 let state = Arc::new(state);
-                let role_info_map: HashMap<String, RoleInfo> = user_roles
-                    .iter()
-                    .map(|user_role| {
-                        let state = Arc::clone(&state);
-                        let role_id = user_role.role_id.clone();
-                        let org_id = user_role.org_id.clone().unwrap_or_default();
-                        let tenant_id = &user_role.tenant_id;
-                        async move {
-                            RoleInfo::from_role_id_org_id_tenant_id(
-                                &state, &role_id, &org_id, tenant_id,
-                            )
+
+                let search_params: Vec<AuthInfo> = if role_info.is_internal() {
+                    vec![AuthInfo::MerchantLevel {
+                        org_id: auth.org_id.clone(),
+                        merchant_ids: vec![auth.merchant_id.clone()],
+                        processor_merchant_ids: None,
+                    }]
+                } else {
+                    let user_roles: HashSet<UserRole> = match role_info.get_entity_type() {
+                        EntityType::Tenant => state
+                            .global_store
+                            .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
+                                user_id: &auth.user_id,
+                                tenant_id: auth
+                                    .tenant_id
+                                    .as_ref()
+                                    .unwrap_or(&state.tenant.tenant_id),
+                                org_id: None,
+                                merchant_id: None,
+                                profile_id: None,
+                                entity_id: None,
+                                version: None,
+                                status: None,
+                                limit: None,
+                            })
                             .await
                             .change_context(UserErrors::InternalServerError)
-                            .change_context(OpenSearchError::UnknownError)
-                            .map(|role_info| (role_id, role_info))
+                            .change_context(OpenSearchError::UnknownError)?
+                            .into_iter()
+                            .collect(),
+                        EntityType::Organization | EntityType::Merchant | EntityType::Profile => {
+                            state
+                                .global_store
+                                .list_user_roles_by_user_id(ListUserRolesByUserIdPayload {
+                                    user_id: &auth.user_id,
+                                    tenant_id: auth
+                                        .tenant_id
+                                        .as_ref()
+                                        .unwrap_or(&state.tenant.tenant_id),
+                                    org_id: Some(&auth.org_id),
+                                    merchant_id: None,
+                                    profile_id: None,
+                                    entity_id: None,
+                                    version: None,
+                                    status: None,
+                                    limit: None,
+                                })
+                                .await
+                                .change_context(UserErrors::InternalServerError)
+                                .change_context(OpenSearchError::UnknownError)?
+                                .into_iter()
+                                .collect()
                         }
-                    })
-                    .collect::<FuturesUnordered<_>>()
-                    .collect::<Vec<_>>()
-                    .await
-                    .into_iter()
-                    .collect::<Result<HashMap<_, _>, _>>()?;
+                    };
 
-                let filtered_user_roles: Vec<&UserRole> = user_roles
-                    .iter()
-                    .filter(|user_role| {
-                        let user_role_id = &user_role.role_id;
-                        if let Some(role_info) = role_info_map.get(user_role_id) {
-                            let permissions = role_info.get_permission_groups();
-                            permissions.contains(&common_enums::PermissionGroup::OperationsView)
-                        } else {
-                            false
-                        }
-                    })
-                    .collect();
+                    let role_info_map: HashMap<String, RoleInfo> = user_roles
+                        .iter()
+                        .map(|user_role| {
+                            let state = Arc::clone(&state);
+                            let role_id = user_role.role_id.clone();
+                            let org_id = user_role.org_id.clone().unwrap_or_default();
+                            let tenant_id = &user_role.tenant_id;
+                            async move {
+                                RoleInfo::from_role_id_org_id_tenant_id(
+                                    &state, &role_id, &org_id, tenant_id,
+                                )
+                                .await
+                                .change_context(UserErrors::InternalServerError)
+                                .change_context(OpenSearchError::UnknownError)
+                                .map(|role_info| (role_id, role_info))
+                            }
+                        })
+                        .collect::<FuturesUnordered<_>>()
+                        .collect::<Vec<_>>()
+                        .await
+                        .into_iter()
+                        .collect::<Result<HashMap<_, _>, _>>()?;
 
-                let search_params: Vec<AuthInfo> = filtered_user_roles
-                    .iter()
-                    .filter_map(|user_role| {
-                        user_role
-                            .get_entity_id_and_type()
-                            .and_then(|(_, entity_type)| match entity_type {
-                                EntityType::Profile => Some(AuthInfo::ProfileLevel {
-                                    org_id: user_role.org_id.clone()?,
-                                    merchant_id: user_role.merchant_id.clone()?,
-                                    profile_ids: vec![user_role.profile_id.clone()?],
-                                    processor_merchant_id: None,
-                                }),
-                                EntityType::Merchant => Some(AuthInfo::MerchantLevel {
-                                    org_id: user_role.org_id.clone()?,
-                                    merchant_ids: vec![user_role.merchant_id.clone()?],
-                                    processor_merchant_ids: None,
-                                }),
-                                EntityType::Organization => Some(AuthInfo::OrgLevel {
-                                    org_id: user_role.org_id.clone()?,
-                                }),
-                                EntityType::Tenant => Some(AuthInfo::OrgLevel {
-                                    org_id: auth.org_id.clone(),
-                                }),
-                            })
-                    })
-                    .collect();
+                    let filtered_user_roles: Vec<&UserRole> = user_roles
+                        .iter()
+                        .filter(|user_role| {
+                            let user_role_id = &user_role.role_id;
+                            if let Some(role_info) = role_info_map.get(user_role_id) {
+                                let permissions = role_info.get_permission_groups();
+                                permissions.contains(&common_enums::PermissionGroup::OperationsView)
+                            } else {
+                                false
+                            }
+                        })
+                        .collect();
+
+                    filtered_user_roles
+                        .iter()
+                        .filter_map(|user_role| {
+                            user_role
+                                .get_entity_id_and_type()
+                                .and_then(|(_, entity_type)| match entity_type {
+                                    EntityType::Profile => Some(AuthInfo::ProfileLevel {
+                                        org_id: user_role.org_id.clone()?,
+                                        merchant_id: user_role.merchant_id.clone()?,
+                                        profile_ids: vec![user_role.profile_id.clone()?],
+                                        processor_merchant_id: None,
+                                    }),
+                                    EntityType::Merchant => Some(AuthInfo::MerchantLevel {
+                                        org_id: user_role.org_id.clone()?,
+                                        merchant_ids: vec![user_role.merchant_id.clone()?],
+                                        processor_merchant_ids: None,
+                                    }),
+                                    EntityType::Organization => Some(AuthInfo::OrgLevel {
+                                        org_id: user_role.org_id.clone()?,
+                                    }),
+                                    EntityType::Tenant => Some(AuthInfo::OrgLevel {
+                                        org_id: auth.org_id.clone(),
+                                    }),
+                                })
+                        })
+                        .collect()
+                };
                 analytics::search::search_results(
                     state
                         .opensearch_client

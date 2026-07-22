@@ -31,7 +31,7 @@ const billing = {
 
 const PaymentMethodData = {
   card: {
-    card_issuer: "CONOTOXIA SP Z O.O.",
+    card_issuer: "CONOTOXIA SP Z OO",
     card_network: "Visa",
     card_type: "DEBIT",
     card_issuing_country: "POLAND",
@@ -213,6 +213,271 @@ export const connectorDetails = {
             status: "initiated",
             payout_type: "bank",
           },
+        },
+      },
+      // RecurringTrue/False/Default test the recurring flag field behaviour.
+      RecurringTrue: {
+        Request: {
+          payout_type: "bank",
+          priority: "instant",
+          payout_method_data: {
+            bank: {
+              iban: "NL57INGB4654188101",
+            },
+          },
+          billing: billing,
+          recurring: true,
+          confirm: true,
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_fulfillment",
+            payout_type: "bank",
+            recurring: true,
+          },
+        },
+      },
+      RecurringFalse: {
+        Request: {
+          payout_type: "bank",
+          priority: "instant",
+          payout_method_data: {
+            bank: {
+              iban: "NL57INGB4654188101",
+            },
+          },
+          billing: billing,
+          recurring: false,
+          confirm: true,
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_fulfillment",
+            payout_type: "bank",
+            recurring: false,
+          },
+        },
+      },
+      RecurringDefault: {
+        Request: {
+          payout_type: "bank",
+          priority: "instant",
+          payout_method_data: {
+            bank: {
+              iban: "NL57INGB4654188101",
+            },
+          },
+          billing: billing,
+          confirm: true,
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_fulfillment",
+            payout_type: "bank",
+            recurring: false,
+          },
+        },
+      },
+      // RecurringInvalidConfirm is a negative test case — it expects a 422 error.
+      // Do NOT add TRIGGER_SKIP or should_continue_further guards here.
+      // Pattern matches EntityTypeInvalid in 00008-EntityType.cy.js.
+      RecurringInvalidConfirm: {
+        Request: {
+          payout_type: "bank",
+          priority: "instant",
+          confirm: false,
+        },
+        Response: {
+          status: 422,
+          body: {
+            error: {
+              type: "invalid_request",
+              message: "Confirm must be true for recurring payouts",
+              code: "IR_06",
+            },
+          },
+        },
+      },
+      // The payout_method_id is saved by SavePayoutMethod and injected
+      // from globalState at test runtime.
+      RecurringUseMethod: {
+        Request: {
+          payout_type: "bank",
+          priority: "instant",
+          // payout_method_id is injected from globalState at test runtime
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_fulfillment",
+            payout_type: "bank",
+            recurring: true,
+          },
+        },
+      },
+      // InitiatedFlow tests the complete create+confirm+fulfill flow
+      // that results in "initiated" status with instant priority and auto_fulfill=true
+      InitiatedFlow: {
+        Request: {
+          payout_type: "bank",
+          priority: "instant",
+          payout_method_data: {
+            bank: {
+              iban: "NL57INGB4654188101",
+            },
+          },
+          billing: billing,
+          confirm: true,
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "initiated",
+            payout_type: "bank",
+          },
+        },
+      },
+      // RecurringInitiated tests recurring payout with confirm that results in initiated
+      RecurringInitiated: {
+        Request: {
+          payout_type: "bank",
+          priority: "instant",
+          payout_method_data: {
+            bank: {
+              iban: "NL57INGB4654188101",
+            },
+          },
+          billing: billing,
+          recurring: true,
+          confirm: true,
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "initiated",
+            payout_type: "bank",
+            recurring: true,
+          },
+        },
+      },
+    },
+    PayoutPriority: {
+      Request: {
+        payout_type: "bank",
+        priority: "instant",
+        payout_method_data: {
+          bank: {
+            iban: "NL57INGB4654188101",
+          },
+        },
+        billing: billing,
+      },
+      // Status "initiated" is correct for instant priority with auto_fulfill=true
+      // (create+confirm+fulfil flow). Verified via API Testing — confirm=true,
+      // auto_fulfill=true returns status "initiated".
+      Response: {
+        status: 200,
+        body: {
+          status: "initiated",
+          priority: "instant",
+          payout_type: "bank",
+        },
+      },
+    },
+    PayoutPriorityMissing: {
+      Request: {
+        payout_type: "bank",
+        payout_method_data: {
+          bank: {
+            iban: "NL57INGB4654188101",
+          },
+        },
+        billing: billing,
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message: "Missing required param: priority",
+            code: "IR_04",
+          },
+        },
+      },
+    },
+    PayoutPriorityRegular: {
+      Request: {
+        payout_type: "bank",
+        priority: "regular",
+        payout_method_data: {
+          bank: {
+            iban: "NL57INGB4654188101",
+          },
+        },
+        billing: billing,
+      },
+      // Status "requires_fulfillment" is correct for regular priority with
+      // auto_fulfill=false (create+confirm only, no fulfil). Verified by Runner —
+      // PayoutPriority spec passes 6/6 with this value.
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_fulfillment",
+          priority: "regular",
+          payout_type: "bank",
+        },
+      },
+    },
+    PayoutPriorityWire: {
+      Request: {
+        payout_type: "bank",
+        priority: "wire",
+        payout_method_data: {
+          bank: {
+            iban: "NL57INGB4654188101",
+          },
+        },
+        billing: billing,
+      },
+      // Status "requires_fulfillment" is correct for wire priority with
+      // auto_fulfill=false (create+confirm only, no fulfil). Verified by Runner —
+      // PayoutPriority spec passes 6/6 with this value.
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_fulfillment",
+          priority: "wire",
+          payout_type: "bank",
+        },
+      },
+    },
+    RetrievePriorityInstant: {
+      Response: {
+        status: 200,
+        body: {
+          status: "initiated",
+          priority: "instant",
+        },
+      },
+    },
+    RetrievePriorityRegular: {
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_fulfillment",
+          priority: "regular",
+        },
+      },
+    },
+    RetrievePriorityWire: {
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_fulfillment",
+          priority: "wire",
         },
       },
     },

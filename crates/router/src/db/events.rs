@@ -68,6 +68,7 @@ where
         event_types: HashSet<common_enums::EventType>,
         is_delivered: Option<bool>,
         merchant_key_store: &domain::MerchantKeyStore,
+        event_recipient: Option<common_enums::EventRecipient>,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError>;
 
     #[allow(clippy::too_many_arguments)]
@@ -81,6 +82,7 @@ where
         event_types: HashSet<common_enums::EventType>,
         is_delivered: Option<bool>,
         merchant_key_store: &domain::MerchantKeyStore,
+        event_recipient: Option<common_enums::EventRecipient>,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError>;
 
     async fn list_events_by_initiator_merchant_id_initial_attempt_id(
@@ -88,6 +90,7 @@ where
         initial_attempt_id: &str,
         initiator_merchant_id: &common_utils::id_type::MerchantId,
         merchant_key_store: &domain::MerchantKeyStore,
+        event_recipient: Option<common_enums::EventRecipient>,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError>;
 
     async fn list_events_by_merchant_id_initial_attempt_id(
@@ -95,6 +98,7 @@ where
         merchant_id: &common_utils::id_type::MerchantId,
         initial_attempt_id: &str,
         merchant_key_store: &domain::MerchantKeyStore,
+        event_recipient: Option<common_enums::EventRecipient>,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError>;
 
     async fn list_initial_events_by_initiator_merchant_id_primary_object_id(
@@ -103,6 +107,7 @@ where
         primary_object_id: &str,
         profile_id: Option<common_utils::id_type::ProfileId>,
         merchant_key_store: &domain::MerchantKeyStore,
+        event_recipient: Option<common_enums::EventRecipient>,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError>;
 
     async fn list_initial_events_by_merchant_id_primary_object_id(
@@ -110,6 +115,7 @@ where
         merchant_id: &common_utils::id_type::MerchantId,
         primary_object_id: &str,
         merchant_key_store: &domain::MerchantKeyStore,
+        event_recipient: Option<common_enums::EventRecipient>,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError>;
 
     async fn find_initial_event_by_merchant_id_initial_attempt_id(
@@ -130,6 +136,7 @@ where
         event_types: HashSet<common_enums::EventType>,
         is_delivered: Option<bool>,
         merchant_key_store: &domain::MerchantKeyStore,
+        event_recipient: Option<common_enums::EventRecipient>,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError>;
 
     async fn list_initial_events_by_profile_id_primary_object_id(
@@ -137,6 +144,7 @@ where
         profile_id: &common_utils::id_type::ProfileId,
         primary_object_id: &str,
         merchant_key_store: &domain::MerchantKeyStore,
+        event_recipient: Option<common_enums::EventRecipient>,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError>;
 
     async fn find_initial_event_by_profile_id_initial_attempt_id(
@@ -161,6 +169,7 @@ where
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::Event, errors::StorageError>;
 
+    #[allow(clippy::too_many_arguments)]
     async fn count_initial_events_by_initiator_merchant_id_constraints(
         &self,
         initiator_merchant_id: &common_utils::id_type::MerchantId,
@@ -169,6 +178,7 @@ where
         created_before: time::PrimitiveDateTime,
         event_types: HashSet<common_enums::EventType>,
         is_delivered: Option<bool>,
+        event_recipient: Option<common_enums::EventRecipient>,
     ) -> CustomResult<i64, errors::StorageError>;
 
     async fn count_initial_events_by_profile_id_constraints(
@@ -178,8 +188,10 @@ where
         created_before: time::PrimitiveDateTime,
         event_types: HashSet<common_enums::EventType>,
         is_delivered: Option<bool>,
+        event_recipient: Option<common_enums::EventRecipient>,
     ) -> CustomResult<i64, errors::StorageError>;
 
+    #[allow(clippy::too_many_arguments)]
     async fn count_initial_events_by_constraints(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
@@ -188,6 +200,7 @@ where
         created_before: time::PrimitiveDateTime,
         event_types: HashSet<common_enums::EventType>,
         is_delivered: Option<bool>,
+        event_recipient: Option<common_enums::EventRecipient>,
     ) -> CustomResult<i64, errors::StorageError>;
 }
 
@@ -319,6 +332,7 @@ impl EventInterface for Store {
         event_types: HashSet<common_enums::EventType>,
         is_delivered: Option<bool>,
         merchant_key_store: &domain::MerchantKeyStore,
+        event_recipient: Option<common_enums::EventRecipient>,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
         storage::Event::list_initial_attempts_by_initiator_merchant_id_constraints(
@@ -330,6 +344,7 @@ impl EventInterface for Store {
             offset,
             event_types,
             is_delivered,
+            event_recipient,
         )
         .await
         .map_err(|error| report!(errors::StorageError::from(error)))
@@ -360,6 +375,7 @@ impl EventInterface for Store {
         event_types: HashSet<common_enums::EventType>,
         is_delivered: Option<bool>,
         merchant_key_store: &domain::MerchantKeyStore,
+        event_recipient: Option<common_enums::EventRecipient>,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
         storage::Event::list_initial_attempts_by_merchant_id_constraints(
@@ -371,6 +387,7 @@ impl EventInterface for Store {
             offset,
             event_types,
             is_delivered,
+            event_recipient,
         )
         .await
         .map_err(|error| report!(errors::StorageError::from(error)))
@@ -396,12 +413,14 @@ impl EventInterface for Store {
         initial_attempt_id: &str,
         initiator_merchant_id: &common_utils::id_type::MerchantId,
         merchant_key_store: &domain::MerchantKeyStore,
+        event_recipient: Option<common_enums::EventRecipient>,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
         storage::Event::list_by_initiator_merchant_id_initial_attempt_id(
             &conn,
             initial_attempt_id,
             initiator_merchant_id,
+            event_recipient,
         )
         .await
         .map_err(|error| report!(errors::StorageError::from(error)))
@@ -427,12 +446,14 @@ impl EventInterface for Store {
         merchant_id: &common_utils::id_type::MerchantId,
         initial_attempt_id: &str,
         merchant_key_store: &domain::MerchantKeyStore,
+        event_recipient: Option<common_enums::EventRecipient>,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
         storage::Event::list_by_merchant_id_initial_attempt_id(
             &conn,
             merchant_id,
             initial_attempt_id,
+            event_recipient,
         )
         .await
         .map_err(|error| report!(errors::StorageError::from(error)))
@@ -459,6 +480,7 @@ impl EventInterface for Store {
         primary_object_id: &str,
         profile_id: Option<common_utils::id_type::ProfileId>,
         merchant_key_store: &domain::MerchantKeyStore,
+        event_recipient: Option<common_enums::EventRecipient>,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
         storage::Event::list_initial_attempts_by_initiator_merchant_id_primary_object_id(
@@ -466,6 +488,7 @@ impl EventInterface for Store {
             initiator_merchant_id,
             primary_object_id,
             profile_id,
+            event_recipient,
         )
         .await
         .map_err(|error| report!(errors::StorageError::from(error)))
@@ -491,12 +514,14 @@ impl EventInterface for Store {
         merchant_id: &common_utils::id_type::MerchantId,
         primary_object_id: &str,
         merchant_key_store: &domain::MerchantKeyStore,
+        event_recipient: Option<common_enums::EventRecipient>,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
         storage::Event::list_initial_attempts_by_merchant_id_primary_object_id(
             &conn,
             merchant_id,
             primary_object_id,
+            event_recipient,
         )
         .await
         .map_err(|error| report!(errors::StorageError::from(error)))
@@ -561,6 +586,7 @@ impl EventInterface for Store {
         event_types: HashSet<common_enums::EventType>,
         is_delivered: Option<bool>,
         merchant_key_store: &domain::MerchantKeyStore,
+        event_recipient: Option<common_enums::EventRecipient>,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
         storage::Event::list_initial_attempts_by_profile_id_constraints(
@@ -572,6 +598,7 @@ impl EventInterface for Store {
             offset,
             event_types,
             is_delivered,
+            event_recipient,
         )
         .await
         .map_err(|error| report!(errors::StorageError::from(error)))
@@ -599,12 +626,14 @@ impl EventInterface for Store {
         profile_id: &common_utils::id_type::ProfileId,
         primary_object_id: &str,
         merchant_key_store: &domain::MerchantKeyStore,
+        event_recipient: Option<common_enums::EventRecipient>,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
         storage::Event::list_initial_attempts_by_profile_id_primary_object_id(
             &conn,
             profile_id,
             primary_object_id,
+            event_recipient,
         )
         .await
         .map_err(|error| report!(errors::StorageError::from(error)))
@@ -710,6 +739,7 @@ impl EventInterface for Store {
         created_before: time::PrimitiveDateTime,
         event_types: HashSet<common_enums::EventType>,
         is_delivered: Option<bool>,
+        event_recipient: Option<common_enums::EventRecipient>,
     ) -> CustomResult<i64, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
         storage::Event::count_initial_attempts_by_profile_id_constraints(
@@ -719,11 +749,13 @@ impl EventInterface for Store {
             created_before,
             event_types,
             is_delivered,
+            event_recipient,
         )
         .await
         .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
+    #[allow(clippy::too_many_arguments)]
     async fn count_initial_events_by_initiator_merchant_id_constraints(
         &self,
         initiator_merchant_id: &common_utils::id_type::MerchantId,
@@ -732,6 +764,7 @@ impl EventInterface for Store {
         created_before: time::PrimitiveDateTime,
         event_types: HashSet<common_enums::EventType>,
         is_delivered: Option<bool>,
+        event_recipient: Option<common_enums::EventRecipient>,
     ) -> CustomResult<i64, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
         storage::Event::count_initial_attempts_by_initiator_merchant_id_constraints(
@@ -742,6 +775,7 @@ impl EventInterface for Store {
             created_before,
             event_types,
             is_delivered,
+            event_recipient,
         )
         .await
         .map_err(|error| report!(errors::StorageError::from(error)))
@@ -755,6 +789,7 @@ impl EventInterface for Store {
         created_before: time::PrimitiveDateTime,
         event_types: HashSet<common_enums::EventType>,
         is_delivered: Option<bool>,
+        event_recipient: Option<common_enums::EventRecipient>,
     ) -> CustomResult<i64, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
         storage::Event::count_initial_attempts_by_constraints(
@@ -765,6 +800,7 @@ impl EventInterface for Store {
             created_before,
             event_types,
             is_delivered,
+            event_recipient,
         )
         .await
         .map_err(|error| report!(errors::StorageError::from(error)))
@@ -941,6 +977,7 @@ impl EventInterface for MockDb {
         event_types: HashSet<common_enums::EventType>,
         is_delivered: Option<bool>,
         merchant_key_store: &domain::MerchantKeyStore,
+        event_recipient: Option<common_enums::EventRecipient>,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
         let locked_events = self.events.lock().await;
         let events_iter = locked_events.iter().filter(|event| {
@@ -949,8 +986,8 @@ impl EventInterface for MockDb {
                 && (event.created_at >= created_after)
                 && (event.created_at <= created_before)
                 && (event_types.is_empty() || event_types.contains(&event.event_type))
-                && (event.is_overall_delivery_successful == is_delivered);
-
+                && (event.is_overall_delivery_successful == is_delivered)
+                && (event_recipient.is_none() || event_recipient == event.recipient);
             check
         });
 
@@ -1004,6 +1041,7 @@ impl EventInterface for MockDb {
         merchant_id: &common_utils::id_type::MerchantId,
         initial_attempt_id: &str,
         merchant_key_store: &domain::MerchantKeyStore,
+        event_recipient: Option<common_enums::EventRecipient>,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
         let locked_events = self.events.lock().await;
         let events = locked_events
@@ -1011,6 +1049,7 @@ impl EventInterface for MockDb {
             .filter(|event| {
                 event.merchant_id == Some(merchant_id.to_owned())
                     && event.initial_attempt_id == Some(initial_attempt_id.to_owned())
+                    && (event_recipient.is_none() || event_recipient == event.recipient)
             })
             .cloned()
             .collect::<Vec<_>>();
@@ -1037,14 +1076,16 @@ impl EventInterface for MockDb {
         merchant_id: &common_utils::id_type::MerchantId,
         primary_object_id: &str,
         merchant_key_store: &domain::MerchantKeyStore,
+        event_recipient: Option<common_enums::EventRecipient>,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
         let locked_events = self.events.lock().await;
         let events = locked_events
             .iter()
             .filter(|event| {
                 event.merchant_id == Some(merchant_id.to_owned())
-                    && event.initial_attempt_id.as_deref() == Some(&event.event_id)
+                    && event.initial_attempt_id.as_deref() == Some(event.event_id.as_str())
                     && event.primary_object_id.as_str() == primary_object_id
+                    && (event_recipient.is_none() || event_recipient == event.recipient)
             })
             .cloned()
             .collect::<Vec<_>>();
@@ -1108,6 +1149,7 @@ impl EventInterface for MockDb {
         event_types: HashSet<common_enums::EventType>,
         is_delivered: Option<bool>,
         merchant_key_store: &domain::MerchantKeyStore,
+        event_recipient: Option<common_enums::EventRecipient>,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
         let locked_events = self.events.lock().await;
         let events_iter = locked_events.iter().filter(|event| {
@@ -1116,7 +1158,8 @@ impl EventInterface for MockDb {
                 && (event.created_at >= created_after)
                 && (event.created_at <= created_before)
                 && (event_types.is_empty() || event_types.contains(&event.event_type))
-                && (event.is_overall_delivery_successful == is_delivered);
+                && (event.is_overall_delivery_successful == is_delivered)
+                && (event_recipient.is_none() || event_recipient == event.recipient);
 
             check
         });
@@ -1171,14 +1214,16 @@ impl EventInterface for MockDb {
         profile_id: &common_utils::id_type::ProfileId,
         primary_object_id: &str,
         merchant_key_store: &domain::MerchantKeyStore,
+        event_recipient: Option<common_enums::EventRecipient>,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
         let locked_events = self.events.lock().await;
         let events = locked_events
             .iter()
             .filter(|event| {
                 event.business_profile_id == Some(profile_id.to_owned())
-                    && event.initial_attempt_id.as_deref() == Some(&event.event_id)
+                    && event.initial_attempt_id.as_deref() == Some(event.event_id.as_str())
                     && event.primary_object_id.as_str() == primary_object_id
+                    && (event_recipient.is_none() || event_recipient == event.recipient)
             })
             .cloned()
             .collect::<Vec<_>>();
@@ -1283,6 +1328,7 @@ impl EventInterface for MockDb {
         created_before: time::PrimitiveDateTime,
         event_types: HashSet<common_enums::EventType>,
         is_delivered: Option<bool>,
+        event_recipient: Option<common_enums::EventRecipient>,
     ) -> CustomResult<i64, errors::StorageError> {
         let locked_events = self.events.lock().await;
 
@@ -1293,8 +1339,8 @@ impl EventInterface for MockDb {
                 && (event.created_at >= created_after)
                 && (event.created_at <= created_before)
                 && (event_types.is_empty() || event_types.contains(&event.event_type))
-                && (event.is_overall_delivery_successful == is_delivered);
-
+                && (event.is_overall_delivery_successful == is_delivered)
+                && (event_recipient.is_none() || event_recipient == event.recipient);
             check
         });
 
@@ -1315,6 +1361,7 @@ impl EventInterface for MockDb {
         event_types: HashSet<common_enums::EventType>,
         is_delivered: Option<bool>,
         merchant_key_store: &domain::MerchantKeyStore,
+        event_recipient: Option<common_enums::EventRecipient>,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
         let locked_events = self.events.lock().await;
         let events_iter = locked_events.iter().filter(|event| {
@@ -1329,7 +1376,8 @@ impl EventInterface for MockDb {
                 && (event.created_at >= created_after)
                 && (event.created_at <= created_before)
                 && (event_types.is_empty() || event_types.contains(&event.event_type))
-                && (event.is_overall_delivery_successful == is_delivered);
+                && (event.is_overall_delivery_successful == is_delivered)
+                && (event_recipient.is_none() || event_recipient == event.recipient);
 
             check
         });
@@ -1384,6 +1432,7 @@ impl EventInterface for MockDb {
         initial_attempt_id: &str,
         initiator_merchant_id: &common_utils::id_type::MerchantId,
         merchant_key_store: &domain::MerchantKeyStore,
+        event_recipient: Option<common_enums::EventRecipient>,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
         let locked_events = self.events.lock().await;
         let events = locked_events
@@ -1393,7 +1442,9 @@ impl EventInterface for MockDb {
                     == Some(initiator_merchant_id)
                     || (event.initiator_merchant_id.is_none()
                         && event.merchant_id.as_ref() == Some(initiator_merchant_id));
-                event.initial_attempt_id.as_deref() == Some(initial_attempt_id) && matches_initiator
+                event.initial_attempt_id.as_deref() == Some(initial_attempt_id)
+                    && matches_initiator
+                    && (event_recipient.is_none() || event_recipient == event.recipient)
             })
             .cloned()
             .collect::<Vec<_>>();
@@ -1421,6 +1472,7 @@ impl EventInterface for MockDb {
         primary_object_id: &str,
         profile_id: Option<common_utils::id_type::ProfileId>,
         merchant_key_store: &domain::MerchantKeyStore,
+        event_recipient: Option<common_enums::EventRecipient>,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
         let locked_events = self.events.lock().await;
         let events = locked_events
@@ -1436,8 +1488,9 @@ impl EventInterface for MockDb {
                     .is_none_or(|pid| event.business_profile_id.as_ref() == Some(pid));
                 matches_initiator
                     && matches_profile
-                    && event.initial_attempt_id.as_deref() == Some(&event.event_id)
+                    && event.initial_attempt_id.as_deref() == Some(event.event_id.as_str())
                     && event.primary_object_id.as_str() == primary_object_id
+                    && (event_recipient.is_none() || event_recipient == event.recipient)
             })
             .cloned()
             .collect::<Vec<_>>();
@@ -1507,6 +1560,7 @@ impl EventInterface for MockDb {
         created_before: time::PrimitiveDateTime,
         event_types: HashSet<common_enums::EventType>,
         is_delivered: Option<bool>,
+        event_recipient: Option<common_enums::EventRecipient>,
     ) -> CustomResult<i64, errors::StorageError> {
         let locked_events = self.events.lock().await;
 
@@ -1516,7 +1570,8 @@ impl EventInterface for MockDb {
                 && (event.created_at >= created_after)
                 && (event.created_at <= created_before)
                 && (event_types.is_empty() || event_types.contains(&event.event_type))
-                && (event.is_overall_delivery_successful == is_delivered);
+                && (event.is_overall_delivery_successful == is_delivered)
+                && (event_recipient.is_none() || event_recipient == event.recipient);
 
             check
         });
@@ -1528,6 +1583,7 @@ impl EventInterface for MockDb {
             .attach_printable("Failed to convert usize to i64")
     }
 
+    #[allow(clippy::too_many_arguments)]
     async fn count_initial_events_by_initiator_merchant_id_constraints(
         &self,
         initiator_merchant_id: &common_utils::id_type::MerchantId,
@@ -1536,6 +1592,7 @@ impl EventInterface for MockDb {
         created_before: time::PrimitiveDateTime,
         event_types: HashSet<common_enums::EventType>,
         is_delivered: Option<bool>,
+        event_recipient: Option<common_enums::EventRecipient>,
     ) -> CustomResult<i64, errors::StorageError> {
         let locked_events = self.events.lock().await;
 
@@ -1551,7 +1608,8 @@ impl EventInterface for MockDb {
                 && (event.created_at >= created_after)
                 && (event.created_at <= created_before)
                 && (event_types.is_empty() || event_types.contains(&event.event_type))
-                && (event.is_overall_delivery_successful == is_delivered);
+                && (event.is_overall_delivery_successful == is_delivered)
+                && (event_recipient.is_none() || event_recipient == event.recipient);
 
             check
         });
@@ -1693,6 +1751,7 @@ mod tests {
                     is_overall_delivery_successful: Some(false),
                     processor_merchant_id: Some(merchant_id.to_owned()),
                     initiator_merchant_id: Some(merchant_id.to_owned()),
+                    recipient: Some(enums::EventRecipient::Merchant),
                 },
                 &merchant_key_store,
             )
@@ -1809,6 +1868,7 @@ mod tests {
                     is_overall_delivery_successful: Some(false),
                     processor_merchant_id: Some(merchant_id.to_owned()),
                     initiator_merchant_id: Some(merchant_id.to_owned()),
+                    recipient: Some(enums::EventRecipient::Merchant),
                 },
                 &merchant_key_store,
             )
@@ -1936,6 +1996,7 @@ mod tests {
             product_type: None,
             version: common_enums::ApiVersion::V1,
             network_tokenization_credentials: None,
+            fingerprint_secret: None,
         });
         let merchant_account = state
             .store
@@ -2191,6 +2252,8 @@ mod tests {
                     content_clone,
                     primary_object_created_at,
                     webhook_recipient,
+                    None,
+                    business_profile_clone,
                 ))
                 .await
                 .map_err(|e| format!("create_event_and_trigger_outgoing_webhook failed: {e}"))
@@ -2217,6 +2280,7 @@ mod tests {
                 &business_profile.merchant_id,
                 primary_object_id.as_str(),
                 &merchant_key_store,
+                Some(enums::EventRecipient::Merchant),
             )
             .await?;
 

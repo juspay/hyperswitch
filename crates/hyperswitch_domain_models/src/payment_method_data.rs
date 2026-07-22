@@ -193,6 +193,14 @@ pub struct CardWithLimitedData {
 
     /// The ECI(Electronic Commerce Indicator) value for this authentication.
     pub eci: Option<String>,
+
+    /// The network transaction ID provided by the card network during a Customer Initiated Transaction (CIT)
+    /// when `setup_future_usage` is set to `off_session`.
+    pub network_transaction_id: Option<Secret<String>>,
+
+    /// The Mastercard Transaction Link Identifier (TLID) provided by the card network during a CIT (Customer Initiated Transaction),
+    /// when `setup_future_usage` is set to `off_session`.
+    pub transaction_link_id: Option<String>,
 }
 
 // Determines if decryption should be performed
@@ -466,6 +474,23 @@ pub struct CardWithOptionalCVC {
 }
 
 impl CardWithOptionalCVC {
+    pub fn get_card_expiry_month_2_digit(
+        &self,
+    ) -> Result<Secret<String>, common_utils::errors::ValidationError> {
+        let exp_month = self.card_exp_month.peek().parse::<u8>().map_err(|_| {
+            common_utils::errors::ValidationError::InvalidValue {
+                message: "Invalid card expiry month".to_string(),
+            }
+        })?;
+        let month = ::cards::CardExpirationMonth::try_from(exp_month).map_err(|_| {
+            common_utils::errors::ValidationError::InvalidValue {
+                message: "Invalid card expiry month".to_string(),
+            }
+        })?;
+
+        Ok(Secret::new(month.two_digits()))
+    }
+
     fn apply_additional_card_info(
         &self,
         additional_card_info: api_models::payments::AdditionalCardInfo,
@@ -687,7 +712,13 @@ impl CardWithLimitedDetails {
         card_with_limited_data: CardWithLimitedData,
     ) -> (mandates::MandateReferenceId, PaymentMethodData) {
         (
-            mandates::MandateReferenceId::CardWithLimitedData,
+            mandates::MandateReferenceId::CardWithLimitedData(mandates::CardWithLimitedDataRef {
+                network_transaction_id: card_with_limited_data
+                    .clone()
+                    .network_transaction_id
+                    .map(|id| id.peek().to_string()),
+                transaction_link_id: card_with_limited_data.transaction_link_id.clone(),
+            }),
             PaymentMethodData::CardWithLimitedDetails(card_with_limited_data.into()),
         )
     }
@@ -1740,6 +1771,7 @@ pub enum BankTransferData {
         expiry_date: Option<time::PrimitiveDateTime>,
     },
     PixEmv {},
+    PixQr {},
     PixAutomaticoPush {
         account_number: Option<Secret<String>>,
         branch_code: Option<Secret<String>>,
@@ -1906,6 +1938,9 @@ impl From<api_models::payments::PaymentMethodData> for PaymentMethodData {
             api_models::payments::PaymentMethodData::Card(card_data) => {
                 Self::Card(Card::from((card_data, None)))
             }
+            api_models::payments::PaymentMethodData::CardWithNoCVC(card_data) => {
+                Self::CardWithOptionalCVC(CardWithOptionalCVC::from((card_data, None)))
+            }
             api_models::payments::PaymentMethodData::CardRedirect(card_redirect) => {
                 Self::CardRedirect(From::from(card_redirect))
             }
@@ -2059,6 +2094,50 @@ impl
             card_exp_month,
             card_exp_year,
             card_cvc,
+            card_issuer,
+            card_network,
+            card_type,
+            card_issuing_country,
+            card_issuing_country_code,
+            bank_code,
+            nick_name,
+            card_holder_name,
+            co_badged_card_data: co_badged_card_data_optional,
+        }
+    }
+}
+
+impl
+    From<(
+        api_models::payments::CardWithNoCVC,
+        Option<payment_methods::CoBadgedCardData>,
+    )> for CardWithOptionalCVC
+{
+    fn from(
+        (value, co_badged_card_data_optional): (
+            api_models::payments::CardWithNoCVC,
+            Option<payment_methods::CoBadgedCardData>,
+        ),
+    ) -> Self {
+        let api_models::payments::CardWithNoCVC {
+            card_number,
+            card_exp_month,
+            card_exp_year,
+            card_holder_name,
+            card_issuer,
+            card_network,
+            card_type,
+            card_issuing_country,
+            card_issuing_country_code,
+            bank_code,
+            nick_name,
+        } = value;
+
+        Self {
+            card_number,
+            card_exp_month,
+            card_exp_year,
+            card_cvc: None,
             card_issuer,
             card_network,
             card_type,
@@ -3083,6 +3162,7 @@ impl From<api_models::payments::BankTransferData> for BankTransferData {
                 expiry_date,
             },
             api_models::payments::BankTransferData::PixEmv {} => Self::PixEmv {},
+            api_models::payments::BankTransferData::PixQr {} => Self::PixQr {},
             api_models::payments::BankTransferData::PixAutomaticoPush {
                 account_number,
                 branch_code,
@@ -3153,6 +3233,7 @@ impl From<BankTransferData> for api_models::payments::additional_info::BankTrans
                 },
             )),
             BankTransferData::PixEmv {} => Self::PixEmv {},
+            BankTransferData::PixQr {} => Self::PixQr {},
             BankTransferData::PixAutomaticoPush {
                 account_number,
                 branch_code,
@@ -3486,6 +3567,7 @@ impl GetPaymentMethodType for BankTransferData {
             Self::MandiriVaBankTransfer { .. } => api_enums::PaymentMethodType::MandiriVa,
             Self::Pix { .. } => api_enums::PaymentMethodType::Pix,
             Self::PixEmv {} => api_enums::PaymentMethodType::PixEmv,
+            Self::PixQr {} => api_enums::PaymentMethodType::PixQr,
             Self::PixAutomaticoPush { .. } => api_enums::PaymentMethodType::PixAutomaticoPush,
             Self::PixAutomaticoQr {} => api_enums::PaymentMethodType::PixAutomaticoQr,
             Self::Pse {} => api_enums::PaymentMethodType::Pse,
@@ -4418,6 +4500,8 @@ impl From<api_mandates::CardWithLimitedData> for CardWithLimitedData {
             card_exp_year: card_with_limited_data.card_exp_year,
             card_holder_name: card_with_limited_data.card_holder_name,
             eci: card_with_limited_data.eci,
+            network_transaction_id: card_with_limited_data.network_transaction_id,
+            transaction_link_id: card_with_limited_data.transaction_link_id,
         }
     }
 }

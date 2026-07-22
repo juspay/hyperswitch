@@ -4,6 +4,7 @@ use std::{num::NonZeroU8, ops::Deref, str::FromStr};
 use api_models::payouts::{self, PayoutMethodData};
 use api_models::{
     enums,
+    merchant_connector_webhook_management::ScopeIdentifier,
     payments::{self, PollConfig, QrCodeInformation, VoucherNextStepData},
 };
 use base64::Engine;
@@ -30,22 +31,30 @@ use hyperswitch_domain_models::{
         PaymentMethodBalance, PaymentMethodToken, RouterData,
     },
     router_flow_types::{
-        merchant_connector_webhook_management::ConnectorWebhookRegister, GiftCardBalanceCheck,
+        merchant_connector_webhook_management::{
+            ConnectorWebhookGenerateSecret, ConnectorWebhookRegister,
+        },
+        GiftCardBalanceCheck,
     },
     router_request_types::{
-        merchant_connector_webhook_management::ConnectorWebhookRegisterRequest,
+        merchant_connector_webhook_management::{
+            ConnectorWebhookGenerateSecretRequest, ConnectorWebhookRegisterRequest,
+        },
         GiftCardBalanceCheckRequestData, ResponseId, SubmitEvidenceRequestData,
     },
     router_response_types::{
-        merchant_connector_webhook_management::ConnectorWebhookRegisterResponse,
+        merchant_connector_webhook_management::{
+            ConnectorWebhookGenerateSecretResponse, ConnectorWebhookRegisterResponse,
+        },
         AcceptDisputeResponse, DefendDisputeResponse, GiftCardBalanceCheckResponseData,
         MandateReference, PaymentsResponseData, RedirectForm, RefundsResponseData,
         SubmitEvidenceResponse,
     },
     types::{
-        ConnectorWebhookRegisterRouterData, PaymentsAuthorizeRouterData, PaymentsCancelRouterData,
-        PaymentsCaptureRouterData, PaymentsExtendAuthorizationRouterData,
-        PaymentsGiftCardBalanceCheckRouterData, PaymentsPreProcessingRouterData, RefundsRouterData,
+        ConnectorWebhookGenerateSecretRouterData, ConnectorWebhookRegisterRouterData,
+        PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
+        PaymentsExtendAuthorizationRouterData, PaymentsGiftCardBalanceCheckRouterData,
+        PaymentsPreProcessingRouterData, RefundsRouterData,
     },
 };
 #[cfg(feature = "payouts")]
@@ -443,6 +452,8 @@ pub enum AdyenStatus {
     #[cfg(feature = "payouts")]
     #[serde(rename = "[payout-submit-received]")]
     PayoutSubmitReceived,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -470,6 +481,7 @@ fn get_adyen_payment_status(
     is_manual_capture: bool,
     adyen_status: AdyenStatus,
     pmt: Option<common_enums::PaymentMethodType>,
+    prev_status: storage_enums::AttemptStatus,
 ) -> storage_enums::AttemptStatus {
     match adyen_status {
         AdyenStatus::AuthenticationFinished => {
@@ -500,6 +512,13 @@ fn get_adyen_payment_status(
         AdyenStatus::PayoutSubmitReceived => storage_enums::AttemptStatus::Pending,
         #[cfg(feature = "payouts")]
         AdyenStatus::PayoutDeclineReceived => storage_enums::AttemptStatus::Voided,
+        AdyenStatus::Unknown => {
+            router_env::logger::warn!(
+                "Adyen returned unknown payment status; retaining previous status {:?}",
+                prev_status
+            );
+            prev_status
+        }
     }
 }
 
@@ -526,6 +545,9 @@ impl ForeignTryFrom<(bool, AdyenWebhookStatus)> for storage_enums::AttemptStatus
             //If Unexpected Event is received, need to understand how it reached this point
             //Webhooks with Payment Events only should try to conume this resource object.
             AdyenWebhookStatus::UnexpectedEvent | AdyenWebhookStatus::Reversed => {
+                Err(report!(errors::ConnectorError::WebhookBodyDecodingFailed))
+            }
+            AdyenWebhookStatus::Unknown => {
                 Err(report!(errors::ConnectorError::WebhookBodyDecodingFailed))
             }
         }
@@ -612,6 +634,8 @@ pub enum AdyenWebhookStatus {
     Expired,
     AdjustedAuthorization,
     AdjustAuthorizationFailed,
+    #[serde(other)]
+    Unknown,
 }
 
 //Creating custom struct which can be consumed in Psync Handler triggered from Webhooks
@@ -748,6 +772,8 @@ pub enum ActionType {
     #[serde(rename = "qrCode")]
     QrCode,
     Voucher,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
@@ -1510,6 +1536,8 @@ pub enum CancelStatus {
     Received,
     #[default]
     Processing,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1601,8 +1629,8 @@ impl FromStr for AdyenRefundRequestReason {
 pub struct AdyenRefundResponse {
     merchant_account: Secret<String>,
     psp_reference: String,
-    payment_psp_reference: String,
-    reference: String,
+    payment_psp_reference: Option<String>,
+    reference: Option<String>,
     status: String,
 }
 
@@ -2188,7 +2216,7 @@ fn get_additional_data(
                     ref_data.transaction_link_id.clone()
                 }
                 mandates::MandateReferenceId::ConnectorMandateId(_)
-                | mandates::MandateReferenceId::CardWithLimitedData => None,
+                | mandates::MandateReferenceId::CardWithLimitedData(_) => None,
             })
     });
 
@@ -2466,7 +2494,10 @@ fn get_adyen_card_network(card_network: common_enums::CardNetwork) -> Option<Car
         common_enums::CardNetwork::Accel => Some(CardBrand::Accel),
         common_enums::CardNetwork::Pulse => Some(CardBrand::Pulse),
         common_enums::CardNetwork::Nyce => Some(CardBrand::Nyce),
-        common_enums::CardNetwork::Interac => None,
+        common_enums::CardNetwork::Interac
+        | common_enums::CardNetwork::Prop
+        | common_enums::CardNetwork::PrivateLabel
+        | common_enums::CardNetwork::Dinacard => None,
     }
 }
 
@@ -2995,6 +3026,7 @@ impl TryFrom<(&BankTransferData, &PaymentsAuthorizeRouterData)> for AdyenPayment
             | BankTransferData::InstantBankTransferPoland {}
             | BankTransferData::IndonesianBankTransfer { .. }
             | BankTransferData::PixEmv { .. }
+            | BankTransferData::PixQr {}
             | BankTransferData::PixAutomaticoPush { .. }
             | BankTransferData::PixAutomaticoQr {}
             | BankTransferData::Pse {} => Err(errors::ConnectorError::NotImplemented(
@@ -3299,7 +3331,7 @@ impl
                     }
                 }
             }
-            mandates::MandateReferenceId::CardWithLimitedData => {
+            mandates::MandateReferenceId::CardWithLimitedData(_) => {
                 Err(errors::ConnectorError::NotSupported {
                     message: "Card Only MIT for payment method".to_string(),
                     connector: "Adyen",
@@ -3766,6 +3798,7 @@ impl
             | BankTransferData::PixAutomaticoPush { .. }
             | BankTransferData::PixAutomaticoQr {}
             | BankTransferData::PixEmv {}
+            | BankTransferData::PixQr {}
             | BankTransferData::IndonesianBankTransfer { .. } => (None, None),
         };
         let application_info = get_application_info(item);
@@ -4497,8 +4530,10 @@ pub fn get_adyen_response(
     is_capture_manual: bool,
     status_code: u16,
     pmt: Option<storage_enums::PaymentMethodType>,
+    prev_status: storage_enums::AttemptStatus,
 ) -> CustomResult<AdyenPaymentsResponseData, errors::ConnectorError> {
-    let status = get_adyen_payment_status(is_capture_manual, response.result_code, pmt);
+    let status =
+        get_adyen_payment_status(is_capture_manual, response.result_code, pmt, prev_status);
     let error = if response.refusal_reason.is_some()
         || response.refusal_reason_code.is_some()
         || status == storage_enums::AttemptStatus::Failure
@@ -4720,8 +4755,14 @@ pub fn get_redirection_response(
     is_manual_capture: bool,
     status_code: u16,
     pmt: Option<storage_enums::PaymentMethodType>,
+    prev_status: storage_enums::AttemptStatus,
 ) -> CustomResult<AdyenPaymentsResponseData, errors::ConnectorError> {
-    let status = get_adyen_payment_status(is_manual_capture, response.result_code.clone(), pmt);
+    let status = get_adyen_payment_status(
+        is_manual_capture,
+        response.result_code.clone(),
+        pmt,
+        prev_status,
+    );
     let error = if response.refusal_reason.is_some()
         || response.refusal_reason_code.is_some()
         || status == storage_enums::AttemptStatus::Failure
@@ -4824,8 +4865,14 @@ pub fn get_present_to_shopper_response(
     is_manual_capture: bool,
     status_code: u16,
     pmt: Option<storage_enums::PaymentMethodType>,
+    prev_status: storage_enums::AttemptStatus,
 ) -> CustomResult<AdyenPaymentsResponseData, errors::ConnectorError> {
-    let status = get_adyen_payment_status(is_manual_capture, response.result_code.clone(), pmt);
+    let status = get_adyen_payment_status(
+        is_manual_capture,
+        response.result_code.clone(),
+        pmt,
+        prev_status,
+    );
     let error = if response.refusal_reason.is_some()
         || response.refusal_reason_code.is_some()
         || status == storage_enums::AttemptStatus::Failure
@@ -4897,8 +4944,14 @@ pub fn get_qr_code_response(
     is_manual_capture: bool,
     status_code: u16,
     pmt: Option<storage_enums::PaymentMethodType>,
+    prev_status: storage_enums::AttemptStatus,
 ) -> CustomResult<AdyenPaymentsResponseData, errors::ConnectorError> {
-    let status = get_adyen_payment_status(is_manual_capture, response.result_code.clone(), pmt);
+    let status = get_adyen_payment_status(
+        is_manual_capture,
+        response.result_code.clone(),
+        pmt,
+        prev_status,
+    );
     let error = if response.refusal_reason.is_some()
         || response.refusal_reason_code.is_some()
         || status == storage_enums::AttemptStatus::Failure
@@ -4970,8 +5023,10 @@ pub fn get_redirection_error_response(
     is_manual_capture: bool,
     status_code: u16,
     pmt: Option<storage_enums::PaymentMethodType>,
+    prev_status: storage_enums::AttemptStatus,
 ) -> CustomResult<AdyenPaymentsResponseData, errors::ConnectorError> {
-    let status = get_adyen_payment_status(is_manual_capture, response.result_code, pmt);
+    let status =
+        get_adyen_payment_status(is_manual_capture, response.result_code, pmt, prev_status);
     let error = {
         let (network_decline_code, network_error_message) = response
             .additional_data
@@ -5299,21 +5354,44 @@ impl<F, Req>
         ),
     ) -> Result<Self, Self::Error> {
         let is_manual_capture = is_manual_capture(capture_method);
+        let prev_status = item.data.status;
         let adyen_payments_response_data = match item.response {
-            AdyenPaymentResponse::Response(response) => {
-                get_adyen_response(*response, is_manual_capture, item.http_code, pmt)?
-            }
-            AdyenPaymentResponse::PresentToShopper(response) => {
-                get_present_to_shopper_response(*response, is_manual_capture, item.http_code, pmt)?
-            }
-            AdyenPaymentResponse::QrCodeResponse(response) => {
-                get_qr_code_response(*response, is_manual_capture, item.http_code, pmt)?
-            }
-            AdyenPaymentResponse::RedirectionResponse(response) => {
-                get_redirection_response(*response, is_manual_capture, item.http_code, pmt)?
-            }
+            AdyenPaymentResponse::Response(response) => get_adyen_response(
+                *response,
+                is_manual_capture,
+                item.http_code,
+                pmt,
+                prev_status,
+            )?,
+            AdyenPaymentResponse::PresentToShopper(response) => get_present_to_shopper_response(
+                *response,
+                is_manual_capture,
+                item.http_code,
+                pmt,
+                prev_status,
+            )?,
+            AdyenPaymentResponse::QrCodeResponse(response) => get_qr_code_response(
+                *response,
+                is_manual_capture,
+                item.http_code,
+                pmt,
+                prev_status,
+            )?,
+            AdyenPaymentResponse::RedirectionResponse(response) => get_redirection_response(
+                *response,
+                is_manual_capture,
+                item.http_code,
+                pmt,
+                prev_status,
+            )?,
             AdyenPaymentResponse::RedirectionErrorResponse(response) => {
-                get_redirection_error_response(*response, is_manual_capture, item.http_code, pmt)?
+                get_redirection_error_response(
+                    *response,
+                    is_manual_capture,
+                    item.http_code,
+                    pmt,
+                    prev_status,
+                )?
             }
             AdyenPaymentResponse::WebhookResponse(response) => get_webhook_response(
                 *response,
@@ -5432,7 +5510,7 @@ pub struct AdyenCaptureResponse {
     payment_psp_reference: String,
     psp_reference: String,
     reference: String,
-    status: String,
+    status: Option<String>,
     amount: Amount,
     merchant_reference: Option<String>,
     store: Option<String>,
@@ -5568,7 +5646,8 @@ impl<F> TryFrom<RefundsResponseRouterData<F, AdyenRefundResponse>> for RefundsRo
 pub struct AdyenErrorResponse {
     pub status: i32,
     pub error_code: String,
-    pub message: String,
+    pub message: Option<String>,
+    pub title: Option<String>,
     pub psp_reference: Option<String>,
 }
 
@@ -5602,6 +5681,8 @@ pub enum DisputeStatus {
     Unresponded,
     Responded,
     Expired,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Debug, Deserialize)]
@@ -7251,7 +7332,7 @@ pub enum CommunicationFormat {
 pub struct WebhookRegister {
     #[serde(rename = "type")]
     webhook_type: WebhookRegisterType,
-    url: String,
+    url: Secret<String>,
     active: bool,
     communication_format: CommunicationFormat,
 }
@@ -7275,18 +7356,24 @@ impl TryFrom<&common_enums::ConnectorWebhookEventType> for WebhookRegisterType {
 impl TryFrom<&ConnectorWebhookRegisterRouterData> for WebhookRegister {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &ConnectorWebhookRegisterRouterData) -> Result<Self, Self::Error> {
-        let webhook_type = item.request.event_type;
-        let webhook_type: WebhookRegisterType = WebhookRegisterType::try_from(&webhook_type)?;
+        let webhook_type = match &item.request.scope {
+            ScopeIdentifier::EventType(event) => {
+                let webhook_event = common_enums::ConnectorWebhookEventType::SpecificEvent(*event);
+                WebhookRegisterType::try_from(&webhook_event)?
+            }
+            ScopeIdentifier::NotSpecific => WebhookRegisterType::Standard,
+            ScopeIdentifier::PaymentMethodType(_) => WebhookRegisterType::Standard,
+        };
         Ok(Self {
             webhook_type,
-            url: item.request.webhook_url.clone(),
+            url: Secret::new(item.request.webhook_url.clone().expose().to_string()),
             active: true,
             communication_format: CommunicationFormat::Json,
         })
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AdyenWebhookRegisterResponse {
     id: String,
@@ -7318,8 +7405,52 @@ impl
     ) -> Result<Self, Self::Error> {
         Ok(ConnectorWebhookRegisterRouterData {
             response: Ok(ConnectorWebhookRegisterResponse {
+                identifier: item.data.request.scope.clone(),
                 connector_webhook_id: Some(item.response.id.clone()),
                 status: common_enums::WebhookRegistrationStatus::Success,
+                error_code: None,
+                error_message: None,
+                metadata: None,
+            }),
+            ..item.data
+        })
+    }
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AdyenGenerateHmacResponse {
+    hmac_key: Secret<String>,
+}
+
+impl
+    TryFrom<
+        ResponseRouterData<
+            ConnectorWebhookGenerateSecret,
+            AdyenGenerateHmacResponse,
+            ConnectorWebhookGenerateSecretRequest,
+            ConnectorWebhookGenerateSecretResponse,
+        >,
+    >
+    for RouterData<
+        ConnectorWebhookGenerateSecret,
+        ConnectorWebhookGenerateSecretRequest,
+        ConnectorWebhookGenerateSecretResponse,
+    >
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<
+            ConnectorWebhookGenerateSecret,
+            AdyenGenerateHmacResponse,
+            ConnectorWebhookGenerateSecretRequest,
+            ConnectorWebhookGenerateSecretResponse,
+        >,
+    ) -> Result<Self, Self::Error> {
+        Ok(ConnectorWebhookGenerateSecretRouterData {
+            response: Ok(ConnectorWebhookGenerateSecretResponse {
+                secret: Some(item.response.hmac_key),
+                status: common_enums::WebhookSecretGenerationStatus::Success,
                 error_code: None,
                 error_message: None,
             }),

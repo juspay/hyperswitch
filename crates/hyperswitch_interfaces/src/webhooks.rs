@@ -3,7 +3,7 @@
 use common_utils::{crypto, errors::CustomResult, ext_traits::ValueExt};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
-    api::ApplicationResponse, errors::api_error_response::ApiErrorResponse,
+    api::WebhookResponse, errors::api_error_response::ApiErrorResponse,
 };
 use hyperswitch_masking::{ExposeInterface, Secret};
 
@@ -56,6 +56,11 @@ pub enum WebhookResourceData {
         /// The previous payment attempt details before processing this webhook
         payment_attempt: hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
     },
+    /// Context for Refund-related webhooks
+    Refund {
+        /// The payment attempt details attached with the refund
+        payment_attempt: hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
+    },
 }
 
 impl WebhookResourceData {
@@ -65,6 +70,7 @@ impl WebhookResourceData {
     ) -> &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt {
         match self {
             Self::Payment { payment_attempt } => payment_attempt,
+            Self::Refund { payment_attempt } => payment_attempt,
         }
     }
 }
@@ -107,7 +113,8 @@ impl WebhookContext {
 impl From<&WebhookResourceData> for WebhookContext {
     fn from(data: &WebhookResourceData) -> Self {
         match data {
-            WebhookResourceData::Payment { payment_attempt } => {
+            WebhookResourceData::Payment { payment_attempt }
+            | WebhookResourceData::Refund { payment_attempt } => {
                 Self::Payment(PaymentWebhookContext {
                     previous_status: payment_attempt.status,
                     payment_method: payment_attempt.payment_method,
@@ -124,7 +131,8 @@ impl From<&WebhookResourceData> for WebhookContext {
 impl From<&WebhookResourceData> for WebhookContext {
     fn from(data: &WebhookResourceData) -> Self {
         match data {
-            WebhookResourceData::Payment { payment_attempt } => {
+            WebhookResourceData::Payment { payment_attempt }
+            | WebhookResourceData::Refund { payment_attempt } => {
                 Self::Payment(PaymentWebhookContext {
                     previous_status: payment_attempt.status,
                     payment_method: payment_attempt.get_payment_method(),
@@ -330,8 +338,8 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
         _request: &IncomingWebhookRequestDetails<'_>,
         _error_kind: Option<IncomingWebhookFlowError>,
         _connector_authentication_type: Option<crypto::Encryptable<Secret<serde_json::Value>>>,
-    ) -> CustomResult<ApplicationResponse<serde_json::Value>, errors::ConnectorError> {
-        Ok(ApplicationResponse::StatusOk)
+    ) -> CustomResult<WebhookResponse<serde_json::Value>, errors::ConnectorError> {
+        Ok(WebhookResponse::StatusOk)
     }
 
     /// fn get_dispute_details

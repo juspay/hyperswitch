@@ -46,12 +46,13 @@ impl ForeignFrom<api_threedsecure::PaymentData> for dsl_inputs::PaymentInput {
             transaction_initiator: None,
             authentication_type: None,
             capture_method: None,
-            business_country: None,
+            business_country: request_payment_data.business_country,
             billing_country: None,
             business_label: None,
             setup_future_usage: None,
             card_bin: None,
             extended_card_bin: None,
+            surcharge_amount: None,
         }
     }
 }
@@ -104,7 +105,34 @@ impl ForeignFrom<api_threedsecure::AcquirerData> for dsl_inputs::AcquirerDataInp
 impl ForeignFrom<api_threedsecure::ThreeDsDecisionRuleExecuteRequest> for dsl_inputs::BackendInput {
     fn foreign_from(request: api_threedsecure::ThreeDsDecisionRuleExecuteRequest) -> Self {
         Self {
-            metadata: None,
+            metadata: request.metadata.and_then(|meta| {
+                // Extract metadata from "routing_parameters" namespace if nested (during standard transaction confirmations flow),
+                // or fall back to parsing the raw root metadata value if flat (during standalone test execution API calls).
+                meta.get("routing_parameters")
+                    .cloned()
+                    .and_then(|params| {
+                        serde_json::from_value::<rustc_hash::FxHashMap<String, String>>(params)
+                            .map_err(|err| {
+                                router_env::logger::error!(
+                                    "Error deserializing routing_parameters from metadata: {:?}",
+                                    err
+                                );
+                                err
+                            })
+                            .ok()
+                    })
+                    .or_else(|| {
+                        serde_json::from_value::<rustc_hash::FxHashMap<String, String>>(meta)
+                            .map_err(|err| {
+                                router_env::logger::error!(
+                                    "Error deserializing flat metadata: {:?}",
+                                    err
+                                );
+                                err
+                            })
+                            .ok()
+                    })
+            }),
             payment: dsl_inputs::PaymentInput::foreign_from(request.payment),
             payment_method: dsl_inputs::PaymentMethodInput::foreign_from(request.payment_method),
             mandate: dsl_inputs::MandateData {

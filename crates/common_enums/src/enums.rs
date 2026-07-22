@@ -1760,6 +1760,26 @@ impl Currency {
     serde::Serialize,
     strum::Display,
     strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum EventRecipient {
+    Merchant,
+    Connector,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
 )]
 #[router_derive::diesel_enum(storage_type = "db_enum")]
 #[serde(rename_all = "snake_case")]
@@ -1813,8 +1833,13 @@ impl EventClass {
                 EventType::PaymentCaptured,
                 EventType::PaymentExpired,
                 EventType::ActionRequired,
+                EventType::SurchargePaymentSucceeded,
             ]),
-            Self::Refunds => HashSet::from([EventType::RefundSucceeded, EventType::RefundFailed]),
+            Self::Refunds => HashSet::from([
+                EventType::RefundSucceeded,
+                EventType::RefundFailed,
+                EventType::SurchargeRefundSucceeded,
+            ]),
             Self::Disputes => HashSet::from([
                 EventType::DisputeOpened,
                 EventType::DisputeExpired,
@@ -1896,6 +1921,24 @@ pub enum EventType {
     #[cfg(feature = "payouts")]
     PayoutReversed,
     InvoicePaid,
+    SurchargePaymentSucceeded,
+    SurchargeRefundSucceeded,
+}
+
+/// Maps primary payment/refund events to their corresponding surcharge events
+pub trait SurchargeEventMapper {
+    /// Returns the surcharge event type corresponding to this primary event
+    fn to_surcharge_event(&self) -> Option<EventType>;
+}
+
+impl SurchargeEventMapper for EventType {
+    fn to_surcharge_event(&self) -> Option<Self> {
+        match self {
+            Self::PaymentSucceeded => Some(Self::SurchargePaymentSucceeded),
+            Self::RefundSucceeded => Some(Self::SurchargeRefundSucceeded),
+            _ => None,
+        }
+    }
 }
 
 #[derive(
@@ -2446,6 +2489,7 @@ pub enum PaymentMethodType {
     Pix,
     PixKey,
     PixEmv,
+    PixQr,
     PixAutomaticoQr,
     PixAutomaticoPush,
     PaySafeCard,
@@ -2602,6 +2646,7 @@ impl PaymentMethodType {
             Self::Pix => "Pix",
             Self::PixKey => "Pix Key",
             Self::PixEmv => "Pix EMV",
+            Self::PixQr => "Pix QR",
             Self::PixAutomaticoQr => "Pix Automático QR",
             Self::PixAutomaticoPush => "Pix Automático Push",
             Self::PaySafeCard => "PaySafeCard",
@@ -2893,7 +2938,7 @@ impl From<ExecutionMode> for EventExecutionMode {
     }
 }
 
-#[derive(Clone, Copy, Debug, serde::Serialize)]
+#[derive(Clone, Copy, Debug, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "snake_case")]
 /// Where a connector event's call was sent.
 pub enum EventDestination {
@@ -3262,6 +3307,12 @@ pub enum CardNetwork {
     Accel,
     #[serde(alias = "NYCE")]
     Nyce,
+    #[serde(alias = "PROP")]
+    Prop,
+    #[serde(alias = "PRIVATE LABEL")]
+    PrivateLabel,
+    #[serde(alias = "DINACARD")]
+    Dinacard,
 }
 
 #[derive(
@@ -3303,12 +3354,41 @@ pub enum RegulatedName {
     utoipa::ToSchema,
     Copy,
 )]
-#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[router_derive::diesel_enum(storage_type = "text")]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "lowercase")]
 pub enum PanOrToken {
     Pan,
     Token,
+}
+
+#[derive(
+    Clone,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumIter,
+    strum::EnumString,
+    utoipa::ToSchema,
+    Copy,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "UPPERCASE")]
+#[strum(serialize_all = "UPPERCASE")]
+pub enum FundingSource {
+    Credit,
+    Debit,
+    #[serde(rename = "DEFERRED DEBIT")]
+    #[strum(serialize = "DEFERRED DEBIT")]
+    DeferredDebit,
+    Prepaid,
+    #[serde(rename = "CHARGE CARD")]
+    #[strum(serialize = "CHARGE CARD")]
+    ChargeCard,
 }
 
 #[derive(
@@ -3749,7 +3829,10 @@ impl CardNetwork {
             | Self::Discover
             | Self::UnionPay
             | Self::RuPay
-            | Self::Maestro => true,
+            | Self::Maestro
+            | Self::Prop
+            | Self::PrivateLabel
+            | Self::Dinacard => true,
         }
     }
 
@@ -3766,9 +3849,61 @@ impl CardNetwork {
             | Self::Discover
             | Self::UnionPay
             | Self::RuPay
-            | Self::Maestro => false,
+            | Self::Maestro
+            | Self::Prop
+            | Self::PrivateLabel
+            | Self::Dinacard => false,
         }
     }
+}
+
+/// If a card is associated with a secondary (co-badged) network — e.g. Star, Pulse, Nyce —
+/// this represents that network's identity, distinct from the card's primary `CardNetwork`.
+/// Secondary networks typically provide less complete BIN data than primary networks.
+#[derive(
+    Clone,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumIter,
+    strum::EnumString,
+    utoipa::ToSchema,
+    Copy,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+pub enum CoBadgedCardNetwork {
+    #[serde(alias = "RUPAY")]
+    RuPay,
+    #[serde(alias = "CARTES BANCAIRES")]
+    CartesBancaires,
+    #[serde(alias = "STAR")]
+    Star,
+    #[serde(alias = "ACCEL")]
+    Accel,
+    #[serde(alias = "PULSE")]
+    Pulse,
+    #[serde(alias = "NYCE")]
+    Nyce,
+    #[serde(alias = "ELO")]
+    Elo,
+    #[serde(alias = "DANKORT")]
+    Dankort,
+    #[serde(alias = "CULIANCE")]
+    Culiance,
+    #[serde(alias = "KOREAN LOCAL")]
+    KoreanLocal,
+    #[serde(alias = "EFTPOS_AUSTRALIA")]
+    EftposAustralia,
+    #[serde(alias = "HIPERCARD")]
+    Hipercard,
+    #[serde(alias = "UATP")]
+    Uatp,
+    #[serde(alias = "BANCONTACT")]
+    Bancontact,
 }
 
 /// Stage of the dispute
@@ -9661,9 +9796,11 @@ pub enum PermissionGroup {
     WebhooksManage,
     ApiKeysView,
     ApiKeysManage,
-    InternalManage,
+    CloneConnectorManage,
     ThemeView,
     ThemeManage,
+    ConfigurationsView,
+    ConfigurationsManage,
     ReconSourcesView,
     ReconSourcesManage,
     ReconExceptionsView,
@@ -9686,8 +9823,9 @@ pub enum ParentGroup {
     Account,
     Webhook,
     ApiKeys,
-    Internal,
+    CloneConnector,
     Theme,
+    Configurations,
     ReconSources,
     ReconExceptions,
     ReconTransactions,
@@ -9715,7 +9853,7 @@ pub enum Resource {
     Report,
     RevenueRecovery,
     Subscription,
-    InternalConnector,
+    CloneConnector,
     Theme,
     ReconIngestion,
     ReconTransformation,
@@ -9723,6 +9861,7 @@ pub enum Resource {
     ReconStagingEntry,
     ReconTransaction,
     ReconRule,
+    SuperpositionConfig,
 }
 
 #[derive(
@@ -10394,6 +10533,24 @@ pub enum ConnectorTokenStatus {
     Active,
     /// Indicates that the connector mandate  is not active and hence cannot be used for payments.
     Inactive,
+}
+
+impl From<ConnectorMandateStatus> for ConnectorTokenStatus {
+    fn from(status: ConnectorMandateStatus) -> Self {
+        match status {
+            ConnectorMandateStatus::Active => Self::Active,
+            ConnectorMandateStatus::Inactive => Self::Inactive,
+        }
+    }
+}
+
+impl From<ConnectorTokenStatus> for ConnectorMandateStatus {
+    fn from(status: ConnectorTokenStatus) -> Self {
+        match status {
+            ConnectorTokenStatus::Active => Self::Active,
+            ConnectorTokenStatus::Inactive => Self::Inactive,
+        }
+    }
 }
 
 #[derive(
@@ -11390,6 +11547,27 @@ pub enum WebhookRegistrationStatus {
     #[default]
     Success,
     // Webhook registration has failed
+    Failure,
+}
+
+/// The status of HMAC key generation for a connector webhook
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[strum(serialize_all = "snake_case")]
+pub enum WebhookSecretGenerationStatus {
+    /// HMAC key generation is successful
+    Success,
+    /// HMAC key generation has failed
     Failure,
 }
 
