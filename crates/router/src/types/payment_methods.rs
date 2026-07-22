@@ -208,6 +208,12 @@ pub struct VaultDeleteRequest {
     pub vault_id: domain::VaultId,
 }
 
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct VaultDeleteRequestNew {
+    pub entity_id: id_type::MerchantId,
+    pub vault_id: domain::VaultId,
+}
+
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct VaultDeleteResponse {
