@@ -215,6 +215,12 @@ pub const V2_VAULT_DELETE_FLOW_TYPE: &str = "delete_from_vault";
 /// Vault Fingerprint fetch flow type
 pub const V2_VAULT_GET_FINGERPRINT_FLOW_TYPE: &str = "get_fingerprint_vault";
 
+/// Locker entity create request url
+pub const LOCKER_ENTITY_CREATE_REQUEST_URL: &str = "/entity";
+
+/// Locker entity create flow type
+pub const LOCKER_ENTITY_CREATE_FLOW_TYPE: &str = "create_entity";
+
 /// Max volume split for Dynamic routing
 pub const DYNAMIC_ROUTING_MAX_VOLUME: u8 = 100;
 
@@ -369,7 +375,7 @@ pub mod superposition {
     pub const REQUIRES_CVV: &str = "requires_cvv";
     /// implicit customer update configuration key
     pub const IMPLICIT_CUSTOMER_UPDATE: &str = "implicit_customer_update";
-    /// Fingerprint secret configuration key
+    /// Fingerprint secret configuration key retained for migration fallback
     pub const FINGERPRINT_SECRET: &str = "fingerprint_secret";
     /// Poll config for external 3DS authentication key
     pub const POLL_CONFIG_EXTERNAL_THREE_DS: &str = "poll_config_external_three_ds";

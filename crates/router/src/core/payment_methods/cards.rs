@@ -167,6 +167,7 @@ impl PaymentMethodsController for PmCards<'_> {
         let compat_action = super::payment_method_modular_forward_compat_action(
             self.state,
             merchant_id,
+            &self.provider.get_account().organization_id,
             Some(customer_id),
         )
         .await;
@@ -475,6 +476,7 @@ impl PaymentMethodsController for PmCards<'_> {
                 let compat_action = super::payment_method_modular_forward_compat_action(
                     self.state,
                     &existing_pm.merchant_id,
+                    &self.provider.get_account().organization_id,
                     existing_pm.customer_id.as_ref(),
                 )
                 .await;
@@ -2030,6 +2032,7 @@ impl PaymentMethodsController for PmCards<'_> {
                         let compat_action = super::payment_method_modular_forward_compat_action(
                             self.state,
                             &existing_pm.merchant_id,
+                            &self.provider.get_account().organization_id,
                             existing_pm.customer_id.as_ref(),
                         )
                         .await;
@@ -2544,6 +2547,7 @@ pub async fn add_payment_method_data(
                         let compat_action = super::payment_method_modular_forward_compat_action(
                             &state,
                             &payment_method.merchant_id,
+                            &provider.get_account().organization_id,
                             payment_method.customer_id.as_ref(),
                         )
                         .await;
@@ -2640,6 +2644,7 @@ pub async fn add_payment_method_data(
                         let compat_action = super::payment_method_modular_forward_compat_action(
                             &state,
                             &payment_method.merchant_id,
+                            &provider.get_account().organization_id,
                             payment_method.customer_id.as_ref(),
                         )
                         .await;
@@ -2927,6 +2932,7 @@ pub async fn update_customer_payment_method(
             let compat_action = super::payment_method_modular_forward_compat_action(
                 &state,
                 &pm.merchant_id,
+                &provider.get_account().organization_id,
                 pm.customer_id.as_ref(),
             )
             .await;
@@ -3015,6 +3021,7 @@ pub async fn update_customer_payment_method(
         let compat_action = super::payment_method_modular_forward_compat_action(
             &state,
             &pm.merchant_id,
+            &provider.get_account().organization_id,
             pm.customer_id.as_ref(),
         )
         .await;
@@ -3626,8 +3633,10 @@ pub async fn update_payment_method_and_last_used(
 }
 
 #[cfg(feature = "v2")]
+#[allow(clippy::too_many_arguments)]
 pub async fn update_payment_method_connector_mandate_details(
     state: &routes::SessionState,
+    organization_id: &id_type::OrganizationId,
     key_store: &domain::MerchantKeyStore,
     db: &dyn db::StorageInterface,
     pm: domain::PaymentMethod,
@@ -3647,7 +3656,10 @@ pub async fn update_payment_method_connector_mandate_details(
         pm,
         pm_update,
         storage_scheme,
-        Some(super::payment_method_modular_backward_compat_action(state)),
+        Some(super::payment_method_modular_backward_compat_action(
+            state,
+            organization_id,
+        )),
     )
     .await
     .change_context(errors::VaultError::UpdateInPaymentMethodTableFailed)?;

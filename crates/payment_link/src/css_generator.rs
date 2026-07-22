@@ -10,7 +10,7 @@ use lightningcss::{
     stylesheet::{ParserOptions, PrinterOptions, StyleSheet},
     traits::ToCss,
 };
-use router_env::logger;
+use tracing as logger;
 
 #[derive(Debug, thiserror::Error)]
 pub enum PaymentLinkError {
