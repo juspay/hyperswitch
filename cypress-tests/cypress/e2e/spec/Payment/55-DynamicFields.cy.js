@@ -17,13 +17,16 @@ describe("Dynamic Fields Verification", () => {
       });
     });
 
-    after("flush global state", () => {
-      globalState.set("profileId", globalState.get("originalProfileId"));
-      globalState.set(
-        "merchantConnectorId",
-        globalState.get("originalMerchantConnectorId")
-      );
-      cy.task("setGlobalState", globalState.data);
+    after("delete business profile and flush global state", () => {
+      cy.deleteBusinessProfileTest(globalState);
+      cy.then(() => {
+        globalState.set("profileId", globalState.get("originalProfileId"));
+        globalState.set(
+          "merchantConnectorId",
+          globalState.get("originalMerchantConnectorId")
+        );
+        cy.task("setGlobalState", globalState.data);
+      });
     });
 
     context(
