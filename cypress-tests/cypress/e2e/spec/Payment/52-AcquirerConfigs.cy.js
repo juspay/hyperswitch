@@ -63,7 +63,7 @@ describe("Acquirer-specific configurations", () => {
   });
 
   after("cleanup business profile", () => {
-    cy.deleteBusinessProfileTest(globalState);
+    cy.deleteBusinessProfileTest(globalState, "acquirerConfigProfile");
   });
 
   context(
@@ -72,24 +72,38 @@ describe("Acquirer-specific configurations", () => {
       it("Create Business Profile", () => {
         cy.createBusinessProfileTest(
           fixtures.businessProfile.bpCreate,
-          globalState
+          globalState,
+          "acquirerConfigProfile"
         );
       });
 
       it("Create Acquirer Config (Visa, is_default=true)", () => {
         const body = { ...acquirerConfigCreateVisa };
-        cy.createAcquirerConfigTest(body, globalState);
+        cy.createAcquirerConfigTest(
+          body,
+          globalState,
+          200,
+          "acquirerConfigProfile"
+        );
       });
 
       it("Update Acquirer Config", () => {
         const body = { ...acquirerConfigUpdate };
         body.acquirer_bin = Cypress._.random(100000, 999999).toString();
         globalState.set("visaAcquirerBin", body.acquirer_bin);
-        cy.updateAcquirerConfigTest(body, globalState);
+        cy.updateAcquirerConfigTest(
+          body,
+          globalState,
+          200,
+          "acquirerConfigProfile"
+        );
       });
 
       it("Retrieve Business Profile — Verify acquirer_config_bucket populated", () => {
-        cy.verifyBusinessProfileAcquirerConfigTest(globalState);
+        cy.verifyBusinessProfileAcquirerConfigTest(
+          globalState,
+          "acquirerConfigProfile"
+        );
       });
     }
   );
@@ -109,7 +123,7 @@ describe("Acquirer-specific configurations", () => {
         body,
         globalState,
         404,
-        "profile",
+        "acquirerConfigProfile",
         "pro_acq_nonexistent_12345"
       );
     });
@@ -118,7 +132,12 @@ describe("Acquirer-specific configurations", () => {
       const body = {
         ...acquirerConfigErrorNoNetwork,
       };
-      cy.updateAcquirerConfigTest(body, globalState, 422);
+      cy.updateAcquirerConfigTest(
+        body,
+        globalState,
+        422,
+        "acquirerConfigProfile"
+      );
     });
   });
 
@@ -127,7 +146,7 @@ describe("Acquirer-specific configurations", () => {
     () => {
       beforeEach(function () {
         if (
-          !globalState.get("profileId") ||
+          !globalState.get("acquirerConfigProfileId") ||
           !globalState.get("profileAcquirerId")
         ) {
           this.skip();
@@ -141,7 +160,7 @@ describe("Acquirer-specific configurations", () => {
           body,
           globalState,
           200,
-          "profile",
+          "acquirerConfigProfile",
           "mastercardAcquirerId"
         );
       });
@@ -149,7 +168,7 @@ describe("Acquirer-specific configurations", () => {
       it("Retrieve Business Profile — Verify both acquirer configs", () => {
         cy.verifyBusinessProfileAcquirerConfigTest(
           globalState,
-          "profile",
+          "acquirerConfigProfile",
           "verifyMultipleAcquirerConfigs"
         );
       });
