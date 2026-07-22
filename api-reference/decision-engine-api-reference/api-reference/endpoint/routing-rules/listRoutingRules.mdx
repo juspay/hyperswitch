@@ -1,0 +1,69 @@
+---
+title: "List Routing Rules"
+description: "List all routing rules for a merchant."
+openapi: "decision_engine_openapi-specs.json POST /routing/list/{created_by}"
+---
+
+# List Routing Rules
+
+## Use case
+
+Lists routing algorithms created by a merchant/operator scope.
+
+## Authentication
+
+Protected. Send either `Authorization: Bearer <jwt_token>` or `x-api-key: <api_key>`. In sandbox, also send `x-feature: decision-engine`.
+
+For local development, start with:
+
+```bash
+export BASE_URL=http://localhost:8080
+export AUTH_HEADER="Authorization: Bearer <jwt_token>"
+# Sandbox only:
+# export BASE_URL=https://sandbox.hyperswitch.io
+# export FEATURE_HEADER="x-feature: decision-engine"
+```
+
+## Request
+
+- Method and path: `POST /routing/list/{created_by}`
+- Parameters:
+  - `created_by` (path, required, string)
+- Body: Path parameter `created_by`; optional request body can be `{}`.
+
+## Example
+
+### List rules
+
+```bash
+curl --location "$BASE_URL/routing/list/merchant_demo" \
+  --header "$AUTH_HEADER" \
+  --header "Content-Type: application/json" \
+  --data '{}'
+```
+
+## Response
+
+```json
+{
+  "rules": [
+    {
+      "rule_id": "routing_e641380c-6f24-4405-8454-5ae6cbceb7a0",
+      "name": "priority rule",
+      "active": true,
+      "algorithm_for": "payment"
+    }
+  ]
+}
+```
+
+## Notes
+
+- Use this to render routing history and select which rule to activate.
+- The route is POST for compatibility even though it behaves like a list read.
+
+## Related
+
+- [Get Active Routing Rule](/decision-engine-api-reference/api-reference/endpoint/routing-rules/getActiveRoutingRule)
+- [Activate Routing Rule](/decision-engine-api-reference/api-reference/endpoint/routing-rules/activateRoutingRule)
+- [List Routing Algorithms](/decision-engine-api-reference/api-reference/guides/configure-routing/routing-algorithm-list)

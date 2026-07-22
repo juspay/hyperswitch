@@ -1,0 +1,64 @@
+---
+title: "Dashboard"
+description: "Local dashboard routes and how they are served"
+---
+
+## Availability
+
+The dashboard is available in the `dashboard-*` Docker Compose profiles.
+
+Example:
+
+```bash
+COMPOSE_PROFILES= docker compose --profile dashboard-postgres-ghcr up -d
+```
+
+Then open:
+
+- `http://localhost:8081/dashboard/`
+
+The dashboard is served by Nginx from the built assets in `website/dist`. This docs page intentionally lives at `/dashboard-guide` — `/dashboard/` is reserved for the React app itself.
+
+## What It Includes
+
+Based on the React routes in `website/src/App.tsx`, the dashboard exposes:
+
+- `/dashboard/`
+- `/dashboard/login`
+- `/dashboard/signup`
+- `/dashboard/onboarding`
+- `/dashboard/routing`
+- `/dashboard/routing/sr`
+- `/dashboard/routing/rules`
+- `/dashboard/routing/volume`
+- `/dashboard/routing/debit`
+- `/dashboard/decisions`
+- `/dashboard/analytics`
+- `/dashboard/audit`
+
+For source-run Vite development, the same React routes are mounted at `http://localhost:5173/`.
+For external production hosting, the preferred route is `/decision-engine/` with API traffic proxied through `/decision-engine-api/*`.
+
+## Docs And API In The Same Profile
+
+The same `dashboard-*` profiles also expose:
+
+- Mintlify docs at `http://localhost:8081/introduction`
+- API examples at `http://localhost:8081/api-refs/api-ref`
+- the API at `http://localhost:8080`
+
+Proxy behavior is defined in `nginx/nginx.conf`.
+
+## Related Files
+
+- `website/src/App.tsx`
+- `website/src/components/pages/*`
+- `docker-compose.yaml`
+- `nginx/nginx.conf`
+
+## Related Docs
+
+- [Installation](/decision-engine-api-reference/installation)
+- [Local Setup Guide](/decision-engine-api-reference/local-setup)
+- [Analytics](/decision-engine-api-reference/analytics)
+- [Payment Audit](/decision-engine-api-reference/payment-audit)

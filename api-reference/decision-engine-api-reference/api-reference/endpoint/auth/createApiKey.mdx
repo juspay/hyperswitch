@@ -1,0 +1,67 @@
+---
+title: "Create API Key"
+description: "Create a service-to-service API key for a merchant."
+openapi: "decision_engine_openapi-specs.json POST /api-key/create"
+---
+
+# Create API Key
+
+## Use case
+
+Creates an API key for server-to-server access to protected Decision Engine routes.
+
+## Authentication
+
+Dashboard protected. Send `Authorization: Bearer <jwt_token>`. In sandbox, also send `x-feature: decision-engine`.
+
+For local development, start with:
+
+```bash
+export BASE_URL=http://localhost:8080
+export AUTH_HEADER="Authorization: Bearer <jwt_token>"
+# Sandbox only:
+# export BASE_URL=https://sandbox.hyperswitch.io
+# export FEATURE_HEADER="x-feature: decision-engine"
+```
+
+## Request
+
+- Method and path: `POST /api-key/create`
+- Parameters: none.
+- Body: JSON body with `merchant_id`, optional `name`, and optional expiry metadata.
+
+## Example
+
+### Create API key
+
+```bash
+curl --location "$BASE_URL/api-key/create" \
+  --header "$AUTH_HEADER" \
+  --header "Content-Type: application/json" \
+  --data '{
+  "merchant_id": "merchant_demo",
+  "name": "local-smoke-key"
+}'
+```
+
+## Response
+
+```json
+{
+  "key_id": "key_123",
+  "api_key": "DE_live_xxx",
+  "merchant_id": "merchant_demo",
+  "name": "local-smoke-key"
+}
+```
+
+## Notes
+
+- The raw API key is usually returned only once. Store it securely.
+- Use `x-api-key: <api_key>` as `AUTH_HEADER` for backend-to-backend examples.
+
+## Related
+
+- [List API Keys](/decision-engine-api-reference/api-reference/endpoint/auth/listApiKeys)
+- [Revoke API Key](/decision-engine-api-reference/api-reference/endpoint/auth/revokeApiKey)
+- [Decide Gateway](/decision-engine-api-reference/api-reference/endpoint/gateway-decision/decideGateway)

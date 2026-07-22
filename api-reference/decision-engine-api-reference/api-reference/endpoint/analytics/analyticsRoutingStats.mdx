@@ -1,0 +1,105 @@
+---
+title: "Analytics Routing Stats"
+description: "ClickHouse-backed routing stats read endpoint."
+openapi: "decision_engine_openapi-specs.json GET /analytics/routing-stats"
+---
+
+# Analytics Routing Stats
+
+## Use case
+
+Returns connector share, rule hits, score filters, and routing-stat chart data for the Analytics page.
+
+## Authentication
+
+Protected. Send either `Authorization: Bearer <jwt_token>` or `x-api-key: <api_key>`. In sandbox, also send `x-feature: decision-engine`.
+
+For local development, start with:
+
+```bash
+export BASE_URL=http://localhost:8080
+export AUTH_HEADER="Authorization: Bearer <jwt_token>"
+export TENANT_HEADER="x-tenant-id: public"
+# Sandbox only:
+# export BASE_URL=https://sandbox.hyperswitch.io
+# export FEATURE_HEADER="x-feature: decision-engine"
+```
+
+## Request
+
+- Method and path: `GET /analytics/routing-stats`
+- Parameters:
+  - `x-tenant-id` (header, required, string) — see [Environment setup](/decision-engine-api-reference/api-reference/guides/api-ref#environment-setup).
+  - `range` (query, optional, string)
+  - `start_ms` (query, optional, integer)
+  - `end_ms` (query, optional, integer)
+  - `page` (query, optional, integer)
+  - `page_size` (query, optional, integer)
+  - `payment_method_type` (query, optional, string)
+  - `payment_method` (query, optional, string)
+  - `card_network` (query, optional, string)
+  - `card_is_in` (query, optional, string)
+  - `currency` (query, optional, string)
+  - `country` (query, optional, string)
+  - `auth_type` (query, optional, string)
+  - `gateway` (query, optional, string)
+  - `payment_id` (query, optional, string)
+  - `request_id` (query, optional, string)
+  - `route` (query, optional, string)
+  - `status` (query, optional, string)
+  - `flow_type` (query, optional, string)
+  - `routing_approach` (query, optional, string)
+  - `exclude_routing_approach` (query, optional, string)
+  - `error_code` (query, optional, string)
+- Body: Optional query parameters include `range`, `gateway`, `payment_method_type`, `payment_method`, `country`, and `routing_approach`.
+
+## Example
+
+### Routing stats
+
+```bash
+curl "$BASE_URL/analytics/routing-stats?range=1d&payment_method_type=CARD" \
+  --header "$AUTH_HEADER" \
+  --header "$TENANT_HEADER"
+```
+
+## Response
+
+```json
+{
+  "gateway_share": [
+    {
+      "gateway": "adyen",
+      "count": 7,
+      "share": 70.0
+    },
+    {
+      "gateway": "stripe",
+      "count": 3,
+      "share": 30.0
+    }
+  ],
+  "filter_options": {
+    "payment_method_type": [
+      "CARD"
+    ],
+    "payment_method": [
+      "CREDIT",
+      "DEBIT"
+    ]
+  }
+}
+```
+
+## Notes
+
+- Analytics reads are ClickHouse-backed and merchant-scoped by the authenticated context.
+- Use `range=15m|1h|12h|1d|1w` or `start_ms` plus `end_ms` for a custom window.
+- `gateway_share` and `sr_trend` are scoped by the same dimension and `gateway` filters so selected volume can be compared against the matching success-rate slice.
+- The dashboard uses this for both auth-rate based analytics and rule/volume decision activity.
+
+## Related
+
+- [Analytics Decisions](/decision-engine-api-reference/api-reference/endpoint/analytics/analyticsDecisions)
+- [Analytics Gateway Scores](/decision-engine-api-reference/api-reference/endpoint/analytics/analyticsGatewayScores)
+- [Analytics Endpoints](/decision-engine-api-reference/api-reference/guides/analytics-audit/analytics-endpoints)

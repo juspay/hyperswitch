@@ -1,0 +1,65 @@
+---
+title: "Switch Merchant"
+description: "Switch the current dashboard merchant context."
+openapi: "decision_engine_openapi-specs.json POST /auth/switch-merchant"
+---
+
+# Switch Merchant
+
+## Use case
+
+Switches the dashboard operator to a different merchant workspace and returns updated session context.
+
+## Authentication
+
+Dashboard protected. Send `Authorization: Bearer <jwt_token>`. In sandbox, also send `x-feature: decision-engine`.
+
+For local development, start with:
+
+```bash
+export BASE_URL=http://localhost:8080
+export AUTH_HEADER="Authorization: Bearer <jwt_token>"
+# Sandbox only:
+# export BASE_URL=https://sandbox.hyperswitch.io
+# export FEATURE_HEADER="x-feature: decision-engine"
+```
+
+## Request
+
+- Method and path: `POST /auth/switch-merchant`
+- Parameters: none.
+- Body: JSON body with `merchant_id` from `/auth/merchants`.
+
+## Example
+
+### Switch merchant
+
+```bash
+curl --location "$BASE_URL/auth/switch-merchant" \
+  --header "$AUTH_HEADER" \
+  --header "Content-Type: application/json" \
+  --data '{
+  "merchant_id": "merchant_demo"
+}'
+```
+
+## Response
+
+```json
+{
+  "token": "eyJ...",
+  "merchant_id": "merchant_demo",
+  "merchant_name": "Demo Merchant"
+}
+```
+
+## Notes
+
+- Refresh stored dashboard auth context with the returned token/session data.
+- Use this before reading merchant-scoped analytics.
+
+## Related
+
+- [List User Merchants](/decision-engine-api-reference/api-reference/endpoint/auth/listUserMerchants)
+- [Current User](/decision-engine-api-reference/api-reference/endpoint/auth/me)
+- [Analytics Overview](/decision-engine-api-reference/api-reference/endpoint/analytics/analyticsOverview)

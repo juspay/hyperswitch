@@ -1,0 +1,60 @@
+---
+title: "Logout"
+description: "Revoke the current dashboard JWT."
+openapi: "decision_engine_openapi-specs.json POST /auth/logout"
+---
+
+# Logout
+
+## Use case
+
+Invalidates the current dashboard session on the client/server auth boundary.
+
+## Authentication
+
+Dashboard protected. Send `Authorization: Bearer <jwt_token>`. In sandbox, also send `x-feature: decision-engine`.
+
+For local development, start with:
+
+```bash
+export BASE_URL=http://localhost:8080
+export AUTH_HEADER="Authorization: Bearer <jwt_token>"
+# Sandbox only:
+# export BASE_URL=https://sandbox.hyperswitch.io
+# export FEATURE_HEADER="x-feature: decision-engine"
+```
+
+## Request
+
+- Method and path: `POST /auth/logout`
+- Parameters: none.
+- Body: No request body.
+
+## Example
+
+### Logout
+
+```bash
+curl --location "$BASE_URL/auth/logout" \
+  --header "$AUTH_HEADER" \
+  --header "Content-Type: application/json" \
+  --data '{}'
+```
+
+## Response
+
+```json
+{
+  "message": "Logged out successfully"
+}
+```
+
+## Notes
+
+- Clear local dashboard session state after a successful logout.
+- API keys are not affected by dashboard logout.
+
+## Related
+
+- [Login](/decision-engine-api-reference/api-reference/endpoint/auth/login)
+- [Current User](/decision-engine-api-reference/api-reference/endpoint/auth/me)

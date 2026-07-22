@@ -1,0 +1,30 @@
+---
+title: "Volume Split Example"
+description: "Volume-split routing create example."
+---
+
+# Volume Split Example
+
+```bash
+curl --location "$BASE_URL/routing/create" \
+  --header "$AUTH_HEADER" \
+  --header "Content-Type: application/json" \
+  --data '{
+    "name": "volume split rule",
+    "created_by": "merchant_demo",
+    "algorithm_for": "payment",
+    "algorithm": {
+      "type": "volume_split",
+      "data": [
+        {
+          "split": 70,
+          "output": { "gateway_name": "stripe", "gateway_id": "mca_111" }
+        },
+        {
+          "split": 30,
+          "output": { "gateway_name": "adyen", "gateway_id": "mca_112" }
+        }
+      ]
+    }
+  }'
+```

@@ -1,0 +1,62 @@
+---
+title: "Health Ready"
+description: "Returns Up when the process is ready to serve traffic."
+openapi: "decision_engine_openapi-specs.json GET /health/ready"
+---
+
+# Health Ready
+
+## Use case
+
+Checks whether the service is ready to receive traffic, including critical dependency checks.
+
+## Authentication
+
+Public. No JWT or API key is required. Sandbox traffic may still include `x-feature: decision-engine` when routed through Hyperswitch.
+
+For local development, start with:
+
+```bash
+export BASE_URL=http://localhost:8080
+export AUTH_HEADER="Authorization: Bearer <jwt_token>"
+# Sandbox only:
+# export BASE_URL=https://sandbox.hyperswitch.io
+# export FEATURE_HEADER="x-feature: decision-engine"
+```
+
+## Request
+
+- Method and path: `GET /health/ready`
+- Parameters: none.
+- Body: No parameters or request body.
+
+## Example
+
+### Readiness check
+
+```bash
+curl "$BASE_URL/health/ready"
+```
+
+## Response
+
+```json
+{
+  "ready": true,
+  "checks": {
+    "database": "ok",
+    "redis": "ok",
+    "clickhouse": "ok"
+  }
+}
+```
+
+## Notes
+
+- Use this for container readiness probes.
+- A dependency failure should mark readiness unhealthy without changing the basic `/health` response.
+
+## Related
+
+- [Health Check](/decision-engine-api-reference/api-reference/endpoint/health/healthCheck)
+- [Health Diagnostics](/decision-engine-api-reference/api-reference/endpoint/health/healthDiagnostics)

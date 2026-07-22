@@ -1,0 +1,62 @@
+---
+title: "Deactivate Routing Rule"
+description: "Deactivate a routing rule by ID for a merchant without deleting the saved rule."
+openapi: "decision_engine_openapi-specs.json POST /routing/deactivate"
+---
+
+# Deactivate Routing Rule
+
+## Use case
+
+Removes the active mapping for a created routing algorithm in the merchant/creator scope. The saved algorithm remains available and can be activated again later.
+
+## Authentication
+
+Protected. Send either `Authorization: Bearer <jwt_token>` or `x-api-key: <api_key>`. In sandbox, also send `x-feature: decision-engine`.
+
+For local development, start with:
+
+```bash
+export BASE_URL=http://localhost:8080
+export AUTH_HEADER="Authorization: Bearer <jwt_token>"
+# Sandbox only:
+# export BASE_URL=https://sandbox.hyperswitch.io
+# export FEATURE_HEADER="x-feature: decision-engine"
+```
+
+## Request
+
+- Method and path: `POST /routing/deactivate`
+- Parameters: none.
+- Body: JSON body with `created_by` and `routing_algorithm_id`.
+
+## Example
+
+### Deactivate rule
+
+```bash
+curl --location "$BASE_URL/routing/deactivate" \
+  --header "$AUTH_HEADER" \
+  --header "Content-Type: application/json" \
+  --data '{
+  "created_by": "merchant_demo",
+  "routing_algorithm_id": "routing_e641380c-6f24-4405-8454-5ae6cbceb7a0"
+}'
+```
+
+## Response
+
+Success returns HTTP `200` with an empty response body.
+
+## Notes
+
+- The call is idempotent: if the algorithm exists but is already inactive for the merchant, the API still returns success.
+- If `routing_algorithm_id` does not exist, the API returns `400`.
+- Deactivation removes only the active mapping. It does not delete the saved routing algorithm.
+
+## Related
+
+- [Create Routing Rule](/decision-engine-api-reference/api-reference/endpoint/routing-rules/createRoutingRule)
+- [Activate Routing Rule](/decision-engine-api-reference/api-reference/endpoint/routing-rules/activateRoutingRule)
+- [Get Active Routing Rule](/decision-engine-api-reference/api-reference/endpoint/routing-rules/getActiveRoutingRule)
+- [Deactivate Routing Algorithm](/decision-engine-api-reference/api-reference/guides/configure-routing/routing-algorithm-deactivate)

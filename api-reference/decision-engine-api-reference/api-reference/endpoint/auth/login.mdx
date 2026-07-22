@@ -1,0 +1,73 @@
+---
+title: "Login"
+description: "Create a dashboard JWT session."
+openapi: "decision_engine_openapi-specs.json POST /auth/login"
+---
+
+# Login
+
+## Use case
+
+Authenticates a dashboard operator and returns a JWT used by the dashboard and protected API examples.
+
+## Authentication
+
+Public. No JWT or API key is required. Sandbox traffic may still include `x-feature: decision-engine` when routed through Hyperswitch.
+
+For local development, start with:
+
+```bash
+export BASE_URL=http://localhost:8080
+export AUTH_HEADER="Authorization: Bearer <jwt_token>"
+# Sandbox only:
+# export BASE_URL=https://sandbox.hyperswitch.io
+# export FEATURE_HEADER="x-feature: decision-engine"
+```
+
+## Request
+
+- Method and path: `POST /auth/login`
+- Parameters: none.
+- Body: JSON body with `email` and `password`.
+
+## Example
+
+### Login
+
+```bash
+curl --location "$BASE_URL/auth/login" \
+  --header "Content-Type: application/json" \
+  --data '{
+  "email": "operator@example.com",
+  "password": "StrongPass#123"
+}'
+```
+
+## Response
+
+```json
+{
+  "token": "eyJ...",
+  "user_id": "user_123",
+  "email": "operator@example.com",
+  "merchant_id": "merchant_demo",
+  "role": "admin",
+  "merchants": [
+    {
+      "merchant_id": "merchant_demo",
+      "merchant_name": "Demo Merchant"
+    }
+  ]
+}
+```
+
+## Notes
+
+- After login, export `AUTH_HEADER="Authorization: Bearer <token>"` for protected examples.
+- If the token expires, call login again rather than retrying failed protected calls blindly.
+
+## Related
+
+- [Signup](/decision-engine-api-reference/api-reference/endpoint/auth/signup)
+- [Current User](/decision-engine-api-reference/api-reference/endpoint/auth/me)
+- [List User Merchants](/decision-engine-api-reference/api-reference/endpoint/auth/listUserMerchants)

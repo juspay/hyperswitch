@@ -1,0 +1,66 @@
+---
+title: "Legacy Update Score"
+description: "Legacy compatibility route. New integrations should use /update-gateway-score."
+openapi: "decision_engine_openapi-specs.json POST /update-score"
+---
+
+# Legacy Update Score
+
+## Use case
+
+Compatibility endpoint for older integrations that still call `/update-score`.
+
+## Authentication
+
+Protected. Send either `Authorization: Bearer <jwt_token>` or `x-api-key: <api_key>`. In sandbox, also send `x-feature: decision-engine`.
+
+For local development, start with:
+
+```bash
+export BASE_URL=http://localhost:8080
+export AUTH_HEADER="Authorization: Bearer <jwt_token>"
+# Sandbox only:
+# export BASE_URL=https://sandbox.hyperswitch.io
+# export FEATURE_HEADER="x-feature: decision-engine"
+```
+
+## Request
+
+- Method and path: `POST /update-score`
+- Parameters: none.
+- Body: Uses the same score update payload as `/update-gateway-score`.
+
+## Example
+
+### Legacy update score
+
+```bash
+curl --location "$BASE_URL/update-score" \
+  --header "$AUTH_HEADER" \
+  --header "Content-Type: application/json" \
+  --data '{
+  "merchantId": "merchant_demo",
+  "paymentId": "pay_sr_001",
+  "gateway": "stripe",
+  "status": "success"
+}'
+```
+
+## Response
+
+```json
+{
+  "status": "success",
+  "message": "score updated"
+}
+```
+
+## Notes
+
+- New integrations should use `/update-gateway-score`.
+- Keep this route only for older clients.
+
+## Related
+
+- [Update Gateway Score](/decision-engine-api-reference/api-reference/endpoint/score-feedback/updateGatewayScore)
+- [Legacy Update Score](/decision-engine-api-reference/api-reference/guides/legacy/update-score-legacy)

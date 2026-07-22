@@ -1,0 +1,113 @@
+---
+title: "Cost Ingestion: Connector Setup"
+description: "Curl examples for registering connector settlement credentials and receiving settlement webhooks — the entry point for cost data ingestion."
+---
+
+# Cost Ingestion: Connector Setup
+
+Cost ingestion learns each connector's *actual* per-transaction fee (percentage + flat component) from real settlement reports and invoices, at a fine-grained cluster level (connector × card network × card variant × funding × issuer country × currency × interchange category). That fitted cost model is what [multi-objective routing](/decision-engine-api-reference/api-reference/guides/run-transactions/decide-gateway-multi-objective) ranks gateways on.
+
+### Why it's learned, not configured
+
+Processor pricing is rarely a single number. The effective cost of a transaction depends on the card network, whether the card is credit or debit, where it was issued, the currency, and the interchange category — and published rate cards drift from what actually lands on the settlement statement once assessments, downgrades, and blended tiers are applied. Rather than ask a merchant to enter fee schedules by hand (which go stale the moment a processor re-prices), Decision Engine **reads the money that actually moved.** For each cluster it fits a simple linear model against real settlements — `fee ≈ pct_bps × amount + fixed` — using ordinary least squares. The slope becomes the percentage component (in basis points) and the intercept the flat per-transaction fee. That fitted `(pct_bps, fixed)` pair is the cost estimate every expected-value calculation uses.
+
+Because the fit is per-cluster, the model captures that (say) Visa credit issued in the US costs a different amount than a domestic debit card — precisely the differences that make one gateway cheaper for one slice of traffic and pricier for another. How much of a merchant's volume has a *trustworthy* fit (versus too little data, or a fee structure the linear model can't capture) is what [cost coverage](/decision-engine-api-reference/api-reference/guides/cost-ingestion/cost-ingestion-fees#cost-coverage) reports.
+
+Before any report or invoice can be ingested, register the connector account's settlement credentials.
+
+## Data Sources
+
+Settlement data reaches Decision Engine through three paths, all feeding the same `cost_ingestion` pipeline:
+
+| Source | How it works | Docs |
+| --- | --- | --- |
+| Webhook push | The connector calls Decision Engine when a report is ready. Verified via the stored `webhook_secret`, then queued. | This page |
+| Scheduled poll | A background job polls the connector's reporting API for ready reports. No merchant action needed once credentials are set. | This page |
+| Manual upload | Upload a report or invoice file directly — useful before webhooks are wired, for backfills, or testing. | [Uploads](/decision-engine-api-reference/api-reference/guides/cost-ingestion/cost-ingestion-uploads) |
+
+## Register Connector Credentials
+
+```bash
+curl --location "$BASE_URL/merchant-account/merchant_demo/connectors/adyen/credentials" \
+  --header "$AUTH_HEADER" \
+  --header "Content-Type: application/json" \
+  --data '{
+    "account": "YOUR_ADYEN_MERCHANT_ACCOUNT_CODE",
+    "webhook_secret": "whsec_...",
+    "download_auth": "report_user:report_password"
+  }'
+```
+
+- `account` — the connector-side account (e.g. Adyen's `merchantAccountCode`).
+- `webhook_secret` — used to verify inbound webhook signatures for this account.
+- `download_auth` — credential used to authenticate report downloads for the scheduled poller. Either `"user:password"` for Basic auth, or a bare API key (sent as `X-API-Key`).
+
+Response:
+
+```json
+{
+  "merchant_id": "merchant_demo",
+  "connector": "adyen",
+  "account": "YOUR_ADYEN_MERCHANT_ACCOUNT_CODE",
+  "status": "saved"
+}
+```
+
+Secrets are encrypted at rest and never returned by the API — subsequent reads only return masked hints.
+
+## List Configured Connectors
+
+```bash
+curl "$BASE_URL/merchant-account/merchant_demo/connectors" \
+  --header "$AUTH_HEADER"
+```
+
+```json
+[
+  {
+    "connector": "adyen",
+    "account": "YOUR_ADYEN_MERCHANT_ACCOUNT_CODE",
+    "webhook_secret_hint": "••••af31",
+    "download_auth_hint": "report_user:••••"
+  }
+]
+```
+
+## Remove Credentials
+
+```bash
+curl --request DELETE \
+  "$BASE_URL/merchant-account/merchant_demo/connectors/adyen/credentials/YOUR_ADYEN_MERCHANT_ACCOUNT_CODE" \
+  --header "$AUTH_HEADER"
+```
+
+Returns `204 No Content`. Deleting a source that isn't configured also returns success (idempotent).
+
+## Settlement Webhook (Connector → Decision Engine)
+
+Once credentials are registered, point the connector's settlement-report notification at:
+
+```
+POST /webhooks/settlement/:connector
+```
+
+This route is **public** (no `AUTH_HEADER`) — the connector authenticates itself via its own signature, which Decision Engine verifies against the `webhook_secret` stored for that `(connector, account)` pair. Adyen is the first supported connector (`:connector = adyen`).
+
+```bash
+curl --location "$BASE_URL/webhooks/settlement/adyen" \
+  --header "Content-Type: application/json" \
+  --data @adyen-settlement-notification.json
+```
+
+The handler ACKs immediately and enqueues the report for background processing — download, parse, and re-fit all happen asynchronously in the ingest worker, so the connector always gets a fast response. A bad signature returns `401`; an unrecognized connector or malformed payload returns `400`.
+
+## Notes
+
+- Manual and webhook/poll-based ingestions share the same pipeline and history — see [Uploads](/decision-engine-api-reference/api-reference/guides/cost-ingestion/cost-ingestion-uploads) for the manual path and ingestion history.
+- Once enough settlement data has been fitted, check [Cost Coverage](/decision-engine-api-reference/api-reference/guides/cost-ingestion/cost-ingestion-fees#cost-coverage) to see what share of volume has a trustworthy cost model.
+
+## Related
+
+- [Cost Ingestion: Uploads](/decision-engine-api-reference/api-reference/guides/cost-ingestion/cost-ingestion-uploads)
+- [Cost Ingestion: Fees & Coverage](/decision-engine-api-reference/api-reference/guides/cost-ingestion/cost-ingestion-fees)
+- [Multi-Objective Routing](/decision-engine-api-reference/api-reference/guides/run-transactions/decide-gateway-multi-objective)

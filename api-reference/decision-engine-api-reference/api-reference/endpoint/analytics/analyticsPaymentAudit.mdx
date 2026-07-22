@@ -1,0 +1,125 @@
+---
+title: "Payment Audit"
+description: "ClickHouse-backed payment audit read endpoint."
+openapi: "decision_engine_openapi-specs.json GET /analytics/payment-audit"
+---
+
+# Payment Audit
+
+## Use case
+
+Searches payment decision trails and returns matching payments plus event timelines for audit inspection.
+
+## Authentication
+
+Protected. Send either `Authorization: Bearer <jwt_token>` or `x-api-key: <api_key>`. In sandbox, also send `x-feature: decision-engine`.
+
+For local development, start with:
+
+```bash
+export BASE_URL=http://localhost:8080
+export AUTH_HEADER="Authorization: Bearer <jwt_token>"
+export TENANT_HEADER="x-tenant-id: public"
+# Sandbox only:
+# export BASE_URL=https://sandbox.hyperswitch.io
+# export FEATURE_HEADER="x-feature: decision-engine"
+```
+
+## Request
+
+- Method and path: `GET /analytics/payment-audit`
+- Parameters:
+  - `x-tenant-id` (header, required, string) — see [Environment setup](/decision-engine-api-reference/api-reference/guides/api-ref#environment-setup).
+  - `range` (query, optional, string)
+  - `start_ms` (query, optional, integer)
+  - `end_ms` (query, optional, integer)
+  - `page` (query, optional, integer)
+  - `page_size` (query, optional, integer)
+  - `payment_method_type` (query, optional, string)
+  - `payment_method` (query, optional, string)
+  - `card_network` (query, optional, string)
+  - `card_is_in` (query, optional, string)
+  - `currency` (query, optional, string)
+  - `country` (query, optional, string)
+  - `auth_type` (query, optional, string)
+  - `gateway` (query, optional, string)
+  - `payment_id` (query, optional, string)
+  - `request_id` (query, optional, string)
+  - `route` (query, optional, string)
+  - `status` (query, optional, string)
+  - `flow_type` (query, optional, string)
+  - `routing_approach` (query, optional, string)
+  - `exclude_routing_approach` (query, optional, string)
+  - `error_code` (query, optional, string)
+- Body: Optional query parameters include `range`, `page`, `page_size`, `payment_id`, `gateway`, `status`, `route`, `flow_type`, `routing_approach`, `exclude_routing_approach`, and `error_code`. Use `payment_id` for exact lookup; request IDs are event-level identifiers and may not map to payment summary search in every flow.
+
+## Example
+
+### Audit list
+
+```bash
+curl "$BASE_URL/analytics/payment-audit?range=1d&page=1&page_size=10" \
+  --header "$AUTH_HEADER" \
+  --header "$TENANT_HEADER"
+```
+
+### Exact payment lookup
+
+```bash
+curl "$BASE_URL/analytics/payment-audit?range=1d&payment_id=pay_sr_001" \
+  --header "$AUTH_HEADER" \
+  --header "$TENANT_HEADER"
+```
+
+### Debit routing audit
+
+```bash
+curl "$BASE_URL/analytics/payment-audit?range=1d&routing_approach=NTW_BASED_ROUTING" \
+  --header "$AUTH_HEADER" \
+  --header "$TENANT_HEADER"
+```
+
+## Response
+
+```json
+{
+  "summary": {
+    "matching_payments": 1,
+    "failures": 0,
+    "active_gateways": [
+      "stripe"
+    ]
+  },
+  "payments": [
+    {
+      "payment_id": "pay_sr_001",
+      "merchant_id": "merchant_demo",
+      "latest_status": "success",
+      "gateways": [
+        "stripe"
+      ]
+    }
+  ],
+  "timeline": [
+    {
+      "event_stage": "gateway_decided",
+      "route": "decide_gateway",
+      "gateway": "stripe",
+      "status": "success"
+    }
+  ]
+}
+```
+
+## Notes
+
+- Analytics reads are ClickHouse-backed and merchant-scoped by the authenticated context.
+- Use `range=15m|1h|12h|1d|1w` or `start_ms` plus `end_ms` for a custom window.
+- Use `payment_id` as the primary search key in the dashboard.
+- Use `exclude_routing_approach=NTW_BASED_ROUTING` to hide debit routing from auth-rate based audit mode.
+
+## Related
+
+- [Preview Trace](/decision-engine-api-reference/api-reference/endpoint/analytics/analyticsPreviewTrace)
+- [Analytics Log Summaries](/decision-engine-api-reference/api-reference/endpoint/analytics/analyticsLogSummaries)
+- [Analytics Endpoints](/decision-engine-api-reference/api-reference/guides/analytics-audit/analytics-endpoints)

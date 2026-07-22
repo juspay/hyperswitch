@@ -1,0 +1,73 @@
+---
+title: "Update Gateway Score"
+description: "Feed a transaction outcome back into the success-rate model. Call this after every transaction so the engine has accurate SR data for future routing decisions."
+openapi: "decision_engine_openapi-specs.json POST /update-gateway-score"
+---
+
+# Update Gateway Score
+
+## Use case
+
+Records the observed transaction outcome for a previously selected gateway so auth-rate analytics can learn from real payment results.
+
+## Authentication
+
+Protected. Send either `Authorization: Bearer <jwt_token>` or `x-api-key: <api_key>`. In sandbox, also send `x-feature: decision-engine`.
+
+For local development, start with:
+
+```bash
+export BASE_URL=http://localhost:8080
+export AUTH_HEADER="Authorization: Bearer <jwt_token>"
+# Sandbox only:
+# export BASE_URL=https://sandbox.hyperswitch.io
+# export FEATURE_HEADER="x-feature: decision-engine"
+```
+
+## Request
+
+- Method and path: `POST /update-gateway-score`
+- Parameters: none.
+- Body: JSON body should include merchant/payment identity, selected gateway, status, and latency/outcome details expected by the score updater.
+
+## Example
+
+### Update gateway score
+
+```bash
+curl --location "$BASE_URL/update-gateway-score" \
+  --header "$AUTH_HEADER" \
+  --header "Content-Type: application/json" \
+  --data '{
+  "merchantId": "merchant_demo",
+  "paymentId": "pay_sr_001",
+  "gateway": "stripe",
+  "status": "success",
+  "amount": 1000,
+  "currency": "USD",
+  "paymentMethodType": "CARD",
+  "paymentMethod": "CREDIT",
+  "authType": "THREE_DS",
+  "latency": 120
+}'
+```
+
+## Response
+
+```json
+{
+  "status": "success",
+  "message": "gateway score updated"
+}
+```
+
+## Notes
+
+- Do not call this after `NTW_BASED_ROUTING` just to record the selected debit network; debit audit comes from `/decide-gateway` analytics.
+- Call it after payment authorization completes, not before.
+
+## Related
+
+- [Decide Gateway](/decision-engine-api-reference/api-reference/endpoint/gateway-decision/decideGateway)
+- [Analytics Gateway Scores](/decision-engine-api-reference/api-reference/endpoint/analytics/analyticsGatewayScores)
+- [Update Gateway Score](/decision-engine-api-reference/api-reference/guides/feedback-scoring/update-gateway-score)

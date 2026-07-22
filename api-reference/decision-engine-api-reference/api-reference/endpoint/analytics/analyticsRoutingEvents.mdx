@@ -1,0 +1,88 @@
+---
+title: "Routing Events"
+description: "ClickHouse-backed routing events read endpoint."
+openapi: "decision_engine_openapi-specs.json GET /analytics/routing-events"
+---
+
+# Routing Events
+
+## Use case
+
+Returns a historical feed of routing-relevant state changes: SR leader changes, gateways entering or exiting the multi-objective auth band, and autopilot calibration runs. Powers the dashboard's routing timeline and the simulation UI's "Autopilot Actions" panel.
+
+## Authentication
+
+Protected. Send either `Authorization: Bearer <jwt_token>` or `x-api-key: <api_key>`. In sandbox, also send `x-feature: decision-engine`.
+
+For local development, start with:
+
+```bash
+export BASE_URL=http://localhost:8080
+export AUTH_HEADER="Authorization: Bearer <jwt_token>"
+export TENANT_HEADER="x-tenant-id: public"
+# Sandbox only:
+# export BASE_URL=https://sandbox.hyperswitch.io
+# export FEATURE_HEADER="x-feature: decision-engine"
+```
+
+## Request
+
+- Method and path: `GET /analytics/routing-events`
+- Parameters:
+  - `x-tenant-id` (header, required, string) — see [Environment setup](/decision-engine-api-reference/api-reference/guides/api-ref#environment-setup).
+  - `range` (query, optional, string)
+  - `start_ms` (query, optional, integer)
+  - `end_ms` (query, optional, integer)
+  - `payment_method_type` (query, optional, string)
+  - `payment_method` (query, optional, string)
+  - `min_transaction_count` (query, optional, integer)
+  - `min_score_delta` (query, optional, number)
+  - `tolerance_pp` (query, optional, number)
+  - `limit` (query, optional, integer)
+  - `bucket` (query, optional, string)
+- Body: No request body. `tolerance_pp` overrides the auth-band width used to detect `gateway_entered_auth_band` / `gateway_exited_auth_band` events; auth-band events only fire when multi-objective routing is enabled for the merchant.
+
+## Example
+
+```bash
+curl "$BASE_URL/analytics/routing-events?range=1d&payment_method_type=CARD" \
+  --header "$AUTH_HEADER" \
+  --header "$TENANT_HEADER"
+```
+
+## Response
+
+```json
+{
+  "merchant_id": "merchant_demo",
+  "range": "1d",
+  "generated_at_ms": 1784271600000,
+  "events": [
+    {
+      "id": "evt_a1b2c3",
+      "event_type": "leader_changed",
+      "merchant_id": "merchant_demo",
+      "payment_method_type": "CARD",
+      "payment_method": "CREDIT",
+      "bucket_ms": 1784268000000,
+      "gateway": "adyen",
+      "previous_gateway": "stripe",
+      "score": 0.91,
+      "previous_score": 0.885,
+      "transaction_count": 214
+    }
+  ]
+}
+```
+
+## Notes
+
+- Analytics reads are ClickHouse-backed and merchant-scoped by the authenticated context.
+- `event_type` is one of `leader_changed`, `gateway_entered_auth_band`, `gateway_exited_auth_band`, or `calibration_applied`.
+- `calibration_applied` events come from [Autopilot](/decision-engine-api-reference/api-reference/guides/autopilot/merchant-features) re-tuning SR hedging/bucket size and carry `bucket_size`/`previous_bucket_size` instead of the score fields.
+
+## Related
+
+- [Merchant Features](/decision-engine-api-reference/api-reference/guides/autopilot/merchant-features)
+- [Multi-Objective Routing](/decision-engine-api-reference/api-reference/guides/run-transactions/decide-gateway-multi-objective)
+- [Analytics Endpoints](/decision-engine-api-reference/api-reference/guides/analytics-audit/analytics-endpoints)

@@ -1,0 +1,61 @@
+---
+title: "Get Merchant Debit Routing"
+description: "Return whether debit/network routing is enabled for a merchant. Missing flag configuration is treated as disabled."
+openapi: "decision_engine_openapi-specs.json GET /merchant-account/{merchantId}/debit-routing"
+---
+
+# Get Merchant Debit Routing
+
+## Use case
+
+Reads whether debit/network routing is enabled for a merchant.
+
+## Authentication
+
+Protected. Send either `Authorization: Bearer <jwt_token>` or `x-api-key: <api_key>`. In sandbox, also send `x-feature: decision-engine`.
+
+For local development, start with:
+
+```bash
+export BASE_URL=http://localhost:8080
+export AUTH_HEADER="Authorization: Bearer <jwt_token>"
+# Sandbox only:
+# export BASE_URL=https://sandbox.hyperswitch.io
+# export FEATURE_HEADER="x-feature: decision-engine"
+```
+
+## Request
+
+- Method and path: `GET /merchant-account/{merchantId}/debit-routing`
+- Parameters:
+  - `merchantId` (path, required, string)
+- Body: Path parameter `merchantId` is the merchant account ID.
+
+## Example
+
+### Get debit-routing flag
+
+```bash
+curl "$BASE_URL/merchant-account/merchant_demo/debit-routing" \
+  --header "$AUTH_HEADER"
+```
+
+## Response
+
+```json
+{
+  "merchant_id": "merchant_demo",
+  "debit_routing_enabled": true
+}
+```
+
+## Notes
+
+- Missing configuration is treated as disabled.
+- The Decision Explorer debit-routing tab should check this before calling `NTW_BASED_ROUTING`.
+
+## Related
+
+- [Update Merchant Debit Routing](/decision-engine-api-reference/api-reference/endpoint/merchant-account/updateMerchantDebitRouting)
+- [Decide Gateway](/decision-engine-api-reference/api-reference/endpoint/gateway-decision/decideGateway)
+- [Merchant Debit Routing](/decision-engine-api-reference/api-reference/guides/merchant-accounts/merchant-debit-routing)

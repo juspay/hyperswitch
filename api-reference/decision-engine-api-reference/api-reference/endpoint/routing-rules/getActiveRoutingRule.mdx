@@ -1,0 +1,67 @@
+---
+title: "Get Active Routing Rule"
+description: "Retrieve the currently active routing rule for a merchant."
+openapi: "decision_engine_openapi-specs.json POST /routing/list/active/{created_by}"
+---
+
+# Get Active Routing Rule
+
+## Use case
+
+Fetches the currently active routing algorithm for a creator/merchant scope.
+
+## Authentication
+
+Protected. Send either `Authorization: Bearer <jwt_token>` or `x-api-key: <api_key>`. In sandbox, also send `x-feature: decision-engine`.
+
+For local development, start with:
+
+```bash
+export BASE_URL=http://localhost:8080
+export AUTH_HEADER="Authorization: Bearer <jwt_token>"
+# Sandbox only:
+# export BASE_URL=https://sandbox.hyperswitch.io
+# export FEATURE_HEADER="x-feature: decision-engine"
+```
+
+## Request
+
+- Method and path: `POST /routing/list/active/{created_by}`
+- Parameters:
+  - `created_by` (path, required, string)
+- Body: Path parameter `created_by`; request body can be `{}`.
+
+## Example
+
+### Get active rule
+
+```bash
+curl --location "$BASE_URL/routing/list/active/merchant_demo" \
+  --header "$AUTH_HEADER" \
+  --header "Content-Type: application/json" \
+  --data '{}'
+```
+
+## Response
+
+```json
+{
+  "rule_id": "routing_e641380c-6f24-4405-8454-5ae6cbceb7a0",
+  "name": "priority rule",
+  "active": true,
+  "algorithm": {
+    "type": "priority"
+  }
+}
+```
+
+## Notes
+
+- The dashboard uses this before volume/rule evaluations.
+- A missing active rule means the explorer should ask the operator to configure routing first.
+
+## Related
+
+- [List Routing Rules](/decision-engine-api-reference/api-reference/endpoint/routing-rules/listRoutingRules)
+- [Activate Routing Rule](/decision-engine-api-reference/api-reference/endpoint/routing-rules/activateRoutingRule)
+- [List Active Routing Algorithms](/decision-engine-api-reference/api-reference/guides/configure-routing/routing-algorithm-list-active)

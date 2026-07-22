@@ -1,0 +1,95 @@
+---
+title: "Update Rule Config"
+description: "Update an existing rule configuration."
+openapi: "decision_engine_openapi-specs.json POST /rule/update"
+---
+
+# Update Rule Config
+
+## Use case
+
+Updates a merchant scoring configuration for success-rate or elimination.
+
+## Authentication
+
+Protected. Send either `Authorization: Bearer <jwt_token>` or `x-api-key: <api_key>`. In sandbox, also send `x-feature: decision-engine`.
+
+For local development, start with:
+
+```bash
+export BASE_URL=http://localhost:8080
+export AUTH_HEADER="Authorization: Bearer <jwt_token>"
+# Sandbox only:
+# export BASE_URL=https://sandbox.hyperswitch.io
+# export FEATURE_HEADER="x-feature: decision-engine"
+```
+
+## Request
+
+- Method and path: `POST /rule/update`
+- Parameters: none.
+- Body: JSON body with `merchant_id` and full replacement `config` payload.
+
+## Example
+
+### Update success-rate config
+
+```bash
+curl --location "$BASE_URL/rule/update" \
+  --header "$AUTH_HEADER" \
+  --header "Content-Type: application/json" \
+  --data '{
+  "merchant_id": "merchant_demo",
+  "config": {
+    "type": "successRate",
+    "data": {
+      "enabled": true,
+      "min_aggregates_size": 5,
+      "default_success_rate": 0.82,
+      "specificity_level": "merchant"
+    }
+  }
+}'
+```
+
+### Update elimination config
+
+```bash
+curl --location "$BASE_URL/rule/update" \
+  --header "$AUTH_HEADER" \
+  --header "Content-Type: application/json" \
+  --data '{
+  "merchant_id": "merchant_demo",
+  "config": {
+    "type": "elimination",
+    "data": {
+      "enabled": true,
+      "bucket_size": 20,
+      "threshold": 0.30,
+      "gateway_error_codes": ["processor_declined"]
+    }
+  }
+}'
+```
+
+## Response
+
+```json
+{
+  "merchant_id": "merchant_demo",
+  "config_type": "successRate",
+  "message": "rule config updated"
+}
+```
+
+## Notes
+
+- Send the full desired config, not only changed fields.
+- Changes affect future routing decisions.
+
+## Related
+
+- [Get Rule Config](/decision-engine-api-reference/api-reference/endpoint/rule-configuration/getRuleConfig)
+- [Delete Rule Config](/decision-engine-api-reference/api-reference/endpoint/rule-configuration/deleteRuleConfig)
+- [Update Success-Rate Config](/decision-engine-api-reference/api-reference/guides/scoring-config/success-rate-config-update)
+- [Update Elimination Config](/decision-engine-api-reference/api-reference/guides/scoring-config/elimination-config-update)

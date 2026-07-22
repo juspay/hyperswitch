@@ -1,0 +1,95 @@
+---
+title: "Create Rule Config"
+description: "Create a service-level configuration for `successRate` or `elimination` scoring. Controls the time window, minimum data thresholds, and other parameters used in SR computation."
+openapi: "decision_engine_openapi-specs.json POST /rule/create"
+---
+
+# Create Rule Config
+
+## Use case
+
+Creates service-level scoring configuration for success-rate or elimination behaviour.
+
+## Authentication
+
+Protected. Send either `Authorization: Bearer <jwt_token>` or `x-api-key: <api_key>`. In sandbox, also send `x-feature: decision-engine`.
+
+For local development, start with:
+
+```bash
+export BASE_URL=http://localhost:8080
+export AUTH_HEADER="Authorization: Bearer <jwt_token>"
+# Sandbox only:
+# export BASE_URL=https://sandbox.hyperswitch.io
+# export FEATURE_HEADER="x-feature: decision-engine"
+```
+
+## Request
+
+- Method and path: `POST /rule/create`
+- Parameters: none.
+- Body: JSON body with `merchant_id` and tagged `config`. Supported `config.type` values include `successRate` and `elimination`.
+
+## Example
+
+### Create success-rate config
+
+```bash
+curl --location "$BASE_URL/rule/create" \
+  --header "$AUTH_HEADER" \
+  --header "Content-Type: application/json" \
+  --data '{
+  "merchant_id": "merchant_demo",
+  "config": {
+    "type": "successRate",
+    "data": {
+      "enabled": true,
+      "min_aggregates_size": 5,
+      "default_success_rate": 0.8,
+      "specificity_level": "merchant"
+    }
+  }
+}'
+```
+
+### Create elimination config
+
+```bash
+curl --location "$BASE_URL/rule/create" \
+  --header "$AUTH_HEADER" \
+  --header "Content-Type: application/json" \
+  --data '{
+  "merchant_id": "merchant_demo",
+  "config": {
+    "type": "elimination",
+    "data": {
+      "enabled": true,
+      "bucket_size": 20,
+      "threshold": 0.25,
+      "gateway_error_codes": ["processor_declined"]
+    }
+  }
+}'
+```
+
+## Response
+
+```json
+{
+  "merchant_id": "merchant_demo",
+  "config_type": "successRate",
+  "message": "rule config created"
+}
+```
+
+## Notes
+
+- This is not Euclid rule creation. Use `/routing/create` for routing algorithms.
+- Success-rate config affects auth-rate based routing and score snapshots.
+
+## Related
+
+- [Get Rule Config](/decision-engine-api-reference/api-reference/endpoint/rule-configuration/getRuleConfig)
+- [Update Rule Config](/decision-engine-api-reference/api-reference/endpoint/rule-configuration/updateRuleConfig)
+- [Create Success-Rate Config](/decision-engine-api-reference/api-reference/guides/scoring-config/success-rate-config-create)
+- [Create Elimination Config](/decision-engine-api-reference/api-reference/guides/scoring-config/elimination-config-create)

@@ -1,0 +1,4759 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Decision Engine",
+    "description": "Open-source payment gateway routing service by Juspay. Selects the optimal payment processor for each transaction in real-time using success-rate scoring, rule-based routing, and elimination logic.\n\n## Authentication\n\nThis API supports two authentication methods:\n\n1. **JWT Bearer Token** - For dashboard/user sessions\n   - Header: `Authorization: Bearer <jwt_token>`\n   - Obtain via `/auth/login` endpoint\n\n2. **API Key** - For service-to-service/programmatic access\n   - Header: `x-api-key: DE_<64_char_hex>`\n   - Create via `/api-key/create` endpoint\n\nProtected endpoints require one of these authentication methods.",
+    "version": "1.4.0",
+    "contact": {
+      "name": "Juspay",
+      "url": "https://github.com/juspay/decision-engine"
+    },
+    "license": {
+      "name": "AGPL-3.0",
+      "url": "https://www.gnu.org/licenses/agpl-3.0.html"
+    }
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8080",
+      "description": "Local development"
+    },
+    {
+      "url": "https://sandbox.hyperswitch.io",
+      "description": "Hyperswitch sandbox with x-feature: decision-engine"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Health",
+      "description": "Service liveness, readiness, and diagnostics"
+    },
+    {
+      "name": "Auth",
+      "description": "Dashboard auth and merchant selection"
+    },
+    {
+      "name": "API Keys",
+      "description": "Service-to-service API key management"
+    },
+    {
+      "name": "Gateway Decision",
+      "description": "Core routing decision APIs"
+    },
+    {
+      "name": "Score Feedback",
+      "description": "Feed transaction outcomes back to improve SR scoring"
+    },
+    {
+      "name": "Merchant Account",
+      "description": "Merchant configuration management"
+    },
+    {
+      "name": "Routing Rules",
+      "description": "Euclid declarative routing rules engine"
+    },
+    {
+      "name": "Rule Configuration",
+      "description": "Service-level SR/elimination config"
+    },
+    {
+      "name": "Config",
+      "description": "Routing key and dimension metadata"
+    },
+    {
+      "name": "Analytics",
+      "description": "ClickHouse-backed analytics and audit reads"
+    },
+    {
+      "name": "Compatibility",
+      "description": "Legacy compatibility routes"
+    }
+  ],
+  "paths": {
+    "/analytics/decisions": {
+      "get": {
+        "operationId": "analyticsDecisions",
+        "tags": [
+          "Analytics"
+        ],
+        "summary": "Decisions",
+        "description": "ClickHouse-backed decisions read endpoint.",
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-tenant-id",
+            "in": "header",
+            "required": true,
+            "description": "Tenant to resolve. The shipped config files define only the \"public\" tenant. No fallback — omitting this fails with TE_03.",
+            "schema": {
+              "type": "string",
+              "default": "public"
+            },
+            "example": "public"
+          },
+          {
+            "name": "range",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "start_ms",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "end_ms",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "payment_method_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "payment_method",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "card_network",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "card_is_in",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "currency",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "country",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "auth_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "gateway",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "payment_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "request_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "route",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "flow_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "routing_approach",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "exclude_routing_approach",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "error_code",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Decisions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericObject"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/analytics/gateway-scores": {
+      "get": {
+        "operationId": "analyticsGatewayScores",
+        "tags": [
+          "Analytics"
+        ],
+        "summary": "Gateway scores",
+        "description": "ClickHouse-backed gateway scores read endpoint.",
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-tenant-id",
+            "in": "header",
+            "required": true,
+            "description": "Tenant to resolve. The shipped config files define only the \"public\" tenant. No fallback — omitting this fails with TE_03.",
+            "schema": {
+              "type": "string",
+              "default": "public"
+            },
+            "example": "public"
+          },
+          {
+            "name": "range",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "start_ms",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "end_ms",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "payment_method_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "payment_method",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "card_network",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "card_is_in",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "currency",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "country",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "auth_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "gateway",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "payment_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "request_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "route",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "flow_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "routing_approach",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "exclude_routing_approach",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "error_code",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Gateway scores",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericObject"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/analytics/log-summaries": {
+      "get": {
+        "operationId": "analyticsLogSummaries",
+        "tags": [
+          "Analytics"
+        ],
+        "summary": "Log summaries",
+        "description": "ClickHouse-backed log summaries read endpoint.",
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-tenant-id",
+            "in": "header",
+            "required": true,
+            "description": "Tenant to resolve. The shipped config files define only the \"public\" tenant. No fallback — omitting this fails with TE_03.",
+            "schema": {
+              "type": "string",
+              "default": "public"
+            },
+            "example": "public"
+          },
+          {
+            "name": "range",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "start_ms",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "end_ms",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "payment_method_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "payment_method",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "card_network",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "card_is_in",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "currency",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "country",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "auth_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "gateway",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "payment_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "request_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "route",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "flow_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "routing_approach",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "exclude_routing_approach",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "error_code",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Log summaries",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericObject"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/analytics/overview": {
+      "get": {
+        "operationId": "analyticsOverview",
+        "tags": [
+          "Analytics"
+        ],
+        "summary": "Overview",
+        "description": "ClickHouse-backed overview read endpoint.",
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-tenant-id",
+            "in": "header",
+            "required": true,
+            "description": "Tenant to resolve. The shipped config files define only the \"public\" tenant. No fallback — omitting this fails with TE_03.",
+            "schema": {
+              "type": "string",
+              "default": "public"
+            },
+            "example": "public"
+          },
+          {
+            "name": "range",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "start_ms",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "end_ms",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "payment_method_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "payment_method",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "card_network",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "card_is_in",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "currency",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "country",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "auth_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "gateway",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "payment_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "request_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "route",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "flow_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "routing_approach",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "exclude_routing_approach",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "error_code",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Overview",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericObject"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/analytics/payment-audit": {
+      "get": {
+        "operationId": "analyticsPaymentAudit",
+        "tags": [
+          "Analytics"
+        ],
+        "summary": "Payment audit",
+        "description": "ClickHouse-backed payment audit read endpoint.",
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-tenant-id",
+            "in": "header",
+            "required": true,
+            "description": "Tenant to resolve. The shipped config files define only the \"public\" tenant. No fallback — omitting this fails with TE_03.",
+            "schema": {
+              "type": "string",
+              "default": "public"
+            },
+            "example": "public"
+          },
+          {
+            "name": "range",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "start_ms",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "end_ms",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "payment_method_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "payment_method",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "card_network",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "card_is_in",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "currency",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "country",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "auth_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "gateway",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "payment_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "request_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "route",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "flow_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "routing_approach",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "exclude_routing_approach",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "error_code",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Payment audit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericObject"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/analytics/preview-trace": {
+      "get": {
+        "operationId": "analyticsPreviewTrace",
+        "tags": [
+          "Analytics"
+        ],
+        "summary": "Preview trace",
+        "description": "ClickHouse-backed rule preview trace read endpoint.",
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-tenant-id",
+            "in": "header",
+            "required": true,
+            "description": "Tenant to resolve. The shipped config files define only the \"public\" tenant. No fallback — omitting this fails with TE_03.",
+            "schema": {
+              "type": "string",
+              "default": "public"
+            },
+            "example": "public"
+          },
+          {
+            "name": "range",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "start_ms",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "end_ms",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "payment_method_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "payment_method",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "card_network",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "card_is_in",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "currency",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "country",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "auth_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "gateway",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "payment_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "request_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "route",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "flow_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "routing_approach",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "exclude_routing_approach",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "error_code",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Decision trace",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericObject"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/analytics/routing-stats": {
+      "get": {
+        "operationId": "analyticsRoutingStats",
+        "tags": [
+          "Analytics"
+        ],
+        "summary": "Routing stats",
+        "description": "ClickHouse-backed routing stats read endpoint.",
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-tenant-id",
+            "in": "header",
+            "required": true,
+            "description": "Tenant to resolve. The shipped config files define only the \"public\" tenant. No fallback — omitting this fails with TE_03.",
+            "schema": {
+              "type": "string",
+              "default": "public"
+            },
+            "example": "public"
+          },
+          {
+            "name": "range",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "start_ms",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "end_ms",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "payment_method_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "payment_method",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "card_network",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "card_is_in",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "currency",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "country",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "auth_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "gateway",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "payment_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "request_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "route",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "flow_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "routing_approach",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "exclude_routing_approach",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "error_code",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Routing stats",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericObject"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api-key/{key_id}": {
+      "delete": {
+        "operationId": "revokeApiKey",
+        "tags": [
+          "API Keys"
+        ],
+        "summary": "Revoke API key",
+        "description": "Mark an API key inactive and clear its Redis cache entry.",
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "key_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "018f-key-id"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericObject"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api-key/create": {
+      "post": {
+        "operationId": "createApiKey",
+        "tags": [
+          "API Keys"
+        ],
+        "summary": "Create API key",
+        "description": "Create a service-to-service API key for a merchant.",
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateApiKeyRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Created API key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateApiKeyResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api-key/list/{merchant_id}": {
+      "get": {
+        "operationId": "listApiKeys",
+        "tags": [
+          "API Keys"
+        ],
+        "summary": "List API keys",
+        "description": "List active and revoked API keys for a merchant.",
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "merchant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "merchant_demo"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "API keys",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ApiKeyListItem"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "operationId": "login",
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Login",
+        "description": "Create a dashboard JWT session.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AuthRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Authenticated user",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/logout": {
+      "post": {
+        "operationId": "logout",
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Logout",
+        "description": "Revoke the current dashboard JWT.",
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Logged out",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/me": {
+      "get": {
+        "operationId": "me",
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Current user",
+        "description": "Return current authenticated user and merchant context.",
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current user",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/merchants": {
+      "get": {
+        "operationId": "listUserMerchants",
+        "tags": [
+          "Auth"
+        ],
+        "summary": "List user merchants",
+        "description": "Return merchants available to the current user.",
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Merchant list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MerchantInfo"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/signup": {
+      "post": {
+        "operationId": "signup",
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Signup",
+        "description": "Create an operator account. Password must meet dashboard password policy.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AuthRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Authenticated user",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/switch-merchant": {
+      "post": {
+        "operationId": "switchMerchant",
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Switch merchant",
+        "description": "Switch the current dashboard merchant context.",
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SwitchMerchantRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Authenticated user",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/config-sr-dimension": {
+      "post": {
+        "operationId": "configSrDimension",
+        "tags": [
+          "Config"
+        ],
+        "summary": "Configure SR dimensions",
+        "description": "Configure success-rate routing dimensions.",
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GenericObject"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericObject"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/config/routing-keys": {
+      "get": {
+        "operationId": "getRoutingConfig",
+        "tags": [
+          "Config"
+        ],
+        "summary": "Get routing keys",
+        "description": "Return rule-builder routing keys and supported values.",
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericObject"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/decide-gateway": {
+      "post": {
+        "operationId": "decideGateway",
+        "tags": [
+          "Gateway Decision"
+        ],
+        "summary": "Decide gateway",
+        "description": "Core routing decision API. Given a payment context and a list of eligible gateways, returns the optimal gateway to route to.\n\nThe engine applies a sequence of filters (currency, card brand, auth type, EMI, etc.) then scores remaining gateways using success rate history, elimination status, and contract obligations.\n\n**Authentication:** Requires either JWT Bearer token or API Key.",
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DecideGatewayRequest"
+              },
+              "examples": {
+                "sr_routing": {
+                  "summary": "SR-based routing",
+                  "value": {
+                    "merchantId": "test_merchant",
+                    "paymentInfo": {
+                      "paymentId": "pay_001",
+                      "amount": 1000,
+                      "currency": "USD",
+                      "country": "US",
+                      "customerId": "cust_123",
+                      "paymentType": "ORDER_PAYMENT",
+                      "paymentMethodType": "CARD",
+                      "paymentMethod": "CREDIT",
+                      "authType": "THREE_DS",
+                      "cardIsin": "411111"
+                    },
+                    "eligibleGatewayList": [
+                      "stripe",
+                      "paypal",
+                      "adyen"
+                    ],
+                    "rankingAlgorithm": "SR_BASED_ROUTING",
+                    "eliminationEnabled": false
+                  }
+                },
+                "debit_routing": {
+                  "summary": "Debit/network-based routing",
+                  "value": {
+                    "merchantId": "merchant_demo",
+                    "paymentInfo": {
+                      "paymentId": "debit_001",
+                      "amount": 1000,
+                      "currency": "USD",
+                      "paymentType": "ORDER_PAYMENT",
+                      "paymentMethodType": "CARD",
+                      "paymentMethod": "DEBIT",
+                      "authType": "THREE_DS",
+                      "metadata": "{\"merchant_category_code\":\"merchant_category_code_0001\",\"acquirer_country\":\"US\",\"co_badged_card_data\":{\"co_badged_card_networks\":[\"VISA\",\"NYCE\",\"PULSE\",\"STAR\"],\"issuer_country\":\"US\",\"is_regulated\":false,\"regulated_name\":null,\"card_type\":\"debit\"}}"
+                    },
+                    "eligibleGatewayList": [
+                      "stripe",
+                      "adyen"
+                    ],
+                    "rankingAlgorithm": "NTW_BASED_ROUTING",
+                    "eliminationEnabled": false
+                  }
+                },
+                "hybrid_routing": {
+                  "summary": "Hybrid SR + debit routing",
+                  "value": {
+                    "merchantId": "test_merchant",
+                    "paymentInfo": {
+                      "paymentId": "pay_003",
+                      "amount": 750,
+                      "currency": "USD",
+                      "paymentType": "ORDER_PAYMENT",
+                      "paymentMethodType": "CARD",
+                      "paymentMethod": "DEBIT"
+                    },
+                    "eligibleGatewayList": [
+                      "stripe",
+                      "braintree",
+                      "adyen"
+                    ],
+                    "rankingAlgorithm": "NTW_SR_HYBRID_ROUTING",
+                    "eliminationEnabled": false
+                  }
+                },
+                "multi_objective_routing": {
+                  "summary": "Multi-objective routing",
+                  "value": {
+                    "merchantId": "merchant_demo",
+                    "paymentInfo": {
+                      "paymentId": "mo_001",
+                      "amount": 1000,
+                      "currency": "USD",
+                      "country": "US",
+                      "paymentType": "ORDER_PAYMENT",
+                      "paymentMethodType": "CARD",
+                      "paymentMethod": "CREDIT",
+                      "authType": "THREE_DS",
+                      "cardIsin": "424242"
+                    },
+                    "eligibleGatewayList": [
+                      "stripe",
+                      "adyen",
+                      "checkout"
+                    ],
+                    "rankingAlgorithm": "SR_BASED_ROUTING",
+                    "eliminationEnabled": true,
+                    "enableMultiObjective": true
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Gateway decision result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DecidedGateway"
+                },
+                "examples": {
+                  "sr_routing": {
+                    "summary": "SR-based routing",
+                    "value": {
+                      "decided_gateway": "stripe",
+                      "routing_approach": "SR_SELECTION_V3_ROUTING",
+                      "gateway_priority_map": {
+                        "stripe": 0.94,
+                        "adyen": 0.87,
+                        "paypal": 0.72
+                      },
+                      "routing_dimension": "CARD_BRAND",
+                      "routing_dimension_level": "visa",
+                      "reset_approach": "NoReset",
+                      "is_scheduled_outage": false,
+                      "is_rust_based_decider": true,
+                      "latency": 8,
+                      "multi_objective_info": null
+                    }
+                  },
+                  "debit_routing": {
+                    "summary": "Debit/network-based routing",
+                    "value": {
+                      "decided_gateway": "stripe",
+                      "gateway_priority_map": null,
+                      "filter_wise_gateways": null,
+                      "priority_logic_tag": null,
+                      "routing_approach": "NTW_BASED_ROUTING",
+                      "gateway_before_evaluation": null,
+                      "priority_logic_output": null,
+                      "debit_routing_output": {
+                        "co_badged_card_networks_info": [
+                          {
+                            "network": "NYCE",
+                            "saving_percentage": 1.2
+                          },
+                          {
+                            "network": "PULSE",
+                            "saving_percentage": 0.9
+                          },
+                          {
+                            "network": "VISA",
+                            "saving_percentage": 0.1
+                          }
+                        ],
+                        "issuer_country": "US",
+                        "is_regulated": false,
+                        "regulated_name": null,
+                        "card_type": "debit"
+                      },
+                      "reset_approach": "NO_RESET",
+                      "routing_dimension": null,
+                      "routing_dimension_level": null,
+                      "is_scheduled_outage": false,
+                      "is_dynamic_mga_enabled": false,
+                      "gateway_mga_id_map": null,
+                      "is_rust_based_decider": true,
+                      "multi_objective_info": null
+                    }
+                  },
+                  "hybrid_routing": {
+                    "summary": "Hybrid SR + debit routing",
+                    "value": {
+                      "decided_gateway": "stripe",
+                      "routing_approach": "NTW_BASED_ROUTING",
+                      "debit_routing_output": {
+                        "co_badged_card_networks_info": [
+                          {
+                            "network": "NYCE",
+                            "saving_percentage": 1.2
+                          },
+                          {
+                            "network": "PULSE",
+                            "saving_percentage": 0.9
+                          }
+                        ],
+                        "issuer_country": "US",
+                        "is_regulated": false,
+                        "regulated_name": null,
+                        "card_type": "debit"
+                      },
+                      "reset_approach": "NO_RESET",
+                      "is_scheduled_outage": false,
+                      "is_rust_based_decider": true,
+                      "multi_objective_info": null
+                    }
+                  },
+                  "multi_objective_routing": {
+                    "summary": "Multi-objective routing — auth won (SR head retained)",
+                    "value": {
+                      "decided_gateway": "adyen",
+                      "fallback_gateways": [
+                        "stripe",
+                        "checkout"
+                      ],
+                      "gateway_priority_map": {
+                        "adyen": 0.65,
+                        "checkout": 0.58,
+                        "stripe": 0.65
+                      },
+                      "filter_wise_gateways": null,
+                      "priority_logic_tag": null,
+                      "routing_approach": "SR_SELECTION_V3_ROUTING",
+                      "gateway_before_evaluation": "adyen",
+                      "priority_logic_output": {
+                        "isEnforcement": false,
+                        "gws": [
+                          "stripe",
+                          "adyen",
+                          "checkout"
+                        ],
+                        "priorityLogicTag": null,
+                        "gatewayReferenceIds": {},
+                        "primaryLogic": null,
+                        "fallbackLogic": null
+                      },
+                      "debit_routing_output": null,
+                      "reset_approach": "NO_RESET",
+                      "routing_dimension": "ORDER_PAYMENT, CARD, DEBIT, DEBIT",
+                      "routing_dimension_level": "CARD_LEVEL",
+                      "is_scheduled_outage": false,
+                      "is_dynamic_mga_enabled": false,
+                      "gateway_mga_id_map": null,
+                      "is_rust_based_decider": true,
+                      "latency": 3,
+                      "multi_objective_info": {
+                        "outcome": "AUTH_WON",
+                        "reason": "SR head retained — it is the highest expected-value PSP (3 ranked on EV).",
+                        "srHead": {
+                          "psp": "adyen",
+                          "authRate": 0.65,
+                          "costBps": 156.94736842105263
+                        },
+                        "chosen": {
+                          "psp": "adyen",
+                          "authRate": 0.65,
+                          "costBps": 156.94736842105263
+                        },
+                        "costSavedBps": null,
+                        "qualifiedCount": 3,
+                        "margin": 1,
+                        "evGapTop2": 0.013780000000000014
+                      }
+                    }
+                  },
+                  "multi_objective_cost_won": {
+                    "summary": "Multi-objective routing — cost won (cheaper gateway promoted)",
+                    "value": {
+                      "decided_gateway": "adyen",
+                      "fallback_gateways": [
+                        "stripe",
+                        "checkout"
+                      ],
+                      "gateway_priority_map": {
+                        "stripe": 0.94,
+                        "adyen": 0.91,
+                        "checkout": 0.88
+                      },
+                      "routing_approach": "SR_SELECTION_MULTI_OBJECTIVE",
+                      "gateway_before_evaluation": "stripe",
+                      "reset_approach": "NO_RESET",
+                      "routing_dimension": "ORDER_PAYMENT,CARD,CREDIT,UNKNOWN",
+                      "routing_dimension_level": "CARD_LEVEL",
+                      "is_scheduled_outage": false,
+                      "is_dynamic_mga_enabled": false,
+                      "is_rust_based_decider": true,
+                      "multi_objective_info": {
+                        "outcome": "COST_WON",
+                        "reason": "Promoted 'adyen' over 'stripe' on expected value — saves 80.00 bps for 3.00pp auth.",
+                        "srHead": {
+                          "psp": "stripe",
+                          "authRate": 0.94,
+                          "costBps": 180.0
+                        },
+                        "chosen": {
+                          "psp": "adyen",
+                          "authRate": 0.91,
+                          "costBps": 100.0
+                        },
+                        "costSavedBps": 80.0,
+                        "qualifiedCount": 3,
+                        "margin": 0.2,
+                        "evGapTop2": 0.00182
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/decision_gateway": {
+      "post": {
+        "operationId": "legacyDecisionGateway",
+        "tags": [
+          "Compatibility"
+        ],
+        "summary": "Legacy decision gateway",
+        "description": "Legacy compatibility route. New integrations should use /decide-gateway.",
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DecideGatewayRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Gateway decision result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DecidedGateway"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "operationId": "healthCheck",
+        "tags": [
+          "Health"
+        ],
+        "summary": "Health check",
+        "description": "Service liveness check.",
+        "responses": {
+          "200": {
+            "description": "Service is healthy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                },
+                "example": {
+                  "message": "Health is good"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health/diagnostics": {
+      "get": {
+        "operationId": "healthDiagnostics",
+        "tags": [
+          "Health"
+        ],
+        "summary": "Diagnostics",
+        "description": "Database diagnostics for local and deployment troubleshooting.",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericObject"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "x-tenant-id",
+            "in": "header",
+            "required": true,
+            "description": "Tenant to resolve. The shipped config files define only the \"public\" tenant. No fallback — omitting this fails with TE_03.",
+            "schema": {
+              "type": "string",
+              "default": "public"
+            },
+            "example": "public"
+          }
+        ]
+      }
+    },
+    "/health/ready": {
+      "get": {
+        "operationId": "healthReady",
+        "tags": [
+          "Health"
+        ],
+        "summary": "Readiness check",
+        "description": "Returns Up when the process is ready to serve traffic.",
+        "responses": {
+          "200": {
+            "description": "Ready",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                },
+                "example": {
+                  "message": "Up"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Not ready",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                },
+                "example": {
+                  "message": "Down"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/merchant-account/{merchantId}": {
+      "get": {
+        "operationId": "getMerchant",
+        "tags": [
+          "Merchant Account"
+        ],
+        "summary": "Get merchant",
+        "description": "Retrieve a merchant account by ID.",
+        "parameters": [
+          {
+            "name": "merchantId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "my_merchant"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Merchant account",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MerchantAccount"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Merchant not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "deleteMerchant",
+        "tags": [
+          "Merchant Account"
+        ],
+        "summary": "Delete merchant",
+        "description": "Delete a merchant account and all associated routing configuration.",
+        "parameters": [
+          {
+            "name": "merchantId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "my_merchant"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Merchant deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/merchant-account/{merchantId}/debit-routing": {
+      "get": {
+        "operationId": "getMerchantDebitRouting",
+        "tags": [
+          "Merchant Account"
+        ],
+        "summary": "Get debit routing flag",
+        "description": "Return whether debit/network routing is enabled for a merchant. Missing flag configuration is treated as disabled.",
+        "parameters": [
+          {
+            "name": "merchantId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "my_merchant"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Debit routing flag",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DebitRoutingResponse"
+                },
+                "example": {
+                  "merchant_id": "my_merchant",
+                  "debit_routing_enabled": false
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Merchant not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      },
+      "post": {
+        "operationId": "updateMerchantDebitRouting",
+        "tags": [
+          "Merchant Account"
+        ],
+        "summary": "Update debit routing flag",
+        "description": "Enable or disable runtime debit/network routing for a merchant.",
+        "parameters": [
+          {
+            "name": "merchantId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "my_merchant"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DebitRoutingRequest"
+              },
+              "example": {
+                "enabled": true
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Debit routing flag updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DebitRoutingResponse"
+                },
+                "example": {
+                  "merchant_id": "my_merchant",
+                  "debit_routing_enabled": true
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Merchant not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/merchant-account/create": {
+      "post": {
+        "operationId": "createMerchant",
+        "tags": [
+          "Merchant Account"
+        ],
+        "summary": "Create merchant",
+        "description": "Register a new merchant account. The merchant ID is the primary identifier used in all subsequent routing and scoring calls.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateMerchantRequest"
+              },
+              "example": {
+                "merchant_id": "my_merchant",
+                "gateway_success_rate_based_decider_input": null
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Merchant created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MerchantAccount"
+                },
+                "example": {
+                  "message": "Merchant created",
+                  "merchant_id": "my_merchant",
+                  "gateway_success_rate_based_decider_input": null
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "AdminSecret": []
+          }
+        ]
+      }
+    },
+    "/onboarding/merchant": {
+      "post": {
+        "operationId": "onboardMerchant",
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Create merchant from dashboard",
+        "description": "Create and attach a merchant to the current operator user.",
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateDashboardMerchantRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericObject"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/routing/activate": {
+      "post": {
+        "operationId": "activateRoutingRule",
+        "tags": [
+          "Routing Rules"
+        ],
+        "summary": "Activate routing rule",
+        "description": "Activate a routing rule by ID for a merchant. Only one rule can be active at a time — activating a new rule deactivates the previous one.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ActivateRoutingRuleRequest"
+              },
+              "example": {
+                "created_by": "test_merchant",
+                "routing_algorithm_id": "rule_abc123"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Rule activated. The response body is empty."
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/routing/deactivate": {
+      "post": {
+        "operationId": "deactivateRoutingRule",
+        "tags": [
+          "Routing Rules"
+        ],
+        "summary": "Deactivate routing rule",
+        "description": "Deactivate an active routing rule mapping by routing algorithm ID for a merchant. The call is idempotent: if the algorithm exists but is already inactive for the merchant, the API returns success.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeactivateRoutingRuleRequest"
+              },
+              "example": {
+                "created_by": "test_merchant",
+                "routing_algorithm_id": "rule_abc123"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Rule deactivated. The response body is empty."
+          },
+          "400": {
+            "description": "Routing algorithm ID was not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/routing/create": {
+      "post": {
+        "operationId": "createRoutingRule",
+        "tags": [
+          "Routing Rules"
+        ],
+        "summary": "Create routing rule",
+        "description": "Create a new Euclid declarative routing rule for a merchant. Supports `advanced` (full Euclid DSL), `priority` (ordered gateway list), `single` (fixed gateway), and `volume_split` (percentage-based distribution) algorithm types.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateRoutingRuleRequest"
+              },
+              "examples": {
+                "priority": {
+                  "summary": "Priority-based rule",
+                  "value": {
+                    "name": "default-priority",
+                    "description": "Route to stripe first, fallback to paypal",
+                    "created_by": "test_merchant",
+                    "algorithm_for": "payment",
+                    "algorithm": {
+                      "type": "priority",
+                      "data": [
+                        {
+                          "gateway_name": "stripe",
+                          "gateway_id": null
+                        },
+                        {
+                          "gateway_name": "paypal",
+                          "gateway_id": null
+                        },
+                        {
+                          "gateway_name": "adyen",
+                          "gateway_id": null
+                        }
+                      ]
+                    }
+                  }
+                },
+                "volume_split": {
+                  "summary": "Volume split rule",
+                  "value": {
+                    "name": "ab-test-split",
+                    "description": "",
+                    "created_by": "test_merchant",
+                    "algorithm_for": "payment",
+                    "algorithm": {
+                      "type": "volume_split",
+                      "data": [
+                        {
+                          "split": 70,
+                          "connectors": [
+                            {
+                              "gateway_name": "stripe",
+                              "gateway_id": null
+                            }
+                          ]
+                        },
+                        {
+                          "split": 30,
+                          "connectors": [
+                            {
+                              "gateway_name": "paypal",
+                              "gateway_id": null
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  }
+                },
+                "single": {
+                  "summary": "Single connector rule",
+                  "value": {
+                    "name": "always-stripe",
+                    "description": "Always route to stripe",
+                    "created_by": "test_merchant",
+                    "algorithm_for": "payment",
+                    "algorithm": {
+                      "type": "single",
+                      "data": {
+                        "gateway_name": "stripe",
+                        "gateway_id": null
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Routing rule created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoutingRule"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/routing/evaluate": {
+      "post": {
+        "operationId": "evaluateRoutingRule",
+        "tags": [
+          "Routing Rules"
+        ],
+        "summary": "Evaluate routing rule",
+        "description": "Evaluate the active routing rule for a merchant against a payment context. Returns the ordered list of gateways selected by the rule without consuming SR data.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EvaluateRoutingRequest"
+              },
+              "example": {
+                "merchantId": "test_merchant",
+                "paymentInfo": {
+                  "paymentId": "pay_001",
+                  "amount": 1000,
+                  "currency": "USD",
+                  "paymentType": "ORDER_PAYMENT",
+                  "paymentMethodType": "CARD",
+                  "paymentMethod": "CREDIT"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Evaluation result with ordered gateway list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/routing/hybrid": {
+      "post": {
+        "operationId": "hybridRouting",
+        "tags": [
+          "Routing Rules"
+        ],
+        "summary": "Hybrid routing evaluation",
+        "description": "Evaluate hybrid routing using the active routing rule plus runtime payment context.",
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GenericObject"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericObject"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/routing/list/{created_by}": {
+      "post": {
+        "operationId": "listRoutingRules",
+        "tags": [
+          "Routing Rules"
+        ],
+        "summary": "List routing rules",
+        "description": "List all routing rules for a merchant.",
+        "parameters": [
+          {
+            "name": "created_by",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "merchant_demo"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of routing rules",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RoutingRule"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/routing/list/active/{created_by}": {
+      "post": {
+        "operationId": "getActiveRoutingRule",
+        "tags": [
+          "Routing Rules"
+        ],
+        "summary": "Get active routing rule",
+        "description": "Retrieve the currently active routing rule for a merchant.",
+        "parameters": [
+          {
+            "name": "created_by",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "test_merchant"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Active routing rule",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoutingRule"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No active rule",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/rule/create": {
+      "post": {
+        "operationId": "createRuleConfig",
+        "tags": [
+          "Rule Configuration"
+        ],
+        "summary": "Create rule config",
+        "description": "Create a service-level configuration for `successRate` or `elimination` scoring. Controls the time window, minimum data thresholds, and other parameters used in SR computation.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RuleConfigRequest"
+              },
+              "examples": {
+                "success_rate": {
+                  "summary": "Success rate config",
+                  "value": {
+                    "merchant_id": "test_merchant",
+                    "config": {
+                      "type": "successRate",
+                      "data": {
+                        "defaultBucketSize": 20,
+                        "defaultLatencyThreshold": null,
+                        "defaultHedgingPercent": null
+                      }
+                    }
+                  }
+                },
+                "elimination": {
+                  "summary": "Elimination config",
+                  "value": {
+                    "merchant_id": "test_merchant",
+                    "config": {
+                      "type": "elimination",
+                      "data": {
+                        "bucketSize": 5,
+                        "eliminationThreshold": 0.2
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Rule config created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RuleConfigResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/rule/delete": {
+      "post": {
+        "operationId": "deleteRuleConfig",
+        "tags": [
+          "Rule Configuration"
+        ],
+        "summary": "Delete rule config",
+        "description": "Delete a rule configuration.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RuleConfigGetRequest"
+              },
+              "example": {
+                "merchant_id": "test_merchant",
+                "algorithm": "successRate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Rule config deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/rule/get": {
+      "post": {
+        "operationId": "getRuleConfig",
+        "tags": [
+          "Rule Configuration"
+        ],
+        "summary": "Get rule config",
+        "description": "Retrieve an existing rule configuration by merchant and type.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RuleConfigGetRequest"
+              },
+              "example": {
+                "merchant_id": "test_merchant",
+                "algorithm": "successRate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Rule config",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RuleConfigResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/rule/update": {
+      "post": {
+        "operationId": "updateRuleConfig",
+        "tags": [
+          "Rule Configuration"
+        ],
+        "summary": "Update rule config",
+        "description": "Update an existing rule configuration.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RuleConfigRequest"
+              },
+              "example": {
+                "merchant_id": "test_merchant",
+                "config": {
+                  "type": "successRate",
+                  "data": {
+                    "defaultBucketSize": 30,
+                    "defaultHedgingPercent": 0.1
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Rule config updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RuleConfigResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/update-gateway-score": {
+      "post": {
+        "operationId": "updateGatewayScore",
+        "tags": [
+          "Score Feedback"
+        ],
+        "summary": "Update gateway score",
+        "description": "Feed a transaction outcome back into the success-rate model. Call this after every transaction so the engine has accurate SR data for future routing decisions.\n\nA `CHARGED` status increases the gateway's SR; failure statuses (`AUTHENTICATION_FAILED`, `AUTHORIZATION_FAILED`, etc.) decrease it.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateGatewayScoreRequest"
+              },
+              "example": {
+                "merchantId": "test_merchant",
+                "gateway": "stripe",
+                "paymentId": "pay_001",
+                "status": "CHARGED",
+                "gatewayReferenceId": "stripe_ref_001",
+                "enforceDynamicRoutingFailure": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Score updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdateScoreResponse"
+                },
+                "example": {
+                  "message": "Score updated",
+                  "merchant_id": "test_merchant",
+                  "gateway": "stripe",
+                  "payment_id": "pay_001"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/update-score": {
+      "post": {
+        "operationId": "legacyUpdateScore",
+        "tags": [
+          "Compatibility"
+        ],
+        "summary": "Legacy update score",
+        "description": "Legacy compatibility route. New integrations should use /update-gateway-score.",
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateGatewayScoreRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericObject"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/analytics/cost-savings": {
+      "get": {
+        "operationId": "analyticsCostSavings",
+        "tags": [
+          "Analytics"
+        ],
+        "summary": "Cost savings",
+        "description": "ClickHouse-backed rollup of savings attributed to multi-objective (cost-aware) routing, trended over the window.",
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-tenant-id",
+            "in": "header",
+            "required": true,
+            "description": "Tenant to resolve. The shipped config files define only the \"public\" tenant. No fallback — omitting this fails with TE_03.",
+            "schema": {
+              "type": "string",
+              "default": "public"
+            },
+            "example": "public"
+          },
+          {
+            "name": "range",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "start_ms",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "end_ms",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "payment_method_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "payment_method",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "card_network",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "card_is_in",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "currency",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "country",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "auth_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "gateway",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "payment_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "request_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "route",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "flow_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "routing_approach",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "exclude_routing_approach",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "error_code",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Cost savings",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericObject"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/analytics/routing-events": {
+      "get": {
+        "operationId": "analyticsRoutingEvents",
+        "tags": [
+          "Analytics"
+        ],
+        "summary": "Routing events",
+        "description": "Historical feed of routing-relevant state changes: SR leader changes, gateways entering/exiting the multi-objective auth band, and autopilot calibration runs.",
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-tenant-id",
+            "in": "header",
+            "required": true,
+            "description": "Tenant to resolve. The shipped config files define only the \"public\" tenant. No fallback — omitting this fails with TE_03.",
+            "schema": {
+              "type": "string",
+              "default": "public"
+            },
+            "example": "public"
+          },
+          {
+            "name": "range",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "start_ms",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "end_ms",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "payment_method_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "payment_method",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "min_transaction_count",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "min_score_delta",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "tolerance_pp",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "bucket",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Routing events",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericObject"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/analytics/experiment/{experiment_id}/results": {
+      "get": {
+        "operationId": "analyticsExperimentResults",
+        "tags": [
+          "Analytics"
+        ],
+        "summary": "A/B test experiment results",
+        "description": "Statistical significance results (control vs. variant) for a routing A/B test experiment, with guardrail evaluation.",
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-tenant-id",
+            "in": "header",
+            "required": true,
+            "description": "Tenant to resolve. The shipped config files define only the \"public\" tenant. No fallback — omitting this fails with TE_03.",
+            "schema": {
+              "type": "string",
+              "default": "public"
+            },
+            "example": "public"
+          },
+          {
+            "name": "experiment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "routing_a1b2c3d4-1111-2222-3333-444455556666"
+          },
+          {
+            "name": "start_ms",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "end_ms",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "min_sample_size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "guardrail_threshold_pp",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "evaluation_margin",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A/B test experiment results",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericObject"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/analytics/experiment/{experiment_id}/transactions": {
+      "get": {
+        "operationId": "analyticsExperimentTransactions",
+        "tags": [
+          "Analytics"
+        ],
+        "summary": "A/B test experiment transactions",
+        "description": "Paginated per-transaction log for a routing A/B test experiment, including arm assignment and outcome.",
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "x-tenant-id",
+            "in": "header",
+            "required": true,
+            "description": "Tenant to resolve. The shipped config files define only the \"public\" tenant. No fallback — omitting this fails with TE_03.",
+            "schema": {
+              "type": "string",
+              "default": "public"
+            },
+            "example": "public"
+          },
+          {
+            "name": "experiment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "routing_a1b2c3d4-1111-2222-3333-444455556666"
+          },
+          {
+            "name": "start_ms",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A/B test experiment transactions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenericObject"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "JWT token obtained from /auth/login"
+      },
+      "ApiKeyAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "x-api-key",
+        "description": "API key created via /api-key/create"
+      },
+      "AdminSecret": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "x-admin-secret",
+        "description": "Admin bootstrap secret for creating merchant accounts"
+      }
+    },
+    "schemas": {
+      "HealthResponse": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string",
+            "example": "Health is good"
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "DeleteResponse": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "PaymentInfo": {
+        "type": "object",
+        "required": [
+          "paymentId",
+          "amount",
+          "currency",
+          "paymentType",
+          "paymentMethodType",
+          "paymentMethod"
+        ],
+        "properties": {
+          "paymentId": {
+            "type": "string",
+            "example": "pay_001"
+          },
+          "amount": {
+            "type": "number",
+            "format": "float",
+            "example": 1000
+          },
+          "currency": {
+            "type": "string",
+            "example": "USD"
+          },
+          "country": {
+            "type": "string",
+            "example": "US"
+          },
+          "customerId": {
+            "type": "string",
+            "example": "cust_123"
+          },
+          "paymentType": {
+            "type": "string",
+            "enum": [
+              "ORDER_PAYMENT",
+              "MANDATE_PAYMENT"
+            ],
+            "example": "ORDER_PAYMENT"
+          },
+          "paymentMethodType": {
+            "type": "string",
+            "enum": [
+              "CARD",
+              "UPI",
+              "WALLET",
+              "NETBANKING"
+            ],
+            "example": "CARD"
+          },
+          "paymentMethod": {
+            "type": "string",
+            "enum": [
+              "CREDIT",
+              "DEBIT"
+            ],
+            "example": "CREDIT"
+          },
+          "authType": {
+            "type": "string",
+            "enum": [
+              "THREE_DS",
+              "NO_THREE_DS"
+            ],
+            "example": "THREE_DS"
+          },
+          "cardIsin": {
+            "type": "string",
+            "example": "411111"
+          }
+        }
+      },
+      "DecideGatewayRequest": {
+        "type": "object",
+        "required": [
+          "merchantId",
+          "paymentInfo",
+          "eligibleGatewayList",
+          "rankingAlgorithm"
+        ],
+        "properties": {
+          "merchantId": {
+            "type": "string",
+            "example": "test_merchant"
+          },
+          "paymentInfo": {
+            "$ref": "#/components/schemas/PaymentInfo"
+          },
+          "eligibleGatewayList": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "example": [
+              "stripe",
+              "paypal",
+              "adyen"
+            ]
+          },
+          "rankingAlgorithm": {
+            "type": "string",
+            "enum": [
+              "SR_BASED_ROUTING",
+              "PL_BASED_ROUTING",
+              "NTW_BASED_ROUTING",
+              "NTW_SR_HYBRID_ROUTING"
+            ],
+            "example": "SR_BASED_ROUTING"
+          },
+          "eliminationEnabled": {
+            "type": "boolean",
+            "default": false
+          },
+          "enableMultiObjective": {
+            "type": "boolean",
+            "description": "Per-request override for the multi-objective (cost-aware) post-step. true forces it on, false forces it off; omitted falls back to the merchant's multi_objective_routing_enabled feature flag."
+          }
+        }
+      },
+      "DecidedGateway": {
+        "type": "object",
+        "properties": {
+          "decided_gateway": {
+            "type": "string",
+            "example": "stripe"
+          },
+          "routing_approach": {
+            "type": "string",
+            "example": "SR_SELECTION_V3_ROUTING",
+            "description": "Routing approach used. SR_SELECTION_MULTI_OBJECTIVE indicates the multi-objective post-step promoted a cheaper gateway over the SR head."
+          },
+          "gateway_priority_map": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "number"
+            },
+            "example": {
+              "stripe": 0.94,
+              "adyen": 0.87,
+              "paypal": 0.72
+            }
+          },
+          "routing_dimension": {
+            "type": "string"
+          },
+          "routing_dimension_level": {
+            "type": "string"
+          },
+          "reset_approach": {
+            "type": "string"
+          },
+          "is_scheduled_outage": {
+            "type": "boolean"
+          },
+          "is_rust_based_decider": {
+            "type": "boolean"
+          },
+          "debit_routing_output": {
+            "$ref": "#/components/schemas/DebitRoutingOutput"
+          },
+          "latency": {
+            "type": "number"
+          },
+          "multi_objective_info": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MultiObjectiveInfo"
+              }
+            ],
+            "nullable": true,
+            "description": "Populated when the multi-objective post-step ran (multi_objective_routing_enabled feature flag or enableMultiObjective request field, outside hedging). Null otherwise."
+          }
+        }
+      },
+      "DebitRoutingOutput": {
+        "type": "object",
+        "properties": {
+          "co_badged_card_networks_info": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "network": {
+                  "type": "string",
+                  "example": "NYCE"
+                },
+                "saving_percentage": {
+                  "type": "number",
+                  "example": 1.2
+                }
+              }
+            }
+          },
+          "issuer_country": {
+            "type": "string",
+            "example": "US"
+          },
+          "is_regulated": {
+            "type": "boolean",
+            "example": false
+          },
+          "regulated_name": {
+            "type": "string",
+            "nullable": true
+          },
+          "card_type": {
+            "type": "string",
+            "example": "Debit"
+          }
+        }
+      },
+      "UpdateGatewayScoreRequest": {
+        "type": "object",
+        "required": [
+          "merchantId",
+          "gateway",
+          "paymentId",
+          "status"
+        ],
+        "properties": {
+          "merchantId": {
+            "type": "string",
+            "example": "test_merchant"
+          },
+          "gateway": {
+            "type": "string",
+            "example": "stripe"
+          },
+          "paymentId": {
+            "type": "string",
+            "example": "pay_001"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "CHARGED",
+              "AUTHENTICATION_FAILED",
+              "AUTHORIZATION_FAILED",
+              "JUSPAY_DECLINED",
+              "FAILURE"
+            ],
+            "example": "CHARGED"
+          },
+          "gatewayReferenceId": {
+            "type": "string",
+            "example": "stripe_ref_001"
+          },
+          "enforceDynamicRoutingFailure": {
+            "type": "boolean",
+            "default": false
+          }
+        }
+      },
+      "UpdateScoreResponse": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string"
+          },
+          "merchant_id": {
+            "type": "string"
+          },
+          "gateway": {
+            "type": "string"
+          },
+          "payment_id": {
+            "type": "string"
+          }
+        }
+      },
+      "CreateMerchantRequest": {
+        "type": "object",
+        "required": [
+          "merchant_id"
+        ],
+        "properties": {
+          "merchant_id": {
+            "type": "string",
+            "example": "my_merchant"
+          },
+          "gateway_success_rate_based_decider_input": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "MerchantAccount": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string"
+          },
+          "merchant_id": {
+            "type": "string",
+            "example": "my_merchant"
+          },
+          "gateway_success_rate_based_decider_input": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "DebitRoutingRequest": {
+        "type": "object",
+        "required": [
+          "enabled"
+        ],
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "example": true
+          }
+        }
+      },
+      "DebitRoutingResponse": {
+        "type": "object",
+        "properties": {
+          "merchant_id": {
+            "type": "string",
+            "example": "my_merchant"
+          },
+          "debit_routing_enabled": {
+            "type": "boolean",
+            "example": true
+          }
+        }
+      },
+      "CreateRoutingRuleRequest": {
+        "type": "object",
+        "required": [
+          "name",
+          "created_by",
+          "algorithm"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "default-priority"
+          },
+          "description": {
+            "type": "string",
+            "example": ""
+          },
+          "created_by": {
+            "type": "string",
+            "example": "test_merchant"
+          },
+          "algorithm_for": {
+            "type": "string",
+            "enum": [
+              "payment",
+              "payout",
+              "three_ds_authentication"
+            ],
+            "default": "payment"
+          },
+          "algorithm": {
+            "$ref": "#/components/schemas/RoutingAlgorithm"
+          }
+        }
+      },
+      "RoutingAlgorithm": {
+        "type": "object",
+        "required": [
+          "type",
+          "data"
+        ],
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "priority",
+              "single",
+              "volume_split",
+              "advanced"
+            ],
+            "example": "priority"
+          },
+          "data": {
+            "description": "Depends on type: array of ConnectorInfo ({gateway_name, gateway_id}) for `priority`; single ConnectorInfo for `single`; array of {split, connectors} for `volume_split`; Euclid AST Program for `advanced`"
+          }
+        }
+      },
+      "ActivateRoutingRuleRequest": {
+        "type": "object",
+        "required": [
+          "created_by",
+          "routing_algorithm_id"
+        ],
+        "properties": {
+          "created_by": {
+            "type": "string",
+            "example": "test_merchant"
+          },
+          "routing_algorithm_id": {
+            "type": "string",
+            "example": "rule_abc123"
+          }
+        }
+      },
+      "DeactivateRoutingRuleRequest": {
+        "type": "object",
+        "required": [
+          "created_by",
+          "routing_algorithm_id"
+        ],
+        "properties": {
+          "created_by": {
+            "type": "string",
+            "example": "test_merchant"
+          },
+          "routing_algorithm_id": {
+            "type": "string",
+            "example": "rule_abc123"
+          }
+        }
+      },
+      "RoutingRule": {
+        "type": "object",
+        "properties": {
+          "rule_id": {
+            "type": "string",
+            "nullable": true,
+            "example": "rule_abc123"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "created_by": {
+            "type": "string",
+            "example": "test_merchant"
+          },
+          "algorithm_for": {
+            "type": "string"
+          },
+          "algorithm": {
+            "$ref": "#/components/schemas/RoutingAlgorithm"
+          }
+        }
+      },
+      "EvaluateRoutingRequest": {
+        "type": "object",
+        "required": [
+          "merchantId",
+          "paymentInfo"
+        ],
+        "properties": {
+          "merchantId": {
+            "type": "string",
+            "example": "test_merchant"
+          },
+          "paymentInfo": {
+            "$ref": "#/components/schemas/PaymentInfo"
+          }
+        }
+      },
+      "RuleConfigRequest": {
+        "type": "object",
+        "required": [
+          "merchant_id",
+          "config"
+        ],
+        "properties": {
+          "merchant_id": {
+            "type": "string",
+            "example": "test_merchant"
+          },
+          "config": {
+            "type": "object",
+            "description": "Tagged config variant. `type` is `successRate`, `elimination`, or `debitRouting`. `data` holds the variant-specific fields."
+          }
+        }
+      },
+      "RuleConfigGetRequest": {
+        "type": "object",
+        "required": [
+          "merchant_id",
+          "algorithm"
+        ],
+        "properties": {
+          "merchant_id": {
+            "type": "string",
+            "example": "test_merchant"
+          },
+          "algorithm": {
+            "type": "string",
+            "enum": [
+              "successRate",
+              "elimination",
+              "debitRouting"
+            ],
+            "example": "successRate"
+          }
+        }
+      },
+      "RuleConfigResponse": {
+        "type": "object",
+        "properties": {
+          "merchant_id": {
+            "type": "string"
+          },
+          "config": {
+            "type": "object"
+          }
+        }
+      },
+      "GenericObject": {
+        "type": "object",
+        "additionalProperties": true
+      },
+      "MessageResponse": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "AuthRequest": {
+        "type": "object",
+        "required": [
+          "email",
+          "password"
+        ],
+        "properties": {
+          "email": {
+            "type": "string",
+            "example": "operator@example.com"
+          },
+          "password": {
+            "type": "string",
+            "example": "StrongPass#123"
+          },
+          "merchant_id": {
+            "type": "string",
+            "nullable": true,
+            "example": "merchant_demo"
+          }
+        }
+      },
+      "AuthResponse": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string"
+          },
+          "user_id": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "merchant_id": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          },
+          "merchants": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MerchantInfo"
+            }
+          }
+        }
+      },
+      "MerchantInfo": {
+        "type": "object",
+        "properties": {
+          "merchant_id": {
+            "type": "string"
+          },
+          "merchant_name": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          }
+        }
+      },
+      "CreateDashboardMerchantRequest": {
+        "type": "object",
+        "required": [
+          "merchant_name"
+        ],
+        "properties": {
+          "merchant_name": {
+            "type": "string",
+            "example": "Demo Merchant"
+          }
+        }
+      },
+      "SwitchMerchantRequest": {
+        "type": "object",
+        "required": [
+          "merchant_id"
+        ],
+        "properties": {
+          "merchant_id": {
+            "type": "string",
+            "example": "merchant_demo"
+          }
+        }
+      },
+      "CreateApiKeyRequest": {
+        "type": "object",
+        "required": [
+          "merchant_id"
+        ],
+        "properties": {
+          "merchant_id": {
+            "type": "string",
+            "example": "merchant_demo"
+          },
+          "description": {
+            "type": "string",
+            "nullable": true,
+            "example": "backend integration key"
+          }
+        }
+      },
+      "CreateApiKeyResponse": {
+        "type": "object",
+        "properties": {
+          "key_id": {
+            "type": "string"
+          },
+          "api_key": {
+            "type": "string",
+            "example": "DE_..."
+          },
+          "key_prefix": {
+            "type": "string"
+          },
+          "merchant_id": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "created_at": {
+            "type": "string"
+          }
+        }
+      },
+      "ApiKeyListItem": {
+        "type": "object",
+        "properties": {
+          "key_id": {
+            "type": "string"
+          },
+          "key_prefix": {
+            "type": "string"
+          },
+          "merchant_id": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "is_active": {
+            "type": "boolean"
+          },
+          "created_at": {
+            "type": "string"
+          }
+        }
+      },
+      "AnalyticsQueryParams": {
+        "type": "object",
+        "properties": {
+          "range": {
+            "type": "string",
+            "enum": [
+              "15m",
+              "1h",
+              "12h",
+              "1d",
+              "1w"
+            ]
+          },
+          "start_ms": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "end_ms": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "page": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "page_size": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 50
+          },
+          "gateway": {
+            "type": "string"
+          },
+          "payment_id": {
+            "type": "string"
+          },
+          "request_id": {
+            "type": "string"
+          },
+          "route": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "flow_type": {
+            "type": "string"
+          },
+          "routing_approach": {
+            "type": "string"
+          },
+          "exclude_routing_approach": {
+            "type": "string"
+          },
+          "error_code": {
+            "type": "string"
+          }
+        }
+      },
+      "PspSummary": {
+        "type": "object",
+        "properties": {
+          "psp": {
+            "type": "string",
+            "example": "adyen"
+          },
+          "authRate": {
+            "type": "number",
+            "example": 0.91
+          },
+          "costBps": {
+            "type": "number",
+            "nullable": true,
+            "example": 100.0
+          }
+        }
+      },
+      "MultiObjectiveInfo": {
+        "type": "object",
+        "description": "Present when the multi-objective (cost-aware) post-step ran. Explains why the gateway was picked: the SR head was kept (AUTH_WON) or a higher economic-value PSP was promoted (COST_WON). Economic value is auth rate × settlement value, where settlement value = txn amount − cost of payment processing (acquirer, issuer & network fee).",
+        "properties": {
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "COST_WON",
+              "AUTH_WON"
+            ],
+            "example": "COST_WON"
+          },
+          "reason": {
+            "type": "string",
+            "example": "Promoted 'adyen' over 'stripe' on expected value — saves 80.00 bps for 3.00pp auth."
+          },
+          "srHead": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PspSummary"
+              }
+            ],
+            "nullable": true,
+            "description": "The PSP the SR scorer would have picked."
+          },
+          "chosen": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PspSummary"
+              }
+            ],
+            "nullable": true,
+            "description": "The PSP the post-step actually chose. Equals srHead when auth won."
+          },
+          "costSavedBps": {
+            "type": "number",
+            "nullable": true,
+            "description": "Fee saved in bps when outcome is COST_WON (srHead.costBps - chosen.costBps).",
+            "example": 80.0
+          },
+          "qualifiedCount": {
+            "type": "integer",
+            "description": "Number of PSPs that had cost data and were ranked on expected value.",
+            "example": 3
+          },
+          "margin": {
+            "type": "number",
+            "description": "Merchant margin (fraction of ticket) applied for this transaction. Configured via the successRate config margin field; defaults to 1.0.",
+            "example": 0.2
+          },
+          "evGapTop2": {
+            "type": "number",
+            "nullable": true,
+            "description": "Expected-value gap between the top-two EV-ranked PSPs, as a fraction of ticket. Null when fewer than two PSPs had cost data.",
+            "example": 0.00182
+          }
+        }
+      }
+    }
+  }
+}

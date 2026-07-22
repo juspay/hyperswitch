@@ -1,0 +1,285 @@
+---
+title: "Create Routing Rule"
+description: "Create a new Euclid declarative routing rule for a merchant. Supports `advanced` (full Euclid DSL), `priority` (ordered gateway list), `single` (fixed gateway), and `volume_split` (percentage-based distribution) algorithm types."
+openapi: "decision_engine_openapi-specs.json POST /routing/create"
+---
+
+# Create Routing Rule
+
+## Use case
+
+Creates a Euclid routing algorithm for a merchant. Use this for rule-based routing, priority routing, single connector routing, and volume split routing.
+
+## Authentication
+
+Protected. Send either `Authorization: Bearer <jwt_token>` or `x-api-key: <api_key>`. In sandbox, also send `x-feature: decision-engine`.
+
+For local development, start with:
+
+```bash
+export BASE_URL=http://localhost:8080
+export AUTH_HEADER="Authorization: Bearer <jwt_token>"
+# Sandbox only:
+# export BASE_URL=https://sandbox.hyperswitch.io
+# export FEATURE_HEADER="x-feature: decision-engine"
+```
+
+## Request
+
+- Method and path: `POST /routing/create`
+- Parameters: none.
+- Body: JSON body with `name`, `created_by`, `algorithm_for`, and `algorithm`. `algorithm.type` controls the shape of `algorithm.data`.
+
+## Example
+
+### Priority rule
+
+```bash
+curl --location "$BASE_URL/routing/create" \
+  --header "$AUTH_HEADER" \
+  --header "Content-Type: application/json" \
+  --data '{
+  "name": "priority rule",
+  "created_by": "merchant_demo",
+  "description": "Try stripe before adyen",
+  "algorithm_for": "payment",
+  "algorithm": {
+    "type": "priority",
+    "data": [
+      { "gateway_name": "stripe", "gateway_id": "mca_stripe" },
+      { "gateway_name": "adyen", "gateway_id": "mca_adyen" }
+    ]
+  }
+}'
+```
+
+### Single connector
+
+```bash
+curl --location "$BASE_URL/routing/create" \
+  --header "$AUTH_HEADER" \
+  --header "Content-Type: application/json" \
+  --data '{
+  "name": "single connector rule",
+  "created_by": "merchant_demo",
+  "algorithm_for": "payment",
+  "algorithm": {
+    "type": "single",
+    "data": { "gateway_name": "stripe", "gateway_id": "mca_stripe" }
+  }
+}'
+```
+
+### Volume split
+
+```bash
+curl --location "$BASE_URL/routing/create" \
+  --header "$AUTH_HEADER" \
+  --header "Content-Type: application/json" \
+  --data '{
+  "name": "volume split rule",
+  "created_by": "merchant_demo",
+  "algorithm_for": "payment",
+  "algorithm": {
+    "type": "volume_split",
+    "data": [
+      { "split": 70, "output": { "gateway_name": "stripe", "gateway_id": "mca_stripe" } },
+      { "split": 30, "output": { "gateway_name": "adyen", "gateway_id": "mca_adyen" } }
+    ]
+  }
+}'
+```
+
+### Advanced rule tree
+
+```bash
+curl --location "$BASE_URL/routing/create" \
+  --header "$AUTH_HEADER" \
+  --header "Content-Type: application/json" \
+  --data '{
+  "name": "metadata rule",
+  "created_by": "merchant_demo",
+  "description": "Route Visa BIN 424242 to a priority list",
+  "algorithm_for": "payment",
+  "algorithm": {
+    "type": "advanced",
+    "data": {
+      "globals": {},
+      "default_selection": {
+        "priority": [{ "gateway_name": "stripe", "gateway_id": "mca_stripe" }]
+      },
+      "rules": [{
+        "name": "visa bin rule",
+        "routing_type": "priority",
+        "output": { "priority": [{ "gateway_name": "adyen", "gateway_id": "mca_adyen" }] },
+        "statements": [{
+          "condition": [{
+            "lhs": "card_bin",
+            "comparison": "equal",
+            "value": { "type": "str_value", "value": "424242" },
+            "metadata": {}
+          }],
+          "nested": null
+        }]
+      }],
+      "metadata": {}
+    }
+  }
+}'
+```
+
+### Advanced AND rule
+
+In `advanced` routing, conditions inside the same `condition` array are evaluated as an AND group. Add this rule object inside `algorithm.data.rules`.
+
+```json
+{
+  "name": "high_value_netherlands_rule",
+  "routing_type": "volume_split",
+  "output": {
+    "volume_split": [
+      { "split": 60, "output": { "gateway_name": "hdfc", "gateway_id": "mca_hdfc" } },
+      { "split": 40, "output": { "gateway_name": "instamojo", "gateway_id": "mca_instamojo" } }
+    ]
+  },
+  "statements": [
+    {
+      "condition": [
+        {
+          "lhs": "amount",
+          "comparison": "greater_than",
+          "value": { "type": "number", "value": 100 },
+          "metadata": {}
+        },
+        {
+          "lhs": "billing_country",
+          "comparison": "equal",
+          "value": { "type": "enum_variant", "value": "Netherlands" },
+          "metadata": {}
+        }
+      ],
+      "nested": null
+    }
+  ]
+}
+```
+
+### Advanced OR rule
+
+Use multiple `statements` when any one branch can trigger the rule. This behaves like OR across statements.
+
+```json
+{
+  "name": "card_or_high_value_rule",
+  "routing_type": "priority",
+  "output": {
+    "priority": [
+      { "gateway_name": "stripe", "gateway_id": "mca_stripe" },
+      { "gateway_name": "adyen", "gateway_id": "mca_adyen" }
+    ]
+  },
+  "statements": [
+    {
+      "condition": [
+        {
+          "lhs": "payment_method_type",
+          "comparison": "equal",
+          "value": { "type": "enum_variant", "value": "CARD" },
+          "metadata": {}
+        }
+      ],
+      "nested": null
+    },
+    {
+      "condition": [
+        {
+          "lhs": "amount",
+          "comparison": "greater_than",
+          "value": { "type": "number", "value": 5000 },
+          "metadata": {}
+        }
+      ],
+      "nested": null
+    }
+  ]
+}
+```
+
+### Advanced nested AND + OR rule
+
+Use `nested` when a parent condition must match first, and then one of multiple nested branches should match.
+
+```json
+{
+  "name": "nested_card_rule",
+  "routing_type": "priority",
+  "output": {
+    "priority": [
+      { "gateway_name": "bankofamerica", "gateway_id": "mca_bankofamerica" },
+      { "gateway_name": "gigadat", "gateway_id": "mca_gigadat" }
+    ]
+  },
+  "statements": [
+    {
+      "condition": [
+        {
+          "lhs": "payment_method_type",
+          "comparison": "equal",
+          "value": { "type": "enum_variant", "value": "CARD" },
+          "metadata": {}
+        }
+      ],
+      "nested": [
+        {
+          "condition": [
+            {
+              "lhs": "card_bin",
+              "comparison": "equal",
+              "value": { "type": "str_value", "value": "424242" },
+              "metadata": {}
+            }
+          ],
+          "nested": null
+        },
+        {
+          "condition": [
+            {
+              "lhs": "card_network",
+              "comparison": "equal",
+              "value": { "type": "enum_variant", "value": "Visa" },
+              "metadata": {}
+            }
+          ],
+          "nested": null
+        }
+      ]
+    }
+  ]
+}
+```
+
+For more advanced rule examples, including `volume_split_priority`, `enum_variant_array`, `number_array`, and `number_comparison_array`, see [Advanced Routing Example](/decision-engine-api-reference/api-reference/guides/configure-routing/routing-advanced-example).
+
+## Response
+
+```json
+{
+  "rule_id": "routing_e641380c-6f24-4405-8454-5ae6cbceb7a0",
+  "name": "priority rule",
+  "created_at": "2026-04-26 10:00:00",
+  "modified_at": "2026-04-26 10:00:00"
+}
+```
+
+## Notes
+
+- Creating a rule does not make it active. Call `/routing/activate` after creation.
+- For volume split, split percentages should add up to 100.
+
+## Related
+
+- [Activate Routing Rule](/decision-engine-api-reference/api-reference/endpoint/routing-rules/activateRoutingRule)
+- [Evaluate Routing Rule](/decision-engine-api-reference/api-reference/endpoint/routing-rules/evaluateRoutingRule)
+- [Advanced Routing Example](/decision-engine-api-reference/api-reference/guides/configure-routing/routing-advanced-example)
+- [Priority Routing](/decision-engine-api-reference/api-reference/guides/configure-routing/routing-priority-example)
+- [Volume Split Routing](/decision-engine-api-reference/api-reference/guides/configure-routing/routing-volume-split-example)

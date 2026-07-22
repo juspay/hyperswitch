@@ -1,0 +1,61 @@
+---
+title: "Delete Merchant"
+description: "Delete a merchant account and all associated routing configuration."
+openapi: "decision_engine_openapi-specs.json DELETE /merchant-account/{merchantId}"
+---
+
+# Delete Merchant
+
+## Use case
+
+Deletes a merchant account from Decision Engine local state.
+
+## Authentication
+
+Protected. Send either `Authorization: Bearer <jwt_token>` or `x-api-key: <api_key>`. In sandbox, also send `x-feature: decision-engine`.
+
+For local development, start with:
+
+```bash
+export BASE_URL=http://localhost:8080
+export AUTH_HEADER="Authorization: Bearer <jwt_token>"
+# Sandbox only:
+# export BASE_URL=https://sandbox.hyperswitch.io
+# export FEATURE_HEADER="x-feature: decision-engine"
+```
+
+## Request
+
+- Method and path: `DELETE /merchant-account/{merchantId}`
+- Parameters:
+  - `merchantId` (path, required, string)
+- Body: Path parameter `merchantId` is the merchant account ID.
+
+## Example
+
+### Delete merchant
+
+```bash
+curl --location "$BASE_URL/merchant-account/merchant_demo" \
+  --header "$AUTH_HEADER" \
+  --request DELETE
+```
+
+## Response
+
+```json
+{
+  "deleted": true,
+  "merchant_id": "merchant_demo"
+}
+```
+
+## Notes
+
+- Do not use this in shared sandbox data unless you are cleaning up your own test merchant.
+- Deleting a merchant does not imply external payment processor cleanup.
+
+## Related
+
+- [Create Merchant](/decision-engine-api-reference/api-reference/endpoint/merchant-account/createMerchant)
+- [Get Merchant](/decision-engine-api-reference/api-reference/endpoint/merchant-account/getMerchant)

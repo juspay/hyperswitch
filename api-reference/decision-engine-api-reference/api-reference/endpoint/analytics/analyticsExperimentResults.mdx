@@ -1,0 +1,101 @@
+---
+title: "A/B Test Experiment Results"
+description: "ClickHouse-backed A/B test experiment results read endpoint."
+openapi: "decision_engine_openapi-specs.json GET /analytics/experiment/{experiment_id}/results"
+---
+
+# A/B Test Experiment Results
+
+## Use case
+
+Runs a statistical significance test between the control and variant arms of a routing [A/B test experiment](/decision-engine-api-reference/api-reference/guides/ab-testing/ab-testing-create): a two-sample z-test on expected value, collapsing to a plain auth-rate z-test for auth-only experiments. A guardrail check short-circuits to `guardrail_breached` before significance is computed.
+
+## Authentication
+
+Protected. Send either `Authorization: Bearer <jwt_token>` or `x-api-key: <api_key>`. In sandbox, also send `x-feature: decision-engine`.
+
+For local development, start with:
+
+```bash
+export BASE_URL=http://localhost:8080
+export AUTH_HEADER="Authorization: Bearer <jwt_token>"
+export TENANT_HEADER="x-tenant-id: public"
+# Sandbox only:
+# export BASE_URL=https://sandbox.hyperswitch.io
+# export FEATURE_HEADER="x-feature: decision-engine"
+```
+
+## Request
+
+- Method and path: `GET /analytics/experiment/{experiment_id}/results`
+- Parameters:
+  - `x-tenant-id` (header, required, string) — see [Environment setup](/decision-engine-api-reference/api-reference/guides/api-ref#environment-setup).
+  - `experiment_id` (path, required, string) — the `rule_id` returned by `/routing/create` for the `ab_test` algorithm.
+  - `start_ms` (query, optional, integer)
+  - `end_ms` (query, optional, integer)
+  - `min_sample_size` (query, optional, integer) — overrides the experiment's stored threshold. Defaults to `1000`.
+  - `guardrail_threshold_pp` (query, optional, number) — overrides the experiment's stored guardrail. Defaults to `3.0`.
+  - `evaluation_margin` (query, optional, number) — business margin used to value net expected value for cost/autopilot experiments.
+- Body: No request body.
+
+## Example
+
+```bash
+curl "$BASE_URL/analytics/experiment/routing_a1b2c3d4-1111-2222-3333-444455556666/results" \
+  --header "$AUTH_HEADER" \
+  --header "$TENANT_HEADER"
+```
+
+## Response
+
+```json
+{
+  "experiment_id": "routing_a1b2c3d4-1111-2222-3333-444455556666",
+  "merchant_id": "merchant_demo",
+  "control": {
+    "arm": "control",
+    "transaction_count": 4820,
+    "success_count": 4531,
+    "failure_count": 289,
+    "auth_rate": 0.94,
+    "first_attempt_auth_rate": 0.91,
+    "total_cost_saved": null,
+    "avg_latency_ms": 6.2,
+    "avg_chosen_cost_bps": 182.4,
+    "avg_cost_saved_bps": null,
+    "net_ev_bps": 17660.0
+  },
+  "variant": {
+    "arm": "variant",
+    "transaction_count": 1204,
+    "success_count": 1101,
+    "failure_count": 103,
+    "auth_rate": 0.914,
+    "first_attempt_auth_rate": 0.887,
+    "total_cost_saved": 962.3,
+    "avg_latency_ms": 6.5,
+    "avg_chosen_cost_bps": 150.1,
+    "avg_cost_saved_bps": 32.3,
+    "net_ev_bps": 17944.0
+  },
+  "delta_pp": -2.6,
+  "p_value": 0.031,
+  "confidence_interval": [-4.9, -0.3],
+  "verdict": "variant_wins",
+  "min_sample_size": 1000,
+  "net_delta_bps": 284.0,
+  "evaluation_margin": 0.2
+}
+```
+
+## Notes
+
+- `verdict` is one of `collecting_data`, `not_significant`, `variant_wins`, `variant_loses`, or `guardrail_breached`.
+- For an auth-only experiment (no cost data involved on either arm), the cost-related fields (`total_cost_saved`, `avg_cost_saved_bps`, `net_ev_bps`, `net_delta_bps`) are `null`.
+- Full field-by-field reference: [A/B Testing: Results](/decision-engine-api-reference/api-reference/guides/ab-testing/ab-testing-results).
+
+## Related
+
+- [A/B Test Experiment Transactions](/decision-engine-api-reference/api-reference/endpoint/analytics/analyticsExperimentTransactions)
+- [A/B Testing: Create An Experiment](/decision-engine-api-reference/api-reference/guides/ab-testing/ab-testing-create)
+- [Analytics Endpoints](/decision-engine-api-reference/api-reference/guides/analytics-audit/analytics-endpoints)

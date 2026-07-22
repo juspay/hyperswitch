@@ -1,0 +1,80 @@
+---
+title: "Evaluate Routing Rule"
+description: "Evaluate the active routing rule for a merchant against a payment context. Returns the ordered list of gateways selected by the rule without consuming SR data."
+openapi: "decision_engine_openapi-specs.json POST /routing/evaluate"
+---
+
+# Evaluate Routing Rule
+
+## Use case
+
+Evaluates the active rule-based or volume-split routing algorithm for a payment context. This is a real evaluation endpoint for rule decisions, kept separate from auth-rate transaction scoring.
+
+## Authentication
+
+Protected. Send either `Authorization: Bearer <jwt_token>` or `x-api-key: <api_key>`. In sandbox, also send `x-feature: decision-engine`.
+
+For local development, start with:
+
+```bash
+export BASE_URL=http://localhost:8080
+export AUTH_HEADER="Authorization: Bearer <jwt_token>"
+# Sandbox only:
+# export BASE_URL=https://sandbox.hyperswitch.io
+# export FEATURE_HEADER="x-feature: decision-engine"
+```
+
+## Request
+
+- Method and path: `POST /routing/evaluate`
+- Parameters: none.
+- Body: JSON body with `merchantId` and `paymentInfo`.
+
+## Example
+
+### Evaluate active rule
+
+```bash
+curl --location "$BASE_URL/routing/evaluate" \
+  --header "$AUTH_HEADER" \
+  --header "Content-Type: application/json" \
+  --data '{
+  "merchantId": "merchant_demo",
+  "paymentInfo": {
+    "paymentId": "rule_decision_001",
+    "amount": 1000,
+    "currency": "USD",
+    "country": "US",
+    "paymentType": "ORDER_PAYMENT",
+    "paymentMethodType": "CARD",
+    "paymentMethod": "CREDIT",
+    "authType": "THREE_DS",
+    "cardIsin": "424242"
+  }
+}'
+```
+
+## Response
+
+```json
+{
+  "gateway": "stripe",
+  "gateways": [
+    "stripe",
+    "adyen"
+  ],
+  "routing_approach": "RULE_EVALUATE_DECISION",
+  "rule_name": "volume_split_rule"
+}
+```
+
+## Notes
+
+- This endpoint does not call `/update-gateway-score` and does not consume auth-rate score updates.
+- Analytics stores these as rule/volume decisions under the `/analytics/preview-trace` transport endpoint.
+
+## Related
+
+- [Create Routing Rule](/decision-engine-api-reference/api-reference/endpoint/routing-rules/createRoutingRule)
+- [Preview Trace](/decision-engine-api-reference/api-reference/endpoint/analytics/analyticsPreviewTrace)
+- [Evaluate Routing Algorithm](/decision-engine-api-reference/api-reference/guides/configure-routing/routing-algorithm-evaluate)

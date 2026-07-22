@@ -1,0 +1,66 @@
+---
+title: "List API Keys"
+description: "List active and revoked API keys for a merchant."
+openapi: "decision_engine_openapi-specs.json GET /api-key/list/{merchant_id}"
+---
+
+# List API Keys
+
+## Use case
+
+Lists API keys registered for a merchant without exposing raw key secrets.
+
+## Authentication
+
+Dashboard protected. Send `Authorization: Bearer <jwt_token>`. In sandbox, also send `x-feature: decision-engine`.
+
+For local development, start with:
+
+```bash
+export BASE_URL=http://localhost:8080
+export AUTH_HEADER="Authorization: Bearer <jwt_token>"
+# Sandbox only:
+# export BASE_URL=https://sandbox.hyperswitch.io
+# export FEATURE_HEADER="x-feature: decision-engine"
+```
+
+## Request
+
+- Method and path: `GET /api-key/list/{merchant_id}`
+- Parameters:
+  - `merchant_id` (path, required, string)
+- Body: Path parameter `merchant_id` identifies the merchant account.
+
+## Example
+
+### List keys
+
+```bash
+curl "$BASE_URL/api-key/list/merchant_demo" \
+  --header "$AUTH_HEADER"
+```
+
+## Response
+
+```json
+{
+  "keys": [
+    {
+      "key_id": "key_123",
+      "merchant_id": "merchant_demo",
+      "name": "local-smoke-key",
+      "created_at": "2026-04-26T00:00:00Z"
+    }
+  ]
+}
+```
+
+## Notes
+
+- Use this for key management screens.
+- Revoke by `key_id`, not by raw key value.
+
+## Related
+
+- [Create API Key](/decision-engine-api-reference/api-reference/endpoint/auth/createApiKey)
+- [Revoke API Key](/decision-engine-api-reference/api-reference/endpoint/auth/revokeApiKey)

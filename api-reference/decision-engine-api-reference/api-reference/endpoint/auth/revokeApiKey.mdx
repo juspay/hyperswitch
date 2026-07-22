@@ -1,0 +1,61 @@
+---
+title: "Revoke API Key"
+description: "Mark an API key inactive and clear its Redis cache entry."
+openapi: "decision_engine_openapi-specs.json DELETE /api-key/{key_id}"
+---
+
+# Revoke API Key
+
+## Use case
+
+Revokes a server-to-server API key so it can no longer call protected routes.
+
+## Authentication
+
+Dashboard protected. Send `Authorization: Bearer <jwt_token>`. In sandbox, also send `x-feature: decision-engine`.
+
+For local development, start with:
+
+```bash
+export BASE_URL=http://localhost:8080
+export AUTH_HEADER="Authorization: Bearer <jwt_token>"
+# Sandbox only:
+# export BASE_URL=https://sandbox.hyperswitch.io
+# export FEATURE_HEADER="x-feature: decision-engine"
+```
+
+## Request
+
+- Method and path: `DELETE /api-key/{key_id}`
+- Parameters:
+  - `key_id` (path, required, string)
+- Body: Path parameter `key_id` identifies the key to revoke.
+
+## Example
+
+### Revoke key
+
+```bash
+curl --location "$BASE_URL/api-key/key_123" \
+  --header "$AUTH_HEADER" \
+  --request DELETE
+```
+
+## Response
+
+```json
+{
+  "deleted": true,
+  "key_id": "key_123"
+}
+```
+
+## Notes
+
+- Existing requests using the revoked key should receive authorization failures after revocation propagates.
+- Dashboard JWT sessions are not affected.
+
+## Related
+
+- [Create API Key](/decision-engine-api-reference/api-reference/endpoint/auth/createApiKey)
+- [List API Keys](/decision-engine-api-reference/api-reference/endpoint/auth/listApiKeys)

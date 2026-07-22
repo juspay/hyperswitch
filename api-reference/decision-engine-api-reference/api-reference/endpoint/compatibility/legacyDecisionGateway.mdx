@@ -1,0 +1,81 @@
+---
+title: "Legacy Decision Gateway"
+description: "Legacy compatibility route. New integrations should use /decide-gateway."
+openapi: "decision_engine_openapi-specs.json POST /decision_gateway"
+---
+
+# Legacy Decision Gateway
+
+## Use case
+
+Compatibility endpoint for older integrations that still call `/decision_gateway`.
+
+## Authentication
+
+Protected. Send either `Authorization: Bearer <jwt_token>` or `x-api-key: <api_key>`. In sandbox, also send `x-feature: decision-engine`.
+
+For local development, start with:
+
+```bash
+export BASE_URL=http://localhost:8080
+export AUTH_HEADER="Authorization: Bearer <jwt_token>"
+# Sandbox only:
+# export BASE_URL=https://sandbox.hyperswitch.io
+# export FEATURE_HEADER="x-feature: decision-engine"
+```
+
+## Request
+
+- Method and path: `POST /decision_gateway`
+- Parameters: none.
+- Body: Uses the same decision request shape as `/decide-gateway`.
+
+## Example
+
+### Legacy decision call
+
+```bash
+curl --location "$BASE_URL/decision_gateway" \
+  --header "$AUTH_HEADER" \
+  --header "Content-Type: application/json" \
+  --data '{
+  "merchantId": "merchant_demo",
+  "eligibleGatewayList": ["stripe", "adyen", "checkout"],
+  "rankingAlgorithm": "SR_BASED_ROUTING",
+  "eliminationEnabled": true,
+  "paymentInfo": {
+    "paymentId": "pay_legacy_001",
+    "amount": 1000,
+    "currency": "USD",
+    "country": "US",
+    "paymentType": "ORDER_PAYMENT",
+    "paymentMethodType": "CARD",
+    "paymentMethod": "CREDIT",
+    "authType": "THREE_DS",
+    "cardIsin": "424242"
+  }
+}'
+```
+
+## Response
+
+```json
+{
+  "decided_gateway": "stripe",
+  "gateway_priority_map": {
+    "stripe": 0.94,
+    "adyen": 0.91
+  },
+  "routing_approach": "SR_SELECTION_V3_ROUTING"
+}
+```
+
+## Notes
+
+- New integrations should use `/decide-gateway`.
+- Keep this route for migration compatibility only.
+
+## Related
+
+- [Decide Gateway](/decision-engine-api-reference/api-reference/endpoint/gateway-decision/decideGateway)
+- [Legacy Decision Gateway](/decision-engine-api-reference/api-reference/guides/legacy/decision-gateway-legacy)

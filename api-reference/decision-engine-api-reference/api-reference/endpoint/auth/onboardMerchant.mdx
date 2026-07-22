@@ -1,0 +1,65 @@
+---
+title: "Onboard Merchant"
+description: "Create and attach a merchant to the current operator user."
+openapi: "decision_engine_openapi-specs.json POST /onboarding/merchant"
+---
+
+# Onboard Merchant
+
+## Use case
+
+Creates a merchant workspace from the authenticated dashboard flow.
+
+## Authentication
+
+Dashboard protected. Send `Authorization: Bearer <jwt_token>`. In sandbox, also send `x-feature: decision-engine`.
+
+For local development, start with:
+
+```bash
+export BASE_URL=http://localhost:8080
+export AUTH_HEADER="Authorization: Bearer <jwt_token>"
+# Sandbox only:
+# export BASE_URL=https://sandbox.hyperswitch.io
+# export FEATURE_HEADER="x-feature: decision-engine"
+```
+
+## Request
+
+- Method and path: `POST /onboarding/merchant`
+- Parameters: none.
+- Body: JSON body with `merchant_name`.
+
+## Example
+
+### Onboard merchant
+
+```bash
+curl --location "$BASE_URL/onboarding/merchant" \
+  --header "$AUTH_HEADER" \
+  --header "Content-Type: application/json" \
+  --data '{
+  "merchant_name": "Demo Merchant"
+}'
+```
+
+## Response
+
+```json
+{
+  "merchant_id": "merchant_demo",
+  "merchant_name": "Demo Merchant",
+  "created": true
+}
+```
+
+## Notes
+
+- This is the dashboard onboarding route. Service integrations can use `/merchant-account/create` directly.
+- After onboarding, switch into the merchant before configuring routing.
+
+## Related
+
+- [Switch Merchant](/decision-engine-api-reference/api-reference/endpoint/auth/switchMerchant)
+- [Create Merchant](/decision-engine-api-reference/api-reference/endpoint/merchant-account/createMerchant)
+- [Get Merchant](/decision-engine-api-reference/api-reference/endpoint/merchant-account/getMerchant)

@@ -1,0 +1,20 @@
+---
+title: "Delete Success Rate Config"
+description: "Curl example for deleting success-rate scoring config."
+---
+
+# Delete Success Rate Config
+
+```bash
+curl --location "$BASE_URL/rule/delete" \
+  --header "$AUTH_HEADER" \
+  --header "Content-Type: application/json" \
+  --data '{
+    "merchant_id": "merchant_demo",
+    "algorithm": "successRate"
+  }'
+```
+
+```json
+{ "message": "Rule config deleted successfully" }
+```

@@ -1,0 +1,199 @@
+---
+title: "Decide Gateway"
+description: "Core routing decision API. Given a payment context and a list of eligible gateways, returns the optimal gateway to route to."
+openapi: "decision_engine_openapi-specs.json POST /decide-gateway"
+---
+
+# Decide Gateway
+
+## Use case
+
+Runs the core gateway decision flow for a payment. The same endpoint supports auth-rate routing, priority-list routing, debit/network routing, and network+SR hybrid routing.
+
+## Authentication
+
+Protected. Send either `Authorization: Bearer <jwt_token>` or `x-api-key: <api_key>`. In sandbox, also send `x-feature: decision-engine`.
+
+For local development, start with:
+
+```bash
+export BASE_URL=http://localhost:8080
+export AUTH_HEADER="Authorization: Bearer <jwt_token>"
+# Sandbox only:
+# export BASE_URL=https://sandbox.hyperswitch.io
+# export FEATURE_HEADER="x-feature: decision-engine"
+```
+
+## Request
+
+- Method and path: `POST /decide-gateway`
+- Parameters: none.
+- Body: JSON body with `merchantId`, `paymentInfo`, `eligibleGatewayList`, and `rankingAlgorithm`. `rankingAlgorithm` must be one of `SR_BASED_ROUTING`, `PL_BASED_ROUTING`, `NTW_BASED_ROUTING`, or `NTW_SR_HYBRID_ROUTING`.
+
+## Example
+
+### SR based routing
+
+```bash
+curl --location "$BASE_URL/decide-gateway" \
+  --header "$AUTH_HEADER" \
+  --header "Content-Type: application/json" \
+  --data '{
+  "merchantId": "merchant_demo",
+  "eligibleGatewayList": ["stripe", "adyen", "checkout"],
+  "rankingAlgorithm": "SR_BASED_ROUTING",
+  "eliminationEnabled": true,
+  "paymentInfo": {
+    "paymentId": "pay_sr_001",
+    "amount": 1000,
+    "currency": "USD",
+    "country": "US",
+    "paymentType": "ORDER_PAYMENT",
+    "paymentMethodType": "CARD",
+    "paymentMethod": "CREDIT",
+    "authType": "THREE_DS",
+    "cardIsin": "424242"
+  }
+}'
+```
+
+### Priority-list routing
+
+```bash
+curl --location "$BASE_URL/decide-gateway" \
+  --header "$AUTH_HEADER" \
+  --header "Content-Type: application/json" \
+  --data '{
+  "merchantId": "merchant_demo",
+  "eligibleGatewayList": ["stripe", "adyen", "checkout"],
+  "rankingAlgorithm": "PL_BASED_ROUTING",
+  "eliminationEnabled": true,
+  "paymentInfo": {
+    "paymentId": "pay_pl_001",
+    "amount": 1000,
+    "currency": "USD",
+    "country": "US",
+    "paymentType": "ORDER_PAYMENT",
+    "paymentMethodType": "CARD",
+    "paymentMethod": "CREDIT",
+    "authType": "THREE_DS",
+    "cardIsin": "424242"
+  }
+}'
+```
+
+### Debit/network routing
+
+```bash
+curl --location "$BASE_URL/decide-gateway" \
+  --header "$AUTH_HEADER" \
+  --header "Content-Type: application/json" \
+  --data '{
+  "merchantId": "merchant_demo",
+  "eligibleGatewayList": ["stripe", "adyen"],
+  "rankingAlgorithm": "NTW_BASED_ROUTING",
+  "paymentInfo": {
+    "paymentId": "pay_debit_001",
+    "amount": 1000,
+    "currency": "USD",
+    "country": "US",
+    "paymentType": "ORDER_PAYMENT",
+    "paymentMethodType": "CARD",
+    "paymentMethod": "DEBIT",
+    "authType": "THREE_DS",
+    "metadata": "{\"merchant_category_code\":\"merchant_category_code_0001\",\"acquirer_country\":\"US\",\"co_badged_card_data\":{\"card_type\":\"debit\",\"issuer_country\":\"US\",\"is_regulated\":false,\"regulated_name\":null,\"card_networks\":[\"VISA\",\"NYCE\",\"PULSE\",\"STAR\"]}}"
+  }
+}'
+```
+
+### Multi-objective routing
+
+```bash
+curl --location "$BASE_URL/decide-gateway" \
+  --header "$AUTH_HEADER" \
+  --header "Content-Type: application/json" \
+  --data '{
+  "merchantId": "merchant_demo",
+  "eligibleGatewayList": ["stripe", "adyen", "checkout"],
+  "rankingAlgorithm": "SR_BASED_ROUTING",
+  "eliminationEnabled": true,
+  "enableMultiObjective": true,
+  "paymentInfo": {
+    "paymentId": "pay_mo_001",
+    "amount": 1000,
+    "currency": "USD",
+    "country": "US",
+    "paymentType": "ORDER_PAYMENT",
+    "paymentMethodType": "CARD",
+    "paymentMethod": "CREDIT",
+    "authType": "THREE_DS",
+    "cardIsin": "424242"
+  }
+}'
+```
+
+### Network + SR hybrid routing
+
+```bash
+curl --location "$BASE_URL/decide-gateway" \
+  --header "$AUTH_HEADER" \
+  --header "Content-Type: application/json" \
+  --data '{
+  "merchantId": "merchant_demo",
+  "eligibleGatewayList": ["stripe", "adyen"],
+  "rankingAlgorithm": "NTW_SR_HYBRID_ROUTING",
+  "paymentInfo": {
+    "paymentId": "pay_hybrid_001",
+    "amount": 1000,
+    "currency": "USD",
+    "country": "US",
+    "paymentType": "ORDER_PAYMENT",
+    "paymentMethodType": "CARD",
+    "paymentMethod": "DEBIT",
+    "authType": "THREE_DS",
+    "metadata": "{\"merchant_category_code\":\"merchant_category_code_0001\",\"acquirer_country\":\"US\",\"co_badged_card_data\":{\"card_type\":\"debit\",\"issuer_country\":\"US\",\"is_regulated\":false,\"regulated_name\":null,\"card_networks\":[\"VISA\",\"NYCE\",\"PULSE\",\"STAR\"]}}"
+  }
+}'
+```
+
+## Response
+
+```json
+{
+  "decided_gateway": "stripe",
+  "gateway_priority_map": {
+    "stripe": 0.94,
+    "adyen": 0.91
+  },
+  "routing_approach": "SR_SELECTION_V3_ROUTING",
+  "gateway_before_evaluation": "stripe",
+  "debit_routing_output": {
+    "co_badged_card_networks_info": [
+      {
+        "network": "NYCE",
+        "saving_percentage": 1.2
+      }
+    ],
+    "issuer_country": "US",
+    "is_regulated": false,
+    "card_type": "debit"
+  },
+  "is_rust_based_decider": true
+}
+```
+
+## Notes
+
+- Use backend enum strings exactly; camelCase values such as `NtwBasedRouting` are invalid.
+- Debit routing requires the merchant debit-routing flag to be enabled and debit metadata encoded as a JSON string in `paymentInfo.metadata`.
+- Multi-objective routing is not a `rankingAlgorithm` value: it is a cost-aware post-step on SR-based scoring, toggled per request with `enableMultiObjective` or per merchant with the `multi_objective_routing_enabled` feature flag. When it runs, the response carries a `multi_objective_info` block, and `routing_approach` becomes `SR_SELECTION_MULTI_OBJECTIVE` when a cheaper gateway wins on expected value.
+- A successful call emits analytics/audit events asynchronously.
+
+## Related
+
+- [Decide Gateway: SR Based Routing](/decision-engine-api-reference/api-reference/guides/run-transactions/decide-gateway-sr-based)
+- [Decide Gateway: PL Based Routing](/decision-engine-api-reference/api-reference/guides/run-transactions/decide-gateway-pl-based)
+- [Decide Gateway: Debit Routing](/decision-engine-api-reference/api-reference/guides/run-transactions/decide-gateway-debit-routing)
+- [Decide Gateway: Hybrid Routing](/decision-engine-api-reference/api-reference/guides/run-transactions/decide-gateway-hybrid-routing)
+- [Decide Gateway: Multi-Objective Routing](/decision-engine-api-reference/api-reference/guides/run-transactions/decide-gateway-multi-objective)
+- [Update Gateway Score](/decision-engine-api-reference/api-reference/endpoint/score-feedback/updateGatewayScore)

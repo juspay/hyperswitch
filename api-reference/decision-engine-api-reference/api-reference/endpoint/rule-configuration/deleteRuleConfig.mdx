@@ -1,0 +1,79 @@
+---
+title: "Delete Rule Config"
+description: "Delete a rule configuration."
+openapi: "decision_engine_openapi-specs.json POST /rule/delete"
+---
+
+# Delete Rule Config
+
+## Use case
+
+Deletes a service-level success-rate or elimination configuration for a merchant.
+
+## Authentication
+
+Protected. Send either `Authorization: Bearer <jwt_token>` or `x-api-key: <api_key>`. In sandbox, also send `x-feature: decision-engine`.
+
+For local development, start with:
+
+```bash
+export BASE_URL=http://localhost:8080
+export AUTH_HEADER="Authorization: Bearer <jwt_token>"
+# Sandbox only:
+# export BASE_URL=https://sandbox.hyperswitch.io
+# export FEATURE_HEADER="x-feature: decision-engine"
+```
+
+## Request
+
+- Method and path: `POST /rule/delete`
+- Parameters: none.
+- Body: JSON body with `merchant_id` and `config.type` to delete.
+
+## Example
+
+### Delete success-rate config
+
+```bash
+curl --location "$BASE_URL/rule/delete" \
+  --header "$AUTH_HEADER" \
+  --header "Content-Type: application/json" \
+  --data '{
+  "merchant_id": "merchant_demo",
+  "config": { "type": "successRate" }
+}'
+```
+
+### Delete elimination config
+
+```bash
+curl --location "$BASE_URL/rule/delete" \
+  --header "$AUTH_HEADER" \
+  --header "Content-Type: application/json" \
+  --data '{
+  "merchant_id": "merchant_demo",
+  "config": { "type": "elimination" }
+}'
+```
+
+## Response
+
+```json
+{
+  "merchant_id": "merchant_demo",
+  "config_type": "successRate",
+  "deleted": true
+}
+```
+
+## Notes
+
+- Deleting config makes the dashboard show that surface as not configured.
+- Routing may fall back to defaults if config is absent.
+
+## Related
+
+- [Create Rule Config](/decision-engine-api-reference/api-reference/endpoint/rule-configuration/createRuleConfig)
+- [Get Rule Config](/decision-engine-api-reference/api-reference/endpoint/rule-configuration/getRuleConfig)
+- [Delete Success-Rate Config](/decision-engine-api-reference/api-reference/guides/scoring-config/success-rate-config-delete)
+- [Delete Elimination Config](/decision-engine-api-reference/api-reference/guides/scoring-config/elimination-config-delete)
