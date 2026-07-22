@@ -1344,9 +1344,12 @@ pub async fn generate_network_token_for_payment_method(
     use common_utils::ext_traits::AsyncExt;
 
     use crate::{
-        core::{payments::tokenization::{
-            save_network_token_details_in_nt_mapper, save_network_token_in_locker,
-        }, utils::create_encrypted_data},
+        core::{
+            payments::tokenization::{
+                save_network_token_details_in_nt_mapper, save_network_token_in_locker,
+            },
+            utils::create_encrypted_data,
+        },
         types::domain::PaymentMethodData,
     };
 
@@ -1430,7 +1433,9 @@ pub async fn generate_network_token_for_payment_method(
         "NT response: received result from save_network_token_in_locker"
     );
 
-    if let (Some(token_resp), Some(_)) = (network_token_resp.as_ref(), &network_token_requestor_ref_id) {
+    if let (Some(token_resp), Some(_)) =
+        (network_token_resp.as_ref(), &network_token_requestor_ref_id)
+    {
         let network_token_locker_id = Some(token_resp.payment_method_id.clone());
 
         let key_manager_state = state.into();
@@ -1438,9 +1443,10 @@ pub async fn generate_network_token_for_payment_method(
             common_utils::crypto::Encryptable<Secret<serde_json::Value>>,
         > = {
             let pm_token_details = token_resp.card.as_ref().map(|card| {
-                domain::PaymentMethodsData::Card(
-                    domain::CardDetailsPaymentMethod::from((card.clone(), None)),
-                )
+                domain::PaymentMethodsData::Card(domain::CardDetailsPaymentMethod::from((
+                    card.clone(),
+                    None,
+                )))
             });
 
             pm_token_details

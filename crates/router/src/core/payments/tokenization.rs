@@ -1032,7 +1032,10 @@ where
                                             .find_payment_method(
                                                 platform.get_provider().get_key_store(),
                                                 &resp.payment_method_id,
-                                                platform.get_provider().get_account().storage_scheme,
+                                                platform
+                                                    .get_provider()
+                                                    .get_account()
+                                                    .storage_scheme,
                                             )
                                             .await;
 
