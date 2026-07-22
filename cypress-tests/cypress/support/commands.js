@@ -5991,6 +5991,24 @@ Cypress.Commands.add(
                 }
                 break;
 
+              case "qris":
+                for (const key in resData.body) {
+                  expect(resData.body[key], [key]).to.deep.equal(
+                    response.body[key]
+                  );
+                }
+                if (response.body.status === "requires_customer_action") {
+                  expect(response.body)
+                    .to.have.property("next_action")
+                    .and.have.nested.property("image_data_url").and.not.be.null;
+                  globalState.set(
+                    "image_data_url",
+                    response.body.next_action.image_data_url
+                  );
+                  globalState.set("nextActionType", "image_data_url");
+                }
+                break;
+
               default:
                 expect(response.body)
                   .to.have.property("next_action")
