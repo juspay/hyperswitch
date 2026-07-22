@@ -85,10 +85,17 @@ pub struct Settings<S: SecretState> {
     pub chat: SecretStateContainer<ChatSettings, S>,
     pub sage: SecretStateContainer<SageSettings, S>,
     pub master_database: SecretStateContainer<Database, S>,
+    /// Falls back to `master_database` when not configured.
+    pub accounts_database: Option<SecretStateContainer<Database, S>>,
+    /// Falls back to `master_database` when not configured.
+    pub global_database: Option<SecretStateContainer<Database, S>>,
     #[cfg(feature = "olap")]
     pub replica_database: SecretStateContainer<Database, S>,
     pub redis: RedisSettings,
     pub log: Log,
+    #[cfg(feature = "deja")]
+    #[serde(default)]
+    pub deja: DejaSettings,
     pub secrets: SecretStateContainer<Secrets, S>,
     pub fallback_merchant_ids_api_key_auth: Option<FallbackMerchantIds>,
     pub locker: Locker,
@@ -197,6 +204,187 @@ pub struct Settings<S: SecretState> {
     pub save_payment_method_on_session: OnSessionConfig,
 }
 
+#[cfg(feature = "deja")]
+#[derive(Debug, Deserialize, Clone, PartialEq, Eq, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum DejaMode {
+    #[default]
+    Disabled,
+    Record,
+    Replay,
+}
+
+#[cfg(feature = "deja")]
+impl DejaMode {
+    pub fn is_disabled(&self) -> bool {
+        matches!(self, Self::Disabled)
+    }
+
+    pub fn is_record(&self) -> bool {
+        matches!(self, Self::Record)
+    }
+
+    pub fn is_replay(&self) -> bool {
+        matches!(self, Self::Replay)
+    }
+}
+
+#[cfg(feature = "deja")]
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(default)]
+pub struct DejaSettings {
+    pub mode: DejaMode,
+    pub run_id: Option<String>,
+    pub recording: DejaRecordingSettings,
+    pub replay: DejaReplaySettings,
+    pub sampler: DejaSamplerSettings,
+    pub identity: DejaIdentitySettings,
+    pub writer: DejaWriterSettings,
+}
+
+#[cfg(feature = "deja")]
+impl DejaSettings {
+    pub fn effective_run_id(&self) -> Option<&str> {
+        self.run_id.as_deref().filter(|run_id| !run_id.is_empty())
+    }
+}
+
+#[cfg(feature = "deja")]
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(default)]
+pub struct DejaRecordingSettings {
+    pub graph: DejaGraphMode,
+    pub kafka: DejaRecordingKafkaSettings,
+}
+
+#[cfg(feature = "deja")]
+#[derive(Debug, Deserialize, Clone, Copy, PartialEq, Eq, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum DejaGraphMode {
+    #[default]
+    Disabled,
+    Enabled,
+}
+
+#[cfg(feature = "deja")]
+#[derive(Debug, Deserialize, Clone)]
+#[serde(default)]
+pub struct DejaRecordingKafkaSettings {
+    pub topic: Option<String>,
+    pub brokers: Vec<String>,
+    pub client_id: Option<String>,
+    pub acks: String,
+    pub idempotence: bool,
+    pub compression: Option<String>,
+    pub linger: Option<u64>,
+    pub message_timeout: Option<u64>,
+    /// rdkafka producer send-buffer depth — the loss-budget knob. A full buffer
+    /// surfaces as enqueue errors the writer accounts as dropped (never memory
+    /// growth); tune per environment. Default matches the former hardcoded cap.
+    pub queue_buffering_max_messages: usize,
+}
+
+#[cfg(feature = "deja")]
+impl DejaRecordingKafkaSettings {
+    pub fn effective_topic(&self) -> Option<&str> {
+        self.topic.as_deref().filter(|topic| !topic.is_empty())
+    }
+}
+
+#[cfg(feature = "deja")]
+impl Default for DejaRecordingKafkaSettings {
+    fn default() -> Self {
+        Self {
+            topic: None,
+            brokers: Vec::new(),
+            client_id: None,
+            acks: "all".to_owned(),
+            idempotence: true,
+            compression: None,
+            linger: None,
+            message_timeout: Some(30_000),
+            queue_buffering_max_messages: 100_000,
+        }
+    }
+}
+
+#[cfg(feature = "deja")]
+#[derive(Debug, Default, Deserialize, Clone)]
+#[serde(default)]
+pub struct DejaReplaySettings {
+    pub source: Option<String>,
+    pub lookup_dir: Option<PathBuf>,
+    pub observed_sink: Option<String>,
+}
+
+#[cfg(feature = "deja")]
+#[derive(Debug, Deserialize, Clone)]
+#[serde(default)]
+pub struct DejaSamplerSettings {
+    pub enabled: bool,
+    pub record_key: Option<String>,
+    pub timeout_ms: u64,
+    pub fail_closed: bool,
+}
+
+#[cfg(feature = "deja")]
+impl Default for DejaSamplerSettings {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            record_key: None,
+            timeout_ms: 25,
+            fail_closed: true,
+        }
+    }
+}
+
+#[cfg(feature = "deja")]
+#[derive(Debug, Deserialize, Clone)]
+#[serde(default)]
+pub struct DejaIdentitySettings {
+    pub pod_name_env: String,
+    pub git_sha_env: String,
+    pub instance_id: Option<String>,
+    pub code_sha: Option<String>,
+}
+
+#[cfg(feature = "deja")]
+impl Default for DejaIdentitySettings {
+    fn default() -> Self {
+        Self {
+            pod_name_env: "POD_NAME".to_owned(),
+            git_sha_env: "VERGEN_GIT_SHA".to_owned(),
+            instance_id: None,
+            code_sha: None,
+        }
+    }
+}
+
+#[cfg(feature = "deja")]
+#[derive(Debug, Deserialize, Clone)]
+#[serde(default)]
+pub struct DejaWriterSettings {
+    pub queue_capacity: usize,
+    pub batch_size: usize,
+    pub flush_after_records: usize,
+    pub flush_interval_ms: u64,
+    pub shutdown_flush_ms: u64,
+}
+
+#[cfg(feature = "deja")]
+impl Default for DejaWriterSettings {
+    fn default() -> Self {
+        Self {
+            queue_capacity: 8_192,
+            batch_size: 500,
+            flush_after_records: 500,
+            flush_interval_ms: 1_000,
+            shutdown_flush_ms: 5_000,
+        }
+    }
+}
+
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct OnSessionConfig {
     #[serde(default, deserialize_with = "deserialize_hashmap")]
@@ -281,6 +469,10 @@ pub struct DecisionConfig {
     pub base_url: String,
 }
 
+type StorageInterfaceMap = HashMap<id_type::TenantId, Box<dyn app::StorageInterface>>;
+type AccountsStorageInterfaceMap =
+    HashMap<id_type::TenantId, Box<dyn app::AccountsStorageInterface>>;
+
 #[derive(Debug, Clone, Default)]
 pub struct TenantConfig(pub HashMap<id_type::TenantId, Tenant>);
 
@@ -288,68 +480,47 @@ impl TenantConfig {
     /// # Panics
     ///
     /// Panics if Failed to create event handler
-    pub async fn get_store_interface_map(
+    pub async fn get_store_interface_maps(
         &self,
         storage_impl: &app::StorageImpl,
         conf: &configs::Settings,
         cache_store: Arc<storage_impl::redis::RedisStore>,
         testable: bool,
-    ) -> HashMap<id_type::TenantId, Box<dyn app::StorageInterface>> {
+    ) -> (StorageInterfaceMap, AccountsStorageInterfaceMap) {
         #[allow(clippy::expect_used)]
         let event_handler = conf
             .events
             .get_event_handler()
             .await
             .expect("Failed to create event handler");
-        futures::future::join_all(self.0.iter().map(|(tenant_name, tenant)| async {
-            let store = Box::pin(AppState::get_store_interface(
-                storage_impl,
-                &event_handler,
-                conf,
-                tenant,
-                cache_store.clone(),
-                testable,
-            ))
-            .await
-            .get_storage_interface();
-            (tenant_name.clone(), store)
-        }))
-        .await
-        .into_iter()
-        .collect()
-    }
-    /// # Panics
-    ///
-    /// Panics if Failed to create event handler
-    pub async fn get_accounts_store_interface_map(
-        &self,
-        storage_impl: &app::StorageImpl,
-        conf: &configs::Settings,
-        cache_store: Arc<storage_impl::redis::RedisStore>,
-        testable: bool,
-    ) -> HashMap<id_type::TenantId, Box<dyn app::AccountsStorageInterface>> {
-        #[allow(clippy::expect_used)]
-        let event_handler = conf
-            .events
-            .get_event_handler()
-            .await
-            .expect("Failed to create event handler");
-        futures::future::join_all(self.0.iter().map(|(tenant_name, tenant)| async {
-            let store = Box::pin(AppState::get_store_interface(
-                storage_impl,
-                &event_handler,
-                conf,
-                tenant,
-                cache_store.clone(),
-                testable,
-            ))
-            .await
-            .get_accounts_storage_interface();
-            (tenant_name.clone(), store)
-        }))
-        .await
-        .into_iter()
-        .collect()
+        let tenant_stores =
+            futures::future::join_all(self.0.iter().map(|(tenant_name, tenant)| async {
+                let store = Box::pin(AppState::get_store_interface(
+                    storage_impl,
+                    &event_handler,
+                    conf,
+                    tenant,
+                    conf.master_database.clone().into_inner(),
+                    conf.accounts_database_config(),
+                    cache_store.clone(),
+                    testable,
+                ))
+                .await;
+                (tenant_name.clone(), store)
+            }))
+            .await;
+
+        let stores = tenant_stores
+            .iter()
+            .map(|(tenant_name, store)| (tenant_name.clone(), store.get_storage_interface()))
+            .collect();
+        let accounts_store = tenant_stores
+            .iter()
+            .map(|(tenant_name, store)| {
+                (tenant_name.clone(), store.get_accounts_storage_interface())
+            })
+            .collect();
+        (stores, accounts_store)
     }
     #[cfg(feature = "olap")]
     pub async fn get_pools_map(
@@ -1130,7 +1301,10 @@ impl MerchantAdviceCodeLookupConfig {
             | common_enums::CardNetwork::Star
             | common_enums::CardNetwork::Pulse
             | common_enums::CardNetwork::Accel
-            | common_enums::CardNetwork::Nyce => None,
+            | common_enums::CardNetwork::Nyce
+            | common_enums::CardNetwork::Prop
+            | common_enums::CardNetwork::PrivateLabel
+            | common_enums::CardNetwork::Dinacard => None,
         }
     }
 }
@@ -1168,19 +1342,22 @@ impl Settings<SecuredSecret> {
             config.add_source(File::from(required_fields_config_file).required(false))
         };
 
-        let config = config
-            .add_source(
-                Environment::with_prefix("ROUTER")
-                    .try_parsing(true)
-                    .separator("__")
-                    .list_separator(",")
-                    .with_list_parse_key("log.telemetry.route_to_trace")
-                    .with_list_parse_key("redis.cluster_urls")
-                    .with_list_parse_key("events.kafka.brokers")
-                    .with_list_parse_key("connectors.supported.wallets")
-                    .with_list_parse_key("connector_request_reference_id_config.merchant_ids_send_payment_id_as_connector_request_id"),
+        let environment_source = Environment::with_prefix("ROUTER")
+            .try_parsing(true)
+            .separator("__")
+            .list_separator(",")
+            .with_list_parse_key("log.telemetry.route_to_trace")
+            .with_list_parse_key("redis.cluster_urls")
+            .with_list_parse_key("events.kafka.brokers")
+            .with_list_parse_key("connectors.supported.wallets")
+            .with_list_parse_key("connector_request_reference_id_config.merchant_ids_send_payment_id_as_connector_request_id");
 
-            )
+        #[cfg(feature = "deja")]
+        let environment_source =
+            environment_source.with_list_parse_key("deja.recording.kafka.brokers");
+
+        let config = config
+            .add_source(environment_source)
             .build()
             .change_context(ApplicationError::ConfigurationError)?;
 
@@ -1197,6 +1374,12 @@ impl Settings<SecuredSecret> {
     pub fn validate(&self) -> ApplicationResult<()> {
         self.server.validate()?;
         self.master_database.get_inner().validate()?;
+        if let Some(accounts_database) = &self.accounts_database {
+            accounts_database.get_inner().validate()?;
+        }
+        if let Some(global_database) = &self.global_database {
+            global_database.get_inner().validate()?;
+        }
         #[cfg(feature = "olap")]
         self.replica_database.get_inner().validate()?;
 
@@ -1322,6 +1505,24 @@ impl Settings<RawSecret> {
     #[cfg(not(feature = "kv_store"))]
     pub fn is_kv_soft_kill_mode(&self) -> bool {
         false
+    }
+
+    /// Returns the accounts database config, falling back to `master_database` if
+    /// `accounts_database` is not configured.
+    pub fn accounts_database_config(&self) -> Database {
+        self.accounts_database
+            .clone()
+            .map(SecretStateContainer::into_inner)
+            .unwrap_or_else(|| self.master_database.clone().into_inner())
+    }
+
+    /// Returns the global database config, falling back to `master_database` if
+    /// `global_database` is not configured.
+    pub fn global_database_config(&self) -> Database {
+        self.global_database
+            .clone()
+            .map(SecretStateContainer::into_inner)
+            .unwrap_or_else(|| self.master_database.clone().into_inner())
     }
 }
 
