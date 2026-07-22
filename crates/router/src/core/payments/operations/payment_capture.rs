@@ -367,7 +367,7 @@ impl<F: Send + Clone + Sync>
                 merchant_id: processor.get_account().get_id().to_owned(),
                 payment_id: api::PaymentIdType::PaymentIntentId(request.payment_id.to_owned()),
                 storage_scheme: processor.get_account().storage_scheme,
-                requeue: false,
+                requeue: true,
             },
         ))
     }

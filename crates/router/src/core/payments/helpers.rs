@@ -1536,7 +1536,7 @@ pub async fn add_domain_task_to_pt<Op>(
 where
     Op: std::fmt::Debug,
 {
-    if check_if_operation_confirm(operation) {
+    if check_if_operation_confirm_or_capture(operation) {
         match schedule_time {
             Some(stime) => {
                 if !requeue {
@@ -4562,8 +4562,11 @@ pub fn hmac_sha512_sorted_query_params(
     Ok(hex::encode(signature))
 }
 
-pub fn check_if_operation_confirm<Op: std::fmt::Debug>(operations: Op) -> bool {
-    format!("{operations:?}") == "PaymentConfirm"
+pub fn check_if_operation_confirm_or_capture<Op: std::fmt::Debug>(operations: Op) -> bool {
+    matches!(
+        format!("{operations:?}").as_str(),
+        "PaymentConfirm" | "PaymentCapture"
+    )
 }
 
 #[allow(clippy::too_many_arguments)]
