@@ -1632,7 +1632,7 @@ pub struct MerchantConnectorResponse {
     pub connector_wallets_details: Option<ConnectorWalletDetails>,
 
     /// Details about the connector’s webhook configuration
-    #[schema(value_type = Option<WebhookSetupCapabilities>)]
+    #[schema(value_type = Option<WebhookSetupCapabilities>, deprecated)]
     pub webhook_setup_capabilities:
         Option<common_types::connector_webhook_configuration::WebhookSetupCapabilities>,
 }
@@ -2213,7 +2213,7 @@ pub struct MerchantConnectorDetailsWrap {
     #[schema(value_type = Option<MerchantConnectorDetails>, example = r#"{
        "connector_account_details": {
             "auth_type": "HeaderKey",
-            "api_key":"sk_test_xxxxxexamplexxxxxx12345"
+            "api_key":"<stripe_test_secret_key>"
         },
         "metadata": {
             "user_defined_field_1": "sample_1",
@@ -3600,10 +3600,8 @@ pub struct PaymentLinkConfigRequest {
     /// Custom background colour for the payment link
     pub background_colour: Option<String>,
     /// SDK configuration rules
-    #[xss_clean(recurse)]
     pub sdk_ui_rules: Option<HashMap<String, HashMap<String, String>>>,
     /// Payment link configuration rules
-    #[xss_clean(recurse)]
     pub payment_link_ui_rules: Option<HashMap<String, HashMap<String, String>>>,
     /// Flag to enable the button only when the payment form is ready for submission
     pub enable_button_only_on_form_ready: Option<bool>,
@@ -3736,10 +3734,8 @@ pub struct PaymentLinkConfig {
     /// Custom background colour for the payment link
     pub background_colour: Option<String>,
     /// SDK configuration rules
-    #[xss_clean(recurse)]
     pub sdk_ui_rules: Option<HashMap<String, HashMap<String, String>>>,
     /// Payment link configuration rules
-    #[xss_clean(recurse)]
     pub payment_link_ui_rules: Option<HashMap<String, HashMap<String, String>>>,
     /// Flag to enable the button only when the payment form is ready for submission
     pub enable_button_only_on_form_ready: bool,
@@ -3818,6 +3814,20 @@ impl std::ops::Deref for TtlForExtendedCardInfo {
     fn deref(&self) -> &Self::Target {
         &self.0
     }
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug)]
+pub struct MCACGraphData {
+    pub connector_name: common_enums::connector_enums::Connector,
+    pub payment_methods_enabled: Option<Vec<common_types::payment_methods::PaymentMethodsEnabled>>,
+}
+
+#[cfg(feature = "v1")]
+#[derive(Debug, Deserialize)]
+pub struct MCACGraphData {
+    pub connector_name: String,
+    pub payment_methods_enabled: Option<Vec<PaymentMethodsEnabled>>,
 }
 
 #[cfg(test)]

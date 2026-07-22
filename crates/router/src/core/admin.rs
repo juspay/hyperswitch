@@ -34,12 +34,11 @@ use crate::types::transformers::ForeignFrom;
 use crate::{
     consts,
     core::{
-        configs::dimension_state,
         connector_validation::ConnectorAuthTypeAndMetadataValidation,
         disputes,
         encryption::transfer_encryption_key,
         errors::{self, RouterResponse, RouterResult, StorageErrorExt},
-        payment_methods::{cards, transformers},
+        payment_methods::{cards, transformers, vault},
         payments::helpers::{self},
         pm_auth::helpers::PaymentAuthConnectorDataExt,
         routing, utils as core_utils,
@@ -72,21 +71,6 @@ pub fn create_merchant_publishable_key() -> String {
         router_env::env::prefix_for_env(),
         Uuid::new_v4().simple()
     )
-}
-
-/// Insert merchant configs using Superposition for fingerprint_secret
-pub async fn insert_merchant_configs_with_superposition(
-    state: &SessionState,
-    dimensions: &dimension_state::DimensionsWithProcessorMerchantId,
-) -> RouterResult<()> {
-    let fingerprint_secret = utils::generate_id(consts::FINGERPRINT_SECRET_LENGTH, "fs");
-
-    dimensions
-        .set_fingerprint_secret(state.superposition_service.as_ref(), &fingerprint_secret)
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to create fingerprint_secret in Superposition")?;
-    Ok(())
 }
 
 #[cfg(feature = "olap")]
@@ -329,6 +313,14 @@ pub async fn create_merchant_account(
 
     let key_manager_state: &KeyManagerState = &(&state).into();
     let merchant_id = req.get_merchant_reference_id();
+
+    if state.conf.locker.locker_enabled && state.conf.locker.create_entity_on_merchant_create {
+        vault::create_entity_in_locker(&state, &merchant_id)
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to create entity in locker for merchant")?;
+    }
+
     let identifier = km_types::Identifier::Merchant(merchant_id.clone());
     keymanager::transfer_key_to_key_manager(
         key_manager_state,
@@ -397,16 +389,7 @@ pub async fn create_merchant_account(
         None,
     );
 
-    let dimensions = dimension_state::Dimensions::new()
-        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id());
-
     add_publishable_key_to_decision_service(&state, &platform);
-
-    Box::pin(insert_merchant_configs_with_superposition(
-        &state,
-        &dimensions,
-    ))
-    .await?;
 
     Ok(service_api::ApplicationResponse::Json(
         api::MerchantAccountResponse::foreign_try_from(merchant_account)
@@ -645,6 +628,10 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
                     product_type: self.product_type,
                     merchant_account_type,
                     network_tokenization_credentials,
+                    fingerprint_secret: Some(Secret::new(utils::generate_id(
+                        consts::FINGERPRINT_SECRET_LENGTH,
+                        "fs",
+                    ))),
                 },
             )
         }
@@ -941,6 +928,10 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
                     version: common_types::consts::API_VERSION,
                     product_type: self.product_type,
                     merchant_account_type,
+                    fingerprint_secret: Some(Secret::new(utils::generate_id(
+                        consts::FINGERPRINT_SECRET_LENGTH,
+                        "fs",
+                    ))),
                 }),
             )
         }
