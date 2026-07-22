@@ -1427,7 +1427,6 @@ pub async fn payments_redirect_response(
     let param_string = req.query_string();
 
     tracing::Span::current().record("payment_id", payment_id.get_string_repr());
-
     let payload = payments::PaymentsRedirectResponseData {
         resource_id: payment_types::PaymentIdType::PaymentIntentId(payment_id),
         merchant_id: Some(merchant_id.clone()),
@@ -1436,7 +1435,11 @@ pub async fn payments_redirect_response(
         param: Some(param_string.to_string()),
         connector: Some(connector),
         creds_identifier: None,
+        payment_method: None,
+        payment_method_data: None,
+        payment_method_type: None,
     };
+
     let locking_action = payload.get_locking_input(flow.clone());
     Box::pin(api::server_wrap(
         flow,
@@ -1483,6 +1486,9 @@ pub async fn payments_redirect_response_with_creds_identifier(
         param: Some(param_string.to_string()),
         connector: Some(connector),
         creds_identifier: Some(creds_identifier),
+        payment_method: None,
+        payment_method_data: None,
+        payment_method_type: None,
     };
     let flow = Flow::PaymentsRedirect;
     let locking_action = payload.get_locking_input(flow.clone());
@@ -1511,7 +1517,8 @@ pub async fn payments_redirect_response_with_creds_identifier(
 pub async fn payments_complete_authorize_redirect(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
-    json_payload: Option<web::Form<serde_json::Value>>,
+    json_body: Option<web::Json<serde_json::Value>>,
+    form_body: Option<web::Form<serde_json::Value>>,
     path: web::Path<(
         common_utils::id_type::PaymentId,
         common_utils::id_type::MerchantId,
@@ -1519,20 +1526,52 @@ pub async fn payments_complete_authorize_redirect(
     )>,
 ) -> impl Responder {
     let flow = Flow::PaymentsRedirect;
+
+    let json_payload = json_body.map(|j| j.0).or(form_body.map(|f| f.0));
+
     let (payment_id, merchant_id, connector) = path.into_inner();
     let param_string = req.query_string();
 
     tracing::Span::current().record("payment_id", payment_id.get_string_repr());
 
+    let (payment_method, payment_method_data, payment_method_type) = json_payload
+        .as_ref()
+        .and_then(|payload| {
+            serde_json::from_value::<payment_types::PaymentsCompleteAuthorizeRedirectRequest>(
+                payload.clone(),
+            )
+            .inspect_err(|error| {
+                logger::error!(
+                    ?error,
+                    "Failed to deserialize payments complete authorize redirect request PaymentsCompleteAuthorizeRedirectRequest , Defaulting to Json payload"
+                );
+            })
+            .ok()
+        })
+        .map(|payload| {
+            let payment_types::PaymentsCompleteAuthorizeRedirectRequest {
+                payment_method,
+                payment_method_data,
+                payment_method_type,
+            } = payload;
+
+            (payment_method, payment_method_data, payment_method_type)
+        })
+        .unwrap_or((None, None, None));
+
     let payload = payments::PaymentsRedirectResponseData {
         resource_id: payment_types::PaymentIdType::PaymentIntentId(payment_id),
         merchant_id: Some(merchant_id.clone()),
         param: Some(param_string.to_string()),
-        json_payload: json_payload.map(|s| s.0),
+        json_payload,
         force_sync: false,
         connector: Some(connector),
         creds_identifier: None,
+        payment_method,
+        payment_method_data,
+        payment_method_type,
     };
+
     let locking_action = payload.get_locking_input(flow.clone());
     Box::pin(api::server_wrap(
         flow,
@@ -1581,6 +1620,9 @@ pub async fn payments_complete_authorize_redirect_with_creds_identifier(
         force_sync: false,
         connector: Some(connector),
         creds_identifier: Some(creds_identifier),
+        payment_method: None,
+        payment_method_data: None,
+        payment_method_type: None,
     };
     let locking_action = payload.get_locking_input(flow.clone());
     Box::pin(api::server_wrap(
@@ -2968,6 +3010,9 @@ pub async fn post_3ds_payments_authorize(
         param: Some(param_string.to_string()),
         connector: Some(connector),
         creds_identifier: None,
+        payment_method: None,
+        payment_method_data: None,
+        payment_method_type: None,
     };
 
     let locking_action = payload.get_locking_input(flow.clone());

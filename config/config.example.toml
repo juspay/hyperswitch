@@ -235,7 +235,7 @@ locker_enabled = true               # Boolean to enable or disable saving cards 
 ttl_for_storage_in_secs = 220752000 # Time to live for storage entries in locker
 
 [delayed_session_response]
-connectors_with_delayed_session_response = "trustpay,payme" # List of connectors which has delayed session response
+connectors_with_delayed_session_response = "payme" # List of connectors which has delayed session response
 
 [webhook_source_verification_call]
 connectors_with_webhook_source_verification_call = "paypal, truelayer" # List of connectors which has additional source verification api-call

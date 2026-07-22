@@ -195,7 +195,7 @@ threedsecureio.base_url = "https://service.3dsecure.io"
 netcetera.base_url = "https://api.prod.euc1.acquiring.cloud.netcetera.com/3ds-server"
 
 [delayed_session_response]
-connectors_with_delayed_session_response = "trustpay,payme"       # List of connectors which have delayed session response
+connectors_with_delayed_session_response = "payme"       # List of connectors which have delayed session response
 
 [save_payment_method_on_session.unsupported_payment_methods]
 pay_later = "klarna,affirm,afterpay_clearpay"
