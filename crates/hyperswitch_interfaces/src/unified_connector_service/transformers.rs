@@ -1180,6 +1180,20 @@ impl UnifiedConnectorServiceError {
                 .as_ref()
                 .and_then(|error_info| error_info.connector_details.as_ref())
                 .and_then(|connector_details| connector_details.code.clone())
+                // `connector_details.code` is left unset by UCS when the connector
+                // returned no specific error code (the transformer emits the
+                // `NO_ERROR_CODE` sentinel, which is deliberately not surfaced as a
+                // connector-specific code). In that case the connector's actual code
+                // still lives verbatim in `unified_details.code`, so prefer it over the
+                // generic `CONNECTOR_ERROR_RESPONSE` discriminator to stay in parity with
+                // the native connector path (e.g. cybersource psync 404 -> "No error code").
+                .or_else(|| {
+                    connector_error
+                        .error_info
+                        .as_ref()
+                        .and_then(|error_info| error_info.unified_details.as_ref())
+                        .and_then(|unified_details| unified_details.code.clone())
+                })
                 .unwrap_or_else(|| connector_error.error_code.clone()),
             message: connector_error.error_message,
             status_code,
