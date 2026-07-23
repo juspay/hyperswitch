@@ -1131,7 +1131,13 @@ async fn process_unreferenced_refund(
                 error_message: connector_resp.error_message,
                 response_data: connector_resp
                     .response_data
-                    .and_then(|d| serde_json::to_value(d).ok())
+                    .and_then(|d| {
+                        serde_json::to_value(d)
+                            .inspect_err(|err| {
+                                router_env::logger::error!("Failed to serialize relay response_data: {err:?}")
+                            })
+                            .ok()
+                    })
                     .map(Secret::new),
             };
             (bytes, relay_update)
