@@ -364,6 +364,17 @@ export const payment_methods_enabled = [
         recurring_enabled: true,
         installment_payment_enabled: true,
       },
+      {
+        payment_method_type: "eft",
+        payment_experience: null,
+        card_networks: null,
+        accepted_currencies: null,
+        accepted_countries: null,
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: true,
+        installment_payment_enabled: true,
+      },
     ],
   },
   {
@@ -989,6 +1000,22 @@ export const payment_methods_enabled = [
     ],
   },
   {
+    payment_method: "card_redirect",
+    payment_method_types: [
+      {
+        payment_method_type: "card_redirect",
+        payment_experience: null,
+        card_networks: null,
+        accepted_currencies: null,
+        accepted_countries: null,
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: true,
+        installment_payment_enabled: true,
+      },
+    ],
+  },
+  {
     payment_method: "open_banking",
     payment_method_types: [
       {
@@ -1418,6 +1445,19 @@ export const connectorDetails = {
         },
       }),
     },
+    Eft: getCustomExchange({
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "eft",
+        payment_method_data: {
+          bank_redirect: {
+            eft: {
+              provider: "ozow",
+            },
+          },
+        },
+      },
+    }),
   },
   bank_debit_pm: {
     PaymentIntent: (paymentMethodType) => {
@@ -4461,6 +4501,37 @@ export const connectorDetails = {
       },
     }),
   },
+  threeds_routing_region_uas: (() => {
+    // Region only selects which UAS deployment the pre/post-auth calls are
+    // routed to — it does not change the observable payment outcome. All
+    // scenarios below intentionally share one exchange definition, since a
+    // valid region, an invalid region (falls back to default), and no
+    // config at all (also falls back to default) are all expected to
+    // produce the same 3DS challenge.
+    const uasRoutingRegionExchange = getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
+        },
+        currency: "USD",
+        amount: 6500,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+          authentication_type: "three_ds",
+        },
+      },
+    });
+    return {
+      Region1: uasRoutingRegionExchange,
+      Region2: uasRoutingRegionExchange,
+      InvalidRegion: uasRoutingRegionExchange,
+      NoConfigDefault: uasRoutingRegionExchange,
+    };
+  })(),
   Dispute: {
     ListDisputes: {
       Response: {
@@ -5318,6 +5389,24 @@ export const connectorDetails = {
         },
       },
     },
+  },
+  card_redirect_pm: {
+    PaymentIntent: getCustomExchange({
+      Request: {
+        currency: "USD",
+      },
+    }),
+    CardRedirect: getCustomExchange({
+      Request: {
+        payment_method: "card_redirect",
+        payment_method_type: "card_redirect",
+        payment_method_data: {
+          card_redirect: {
+            card_redirect: {},
+          },
+        },
+      },
+    }),
   },
   step_up_auth: {
     PaymentIntentOnly: getCustomExchange({
