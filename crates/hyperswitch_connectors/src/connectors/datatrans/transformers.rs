@@ -18,6 +18,7 @@ use hyperswitch_interfaces::{
     errors,
 };
 use hyperswitch_masking::Secret;
+use router_env::logger;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -82,6 +83,8 @@ pub enum TransactionType {
     Payment,
     Credit,
     CardCheck,
+    #[serde(other)]
+    Unknown,
 }
 #[derive(Debug, Deserialize, Clone, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -95,6 +98,8 @@ pub enum TransactionStatus {
     Failed,
     ChallengeOngoing,
     ChallengeRequired,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Debug, Deserialize, Clone, Serialize)]
@@ -102,17 +107,22 @@ pub enum TransactionStatus {
 pub enum DatatransSyncResponse {
     Error(DatatransError),
     Response(SyncResponse),
+    Unknown(serde_json::Value),
 }
 #[derive(Debug, Deserialize, Serialize)]
 pub enum DataTransCaptureResponse {
     Error(DatatransError),
     Empty,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
 pub enum DataTransCancelResponse {
     Error(DatatransError),
     Empty,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -220,19 +230,21 @@ pub enum DatatransResponse {
     TransactionResponse(DatatransSuccessResponse),
     ErrorResponse(DatatransError),
     ThreeDSResponse(Datatrans3DSResponse),
+    Unknown(serde_json::Value),
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DatatransSuccessResponse {
     pub transaction_id: String,
-    pub acquirer_authorization_code: String,
+    pub acquirer_authorization_code: Option<Secret<String>>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum DatatransRefundsResponse {
     Success(DatatransSuccessResponse),
     Error(DatatransError),
+    Unknown(serde_json::Value),
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
@@ -452,6 +464,10 @@ fn get_status(item: &DatatransResponse, is_auto_capture: bool) -> enums::Attempt
             }
         }
         DatatransResponse::ThreeDSResponse(_) => enums::AttemptStatus::AuthenticationPending,
+        DatatransResponse::Unknown(_) => {
+            logger::warn!("Unknown DatatransResponse variant received");
+            enums::AttemptStatus::Pending
+        }
     }
 }
 
@@ -523,6 +539,10 @@ impl From<SyncResponse> for enums::AttemptStatus {
                 TransactionStatus::Canceled => Self::Voided,
                 TransactionStatus::Failed => Self::Failure,
                 TransactionStatus::Initialized | TransactionStatus::Authenticated => Self::Pending,
+                TransactionStatus::Unknown => {
+                    logger::warn!("Unknown TransactionStatus variant received in sync");
+                    Self::Pending
+                }
             },
             TransactionType::CardCheck => match item.status {
                 TransactionStatus::Settled
@@ -534,8 +554,16 @@ impl From<SyncResponse> for enums::AttemptStatus {
                 TransactionStatus::Canceled => Self::Voided,
                 TransactionStatus::Failed => Self::Failure,
                 TransactionStatus::Initialized | TransactionStatus::Authenticated => Self::Pending,
+                TransactionStatus::Unknown => {
+                    logger::warn!("Unknown TransactionStatus variant received in sync");
+                    Self::Pending
+                }
             },
             TransactionType::Credit => Self::Failure,
+            TransactionType::Unknown => {
+                logger::warn!("Unknown TransactionType variant received in sync");
+                Self::Pending
+            }
         }
     }
 }
@@ -553,8 +581,16 @@ impl From<SyncResponse> for enums::RefundStatus {
                 | TransactionStatus::Authorized
                 | TransactionStatus::Canceled
                 | TransactionStatus::Failed => Self::Failure,
+                TransactionStatus::Unknown => {
+                    logger::warn!("Unknown TransactionStatus variant received in refund sync");
+                    Self::Pending
+                }
             },
             TransactionType::Payment | TransactionType::CardCheck => Self::Failure,
+            TransactionType::Unknown => {
+                logger::warn!("Unknown TransactionType variant received in refund sync");
+                Self::Pending
+            }
         }
     }
 }
@@ -612,6 +648,21 @@ impl<F>
                         method: Method::Get,
                         form_fields: HashMap::new(),
                     })),
+                    mandate_reference: Box::new(None),
+                    connector_metadata: None,
+                    network_txn_id: None,
+                    network_txn_link_id: None,
+                    connector_response_reference_id: None,
+                    incremental_authorization_allowed: None,
+                    authentication_data: None,
+                    charges: None,
+                })
+            }
+            DatatransResponse::Unknown(_) => {
+                logger::warn!("Unknown DatatransResponse variant received in authorize");
+                Ok(PaymentsResponseData::TransactionResponse {
+                    resource_id: ResponseId::NoResponseId,
+                    redirection_data: Box::new(None),
                     mandate_reference: Box::new(None),
                     connector_metadata: None,
                     network_txn_id: None,
@@ -700,6 +751,21 @@ impl<F>
                     charges: None,
                 })
             }
+            DatatransResponse::Unknown(_) => {
+                logger::warn!("Unknown DatatransResponse variant received in setup mandate");
+                Ok(PaymentsResponseData::TransactionResponse {
+                    resource_id: ResponseId::NoResponseId,
+                    redirection_data: Box::new(None),
+                    mandate_reference: Box::new(None),
+                    connector_metadata: None,
+                    network_txn_id: None,
+                    network_txn_link_id: None,
+                    connector_response_reference_id: None,
+                    incremental_authorization_allowed: None,
+                    authentication_data: None,
+                    charges: None,
+                })
+            }
         };
         Ok(Self {
             status,
@@ -753,6 +819,16 @@ impl TryFrom<RefundsResponseRouterData<Execute, DatatransRefundsResponse>>
                 }),
                 ..item.data
             }),
+            DatatransRefundsResponse::Unknown(_) => {
+                logger::warn!("Unknown DatatransRefundsResponse variant received");
+                Ok(Self {
+                    response: Ok(RefundsResponseData {
+                        connector_refund_id: item.data.request.refund_id.clone(),
+                        refund_status: enums::RefundStatus::Pending,
+                    }),
+                    ..item.data
+                })
+            }
         }
     }
 }
@@ -782,6 +858,13 @@ impl TryFrom<RefundsResponseRouterData<RSync, DatatransSyncResponse>>
                 connector_refund_id: response.transaction_id.to_string(),
                 refund_status: enums::RefundStatus::from(response),
             }),
+            DatatransSyncResponse::Unknown(_) => {
+                logger::warn!("Unknown DatatransSyncResponse variant received in refund sync");
+                Ok(RefundsResponseData {
+                    connector_refund_id: item.data.request.refund_id.clone(),
+                    refund_status: enums::RefundStatus::Pending,
+                })
+            }
         };
         Ok(Self {
             response,
@@ -872,6 +955,25 @@ impl TryFrom<PaymentsSyncResponseRouterData<DatatransSyncResponse>>
                     ..item.data
                 })
             }
+            DatatransSyncResponse::Unknown(_) => {
+                logger::warn!("Unknown DatatransSyncResponse variant received in payment sync");
+                Ok(Self {
+                    status: enums::AttemptStatus::Pending,
+                    response: Ok(PaymentsResponseData::TransactionResponse {
+                        resource_id: ResponseId::NoResponseId,
+                        redirection_data: Box::new(None),
+                        mandate_reference: Box::new(None),
+                        connector_metadata: None,
+                        network_txn_id: None,
+                        network_txn_link_id: None,
+                        connector_response_reference_id: None,
+                        incremental_authorization_allowed: None,
+                        authentication_data: None,
+                        charges: None,
+                    }),
+                    ..item.data
+                })
+            }
         }
     }
 }
@@ -916,6 +1018,10 @@ impl TryFrom<PaymentsCaptureResponseRouterData<DataTransCaptureResponse>>
                     common_enums::AttemptStatus::Failure
                 }
             }
+            DataTransCaptureResponse::Unknown => {
+                logger::warn!("Unknown DataTransCaptureResponse variant received");
+                common_enums::AttemptStatus::Pending
+            }
         };
         Ok(Self {
             status,
@@ -948,6 +1054,10 @@ impl TryFrom<PaymentsCancelResponseRouterData<DataTransCancelResponse>>
                 } else {
                     common_enums::AttemptStatus::Failure
                 }
+            }
+            DataTransCancelResponse::Unknown => {
+                logger::warn!("Unknown DataTransCancelResponse variant received");
+                common_enums::AttemptStatus::Pending
             }
         };
         Ok(Self {
