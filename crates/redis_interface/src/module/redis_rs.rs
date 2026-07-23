@@ -8,7 +8,11 @@ pub mod types;
 
 use std::sync::{atomic, Arc};
 
-use common_utils::errors::CustomResult;
+use common_utils::{
+    errors::CustomResult,
+    external_service::{ExternalServiceEventEmitter, NoOpEventEmitter},
+    request_context::RequestContext,
+};
 use error_stack::ResultExt;
 use redis::AsyncCommands;
 use tracing::Instrument;
@@ -357,18 +361,50 @@ pub struct RedisConnectionPool {
     pub subscriber: Arc<SubscriberClient>,
     pub publisher: Arc<PublisherClient>,
     pub is_redis_available: Arc<atomic::AtomicBool>,
-    pub(crate) event_emitter: Arc<dyn common_utils::external_service::ExternalServiceEventEmitter>,
+    pub event_emitter: Arc<dyn ExternalServiceEventEmitter>,
+}
+
+/// A request-scoped Redis handle.
+///
+/// Wraps the shared [`RedisConnectionPool`] and carries the request ID of the
+/// execution that created it, so per-roundtrip events can be correlated back to
+/// the originating API request. 
+#[derive(Clone)]
+pub struct RedisConnectionWithContext {
+    pub redis_conn: Arc<RedisConnectionPool>,
+    pub request_id: Option<String>,
+}
+
+impl RedisConnectionWithContext {
+    pub fn new(
+        pool: Arc<RedisConnectionPool>,
+        context: &dyn RequestContext,
+    ) -> Self {
+        Self {
+            redis_conn: pool,
+            request_id: context.request_id().map(str::to_owned),
+        }
+    }
+
+    pub fn new_without_context(pool: Arc<RedisConnectionPool>) -> Self {
+        Self {
+            redis_conn: pool,
+            request_id: None,
+        }
+    }
 }
 
 impl RedisConnectionPool {
-    /// Create a new Redis connection.
-    ///
-    /// `event_emitter` is invoked for every Redis call this pool makes. Pass
-    /// `Arc::new(common_utils::external_service::NoOpEventEmitter)` to disable
-    /// emission (drainer, tests, or when the events flag is off).
+    /// Create a new Redis connection
+    pub async fn new_without_event_emitter(
+        conf: &crate::types::RedisSettings,
+    ) -> CustomResult<Self, crate::errors::RedisError> {
+        Self::new(conf, Arc::new(NoOpEventEmitter)).await
+    }
+
     pub async fn new(
         conf: &crate::types::RedisSettings,
-        event_emitter: Arc<dyn common_utils::external_service::ExternalServiceEventEmitter>,
+        event_emitter: Arc<dyn ExternalServiceEventEmitter>,
     ) -> CustomResult<Self, crate::errors::RedisError> {
         let (pool, subscriber, publisher) = match conf.cluster_enabled {
             true => {
@@ -510,19 +546,13 @@ impl RedisConnectionPool {
         }
     }
 
-    pub async fn publish(
-        &self,
-        channel: &str,
-        message: crate::types::RedisValue,
-    ) -> CustomResult<usize, crate::errors::RedisError> {
-        // PUBLISH is request-triggered (cache invalidation on MCA/API-key
-        // update/revoke), so it is tracked as a per-request Redis roundtrip.
-        crate::metrics::track_redis_call(
-            self.event_emitter.as_ref(),
-            crate::metrics::RedisOperation::Publish,
-            self.publisher.publish(channel, message),
-        )
-        .await
+    /// Prefix `key` with this pool's tenant key prefix.
+    pub fn add_prefix(&self, key: &str) -> String {
+        if self.key_prefix.is_empty() {
+            key.to_string()
+        } else {
+            format!("{}:{}", self.key_prefix, key)
+        }
     }
 
     /// Monitor for connection errors.

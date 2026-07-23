@@ -28,7 +28,7 @@ impl Store {
         let stream_key_flag = self.get_stream_key_flag(stream_index);
 
         match self
-            .redis_conn
+            .get_redis_conn()
             .set_key_if_not_exists_with_expiry(&stream_key_flag.as_str().into(), true, None)
             .await
         {
@@ -41,7 +41,10 @@ impl Store {
     }
 
     pub async fn make_stream_available(&self, stream_name_flag: &str) -> errors::DrainerResult<()> {
-        match self.redis_conn.delete_key(&stream_name_flag.into()).await {
+        match self.get_redis_conn()
+            .delete_key(&stream_name_flag.into())
+            .await
+        {
             Ok(redis::DelReply::KeyDeleted) => Ok(()),
             Ok(redis::DelReply::KeyNotDeleted) => {
                 logger::error!("Tried to unlock a stream which is already unlocked");
@@ -59,7 +62,7 @@ impl Store {
         // "0-0" id gives first entry
         let stream_id = "0-0".to_string();
         let (output, execution_time) = common_utils::date_time::time_it(|| async {
-            self.redis_conn
+            self.get_redis_conn()
                 .stream_read_entries(&[stream_name.into()], vec![stream_id], Some(max_read_count))
                 .await
                 .map_err(errors::DrainerError::from)
@@ -86,14 +89,14 @@ impl Store {
         let (trim_result, execution_time) =
             common_utils::date_time::time_it::<errors::DrainerResult<_>, _, _>(|| async {
                 let trim_result = self
-                    .redis_conn
+                    .get_redis_conn()
                     .stream_trim_entries(&stream_name.into(), trim_config.clone())
                     .await
                     .map_err(errors::DrainerError::from)?;
 
                 // Since xtrim deletes entries below given id excluding the given id.
                 // Hence, deleting the minimum entry id
-                self.redis_conn
+                self.get_redis_conn()
                     .stream_delete_entries(&stream_name.into(), vec![minimum_entry_id.to_string()])
                     .await
                     .map_err(errors::DrainerError::from)?;
@@ -118,7 +121,7 @@ impl Store {
     ) -> errors::DrainerResult<()> {
         let (_trim_result, execution_time) =
             common_utils::date_time::time_it::<errors::DrainerResult<_>, _, _>(|| async {
-                self.redis_conn
+                self.get_redis_conn()
                     .stream_delete_entries(&stream_name.into(), vec![entry_id.to_string()])
                     .await
                     .map_err(errors::DrainerError::from)?;

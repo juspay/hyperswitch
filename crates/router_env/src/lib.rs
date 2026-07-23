@@ -9,7 +9,6 @@ pub mod cargo_workspace;
 pub mod env;
 pub mod logger;
 pub mod metrics;
-pub mod request_context;
 #[cfg(feature = "actix_web")]
 pub mod request_id;
 #[cfg(feature = "actix_web")]

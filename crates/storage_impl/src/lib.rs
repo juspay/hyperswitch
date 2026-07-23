@@ -1,6 +1,10 @@
 use std::{fmt::Debug, sync::Arc};
 
-use common_utils::types::TenantConfig;
+use common_utils::{
+    external_service::{ExternalServiceEventEmitter, NoOpEventEmitter},
+    request_context::RequestContext,
+    types::TenantConfig,
+};
 use diesel_models as store;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
@@ -50,7 +54,9 @@ pub mod tokenization;
 #[cfg(not(feature = "payouts"))]
 use hyperswitch_domain_models::{PayoutAttemptInterface, PayoutsInterface};
 pub use mock_db::MockDb;
-use redis_interface::{errors::RedisError, RedisConnectionPool, SaddReply};
+use redis_interface::{
+    errors::RedisError, RedisConnectionWithContext, SaddReply,
+};
 
 #[cfg(not(feature = "payouts"))]
 pub use crate::database::store::Store;
@@ -64,6 +70,17 @@ pub struct RouterStore<T: DatabaseStore> {
     master_encryption_key: StrongSecret<Vec<u8>>,
     pub request_id: Option<String>,
     key_manager_state: Option<KeyManagerState>,
+}
+
+impl<T: DatabaseStore> RedisConnInterface for RouterStore<T> {
+    fn get_redis_conn(
+        &self,
+    ) -> error_stack::Result<RedisConnectionWithContext, RedisError> {
+        Ok(RedisConnectionWithContext::new(
+            Arc::clone(&self.cache_store.get_redis_pool()?),
+            self,
+        ))
+    }
 }
 
 impl<T: DatabaseStore> RouterStore<T> {
@@ -117,16 +134,8 @@ where
                 db_conf,
                 tenant_config,
                 encryption_key,
-                // This DatabaseStore::new path doesn't have access to a real
-                // event emitter (the production path is `services::get_store`
-                // → `from_config` with an emitter chosen at app startup). No-op
-                // here keeps the trait surface stable.
-                Self::cache_store(
-                    &cache_conf,
-                    cache_error_signal,
-                    Arc::new(common_utils::external_service::NoOpEventEmitter),
-                )
-                .await?,
+                Self::cache_store(&cache_conf, cache_error_signal, Arc::new(NoOpEventEmitter))
+                    .await?,
                 inmemory_cache_stream,
                 key_manager_state,
             )
@@ -150,9 +159,9 @@ where
     }
 }
 
-impl<T: DatabaseStore> RedisConnInterface for RouterStore<T> {
-    fn get_redis_conn(&self) -> error_stack::Result<Arc<RedisConnectionPool>, RedisError> {
-        self.cache_store.get_redis_conn()
+impl<T: DatabaseStore> RequestContext for RouterStore<T> {
+    fn request_id(&self) -> Option<&str> {
+        self.request_id.as_deref()
     }
 }
 
@@ -166,15 +175,10 @@ impl<T: DatabaseStore> RouterStore<T> {
         key_manager_state: Option<KeyManagerState>,
     ) -> error_stack::Result<Self, StorageError> {
         let db_store = T::new(db_conf, tenant_config, false, key_manager_state.clone()).await?;
-        let redis_conn = cache_store.redis_conn.clone();
-        let cache_store = Arc::new(RedisStore {
-            redis_conn: Arc::new(RedisConnectionPool::clone(
-                &redis_conn,
-                tenant_config.get_redis_key_prefix(),
-            )),
-        });
+        let cache_store = Arc::new(cache_store.clone().clone_pool_with_prefix(tenant_config.get_redis_key_prefix()));
         cache_store
-            .redis_conn
+            .get_redis_pool()
+            .change_context(StorageError::InitializationError)?
             .subscribe(inmemory_cache_stream)
             .await
             .change_context(StorageError::InitializationError)
@@ -192,7 +196,7 @@ impl<T: DatabaseStore> RouterStore<T> {
     pub async fn cache_store(
         cache_conf: &redis_interface::RedisSettings,
         cache_error_signal: tokio::sync::oneshot::Sender<()>,
-        event_emitter: Arc<dyn common_utils::external_service::ExternalServiceEventEmitter>,
+        event_emitter: Arc<dyn ExternalServiceEventEmitter>,
     ) -> error_stack::Result<Arc<RedisStore>, StorageError> {
         let cache_store = RedisStore::new(cache_conf, event_emitter)
             .await
@@ -313,13 +317,10 @@ impl<T: DatabaseStore> RouterStore<T> {
     ) -> error_stack::Result<Self, StorageError> {
         // TODO: create an error enum and return proper error here
         let db_store = T::new(db_conf, tenant_config, true, key_manager_state.clone()).await?;
-        let cache_store = RedisStore::new(
-            cache_conf,
-            Arc::new(common_utils::external_service::NoOpEventEmitter),
-        )
-        .await
-        .change_context(StorageError::InitializationError)
-        .attach_printable("failed to create redis cache")?;
+        let cache_store = RedisStore::new_without_event_emitter(cache_conf)
+            .await
+            .change_context(StorageError::InitializationError)
+            .attach_printable("failed to create redis cache")?;
         Ok(Self {
             db_store,
             cache_store: Arc::new(cache_store),
@@ -362,7 +363,7 @@ pub trait UniqueConstraints {
     fn table_name(&self) -> &str;
     async fn check_for_constraints(
         &self,
-        redis_conn: &Arc<RedisConnectionPool>,
+        redis_conn: &RedisConnectionWithContext,
     ) -> CustomResult<(), RedisError> {
         let constraints = self.unique_constraints();
         let unique_contraint_count = constraints.len();

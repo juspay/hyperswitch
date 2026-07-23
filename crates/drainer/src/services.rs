@@ -1,8 +1,9 @@
 use std::sync::Arc;
 
 use actix_web::{body, HttpResponse, ResponseError};
+use common_utils::request_context::RequestContext;
 use error_stack::Report;
-use redis_interface::RedisConnectionPool;
+use redis_interface::{RedisConnectionPool};
 
 use crate::{
     connection::{diesel_make_pg_pool, PgPool},
@@ -13,9 +14,21 @@ use crate::{
 #[derive(Clone)]
 pub struct Store {
     pub master_pool: PgPool,
-    pub redis_conn: Arc<RedisConnectionPool>,
+    redis_conn: Arc<RedisConnectionPool>,
     pub config: StoreConfig,
     pub request_id: Option<String>,
+}
+
+impl Store {
+    pub fn get_redis_conn(&self) -> redis_interface::RedisConnectionWithContext {
+        redis_interface::RedisConnectionWithContext::new(self.redis_conn.clone(), self)
+    }
+}
+
+impl RequestContext for Store {
+    fn request_id(&self) -> Option<&str> {
+        self.request_id.as_deref()
+    }
 }
 
 #[derive(Clone)]

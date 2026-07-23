@@ -65,7 +65,6 @@ pub(crate) enum RedisOperation {
     ConsumerGroupSetLastId,
     ConsumerGroupSetMessageOwner,
     EvaluateRedisScript,
-    Publish,
 }
 
 /// Extracts whether a completed Redis roundtrip succeeded, so the emitted
@@ -74,12 +73,12 @@ pub(crate) enum RedisOperation {
 /// Most `track_redis_call` call sites pass a future whose output is a `Result`
 /// (the raw `RedisResult`/`FredResult`, or an already-`change_context`ed
 /// `CustomResult`), so the blanket impl below covers those.
-pub(crate) trait RedisCallOutcome {
-    fn succeeded(&self) -> bool;
+pub(crate) trait RedisCallStatus {
+    fn is_success(&self) -> bool;
 }
 
-impl<T, E> RedisCallOutcome for Result<T, E> {
-    fn succeeded(&self) -> bool {
+impl<T, E> RedisCallStatus for Result<T, E> {
+    fn is_success(&self) -> bool {
         self.is_ok()
     }
 }
@@ -87,8 +86,8 @@ impl<T, E> RedisCallOutcome for Result<T, E> {
 /// Fred's streaming `SCAN`/`HSCAN` helpers collect successful pages into a
 /// `Vec<String>` after logging and dropping page-level errors. At this layer no
 /// error signal remains, so completion is treated as success for event emission.
-impl RedisCallOutcome for Vec<String> {
-    fn succeeded(&self) -> bool {
+impl RedisCallStatus for Vec<String> {
+    fn is_success(&self) -> bool {
         true
     }
 }
@@ -96,26 +95,23 @@ impl RedisCallOutcome for Vec<String> {
 /// Times a single Redis roundtrip, records its latency metric, and emits one
 /// `ExternalServiceCall` event reflecting this exact roundtrip.
 ///
-/// `request_id` is read from the `router_env::request_context` task-local. When
-/// absent (background work, drainer, scheduler, un-rescoped spawn) no event is
+/// When `request_id` is absent (background work, drainer, scheduler) no event is
 /// emitted: the correlator joins on `request_id` and cannot place request-less
-/// rows. The `is_enabled()` guard skips the request-id lookup and event
-/// construction entirely when emission is disabled, since Redis is the hottest
-/// call path.
+/// rows.
 #[inline]
 pub(crate) async fn track_redis_call<Fut, U>(
+    request_id: Option<&str>,
     event_emitter: &dyn ExternalServiceEventEmitter,
     operation: RedisOperation,
     future: Fut,
 ) -> U
 where
     Fut: std::future::Future<Output = U>,
-    U: RedisCallOutcome,
+    U: RedisCallStatus,
 {
     let start = std::time::Instant::now();
     let output = future.await;
     let time_elapsed = start.elapsed();
-    let success = output.succeeded();
 
     tracing::debug!(
         redis_operation = ?operation,
@@ -129,19 +125,18 @@ where
         REDIS_CALL_TIME.record(time_elapsed.as_secs_f64(), attributes);
     }
 
-    if event_emitter.is_enabled() {
-        if let Some(request_id) = router_env::request_context::try_get() {
-            event_emitter.emit_external_service_call(ExternalServiceCall {
-                service_name: "redis".to_string(),
-                endpoint: format!("{operation:?}"),
-                method: "Redis".to_string(),
-                request_id,
-                status_code: if success { 200 } else { 500 },
-                success,
-                latency_ms: time_elapsed.as_millis(),
-                created_at_timestamp: common_utils::date_time::now_unix_timestamp_nanos(),
-            });
-        }
+    if let Some(request_id) = request_id {
+        let success = output.is_success();
+        event_emitter.emit_external_service_call(ExternalServiceCall {
+            service_name: "redis".to_string(),
+            endpoint: format!("{operation:?}"),
+            method: "Redis".to_string(),
+            request_id: request_id.to_string(),
+            status_code: if success { 200 } else { 500 },
+            success,
+            latency_ms: time_elapsed.as_millis(),
+            created_at_timestamp: common_utils::date_time::now_unix_timestamp_nanos(),
+        });
     }
 
     output

@@ -173,6 +173,7 @@ pub trait GlobalStorageInterface:
     + user_key_store::UserKeyStoreInterface
     + role::RoleInterface
     + RedisConnInterface
+    + RequestIdStore
     + 'static
 {
     fn get_cache_store(&self) -> Box<dyn RedisConnInterface + Send + Sync + 'static>;

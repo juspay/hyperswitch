@@ -28,15 +28,6 @@ pub struct ExternalServiceCall {
 pub trait ExternalServiceEventEmitter: std::fmt::Debug + Send + Sync {
     /// Emit an external service call event.
     fn emit_external_service_call(&self, event: ExternalServiceCall);
-
-    /// Whether this emitter actually emits events. Defaults to `true`.
-    ///
-    /// `NoOpEventEmitter` returns `false`, letting hot paths (notably Redis,
-    /// called far more often than any HTTP service) skip event construction and
-    /// the request-id lookup entirely when emission is disabled.
-    fn is_enabled(&self) -> bool {
-        true
-    }
 }
 
 /// A no-op event emitter that discards all events.
@@ -47,9 +38,5 @@ pub struct NoOpEventEmitter;
 impl ExternalServiceEventEmitter for NoOpEventEmitter {
     fn emit_external_service_call(&self, _event: ExternalServiceCall) {
         // No-op: discard the event
-    }
-
-    fn is_enabled(&self) -> bool {
-        false
     }
 }

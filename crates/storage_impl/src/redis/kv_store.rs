@@ -1,4 +1,4 @@
-use std::{fmt::Debug, sync::Arc};
+use std::fmt::Debug;
 
 use common_utils::errors::CustomResult;
 use diesel_models::enums::MerchantStorageScheme;
@@ -8,7 +8,7 @@ use router_derive::TryGetEnumVariant;
 use router_env::logger;
 use serde::de;
 
-use crate::{kv_router_store::KVRouterStore, metrics, store::kv, UniqueConstraints};
+use crate::{UniqueConstraints, kv_router_store::KVRouterStore, metrics, store::kv};
 
 pub trait KvStorePartition {
     fn partition_number(key: PartitionKey<'_>, num_partitions: u8) -> u32 {
@@ -121,7 +121,7 @@ impl std::fmt::Display for PartitionKey<'_> {
 pub trait RedisConnInterface {
     fn get_redis_conn(
         &self,
-    ) -> error_stack::Result<Arc<redis_interface::RedisConnectionPool>, RedisError>;
+    ) -> error_stack::Result<redis_interface::RedisConnectionWithContext, RedisError>;
 }
 
 /// An enum to represent what operation to do on
@@ -171,7 +171,7 @@ where
     D: crate::database::store::DatabaseStore,
     S: serde::Serialize + Debug + KvStorePartition + UniqueConstraints + Sync,
 {
-    let redis_conn = store.get_redis_conn()?;
+    let redis_conn = store.router_store.get_redis_conn()?;
 
     let key = format!("{partition_key}");
 
