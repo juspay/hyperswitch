@@ -1985,6 +1985,7 @@ impl TryFrom<&AdyenRouterData<&PaymentsAuthorizeRouterData>> for AdyenPaymentReq
                 | PaymentMethodData::CardWithOptionalCVC(_)
                 | PaymentMethodData::CardWithNetworkTokenDetails(_)
                 | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+                | PaymentMethodData::RawStoredCardForPMID(_)
                 | PaymentMethodData::CardWithLimitedDetails(_)
                 | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
                 | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
@@ -3250,6 +3251,52 @@ impl
                             AdyenPaymentMethod::AdyenCard(Box::new(adyen_card)),
                         )))
                     }
+                    PaymentMethodData::RawStoredCardForPMID(ref stored) => {
+                        let card_details_for_network_transaction_id =
+                            hyperswitch_domain_models::payment_method_data::CardDetailsForNetworkTransactionId {
+                                card_number: stored.card_number.clone(),
+                                card_exp_month: stored.card_exp_month.clone(),
+                                card_exp_year: stored.card_exp_year.clone(),
+                                card_issuer: stored.card_issuer.clone(),
+                                card_network: stored.card_network.clone(),
+                                card_type: stored.card_type.clone(),
+                                card_issuing_country: stored.card_issuing_country.clone(),
+                                card_issuing_country_code: stored.card_issuing_country_code.clone(),
+                                bank_code: stored.bank_code.clone(),
+                                nick_name: stored.nick_name.clone(),
+                                card_holder_name: stored.card_holder_name.clone(),
+                            };
+                        let brand = match card_details_for_network_transaction_id
+                            .card_network
+                            .clone()
+                            .and_then(get_adyen_card_network)
+                        {
+                            Some(card_network) => card_network,
+                            None => CardBrand::try_from(
+                                &card_details_for_network_transaction_id.get_card_issuer()?,
+                            )?,
+                        };
+
+                        let card_holder_name = item.router_data.get_optional_billing_full_name();
+                        let adyen_card = AdyenCard {
+                            number: card_details_for_network_transaction_id.card_number.clone(),
+                            expiry_month: card_details_for_network_transaction_id
+                                .card_exp_month
+                                .clone(),
+                            expiry_year: card_details_for_network_transaction_id
+                                .get_expiry_year_4_digit()
+                                .clone(),
+                            cvc: None,
+                            holder_name: test_holder_name.or(card_holder_name),
+                            brand: Some(brand),
+                            network_payment_reference: Some(Secret::new(
+                                network_mandate_id.network_transaction_id.clone(),
+                            )),
+                        };
+                        Ok(PaymentMethod::AdyenPaymentMethod(Box::new(
+                            AdyenPaymentMethod::AdyenCard(Box::new(adyen_card)),
+                        )))
+                    }
                     PaymentMethodData::CardRedirect(_)
                     | PaymentMethodData::Wallet(_)
                     | PaymentMethodData::PayLater(_)
@@ -3321,6 +3368,7 @@ impl
                     | PaymentMethodData::CardToken(_)
                     | PaymentMethodData::MobilePayment(_)
                     | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+                    | PaymentMethodData::RawStoredCardForPMID(_)
                     | PaymentMethodData::CardWithLimitedDetails(_)
                     | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
                     | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {

@@ -1616,6 +1616,7 @@ fn create_stripe_payment_method(
         | PaymentMethodData::CardToken(_)
         | PaymentMethodData::NetworkToken(_)
         | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+        | PaymentMethodData::RawStoredCardForPMID(_)
         | PaymentMethodData::CardWithOptionalCVC(_)
         | PaymentMethodData::CardWithNetworkTokenDetails(_)
         | PaymentMethodData::CardWithLimitedDetails(_)
@@ -2141,6 +2142,47 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
                             request_extended_authorization: None,
                             request_overcapture: None,
                         }),
+                        PaymentMethodData::RawStoredCardForPMID(ref stored) => {
+                            let card_details_for_network_transaction_id =
+                                payment_method_data::CardDetailsForNetworkTransactionId {
+                                    card_number: stored.card_number.clone(),
+                                    card_exp_month: stored.card_exp_month.clone(),
+                                    card_exp_year: stored.card_exp_year.clone(),
+                                    card_issuer: stored.card_issuer.clone(),
+                                    card_network: stored.card_network.clone(),
+                                    card_type: stored.card_type.clone(),
+                                    card_issuing_country: stored.card_issuing_country.clone(),
+                                    card_issuing_country_code: stored
+                                        .card_issuing_country_code
+                                        .clone(),
+                                    bank_code: stored.bank_code.clone(),
+                                    nick_name: stored.nick_name.clone(),
+                                    card_holder_name: stored.card_holder_name.clone(),
+                                };
+                            StripePaymentMethodData::Card(StripeCardData {
+                                payment_method_data_type: StripePaymentMethodType::Card,
+                                payment_method_data_card_number:
+                                    card_details_for_network_transaction_id.card_number.clone(),
+                                payment_method_data_card_exp_month:
+                                    card_details_for_network_transaction_id
+                                        .card_exp_month
+                                        .clone(),
+                                payment_method_data_card_exp_year:
+                                    card_details_for_network_transaction_id
+                                        .card_exp_year
+                                        .clone(),
+                                payment_method_data_card_cvc: None,
+                                payment_method_auth_type: None,
+                                payment_method_data_card_preferred_network:
+                                    card_details_for_network_transaction_id
+                                        .card_network
+                                        .clone()
+                                        .and_then(get_stripe_card_network),
+                                request_incremental_authorization: None,
+                                request_extended_authorization: None,
+                                request_overcapture: None,
+                            })
+                        }
                         PaymentMethodData::CardRedirect(_)
                         | PaymentMethodData::Wallet(_)
                         | PaymentMethodData::PayLater(_)
@@ -4890,6 +4932,7 @@ impl
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::RawStoredCardForPMID(_)
             | PaymentMethodData::CardWithOptionalCVC(_)
             | PaymentMethodData::CardWithNetworkTokenDetails(_)
             | PaymentMethodData::CardWithLimitedDetails(_)

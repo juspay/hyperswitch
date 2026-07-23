@@ -170,6 +170,7 @@ impl TryFrom<&TokenizationRouterData> for TokenRequest {
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::RawStoredCardForPMID(_)
             | PaymentMethodData::CardWithOptionalCVC(_)
             | PaymentMethodData::CardWithNetworkTokenDetails(_)
             | PaymentMethodData::CardWithLimitedDetails(_)
@@ -779,6 +780,50 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
                 Ok((mandate_source, previous_id, Some(true), p_type, None))
             }
             PaymentMethodData::CardDetailsForNetworkTransactionId(ccard) => {
+                let (first_name, last_name) = split_account_holder_name(ccard.card_holder_name);
+                let payment_source = PaymentSource::Card(CardSource {
+                    source_type: CheckoutSourceTypes::Card,
+                    number: ccard.card_number.clone(),
+                    expiry_month: ccard.card_exp_month.clone(),
+                    expiry_year: ccard.card_exp_year.clone(),
+                    cvv: None,
+                    billing_address: billing_details,
+                    account_holder: Some(CheckoutAccountHolderDetails {
+                        first_name,
+                        last_name,
+                    }),
+                });
+
+                let previous_id = Some(
+                    item.router_data
+                        .request
+                        .get_optional_network_transaction_id()
+                        .ok_or_else(utils::missing_field_err("network_transaction_id"))
+                        .attach_printable("Checkout unable to find NTID for MIT")?,
+                );
+
+                let p_type = match item.router_data.request.mit_category {
+                    Some(MitCategory::Installment) => CheckoutPaymentType::Installment,
+                    Some(MitCategory::Recurring) => CheckoutPaymentType::Recurring,
+                    Some(MitCategory::Unscheduled) | None => CheckoutPaymentType::Unscheduled,
+                    _ => CheckoutPaymentType::Unscheduled,
+                };
+                Ok((payment_source, previous_id, Some(true), p_type, None))
+            }
+            PaymentMethodData::RawStoredCardForPMID(stored) => {
+                let ccard = hyperswitch_domain_models::payment_method_data::CardDetailsForNetworkTransactionId {
+                    card_number: stored.card_number.clone(),
+                    card_exp_month: stored.card_exp_month.clone(),
+                    card_exp_year: stored.card_exp_year.clone(),
+                    card_issuer: stored.card_issuer.clone(),
+                    card_network: stored.card_network.clone(),
+                    card_type: stored.card_type.clone(),
+                    card_issuing_country: stored.card_issuing_country.clone(),
+                    card_issuing_country_code: stored.card_issuing_country_code.clone(),
+                    bank_code: stored.bank_code.clone(),
+                    nick_name: stored.nick_name.clone(),
+                    card_holder_name: stored.card_holder_name.clone(),
+                };
                 let (first_name, last_name) = split_account_holder_name(ccard.card_holder_name);
                 let payment_source = PaymentSource::Card(CardSource {
                     source_type: CheckoutSourceTypes::Card,

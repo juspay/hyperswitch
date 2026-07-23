@@ -12252,11 +12252,20 @@ pub async fn get_all_action_types(
         .ok()
         .and_then(|details| details.payments);
 
-    let is_mandate_flow = payments_mandate_reference
-        .clone()
-        .zip(merchant_connector_id)
-        .map(|(details, merchant_connector_id)| details.contains_key(merchant_connector_id))
-        .unwrap_or(false);
+    // Connectors opted into the payment_method_id StoredCard MIT flow must replay
+    // via the network-transaction-id (locker card + NTI) path even when a
+    // connector_mandate_id is stored for them (tsys_transit only for now, see
+    // is_raw_stored_card_pmid_connector): don't offer the connector-mandate action
+    // so the CardWithNetworkTransactionId action is chosen instead.
+    let prefer_stored_card_nti_flow = is_raw_stored_card_pmid_connector(connector.connector_name)
+        && payment_method_info.network_transaction_id.is_some();
+
+    let is_mandate_flow = !prefer_stored_card_nti_flow
+        && payments_mandate_reference
+            .clone()
+            .zip(merchant_connector_id)
+            .map(|(details, merchant_connector_id)| details.contains_key(merchant_connector_id))
+            .unwrap_or(false);
 
     let is_nt_with_ntid_supported_connector = ntid_supported_connectors
         .contains(&connector.connector_name)
@@ -12274,6 +12283,14 @@ pub async fn get_all_action_types(
         .await
         .with_card_network_transaction_id(is_card_with_ntid_flow, payment_method_info)
         .build()
+}
+
+/// Connectors that consume the `RawStoredCardForPMID` payment method for a
+/// `payment_method_id` MIT (locker card + network transaction id). These replay
+/// via the network-transaction-id path even when a connector_mandate_id is
+/// stored. tsys_transit only for now.
+pub fn is_raw_stored_card_pmid_connector(connector: enums::Connector) -> bool {
+    matches!(connector, enums::Connector::TsysTransit)
 }
 
 pub fn is_network_transaction_id_flow(

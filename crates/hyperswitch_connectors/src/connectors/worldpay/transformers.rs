@@ -117,6 +117,30 @@ fn fetch_payment_instrument(
                 card_number: raw_card_details.card_number,
             }))
         }
+        PaymentMethodData::RawStoredCardForPMID(stored) => {
+            let raw_card_details =
+                hyperswitch_domain_models::payment_method_data::CardDetailsForNetworkTransactionId {
+                    card_number: stored.card_number.clone(),
+                    card_exp_month: stored.card_exp_month.clone(),
+                    card_exp_year: stored.card_exp_year.clone(),
+                    card_issuer: stored.card_issuer.clone(),
+                    card_network: stored.card_network.clone(),
+                    card_type: stored.card_type.clone(),
+                    card_issuing_country: stored.card_issuing_country.clone(),
+                    card_issuing_country_code: stored.card_issuing_country_code.clone(),
+                    bank_code: stored.bank_code.clone(),
+                    nick_name: stored.nick_name.clone(),
+                    card_holder_name: stored.card_holder_name.clone(),
+                };
+            Ok(PaymentInstrument::RawCardForNTI(RawCardDetails {
+                payment_type: PaymentType::Plain,
+                expiry_date: ExpiryDate {
+                    month: raw_card_details.get_expiry_month_as_i8()?,
+                    year: raw_card_details.get_expiry_year_as_4_digit_i32()?,
+                },
+                card_number: raw_card_details.card_number,
+            }))
+        }
         PaymentMethodData::MandatePayment => mandate_ids
             .and_then(|mandate_ids| {
                 mandate_ids
@@ -532,7 +556,8 @@ fn create_three_ds_request<T: WorldpayPaymentsRequestData>(
         router_data.get_payment_method_data(),
     ) {
         // 3DS for NTI flow
-        (_, PaymentMethodData::CardDetailsForNetworkTransactionId(_)) => Ok(None),
+        (_, PaymentMethodData::CardDetailsForNetworkTransactionId(_))
+        | (_, PaymentMethodData::RawStoredCardForPMID(_)) => Ok(None),
         // 3DS for regular payments
         (enums::AuthenticationType::ThreeDs, _) => {
             let browser_info = router_data.get_browser_info().ok_or(
@@ -616,7 +641,8 @@ fn get_token_and_agreement(
             }),
         ),
         // NTI with raw card data
-        (PaymentMethodData::CardDetailsForNetworkTransactionId(_), _, _) => (
+        (PaymentMethodData::CardDetailsForNetworkTransactionId(_), _, _)
+        | (PaymentMethodData::RawStoredCardForPMID(_), _, _) => (
             None,
             mandate_ids.and_then(|mandate_ids| {
                 mandate_ids

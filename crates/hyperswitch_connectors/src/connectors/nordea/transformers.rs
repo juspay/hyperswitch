@@ -342,6 +342,7 @@ impl TryFrom<&NordeaRouterData<&CreateOrderRouterData>> for NordeaPaymentsReques
             },
             Some(PaymentMethodData::CardRedirect(_))
             | Some(PaymentMethodData::CardDetailsForNetworkTransactionId(_))
+            | Some(PaymentMethodData::RawStoredCardForPMID(_))
             | Some(PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_))
             | Some(
                 PaymentMethodData::CardWithOptionalCVC(_)
@@ -429,6 +430,7 @@ impl TryFrom<&NordeaRouterData<&PaymentsPreProcessingRouterData>> for NordeaPaym
             },
             Some(PaymentMethodData::CardRedirect(_))
             | Some(PaymentMethodData::CardDetailsForNetworkTransactionId(_))
+            | Some(PaymentMethodData::RawStoredCardForPMID(_))
             | Some(PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_))
             | Some(
                 PaymentMethodData::CardWithOptionalCVC(_)

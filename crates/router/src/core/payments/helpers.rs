@@ -2905,11 +2905,18 @@ pub async fn retrieve_payment_method_data_with_permanent_token(
             Ok(domain::PaymentMethodData::Card(card))
         }
         VaultFetchAction::FetchCardDetailsForNetworkTransactionIdFlowFromLocker => {
+            // Connectors opted into the payment_method_id MIT flow receive the
+            // locker card as the dedicated RawStoredCardForPMID
+            // payment method (carrying the network transaction id in-band).
+            let use_stored_card_variant =
+                connector_variant.is_some_and(super::is_raw_stored_card_pmid_connector);
             fetch_card_details_for_network_transaction_flow_from_locker(
                 state,
                 customer_id,
                 &payment_intent.merchant_id,
                 locker_id,
+                use_stored_card_variant,
+                payment_method_info.network_transaction_id.clone(),
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -3308,6 +3315,8 @@ pub async fn fetch_card_details_for_network_transaction_flow_from_locker(
     customer_id: &id_type::CustomerId,
     merchant_id: &id_type::MerchantId,
     locker_id: &str,
+    use_stored_card_variant: bool,
+    network_transaction_id: Option<String>,
 ) -> RouterResult<domain::PaymentMethodData> {
     let card_details_from_locker =
         cards::get_card_from_locker(state, customer_id, merchant_id, locker_id)
@@ -3325,6 +3334,29 @@ pub async fn fetch_card_details_for_network_transaction_flow_from_locker(
         })
         .ok()
         .flatten();
+
+    // Connectors opted into the payment_method_id MIT flow receive the locker
+    // card as a dedicated RawStoredCardForPMID that also carries the
+    // network transaction id in-band.
+    if use_stored_card_variant {
+        let stored_card = hyperswitch_domain_models::payment_method_data::RawStoredCardForPMID {
+            card_number: card_details_from_locker.card_number,
+            card_exp_month: card_details_from_locker.card_exp_month,
+            card_exp_year: card_details_from_locker.card_exp_year,
+            card_issuer: None,
+            card_network,
+            card_type: None,
+            card_issuing_country: None,
+            card_issuing_country_code: None,
+            bank_code: None,
+            nick_name: card_details_from_locker
+                .nick_name
+                .map(hyperswitch_masking::Secret::new),
+            card_holder_name: card_details_from_locker.name_on_card.clone(),
+            network_transaction_id: network_transaction_id.map(hyperswitch_masking::Secret::new),
+        };
+        return Ok(domain::PaymentMethodData::RawStoredCardForPMID(stored_card));
+    }
 
     let card_details_for_network_transaction_id =
         hyperswitch_domain_models::payment_method_data::CardDetailsForNetworkTransactionId {
@@ -6519,6 +6551,32 @@ pub async fn get_additional_payment_data(
                 })))
             }
         }
+        domain::PaymentMethodData::RawStoredCardForPMID(stored_card) => {
+            // Same BIN-derived additional data as the inline NTI card variant —
+            // reconstruct it and reuse that path.
+            let card_data = domain::payment_method_data::CardDetailsForNetworkTransactionId {
+                card_number: stored_card.card_number.clone(),
+                card_exp_month: stored_card.card_exp_month.clone(),
+                card_exp_year: stored_card.card_exp_year.clone(),
+                card_issuer: stored_card.card_issuer.clone(),
+                card_network: stored_card.card_network.clone(),
+                card_type: stored_card.card_type.clone(),
+                card_issuing_country: stored_card.card_issuing_country.clone(),
+                card_issuing_country_code: stored_card.card_issuing_country_code.clone(),
+                bank_code: stored_card.bank_code.clone(),
+                nick_name: stored_card.nick_name.clone(),
+                card_holder_name: stored_card.card_holder_name.clone(),
+            };
+            Box::pin(get_additional_payment_data(
+                &domain::PaymentMethodData::CardDetailsForNetworkTransactionId(card_data),
+                db,
+                superposition_service,
+                dimensions,
+                customer_id,
+                payment_method_token,
+            ))
+            .await
+        }
         domain::PaymentMethodData::CardWithLimitedDetails(card_with_limited_details) => {
             let card_isin = Some(card_with_limited_details.card_number.get_card_isin());
 
@@ -7925,6 +7983,7 @@ pub fn get_key_params_for_surcharge_details(
         domain::PaymentMethodData::CardToken(_)
         | domain::PaymentMethodData::NetworkToken(_)
         | domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+        | domain::PaymentMethodData::RawStoredCardForPMID(_)
         | domain::PaymentMethodData::CardWithLimitedDetails(_)
         | domain::PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
         | domain::PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => None,

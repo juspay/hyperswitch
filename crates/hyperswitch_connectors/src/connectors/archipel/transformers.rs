@@ -778,6 +778,27 @@ impl TryFrom<ArchipelRouterData<&PaymentsAuthorizeRouterData>>
                     card_details,
                 ))?
             }
+            PaymentMethodData::RawStoredCardForPMID(stored) => {
+                let card_details =
+                    &hyperswitch_domain_models::payment_method_data::CardDetailsForNetworkTransactionId {
+                        card_number: stored.card_number.clone(),
+                        card_exp_month: stored.card_exp_month.clone(),
+                        card_exp_year: stored.card_exp_year.clone(),
+                        card_issuer: stored.card_issuer.clone(),
+                        card_network: stored.card_network.clone(),
+                        card_type: stored.card_type.clone(),
+                        card_issuing_country: stored.card_issuing_country.clone(),
+                        card_issuing_country_code: stored.card_issuing_country_code.clone(),
+                        bank_code: stored.bank_code.clone(),
+                        nick_name: stored.nick_name.clone(),
+                        card_holder_name: stored.card_holder_name.clone(),
+                    };
+                ArchipelCard::try_from((
+                    payment_information.card_holder_name,
+                    payment_information.cardholder.clone(),
+                    card_details,
+                ))?
+            }
             PaymentMethodData::CardRedirect(..)
             | PaymentMethodData::Wallet(..)
             | PaymentMethodData::PayLater(..)
@@ -855,6 +876,7 @@ impl TryFrom<ArchipelRouterData<&PaymentsAuthorizeRouterData>>
             | PaymentMethodData::CardWithOptionalCVC(..)
             | PaymentMethodData::CardWithNetworkTokenDetails(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(..)
+            | PaymentMethodData::RawStoredCardForPMID(..)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardWithLimitedDetails(..)
