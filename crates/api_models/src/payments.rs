@@ -4232,6 +4232,40 @@ impl AdditionalPaymentData {
             _ => None,
         }
     }
+
+    /// Extract the card network for wallet payments.
+    ///
+    /// For wallet payments the underlying card network is persisted as a plain
+    /// provider string (e.g. `AMEX`, `AmEx`, `VISA`) rather than the canonical
+    /// [`common_enums::CardNetwork`] enum used for card payments. Normalize it
+    /// case-insensitively so it lines up with card payments and, crucially, with
+    /// the `card_network` column used by the payments list filter.
+    pub fn get_wallet_card_network(&self) -> Option<common_enums::CardNetwork> {
+        let raw_network = match self {
+            Self::Wallet {
+                apple_pay,
+                google_pay,
+                samsung_pay,
+            } => google_pay
+                .as_ref()
+                .and_then(|wallet| wallet.card_network.clone())
+                .or_else(|| {
+                    samsung_pay
+                        .as_ref()
+                        .and_then(|wallet| wallet.card_network.clone())
+                })
+                .or_else(|| apple_pay.as_ref().map(|wallet| wallet.network.clone())),
+            _ => None,
+        }?;
+
+        // `CardNetwork` carries serde aliases in UPPERCASE (e.g. `AMEX`, `VISA`),
+        // so upper-casing the raw provider string lets us reuse them for a
+        // case-insensitive match without a bespoke mapping table.
+        serde_json::from_value::<common_enums::CardNetwork>(serde_json::Value::String(
+            raw_network.to_uppercase(),
+        ))
+        .ok()
+    }
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
