@@ -454,6 +454,18 @@ pub async fn build_cloned_connector_create_request(
                 .collect::<Vec<_>>()
         });
 
+    let connector_wallets_details = source_mca
+        .connector_wallets_details
+        .map(|wallets_details| {
+            serde_json::Value::parse_value(
+                wallets_details.into_inner().expose(),
+                "ConnectorWalletDetails",
+            )
+            .change_context(UserErrors::InternalServerError)
+            .attach_printable("Unable to deserialize connector_wallets_details")
+        })
+        .transpose()?;
+
     let connector_webhook_details = source_mca
         .connector_webhook_details
         .map(|webhook_details| {
@@ -483,7 +495,7 @@ pub async fn build_cloned_connector_create_request(
         connector_webhook_details,
         profile_id: Some(destination_profile_id),
         pm_auth_config: None,
-        connector_wallets_details: None,
+        connector_wallets_details,
         status: Some(source_mca.status),
         additional_merchant_data: None,
     })
