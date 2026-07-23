@@ -1,0 +1,16 @@
+[package]
+name = "card_metadata"
+description = "Card metadata configuration shared across Hyperswitch crates"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+error-stack = "0.4.1"
+serde = { version = "1.0.219", features = ["derive"] }
+thiserror = "1.0.69"
+toml = "0.8.22"
+
+[lints]
+workspace = true
