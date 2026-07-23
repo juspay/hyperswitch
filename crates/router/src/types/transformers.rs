@@ -425,9 +425,9 @@ impl ForeignTryFrom<payments::PaymentMethodData> for api_enums::PaymentMethod {
         payment_method_data: payments::PaymentMethodData,
     ) -> Result<Self, Self::Error> {
         match payment_method_data {
-            payments::PaymentMethodData::Card(..) | payments::PaymentMethodData::CardToken(..) => {
-                Ok(Self::Card)
-            }
+            payments::PaymentMethodData::Card(..)
+            | payments::PaymentMethodData::CardWithNoCVC(..)
+            | payments::PaymentMethodData::CardToken(..) => Ok(Self::Card),
             payments::PaymentMethodData::Wallet(..) => Ok(Self::Wallet),
             payments::PaymentMethodData::PayLater(..) => Ok(Self::PayLater),
             payments::PaymentMethodData::BankRedirect(..) => Ok(Self::BankRedirect),
@@ -788,6 +788,8 @@ impl
             version,
             error_code: authn_data.error_code.clone(),
             error_message: authn_data.error_message.clone(),
+            challenge_cancel_code: authn_data.challenge_cancel.clone(),
+            trans_status_reason: authn_data.challenge_code_reason.clone(),
         }
     }
 }
@@ -832,6 +834,7 @@ impl ForeignFrom<diesel_models::cards_info::CardInfo> for api_models::cards_info
             card_network: item.card_network.map(|x| x.to_string()),
             card_issuer: item.card_issuer,
             card_issuing_country: item.card_issuing_country,
+            country_code: item.country_code,
             funding_source: item.funding_source.map(|x| x.to_string()),
             card_iin_type: item.card_iin_type.map(|x| x.to_string()),
             virtual_card: item.virtual_card,
