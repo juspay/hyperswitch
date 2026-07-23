@@ -981,6 +981,42 @@ impl UnifiedConnectorServiceClient {
             })
     }
 
+    /// Registers a Hyperswitch webhook endpoint with a connector through UCS.
+    pub async fn connector_webhook_register(
+        &self,
+        connector_webhook_register_request: payments_grpc::ConnectorWebhookRegisterRequest,
+        connector_auth_metadata: ConnectorAuthMetadata,
+        grpc_headers: GrpcHeadersUcs,
+    ) -> UnifiedConnectorServiceResult<
+        tonic::Response<payments_grpc::ConnectorWebhookRegisterResponse>,
+    > {
+        let mut request = tonic::Request::new(connector_webhook_register_request);
+
+        let connector_name = connector_auth_metadata.connector_name.clone();
+        let metadata =
+            build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
+        *request.metadata_mut() = metadata;
+
+        self.event_service_client
+            .clone()
+            .register_webhook(request)
+            .await
+            .map_err(|error| {
+                error_stack::Report::new(UnifiedConnectorServiceError::from_grpc_error(
+                    &error,
+                    &connector_name,
+                ))
+            })
+            .inspect_err(|error| {
+                logger::error!(
+                    grpc_error=?error,
+                    method="connector_webhook_register",
+                    connector_name=?connector_name,
+                    "UCS connector webhook registration gRPC call failed"
+                )
+            })
+    }
+
     /// Performs Payment Refund
     pub async fn payment_refund(
         &self,

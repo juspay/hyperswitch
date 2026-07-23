@@ -704,3 +704,28 @@ impl ConnectorConfig {
         }
     }
 }
+
+#[cfg(all(test, not(feature = "production"), not(feature = "sandbox")))]
+mod tests {
+    use super::{Connector, ConnectorConfig, ScopeType};
+
+    #[test]
+    fn givepayments_supports_event_type_webhook_registration() {
+        std::thread::Builder::new()
+            .stack_size(16 * 1024 * 1024)
+            .spawn(|| {
+                let connector = ConnectorConfig::get_connector_config(Connector::Givepayments)
+                    .expect("connector config must deserialize")
+                    .expect("givepayments config must exist");
+                let registration = connector
+                    .connector_webhook_register_details
+                    .expect("givepayments webhook registration config must exist");
+
+                assert!(registration.webhook_auto_configuration_supported);
+                assert_eq!(registration.scope_type, Some(ScopeType::EventType));
+            })
+            .expect("config test thread must start")
+            .join()
+            .expect("config test thread must complete");
+    }
+}

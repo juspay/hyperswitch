@@ -28,7 +28,7 @@ pub enum ScopeType {
     EventType,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]
 #[serde(into = "String", try_from = "String")]
 pub enum ScopeIdentifier {
     NotSpecific,
@@ -200,6 +200,7 @@ pub enum ConnectorWebhookScope {
     NotSpecific,
     PaymentMethodType { value: PaymentMethodType },
     EventType { value: EventType },
+    EventTypes { values: Vec<EventType> },
 }
 
 #[allow(deprecated)]

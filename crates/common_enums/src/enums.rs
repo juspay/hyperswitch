@@ -1895,6 +1895,7 @@ pub enum EventType {
     PaymentCaptured,
     PaymentExpired,
     ActionRequired,
+    RefundProcessing,
     RefundSucceeded,
     RefundFailed,
     DisputeOpened,

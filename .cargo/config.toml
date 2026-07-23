@@ -3,3 +3,9 @@ rustflags = [
     "--cfg", "getrandom_backend=\"wasm_js\"",
     "--cfg", "getrandom_backend=\"js\""
 ]
+
+# Temporary local development override for changes not yet published in a
+# connector-service release. Replace this patch with the new release tag before merge.
+[patch."https://github.com/juspay/connector-service"]
+rust-grpc-client = { path = "../hyperswitch-prism/sdk/rust-grpc-client" }
+ucs_cards = { path = "../hyperswitch-prism/crates/types-traits/cards" }
