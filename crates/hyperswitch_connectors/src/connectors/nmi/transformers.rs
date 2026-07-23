@@ -263,7 +263,7 @@ fn build_nmi_vault_response(
             }),
             AttemptStatus::AuthenticationPending,
         ),
-        Response::Declined | Response::Error => (
+        Response::Declined | Response::Error | Response::Unknown => (
             Err(ErrorResponse {
                 code: vault_response.response_code.clone(),
                 message: vault_response.responsetext.to_owned(),
