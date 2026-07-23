@@ -16,7 +16,7 @@ pub type PgPooledConn = async_bb8_diesel::Connection<PgConnection>;
 pub async fn redis_connection(
     conf: &crate::configs::Settings,
 ) -> redis_interface::RedisConnectionPool {
-    redis_interface::RedisConnectionPool::new_without_event_emitter(&conf.redis) 
+    redis_interface::RedisConnectionPool::new_without_event_emitter(&conf.redis)
         .await
         .expect("Failed to create Redis Connection Pool")
 }
