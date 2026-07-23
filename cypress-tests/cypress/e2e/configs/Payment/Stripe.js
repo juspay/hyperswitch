@@ -1135,6 +1135,26 @@ export const connectorDetails = {
     },
   },
   bank_redirect_pm: {
+    PaymentIntent: (paymentMethodType) => {
+      const currencyMap = {
+        Ideal: "EUR",
+        Giropay: "EUR",
+        Eps: "EUR",
+        Blik: "PLN",
+        Przelewy24: "PLN",
+      };
+      return {
+        Request: {
+          currency: currencyMap[paymentMethodType] || "EUR",
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_payment_method",
+          },
+        },
+      };
+    },
     Ideal: {
       Request: {
         ...idealBaseRequest,
