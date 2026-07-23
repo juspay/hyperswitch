@@ -949,7 +949,10 @@ pub mod core {
             );
 
             let proxy = Proxy::from_optional_url(
-                config.proxy_url.clone().or_else(|| config.backup_proxy_url.clone()),
+                config
+                    .proxy_url
+                    .clone()
+                    .or_else(|| config.backup_proxy_url.clone()),
             );
             let response = send_request(&proxy, http_request).await?;
             response
