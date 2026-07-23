@@ -245,9 +245,9 @@ impl TryFrom<&FiservcommercehubCreditResponse>
             network: processor_response_details
                 .and_then(|processor| processor.network_routed.as_deref())
                 .and_then(|network_routed| {
-                    serde_json::from_value::<common_enums::CardNetwork>(
-                        serde_json::Value::String(network_routed.to_owned()),
-                    )
+                    serde_json::from_value::<common_enums::CardNetwork>(serde_json::Value::String(
+                        network_routed.to_owned(),
+                    ))
                     .ok()
                 }),
             network_transaction_id: network_details
