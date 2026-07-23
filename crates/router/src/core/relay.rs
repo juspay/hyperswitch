@@ -1099,6 +1099,7 @@ async fn process_unreferenced_refund(
 
     let relay_router_data = UnreferencedRefundRouterData {
         request,
+        connector_resource_id: request.connector_resource_id.as_deref(),
         access_token,
         auth_type: &auth_type,
         base_url,
@@ -1128,7 +1129,7 @@ async fn process_unreferenced_refund(
                 status: relay_status,
                 error_code: connector_resp.error_code,
                 error_message: connector_resp.error_message,
-                response_data: None,
+                response_data: connector_resp.response_data.map(Secret::new),
             };
             (bytes, relay_update)
         }
