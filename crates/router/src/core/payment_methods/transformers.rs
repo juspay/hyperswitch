@@ -2154,12 +2154,17 @@ struct VaultTokenDetailsResponse {
 /// targets `connectors.hyperswitch_vault.base_url` (which already includes the `/v2` prefix) and is
 /// authenticated as the merchant using the external vault connector account's credentials
 /// (`api-key` + profile id) — not the pay server's internal API key.
+///
+/// `proxy_url` — when `Some`, all traffic to the vault is routed through that HTTP CONNECT proxy
+/// (e.g. a Squid egress proxy required by self-hosted / non-PCI deployments). Falls back to the
+/// router-wide `[proxy]` config when `None`.
 #[cfg(feature = "v1")]
 pub async fn get_permanent_pm_id_from_temporary_token(
     state: &routes::SessionState,
     api_key: Secret<String>,
     vault_profile_id: Secret<String>,
     temporary_token: String,
+    proxy_url: Option<common_utils::types::Url>,
 ) -> CustomResult<String, errors::ApiErrorResponse> {
     let url = format!(
         "{}/payment-methods/token/{}/details",
@@ -2184,7 +2189,27 @@ pub async fn get_permanent_pm_id_from_temporary_token(
         ])
         .build();
 
-    let response = http_client::send_request(&state.conf.proxy, request, None)
+    // If the MCA supplies a per-merchant proxy URL, use it; otherwise fall back to the
+    // router-wide proxy config so the behaviour is unchanged for deployments that have
+    // not set a proxy on the vault connector account.
+    let effective_proxy;
+    let proxy = match proxy_url {
+        Some(url) => {
+            let url_str = url.get_string_repr().to_owned();
+            effective_proxy = hyperswitch_interfaces::types::Proxy {
+                http_url: Some(url_str.clone()),
+                https_url: Some(url_str),
+                idle_pool_connection_timeout: Some(90),
+                bypass_proxy_hosts: None,
+                mitm_ca_certificate: None,
+                mitm_enabled: None,
+            };
+            &effective_proxy
+        }
+        None => &state.conf.proxy,
+    };
+
+    let response = http_client::send_request(proxy, request, None)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to call hyperswitch vault token details endpoint")?;

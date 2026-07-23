@@ -1990,13 +1990,30 @@ pub fn build_unified_connector_service_external_vault_proxy_metadata_v1(
                 vault_connector_id: Some("vgs".to_string()),
                 metadata: external_services::grpc_client::unified_connector_service::ExternalVaultProxyMetadata::VgsMetadata(
                     external_services::grpc_client::unified_connector_service::VgsMetadata {
-                        proxy_url: external_vault_metadata_parsed.proxy_url,
-                        certificate: external_vault_metadata_parsed.certificate,
+                        proxy_url: external_vault_metadata_parsed.proxy_url
+                            .ok_or_else(|| error_stack::report!(UnifiedConnectorServiceError::ParsingFailed))
+                            .attach_printable("VGS requires proxy_url in MCA metadata")?,
+                        certificate: external_vault_metadata_parsed.certificate
+                            .ok_or_else(|| error_stack::report!(UnifiedConnectorServiceError::ParsingFailed))
+                            .attach_printable("VGS requires certificate in MCA metadata")?,
                     },
                 ),
             }
         }
         api_enums::VaultConnectors::HyperswitchVault => {
+            // Optional metadata — in-cluster setups have no metadata; proxy setups supply proxy_url.
+            let vault_meta = external_vault_merchant_connector_account
+                .get_metadata()
+                .map(|m| {
+                    m.expose()
+                        .parse_value::<ExternalVaultConnectorMetadata>(
+                            "ExternalVaultConnectorMetadata",
+                        )
+                        .change_context(UnifiedConnectorServiceError::ParsingFailed)
+                        .attach_printable("Failed to parse external vault connector metadata")
+                })
+                .transpose()?;
+
             let base = &connectors.hyperswitch_vault.base_url;
             let vault_endpoint_url = format!("{}/proxy", base)
                 .parse::<url::Url>()
@@ -2035,6 +2052,8 @@ pub fn build_unified_connector_service_external_vault_proxy_metadata_v1(
                             api_key,
                             profile_id,
                         },
+                        proxy_url: vault_meta.as_ref().and_then(|m| m.proxy_url.clone()),
+                        certificate: vault_meta.and_then(|m| m.certificate),
                     },
                 ),
             }
@@ -2088,13 +2107,30 @@ pub fn build_unified_connector_service_external_vault_proxy_metadata(
                 vault_connector_id: Some("vgs".to_string()),
                 metadata: external_services::grpc_client::unified_connector_service::ExternalVaultProxyMetadata::VgsMetadata(
                     external_services::grpc_client::unified_connector_service::VgsMetadata {
-                        proxy_url: external_vault_metadata_parsed.proxy_url,
-                        certificate: external_vault_metadata_parsed.certificate,
+                        proxy_url: external_vault_metadata_parsed.proxy_url
+                            .ok_or_else(|| error_stack::report!(UnifiedConnectorServiceError::ParsingFailed))
+                            .attach_printable("VGS requires proxy_url in MCA metadata")?,
+                        certificate: external_vault_metadata_parsed.certificate
+                            .ok_or_else(|| error_stack::report!(UnifiedConnectorServiceError::ParsingFailed))
+                            .attach_printable("VGS requires certificate in MCA metadata")?,
                     },
                 ),
             }
         }
         api_enums::VaultConnectors::HyperswitchVault => {
+            // Optional metadata — in-cluster setups have no metadata; proxy setups supply proxy_url.
+            let vault_meta = external_vault_merchant_connector_account
+                .get_metadata()
+                .map(|m| {
+                    m.expose()
+                        .parse_value::<ExternalVaultConnectorMetadata>(
+                            "ExternalVaultConnectorMetadata",
+                        )
+                        .change_context(UnifiedConnectorServiceError::ParsingFailed)
+                        .attach_printable("Failed to parse external vault connector metadata")
+                })
+                .transpose()?;
+
             let base = &connectors.hyperswitch_vault.base_url;
             let vault_endpoint_url = format!("{}/proxy", base)
                 .parse::<url::Url>()
@@ -2132,6 +2168,8 @@ pub fn build_unified_connector_service_external_vault_proxy_metadata(
                             api_key,
                             profile_id,
                         },
+                        proxy_url: vault_meta.as_ref().and_then(|m| m.proxy_url.clone()),
+                        certificate: vault_meta.and_then(|m| m.certificate),
                     },
                 ),
             }

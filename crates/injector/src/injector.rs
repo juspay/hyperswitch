@@ -931,7 +931,13 @@ pub mod core {
                 .headers(vault_headers)
                 .set_body(RequestContent::Json(Box::new(vault_proxy_request)));
 
-            let http_request = request_builder.build();
+            let config = &request.connection_config;
+            let http_request = build_request_with_certificates(
+                request_builder,
+                None,
+                None,
+                config.ca_cert.clone(),
+            );
 
             let vault_endpoint_host = vault_endpoint.host_str().unwrap_or("unknown").to_string();
             metrics::INJECTOR_OUTGOING_CALLS_COUNT.add(
@@ -942,7 +948,10 @@ pub mod core {
                 ),
             );
 
-            let response = send_request(&Proxy::default(), http_request).await?;
+            let proxy = Proxy::from_optional_url(
+                config.proxy_url.clone().or_else(|| config.backup_proxy_url.clone()),
+            );
+            let response = send_request(&proxy, http_request).await?;
             response
                 .into_injector_response()
                 .await
