@@ -401,7 +401,7 @@ jobs:
         if: ${{ env.RUN_TESTS == 'true' }}
         env:
           SUPERPOSITION_URL: "http://localhost:8081"
-          SEED_FILE: "./config/superposition_seed.toml"
+          SEED_FILE: "./config/superposition_seed.json"
           WORKSPACE_ID: "dev"
           ORG_ID: "localorg"
         run: bash scripts/seed_superposition.sh
@@ -982,7 +982,7 @@ jobs:
         if: ${{ env.RUN_TESTS == 'true' }}
         env:
           SUPERPOSITION_URL: "http://localhost:8081"
-          SEED_FILE: "./config/superposition_seed.toml"
+          SEED_FILE: "./config/superposition_seed.json"
           WORKSPACE_ID: "dev"
           ORG_ID: "localorg"
         run: bash scripts/seed_superposition.sh
@@ -1408,7 +1408,7 @@ jobs:
       - name: Seed Superposition
         env:
           SUPERPOSITION_URL: "http://localhost:8081"
-          SEED_FILE: "./config/superposition_seed.toml"
+          SEED_FILE: "./config/superposition_seed.json"
           WORKSPACE_ID: "dev"
           ORG_ID: "localorg"
         run: bash scripts/seed_superposition.sh
@@ -1606,7 +1606,7 @@ jobs:
         if: ${{ env.RUN_TESTS == 'true' }}
         env:
           SUPERPOSITION_URL: "http://localhost:8081"
-          SEED_FILE: "./config/superposition_seed.toml"
+          SEED_FILE: "./config/superposition_seed.json"
           WORKSPACE_ID: "dev"
           ORG_ID: "localorg"
         run: bash scripts/seed_superposition.sh
@@ -1861,7 +1861,7 @@ jobs:
         if: ${{ env.RUN_TESTS == 'true' }}
         env:
           SUPERPOSITION_URL: "http://localhost:8081"
-          SEED_FILE: "./config/superposition_seed.toml"
+          SEED_FILE: "./config/superposition_seed.json"
           WORKSPACE_ID: "dev"
           ORG_ID: "localorg"
         run: bash scripts/seed_superposition.sh
