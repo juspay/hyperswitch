@@ -64,6 +64,7 @@ import { connectorDetails as payjustnowConnectorDetails } from "./Payjustnow.js"
 import { connectorDetails as payjustnowinstoreConnectorDetails } from "./Payjustnowinstore.js";
 import { connectorDetails as payloadConnectorDetails } from "./Payload.js";
 import { connectorDetails as paypalConnectorDetails } from "./Paypal.js";
+import { connectorDetails as revolv3ConnectorDetails } from "./Revolv3.js";
 import { connectorDetails as paysafeConnectorDetails } from "./Paysafe.js";
 import { connectorDetails as paystackConnectorDetails } from "./Paystack.js";
 import { connectorDetails as payuConnectorDetails } from "./Payu.js";
@@ -161,6 +162,7 @@ const connectorDetails = {
   prophetpay: prophetpayConnectorDetails,
   rapyd: rapydConnectorDetails,
   redsys: redsysConnectorDetails,
+  revolv3: revolv3ConnectorDetails,
   shift4: shift4ConnectorDetails,
   signifyd: signifydConnectorDetails,
   silverflow: silverflowConnectorDetails,
