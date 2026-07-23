@@ -444,7 +444,10 @@ impl ConnectorRelayIntegration for Fiservcommercehub {
             .filter(|_| refund_status == common_enums::RefundStatus::Failure)
             .map(|receipt| {
                 let processor_response = &receipt.processor_response_details;
-                (Some(processor_response.response_code.clone()), Some(processor_response.response_message.clone()))
+                (
+                    Some(processor_response.response_code.clone()),
+                    Some(processor_response.response_message.clone()),
+                )
             })
             .unwrap_or((None, None));
 
