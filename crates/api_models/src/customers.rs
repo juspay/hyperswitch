@@ -279,16 +279,20 @@ pub struct CustomerResponse {
     pub phone_country_code: Option<String>,
     /// An arbitrary string that you can attach to a customer object.
     #[schema(max_length = 255, example = "First Customer", value_type = Option<String>)]
+    #[smithy(value_type = "Option<String>")]
     pub description: Option<Description>,
     /// The default billing address for the customer
     #[schema(value_type = Option<AddressDetails>)]
+    #[smithy(value_type = "Option<AddressDetails>")]
     pub default_billing_address: Option<payments::AddressDetails>,
     /// The default shipping address for the customer
     #[schema(value_type = Option<AddressDetails>)]
+    #[smithy(value_type = "Option<AddressDetails>")]
     pub default_shipping_address: Option<payments::AddressDetails>,
     ///  A timestamp (ISO 8601 code) that determines when the customer was created
     #[schema(value_type = PrimitiveDateTime,example = "2023-01-18T11:04:09.922Z")]
     #[serde(with = "custom_serde::iso8601")]
+    #[smithy(value_type = "Option<String>")]
     pub created_at: time::PrimitiveDateTime,
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500
     /// characters long. Metadata is useful for storing additional, structured information on an
@@ -490,15 +494,18 @@ pub struct CustomerListResponse {
     pub total_count: usize,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, ToSchema, PartialEq)]
+#[derive(Debug, Clone, Deserialize, Serialize, ToSchema, PartialEq, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct CustomerDocumentDetails {
     /// The customer's document type
     #[schema(value_type = DocumentKind, example = "cpf")]
+    #[smithy(value_type = "DocumentKind")]
     pub document_type: DocumentKind,
     /// The customer's document number
     /// Length of the document number depends upon the document_type.
     /// For CPF/CNPJ it is typically 11/14 digits long
     #[schema(max_length = 255, value_type = String, example = "12345678911")]
+    #[smithy(value_type = "String")]
     pub document_number: Secret<String>,
 }
 
