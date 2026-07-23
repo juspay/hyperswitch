@@ -290,15 +290,20 @@ where
                 matches!(
                     save_payment_method_data.request.get_payment_method_data(),
                     domain::PaymentMethodData::MandatePayment
+                        | domain::PaymentMethodData::CardToken(_)
                 )
             }) {
-                // Recurring/MIT charge against an already-saved payment method, made
-                // via an established connector mandate (no raw card in the request —
-                // PaymentMethodData::MandatePayment). There is no new card to save;
-                // update the existing row's last-used timestamp instead of falling
-                // through to the "unknown payment method" branches below, which
-                // would otherwise mint a locker-less orphan payment_methods row
-                // (no card => no locker call => no dedup => throwaway locker_id).
+                // Recharge of an already-saved payment method where the request
+                // carries no fresh raw card data — either a recurring/MIT charge via
+                // an established connector mandate (PaymentMethodData::MandatePayment)
+                // or a repeat-customer confirm that only supplies a saved-card token +
+                // CVC (PaymentMethodData::CardToken; card_token always references an
+                // existing saved method, there is no "new card" form of it). There is
+                // no new card to save in either case; update the existing row's
+                // last-used timestamp instead of falling through to the "unknown
+                // payment method" branches below, which would otherwise mint a
+                // locker-less orphan payment_methods row (no card => no locker call
+                // => no dedup => throwaway locker_id).
                 payment_methods::cards::update_last_used_at(
                     &existing_pm,
                     state,
