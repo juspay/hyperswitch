@@ -26,7 +26,7 @@ async fn test_connection(
 ) -> error_stack::Result<RedisConnectionWithContext, crate::errors::RedisError> {
     let pool = RedisConnectionPool::new_without_event_emitter(settings)
         .await
-        .map(|pool| std::sync::Arc::new(pool))?;
+        .map(std::sync::Arc::new)?;
 
     Ok(RedisConnectionWithContext::new_without_context(pool))
 }

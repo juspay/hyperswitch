@@ -210,7 +210,7 @@ impl super::RedisConnectionWithContext {
                         self.request_id.as_deref(),
                         self.redis_conn.event_emitter.as_ref(),
                         RedisOperation::GetKey,
-                        conn.get::<_, V>(key.tenant_unaware_key(self)),
+                        conn.get::<_, V>(key.tenant_unaware_key(&self.redis_conn)),
                     )
                     .await
                     .change_context(errors::RedisError::GetFailed)
@@ -326,7 +326,7 @@ impl super::RedisConnectionWithContext {
                 {
                     let tenant_unaware_keys: Vec<RedisKey> = keys
                         .iter()
-                        .map(|key| key.tenant_unaware_key(self).into())
+                        .map(|key| key.tenant_unaware_key(&self.redis_conn).into())
                         .collect();
 
                     self.get_keys_by_mode(&tenant_unaware_keys).await
@@ -363,7 +363,7 @@ impl super::RedisConnectionWithContext {
                         self.request_id.as_deref(),
                         self.redis_conn.event_emitter.as_ref(),
                         RedisOperation::Exists,
-                        conn.exists::<_, bool>(key.tenant_unaware_key(self)),
+                        conn.exists::<_, bool>(key.tenant_unaware_key(&self.redis_conn)),
                     )
                     .await
                     .change_context(errors::RedisError::GetFailed)
@@ -451,7 +451,7 @@ impl super::RedisConnectionWithContext {
                     self.request_id.as_deref(),
                     self.redis_conn.event_emitter.as_ref(),
                     RedisOperation::DeleteKey,
-                    conn.del(key.tenant_unaware_key(self)),
+                    conn.del(key.tenant_unaware_key(&self.redis_conn)),
                 )
                 .await
                 .change_context(errors::RedisError::DeleteFailed)?;
@@ -901,7 +901,7 @@ impl super::RedisConnectionWithContext {
                         self.request_id.as_deref(),
                         self.redis_conn.event_emitter.as_ref(),
                         RedisOperation::GetHashField,
-                        conn.hget::<_, _, V>(key.tenant_unaware_key(self), field),
+                        conn.hget::<_, _, V>(key.tenant_unaware_key(&self.redis_conn), field),
                     )
                     .await
                     .change_context(errors::RedisError::GetHashFieldFailed)
@@ -938,7 +938,7 @@ impl super::RedisConnectionWithContext {
                         self.request_id.as_deref(),
                         self.redis_conn.event_emitter.as_ref(),
                         RedisOperation::GetHashFields,
-                        conn.hgetall::<_, V>(key.tenant_unaware_key(self)),
+                        conn.hgetall::<_, V>(key.tenant_unaware_key(&self.redis_conn)),
                     )
                     .await
                     .change_context(errors::RedisError::GetHashFieldFailed)
@@ -982,11 +982,13 @@ impl super::RedisConnectionWithContext {
     where
         F: redis::ToRedisArgs + Debug + Send + Sync,
     {
-        let mut conn = self.pool.clone();
+        let mut conn = self.redis_conn.pool.clone();
         // HDEL returns the number of fields removed (missing fields are ignored, not an error).
         track_redis_call(
+            self.request_id.as_deref(),
+            self.redis_conn.event_emitter.as_ref(),
             RedisOperation::DeleteHashFields,
-            conn.hdel(key.tenant_aware_key(self), fields),
+            conn.hdel(key.tenant_aware_key(&self.redis_conn), fields),
         )
         .await
         .change_context(errors::RedisError::DeleteHashFieldFailed)
