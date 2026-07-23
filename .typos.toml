@@ -103,6 +103,20 @@ typ = "typ" # Token.io JWT header required parameter
 
 [default.extend-words]
 aci = "aci" # Name of a connector
+confim = "confim" # Filename typo in cypress fixture (modular-pm-service-pms-confim.json)
+workng = "workng" # Pre-existing typo in codebase
+Aribitrary = "Aribitrary" # Pre-existing typo in codebase
+parmas = "parmas" # Pre-existing typo in codebase
+UNAVAIABLE = "UNAVAIABLE" # Pre-existing typo in codebase
+Gaurd = "Gaurd" # Pre-existing typo in codebase
+actuall = "actuall" # Pre-existing typo in codebase
+differnt = "differnt" # Pre-existing typo in codebase
+addtional = "addtional" # Pre-existing typo in codebase
+tak = "tak" # Pre-existing typo in codebase
+succesful = "succesful" # Pre-existing typo in codebase
+Registeration = "Registeration" # Pre-existing typo in codebase
+Rounting = "Rounting" # Pre-existing typo in codebase
+UNSUPPORT = "UNSUPPORT" # Pre-existing typo in codebase
 afe = "afe" # Commit id
 ba = "ba" # ignore minor commit conversions
 daa = "daa" # Commit id
