@@ -30,6 +30,7 @@ import getConnectorDetails, {
   extractIntegerAtEnd,
   getOriginalConnectorName,
   getValueByKey,
+  injectHelcimTestCard,
   setNormalizedValue,
 } from "../e2e/configs/Payment/Utils";
 import { execConfig, validateConfig } from "../utils/featureFlags";
@@ -550,12 +551,6 @@ function validateErrorMessage(response, resData) {
     expect(response.body.error_message, "error_message").to.be.null;
     expect(response.body.error_code, "error_code").to.be.null;
   }
-}
-
-//skip MIT using PMId if connector does not support MIT only
-export function shouldSkipMitUsingPMId(connectorId) {
-  const skipConnectors = ["fiuu"];
-  return skipConnectors.includes(connectorId);
 }
 
 Cypress.Commands.add("healthCheck", (globalState) => {
@@ -3110,6 +3105,8 @@ Cypress.Commands.add(
       confirmBody.split_payments = reqData.split_payments;
     }
 
+    injectHelcimTestCard(confirmBody, globalState);
+
     const headers = {
       "Content-Type": "application/json",
       "api-key": apiKey,
@@ -3907,6 +3904,8 @@ Cypress.Commands.add(
     if (reqData?.split_payments && isStripeConnect(globalState)) {
       createConfirmPaymentBody.split_payments = reqData.split_payments;
     }
+
+    injectHelcimTestCard(createConfirmPaymentBody, globalState);
 
     const headers = {
       "Content-Type": "application/json",
@@ -4821,6 +4820,8 @@ Cypress.Commands.add(
       requestBody.split_payments = reqData.split_payments;
     }
 
+    injectHelcimTestCard(requestBody, globalState);
+
     globalState.set("paymentAmount", requestBody.amount);
 
     cy.request({
@@ -4863,6 +4864,13 @@ Cypress.Commands.add(
             expect(response.body.payment_method_id, "payment_method_id").to.not
               .be.null;
           }
+
+          // Lets mitUsingPMId know whether the connector actually supports
+          // mandates, or was silently downgraded to on_session.
+          globalState.set(
+            "mandateSetupFutureUsage",
+            response.body.setup_future_usage
+          );
 
           if (requestBody.mandate_data === null) {
             // For wallet mandates that return requires_customer_action, payment_method_id may be null initially.
@@ -5041,6 +5049,15 @@ Cypress.Commands.add(
 Cypress.Commands.add(
   "mitForMandatesCallTest",
   (requestBody, data, amount, confirm, capture_method, globalState) => {
+    // Skip if no mandate_id was created — the router only sets one when
+    // the connector genuinely supports mandates (payment_response.rs).
+    if (!globalState.get("mandateId")) {
+      cy.log(
+        `Skipping mitForMandatesCallTest: no mandate_id was created for connector ${globalState.get("connectorId")} (likely downgraded to on_session)`
+      );
+      return;
+    }
+
     const {
       Configs: configs = {},
       Request: reqData,
@@ -5265,20 +5282,30 @@ Cypress.Commands.add(
     globalState,
     connector_agnostic_mit
   ) => {
-    if (shouldSkipMitUsingPMId(globalState.get("connectorId"))) {
-      cy.log(
-        `Skipping mitUsingPMId for connector: ${globalState.get("connectorId")}`
-      );
-      return;
-    }
-
     const {
       Configs: configs = {},
       Request: reqData,
       Response: resData,
     } = data || {};
 
-    const configInfo = execConfig(validateConfig(configs));
+    const validatedConfigs = validateConfig(configs);
+    if (validatedConfigs?.TRIGGER_SKIP) {
+      cy.log(
+        `Skipping mitUsingPMId for connector: ${globalState.get("connectorId")}`
+      );
+      return;
+    }
+
+    // Skip if the connector was downgraded to on_session (set by
+    // citForMandatesCallTest) — no real recurring capability to test.
+    if (globalState.get("mandateSetupFutureUsage") !== "off_session") {
+      cy.log(
+        `Skipping mitUsingPMId: CIT's setup_future_usage was not "off_session" for connector ${globalState.get("connectorId")} (likely downgraded)`
+      );
+      return;
+    }
+
+    const configInfo = execConfig(validatedConfigs);
     const profileId = globalState.get(`${configInfo.profilePrefix}Id`);
 
     const apiKey = globalState.get("apiKey");
@@ -5535,6 +5562,15 @@ Cypress.Commands.add(
 );
 
 Cypress.Commands.add("listMandateCallTest", (globalState) => {
+  // Same signal as mitForMandatesCallTest — nothing to list without a
+  // real mandate_id.
+  if (!globalState.get("mandateId")) {
+    cy.log(
+      `Skipping listMandateCallTest: no mandate_id was created for connector ${globalState.get("connectorId")} (likely downgraded to on_session)`
+    );
+    return;
+  }
+
   const customerId = globalState.get("customerId");
   cy.request({
     method: "GET",
@@ -5640,6 +5676,46 @@ Cypress.Commands.add(
 
     handleRedirection(
       "three_ds",
+      {
+        redirectionUrl: new URL(nextActionUrl),
+        expectedUrl: new URL(expectedRedirection),
+      },
+      connectorId,
+      globalState.get("paymentMethodType")
+    );
+  }
+);
+
+Cypress.Commands.add(
+  "handleCardRedirectRedirection",
+  (globalState, expectedRedirection) => {
+    const connectorId = globalState.get("connectorId");
+    const nextActionUrl = globalState.get("nextActionUrl");
+    if (!nextActionUrl) {
+      cy.task(
+        "cli_log",
+        "handleCardRedirectRedirection: nextActionUrl missing — skipping"
+      );
+      return;
+    }
+
+    if (isRecordMode()) {
+      mockRecord3ds(
+        globalState,
+        nextActionUrl,
+        expectedRedirection,
+        handleRedirection
+      );
+      return;
+    }
+
+    if (isReplayMode()) {
+      mockReplay3ds(globalState, connectorId, nextActionUrl);
+      return;
+    }
+
+    handleRedirection(
+      "card_redirect",
       {
         redirectionUrl: new URL(nextActionUrl),
         expectedUrl: new URL(expectedRedirection),
@@ -5988,6 +6064,24 @@ Cypress.Commands.add(
                     "nextActionUrl",
                     response.body.next_action.redirect_to_url
                   );
+                }
+                break;
+
+              case "qris":
+                for (const key in resData.body) {
+                  expect(resData.body[key], [key]).to.deep.equal(
+                    response.body[key]
+                  );
+                }
+                if (response.body.status === "requires_customer_action") {
+                  expect(response.body)
+                    .to.have.property("next_action")
+                    .and.have.nested.property("image_data_url").and.not.be.null;
+                  globalState.set(
+                    "image_data_url",
+                    response.body.next_action.image_data_url
+                  );
+                  globalState.set("nextActionType", "image_data_url");
                 }
                 break;
 
