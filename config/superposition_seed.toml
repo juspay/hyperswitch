@@ -267,11 +267,18 @@ description = "Refund sync retry process tracker mapping configuration"
 change_reason = "Initial setup"
 
 [default-configs.pt_mapping_refund_sync.value]
-max_retries_count = 5
+max_retries_count = 35
 
 [default-configs.pt_mapping_refund_sync.value.default_mapping]
 start_after = 60
-frequencies = [[300, 5]]
+frequencies = [
+    [300, 5],    # 5 min  * 3  = 15 min
+    [900, 3],    # 15 min * 3  = 45 min
+    [3600, 5],   # 1 hour * 5  = 5 hours
+    [10800, 6],  # 3 hour * 6  = 18 hours
+    [21600, 12], # 6 hour * 12 = 72 hours
+    [43200, 6],  # 12 hour * 6 = 72 hours
+]
 
 [default-configs.pt_mapping_dispute_sync]
 schema = { type = "object" }

@@ -631,7 +631,7 @@ impl DatabaseBackedConfig for PtMappingPaymentSync {
 config! {
     superposition_key = PT_MAPPING_REFUND_SYNC,
     output = scheduler::types::process_data::ConnectorPTMapping,
-    default = scheduler::types::process_data::ConnectorPTMapping::default(),
+    default = scheduler::types::process_data::ConnectorPTMapping::refund_default(),
     object = true,
     requires = dimension_state::DimensionsWithProcessorMerchantIdAndConnector,
     targeting_key = id_type::PaymentId
