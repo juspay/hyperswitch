@@ -1619,6 +1619,7 @@ fn get_cards_required_fields() -> HashMap<Connector, RequiredFieldFinal> {
                 vec![],
                 vec![],
                 [
+                    card_basic(),
                     vec![
                         RequiredField::BillingFirstName("first_name", FieldType::UserFullName),
                         RequiredField::BillingLastName("last_name", FieldType::UserFullName),
