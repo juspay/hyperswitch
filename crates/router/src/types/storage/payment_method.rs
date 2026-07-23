@@ -243,6 +243,9 @@ pub struct PaymentMethodModularCompatTrackingData {
 pub struct NetworkTokenizationTrackingData {
     pub payment_method_id: String,
     pub merchant_id: common_utils::id_type::MerchantId,
+    /// Profile the payment was made against. Network tokenization is configured per profile,
+    /// so this must come from the payment rather than the merchant's default profile.
+    pub profile_id: common_utils::id_type::ProfileId,
     pub customer_id: common_utils::id_type::CustomerId,
     pub payment_method: common_enums::PaymentMethod,
     pub payment_method_type: Option<common_enums::PaymentMethodType>,

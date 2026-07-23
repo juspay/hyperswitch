@@ -321,11 +321,11 @@ where
             let customer_id_for_network_tokenization = customer_id.clone();
             // The card read back from the locker does not carry the brand, so capture the card
             // network here, while the original card data is still available.
-            let card_network_for_network_tokenization =
-                match save_payment_method_data.request.get_payment_method_data() {
-                    domain::PaymentMethodData::Card(card) => card.card_network,
-                    _ => None,
-                };
+            let card_network_for_network_tokenization = save_payment_method_data
+                .request
+                .get_payment_method_data()
+                .get_card_data()
+                .and_then(|card| card.card_network.clone());
             // Payment method that was saved without a network token, and therefore still needs
             // one to be generated asynchronously by the process tracker.
             let mut payment_method_pending_network_tokenization: Option<String> = None;
@@ -511,6 +511,10 @@ where
                 ))
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Unable to create vault source details")?;
+
+                // Whether a network token was generated for this card during this save flow.
+                // Read after the match below to decide if generation must be deferred.
+                let network_token_generated = network_token_requestor_ref_id.is_some();
 
                 match duplication_check {
                     Some(duplication_check) => match duplication_check {
@@ -1033,31 +1037,48 @@ where
 
                             match network_token_requestor_ref_id {
                                 Some(network_token_requestor_ref_id) => {
-                                    save_optional_network_token_details_in_nt_mapper(
+                                    save_network_token_details_in_nt_mapper(
                                         state,
                                         platform.get_provider(),
                                         &customer_id,
                                         resp.payment_method_id.clone(),
-                                        Some(network_token_requestor_ref_id),
+                                        network_token_requestor_ref_id,
                                     )
-                                    .await?;
+                                    .await
+                                    .attach_printable(
+                                        "Failed to save network token details in callback_mapper table",
+                                    )?;
                                 }
                                 None => {
                                     logger::info!("Network token requestor reference ID is not available, skipping callback mapper insertion");
-                                    // Payment method was created without network token data, so
-                                    // defer generation to the process tracker (handled below).
-                                    payment_method_pending_network_tokenization =
-                                        Some(resp.payment_method_id.clone());
                                 }
                             };
                         };
                     }
                 }
 
+                // A card can be saved without a network token in any of the duplication
+                // branches above (fresh, duplicated or metadata-changed) — e.g. an unsupported
+                // network or a failed tokenization service call. In every such case, defer
+                // generation to the process tracker. The workflow skips payment methods that are
+                // already tokenized, so this is safe for duplicated cards as well.
+                if save_payment_method_data.payment_method == PaymentMethod::Card
+                    && !network_token_generated
+                {
+                    payment_method_pending_network_tokenization =
+                        Some(resp.payment_method_id.clone());
+                }
+
                 Some(resp.payment_method_id)
             } else {
-                // No customer acceptance, so no payment method is created and no network
-                // tokenization is performed.
+                // No customer acceptance was provided in this transaction, so no new payment
+                // method is created. But the payment method may already have been saved earlier
+                // (e.g. recurring / MIT flow reusing a stored card). If that saved payment method
+                // still lacks a network token, defer generation to the process tracker.
+                payment_method_pending_network_tokenization = payment_method_info
+                    .as_ref()
+                    .filter(|pm_info| pm_info.network_token_requestor_reference_id.is_none())
+                    .map(|pm_info| pm_info.payment_method_id.clone());
                 None
             };
 
@@ -1074,6 +1095,7 @@ where
                         types::storage::NetworkTokenizationTrackingData {
                             payment_method_id: pending_pm_id.clone(),
                             merchant_id: platform.get_provider().get_account().get_id().clone(),
+                            profile_id: business_profile.get_id().clone(),
                             customer_id: nt_customer_id,
                             payment_method: save_payment_method_data.payment_method,
                             payment_method_type,

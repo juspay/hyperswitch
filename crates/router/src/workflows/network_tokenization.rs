@@ -46,10 +46,7 @@ impl ProcessTrackerWorkflow<SessionState> for NetworkTokenizationWorkflow {
             .find_business_profile_by_merchant_id_profile_id(
                 &key_store,
                 &merchant_id,
-                &merchant_account
-                    .default_profile
-                    .clone()
-                    .ok_or(errors::ProcessTrackerError::EApiErrorResponse)?,
+                &tracking_data.profile_id,
             )
             .await?;
 
