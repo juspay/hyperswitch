@@ -9,12 +9,37 @@ use hyperswitch_domain_models::{
 };
 use router_env::{instrument, tracing};
 
+#[cfg(feature = "accounts_cache")]
+use crate::redis::{
+    cache,
+    cache::{CacheKind, ACCOUNTS_CACHE},
+};
+#[cfg(feature = "accounts_cache")]
+use crate::RedisConnInterface;
 use crate::{
     behaviour::{Conversion, ForeignFrom, ReverseConversion},
     kv_router_store,
     utils::{pg_accounts_connection_read, pg_accounts_connection_write},
     CustomResult, DatabaseStore, MockDb, RouterStore, StorageError,
 };
+
+#[cfg(feature = "accounts_cache")]
+fn profile_cache_key(profile_id: &common_utils::id_type::ProfileId) -> String {
+    format!("business_profile_{}", profile_id.get_string_repr())
+}
+
+#[cfg(feature = "accounts_cache")]
+async fn publish_and_redact_business_profile_cache(
+    store: &(dyn RedisConnInterface + Send + Sync),
+    profile_id: &common_utils::id_type::ProfileId,
+) -> CustomResult<(), StorageError> {
+    cache::redact_from_redis_and_publish(
+        store,
+        [CacheKind::Accounts(profile_cache_key(profile_id).into())],
+    )
+    .await?;
+    Ok(())
+}
 
 #[async_trait::async_trait]
 impl<T: DatabaseStore> ProfileInterface for kv_router_store::KVRouterStore<T> {
@@ -140,12 +165,33 @@ impl<T: DatabaseStore> ProfileInterface for RouterStore<T> {
         merchant_key_store: &MerchantKeyStore,
         profile_id: &common_utils::id_type::ProfileId,
     ) -> CustomResult<domain::Profile, StorageError> {
-        let conn = pg_accounts_connection_read(self).await?;
-        self.call_database_new(
-            merchant_key_store,
-            diesel::Profile::find_by_profile_id(&conn, profile_id),
-        )
-        .await
+        let fetch_func = || async {
+            let conn = pg_accounts_connection_read(self).await?;
+            self.call_database_new(
+                merchant_key_store,
+                diesel::Profile::find_by_profile_id(&conn, profile_id),
+            )
+            .await
+        };
+
+        #[cfg(not(feature = "accounts_cache"))]
+        {
+            fetch_func().await
+        }
+
+        #[cfg(feature = "accounts_cache")]
+        {
+            // The decrypted domain model is cached in both tiers; encryptable fields
+            // round-trip through redis via `encryptable_cache_serde`, so cache hits skip
+            // both the DB query and the decryption call
+            cache::get_or_populate_in_memory(
+                self,
+                &profile_cache_key(profile_id),
+                fetch_func,
+                &ACCOUNTS_CACHE,
+            )
+            .await
+        }
     }
 
     async fn find_business_profile_by_merchant_id_profile_id(
@@ -154,12 +200,32 @@ impl<T: DatabaseStore> ProfileInterface for RouterStore<T> {
         merchant_id: &common_utils::id_type::MerchantId,
         profile_id: &common_utils::id_type::ProfileId,
     ) -> CustomResult<domain::Profile, StorageError> {
-        let conn = pg_accounts_connection_read(self).await?;
-        self.call_database_new(
-            merchant_key_store,
-            diesel::Profile::find_by_merchant_id_profile_id(&conn, merchant_id, profile_id),
-        )
-        .await
+        #[cfg(not(feature = "accounts_cache"))]
+        {
+            let conn = pg_accounts_connection_read(self).await?;
+            self.call_database_new(
+                merchant_key_store,
+                diesel::Profile::find_by_merchant_id_profile_id(&conn, merchant_id, profile_id),
+            )
+            .await
+        }
+
+        #[cfg(feature = "accounts_cache")]
+        {
+            // Reuses the profile_id-keyed cache entry; the merchant ownership check that the
+            // uncached query performs via its compound WHERE clause is enforced here instead
+            let business_profile = self
+                .find_business_profile_by_profile_id(merchant_key_store, profile_id)
+                .await?;
+
+            if business_profile.merchant_id != *merchant_id {
+                return Err(report!(StorageError::ValueNotFound(
+                    "Value not found".to_string()
+                )));
+            }
+
+            Ok(business_profile)
+        }
     }
 
     #[instrument(skip_all)]
@@ -185,12 +251,17 @@ impl<T: DatabaseStore> ProfileInterface for RouterStore<T> {
         profile_update: domain::ProfileUpdate,
     ) -> CustomResult<domain::Profile, StorageError> {
         let conn = pg_accounts_connection_write(self).await?;
-        Conversion::convert(current_state)
+        let updated_profile = Conversion::convert(current_state)
             .await
             .change_context(StorageError::EncryptionError)?
             .update_by_profile_id(&conn, ProfileUpdateInternal::foreign_from(profile_update))
             .await
-            .map_err(|error| report!(StorageError::from(error)))?
+            .map_err(|error| report!(StorageError::from(error)))?;
+
+        #[cfg(feature = "accounts_cache")]
+        publish_and_redact_business_profile_cache(self, updated_profile.get_id()).await?;
+
+        updated_profile
             .convert(
                 self.get_keymanager_state()
                     .attach_printable("Missing KeyManagerState")?,
@@ -208,9 +279,15 @@ impl<T: DatabaseStore> ProfileInterface for RouterStore<T> {
         merchant_id: &common_utils::id_type::MerchantId,
     ) -> CustomResult<bool, StorageError> {
         let conn = pg_accounts_connection_write(self).await?;
-        diesel::Profile::delete_by_profile_id_merchant_id(&conn, profile_id, merchant_id)
-            .await
-            .map_err(|error| report!(StorageError::from(error)))
+        let is_deleted =
+            diesel::Profile::delete_by_profile_id_merchant_id(&conn, profile_id, merchant_id)
+                .await
+                .map_err(|error| report!(StorageError::from(error)))?;
+
+        #[cfg(feature = "accounts_cache")]
+        publish_and_redact_business_profile_cache(self, profile_id).await?;
+
+        Ok(is_deleted)
     }
 
     #[instrument(skip_all)]

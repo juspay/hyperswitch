@@ -191,6 +191,7 @@ dyn_clone::clone_trait_object!(Cacheable);
 pub struct Cache {
     name: &'static str,
     inner: MokaCache<String, Arc<dyn Cacheable>>,
+    time_to_live: u64,
 }
 
 #[derive(Debug, Clone)]
@@ -245,7 +246,13 @@ impl Cache {
         Self {
             name,
             inner: cache_builder.build(),
+            time_to_live,
         }
+    }
+
+    /// Time to live of the cache entries, in seconds
+    pub fn get_time_to_live(&self) -> u64 {
+        self.time_to_live
     }
 
     pub async fn push<T: Cacheable>(&self, key: CacheKey, val: T) {
@@ -306,6 +313,7 @@ impl Cache {
 pub async fn get_or_populate_redis<T, F, Fut>(
     redis: &Arc<RedisConnectionPool>,
     key: impl AsRef<str>,
+    ttl: Option<i64>,
     fun: F,
 ) -> CustomResult<T, StorageError>
 where
@@ -320,10 +328,15 @@ where
         .await;
     let get_data_set_redis = || async {
         let data = fun().await?;
-        redis
-            .serialize_and_set_key(&key.into(), &data)
-            .await
-            .change_context(StorageError::KVError)?;
+        match ttl {
+            Some(ttl) => {
+                redis
+                    .serialize_and_set_key_with_expiry(&key.into(), &data, ttl)
+                    .await
+            }
+            None => redis.serialize_and_set_key(&key.into(), &data).await,
+        }
+        .change_context(StorageError::KVError)?;
         Ok::<_, Report<StorageError>>(data)
     };
     match redis_val {
@@ -366,7 +379,9 @@ where
     if let Some(val) = cache_val {
         Ok(val)
     } else {
-        let val = get_or_populate_redis(redis, key, fun).await?;
+        // Keep the redis copy alive as long as the in-memory copy of the same entry
+        let redis_ttl = i64::try_from(cache.get_time_to_live()).ok();
+        let val = get_or_populate_redis(redis, key, redis_ttl, fun).await?;
         cache
             .push(
                 CacheKey {

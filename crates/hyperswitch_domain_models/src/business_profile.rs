@@ -21,7 +21,7 @@ use router_env::logger;
 
 use crate::{errors::api_error_response, merchant_key_store::MerchantKeyStore, payments};
 #[cfg(feature = "v1")]
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Profile {
     profile_id: common_utils::id_type::ProfileId,
     pub merchant_id: common_utils::id_type::MerchantId,
@@ -50,6 +50,7 @@ pub struct Profile {
     pub use_billing_as_payment_method_billing: Option<bool>,
     pub collect_shipping_details_from_wallet_connector: Option<bool>,
     pub collect_billing_details_from_wallet_connector: Option<bool>,
+    #[serde(with = "common_utils::crypto::encryptable_cache_serde")]
     pub outgoing_webhook_custom_http_headers: OptionalEncryptableValue,
     pub always_collect_billing_details_from_wallet_connector: Option<bool>,
     pub always_collect_shipping_details_from_wallet_connector: Option<bool>,
@@ -67,6 +68,7 @@ pub struct Profile {
     pub authentication_product_ids:
         Option<common_types::payments::AuthenticationConnectorAccountMap>,
     pub card_testing_guard_config: Option<CardTestingGuardConfig>,
+    #[serde(with = "common_utils::crypto::encryptable_cache_serde")]
     pub card_testing_secret_key: OptionalEncryptableName,
     pub is_clear_pan_retries_enabled: bool,
     pub force_3ds_challenge: bool,
@@ -84,13 +86,14 @@ pub struct Profile {
     pub external_vault_details: ExternalVaultDetails,
     pub billing_processor_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub surcharge_connector_details: Option<SurchargeConnectorDetails>,
+    #[serde(with = "common_utils::crypto::encryptable_cache_serde")]
     pub network_tokenization_credentials: OptionalEncryptableValue,
     pub payment_method_blocking: Option<PaymentMethodBlockingConfig>,
     pub default_fallback_routing: Option<pii::SecretSerdeValue>,
 }
 
 #[cfg(feature = "v1")]
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub enum ExternalVaultDetails {
     ExternalVaultEnabled(ExternalVaultConnectorDetails),
     Skip,
@@ -592,7 +595,7 @@ pub enum ProfileUpdate {
 }
 
 #[cfg(feature = "v2")]
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Profile {
     id: common_utils::id_type::ProfileId,
     pub merchant_id: common_utils::id_type::MerchantId,
@@ -617,6 +620,7 @@ pub struct Profile {
     pub use_billing_as_payment_method_billing: Option<bool>,
     pub collect_shipping_details_from_wallet_connector: Option<bool>,
     pub collect_billing_details_from_wallet_connector: Option<bool>,
+    #[serde(with = "common_utils::crypto::encryptable_cache_serde")]
     pub outgoing_webhook_custom_http_headers: OptionalEncryptableValue,
     pub always_collect_billing_details_from_wallet_connector: Option<bool>,
     pub always_collect_shipping_details_from_wallet_connector: Option<bool>,
@@ -637,6 +641,7 @@ pub struct Profile {
         Option<common_types::payments::AuthenticationConnectorAccountMap>,
     pub three_ds_decision_manager_config: Option<common_types::payments::DecisionManagerRecord>,
     pub card_testing_guard_config: Option<CardTestingGuardConfig>,
+    #[serde(with = "common_utils::crypto::encryptable_cache_serde")]
     pub card_testing_secret_key: OptionalEncryptableName,
     pub is_clear_pan_retries_enabled: bool,
     pub is_debit_routing_enabled: bool,
