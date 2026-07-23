@@ -10592,6 +10592,7 @@ pub enum ProcessTrackerRunner {
     InvoiceSyncflow,
     PayoutSyncWorkFlow,
     BatchBlocklistUpload,
+    NetworkTokenizationWorkflow,
 }
 
 #[derive(
