@@ -560,6 +560,18 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Da
         Ok(format!("{base_url}v1/transactions/{transaction_id}/cancel"))
     }
 
+    fn get_request_body(
+        &self,
+        _req: &PaymentsCancelRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        // Datatrans cancel takes no fields; send an empty JSON object `{}` so the
+        // application/json body is valid and avoids `INVALID_JSON_PAYLOAD`.
+        Ok(RequestContent::Json(Box::new(
+            datatrans::DatatransCancelRequest {},
+        )))
+    }
+
     fn build_request(
         &self,
         req: &PaymentsCancelRouterData,

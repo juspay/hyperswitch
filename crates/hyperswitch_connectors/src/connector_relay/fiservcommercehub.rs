@@ -165,10 +165,19 @@ struct TransactionInteraction {
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+struct TransactionDetails {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    merchant_transaction_id: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 struct FiservcommercehubCreditRequestEncrypted {
     amount: Amount,
     source: EncryptedSource,
     merchant_details: MerchantDetails,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    transaction_details: Option<TransactionDetails>,
     #[serde(skip_serializing_if = "Option::is_none")]
     transaction_interaction: Option<TransactionInteraction>,
 }
@@ -178,20 +187,75 @@ struct FiservcommercehubCreditRequestEncrypted {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct TransactionProcessingDetails {
-    transaction_id: Option<String>,
+    transaction_id: String,
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct GatewayResponse {
     transaction_state: FiservcommercehubRefundState,
-    transaction_processing_details: Option<TransactionProcessingDetails>,
+    transaction_processing_details: TransactionProcessingDetails,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ProcessorResponseDetails {
+    response_code: String,
+    response_message: String,
+    approval_code: Option<String>,
+    network_routed: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct PaymentReceipt {
+    processor_response_details: ProcessorResponseDetails,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct NetworkDetails {
+    network_response_code: Option<String>,
+    transaction_identifier: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct FiservcommercehubCreditResponse {
     gateway_response: GatewayResponse,
+    payment_receipt: Option<PaymentReceipt>,
+    network_details: Option<NetworkDetails>,
+}
+
+impl TryFrom<&FiservcommercehubCreditResponse>
+    for hyperswitch_domain_models::relay::RelayResponseData
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(response: &FiservcommercehubCreditResponse) -> Result<Self, Self::Error> {
+        let processor_response_details = response
+            .payment_receipt
+            .as_ref()
+            .map(|receipt| &receipt.processor_response_details);
+        let network_details = response.network_details.as_ref();
+
+        Ok(Self {
+            approval_code: processor_response_details
+                .and_then(|processor| processor.approval_code.clone()),
+            network: processor_response_details
+                .and_then(|processor| processor.network_routed.as_deref())
+                .and_then(|network_routed| {
+                    serde_json::from_value::<common_enums::CardNetwork>(serde_json::Value::String(
+                        network_routed.to_owned(),
+                    ))
+                    .ok()
+                }),
+            network_transaction_id: network_details
+                .and_then(|details| details.transaction_identifier.clone()),
+            network_response_code: network_details
+                .and_then(|details| details.network_response_code.clone()),
+        })
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -353,6 +417,12 @@ impl ConnectorRelayIntegration for Fiservcommercehub {
 
         let encryption_data = Self::encrypt_card(card, access_token)?;
 
+        let transaction_details = router_data
+            .connector_resource_id
+            .map(|connector_resource_id| TransactionDetails {
+                merchant_transaction_id: Some(connector_resource_id.to_owned()),
+            });
+
         let body = FiservcommercehubCreditRequestEncrypted {
             amount,
             source: EncryptedSource {
@@ -360,6 +430,7 @@ impl ConnectorRelayIntegration for Fiservcommercehub {
                 encryption_data,
             },
             merchant_details,
+            transaction_details,
             transaction_interaction,
         };
 
@@ -391,19 +462,39 @@ impl ConnectorRelayIntegration for Fiservcommercehub {
             .attach_printable("Failed to parse success response from Commerce Hub")?;
 
         let refund_status =
-            common_enums::RefundStatus::from(parsed.gateway_response.transaction_state);
+            common_enums::RefundStatus::from(parsed.gateway_response.transaction_state.clone());
 
-        let connector_refund_id = parsed
-            .gateway_response
-            .transaction_processing_details
-            .and_then(|d| d.transaction_id);
+        let connector_refund_id = Some(
+            parsed
+                .gateway_response
+                .transaction_processing_details
+                .transaction_id
+                .clone(),
+        );
+
+        let (error_code, error_message) = parsed
+            .payment_receipt
+            .as_ref()
+            .filter(|_| refund_status == common_enums::RefundStatus::Failure)
+            .map(|receipt| {
+                let processor_response = &receipt.processor_response_details;
+                (
+                    Some(processor_response.response_code.clone()),
+                    Some(processor_response.response_message.clone()),
+                )
+            })
+            .unwrap_or((None, None));
+
+        let response_data =
+            hyperswitch_domain_models::relay::RelayResponseData::try_from(&parsed).ok();
 
         Ok(UnreferencedRefundResponse {
             connector_refund_id,
             refund_status,
-            error_code: None,
-            error_message: None,
+            error_code,
+            error_message,
             raw_response,
+            response_data,
         })
     }
 
@@ -435,6 +526,7 @@ impl ConnectorRelayIntegration for Fiservcommercehub {
             error_code: Some(code),
             error_message: Some(message),
             raw_response,
+            response_data: None,
         })
     }
 }
