@@ -185,20 +185,22 @@ impl<T: DatabaseStore> ProfileInterface for RouterStore<T> {
         profile_update: domain::ProfileUpdate,
     ) -> CustomResult<domain::Profile, StorageError> {
         let conn = pg_accounts_connection_write(self).await?;
-        Conversion::convert(current_state)
-            .await
-            .change_context(StorageError::EncryptionError)?
-            .update_by_profile_id(&conn, ProfileUpdateInternal::foreign_from(profile_update))
-            .await
-            .map_err(|error| report!(StorageError::from(error)))?
-            .convert(
-                self.get_keymanager_state()
-                    .attach_printable("Missing KeyManagerState")?,
-                merchant_key_store.key.get_inner(),
-                merchant_key_store.merchant_id.clone().into(),
-            )
-            .await
-            .change_context(StorageError::DecryptionError)
+        Box::pin(
+            Conversion::convert(current_state)
+                .await
+                .change_context(StorageError::EncryptionError)?
+                .update_by_profile_id(&conn, ProfileUpdateInternal::foreign_from(profile_update)),
+        )
+        .await
+        .map_err(|error| report!(StorageError::from(error)))?
+        .convert(
+            self.get_keymanager_state()
+                .attach_printable("Missing KeyManagerState")?,
+            merchant_key_store.key.get_inner(),
+            merchant_key_store.merchant_id.clone().into(),
+        )
+        .await
+        .change_context(StorageError::DecryptionError)
     }
 
     #[instrument(skip_all)]
