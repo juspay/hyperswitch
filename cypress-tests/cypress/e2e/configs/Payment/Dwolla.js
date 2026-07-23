@@ -4,7 +4,7 @@ export const connectorDetails = {
   card_pm: {
     PaymentIntent: {
       Request: {
-        currency: "CAD",
+        currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
       },
@@ -18,6 +18,7 @@ export const connectorDetails = {
     No3DSAutoCapture: getCustomExchange({
       Configs: {
         ASSERT_BILLING_NOT_NULL: false,
+        TRIGGER_SKIP: true, // Dwolla is an ACH/bank transfer processor, card payments not supported
       },
       Request: {
         payment_method: "card",
@@ -30,7 +31,7 @@ export const connectorDetails = {
             card_cvc: "999",
           },
         },
-        currency: "CAD",
+        currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
       },
@@ -44,6 +45,7 @@ export const connectorDetails = {
     No3DSManualCapture: getCustomExchange({
       Configs: {
         ASSERT_BILLING_NOT_NULL: false,
+        TRIGGER_SKIP: true, // Dwolla is an ACH/bank transfer processor, card payments not supported
       },
       Request: {
         payment_method: "card",
@@ -56,7 +58,7 @@ export const connectorDetails = {
             card_cvc: "999",
           },
         },
-        currency: "CAD",
+        currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
       },
@@ -68,6 +70,9 @@ export const connectorDetails = {
       },
     }),
     Capture: getCustomExchange({
+      Configs: {
+        TRIGGER_SKIP: true, // Card payments not supported by Dwolla
+      },
       Request: {
         amount_to_capture: 6000,
       },
@@ -79,6 +84,9 @@ export const connectorDetails = {
       },
     }),
     PartialCapture: getCustomExchange({
+      Configs: {
+        TRIGGER_SKIP: true, // Card payments not supported by Dwolla
+      },
       Request: {
         amount_to_capture: 2000,
       },
@@ -90,6 +98,9 @@ export const connectorDetails = {
       },
     }),
     Refund: getCustomExchange({
+      Configs: {
+        TRIGGER_SKIP: true, // Card payments not supported by Dwolla
+      },
       Request: {
         amount: 6000,
       },
@@ -101,6 +112,9 @@ export const connectorDetails = {
       },
     }),
     PartialRefund: getCustomExchange({
+      Configs: {
+        TRIGGER_SKIP: true, // Card payments not supported by Dwolla
+      },
       Request: {
         amount: 2000,
       },
@@ -112,6 +126,9 @@ export const connectorDetails = {
       },
     }),
     manualPaymentRefund: getCustomExchange({
+      Configs: {
+        TRIGGER_SKIP: true, // Card payments not supported by Dwolla
+      },
       Request: {
         amount: 6000,
       },
@@ -123,6 +140,9 @@ export const connectorDetails = {
       },
     }),
     manualPaymentPartialRefund: getCustomExchange({
+      Configs: {
+        TRIGGER_SKIP: true, // Card payments not supported by Dwolla
+      },
       Request: {
         amount: 2000,
       },
@@ -134,6 +154,9 @@ export const connectorDetails = {
       },
     }),
     SyncRefund: getCustomExchange({
+      Configs: {
+        TRIGGER_SKIP: true, // Card payments not supported by Dwolla
+      },
       Response: {
         status: 200,
         body: {
@@ -141,48 +164,5 @@ export const connectorDetails = {
         },
       },
     }),
-  },
-  bank_redirect_pm: {
-    Interac: {
-      Request: {
-        payment_method: "bank_redirect",
-        payment_method_type: "interac",
-        payment_method_data: {
-          bank_redirect: {
-            interac: {},
-          },
-          billing: {
-            email: "guest@example.com",
-            address: {
-              first_name: "John",
-              last_name: "Doe",
-            },
-          },
-        },
-        billing: {
-          address: {
-            line1: "1467",
-            line2: "Harrison Street",
-            line3: "Harrison Street",
-            city: "San Fransico",
-            state: "California",
-            zip: "94122",
-            country: "CA",
-            first_name: "joseph",
-            last_name: "Doe",
-          },
-          phone: {
-            number: "9123456789",
-            country_code: "+91",
-          },
-        },
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_customer_action",
-        },
-      },
-    },
   },
 };
