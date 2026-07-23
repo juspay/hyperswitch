@@ -1850,6 +1850,21 @@ fn get_cards_required_fields() -> HashMap<Connector, RequiredFieldFinal> {
             Connector::Imerchantsolutions,
             fields(vec![], card_basic(), vec![]),
         ),
+        (
+            Connector::Givepayments,
+            RequiredFieldFinal {
+                mandate: HashMap::new(),
+                non_mandate: HashMap::from([
+                    RequiredField::BillingUserFirstName.to_tuple(),
+                    RequiredField::BillingUserLastName.to_tuple(),
+                    RequiredField::CardNumber.to_tuple(),
+                    RequiredField::CardExpMonth.to_tuple(),
+                    RequiredField::CardExpYear.to_tuple(),
+                    RequiredField::Email.to_tuple(),
+                ]),
+                common: HashMap::new(),
+            },
+        ),
     ])
 }
 

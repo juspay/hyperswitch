@@ -364,6 +364,17 @@ export const payment_methods_enabled = [
         recurring_enabled: true,
         installment_payment_enabled: true,
       },
+      {
+        payment_method_type: "eft",
+        payment_experience: null,
+        card_networks: null,
+        accepted_currencies: null,
+        accepted_countries: null,
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: true,
+        installment_payment_enabled: true,
+      },
     ],
   },
   {
@@ -517,6 +528,14 @@ export const payment_methods_enabled = [
         maximum_amount: 68607706,
         recurring_enabled: true,
         installment_payment_enabled: true,
+        payment_experience: "redirect_to_url",
+      },
+      {
+        payment_method_type: "qris",
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: true,
+        installment_payment_enabled: false,
         payment_experience: "redirect_to_url",
       },
     ],
@@ -980,6 +999,34 @@ export const payment_methods_enabled = [
       },
     ],
   },
+  {
+    payment_method: "card_redirect",
+    payment_method_types: [
+      {
+        payment_method_type: "card_redirect",
+        payment_experience: null,
+        card_networks: null,
+        accepted_currencies: null,
+        accepted_countries: null,
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: true,
+        installment_payment_enabled: true,
+      },
+    ],
+  },
+  {
+    payment_method: "open_banking",
+    payment_method_types: [
+      {
+        payment_method_type: "open_banking_pis",
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: false,
+        installment_payment_enabled: false,
+      },
+    ],
+  },
 ];
 
 export const connectorDetails = {
@@ -1398,6 +1445,19 @@ export const connectorDetails = {
         },
       }),
     },
+    Eft: getCustomExchange({
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "eft",
+        payment_method_data: {
+          bank_redirect: {
+            eft: {
+              provider: "ozow",
+            },
+          },
+        },
+      },
+    }),
   },
   bank_debit_pm: {
     PaymentIntent: (paymentMethodType) => {
@@ -2157,6 +2217,41 @@ export const connectorDetails = {
           },
         },
         billing: standardBillingAddress,
+      },
+    }),
+    Qris: getCustomExchange({
+      Request: {
+        payment_method: "real_time_payment",
+        payment_method_type: "qris",
+        payment_method_data: {
+          real_time_payment: {
+            qris: {},
+          },
+        },
+        billing: standardBillingAddress,
+      },
+    }),
+    QrisMandate: getCustomExchange({
+      Request: {
+        payment_method: "real_time_payment",
+        payment_method_type: "qris",
+        payment_method_data: {
+          real_time_payment: {
+            qris: {},
+          },
+        },
+        billing: standardBillingAddress,
+        setup_future_usage: "off_session",
+        mandate_data: {
+          customer_acceptance: {
+            acceptance_type: "online",
+            accepted_at: "2026-07-13T18:09:53Z",
+            online: {
+              ip_address: "127.0.0.1",
+              user_agent: "test-agent",
+            },
+          },
+        },
       },
     }),
   },
@@ -3900,6 +3995,75 @@ export const connectorDetails = {
         },
       },
     }),
+    // WebhookConfig: webhook_username and webhook_password are masked
+    // placeholders — not real credentials. They are safe to use in any
+    // connector config as placeholder webhook auth data.
+    WebhookConfig: {
+      Create: getCustomExchange({
+        Request: {
+          webhook_details: {
+            webhook_version: "1.0.2",
+            webhook_username: "<WEBHOOK_USERNAME>",
+            webhook_password: "<WEBHOOK_PASSWORD>",
+            webhook_url: "https://example.com/webhook",
+            payment_created_enabled: true,
+            payment_succeeded_enabled: true,
+            payment_failed_enabled: false,
+            payment_statuses_enabled: ["succeeded", "failed"],
+            refund_statuses_enabled: ["success", "failure"],
+            payout_statuses_enabled: ["success", "failed"],
+          },
+        },
+        Response: {
+          status: 200,
+          body: {
+            webhook_details: {
+              payment_failed_enabled: false,
+              payment_statuses_enabled: ["succeeded", "failed"],
+              refund_statuses_enabled: ["success", "failure"],
+              payout_statuses_enabled: ["success", "failed"],
+            },
+          },
+        },
+      }),
+      Update: getCustomExchange({
+        Request: {
+          webhook_details: {
+            webhook_version: "1.0.2",
+            webhook_username: "<WEBHOOK_USERNAME_UPDATED>",
+            webhook_password: "<WEBHOOK_PASSWORD_UPDATED>",
+            webhook_url: "https://example.com/webhook_updated",
+            payment_created_enabled: true,
+            payment_succeeded_enabled: true,
+            payment_failed_enabled: true,
+            payment_statuses_enabled: [
+              "succeeded",
+              "failed",
+              "cancelled",
+              "processing",
+            ],
+            refund_statuses_enabled: ["success", "failure"],
+            payout_statuses_enabled: ["success", "failed", "initiated"],
+          },
+        },
+        Response: {
+          status: 200,
+          body: {
+            webhook_details: {
+              payment_failed_enabled: true,
+              payment_statuses_enabled: [
+                "succeeded",
+                "failed",
+                "cancelled",
+                "processing",
+              ],
+              refund_statuses_enabled: ["success", "failure"],
+              payout_statuses_enabled: ["success", "failed", "initiated"],
+            },
+          },
+        },
+      }),
+    },
   },
   upi_pm: {
     PaymentIntent: getCustomExchange({
@@ -5194,6 +5358,24 @@ export const connectorDetails = {
         },
       },
     },
+  },
+  card_redirect_pm: {
+    PaymentIntent: getCustomExchange({
+      Request: {
+        currency: "USD",
+      },
+    }),
+    CardRedirect: getCustomExchange({
+      Request: {
+        payment_method: "card_redirect",
+        payment_method_type: "card_redirect",
+        payment_method_data: {
+          card_redirect: {
+            card_redirect: {},
+          },
+        },
+      },
+    }),
   },
   step_up_auth: {
     PaymentIntentOnly: getCustomExchange({
