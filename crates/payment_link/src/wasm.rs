@@ -1,8 +1,8 @@
 use api_models::admin::PaymentLinkConfig;
 
 use crate::{
-    build_payment_link_html, get_css_script, get_js_script, get_meta_tags_html,
-    types::PaymentLinkPreviewConfig, PaymentLinkFormData,
+    build_payment_link_html, consts::DEFAULT_MERCHANT_LOGO, get_css_script, get_js_script,
+    get_meta_tags_html, types::PaymentLinkPreviewConfig, PaymentLinkFormData,
 };
 
 const SDK_URL: &str = env!("SDK_URL");
@@ -10,8 +10,12 @@ const SDK_URL: &str = env!("SDK_URL");
 /// Implementation function for generating payment link preview
 /// Called by the wasm_bindgen wrapper in lib.rs
 pub fn generate_payment_link_preview_impl(config_json: &str) -> Result<String, String> {
-    let preview_config: PaymentLinkPreviewConfig = serde_json::from_str(config_json)
+    let mut preview_config: PaymentLinkPreviewConfig = serde_json::from_str(config_json)
         .map_err(|e| format!("Failed to deserialize PaymentLinkPreviewConfig: {}", e))?;
+
+    if preview_config.payment_link_details.merchant_logo.is_empty() {
+        preview_config.payment_link_details.merchant_logo = DEFAULT_MERCHANT_LOGO.to_string();
+    }
 
     let payment_link_details = &preview_config.payment_link_details;
 
@@ -42,7 +46,7 @@ pub fn generate_payment_link_preview_impl(config_json: &str) -> Result<String, S
         color_icon_card_cvc_error: payment_link_details.color_icon_card_cvc_error.clone(),
         enabled_saved_payment_method: false,
         allowed_domains: None,
-        payment_link_ui_rules: None,
+        payment_link_ui_rules: preview_config.payment_link_ui_rules.clone(),
         custom_message_for_payment_method_types: payment_link_details
             .custom_message_for_payment_method_types
             .clone(),
@@ -53,7 +57,9 @@ pub fn generate_payment_link_preview_impl(config_json: &str) -> Result<String, S
         payment_link_config.enabled_saved_payment_method =
             config_from_json.enabled_saved_payment_method;
         payment_link_config.allowed_domains = config_from_json.allowed_domains;
-        payment_link_config.payment_link_ui_rules = config_from_json.payment_link_ui_rules;
+        if config_from_json.payment_link_ui_rules.is_some() {
+            payment_link_config.payment_link_ui_rules = config_from_json.payment_link_ui_rules;
+        }
     }
 
     let sdk_url = url::Url::parse(SDK_URL).map_err(|e| format!("Invalid SDK URL: {}", e))?;

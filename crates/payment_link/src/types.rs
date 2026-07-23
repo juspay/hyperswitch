@@ -1,5 +1,7 @@
 //! Payment link specific types
 
+use std::collections::HashMap;
+
 use common_utils::{
     events::{ApiEventMetric, ApiEventsType},
     impl_api_event_type,
@@ -33,6 +35,8 @@ pub struct PreloadSDKParams {
 pub struct PaymentLinkPreviewConfig {
     pub test_mode: Option<bool>,
     pub preload_sdk_with_params: Option<PreloadSDKParams>,
+    #[serde(skip_serializing)]
+    pub payment_link_ui_rules: Option<HashMap<String, HashMap<String, String>>>,
     #[serde(flatten)]
     pub payment_link_details: api_models::payments::PaymentLinkDetails,
 }
