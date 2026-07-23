@@ -128,6 +128,9 @@ pub struct RouterData<Flow, Request, Response> {
     pub feature_data: Option<FeatureData>,
     /// A connector-specific identifier representing the stored payment instrument
     pub sender_payment_instrument_id: Option<String>,
+
+    /// Payment method details returned by the connector
+    pub connector_returned_payment_method_details: Option<payment_method_data::PaymentMethodData>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

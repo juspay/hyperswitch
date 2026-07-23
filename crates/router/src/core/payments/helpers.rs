@@ -3249,8 +3249,13 @@ pub async fn fetch_card_details_from_external_vault(
             Err(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Wallet not supported")
         }
+        hyperswitch_domain_models::vault::PaymentMethodVaultingData::BankRedirect(_) => {
+            Err(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Bank Redirect not supported")
+        }
     }
 }
+
 #[cfg(feature = "v1")]
 pub async fn fetch_network_token_details_from_locker(
     state: &SessionState,
@@ -3395,6 +3400,13 @@ pub async fn retrieve_payment_method_from_db_with_token_data(
         | storage::PaymentTokenData::Permanent(_)
         | storage::PaymentTokenData::AuthBankDebit(_) => Ok(None),
         storage::PaymentTokenData::BankDebit(data) => state
+            .store
+            .find_payment_method(merchant_key_store, &data.payment_method_id, storage_scheme)
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)
+            .attach_printable("error retrieving payment method from DB")
+            .map(Some),
+        storage::PaymentTokenData::BankRedirect(data) => state
             .store
             .find_payment_method(merchant_key_store, &data.payment_method_id, storage_scheme)
             .await
@@ -5387,6 +5399,7 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
         customer_document_details: router_data.customer_document_details,
         feature_data: router_data.feature_data,
         sender_payment_instrument_id: router_data.sender_payment_instrument_id,
+        connector_returned_payment_method_details: None,
     }
 }
 
@@ -8571,7 +8584,9 @@ pub async fn get_payment_method_details_from_payment_token(
         storage::PaymentTokenData::WalletToken(_) => Ok(None),
 
         // TODO: External authentication not implemented for BankDebit
-        storage::PaymentTokenData::BankDebit(_) => Ok(None),
+        storage::PaymentTokenData::BankDebit(_) | storage::PaymentTokenData::BankRedirect(_) => {
+            Ok(None)
+        }
     }
 }
 
