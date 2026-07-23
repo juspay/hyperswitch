@@ -49,6 +49,7 @@ import {
   mockRecordBankRedirect,
   mockReplay3ds,
   mockReplayBankRedirect,
+  hasCassetteForCurrentTest,
   resetMitmRedirectSeq,
 } from "./mitmProxy";
 
@@ -2397,6 +2398,36 @@ Cypress.Commands.add(
 
       cy.wrap(response).then(() => {
         expect(response.body.customer_id).to.equal(customer_id);
+      });
+    });
+  }
+);
+
+Cypress.Commands.add(
+  "customerRetrieveAndAssertCall",
+  (globalState, expectedFields) => {
+    const customer_id = globalState.get("customerId");
+
+    cy.request({
+      method: "GET",
+      url: `${globalState.get("baseUrl")}/customers/${customer_id}`,
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": globalState.get("apiKey"),
+      },
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        expect(response.status).to.equal(200);
+        expect(response.body.customer_id).to.equal(customer_id);
+
+        for (const [field, expectedValue] of Object.entries(expectedFields)) {
+          expect(response.body[field], `customer.${field}`).to.equal(
+            expectedValue
+          );
+        }
       });
     });
   }
@@ -5670,7 +5701,17 @@ Cypress.Commands.add(
     }
 
     if (isReplayMode()) {
-      mockReplay3ds(globalState, connectorId, nextActionUrl);
+      if (hasCassetteForCurrentTest()) {
+        mockReplay3ds(globalState, connectorId, nextActionUrl);
+      } else {
+        // No cassette: fall back to live connector via redirect proxy (same as record mode).
+        mockRecord3ds(
+          globalState,
+          nextActionUrl,
+          expectedRedirection,
+          handleRedirection
+        );
+      }
       return;
     }
 
@@ -5751,7 +5792,19 @@ Cypress.Commands.add(
     }
 
     if (isReplayMode()) {
-      mockReplayBankRedirect(globalState, connectorId);
+      if (hasCassetteForCurrentTest()) {
+        mockReplayBankRedirect(globalState, connectorId);
+      } else {
+        // No cassette: fall back to live connector via redirect proxy (same as record mode).
+        if (!nextActionUrl) return;
+        mockRecordBankRedirect(
+          globalState,
+          nextActionUrl,
+          expectedRedirection,
+          paymentMethodType,
+          handleRedirection
+        );
+      }
       return;
     }
 
