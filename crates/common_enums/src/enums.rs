@@ -3393,6 +3393,29 @@ pub enum FundingSource {
 
 #[derive(
     Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumIter,
+    strum::EnumString,
+    utoipa::ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "UPPERCASE")]
+pub enum CardSegmentType {
+    Business,
+    Commercial,
+    Consumer,
+    Government,
+}
+
+#[derive(
+    Clone,
     Debug,
     Eq,
     Hash,

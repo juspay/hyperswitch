@@ -15614,6 +15614,45 @@
             "type": "boolean",
             "description": "Whether to block if BIN is provided but no matching record found in cards_info table.\nDefaults to false (allow payment if BIN not found in database).",
             "nullable": true
+          },
+          "card_networks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CardNetwork"
+            },
+            "description": "Set of card networks to block",
+            "nullable": true
+          },
+          "funding_sources": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FundingSource"
+            },
+            "description": "Set of card funding sources to block",
+            "nullable": true
+          },
+          "card_segment_types": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CardSegmentType"
+            },
+            "description": "Set of card segment types to block",
+            "nullable": true
+          },
+          "block_virtual_cards": {
+            "type": "boolean",
+            "description": "Whether virtual cards should be blocked",
+            "nullable": true
+          },
+          "block_non_reloadable_prepaid_cards": {
+            "type": "boolean",
+            "description": "Whether non-reloadable prepaid cards should be blocked",
+            "nullable": true
+          },
+          "gambling_blocked": {
+            "type": "boolean",
+            "description": "Whether cards from BINs marked for gambling should be blocked",
+            "nullable": true
           }
         }
       },
@@ -16223,6 +16262,15 @@
             "nullable": true
           }
         }
+      },
+      "CardSegmentType": {
+        "type": "string",
+        "enum": [
+          "business",
+          "commercial",
+          "consumer",
+          "government"
+        ]
       },
       "CardSpecificFeatures": {
         "type": "object",
@@ -45296,7 +45344,23 @@
             "items": {
               "$ref": "#/components/schemas/CardType"
             },
-            "description": "Set of card types to block for wallet payments (e.g., [\"Credit\", \"Debit\"])",
+            "description": "Set of card types to block for all wallet payments (e.g., [\"Credit\", \"Debit\"]).\nRetained for backwards compatibility with existing configurations.",
+            "nullable": true
+          },
+          "apple_pay": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardBlockingConfig"
+              }
+            ],
+            "nullable": true
+          },
+          "google_pay": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardBlockingConfig"
+              }
+            ],
             "nullable": true
           }
         }
