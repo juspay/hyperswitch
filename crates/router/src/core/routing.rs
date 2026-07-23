@@ -292,11 +292,13 @@ pub async fn create_routing_algorithm_under_profile(
             .get_required_value("Profile")?;
     let processor_merchant_id = processor.get_account().get_id();
     core_utils::validate_profile_id_from_auth_layer(authentication_profile_id, &business_profile)?;
+    // Fetching disabled MCAs too: routing configs may reference MCAs that are
+    // temporarily disabled — validation checks connector existence, not activity.
     let all_mcas = state
         .store
-        .find_merchant_connector_account_without_encrypted_by_merchant_id_and_disabled_list(
+        .list_merchant_connector_accounts_without_encrypted_including_disabled_by_merchant_id_profile_id(
             processor_merchant_id,
-            true,
+            business_profile.get_id(),
         )
         .await
         .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
@@ -304,14 +306,14 @@ pub async fn create_routing_algorithm_under_profile(
         })?;
 
     let name_mca_id_set = helpers::ConnectNameAndMCAIdForProfile(
-        all_mcas.filter_by_profile(business_profile.get_id(), |mca| {
-            (&mca.connector_name, mca.get_id())
-        }),
+        all_mcas
+            .iter()
+            .map(|mca| (&mca.connector_name, mca.get_id()))
+            .collect(),
     );
 
-    let name_set = helpers::ConnectNameForProfile(
-        all_mcas.filter_by_profile(business_profile.get_id(), |mca| &mca.connector_name),
-    );
+    let name_set =
+        helpers::ConnectNameForProfile(all_mcas.iter().map(|mca| &mca.connector_name).collect());
 
     let algorithm_helper = helpers::RoutingAlgorithmHelpers {
         name_mca_id_set,

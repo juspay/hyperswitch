@@ -471,25 +471,22 @@ pub async fn validate_connectors_in_routing_config(
     profile_id: &id_type::ProfileId,
     routing_algorithm: &routing_types::StaticRoutingAlgorithm,
 ) -> RouterResult<()> {
+    // Fetching disabled MCAs too: routing configs may reference MCAs that are
+    // temporarily disabled — validation checks connector existence, not activity.
     let all_mcas = state
         .store
-        .find_merchant_connector_account_without_encrypted_by_merchant_id_and_disabled_list(
-            merchant_id,
-            true,
-        )
+        .list_merchant_connector_accounts_without_encrypted_including_disabled_by_merchant_id_profile_id(merchant_id, profile_id)
         .await
         .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
             id: merchant_id.get_string_repr().to_owned(),
         })?;
     let name_mca_id_set = all_mcas
         .iter()
-        .filter(|mca| mca.profile_id == *profile_id)
         .map(|mca| (&mca.connector_name, mca.get_id()))
         .collect::<FxHashSet<_>>();
 
     let name_set = all_mcas
         .iter()
-        .filter(|mca| mca.profile_id == *profile_id)
         .map(|mca| &mca.connector_name)
         .collect::<FxHashSet<_>>();
 
