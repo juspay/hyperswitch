@@ -1,4 +1,7 @@
-use common_utils::{pii::Email, types::StringMajorUnit};
+use common_utils::{
+    pii::Email,
+    types::{MinorUnit, StringMajorUnit},
+};
 use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 
@@ -33,6 +36,15 @@ pub struct BillingAddress {
     pub street_address: Option<Secret<String>>,
 }
 
+/// A single ledger entry in a split payment request, routing a signed amount to one receiver
+#[derive(Clone, Debug, Serialize, PartialEq)]
+pub struct PayloadSplitLedgerEntry {
+    /// Signed amount in minor units (negative = debit from the payment)
+    pub amount: MinorUnit,
+    /// processing_id of the receiver account
+    pub receiver_id: String,
+}
+
 /// Top-level payment request sent to /transactions
 #[derive(Debug, Clone, Serialize)]
 pub struct PayloadPaymentRequestData {
@@ -58,6 +70,9 @@ pub struct PayloadPaymentRequestData {
     /// Flexible JSON object for structured metadata (order IDs, lease references, etc.)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub attrs: Option<serde_json::Value>,
+    /// Split payment ledger entries distributing the payment across receivers
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ledger: Option<Vec<PayloadSplitLedgerEntry>>,
 }
 
 /// Wrapper that nests `billing_address` and `keep_active` inside `payment_method`
@@ -98,6 +113,9 @@ pub struct PayloadMandateRequestData {
     pub descriptor: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub attrs: Option<serde_json::Value>,
+    /// Split payment ledger entries distributing the payment across receivers
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ledger: Option<Vec<PayloadSplitLedgerEntry>>,
 }
 
 #[derive(Default, Clone, Debug, Serialize, Eq, PartialEq)]

@@ -9232,6 +9232,24 @@ pub fn validate_platform_request_for_marketplace(
             }
             common_types::payments::XenditSplitRequest::SingleSplit(_) => (),
         },
+        Some(common_types::payments::SplitPaymentsRequest::PayloadSplitPayment(
+            payload_split_payment,
+        )) => payload_split_payment
+            .ledger
+            .iter()
+            .try_for_each(|split_item| {
+                if split_item.amount.get_amount_as_i64() > 0 {
+                    return Err(errors::ApiErrorResponse::InvalidDataValue {
+                        field_name: "split_payments.payload_split_payment.ledger.amount",
+                    });
+                }
+                if split_item.receiver_id.is_empty() {
+                    return Err(errors::ApiErrorResponse::MissingRequiredField {
+                        field_name: "split_payments.payload_split_payment.ledger.receiver_id",
+                    });
+                }
+                Ok(())
+            })?,
         None => (),
     }
     Ok(())
