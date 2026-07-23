@@ -1160,13 +1160,22 @@ pub async fn resume_revenue_recovery_process_tracker(
             let pt_update = storage::ProcessTrackerUpdate::Update {
                 name: process_tracker.name.clone(),
                 tracking_data: Some(process_tracker.tracking_data.clone()),
-                business_status: Some(request_retrigger.business_status.clone()),
-                status: Some(request_retrigger.status),
+                // For business_status and status, use the values from the request
+                // if provided, otherwise retain the existing values on the task
+                // (None leaves the column unchanged).
+                business_status: request_retrigger.business_status.clone(),
+                status: request_retrigger.status,
                 updated_at: Some(common_utils::date_time::now()),
-                retry_count: Some(process_tracker.retry_count + 1),
-                schedule_time: Some(request_retrigger.schedule_time.unwrap_or(
-                    common_utils::date_time::now().saturating_add(time::Duration::seconds(600)),
-                )),
+                // Use the retry count from the request if provided, otherwise
+                // retain the existing retry count on the task.
+                retry_count: Some(
+                    request_retrigger
+                        .retry_count
+                        .unwrap_or(process_tracker.retry_count),
+                ),
+                // Use the schedule time from the request if provided, otherwise
+                // retain the existing schedule time on the task.
+                schedule_time: request_retrigger.schedule_time,
             };
             let updated_pt = db
                 .update_process(process_tracker, pt_update)
@@ -1221,15 +1230,17 @@ pub async fn resume_revenue_recovery_process_tracker(
                     let pt_update = storage::ProcessTrackerUpdate::Update {
                         name: existing_psync.name.clone(),
                         tracking_data: Some(existing_psync.tracking_data.clone()),
-                        business_status: Some(request_retrigger.business_status.clone()),
-                        status: Some(request_retrigger.status),
+                        // For business_status and status, use the values from the
+                        // request if provided, otherwise retain the existing values
+                        // on the task. Note: to re-run a finished PSYNC task the
+                        // caller must pass a runnable status explicitly.
+                        business_status: request_retrigger.business_status.clone(),
+                        status: request_retrigger.status,
                         updated_at: Some(common_utils::date_time::now()),
                         retry_count: Some(existing_psync.retry_count + 1),
-                        schedule_time: Some(
-                            request_retrigger
-                                .schedule_time
-                                .unwrap_or_else(common_utils::date_time::now),
-                        ),
+                        // Use the schedule time from the request if provided,
+                        // otherwise retain the existing schedule time on the task.
+                        schedule_time: request_retrigger.schedule_time,
                     };
                     db.update_process(existing_psync, pt_update)
                         .await
