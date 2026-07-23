@@ -1070,8 +1070,6 @@ ucs_psync_disabled_connectors = "cashtocode, trustly"    # Comma-separated list 
 mode = "disabled"
 run_id = ""
 
-[deja.recording]
-
 [deja.recording.kafka]
 brokers = []
 topic = "hyperswitch-deja-recording-events"
