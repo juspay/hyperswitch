@@ -20,7 +20,13 @@ superposition = [
 ]
 v1 = ["hyperswitch_interfaces/v1", "common_utils/v1"]
 v2 = ["hyperswitch_interfaces/v2", "common_utils/v2"]
-deja = ["dep:bytes", "dep:deja"]
+deja = [
+    "dep:bytes",
+    "dep:deja",
+    "dep:http-body",
+    "dep:http-body-util",
+    "dep:prost-reflect",
+]
 revenue_recovery = [
     "dep:prost",
     "dep:router_env",
@@ -69,6 +75,7 @@ serde_json = "1.0.140"
 serde_urlencoded = "0.7.1"
 vaultrs = { version = "0.7.4", optional = true }
 prost = { version = "0.14", optional = true }
+prost-reflect = { version = "0.16.5", features = ["serde"], optional = true }
 prost-types = { version = "0.14", optional = true }
 time = { version = "0.3.41", features = ["serde", "serde-well-known", "std"] }
 tokio = "1.48.0"
@@ -79,6 +86,7 @@ tonic-types = "0.13.1"
 typed-builder = "0.21.2"
 hyper-util = { version = "0.1.12", optional = true }
 http-body-util = { version = "0.1.3", optional = true }
+http-body = { version = "1.0.1", optional = true }
 reqwest = { version = "0.11.27", features = ["rustls-tls"] }
 http = "0.2.12"
 url = { version = "2.5.4", features = ["serde"] }
@@ -107,6 +115,11 @@ api_models = { version = "0.1.0", path = "../api_models", optional = true }
 [build-dependencies]
 router_env = { version = "0.1.0", path = "../router_env", default-features = false, optional = true }
 tonic-prost-build = "0.14"
+
+[dev-dependencies]
+# Test-only: the deja gRPC transport test drives a real tonic server over a
+# TcpListener via `tokio_stream::wrappers::TcpListenerStream` (the `net` feature).
+tokio-stream = { version = "0.1.17", features = ["net"] }
 
 [lints]
 workspace = true
