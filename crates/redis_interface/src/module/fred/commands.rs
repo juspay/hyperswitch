@@ -928,6 +928,23 @@ impl super::RedisConnectionWithContext {
     }
 
     #[instrument(level = "DEBUG", skip(self))]
+    pub async fn delete_hash_fields<F>(
+        &self,
+        key: &RedisKey,
+        fields: F,
+    ) -> CustomResult<usize, errors::RedisError>
+    where
+        F: Into<MultipleKeys> + Debug + Send + Sync,
+    {
+        track_redis_call(
+            RedisOperation::DeleteHashFields,
+            self.pool.hdel(key.tenant_aware_key(self), fields),
+        )
+        .await
+        .change_context(errors::RedisError::DeleteHashFieldFailed)
+    }
+
+    #[instrument(level = "DEBUG", skip(self))]
     pub async fn sadd<V>(
         &self,
         key: &RedisKey,

@@ -413,6 +413,11 @@ required = true
 type = "Text"
 
 
+[adyen.connector_webhook_register_details]
+label="Webhook Registration"
+webhook_auto_configuration_supported=true 
+scope_type="not_specific"
+
 [airwallex]
 [[airwallex.credit]]
 payment_method_type = "Mastercard"
@@ -5010,12 +5015,6 @@ key1 = "Merchant ID"
 certificate = "Base64 encoded PEM formatted certificate chain"
 private_key = "Base64 encoded PEM formatted private key"
 
-[netcetera.metadata.endpoint_prefix]
-name = "endpoint_prefix"
-label = "Live endpoint prefix"
-placeholder = "string that will replace '{prefix}' in this base url 'https://{prefix}.3ds-server.prev.netcetera-cloud-payment.ch'"
-required = true
-type = "Text"
 [netcetera.metadata.mcc]
 name = "mcc"
 label = "MCC"
@@ -6520,7 +6519,7 @@ type="Text"
 name="workspace_id"
 label="Workspace Id"
 placeholder="Enter the workspace id"
-required=true
+required=false
 type="Text"
 [[santander.metadata.boleto]]
 name="covenant_code"
@@ -6528,6 +6527,12 @@ label="Covenant Code"
 placeholder="Enter the covenant code"
 required=true
 type="Text"
+
+[santander.connector_webhook_register_details]
+label="Webhook Registration & Workspace Creation"
+webhook_auto_configuration_supported=true 
+scope_type="payment_method_type"
+payment_method_types=["pix_emv", "pix_automatico_push", "pix_automatico_qr", "boleto"]
 
 [blackhawknetwork]
 [[blackhawknetwork.gift_card]]
@@ -6565,6 +6570,32 @@ processing_account_id = "processing_account_id"
 api_key = "API Key"
 [payload.connector_webhook_details]
 merchant_secret = "Source verification key"
+
+[payload.connector_webhook_register_details]
+label="Webhook Registration"
+webhook_auto_configuration_supported=true 
+event_types=[
+    "payment_processing",
+    "payment_authorized",
+    "payment_partially_authorized",
+    "payment_succeeded",
+    "payment_captured",
+    "payment_failed",
+    "refund_failed",
+    "payment_cancelled",
+    "payment_cancelled_post_capture",
+    "refund_succeeded",
+    "dispute_opened",
+    "dispute_accepted",
+    "dispute_lost",
+    "payout_initiated",
+    "payout_processing",
+    "payout_success",
+    "payout_failed",
+    "payout_cancelled",
+    "payout_reversed"
+]
+scope_type="event_type"
 
 [silverflow]
 [[silverflow.credit]]
@@ -7751,3 +7782,37 @@ api_key = "API Key"
 [payconex.connector_auth.BodyKey]
 api_key = "API Key"
 key1 = "Account Id"
+
+[givepayments]
+[givepayments.connector_auth.HeaderKey]
+api_key = "API Key"
+[givepayments.connector_webhook_details]
+merchant_secret="Source verification key"
+[[givepayments.credit]]
+payment_method_type = "Mastercard"
+[[givepayments.credit]]
+payment_method_type = "Visa"
+[[givepayments.credit]]
+payment_method_type = "AmericanExpress"
+[[givepayments.credit]]
+payment_method_type = "JCB"
+[[givepayments.credit]]
+payment_method_type = "Discover"
+[[givepayments.credit]]
+payment_method_type = "DinersClub"
+[[givepayments.credit]]
+payment_method_type = "UnionPay"
+[[givepayments.debit]]
+payment_method_type = "Mastercard"
+[[givepayments.debit]]
+payment_method_type = "Visa"
+[[givepayments.debit]]
+payment_method_type = "AmericanExpress"
+[[givepayments.debit]]
+payment_method_type = "JCB"
+[[givepayments.debit]]
+payment_method_type = "Discover"
+[[givepayments.debit]]
+payment_method_type = "DinersClub"
+[[givepayments.debit]]
+payment_method_type = "UnionPay"

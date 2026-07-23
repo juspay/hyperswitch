@@ -253,6 +253,24 @@ pub struct ConnectorErrorInner {
     pub network_error_message: Option<String>,
 }
 
+impl From<&ConnectorErrorInner> for ErrorResponse {
+    fn from(error: &ConnectorErrorInner) -> Self {
+        Self {
+            code: error.code.clone(),
+            message: error.message.clone(),
+            reason: error.reason.clone(),
+            status_code: error.status_code,
+            attempt_status: None,
+            connector_transaction_id: error.connector_transaction_id.clone(),
+            connector_response_reference_id: None,
+            network_decline_code: error.network_decline_code.clone(),
+            network_advice_code: error.network_advice_code.clone(),
+            network_error_message: error.network_error_message.clone(),
+            connector_metadata: None,
+        }
+    }
+}
+
 impl ForeignTryFrom<payments_grpc::PaymentChargeType> for common_enums::PaymentChargeType {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
@@ -402,10 +420,13 @@ impl ForeignTryFrom<(payments_grpc::PaymentServiceGetResponse, AttemptStatus)>
     ) -> Result<Self, Self::Error> {
         let status_code = convert_connector_service_status_code(response.status_code)?;
 
-        let connector_transaction_id =
+        let connector_transaction_id = if response.connector_transaction_id.is_empty() {
+            hyperswitch_domain_models::router_request_types::ResponseId::NoResponseId
+        } else {
             hyperswitch_domain_models::router_request_types::ResponseId::ConnectorTransactionId(
                 response.connector_transaction_id.clone(),
-            );
+            )
+        };
 
         let connector_details = response
             .error
@@ -1162,7 +1183,7 @@ impl UnifiedConnectorServiceError {
                 .as_ref()
                 .and_then(|error_info| error_info.connector_details.as_ref())
                 .and_then(|connector_details| connector_details.code.clone())
-                .unwrap_or_else(|| connector_error.error_code.clone()),
+                .unwrap_or_else(|| crate::consts::NO_ERROR_CODE.to_string()),
             message: connector_error.error_message,
             status_code,
             reason: connector_error
