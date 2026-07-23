@@ -2944,6 +2944,37 @@ impl StripeChargeEnum {
 pub struct StripeCharge {
     pub id: String,
     pub payment_method_details: Option<StripePaymentMethodDetailsResponse>,
+    /// The `outcome` object from the Stripe charge, describing whether the payment was accepted
+    /// and the risk/network assessment behind that decision.
+    pub outcome: Option<StripePaymentOutcome>,
+}
+
+/// Full representation of the Stripe charge `outcome` object.
+/// See <https://docs.stripe.com/api/charges/object#charge_object-outcome>
+#[derive(Deserialize, Clone, Debug, Default, PartialEq, Eq, Serialize)]
+pub struct StripePaymentOutcome {
+    /// Possible values: authorized, manual_review, issuer_declined, blocked, invalid
+    #[serde(rename = "type")]
+    pub outcome_type: Option<String>,
+    /// Possible values: approved_by_network, declined_by_network, not_sent_to_network,
+    /// reversed_after_approval
+    pub network_status: Option<String>,
+    /// Enumerated reason for the outcome type (e.g. highest_risk_level, rule)
+    pub reason: Option<String>,
+    /// Stripe Radar's evaluation of the riskiness (normal, elevated, highest, not_assessed, unknown)
+    pub risk_level: Option<String>,
+    /// Stripe Radar's numeric risk score (0-100), only available with Radar for Fraud Teams
+    pub risk_score: Option<i32>,
+    /// Human-readable description of the outcome, meant for the recipient of the payment
+    pub seller_message: Option<String>,
+    /// Advice on how to proceed with an error (confirm_card_data, do_not_try_again, try_again_later)
+    pub advice_code: Option<String>,
+    /// Network advice code for network-declined charges
+    pub network_advice_code: Option<String>,
+    /// Network decline code for network-declined charges
+    pub network_decline_code: Option<String>,
+    /// The ID of the Radar rule that matched the payment, if applicable
+    pub rule: Option<String>,
 }
 
 #[derive(Deserialize, Clone, Debug, PartialEq, Eq, Serialize)]
@@ -3192,6 +3223,31 @@ pub struct SetupIntentResponse {
     pub last_setup_error: Option<ErrorDetails>,
 }
 
+/// Embeds the Stripe charge `outcome` into the card `payment_checks` value under an `outcome`
+/// key, preserving any existing checks. `payment_checks` is already persisted to the payment
+/// attempt's `payment_method_data`, so this stores the outcome without any schema change.
+fn attach_outcome_to_payment_checks(
+    payment_checks: Option<Value>,
+    outcome: &StripePaymentOutcome,
+) -> Option<Value> {
+    let outcome_value = match serde_json::to_value(outcome) {
+        Ok(value) => value,
+        // On the (practically impossible) serialization failure, keep the existing checks as-is.
+        Err(_) => return payment_checks,
+    };
+    match payment_checks {
+        Some(Value::Object(mut map)) => {
+            map.insert("outcome".to_string(), outcome_value);
+            Some(Value::Object(map))
+        }
+        Some(existing) => Some(serde_json::json!({
+            "checks": existing,
+            "outcome": outcome_value,
+        })),
+        None => Some(serde_json::json!({ "outcome": outcome_value })),
+    }
+}
+
 fn extract_payment_method_connector_response_from_latest_charge(
     stripe_charge_enum: &StripeChargeEnum,
     created_at: Option<PrimitiveDateTime>,
@@ -3203,6 +3259,18 @@ fn extract_payment_method_connector_response_from_latest_charge(
                 .payment_method_details
                 .as_ref()
                 .and_then(StripePaymentMethodDetailsResponse::get_additional_payment_method_data)
+                .map(|mut details| {
+                    // Persist the Stripe charge `outcome` alongside the existing card
+                    // `payment_checks`, so it is stored on the payment attempt's
+                    // `payment_method_data` for both successful and failed charges.
+                    if let Some(outcome) = charge_object.outcome.as_ref() {
+                        details.payment_checks = attach_outcome_to_payment_checks(
+                            details.payment_checks.take(),
+                            outcome,
+                        );
+                    }
+                    details
+                })
         } else {
             None
         };
