@@ -143,7 +143,7 @@ mod deja_boundary {
     {
         // Engage only when a deja hook is live (record or replay); else pure
         // passthrough — no observation, no allocation.
-        if !deja::__private::capture_is_active() {
+        if !deja::__private::observation_is_active() {
             return run().await;
         }
 
