@@ -200,7 +200,9 @@ impl super::RedisConnectionWithContext {
             self.request_id.as_deref(),
             self.redis_conn.event_emitter.as_ref(),
             RedisOperation::GetKey,
-            self.redis_conn.pool.get(key.tenant_aware_key(&self.redis_conn)),
+            self.redis_conn
+                .pool
+                .get(key.tenant_aware_key(&self.redis_conn)),
         )
         .await
         .change_context(errors::RedisError::GetFailed)
@@ -218,7 +220,9 @@ impl super::RedisConnectionWithContext {
                         self.request_id.as_deref(),
                         self.redis_conn.event_emitter.as_ref(),
                         RedisOperation::GetKey,
-                        self.redis_conn.pool.get(key.tenant_unaware_key(self.redis_conn)),
+                        self.redis_conn
+                            .pool
+                            .get(key.tenant_unaware_key(self.redis_conn)),
                     )
                     .await
                     .change_context(errors::RedisError::GetFailed)
@@ -239,8 +243,10 @@ impl super::RedisConnectionWithContext {
             return Ok(Vec::new());
         }
 
-        let tenant_aware_keys: Vec<String> =
-            keys.iter().map(|key| key.tenant_aware_key(&self.redis_conn)).collect();
+        let tenant_aware_keys: Vec<String> = keys
+            .iter()
+            .map(|key| key.tenant_aware_key(&self.redis_conn))
+            .collect();
         track_redis_call(
             self.request_id.as_deref(),
             self.redis_conn.event_emitter.as_ref(),
@@ -262,8 +268,10 @@ impl super::RedisConnectionWithContext {
         if keys.is_empty() {
             return Ok(Vec::new());
         }
-        let tenant_aware_keys: Vec<String> =
-            keys.iter().map(|key| key.tenant_aware_key(&self.redis_conn)).collect();
+        let tenant_aware_keys: Vec<String> = keys
+            .iter()
+            .map(|key| key.tenant_aware_key(&self.redis_conn))
+            .collect();
 
         let futures = tenant_aware_keys.iter().map(|redis_key| {
             track_redis_call(
@@ -324,7 +332,7 @@ impl super::RedisConnectionWithContext {
                 {
                     let tenant_unaware_keys: Vec<RedisKey> = keys
                         .iter()
-                            .map(|key| key.tenant_unaware_key(self.redis_conn).into())
+                        .map(|key| key.tenant_unaware_key(self.redis_conn).into())
                         .collect();
 
                     self.get_keys_by_mode(&tenant_unaware_keys).await
@@ -342,7 +350,9 @@ impl super::RedisConnectionWithContext {
             self.request_id.as_deref(),
             self.redis_conn.event_emitter.as_ref(),
             RedisOperation::Exists,
-            self.redis_conn.pool.exists(key.tenant_aware_key(&self.redis_conn)),
+            self.redis_conn
+                .pool
+                .exists(key.tenant_aware_key(&self.redis_conn)),
         )
         .await
         .change_context(errors::RedisError::GetFailed)
@@ -360,7 +370,9 @@ impl super::RedisConnectionWithContext {
                         self.request_id.as_deref(),
                         self.redis_conn.event_emitter.as_ref(),
                         RedisOperation::Exists,
-                        self.redis_conn.pool.exists(key.tenant_unaware_key(self.redis_conn)),
+                        self.redis_conn
+                            .pool
+                            .exists(key.tenant_unaware_key(self.redis_conn)),
                     )
                     .await
                     .change_context(errors::RedisError::GetFailed)
@@ -424,7 +436,9 @@ impl super::RedisConnectionWithContext {
             self.request_id.as_deref(),
             self.redis_conn.event_emitter.as_ref(),
             RedisOperation::DeleteKey,
-            self.redis_conn.pool.del(key.tenant_aware_key(&self.redis_conn)),
+            self.redis_conn
+                .pool
+                .del(key.tenant_aware_key(&self.redis_conn)),
         )
         .await
         .change_context(errors::RedisError::DeleteFailed)
@@ -442,7 +456,9 @@ impl super::RedisConnectionWithContext {
                         self.request_id.as_deref(),
                         self.redis_conn.event_emitter.as_ref(),
                         RedisOperation::DeleteKey,
-                        self.redis_conn.pool.del(key.tenant_unaware_key(self.redis_conn)),
+                        self.redis_conn
+                            .pool
+                            .del(key.tenant_unaware_key(self.redis_conn)),
                     )
                     .await
                     .change_context(errors::RedisError::DeleteFailed)
@@ -563,7 +579,9 @@ impl super::RedisConnectionWithContext {
             self.request_id.as_deref(),
             self.redis_conn.event_emitter.as_ref(),
             RedisOperation::GetTtl,
-            self.redis_conn.pool.ttl(key.tenant_aware_key(&self.redis_conn)),
+            self.redis_conn
+                .pool
+                .ttl(key.tenant_aware_key(&self.redis_conn)),
         )
         .await
         .change_context(errors::RedisError::GetFailed)
@@ -593,7 +611,9 @@ impl super::RedisConnectionWithContext {
             self.request_id.as_deref(),
             self.redis_conn.event_emitter.as_ref(),
             RedisOperation::SetHashFields,
-            self.redis_conn.pool.hset(key.tenant_aware_key(&self.redis_conn), map),
+            self.redis_conn
+                .pool
+                .hset(key.tenant_aware_key(&self.redis_conn), map),
         )
         .await
         .change_context(errors::RedisError::SetHashFailed);
@@ -817,7 +837,9 @@ impl super::RedisConnectionWithContext {
             self.request_id.as_deref(),
             self.redis_conn.event_emitter.as_ref(),
             RedisOperation::GetHashField,
-            self.redis_conn.pool.hget(key.tenant_aware_key(&self.redis_conn), field),
+            self.redis_conn
+                .pool
+                .hget(key.tenant_aware_key(&self.redis_conn), field),
         )
         .await
         .change_context(errors::RedisError::GetHashFieldFailed)
@@ -855,7 +877,9 @@ impl super::RedisConnectionWithContext {
             self.request_id.as_deref(),
             self.redis_conn.event_emitter.as_ref(),
             RedisOperation::GetHashFields,
-            self.redis_conn.pool.hgetall(key.tenant_aware_key(&self.redis_conn)),
+            self.redis_conn
+                .pool
+                .hgetall(key.tenant_aware_key(&self.redis_conn)),
         )
         .await
         .change_context(errors::RedisError::GetHashFieldFailed)
@@ -1032,14 +1056,19 @@ impl super::RedisConnectionWithContext {
             self.request_id.as_deref(),
             self.redis_conn.event_emitter.as_ref(),
             RedisOperation::StreamGetLength,
-            self.redis_conn.pool.xlen(stream.tenant_aware_key(&self.redis_conn)),
+            self.redis_conn
+                .pool
+                .xlen(stream.tenant_aware_key(&self.redis_conn)),
         )
         .await
         .change_context(errors::RedisError::GetLengthFailed)
     }
 
     fn get_keys_with_prefix(&self, streams: &[RedisKey]) -> MultipleKeys {
-        let res: Vec<String> = streams.iter().map(|k| k.tenant_aware_key(&self.redis_conn)).collect();
+        let res: Vec<String> = streams
+            .iter()
+            .map(|k| k.tenant_aware_key(&self.redis_conn))
+            .collect();
         MultipleKeys::from(res)
     }
 
@@ -1219,7 +1248,9 @@ impl super::RedisConnectionWithContext {
             self.request_id.as_deref(),
             self.redis_conn.event_emitter.as_ref(),
             RedisOperation::GetListLength,
-            self.redis_conn.pool.llen(key.tenant_aware_key(&self.redis_conn)),
+            self.redis_conn
+                .pool
+                .llen(key.tenant_aware_key(&self.redis_conn)),
         )
         .await
         .change_context(errors::RedisError::GetListLengthFailed)
@@ -1235,7 +1266,9 @@ impl super::RedisConnectionWithContext {
             self.request_id.as_deref(),
             self.redis_conn.event_emitter.as_ref(),
             RedisOperation::LpopListElements,
-            self.redis_conn.pool.lpop(key.tenant_aware_key(&self.redis_conn), count),
+            self.redis_conn
+                .pool
+                .lpop(key.tenant_aware_key(&self.redis_conn), count),
         )
         .await
         .change_context(errors::RedisError::PopListElementsFailed)
@@ -1262,9 +1295,12 @@ impl super::RedisConnectionWithContext {
             self.request_id.as_deref(),
             self.redis_conn.event_emitter.as_ref(),
             RedisOperation::ConsumerGroupCreate,
-            self.redis_conn
-                .pool
-                .xgroup_create(stream.tenant_aware_key(&self.redis_conn), group, id, true),
+            self.redis_conn.pool.xgroup_create(
+                stream.tenant_aware_key(&self.redis_conn),
+                group,
+                id,
+                true,
+            ),
         )
         .await
         .change_context(errors::RedisError::ConsumerGroupCreateFailed)
@@ -1301,9 +1337,11 @@ impl super::RedisConnectionWithContext {
             self.request_id.as_deref(),
             self.redis_conn.event_emitter.as_ref(),
             RedisOperation::ConsumerGroupDeleteConsumer,
-            self.redis_conn
-                .pool
-                .xgroup_delconsumer(stream.tenant_aware_key(&self.redis_conn), group, consumer),
+            self.redis_conn.pool.xgroup_delconsumer(
+                stream.tenant_aware_key(&self.redis_conn),
+                group,
+                consumer,
+            ),
         )
         .await
         .change_context(errors::RedisError::ConsumerGroupRemoveConsumerFailed)

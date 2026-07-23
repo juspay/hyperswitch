@@ -15,7 +15,7 @@ pub type PgPooledConn = async_bb8_diesel::Connection<PgConnection>;
 pub async fn redis_connection(
     redis: &redis_interface::RedisSettings,
 ) -> redis_interface::RedisConnectionPool {
-    redis_interface::RedisConnectionPool::new_without_event_emitter(redis)//check why this has to be without event emitter
+    redis_interface::RedisConnectionPool::new_without_event_emitter(redis) //check why this has to be without event emitter
         .await
         .expect("Failed to create Redis Connection Pool")
 }

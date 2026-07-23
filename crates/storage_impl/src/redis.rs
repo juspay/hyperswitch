@@ -33,8 +33,7 @@ impl RedisStore {
     ) -> error_stack::Result<Self, redis_interface::errors::RedisError> {
         Ok(Self {
             redis_conn: Arc::new(
-                redis_interface::RedisConnectionPool::new(conf, event_emitter)
-                    .await?,
+                redis_interface::RedisConnectionPool::new(conf, event_emitter).await?,
             ),
         })
     }

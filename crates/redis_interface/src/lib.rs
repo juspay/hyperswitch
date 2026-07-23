@@ -51,7 +51,7 @@ pub use module::fred::{
 #[cfg(feature = "redis-rs")]
 pub use module::redis_rs::{
     redis_value_to_option_string, PubSubMessage, PublisherClient, RedisConfig, RedisConn,
-    RedisConnectionPool, RedisConnectionWithContext, SubscriberClient
+    RedisConnectionPool, RedisConnectionWithContext, SubscriberClient,
 };
 
 pub use self::types::*;

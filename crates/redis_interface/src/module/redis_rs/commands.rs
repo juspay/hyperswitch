@@ -171,7 +171,11 @@ impl super::RedisConnectionWithContext {
             self.request_id.as_deref(),
             self.redis_conn.event_emitter.as_ref(),
             RedisOperation::SerializeAndSetKeyWithExpiry,
-            conn.set_options(key.tenant_aware_key(&self.redis_conn), serialized.as_slice(), options),
+            conn.set_options(
+                key.tenant_aware_key(&self.redis_conn),
+                serialized.as_slice(),
+                options,
+            ),
         )
         .await
         .change_context(errors::RedisError::SetExFailed)?;
@@ -227,8 +231,10 @@ impl super::RedisConnectionWithContext {
             return Ok(Vec::new());
         }
 
-        let tenant_aware_keys: Vec<String> =
-            keys.iter().map(|key| key.tenant_aware_key(&self.redis_conn)).collect();
+        let tenant_aware_keys: Vec<String> = keys
+            .iter()
+            .map(|key| key.tenant_aware_key(&self.redis_conn))
+            .collect();
         let mut conn = self.redis_conn.pool.clone();
         track_redis_call(
             self.request_id.as_deref(),
@@ -251,8 +257,10 @@ impl super::RedisConnectionWithContext {
         if keys.is_empty() {
             return Ok(Vec::new());
         }
-        let tenant_aware_keys: Vec<String> =
-            keys.iter().map(|key| key.tenant_aware_key(&self.redis_conn)).collect();
+        let tenant_aware_keys: Vec<String> = keys
+            .iter()
+            .map(|key| key.tenant_aware_key(&self.redis_conn))
+            .collect();
 
         let futures = tenant_aware_keys.iter().map(|redis_key| {
             let mut conn = self.redis_conn.pool.clone();
@@ -632,7 +640,11 @@ impl super::RedisConnectionWithContext {
             self.request_id.as_deref(),
             self.redis_conn.event_emitter.as_ref(),
             RedisOperation::SetHashFieldIfNotExist,
-            conn.hset_nx::<_, _, _, HsetnxReply>(key.tenant_aware_key(&self.redis_conn), field, value),
+            conn.hset_nx::<_, _, _, HsetnxReply>(
+                key.tenant_aware_key(&self.redis_conn),
+                field,
+                value,
+            ),
         )
         .await
         .change_context(errors::RedisError::SetHashFieldFailed)?;
@@ -1334,7 +1346,11 @@ impl super::RedisConnectionWithContext {
             self.request_id.as_deref(),
             self.redis_conn.event_emitter.as_ref(),
             RedisOperation::ConsumerGroupCreate,
-            conn.xgroup_create_mkstream(stream.tenant_aware_key(&self.redis_conn), group, id.to_stream_id()),
+            conn.xgroup_create_mkstream(
+                stream.tenant_aware_key(&self.redis_conn),
+                group,
+                id.to_stream_id(),
+            ),
         )
         .await
         .change_context(errors::RedisError::ConsumerGroupCreateFailed)?;
@@ -1390,7 +1406,11 @@ impl super::RedisConnectionWithContext {
             self.request_id.as_deref(),
             self.redis_conn.event_emitter.as_ref(),
             RedisOperation::ConsumerGroupSetLastId,
-            conn.xgroup_setid(stream.tenant_aware_key(&self.redis_conn), group, id.to_stream_id()),
+            conn.xgroup_setid(
+                stream.tenant_aware_key(&self.redis_conn),
+                group,
+                id.to_stream_id(),
+            ),
         )
         .await
         .change_context(errors::RedisError::ConsumerGroupSetIdFailed)?;

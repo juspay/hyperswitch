@@ -10,7 +10,7 @@ use std::sync::{atomic, Arc};
 
 use common_utils::{
     errors::CustomResult,
-    external_service::{ExternalServiceEventEmitter, NoOpEventEmitter}
+    external_service::{ExternalServiceEventEmitter, NoOpEventEmitter},
 };
 use error_stack::ResultExt;
 use fred::{
@@ -182,7 +182,7 @@ pub struct RedisConnectionPool {
 ///
 /// Wraps the shared [`RedisConnectionPool`] and carries the request ID of the
 /// execution that created it, so per-roundtrip events can be correlated back to
-/// the originating API request. 
+/// the originating API request.
 #[derive(Clone)]
 pub struct RedisConnectionWithContext {
     pub redis_conn: Arc<RedisConnectionPool>,

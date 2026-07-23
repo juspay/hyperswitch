@@ -3,7 +3,7 @@ use std::sync::Arc;
 use actix_web::{body, HttpResponse, ResponseError};
 use common_utils::request_context::RequestContext;
 use error_stack::Report;
-use redis_interface::{RedisConnectionPool};
+use redis_interface::RedisConnectionPool;
 
 use crate::{
     connection::{diesel_make_pg_pool, PgPool},

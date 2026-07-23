@@ -368,7 +368,7 @@ pub struct RedisConnectionPool {
 ///
 /// Wraps the shared [`RedisConnectionPool`] and carries the request ID of the
 /// execution that created it, so per-roundtrip events can be correlated back to
-/// the originating API request. 
+/// the originating API request.
 #[derive(Clone)]
 pub struct RedisConnectionWithContext {
     pub redis_conn: Arc<RedisConnectionPool>,
@@ -376,10 +376,7 @@ pub struct RedisConnectionWithContext {
 }
 
 impl RedisConnectionWithContext {
-    pub fn new(
-        pool: Arc<RedisConnectionPool>,
-        context: &dyn RequestContext,
-    ) -> Self {
+    pub fn new(pool: Arc<RedisConnectionPool>, context: &dyn RequestContext) -> Self {
         Self {
             redis_conn: pool,
             request_id: context.request_id().map(str::to_owned),

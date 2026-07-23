@@ -54,9 +54,7 @@ pub mod tokenization;
 #[cfg(not(feature = "payouts"))]
 use hyperswitch_domain_models::{PayoutAttemptInterface, PayoutsInterface};
 pub use mock_db::MockDb;
-use redis_interface::{
-    errors::RedisError, RedisConnectionWithContext, SaddReply,
-};
+use redis_interface::{errors::RedisError, RedisConnectionWithContext, SaddReply};
 
 #[cfg(not(feature = "payouts"))]
 pub use crate::database::store::Store;
@@ -73,9 +71,7 @@ pub struct RouterStore<T: DatabaseStore> {
 }
 
 impl<T: DatabaseStore> RedisConnInterface for RouterStore<T> {
-    fn get_redis_conn(
-        &self,
-    ) -> error_stack::Result<RedisConnectionWithContext, RedisError> {
+    fn get_redis_conn(&self) -> error_stack::Result<RedisConnectionWithContext, RedisError> {
         Ok(RedisConnectionWithContext::new(
             Arc::clone(&self.cache_store.get_redis_pool()?),
             self,
@@ -175,7 +171,11 @@ impl<T: DatabaseStore> RouterStore<T> {
         key_manager_state: Option<KeyManagerState>,
     ) -> error_stack::Result<Self, StorageError> {
         let db_store = T::new(db_conf, tenant_config, false, key_manager_state.clone()).await?;
-        let cache_store = Arc::new(cache_store.clone().clone_pool_with_prefix(tenant_config.get_redis_key_prefix()));
+        let cache_store = Arc::new(
+            cache_store
+                .clone()
+                .clone_pool_with_prefix(tenant_config.get_redis_key_prefix()),
+        );
         cache_store
             .get_redis_pool()
             .change_context(StorageError::InitializationError)?

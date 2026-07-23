@@ -22,9 +22,17 @@ use serde::de;
 pub use crate::database::store::Store;
 pub use crate::{database::store::DatabaseStore, mock_db::MockDb};
 use crate::{
-    RouterStore, TenantConfig, UniqueConstraints, database::store::PgPool, diesel_error_to_data_error, errors::{self, RedisErrorExt, StorageResult}, lookup::ReverseLookupInterface, metrics, redis::kv_store::{
-        KvOperation, KvStorePartition, Op, PartitionKey, RedisConnInterface, decide_storage_scheme, kv_wrapper,
-    }, utils::{find_all_combined_kv_database, try_redis_get_else_try_database_get},
+    database::store::PgPool,
+    diesel_error_to_data_error,
+    errors::{self, RedisErrorExt, StorageResult},
+    lookup::ReverseLookupInterface,
+    metrics,
+    redis::kv_store::{
+        decide_storage_scheme, kv_wrapper, KvOperation, KvStorePartition, Op, PartitionKey,
+        RedisConnInterface,
+    },
+    utils::{find_all_combined_kv_database, try_redis_get_else_try_database_get},
+    RouterStore, TenantConfig, UniqueConstraints,
 };
 
 #[derive(Debug, Clone)]
@@ -158,9 +166,7 @@ impl<T: DatabaseStore> RedisConnInterface for KVRouterStore<T> {
     fn get_redis_conn(
         &self,
     ) -> error_stack::Result<redis_interface::RedisConnectionWithContext, RedisError> {
-        self
-            .router_store
-            .get_redis_conn()
+        self.router_store.get_redis_conn()
     }
 }
 

@@ -41,7 +41,8 @@ impl Store {
     }
 
     pub async fn make_stream_available(&self, stream_name_flag: &str) -> errors::DrainerResult<()> {
-        match self.get_redis_conn()
+        match self
+            .get_redis_conn()
             .delete_key(&stream_name_flag.into())
             .await
         {

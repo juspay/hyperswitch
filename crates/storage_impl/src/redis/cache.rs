@@ -18,7 +18,11 @@ use router_env::{
     tracing::{self, instrument},
 };
 
-use crate::{errors::StorageError, metrics, redis::{kv_store::RedisConnInterface, pub_sub::PubSubInterface}};
+use crate::{
+    errors::StorageError,
+    metrics,
+    redis::{kv_store::RedisConnInterface, pub_sub::PubSubInterface},
+};
 
 /// Redis channel name used for publishing invalidation messages
 pub const IMC_INVALIDATION_CHANNEL: &str = "hyperswitch_invalidate";
