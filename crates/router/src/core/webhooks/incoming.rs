@@ -1938,6 +1938,28 @@ async fn external_authentication_incoming_webhook_flow(
                     "received a non-external-authentication id for retrieving authentication",
                 )
             }?;
+
+        // Store the authentication value before publishing the successful authentication state.
+        // Otherwise, the browser callback can observe `Success` and attempt authorization before
+        // the CAVV is available in Redis.
+        authentication_details
+            .authentication_value
+            .async_map(|auth_val| {
+                payment_methods::vault::create_tokenize_without_configurable_expiry(
+                    &state,
+                    auth_val.expose(),
+                    None,
+                    authentication
+                        .authentication_id
+                        .clone()
+                        .get_string_repr()
+                        .to_string(),
+                    platform.get_processor().get_key_store().key.get_inner(),
+                )
+            })
+            .await
+            .transpose()?;
+
         let updated_authentication = state
             .store
             .update_authentication_by_processor_merchant_id_authentication_id(
@@ -1951,23 +1973,6 @@ async fn external_authentication_incoming_webhook_flow(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Error while updating authentication")?;
 
-        authentication_details
-            .authentication_value
-            .async_map(|auth_val| {
-                payment_methods::vault::create_tokenize_without_configurable_expiry(
-                    &state,
-                    auth_val.expose(),
-                    None,
-                    updated_authentication
-                        .authentication_id
-                        .clone()
-                        .get_string_repr()
-                        .to_string(),
-                    platform.get_processor().get_key_store().key.get_inner(),
-                )
-            })
-            .await
-            .transpose()?;
         // Check if it's a payment authentication flow, payment_id would be there only for payment authentication flows
         if let Some(payment_id) = updated_authentication.payment_id {
             let is_pull_mechanism_enabled = helper_utils::check_if_pull_mechanism_for_external_3ds_enabled_from_connector_metadata(merchant_connector_account.metadata.map(|metadata| metadata.expose()));
