@@ -1117,4 +1117,138 @@ export const connectorDetails = {
       pmListDynamicFieldWithEmail: requiredFields,
     },
   },
+  bank_redirect_pm: {
+    PaymentIntent: (paymentMethodType) => {
+      const countryMap = {
+        ideal: "NL",
+        sofort: "DE",
+        giropay: "DE",
+        eps: "AT",
+      };
+      const country = countryMap[paymentMethodType] || "DE";
+      return {
+        Request: {
+          currency: "EUR",
+          customer_acceptance: null,
+          billing: {
+            address: {
+              country: country,
+            },
+          },
+        },
+      };
+    },
+    Ideal: {
+      Configs: {
+        TRIGGER_SKIP: true,
+        TRIGGERS: ["IR_39 routing issue"],
+      },
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "ideal",
+        payment_method_data: {
+          bank_redirect: {
+            ideal: {
+              billing_details: {
+                billing_name: "John Doe",
+              },
+              bank_name: "ing",
+              preferred_language: "en",
+              country: "DE",
+            },
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+    Sofort: {
+      Configs: {
+        TRIGGER_SKIP: true,
+        TRIGGERS: ["IR_39 routing issue"],
+      },
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "sofort",
+        payment_method_data: {
+          bank_redirect: {
+            sofort: {
+              billing_details: {
+                billing_name: "John Doe",
+              },
+              bank_name: "hypo_noe_lb_fur_niederosterreich_u_wien",
+              preferred_language: "en",
+              country: "DE",
+            },
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+    Giropay: {
+      Configs: {
+        TRIGGER_SKIP: true,
+        TRIGGERS: ["IR_39 routing issue"],
+      },
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "giropay",
+        payment_method_data: {
+          bank_redirect: {
+            giropay: {
+              billing_details: {
+                billing_name: "John Doe",
+              },
+              bank_name: "",
+              preferred_language: "en",
+              country: "DE",
+            },
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+    Eps: {
+      Configs: {
+        TRIGGER_SKIP: true,
+        TRIGGERS: ["IR_39 routing issue"],
+      },
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "eps",
+        payment_method_data: {
+          bank_redirect: {
+            eps: {
+              billing_details: {
+                billing_name: "John Doe",
+              },
+              bank_name: "bankhaus_schelhammer_und_schattera_ag",
+              preferred_language: "en",
+              country: "AT",
+            },
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+  },
 };
