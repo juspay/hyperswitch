@@ -1129,7 +1129,10 @@ async fn process_unreferenced_refund(
                 status: relay_status,
                 error_code: connector_resp.error_code,
                 error_message: connector_resp.error_message,
-                response_data: connector_resp.response_data.map(Secret::new),
+                response_data: connector_resp
+                    .response_data
+                    .and_then(|d| serde_json::to_value(d).ok())
+                    .map(Secret::new),
             };
             (bytes, relay_update)
         }

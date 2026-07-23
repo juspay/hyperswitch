@@ -36,8 +36,8 @@ pub struct UnreferencedRefundResponse {
     pub error_message: Option<String>,
     /// Raw JSON response from the connector
     pub raw_response: Option<Secret<serde_json::Value>>,
-    /// Filtered response fields for DB storage
-    pub response_data: Option<serde_json::Value>,
+    /// Structured response fields for DB storage
+    pub response_data: Option<hyperswitch_domain_models::relay::RelayResponseData>,
 }
 
 /// Trait implemented by connectors that support relay operations (e.g. unreferenced refund).

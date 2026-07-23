@@ -73,7 +73,7 @@ impl FiservcommercehubAuthType {
 
 // ── Status Mapping ────────────────────────────────────────────────────────────
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 enum FiservcommercehubRefundState {
     Approved,
@@ -184,44 +184,78 @@ struct FiservcommercehubCreditRequestEncrypted {
 
 // ── Response Structs ──────────────────────────────────────────────────────────
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct TransactionProcessingDetails {
     transaction_id: String,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct GatewayResponse {
     transaction_state: FiservcommercehubRefundState,
     transaction_processing_details: TransactionProcessingDetails,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct ProcessorResponseDetails {
     response_code: String,
     response_message: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    approval_code: Option<String>,
     network_routed: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    host_response_code: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    host_response_message: Option<String>,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct PaymentReceipt {
     processor_response_details: ProcessorResponseDetails,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct NetworkDetails {
+    network_response_code: Option<String>,
+    transaction_identifier: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct FiservcommercehubCreditResponse {
     gateway_response: GatewayResponse,
-    #[serde(skip_serializing_if = "Option::is_none")]
     payment_receipt: Option<PaymentReceipt>,
+    network_details: Option<NetworkDetails>,
+}
+
+impl TryFrom<&FiservcommercehubCreditResponse>
+    for hyperswitch_domain_models::relay::RelayResponseData
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(response: &FiservcommercehubCreditResponse) -> Result<Self, Self::Error> {
+        let processor_response_details = response
+            .payment_receipt
+            .as_ref()
+            .map(|receipt| &receipt.processor_response_details);
+        let network_details = response.network_details.as_ref();
+
+        Ok(Self {
+            approval_code: processor_response_details
+                .and_then(|processor| processor.approval_code.clone()),
+            network: processor_response_details
+                .and_then(|processor| processor.network_routed.as_deref())
+                .and_then(|network_routed| {
+                    serde_json::from_value::<common_enums::CardNetwork>(
+                        serde_json::Value::String(network_routed.to_owned()),
+                    )
+                    .ok()
+                }),
+            network_transaction_id: network_details
+                .and_then(|details| details.transaction_identifier.clone()),
+            network_response_code: network_details
+                .and_then(|details| details.network_response_code.clone()),
+        })
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -451,7 +485,8 @@ impl ConnectorRelayIntegration for Fiservcommercehub {
             })
             .unwrap_or((None, None));
 
-        let response_data = serde_json::to_value(&parsed).ok();
+        let response_data =
+            hyperswitch_domain_models::relay::RelayResponseData::try_from(&parsed).ok();
 
         Ok(UnreferencedRefundResponse {
             connector_refund_id,
