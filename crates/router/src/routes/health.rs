@@ -165,6 +165,21 @@ async fn deep_health_check_func(
 
     logger::debug!("Unified Connector Service health check end");
 
+    logger::debug!("Unified Authentication Service health check begin");
+
+    let unified_authentication_service_status = state
+        .health_check_unified_authentication_service()
+        .await
+        .map_err(|error| {
+            let message = error.to_string();
+            error.change_context(errors::ApiErrorResponse::HealthCheckError {
+                component: "Unified Authentication Service",
+                message,
+            })
+        })?;
+
+    logger::debug!("Unified Authentication Service health check end");
+
     let response = RouterHealthCheckResponse {
         database: db_status.into(),
         redis: redis_status.into(),
@@ -179,6 +194,7 @@ async fn deep_health_check_func(
         #[cfg(feature = "dynamic_routing")]
         decision_engine: decision_engine_health_check.into(),
         unified_connector_service: unified_connector_service_status.into(),
+        unified_authentication_service: unified_authentication_service_status.into(),
     };
 
     Ok(api::ApplicationResponse::Json(response))
