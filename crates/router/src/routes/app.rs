@@ -3436,12 +3436,24 @@ impl SuperpositionProxy {
                     .route(web::get().to(super::superposition_proxy::list_default_configs)),
             )
             .service(
+                web::resource("/default-config/{key}")
+                    .route(web::get().to(super::superposition_proxy::get_default_config)),
+            )
+            .service(
                 web::resource("/dimension")
                     .route(web::get().to(super::superposition_proxy::list_dimensions)),
             )
             .service(
+                web::resource("/dimension/{dimension_name}")
+                    .route(web::get().to(super::superposition_proxy::get_dimension)),
+            )
+            .service(
                 web::resource("/config/resolve/detailed")
                     .route(web::post().to(super::superposition_proxy::resolve_detailed_config)),
+            )
+            .service(
+                web::resource("/config/resolve/explain/{key}")
+                    .route(web::post().to(super::superposition_proxy::resolve_config_explanation)),
             )
             .service(
                 web::resource("/audit")
