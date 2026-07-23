@@ -5993,12 +5993,6 @@ type = "Text"
 certificate = "Base64 encoded PEM formatted certificate chain"
 private_key = "Base64 encoded PEM formatted private key"
 
-[netcetera.metadata.endpoint_prefix]
-name = "endpoint_prefix"
-label = "Live endpoint prefix"
-placeholder = "string that will replace '{prefix}' in this base url 'https://{prefix}.3ds-server.prev.netcetera-cloud-payment.ch'"
-required = true
-type = "Text"
 [netcetera.metadata.mcc]
 name = "mcc"
 label = "MCC"

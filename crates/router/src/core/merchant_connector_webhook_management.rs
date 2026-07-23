@@ -118,7 +118,7 @@ async fn fetch_access_token_for_webhook(
         .get_access_token_key(
             &router_data.merchant_id,
             merchant_connector_id_or_connector_name.clone(),
-            current_flow_info,
+            current_flow_info.clone(),
             router_data.payment_method_type,
             Some(false),
         )
@@ -145,7 +145,7 @@ async fn fetch_access_token_for_webhook(
             let refresh_token_request_data = types::AccessTokenRequestData::try_from((
                 router_data.connector_auth_type.clone(),
                 None,
-                None,
+                current_flow_info,
             ))
             .map_err(to_error_response)?;
 

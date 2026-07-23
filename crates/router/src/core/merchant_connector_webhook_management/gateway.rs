@@ -51,16 +51,18 @@ pub async fn execute_connector_webhook_register(
 
     match execution_path {
         ExecutionPath::Direct => execute_direct(state, connector_integration, router_data).await,
+
         ExecutionPath::UnifiedConnectorService => {
-            execute_ucs(
+            Box::pin(execute_ucs(
                 state,
                 platform,
                 merchant_connector_account,
                 router_data.clone(),
                 ExecutionMode::Primary,
-            )
+            ))
             .await
         }
+
         ExecutionPath::ShadowUnifiedConnectorService => {
             let direct_result =
                 execute_direct(state, connector_integration.clone_box(), router_data).await;
@@ -69,6 +71,7 @@ pub async fn execute_connector_webhook_register(
                 .as_ref()
                 .map(Clone::clone)
                 .map_err(|error| format!("{error:?}"));
+
             let state = state.clone();
             let platform = platform.clone();
             let merchant_connector_account = merchant_connector_account.clone();
@@ -77,13 +80,13 @@ pub async fn execute_connector_webhook_register(
 
             tokio::spawn(
                 async move {
-                    let ucs_result = execute_ucs(
+                    let ucs_result = Box::pin(execute_ucs(
                         &state,
                         &platform,
                         &merchant_connector_account,
                         router_data,
                         ExecutionMode::Shadow,
-                    )
+                    ))
                     .await;
 
                     if let Err(error) = &ucs_result {
@@ -91,6 +94,7 @@ pub async fn execute_connector_webhook_register(
                     }
 
                     let ucs_for_compare = ucs_result.map_err(|error| format!("{error:?}"));
+
                     hyperswitch_interfaces::helpers::serialize_comparison_results_and_send(
                         &state,
                         connector_name,
@@ -144,8 +148,17 @@ async fn execute_ucs(
     let request = build_ucs_request(&router_data)
         .change_context(ConnectorError::RequestEncodingFailed)
         .attach_printable("Failed to construct connector webhook register request")?;
+    #[cfg(feature = "v1")]
+    let merchant_connector_account_type =
+        MerchantConnectorAccountType::DbVal(Box::new(merchant_connector_account.clone()));
+    #[cfg(feature = "v2")]
+    let merchant_connector_account_type =
+        domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(Box::new(
+            merchant_connector_account.clone(),
+        ));
+
     let connector_auth_metadata = build_unified_connector_service_auth_metadata(
-        MerchantConnectorAccountType::DbVal(Box::new(merchant_connector_account.clone())),
+        merchant_connector_account_type,
         platform.get_processor().get_account().get_id(),
         router_data.connector.clone(),
     )
@@ -161,7 +174,7 @@ async fn execute_ucs(
         .merchant_reference_id(None)
         .resource_id(None);
 
-    unified_connector_service::ucs_logging_wrapper_granular(
+    let (router_data, ()) = Box::pin(unified_connector_service::ucs_logging_wrapper_granular(
         router_data,
         state,
         request,
@@ -179,10 +192,11 @@ async fn execute_ucs(
 
             Ok((router_data, (), response))
         },
-    )
+    ))
     .await
-    .map(|(router_data, ())| router_data)
-    .map_err(convert_ucs_error_to_connector_error)
+    .map_err(convert_ucs_error_to_connector_error)?;
+
+    Ok(router_data)
 }
 
 fn build_ucs_request(
@@ -206,17 +220,19 @@ fn build_ucs_scope(scope: &ScopeIdentifier) -> payments_grpc::ConnectorWebhookRe
 
     let identifier = match scope {
         ScopeIdentifier::NotSpecific => Identifier::NotSpecific(()),
-        ScopeIdentifier::PaymentMethodType(payment_method_type) => Identifier::PaymentMethodType(
-            payments_grpc::PaymentMethodType::foreign_from(*payment_method_type) as i32,
-        ),
+        ScopeIdentifier::PaymentMethodType(payment_method_type) => {
+            Identifier::PaymentMethodType(i32::from(
+                payments_grpc::PaymentMethodType::foreign_from(*payment_method_type),
+            ))
+        }
         ScopeIdentifier::EventType(event_type) => {
-            Identifier::EventType(build_ucs_event_type(*event_type) as i32)
+            Identifier::EventType(i32::from(build_ucs_event_type(*event_type)))
         }
         ScopeIdentifier::EventTypes(event_types) => {
             Identifier::EventTypes(payments_grpc::ConnectorWebhookRegistrationEventTypes {
                 event_types: event_types
                     .iter()
-                    .map(|event_type| build_ucs_event_type(*event_type) as i32)
+                    .map(|event_type| i32::from(build_ucs_event_type(*event_type)))
                     .collect(),
             })
         }

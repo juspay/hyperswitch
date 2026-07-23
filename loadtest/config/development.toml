@@ -25,6 +25,30 @@ min_idle_pool_size = 2
 idle_timeout = 300
 max_lifetime = 1800
 
+[accounts_database]
+username = "postgres"
+password = "postgres"
+host = "db"
+port = 5432
+dbname = "loadtest_router"
+max_pool_size = 20
+connection_timeout = 10
+min_idle_pool_size = 2
+idle_timeout = 300
+max_lifetime = 1800
+
+[global_database]
+username = "postgres"
+password = "postgres"
+host = "db"
+port = 5432
+dbname = "loadtest_router"
+max_pool_size = 20
+connection_timeout = 10
+min_idle_pool_size = 2
+idle_timeout = 300
+max_lifetime = 1800
+
 [server]
 host = "0.0.0.0"
 
@@ -60,6 +84,7 @@ host = ""
 mock_locker = true
 locker_enabled = true
 ttl_for_storage_in_secs = 220752000
+create_entity_on_merchant_create = false
 
 [forex_api]
 api_key = ""
@@ -176,7 +201,7 @@ moneris.base_url = "https://api.sb.moneris.io"
 mpgs.base_url = "https://test-gateway.mastercard.com"
 mollie.secondary_base_url = "https://api.cc.mollie.com/v1/"
 multisafepay.base_url = "https://testapi.multisafepay.com/"
-netcetera.base_url = "https://{{merchant_endpoint_prefix}}.3ds-server.prev.netcetera-cloud-payment.ch"
+netcetera.base_url = "https://api.prev.euc1.acquiring.cloud.netcetera.com/3ds-server"
 nexinets.base_url = "https://apitest.payengine.de/v1"
 nexixpay.base_url = "https://xpaysandbox.nexigroup.com/api/phoenix-0.0/psp/api/v1"
 payconex.base_url = "https://cert.payconex.net"
