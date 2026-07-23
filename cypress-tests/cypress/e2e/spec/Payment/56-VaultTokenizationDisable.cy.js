@@ -57,7 +57,7 @@ describe("Vault Tokenization Disable", () => {
 
     it("should confirm external 3DS payment with vault tokenization disabled", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))
-        .vault_tokenization.VaultTokenizationDisabled;
+        .vault_tokenization.VaultTokenization;
       cy.createConfirmPaymentTest(
         fixtures.createConfirmPaymentBody,
         data,
@@ -91,7 +91,7 @@ describe("Vault Tokenization Disable", () => {
 
     it("should confirm external 3DS payment with vault tokenization enabled", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))
-        .vault_tokenization.VaultTokenizationEnabled;
+        .vault_tokenization.VaultTokenization;
       cy.createConfirmPaymentTest(
         fixtures.createConfirmPaymentBody,
         data,
