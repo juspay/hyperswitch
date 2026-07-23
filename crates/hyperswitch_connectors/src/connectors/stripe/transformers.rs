@@ -2946,35 +2946,7 @@ pub struct StripeCharge {
     pub payment_method_details: Option<StripePaymentMethodDetailsResponse>,
     /// The `outcome` object from the Stripe charge, describing whether the payment was accepted
     /// and the risk/network assessment behind that decision.
-    pub outcome: Option<StripePaymentOutcome>,
-}
-
-/// Full representation of the Stripe charge `outcome` object.
-/// See <https://docs.stripe.com/api/charges/object#charge_object-outcome>
-#[derive(Deserialize, Clone, Debug, Default, PartialEq, Eq, Serialize)]
-pub struct StripePaymentOutcome {
-    /// Possible values: authorized, manual_review, issuer_declined, blocked, invalid
-    #[serde(rename = "type")]
-    pub outcome_type: Option<String>,
-    /// Possible values: approved_by_network, declined_by_network, not_sent_to_network,
-    /// reversed_after_approval
-    pub network_status: Option<String>,
-    /// Enumerated reason for the outcome type (e.g. highest_risk_level, rule)
-    pub reason: Option<String>,
-    /// Stripe Radar's evaluation of the riskiness (normal, elevated, highest, not_assessed, unknown)
-    pub risk_level: Option<String>,
-    /// Stripe Radar's numeric risk score (0-100), only available with Radar for Fraud Teams
-    pub risk_score: Option<i32>,
-    /// Human-readable description of the outcome, meant for the recipient of the payment
-    pub seller_message: Option<String>,
-    /// Advice on how to proceed with an error (confirm_card_data, do_not_try_again, try_again_later)
-    pub advice_code: Option<String>,
-    /// Network advice code for network-declined charges
-    pub network_advice_code: Option<String>,
-    /// Network decline code for network-declined charges
-    pub network_decline_code: Option<String>,
-    /// The ID of the Radar rule that matched the payment, if applicable
-    pub rule: Option<String>,
+    pub outcome: Option<StripeChargeOutcome>,
 }
 
 #[derive(Deserialize, Clone, Debug, PartialEq, Eq, Serialize)]
@@ -4511,11 +4483,33 @@ impl<F, T> TryFrom<ResponseRouterData<F, ChargesResponse, T, PaymentsResponseDat
     }
 }
 
+/// Full representation of the Stripe charge `outcome` object, shared by the
+/// charge sync response and the payment intent's `latest_charge`.
+/// See <https://docs.stripe.com/api/charges/object#charge_object-outcome>
 #[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
 pub struct StripeChargeOutcome {
-    pub network_advice_code: Option<String>,
-    pub network_decline_code: Option<String>,
+    /// Possible values: authorized, manual_review, issuer_declined, blocked, invalid
+    #[serde(rename = "type")]
+    pub outcome_type: Option<String>,
+    /// Possible values: approved_by_network, declined_by_network, not_sent_to_network,
+    /// reversed_after_approval
+    pub network_status: Option<String>,
+    /// Enumerated reason for the outcome type (e.g. highest_risk_level, rule)
+    pub reason: Option<String>,
+    /// Stripe Radar's evaluation of the riskiness (normal, elevated, highest, not_assessed, unknown)
+    pub risk_level: Option<String>,
+    /// Stripe Radar's numeric risk score (0-100), only available with Radar for Fraud Teams
+    pub risk_score: Option<i32>,
+    /// Human-readable description of the outcome, meant for the recipient of the payment
     pub seller_message: Option<String>,
+    /// Advice on how to proceed with an error (confirm_card_data, do_not_try_again, try_again_later)
+    pub advice_code: Option<String>,
+    /// Network advice code for network-declined charges
+    pub network_advice_code: Option<String>,
+    /// Network decline code for network-declined charges
+    pub network_decline_code: Option<String>,
+    /// The ID of the Radar rule that matched the payment, if applicable
+    pub rule: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
