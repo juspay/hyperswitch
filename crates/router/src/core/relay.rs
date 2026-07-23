@@ -1134,7 +1134,9 @@ async fn process_unreferenced_refund(
                     .and_then(|d| {
                         serde_json::to_value(d)
                             .inspect_err(|err| {
-                                router_env::logger::error!("Failed to serialize relay response_data: {err:?}")
+                                router_env::logger::error!(
+                                    "Failed to serialize relay response_data: {err:?}"
+                                )
                             })
                             .ok()
                     })
