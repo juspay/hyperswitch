@@ -454,6 +454,33 @@ pub async fn build_cloned_connector_create_request(
                 .collect::<Vec<_>>()
         });
 
+    let frm_configs = source_mca
+        .frm_configs
+        .clone()
+        .map(|configs| {
+            configs
+                .into_iter()
+                .map(|config| {
+                    serde_json::Value::parse_value(config.expose(), "FrmConfigs")
+                        .change_context(UserErrors::InternalServerError)
+                        .attach_printable("Unable to deserialize frm_configs")
+                })
+                .collect::<Result<Vec<_>, _>>()
+        })
+        .transpose()?;
+
+    let additional_merchant_data = source_mca
+        .additional_merchant_data
+        .map(|merchant_data| {
+            serde_json::Value::parse_value(
+                merchant_data.into_inner().expose(),
+                "AdditionalMerchantData",
+            )
+            .change_context(UserErrors::InternalServerError)
+            .attach_printable("Unable to deserialize additional_merchant_data")
+        })
+        .transpose()?;
+
     let connector_wallets_details = source_mca
         .connector_wallets_details
         .map(|wallets_details| {
@@ -491,12 +518,12 @@ pub async fn build_cloned_connector_create_request(
         business_country: source_mca.business_country,
         business_label: source_mca.business_label.clone(),
         business_sub_label: source_mca.business_sub_label.clone(),
-        frm_configs: None,
+        frm_configs,
         connector_webhook_details,
         profile_id: Some(destination_profile_id),
         pm_auth_config: None,
         connector_wallets_details,
         status: Some(source_mca.status),
-        additional_merchant_data: None,
+        additional_merchant_data,
     })
 }
