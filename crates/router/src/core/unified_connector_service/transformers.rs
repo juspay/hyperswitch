@@ -592,10 +592,24 @@ impl
     ) -> Result<Self, Self::Error> {
         let currency = payments_grpc::Currency::foreign_try_from(router_data.request.currency)?;
 
-        let payment_method = router_data
-            .request
-            .payment_method_data
-            .clone()
+        // On a redirect-complete callback (e.g. PayPal wallet), the inbound request is a bare
+        // GET carrying only redirect params, so `payment_method_data` is None. UCS/prism still
+        // requires `payment_method` on the authorize call, so reconstruct a minimal payment
+        // method from the attempt's `payment_method_type` for redirect-based APMs. Mirrors the
+        // CompleteAuthorize reconstruct used for other redirect connectors.
+        let payment_method_data = router_data.request.payment_method_data.clone().or_else(|| {
+            use hyperswitch_domain_models::payment_method_data::{
+                PaymentMethodData, PaypalRedirection, WalletData,
+            };
+            match router_data.request.payment_method_type {
+                Some(common_enums::PaymentMethodType::Paypal) => Some(PaymentMethodData::Wallet(
+                    WalletData::PaypalRedirect(PaypalRedirection { email: None }),
+                )),
+                _ => None,
+            }
+        });
+
+        let payment_method = payment_method_data
             .map(|payment_method_data| {
                 unified_connector_service::build_unified_connector_service_payment_method(
                     payment_method_data,
@@ -791,7 +805,11 @@ impl
                 .map(payments_grpc::Tokenization::foreign_from)
                 .map(Into::into),
             l2_l3_data: None,
-            connector_order_id: None,
+            // Thread the connector's order id from the pending payment so the connector
+            // captures the EXISTING order after redirect (PayPal /orders/{id}/capture)
+            // instead of creating a new one. This is the builder the CompleteAuthorize
+            // gateway actually calls (tuple-arg with CallConnectorAction).
+            connector_order_id: router_data.request.connector_transaction_id.clone(),
             merchant_request_id: None,
             partner_merchant_identifier_details: None,
         })
@@ -2218,9 +2236,21 @@ impl
             .map(payments_grpc::CaptureMethod::foreign_try_from)
             .transpose()?;
 
+        // For MIT/recurring charges the merchant does not resend the payment method,
+        // so `request.payment_method_type` is `None`. The subtype for the saved payment
+        // method lives in `recurring_mandate_payment_data` (populated by HS from the
+        // stored mandate). Mirror the native connector, which reads it via
+        // `get_recurring_mandate_payment_data()`, so connectors like PayPal can route the
+        // vault token to the correct payment source (Card vs Paypal).
         let payment_method_type = router_data
             .request
             .payment_method_type
+            .or_else(|| {
+                router_data
+                    .recurring_mandate_payment_data
+                    .as_ref()
+                    .and_then(|data| data.payment_method_type)
+            })
             .map(payments_grpc::PaymentMethodType::foreign_try_from)
             .transpose()?
             .map(|pm_type| pm_type.into());
@@ -2468,6 +2498,8 @@ impl
                     }),
                 }),
             auth_type: Some(auth_type.into()),
+            // Provide the HS complete-authorize URL so a wallet MIT that needs buyer
+            // re-approval returns to HS (→ CompleteAuthorize) rather than the merchant URL.
             complete_authorize_url: router_data.request.complete_authorize_url.clone(),
             payment_channel: router_data
                 .request
@@ -3322,7 +3354,13 @@ impl
             Ok((
                 PaymentsResponseData::TransactionResponse {
                     resource_id: connector_transaction_id,
-                    redirection_data: Box::new(None),
+                    redirection_data: Box::new(
+                        response
+                            .redirection_data
+                            .clone()
+                            .map(RedirectForm::foreign_try_from)
+                            .transpose()?,
+                    ),
                     mandate_reference: Box::new(response.mandate_reference_details.map(hyperswitch_domain_models::router_response_types::MandateReference::foreign_try_from).transpose()?),
                     connector_metadata,
                     network_txn_id: response.network_transaction_id.clone(),
