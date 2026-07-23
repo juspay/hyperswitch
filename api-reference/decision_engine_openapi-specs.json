@@ -67,6 +67,15 @@
     {
       "name": "Compatibility",
       "description": "Legacy compatibility routes"
+    },
+    {
+      "name": "Connector Costs"
+    },
+    {
+      "name": "Merchant Features"
+    },
+    {
+      "name": "Autopilot"
     }
   ],
   "paths": {
@@ -91,7 +100,7 @@
             "name": "x-tenant-id",
             "in": "header",
             "required": true,
-            "description": "Tenant to resolve. The shipped config files define only the \"public\" tenant. No fallback — omitting this fails with TE_03.",
+            "description": "Tenant to resolve. The shipped config files define only the \"public\" tenant. No fallback \u2014 omitting this fails with TE_03.",
             "schema": {
               "type": "string",
               "default": "public"
@@ -302,7 +311,7 @@
             "name": "x-tenant-id",
             "in": "header",
             "required": true,
-            "description": "Tenant to resolve. The shipped config files define only the \"public\" tenant. No fallback — omitting this fails with TE_03.",
+            "description": "Tenant to resolve. The shipped config files define only the \"public\" tenant. No fallback \u2014 omitting this fails with TE_03.",
             "schema": {
               "type": "string",
               "default": "public"
@@ -513,7 +522,7 @@
             "name": "x-tenant-id",
             "in": "header",
             "required": true,
-            "description": "Tenant to resolve. The shipped config files define only the \"public\" tenant. No fallback — omitting this fails with TE_03.",
+            "description": "Tenant to resolve. The shipped config files define only the \"public\" tenant. No fallback \u2014 omitting this fails with TE_03.",
             "schema": {
               "type": "string",
               "default": "public"
@@ -724,7 +733,7 @@
             "name": "x-tenant-id",
             "in": "header",
             "required": true,
-            "description": "Tenant to resolve. The shipped config files define only the \"public\" tenant. No fallback — omitting this fails with TE_03.",
+            "description": "Tenant to resolve. The shipped config files define only the \"public\" tenant. No fallback \u2014 omitting this fails with TE_03.",
             "schema": {
               "type": "string",
               "default": "public"
@@ -935,7 +944,7 @@
             "name": "x-tenant-id",
             "in": "header",
             "required": true,
-            "description": "Tenant to resolve. The shipped config files define only the \"public\" tenant. No fallback — omitting this fails with TE_03.",
+            "description": "Tenant to resolve. The shipped config files define only the \"public\" tenant. No fallback \u2014 omitting this fails with TE_03.",
             "schema": {
               "type": "string",
               "default": "public"
@@ -1146,7 +1155,7 @@
             "name": "x-tenant-id",
             "in": "header",
             "required": true,
-            "description": "Tenant to resolve. The shipped config files define only the \"public\" tenant. No fallback — omitting this fails with TE_03.",
+            "description": "Tenant to resolve. The shipped config files define only the \"public\" tenant. No fallback \u2014 omitting this fails with TE_03.",
             "schema": {
               "type": "string",
               "default": "public"
@@ -1357,7 +1366,7 @@
             "name": "x-tenant-id",
             "in": "header",
             "required": true,
-            "description": "Tenant to resolve. The shipped config files define only the \"public\" tenant. No fallback — omitting this fails with TE_03.",
+            "description": "Tenant to resolve. The shipped config files define only the \"public\" tenant. No fallback \u2014 omitting this fails with TE_03.",
             "schema": {
               "type": "string",
               "default": "public"
@@ -2156,7 +2165,7 @@
                     }
                   },
                   "multi_objective_routing": {
-                    "summary": "Multi-objective routing — auth won (SR head retained)",
+                    "summary": "Multi-objective routing \u2014 auth won (SR head retained)",
                     "value": {
                       "decided_gateway": "adyen",
                       "fallback_gateways": [
@@ -2195,7 +2204,7 @@
                       "latency": 3,
                       "multi_objective_info": {
                         "outcome": "AUTH_WON",
-                        "reason": "SR head retained — it is the highest expected-value PSP (3 ranked on EV).",
+                        "reason": "SR head retained \u2014 it is the highest expected-value PSP (3 ranked on EV).",
                         "srHead": {
                           "psp": "adyen",
                           "authRate": 0.65,
@@ -2214,7 +2223,7 @@
                     }
                   },
                   "multi_objective_cost_won": {
-                    "summary": "Multi-objective routing — cost won (cheaper gateway promoted)",
+                    "summary": "Multi-objective routing \u2014 cost won (cheaper gateway promoted)",
                     "value": {
                       "decided_gateway": "adyen",
                       "fallback_gateways": [
@@ -2236,7 +2245,7 @@
                       "is_rust_based_decider": true,
                       "multi_objective_info": {
                         "outcome": "COST_WON",
-                        "reason": "Promoted 'adyen' over 'stripe' on expected value — saves 80.00 bps for 3.00pp auth.",
+                        "reason": "Promoted 'adyen' over 'stripe' on expected value \u2014 saves 80.00 bps for 3.00pp auth.",
                         "srHead": {
                           "psp": "stripe",
                           "authRate": 0.94,
@@ -2361,7 +2370,7 @@
             "name": "x-tenant-id",
             "in": "header",
             "required": true,
-            "description": "Tenant to resolve. The shipped config files define only the \"public\" tenant. No fallback — omitting this fails with TE_03.",
+            "description": "Tenant to resolve. The shipped config files define only the \"public\" tenant. No fallback \u2014 omitting this fails with TE_03.",
             "schema": {
               "type": "string",
               "default": "public"
@@ -2713,7 +2722,7 @@
           "Routing Rules"
         ],
         "summary": "Activate routing rule",
-        "description": "Activate a routing rule by ID for a merchant. Only one rule can be active at a time — activating a new rule deactivates the previous one.",
+        "description": "Activate a routing rule by ID for a merchant. Only one rule can be active at a time \u2014 activating a new rule deactivates the previous one.",
         "requestBody": {
           "required": true,
           "content": {
@@ -3414,7 +3423,7 @@
             "name": "x-tenant-id",
             "in": "header",
             "required": true,
-            "description": "Tenant to resolve. The shipped config files define only the \"public\" tenant. No fallback — omitting this fails with TE_03.",
+            "description": "Tenant to resolve. The shipped config files define only the \"public\" tenant. No fallback \u2014 omitting this fails with TE_03.",
             "schema": {
               "type": "string",
               "default": "public"
@@ -3625,7 +3634,7 @@
             "name": "x-tenant-id",
             "in": "header",
             "required": true,
-            "description": "Tenant to resolve. The shipped config files define only the \"public\" tenant. No fallback — omitting this fails with TE_03.",
+            "description": "Tenant to resolve. The shipped config files define only the \"public\" tenant. No fallback \u2014 omitting this fails with TE_03.",
             "schema": {
               "type": "string",
               "default": "public"
@@ -3748,7 +3757,7 @@
             "name": "x-tenant-id",
             "in": "header",
             "required": true,
-            "description": "Tenant to resolve. The shipped config files define only the \"public\" tenant. No fallback — omitting this fails with TE_03.",
+            "description": "Tenant to resolve. The shipped config files define only the \"public\" tenant. No fallback \u2014 omitting this fails with TE_03.",
             "schema": {
               "type": "string",
               "default": "public"
@@ -3840,7 +3849,7 @@
             "name": "x-tenant-id",
             "in": "header",
             "required": true,
-            "description": "Tenant to resolve. The shipped config files define only the \"public\" tenant. No fallback — omitting this fails with TE_03.",
+            "description": "Tenant to resolve. The shipped config files define only the \"public\" tenant. No fallback \u2014 omitting this fails with TE_03.",
             "schema": {
               "type": "string",
               "default": "public"
@@ -3893,6 +3902,870 @@
             }
           }
         }
+      }
+    },
+    "/merchant-account/{merchant_id}/connectors": {
+      "get": {
+        "operationId": "listConnectorCredentials",
+        "tags": [
+          "Connector Costs"
+        ],
+        "summary": "List Connector Credentials",
+        "description": "Masked list of connector cost-report credentials configured for the merchant.",
+        "parameters": [
+          {
+            "name": "merchant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "merchant_demo"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MaskedSource"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/merchant-account/{merchant_id}/connectors/{connector}/credentials": {
+      "post": {
+        "operationId": "setConnectorCredentials",
+        "tags": [
+          "Connector Costs"
+        ],
+        "summary": "Set Connector Credentials",
+        "description": "Store the account and report-download credentials used to pull a connector's cost reports.",
+        "parameters": [
+          {
+            "name": "merchant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "merchant_demo"
+          },
+          {
+            "name": "connector",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "adyen"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetCredentialsRequest"
+              },
+              "example": {
+                "account": "MERCHANT_ACCT",
+                "webhook_secret": "whsec_...",
+                "download_auth": "report-user:password"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SetCredentialsResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/merchant-account/{merchant_id}/connectors/{connector}/credentials/{account}": {
+      "delete": {
+        "operationId": "deleteConnectorCredentials",
+        "tags": [
+          "Connector Costs"
+        ],
+        "summary": "Delete Connector Credentials",
+        "description": "Remove a connector account's stored cost-report credentials.",
+        "parameters": [
+          {
+            "name": "merchant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "merchant_demo"
+          },
+          {
+            "name": "connector",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "adyen"
+          },
+          {
+            "name": "account",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "acct_123"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Deleted"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/merchant-account/{merchant_id}/connector-fees": {
+      "get": {
+        "operationId": "listConnectorFees",
+        "tags": [
+          "Connector Costs"
+        ],
+        "summary": "List Connector Fees",
+        "description": "Per-connector modelled and effective fee rates (model, override and effective pct_bps/fixed).",
+        "parameters": [
+          {
+            "name": "merchant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "merchant_demo"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ConnectorFee"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/merchant-account/{merchant_id}/connectors/{connector}/fee-override": {
+      "put": {
+        "operationId": "setFeeOverride",
+        "tags": [
+          "Connector Costs"
+        ],
+        "summary": "Set Connector Fee Override",
+        "description": "Manually override the effective fee (pct_bps + fixed) for a connector.",
+        "parameters": [
+          {
+            "name": "merchant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "merchant_demo"
+          },
+          {
+            "name": "connector",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "adyen"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetFeeOverrideRequest"
+              },
+              "example": {
+                "pct_bps": 180.0,
+                "fixed": 0.1
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeeOverrideResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/merchant-account/{merchant_id}/cost-clusters": {
+      "get": {
+        "operationId": "listCostClusters",
+        "tags": [
+          "Connector Costs"
+        ],
+        "summary": "List Cost Clusters",
+        "description": "Learned per-dimension cost clusters (network/funding/country/currency/IC category) with modelled and effective fees.",
+        "parameters": [
+          {
+            "name": "merchant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "merchant_demo"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "nullable": true
+            }
+          },
+          {
+            "name": "connector",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            }
+          },
+          {
+            "name": "account",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            }
+          },
+          {
+            "name": "report_date",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ClusterFee"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/merchant-account/{merchant_id}/cost-clusters/{cluster_key}/fee-override": {
+      "put": {
+        "operationId": "setClusterOverride",
+        "tags": [
+          "Connector Costs"
+        ],
+        "summary": "Set Cost Cluster Override",
+        "description": "Override the modelled fee for a specific cost cluster identified by its cluster key.",
+        "parameters": [
+          {
+            "name": "merchant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "merchant_demo"
+          },
+          {
+            "name": "cluster_key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "visa|credit|US|USD"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetClusterOverrideRequest"
+              },
+              "example": {
+                "pct_bps": 210.0,
+                "fixed": 0.12
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClusterOverride"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/merchant-account/{merchant_id}/cost-coverage": {
+      "get": {
+        "operationId": "getCostCoverage",
+        "tags": [
+          "Connector Costs"
+        ],
+        "summary": "Get Cost Coverage",
+        "description": "Summary of how much of the merchant's volume is covered by good (well-modelled) cost clusters.",
+        "parameters": [
+          {
+            "name": "merchant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "merchant_demo"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CoverageSummary"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/merchant-account/{merchant_id}/cost-ingestions": {
+      "get": {
+        "operationId": "listCostIngestions",
+        "tags": [
+          "Connector Costs"
+        ],
+        "summary": "List Cost Ingestions",
+        "description": "History of uploaded/pulled cost-report ingestions with staged rows, gross, and status.",
+        "parameters": [
+          {
+            "name": "merchant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "merchant_demo"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/IngestionDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/merchant-account/{merchant_id}/cost-ingestions/{ingestion_id}": {
+      "delete": {
+        "operationId": "deleteCostIngestion",
+        "tags": [
+          "Connector Costs"
+        ],
+        "summary": "Delete Cost Ingestion",
+        "description": "Delete a specific cost ingestion and its staged data.",
+        "parameters": [
+          {
+            "name": "merchant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "merchant_demo"
+          },
+          {
+            "name": "ingestion_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "ing_123"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Deleted"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/merchant-account/{merchant_id}/cost-price-changes": {
+      "get": {
+        "operationId": "listCostPriceChanges",
+        "tags": [
+          "Connector Costs"
+        ],
+        "summary": "List Cost Price Changes",
+        "description": "Detected changes in cluster pricing (old vs new pct_bps/fixed) across ingestions.",
+        "parameters": [
+          {
+            "name": "merchant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "merchant_demo"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PriceChange"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/merchant-account/{merchant_id}/invoice-addons": {
+      "get": {
+        "operationId": "listInvoiceAddons",
+        "tags": [
+          "Connector Costs"
+        ],
+        "summary": "List Invoice Add-ons",
+        "description": "Per-connector periodic-fee add-ons learned from uploaded invoices.",
+        "parameters": [
+          {
+            "name": "merchant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "merchant_demo"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AddonDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/merchant-account/{merchant_id}/connectors/{connector}/invoice-addon": {
+      "delete": {
+        "operationId": "deleteInvoiceAddon",
+        "tags": [
+          "Connector Costs"
+        ],
+        "summary": "Delete Invoice Add-on",
+        "description": "Remove a connector's invoice-derived fee add-on.",
+        "parameters": [
+          {
+            "name": "merchant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "merchant_demo"
+          },
+          {
+            "name": "connector",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "adyen"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Deleted"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/merchant-account/{merchant_id}/invoice-reconciliation": {
+      "get": {
+        "operationId": "getInvoiceReconciliation",
+        "tags": [
+          "Connector Costs"
+        ],
+        "summary": "Get Invoice Reconciliation",
+        "description": "Reconciliation of invoice subtotals against modelled + add-on captured fees, per connector.",
+        "parameters": [
+          {
+            "name": "merchant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "merchant_demo"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Reconciliation"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/merchant-account/{merchant_id}/features": {
+      "get": {
+        "operationId": "getMerchantFeatures",
+        "tags": [
+          "Merchant Features"
+        ],
+        "summary": "Get Merchant Features",
+        "description": "List the merchant's feature-flag states (GSM scoring, explore/exploit, A/B, multi-objective, elimination).",
+        "parameters": [
+          {
+            "name": "merchant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "merchant_demo"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MerchantFeaturesResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/merchant-account/{merchant_id}/features/{feature}": {
+      "post": {
+        "operationId": "updateMerchantFeature",
+        "tags": [
+          "Merchant Features"
+        ],
+        "summary": "Update Merchant Feature",
+        "description": "Enable or disable a single feature flag for the merchant.",
+        "parameters": [
+          {
+            "name": "merchant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "merchant_demo"
+          },
+          {
+            "name": "feature",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "multi-objective-routing"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateFeatureRequest"
+              },
+              "example": {
+                "enabled": true
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MerchantFeaturesResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/gateway-score/reset": {
+      "post": {
+        "operationId": "resetGatewayScores",
+        "tags": [
+          "Autopilot"
+        ],
+        "summary": "Reset Gateway Scores",
+        "description": "Flush a merchant's live gateway (success-rate) scores and any manual overrides.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResetGatewayScoresRequest"
+              },
+              "example": {
+                "merchant_id": "merchant_demo"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResetGatewayScoresResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ]
       }
     }
   },
@@ -4698,7 +5571,7 @@
       },
       "MultiObjectiveInfo": {
         "type": "object",
-        "description": "Present when the multi-objective (cost-aware) post-step ran. Explains why the gateway was picked: the SR head was kept (AUTH_WON) or a higher economic-value PSP was promoted (COST_WON). Economic value is auth rate × settlement value, where settlement value = txn amount − cost of payment processing (acquirer, issuer & network fee).",
+        "description": "Present when the multi-objective (cost-aware) post-step ran. Explains why the gateway was picked: the SR head was kept (AUTH_WON) or a higher economic-value PSP was promoted (COST_WON). Economic value is auth rate \u00d7 settlement value, where settlement value = txn amount \u2212 cost of payment processing (acquirer, issuer & network fee).",
         "properties": {
           "outcome": {
             "type": "string",
@@ -4710,7 +5583,7 @@
           },
           "reason": {
             "type": "string",
-            "example": "Promoted 'adyen' over 'stripe' on expected value — saves 80.00 bps for 3.00pp auth."
+            "example": "Promoted 'adyen' over 'stripe' on expected value \u2014 saves 80.00 bps for 3.00pp auth."
           },
           "srHead": {
             "allOf": [
@@ -4751,6 +5624,625 @@
             "nullable": true,
             "description": "Expected-value gap between the top-two EV-ranked PSPs, as a fraction of ticket. Null when fewer than two PSPs had cost data.",
             "example": 0.00182
+          }
+        }
+      },
+      "MaskedSource": {
+        "type": "object",
+        "properties": {
+          "connector": {
+            "type": "string"
+          },
+          "account": {
+            "type": "string"
+          },
+          "webhook_secret_hint": {
+            "type": "string"
+          },
+          "download_auth_hint": {
+            "type": "string"
+          }
+        }
+      },
+      "SetCredentialsRequest": {
+        "type": "object",
+        "properties": {
+          "account": {
+            "type": "string"
+          },
+          "webhook_secret": {
+            "type": "string"
+          },
+          "download_auth": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "account",
+          "webhook_secret",
+          "download_auth"
+        ]
+      },
+      "SetCredentialsResponse": {
+        "type": "object",
+        "properties": {
+          "merchant_id": {
+            "type": "string"
+          },
+          "connector": {
+            "type": "string"
+          },
+          "account": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          }
+        }
+      },
+      "ConnectorFee": {
+        "type": "object",
+        "properties": {
+          "connector": {
+            "type": "string"
+          },
+          "account": {
+            "type": "string",
+            "nullable": true
+          },
+          "has_credentials": {
+            "type": "boolean"
+          },
+          "model_pct_bps": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "model_fixed": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "good_gross": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "override_pct_bps": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "override_fixed": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "override_updated_at": {
+            "type": "string",
+            "nullable": true
+          },
+          "effective_pct_bps": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "effective_fixed": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "source": {
+            "type": "string"
+          }
+        }
+      },
+      "SetFeeOverrideRequest": {
+        "type": "object",
+        "properties": {
+          "pct_bps": {
+            "type": "number",
+            "format": "double"
+          },
+          "fixed": {
+            "type": "number",
+            "format": "double"
+          }
+        },
+        "required": [
+          "pct_bps",
+          "fixed"
+        ]
+      },
+      "FeeOverrideResponse": {
+        "type": "object",
+        "properties": {
+          "merchant_id": {
+            "type": "string"
+          },
+          "connector": {
+            "type": "string"
+          },
+          "pct_bps": {
+            "type": "number",
+            "format": "double"
+          },
+          "fixed": {
+            "type": "number",
+            "format": "double"
+          },
+          "updated_at": {
+            "type": "string"
+          }
+        }
+      },
+      "ClusterFee": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "connector": {
+            "type": "string"
+          },
+          "card_network": {
+            "type": "string"
+          },
+          "variant": {
+            "type": "string"
+          },
+          "funding": {
+            "type": "string"
+          },
+          "issuer_country": {
+            "type": "string"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "ic_category": {
+            "type": "string"
+          },
+          "n": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "gross_sum": {
+            "type": "number",
+            "format": "double"
+          },
+          "model_pct_bps": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "model_fixed": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "override_pct_bps": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "override_fixed": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "override_updated_at": {
+            "type": "string",
+            "nullable": true
+          },
+          "effective_pct_bps": {
+            "type": "number",
+            "format": "double"
+          },
+          "effective_fixed": {
+            "type": "number",
+            "format": "double"
+          },
+          "source": {
+            "type": "string"
+          }
+        }
+      },
+      "SetClusterOverrideRequest": {
+        "type": "object",
+        "properties": {
+          "pct_bps": {
+            "type": "number",
+            "format": "double"
+          },
+          "fixed": {
+            "type": "number",
+            "format": "double"
+          }
+        },
+        "required": [
+          "pct_bps",
+          "fixed"
+        ]
+      },
+      "ClusterDims": {
+        "type": "object",
+        "description": "Cluster dimension breakdown (connector, card network, funding, issuer country, currency, IC category).",
+        "additionalProperties": true
+      },
+      "ClusterOverride": {
+        "type": "object",
+        "properties": {
+          "dims": {
+            "$ref": "#/components/schemas/ClusterDims"
+          },
+          "pct_bps": {
+            "type": "number",
+            "format": "double"
+          },
+          "fixed": {
+            "type": "number",
+            "format": "double"
+          },
+          "updated_at": {
+            "type": "string"
+          }
+        }
+      },
+      "CoverageSummary": {
+        "type": "object",
+        "properties": {
+          "total_clusters": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "good_clusters": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "thin_clusters": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "non_linear_clusters": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "total_txns": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "good_txns": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "thin_txns": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "non_linear_txns": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "good_txn_pct": {
+            "type": "number",
+            "format": "double"
+          },
+          "total_gross": {
+            "type": "number",
+            "format": "double"
+          },
+          "good_gross": {
+            "type": "number",
+            "format": "double"
+          },
+          "thin_gross": {
+            "type": "number",
+            "format": "double"
+          },
+          "non_linear_gross": {
+            "type": "number",
+            "format": "double"
+          },
+          "good_gross_pct": {
+            "type": "number",
+            "format": "double"
+          },
+          "bps_rmse_p50": {
+            "type": "number",
+            "format": "double"
+          },
+          "bps_rmse_p90": {
+            "type": "number",
+            "format": "double"
+          },
+          "report_date": {
+            "type": "string"
+          }
+        }
+      },
+      "IngestionDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "connector": {
+            "type": "string"
+          },
+          "account": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "staged_rows": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "report_date": {
+            "type": "string",
+            "nullable": true
+          },
+          "period_start": {
+            "type": "string",
+            "nullable": true
+          },
+          "period_end": {
+            "type": "string",
+            "nullable": true
+          },
+          "currency_count": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "currencies": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "country_count": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "countries": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "total_gross": {
+            "type": "number",
+            "format": "double"
+          },
+          "total_clusters": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "good_clusters": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "last_error": {
+            "type": "string",
+            "nullable": true
+          },
+          "created_at": {
+            "type": "string"
+          }
+        }
+      },
+      "PriceChange": {
+        "type": "object",
+        "properties": {
+          "connector": {
+            "type": "string"
+          },
+          "account": {
+            "type": "string"
+          },
+          "card_network": {
+            "type": "string"
+          },
+          "variant": {
+            "type": "string"
+          },
+          "funding": {
+            "type": "string"
+          },
+          "issuer_country": {
+            "type": "string"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "ic_category": {
+            "type": "string"
+          },
+          "old_pct_bps": {
+            "type": "number",
+            "format": "double"
+          },
+          "new_pct_bps": {
+            "type": "number",
+            "format": "double"
+          },
+          "old_fixed": {
+            "type": "number",
+            "format": "double"
+          },
+          "new_fixed": {
+            "type": "number",
+            "format": "double"
+          },
+          "changed_on": {
+            "type": "string"
+          }
+        }
+      },
+      "StoredAddon": {
+        "type": "object",
+        "properties": {
+          "pct_addon_bps": {
+            "type": "number",
+            "format": "double"
+          },
+          "fixed_addon": {
+            "type": "number",
+            "format": "double"
+          },
+          "invoice_ref": {
+            "type": "string"
+          },
+          "subtotal_ex_tax": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "card_volume": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "txn_count": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          },
+          "currency": {
+            "type": "string"
+          },
+          "period_start": {
+            "type": "string",
+            "nullable": true
+          },
+          "period_end": {
+            "type": "string",
+            "nullable": true
+          },
+          "updated_at": {
+            "type": "string"
+          }
+        }
+      },
+      "AddonDto": {
+        "type": "object",
+        "properties": {
+          "connector": {
+            "type": "string"
+          },
+          "addon": {
+            "$ref": "#/components/schemas/StoredAddon"
+          }
+        }
+      },
+      "Reconciliation": {
+        "type": "object",
+        "properties": {
+          "connector": {
+            "type": "string"
+          },
+          "invoice_subtotal": {
+            "type": "number",
+            "format": "double"
+          },
+          "model_captured": {
+            "type": "number",
+            "format": "double"
+          },
+          "addon_contribution": {
+            "type": "number",
+            "format": "double"
+          },
+          "model_all_in": {
+            "type": "number",
+            "format": "double"
+          },
+          "residual": {
+            "type": "number",
+            "format": "double"
+          },
+          "coverage_before": {
+            "type": "number",
+            "format": "double"
+          },
+          "coverage_after": {
+            "type": "number",
+            "format": "double"
+          }
+        }
+      },
+      "MerchantFeatureEntry": {
+        "type": "object",
+        "properties": {
+          "feature": {
+            "type": "string",
+            "enum": [
+              "gsm-scoring-filter",
+              "explore-exploit-srv3",
+              "ab-test-real-payments",
+              "multi-objective-routing",
+              "elimination"
+            ]
+          },
+          "enabled": {
+            "type": "boolean"
+          }
+        }
+      },
+      "MerchantFeaturesResponse": {
+        "type": "object",
+        "properties": {
+          "merchant_id": {
+            "type": "string"
+          },
+          "features": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MerchantFeatureEntry"
+            }
+          }
+        }
+      },
+      "UpdateFeatureRequest": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "enabled"
+        ]
+      },
+      "ResetGatewayScoresRequest": {
+        "type": "object",
+        "properties": {
+          "merchant_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "merchant_id"
+        ]
+      },
+      "ResetGatewayScoresResponse": {
+        "type": "object",
+        "properties": {
+          "merchant_id": {
+            "type": "string"
+          },
+          "deleted_keys": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "removed_overrides": {
+            "type": "integer",
+            "format": "int64"
           }
         }
       }

@@ -675,6 +675,33 @@
             ]
           },
           {
+            "group": "OpenAPI: Connector Costs & Ingestion",
+            "pages": [
+              "decision-engine-api-reference/api-reference/endpoint/connector-costs/listConnectorCredentials",
+              "decision-engine-api-reference/api-reference/endpoint/connector-costs/setConnectorCredentials",
+              "decision-engine-api-reference/api-reference/endpoint/connector-costs/deleteConnectorCredentials",
+              "decision-engine-api-reference/api-reference/endpoint/connector-costs/listConnectorFees",
+              "decision-engine-api-reference/api-reference/endpoint/connector-costs/setFeeOverride",
+              "decision-engine-api-reference/api-reference/endpoint/connector-costs/listCostClusters",
+              "decision-engine-api-reference/api-reference/endpoint/connector-costs/setClusterOverride",
+              "decision-engine-api-reference/api-reference/endpoint/connector-costs/getCostCoverage",
+              "decision-engine-api-reference/api-reference/endpoint/connector-costs/listCostIngestions",
+              "decision-engine-api-reference/api-reference/endpoint/connector-costs/deleteCostIngestion",
+              "decision-engine-api-reference/api-reference/endpoint/connector-costs/listCostPriceChanges",
+              "decision-engine-api-reference/api-reference/endpoint/connector-costs/listInvoiceAddons",
+              "decision-engine-api-reference/api-reference/endpoint/connector-costs/deleteInvoiceAddon",
+              "decision-engine-api-reference/api-reference/endpoint/connector-costs/getInvoiceReconciliation"
+            ]
+          },
+          {
+            "group": "OpenAPI: Feature Flags & Autopilot",
+            "pages": [
+              "decision-engine-api-reference/api-reference/endpoint/features/getMerchantFeatures",
+              "decision-engine-api-reference/api-reference/endpoint/features/updateMerchantFeature",
+              "decision-engine-api-reference/api-reference/endpoint/features/resetGatewayScores"
+            ]
+          },
+          {
             "group": "API Examples (curl flows)",
             "pages": [
               {
