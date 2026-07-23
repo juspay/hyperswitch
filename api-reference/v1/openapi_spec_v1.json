@@ -22410,6 +22410,16 @@
           "post"
         ]
       },
+      "FundingSource": {
+        "type": "string",
+        "enum": [
+          "CREDIT",
+          "DEBIT",
+          "DEFERRED DEBIT",
+          "PREPAID",
+          "CHARGE CARD"
+        ]
+      },
       "FutureUsage": {
         "type": "string",
         "description": "Specifies how the payment method can be used for future payments.\n- `off_session`: The payment method can be used for future payments when the customer is not present.\n- `on_session`: The payment method is intended for use only when the customer is present during checkout.\nIf omitted, defaults to `on_session`.",
