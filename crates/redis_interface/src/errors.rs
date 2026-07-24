@@ -48,6 +48,8 @@ pub enum RedisError {
     SetHashFailed,
     #[error("Failed to set hash field in Redis")]
     SetHashFieldFailed,
+    #[error("Failed to delete hash field in Redis")]
+    DeleteHashFieldFailed,
     #[error("Failed to add members to set in Redis")]
     SetAddMembersFailed,
     #[error("Failed to get hash field in Redis")]

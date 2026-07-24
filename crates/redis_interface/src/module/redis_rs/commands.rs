@@ -899,6 +899,25 @@ impl super::RedisConnectionPool {
             .change_context(errors::RedisError::JsonDeserializationFailed)
     }
 
+    #[instrument(level = "DEBUG", skip(self))]
+    pub async fn delete_hash_fields<F>(
+        &self,
+        key: &RedisKey,
+        fields: F,
+    ) -> CustomResult<usize, errors::RedisError>
+    where
+        F: redis::ToRedisArgs + Debug + Send + Sync,
+    {
+        let mut conn = self.pool.clone();
+        // HDEL returns the number of fields removed (missing fields are ignored, not an error).
+        track_redis_call(
+            RedisOperation::DeleteHashFields,
+            conn.hdel(key.tenant_aware_key(self), fields),
+        )
+        .await
+        .change_context(errors::RedisError::DeleteHashFieldFailed)
+    }
+
     // ─── Set Commands ────────────────────────────────────────────────────────
 
     #[instrument(level = "DEBUG", skip(self))]
