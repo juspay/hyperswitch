@@ -6,8 +6,6 @@ use api_models::user as user_api;
 #[cfg(feature = "v1")]
 use common_enums::connector_enums;
 use common_enums::UserAuthType;
-#[cfg(feature = "v1")]
-use common_utils::ext_traits::ValueExt;
 use common_utils::{
     encryption::Encryption,
     errors::CustomResult,
@@ -32,7 +30,7 @@ use crate::{
     },
     types::{
         domain::{self, MerchantAccount, UserFromStorage},
-        transformers::ForeignFrom,
+        transformers::{ForeignFrom, ForeignTryFrom},
     },
 };
 
@@ -420,110 +418,48 @@ pub async fn build_cloned_connector_create_request(
         .change_context(UserErrors::InternalServerError)
         .attach_printable("Invalid connector name received")?;
 
-    let payment_methods_enabled = source_mca
-        .payment_methods_enabled
-        .clone()
-        .map(|data| {
-            let val = data.into_iter().map(|secret| secret.expose()).collect();
-            serde_json::Value::Array(val)
-                .parse_value::<Vec<admin_api::PaymentMethodsEnabled>>("PaymentMethods")
-                .change_context(UserErrors::InternalServerError)
-                .attach_printable("Unable to deserialize PaymentMethods")
-        })
-        .transpose()?
-        .map(|payment_methods| {
-            payment_methods
-                .into_iter()
-                .filter_map(|mut payment_method| {
-                    let allowed_subtypes =
-                        payment_method_types.get(&payment_method.payment_method)?;
-                    payment_method.payment_method_types =
-                        payment_method.payment_method_types.map(|subtypes| {
-                            subtypes
-                                .into_iter()
-                                .filter(|subtype| {
-                                    allowed_subtypes.contains(&subtype.payment_method_type)
-                                })
-                                .collect::<Vec<_>>()
-                        });
-                    match &payment_method.payment_method_types {
-                        Some(subtypes) if subtypes.is_empty() => None,
-                        _ => Some(payment_method),
+    let connector_account_details = source_mca.connector_account_details.clone().into_inner();
+
+    let source_mca = admin_api::MerchantConnectorResponse::foreign_try_from(source_mca)
+        .change_context(UserErrors::InternalServerError)
+        .attach_printable("Unable to convert merchant connector account to response")?;
+
+    let payment_methods_enabled = source_mca.payment_methods_enabled.map(|payment_methods| {
+        payment_methods
+            .into_iter()
+            .filter_map(|mut payment_method| {
+                let allowed_subtypes = payment_method_types.get(&payment_method.payment_method)?;
+                if let Some(subtypes) = payment_method.payment_method_types.as_mut() {
+                    subtypes
+                        .retain(|subtype| allowed_subtypes.contains(&subtype.payment_method_type));
+                    if subtypes.is_empty() {
+                        return None;
                     }
-                })
-                .collect::<Vec<_>>()
-        });
-
-    let frm_configs = source_mca
-        .frm_configs
-        .clone()
-        .map(|configs| {
-            configs
-                .into_iter()
-                .map(|config| {
-                    serde_json::Value::parse_value(config.expose(), "FrmConfigs")
-                        .change_context(UserErrors::InternalServerError)
-                        .attach_printable("Unable to deserialize frm_configs")
-                })
-                .collect::<Result<Vec<_>, _>>()
-        })
-        .transpose()?;
-
-    let additional_merchant_data = source_mca
-        .additional_merchant_data
-        .map(|merchant_data| {
-            serde_json::Value::parse_value(
-                merchant_data.into_inner().expose(),
-                "AdditionalMerchantData",
-            )
-            .change_context(UserErrors::InternalServerError)
-            .attach_printable("Unable to deserialize additional_merchant_data")
-        })
-        .transpose()?;
-
-    let connector_wallets_details = source_mca
-        .connector_wallets_details
-        .map(|wallets_details| {
-            serde_json::Value::parse_value(
-                wallets_details.into_inner().expose(),
-                "ConnectorWalletDetails",
-            )
-            .change_context(UserErrors::InternalServerError)
-            .attach_printable("Unable to deserialize connector_wallets_details")
-        })
-        .transpose()?;
-
-    let connector_webhook_details = source_mca
-        .connector_webhook_details
-        .map(|webhook_details| {
-            serde_json::Value::parse_value(
-                webhook_details.expose(),
-                "MerchantConnectorWebhookDetails",
-            )
-            .change_context(UserErrors::InternalServerError)
-            .attach_printable("Unable to deserialize connector_webhook_details")
-        })
-        .transpose()?;
+                }
+                Some(payment_method)
+            })
+            .collect::<Vec<_>>()
+    });
 
     Ok(admin_api::MerchantConnectorCreate {
         connector_type: source_mca.connector_type,
         connector_name: source_mca_name,
-        connector_label: destination_connector_label.or(source_mca.connector_label.clone()),
+        connector_label: destination_connector_label.or(source_mca.connector_label),
         merchant_connector_id: None,
-        connector_account_details: Some(source_mca.connector_account_details.clone().into_inner()),
+        connector_account_details: Some(connector_account_details),
         test_mode: source_mca.test_mode,
         disabled: source_mca.disabled,
         payment_methods_enabled,
         metadata: source_mca.metadata,
         business_country: source_mca.business_country,
-        business_label: source_mca.business_label.clone(),
-        business_sub_label: source_mca.business_sub_label.clone(),
-        frm_configs,
-        connector_webhook_details,
+        business_label: source_mca.business_label,
+        business_sub_label: source_mca.business_sub_label,
+        frm_configs: source_mca.frm_configs,
+        connector_webhook_details: source_mca.connector_webhook_details,
         profile_id: Some(destination_profile_id),
         pm_auth_config: None,
-        connector_wallets_details,
+        connector_wallets_details: source_mca.connector_wallets_details,
         status: Some(source_mca.status),
-        additional_merchant_data,
+        additional_merchant_data: source_mca.additional_merchant_data,
     })
 }
