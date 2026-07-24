@@ -104,8 +104,7 @@
             "schema": {
               "type": "string",
               "default": "public"
-            },
-            "example": "public"
+            }
           },
           {
             "name": "range",
@@ -274,15 +273,23 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "merchant_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
           "200": {
-            "description": "Decisions",
+            "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GenericObject"
+                  "$ref": "#/components/schemas/AnalyticsDecisionResponse"
                 }
               }
             }
@@ -315,8 +322,7 @@
             "schema": {
               "type": "string",
               "default": "public"
-            },
-            "example": "public"
+            }
           },
           {
             "name": "range",
@@ -485,15 +491,23 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "merchant_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
           "200": {
-            "description": "Gateway scores",
+            "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GenericObject"
+                  "$ref": "#/components/schemas/AnalyticsGatewayScoresResponse"
                 }
               }
             }
@@ -526,8 +540,7 @@
             "schema": {
               "type": "string",
               "default": "public"
-            },
-            "example": "public"
+            }
           },
           {
             "name": "range",
@@ -696,15 +709,23 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "merchant_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
           "200": {
-            "description": "Log summaries",
+            "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GenericObject"
+                  "$ref": "#/components/schemas/AnalyticsLogSummariesResponse"
                 }
               }
             }
@@ -737,8 +758,7 @@
             "schema": {
               "type": "string",
               "default": "public"
-            },
-            "example": "public"
+            }
           },
           {
             "name": "range",
@@ -907,15 +927,23 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "merchant_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
           "200": {
-            "description": "Overview",
+            "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GenericObject"
+                  "$ref": "#/components/schemas/AnalyticsOverviewResponse"
                 }
               }
             }
@@ -948,8 +976,7 @@
             "schema": {
               "type": "string",
               "default": "public"
-            },
-            "example": "public"
+            }
           },
           {
             "name": "range",
@@ -1118,15 +1145,23 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "merchant_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
           "200": {
-            "description": "Payment audit",
+            "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GenericObject"
+                  "$ref": "#/components/schemas/PaymentAuditResponse"
                 }
               }
             }
@@ -1159,8 +1194,7 @@
             "schema": {
               "type": "string",
               "default": "public"
-            },
-            "example": "public"
+            }
           },
           {
             "name": "range",
@@ -1329,15 +1363,23 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "merchant_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
           "200": {
-            "description": "Decision trace",
+            "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GenericObject"
+                  "$ref": "#/components/schemas/PaymentAuditResponse"
                 }
               }
             }
@@ -1370,8 +1412,7 @@
             "schema": {
               "type": "string",
               "default": "public"
-            },
-            "example": "public"
+            }
           },
           {
             "name": "range",
@@ -1540,15 +1581,23 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "merchant_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
           "200": {
-            "description": "Routing stats",
+            "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GenericObject"
+                  "$ref": "#/components/schemas/AnalyticsRoutingStatsResponse"
                 }
               }
             }
@@ -1579,8 +1628,7 @@
             "required": true,
             "schema": {
               "type": "string"
-            },
-            "example": "018f-key-id"
+            }
           }
         ],
         "responses": {
@@ -1589,7 +1637,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GenericObject"
+                  "$ref": "#/components/schemas/RevokeApiKeyResponse"
                 }
               }
             }
@@ -1660,8 +1708,7 @@
             "required": true,
             "schema": {
               "type": "string"
-            },
-            "example": "merchant_demo"
+            }
           }
         ],
         "responses": {
@@ -1694,7 +1741,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/AuthRequest"
+                "$ref": "#/components/schemas/LoginRequest"
               }
             }
           }
@@ -1819,7 +1866,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/AuthRequest"
+                "$ref": "#/components/schemas/SignupRequest"
               }
             }
           }
@@ -1899,7 +1946,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/GenericObject"
+                "$ref": "#/components/schemas/SrDimensionConfig"
               }
             }
           }
@@ -1910,7 +1957,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GenericObject"
+                  "type": "string"
                 }
               }
             }
@@ -2330,14 +2377,11 @@
         "description": "Service liveness check.",
         "responses": {
           "200": {
-            "description": "Service is healthy",
+            "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HealthResponse"
-                },
-                "example": {
-                  "message": "Health is good"
+                  "$ref": "#/components/schemas/HealthRespPayload"
                 }
               }
             }
@@ -2374,8 +2418,7 @@
             "schema": {
               "type": "string",
               "default": "public"
-            },
-            "example": "public"
+            }
           }
         ]
       }
@@ -2390,243 +2433,16 @@
         "description": "Returns Up when the process is ready to serve traffic.",
         "responses": {
           "200": {
-            "description": "Ready",
+            "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HealthResponse"
-                },
-                "example": {
-                  "message": "Up"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Not ready",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HealthResponse"
-                },
-                "example": {
-                  "message": "Down"
+                  "$ref": "#/components/schemas/HealthRespPayload"
                 }
               }
             }
           }
         }
-      }
-    },
-    "/merchant-account/{merchantId}": {
-      "get": {
-        "operationId": "getMerchant",
-        "tags": [
-          "Merchant Account"
-        ],
-        "summary": "Get merchant",
-        "description": "Retrieve a merchant account by ID.",
-        "parameters": [
-          {
-            "name": "merchantId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            },
-            "example": "my_merchant"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Merchant account",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/MerchantAccount"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Merchant not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "BearerAuth": []
-          },
-          {
-            "ApiKeyAuth": []
-          }
-        ]
-      },
-      "delete": {
-        "operationId": "deleteMerchant",
-        "tags": [
-          "Merchant Account"
-        ],
-        "summary": "Delete merchant",
-        "description": "Delete a merchant account and all associated routing configuration.",
-        "parameters": [
-          {
-            "name": "merchantId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            },
-            "example": "my_merchant"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Merchant deleted",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/DeleteResponse"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "BearerAuth": []
-          },
-          {
-            "ApiKeyAuth": []
-          }
-        ]
-      }
-    },
-    "/merchant-account/{merchantId}/debit-routing": {
-      "get": {
-        "operationId": "getMerchantDebitRouting",
-        "tags": [
-          "Merchant Account"
-        ],
-        "summary": "Get debit routing flag",
-        "description": "Return whether debit/network routing is enabled for a merchant. Missing flag configuration is treated as disabled.",
-        "parameters": [
-          {
-            "name": "merchantId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            },
-            "example": "my_merchant"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Debit routing flag",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/DebitRoutingResponse"
-                },
-                "example": {
-                  "merchant_id": "my_merchant",
-                  "debit_routing_enabled": false
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Merchant not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "BearerAuth": []
-          },
-          {
-            "ApiKeyAuth": []
-          }
-        ]
-      },
-      "post": {
-        "operationId": "updateMerchantDebitRouting",
-        "tags": [
-          "Merchant Account"
-        ],
-        "summary": "Update debit routing flag",
-        "description": "Enable or disable runtime debit/network routing for a merchant.",
-        "parameters": [
-          {
-            "name": "merchantId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            },
-            "example": "my_merchant"
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/DebitRoutingRequest"
-              },
-              "example": {
-                "enabled": true
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Debit routing flag updated",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/DebitRoutingResponse"
-                },
-                "example": {
-                  "merchant_id": "my_merchant",
-                  "debit_routing_enabled": true
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Merchant not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "BearerAuth": []
-          },
-          {
-            "ApiKeyAuth": []
-          }
-        ]
       }
     },
     "/merchant-account/create": {
@@ -2643,26 +2459,17 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/CreateMerchantRequest"
-              },
-              "example": {
-                "merchant_id": "my_merchant",
-                "gateway_success_rate_based_decider_input": null
               }
             }
           }
         },
         "responses": {
           "200": {
-            "description": "Merchant created",
+            "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/MerchantAccount"
-                },
-                "example": {
-                  "message": "Merchant created",
-                  "merchant_id": "my_merchant",
-                  "gateway_success_rate_based_decider_input": null
+                  "$ref": "#/components/schemas/MerchantAccountCreateResponse"
                 }
               }
             }
@@ -2707,7 +2514,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GenericObject"
+                  "$ref": "#/components/schemas/CreateMerchantResponse"
                 }
               }
             }
@@ -2729,10 +2536,6 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/ActivateRoutingRuleRequest"
-              },
-              "example": {
-                "created_by": "test_merchant",
-                "routing_algorithm_id": "rule_abc123"
               }
             }
           }
@@ -2766,10 +2569,6 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/DeactivateRoutingRuleRequest"
-              },
-              "example": {
-                "created_by": "test_merchant",
-                "routing_algorithm_id": "rule_abc123"
               }
             }
           }
@@ -2813,82 +2612,6 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/CreateRoutingRuleRequest"
-              },
-              "examples": {
-                "priority": {
-                  "summary": "Priority-based rule",
-                  "value": {
-                    "name": "default-priority",
-                    "description": "Route to stripe first, fallback to paypal",
-                    "created_by": "test_merchant",
-                    "algorithm_for": "payment",
-                    "algorithm": {
-                      "type": "priority",
-                      "data": [
-                        {
-                          "gateway_name": "stripe",
-                          "gateway_id": null
-                        },
-                        {
-                          "gateway_name": "paypal",
-                          "gateway_id": null
-                        },
-                        {
-                          "gateway_name": "adyen",
-                          "gateway_id": null
-                        }
-                      ]
-                    }
-                  }
-                },
-                "volume_split": {
-                  "summary": "Volume split rule",
-                  "value": {
-                    "name": "ab-test-split",
-                    "description": "",
-                    "created_by": "test_merchant",
-                    "algorithm_for": "payment",
-                    "algorithm": {
-                      "type": "volume_split",
-                      "data": [
-                        {
-                          "split": 70,
-                          "connectors": [
-                            {
-                              "gateway_name": "stripe",
-                              "gateway_id": null
-                            }
-                          ]
-                        },
-                        {
-                          "split": 30,
-                          "connectors": [
-                            {
-                              "gateway_name": "paypal",
-                              "gateway_id": null
-                            }
-                          ]
-                        }
-                      ]
-                    }
-                  }
-                },
-                "single": {
-                  "summary": "Single connector rule",
-                  "value": {
-                    "name": "always-stripe",
-                    "description": "Always route to stripe",
-                    "created_by": "test_merchant",
-                    "algorithm_for": "payment",
-                    "algorithm": {
-                      "type": "single",
-                      "data": {
-                        "gateway_name": "stripe",
-                        "gateway_id": null
-                      }
-                    }
-                  }
-                }
               }
             }
           }
@@ -2928,29 +2651,18 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/EvaluateRoutingRequest"
-              },
-              "example": {
-                "merchantId": "test_merchant",
-                "paymentInfo": {
-                  "paymentId": "pay_001",
-                  "amount": 1000,
-                  "currency": "USD",
-                  "paymentType": "ORDER_PAYMENT",
-                  "paymentMethodType": "CARD",
-                  "paymentMethod": "CREDIT"
-                }
+                "$ref": "#/components/schemas/RoutingRequest"
               }
             }
           }
         },
         "responses": {
           "200": {
-            "description": "Evaluation result with ordered gateway list",
+            "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "$ref": "#/components/schemas/RoutingEvaluateResponse"
                 }
               }
             }
@@ -3021,8 +2733,7 @@
             "required": true,
             "schema": {
               "type": "string"
-            },
-            "example": "merchant_demo"
+            }
           }
         ],
         "responses": {
@@ -3065,8 +2776,7 @@
             "required": true,
             "schema": {
               "type": "string"
-            },
-            "example": "test_merchant"
+            }
           }
         ],
         "responses": {
@@ -3115,35 +2825,6 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/RuleConfigRequest"
-              },
-              "examples": {
-                "success_rate": {
-                  "summary": "Success rate config",
-                  "value": {
-                    "merchant_id": "test_merchant",
-                    "config": {
-                      "type": "successRate",
-                      "data": {
-                        "defaultBucketSize": 20,
-                        "defaultLatencyThreshold": null,
-                        "defaultHedgingPercent": null
-                      }
-                    }
-                  }
-                },
-                "elimination": {
-                  "summary": "Elimination config",
-                  "value": {
-                    "merchant_id": "test_merchant",
-                    "config": {
-                      "type": "elimination",
-                      "data": {
-                        "bucketSize": 5,
-                        "eliminationThreshold": 0.2
-                      }
-                    }
-                  }
-                }
               }
             }
           }
@@ -3184,10 +2865,6 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/RuleConfigGetRequest"
-              },
-              "example": {
-                "merchant_id": "test_merchant",
-                "algorithm": "successRate"
               }
             }
           }
@@ -3228,21 +2905,17 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/RuleConfigGetRequest"
-              },
-              "example": {
-                "merchant_id": "test_merchant",
-                "algorithm": "successRate"
               }
             }
           }
         },
         "responses": {
           "200": {
-            "description": "Rule config",
+            "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/RuleConfigResponse"
+                  "$ref": "#/components/schemas/RuleConfig"
                 }
               }
             }
@@ -3272,16 +2945,6 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/RuleConfigRequest"
-              },
-              "example": {
-                "merchant_id": "test_merchant",
-                "config": {
-                  "type": "successRate",
-                  "data": {
-                    "defaultBucketSize": 30,
-                    "defaultHedgingPercent": 0.1
-                  }
-                }
               }
             }
           }
@@ -3394,7 +3057,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GenericObject"
+                  "type": "string"
                 }
               }
             }
@@ -3427,8 +3090,7 @@
             "schema": {
               "type": "string",
               "default": "public"
-            },
-            "example": "public"
+            }
           },
           {
             "name": "range",
@@ -3597,15 +3259,23 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "merchant_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
           "200": {
-            "description": "Cost savings",
+            "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GenericObject"
+                  "$ref": "#/components/schemas/AnalyticsCostSavingsResponse"
                 }
               }
             }
@@ -3638,8 +3308,7 @@
             "schema": {
               "type": "string",
               "default": "public"
-            },
-            "example": "public"
+            }
           },
           {
             "name": "range",
@@ -3720,15 +3389,23 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "merchant_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
           "200": {
-            "description": "Routing events",
+            "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GenericObject"
+                  "$ref": "#/components/schemas/RoutingEventsResponse"
                 }
               }
             }
@@ -3761,8 +3438,7 @@
             "schema": {
               "type": "string",
               "default": "public"
-            },
-            "example": "public"
+            }
           },
           {
             "name": "experiment_id",
@@ -3770,8 +3446,7 @@
             "required": true,
             "schema": {
               "type": "string"
-            },
-            "example": "routing_a1b2c3d4-1111-2222-3333-444455556666"
+            }
           },
           {
             "name": "start_ms",
@@ -3812,15 +3487,38 @@
             "schema": {
               "type": "number"
             }
+          },
+          {
+            "name": "merchant_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "range",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "M15",
+                "H1",
+                "H12",
+                "D1",
+                "W1"
+              ]
+            }
           }
         ],
         "responses": {
           "200": {
-            "description": "A/B test experiment results",
+            "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GenericObject"
+                  "$ref": "#/components/schemas/ExperimentResultsResponse"
                 }
               }
             }
@@ -3853,8 +3551,7 @@
             "schema": {
               "type": "string",
               "default": "public"
-            },
-            "example": "public"
+            }
           },
           {
             "name": "experiment_id",
@@ -3862,8 +3559,7 @@
             "required": true,
             "schema": {
               "type": "string"
-            },
-            "example": "routing_a1b2c3d4-1111-2222-3333-444455556666"
+            }
           },
           {
             "name": "start_ms",
@@ -3888,15 +3584,38 @@
             "schema": {
               "type": "integer"
             }
+          },
+          {
+            "name": "merchant_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "range",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "M15",
+                "H1",
+                "H12",
+                "D1",
+                "W1"
+              ]
+            }
           }
         ],
         "responses": {
           "200": {
-            "description": "A/B test experiment transactions",
+            "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GenericObject"
+                  "$ref": "#/components/schemas/ExperimentTransactionsResponse"
                 }
               }
             }
@@ -4767,6 +4486,242 @@
           }
         ]
       }
+    },
+    "/config-sr-dimension/{merchant_id}": {
+      "get": {
+        "operationId": "getSrDimensions",
+        "tags": [
+          "Config"
+        ],
+        "summary": "Get SR dimensions",
+        "description": "Retrieve the success-rate routing dimension configuration for a merchant.",
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "merchant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SrDimensionConfig"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/merchant-account/{merchant_id}": {
+      "get": {
+        "operationId": "getMerchant",
+        "tags": [
+          "Merchant Account"
+        ],
+        "summary": "Get merchant",
+        "description": "Retrieve a merchant account by ID.",
+        "parameters": [
+          {
+            "name": "merchant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Merchant account",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MerchantAccount"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Merchant not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "deleteMerchant",
+        "tags": [
+          "Merchant Account"
+        ],
+        "summary": "Delete merchant",
+        "description": "Delete a merchant account and all associated routing configuration.",
+        "parameters": [
+          {
+            "name": "merchant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Merchant deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
+    },
+    "/merchant-account/{merchant_id}/debit-routing": {
+      "get": {
+        "operationId": "getMerchantDebitRouting",
+        "tags": [
+          "Merchant Account"
+        ],
+        "summary": "Get debit routing flag",
+        "description": "Return whether debit/network routing is enabled for a merchant. Missing flag configuration is treated as disabled.",
+        "parameters": [
+          {
+            "name": "merchant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Debit routing flag",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DebitRoutingResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Merchant not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      },
+      "post": {
+        "operationId": "updateMerchantDebitRouting",
+        "tags": [
+          "Merchant Account"
+        ],
+        "summary": "Update debit routing flag",
+        "description": "Enable or disable runtime debit/network routing for a merchant.",
+        "parameters": [
+          {
+            "name": "merchant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DebitRoutingRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Debit routing flag updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DebitRoutingResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Merchant not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ]
+      }
     }
   },
   "components": {
@@ -4816,6 +4771,9 @@
         "properties": {
           "message": {
             "type": "string"
+          },
+          "merchant_id": {
+            "type": "string"
           }
         }
       },
@@ -4836,58 +4794,143 @@
           },
           "amount": {
             "type": "number",
-            "format": "float",
+            "format": "double",
             "example": 1000
           },
           "currency": {
             "type": "string",
+            "description": "ISO 4217 currency code.",
             "example": "USD"
           },
           "country": {
             "type": "string",
+            "nullable": true,
+            "description": "ISO 3166-1 alpha-2 country code.",
             "example": "US"
           },
           "customerId": {
             "type": "string",
+            "nullable": true,
             "example": "cust_123"
+          },
+          "udfs": {
+            "type": "object",
+            "nullable": true,
+            "description": "User-defined fields, keyed udf1..udf20.",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "preferredGateway": {
+            "type": "string",
+            "nullable": true,
+            "description": "Pins routing to a specific gateway when set."
           },
           "paymentType": {
             "type": "string",
             "enum": [
               "ORDER_PAYMENT",
-              "MANDATE_PAYMENT"
+              "MANDATE_REGISTER",
+              "EMANDATE_REGISTER",
+              "MANDATE_PAYMENT",
+              "EMANDATE_PAYMENT",
+              "TPV_PAYMENT",
+              "TPV_EMANDATE_REGISTER",
+              "TPV_MANDATE_REGISTER",
+              "TPV_EMANDATE_PAYMENT",
+              "TPV_MANDATE_PAYMENT",
+              "PARTIAL_CAPTURE",
+              "PARTIAL_VOID",
+              "VAN_PAYMENT",
+              "MOTO_PAYMENT",
+              "UNKNOWN"
             ],
             "example": "ORDER_PAYMENT"
           },
+          "metadata": {
+            "type": "string",
+            "nullable": true
+          },
+          "internalMetadata": {
+            "type": "string",
+            "nullable": true
+          },
+          "isEmi": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "emiBank": {
+            "type": "string",
+            "nullable": true
+          },
+          "emiTenure": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
           "paymentMethodType": {
             "type": "string",
-            "enum": [
-              "CARD",
-              "UPI",
-              "WALLET",
-              "NETBANKING"
-            ],
+            "description": "Connector-defined payment method type, e.g. CARD, UPI, WALLET, NETBANKING.",
             "example": "CARD"
           },
           "paymentMethod": {
             "type": "string",
-            "enum": [
-              "CREDIT",
-              "DEBIT"
-            ],
+            "description": "Connector-defined payment method, e.g. CREDIT, DEBIT, GPAY.",
             "example": "CREDIT"
+          },
+          "paymentSource": {
+            "type": "string",
+            "nullable": true
           },
           "authType": {
             "type": "string",
+            "nullable": true,
             "enum": [
+              "ATMPIN",
               "THREE_DS",
-              "NO_THREE_DS"
+              "THREE_DS2",
+              "OTP",
+              "OBO_OTP",
+              "VIES",
+              "NO_THREE_DS",
+              "NETWORK_TOKEN",
+              "MOTO",
+              "FIDO",
+              "CTP"
             ],
             "example": "THREE_DS"
           },
+          "cardIssuerBankName": {
+            "type": "string",
+            "nullable": true
+          },
           "cardIsin": {
             "type": "string",
+            "nullable": true,
             "example": "411111"
+          },
+          "cardType": {
+            "type": "string",
+            "nullable": true,
+            "description": "e.g. CREDIT, DEBIT, PREPAID, UPI, NB.",
+            "example": "CREDIT"
+          },
+          "cardSwitchProvider": {
+            "type": "string",
+            "nullable": true
+          },
+          "cardProgram": {
+            "type": "string",
+            "nullable": true
+          },
+          "cardIssuerCountry": {
+            "type": "string",
+            "nullable": true
+          },
+          "channel": {
+            "type": "string",
+            "nullable": true,
+            "description": "Acceptance channel: ecom / pos / contactless."
           }
         }
       },
@@ -5177,6 +5220,11 @@
           },
           "algorithm": {
             "$ref": "#/components/schemas/RoutingAlgorithm"
+          },
+          "metadata": {
+            "type": "object",
+            "nullable": true,
+            "description": "Arbitrary metadata attached to the rule."
           }
         }
       },
@@ -5193,12 +5241,13 @@
               "priority",
               "single",
               "volume_split",
-              "advanced"
+              "advanced",
+              "ab_test"
             ],
             "example": "priority"
           },
           "data": {
-            "description": "Depends on type: array of ConnectorInfo ({gateway_name, gateway_id}) for `priority`; single ConnectorInfo for `single`; array of {split, connectors} for `volume_split`; Euclid AST Program for `advanced`"
+            "description": "Depends on type: array of ConnectorInfo ({gateway_name, gateway_id}) for `priority`; single ConnectorInfo for `single`; array of {split, output} for `volume_split`; Euclid AST Program for `advanced`; ABTestData ({control_algorithm_id, variant_algorithm_id, variant_split_pct, min_sample_size, guardrail_threshold_pp, variant_sr_config?, control_sr_config?}) for `ab_test`"
           }
         }
       },
@@ -5259,22 +5308,11 @@
           },
           "algorithm": {
             "$ref": "#/components/schemas/RoutingAlgorithm"
-          }
-        }
-      },
-      "EvaluateRoutingRequest": {
-        "type": "object",
-        "required": [
-          "merchantId",
-          "paymentInfo"
-        ],
-        "properties": {
-          "merchantId": {
-            "type": "string",
-            "example": "test_merchant"
           },
-          "paymentInfo": {
-            "$ref": "#/components/schemas/PaymentInfo"
+          "metadata": {
+            "type": "object",
+            "nullable": true,
+            "description": "Arbitrary metadata attached to the rule."
           }
         }
       },
@@ -5320,6 +5358,9 @@
       "RuleConfigResponse": {
         "type": "object",
         "properties": {
+          "message": {
+            "type": "string"
+          },
           "merchant_id": {
             "type": "string"
           },
@@ -5337,28 +5378,6 @@
         "properties": {
           "message": {
             "type": "string"
-          }
-        }
-      },
-      "AuthRequest": {
-        "type": "object",
-        "required": [
-          "email",
-          "password"
-        ],
-        "properties": {
-          "email": {
-            "type": "string",
-            "example": "operator@example.com"
-          },
-          "password": {
-            "type": "string",
-            "example": "StrongPass#123"
-          },
-          "merchant_id": {
-            "type": "string",
-            "nullable": true,
-            "example": "merchant_demo"
           }
         }
       },
@@ -6243,6 +6262,1337 @@
           "removed_overrides": {
             "type": "integer",
             "format": "int64"
+          }
+        }
+      },
+      "SrDimensionInfo": {
+        "type": "object",
+        "required": [
+          "udfs"
+        ],
+        "properties": {
+          "udfs": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          "fields": {
+            "type": "array",
+            "nullable": true,
+            "items": {
+              "type": "string",
+              "enum": [
+                "currency",
+                "country",
+                "auth_type",
+                "card_is_in",
+                "card_network"
+              ]
+            },
+            "description": "Success-rate routing dimensions. Must be from the eligible set."
+          }
+        }
+      },
+      "SrDimensionConfig": {
+        "type": "object",
+        "required": [
+          "merchant_id",
+          "paymentInfo"
+        ],
+        "properties": {
+          "merchant_id": {
+            "type": "string",
+            "example": "merchant_demo"
+          },
+          "paymentInfo": {
+            "$ref": "#/components/schemas/SrDimensionInfo"
+          }
+        }
+      },
+      "AnalyticsKpi": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "value": {
+            "type": "string"
+          },
+          "subtitle": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "AnalyticsRouteHit": {
+        "type": "object",
+        "properties": {
+          "route": {
+            "type": "string"
+          },
+          "count": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "AnalyticsRuleHit": {
+        "type": "object",
+        "properties": {
+          "rule_name": {
+            "type": "string",
+            "nullable": true
+          },
+          "count": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "SmartRetryTrigger": {
+        "type": "object",
+        "properties": {
+          "gateway": {
+            "type": "string"
+          },
+          "error_code": {
+            "type": "string",
+            "nullable": true
+          },
+          "count": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "SmartRetryFallback": {
+        "type": "object",
+        "properties": {
+          "gateway": {
+            "type": "string"
+          },
+          "retried": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "recovered": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "SmartRetryStats": {
+        "type": "object",
+        "properties": {
+          "retried_count": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "recovered_count": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "by_trigger": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SmartRetryTrigger"
+            }
+          },
+          "by_fallback": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SmartRetryFallback"
+            }
+          }
+        }
+      },
+      "GatewayScoreSnapshot": {
+        "type": "object",
+        "properties": {
+          "merchant_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "payment_method_type": {
+            "type": "string",
+            "nullable": true
+          },
+          "payment_method": {
+            "type": "string",
+            "nullable": true
+          },
+          "gateway": {
+            "type": "string",
+            "nullable": true
+          },
+          "score_value": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "sigma_factor": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "average_latency": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "tp99_latency": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "transaction_count": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          },
+          "last_updated_ms": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "GatewayScoreSeriesPoint": {
+        "type": "object",
+        "properties": {
+          "bucket_ms": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "merchant_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "payment_method_type": {
+            "type": "string",
+            "nullable": true
+          },
+          "payment_method": {
+            "type": "string",
+            "nullable": true
+          },
+          "gateway": {
+            "type": "string",
+            "nullable": true
+          },
+          "score_value": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          }
+        }
+      },
+      "AnalyticsErrorSummary": {
+        "type": "object",
+        "properties": {
+          "route": {
+            "type": "string",
+            "nullable": true
+          },
+          "error_code": {
+            "type": "string",
+            "nullable": true
+          },
+          "error_message": {
+            "type": "string",
+            "nullable": true
+          },
+          "count": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "last_seen_ms": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "AnalyticsDecisionPoint": {
+        "type": "object",
+        "properties": {
+          "bucket_ms": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "routing_approach": {
+            "type": "string",
+            "nullable": true
+          },
+          "count": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "AnalyticsGatewaySharePoint": {
+        "type": "object",
+        "properties": {
+          "bucket_ms": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "gateway": {
+            "type": "string",
+            "nullable": true
+          },
+          "count": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "RoutingFilterDimension": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "values": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "RoutingFilterDimensionHint": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          }
+        }
+      },
+      "RoutingFilterOptions": {
+        "type": "object",
+        "properties": {
+          "dimensions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RoutingFilterDimension"
+            }
+          },
+          "missing_dimensions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RoutingFilterDimensionHint"
+            }
+          },
+          "gateways": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "AnalyticsAvailableCurrency": {
+        "type": "object",
+        "properties": {
+          "currency": {
+            "type": "string"
+          },
+          "decision_count": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "AnalyticsCostSavingsTrendPoint": {
+        "type": "object",
+        "properties": {
+          "bucket_ms": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "saved_value": {
+            "type": "number",
+            "format": "double"
+          }
+        }
+      },
+      "AnalyticsCostSavingsTotals": {
+        "type": "object",
+        "properties": {
+          "saved_value": {
+            "type": "number",
+            "format": "double"
+          },
+          "cost_won_count": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "total_decisions": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "AnalyticsLogSample": {
+        "type": "object",
+        "properties": {
+          "route": {
+            "type": "string",
+            "nullable": true
+          },
+          "merchant_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "payment_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "request_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "global_request_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "trace_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "gateway": {
+            "type": "string",
+            "nullable": true
+          },
+          "routing_approach": {
+            "type": "string",
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "nullable": true
+          },
+          "error_code": {
+            "type": "string",
+            "nullable": true
+          },
+          "error_message": {
+            "type": "string",
+            "nullable": true
+          },
+          "flow_type": {
+            "type": "string",
+            "nullable": true
+          },
+          "created_at_ms": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "PaymentAuditSummary": {
+        "type": "object",
+        "properties": {
+          "lookup_key": {
+            "type": "string"
+          },
+          "payment_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "request_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "merchant_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "first_seen_ms": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "last_seen_ms": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "event_count": {
+            "type": "integer"
+          },
+          "latest_status": {
+            "type": "string",
+            "nullable": true
+          },
+          "latest_gateway": {
+            "type": "string",
+            "nullable": true
+          },
+          "latest_stage": {
+            "type": "string",
+            "nullable": true
+          },
+          "gateways": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "routes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "PaymentAuditEvent": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "flow_type": {
+            "type": "string"
+          },
+          "event_stage": {
+            "type": "string",
+            "nullable": true
+          },
+          "route": {
+            "type": "string",
+            "nullable": true
+          },
+          "merchant_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "payment_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "request_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "global_request_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "trace_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "payment_method_type": {
+            "type": "string",
+            "nullable": true
+          },
+          "payment_method": {
+            "type": "string",
+            "nullable": true
+          },
+          "gateway": {
+            "type": "string",
+            "nullable": true
+          },
+          "routing_approach": {
+            "type": "string",
+            "nullable": true
+          },
+          "rule_name": {
+            "type": "string",
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "nullable": true
+          },
+          "error_code": {
+            "type": "string",
+            "nullable": true
+          },
+          "error_message": {
+            "type": "string",
+            "nullable": true
+          },
+          "score_value": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "sigma_factor": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "average_latency": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "tp99_latency": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "transaction_count": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          },
+          "details": {
+            "type": "string",
+            "nullable": true
+          },
+          "details_json": {
+            "type": "object",
+            "nullable": true
+          },
+          "created_at_ms": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "ExperimentArmMetrics": {
+        "type": "object",
+        "properties": {
+          "arm": {
+            "type": "string"
+          },
+          "transaction_count": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "success_count": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "failure_count": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "auth_rate": {
+            "type": "number",
+            "format": "double"
+          },
+          "first_attempt_auth_rate": {
+            "type": "number",
+            "format": "double"
+          },
+          "total_cost_saved": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "avg_latency_ms": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "avg_chosen_cost_bps": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "avg_cost_saved_bps": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "net_ev_bps": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          }
+        }
+      },
+      "ExperimentTransaction": {
+        "type": "object",
+        "properties": {
+          "payment_id": {
+            "type": "string"
+          },
+          "variant_arm": {
+            "type": "string"
+          },
+          "gateway": {
+            "type": "string",
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "nullable": true
+          },
+          "created_at_ms": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "RoutingEvent": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "event_type": {
+            "$ref": "#/components/schemas/RoutingEventType"
+          },
+          "merchant_id": {
+            "type": "string"
+          },
+          "payment_method_type": {
+            "type": "string",
+            "nullable": true
+          },
+          "payment_method": {
+            "type": "string",
+            "nullable": true
+          },
+          "bucket_ms": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "gateway": {
+            "type": "string"
+          },
+          "previous_gateway": {
+            "type": "string",
+            "nullable": true
+          },
+          "score": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "previous_score": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "transaction_count": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          },
+          "bucket_size": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "previous_bucket_size": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "hedging_percent": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "previous_hedging_percent": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "card_network": {
+            "type": "string",
+            "nullable": true
+          },
+          "currency": {
+            "type": "string",
+            "nullable": true
+          },
+          "country": {
+            "type": "string",
+            "nullable": true
+          },
+          "auth_type": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "AnalyticsOverviewResponse": {
+        "type": "object",
+        "properties": {
+          "merchant_id": {
+            "type": "string"
+          },
+          "kpis": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AnalyticsKpi"
+            }
+          },
+          "route_hits": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AnalyticsRouteHit"
+            }
+          },
+          "top_scores": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GatewayScoreSnapshot"
+            }
+          },
+          "top_errors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AnalyticsErrorSummary"
+            }
+          },
+          "top_rules": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AnalyticsRuleHit"
+            }
+          },
+          "smart_retry_stats": {
+            "$ref": "#/components/schemas/SmartRetryStats"
+          }
+        }
+      },
+      "AnalyticsGatewayScoresResponse": {
+        "type": "object",
+        "properties": {
+          "merchant_id": {
+            "type": "string"
+          },
+          "range": {
+            "type": "string"
+          },
+          "snapshots": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GatewayScoreSnapshot"
+            }
+          },
+          "series": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GatewayScoreSeriesPoint"
+            }
+          }
+        }
+      },
+      "AnalyticsDecisionResponse": {
+        "type": "object",
+        "properties": {
+          "merchant_id": {
+            "type": "string"
+          },
+          "range": {
+            "type": "string"
+          },
+          "tiles": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AnalyticsKpi"
+            }
+          },
+          "series": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AnalyticsDecisionPoint"
+            }
+          },
+          "approaches": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AnalyticsRuleHit"
+            }
+          }
+        }
+      },
+      "AnalyticsRoutingStatsResponse": {
+        "type": "object",
+        "properties": {
+          "merchant_id": {
+            "type": "string"
+          },
+          "range": {
+            "type": "string"
+          },
+          "gateway_share": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AnalyticsGatewaySharePoint"
+            }
+          },
+          "top_rules": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AnalyticsRuleHit"
+            }
+          },
+          "sr_trend": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GatewayScoreSeriesPoint"
+            }
+          },
+          "available_filters": {
+            "$ref": "#/components/schemas/RoutingFilterOptions"
+          }
+        }
+      },
+      "AnalyticsCostSavingsResponse": {
+        "type": "object",
+        "properties": {
+          "merchant_id": {
+            "type": "string"
+          },
+          "range": {
+            "type": "string"
+          },
+          "currency": {
+            "type": "string",
+            "nullable": true
+          },
+          "available_currencies": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AnalyticsAvailableCurrency"
+            }
+          },
+          "trend": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AnalyticsCostSavingsTrendPoint"
+            }
+          },
+          "totals": {
+            "$ref": "#/components/schemas/AnalyticsCostSavingsTotals"
+          }
+        }
+      },
+      "AnalyticsLogSummariesResponse": {
+        "type": "object",
+        "properties": {
+          "merchant_id": {
+            "type": "string"
+          },
+          "range": {
+            "type": "string"
+          },
+          "total_errors": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AnalyticsErrorSummary"
+            }
+          },
+          "samples": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AnalyticsLogSample"
+            }
+          },
+          "page": {
+            "type": "integer"
+          },
+          "page_size": {
+            "type": "integer"
+          }
+        }
+      },
+      "PaymentAuditResponse": {
+        "type": "object",
+        "properties": {
+          "merchant_id": {
+            "type": "string"
+          },
+          "range": {
+            "type": "string"
+          },
+          "payment_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "request_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "gateway": {
+            "type": "string",
+            "nullable": true
+          },
+          "route": {
+            "type": "string",
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "nullable": true
+          },
+          "flow_type": {
+            "type": "string",
+            "nullable": true
+          },
+          "routing_approach": {
+            "type": "string",
+            "nullable": true
+          },
+          "error_code": {
+            "type": "string",
+            "nullable": true
+          },
+          "page": {
+            "type": "integer"
+          },
+          "page_size": {
+            "type": "integer"
+          },
+          "total_results": {
+            "type": "integer"
+          },
+          "total_success": {
+            "type": "integer"
+          },
+          "total_failure": {
+            "type": "integer"
+          },
+          "results": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PaymentAuditSummary"
+            }
+          },
+          "timeline": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PaymentAuditEvent"
+            }
+          }
+        }
+      },
+      "ExperimentResultsResponse": {
+        "type": "object",
+        "properties": {
+          "experiment_id": {
+            "type": "string"
+          },
+          "merchant_id": {
+            "type": "string"
+          },
+          "control": {
+            "$ref": "#/components/schemas/ExperimentArmMetrics"
+          },
+          "variant": {
+            "$ref": "#/components/schemas/ExperimentArmMetrics"
+          },
+          "delta_pp": {
+            "type": "number",
+            "format": "double"
+          },
+          "p_value": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "confidence_interval": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            },
+            "nullable": true
+          },
+          "verdict": {
+            "$ref": "#/components/schemas/ExperimentVerdict"
+          },
+          "min_sample_size": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "net_delta_bps": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "evaluation_margin": {
+            "type": "number",
+            "format": "double"
+          }
+        }
+      },
+      "ExperimentTransactionsResponse": {
+        "type": "object",
+        "properties": {
+          "experiment_id": {
+            "type": "string"
+          },
+          "total": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "transactions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ExperimentTransaction"
+            }
+          }
+        }
+      },
+      "RoutingEventsResponse": {
+        "type": "object",
+        "properties": {
+          "merchant_id": {
+            "type": "string"
+          },
+          "range": {
+            "type": "string"
+          },
+          "events": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RoutingEvent"
+            }
+          },
+          "generated_at_ms": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "ExperimentVerdict": {
+        "type": "string",
+        "enum": [
+          "CollectingData",
+          "NotSignificant",
+          "VariantWins",
+          "VariantLoses",
+          "GuardrailBreached"
+        ]
+      },
+      "RoutingEventType": {
+        "type": "string",
+        "enum": [
+          "LeaderChanged",
+          "GatewayEnteredAuthBand",
+          "GatewayExitedAuthBand",
+          "CalibrationApplied"
+        ]
+      },
+      "RuleConfig": {
+        "type": "object",
+        "properties": {
+          "merchant_id": {
+            "type": "string"
+          },
+          "config": {
+            "type": "object"
+          }
+        }
+      },
+      "MerchantAccountCreateResponse": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string"
+          },
+          "merchant_id": {
+            "type": "string"
+          },
+          "gateway_success_rate_based_decider_input": {
+            "type": "string",
+            "nullable": true
+          },
+          "api_key": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "RevokeApiKeyResponse": {
+        "type": "object",
+        "properties": {
+          "key_id": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "CreateMerchantResponse": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string"
+          },
+          "merchant_id": {
+            "type": "string"
+          },
+          "merchant_name": {
+            "type": "string"
+          },
+          "merchants": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MerchantInfo"
+            }
+          }
+        }
+      },
+      "HealthRespPayload": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "ConnectorInfo": {
+        "type": "object",
+        "properties": {
+          "gateway_name": {
+            "type": "string"
+          },
+          "gateway_id": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "RoutingEvaluateResponse": {
+        "type": "object",
+        "properties": {
+          "payment_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "status": {
+            "type": "string"
+          },
+          "output": {
+            "type": "object"
+          },
+          "evaluated_output": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ConnectorInfo"
+            }
+          },
+          "eligible_connectors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ConnectorInfo"
+            }
+          }
+        }
+      },
+      "ValueType": {
+        "type": "object",
+        "required": [
+          "type"
+        ],
+        "description": "Euclid condition value. Tagged by `type`; `value` holds the payload.",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "number",
+              "enum_variant",
+              "metadata_variant",
+              "str_value",
+              "global_ref",
+              "number_array",
+              "enum_variant_array",
+              "number_comparison_array"
+            ]
+          },
+          "value": {
+            "description": "Shape depends on `type`: number->integer, enum_variant/str_value/global_ref->string, number_array/enum_variant_array->array of number/string, number_comparison_array->array of comparisons."
+          }
+        }
+      },
+      "RoutingRequest": {
+        "type": "object",
+        "required": [
+          "created_by",
+          "parameters"
+        ],
+        "description": "Request body for POST /routing/evaluate (src/euclid/types.rs::RoutingRequest). No camelCase rename \u2014 snake_case field names.",
+        "properties": {
+          "payment_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "created_by": {
+            "type": "string",
+            "example": "test_merchant"
+          },
+          "fallback_output": {
+            "type": "array",
+            "nullable": true,
+            "items": {
+              "$ref": "#/components/schemas/ConnectorInfo"
+            },
+            "description": "Used when the rule evaluation yields no eligible connector."
+          },
+          "parameters": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ValueType"
+            },
+            "description": "Map of DSL parameter name (e.g. currency, amount, cardType) to its ValueType.",
+            "example": {
+              "currency": {
+                "type": "str_value",
+                "value": "USD"
+              }
+            }
+          }
+        }
+      },
+      "LoginRequest": {
+        "type": "object",
+        "required": [
+          "email",
+          "password"
+        ],
+        "properties": {
+          "email": {
+            "type": "string",
+            "example": "operator@example.com"
+          },
+          "password": {
+            "type": "string",
+            "example": "StrongPass#123"
+          }
+        }
+      },
+      "SignupRequest": {
+        "type": "object",
+        "required": [
+          "email",
+          "password"
+        ],
+        "properties": {
+          "email": {
+            "type": "string",
+            "example": "operator@example.com"
+          },
+          "password": {
+            "type": "string",
+            "example": "StrongPass#123"
+          },
+          "merchant_id": {
+            "type": "string",
+            "nullable": true,
+            "example": "merchant_demo"
           }
         }
       }

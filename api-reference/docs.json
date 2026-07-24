@@ -671,7 +671,8 @@
               "decision-engine-api-reference/api-reference/endpoint/compatibility/legacyDecisionGateway",
               "decision-engine-api-reference/api-reference/endpoint/compatibility/legacyUpdateScore",
               "decision-engine-api-reference/api-reference/endpoint/compatibility/getRoutingConfig",
-              "decision-engine-api-reference/api-reference/endpoint/compatibility/configSrDimension"
+              "decision-engine-api-reference/api-reference/endpoint/compatibility/configSrDimension",
+              "decision-engine-api-reference/api-reference/endpoint/compatibility/getSrDimensions"
             ]
           },
           {
