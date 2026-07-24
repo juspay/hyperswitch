@@ -2863,6 +2863,7 @@ dependencies = [
  "deja-core",
  "deja-derive",
  "deja-runtime",
+ "error-stack 0.4.1",
  "serde",
  "serde_json",
 ]
