@@ -155,10 +155,11 @@ pub struct VaultConnectorAuth {
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 #[serde(untagged)]
 pub enum ExternalVaultProxyMetadata {
+    /// HyperswitchVault data variant — must be first so serde matches vault_endpoint+vault_auth_data
+    /// before falling through to VgsMetadata (which only needs proxy_url+certificate)
+    HyperswitchVaultMetadata(HyperswitchVaultMetadata),
     /// VGS proxy data variant
     VgsMetadata(VgsMetadata),
-    /// HyperswitchVault data variant
-    HyperswitchVaultMetadata(HyperswitchVaultMetadata),
 }
 
 /// Complete external vault proxy configuration to be serialized and sent to UCS
@@ -179,6 +180,13 @@ pub struct HyperswitchVaultMetadata {
     pub vault_endpoint: Url,
     /// Authentication data for the vault connector
     pub vault_auth_data: VaultConnectorAuth,
+    /// Optional egress proxy URL (e.g. Squid). Absent for in-cluster deployments.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub proxy_url: Option<Url>,
+    /// Optional CA certificate for TLS verification (required for MITM proxies like VGS,
+    /// not needed for CONNECT-tunnel proxies like Squid).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub certificate: Option<Secret<String>>,
 }
 
 /// Builds a gRPC client. `$connection_timeout` bounds connect; `$request_timeout` bounds each RPC.
