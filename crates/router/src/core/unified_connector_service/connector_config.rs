@@ -595,6 +595,18 @@ pub enum ConnectorSpecificConfig {
         certificates: Option<Secret<String>>,
         private_key: Option<Secret<String>>,
     },
+    /// Deutsche Bank CSEAL configuration for payouts (UCS-routed).
+    ///
+    /// `client_certificate_bundle` is the mTLS client certificate and its
+    /// private key concatenated into a single PEM blob; prism splits the two
+    /// halves before handing them to rustls. The env-level `server_ca_bundle`
+    /// (UAT private CA) is configured in prism's TOML, not here.
+    Deutschebank {
+        customer_identifier: Secret<String>,
+        key_id: Secret<String>,
+        signing_private_key: Secret<String>,
+        client_certificate_bundle: Secret<String>,
+    },
     /// Imerchantsolutions connector configuration
     Imerchantsolutions {
         api_key: Secret<String>,
@@ -1542,6 +1554,27 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                     private_key: Some(key2.clone()),
                 }),
                 _ => Err(err("Itaubank requires BodyKey auth type")),
+            },
+            // Deutsche Bank CSEAL has five secrets but `MultiAuthKey` only has
+            // four typed slots, so prism's MCA bundles the mTLS certificate and
+            // its private key into a single `key2` field. The split happens
+            // server-side in prism's `DeutschebankAuthType::try_from`.
+            Connector::Deutschebank => match auth {
+                ConnectorAuthType::MultiAuthKey {
+                    api_key,
+                    key1,
+                    api_secret,
+                    key2,
+                } => Ok(Self::Deutschebank {
+                    customer_identifier: api_key.clone(),
+                    key_id: key1.clone(),
+                    signing_private_key: api_secret.clone(),
+                    client_certificate_bundle: key2.clone(),
+                }),
+                _ => Err(err(
+                    "Deutsche Bank requires MultiAuthKey auth type \
+                     (customer_identifier / key_id / signing_private_key / client_certificate_bundle)",
+                )),
             },
             Connector::Imerchantsolutions => match auth {
                 ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Imerchantsolutions {

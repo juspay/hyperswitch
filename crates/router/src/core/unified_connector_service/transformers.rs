@@ -6866,6 +6866,7 @@ impl
             metadata: None,
             connector_feature_data: None,
             test_mode: router_data.test_mode,
+            // Composite-flow correlation token; not propagated by the access-token call.
             merchant_request_id: None,
         })
     }
@@ -7097,6 +7098,74 @@ impl
             connector_feature_data,
             connector_payout_id: router_data.request.connector_payout_id.clone(),
             access_token: router_data.access_token.clone().map(|at| at.token),
+        })
+    }
+}
+
+#[cfg(feature = "payouts")]
+impl
+    transformers::ForeignTryFrom<
+        &RouterData<
+            hyperswitch_domain_models::router_flow_types::payouts::PoEligibility,
+            router_request_types::PayoutsData,
+            PayoutsResponseData,
+        >,
+    > for payments_grpc::PayoutMethodEligibilityRequest
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        router_data: &RouterData<
+            hyperswitch_domain_models::router_flow_types::payouts::PoEligibility,
+            router_request_types::PayoutsData,
+            PayoutsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let address = payments_grpc::PayoutAddress::foreign_try_from(router_data.address.clone())?;
+        let source_currency =
+            payments_grpc::Currency::foreign_try_from(router_data.request.source_currency)?;
+        let destination_currency =
+            payments_grpc::Currency::foreign_try_from(router_data.request.destination_currency)?;
+        let money = payments_grpc::Money {
+            minor_amount: router_data.request.amount,
+            currency: source_currency.into(),
+        };
+        let customer = router_data
+            .request
+            .customer_details
+            .as_ref()
+            .map(payments_grpc::Customer::foreign_from)
+            .ok_or(
+                error_stack::Report::new(UnifiedConnectorServiceError::MissingRequiredField {
+                    field_name: "customer",
+                })
+                .attach_printable("Missing customer details in Payout Eligibility Request"),
+            )?;
+        let payout_method_data = router_data
+            .payout_method_data
+            .as_ref()
+            .map(|payout_method_data| {
+                payments_grpc::PayoutMethod::foreign_try_from(payout_method_data)
+            })
+            .transpose()?;
+        let source_bank_data = router_data
+            .request
+            .source_bank_data
+            .as_ref()
+            .map(payments_grpc::SourceBankData::foreign_try_from)
+            .transpose()?;
+
+        Ok(Self {
+            merchant_payout_id: router_data.payout_id.clone(),
+            connector_feature_data: None,
+            payout_method_data,
+            amount: Some(money),
+            connector_payout_id: None,
+            destination_currency: destination_currency.into(),
+            access_token: router_data.access_token.clone().map(|at| at.token),
+            address: Some(address),
+            customer: Some(customer),
+            source_bank_data,
         })
     }
 }
@@ -7478,6 +7547,88 @@ impl_ucs_payout_response_transformation!(
     payments_grpc::PayoutServiceCreateResponse,
     merchant_payout_id
 );
+
+#[cfg(feature = "payouts")]
+impl
+    transformers::ForeignTryFrom<(
+        payments_grpc::PayoutMethodEligibilityResponse,
+        common_enums::PayoutStatus,
+    )> for Result<PayoutsResponseData, ErrorResponse>
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        (response, prev_status): (
+            payments_grpc::PayoutMethodEligibilityResponse,
+            common_enums::PayoutStatus,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let status_code = convert_connector_service_status_code(response.status_code)?;
+        let status = common_enums::PayoutStatus::foreign_try_from(response.payout_status())
+            .unwrap_or(prev_status);
+
+        let router_response = if let Some(error_info) = response.error {
+            Err(ErrorResponse {
+                code: error_info
+                    .connector_details
+                    .as_ref()
+                    .and_then(|cd| cd.code.clone())
+                    .ok_or(
+                        error_stack::Report::new(
+                            UnifiedConnectorServiceError::ResponseDeserializationFailed,
+                        )
+                        .attach_printable("Missing error code in UCS response ErrorInfo"),
+                    )?,
+                message: error_info
+                    .connector_details
+                    .as_ref()
+                    .and_then(|cd| cd.message.clone())
+                    .ok_or(
+                        error_stack::Report::new(
+                            UnifiedConnectorServiceError::ResponseDeserializationFailed,
+                        )
+                        .attach_printable("Missing error message in UCS response ErrorInfo"),
+                    )?,
+                reason: error_info
+                    .connector_details
+                    .as_ref()
+                    .and_then(|cd| cd.reason.clone()),
+                status_code,
+                attempt_status: None,
+                connector_transaction_id: response.connector_payout_id.clone(),
+                connector_response_reference_id: response.merchant_payout_id.clone(),
+                network_decline_code: error_info.issuer_details.as_ref().and_then(|id| {
+                    id.network_details
+                        .as_ref()
+                        .and_then(|nd| nd.decline_code.clone())
+                }),
+                network_advice_code: error_info.issuer_details.as_ref().and_then(|id| {
+                    id.network_details
+                        .as_ref()
+                        .and_then(|nd| nd.advice_code.clone())
+                }),
+                network_error_message: error_info.issuer_details.as_ref().and_then(|id| {
+                    id.network_details
+                        .as_ref()
+                        .and_then(|nd| nd.error_message.clone())
+                }),
+                connector_metadata: None,
+            })
+        } else {
+            Ok(PayoutsResponseData {
+                status: Some(status),
+                connector_payout_id: response.connector_payout_id,
+                payout_eligible: response.payout_eligible,
+                should_add_next_step_to_process_tracker: false,
+                error_code: None,
+                error_message: None,
+                payout_connector_metadata: None,
+            })
+        };
+
+        Ok(router_response)
+    }
+}
 #[cfg(feature = "payouts")]
 impl_ucs_payout_response_transformation!(
     payments_grpc::PayoutServiceTransferResponse,

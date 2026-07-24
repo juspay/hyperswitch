@@ -2515,6 +2515,36 @@ impl
 
 impl
     ForeignTryFrom<(
+        payments_grpc::PayoutMethodEligibilityResponse,
+        common_enums::PayoutStatus,
+    )> for crate::types::UcsPayoutEligibilityResponseData
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        value: (
+            payments_grpc::PayoutMethodEligibilityResponse,
+            common_enums::PayoutStatus,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let (response, prev_status) = value;
+
+        let status_code =
+            transformers::convert_connector_service_status_code(response.status_code)?;
+
+        let router_data_response = Result::<PayoutsResponseData, ErrorResponse>::foreign_try_from(
+            (response.clone(), prev_status),
+        )?;
+
+        Ok(Self {
+            router_data_response,
+            status_code,
+        })
+    }
+}
+
+impl
+    ForeignTryFrom<(
         payments_grpc::PayoutServiceGetResponse,
         common_enums::PayoutStatus,
     )> for crate::types::UcsPayoutGetResponseData

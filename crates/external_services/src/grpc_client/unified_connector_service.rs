@@ -1168,6 +1168,45 @@ impl UnifiedConnectorServiceClient {
             })
     }
 
+    /// Performs Payout Eligibility (e.g. SEPA VoP / payee verification).
+    pub async fn payout_eligibility(
+        &self,
+        payout_eligibility_request: payments_grpc::PayoutMethodEligibilityRequest,
+        connector_auth_metadata: ConnectorAuthMetadata,
+        grpc_headers: GrpcHeadersUcs,
+    ) -> UnifiedConnectorServiceResult<
+        tonic::Response<payments_grpc::PayoutMethodEligibilityResponse>,
+    > {
+        let mut request = tonic::Request::new(payout_eligibility_request);
+
+        let connector_name = connector_auth_metadata.connector_name.clone();
+        let metadata = build_unified_connector_service_grpc_headers_for_payouts(
+            connector_auth_metadata,
+            grpc_headers,
+        )?;
+
+        *request.metadata_mut() = metadata;
+
+        self.payout_service_client
+            .clone()
+            .eligibility(request)
+            .await
+            .map_err(|error| {
+                error_stack::Report::new(UnifiedConnectorServiceError::from_grpc_error(
+                    &error,
+                    &connector_name,
+                ))
+            })
+            .inspect_err(|error| {
+                logger::error!(
+                    grpc_error=?error,
+                    method="payout_eligibility",
+                    connector_name=?connector_name,
+                    "UCS payout eligibility gRPC call failed"
+                )
+            })
+    }
+
     /// Performs Payout Get
     pub async fn payout_get(
         &self,
@@ -1497,6 +1536,22 @@ fn build_grpc_headers_internal(
             })
         };
 
+    let try_append =
+        |metadata: &mut MetadataMap, header: &'static str, key: &str, value: &str| match parse(
+            key, value,
+        ) {
+            Ok(metadata_value) => metadata.append(header, metadata_value),
+            Err(_) => {
+                logger::warn!(
+                    header = %header,
+                    field = %key,
+                    "skipping UCS auth header — value is not HTTP/2 header-safe; \
+                     relying on x-connector-config blob if the connector uses it"
+                );
+                false
+            }
+        };
+
     metadata.append(
         connector_header_key,
         parse("connector", &meta.connector_name)?,
@@ -1507,21 +1562,25 @@ fn build_grpc_headers_internal(
     );
 
     if let Some(api_key) = meta.api_key {
-        metadata.append(
+        try_append(
+            &mut metadata,
             consts::UCS_HEADER_API_KEY,
-            parse("api_key", api_key.peek())?,
+            "api_key",
+            api_key.peek(),
         );
     }
     if let Some(key1) = meta.key1 {
-        metadata.append(consts::UCS_HEADER_KEY1, parse("key1", key1.peek())?);
+        try_append(&mut metadata, consts::UCS_HEADER_KEY1, "key1", key1.peek());
     }
     if let Some(key2) = meta.key2 {
-        metadata.append(consts::UCS_HEADER_KEY2, parse("key2", key2.peek())?);
+        try_append(&mut metadata, consts::UCS_HEADER_KEY2, "key2", key2.peek());
     }
     if let Some(api_secret) = meta.api_secret {
-        metadata.append(
+        try_append(
+            &mut metadata,
             consts::UCS_HEADER_API_SECRET,
-            parse("api_secret", api_secret.peek())?,
+            "api_secret",
+            api_secret.peek(),
         );
     }
     if let Some(auth_key_map) = meta.auth_key_map {
