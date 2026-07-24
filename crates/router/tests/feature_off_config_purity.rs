@@ -63,7 +63,6 @@ lookup_dir = "ignored"
 observed_sink = "ignored"
 
 [deja.sampler]
-enabled = true
 record_key = "ignored"
 timeout_ms = 1
 fail_closed = true
@@ -158,7 +157,6 @@ fn settings_debug(path: PathBuf) -> String {
         "ROUTER__DEJA__REPLAY__SOURCE",
         "ROUTER__DEJA__REPLAY__LOOKUP_DIR",
         "ROUTER__DEJA__REPLAY__OBSERVED_SINK",
-        "ROUTER__DEJA__SAMPLER__ENABLED",
         "ROUTER__DEJA__WRITER__QUEUE_CAPACITY",
     ] {
         std::env::remove_var(key);
