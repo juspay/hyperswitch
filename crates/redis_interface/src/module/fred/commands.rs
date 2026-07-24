@@ -937,8 +937,12 @@ impl super::RedisConnectionWithContext {
         F: Into<MultipleKeys> + Debug + Send + Sync,
     {
         track_redis_call(
+            self.request_id.as_deref(),
+            self.redis_conn.event_emitter.as_ref(),
             RedisOperation::DeleteHashFields,
-            self.pool.hdel(key.tenant_aware_key(self), fields),
+            self.redis_conn
+                .pool
+                .hdel(key.tenant_aware_key(&self.redis_conn), fields),
         )
         .await
         .change_context(errors::RedisError::DeleteHashFieldFailed)
