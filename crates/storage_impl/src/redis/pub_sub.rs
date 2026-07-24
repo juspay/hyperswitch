@@ -267,3 +267,22 @@ impl PubSubInterface for std::sync::Arc<redis_interface::RedisConnectionPool> {
         Ok(())
     }
 }
+
+#[async_trait::async_trait]
+impl PubSubInterface for redis_interface::RedisConnectionWithContext {
+    async fn subscribe(&self, channel: &str) -> error_stack::Result<(), redis_errors::RedisError> {
+        self.redis_conn.subscribe(channel).await
+    }
+
+    async fn publish<'a>(
+        &self,
+        channel: &str,
+        key: CacheKind<'a>,
+    ) -> error_stack::Result<usize, redis_errors::RedisError> {
+        self.redis_conn.publish(channel, key).await
+    }
+
+    async fn on_message(&self) -> error_stack::Result<(), redis_errors::RedisError> {
+        self.redis_conn.on_message().await
+    }
+}

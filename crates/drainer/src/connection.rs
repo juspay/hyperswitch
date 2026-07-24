@@ -8,7 +8,7 @@ pub type PgPool = bb8::Pool<async_bb8_diesel::ConnectionManager<PgConnection>>;
 
 #[allow(clippy::expect_used)]
 pub async fn redis_connection(conf: &Settings) -> redis_interface::RedisConnectionPool {
-    redis_interface::RedisConnectionPool::new(&conf.redis)
+    redis_interface::RedisConnectionPool::new_without_event_emitter(&conf.redis)
         .await
         .expect("Failed to create Redis connection Pool")
 }

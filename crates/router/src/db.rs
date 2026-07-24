@@ -173,6 +173,7 @@ pub trait GlobalStorageInterface:
     + user_key_store::UserKeyStoreInterface
     + role::RoleInterface
     + RedisConnInterface
+    + RequestIdStore
     + 'static
 {
     fn get_cache_store(&self) -> Box<dyn RedisConnInterface + Send + Sync + 'static>;
@@ -307,6 +308,10 @@ impl RequestIdStore for MockDb {}
 impl RequestIdStore for Store {
     fn add_request_id(&mut self, request_id: String) {
         self.request_id = Some(request_id.clone());
+        #[cfg(feature = "kv_store")]
+        {
+            self.router_store.request_id = Some(request_id.clone());
+        }
         self.update_key_manager_request_id(request_id);
     }
 

@@ -162,7 +162,7 @@ impl HealthCheckInterface for Store {
         &self,
         _conf: &Settings,
     ) -> CustomResult<(), HealthCheckRedisError> {
-        let redis_conn = self.redis_conn.clone();
+        let redis_conn = self.get_redis_conn();
 
         redis_conn
             .serialize_and_set_key_with_expiry(&"test_key".into(), "test_value", 30)
