@@ -30,6 +30,7 @@ import getConnectorDetails, {
   extractIntegerAtEnd,
   getOriginalConnectorName,
   getValueByKey,
+  injectHelcimTestCard,
   setNormalizedValue,
 } from "../e2e/configs/Payment/Utils";
 import { execConfig, validateConfig } from "../utils/featureFlags";
@@ -83,6 +84,26 @@ function updateConnectorState(globalState, responseConnector) {
   }
 
   globalState.set("connectorId", responseConnector);
+}
+
+function getExpectedMerchantConnectorId(
+  globalState,
+  merchantConnectorPrefix,
+  responseBody
+) {
+  const stateKey = `${merchantConnectorPrefix}Id`;
+  const merchantConnectorId = globalState.get(stateKey);
+
+  if (merchantConnectorId) {
+    return merchantConnectorId;
+  }
+
+  if (responseBody?.merchant_connector_id) {
+    globalState.set(stateKey, responseBody.merchant_connector_id);
+    return responseBody.merchant_connector_id;
+  }
+
+  return merchantConnectorId;
 }
 
 // Helper function for creating individual rollout config
@@ -530,12 +551,6 @@ function validateErrorMessage(response, resData) {
     expect(response.body.error_message, "error_message").to.be.null;
     expect(response.body.error_code, "error_code").to.be.null;
   }
-}
-
-//skip MIT using PMId if connector does not support MIT only
-export function shouldSkipMitUsingPMId(connectorId) {
-  const skipConnectors = ["fiuu"];
-  return skipConnectors.includes(connectorId);
 }
 
 Cypress.Commands.add("healthCheck", (globalState) => {
@@ -3090,6 +3105,8 @@ Cypress.Commands.add(
       confirmBody.split_payments = reqData.split_payments;
     }
 
+    injectHelcimTestCard(confirmBody, globalState);
+
     const headers = {
       "Content-Type": "application/json",
       "api-key": apiKey,
@@ -3888,6 +3905,8 @@ Cypress.Commands.add(
       createConfirmPaymentBody.split_payments = reqData.split_payments;
     }
 
+    injectHelcimTestCard(createConfirmPaymentBody, globalState);
+
     const headers = {
       "Content-Type": "application/json",
       "api-key": globalState.get("apiKey"),
@@ -4341,9 +4360,6 @@ Cypress.Commands.add(
     const { Configs: configs = {} } = data || {};
 
     const configInfo = execConfig(validateConfig(configs));
-    const merchant_connector_id = globalState.get(
-      `${configInfo.merchantConnectorPrefix}Id`
-    );
     const payment_id = globalState.get("paymentID");
 
     const headers = {
@@ -4410,7 +4426,13 @@ Cypress.Commands.add(
               expect(
                 response.body.merchant_connector_id,
                 "connector_id"
-              ).to.equal(merchant_connector_id);
+              ).to.equal(
+                getExpectedMerchantConnectorId(
+                  globalState,
+                  configInfo.merchantConnectorPrefix,
+                  response.body
+                )
+              );
             }
           }
 
@@ -4798,6 +4820,8 @@ Cypress.Commands.add(
       requestBody.split_payments = reqData.split_payments;
     }
 
+    injectHelcimTestCard(requestBody, globalState);
+
     globalState.set("paymentAmount", requestBody.amount);
 
     cy.request({
@@ -4840,6 +4864,13 @@ Cypress.Commands.add(
             expect(response.body.payment_method_id, "payment_method_id").to.not
               .be.null;
           }
+
+          // Lets mitUsingPMId know whether the connector actually supports
+          // mandates, or was silently downgraded to on_session.
+          globalState.set(
+            "mandateSetupFutureUsage",
+            response.body.setup_future_usage
+          );
 
           if (requestBody.mandate_data === null) {
             // For wallet mandates that return requires_customer_action, payment_method_id may be null initially.
@@ -5018,6 +5049,15 @@ Cypress.Commands.add(
 Cypress.Commands.add(
   "mitForMandatesCallTest",
   (requestBody, data, amount, confirm, capture_method, globalState) => {
+    // Skip if no mandate_id was created — the router only sets one when
+    // the connector genuinely supports mandates (payment_response.rs).
+    if (!globalState.get("mandateId")) {
+      cy.log(
+        `Skipping mitForMandatesCallTest: no mandate_id was created for connector ${globalState.get("connectorId")} (likely downgraded to on_session)`
+      );
+      return;
+    }
+
     const {
       Configs: configs = {},
       Request: reqData,
@@ -5242,20 +5282,30 @@ Cypress.Commands.add(
     globalState,
     connector_agnostic_mit
   ) => {
-    if (shouldSkipMitUsingPMId(globalState.get("connectorId"))) {
-      cy.log(
-        `Skipping mitUsingPMId for connector: ${globalState.get("connectorId")}`
-      );
-      return;
-    }
-
     const {
       Configs: configs = {},
       Request: reqData,
       Response: resData,
     } = data || {};
 
-    const configInfo = execConfig(validateConfig(configs));
+    const validatedConfigs = validateConfig(configs);
+    if (validatedConfigs?.TRIGGER_SKIP) {
+      cy.log(
+        `Skipping mitUsingPMId for connector: ${globalState.get("connectorId")}`
+      );
+      return;
+    }
+
+    // Skip if the connector was downgraded to on_session (set by
+    // citForMandatesCallTest) — no real recurring capability to test.
+    if (globalState.get("mandateSetupFutureUsage") !== "off_session") {
+      cy.log(
+        `Skipping mitUsingPMId: CIT's setup_future_usage was not "off_session" for connector ${globalState.get("connectorId")} (likely downgraded)`
+      );
+      return;
+    }
+
+    const configInfo = execConfig(validatedConfigs);
     const profileId = globalState.get(`${configInfo.profilePrefix}Id`);
 
     const apiKey = globalState.get("apiKey");
@@ -5512,6 +5562,15 @@ Cypress.Commands.add(
 );
 
 Cypress.Commands.add("listMandateCallTest", (globalState) => {
+  // Same signal as mitForMandatesCallTest — nothing to list without a
+  // real mandate_id.
+  if (!globalState.get("mandateId")) {
+    cy.log(
+      `Skipping listMandateCallTest: no mandate_id was created for connector ${globalState.get("connectorId")} (likely downgraded to on_session)`
+    );
+    return;
+  }
+
   const customerId = globalState.get("customerId");
   cy.request({
     method: "GET",
@@ -5617,6 +5676,46 @@ Cypress.Commands.add(
 
     handleRedirection(
       "three_ds",
+      {
+        redirectionUrl: new URL(nextActionUrl),
+        expectedUrl: new URL(expectedRedirection),
+      },
+      connectorId,
+      globalState.get("paymentMethodType")
+    );
+  }
+);
+
+Cypress.Commands.add(
+  "handleCardRedirectRedirection",
+  (globalState, expectedRedirection) => {
+    const connectorId = globalState.get("connectorId");
+    const nextActionUrl = globalState.get("nextActionUrl");
+    if (!nextActionUrl) {
+      cy.task(
+        "cli_log",
+        "handleCardRedirectRedirection: nextActionUrl missing — skipping"
+      );
+      return;
+    }
+
+    if (isRecordMode()) {
+      mockRecord3ds(
+        globalState,
+        nextActionUrl,
+        expectedRedirection,
+        handleRedirection
+      );
+      return;
+    }
+
+    if (isReplayMode()) {
+      mockReplay3ds(globalState, connectorId, nextActionUrl);
+      return;
+    }
+
+    handleRedirection(
+      "card_redirect",
       {
         redirectionUrl: new URL(nextActionUrl),
         expectedUrl: new URL(expectedRedirection),
@@ -5965,6 +6064,24 @@ Cypress.Commands.add(
                     "nextActionUrl",
                     response.body.next_action.redirect_to_url
                   );
+                }
+                break;
+
+              case "qris":
+                for (const key in resData.body) {
+                  expect(resData.body[key], [key]).to.deep.equal(
+                    response.body[key]
+                  );
+                }
+                if (response.body.status === "requires_customer_action") {
+                  expect(response.body)
+                    .to.have.property("next_action")
+                    .and.have.nested.property("image_data_url").and.not.be.null;
+                  globalState.set(
+                    "image_data_url",
+                    response.body.next_action.image_data_url
+                  );
+                  globalState.set("nextActionType", "image_data_url");
                 }
                 break;
 
@@ -11132,6 +11249,245 @@ Cypress.Commands.add("retrieveNonExistentPayoutTest", (globalState) => {
     expect(response.status).to.equal(404);
   });
 });
+
+/**
+ * Creates an acquirer configuration for a business profile.
+ *
+ * POST /profile_acquirer
+ *
+ * @param {Object} requestBody  - Acquirer config fields (profile_id is set from globalState on success)
+ * @param {Object} globalState  - Global state instance
+ * @param {number} expectedStatus - Expected HTTP status (default 200)
+ * @param {string} profilePrefix - globalState key prefix for profileId (default "profile")
+ * @param {string} stateKey - globalState key for storing profile_acquirer_id (default "profileAcquirerId")
+ */
+Cypress.Commands.add(
+  "createAcquirerConfigTest",
+  (
+    requestBody,
+    globalState,
+    expectedStatus = 200,
+    profilePrefix = "profile",
+    stateKey = "profileAcquirerId"
+  ) => {
+    const apiKey = globalState.get("apiKey");
+    const baseUrl = globalState.get("baseUrl");
+
+    if (expectedStatus === 200 && !requestBody.profile_id) {
+      requestBody.profile_id = globalState.get(`${profilePrefix}Id`);
+    }
+
+    cy.request({
+      method: "POST",
+      url: `${baseUrl}/profile_acquirer`,
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        "api-key": apiKey,
+      },
+      body: requestBody,
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        expect(response.status).to.equal(expectedStatus);
+
+        if (expectedStatus === 200) {
+          globalState.set(stateKey, response.body.profile_acquirer_id);
+          expect(response.body).to.have.property("profile_acquirer_id");
+          expect(response.body.profile_id).to.equal(
+            globalState.get(`${profilePrefix}Id`)
+          );
+          expect(response.body.network).to.equal(requestBody.network);
+          expect(response.body.acquirer_assigned_merchant_id).to.equal(
+            requestBody.acquirer_assigned_merchant_id
+          );
+          expect(response.body.merchant_name).to.equal(
+            requestBody.merchant_name
+          );
+          expect(response.body.acquirer_bin).to.equal(requestBody.acquirer_bin);
+          if (requestBody.acquirer_ica !== undefined) {
+            expect(response.body.acquirer_ica).to.equal(
+              requestBody.acquirer_ica
+            );
+          }
+          if (requestBody.acquirer_fraud_rate !== undefined) {
+            expect(response.body.acquirer_fraud_rate).to.equal(
+              requestBody.acquirer_fraud_rate
+            );
+          }
+          expect(response.body.acquirer_country_code).to.be.oneOf([
+            requestBody.acquirer_country_code,
+            "840",
+          ]);
+          if (requestBody.is_default !== undefined) {
+            expect(response.body.is_default).to.equal(requestBody.is_default);
+          }
+        } else {
+          expect(response.body.error).to.exist;
+          if (expectedStatus === 404) {
+            expect(response.body.error.code).to.equal("HE_02");
+          } else if (expectedStatus === 422) {
+            expect(response.body.error.code).to.equal("IR_06");
+          }
+        }
+      });
+    });
+  }
+);
+
+/**
+ * Updates an existing acquirer configuration.
+ *
+ * POST /profile_acquirer/{profile_id}/{profile_acquirer_id}
+ *
+ * @param {Object} requestBody  - Fields to update (must include `network` unless only changing is_default)
+ * @param {Object} globalState  - Global state instance
+ * @param {number} expectedStatus - Expected HTTP status (default 200)
+ * @param {string} profilePrefix - globalState key prefix for profileId (default "profile")
+ * @param {string|null} profileAcquirerIdOverride - Override for profileAcquirerId (for error cases)
+ */
+Cypress.Commands.add(
+  "updateAcquirerConfigTest",
+  (
+    requestBody,
+    globalState,
+    expectedStatus = 200,
+    profilePrefix = "profile",
+    profileAcquirerIdOverride = null
+  ) => {
+    const apiKey = globalState.get("apiKey");
+    const baseUrl = globalState.get("baseUrl");
+    const profileId = globalState.get(`${profilePrefix}Id`);
+    const profileAcquirerId =
+      profileAcquirerIdOverride || globalState.get("profileAcquirerId");
+
+    cy.request({
+      method: "POST",
+      url: `${baseUrl}/profile_acquirer/${profileId}/${profileAcquirerId}`,
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        "api-key": apiKey,
+      },
+      body: requestBody,
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        expect(response.status).to.equal(expectedStatus);
+
+        if (expectedStatus === 200) {
+          expect(response.body.profile_acquirer_id).to.equal(profileAcquirerId);
+          expect(response.body.profile_id).to.equal(profileId);
+          expect(response.body.network).to.equal(requestBody.network);
+          expect(response.body.acquirer_assigned_merchant_id).to.equal(
+            requestBody.acquirer_assigned_merchant_id
+          );
+          expect(response.body.merchant_name).to.equal(
+            requestBody.merchant_name
+          );
+          expect(response.body.acquirer_bin).to.equal(requestBody.acquirer_bin);
+          if (requestBody.acquirer_ica !== undefined) {
+            expect(response.body.acquirer_ica).to.equal(
+              requestBody.acquirer_ica
+            );
+          }
+          if (requestBody.acquirer_fraud_rate !== undefined) {
+            expect(response.body.acquirer_fraud_rate).to.equal(
+              requestBody.acquirer_fraud_rate
+            );
+          }
+          expect(response.body.acquirer_country_code).to.be.oneOf([
+            requestBody.acquirer_country_code,
+            "840",
+          ]);
+          if (requestBody.is_default !== undefined) {
+            expect(response.body.is_default).to.equal(requestBody.is_default);
+          }
+        } else {
+          expect(response.body.error).to.exist;
+          if (expectedStatus === 404) {
+            expect(response.body.error.code).to.equal("HE_02");
+          } else if (expectedStatus === 422) {
+            expect(response.body.error.code).to.equal("IR_06");
+          }
+        }
+      });
+    });
+  }
+);
+
+Cypress.Commands.add(
+  "verifyBusinessProfileAcquirerConfigTest",
+  (globalState, profilePrefix = "profile", verificationType = null) => {
+    const apiKey = globalState.get("apiKey");
+    const baseUrl = globalState.get("baseUrl");
+    const merchantId = globalState.get("merchantId");
+    const profileId = globalState.get(`${profilePrefix}Id`);
+
+    return cy
+      .request({
+        method: "GET",
+        url: `${baseUrl}/account/${merchantId}/business_profile/${profileId}`,
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+          "api-key": apiKey,
+        },
+        failOnStatusCode: false,
+      })
+      .then((response) => {
+        logRequestId(response.headers["x-request-id"]);
+        expect(response.status).to.equal(200);
+
+        if (verificationType === "verifyMultipleAcquirerConfigs") {
+          expect(response.body.acquirer_configs).to.be.an("array");
+          expect(response.body.acquirer_configs.length).to.be.at.least(2);
+          expect(response.body.acquirer_config_bucket).to.not.be.null;
+          expect(response.body.acquirer_config_bucket.configs).to.have.property(
+            globalState.get("visaAcquirerId")
+          );
+          expect(response.body.acquirer_config_bucket.configs).to.have.property(
+            globalState.get("mastercardAcquirerId")
+          );
+
+          const networks = response.body.acquirer_configs.map(
+            (config) => config.network
+          );
+          expect(networks).to.include("Visa");
+          expect(networks).to.include("Mastercard");
+          return;
+        }
+
+        expect(response.body.acquirer_configs).to.be.an("array");
+        expect(response.body.acquirer_configs.length).to.be.greaterThan(0);
+        expect(response.body.acquirer_config_bucket).to.not.be.null;
+        expect(response.body.acquirer_config_bucket).to.have.property(
+          "default_acquirer_config"
+        );
+        expect(response.body.acquirer_config_bucket).to.have.property(
+          "configs"
+        );
+        expect(
+          response.body.acquirer_config_bucket.default_acquirer_config
+        ).to.equal(globalState.get("profileAcquirerId"));
+
+        const configs =
+          response.body.acquirer_config_bucket.configs[
+            globalState.get("profileAcquirerId")
+          ];
+        expect(configs).to.be.an("array");
+        expect(configs[0].network).to.equal("Visa");
+        expect(configs[0].acquirer_bin).to.equal(
+          globalState.get("visaAcquirerBin")
+        );
+        expect(configs[0].acquirer_country_code).to.be.oneOf(["US", "840"]);
+      });
+  }
+);
 
 // ============================================
 // Superposition Config Commands

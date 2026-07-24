@@ -97,6 +97,28 @@ min_idle_pool_size = 2
 idle_timeout = 300
 max_lifetime = 1800
 
+[accounts_database]
+username = "db_user"
+password = "db_pass"
+host = "pg"
+port = 5432
+dbname = "hyperswitch_db"
+max_pool_size = 5
+min_idle_pool_size = 2
+idle_timeout = 300
+max_lifetime = 1800
+
+[global_database]
+username = "db_user"
+password = "db_pass"
+host = "pg"
+port = 5432
+dbname = "hyperswitch_db"
+max_pool_size = 5
+min_idle_pool_size = 2
+idle_timeout = 300
+max_lifetime = 1800
+
 [secrets]
 admin_api_key = "test_admin"
 jwt_secret = "secret"
@@ -128,6 +150,7 @@ host = ""
 mock_locker = true
 locker_enabled = true
 ttl_for_storage_in_secs = 220752000
+create_entity_on_merchant_create = false
 
 [jwekey]
 vault_encryption_key = ""
@@ -232,6 +255,7 @@ fiuu.third_base_url = "https://api.merchant.razer.com/"
 forte.base_url = "https://sandbox.forte.net/api/v3"
 getnet.base_url = "https://api-test.getneteurope.com/engine/rest"
 gigadat.base_url = "https://interac.express-connect.com/"
+givepayments.base_url = "https://api-sandbox.givepayments.com"
 globalpay.base_url = "https://apis.sandbox.globalpay.com/ucp/"
 globepay.base_url = "https://pay.globepay.co/"
 gocardless.base_url = "https://api-sandbox.gocardless.com"
@@ -1164,8 +1188,8 @@ wallet.google_pay = { connector_list = "stripe,cybersource,adyen,zift,bankofamer
 wallet.apple_pay = { connector_list = "stripe,adyen,braintree,cybersource,zift,noon,bankofamerica,authorizedotnet,novalnet,multisafepay,wellsfargo,nuvei,worldpayxml,payme,imerchantsolutions" }
 wallet.samsung_pay = { connector_list = "cybersource" }
 wallet.paypal = { connector_list = "adyen,novalnet,authorizedotnet" }
-card.credit = { connector_list = "aci,checkout,stripe,adyen,authorizedotnet,zift,cybersource,datatrans,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,elavon,xendit,novalnet,bamboraapac,archipel,wellsfargo,worldpayvantiv,payload,mollie,airwallex,peachpayments,imerchantsolutions" }
-card.debit = { connector_list = "aci,checkout,stripe,adyen,authorizedotnet,zift,cybersource,datatrans,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,elavon,xendit,novalnet,bamboraapac,archipel,wellsfargo,worldpayvantiv,payload,mollie,airwallex,peachpayments,imerchantsolutions" }
+card.credit = { connector_list = "aci,checkout,stripe,adyen,authorizedotnet,zift,cybersource,datatrans,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,elavon,xendit,novalnet,bamboraapac,archipel,wellsfargo,worldpayvantiv,payload,mollie,airwallex,peachpayments,imerchantsolutions,givepayments" }
+card.debit = { connector_list = "aci,checkout,stripe,adyen,authorizedotnet,zift,cybersource,datatrans,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,elavon,xendit,novalnet,bamboraapac,archipel,wellsfargo,worldpayvantiv,payload,mollie,airwallex,peachpayments,imerchantsolutions,givepayments" }
 bank_debit.ach = { connector_list = "gocardless,adyen" }
 bank_debit.becs = { connector_list = "gocardless" }
 bank_debit.bacs = { connector_list = "adyen" }
