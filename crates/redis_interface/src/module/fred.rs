@@ -346,7 +346,6 @@ impl RedisConnectionPool {
 }
 
 impl RedisConnectionWithContext {
-
     pub fn new(pool: Arc<RedisConnectionPool>, context: &dyn RequestContext) -> Self {
         Self {
             redis_conn: pool,
