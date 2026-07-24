@@ -1996,6 +1996,15 @@ pub async fn call_to_vault<V: pm_types::VaultingInterface>(
     let locker = &state.conf.locker;
     let jwekey = state.conf.jwekey.get_inner();
 
+    // `mock_locker` has no real vault backend. Delegate to a dedicated, DB-backed
+    // mock that persists to / reads back from the `locker_mock_up` table through
+    // `StorageInterface` — the same mechanism the legacy card locker uses
+    // (`mock_call_to_locker_hs`) — so an add is genuinely retrievable and
+    // deletable instead of returning throwaway ids.
+    if locker.mock_locker {
+        return mock_call_to_vault::<V>(state, payload).await;
+    }
+
     let request = create_vault_request::<V>(
         jwekey,
         locker,
@@ -2024,6 +2033,121 @@ pub async fn call_to_vault<V: pm_types::VaultingInterface>(
     .attach_printable("Error getting decrypted vault response payload")?;
 
     Ok(decrypted_payload)
+}
+
+/// DB-backed `mock_locker` implementation of [`call_to_vault`].
+///
+/// When `mock_locker` is enabled there is no live vault service, so this mirrors
+/// the legacy card-locker mock (`mock_call_to_locker_hs`): it persists to and reads
+/// back from the `locker_mock_up` table through `StorageInterface`, keyed by the
+/// vault id, so an add is genuinely retrievable and deletable. It returns the same
+/// decrypted-JSON string each `V` flow's caller parses. Kept central here (rather
+/// than at each typed wrapper) because ~15 call sites hit `call_to_vault` directly.
+async fn mock_call_to_vault<V: pm_types::VaultingInterface>(
+    state: &routes::SessionState,
+    payload: Vec<u8>,
+) -> CustomResult<String, errors::VaultError> {
+    let db = state.store.as_ref();
+    let flow_name = V::get_vaulting_flow_name();
+
+    if flow_name == consts::V2_VAULT_ADD_FLOW_TYPE {
+        // Persist the vaulting data against the request's vault id.
+        #[derive(serde::Deserialize)]
+        struct MockVaultAdd {
+            vault_id: domain::VaultId,
+            data: serde_json::Value,
+        }
+        let req: MockVaultAdd = serde_json::from_slice(&payload)
+            .change_context(errors::VaultError::RequestEncodingFailed)
+            .attach_printable("mock_locker: failed to decode AddVaultRequest")?;
+        db.insert_locker_mock_up(storage::LockerMockUpNew {
+            card_id: req.vault_id.get_string_repr().clone(),
+            enc_card_data: Some(req.data.to_string()),
+            ..Default::default()
+        })
+        .await
+        .change_context(errors::VaultError::SaveCardFailed)
+        .attach_printable("mock_locker: failed to insert vault row")?;
+        return Ok(serde_json::json!({
+            "entity_id": null,
+            "vault_id": req.vault_id,
+            "fingerprint_id": null,
+        })
+        .to_string());
+    }
+
+    if flow_name == consts::V2_VAULT_GET_FINGERPRINT_FLOW_TYPE {
+        // A fresh id routes the caller to "create a new PM" (matches the legacy
+        // mock, which also generates a fresh fingerprint per add).
+        return Ok(serde_json::json!({
+            "fingerprint_id": generate_id_with_default_len("fingerprint"),
+        })
+        .to_string());
+    }
+
+    if flow_name == consts::V2_VAULT_RETRIEVE_FLOW_TYPE {
+        // Read the stored data back by vault id.
+        #[derive(serde::Deserialize)]
+        struct MockVaultRef {
+            vault_id: domain::VaultId,
+        }
+        let req: MockVaultRef = serde_json::from_slice(&payload)
+            .change_context(errors::VaultError::RequestEncodingFailed)
+            .attach_printable("mock_locker: failed to decode VaultRetrieveRequest")?;
+        let row = db
+            .find_locker_by_card_id(req.vault_id.get_string_repr())
+            .await
+            .change_context(errors::VaultError::FetchCardFailed)
+            .attach_printable("mock_locker: vault row not found")?;
+        let enc = row
+            .enc_card_data
+            .ok_or(report!(errors::VaultError::FetchCardFailed))
+            .attach_printable("mock_locker: stored vault row has no data")?;
+        let data: serde_json::Value = serde_json::from_str(&enc)
+            .change_context(errors::VaultError::ResponseDeserializationFailed)
+            .attach_printable("mock_locker: failed to decode stored vault data")?;
+        return Ok(serde_json::json!({ "data": data }).to_string());
+    }
+
+    if flow_name == consts::V2_VAULT_DELETE_FLOW_TYPE {
+        // Drop the stored row and echo the request's ids back.
+        #[derive(serde::Deserialize)]
+        struct MockVaultDelete {
+            vault_id: domain::VaultId,
+            entity_id: serde_json::Value,
+        }
+        let req: MockVaultDelete = serde_json::from_slice(&payload)
+            .change_context(errors::VaultError::RequestEncodingFailed)
+            .attach_printable("mock_locker: failed to decode VaultDeleteRequest")?;
+        db.delete_locker_mock_up(req.vault_id.get_string_repr())
+            .await
+            .change_context(errors::VaultError::DeleteCardFailed)
+            .attach_printable("mock_locker: failed to delete vault row")?;
+        return Ok(serde_json::json!({
+            "entity_id": req.entity_id,
+            "vault_id": req.vault_id,
+        })
+        .to_string());
+    }
+
+    if flow_name == consts::LOCKER_ENTITY_CREATE_FLOW_TYPE {
+        // No persistence needed; return a well-formed EntityCreateResponse.
+        #[derive(serde::Serialize)]
+        struct MockEntityCreate {
+            entity_id: String,
+            #[serde(with = "common_utils::custom_serde::iso8601")]
+            created_at: time::PrimitiveDateTime,
+        }
+        return serde_json::to_string(&MockEntityCreate {
+            entity_id: generate_id_with_default_len("entity"),
+            created_at: common_utils::date_time::now(),
+        })
+        .change_context(errors::VaultError::RequestEncodingFailed)
+        .attach_printable("mock_locker: failed to encode EntityCreateResponse");
+    }
+
+    Err(report!(errors::VaultError::VaultAPIError))
+        .attach_printable(format!("mock_locker: unsupported vault flow `{flow_name}`"))
 }
 
 pub async fn create_entity_in_locker(

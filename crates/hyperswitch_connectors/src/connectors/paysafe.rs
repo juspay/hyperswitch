@@ -1409,10 +1409,13 @@ impl ConnectorSpecifications for Paysafe {
             payment_attempt.setup_future_usage_applied,
             Some(enums::FutureUsage::OffSession)
         ) && payment_attempt.customer_acceptance.is_some()
-            && matches!(
+            && (matches!(
                 payment_attempt.payment_method,
                 Some(enums::PaymentMethod::Card)
-            )
+            ) || matches!(
+                payment_attempt.payment_method_type,
+                Some(enums::PaymentMethodType::ApplePay | enums::PaymentMethodType::GooglePay)
+            ))
             && matches!(
                 payment_attempt.authentication_type,
                 Some(enums::AuthenticationType::NoThreeDs) | None
@@ -1422,5 +1425,25 @@ impl ConnectorSpecifications for Paysafe {
         } else {
             api::ConnectorCustomerAction::NoAction
         }
+    }
+
+    // Paysafe's customer vault rejects raw applePay/googlePay payloads, so a
+    // reusable (MULTI_USE) wallet handle can only be made by a second tokenize
+    // that converts the single-use handle (paymentHandleTokenFrom). Opt into the
+    // core's wallet-vault-conversion leg for wallet CITs with a connector customer.
+    fn requires_wallet_vault_conversion(
+        &self,
+        tokenization_data: &PaymentMethodTokenizationData,
+        has_connector_customer: bool,
+    ) -> bool {
+        use hyperswitch_domain_models::payment_method_data::{PaymentMethodData, WalletData};
+
+        matches!(
+            tokenization_data.payment_method_data,
+            PaymentMethodData::Wallet(WalletData::ApplePay(_) | WalletData::GooglePay(_))
+        ) && tokenization_data.setup_future_usage == Some(enums::FutureUsage::OffSession)
+            && (tokenization_data.customer_acceptance.is_some()
+                || tokenization_data.setup_mandate_details.is_some())
+            && has_connector_customer
     }
 }

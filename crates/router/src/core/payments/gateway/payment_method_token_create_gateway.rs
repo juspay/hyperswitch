@@ -116,7 +116,11 @@ where
             .merchant_reference_id(merchant_reference_id)
             .resource_id(resource_id)
             .lineage_ids(lineage_ids);
-        Box::pin(unified_connector_service::ucs_logging_wrapper_granular(
+
+        // Mint the payment method token. This gateway is a single granular UCS
+        // call; any follow-up (e.g. a wallet vault-conversion tokenize pass) is
+        // sequenced by core, not bundled here.
+        let router_data = Box::pin(unified_connector_service::ucs_logging_wrapper_granular(
             router_data.clone(),
             state,
             payment_method_tokenize_request,
@@ -181,7 +185,9 @@ where
         ))
         .await
         .map(|(router_data, _)| router_data)
-        .map_err(super::convert_ucs_error_to_connector_error)
+        .map_err(super::convert_ucs_error_to_connector_error)?;
+
+        Ok(router_data)
     }
 }
 

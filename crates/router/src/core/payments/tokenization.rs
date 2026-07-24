@@ -23,7 +23,7 @@ use hyperswitch_domain_models::{
     payment_method_data::{get_applepay_wallet_info, get_googlepay_wallet_info},
     transformers::ForeignFrom as _,
 };
-use hyperswitch_interfaces::api::gateway;
+use hyperswitch_interfaces::api::{gateway, ConnectorSpecifications};
 use hyperswitch_masking::{ExposeInterface, Secret};
 use router_env::{instrument, tracing};
 
@@ -1395,7 +1395,7 @@ pub async fn save_in_locker_internal(
             Some(api_models::payment_methods::PaymentMethodCreateData::Wallet(wallet_create_data)),
         ) => Box::pin(
             PmCards { state, provider }.add_wallet_to_locker(
-                payment_method_request,
+                payment_method_request.clone(),
                 wallet_create_data,
                 provider.get_key_store(),
                 &customer_id,
@@ -1752,6 +1752,78 @@ pub async fn add_payment_method_token<F: Clone, T: types::Tokenizable + Clone>(
                         None
                     }
                 });
+
+                // Some connectors (e.g. Paysafe wallets) need a SECOND tokenize
+                // pass to convert leg-1's single-use handle into a reusable
+                // (MULTI_USE) one for recurring. Core sequences it here as its own
+                // granular gateway call — the gateway itself stays a single UCS
+                // call. Fully fail-soft: on any error we keep leg-1's handle so the
+                // payment still succeeds; only a future MIT would not be replayable.
+                let leg1_token = match &payment_token_resp {
+                    Ok(Some(token)) => Some(token.clone()),
+                    _ => None,
+                };
+                let payment_token_resp = match leg1_token {
+                    Some(leg1_token)
+                        if connector.connector.requires_wallet_vault_conversion(
+                            &pm_token_router_data.request,
+                            pm_token_router_data.connector_customer.is_some(),
+                        ) =>
+                    {
+                        let conversion_integration: services::BoxedPaymentConnectorIntegrationInterface<
+                            api::PaymentMethodToken,
+                            types::PaymentMethodTokenizationData,
+                            types::PaymentsResponseData,
+                        > = connector.connector.get_connector_integration();
+
+                        // Box the cloned router data and the second gateway future
+                        // so this leg's state doesn't inflate `add_payment_method_token`'s
+                        // future past clippy's `large_futures` threshold for the flows
+                        // that await it.
+                        let mut conversion_router_data = Box::new(pm_token_router_data.clone());
+                        conversion_router_data.request.connector_feature_data = Some(Secret::new(
+                            serde_json::json!({ "payment_handle_token": leg1_token }).to_string(),
+                        ));
+                        conversion_router_data.response = Err(types::ErrorResponse::default());
+
+                        match Box::pin(gateway::execute_payment_gateway(
+                            state,
+                            conversion_integration,
+                            &conversion_router_data,
+                            payments::CallConnectorAction::Trigger,
+                            None,
+                            None,
+                            gateway_context.clone(),
+                        ))
+                        .await
+                        {
+                            Ok(mut converted) => {
+                                handle_tokenization_response(&mut converted);
+                                match converted.response {
+                                    Ok(types::PaymentsResponseData::TokenizationResponse {
+                                        token,
+                                    }) => Ok(Some(token)),
+                                    Ok(_) => payment_token_resp,
+                                    Err(err) => {
+                                        logger::warn!(
+                                            error = ?err,
+                                            "Wallet vault conversion declined by connector; keeping the single-use handle (MIT will not be replayable)"
+                                        );
+                                        payment_token_resp
+                                    }
+                                }
+                            }
+                            Err(err) => {
+                                logger::warn!(
+                                    error = ?err,
+                                    "Wallet vault conversion call failed; keeping the single-use handle (MIT will not be replayable)"
+                                );
+                                payment_token_resp
+                            }
+                        }
+                    }
+                    _ => payment_token_resp,
+                };
 
                 Ok(types::PaymentMethodTokenResult {
                     payment_method_token_result: payment_token_resp,

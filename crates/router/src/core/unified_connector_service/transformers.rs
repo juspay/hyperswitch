@@ -325,7 +325,13 @@ impl
             payment_method: Some(payment_method),
             address: Some(address),
             metadata: None,
-            connector_feature_data: None,
+            // Core sets this when sequencing a connector's second (vault-conversion)
+            // tokenize pass — e.g. the leg-1 payment-handle token that pass consumes.
+            connector_feature_data: router_data
+                .request
+                .connector_feature_data
+                .as_ref()
+                .map(|feature_data| feature_data.peek().clone().into()),
             return_url: router_data.request.router_return_url.clone(),
             test_mode: router_data.test_mode,
             customer: Some(payments_grpc::Customer {

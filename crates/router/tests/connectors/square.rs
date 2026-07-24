@@ -75,6 +75,7 @@ fn token_details() -> Option<types::PaymentMethodTokenizationData> {
         payment_method_type: None,
         router_return_url: None,
         capture_method: None,
+        connector_feature_data: None,
     })
 }
 
@@ -456,6 +457,7 @@ async fn should_fail_payment_for_incorrect_cvc() {
                 payment_method_type: None,
                 router_return_url: None,
                 capture_method: None,
+                connector_feature_data: None,
             }),
             get_default_payment_info(None),
         )
@@ -495,6 +497,7 @@ async fn should_fail_payment_for_invalid_exp_month() {
                 payment_method_type: None,
                 router_return_url: None,
                 capture_method: None,
+                connector_feature_data: None,
             }),
             get_default_payment_info(None),
         )
@@ -534,6 +537,7 @@ async fn should_fail_payment_for_incorrect_expiry_year() {
                 payment_method_type: None,
                 router_return_url: None,
                 capture_method: None,
+                connector_feature_data: None,
             }),
             get_default_payment_info(None),
         )

@@ -1172,6 +1172,7 @@ impl Default for TokenType {
             payment_method_type: None,
             router_return_url: None,
             capture_method: None,
+            connector_feature_data: None,
         };
         Self(data)
     }
