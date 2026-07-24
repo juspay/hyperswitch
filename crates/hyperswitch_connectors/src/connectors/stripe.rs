@@ -488,23 +488,14 @@ impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, Pay
         req: &TokenizationRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, ConnectorError> {
-        if matches!(
-            (
-                req.request.split_payments.as_ref(),
-                req.request.payment_method_data.clone()
-            ),
-            (
-                Some(common_types::payments::SplitPaymentsRequest::StripeSplitPayment(_)),
-                PaymentMethodData::Card(_)
-            )
-        ) {
-            return Ok(format!(
+        match &req.request.payment_method_data {
+            PaymentMethodData::Card(_) => Ok(format!(
                 "{}{}",
                 self.base_url(connectors),
                 "v1/payment_methods"
-            ));
+            )),
+            _ => Ok(format!("{}{}", self.base_url(connectors), "v1/tokens")),
         }
-        Ok(format!("{}{}", self.base_url(connectors), "v1/tokens"))
     }
 
     fn get_request_body(
@@ -512,8 +503,16 @@ impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, Pay
         req: &TokenizationRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, ConnectorError> {
-        let connector_req = stripe::TokenRequest::try_from(req)?;
-        Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
+        match &req.request.payment_method_data {
+            PaymentMethodData::Card(_) => {
+                let connector_req = stripe::StripePaymentMethodRequest::try_from(req)?;
+                Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
+            }
+            _ => {
+                let connector_req = stripe::TokenRequest::try_from(req)?;
+                Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
+            }
+        }
     }
 
     fn build_request(
