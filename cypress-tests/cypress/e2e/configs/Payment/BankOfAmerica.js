@@ -75,6 +75,16 @@ const multiUseMandateData = {
 };
 
 export const connectorDetails = {
+  real_time_payment_pm: {
+    PaymentIntent: getCustomExchange({
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        currency: "USD",
+      },
+    }),
+  },
   card_pm: {
     PaymentIntent: {
       Request: {
