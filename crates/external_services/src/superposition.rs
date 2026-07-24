@@ -38,6 +38,170 @@ pub use superposition_types::api::{
 pub use self::types::{ConfigContext, SuperpositionClientConfig, SuperpositionError, ToDocument};
 use crate::config_metrics;
 
+// ── Deja record/replay boundary for Superposition READS ──────────────────────
+// Wraps the read methods so each read is CAPTURED on record and SUBSTITUTED from
+// the tape on replay — no live Superposition service is consulted in replay. The
+// WHOLE `CustomResult<T, SuperpositionError>` round-trips ("recording threw ⇒
+// replay throws"). Identity is rank-2 span-path (no call-site id). A genuine tape
+// MISS returns `Err(SuperpositionError)` (via `dispatch_async_or_miss`) so the
+// caller's `fetch_db_config` ladder degrades to DB/default and replay progresses,
+// instead of the egress fail-stop. Reads are deja's per-request business config;
+// writes are deliberately NOT wrapped (they are leaving the OLTP path).
+#[cfg(feature = "deja")]
+mod deja_boundary {
+    use error_stack::report;
+
+    use super::{ConfigContext, CustomResult, SuperpositionError};
+
+    pub(super) const BOUNDARY: &str = "superposition";
+    pub(super) const COMPONENT: &str = "SuperpositionClient";
+
+    /// Serialize the whole `CustomResult<T, SuperpositionError>` for the tape:
+    /// the `Ok` value losslessly, or the error's current context (which the
+    /// caller's recovery branches on). Report attachments do not round-trip.
+    pub(super) fn capture<T: serde::Serialize>(
+        result: &CustomResult<T, SuperpositionError>,
+    ) -> (serde_json::Value, bool) {
+        match result {
+            Ok(value) => (
+                serde_json::json!({
+                    "result": "Ok",
+                    "value": serde_json::to_value(value).unwrap_or(serde_json::Value::Null),
+                }),
+                false,
+            ),
+            Err(err) => (
+                serde_json::json!({
+                    "result": "Err",
+                    "error": serde_json::to_value(err.current_context())
+                        .unwrap_or(serde_json::Value::Null),
+                }),
+                true,
+            ),
+        }
+    }
+
+    /// Rebuild the typed `CustomResult` from a recorded tape value. A recorded
+    /// `Err` replays as `Err(report!(E))` carrying the SAME typed context.
+    pub(super) fn reconstruct<T: serde::de::DeserializeOwned>(
+        recorded: serde_json::Value,
+    ) -> deja::__private::Reconstructed<CustomResult<T, SuperpositionError>> {
+        use deja::__private::Reconstructed;
+        let Some(object) = recorded.as_object() else {
+            return Reconstructed::Failed;
+        };
+        match object.get("result").and_then(serde_json::Value::as_str) {
+            Some("Ok") => match object
+                .get("value")
+                .cloned()
+                .map(serde_json::from_value::<T>)
+            {
+                Some(Ok(value)) => Reconstructed::Value(Ok(value)),
+                _ => Reconstructed::Failed,
+            },
+            Some("Err") => match object
+                .get("error")
+                .cloned()
+                .map(serde_json::from_value::<SuperpositionError>)
+            {
+                Some(Ok(error)) => Reconstructed::Value(Err(report!(error))),
+                _ => Reconstructed::Failed,
+            },
+            _ => Reconstructed::Failed,
+        }
+    }
+
+    /// Serialize a `ConfigContext` (+ targeting key) into the boundary args image
+    /// used for replay matching. The config key/method go in alongside.
+    pub(super) fn args_image(
+        method: &str,
+        key: Option<&str>,
+        context: Option<&ConfigContext>,
+        targeting_key: Option<&String>,
+    ) -> serde_json::Value {
+        serde_json::json!({
+            "method": method,
+            "key": key,
+            "context": context.map(|c| c.values.clone()),
+            "targeting_key": targeting_key,
+        })
+    }
+
+    /// Run one Superposition read through the deja boundary. `run` performs the
+    /// live read; on a substitute HIT it is skipped (tape value served), on a
+    /// genuine MISS `on_miss` yields a recoverable `Err`.
+    pub(super) async fn read<T, Fut, Run>(
+        operation: &'static str,
+        args: serde_json::Value,
+        caller: &'static core::panic::Location<'static>,
+        run: Run,
+    ) -> CustomResult<T, SuperpositionError>
+    where
+        Run: FnOnce() -> Fut,
+        Fut: core::future::Future<Output = CustomResult<T, SuperpositionError>>,
+        T: serde::Serialize + serde::de::DeserializeOwned,
+    {
+        // Engage only when a deja hook is live (record or replay); else pure
+        // passthrough — no observation, no allocation.
+        if !deja::__private::observation_is_active() {
+            return run().await;
+        }
+
+        let correlation = deja::current_correlation_id();
+        let scope = format!("superposition::{operation}");
+        // Rank-2 span-path identity: NO explicit call-site id (rank-1 needs a
+        // call-site and is banned), so resolution uses the ambient span-path
+        // (rank 2), with the syntactic hash of the scope as the rank-3 fallback.
+        let identity = deja::__private::CallsiteIdentity {
+            version: 1,
+            source: deja::__private::CallsiteSource::SyntacticHash,
+            id: None,
+            scope: Some(scope.clone()),
+            occurrence: deja::__private::next_boundary_occurrence(
+                correlation.as_deref(),
+                deja::__private::CallsiteSource::SyntacticHash,
+                Some(&scope),
+            ),
+            caller_function: Some(operation.to_string()),
+            lexical_path: Some(scope.clone()),
+            syntax_hash: Some(deja::__private::stable_callsite_hash(&scope)),
+            span_path: deja::__private::current_span_path(),
+        };
+
+        let semantics = deja::__private::BoundarySemantics {
+            replay_strategy: deja::ReplayStrategy::Substitute,
+            kind: Some(BOUNDARY.to_string()),
+            declaration: Some(
+                deja::BoundaryDeclaration::default().operation(deja::OperationKind::ExternalCall),
+            ),
+        };
+        let spec = deja::__private::BoundarySpec::with_semantics(
+            BOUNDARY, COMPONENT, operation, semantics,
+        );
+        let observation = deja::__private::CrossingObservation::with_correlation(
+            spec,
+            identity,
+            caller,
+            correlation,
+        );
+
+        deja::__private::dispatch_async_or_miss(
+            observation,
+            move || args,
+            run,
+            reconstruct::<T>,
+            capture::<T>,
+            move || {
+                Err(report!(SuperpositionError::NotFound(format!(
+                    "deja replay: no recorded Superposition value for `{operation}` (novel \
+                     config read); caller falls back to DB/default"
+                ))))
+            },
+        )
+        .await
+    }
+}
+
 /// Convert an `aws_smithy_types::Document` to a `serde_json::Value`.
 pub fn document_to_value(doc: Document) -> serde_json::Value {
     match doc {
@@ -600,18 +764,50 @@ impl SuperpositionClient {
     ) -> CustomResult<T, SuperpositionError>
     where
         open_feature::Client: GetValue<T>,
+        // Deja captures the whole `CustomResult<T, _>` at the read boundary; the
+        // GetValue impls (bool/String/i64/u32/f64/Value) all satisfy these.
+        T: serde::Serialize + serde::de::DeserializeOwned,
     {
-        let evaluation_context = self.build_evaluation_context(context, targeting_key);
-        let type_name = std::any::type_name::<T>();
-
-        self.client
-            .get_value(key, &evaluation_context)
+        #[cfg(feature = "deja")]
+        {
+            let args =
+                deja_boundary::args_image("get_config_value", Some(key), context, targeting_key);
+            let key = key.to_owned();
+            let context = context.cloned();
+            let targeting_key = targeting_key.cloned();
+            deja_boundary::read(
+                "get_config_value",
+                args,
+                core::panic::Location::caller(),
+                move || async move {
+                    let evaluation_context =
+                        self.build_evaluation_context(context.as_ref(), targeting_key.as_ref());
+                    let type_name = std::any::type_name::<T>();
+                    self.client
+                        .get_value(&key, &evaluation_context)
+                        .await
+                        .map_err(|e| {
+                            report!(SuperpositionError::ClientError(format!(
+                                "Failed to get {type_name} value for key '{key}': {e:?}"
+                            )))
+                        })
+                },
+            )
             .await
-            .map_err(|e| {
-                report!(SuperpositionError::ClientError(format!(
-                    "Failed to get {type_name} value for key '{key}': {e:?}"
-                )))
-            })
+        }
+        #[cfg(not(feature = "deja"))]
+        {
+            let evaluation_context = self.build_evaluation_context(context, targeting_key);
+            let type_name = std::any::type_name::<T>();
+            self.client
+                .get_value(key, &evaluation_context)
+                .await
+                .map_err(|e| {
+                    report!(SuperpositionError::ClientError(format!(
+                        "Failed to get {type_name} value for key '{key}': {e:?}"
+                    )))
+                })
+        }
     }
 
     /// Resolve full configuration from Superposition
@@ -626,15 +822,43 @@ impl SuperpositionClient {
         context: Option<&ConfigContext>,
         targeting_key: Option<&String>,
     ) -> CustomResult<Map<String, serde_json::Value>, SuperpositionError> {
-        let evaluation_context = self.build_evaluation_context(context, targeting_key);
-        self.provider
-            .resolve_all_features(evaluation_context)
+        #[cfg(feature = "deja")]
+        {
+            let args =
+                deja_boundary::args_image("resolve_full_config", None, context, targeting_key);
+            let context = context.cloned();
+            let targeting_key = targeting_key.cloned();
+            deja_boundary::read(
+                "resolve_full_config",
+                args,
+                core::panic::Location::caller(),
+                move || async move {
+                    let evaluation_context =
+                        self.build_evaluation_context(context.as_ref(), targeting_key.as_ref());
+                    self.provider
+                        .resolve_all_features(evaluation_context)
+                        .await
+                        .map_err(|e| {
+                            report!(SuperpositionError::ProviderError(format!(
+                                "Failed to resolve full config: {e:?}"
+                            )))
+                        })
+                },
+            )
             .await
-            .map_err(|e| {
-                report!(SuperpositionError::ProviderError(format!(
-                    "Failed to resolve full config: {e:?}"
-                )))
-            })
+        }
+        #[cfg(not(feature = "deja"))]
+        {
+            let evaluation_context = self.build_evaluation_context(context, targeting_key);
+            self.provider
+                .resolve_all_features(evaluation_context)
+                .await
+                .map_err(|e| {
+                    report!(SuperpositionError::ProviderError(format!(
+                        "Failed to resolve full config: {e:?}"
+                    )))
+                })
+        }
     }
 
     /// Get cached configuration from Superposition
@@ -650,22 +874,61 @@ impl SuperpositionClient {
         prefix_filter: Option<Vec<String>>,
         dimension_filter: Option<Map<String, serde_json::Value>>,
     ) -> CustomResult<superposition_types::Config, SuperpositionError> {
-        use superposition_provider::data_source::SuperpositionDataSource;
-        let response = self
-            .provider
-            .fetch_filtered_config(dimension_filter, prefix_filter, None)
+        #[cfg(feature = "deja")]
+        {
+            let args = serde_json::json!({
+                "method": "get_cached_config",
+                "prefix_filter": prefix_filter.clone(),
+                "dimension_filter": dimension_filter.clone(),
+            });
+            deja_boundary::read(
+                "get_cached_config",
+                args,
+                core::panic::Location::caller(),
+                move || async move {
+                    use superposition_provider::data_source::SuperpositionDataSource;
+                    let response = self
+                        .provider
+                        .fetch_filtered_config(dimension_filter, prefix_filter, None)
+                        .await
+                        .map_err(|e| {
+                            report!(SuperpositionError::ProviderError(format!(
+                                "Failed to get cached config: {e:?}"
+                            )))
+                        })?;
+                    match response {
+                        superposition_provider::data_source::FetchResponse::Data(data) => {
+                            Ok(data.data)
+                        }
+                        superposition_provider::data_source::FetchResponse::NotModified => {
+                            Err(report!(SuperpositionError::ProviderError(
+                                "Config not modified but no data available".to_string()
+                            )))
+                        }
+                    }
+                },
+            )
             .await
-            .map_err(|e| {
-                report!(SuperpositionError::ProviderError(format!(
-                    "Failed to get cached config: {e:?}"
-                )))
-            })?;
-        match response {
-            superposition_provider::data_source::FetchResponse::Data(data) => Ok(data.data),
-            superposition_provider::data_source::FetchResponse::NotModified => {
-                Err(report!(SuperpositionError::ProviderError(
-                    "Config not modified but no data available".to_string()
-                )))
+        }
+        #[cfg(not(feature = "deja"))]
+        {
+            use superposition_provider::data_source::SuperpositionDataSource;
+            let response = self
+                .provider
+                .fetch_filtered_config(dimension_filter, prefix_filter, None)
+                .await
+                .map_err(|e| {
+                    report!(SuperpositionError::ProviderError(format!(
+                        "Failed to get cached config: {e:?}"
+                    )))
+                })?;
+            match response {
+                superposition_provider::data_source::FetchResponse::Data(data) => Ok(data.data),
+                superposition_provider::data_source::FetchResponse::NotModified => {
+                    Err(report!(SuperpositionError::ProviderError(
+                        "Config not modified but no data available".to_string()
+                    )))
+                }
             }
         }
     }
@@ -750,8 +1013,15 @@ pub trait WritableConfig {
 /// Each config type implements this trait to define how its value should be
 /// retrieved from Superposition.
 pub trait Config {
-    /// The output type of this configuration
-    type Output: Default + Clone;
+    /// The output type of this configuration.
+    ///
+    /// `Serialize + DeserializeOwned` are required because `get_config_value`
+    /// (which `fetch` calls) captures the whole `CustomResult<Output, _>` at the
+    /// deja read boundary. Declaring the bound on the associated type propagates
+    /// it to `fetch` and to every generic `C: Config` caller (e.g. router's
+    /// `fetch_db_config`) without scattering per-call-site where-clauses. All
+    /// real Output types (bool/String/i64/u32/f64/serde_json::Value) satisfy it.
+    type Output: Default + Clone + serde::Serialize + serde::de::DeserializeOwned;
 
     /// The type used as the targeting key for experiment traffic splitting
     type TargetingKey: TargetingKey + Send + Sync;

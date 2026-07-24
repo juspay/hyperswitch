@@ -49,12 +49,12 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<DomainPaymentMethod, errors::StorageError> {
         let conn = pg_connection_read(self).await?;
-        self.find_resource_by_id(
+        Box::pin(self.find_resource_by_id(
             key_store,
             storage_scheme,
             PaymentMethod::find_by_payment_method_id(&conn, payment_method_id),
             FindResourceBy::LookupId(format!("payment_method_{payment_method_id}")),
-        )
+        ))
         .await
     }
 
@@ -67,7 +67,7 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<DomainPaymentMethod, errors::StorageError> {
         let conn = pg_connection_read(self).await?;
-        self.find_resource_by_id(
+        Box::pin(self.find_resource_by_id(
             key_store,
             storage_scheme,
             PaymentMethod::find_by_id(&conn, payment_method_id),
@@ -75,7 +75,7 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
                 "payment_method_{}",
                 payment_method_id.get_string_repr()
             )),
-        )
+        ))
         .await
     }
 
@@ -87,12 +87,12 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<DomainPaymentMethod, errors::StorageError> {
         let conn = pg_connection_read(self).await?;
-        self.find_resource_by_id(
+        Box::pin(self.find_resource_by_id(
             key_store,
             storage_scheme,
             PaymentMethod::find_by_locker_id(&conn, locker_id),
             FindResourceBy::LookupId(format!("payment_method_locker_{locker_id}")),
-        )
+        ))
         .await
     }
 
@@ -194,21 +194,20 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
             .change_context(errors::StorageError::KVError)
             .attach_printable("Failed to generate payment method insert query")?;
 
-        let payment_method: DomainPaymentMethod = self
-            .insert_resource(
-                key_store,
-                storage_scheme,
-                payment_method_new.clone().insert(&conn),
-                payment_method,
-                InsertResourceParams {
-                    drainer_query,
-                    reverse_lookups,
-                    key,
-                    identifier,
-                    resource_type: "payment_method",
-                },
-            )
-            .await?;
+        let payment_method: DomainPaymentMethod = Box::pin(self.insert_resource(
+            key_store,
+            storage_scheme,
+            payment_method_new.clone().insert(&conn),
+            payment_method,
+            InsertResourceParams {
+                drainer_query,
+                reverse_lookups,
+                key,
+                identifier,
+                resource_type: "payment_method",
+            },
+        ))
+        .await?;
 
         if let Some(compat_action) = compat_action {
             compat_action.execute(&payment_method).await;
@@ -345,7 +344,7 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Vec<DomainPaymentMethod>, errors::StorageError> {
         let conn = pg_connection_read(self).await?;
-        self.filter_resources(
+        Box::pin(self.filter_resources(
             key_store,
             storage_scheme,
             PaymentMethod::find_by_customer_id_merchant_id_status(
@@ -364,7 +363,7 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
                 pattern: "payment_method_id_*",
                 limit,
             },
-        )
+        ))
         .await
     }
 
@@ -381,7 +380,7 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Vec<DomainPaymentMethod>, Self::Error> {
         let conn = pg_connection_read(self).await?;
-        self.filter_resources(
+        Box::pin(self.filter_resources(
             key_store,
             storage_scheme,
             PaymentMethod::find_by_customer_id_merchant_id_status_pm_type(
@@ -401,7 +400,7 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
                 pattern: "payment_method_id_*",
                 limit,
             },
-        )
+        ))
         .await
     }
 
@@ -614,9 +613,8 @@ impl<T: DatabaseStore> PaymentMethodInterface for RouterStore<T> {
             .change_context(errors::StorageError::DecryptionError)?;
 
         let conn = pg_connection_write(self).await?;
-        let payment_method: DomainPaymentMethod = self
-            .call_database(key_store, payment_method_new.insert(&conn))
-            .await?;
+        let payment_method: DomainPaymentMethod =
+            Box::pin(self.call_database(key_store, payment_method_new.insert(&conn))).await?;
 
         if let Some(compat_action) = compat_action {
             compat_action.execute(&payment_method).await;
@@ -640,12 +638,11 @@ impl<T: DatabaseStore> PaymentMethodInterface for RouterStore<T> {
             .change_context(errors::StorageError::DecryptionError)?;
 
         let conn = pg_connection_write(self).await?;
-        let payment_method: DomainPaymentMethod = self
-            .call_database(
-                key_store,
-                payment_method.update_with_payment_method_id(&conn, payment_method_update.into()),
-            )
-            .await?;
+        let payment_method: DomainPaymentMethod = Box::pin(self.call_database(
+            key_store,
+            payment_method.update_with_payment_method_id(&conn, payment_method_update.into()),
+        ))
+        .await?;
 
         if let Some(compat_action) = compat_action {
             compat_action.execute(&payment_method).await;
@@ -668,12 +665,11 @@ impl<T: DatabaseStore> PaymentMethodInterface for RouterStore<T> {
             .await
             .change_context(errors::StorageError::DecryptionError)?;
         let conn = pg_connection_write(self).await?;
-        let payment_method: DomainPaymentMethod = self
-            .call_database(
-                key_store,
-                payment_method.update_with_id(&conn, payment_method_update.into()),
-            )
-            .await?;
+        let payment_method: DomainPaymentMethod = Box::pin(self.call_database(
+            key_store,
+            payment_method.update_with_id(&conn, payment_method_update.into()),
+        ))
+        .await?;
 
         if let Some(compat_action) = compat_action {
             compat_action.execute(&payment_method).await;
@@ -854,10 +850,10 @@ impl<T: DatabaseStore> PaymentMethodInterface for RouterStore<T> {
                 .and_then(|initiator| initiator.to_created_by())
                 .map(|last_modified_by| last_modified_by.to_string()),
         };
-        self.call_database(
+        Box::pin(self.call_database(
             key_store,
             payment_method.update_with_id(&conn, payment_method_update.into()),
-        )
+        ))
         .await
     }
 

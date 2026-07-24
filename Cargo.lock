@@ -2857,12 +2857,13 @@ checksum = "092966b41edc516079bdf31ec78a2e0588d1d0c08f78b91d8307215928642b2b"
 [[package]]
 name = "deja"
 version = "0.1.0"
-source = "git+https://github.com/juspay/deja?rev=2ae840aa2b0a5160dc1719c83ad6d3c6bbcfa716#2ae840aa2b0a5160dc1719c83ad6d3c6bbcfa716"
+source = "git+https://github.com/juspay/deja?rev=2c3a795ef4d8d2a5eebc47bbe7134984b75be6b3#2c3a795ef4d8d2a5eebc47bbe7134984b75be6b3"
 dependencies = [
  "deja-context",
  "deja-core",
  "deja-derive",
  "deja-runtime",
+ "error-stack 0.4.1",
  "serde",
  "serde_json",
 ]
@@ -2870,7 +2871,7 @@ dependencies = [
 [[package]]
 name = "deja-context"
 version = "0.1.0"
-source = "git+https://github.com/juspay/deja?rev=2ae840aa2b0a5160dc1719c83ad6d3c6bbcfa716#2ae840aa2b0a5160dc1719c83ad6d3c6bbcfa716"
+source = "git+https://github.com/juspay/deja?rev=2c3a795ef4d8d2a5eebc47bbe7134984b75be6b3#2c3a795ef4d8d2a5eebc47bbe7134984b75be6b3"
 dependencies = [
  "pin-project-lite",
 ]
@@ -2878,7 +2879,7 @@ dependencies = [
 [[package]]
 name = "deja-core"
 version = "0.1.0"
-source = "git+https://github.com/juspay/deja?rev=2ae840aa2b0a5160dc1719c83ad6d3c6bbcfa716#2ae840aa2b0a5160dc1719c83ad6d3c6bbcfa716"
+source = "git+https://github.com/juspay/deja?rev=2c3a795ef4d8d2a5eebc47bbe7134984b75be6b3#2c3a795ef4d8d2a5eebc47bbe7134984b75be6b3"
 dependencies = [
  "serde",
  "serde_json",
@@ -2888,7 +2889,7 @@ dependencies = [
 [[package]]
 name = "deja-derive"
 version = "0.1.0"
-source = "git+https://github.com/juspay/deja?rev=2ae840aa2b0a5160dc1719c83ad6d3c6bbcfa716#2ae840aa2b0a5160dc1719c83ad6d3c6bbcfa716"
+source = "git+https://github.com/juspay/deja?rev=2c3a795ef4d8d2a5eebc47bbe7134984b75be6b3#2c3a795ef4d8d2a5eebc47bbe7134984b75be6b3"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2898,7 +2899,7 @@ dependencies = [
 [[package]]
 name = "deja-runtime"
 version = "0.1.0"
-source = "git+https://github.com/juspay/deja?rev=2ae840aa2b0a5160dc1719c83ad6d3c6bbcfa716#2ae840aa2b0a5160dc1719c83ad6d3c6bbcfa716"
+source = "git+https://github.com/juspay/deja?rev=2c3a795ef4d8d2a5eebc47bbe7134984b75be6b3#2c3a795ef4d8d2a5eebc47bbe7134984b75be6b3"
 dependencies = [
  "async-trait",
  "deja-context",
@@ -3545,6 +3546,7 @@ dependencies = [
  "error-stack 0.4.1",
  "hex",
  "http 0.2.12",
+ "http-body 1.0.1",
  "http-body-util",
  "hyper 0.14.32",
  "hyper-proxy",
@@ -3555,6 +3557,7 @@ dependencies = [
  "once_cell",
  "open-feature",
  "prost 0.14.3",
+ "prost-reflect",
  "prost-types 0.14.3",
  "quick-xml",
  "reqwest 0.11.27",
@@ -3569,6 +3572,7 @@ dependencies = [
  "thiserror 1.0.69",
  "time 0.3.41",
  "tokio 1.48.0",
+ "tokio-stream",
  "tonic 0.14.5",
  "tonic-prost",
  "tonic-prost-build",
@@ -7452,6 +7456,19 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.101",
+]
+
+[[package]]
+name = "prost-reflect"
+version = "0.16.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "01b80ea363c31af2de2b92e3c07ed1156628f7838c4afb4df75ee78a37fedbd1"
+dependencies = [
+ "base64 0.22.1",
+ "prost 0.14.3",
+ "prost-types 0.14.3",
+ "serde",
+ "serde-value",
 ]
 
 [[package]]

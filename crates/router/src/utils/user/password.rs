@@ -15,13 +15,34 @@ use crate::core::errors::UserErrors;
 pub fn generate_password_hash(
     password: Secret<String>,
 ) -> CustomResult<Secret<String>, UserErrors> {
+    generate_password_hash_inner(password).map(Secret::new)
+}
+
+// deja: the Argon2 salt is random (OsRng), so the hash is non-deterministic. On
+// replay the recorded user row never matches (the `users` INSERT then executes
+// LIVE, collides with the record-phase user, and signup rolls everything back ->
+// HE_00). Record/replay the hash string so the user row is reproducible. The
+// annotated fn returns a PLAIN String (not Secret) on purpose: masking::Secret
+// serializes lossily to "***", which would record/replay a useless masked value;
+// the plain String records the real hash losslessly. The `password` arg still
+// masks to "***" in the recorded args — that's fine, it's consistent across
+// record/replay and avoids leaking the secret. Uses the Ok-only codec for the Result.
+#[cfg_attr(
+    feature = "deja",
+    deja::id(
+        component = "router::user::password",
+        operation = "generate_password_hash",
+        codec = ResultOkCodec,
+    )
+)]
+fn generate_password_hash_inner(password: Secret<String>) -> CustomResult<String, UserErrors> {
     let salt = SaltString::generate(&mut OsRng);
 
     let argon2 = Argon2::default();
     let password_hash = argon2
         .hash_password(password.expose().as_bytes(), &salt)
         .change_context(UserErrors::InternalServerError)?;
-    Ok(Secret::new(password_hash.to_string()))
+    Ok(password_hash.to_string())
 }
 
 pub fn is_correct_password(
