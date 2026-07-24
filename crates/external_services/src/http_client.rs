@@ -12,6 +12,10 @@ pub mod client;
 pub mod metrics;
 /// request module
 pub mod request;
+
+#[cfg(feature = "deja")]
+mod boundary;
+
 use std::{error::Error, time::Duration};
 
 pub use common_utils::request::{ContentType, Method, RequestBuilder};
@@ -63,6 +67,21 @@ pub fn serialize_to_xml_bytes<T: serde::Serialize>(
 }
 
 #[allow(missing_docs)]
+#[cfg_attr(
+    feature = "deja",
+    deja::http(outgoing,
+        component = "external_services::http_client",
+        operation = "send_request",
+        correlation = boundary::request_id(&request),
+        // The deja handoff: expose the Secret-wrapped payload so the tape
+        // records full fidelity (Secret only redacts Debug/log output).
+        args = hyperswitch_masking::ExposeInterface::expose(boundary::request_args(&request, option_timeout_secs)),
+        // Rebuild the recorded reqwest::Response (status+headers+body) so the
+        // outgoing call (e.g. Stripe) is served from the lookup table with no
+        // network. A recorded error reconstructs to None -> falls through to live.
+        codec = boundary::HttpResponseCodec,
+    )
+)]
 #[instrument(skip_all)]
 pub async fn send_request(
     client_proxy: &Proxy,
@@ -196,8 +215,7 @@ pub async fn send_request(
     // and written to at the same time the server is deciding to close the connection.
     // Since hyper already wrote some of the request,
     // it can’t really retry it automatically on a new connection, since the server may have acted already
-    match response {
-        Ok(response) => Ok(response),
+    let response = match response {
         Err(error)
             if error.current_context() == &HttpClientError::ConnectionClosedIncompleteMessage =>
         {
@@ -220,7 +238,22 @@ pub async fn send_request(
                 }
             }
         }
-        err @ Err(_) => err,
+        response => response,
+    };
+
+    #[cfg(feature = "deja")]
+    {
+        match response {
+            Ok(response) if boundary::is_active() => {
+                boundary::response_with_captured_body(response).await
+            }
+            response => response,
+        }
+    }
+
+    #[cfg(not(feature = "deja"))]
+    {
+        response
     }
 }
 

@@ -145,6 +145,18 @@ pub enum KvResult<T: de::DeserializeOwned> {
     Scan(Vec<T>),
 }
 
+#[cfg(feature = "deja")]
+pub trait DejaKvValue: serde::Serialize {}
+
+#[cfg(feature = "deja")]
+impl<T: serde::Serialize> DejaKvValue for T {}
+
+#[cfg(not(feature = "deja"))]
+pub trait DejaKvValue {}
+
+#[cfg(not(feature = "deja"))]
+impl<T> DejaKvValue for T {}
+
 impl<T> std::fmt::Display for KvOperation<'_, T>
 where
     T: serde::Serialize + Debug,
@@ -167,7 +179,7 @@ pub async fn kv_wrapper<'a, T, D, S>(
     partition_key: PartitionKey<'a>,
 ) -> CustomResult<KvResult<T>, RedisError>
 where
-    T: de::DeserializeOwned,
+    T: de::DeserializeOwned + DejaKvValue,
     D: crate::database::store::DatabaseStore,
     S: serde::Serialize + Debug + KvStorePartition + UniqueConstraints + Sync,
 {

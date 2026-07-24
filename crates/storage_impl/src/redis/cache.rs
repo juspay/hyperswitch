@@ -339,6 +339,36 @@ where
     }
 }
 
+/// Deja boundary for the in-memory (L1) cache lookup. Captures the `Option<T>`
+/// outcome on record and Substitutes it per-correlation on replay: a recorded
+/// `Some(v)` returns the value; a recorded `None` (absence) returns `None`, so
+/// the caller re-runs the redis fallback — the same control flow as record. The
+/// `cache` handle is not serialized (args = cache name + physical key); the
+/// value round-trips through `SerdeCodec<Option<T>>`. NOT `fall_through_silent`:
+/// a novel L1 read on replay is a real divergence, and falling through would
+/// read the cross-correlation-shared moka — fail-stop is correct.
+#[cfg(feature = "deja")]
+#[deja::boundary(
+    boundary = "imc",
+    component = "storage_impl::redis::cache",
+    operation = "in_memory_get",
+    replay = Substitute,
+    effect = Imc,
+    codec = SerdeCodec,
+    args = deja_in_memory_args(cache.name, &cache_key),
+)]
+async fn deja_in_memory_get<T>(cache: &Cache, cache_key: CacheKey) -> Option<T>
+where
+    T: Clone + Cacheable + serde::Serialize + serde::de::DeserializeOwned,
+{
+    cache.get_val::<T>(cache_key).await
+}
+
+#[cfg(feature = "deja")]
+fn deja_in_memory_args(cache_name: &str, key: &CacheKey) -> serde_json::Value {
+    serde_json::json!({ "cache": cache_name, "key": String::from(key.clone()) })
+}
+
 #[instrument(skip_all)]
 pub async fn get_or_populate_in_memory<T, F, Fut>(
     store: &(dyn RedisConnInterface + Send + Sync),
@@ -357,12 +387,23 @@ where
             RedisError::RedisConnectionError.into(),
         ))
         .attach_printable("Failed to get redis connection")?;
-    let cache_val = cache
-        .get_val::<T>(CacheKey {
-            key: key.to_string(),
-            prefix: redis.key_prefix.clone(),
-        })
-        .await;
+    let cache_key = CacheKey {
+        key: key.to_string(),
+        prefix: redis.key_prefix.clone(),
+    };
+    // Deja L1 seam: the in-memory (moka) lookup is a process-global cache that
+    // spans correlations. Instrument the LOOKUP itself (not the surrounding
+    // populate) so its `Option` outcome is recorded per-correlation and
+    // Substituted on replay — a recorded `Some(v)` returns the value; a recorded
+    // `None` re-triggers the (separately instrumented) redis fallback below,
+    // identically on record and replay. Because the lookup returns BEFORE redis,
+    // L1 and L2 stay sequential (not nested) → no subsumed/orphan event. Record
+    // stays a pure observer (the real moka runs); replay never reads the shared
+    // moka, so cross-correlation contamination is impossible by construction.
+    #[cfg(feature = "deja")]
+    let cache_val = deja_in_memory_get::<T>(cache, cache_key).await;
+    #[cfg(not(feature = "deja"))]
+    let cache_val = cache.get_val::<T>(cache_key).await;
     if let Some(val) = cache_val {
         Ok(val)
     } else {

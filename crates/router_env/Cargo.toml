@@ -10,10 +10,14 @@ license.workspace = true
 [dependencies]
 cargo_metadata = "0.18.1"
 config = { version = "0.14.1", features = ["toml"] }
-deja = { git = "https://github.com/juspay/deja", rev = "075a614324897b8b6a878af36d7ac243fbec5d33", optional = true, default-features = false }
-deja-core = { git = "https://github.com/juspay/deja", rev = "075a614324897b8b6a878af36d7ac243fbec5d33", optional = true }
+deja = { git = "https://github.com/juspay/deja", rev = "2c3a795ef4d8d2a5eebc47bbe7134984b75be6b3", optional = true, default-features = false }
+deja-core = { git = "https://github.com/juspay/deja", rev = "2c3a795ef4d8d2a5eebc47bbe7134984b75be6b3", optional = true }
 error-stack = "0.4.1"
 gethostname = "0.4.3"
+# Optional (deja-only): types the captured request/response payloads as `Secret`
+# so bodies/headers are redacted in Debug/logs. Feature-off it is absent, so the
+# default build is byte-identical.
+hyperswitch_masking = { version = "0.0.1", optional = true }
 opentelemetry = { version = "0.27.1", default-features = false, features = ["internal-logs", "metrics", "trace"] }
 opentelemetry-aws = { version = "0.15.0", default-features = false, features = ["internal-logs", "trace"] }
 opentelemetry-otlp = { version = "0.27.0", default-features = false, features = ["grpc-tonic", "metrics", "trace"] }
@@ -49,7 +53,7 @@ actix_web = ["dep:actix-web", "tracing-actix-web", "dep:uuid"]
 log_custom_entries_to_extra = []
 log_extra_implicit_fields = []
 log_active_span_json = []
-deja = ["dep:bytes", "dep:deja", "dep:deja-core"]
+deja = ["dep:bytes", "dep:deja", "dep:deja-core", "dep:hyperswitch_masking"]
 payouts = []
 
 [lints]

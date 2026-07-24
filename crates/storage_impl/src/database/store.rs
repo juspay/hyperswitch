@@ -28,6 +28,13 @@ pub trait DatabaseStore: Clone + Send + Sync {
     fn get_replica_pool(&self) -> &PgPool;
     fn get_accounts_master_pool(&self) -> &PgPool;
     fn get_accounts_replica_pool(&self) -> &PgPool;
+
+    /// Request correlation used by deja replay to route database connections to
+    /// the active replay schema. Stores without request identity return `None`.
+    #[cfg(feature = "deja")]
+    fn get_request_id(&self) -> Option<String> {
+        None
+    }
 }
 
 #[derive(Debug, Clone)]
