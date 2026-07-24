@@ -3026,7 +3026,7 @@ pub async fn get_delete_tokenize_schedule_time(
             process_data::PaymentMethodsPTMapping::default()
         }
     };
-    let time_delta = process_tracker_utils::get_pm_schedule_time(mapping, pm, retry_count + 1);
+    let time_delta = process_tracker_utils::get_pm_schedule_time(mapping, pm, retry_count);
 
     process_tracker_utils::get_time_from_delta(time_delta)
 }
@@ -3036,7 +3036,7 @@ pub async fn retry_delete_tokenize(
     pm: enums::PaymentMethod,
     pt: storage::ProcessTracker,
 ) -> Result<(), errors::ProcessTrackerError> {
-    let schedule_time = get_delete_tokenize_schedule_time(db, pm, pt.retry_count).await;
+    let schedule_time = get_delete_tokenize_schedule_time(db, pm, pt.retry_count + 1).await;
 
     match schedule_time {
         Some(s_time) => {
