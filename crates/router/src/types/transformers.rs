@@ -2456,6 +2456,12 @@ impl ForeignFrom<api_models::admin::CardBlockingConfig>
             card_subtypes: item.card_subtypes,
             issuers: item.issuers,
             block_if_bin_info_unavailable: item.block_if_bin_info_unavailable,
+            card_networks: item.card_networks,
+            funding_sources: item.funding_sources,
+            card_segment_types: item.card_segment_types,
+            block_virtual_cards: item.block_virtual_cards,
+            block_non_reloadable_prepaid_cards: item.block_non_reloadable_prepaid_cards,
+            gambling_blocked: item.gambling_blocked,
         }
     }
 }
@@ -2466,6 +2472,8 @@ impl ForeignFrom<api_models::admin::WalletBlockingConfig>
     fn foreign_from(item: api_models::admin::WalletBlockingConfig) -> Self {
         Self {
             card_types: item.card_types,
+            apple_pay: item.apple_pay.map(|config| config.foreign_into()),
+            google_pay: item.google_pay.map(|config| config.foreign_into()),
         }
     }
 }
@@ -2491,6 +2499,12 @@ impl ForeignFrom<diesel_models::business_profile::CardBlockingConfig>
             card_subtypes: item.card_subtypes,
             issuers: item.issuers,
             block_if_bin_info_unavailable: item.block_if_bin_info_unavailable,
+            card_networks: item.card_networks,
+            funding_sources: item.funding_sources,
+            card_segment_types: item.card_segment_types,
+            block_virtual_cards: item.block_virtual_cards,
+            block_non_reloadable_prepaid_cards: item.block_non_reloadable_prepaid_cards,
+            gambling_blocked: item.gambling_blocked,
         }
     }
 }
@@ -2501,6 +2515,8 @@ impl ForeignFrom<diesel_models::business_profile::WalletBlockingConfig>
     fn foreign_from(item: diesel_models::business_profile::WalletBlockingConfig) -> Self {
         Self {
             card_types: item.card_types,
+            apple_pay: item.apple_pay.map(|config| config.foreign_into()),
+            google_pay: item.google_pay.map(|config| config.foreign_into()),
         }
     }
 }
