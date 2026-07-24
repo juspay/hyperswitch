@@ -1746,13 +1746,17 @@ pub async fn add_payment_method_token<F: Clone, T: types::Tokenizable + Clone>(
                             types::PaymentsResponseData,
                         > = connector.connector.get_connector_integration();
 
-                        let mut conversion_router_data = pm_token_router_data.clone();
+                        // Box the cloned router data and the second gateway future
+                        // so this leg's state doesn't inflate `add_payment_method_token`'s
+                        // future past clippy's `large_futures` threshold for the flows
+                        // that await it.
+                        let mut conversion_router_data = Box::new(pm_token_router_data.clone());
                         conversion_router_data.request.connector_feature_data = Some(Secret::new(
                             serde_json::json!({ "payment_handle_token": leg1_token }).to_string(),
                         ));
                         conversion_router_data.response = Err(types::ErrorResponse::default());
 
-                        match gateway::execute_payment_gateway(
+                        match Box::pin(gateway::execute_payment_gateway(
                             state,
                             conversion_integration,
                             &conversion_router_data,
@@ -1760,7 +1764,7 @@ pub async fn add_payment_method_token<F: Clone, T: types::Tokenizable + Clone>(
                             None,
                             None,
                             gateway_context.clone(),
-                        )
+                        ))
                         .await
                         {
                             Ok(mut converted) => {
