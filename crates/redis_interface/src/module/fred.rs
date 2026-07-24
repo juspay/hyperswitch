@@ -11,6 +11,7 @@ use std::sync::{atomic, Arc};
 use common_utils::{
     errors::CustomResult,
     external_service::{ExternalServiceEventEmitter, NoOpEventEmitter},
+    request_context::RequestContext,
 };
 use error_stack::ResultExt;
 use fred::{
@@ -345,6 +346,21 @@ impl RedisConnectionPool {
 }
 
 impl RedisConnectionWithContext {
+
+    pub fn new(pool: Arc<RedisConnectionPool>, context: &dyn RequestContext) -> Self {
+        Self {
+            redis_conn: pool,
+            request_id: context.request_id().map(str::to_owned),
+        }
+    }
+
+    pub fn new_without_context(pool: Arc<RedisConnectionPool>) -> Self {
+        Self {
+            redis_conn: pool,
+            request_id: None,
+        }
+    }
+
     pub fn get_transaction(&self) -> Transaction {
         self.redis_conn.pool.next().multi()
     }
