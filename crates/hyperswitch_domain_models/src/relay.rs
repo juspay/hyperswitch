@@ -559,6 +559,18 @@ impl RelayUnreferencedRefundData {
     }
 }
 
+#[derive(Debug, Serialize)]
+pub struct RelayResponseData {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub approval_code: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub network: Option<enums::CardNetwork>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub network_transaction_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub network_response_code: Option<String>,
+}
+
 #[derive(Debug)]
 pub enum RelayUpdate {
     ErrorUpdate {

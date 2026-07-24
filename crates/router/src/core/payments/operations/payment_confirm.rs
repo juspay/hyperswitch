@@ -599,7 +599,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             request.mandate_data.clone(),
             request.off_session,
             payment_intent.setup_future_usage,
-            request.customer_acceptance.clone(),
+            customer_acceptance.clone(),
             request.payment_token.clone(),
             payment_attempt.payment_method.or(request.payment_method),
         )
@@ -989,6 +989,18 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                     .await?;
                 Ok(())
             }
+            Some(api_models::payments::PaymentMethodData::CardWithNoCVC(card)) => {
+                payment_data.card_testing_guard_data =
+                    card_testing_guard_utils::validate_card_testing_guard_checks(
+                        state,
+                        request.browser_info.as_ref(),
+                        card.card_number.clone(),
+                        customer_id,
+                        business_profile,
+                    )
+                    .await?;
+                Ok(())
+            }
             _ => Ok(()),
         }
     }
@@ -1127,6 +1139,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                         .and_then(|pmd| pmd.payment_method_data.as_ref())
                     {
                         Some(api_models::payments::PaymentMethodData::Card(_))
+                        | Some(api_models::payments::PaymentMethodData::CardWithNoCVC(_))
                         | Some(api_models::payments::PaymentMethodData::BankDebit(_))
                         | Some(api_models::payments::PaymentMethodData::Wallet(_))
                         | Some(api_models::payments::PaymentMethodData::BankRedirect(_)) => {
@@ -1141,6 +1154,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                                         == Some(common_enums::FutureUsage::OffSession)
                                 }
                                 Some(api_models::payments::PaymentMethodData::Card(_))
+                                | Some(api_models::payments::PaymentMethodData::CardWithNoCVC(_))
                                 | Some(api_models::payments::PaymentMethodData::BankRedirect(_))
                                 | Some(api_models::payments::PaymentMethodData::BankDebit(_)) => {
                                     true
@@ -1258,15 +1272,23 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                         )
                         .await
                         {
-                            Ok(storage::PaymentTokenData::Permanent(card_token_data))
-                            | Ok(storage::PaymentTokenData::PermanentCard(card_token_data)) => {
-                                card_token_data
-                                    .payment_method_id
-                                    .as_deref()
-                                    .unwrap_or(payment_method_ref)
-                                    .to_owned()
+                            Ok(
+                                storage::PaymentTokenData::Permanent(card_token_data)
+                                | storage::PaymentTokenData::PermanentCard(card_token_data),
+                            ) => card_token_data
+                                .payment_method_id
+                                .as_deref()
+                                .unwrap_or(payment_method_ref)
+                                .to_owned(),
+                            Ok(_) => payment_method_ref.to_owned(),
+                            Err(err) => {
+                                logger::warn!(
+                                    ?err,
+                                    payment_method_ref,
+                                    "Failed to fetch payment token from payment server; falling back to PM Modular Service"
+                                );
+                                payment_method_ref.to_owned()
                             }
-                            _ => payment_method_ref.to_owned(),
                         }
                     }
                     _ => payment_method_ref.to_owned(),
@@ -1664,6 +1686,10 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                             .inspect_err(|err| logger::error!("{:?}", err))
                             .ok()
                             .unwrap_or_default(),
+                        business_country: payment_data
+                            .payment_intent
+                            .business_country
+                            .map(common_enums::Country::from_alpha2),
                     },
                     payment_method: Some(
                         api_models::three_ds_decision_rule::PaymentMethodMetaData {
@@ -1706,6 +1732,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                             fraud_rate: acquirer.acquirer_fraud_rate,
                         }
                     }),
+                    metadata: payment_data.payment_intent.metadata.clone(),
                 },
             )
             .await
@@ -2195,13 +2222,29 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                  )
                     .update_storage_scheme(platform.get_processor().get_account().storage_scheme);
 
-                let cryptogram = sync_response.authentication_details.and_then(|authentication_details| authentication_details.three_ds_data.and_then(|data| data.authentication_cryptogram)).ok_or(errors::ApiErrorResponse::MissingRequiredField{field_name:"authentication_cryptogram"})?;
+                let cavv = if updated_authentication_status
+                    == api_models::enums::AuthenticationStatus::Success
+                {
+                    let cryptogram = sync_response
+                        .authentication_details
+                        .and_then(|authentication_details| authentication_details.three_ds_data)
+                        .and_then(|data| data.authentication_cryptogram)
+                        .ok_or(errors::ApiErrorResponse::MissingRequiredField {
+                            field_name: "authentication_cryptogram",
+                        })?;
+
+                    match cryptogram {
+                        api_models::authentication::Cryptogram::Cavv {
+                            authentication_cryptogram,
+                        } => Some(authentication_cryptogram),
+                    }
+                } else {
+                    None
+                };
 
                 let authentication_store =
                         hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore {
-                            cavv: match cryptogram {
-                                api_models::authentication::Cryptogram::Cavv { authentication_cryptogram } => Some(authentication_cryptogram),
-                            },
+                            cavv,
                             authentication:authentication_domain_model
                         };
 
