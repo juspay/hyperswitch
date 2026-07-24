@@ -2325,31 +2325,40 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                         .await
                         .or(Some(unified_message));
 
-                    let status = match err.attempt_status {
-                        // Use the status sent by connector in error_response if it's present
-                        Some(status) => status,
-                        None =>
-                        // mark previous attempt status for technical failures in PSync and ExtendAuthorization flow
-                        {
-                            if sub_flow == "PSync" || sub_flow == "ExtendAuthorization" {
-                                match err.status_code {
-                                    // marking failure for 2xx because this is genuine payment failure
-                                    200..=299 => enums::AttemptStatus::Failure,
-                                    _ => router_data.status,
-                                }
-                            } else if sub_flow == "Capture" {
-                                match err.status_code {
-                                    500..=511 => enums::AttemptStatus::Pending,
-                                    // don't update the status for 429 error status
-                                    429 => router_data.status,
-                                    _ => enums::AttemptStatus::Failure,
-                                }
-                            } else if sub_flow == "CancelPostCapture" {
-                                router_data.status
-                            } else {
-                                match err.status_code {
-                                    500..=511 => enums::AttemptStatus::Pending,
-                                    _ => enums::AttemptStatus::Failure,
+                    let status = if sub_flow == "Void" {
+                        // Void failures should not overwrite the pre-Void status unless
+                        // the connector failure is a 5xx, where the final state is uncertain.
+                        match err.status_code {
+                            500..=511 => enums::AttemptStatus::Pending,
+                            _ => router_data.status,
+                        }
+                    } else {
+                        match err.attempt_status {
+                            // Use the status sent by connector in error_response if it's present
+                            Some(status) => status,
+                            None =>
+                            // mark previous attempt status for technical failures in PSync and ExtendAuthorization flow
+                            {
+                                if sub_flow == "PSync" || sub_flow == "ExtendAuthorization" {
+                                    match err.status_code {
+                                        // marking failure for 2xx because this is genuine payment failure
+                                        200..=299 => enums::AttemptStatus::Failure,
+                                        _ => router_data.status,
+                                    }
+                                } else if sub_flow == "Capture" {
+                                    match err.status_code {
+                                        500..=511 => enums::AttemptStatus::Pending,
+                                        // don't update the status for 429 error status
+                                        429 => router_data.status,
+                                        _ => enums::AttemptStatus::Failure,
+                                    }
+                                } else if sub_flow == "CancelPostCapture" {
+                                    router_data.status
+                                } else {
+                                    match err.status_code {
+                                        500..=511 => enums::AttemptStatus::Pending,
+                                        _ => enums::AttemptStatus::Failure,
+                                    }
                                 }
                             }
                         }
@@ -2449,11 +2458,17 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                 Ok(()) => {
                     let attempt_status = payment_data.payment_attempt.status.to_owned();
                     let connector_status = router_data.status.to_owned();
+                    let sub_flow = core_utils::get_flow_name::<F>()?;
                     let updated_attempt_status = match (
                         connector_status,
                         attempt_status,
                         payment_data.frm_message.to_owned(),
                     ) {
+                        (enums::AttemptStatus::VoidFailed, previous_attempt_status, _)
+                            if sub_flow == "Void" =>
+                        {
+                            previous_attempt_status
+                        }
                         (
                             enums::AttemptStatus::Authorized,
                             enums::AttemptStatus::Unresolved,
