@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.07.15.0-hotfix4
+
+### Features
+
+- **relay:** Store connector response_data in relay table ([#13444](https://github.com/juspay/hyperswitch/pull/13444)) ([`bb60f17`](https://github.com/juspay/hyperswitch/commit/bb60f1734cf05c2e118fd2732ddff91c1c65e2e2))
+
+**Full Changelog:** [`2026.07.15.0-hotfix3...2026.07.15.0-hotfix4`](https://github.com/juspay/hyperswitch/compare/2026.07.15.0-hotfix3...2026.07.15.0-hotfix4)
+
+- - -
+
 ## 2026.07.15.0-hotfix3
 
 ### Bug Fixes
