@@ -29,6 +29,32 @@ use crate::{
 // PaymentGateway Implementation for domain::CreateOrder
 // =============================================================================
 
+/// TrustPay's HS-native connector transformer builds wallet (Apple/Google Pay) CreateOrder
+/// responses via the same helper it uses for the PreProcessing flow, so it always returns
+/// `PreProcessingResponse`, never `PaymentsCreateOrderResponse`. Mirror that here so the UCS
+/// shadow response matches HS's real response shape for trustpay specifically; every other
+/// connector keeps the generic `PaymentsCreateOrderResponse` mapping.
+fn apply_connector_native_response_shape(
+    connector: &str,
+    response: types::PaymentsResponseData,
+) -> types::PaymentsResponseData {
+    match (connector, response) {
+        (
+            "trustpay",
+            types::PaymentsResponseData::PaymentsCreateOrderResponse {
+                order_id,
+                session_token,
+            },
+        ) => types::PaymentsResponseData::PreProcessingResponse {
+            pre_processing_id: types::PreprocessingResponseId::ConnectorTransactionId(order_id),
+            connector_metadata: None,
+            session_token,
+            connector_response_reference_id: None,
+        },
+        (_, response) => response,
+    }
+}
+
 /// Implementation of PaymentGateway for api::CreateOrder flow
 #[async_trait]
 impl<RCD>
@@ -161,6 +187,10 @@ where
                 let router_data_response = match router_data_response {
                     Ok((response, status)) => {
                         router_data.status = status;
+                        let response = apply_connector_native_response_shape(
+                            router_data.connector.as_str(),
+                            response,
+                        );
                         Ok(response)
                     }
                     Err(err) => {
@@ -217,6 +247,59 @@ where
             ExecutionPath::Direct => Box::new(payment_gateway::DirectGateway),
             ExecutionPath::UnifiedConnectorService
             | ExecutionPath::ShadowUnifiedConnectorService => Box::new(Self),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn trustpay_create_order_response_is_remapped_to_preprocessing_response() {
+        let response = types::PaymentsResponseData::PaymentsCreateOrderResponse {
+            order_id: "instance-123".to_string(),
+            session_token: None,
+        };
+
+        let remapped = apply_connector_native_response_shape("trustpay", response);
+
+        match remapped {
+            types::PaymentsResponseData::PreProcessingResponse {
+                pre_processing_id,
+                session_token,
+                connector_metadata,
+                connector_response_reference_id,
+            } => {
+                assert_eq!(
+                    pre_processing_id.get_string_repr().as_str(),
+                    "instance-123",
+                    "order_id must be preserved as the pre_processing_id"
+                );
+                assert!(session_token.is_none());
+                assert!(connector_metadata.is_none());
+                assert!(connector_response_reference_id.is_none());
+            }
+            other => panic!("expected PreProcessingResponse, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn other_connectors_keep_the_generic_create_order_response() {
+        let response = types::PaymentsResponseData::PaymentsCreateOrderResponse {
+            order_id: "order-456".to_string(),
+            session_token: None,
+        };
+
+        let remapped = apply_connector_native_response_shape("razorpay", response.clone());
+
+        match remapped {
+            types::PaymentsResponseData::PaymentsCreateOrderResponse { order_id, .. } => {
+                assert_eq!(order_id, "order-456");
+            }
+            other => panic!(
+                "expected PaymentsCreateOrderResponse to pass through unchanged, got {other:?}"
+            ),
         }
     }
 }
