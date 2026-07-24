@@ -1,6 +1,10 @@
 use std::{fmt::Debug, sync::Arc};
 
-use common_utils::types::TenantConfig;
+use common_utils::{
+    external_service::{ExternalServiceEventEmitter, NoOpEventEmitter},
+    request_id_context::RequestIdContext,
+    types::TenantConfig,
+};
 use diesel_models as store;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
@@ -117,7 +121,7 @@ where
                 db_conf,
                 tenant_config,
                 encryption_key,
-                Self::cache_store(&cache_conf, cache_error_signal).await?,
+                Self::cache_store(&cache_conf, cache_error_signal, None).await?,
                 inmemory_cache_stream,
                 key_manager_state,
             )
@@ -141,9 +145,20 @@ where
     }
 }
 
+impl<T: DatabaseStore> RequestIdContext for RouterStore<T> {
+    fn request_id(&self) -> Option<&str> {
+        self.request_id.as_deref()
+    }
+}
+
 impl<T: DatabaseStore> RedisConnInterface for RouterStore<T> {
-    fn get_redis_conn(&self) -> error_stack::Result<Arc<RedisConnectionPool>, RedisError> {
-        self.cache_store.get_redis_conn()
+    fn get_redis_conn(
+        &self,
+    ) -> error_stack::Result<redis_interface::RedisConnectionWithContext, RedisError> {
+        Ok(self
+            .cache_store
+            .get_redis_pool()?
+            .get_connection_with_context(self))
     }
 }
 
@@ -183,11 +198,15 @@ impl<T: DatabaseStore> RouterStore<T> {
     pub async fn cache_store(
         cache_conf: &redis_interface::RedisSettings,
         cache_error_signal: tokio::sync::oneshot::Sender<()>,
+        event_emitter: Option<Arc<dyn ExternalServiceEventEmitter>>,
     ) -> error_stack::Result<Arc<RedisStore>, StorageError> {
-        let cache_store = RedisStore::new(cache_conf)
-            .await
-            .change_context(StorageError::InitializationError)
-            .attach_printable("Failed to create cache store")?;
+        let cache_store = RedisStore::new_with_event_emitter(
+            cache_conf,
+            event_emitter.unwrap_or_else(|| Arc::new(NoOpEventEmitter)),
+        )
+        .await
+        .change_context(StorageError::InitializationError)
+        .attach_printable("Failed to create cache store")?;
         cache_store.set_error_callback(cache_error_signal);
         Ok(Arc::new(cache_store))
     }
@@ -417,7 +436,7 @@ pub trait UniqueConstraints {
     fn table_name(&self) -> &str;
     async fn check_for_constraints(
         &self,
-        redis_conn: &Arc<RedisConnectionPool>,
+        redis_conn: &redis_interface::RedisConnectionWithContext,
     ) -> CustomResult<(), RedisError> {
         let constraints = self.unique_constraints();
         let unique_contraint_count = constraints.len();

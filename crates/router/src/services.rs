@@ -120,9 +120,10 @@ pub async fn get_store(
 pub async fn get_cache_store(
     config: &Settings,
     shut_down_signal: oneshot::Sender<()>,
+    event_emitter: Option<Arc<dyn common_utils::external_service::ExternalServiceEventEmitter>>,
     _test_transaction: bool,
 ) -> StorageResult<Arc<RedisStore>> {
-    RouterStore::<StoreType>::cache_store(&config.redis, shut_down_signal).await
+    RouterStore::<StoreType>::cache_store(&config.redis, shut_down_signal, event_emitter).await
 }
 
 #[inline]

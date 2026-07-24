@@ -1,14 +1,14 @@
-use std::sync::Arc;
-
 use error_stack::ResultExt;
-use redis_interface::RedisConnectionPool;
+use redis_interface::RedisConnectionWithContext;
 
 use crate::{
     core::errors::{ApiErrorResponse, RouterResult},
     routes::app::SessionStateInfo,
 };
 
-fn get_redis_connection<A: SessionStateInfo>(state: &A) -> RouterResult<Arc<RedisConnectionPool>> {
+fn get_redis_connection<A: SessionStateInfo>(
+    state: &A,
+) -> RouterResult<RedisConnectionWithContext> {
     state
         .store()
         .get_redis_conn()
