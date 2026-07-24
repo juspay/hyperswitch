@@ -761,6 +761,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::CollectionActions,
         api_models::payments::ProtestRules,
         api_models::payments::PeachpaymentsCardOnFileTransactionType,
+        common_types::payouts::PayoutsBillingDescriptor,
         api_models::payouts::CardPayout,
         api_models::payouts::Wallet,
         api_models::payouts::Paypal,
