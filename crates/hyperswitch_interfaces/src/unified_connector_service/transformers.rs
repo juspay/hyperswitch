@@ -898,11 +898,11 @@ impl ForeignTryFrom<payments_grpc::BankType> for common_enums::BankType {
         match bank_type {
             payments_grpc::BankType::Checking => Ok(Self::Checking),
             payments_grpc::BankType::Savings => Ok(Self::Savings),
-            payments_grpc::BankType::Bond
-            | payments_grpc::BankType::Transmission
-            | payments_grpc::BankType::Current
-            | payments_grpc::BankType::SubscriptionShare
-            | payments_grpc::BankType::Unspecified => Err(error_stack::Report::new(
+            payments_grpc::BankType::Bond => Ok(Self::Bond),
+            payments_grpc::BankType::Transmission => Ok(Self::Transmission),
+            payments_grpc::BankType::Current => Ok(Self::Current),
+            payments_grpc::BankType::SubscriptionShare => Ok(Self::SubscriptionShare),
+            payments_grpc::BankType::Unspecified => Err(error_stack::Report::new(
                 UnifiedConnectorServiceError::ResponseDeserializationFailed,
             )
             .attach_printable("BankType unsupported")),
