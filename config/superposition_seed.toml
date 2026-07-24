@@ -11,10 +11,10 @@
 overrides = []
 
 [default-configs.deja_record]
-value = true
+value = false
 schema = { type = "boolean" }
-description = "Whether Deja request recording is enabled for matching request contexts (inert unless deja.sampler.enabled is set)"
-change_reason = "Initial setup"
+description = "Deja per-request recording decision — default SKIP (false). The deja_dimension cohort override (seeded by scripts/seed_superposition.sh) sets this true for the recordable endpoint bucket; /health and other probe traffic fall through to false."
+change_reason = "Deja recording sampler"
 
 
 [dimensions.connector]
@@ -70,6 +70,24 @@ position = 9
 schema = { type = "string" }
 description = "Business profile identifier"
 change_reason = "Initial setup"
+
+# ── Deja recording sampler dimensions ────────────────────────────────────────
+# The sampler passes the RAW request `path` + `method` as evaluation context;
+# Superposition derives the `deja_dimension` cohort (a LOCAL_COHORT on `path`,
+# seeded by scripts/seed_superposition.sh) and resolves `deja_record`. `path`
+# must be a registered dimension so the server builds the cohort's dependency
+# graph (path → deja_dimension).
+[dimensions.path]
+position = 10
+schema = { type = "string" }
+description = "HTTP request path (Deja recording sampler context; basis of the deja_dimension cohort)"
+change_reason = "Deja recording sampler"
+
+[dimensions.method]
+position = 11
+schema = { type = "string" }
+description = "HTTP request method (Deja recording sampler context)"
+change_reason = "Deja recording sampler"
 
 [default-configs.requires_cvv]
 value = true

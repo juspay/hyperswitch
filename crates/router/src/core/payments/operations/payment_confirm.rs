@@ -2097,12 +2097,12 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
 
                     payment_data.payment_attempt.authentication_id = Some(auth_create_resp.authentication_id.clone());
 
-                    let elig_resp = crate::core::unified_authentication_service::authentication_eligibility_core(
+                    let elig_resp = Box::pin(crate::core::unified_authentication_service::authentication_eligibility_core(
                         state.clone(),
                         platform.clone(),
                         eligibility_req,
                         auth_create_resp.authentication_id.clone(),
-                    ).await?
+                    )).await?
                     .get_json_body()
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed to get json body from authentication eligibility response")?;

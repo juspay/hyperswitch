@@ -10,8 +10,8 @@ license.workspace = true
 [dependencies]
 cargo_metadata = "0.18.1"
 config = { version = "0.14.1", features = ["toml"] }
-deja = { git = "https://github.com/juspay/deja", rev = "2ae840aa2b0a5160dc1719c83ad6d3c6bbcfa716", optional = true, default-features = false }
-deja-core = { git = "https://github.com/juspay/deja", rev = "2ae840aa2b0a5160dc1719c83ad6d3c6bbcfa716", optional = true }
+deja = { git = "https://github.com/juspay/deja", rev = "2c3a795ef4d8d2a5eebc47bbe7134984b75be6b3", optional = true, default-features = false }
+deja-core = { git = "https://github.com/juspay/deja", rev = "2c3a795ef4d8d2a5eebc47bbe7134984b75be6b3", optional = true }
 error-stack = "0.4.1"
 gethostname = "0.4.3"
 # Optional (deja-only): types the captured request/response payloads as `Secret`
