@@ -3025,18 +3025,37 @@ impl transformers::ForeignTryFrom<(payments_grpc::PaymentServiceCaptureResponse,
     }
 }
 
-impl transformers::ForeignTryFrom<payments_grpc::CustomerServiceCreateResponse>
+impl transformers::ForeignTryFrom<(payments_grpc::CustomerServiceCreateResponse, AttemptStatus)>
     for Result<PaymentsResponseData, ErrorResponse>
 {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
     fn foreign_try_from(
-        response: payments_grpc::CustomerServiceCreateResponse,
+        (response, prev_status): (payments_grpc::CustomerServiceCreateResponse, AttemptStatus),
     ) -> Result<Self, Self::Error> {
         let status_code = convert_connector_service_status_code(response.status_code)?;
 
         let response = if let Some(error_info) = response.error.as_ref() {
             router_env::logger::error!("UCS create connector customer failed");
+
+            let attempt_status = error_info
+                .connector_details
+                .as_ref()
+                .and_then(|connector_details| connector_details.status.as_ref())
+                .and_then(|flow_status| match flow_status.status.as_ref() {
+                    Some(payments_grpc::flow_status::Status::PaymentStatus(payment_status)) => {
+                        payments_grpc::PaymentStatus::try_from(*payment_status).ok()
+                    }
+                    _ => None,
+                })
+                .and_then(|payment_status| match payment_status {
+                    payments_grpc::PaymentStatus::Unspecified => None,
+                    _ => Some(AttemptStatus::foreign_try_from((
+                        payment_status,
+                        prev_status,
+                    ))),
+                })
+                .transpose()?;
 
             Err(ErrorResponse {
                 code: error_info
@@ -3064,7 +3083,7 @@ impl transformers::ForeignTryFrom<payments_grpc::CustomerServiceCreateResponse>
                     .as_ref()
                     .and_then(|cd| cd.reason.clone()),
                 status_code,
-                attempt_status: None,
+                attempt_status,
                 connector_transaction_id: None,
                 connector_response_reference_id: None,
                 network_decline_code: error_info.issuer_details.as_ref().and_then(|id| {

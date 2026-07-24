@@ -2179,12 +2179,13 @@ pub fn handle_unified_connector_service_response_for_payment_authorize(
 
 pub fn handle_unified_connector_service_response_for_create_connector_customer(
     response: payments_grpc::CustomerServiceCreateResponse,
+    prev_status: AttemptStatus,
 ) -> CustomResult<(Result<PaymentsResponseData, ErrorResponse>, u16), UnifiedConnectorServiceError>
 {
     let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
 
     let connector_customer_result =
-        Result::<PaymentsResponseData, ErrorResponse>::foreign_try_from(response)?;
+        Result::<PaymentsResponseData, ErrorResponse>::foreign_try_from((response, prev_status))?;
 
     Ok((connector_customer_result, status_code))
 }
