@@ -1611,7 +1611,7 @@ payments_base_url = "http://localhost:8080"
 
 [superposition]
 endpoint = "http://localhost:8081" # Superposition service endpoint
-token = "123456" # Superposition token
+token = "sp_5d72598782fdd5d984f273eb5a452c33a952e07a4e0dd6de8c4ea37a621918d5" # Superposition token
 org_id = "localorg" # Organization ID in Superposition
 workspace_id = "dev" # Workspace ID in Superposition
 polling_interval = 300 # Polling interval in seconds for configuration updates
