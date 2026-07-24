@@ -39,6 +39,17 @@ use crate::{
     },
 };
 
+fn get_redirection_log_endpoint(base_url: &str) -> RouterResult<url::Url> {
+    format!(
+        "{}/{}",
+        base_url.trim_end_matches('/'),
+        payment_link::consts::REDIRECTION_LOG_ENDPOINT
+    )
+    .parse::<url::Url>()
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to parse redirection log endpoint")
+}
+
 pub async fn retrieve_payment_link(
     state: SessionState,
     payment_link_id: String,
@@ -358,6 +369,7 @@ pub async fn initiate_secure_payment_link_flow(
             let payment_link_error_data = services::PaymentLinkStatusData {
                 js_script,
                 css_script,
+                redirection_log_endpoint: Some(get_redirection_log_endpoint(&state.base_url)?),
             };
             logger::info!(
                 "payment link data, for building payment link status page {:?}",
@@ -400,6 +412,7 @@ pub async fn initiate_secure_payment_link_flow(
                 sdk_url: state.conf.payment_link.sdk_url.clone(),
                 css_script,
                 html_meta_tags,
+                redirection_log_endpoint: Some(get_redirection_log_endpoint(&state.base_url)?),
             };
             let allowed_domains = payment_link_config
                 .allowed_domains
@@ -456,6 +469,7 @@ pub async fn initiate_payment_link_flow(
             let payment_link_error_data = services::PaymentLinkStatusData {
                 js_script,
                 css_script,
+                redirection_log_endpoint: Some(get_redirection_log_endpoint(&state.base_url)?),
             };
             logger::info!(
                 "payment link data, for building payment link status page {:?}",
@@ -472,6 +486,7 @@ pub async fn initiate_payment_link_flow(
                 sdk_url: state.conf.payment_link.sdk_url.clone(),
                 css_script,
                 html_meta_tags,
+                redirection_log_endpoint: Some(get_redirection_log_endpoint(&state.base_url)?),
             };
             logger::info!(
                 "payment link data, for building open payment link {:?}",
@@ -971,6 +986,7 @@ pub async fn get_payment_link_status(
     let payment_link_status_data = services::PaymentLinkStatusData {
         js_script,
         css_script,
+        redirection_log_endpoint: Some(get_redirection_log_endpoint(&state.base_url)?),
     };
     Ok(services::ApplicationResponse::PaymentLinkForm(Box::new(
         services::api::PaymentLinkAction::PaymentLinkStatus(payment_link_status_data),
