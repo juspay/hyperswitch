@@ -286,7 +286,37 @@ where
                     _ => (None, None, None),
                 };
 
-            let pm_id = if customer_acceptance.is_some() {
+            let pm_id = if let Some(existing_pm) = payment_method_info.clone().filter(|_| {
+                matches!(
+                    save_payment_method_data.request.get_payment_method_data(),
+                    domain::PaymentMethodData::MandatePayment
+                        | domain::PaymentMethodData::CardToken(_)
+                )
+            }) {
+                // Recharge of an already-saved payment method where the request
+                // carries no fresh raw card data — either a recurring/MIT charge via
+                // an established connector mandate (PaymentMethodData::MandatePayment)
+                // or a repeat-customer confirm that only supplies a saved-card token +
+                // CVC (PaymentMethodData::CardToken; card_token always references an
+                // existing saved method, there is no "new card" form of it). There is
+                // no new card to save in either case; update the existing row's
+                // last-used timestamp instead of falling through to the "unknown
+                // payment method" branches below, which would otherwise mint a
+                // locker-less orphan payment_methods row (no card => no locker call
+                // => no dedup => throwaway locker_id).
+                payment_methods::cards::update_last_used_at(
+                    &existing_pm,
+                    state,
+                    platform.get_provider().get_account().storage_scheme,
+                    platform.get_provider().get_key_store(),
+                )
+                .await
+                .map_err(|e| {
+                    logger::error!("Failed to update last used at: {:?}", e);
+                })
+                .ok();
+                Some(existing_pm.get_id().clone())
+            } else if customer_acceptance.is_some() {
                 let payment_method_data =
                     save_payment_method_data.request.get_payment_method_data();
                 let payment_method_create_request =
@@ -520,6 +550,13 @@ where
                                         pm.metadata.as_ref(),
                                         connector_token,
                                     )?;
+                                    let compat_action = payment_methods::payment_method_modular_forward_compat_action(
+                                        state,
+                                        &pm.merchant_id,
+                                        &platform.get_provider().get_account().organization_id,
+                                        pm.customer_id.as_ref(),
+                                    )
+                                    .await;
                                     payment_methods::cards::update_payment_method_metadata_and_network_token_data_and_last_used(
                                         platform.get_provider().get_key_store(),
                                         db,
@@ -530,6 +567,7 @@ where
                                         pm_network_token_data_encrypted,
                                         platform.get_provider().get_account().storage_scheme,
                                         platform.get_initiator(),
+                                        compat_action,
                                     )
                                     .await
                                     .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -664,6 +702,13 @@ where
                                             } else {
                                                 None
                                             };
+                                        let compat_action = payment_methods::payment_method_modular_forward_compat_action(
+                                            state,
+                                            &pm.merchant_id,
+                                            &platform.get_provider().get_account().organization_id,
+                                            pm.customer_id.as_ref(),
+                                        )
+                                        .await;
                                         payment_methods::cards::update_payment_method_connector_mandate_details_and_network_token_data(
                                             platform.get_provider().get_key_store(),
                                             db,
@@ -674,6 +719,7 @@ where
                                             pm_network_token_data_encrypted,
                                             platform.get_provider().get_account().storage_scheme,
                                             platform.get_initiator(),
+                                            compat_action,
                                         )
                                         .await
                                         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -849,6 +895,14 @@ where
                                     .change_context(errors::ApiErrorResponse::InternalServerError)
                                     .attach_printable("Unable to encrypt payment method data")?;
 
+                                let compat_action =
+                                    payment_methods::payment_method_modular_forward_compat_action(
+                                        state,
+                                        &existing_pm.merchant_id,
+                                        &platform.get_provider().get_account().organization_id,
+                                        existing_pm.customer_id.as_ref(),
+                                    )
+                                    .await;
                                 payment_methods::cards::update_payment_method_and_last_used(
                                     platform.get_provider().get_key_store(),
                                     db,
@@ -857,6 +911,7 @@ where
                                     platform.get_provider().get_account().storage_scheme,
                                     card_scheme,
                                     platform.get_initiator(),
+                                    compat_action,
                                 )
                                 .await
                                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -2219,6 +2274,13 @@ async fn generate_network_token_and_update_payment_method(
 
                 // Update the payment method with network token details
                 let db = &*state.store;
+                let compat_action = payment_methods::payment_method_modular_forward_compat_action(
+                    state,
+                    &pm_info.merchant_id,
+                    &platform.get_provider().get_account().organization_id,
+                    pm_info.customer_id.as_ref(),
+                )
+                .await;
                 payment_methods::cards::update_payment_method_network_token_data(
                     platform.get_provider().get_key_store(),
                     db,
@@ -2228,6 +2290,7 @@ async fn generate_network_token_and_update_payment_method(
                     pm_network_token_data_encrypted,
                     platform.get_provider().get_account().storage_scheme,
                     platform.get_initiator(),
+                    compat_action,
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)

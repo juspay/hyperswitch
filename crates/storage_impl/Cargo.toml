@@ -9,13 +9,16 @@ license.workspace = true
 
 [features]
 default = ["olap", "oltp", "accounts_cache", "redis-rs"]
+# Deja replay (R1): feature-gate the replay DB routing hook so default/prod builds
+# are byte-for-byte unaffected.
+deja = ["dep:deja", "diesel_models/deja"]
 dynamic_routing = []
 oltp = []
 accounts_cache = []
 olap = ["hyperswitch_domain_models/olap"]
 payouts = ["hyperswitch_domain_models/payouts"]
-v1 = ["api_models/v1", "diesel_models/v1", "hyperswitch_domain_models/v1", "common_utils/v1"]
-v2 = ["api_models/v2", "diesel_models/v2", "hyperswitch_domain_models/v2", "common_utils/v2"]
+v1 = ["api_models/v1", "diesel_models/v1", "hyperswitch_domain_models/v1", "common_utils/v1", "common_types/v1"]
+v2 = ["api_models/v2", "diesel_models/v2", "hyperswitch_domain_models/v2", "common_utils/v2", "common_types/v2"]
 tokenization_v2 = ["diesel_models/tokenization_v2", "api_models/tokenization_v2", "hyperswitch_domain_models/tokenization_v2"]
 fred     = ["redis_interface/fred"]
 redis-rs = ["redis_interface/redis-rs"]
@@ -25,6 +28,8 @@ redis-rs = ["redis_interface/redis-rs"]
 api_models = { version = "0.1.0", path = "../api_models" }
 common_enums = { version = "0.1.0", path = "../common_enums" }
 common_utils = { version = "0.1.0", path = "../common_utils" }
+common_types = { version = "0.1.0", path = "../common_types" }
+deja = { git = "https://github.com/juspay/deja", rev = "075a614324897b8b6a878af36d7ac243fbec5d33", optional = true, default-features = false }
 diesel_models = { version = "0.1.0", path = "../diesel_models", default-features = false }
 hyperswitch_domain_models = { version = "0.1.0", path = "../hyperswitch_domain_models", default-features = false }
 hyperswitch_masking = "0.0.1"
