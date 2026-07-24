@@ -1,6 +1,6 @@
 const ach_bank_debit_data = {
-  account_number: "000123456789",
-  routing_number: "110000000",
+  account_number: "0000000000",
+  routing_number: "999999999",
   bank_account_holder_name: "Test User",
   bank_type: "checking",
   bank_holder_type: "personal",
@@ -114,7 +114,7 @@ export const connectorDetails = {
           },
         },
         billing: billing_data,
-        connector_customer_id: "f338b9dc-af90-4022-9157-0ab5459ee20a",
+        connector_customer_id: "00000000-0000-0000-0000-000000000000",
       },
       Response: {
         status: 400,
