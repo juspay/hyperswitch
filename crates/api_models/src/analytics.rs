@@ -10,7 +10,7 @@ use self::{
     disputes::{DisputeDimensions, DisputeMetrics},
     frm::{FrmDimensions, FrmMetrics},
     payment_intents::{PaymentIntentDimensions, PaymentIntentMetrics},
-    payments::{PaymentDimensions, PaymentDistributions, PaymentMetrics},
+    payments::{PaymentDimensions, PaymentDistributions, PaymentMetrics, PaymentReportColumn},
     refunds::{RefundDimensions, RefundDistributions, RefundMetrics},
     sdk_events::{SdkEventDimensions, SdkEventMetrics},
 };
@@ -154,6 +154,14 @@ pub struct ReportRequest {
     #[cfg(feature = "v2")]
     #[serde(default)]
     pub report_type: ReportType,
+    #[serde(default)]
+    pub columns: Option<ReportColumns>,
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ReportColumns {
+    Payment(Vec<PaymentReportColumn>),
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
