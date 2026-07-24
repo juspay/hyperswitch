@@ -321,7 +321,6 @@ pub struct DejaReplaySettings {
 #[derive(Debug, Deserialize, Clone)]
 #[serde(default)]
 pub struct DejaSamplerSettings {
-    pub enabled: bool,
     pub record_key: Option<String>,
     pub timeout_ms: u64,
     pub fail_closed: bool,
@@ -331,7 +330,6 @@ pub struct DejaSamplerSettings {
 impl Default for DejaSamplerSettings {
     fn default() -> Self {
         Self {
-            enabled: false,
             record_key: None,
             timeout_ms: 25,
             fail_closed: true,

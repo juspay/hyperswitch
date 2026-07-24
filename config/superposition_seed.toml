@@ -13,7 +13,7 @@ overrides = []
 [default-configs.deja_record]
 value = true
 schema = { type = "boolean" }
-description = "Whether Deja request recording is enabled for matching request contexts (inert unless deja.sampler.enabled is set)"
+description = "Whether Deja request recording is enabled for matching request contexts (inert unless deja.mode is set to record)"
 change_reason = "Initial setup"
 
 
