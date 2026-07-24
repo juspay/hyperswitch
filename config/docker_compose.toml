@@ -46,7 +46,6 @@ lookup_dir = ""
 observed_sink = ""
 
 [deja.sampler]
-enabled = false
 record_key = "deja_record"
 timeout_ms = 25
 fail_closed = true
