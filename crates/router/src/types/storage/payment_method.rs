@@ -235,6 +235,7 @@ pub struct PaymentMethodStatusTrackingData {
 pub struct PaymentMethodModularCompatTrackingData {
     pub payment_method_id: String,
     pub merchant_id: common_utils::id_type::MerchantId,
+    pub organization_id: common_utils::id_type::OrganizationId,
     pub last_modified_by: Option<String>,
 }
 

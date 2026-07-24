@@ -2455,4 +2455,65 @@ export const connectorDetails = {
       },
     },
   },
+  webhook_config: {
+    // WebhookConfig: webhook_username and webhook_password are masked
+    // placeholders — not real credentials. They are safe to use in any
+    // connector config as placeholder webhook auth data.
+    Create: getCustomExchange({
+      Request: {
+        webhook_details: {
+          webhook_version: "2024.01",
+          webhook_username: "<WEBHOOK_USERNAME>",
+          webhook_password: "<WEBHOOK_PASSWORD>",
+          webhook_url: "https://example.com/webhook",
+          payment_created_enabled: true,
+          payment_succeeded_enabled: true,
+          payment_failed_enabled: false,
+          refund_created_enabled: true,
+          refund_succeeded_enabled: true,
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          webhook_details: {
+            payment_failed_enabled: false,
+            payment_succeeded_enabled: true,
+            payment_created_enabled: true,
+            refund_created_enabled: true,
+            refund_succeeded_enabled: true,
+          },
+        },
+      },
+    }),
+    Update: getCustomExchange({
+      Request: {
+        webhook_details: {
+          webhook_version: "2024.01",
+          webhook_username: "<WEBHOOK_USERNAME_UPDATED>",
+          webhook_password: "<WEBHOOK_PASSWORD_UPDATED>",
+          webhook_url: "https://example.com/webhook_updated",
+          payment_created_enabled: true,
+          payment_succeeded_enabled: true,
+          payment_failed_enabled: true,
+          refund_created_enabled: true,
+          refund_succeeded_enabled: true,
+          dispute_created_enabled: true,
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          webhook_details: {
+            payment_failed_enabled: true,
+            payment_succeeded_enabled: true,
+            payment_created_enabled: true,
+            refund_created_enabled: true,
+            refund_succeeded_enabled: true,
+            dispute_created_enabled: true,
+          },
+        },
+      },
+    }),
+  },
 };

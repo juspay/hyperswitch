@@ -13,6 +13,7 @@ use error_stack::{report, ResultExt};
 use futures::future;
 use hyperswitch_domain_models::api::{GenericLinks, GenericLinksData};
 use hyperswitch_masking::{PeekInterface, Secret};
+use payment_link::consts::DEFAULT_MERCHANT_LOGO;
 use router_env::logger;
 use time::PrimitiveDateTime;
 
@@ -24,8 +25,8 @@ use crate::{
     consts::{
         self, DEFAULT_ALLOWED_DOMAINS, DEFAULT_BACKGROUND_COLOR, DEFAULT_DISPLAY_SDK_ONLY,
         DEFAULT_ENABLE_BUTTON_ONLY_ON_FORM_READY, DEFAULT_ENABLE_SAVED_PAYMENT_METHOD,
-        DEFAULT_HIDE_CARD_NICKNAME_FIELD, DEFAULT_MERCHANT_LOGO, DEFAULT_PRODUCT_IMG,
-        DEFAULT_SDK_LAYOUT, DEFAULT_SHOW_CARD_FORM, DEFAULT_SHOW_MERCHANT_NAME,
+        DEFAULT_HIDE_CARD_NICKNAME_FIELD, DEFAULT_PRODUCT_IMG, DEFAULT_SDK_LAYOUT,
+        DEFAULT_SHOW_CARD_FORM, DEFAULT_SHOW_MERCHANT_NAME,
     },
     errors::RouterResponse,
     get_payment_link_config_value, get_payment_link_config_value_based_on_priority,

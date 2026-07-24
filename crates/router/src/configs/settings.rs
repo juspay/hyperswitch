@@ -85,6 +85,10 @@ pub struct Settings<S: SecretState> {
     pub chat: SecretStateContainer<ChatSettings, S>,
     pub sage: SecretStateContainer<SageSettings, S>,
     pub master_database: SecretStateContainer<Database, S>,
+    /// Falls back to `master_database` when not configured.
+    pub accounts_database: Option<SecretStateContainer<Database, S>>,
+    /// Falls back to `master_database` when not configured.
+    pub global_database: Option<SecretStateContainer<Database, S>>,
     #[cfg(feature = "olap")]
     pub replica_database: SecretStateContainer<Database, S>,
     pub redis: RedisSettings,
@@ -465,6 +469,10 @@ pub struct DecisionConfig {
     pub base_url: String,
 }
 
+type StorageInterfaceMap = HashMap<id_type::TenantId, Box<dyn app::StorageInterface>>;
+type AccountsStorageInterfaceMap =
+    HashMap<id_type::TenantId, Box<dyn app::AccountsStorageInterface>>;
+
 #[derive(Debug, Clone, Default)]
 pub struct TenantConfig(pub HashMap<id_type::TenantId, Tenant>);
 
@@ -472,68 +480,47 @@ impl TenantConfig {
     /// # Panics
     ///
     /// Panics if Failed to create event handler
-    pub async fn get_store_interface_map(
+    pub async fn get_store_interface_maps(
         &self,
         storage_impl: &app::StorageImpl,
         conf: &configs::Settings,
         cache_store: Arc<storage_impl::redis::RedisStore>,
         testable: bool,
-    ) -> HashMap<id_type::TenantId, Box<dyn app::StorageInterface>> {
+    ) -> (StorageInterfaceMap, AccountsStorageInterfaceMap) {
         #[allow(clippy::expect_used)]
         let event_handler = conf
             .events
             .get_event_handler()
             .await
             .expect("Failed to create event handler");
-        futures::future::join_all(self.0.iter().map(|(tenant_name, tenant)| async {
-            let store = Box::pin(AppState::get_store_interface(
-                storage_impl,
-                &event_handler,
-                conf,
-                tenant,
-                cache_store.clone(),
-                testable,
-            ))
-            .await
-            .get_storage_interface();
-            (tenant_name.clone(), store)
-        }))
-        .await
-        .into_iter()
-        .collect()
-    }
-    /// # Panics
-    ///
-    /// Panics if Failed to create event handler
-    pub async fn get_accounts_store_interface_map(
-        &self,
-        storage_impl: &app::StorageImpl,
-        conf: &configs::Settings,
-        cache_store: Arc<storage_impl::redis::RedisStore>,
-        testable: bool,
-    ) -> HashMap<id_type::TenantId, Box<dyn app::AccountsStorageInterface>> {
-        #[allow(clippy::expect_used)]
-        let event_handler = conf
-            .events
-            .get_event_handler()
-            .await
-            .expect("Failed to create event handler");
-        futures::future::join_all(self.0.iter().map(|(tenant_name, tenant)| async {
-            let store = Box::pin(AppState::get_store_interface(
-                storage_impl,
-                &event_handler,
-                conf,
-                tenant,
-                cache_store.clone(),
-                testable,
-            ))
-            .await
-            .get_accounts_storage_interface();
-            (tenant_name.clone(), store)
-        }))
-        .await
-        .into_iter()
-        .collect()
+        let tenant_stores =
+            futures::future::join_all(self.0.iter().map(|(tenant_name, tenant)| async {
+                let store = Box::pin(AppState::get_store_interface(
+                    storage_impl,
+                    &event_handler,
+                    conf,
+                    tenant,
+                    conf.master_database.clone().into_inner(),
+                    conf.accounts_database_config(),
+                    cache_store.clone(),
+                    testable,
+                ))
+                .await;
+                (tenant_name.clone(), store)
+            }))
+            .await;
+
+        let stores = tenant_stores
+            .iter()
+            .map(|(tenant_name, store)| (tenant_name.clone(), store.get_storage_interface()))
+            .collect();
+        let accounts_store = tenant_stores
+            .iter()
+            .map(|(tenant_name, store)| {
+                (tenant_name.clone(), store.get_accounts_storage_interface())
+            })
+            .collect();
+        (stores, accounts_store)
     }
     #[cfg(feature = "olap")]
     pub async fn get_pools_map(
@@ -986,6 +973,7 @@ pub struct Locker {
     pub locker_enabled: bool,
     pub ttl_for_storage_in_secs: i64,
     pub decryption_scheme: DecryptionScheme,
+    pub create_entity_on_merchant_create: bool,
 }
 
 impl Locker {
@@ -1387,6 +1375,12 @@ impl Settings<SecuredSecret> {
     pub fn validate(&self) -> ApplicationResult<()> {
         self.server.validate()?;
         self.master_database.get_inner().validate()?;
+        if let Some(accounts_database) = &self.accounts_database {
+            accounts_database.get_inner().validate()?;
+        }
+        if let Some(global_database) = &self.global_database {
+            global_database.get_inner().validate()?;
+        }
         #[cfg(feature = "olap")]
         self.replica_database.get_inner().validate()?;
 
@@ -1512,6 +1506,24 @@ impl Settings<RawSecret> {
     #[cfg(not(feature = "kv_store"))]
     pub fn is_kv_soft_kill_mode(&self) -> bool {
         false
+    }
+
+    /// Returns the accounts database config, falling back to `master_database` if
+    /// `accounts_database` is not configured.
+    pub fn accounts_database_config(&self) -> Database {
+        self.accounts_database
+            .clone()
+            .map(SecretStateContainer::into_inner)
+            .unwrap_or_else(|| self.master_database.clone().into_inner())
+    }
+
+    /// Returns the global database config, falling back to `master_database` if
+    /// `global_database` is not configured.
+    pub fn global_database_config(&self) -> Database {
+        self.global_database
+            .clone()
+            .map(SecretStateContainer::into_inner)
+            .unwrap_or_else(|| self.master_database.clone().into_inner())
     }
 }
 
