@@ -2465,15 +2465,19 @@ fn create_transaction_response(
         } else {
             None
         },
-        network_txn_id: external_scheme_transaction_id
-            .as_ref()
-            .map(|ntid| ntid.clone().expose()),
+        network_txn_id: get_network_txn_id(external_scheme_transaction_id),
         network_txn_link_id: None,
         connector_response_reference_id: order_id.clone(),
         incremental_authorization_allowed: None,
         authentication_data: None,
         charges: None,
     })
+}
+
+fn get_network_txn_id(external_scheme_transaction_id: Option<Secret<String>>) -> Option<String> {
+    external_scheme_transaction_id
+        .map(|ntid| ntid.expose())
+        .filter(|ntid| !ntid.is_empty())
 }
 
 // Specialized implementation for Authorize
