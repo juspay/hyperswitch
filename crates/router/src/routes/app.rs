@@ -478,6 +478,8 @@ impl AppState {
                     &event_handler,
                     &conf,
                     &conf.multitenancy.global_tenant,
+                    conf.global_database_config(),
+                    conf.global_database_config(),
                     Arc::clone(&cache_store),
                     testable,
                 ))
@@ -489,20 +491,10 @@ impl AppState {
                 .tenants
                 .get_pools_map(conf.analytics.get_inner())
                 .await;
-            let stores = conf
+            let (stores, accounts_store) = conf
                 .multitenancy
                 .tenants
-                .get_store_interface_map(&storage_impl, &conf, Arc::clone(&cache_store), testable)
-                .await;
-            let accounts_store = conf
-                .multitenancy
-                .tenants
-                .get_accounts_store_interface_map(
-                    &storage_impl,
-                    &conf,
-                    Arc::clone(&cache_store),
-                    testable,
-                )
+                .get_store_interface_maps(&storage_impl, &conf, Arc::clone(&cache_store), testable)
                 .await;
 
             #[cfg(feature = "email")]
@@ -553,11 +545,14 @@ impl AppState {
     /// # Panics
     ///
     /// Panics if Failed to create store
+    #[allow(clippy::too_many_arguments)]
     pub async fn get_store_interface(
         storage_impl: &StorageImpl,
         event_handler: &EventsHandler,
         conf: &Settings,
         tenant: &dyn TenantConfig,
+        master_config: settings::Database,
+        accounts_config: settings::Database,
         cache_store: Arc<RedisStore>,
         testable: bool,
     ) -> Box<dyn CommonStorageInterface> {
@@ -589,6 +584,8 @@ impl AppState {
                         get_store(
                             &conf.clone(),
                             tenant,
+                            master_config.clone(),
+                            accounts_config.clone(),
                             Arc::clone(&cache_store),
                             testable,
                             key_manager_state,
@@ -606,6 +603,8 @@ impl AppState {
                     get_store(
                         conf,
                         tenant,
+                        master_config,
+                        accounts_config,
                         Arc::clone(&cache_store),
                         testable,
                         key_manager_state,

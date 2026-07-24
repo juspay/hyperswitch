@@ -686,7 +686,7 @@ pub struct CardBlockingConfig {
     /// Set of card types to block (e.g., ["Credit", "Debit"])
     pub card_types: Option<HashSet<common_enums::CardType>>,
     /// Set of card subtypes to block
-    pub card_subtypes: Option<HashSet<common_enums::CardSubtype>>,
+    pub card_subtypes: Option<HashSet<String>>,
     /// Set of card issuers to block (e.g., ["HDFC Bank", "ICICI Bank"])
     pub issuers: Option<HashSet<String>>,
     /// Whether to block if BIN is provided but no matching record found in cards_info table.
