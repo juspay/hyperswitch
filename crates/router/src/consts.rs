@@ -367,6 +367,10 @@ pub const CREQ_CHALLENGE_REQUEST_KEY: &str = "creq";
 
 /// Superposition configuration keys
 pub mod superposition {
+    /// Offer Engine master gate key: boolean, `false` (default) disables all Offer Engine calls.
+    pub const OFFER_ENGINE_ENABLED: &str = "offer_engine_enabled";
+    /// Offer Engine credential source key: `"none"` skips Offer Engine, `"application"` uses the static app config.
+    pub const OFFER_ENGINE_CREDENTIAL_SOURCE: &str = "offer_engine_credential_source";
     /// CVV requirement configuration key
     pub const REQUIRES_CVV: &str = "requires_cvv";
     /// implicit customer update configuration key
