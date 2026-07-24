@@ -11653,3 +11653,62 @@ Cypress.Commands.add(
 Cypress.Commands.add("resetRedirectReadCount", (testIdHash) => {
   resetMitmRedirectSeq(testIdHash);
 });
+
+Cypress.Commands.add("tokenizeCardTest", (requestBody, data, globalState) => {
+  const {
+    Configs: configs = {},
+    Request: reqData,
+    Response: resData,
+  } = data || {};
+
+  const validatedConfigs = validateConfig(configs);
+  if (validatedConfigs?.TRIGGER_SKIP) {
+    cy.task("cli_log", "TRIGGER_SKIP enabled, skipping tokenizeCardTest");
+    return;
+  }
+
+  execConfig(validatedConfigs);
+
+  const body = JSON.parse(JSON.stringify(requestBody));
+  for (const key in reqData) {
+    body[key] = reqData[key];
+  }
+  body.merchant_id = globalState.get("merchantId");
+  body.customer = { id: globalState.get("customerId") };
+
+  cy.request({
+    method: "POST",
+    url: `${globalState.get("baseUrl")}/payment_methods/tokenize-card`,
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+      "api-key": globalState.get("adminApiKey"),
+    },
+    body: body,
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    cy.wrap(response).then(() => {
+      expect(response.status).to.equal(resData.status);
+      if (resData.body) {
+        for (const key in resData.body) {
+          if (
+            typeof resData.body[key] === "object" &&
+            resData.body[key] !== null
+          ) {
+            expect(
+              response.body[key],
+              `Expected ${key} to deep equal`
+            ).to.deep.eq(resData.body[key]);
+          } else {
+            expect(resData.body[key]).to.equal(
+              response.body[key],
+              `Expected ${resData.body[key]} but got ${response.body[key]}`
+            );
+          }
+        }
+      }
+    });
+  });
+});

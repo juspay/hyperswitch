@@ -1122,6 +1122,27 @@ export const connectorDetails = {
         },
       },
     },
+    NetworkTokenization: {
+      Request: {
+        card: {
+          raw_card_number: "4111111111111111",
+          card_expiry_month: "12",
+          card_expiry_year: "2030",
+          card_cvc: "999",
+          card_holder_name: "Test User",
+        },
+      },
+      Response: {
+        status: 500,
+        body: {
+          error: {
+            type: "api",
+            message: "Something went wrong",
+            code: "HE_00",
+          },
+        },
+      },
+    },
   },
   pm_list: {
     PmListResponse: {

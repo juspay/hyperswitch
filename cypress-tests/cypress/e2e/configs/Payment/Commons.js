@@ -4064,6 +4064,17 @@ export const connectorDetails = {
         },
       }),
     },
+    NetworkTokenization: getCustomExchange({
+      Request: {
+        card: {
+          raw_card_number: "4111111111111111",
+          card_expiry_month: "12",
+          card_expiry_year: "2030",
+          card_cvc: "999",
+          card_holder_name: "Test User",
+        },
+      },
+    }),
   },
   upi_pm: {
     PaymentIntent: getCustomExchange({
