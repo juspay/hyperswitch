@@ -1907,17 +1907,35 @@ impl LockerOperations for GenericLocker {
     async fn delete_payment_method_from_locker(
         &self,
         state: &SessionState,
-        _platform: &domain::Platform,
+        platform: &domain::Platform,
         vault_id: domain::VaultId,
         customer_id: &id_type::GlobalCustomerId,
     ) -> CustomResult<pm_types::VaultDeleteResponse, errors::VaultError> {
-        let payload = pm_types::VaultDeleteRequest {
-            entity_id: customer_id.to_owned(),
-            vault_id,
-        }
-        .encode_to_vec()
-        .change_context(errors::VaultError::RequestEncodingFailed)
-        .attach_printable("Failed to encode VaultDeleteRequest")?;
+        let should_trigger_fingerprint_migration =
+            payment_method_utils::get_should_trigger_fingerprint_migration(
+                state,
+                None,
+                platform.get_provider().get_provider_merchant_id(),
+            )
+            .await;
+
+        let payload = if should_trigger_fingerprint_migration {
+            pm_types::VaultDeleteRequestNew {
+                entity_id: platform.get_provider().get_account().get_id().clone(),
+                vault_id,
+            }
+            .encode_to_vec()
+            .change_context(errors::VaultError::RequestEncodingFailed)
+            .attach_printable("Failed to encode VaultDeleteRequestNew")?
+        } else {
+            pm_types::VaultDeleteRequest {
+                entity_id: customer_id.to_owned(),
+                vault_id,
+            }
+            .encode_to_vec()
+            .change_context(errors::VaultError::RequestEncodingFailed)
+            .attach_printable("Failed to encode VaultDeleteRequest")?
+        };
 
         let resp = vault::call_to_vault::<pm_types::VaultDelete>(state, payload, None, None)
             .await
@@ -6124,6 +6142,11 @@ pub async fn delete_payment_method_core(
     when(
         payment_method.status == enums::PaymentMethodStatus::Inactive,
         || Err(errors::ApiErrorResponse::PaymentMethodNotFound),
+    )?;
+
+    when(
+        payment_method.status == enums::PaymentMethodStatus::Redacted,
+        || Err(errors::ApiErrorResponse::PaymentMethodRedacted),
     )?;
 
     let _customer = db
