@@ -342,7 +342,12 @@ pub struct TruelayerPayoutRequest {
     amount_in_minor: MinorUnit,
     currency: api_models::enums::Currency,
     beneficiary: TruelayerBeneficiary,
-    metadata: Option<HashMap<String, String>>,
+    metadata: Option<TruelayerPayoutMetadata>,
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
+pub struct TruelayerPayoutMetadata {
+    reference_id: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
@@ -389,10 +394,9 @@ impl TryFrom<&TruelayerRouterData<&PayoutsRouterData<PoFulfill>>> for TruelayerP
 
         validate_fps_payout_reference(reference)?;
 
-        let metadata = Some(HashMap::from([(
-            "payout_reference_id".to_string(),
-            item.router_data.connector_request_reference_id.clone(),
-        )]));
+        let metadata = Some(TruelayerPayoutMetadata {
+            reference_id: Some(item.router_data.connector_request_reference_id.clone()),
+        });
 
         match item.router_data.get_payout_method_data()? {
             PayoutMethodData::BankTransfer(BankTransfer::OpenBanking(open_banking_data)) => {
