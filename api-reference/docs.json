@@ -559,47 +559,253 @@
         ]
       },
       {
-        "tab": "Intelligent Router API Reference",
+        "tab": "Decision Engine API Reference",
         "groups": [
           {
-            "group": "Hyperswitch Intelligent Router",
+            "group": "Overview",
             "pages": [
-              "intelligent-router-api-reference/overview"
+              "decision-engine-api-reference/introduction",
+              {
+                "group": "Installation",
+                "pages": [
+                  "decision-engine-api-reference/installation",
+                  "decision-engine-api-reference/local-setup",
+                  "decision-engine-api-reference/setup-guide-postgres",
+                  "decision-engine-api-reference/setup-guide-mysql",
+                  "decision-engine-api-reference/configuration",
+                  "decision-engine-api-reference/dashboard-guide"
+                ]
+              },
+              "decision-engine-api-reference/api-reference/guides/api-ref",
+              "decision-engine-api-reference/analytics",
+              "decision-engine-api-reference/payment-audit",
+              "decision-engine-api-reference/clickhouse-analytics",
+              "decision-engine-api-reference/benchmarks"
             ]
           },
           {
-            "group": "API Reference",
+            "group": "OpenAPI: Health",
+            "pages": [
+              "decision-engine-api-reference/api-reference/endpoint/health/healthCheck",
+              "decision-engine-api-reference/api-reference/endpoint/health/healthReady",
+              "decision-engine-api-reference/api-reference/endpoint/health/healthDiagnostics"
+            ]
+          },
+          {
+            "group": "OpenAPI: Gateway Decision",
+            "pages": [
+              "decision-engine-api-reference/api-reference/endpoint/gateway-decision/decideGateway"
+            ]
+          },
+          {
+            "group": "OpenAPI: Score Feedback",
+            "pages": [
+              "decision-engine-api-reference/api-reference/endpoint/score-feedback/updateGatewayScore"
+            ]
+          },
+          {
+            "group": "OpenAPI: Merchant Account",
+            "pages": [
+              "decision-engine-api-reference/api-reference/endpoint/merchant-account/createMerchant",
+              "decision-engine-api-reference/api-reference/endpoint/merchant-account/getMerchant",
+              "decision-engine-api-reference/api-reference/endpoint/merchant-account/deleteMerchant",
+              "decision-engine-api-reference/api-reference/endpoint/merchant-account/getMerchantDebitRouting",
+              "decision-engine-api-reference/api-reference/endpoint/merchant-account/updateMerchantDebitRouting"
+            ]
+          },
+          {
+            "group": "OpenAPI: Routing Rules",
+            "pages": [
+              "decision-engine-api-reference/api-reference/endpoint/routing-rules/createRoutingRule",
+              "decision-engine-api-reference/api-reference/endpoint/routing-rules/activateRoutingRule",
+              "decision-engine-api-reference/api-reference/endpoint/routing-rules/deactivateRoutingRule",
+              "decision-engine-api-reference/api-reference/endpoint/routing-rules/listRoutingRules",
+              "decision-engine-api-reference/api-reference/endpoint/routing-rules/getActiveRoutingRule",
+              "decision-engine-api-reference/api-reference/endpoint/routing-rules/evaluateRoutingRule",
+              "decision-engine-api-reference/api-reference/endpoint/routing-rules/hybridRouting"
+            ]
+          },
+          {
+            "group": "OpenAPI: Rule Configuration",
+            "pages": [
+              "decision-engine-api-reference/api-reference/endpoint/rule-configuration/createRuleConfig",
+              "decision-engine-api-reference/api-reference/endpoint/rule-configuration/getRuleConfig",
+              "decision-engine-api-reference/api-reference/endpoint/rule-configuration/updateRuleConfig",
+              "decision-engine-api-reference/api-reference/endpoint/rule-configuration/deleteRuleConfig"
+            ]
+          },
+          {
+            "group": "OpenAPI: Auth And API Keys",
+            "pages": [
+              "decision-engine-api-reference/api-reference/endpoint/auth/signup",
+              "decision-engine-api-reference/api-reference/endpoint/auth/login",
+              "decision-engine-api-reference/api-reference/endpoint/auth/logout",
+              "decision-engine-api-reference/api-reference/endpoint/auth/me",
+              "decision-engine-api-reference/api-reference/endpoint/auth/listUserMerchants",
+              "decision-engine-api-reference/api-reference/endpoint/auth/switchMerchant",
+              "decision-engine-api-reference/api-reference/endpoint/auth/onboardMerchant",
+              "decision-engine-api-reference/api-reference/endpoint/auth/createApiKey",
+              "decision-engine-api-reference/api-reference/endpoint/auth/listApiKeys",
+              "decision-engine-api-reference/api-reference/endpoint/auth/revokeApiKey"
+            ]
+          },
+          {
+            "group": "OpenAPI: Analytics",
+            "pages": [
+              "decision-engine-api-reference/api-reference/endpoint/analytics/analyticsOverview",
+              "decision-engine-api-reference/api-reference/endpoint/analytics/analyticsGatewayScores",
+              "decision-engine-api-reference/api-reference/endpoint/analytics/analyticsDecisions",
+              "decision-engine-api-reference/api-reference/endpoint/analytics/analyticsRoutingStats",
+              "decision-engine-api-reference/api-reference/endpoint/analytics/analyticsLogSummaries",
+              "decision-engine-api-reference/api-reference/endpoint/analytics/analyticsPaymentAudit",
+              "decision-engine-api-reference/api-reference/endpoint/analytics/analyticsPreviewTrace",
+              "decision-engine-api-reference/api-reference/endpoint/analytics/analyticsCostSavings",
+              "decision-engine-api-reference/api-reference/endpoint/analytics/analyticsRoutingEvents",
+              "decision-engine-api-reference/api-reference/endpoint/analytics/analyticsExperimentResults",
+              "decision-engine-api-reference/api-reference/endpoint/analytics/analyticsExperimentTransactions"
+            ]
+          },
+          {
+            "group": "OpenAPI: Compatibility And Config",
+            "pages": [
+              "decision-engine-api-reference/api-reference/endpoint/compatibility/legacyDecisionGateway",
+              "decision-engine-api-reference/api-reference/endpoint/compatibility/legacyUpdateScore",
+              "decision-engine-api-reference/api-reference/endpoint/compatibility/getRoutingConfig",
+              "decision-engine-api-reference/api-reference/endpoint/compatibility/configSrDimension",
+              "decision-engine-api-reference/api-reference/endpoint/compatibility/getSrDimensions"
+            ]
+          },
+          {
+            "group": "OpenAPI: Connector Costs & Ingestion",
+            "pages": [
+              "decision-engine-api-reference/api-reference/endpoint/connector-costs/listConnectorCredentials",
+              "decision-engine-api-reference/api-reference/endpoint/connector-costs/setConnectorCredentials",
+              "decision-engine-api-reference/api-reference/endpoint/connector-costs/deleteConnectorCredentials",
+              "decision-engine-api-reference/api-reference/endpoint/connector-costs/listConnectorFees",
+              "decision-engine-api-reference/api-reference/endpoint/connector-costs/setFeeOverride",
+              "decision-engine-api-reference/api-reference/endpoint/connector-costs/listCostClusters",
+              "decision-engine-api-reference/api-reference/endpoint/connector-costs/setClusterOverride",
+              "decision-engine-api-reference/api-reference/endpoint/connector-costs/getCostCoverage",
+              "decision-engine-api-reference/api-reference/endpoint/connector-costs/listCostIngestions",
+              "decision-engine-api-reference/api-reference/endpoint/connector-costs/deleteCostIngestion",
+              "decision-engine-api-reference/api-reference/endpoint/connector-costs/listCostPriceChanges",
+              "decision-engine-api-reference/api-reference/endpoint/connector-costs/listInvoiceAddons",
+              "decision-engine-api-reference/api-reference/endpoint/connector-costs/deleteInvoiceAddon",
+              "decision-engine-api-reference/api-reference/endpoint/connector-costs/getInvoiceReconciliation"
+            ]
+          },
+          {
+            "group": "OpenAPI: Feature Flags & Autopilot",
+            "pages": [
+              "decision-engine-api-reference/api-reference/endpoint/features/getMerchantFeatures",
+              "decision-engine-api-reference/api-reference/endpoint/features/updateMerchantFeature",
+              "decision-engine-api-reference/api-reference/endpoint/features/resetGatewayScores"
+            ]
+          },
+          {
+            "group": "API Examples (curl flows)",
             "pages": [
               {
-                "group": "Success Rate",
+                "group": "Health & Status",
                 "pages": [
-                  "intelligent-router-api-reference/success-rate/fetch-success-rate-for-an-entity",
-                  "intelligent-router-api-reference/success-rate/update-success-rate-window",
-                  "intelligent-router-api-reference/success-rate/invalidate-windows",
-                  "intelligent-router-api-reference/success-rate/fetch-entity-and-global-success-rates"
+                  "decision-engine-api-reference/api-reference/guides/health-status/health-check"
                 ]
               },
               {
-                "group": "Elimination",
+                "group": "Authentication & Onboarding",
                 "pages": [
-                  "intelligent-router-api-reference/elimination/fetch-eliminated-processor-list",
-                  "intelligent-router-api-reference/elimination/update-elimination-bucket",
-                  "intelligent-router-api-reference/elimination/invalidate-elimination-bucket"
+                  "decision-engine-api-reference/api-reference/guides/auth-onboarding/auth-and-onboarding",
+                  "decision-engine-api-reference/api-reference/guides/auth-onboarding/api-keys"
                 ]
               },
               {
-                "group": "Contract Routing",
+                "group": "Merchant Accounts",
                 "pages": [
-                  "intelligent-router-api-reference/contract-routing/fetch-contract-scores-for-an-entity",
-                  "intelligent-router-api-reference/contract-routing/update-contract-information-for-an-entity",
-                  "intelligent-router-api-reference/contract-routing/invalidate-contract-information-for-an-entity"
+                  "decision-engine-api-reference/api-reference/guides/merchant-accounts/merchant-account-create",
+                  "decision-engine-api-reference/api-reference/guides/merchant-accounts/merchant-account-get",
+                  "decision-engine-api-reference/api-reference/guides/merchant-accounts/merchant-account-delete",
+                  "decision-engine-api-reference/api-reference/guides/merchant-accounts/merchant-debit-routing"
                 ]
               },
               {
-                "group": "Static Routing",
+                "group": "Configure Routing",
                 "pages": [
-                  "intelligent-router-api-reference/static-routing/create-a-routing-rule",
-                  "intelligent-router-api-reference/static-routing/evaluate-routing-rule"
+                  "decision-engine-api-reference/api-reference/guides/configure-routing/routing-algorithm-create",
+                  "decision-engine-api-reference/api-reference/guides/configure-routing/routing-single-connector-example",
+                  "decision-engine-api-reference/api-reference/guides/configure-routing/routing-priority-example",
+                  "decision-engine-api-reference/api-reference/guides/configure-routing/routing-volume-split-example",
+                  "decision-engine-api-reference/api-reference/guides/configure-routing/routing-advanced-example",
+                  "decision-engine-api-reference/api-reference/guides/configure-routing/routing-algorithm-activate",
+                  "decision-engine-api-reference/api-reference/guides/configure-routing/routing-algorithm-deactivate",
+                  "decision-engine-api-reference/api-reference/guides/configure-routing/routing-algorithm-update-delete",
+                  "decision-engine-api-reference/api-reference/guides/configure-routing/routing-algorithm-list",
+                  "decision-engine-api-reference/api-reference/guides/configure-routing/routing-algorithm-list-active",
+                  "decision-engine-api-reference/api-reference/guides/configure-routing/routing-algorithm-evaluate",
+                  "decision-engine-api-reference/api-reference/guides/configure-routing/routing-hybrid"
+                ]
+              },
+              {
+                "group": "Scoring Configuration",
+                "pages": [
+                  "decision-engine-api-reference/api-reference/guides/scoring-config/success-rate-config-create",
+                  "decision-engine-api-reference/api-reference/guides/scoring-config/success-rate-config-get",
+                  "decision-engine-api-reference/api-reference/guides/scoring-config/success-rate-config-update",
+                  "decision-engine-api-reference/api-reference/guides/scoring-config/success-rate-config-delete",
+                  "decision-engine-api-reference/api-reference/guides/scoring-config/elimination-config-create",
+                  "decision-engine-api-reference/api-reference/guides/scoring-config/elimination-config-get",
+                  "decision-engine-api-reference/api-reference/guides/scoring-config/elimination-config-update",
+                  "decision-engine-api-reference/api-reference/guides/scoring-config/elimination-config-delete",
+                  "decision-engine-api-reference/api-reference/guides/scoring-config/config-endpoints"
+                ]
+              },
+              {
+                "group": "Cost Data Ingestion",
+                "pages": [
+                  "decision-engine-api-reference/api-reference/guides/cost-ingestion/cost-ingestion-setup",
+                  "decision-engine-api-reference/api-reference/guides/cost-ingestion/cost-ingestion-uploads",
+                  "decision-engine-api-reference/api-reference/guides/cost-ingestion/cost-ingestion-fees"
+                ]
+              },
+              {
+                "group": "A/B Testing",
+                "pages": [
+                  "decision-engine-api-reference/api-reference/guides/ab-testing/ab-testing-create",
+                  "decision-engine-api-reference/api-reference/guides/ab-testing/ab-testing-results"
+                ]
+              },
+              {
+                "group": "Autopilot & Feature Flags",
+                "pages": [
+                  "decision-engine-api-reference/api-reference/guides/autopilot/merchant-features"
+                ]
+              },
+              {
+                "group": "Run Transactions",
+                "pages": [
+                  "decision-engine-api-reference/api-reference/guides/run-transactions/decide-gateway-sr-based",
+                  "decision-engine-api-reference/api-reference/guides/run-transactions/decide-gateway-pl-based",
+                  "decision-engine-api-reference/api-reference/guides/run-transactions/decide-gateway-debit-routing",
+                  "decision-engine-api-reference/api-reference/guides/run-transactions/decide-gateway-hybrid-routing",
+                  "decision-engine-api-reference/api-reference/guides/run-transactions/decide-gateway-multi-objective"
+                ]
+              },
+              {
+                "group": "Feedback & Scoring",
+                "pages": [
+                  "decision-engine-api-reference/api-reference/guides/feedback-scoring/update-gateway-score"
+                ]
+              },
+              {
+                "group": "Analytics & Audit",
+                "pages": [
+                  "decision-engine-api-reference/api-reference/guides/analytics-audit/analytics-endpoints"
+                ]
+              },
+              {
+                "group": "Legacy & Compatibility",
+                "pages": [
+                  "decision-engine-api-reference/api-reference/guides/legacy/decision-gateway-legacy",
+                  "decision-engine-api-reference/api-reference/guides/legacy/update-score-legacy"
                 ]
               }
             ]
@@ -616,7 +822,8 @@
     "openapi": [
       "v1/openapi_spec_v1.json",
       "v2/openapi_spec_v2.json",
-      "rust_locker_open_api_spec.yml"
+      "rust_locker_open_api_spec.yml",
+      "decision_engine_openapi-specs.json"
     ]
   },
   "background": {

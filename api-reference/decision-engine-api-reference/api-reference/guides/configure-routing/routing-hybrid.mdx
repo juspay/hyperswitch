@@ -1,0 +1,35 @@
+---
+title: "Hybrid Routing Evaluation"
+description: "Curl example for /routing/hybrid."
+---
+
+# Hybrid Routing Evaluation
+
+`/routing/hybrid` evaluates the active rule path together with runtime routing context.
+
+```bash
+curl --location "$BASE_URL/routing/hybrid" \
+  --header "$AUTH_HEADER" \
+  --header "Content-Type: application/json" \
+  --data '{
+    "merchantId": "merchant_demo",
+    "paymentInfo": {
+      "paymentId": "hybrid_eval_001",
+      "amount": 1000,
+      "currency": "USD",
+      "paymentType": "ORDER_PAYMENT",
+      "paymentMethodType": "CARD",
+      "paymentMethod": "CREDIT"
+    },
+    "eligibleGatewayList": ["stripe", "adyen"]
+  }'
+```
+
+```json
+{
+  "priority": [
+    { "gateway_name": "stripe", "gateway_id": "mca_111" },
+    { "gateway_name": "adyen", "gateway_id": "mca_112" }
+  ]
+}
+```

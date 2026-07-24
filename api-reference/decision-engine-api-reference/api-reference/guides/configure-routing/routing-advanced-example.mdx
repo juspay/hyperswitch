@@ -1,0 +1,353 @@
+---
+title: "Advanced Routing Example"
+description: "Advanced Euclid rule tree examples for /routing/create, including AND, OR, nested rules, and value variants."
+---
+
+# Advanced Routing Example
+
+Use `algorithm.type = advanced` when a merchant needs conditional rule-based routing instead of a fixed connector order. Advanced rules evaluate payment attributes, choose the first matching rule output, and fall back to `default_selection` when no rule matches.
+
+## Advanced Program Shape
+
+```json
+{
+  "globals": {},
+  "default_selection": {
+    "priority": [
+      { "gateway_name": "stripe", "gateway_id": "mca_stripe" }
+    ]
+  },
+  "rules": [],
+  "metadata": {}
+}
+```
+
+| Field | Meaning |
+| --- | --- |
+| `globals` | Optional reusable value sets referenced by `global_ref`. |
+| `default_selection` | Fallback `single`, `priority`, `volume_split`, or `volume_split_priority` output. |
+| `rules[].routing_type` | Rule output behavior: `priority`, `volume_split`, or `volume_split_priority`. |
+| `rules[].output` | Connector output returned when the rule matches. |
+| `rules[].statements[].condition` | Conditions inside one statement. All conditions in the same array must match. |
+| `rules[].statements[].nested` | Optional nested statements. Parent condition must match and then nested statements are evaluated. |
+
+## Full Create Request
+
+```bash
+curl --location "$BASE_URL/routing/create" \
+  --header "$AUTH_HEADER" \
+  --header "Content-Type: application/json" \
+  --data '{
+    "name": "advanced card routing",
+    "created_by": "merchant_demo",
+    "description": "Route Visa card traffic by priority, otherwise fallback to stripe",
+    "algorithm_for": "payment",
+    "algorithm": {
+      "type": "advanced",
+      "data": {
+        "globals": {},
+        "default_selection": {
+          "priority": [
+            { "gateway_name": "stripe", "gateway_id": "mca_stripe" }
+          ]
+        },
+        "rules": [
+          {
+            "name": "visa_card_rule",
+            "routing_type": "priority",
+            "output": {
+              "priority": [
+                { "gateway_name": "adyen", "gateway_id": "mca_adyen" },
+                { "gateway_name": "stripe", "gateway_id": "mca_stripe" }
+              ]
+            },
+            "statements": [
+              {
+                "condition": [
+                  {
+                    "lhs": "payment_method_type",
+                    "comparison": "equal",
+                    "value": { "type": "enum_variant", "value": "CARD" },
+                    "metadata": {}
+                  },
+                  {
+                    "lhs": "card_network",
+                    "comparison": "equal",
+                    "value": { "type": "enum_variant", "value": "Visa" },
+                    "metadata": {}
+                  }
+                ],
+                "nested": null
+              }
+            ]
+          }
+        ],
+        "metadata": {}
+      }
+    }
+  }'
+```
+
+## Logic Variants
+
+### AND Rule
+
+Use one `condition` array when all conditions must match.
+
+```json
+{
+  "name": "high_value_netherlands_rule",
+  "routing_type": "volume_split",
+  "output": {
+    "volume_split": [
+      {
+        "split": 60,
+        "output": { "gateway_name": "hdfc", "gateway_id": "mca_hdfc" }
+      },
+      {
+        "split": 40,
+        "output": { "gateway_name": "instamojo", "gateway_id": "mca_instamojo" }
+      }
+    ]
+  },
+  "statements": [
+    {
+      "condition": [
+        {
+          "lhs": "amount",
+          "comparison": "greater_than",
+          "value": { "type": "number", "value": 100 },
+          "metadata": {}
+        },
+        {
+          "lhs": "billing_country",
+          "comparison": "equal",
+          "value": { "type": "enum_variant", "value": "Netherlands" },
+          "metadata": {}
+        }
+      ],
+      "nested": null
+    }
+  ]
+}
+```
+
+### OR Rule
+
+Use multiple statements when any statement can trigger the rule.
+
+```json
+{
+  "name": "card_or_high_value_rule",
+  "routing_type": "priority",
+  "output": {
+    "priority": [
+      { "gateway_name": "paytm", "gateway_id": "mca_paytm" },
+      { "gateway_name": "adyen", "gateway_id": "mca_adyen" }
+    ]
+  },
+  "statements": [
+    {
+      "condition": [
+        {
+          "lhs": "payment_method_type",
+          "comparison": "equal",
+          "value": { "type": "enum_variant", "value": "CARD" },
+          "metadata": {}
+        }
+      ],
+      "nested": null
+    },
+    {
+      "condition": [
+        {
+          "lhs": "amount",
+          "comparison": "greater_than",
+          "value": { "type": "number", "value": 100 },
+          "metadata": {}
+        }
+      ],
+      "nested": null
+    }
+  ]
+}
+```
+
+### Nested AND + OR Rule
+
+Use `nested` when a parent condition must match and then one nested branch can match.
+
+```json
+{
+  "name": "amount_and_card_network_or_country_rule",
+  "routing_type": "priority",
+  "output": {
+    "priority": [
+      { "gateway_name": "rbl", "gateway_id": "mca_rbl" },
+      { "gateway_name": "instamojo", "gateway_id": "mca_instamojo" }
+    ]
+  },
+  "statements": [
+    {
+      "condition": [
+        {
+          "lhs": "amount",
+          "comparison": "greater_than",
+          "value": { "type": "number", "value": 10 },
+          "metadata": {}
+        }
+      ],
+      "nested": [
+        {
+          "condition": [
+            {
+              "lhs": "card_network",
+              "comparison": "equal",
+              "value": { "type": "enum_variant", "value": "Visa" },
+              "metadata": {}
+            }
+          ],
+          "nested": null
+        },
+        {
+          "condition": [
+            {
+              "lhs": "billing_country",
+              "comparison": "equal",
+              "value": { "type": "enum_variant", "value": "India" },
+              "metadata": {}
+            }
+          ],
+          "nested": null
+        }
+      ]
+    }
+  ]
+}
+```
+
+## Output Variants
+
+### Priority Output
+
+```json
+{
+  "routing_type": "priority",
+  "output": {
+    "priority": [
+      { "gateway_name": "adyen", "gateway_id": "mca_adyen" },
+      { "gateway_name": "stripe", "gateway_id": "mca_stripe" }
+    ]
+  }
+}
+```
+
+### Volume Split Output
+
+```json
+{
+  "routing_type": "volume_split",
+  "output": {
+    "volume_split": [
+      {
+        "split": 70,
+        "output": { "gateway_name": "stripe", "gateway_id": "mca_stripe" }
+      },
+      {
+        "split": 30,
+        "output": { "gateway_name": "adyen", "gateway_id": "mca_adyen" }
+      }
+    ]
+  }
+}
+```
+
+### Volume Split Priority Output
+
+Use `volume_split_priority` when each split should return a priority list rather than a single connector.
+
+```json
+{
+  "routing_type": "volume_split_priority",
+  "output": {
+    "volume_split_priority": [
+      {
+        "split": 60,
+        "output": [
+          { "gateway_name": "stripe", "gateway_id": "mca_stripe" },
+          { "gateway_name": "adyen", "gateway_id": "mca_adyen" }
+        ]
+      },
+      {
+        "split": 40,
+        "output": [
+          { "gateway_name": "checkout", "gateway_id": "mca_checkout" },
+          { "gateway_name": "stripe", "gateway_id": "mca_stripe" }
+        ]
+      }
+    ]
+  }
+}
+```
+
+## Value Variants
+
+### Enum Variant Array
+
+```json
+{
+  "lhs": "card_network",
+  "comparison": "equal",
+  "value": {
+    "type": "enum_variant_array",
+    "value": ["Visa", "Mastercard"]
+  },
+  "metadata": {}
+}
+```
+
+### Number Array
+
+```json
+{
+  "lhs": "amount",
+  "comparison": "equal",
+  "value": {
+    "type": "number_array",
+    "value": [1000, 2000, 5000]
+  },
+  "metadata": {}
+}
+```
+
+### Number Comparison Array
+
+```json
+{
+  "lhs": "amount",
+  "comparison": "equal",
+  "value": {
+    "type": "number_comparison_array",
+    "value": [
+      { "comparison_type": "greater_than", "number": 1000 },
+      { "comparison_type": "less_than_equal", "number": 5000 }
+    ]
+  },
+  "metadata": {}
+}
+```
+
+## Notes
+
+- Advanced algorithms require `statements`; top-level `single`, `priority`, and `volume_split` algorithms do not.
+- Conditions in the same `condition` array behave like AND.
+- Multiple statements behave like OR.
+- `nested` allows a parent condition plus nested branch matching.
+- `volume_split` percentages should add up to 100.
+
+## Related
+
+- [Create Routing Algorithm](/decision-engine-api-reference/api-reference/guides/configure-routing/routing-algorithm-create)
+- [Evaluate Routing Algorithm](/decision-engine-api-reference/api-reference/guides/configure-routing/routing-algorithm-evaluate)
+- [Priority Routing](/decision-engine-api-reference/api-reference/guides/configure-routing/routing-priority-example)
+- [Volume Split Routing](/decision-engine-api-reference/api-reference/guides/configure-routing/routing-volume-split-example)

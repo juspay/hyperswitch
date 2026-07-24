@@ -1,0 +1,21 @@
+---
+title: "Single Connector Example"
+description: "Single-connector routing create example."
+---
+
+# Single Connector Example
+
+```bash
+curl --location "$BASE_URL/routing/create" \
+  --header "$AUTH_HEADER" \
+  --header "Content-Type: application/json" \
+  --data '{
+    "name": "single connector rule",
+    "created_by": "merchant_demo",
+    "algorithm_for": "payment",
+    "algorithm": {
+      "type": "single",
+      "data": { "gateway_name": "stripe", "gateway_id": "mca_111" }
+    }
+  }'
+```
