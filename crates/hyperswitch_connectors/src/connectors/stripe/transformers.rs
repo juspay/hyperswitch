@@ -292,6 +292,17 @@ pub enum StripePaymentMethodAuthType {
     },
 }
 
+impl From<enums::AuthenticationType> for StripePaymentMethodAuthType {
+    fn from(auth_type: enums::AuthenticationType) -> Self {
+        Self::Request3ds {
+            payment_method_auth_type: match auth_type {
+                enums::AuthenticationType::ThreeDs => Auth3ds::Any,
+                enums::AuthenticationType::NoThreeDs => Auth3ds::Automatic,
+            },
+        }
+    }
+}
+
 #[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct StripeCardData {
     #[serde(rename = "payment_method_data[type]")]
@@ -735,9 +746,9 @@ pub struct StripeGooglePayPredecrypt {
     #[serde(rename = "card[exp_month]")]
     exp_month: Secret<String>,
     #[serde(rename = "card[cryptogram]")]
-    cryptogram: Option<Secret<String>>,
+    cryptogram: Secret<String>,
     #[serde(rename = "card[eci]")]
-    eci: Option<String>,
+    eci: String,
     #[serde(rename = "card[tokenization_method]")]
     tokenization_method: String,
 }
@@ -1406,24 +1417,18 @@ fn create_stripe_payment_method(
     error_stack::Report<ConnectorError>,
 > {
     match payment_method_data {
-        PaymentMethodData::Card(card_details) => {
-            let payment_method_auth_type = match payment_request_details.auth_type {
-                enums::AuthenticationType::ThreeDs => Auth3ds::Any,
-                enums::AuthenticationType::NoThreeDs => Auth3ds::Automatic,
-            };
-            Ok((
-                StripePaymentMethodData::try_from((
-                    card_details,
-                    payment_method_auth_type,
-                    authentication,
-                    payment_request_details.request_incremental_authorization,
-                    payment_request_details.request_extended_authorization,
-                    payment_request_details.request_overcapture,
-                ))?,
-                Some(StripePaymentMethodType::Card),
-                payment_request_details.billing_address,
-            ))
-        }
+        PaymentMethodData::Card(card_details) => Ok((
+            StripePaymentMethodData::try_from((
+                card_details,
+                payment_request_details.auth_type,
+                authentication,
+                payment_request_details.request_incremental_authorization,
+                payment_request_details.request_extended_authorization,
+                payment_request_details.request_overcapture,
+            ))?,
+            Some(StripePaymentMethodType::Card),
+            payment_request_details.billing_address,
+        )),
         PaymentMethodData::PayLater(pay_later_data) => {
             let stripe_pm_type = StripePaymentMethodType::try_from(pay_later_data)?;
 
@@ -1455,6 +1460,7 @@ fn create_stripe_payment_method(
             let wallet_specific_data = StripePaymentMethodData::try_from((
                 wallet_data,
                 payment_request_details.payment_method_token,
+                payment_request_details.auth_type,
             ))?;
             Ok((
                 wallet_specific_data,
@@ -1655,7 +1661,7 @@ fn get_stripe_card_network(card_network: common_enums::CardNetwork) -> Option<St
 impl
     TryFrom<(
         &Card,
-        Auth3ds,
+        enums::AuthenticationType,
         Option<AuthenticationData>,
         bool,
         Option<primitive_wrappers::RequestExtendedAuthorizationBool>,
@@ -1673,7 +1679,7 @@ impl
             request_overcapture,
         ): (
             &Card,
-            Auth3ds,
+            enums::AuthenticationType,
             Option<AuthenticationData>,
             bool,
             Option<primitive_wrappers::RequestExtendedAuthorizationBool>,
@@ -1698,9 +1704,7 @@ impl
                     error_on_requires_action: true,
                 },
             )),
-            None => Some(StripePaymentMethodAuthType::Request3ds {
-                payment_method_auth_type,
-            }),
+            None => Some(payment_method_auth_type.into()),
         };
         Ok(Self::Card(StripeCardData {
             payment_method_data_type: StripePaymentMethodType::Card,
@@ -1731,10 +1735,20 @@ impl
     }
 }
 
-impl TryFrom<(&WalletData, Option<PaymentMethodToken>)> for StripePaymentMethodData {
+impl
+    TryFrom<(
+        &WalletData,
+        Option<PaymentMethodToken>,
+        enums::AuthenticationType,
+    )> for StripePaymentMethodData
+{
     type Error = error_stack::Report<ConnectorError>;
     fn try_from(
-        (wallet_data, payment_method_token): (&WalletData, Option<PaymentMethodToken>),
+        (wallet_data, payment_method_token, auth_type): (
+            &WalletData,
+            Option<PaymentMethodToken>,
+            enums::AuthenticationType,
+        ),
     ) -> Result<Self, Self::Error> {
         match wallet_data {
             WalletData::ApplePay(applepay_data) => {
@@ -1810,9 +1824,11 @@ impl TryFrom<(&WalletData, Option<PaymentMethodToken>)> for StripePaymentMethodD
                     payment_method_types: StripePaymentMethodType::RevolutPay,
                 })))
             }
-            WalletData::GooglePay(gpay_data) => {
-                Ok(Self::try_from((gpay_data, payment_method_token))?)
-            }
+            WalletData::GooglePay(gpay_data) => Ok(Self::try_from((
+                gpay_data,
+                payment_method_token,
+                auth_type,
+            ))?),
             WalletData::PaypalRedirect(_) | WalletData::MobilePayRedirect(_) => Err(
                 ConnectorError::NotImplemented(get_unimplemented_payment_method_error_message(
                     "stripe",
@@ -1930,10 +1946,20 @@ impl TryFrom<&BankRedirectData> for StripePaymentMethodData {
     }
 }
 
-impl TryFrom<(&GooglePayWalletData, Option<PaymentMethodToken>)> for StripePaymentMethodData {
+impl
+    TryFrom<(
+        &GooglePayWalletData,
+        Option<PaymentMethodToken>,
+        enums::AuthenticationType,
+    )> for StripePaymentMethodData
+{
     type Error = error_stack::Report<ConnectorError>;
     fn try_from(
-        (gpay_data, payment_method_token): (&GooglePayWalletData, Option<PaymentMethodToken>),
+        (gpay_data, payment_method_token, auth_type): (
+            &GooglePayWalletData,
+            Option<PaymentMethodToken>,
+            enums::AuthenticationType,
+        ),
     ) -> Result<Self, error_stack::Report<ConnectorError>> {
         match payment_method_token {
             Some(PaymentMethodToken::GooglePayDecrypt(predecrypted_data)) => {
@@ -1944,16 +1970,41 @@ impl TryFrom<(&GooglePayWalletData, Option<PaymentMethodToken>)> for StripePayme
                         field_name: "expiry_year_4_digit",
                     })?;
 
-                Ok(Self::Wallet(StripeWallet::GooglePayPredecryptToken(
-                    Box::new(StripeGooglePayPredecrypt {
-                        number: predecrypted_data.application_primary_account_number.clone(),
-                        exp_year: expiry_year_4_digit,
-                        exp_month: predecrypted_data.card_exp_month.clone(),
-                        eci: predecrypted_data.eci_indicator.clone(),
-                        cryptogram: predecrypted_data.cryptogram.clone(),
-                        tokenization_method: "android_pay".to_string(),
-                    }),
-                )))
+                match (
+                    predecrypted_data.cryptogram.clone(),
+                    predecrypted_data.eci_indicator.clone(),
+                ) {
+                    (Some(cryptogram), Some(eci)) => {
+                        Ok(Self::Wallet(StripeWallet::GooglePayPredecryptToken(
+                            Box::new(StripeGooglePayPredecrypt {
+                                number: predecrypted_data
+                                    .application_primary_account_number
+                                    .clone(),
+                                exp_year: expiry_year_4_digit,
+                                exp_month: predecrypted_data.card_exp_month.clone(),
+                                cryptogram,
+                                eci,
+                                tokenization_method: "android_pay".to_string(),
+                            }),
+                        )))
+                    }
+                    _ => Ok(Self::Card(StripeCardData {
+                        payment_method_data_type: StripePaymentMethodType::Card,
+                        payment_method_data_card_number: predecrypted_data
+                            .application_primary_account_number
+                            .clone(),
+                        payment_method_data_card_exp_month: predecrypted_data
+                            .card_exp_month
+                            .clone(),
+                        payment_method_data_card_exp_year: expiry_year_4_digit,
+                        payment_method_data_card_cvc: None,
+                        payment_method_auth_type: Some(auth_type.into()),
+                        payment_method_data_card_preferred_network: None,
+                        request_incremental_authorization: None,
+                        request_extended_authorization: None,
+                        request_overcapture: None,
+                    })),
+                }
             }
             Some(PaymentMethodToken::Token(gpay_token)) => {
                 // Use decrypted token flow
@@ -4780,20 +4831,14 @@ impl
     ) -> Result<Self, Self::Error> {
         let pm_data = &item.request.payment_method_data;
         match pm_data {
-            PaymentMethodData::Card(ref ccard) => {
-                let payment_method_auth_type = match auth_type {
-                    enums::AuthenticationType::ThreeDs => Auth3ds::Any,
-                    enums::AuthenticationType::NoThreeDs => Auth3ds::Automatic,
-                };
-                Ok(Self::try_from((
-                    ccard,
-                    payment_method_auth_type,
-                    None,
-                    item.request.request_incremental_authorization,
-                    None,
-                    None,
-                ))?)
-            }
+            PaymentMethodData::Card(ref ccard) => Ok(Self::try_from((
+                ccard,
+                auth_type,
+                None,
+                item.request.request_incremental_authorization,
+                None,
+                None,
+            ))?),
             PaymentMethodData::PayLater(_) => Ok(Self::PayLater(StripePayLaterData {
                 payment_method_data_type: pm_type,
             })),
@@ -4803,6 +4848,7 @@ impl
             PaymentMethodData::Wallet(ref wallet_data) => Ok(Self::try_from((
                 wallet_data,
                 item.payment_method_token.clone(),
+                auth_type,
             ))?),
             PaymentMethodData::BankDebit(bank_debit_data) => {
                 let (_pm_type, bank_data) = get_bank_debit_data(bank_debit_data);
