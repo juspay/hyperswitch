@@ -571,6 +571,17 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                 },
                 api_models::enums::Connector::Shift4 => true,
                 api_models::enums::Connector::Nuvei => true,
+                // Paysafe card + 3DS: PreAuthenticate mints the handle. When Paysafe returns no ACS
+                // redirect (frictionless / no challenge), continue straight to the settle Authorize
+                // in this flow; when it returns a redirect, break so the shopper completes the
+                // challenge and the settle runs from CompleteAuthorize.
+                api_models::enums::Connector::Paysafe => match &authorize_router_data.response {
+                    Ok(types::PaymentsResponseData::TransactionResponse {
+                        redirection_data,
+                        ..
+                    }) => redirection_data.is_none(),
+                    _ => false,
+                },
                 _ => false,
             };
             Ok((authorize_router_data, should_continue_after_preauthenticate))

@@ -1404,13 +1404,13 @@ impl<F, T> TryFrom<ResponseRouterData<F, SantanderPaymentsSyncResponse, T, Payme
                 })
             }
             SantanderPaymentsSyncResponse::Boleto(res) => {
-                let status = res.content.first().map(|data| data.status.clone()).ok_or(
-                    errors::ConnectorError::MissingRequiredField {
-                        field_name: "status",
-                    },
-                )?;
+                let attempt_status = res
+                    .content
+                    .first()
+                    .map(|data| AttemptStatus::from(data.status.clone()))
+                    .unwrap_or(AttemptStatus::AuthenticationPending);
                 Ok(Self {
-                    status: AttemptStatus::from(status),
+                    status: attempt_status,
                     response: item.data.response,
                     ..item.data
                 })
