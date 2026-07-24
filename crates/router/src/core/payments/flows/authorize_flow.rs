@@ -1666,15 +1666,24 @@ pub async fn call_unified_connector_service_pre_authenticate(
                 )
                 .attach_printable("Failed to deserialize UCS response")?;
 
-            let router_data_response = router_data_response.map(|(response, status)| {
-                router_data.status = status;
-                response
-            });
             let router_data_response = match router_data_response {
-                Ok(response) => Ok(transform_response_for_pre_authenticate_flow(
-                    connector, response,
-                )?),
-                Err(err) => Err(err),
+                Ok((response, status)) => {
+                    router_data.status = status;
+                    Ok(transform_response_for_pre_authenticate_flow(
+                        connector, response,
+                    )?)
+                }
+                Err(err) => {
+                    // Apply the error's attempt_status on the failure path too (the Ok-only
+                    // `.map` previously left router_data.status at the prior value, e.g.
+                    // payment_method_awaited, while the Direct gateway sets Failure on an
+                    // error envelope). Mirrors the authenticate caller in
+                    // complete_authorize_flow.rs.
+                    if let Some(attempt_status) = err.attempt_status {
+                        router_data.status = attempt_status;
+                    }
+                    Err(err)
+                }
             };
             // Extract authentication_data from the response to store in connector_metadata
             router_data.response = router_data_response;
