@@ -715,6 +715,7 @@ export const CONNECTOR_LISTS = {
     PAYJUSTNOW: ["payjustnow"],
     PAYJUSTNOWINSTORE: ["payjustnowinstore"],
     AUTH_SERVICE_ELIGIBILITY: ["stripe", "cybersource"],
+    VAULT_TOKENIZATION: ["stripe"],
     STEP_UP_AUTH: ["cybersource"],
     PARTIAL_AUTH: ["nuvei", "checkout", "worldpayvantiv"],
     PAYMENT_RESPONSE_HASH: ["stripe"],

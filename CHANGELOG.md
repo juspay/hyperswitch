@@ -4,6 +4,30 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.07.24.0
+
+### Features
+
+- **relay:** Store connector response_data in relay table ([#13440](https://github.com/juspay/hyperswitch/pull/13440)) ([`8106cea`](https://github.com/juspay/hyperswitch/commit/8106cea979527eea229a71f000b475a102369d0b))
+
+### Bug Fixes
+
+- **connector:**
+  - [datatrans] fix void flow ([#13432](https://github.com/juspay/hyperswitch/pull/13432)) ([`1ec203b`](https://github.com/juspay/hyperswitch/commit/1ec203baab362a92891c4559f74dc3345f240f5d))
+  - [Novalnet] add required fields for cards ([#13419](https://github.com/juspay/hyperswitch/pull/13419)) ([`a7680b0`](https://github.com/juspay/hyperswitch/commit/a7680b0c1dc48cc99a07042e786656ec5f9eb381))
+- **core:** Delete-tokenize scheduling for initial task and retries ([#13375](https://github.com/juspay/hyperswitch/pull/13375)) ([`4a4e00d`](https://github.com/juspay/hyperswitch/commit/4a4e00d4bf49109afa6f83deb79ba826bf88f497))
+- **payment_methods:** Prevent orphan payment_methods row on recurring/MIT charge via connector mandate ([#13417](https://github.com/juspay/hyperswitch/pull/13417)) ([`c3881f3`](https://github.com/juspay/hyperswitch/commit/c3881f3d571afa0d67f1022d97ef906c4b73892b))
+
+### Testing
+
+- **cypress:**
+  - Add 3DS routing region UAS config coverage ([#13388](https://github.com/juspay/hyperswitch/pull/13388)) ([`b5bbb0d`](https://github.com/juspay/hyperswitch/commit/b5bbb0d4cffb1f4823ff1e74503cb5bad5bc0f3c))
+  - Add acquirer-specific configurations coverage for business profiles ([#13154](https://github.com/juspay/hyperswitch/pull/13154)) ([`9766c56`](https://github.com/juspay/hyperswitch/commit/9766c5651b4ae18b89365a5f92f561ed897df7bf))
+
+**Full Changelog:** [`2026.07.23.0...2026.07.24.0`](https://github.com/juspay/hyperswitch/compare/2026.07.23.0...2026.07.24.0)
+
+- - -
+
 ## 2026.07.23.0
 
 ### Features
