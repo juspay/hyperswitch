@@ -34,7 +34,7 @@ use serde::{Deserialize, Serialize};
 
 use super::RoutingResult;
 use crate::{
-    core::{configs::dimension_state, errors},
+    core::{configs::dimension_state, errors, metrics},
     db::domain,
     routes::{app::SessionStateInfo, SessionState},
     services::{self, logger},
@@ -90,6 +90,22 @@ pub struct HybridRoutingOutcome {
     pub routing_approach: RoutingApproach,
 }
 
+fn decision_engine_endpoint_label(path: &str) -> &'static str {
+    let path = path.split('?').next().unwrap_or(path).trim_matches('/');
+    match path {
+        "decide-gateway" => "decide_gateway",
+        "update-gateway-score" => "update_gateway_score",
+        "routing/evaluate" => "routing_evaluate",
+        "routing/hybrid" => "routing_hybrid",
+        "routing/create" => "routing_create",
+        "routing/activate" => "routing_activate",
+        p if p.starts_with("routing/list/active") => "routing_list_active",
+        p if p.starts_with("routing/list") => "routing_list",
+        p if p.starts_with("rule") => "rule_config",
+        _ => "other",
+    }
+}
+
 pub async fn build_and_send_decision_engine_http_request<Req, Res, ErrRes>(
     state: &SessionState,
     http_method: services::Method,
@@ -124,11 +140,26 @@ where
         .map(|wrapper| wrapper.parse_response)
         .unwrap_or(true);
 
+    let endpoint_label = decision_engine_endpoint_label(path);
+
     let closure = || async {
+        let request_start = std::time::Instant::now();
         let response =
             services::call_connector_api(state, http_request, "Decision Engine API call")
                 .await
                 .change_context(errors::RoutingError::OpenRouterCallFailed)?;
+
+        let status_code = match &response {
+            Ok(res) => res.status_code,
+            Err(err) => err.status_code,
+        };
+        let metrics_attributes = router_env::metric_attributes!(
+            ("endpoint", endpoint_label),
+            ("status_code", status_code.to_string()),
+        );
+        metrics::DECISION_ENGINE_REQUEST_TIME
+            .record(request_start.elapsed().as_secs_f64(), metrics_attributes);
+        metrics::DECISION_ENGINE_REQUESTS.add(1, metrics_attributes);
 
         match response {
             Ok(resp) => {
