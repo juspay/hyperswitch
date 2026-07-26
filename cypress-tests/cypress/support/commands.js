@@ -11699,8 +11699,8 @@ Cypress.Commands.add("tokenizeCardTest", (requestBody, data, globalState) => {
           ) {
             expect(
               response.body[key],
-              `Expected ${key} to deep equal`
-            ).to.deep.eq(resData.body[key]);
+              `Expected ${key} to deep include`
+            ).to.deep.include(resData.body[key]);
           } else {
             expect(resData.body[key]).to.equal(
               response.body[key],

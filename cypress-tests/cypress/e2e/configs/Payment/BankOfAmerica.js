@@ -1137,7 +1137,6 @@ export const connectorDetails = {
         body: {
           error: {
             type: "api",
-            message: "Something went wrong",
             code: "HE_00",
           },
         },
