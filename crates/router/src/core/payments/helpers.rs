@@ -2473,14 +2473,27 @@ pub fn decide_payment_method_retrieval_action(
     }
 }
 
-pub async fn is_ucs_enabled(state: &SessionState) -> bool {
-    dimension_state::Dimensions::new()
-        .get_ucs_enabled(
-            state.store.as_ref(),
-            state.superposition_service.as_ref(),
-            None,
-        )
+pub async fn is_ucs_enabled(state: &SessionState, config_key: &str) -> bool {
+    let db = state.store.as_ref();
+    db.find_config_by_key_unwrap_or(config_key, Some("false".to_string()))
         .await
+        .inspect_err(|error| {
+            logger::error!(
+                ?error,
+                "Failed to fetch `{config_key}` UCS enabled config from DB"
+            );
+        })
+        .ok()
+        .and_then(|config| {
+            config
+                .config
+                .parse::<bool>()
+                .inspect_err(|error| {
+                    logger::error!(?error, "Failed to parse `{config_key}` UCS enabled config");
+                })
+                .ok()
+        })
+        .unwrap_or(false)
 }
 
 #[derive(Debug, Clone, Deserialize)]

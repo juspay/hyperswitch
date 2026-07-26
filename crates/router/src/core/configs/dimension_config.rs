@@ -960,21 +960,6 @@ impl DatabaseBackedConfig for BlocklistGuard {
 }
 
 config! {
-    superposition_key = UCS_ENABLED,
-    output = bool,
-    default = false,
-    requires = dimension_state::EmptyDimensions,
-    targeting_key = id_type::MerchantId
-}
-
-impl DatabaseBackedConfig for UcsEnabled {
-    const KEY: &'static str = "ucs_enabled";
-    fn db_key(_dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
-        Some("ucs_enabled".to_string())
-    }
-}
-
-config! {
     superposition_key = SAVE_WALLET_DECRYPTED_DATA,
     output = bool,
     default = false,
