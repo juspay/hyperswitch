@@ -45,14 +45,6 @@ describe("Network Tokenization Tests", function () {
 
         const updateBusinessProfileBody = {
           is_network_tokenization_enabled: true,
-          network_tokenization_credentials: {
-            internal_network_token_service: {
-              token_service_api_key: "test_token_service_key",
-              public_key: "test_public_key",
-              private_key: "test_private_key",
-              key_id: "test_key_id",
-            },
-          },
         };
 
         cy.UpdateBusinessProfileTest(
@@ -193,11 +185,10 @@ describe("Network Tokenization Tests", function () {
   });
 
   context("reset-business-profile", () => {
-    it("Reset business profile to disable network tokenization and clear credentials", () => {
-      cy.step("Reset network tokenization flag and clear credentials", () => {
+    it("Reset business profile to disable network tokenization", () => {
+      cy.step("Reset network tokenization flag", () => {
         const updateBusinessProfileBody = {
           is_network_tokenization_enabled: false,
-          network_tokenization_credentials: null,
         };
 
         cy.UpdateBusinessProfileTest(
