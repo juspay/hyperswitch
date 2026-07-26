@@ -34,7 +34,7 @@ describe("Network Tokenization Tests", function () {
   });
 
   context("network-tokenization-payment-flow", () => {
-    it("Enable Network Tokenization -> Create Payment Intent -> Confirm Payment -> Retrieve Payment", () => {
+    it("Payment succeeds with network tokenization enabled on profile (bankofamerica not in network_tokenization_supported_connectors)", () => {
       let shouldContinue = true;
 
       cy.step("Update Business Profile to enable network tokenization", () => {
@@ -107,57 +107,70 @@ describe("Network Tokenization Tests", function () {
         }
       });
 
-      cy.step("Retrieve Payment and verify network tokenization fields", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Retrieve Payment");
-          return;
+      cy.step(
+        "Retrieve Payment and verify tokenization fields are null (no tokenization attempted for unsupported connector)",
+        () => {
+          if (!shouldContinue) {
+            cy.task("cli_log", "Skipping step: Retrieve Payment");
+            return;
+          }
+
+          cy.retrievePaymentCallTest({ globalState });
+
+          cy.task(
+            "cli_log",
+            "bankofamerica is not in network_tokenization_supported_connectors (adyen, cybersource, peachpayments, trustpay). Tokenization is not attempted even when is_network_tokenization_enabled is true on the profile. Null fields confirm no tokenization occurred — this is expected behavior, not a service failure."
+          );
+
+          cy.request({
+            method: "GET",
+            url: `${globalState.get("baseUrl")}/payments/${globalState.get(
+              "paymentID"
+            )}?force_sync=true&expand_attempts=true`,
+            headers: {
+              "Content-Type": "application/json",
+              "api-key": globalState.get("apiKey"),
+            },
+            failOnStatusCode: false,
+          }).then((response) => {
+            expect(response.status).to.equal(200);
+            expect(response.body).to.have.property(
+              "status",
+              "succeeded",
+              "Payment should succeed even when network tokenization is not attempted"
+            );
+            expect(response.body).to.have.property(
+              "network_transaction_id",
+              null,
+              "network_transaction_id is null — bankofamerica not in network_tokenization_supported_connectors, no tokenization attempted"
+            );
+            expect(response.body).to.have.property(
+              "network_transaction_link_id",
+              null,
+              "network_transaction_link_id is null — bankofamerica not in network_tokenization_supported_connectors, no tokenization attempted"
+            );
+            expect(response.body).to.have.property(
+              "tokenization",
+              null,
+              "tokenization is null — bankofamerica not in network_tokenization_supported_connectors, no tokenization attempted"
+            );
+            expect(response.body).to.have.property(
+              "payment_method_tokenization_details",
+              null,
+              "payment_method_tokenization_details is null — bankofamerica not in network_tokenization_supported_connectors, no tokenization attempted"
+            );
+          });
         }
-
-        cy.retrievePaymentCallTest({ globalState });
-
-        cy.request({
-          method: "GET",
-          url: `${globalState.get("baseUrl")}/payments/${globalState.get(
-            "paymentID"
-          )}?force_sync=true&expand_attempts=true`,
-          headers: {
-            "Content-Type": "application/json",
-            "api-key": globalState.get("apiKey"),
-          },
-          failOnStatusCode: false,
-        }).then((response) => {
-          expect(response.status).to.equal(200);
-          expect(response.body).to.have.property(
-            "network_transaction_id",
-            null,
-            "network_transaction_id should be present (null when tokenization service is unavailable)"
-          );
-          expect(response.body).to.have.property(
-            "network_transaction_link_id",
-            null,
-            "network_transaction_link_id should be present (null when tokenization service is unavailable)"
-          );
-          expect(response.body).to.have.property(
-            "tokenization",
-            null,
-            "tokenization should be present (null when tokenization service is unavailable)"
-          );
-          expect(response.body).to.have.property(
-            "payment_method_tokenization_details",
-            null,
-            "payment_method_tokenization_details should be present (null when tokenization service is unavailable)"
-          );
-        });
-      });
+      );
     });
   });
 
   context("tokenize-card-endpoint", () => {
-    it("Tokenize card via /payment_methods/tokenize-card — verify endpoint contract (500 expected with fake credentials)", () => {
+    it("Tokenize card endpoint returns 500 when network tokenization service is not configured", () => {
       const shouldContinue = true;
 
       cy.step(
-        "Tokenize card — verify endpoint exists and request format is accepted",
+        "Tokenize card — verify endpoint returns NetworkTokenizationServiceNotConfigured error",
         () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: Tokenize card");
@@ -166,7 +179,7 @@ describe("Network Tokenization Tests", function () {
 
           cy.task(
             "cli_log",
-            "Expecting 500 HE_00: fake tokenization credentials prevent the NetworkTokenizationService from connecting to a real tokenization provider. A 500 (not 400/401/404) confirms the endpoint exists, the request body schema is valid, and admin API key authentication works."
+            "The /payment_methods/tokenize-card endpoint checks the global [network_tokenization_service] server config, not profile-level credentials. When the service is not configured, it returns NetworkTokenizationServiceNotConfigured which maps to InternalServerError (HE_00). This is the only stable error code for this path — the error occurs before the tokenization service API is called, so no tokenization-specific error code (e.g. NT_XX) is available. The 500 (not 400/401/404) confirms the endpoint exists, the request body schema is valid, and admin API key authentication works."
           );
 
           const data = getConnectorDetails(globalState.get("connectorId"))[
@@ -180,10 +193,11 @@ describe("Network Tokenization Tests", function () {
   });
 
   context("reset-business-profile", () => {
-    it("Reset business profile to disable network tokenization", () => {
-      cy.step("Reset network tokenization flags", () => {
+    it("Reset business profile to disable network tokenization and clear credentials", () => {
+      cy.step("Reset network tokenization flag and clear credentials", () => {
         const updateBusinessProfileBody = {
           is_network_tokenization_enabled: false,
+          network_tokenization_credentials: null,
         };
 
         cy.UpdateBusinessProfileTest(
