@@ -64,6 +64,12 @@ schema = { type = "string" }
 description = "Business profile identifier"
 change_reason = "Initial setup"
 
+[dimensions.transaction_type]
+position = 10
+schema = { type = "string" }
+description = "Transaction type identifier (payment, payout or three_ds_authentication)"
+change_reason = "Initial setup"
+
 [default-configs.requires_cvv]
 value = true
 schema = { type = "boolean" }
