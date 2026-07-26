@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.07.22.0-hotfix1
+
+### Bug Fixes
+
+- **payment_link:** Derive redirection log endpoint from router base_url ([#13453](https://github.com/juspay/hyperswitch/pull/13453)) ([`2a42a5f`](https://github.com/juspay/hyperswitch/commit/2a42a5fa7f6b66b447e71153581a6a95068b5277))
+
+**Full Changelog:** [`2026.07.22.0...2026.07.22.0-hotfix1`](https://github.com/juspay/hyperswitch/compare/2026.07.22.0...2026.07.22.0-hotfix1)
+
+- - -
+
 ## 2026.07.22.0
 
 ### Features
