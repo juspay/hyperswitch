@@ -120,7 +120,7 @@ describe("Network Tokenization Tests", function () {
 
   context("tokenize-card-endpoint", () => {
     it("Tokenize card via /payment_methods/tokenize-card (expect 500 with fake credentials)", () => {
-      let shouldContinue = true;
+      const shouldContinue = true;
 
       cy.step("Tokenize card", () => {
         if (!shouldContinue) {
