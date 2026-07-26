@@ -4,10 +4,7 @@ use common_enums::enums::MerchantStorageScheme;
 use common_utils::{fallback_reverse_lookup_not_found, types::keymanager::KeyManagerState};
 use diesel_models::{errors::DatabaseError, kv};
 use error_stack::ResultExt;
-use hyperswitch_domain_models::{
-    behaviour::{Conversion, ReverseConversion},
-    merchant_key_store::MerchantKeyStore,
-};
+use hyperswitch_domain_models::merchant_key_store::MerchantKeyStore;
 #[cfg(not(feature = "payouts"))]
 use hyperswitch_domain_models::{PayoutAttemptInterface, PayoutsInterface};
 use hyperswitch_masking::StrongSecret;
@@ -17,8 +14,8 @@ use serde::de;
 
 #[cfg(not(feature = "payouts"))]
 pub use crate::database::store::Store;
-pub use crate::{database::store::DatabaseStore, mock_db::MockDb};
 use crate::{
+    behaviour::{Conversion, ReverseConversion},
     database::store::PgPool,
     diesel_error_to_data_error,
     errors::{self, RedisErrorExt, StorageResult},
@@ -31,6 +28,7 @@ use crate::{
     utils::{find_all_combined_kv_database, try_redis_get_else_try_database_get},
     RouterStore, TenantConfig, UniqueConstraints,
 };
+pub use crate::{database::store::DatabaseStore, mock_db::MockDb};
 
 #[derive(Debug, Clone)]
 pub struct KVRouterStore<T: DatabaseStore> {
