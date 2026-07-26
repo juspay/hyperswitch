@@ -114,26 +114,68 @@ describe("Network Tokenization Tests", function () {
         }
 
         cy.retrievePaymentCallTest({ globalState });
+
+        cy.request({
+          method: "GET",
+          url: `${globalState.get("baseUrl")}/payments/${globalState.get(
+            "paymentID"
+          )}?force_sync=true&expand_attempts=true`,
+          headers: {
+            "Content-Type": "application/json",
+            "api-key": globalState.get("apiKey"),
+          },
+          failOnStatusCode: false,
+        }).then((response) => {
+          expect(response.status).to.equal(200);
+          expect(response.body).to.have.property(
+            "network_transaction_id",
+            null,
+            "network_transaction_id should be present (null when tokenization service is unavailable)"
+          );
+          expect(response.body).to.have.property(
+            "network_transaction_link_id",
+            null,
+            "network_transaction_link_id should be present (null when tokenization service is unavailable)"
+          );
+          expect(response.body).to.have.property(
+            "tokenization",
+            null,
+            "tokenization should be present (null when tokenization service is unavailable)"
+          );
+          expect(response.body).to.have.property(
+            "payment_method_tokenization_details",
+            null,
+            "payment_method_tokenization_details should be present (null when tokenization service is unavailable)"
+          );
+        });
       });
     });
   });
 
   context("tokenize-card-endpoint", () => {
-    it("Tokenize card via /payment_methods/tokenize-card (expect 500 with fake credentials)", () => {
+    it("Tokenize card via /payment_methods/tokenize-card — verify endpoint contract (500 expected with fake credentials)", () => {
       const shouldContinue = true;
 
-      cy.step("Tokenize card", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Tokenize card");
-          return;
+      cy.step(
+        "Tokenize card — verify endpoint exists and request format is accepted",
+        () => {
+          if (!shouldContinue) {
+            cy.task("cli_log", "Skipping step: Tokenize card");
+            return;
+          }
+
+          cy.task(
+            "cli_log",
+            "Expecting 500 HE_00: fake tokenization credentials prevent the NetworkTokenizationService from connecting to a real tokenization provider. A 500 (not 400/401/404) confirms the endpoint exists, the request body schema is valid, and admin API key authentication works."
+          );
+
+          const data = getConnectorDetails(globalState.get("connectorId"))[
+            "card_pm"
+          ]["NetworkTokenization"];
+
+          cy.tokenizeCardTest({}, data, globalState);
         }
-
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["NetworkTokenization"];
-
-        cy.tokenizeCardTest({}, data, globalState);
-      });
+      );
     });
   });
 
