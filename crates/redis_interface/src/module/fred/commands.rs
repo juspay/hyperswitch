@@ -1163,7 +1163,7 @@ impl super::RedisConnectionWithContext {
                 track_redis_call(
                     self.request_id.as_deref(),
                     self.redis_conn.event_emitter.as_ref(),
-                    RedisOperation::StreamReadGroup,
+                    RedisOperation::StreamReadWithOptions,
                     self.redis_conn.pool.xreadgroup_map(
                         group_name,
                         consumer_name,

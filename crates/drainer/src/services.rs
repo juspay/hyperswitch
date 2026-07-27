@@ -19,12 +19,6 @@ pub struct Store {
     pub request_id: Option<String>,
 }
 
-impl Store {
-    pub fn get_redis_conn(&self) -> redis_interface::RedisConnectionWithContext {
-        redis_interface::RedisConnectionWithContext::new(self.redis_conn.clone(), self)
-    }
-}
-
 impl RequestContext for Store {
     fn request_id(&self) -> Option<&str> {
         self.request_id.as_deref()
@@ -67,6 +61,10 @@ impl Store {
 
     pub fn use_legacy_version(&self) -> bool {
         self.config.use_legacy_version
+    }
+
+    pub fn get_redis_conn(&self) -> redis_interface::RedisConnectionWithContext {
+        redis_interface::RedisConnectionWithContext::new(self.redis_conn.clone(), self)
     }
 }
 

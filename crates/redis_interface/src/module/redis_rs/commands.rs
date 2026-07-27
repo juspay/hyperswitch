@@ -1222,16 +1222,10 @@ impl super::RedisConnectionWithContext {
             options = options.group(group_name, consumer_name);
         }
 
-        let operation = if group.is_some() {
-            RedisOperation::StreamReadGroup
-        } else {
-            RedisOperation::StreamReadWithOptions
-        };
-
         let reply: redis::streams::StreamReadReply = track_redis_call(
             self.request_id.as_deref(),
             self.redis_conn.event_emitter.as_ref(),
-            operation,
+            RedisOperation::StreamReadWithOptions,
             conn.xread_options(&stream_keys, &ids, &options),
         )
         .await

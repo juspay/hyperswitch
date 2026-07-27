@@ -55,7 +55,6 @@ pub(crate) enum RedisOperation {
     StreamGetLength,
     StreamReadEntries,
     StreamReadWithOptions,
-    StreamReadGroup,
     AppendElementsToList,
     GetListElements,
     GetListLength,
