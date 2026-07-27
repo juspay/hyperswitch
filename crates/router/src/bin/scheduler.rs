@@ -367,6 +367,9 @@ impl ProcessTrackerWorkflows<routes::SessionState> for WorkflowRunner {
                             )
                     }
                 }
+                storage::ProcessTrackerRunner::NetworkTokenizationWorkflow => Ok(Box::new(
+                    workflows::network_tokenization::NetworkTokenizationWorkflow,
+                )),
             }
         };
 
