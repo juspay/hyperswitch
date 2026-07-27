@@ -66,6 +66,7 @@ release = [
     "encryption_service",
     "dynamic_routing",
     "payout_retry",
+    "deja",
 ]
 oltp = ["storage_impl/oltp"]
 kv_store = ["scheduler/kv_store"]
@@ -148,7 +149,6 @@ tokenization_v2 = [
 deja = [
     "dep:deja",
     "dep:deja-core",
-    "v1",
     "common_utils/deja",
     "router_env/deja",
     "external_services/deja",
@@ -288,8 +288,8 @@ common_utils = { version = "0.1.0", path = "../common_utils", features = [
     "keymanager",
 ] }
 common_types = { version = "0.1.0", path = "../common_types" }
-deja = { git = "https://github.com/juspay/deja", rev = "075a614324897b8b6a878af36d7ac243fbec5d33", optional = true, default-features = false }
-deja-core = { git = "https://github.com/juspay/deja", rev = "075a614324897b8b6a878af36d7ac243fbec5d33", optional = true }
+deja = { git = "https://github.com/juspay/deja", rev = "2c3a795ef4d8d2a5eebc47bbe7134984b75be6b3", optional = true, default-features = false }
+deja-core = { git = "https://github.com/juspay/deja", rev = "2c3a795ef4d8d2a5eebc47bbe7134984b75be6b3", optional = true }
 connector_configs = { version = "0.1.0", path = "../connector_configs" }
 currency_conversion = { version = "0.1.0", path = "../currency_conversion" }
 diesel_models = { version = "0.1.0", path = "../diesel_models", features = [

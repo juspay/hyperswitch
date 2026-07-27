@@ -151,6 +151,14 @@ where
     fn get_accounts_replica_pool(&self) -> &PgPool {
         self.router_store.get_accounts_replica_pool()
     }
+
+    /// Request correlation consumed by the deja replay DB routing hook.
+    #[cfg(feature = "deja")]
+    fn get_request_id(&self) -> Option<String> {
+        self.request_id
+            .clone()
+            .or_else(|| self.router_store.get_request_id())
+    }
 }
 
 impl<T: DatabaseStore> RedisConnInterface for KVRouterStore<T> {
