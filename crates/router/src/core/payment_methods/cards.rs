@@ -5782,28 +5782,27 @@ pub async fn list_customer_payment_method(
         .unwrap_or(false);
 
     // The MCA list is used to evaluate if the payment method has connector_mandate_details for any active MCA
-    let merchant_connector_accounts = if let Some(profile_id) = profile_id {
-        Some(
-        state
-            .store
-            .list_enabled_merchant_connector_accounts_without_encrypted_by_merchant_id_profile_id(
-                platform.get_processor().get_account().get_id(),
-                &profile_id,
-            )
-            .await
-            .change_context(
-                errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                    id: platform
-                        .get_processor()
-                        .get_account()
-                        .get_id()
-                        .get_string_repr()
-                        .to_owned(),
-                },
-            )?,
-    )
-    } else {
-        None
+    let merchant_connector_accounts = match business_profile.as_ref() {
+        Some(business_profile) => Some(
+            state
+                .store
+                .list_enabled_merchant_connector_accounts_without_encrypted_by_merchant_id_profile_id(
+                    platform.get_processor().get_account().get_id(),
+                    business_profile.get_id(),
+                )
+                .await
+                .change_context(
+                    errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                        id: platform
+                            .get_processor()
+                            .get_account()
+                            .get_id()
+                            .get_string_repr()
+                            .to_owned(),
+                    },
+                )?,
+        ),
+        None => None,
     };
 
     for pm in resp.into_iter() {
