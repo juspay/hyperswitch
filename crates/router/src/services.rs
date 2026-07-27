@@ -31,7 +31,10 @@ use storage_impl::{errors::StorageResult, redis::RedisStore, RouterStore};
 use tokio::sync::oneshot;
 
 pub use self::{api::*, encryption::*};
-use crate::{configs::Settings, core::errors};
+use crate::{
+    configs::{settings::Database, Settings},
+    core::errors,
+};
 
 #[cfg(not(feature = "olap"))]
 pub type StoreType = storage_impl::database::store::Store;
@@ -50,14 +53,17 @@ pub type Store = KVRouterStore<StoreType>;
 pub async fn get_store(
     config: &Settings,
     tenant: &dyn TenantConfig,
+    master_config: Database,
+    accounts_config: Database,
     cache_store: Arc<RedisStore>,
     test_transaction: bool,
     key_manager_state: keymanager::KeyManagerState,
 ) -> StorageResult<Store> {
-    let master_config = config.master_database.clone().into_inner();
-
+    // Reads are served off a single replica pool regardless of tenant/accounts/global role.
     #[cfg(feature = "olap")]
     let replica_config = config.replica_database.clone().into_inner();
+    #[cfg(feature = "olap")]
+    let accounts_replica_config = replica_config.clone();
 
     #[allow(clippy::expect_used)]
     let master_enc_key = hex::decode(config.secrets.get_inner().master_enc_key.clone().expose())
@@ -65,11 +71,16 @@ pub async fn get_store(
         .expect("Failed to decode master key from hex");
 
     #[cfg(not(feature = "olap"))]
-    let conf = master_config.into();
+    let conf = (master_config.into(), accounts_config.into());
     #[cfg(feature = "olap")]
     // this would get abstracted, for all cases
     #[allow(clippy::useless_conversion)]
-    let conf = (master_config.into(), replica_config.into());
+    let conf = (
+        master_config.into(),
+        replica_config.into(),
+        accounts_config.into(),
+        accounts_replica_config.into(),
+    );
 
     let store: RouterStore<StoreType> = if test_transaction {
         RouterStore::test_store(
@@ -114,7 +125,19 @@ pub async fn get_cache_store(
     RouterStore::<StoreType>::cache_store(&config.redis, shut_down_signal).await
 }
 
+// deja: the per-merchant data-encryption key (DEK) is random. It is stored
+// (master-key-encrypted) in merchant_key_store AND used to encrypt the merchant's
+// own columns, so it must replay to the recorded value or the substituted DB rows
+// and the response body diverge. Ok-only: the ring error type is non-serializable.
 #[inline]
+#[cfg_attr(
+    feature = "deja",
+    deja::id(
+        component = "router::services",
+        operation = "generate_aes256_key",
+        codec = ResultOkCodec,
+    )
+)]
 pub fn generate_aes256_key() -> errors::CustomResult<[u8; 32], common_utils::errors::CryptoError> {
     use ring::rand::SecureRandom;
 

@@ -18,7 +18,7 @@ use common_utils::{
 };
 use error_stack::{report, Report, ResultExt};
 use hyperswitch_domain_models::{
-    api::ApplicationResponse,
+    api::WebhookResponse,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
@@ -1119,8 +1119,8 @@ impl IncomingWebhook for Braintree {
         _request: &IncomingWebhookRequestDetails<'_>,
         _error_kind: Option<IncomingWebhookFlowError>,
         _connector_authentication_type: Option<crypto::Encryptable<Secret<serde_json::Value>>>,
-    ) -> CustomResult<ApplicationResponse<serde_json::Value>, errors::ConnectorError> {
-        Ok(ApplicationResponse::TextPlain("[accepted]".to_string()))
+    ) -> CustomResult<WebhookResponse<serde_json::Value>, errors::ConnectorError> {
+        Ok(WebhookResponse::TextPlain("[accepted]".to_string()))
     }
 
     fn get_dispute_details(

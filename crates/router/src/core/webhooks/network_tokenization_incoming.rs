@@ -376,6 +376,7 @@ pub async fn handle_metadata_update(
             let compat_action = payment_methods::payment_method_modular_compat_action(
                 state,
                 &payment_method.merchant_id,
+                &platform.get_provider().get_account().organization_id,
                 payment_method.customer_id.as_ref(),
             )
             .await;
