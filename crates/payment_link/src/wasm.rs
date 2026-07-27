@@ -77,6 +77,7 @@ pub fn generate_payment_link_preview_impl(config_json: &str) -> Result<String, S
         sdk_url,
         css_script,
         html_meta_tags,
+        redirection_log_endpoint: None,
     };
 
     build_payment_link_html(payment_link_form_data)
