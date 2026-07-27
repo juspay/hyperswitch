@@ -841,10 +841,6 @@ pub async fn call_unified_connector_service_authenticate(
                         connector, response,
                     )?)
                 }
-                // Apply the error's attempt_status on the failure path too (mirrors the
-                // authorize gateway). Without this, a declined authenticate left
-                // router_data.status at the prior `authentication_pending` while Direct
-                // moved it to `failure`.
                 Err(err) => {
                     if let Some(attempt_status) = err.attempt_status {
                         router_data.status = attempt_status;
