@@ -54,7 +54,7 @@ default_hash_ttl = 900
 use_legacy_version = false
 stream_read_count = 1
 auto_pipeline = true
-broadcast_channel_capacity = 32 
+broadcast_channel_capacity = 32
 disable_auto_backpressure = false
 max_in_flight_commands = 5000
 default_command_timeout = 30
@@ -1501,7 +1501,7 @@ enabled = "true"
 base_url = "http://localhost:8000"
 connection_timeout = 10
 request_timeout = 35
-ucs_only_connectors = "imerchantsolutions, paytm, phonepe, hyperpg, revolv3, fiservcommercehub, absa_sanlam, interpayments, payconex, dlocal, barclaycard, tsys_transit, jpmorgan"    # Comma-separated list of connectors that use UCS only
+ucs_only_connectors = "imerchantsolutions, paytm, phonepe, hyperpg, revolv3, fiservcommercehub, absa_sanlam, interpayments, payconex, dlocal, barclaycard, tsys_transit, jpmorgan, klarna"    # Comma-separated list of connectors that use UCS only
 ucs_psync_disabled_connectors = "cashtocode, trustly"    # Comma-separated list of connectors to disable UCS PSync call
 
 [revenue_recovery]
@@ -1568,7 +1568,7 @@ internal_api_key = "test_internal_api_key"
 payments_base_url = "http://localhost:8080"
 
 [superposition]
-endpoint = "http://localhost:8081" # Superposition service endpoint
+endpoint = "http://localhost:8071" # Superposition service endpoint
 token = "123456" # Superposition token
 org_id = "localorg" # Organization ID in Superposition
 workspace_id = "dev" # Workspace ID in Superposition

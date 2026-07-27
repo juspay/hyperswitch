@@ -246,6 +246,14 @@ pub enum ConnectorSpecificConfig {
         username: Secret<String>,
         password: Secret<String>,
     },
+    /// Klarna connector configuration
+    Klarna {
+        /// Klarna Secret — HTTP Basic auth password (BodyKey `api_key`)
+        api_key: Secret<String>,
+        /// Klarna Key ID — HTTP Basic auth username (BodyKey `key1`)
+        key1: Secret<String>,
+        base_url: Option<String>,
+    },
     /// Worldpay connector configuration
     Worldpay {
         username: Secret<String>,
@@ -867,6 +875,14 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                     password: api_key.clone(),
                 }),
                 _ => Err(err("Bluesnap requires BodyKey auth type")),
+            },
+            Connector::Klarna => match auth {
+                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Klarna {
+                    api_key: api_key.clone(),
+                    key1: key1.clone(),
+                    base_url: None,
+                }),
+                _ => Err(err("Klarna requires BodyKey auth type")),
             },
             Connector::Cryptopay => match auth {
                 ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Cryptopay {

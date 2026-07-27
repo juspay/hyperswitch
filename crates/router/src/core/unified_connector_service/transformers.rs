@@ -531,7 +531,13 @@ impl
                 .map(payments_grpc::PaymentChannel::foreign_try_from)
                 .transpose()?
                 .map(|payment_channel| payment_channel.into()),
-            connector_feature_data: None,
+            // Forward the merchant connector account metadata (e.g. Klarna's
+            // `klarna_region`) so UCS connectors can resolve region-templated
+            // URLs and other MCA-configured behavior.
+            connector_feature_data: router_data
+                .connector_meta_data
+                .as_ref()
+                .map(|data| Secret::new(data.peek().to_string())),
             locale: router_data.request.locale.clone(),
             continue_redirection_url: router_data.request.complete_authorize_url.clone(),
             redirection_response: None,
