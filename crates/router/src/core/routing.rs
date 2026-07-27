@@ -85,7 +85,6 @@ pub async fn routing_entry(
         .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
         .with_profile_id(profile_id.clone());
 
-    use crate::core::payments::routing::utils::get_routing_result_source;
     let routing_source = get_routing_result_source(&state, &dimensions).await;
     let is_cutover = matches!(
         routing_source,
@@ -95,12 +94,27 @@ pub async fn routing_entry(
     // Mint a fresh one-time code only when a card was clicked (`target`) on a cut-over profile.
     let redirect_url = match (is_cutover, target) {
         (true, Some(target)) => {
-            // First mint may fail if the profile has no DE merchant yet; create it best-effort and retry once.
             let code = match helpers::mint_decision_engine_sso_code(&state, &profile_id).await {
                 Ok(code) => code,
-                Err(_) => {
+                // Provision the DE merchant only when it does not exist yet (DE returns 404), then retry once.
+                Err(err)
+                    if matches!(
+                        err.current_context(),
+                        errors::RoutingError::RoutingEventsError {
+                            status_code: 404,
+                            ..
+                        }
+                    ) =>
+                {
                     let _ = helpers::create_decision_engine_merchant(&state, &profile_id).await;
-                    helpers::mint_decision_engine_sso_code(&state, &profile_id).await?
+                    helpers::mint_decision_engine_sso_code(&state, &profile_id)
+                        .await
+                        .change_context(errors::ApiErrorResponse::InternalServerError)?
+                }
+                Err(err) => {
+                    return Err(err)
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed to mint Decision Engine SSO code");
                 }
             };
             Some(format!(

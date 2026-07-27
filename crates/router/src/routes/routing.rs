@@ -35,11 +35,13 @@ use crate::{
 /// Dashboard routing entry: returns the profile's routing source and, with `?target`, a DE deep-link.
 #[cfg(all(feature = "olap", feature = "v1"))]
 #[instrument(skip_all)]
-pub async fn routing_entry(state: web::Data<AppState>, req: HttpRequest) -> impl Responder {
+pub async fn routing_entry(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    query: web::Query<routing_types::RoutingEntryRequest>,
+) -> impl Responder {
     let flow = Flow::DecisionEngineSsoRedirect;
-    let target = web::Query::<routing_types::RoutingEntryRequest>::from_query(req.query_string())
-        .ok()
-        .and_then(|query| query.into_inner().target);
+    let target = query.into_inner().target;
     Box::pin(oss_api::server_wrap(
         flow,
         state,

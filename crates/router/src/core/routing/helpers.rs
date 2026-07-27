@@ -2746,7 +2746,7 @@ pub struct DecisionEngineMerchantTokenResponse {
 pub async fn mint_decision_engine_sso_code(
     state: &SessionState,
     profile_id: &id_type::ProfileId,
-) -> RouterResult<String> {
+) -> error_stack::Result<String, errors::RoutingError> {
     let merchant_token_req = open_router::MerchantAccount {
         merchant_id: profile_id.get_string_repr().to_string(),
         gateway_success_rate_based_decider_input: None,
@@ -2762,12 +2762,14 @@ pub async fn mint_decision_engine_sso_code(
             None,
         )
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to mint SSO code on decision engine")?
         .response;
 
     let code = response
-        .ok_or(errors::ApiErrorResponse::InternalServerError)?
+        .ok_or(errors::RoutingError::OpenRouterError(
+            "Decision engine returned an empty SSO code response".to_string(),
+        ))
+        .attach_printable("Decision engine returned an empty SSO code response")?
         .code;
 
     Ok(code)
