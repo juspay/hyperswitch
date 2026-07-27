@@ -1674,11 +1674,6 @@ pub async fn call_unified_connector_service_pre_authenticate(
                     )?)
                 }
                 Err(err) => {
-                    // Apply the error's attempt_status on the failure path too (the Ok-only
-                    // `.map` previously left router_data.status at the prior value, e.g.
-                    // payment_method_awaited, while the Direct gateway sets Failure on an
-                    // error envelope). Mirrors the authenticate caller in
-                    // complete_authorize_flow.rs.
                     if let Some(attempt_status) = err.attempt_status {
                         router_data.status = attempt_status;
                     }
