@@ -143,6 +143,7 @@ mod test {
                 billing_country: Some(enums::Country::France),
                 business_label: None,
                 setup_future_usage: None,
+                surcharge_amount: None,
             },
             payment_method: inputs::PaymentMethodInput {
                 payment_method: Some(enums::PaymentMethod::PayLater),
@@ -189,6 +190,7 @@ mod test {
                 billing_country: Some(enums::Country::France),
                 business_label: None,
                 setup_future_usage: None,
+                surcharge_amount: None,
             },
             payment_method: inputs::PaymentMethodInput {
                 payment_method: Some(enums::PaymentMethod::PayLater),
@@ -236,6 +238,7 @@ mod test {
                 billing_country: Some(enums::Country::France),
                 business_label: None,
                 setup_future_usage: None,
+                surcharge_amount: None,
             },
             payment_method: inputs::PaymentMethodInput {
                 payment_method: Some(enums::PaymentMethod::PayLater),
@@ -283,6 +286,7 @@ mod test {
                 billing_country: Some(enums::Country::France),
                 business_label: None,
                 setup_future_usage: None,
+                surcharge_amount: None,
             },
             payment_method: inputs::PaymentMethodInput {
                 payment_method: Some(enums::PaymentMethod::PayLater),
@@ -330,6 +334,7 @@ mod test {
                 billing_country: Some(enums::Country::France),
                 business_label: None,
                 setup_future_usage: None,
+                surcharge_amount: None,
             },
             payment_method: inputs::PaymentMethodInput {
                 payment_method: Some(enums::PaymentMethod::PayLater),
@@ -377,6 +382,7 @@ mod test {
                 billing_country: Some(enums::Country::France),
                 business_label: None,
                 setup_future_usage: None,
+                surcharge_amount: None,
             },
             payment_method: inputs::PaymentMethodInput {
                 payment_method: Some(enums::PaymentMethod::PayLater),
@@ -424,6 +430,7 @@ mod test {
                 billing_country: Some(enums::Country::France),
                 business_label: None,
                 setup_future_usage: None,
+                surcharge_amount: None,
             },
             payment_method: inputs::PaymentMethodInput {
                 payment_method: Some(enums::PaymentMethod::PayLater),
@@ -471,6 +478,7 @@ mod test {
                 billing_country: Some(enums::Country::France),
                 business_label: None,
                 setup_future_usage: None,
+                surcharge_amount: None,
             },
             payment_method: inputs::PaymentMethodInput {
                 payment_method: Some(enums::PaymentMethod::PayLater),
@@ -518,6 +526,7 @@ mod test {
                 billing_country: Some(enums::Country::France),
                 business_label: None,
                 setup_future_usage: Some(enums::SetupFutureUsage::OffSession),
+                surcharge_amount: None,
             },
             payment_method: inputs::PaymentMethodInput {
                 payment_method: Some(enums::PaymentMethod::PayLater),
@@ -534,7 +543,6 @@ mod test {
             customer_device_data: None,
             issuer_data: None,
         };
-
         let backend = VirInterpreterBackend::<DummyOutput>::with_program(program).expect("Program");
         let result = backend.execute(inp).expect("Execution");
         assert_eq!(result.rule_name.expect("Rule Name").as_str(), "rule_1");
@@ -567,6 +575,7 @@ mod test {
                 billing_country: Some(enums::Country::France),
                 business_label: None,
                 setup_future_usage: None,
+                surcharge_amount: None,
             },
             payment_method: inputs::PaymentMethodInput {
                 payment_method: Some(enums::PaymentMethod::PayLater),
@@ -614,6 +623,7 @@ mod test {
                 billing_country: Some(enums::Country::France),
                 business_label: None,
                 setup_future_usage: None,
+                surcharge_amount: None,
             },
             payment_method: inputs::PaymentMethodInput {
                 payment_method: Some(enums::PaymentMethod::PayLater),
@@ -670,6 +680,7 @@ mod test {
                 billing_country: Some(enums::Country::France),
                 business_label: None,
                 setup_future_usage: None,
+                surcharge_amount: None,
             },
             payment_method: inputs::PaymentMethodInput {
                 payment_method: Some(enums::PaymentMethod::PayLater),

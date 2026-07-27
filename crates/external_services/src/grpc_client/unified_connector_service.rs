@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use common_enums::connector_enums::Connector;
+use common_enums::{connector_enums::Connector, ConnectorType};
 use common_utils::{consts as common_utils_consts, errors::CustomResult, types::Url};
 use error_stack::ResultExt;
 pub use hyperswitch_interfaces::unified_connector_service::transformers::UnifiedConnectorServiceError;
@@ -21,33 +21,45 @@ use crate::{
 
 /// Result type for Dynamic Routing
 pub type UnifiedConnectorServiceResult<T> = CustomResult<T, UnifiedConnectorServiceError>;
+
+/// The transport under every UCS service client. Under the `deja` feature it is
+/// the gRPC egress boundary wrapper — every unary rpc (payment, refund, …) is
+/// recorded/substituted at the wire level with rank-2 span-path identity;
+/// otherwise it is the raw tonic channel. Threading this alias through the
+/// client fields + their construction keeps the feature-off build byte-identical.
+#[cfg(feature = "deja")]
+pub type UcsChannel = super::deja_transport::DejaGrpcTransport<tonic::transport::Channel>;
+/// The transport under every UCS service client (raw tonic channel; see the
+/// `deja`-gated definition above for the recording/substituting variant).
+#[cfg(not(feature = "deja"))]
+pub type UcsChannel = tonic::transport::Channel;
 /// Contains the  Unified Connector Service client
 #[derive(Debug, Clone)]
 pub struct UnifiedConnectorServiceClient {
     /// The Payment Service Client
-    pub payment_service_client: payments_grpc::payment_service_client::PaymentServiceClient<tonic::transport::Channel>,
+    pub payment_service_client: payments_grpc::payment_service_client::PaymentServiceClient<UcsChannel>,
     /// The Refund Service Client
-    pub refund_service_client: payments_grpc::refund_service_client::RefundServiceClient<tonic::transport::Channel>,
+    pub refund_service_client: payments_grpc::refund_service_client::RefundServiceClient<UcsChannel>,
     /// The Event Service Client
-    pub event_service_client: payments_grpc::event_service_client::EventServiceClient<tonic::transport::Channel>,
+    pub event_service_client: payments_grpc::event_service_client::EventServiceClient<UcsChannel>,
     /// The Recurring Payment Service Client
-    pub recurring_payment_service_client: payments_grpc::recurring_payment_service_client::RecurringPaymentServiceClient<tonic::transport::Channel>,
+    pub recurring_payment_service_client: payments_grpc::recurring_payment_service_client::RecurringPaymentServiceClient<UcsChannel>,
     /// The Dispute Service Client
-    pub dispute_service_client: payments_grpc::dispute_service_client::DisputeServiceClient<tonic::transport::Channel>,
+    pub dispute_service_client: payments_grpc::dispute_service_client::DisputeServiceClient<UcsChannel>,
     /// The Payment Method Service Client
-    pub payment_method_service_client: payments_grpc::payment_method_service_client::PaymentMethodServiceClient<tonic::transport::Channel>,
+    pub payment_method_service_client: payments_grpc::payment_method_service_client::PaymentMethodServiceClient<UcsChannel>,
     /// The Customer Service Client
-    pub customer_service_client: payments_grpc::customer_service_client::CustomerServiceClient<tonic::transport::Channel>,
+    pub customer_service_client: payments_grpc::customer_service_client::CustomerServiceClient<UcsChannel>,
     /// The Merchant Authentication Service Client
     pub merchant_authentication_service_client:
-        payments_grpc::merchant_authentication_service_client::MerchantAuthenticationServiceClient<tonic::transport::Channel>,
+        payments_grpc::merchant_authentication_service_client::MerchantAuthenticationServiceClient<UcsChannel>,
     /// The Payment Method Authentication Service Client
     pub payment_method_authentication_service_client:
-        payments_grpc::payment_method_authentication_service_client::PaymentMethodAuthenticationServiceClient<tonic::transport::Channel>,
+        payments_grpc::payment_method_authentication_service_client::PaymentMethodAuthenticationServiceClient<UcsChannel>,
         /// The Payout Service Client
-    pub payout_service_client: payments_grpc::payout_service_client::PayoutServiceClient<tonic::transport::Channel>,
+    pub payout_service_client: payments_grpc::payout_service_client::PayoutServiceClient<UcsChannel>,
     /// The Surcharge Service Client
-    pub surcharge_service_client: payments_grpc::surcharge_service_client::SurchargeServiceClient<tonic::transport::Channel>,
+    pub surcharge_service_client: payments_grpc::surcharge_service_client::SurchargeServiceClient<UcsChannel>,
 }
 
 /// Contains the Unified Connector Service Client config
@@ -57,7 +69,11 @@ pub struct UnifiedConnectorServiceClientConfig {
     pub base_url: Url,
 
     /// Contains the connection timeout duration in seconds
-    pub connection_timeout: u64,
+    pub connection_timeout: UcsConnectionTimeoutInSeconds,
+
+    /// Per-RPC timeout (seconds) for calls to the unified connector service.
+    #[serde(default)]
+    pub request_timeout: UcsRequestTimeoutInSeconds,
 
     /// Set of external services/connectors available for the unified connector service
     #[serde(default, deserialize_with = "deserialize_hashset")]
@@ -66,6 +82,34 @@ pub struct UnifiedConnectorServiceClientConfig {
     /// Set of connectors for which psync is disabled in unified connector service
     #[serde(default, deserialize_with = "deserialize_hashset")]
     pub ucs_psync_disabled_connectors: HashSet<Connector>,
+}
+
+/// Connection timeout for the Unified Connector Service in seconds.
+#[derive(Debug, Clone, Copy, serde::Deserialize, serde::Serialize)]
+pub struct UcsConnectionTimeoutInSeconds(u64);
+
+impl UcsConnectionTimeoutInSeconds {
+    /// Return the timeout as a [`Duration`].
+    pub fn as_duration(self) -> Duration {
+        Duration::from_secs(self.0)
+    }
+}
+
+/// Per-RPC request timeout for the Unified Connector Service in seconds.
+#[derive(Debug, Clone, Copy, serde::Deserialize, serde::Serialize)]
+pub struct UcsRequestTimeoutInSeconds(u64);
+
+impl Default for UcsRequestTimeoutInSeconds {
+    fn default() -> Self {
+        Self(consts::DEFAULT_UCS_REQUEST_TIMEOUT_SECS)
+    }
+}
+
+impl UcsRequestTimeoutInSeconds {
+    /// Return the timeout as a [`Duration`].
+    pub fn as_duration(self) -> Duration {
+        Duration::from_secs(self.0)
+    }
 }
 
 /// Contains the Connector Auth Type and related authentication data.
@@ -149,17 +193,22 @@ pub struct HyperswitchVaultMetadata {
     pub vault_auth_data: VaultConnectorAuth,
 }
 
-/// Builds a gRPC client with timeout handling
+/// Builds a gRPC client. `$connection_timeout` bounds connect; `$request_timeout` bounds each RPC.
 #[macro_export]
 macro_rules! build_grpc_client {
-    ($client:ty, $name:expr, $uri:expr, $timeout:expr) => {{
-        match timeout(
-            Duration::from_secs($timeout),
-            <$client>::connect($uri.clone()),
-        )
-        .await
-        {
-            Ok(Ok(client)) => client,
+    ($client:ty, $name:expr, $uri:expr, $connection_timeout:expr, $request_timeout:expr) => {{
+        let endpoint = tonic::transport::Channel::builder($uri.clone())
+            .timeout($request_timeout.as_duration());
+        match timeout($connection_timeout.as_duration(), endpoint.connect()).await {
+            Ok(Ok(channel)) => {
+                // deja: wrap the UCS channel in the gRPC egress boundary at its
+                // construction site so every unary rpc is recorded/substituted at
+                // the wire level (rank-2 identity). Feature-off passes the raw
+                // channel unchanged.
+                #[cfg(feature = "deja")]
+                let channel = $crate::grpc_client::deja_transport::DejaGrpcTransport::new(channel);
+                <$client>::new(channel)
+            }
             Ok(Err(err)) => {
                 router_env::logger::error!(
                     "Failed to connect to Unified Connector Service for {}: {:?}",
@@ -206,101 +255,113 @@ impl UnifiedConnectorServiceClient {
                     }
                 };
 
-                let timeout = unified_connector_service_client_config.connection_timeout;
+                let connection_timeout = unified_connector_service_client_config.connection_timeout;
+                let request_timeout = unified_connector_service_client_config.request_timeout;
 
                 let payment_service_client = build_grpc_client!(
                     payments_grpc::payment_service_client::PaymentServiceClient<
-                        tonic::transport::Channel,
+                        UcsChannel,
                     >,
                     "payment_service_client",
                     uri,
-                    timeout
+                    connection_timeout,
+                    request_timeout
                 );
 
                 let refund_service_client = build_grpc_client!(
                     payments_grpc::refund_service_client::RefundServiceClient<
-                        tonic::transport::Channel,
+                        UcsChannel,
                     >,
                     "refund_service_client",
                     uri,
-                    timeout
+                    connection_timeout,
+                    request_timeout
                 );
 
                 let event_service_client = build_grpc_client!(
                     payments_grpc::event_service_client::EventServiceClient<
-                        tonic::transport::Channel,
+                        UcsChannel,
                     >,
                     "event_service_client",
                     uri,
-                    timeout
+                    connection_timeout,
+                    request_timeout
                 );
 
                 let recurring_payment_service_client = build_grpc_client!(
                     payments_grpc::recurring_payment_service_client::RecurringPaymentServiceClient<
-                        tonic::transport::Channel,
+                        UcsChannel,
                     >,
                     "recurring_payment_service_client",
                     uri,
-                    timeout
+                    connection_timeout,
+                    request_timeout
                 );
 
                 let dispute_service_client = build_grpc_client!(
                     payments_grpc::dispute_service_client::DisputeServiceClient<
-                        tonic::transport::Channel,
+                        UcsChannel,
                     >,
                     "dispute_service_client",
                     uri,
-                    timeout
+                    connection_timeout,
+                    request_timeout
                 );
 
                 let payment_method_service_client = build_grpc_client!(
                     payments_grpc::payment_method_service_client::PaymentMethodServiceClient<
-                        tonic::transport::Channel,
+                        UcsChannel,
                     >,
                     "payment_method_service_client",
                     uri,
-                    timeout
+                    connection_timeout,
+                    request_timeout
                 );
 
                 let customer_service_client = build_grpc_client!(
                     payments_grpc::customer_service_client::CustomerServiceClient<
-                        tonic::transport::Channel,
+                        UcsChannel,
                     >,
                     "customer_service_client",
                     uri,
-                    timeout
+                    connection_timeout,
+                    request_timeout
                 );
 
                 let merchant_authentication_service_client = build_grpc_client!(
-                    payments_grpc::merchant_authentication_service_client::MerchantAuthenticationServiceClient<tonic::transport::Channel>,
+                    payments_grpc::merchant_authentication_service_client::MerchantAuthenticationServiceClient<UcsChannel>,
                     "merchant_authentication_service_client",
                     uri,
-                    timeout
+                    connection_timeout,
+                    request_timeout
                 );
 
                 let payment_method_authentication_service_client = build_grpc_client!(
-                    payments_grpc::payment_method_authentication_service_client::PaymentMethodAuthenticationServiceClient<tonic::transport::Channel>,
+                    payments_grpc::payment_method_authentication_service_client::PaymentMethodAuthenticationServiceClient<UcsChannel>,
                     "payment_method_authentication_service_client",
                     uri,
-                    timeout
+                    connection_timeout,
+                    request_timeout
                 );
 
                 let payout_service_client = build_grpc_client!(
                     payments_grpc::payout_service_client::PayoutServiceClient<
-                        tonic::transport::Channel,
+                        UcsChannel,
                     >,
                     "payout_service_client",
                     uri,
-                    timeout
+                    connection_timeout,
+                    request_timeout
                 );
 
                 let surcharge_service_client = build_grpc_client!(
                     payments_grpc::surcharge_service_client::SurchargeServiceClient<
-                        tonic::transport::Channel,
+                        UcsChannel,
                     >,
                     "surcharge_service_client",
                     uri,
-                    timeout
+                    connection_timeout,
+                    request_timeout
                 );
 
                 logger::info!("Successfully connected to Unified Connector Service");
@@ -561,24 +622,26 @@ impl UnifiedConnectorServiceClient {
 
         *request.metadata_mut() = metadata;
 
-        self.payment_method_authentication_service_client
-            .clone()
-            .authenticate(request)
-            .await
-            .map_err(|error| {
-                error_stack::Report::new(UnifiedConnectorServiceError::from_grpc_error(
-                    &error,
-                    &connector_name,
-                ))
-            })
-            .inspect_err(|error| {
-                logger::error!(
-                    grpc_error=?error,
-                    method="payment_authenticate",
-                    connector_name=?connector_name,
-                    "UCS payment authenticate gRPC call failed"
-                )
-            })
+        Box::pin(
+            self.payment_method_authentication_service_client
+                .clone()
+                .authenticate(request),
+        )
+        .await
+        .map_err(|error| {
+            error_stack::Report::new(UnifiedConnectorServiceError::from_grpc_error(
+                &error,
+                &connector_name,
+            ))
+        })
+        .inspect_err(|error| {
+            logger::error!(
+                grpc_error=?error,
+                method="payment_authenticate",
+                connector_name=?connector_name,
+                "UCS payment authenticate gRPC call failed"
+            )
+        })
     }
 
     /// Performs Session token create
@@ -777,9 +840,7 @@ impl UnifiedConnectorServiceClient {
             build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
         *request.metadata_mut() = metadata;
 
-        self.payment_service_client
-            .clone()
-            .setup_recurring(request)
+        Box::pin(self.payment_service_client.clone().setup_recurring(request))
             .await
             .map_err(|error| {
                 error_stack::Report::new(UnifiedConnectorServiceError::from_grpc_error(
@@ -1047,11 +1108,14 @@ impl UnifiedConnectorServiceClient {
     }
 
     /// Performs Create Access Token Granular
+    ///
+    /// The connector type determines which UCS connector header namespace is used.
     pub async fn create_access_token(
         &self,
         create_access_token_request: payments_grpc::MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest,
         connector_auth_metadata: ConnectorAuthMetadata,
         grpc_headers: GrpcHeadersUcs,
+        connector_type: ConnectorType,
     ) -> UnifiedConnectorServiceResult<
         tonic::Response<
             payments_grpc::MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
@@ -1059,8 +1123,11 @@ impl UnifiedConnectorServiceClient {
     > {
         let mut request = tonic::Request::new(create_access_token_request);
         let connector_name = connector_auth_metadata.connector_name.clone();
-        let metadata =
-            build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
+        let metadata = build_unified_connector_service_grpc_headers_for_connector_type(
+            connector_auth_metadata,
+            grpc_headers,
+            connector_type,
+        )?;
         *request.metadata_mut() = metadata;
 
         self.merchant_authentication_service_client
@@ -1346,6 +1413,41 @@ impl UnifiedConnectorServiceClient {
                 )
             })
     }
+
+    /// Performs notify connector via the Event Service
+    pub async fn notify_connector(
+        &self,
+        notify_connector_request: payments_grpc::NotifyConnectorRequest,
+        connector_auth_metadata: ConnectorAuthMetadata,
+        grpc_headers: GrpcHeadersUcs,
+        event_type: payments_grpc::NotifyEventType,
+    ) -> UnifiedConnectorServiceResult<tonic::Response<payments_grpc::NotifyConnectorResponse>>
+    {
+        let mut request = tonic::Request::new(notify_connector_request);
+
+        let connector_name = connector_auth_metadata.connector_name.clone();
+        let metadata = build_unified_connector_service_grpc_headers_for_notify_connector(
+            connector_auth_metadata,
+            grpc_headers,
+            event_type,
+        )?;
+
+        *request.metadata_mut() = metadata;
+
+        self.event_service_client
+            .clone()
+            .notify_connector(request)
+            .await
+            .change_context(UnifiedConnectorServiceError::NotifyConnectorFailure)
+            .inspect_err(|error| {
+                logger::error!(
+                    grpc_error=?error,
+                    method="notify_connector",
+                    connector_name=?connector_name,
+                    "UCS notify_connector gRPC call failed"
+                )
+            })
+    }
 }
 
 /// Build the gRPC Headers for Unified Connector Service Request
@@ -1365,6 +1467,27 @@ pub fn build_unified_connector_service_grpc_headers_for_payouts(
     grpc_headers: GrpcHeadersUcs,
 ) -> Result<MetadataMap, UnifiedConnectorServiceError> {
     build_grpc_headers_internal(meta, grpc_headers, consts::UCS_HEADER_PAYOUT_CONNECTOR)
+}
+
+fn build_unified_connector_service_grpc_headers_for_connector_type(
+    meta: ConnectorAuthMetadata,
+    grpc_headers: GrpcHeadersUcs,
+    connector_type: ConnectorType,
+) -> Result<MetadataMap, UnifiedConnectorServiceError> {
+    let connector_header_key = match connector_type {
+        ConnectorType::PaymentProcessor => consts::UCS_HEADER_CONNECTOR,
+        ConnectorType::PayoutProcessor => consts::UCS_HEADER_PAYOUT_CONNECTOR,
+        ConnectorType::SurchargeProcessor => consts::UCS_HEADER_SURCHARGE_CONNECTOR,
+        connector_type => {
+            return Err(
+                UnifiedConnectorServiceError::RequestEncodingFailedWithReason(format!(
+                    "unsupported UCS connector type for connector headers: {connector_type:?}"
+                )),
+            )
+        }
+    };
+
+    build_grpc_headers_internal(meta, grpc_headers, connector_header_key)
 }
 
 fn build_grpc_headers_internal(
@@ -1554,6 +1677,52 @@ pub fn build_unified_connector_service_grpc_headers_for_surcharge(
         consts::UCS_HEADER_SURCHARGE_CONNECTOR,
         surcharge_connector_value,
     );
+
+    Ok(metadata)
+}
+
+/// Build gRPC headers for UCS notify requests.
+/// Build gRPC headers for UCS notify requests.
+/// Same as [`build_unified_connector_service_grpc_headers`] but uses
+/// `x-surcharge-connector` for surcharge events and `x-connector` for other events.
+pub fn build_unified_connector_service_grpc_headers_for_notify_connector(
+    meta: ConnectorAuthMetadata,
+    grpc_headers: GrpcHeadersUcs,
+    event_type: payments_grpc::NotifyEventType,
+) -> Result<MetadataMap, UnifiedConnectorServiceError> {
+    let mut metadata = build_unified_connector_service_grpc_headers(meta.clone(), grpc_headers)?;
+
+    // Remove the default connector header
+    metadata.remove(consts::UCS_HEADER_CONNECTOR);
+
+    // Choose header based on event type
+    let is_surcharge_event = matches!(
+        event_type,
+        payments_grpc::NotifyEventType::SurchargePaymentSucceeded
+            | payments_grpc::NotifyEventType::SurchargeRefundSucceeded
+    );
+
+    let connector_name = meta.connector_name.clone();
+    let connector_value = connector_name
+        .parse::<MetadataValue<_>>()
+        .map_err(|error| {
+            logger::error!(?error);
+            if is_surcharge_event {
+                UnifiedConnectorServiceError::HeaderInjectionFailed(
+                    consts::UCS_HEADER_SURCHARGE_CONNECTOR.to_string(),
+                )
+            } else {
+                UnifiedConnectorServiceError::HeaderInjectionFailed(
+                    consts::UCS_HEADER_CONNECTOR.to_string(),
+                )
+            }
+        })?;
+
+    if is_surcharge_event {
+        metadata.append(consts::UCS_HEADER_SURCHARGE_CONNECTOR, connector_value);
+    } else {
+        metadata.append(consts::UCS_HEADER_CONNECTOR, connector_value);
+    }
 
     Ok(metadata)
 }

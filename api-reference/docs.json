@@ -75,6 +75,7 @@
                     "pages": [
                       "v2/customers/customers--create-v1",
                       "v2/customers/customers--retrieve-v1",
+                      "v1/customers/customers--retrieve-by-merchant-reference-id",
                       "v2/customers/customers--update-v1",
                       "v2/customers/customers--delete-v1",
                       "v2/customers/customers--list-v1"
@@ -403,6 +404,7 @@
                     "pages": [
                       "v2/customers/customers--create",
                       "v2/customers/customers--retrieve",
+                      "v2/customers/customers--retrieve-by-merchant-reference-id",
                       "v2/customers/customers--update",
                       "v2/customers/customers--delete",
                       "v2/customers/customers--list"

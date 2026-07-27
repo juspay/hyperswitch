@@ -55,6 +55,7 @@ pub struct MerchantAccount {
     pub product_type: Option<common_enums::MerchantProductType>,
     pub merchant_account_type: common_enums::MerchantAccountType,
     pub network_tokenization_credentials: OptionalEncryptableValue,
+    pub fingerprint_secret: Option<Secret<String>>,
 }
 
 #[cfg(feature = "v1")]
@@ -93,6 +94,7 @@ pub struct MerchantAccountSetter {
     pub product_type: Option<common_enums::MerchantProductType>,
     pub merchant_account_type: common_enums::MerchantAccountType,
     pub network_tokenization_credentials: OptionalEncryptableValue,
+    pub fingerprint_secret: Option<Secret<String>>,
 }
 
 #[cfg(feature = "v1")]
@@ -131,6 +133,7 @@ impl From<MerchantAccountSetter> for MerchantAccount {
             product_type: item.product_type,
             merchant_account_type: item.merchant_account_type,
             network_tokenization_credentials: item.network_tokenization_credentials,
+            fingerprint_secret: item.fingerprint_secret,
         }
     }
 }
@@ -153,6 +156,7 @@ pub struct MerchantAccountSetter {
     pub version: common_enums::ApiVersion,
     pub product_type: Option<common_enums::MerchantProductType>,
     pub merchant_account_type: common_enums::MerchantAccountType,
+    pub fingerprint_secret: Option<Secret<String>>,
 }
 
 #[cfg(feature = "v2")]
@@ -173,6 +177,7 @@ impl From<MerchantAccountSetter> for MerchantAccount {
             version,
             product_type,
             merchant_account_type,
+            fingerprint_secret,
         } = item;
         Self {
             id,
@@ -189,6 +194,7 @@ impl From<MerchantAccountSetter> for MerchantAccount {
             version,
             product_type,
             merchant_account_type,
+            fingerprint_secret,
         }
     }
 }
@@ -210,6 +216,7 @@ pub struct MerchantAccount {
     pub version: common_enums::ApiVersion,
     pub product_type: Option<common_enums::MerchantProductType>,
     pub merchant_account_type: common_enums::MerchantAccountType,
+    pub fingerprint_secret: Option<Secret<String>>,
 }
 
 impl MerchantAccount {
@@ -585,6 +592,7 @@ impl Conversion for MerchantAccount {
             is_platform_account: self.is_platform_account,
             product_type: self.product_type,
             merchant_account_type: self.merchant_account_type,
+            fingerprint_secret: self.fingerprint_secret,
         };
 
         Ok(diesel_models::MerchantAccount::from(setter))
@@ -648,6 +656,7 @@ impl Conversion for MerchantAccount {
                 version: item.version,
                 product_type: item.product_type,
                 merchant_account_type: item.merchant_account_type.unwrap_or_default(),
+                fingerprint_secret: item.fingerprint_secret,
             })
         }
         .await
@@ -675,6 +684,7 @@ impl Conversion for MerchantAccount {
                 .product_type
                 .or(Some(common_enums::MerchantProductType::Orchestration)),
             merchant_account_type: self.merchant_account_type,
+            fingerprint_secret: self.fingerprint_secret,
         })
     }
 }
@@ -720,6 +730,7 @@ impl Conversion for MerchantAccount {
             network_tokenization_credentials: self
                 .network_tokenization_credentials
                 .map(|credentials| credentials.into()),
+            fingerprint_secret: self.fingerprint_secret,
         };
 
         Ok(diesel_models::MerchantAccount::from(setter))
@@ -814,6 +825,7 @@ impl Conversion for MerchantAccount {
                         .and_then(|val| val.try_into_optionaloperation())
                     })
                     .await?,
+                fingerprint_secret: item.fingerprint_secret,
             })
         }
         .await
@@ -862,6 +874,7 @@ impl Conversion for MerchantAccount {
             network_tokenization_credentials: self
                 .network_tokenization_credentials
                 .map(|credentials| credentials.into()),
+            fingerprint_secret: self.fingerprint_secret,
         })
     }
 }

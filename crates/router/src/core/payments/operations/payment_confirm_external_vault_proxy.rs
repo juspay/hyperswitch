@@ -366,6 +366,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, PaymentsRequest>
             vault_session_details: None,
             external_vault_pmd,
             client_session_id: None,
+            update_request_fields: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -639,6 +640,7 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsRequest, PaymentData<F>>
         _req: &PaymentsRequest,
         platform: &domain::Platform,
         payment_data: &mut PaymentData<F>,
+        customer: Option<&domain::Customer>,
         business_profile: &domain::Profile,
         _feature_config: &core_utils::FeatureConfig,
     ) -> RouterResult<()> {
@@ -680,11 +682,11 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsRequest, PaymentData<F>>
                 return Ok(());
             }
         };
-        let customer_id = payment_data
-            .payment_intent
-            .customer_id
-            .clone()
-            .get_required_value("customer_id")?;
+        let global_customer_id = customer
+            .ok_or(errors::ApiErrorResponse::CustomerNotFound)?
+            .get_global_id()
+            .cloned()
+            .get_required_value("id")?;
         let payment_method = payment_data
             .payment_attempt
             .payment_method
@@ -758,7 +760,7 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsRequest, PaymentData<F>>
             payment_method_type,
             vault_card,
             payment_data.address.get_payment_method_billing().cloned(),
-            customer_id,
+            global_customer_id,
         )
         .await
         {

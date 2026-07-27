@@ -228,6 +228,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsSessionR
             card_testing_guard_data: None,
             vault_operation: None,
             vault_session_details: None,
+            update_request_fields: None,
             threeds_method_comp_ind: None,
             whole_connector_response: None,
             is_manual_retry_enabled: None,
@@ -271,7 +272,6 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsSessionReque
         let key_store = processor.get_key_store();
 
         let metadata = payment_data.payment_intent.metadata.clone();
-        let feature_metadata = payment_data.payment_intent.feature_metadata.clone();
         payment_data.payment_intent = match metadata {
             Some(metadata) => state
                 .store
@@ -280,7 +280,6 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsSessionReque
                     storage::PaymentIntentUpdate::MetadataUpdate {
                         metadata: Some(metadata),
                         updated_by: storage_scheme.to_string(),
-                        feature_metadata,
                     },
                     key_store,
                     storage_scheme,
@@ -409,10 +408,9 @@ where
         let db = &state.store;
 
         let all_connector_accounts = db
-            .find_merchant_connector_account_by_merchant_id_and_disabled_list(
+            .find_merchant_connector_account_without_encrypted_by_merchant_id_and_disabled_list(
                 processor.get_account().get_id(),
                 false,
-                processor.get_key_store(),
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)

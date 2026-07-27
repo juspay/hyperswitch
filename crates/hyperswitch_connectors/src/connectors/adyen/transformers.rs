@@ -4,6 +4,7 @@ use std::{num::NonZeroU8, ops::Deref, str::FromStr};
 use api_models::payouts::{self, PayoutMethodData};
 use api_models::{
     enums,
+    merchant_connector_webhook_management::ScopeIdentifier,
     payments::{self, PollConfig, QrCodeInformation, VoucherNextStepData},
 };
 use base64::Engine;
@@ -30,22 +31,30 @@ use hyperswitch_domain_models::{
         PaymentMethodBalance, PaymentMethodToken, RouterData,
     },
     router_flow_types::{
-        merchant_connector_webhook_management::ConnectorWebhookRegister, GiftCardBalanceCheck,
+        merchant_connector_webhook_management::{
+            ConnectorWebhookGenerateSecret, ConnectorWebhookRegister,
+        },
+        GiftCardBalanceCheck,
     },
     router_request_types::{
-        merchant_connector_webhook_management::ConnectorWebhookRegisterRequest,
+        merchant_connector_webhook_management::{
+            ConnectorWebhookGenerateSecretRequest, ConnectorWebhookRegisterRequest,
+        },
         GiftCardBalanceCheckRequestData, ResponseId, SubmitEvidenceRequestData,
     },
     router_response_types::{
-        merchant_connector_webhook_management::ConnectorWebhookRegisterResponse,
+        merchant_connector_webhook_management::{
+            ConnectorWebhookGenerateSecretResponse, ConnectorWebhookRegisterResponse,
+        },
         AcceptDisputeResponse, DefendDisputeResponse, GiftCardBalanceCheckResponseData,
         MandateReference, PaymentsResponseData, RedirectForm, RefundsResponseData,
         SubmitEvidenceResponse,
     },
     types::{
-        ConnectorWebhookRegisterRouterData, PaymentsAuthorizeRouterData, PaymentsCancelRouterData,
-        PaymentsCaptureRouterData, PaymentsExtendAuthorizationRouterData,
-        PaymentsGiftCardBalanceCheckRouterData, PaymentsPreProcessingRouterData, RefundsRouterData,
+        ConnectorWebhookGenerateSecretRouterData, ConnectorWebhookRegisterRouterData,
+        PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
+        PaymentsExtendAuthorizationRouterData, PaymentsGiftCardBalanceCheckRouterData,
+        PaymentsPreProcessingRouterData, RefundsRouterData,
     },
 };
 #[cfg(feature = "payouts")]
@@ -2207,7 +2216,7 @@ fn get_additional_data(
                     ref_data.transaction_link_id.clone()
                 }
                 mandates::MandateReferenceId::ConnectorMandateId(_)
-                | mandates::MandateReferenceId::CardWithLimitedData => None,
+                | mandates::MandateReferenceId::CardWithLimitedData(_) => None,
             })
     });
 
@@ -2485,7 +2494,10 @@ fn get_adyen_card_network(card_network: common_enums::CardNetwork) -> Option<Car
         common_enums::CardNetwork::Accel => Some(CardBrand::Accel),
         common_enums::CardNetwork::Pulse => Some(CardBrand::Pulse),
         common_enums::CardNetwork::Nyce => Some(CardBrand::Nyce),
-        common_enums::CardNetwork::Interac => None,
+        common_enums::CardNetwork::Interac
+        | common_enums::CardNetwork::Prop
+        | common_enums::CardNetwork::PrivateLabel
+        | common_enums::CardNetwork::Dinacard => None,
     }
 }
 
@@ -3319,7 +3331,7 @@ impl
                     }
                 }
             }
-            mandates::MandateReferenceId::CardWithLimitedData => {
+            mandates::MandateReferenceId::CardWithLimitedData(_) => {
                 Err(errors::ConnectorError::NotSupported {
                     message: "Card Only MIT for payment method".to_string(),
                     connector: "Adyen",
@@ -5634,7 +5646,8 @@ impl<F> TryFrom<RefundsResponseRouterData<F, AdyenRefundResponse>> for RefundsRo
 pub struct AdyenErrorResponse {
     pub status: i32,
     pub error_code: String,
-    pub message: String,
+    pub message: Option<String>,
+    pub title: Option<String>,
     pub psp_reference: Option<String>,
 }
 
@@ -7319,7 +7332,7 @@ pub enum CommunicationFormat {
 pub struct WebhookRegister {
     #[serde(rename = "type")]
     webhook_type: WebhookRegisterType,
-    url: String,
+    url: Secret<String>,
     active: bool,
     communication_format: CommunicationFormat,
 }
@@ -7343,18 +7356,24 @@ impl TryFrom<&common_enums::ConnectorWebhookEventType> for WebhookRegisterType {
 impl TryFrom<&ConnectorWebhookRegisterRouterData> for WebhookRegister {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &ConnectorWebhookRegisterRouterData) -> Result<Self, Self::Error> {
-        let webhook_type = item.request.event_type;
-        let webhook_type: WebhookRegisterType = WebhookRegisterType::try_from(&webhook_type)?;
+        let webhook_type = match &item.request.scope {
+            ScopeIdentifier::EventType(event) => {
+                let webhook_event = common_enums::ConnectorWebhookEventType::SpecificEvent(*event);
+                WebhookRegisterType::try_from(&webhook_event)?
+            }
+            ScopeIdentifier::NotSpecific => WebhookRegisterType::Standard,
+            ScopeIdentifier::PaymentMethodType(_) => WebhookRegisterType::Standard,
+        };
         Ok(Self {
             webhook_type,
-            url: item.request.webhook_url.clone(),
+            url: Secret::new(item.request.webhook_url.clone().expose().to_string()),
             active: true,
             communication_format: CommunicationFormat::Json,
         })
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AdyenWebhookRegisterResponse {
     id: String,
@@ -7386,8 +7405,52 @@ impl
     ) -> Result<Self, Self::Error> {
         Ok(ConnectorWebhookRegisterRouterData {
             response: Ok(ConnectorWebhookRegisterResponse {
+                identifier: item.data.request.scope.clone(),
                 connector_webhook_id: Some(item.response.id.clone()),
                 status: common_enums::WebhookRegistrationStatus::Success,
+                error_code: None,
+                error_message: None,
+                metadata: None,
+            }),
+            ..item.data
+        })
+    }
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AdyenGenerateHmacResponse {
+    hmac_key: Secret<String>,
+}
+
+impl
+    TryFrom<
+        ResponseRouterData<
+            ConnectorWebhookGenerateSecret,
+            AdyenGenerateHmacResponse,
+            ConnectorWebhookGenerateSecretRequest,
+            ConnectorWebhookGenerateSecretResponse,
+        >,
+    >
+    for RouterData<
+        ConnectorWebhookGenerateSecret,
+        ConnectorWebhookGenerateSecretRequest,
+        ConnectorWebhookGenerateSecretResponse,
+    >
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<
+            ConnectorWebhookGenerateSecret,
+            AdyenGenerateHmacResponse,
+            ConnectorWebhookGenerateSecretRequest,
+            ConnectorWebhookGenerateSecretResponse,
+        >,
+    ) -> Result<Self, Self::Error> {
+        Ok(ConnectorWebhookGenerateSecretRouterData {
+            response: Ok(ConnectorWebhookGenerateSecretResponse {
+                secret: Some(item.response.hmac_key),
+                status: common_enums::WebhookSecretGenerationStatus::Success,
                 error_code: None,
                 error_message: None,
             }),

@@ -93,3 +93,34 @@ pub async fn get_sdk_config(
     ))
     .await
 }
+
+#[cfg(feature = "v1")]
+#[instrument(skip_all, fields(flow = ?Flow::GetSuperpositionSdkConfig))]
+pub async fn get_profile_sdk_config(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<(String, String)>,
+) -> HttpResponse {
+    let flow = Flow::GetSuperpositionSdkConfig;
+    let (_platform, profile_id) = path.into_inner();
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        (),
+        |state: super::SessionState, auth_data, _req, _| {
+            superposition_sdk_config::get_profile_superposition_sdk_config(
+                state,
+                auth_data.platform,
+                profile_id.clone(),
+            )
+        },
+        &auth::HeaderAuth(auth::PublishableKeyAuth {
+            allow_connected_scope_operation: true,
+            allow_platform_self_operation: true,
+        }),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}

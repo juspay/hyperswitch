@@ -571,6 +571,17 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                 },
                 api_models::enums::Connector::Shift4 => true,
                 api_models::enums::Connector::Nuvei => true,
+                // Paysafe card + 3DS: PreAuthenticate mints the handle. When Paysafe returns no ACS
+                // redirect (frictionless / no challenge), continue straight to the settle Authorize
+                // in this flow; when it returns a redirect, break so the shopper completes the
+                // challenge and the settle runs from CompleteAuthorize.
+                api_models::enums::Connector::Paysafe => match &authorize_router_data.response {
+                    Ok(types::PaymentsResponseData::TransactionResponse {
+                        redirection_data,
+                        ..
+                    }) => redirection_data.is_none(),
+                    _ => false,
+                },
                 _ => false,
             };
             Ok((authorize_router_data, should_continue_after_preauthenticate))
@@ -1312,6 +1323,7 @@ impl<F>
             capture_method: item.request.capture_method,
             minor_payment_amount: item.request.minor_amount,
             minor_amount_to_capture: item.request.minor_amount,
+            order_tax_amount: item.request.order_tax_amount,
             integrity_object: None,
             split_payments: item.request.split_payments,
             webhook_url: item.request.webhook_url,
@@ -1373,7 +1385,8 @@ fn transform_redirection_response_for_pre_authenticate_flow(
 > {
     match (connector, &response_data) {
         (
-            enums::connector_enums::Connector::Cybersource,
+            enums::connector_enums::Connector::Cybersource
+            | enums::connector_enums::Connector::Barclaycard,
             router_response_types::RedirectForm::Form {
                 endpoint,
                 method: _,
@@ -1391,11 +1404,24 @@ fn transform_redirection_response_for_pre_authenticate_flow(
                     field_name: "reference_id",
                 },
             )?;
-            Ok(router_response_types::RedirectForm::CybersourceAuthSetup {
-                access_token,
-                ddc_url,
-                reference_id,
-            })
+
+            match connector {
+                enums::connector_enums::Connector::Barclaycard => {
+                    Ok(router_response_types::RedirectForm::BarclaycardAuthSetup {
+                        access_token,
+                        ddc_url,
+                        reference_id,
+                    })
+                }
+                enums::connector_enums::Connector::Cybersource => {
+                    Ok(router_response_types::RedirectForm::CybersourceAuthSetup {
+                        access_token,
+                        ddc_url,
+                        reference_id,
+                    })
+                }
+                _ => Ok(response_data),
+            }
         }
         _ => Ok(response_data),
     }
@@ -1409,7 +1435,8 @@ fn transform_response_for_pre_authenticate_flow(
 > {
     match (connector, response_data.clone()) {
         (
-            enums::connector_enums::Connector::Cybersource,
+            enums::connector_enums::Connector::Cybersource
+            | enums::connector_enums::Connector::Barclaycard,
             router_response_types::PaymentsResponseData::TransactionResponse {
                 resource_id,
                 redirection_data,
@@ -1590,7 +1617,7 @@ pub async fn call_unified_connector_service_pre_authenticate(
     let connector_auth_metadata =
         unified_connector_service::build_unified_connector_service_auth_metadata(
             merchant_connector_account,
-            processor,
+            processor.get_account().get_id(),
             router_data.connector.clone(),
         )
         .change_context(interface_errors::ConnectorError::RequestEncodingFailed)

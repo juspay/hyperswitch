@@ -187,6 +187,7 @@ pub fn make_dsl_input_for_payouts(
             .map(api_enums::Country::from_alpha2),
         business_label: payout_data.payout_attempt.business_label.clone(),
         setup_future_usage: None,
+        surcharge_amount: None,
     };
     let payment_method = dsl_inputs::PaymentMethodInput {
         payment_method: payout_data
@@ -326,6 +327,7 @@ pub fn make_dsl_input(
             .map(api_enums::Country::from_alpha2),
         business_label: None,
         setup_future_usage: Some(payments_dsl_input.payment_intent.setup_future_usage),
+        surcharge_amount: None,
     };
 
     let metadata = payments_dsl_input
@@ -651,6 +653,11 @@ pub fn make_dsl_input(
                 .map(api_enums::Country::from_alpha2),
             business_label: payments_dsl_input.payment_intent.business_label.clone(),
             setup_future_usage: payments_dsl_input.payment_intent.setup_future_usage,
+            surcharge_amount: payments_dsl_input
+                .payment_attempt
+                .external_surcharge_details
+                .as_ref()
+                .map(|details| details.external_surcharge_amount),
         };
 
     let metadata = payments_dsl_input
@@ -2073,10 +2080,9 @@ pub async fn refresh_cgraph_cache(
 ) -> RoutingResult<Arc<hyperswitch_constraint_graph::ConstraintGraph<euclid_dir::DirValue>>> {
     let mut merchant_connector_accounts = state
         .store
-        .find_merchant_connector_account_by_merchant_id_and_disabled_list(
+        .find_merchant_connector_account_without_encrypted_by_merchant_id_and_disabled_list(
             &key_store.merchant_id,
             false,
-            key_store,
         )
         .await
         .change_context(errors::RoutingError::KgraphCacheRefreshFailed)?;
@@ -2114,7 +2120,7 @@ pub async fn refresh_cgraph_cache(
 
     let api_mcas = merchant_connector_accounts
         .into_iter()
-        .map(admin_api::MerchantConnectorResponse::foreign_try_from)
+        .map(admin_api::MCACGraphData::foreign_try_from)
         .collect::<Result<Vec<_>, _>>()
         .change_context(errors::RoutingError::KgraphCacheRefreshFailed)?;
     let connector_configs = state
@@ -2495,6 +2501,7 @@ pub async fn perform_session_flow_routing<'a>(
         // business_label not available in payment_intent anymore
         business_label: None,
         setup_future_usage: Some(session_input.payment_intent.setup_future_usage),
+        surcharge_amount: None,
     };
 
     let metadata = session_input
@@ -2657,6 +2664,7 @@ pub async fn perform_session_flow_routing(
             .map(storage_enums::Country::from_alpha2),
         business_label: session_input.payment_intent.business_label.clone(),
         setup_future_usage: session_input.payment_intent.setup_future_usage,
+        surcharge_amount: None,
     };
 
     let metadata = session_input
@@ -2998,6 +3006,7 @@ pub fn make_dsl_input_for_surcharge(
             .map(api_enums::Country::from_alpha2),
         business_label: payment_intent.business_label.clone(),
         setup_future_usage: payment_intent.setup_future_usage,
+        surcharge_amount: None,
     };
 
     let metadata = payment_intent
@@ -4081,14 +4090,13 @@ pub async fn get_active_mca_ids(
 ) -> RoutingResult<std::collections::HashSet<common_utils::id_type::MerchantConnectorAccountId>> {
     let db_mcas = state
         .store
-        .find_merchant_connector_account_by_merchant_id_and_disabled_list(
+        .find_merchant_connector_account_without_encrypted_by_merchant_id_and_disabled_list(
             &key_store.merchant_id,
             false,
-            key_store,
         )
         .await
         .unwrap_or_else(|_| {
-            hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccounts::new(
+            hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccountsWithoutEncrypted::new(
                 vec![],
             )
         });

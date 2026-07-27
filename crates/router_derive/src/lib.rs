@@ -863,3 +863,19 @@ pub fn validate_schema(input: proc_macro::TokenStream) -> proc_macro::TokenStrea
         .unwrap_or_else(|error| error.into_compile_error())
         .into()
 }
+
+/// Derives code to validate if `String` or `Option<String>` fields contain potential XSS or SQLi.
+///
+/// This macro generates a `validate_xss_or_sqli(&self) -> Result<(), String>` method that checks
+/// fields of type `String` or `Option<String>` for potential XSS or SQLi attack vectors using
+/// `common_utils::validation::contains_potential_xss_or_sqli`.
+///
+/// Fields can be ignored from validation by annotating them with `#[xss_clean(skip)]`.
+#[proc_macro_derive(ValidateXSSOrSQLi, attributes(xss_clean))]
+pub fn validate_xss_or_sqli(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    let input = syn::parse_macro_input!(input as syn::DeriveInput);
+
+    macros::validate_xss_or_sqli_derive(input)
+        .unwrap_or_else(|error| error.into_compile_error())
+        .into()
+}

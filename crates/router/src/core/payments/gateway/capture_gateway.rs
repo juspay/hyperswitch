@@ -80,7 +80,7 @@ where
         let connector_auth_metadata =
             unified_connector_service::build_unified_connector_service_auth_metadata(
                 merchant_connector_account,
-                processor,
+                processor.get_account().get_id(),
                 router_data.connector.clone(),
             )
             .change_context(ConnectorError::RequestEncodingFailed)
@@ -126,35 +126,21 @@ where
                         if let UnifiedConnectorServiceError::ConnectorError(inner) =
                             report.current_context()
                         {
-                            let (code, message, status_code, reason,
-                                 network_decline_code, network_advice_code, network_error_message,
-                                 connector) = (
-                                &inner.code, &inner.message, inner.status_code, &inner.reason,
-                                &inner.network_decline_code, &inner.network_advice_code,
-                                &inner.network_error_message, &inner.connector,
+                            let (code, message, status_code, connector) = (
+                                &inner.code,
+                                &inner.message,
+                                inner.status_code,
+                                &inner.connector,
                             );
-                            logger::info!(
+                            logger::debug!(
                                 "Connector error via UCS for capture (connector {}, status {}): {} - {}",
                                 connector,
                                 status_code,
                                 code,
                                 message
                             );
-                            router_data.response = Err(
-                                hyperswitch_domain_models::router_data::ErrorResponse {
-                                    code: code.clone(),
-                                    message: message.clone(),
-                                    reason: reason.clone(),
-                                    status_code,
-                                    attempt_status: None,
-                                    connector_transaction_id: None,
-                                    connector_response_reference_id: None,
-                                    network_decline_code: network_decline_code.clone(),
-                                    network_advice_code: network_advice_code.clone(),
-                                    network_error_message: network_error_message.clone(),
-                                    connector_metadata: None,
-                                },
-                            );
+                            router_data.response = Err(inner.as_ref().into());
+                            router_data.connector_http_status_code = Some(status_code);
                             return Ok((
                                 router_data,
                                 (),

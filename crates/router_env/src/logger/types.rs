@@ -96,6 +96,8 @@ pub enum Flow {
     MerchantConnectorWebhookRegister,
     /// Merchant Connector Webhook list flow.
     MerchantConnectorWebhookList,
+    /// Merchant Connector Webhook HMAC key generation flow.
+    MerchantConnectorWebhookGenerateSecret,
     /// ConfigKey create flow.
     ConfigKeyCreate,
     /// ConfigKey fetch flow.
@@ -110,6 +112,8 @@ pub enum Flow {
     CustomersCreate,
     /// Customers retrieve flow.
     CustomersRetrieve,
+    /// Customers retrieve by reference id flow.
+    CustomersRetrieveByReferenceId,
     /// Customers update flow.
     CustomersUpdate,
     /// Customers delete flow.
@@ -132,6 +136,8 @@ pub enum Flow {
     PaymentMethodsCreate,
     /// Payment methods migrate flow.
     PaymentMethodsMigrate,
+    /// Modular Payment methods migrate flow.
+    ModularPaymentMethodsMigrate,
     /// Payment methods batch update flow.
     PaymentMethodsBatchUpdate,
     /// Payment methods batch retrieve flow.
@@ -413,6 +419,8 @@ pub enum Flow {
     GetDataFromHyperswitchAiFlow,
     // List all chat interactions
     ListAllChatInteractions,
+    /// Mint a sage session for the dashboard user.
+    LaunchSage,
     /// User Sign Up
     UserSignUp,
     /// User Sign Up
@@ -751,6 +759,18 @@ pub enum Flow {
     EmbeddedTokenInfo,
     /// Superposition SDK Config Get flow
     GetSuperpositionSdkConfig,
+    /// Superposition Proxy Get Context List flow
+    SuperpositionListContexts,
+    /// Superposition Proxy Get Default Configs List flow
+    SuperpositionListDefaultConfigs,
+    /// Superposition Proxy Get Dimensions List flow
+    SuperpositionListDimensions,
+    /// Superposition Proxy Create Context flow
+    SuperpositionCreateContext,
+    /// Superposition Proxy Resolve Detailed Config flow
+    SuperpositionResolveDetailedConfig,
+    /// Superposition Proxy List Audit Logs flow
+    SuperpositionListAuditLogs,
     // Get user details internal
     GetUserDetailsInternal,
     // List users internal

@@ -1031,7 +1031,6 @@ impl Default for PaymentAuthorizeType {
             billing_descriptor: None,
             tokenization: None,
             partner_merchant_identifier_details: None,
-            rrn: None,
             feature_metadata: None,
             installment_details: None,
             connector_intent_metadata: None,

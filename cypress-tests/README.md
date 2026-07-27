@@ -523,7 +523,7 @@ This will redirect all Silverflow API calls from Hyperswitch to your local mock 
 
 - There are some use cases where a connector supports a feature that requires a different set of API keys (example: Network transaction ID for Stripe expects a different API Key to be passed). This forces the need for having multiple credentials that serves different use cases
 - This basically means that a connector can have multiple credentials
-- At present the maximum number of credentials that can be supported is `2`
+- Additional credentials can be added using the `connector_N` format, for example `connector_3`, `connector_4`, and so on.
 - The `creds.json` file should be structured to support multiple credentials for such connectors. The `creds.json` file should be structured as follows:
 
 ```json

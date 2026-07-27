@@ -327,7 +327,7 @@ fn determine_cit_mit_fields(
         // For other mandate types that might not be supported
         Some(mandates::MandateReferenceId::NetworkMandateId(_))
         | Some(mandates::MandateReferenceId::NetworkTokenWithNTI(_))
-        | Some(mandates::MandateReferenceId::CardWithLimitedData) => {
+        | Some(mandates::MandateReferenceId::CardWithLimitedData(_)) => {
             // These might need different handling or return an error
             Err(errors::ConnectorError::NotImplemented(
                 get_unimplemented_payment_method_error_message("Celero"),

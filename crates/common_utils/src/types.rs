@@ -1256,6 +1256,131 @@ pub struct BrowserInformation {
 
 #[cfg(feature = "v2")]
 crate::impl_to_sql_from_sql_json!(BrowserInformation);
+
+/// A single co-badge / secondary network entry enriched from the Pagos BIN data.
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq)]
+pub struct SecondaryNetwork {
+    /// The co-badged network (e.g. NYCE, PULSE, CULIANCE). Always present.
+    pub card_network: common_enums::CoBadgedCardNetwork,
+
+    /// PAN vs token on this rail.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub card_iin_type: Option<String>,
+    /// Whether bill-pay is enabled on this rail.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub billpay_enabled: Option<bool>,
+    /// Card subtype on this rail (issuer product name).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub card_subtype: Option<String>,
+    /// Network card subtype code on this rail.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub card_subtype_code: Option<String>,
+    /// Rail operator.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub card_issuer: Option<String>,
+    /// Whether e-commerce transactions are enabled on this rail.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ecom_enabled: Option<bool>,
+    /// Card type on this rail (e.g. credit, debit).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub card_type: Option<String>,
+    /// ISO 3166-1 alpha-2 country code for this rail.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub country_code: Option<String>,
+}
+
+/// Co-badged card networks for a card BIN, stored as a JSONB array of [`SecondaryNetwork`] objects
+/// in the `co_badged_card_networks` column of `cards_info`. The newtype is serde-transparent, so it
+/// serializes/deserializes as a plain JSON array.
+#[derive(
+    Clone,
+    Debug,
+    Default,
+    PartialEq,
+    Eq,
+    serde::Serialize,
+    serde::Deserialize,
+    FromSqlRow,
+    AsExpression,
+)]
+#[diesel(sql_type = Jsonb)]
+pub struct CoBadgedCardNetworkMetadata(pub Vec<SecondaryNetwork>);
+
+crate::impl_to_sql_from_sql_json!(CoBadgedCardNetworkMetadata);
+
+/// A single interchange cap entry within the [`CardCost`] array. All values are kept as strings.
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct InterchangeCap {
+    /// An abbreviated region name where the interchange cap applies
+    #[schema(example = "Dom")]
+    pub cap_region_shortname: Option<String>,
+    /// The interchange percentage assessed, shown in decimals for the capped interchange
+    #[schema(example = "0.002")]
+    pub cap_advalorem_amount: Option<String>,
+    /// The name of the regulated interchange cap
+    #[schema(example = "US Durbin Regulation Debit Visa")]
+    pub cap_type_name: Option<String>,
+    /// If a fixed or regulated interchange amount applies, the amount will be shown here
+    #[schema(example = "0.21")]
+    pub cap_fixed_amount: Option<String>,
+    /// The currency of the qualified fixed_amount for the regulated or capped interchange
+    #[schema(example = "usd")]
+    pub cap_type_qualifier_currency: Option<String>,
+    /// The description of the interchange cap or regulation
+    #[schema(example = "US Durbin Regulation Debit Visa")]
+    pub cap_type_qualifier_text: Option<String>,
+    /// The minimum merchant processing volume amount limit for the interchange cap
+    #[schema(example = "101mm")]
+    pub cap_type_qualifier_lower: Option<String>,
+    /// The maximum merchant processing volume amount limit for the interchange cap
+    #[schema(example = "500mm")]
+    pub cap_type_qualifier_upper: Option<String>,
+}
+
+/// The `cost` column of `cards_info` — a JSON array of interchange caps.
+#[derive(
+    Clone,
+    Debug,
+    Default,
+    PartialEq,
+    Eq,
+    serde::Serialize,
+    serde::Deserialize,
+    FromSqlRow,
+    AsExpression,
+)]
+#[diesel(sql_type = Jsonb)]
+pub struct CardCost(pub Vec<InterchangeCap>);
+
+crate::impl_to_sql_from_sql_json!(CardCost);
+
+/// A single customer-authentication requirement within the [`CardAuthentication`] array.
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct AuthenticationInfo {
+    /// If additional customer authentication is required, this indicates the authentication program
+    /// name; hardcoded based on issuer-country law.
+    #[schema(example = "EU PSD2 - SCA")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub authentication_name: Option<String>,
+}
+
+/// The `authentication` column of `cards_info` — a JSON array of required authentication programs.
+#[derive(
+    Clone,
+    Debug,
+    Default,
+    PartialEq,
+    Eq,
+    serde::Serialize,
+    serde::Deserialize,
+    FromSqlRow,
+    AsExpression,
+)]
+#[diesel(sql_type = Jsonb)]
+pub struct CardAuthentication(pub Vec<AuthenticationInfo>);
+
+crate::impl_to_sql_from_sql_json!(CardAuthentication);
+
 /// Domain type for connector_transaction_id
 /// Maximum length for connector's transaction_id can be 128 characters in HS DB.
 /// In case connector's use an identifier whose length exceeds 128 characters,
