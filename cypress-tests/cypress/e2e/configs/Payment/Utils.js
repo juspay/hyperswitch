@@ -40,9 +40,11 @@ import { connectorDetails as forteConnectorDetails } from "./Forte.js";
 import { connectorDetails as getnetConnectorDetails } from "./Getnet.js";
 import { connectorDetails as gigadatConnectorDetails } from "./Gigadat.js";
 import { connectorDetails as globalpayConnectorDetails } from "./Globalpay.js";
+import { connectorDetails as globepayConnectorDetails } from "./Globepay.js";
 import { connectorDetails as helcimConnectorDetails } from "./Helcim.js";
 import { connectorDetails as hipayConnectorDetails } from "./Hipay.js";
 import { connectorDetails as iatapayConnectorDetails } from "./Iatapay.js";
+import { connectorDetails as inespayConnectorDetails } from "./Inespay.js";
 import { connectorDetails as itaubankConnectorDetails } from "./ItauBank.js";
 import { connectorDetails as jpmorganConnectorDetails } from "./Jpmorgan.js";
 import { connectorDetails as klarnaConnectorDetails } from "./Klarna.js";
@@ -66,6 +68,7 @@ import { connectorDetails as paysafeConnectorDetails } from "./Paysafe.js";
 import { connectorDetails as payuConnectorDetails } from "./Payu.js";
 import { connectorDetails as peachpaymentsConnectorDetails } from "./Peachpayments.js";
 import { connectorDetails as placetopayConnectorDetails } from "./Placetopay.js";
+import { connectorDetails as plaidConnectorDetails } from "./Plaid.js";
 import { connectorDetails as powertranzConnectorDetails } from "./PowerTranz.js";
 import { connectorDetails as rapydConnectorDetails } from "./Rapyd.js";
 import { connectorDetails as redsysConnectorDetails } from "./Redsys.js";
@@ -124,9 +127,11 @@ const connectorDetails = {
   getnet: getnetConnectorDetails,
   gigadat: gigadatConnectorDetails,
   globalpay: globalpayConnectorDetails,
+  globepay: globepayConnectorDetails,
   helcim: helcimConnectorDetails,
   hipay: hipayConnectorDetails,
   iatapay: iatapayConnectorDetails,
+  inespay: inespayConnectorDetails,
   itaubank: itaubankConnectorDetails,
   jpmorgan: jpmorganConnectorDetails,
   klarna: klarnaConnectorDetails,
@@ -146,6 +151,7 @@ const connectorDetails = {
   paypal: paypalConnectorDetails,
   paysafe: paysafeConnectorDetails,
   placetopay: placetopayConnectorDetails,
+  plaid: plaidConnectorDetails,
   payu: payuConnectorDetails,
   peachpayments: peachpaymentsConnectorDetails,
   powertranz: powertranzConnectorDetails,
@@ -505,6 +511,7 @@ export const CONNECTOR_LISTS = {
       "gigadat",
       "jpmorgan",
       "loonio",
+      "mifinity",
       "nexinets",
       "nmi",
       "noon",
@@ -527,10 +534,13 @@ export const CONNECTOR_LISTS = {
       "loonio",
       "redsys",
       "worldpayxml",
-      "helcim",
+      "mifinity",
     ],
     SAVE_CARD: ["helcim"],
     // Add more exclusion lists
+    // Note: mitUsingPMId/mitForMandatesCallTest/listMandateCallTest use
+    // per-config TRIGGER_SKIP or globalState checks instead of a static
+    // list here.
   },
 
   // Inclusion lists (only run for these connectors)
@@ -606,6 +616,7 @@ export const CONNECTOR_LISTS = {
     ],
     BANK_DEBIT: [
       "adyen",
+      "inespay",
       "novalnet",
       "payload",
       "stax",
@@ -624,8 +635,8 @@ export const CONNECTOR_LISTS = {
       "paypal",
     ],
     MIFINITY_WALLET: ["mifinity"],
-    ALIPAY_WALLET: ["stripe", "multisafepay"],
-    WECHATPAY_WALLET: ["stripe", "multisafepay"],
+    ALIPAY_WALLET: ["globepay", "stripe", "multisafepay"],
+    WECHATPAY_WALLET: ["globepay", "stripe", "multisafepay"],
     MBWAY_WALLET: ["multisafepay"],
     SKRILL_WALLET: ["paysafe"],
     PAYSAFECARD_GIFT_CARD: ["paysafe"],
@@ -749,6 +760,7 @@ export const CONNECTOR_LISTS = {
     FRM: ["stripe"],
     PAYOUT_PRIORITY: ["adyenplatform"],
     DELAYED_SESSION_TOKEN: ["trustpay", "payme"],
+    OPEN_BANKING_PIS: ["plaid"],
     CLIENT_SESSION_VALIDATION: ["stripe"],
     WEBHOOK_CONFIG: ["stripe"],
     REQUIRES_CVV: ["bankofamerica"],

@@ -101,8 +101,8 @@ change_reason = "Initial setup"
 [default-configs.fingerprint_secret]
 value = ""
 schema = { type = "string" }
-description = "Fingerprint secret used for payment card fingerprinting per merchant"
-change_reason = "Initial setup"
+description = "Fingerprint secret used as a migration fallback for merchant accounts"
+change_reason = "Retain during merchant account migration"
 
 [default-configs.should_call_gsm]
 value = false
@@ -167,7 +167,7 @@ change_reason = "Initial setup"
 [default-configs.should_call_pm_modular_service]
 value = false
 schema = { type = "boolean" }
-description = "Whether to call the PM modular service for an organization"
+description = "Whether to call the PM modular service for a provider merchant, with organization fallback"
 change_reason = "Initial setup"
 
 [default-configs.should_perform_sdk_vaulting]
@@ -179,7 +179,7 @@ change_reason = "Initial setup"
 [default-configs.should_schedule_modular_forward_compat]
 value = false
 schema = { type = "boolean" }
-description = "Whether to schedule PM modular forward compatibility PT for a merchant"
+description = "Whether to schedule PM modular forward compatibility PT for a provider merchant, with organization fallback"
 change_reason = "Initial setup"
 
 [default-configs.should_trigger_fingerprint_migration]
@@ -192,13 +192,13 @@ change_reason = "Initial setup"
 [default-configs.should_schedule_modular_backward_compat]
 value = false
 schema = { type = "boolean" }
-description = "Whether to schedule PM modular backward compatibility PT for a merchant"
+description = "Whether to schedule PM modular backward compatibility PT for a provider merchant, with organization fallback"
 change_reason = "Initial setup"
 
 [default-configs.should_trigger_backwards_compatibility_inline]
 value = false
 schema = { type = "boolean" }
-description = "Whether to trigger PM modular backward compatibility inline for a merchant"
+description = "Whether to trigger PM modular backward compatibility inline for a provider merchant, with organization fallback"
 change_reason = "Initial setup"
 
 [default-configs.should_return_raw_payment_method_details]

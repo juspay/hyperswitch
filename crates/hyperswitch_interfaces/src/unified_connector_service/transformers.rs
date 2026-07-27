@@ -1180,7 +1180,7 @@ impl UnifiedConnectorServiceError {
                 .as_ref()
                 .and_then(|error_info| error_info.connector_details.as_ref())
                 .and_then(|connector_details| connector_details.code.clone())
-                .unwrap_or_else(|| connector_error.error_code.clone()),
+                .unwrap_or_else(|| crate::consts::NO_ERROR_CODE.to_string()),
             message: connector_error.error_message,
             status_code,
             reason: connector_error

@@ -1032,6 +1032,8 @@ diesel::table! {
         #[max_length = 64]
         merchant_account_type -> Nullable<Varchar>,
         network_tokenization_credentials -> Nullable<Bytea>,
+        #[max_length = 128]
+        fingerprint_secret -> Nullable<Varchar>,
     }
 }
 

@@ -523,6 +523,7 @@ where
                                     let compat_action = payment_methods::payment_method_modular_forward_compat_action(
                                         state,
                                         &pm.merchant_id,
+                                        &platform.get_provider().get_account().organization_id,
                                         pm.customer_id.as_ref(),
                                     )
                                     .await;
@@ -674,6 +675,7 @@ where
                                         let compat_action = payment_methods::payment_method_modular_forward_compat_action(
                                             state,
                                             &pm.merchant_id,
+                                            &platform.get_provider().get_account().organization_id,
                                             pm.customer_id.as_ref(),
                                         )
                                         .await;
@@ -867,6 +869,7 @@ where
                                     payment_methods::payment_method_modular_forward_compat_action(
                                         state,
                                         &existing_pm.merchant_id,
+                                        &platform.get_provider().get_account().organization_id,
                                         existing_pm.customer_id.as_ref(),
                                     )
                                     .await;
@@ -2244,6 +2247,7 @@ async fn generate_network_token_and_update_payment_method(
                 let compat_action = payment_methods::payment_method_modular_forward_compat_action(
                     state,
                     &pm_info.merchant_id,
+                    &platform.get_provider().get_account().organization_id,
                     pm_info.customer_id.as_ref(),
                 )
                 .await;
