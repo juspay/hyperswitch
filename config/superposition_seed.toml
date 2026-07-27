@@ -71,24 +71,24 @@ schema = { type = "string" }
 description = "Business profile identifier"
 change_reason = "Initial setup"
 
-[default-configs.requires_cvv]
+[default-configs."payments.requires_cvv"]
 value = true
 schema = { type = "boolean" }
 description = "Whether CVV is required for payments"
 change_reason = "Initial setup"
 
-[default-configs.implicit_customer_update]
+[default-configs."payments.implicit_customer_update"]
 value = false
 schema = { type = "boolean" }
 description = "Whether to implicitly update customer details on payment"
 change_reason = "Initial setup"
 
-[default-configs.payout_tracker_mapping]
+[default-configs."payouts.payout_tracker_mapping"]
 schema = { type = "object" }
 description = "Payout sync retry mapping configuration per connector"
 change_reason = "Initial setup"
 
-[default-configs.payout_tracker_mapping.value]
+[default-configs."payouts.payout_tracker_mapping".value]
 start_after = 60
 frequencies = [[300, 5]]
 
@@ -98,79 +98,79 @@ schema = { type = "boolean" }
 description = "Whether client session validation is enabled for payments"
 change_reason = "Initial setup"
 
-[default-configs.fingerprint_secret]
+[default-configs."vaulting.fingerprint_secret"]
 value = ""
 schema = { type = "string" }
 description = "Fingerprint secret used as a migration fallback for merchant accounts"
 change_reason = "Retain during merchant account migration"
 
-[default-configs.should_call_gsm]
+[default-configs."payments.should_call_gsm"]
 value = false
 schema = { type = "boolean" }
 description = "Whether to call GSM (Global Status Mapping) for auto-retries on payment failure"
 change_reason = "Initial setup"
 
-[default-configs.should_perform_eligibility]
+[default-configs."payments.should_perform_eligibility"]
 value = false
 schema = { type = "boolean" }
 description = "Whether the SDK should perform an eligibility check before confirming payment"
 change_reason = "Initial setup"
 
-[default-configs.should_enable_mit_with_limited_card_data]
+[default-configs."payments.should_enable_mit_with_limited_card_data"]
 value = false
 schema = { type = "boolean" }
 description = "Whether to allow merchant-initiated transactions (MIT) with limited card data"
 change_reason = "Initial setup"
 
-[default-configs.should_store_eligibility_check_data_for_authentication]
+[default-configs."payments.should_store_eligibility_check_data_for_authentication"]
 value = false
 schema = { type = "boolean" }
 description = "Whether to store eligibility check data during authentication"
 change_reason = "Initial setup"
 
-[default-configs.enable_extended_card_bin]
+[default-configs."payments.enable_extended_card_bin"]
 value = false
 schema = { type = "boolean" }
 description = "Whether to use extended card BIN (8-digit) for payment method data"
 change_reason = "Initial setup"
 
-[default-configs.max_auto_payout_retries]
+[default-configs."payouts.max_auto_payout_retries"]
 value = 0
 schema = { type = "integer", minimum = 0, maximum = 4294967295 }
 description = "Maximum auto payout retries, differentiated by payout_retry_type dimension (single_connector or multi_connector)"
 change_reason = "Initial setup"
 
-[default-configs.gsm_payout_call]
+[default-configs."payouts.gsm_payout_call"]
 value = false
 schema = { type = "boolean" }
 description = "Whether to call GSM for payout retries"
 change_reason = "Initial setup"
 
-[default-configs.should_disable_vault_tokenization]
+[default-configs."vaulting.should_disable_vault_tokenization"]
 value = false
 schema = { type = "boolean" }
 description = "Whether to disable vault tokenization for a merchant"
 change_reason = "Initial setup"
 
-[default-configs.should_call_pm_modular_service]
+[default-configs."system.should_call_pm_modular_service"]
 value = false
 schema = { type = "boolean" }
 description = "Whether to call the PM modular service for a provider merchant, with organization fallback"
 change_reason = "Initial setup"
 
-[default-configs.should_perform_sdk_vaulting]
+[default-configs."vaulting.should_perform_sdk_vaulting"]
 value = true
 schema = { type = "boolean" }
 description = "Org level override on top of should_call_pm_modular_service; when false the SDK skips vaulting"
 change_reason = "Initial setup"
 
-[default-configs.should_schedule_modular_forward_compat]
+[default-configs."system.should_schedule_modular_forward_compat"]
 value = false
 schema = { type = "boolean" }
 description = "Whether to schedule PM modular forward compatibility PT for a provider merchant, with organization fallback"
 change_reason = "Initial setup"
 
-[default-configs.should_trigger_fingerprint_migration]
+[default-configs."vaulting.should_trigger_fingerprint_migration"]
 value = false
 schema = { type = "boolean" }
 description = "Whether to trigger fingerprint and entity_id migration for a merchant"
@@ -183,51 +183,51 @@ schema = { type = "boolean" }
 description = "Whether to schedule PM modular backward compatibility PT for a provider merchant, with organization fallback"
 change_reason = "Initial setup"
 
-[default-configs.should_trigger_backwards_compatibility_inline]
+[default-configs."system.should_trigger_backwards_compatibility_inline"]
 value = false
 schema = { type = "boolean" }
 description = "Whether to trigger PM modular backward compatibility inline for a provider merchant, with organization fallback"
 change_reason = "Initial setup"
 
-[default-configs.should_return_raw_payment_method_details]
+[default-configs."payments.should_return_raw_payment_method_details"]
 value = false
 schema = { type = "boolean" }
 description = "Whether to return raw payment method details (v2 only)"
 change_reason = "Initial setup"
 
-[default-configs.routing_result_source]
+[default-configs."routing.routing_result_source"]
 value = "hyperswitch_routing"
 schema = { type = "string", enum = ["decision_engine", "hyperswitch_routing"] }
 description = "Source of routing result: decision_engine (external DE) or hyperswitch_routing (inbuilt)"
 change_reason = "Initial setup"
 
-[default-configs.threeds_routing_region_uas]
+[default-configs."routing.threeds_routing_region_uas"]
 value = "region1"
 schema = { type = "string", enum = ["region1", "region2"] }
 description = "3DS routing region for UAS (Unified Authentication Service) per organization"
 change_reason = "Initial setup"
 
-[default-configs.incoming_webhook_disabled_events]
+[default-configs."webhooks.incoming_webhook_disabled_events"]
 value = false
 schema = { type = "boolean" }
 description = "Whether a specific incoming webhook event is disabled for a given connector"
 change_reason = "Initial setup"
 
-[default-configs.poll_config_external_three_ds]
+[default-configs."payments.poll_config_external_three_ds"]
 schema = { type = "object" }
 description = "Poll configuration for external 3DS authentication per connector"
 change_reason = "Initial setup"
 
-[default-configs.poll_config_external_three_ds.value]
+[default-configs."payments.poll_config_external_three_ds".value]
 delay_in_secs = 2
 frequency = 5
 
-[default-configs.pt_mapping_outgoing_webhooks]
+[default-configs."process_tracker.pt_mapping_outgoing_webhooks"]
 schema = { type = "object" }
 description = "Outgoing webhook retry process tracker mapping configuration"
 change_reason = "Initial setup"
 
-[default-configs.pt_mapping_outgoing_webhooks.value.default_mapping]
+[default-configs."process_tracker.pt_mapping_outgoing_webhooks".value.default_mapping]
 start_after = 60
 frequencies = [[300, 2], [600, 5], [3600, 5], [21600, 3]]
 
@@ -240,52 +240,52 @@ change_reason = "Initial setup"
 start_after = 60
 frequencies = [[300, 2], [600, 5], [3600, 5], [21600, 3]]
 
-[default-configs.pt_mapping_pcr_retries]
+[default-configs."process_tracker.pt_mapping_pcr_retries"]
 schema = { type = "object" }
 description = "Revenue recovery (PCR) payment retry process tracker mapping configuration"
 change_reason = "Initial setup"
 
-[default-configs.pt_mapping_pcr_retries.value.default_mapping]
+[default-configs."process_tracker.pt_mapping_pcr_retries".value.default_mapping]
 start_after = 60
 frequencies = [[10800, 2], [21600, 3], [32400, 3], [43200, 3], [64800, 3]]
 
-[default-configs.pt_mapping_payment_sync]
+[default-configs."process_tracker.pt_mapping_payment_sync"]
 schema = { type = "object" }
 description = "Payment sync (psync) retry process tracker mapping configuration"
 change_reason = "Initial setup"
 
-[default-configs.pt_mapping_payment_sync.value]
+[default-configs."process_tracker.pt_mapping_payment_sync".value]
 max_retries_count = 5
 
-[default-configs.pt_mapping_payment_sync.value.default_mapping]
+[default-configs."process_tracker.pt_mapping_payment_sync".value.default_mapping]
 start_after = 60
 frequencies = [[300, 5]]
 
-[default-configs.pt_mapping_refund_sync]
+[default-configs."process_tracker.pt_mapping_refund_sync"]
 schema = { type = "object" }
 description = "Refund sync retry process tracker mapping configuration"
 change_reason = "Initial setup"
 
-[default-configs.pt_mapping_refund_sync.value]
+[default-configs."process_tracker.pt_mapping_refund_sync".value]
 max_retries_count = 5
 
-[default-configs.pt_mapping_refund_sync.value.default_mapping]
+[default-configs."process_tracker.pt_mapping_refund_sync".value.default_mapping]
 start_after = 60
 frequencies = [[300, 5]]
 
-[default-configs.pt_mapping_dispute_sync]
+[default-configs."process_tracker.pt_mapping_dispute_sync"]
 schema = { type = "object" }
 description = "Dispute sync retry process tracker mapping configuration"
 change_reason = "Initial setup"
 
-[default-configs.pt_mapping_dispute_sync.value]
+[default-configs."process_tracker.pt_mapping_dispute_sync".value]
 max_retries_count = 5
 
-[default-configs.pt_mapping_dispute_sync.value.default_mapping]
+[default-configs."process_tracker.pt_mapping_dispute_sync".value.default_mapping]
 start_after = 60
 frequencies = [[300, 5]]
 
-[default-configs.save_wallet_decrypted_data]
+[default-configs."vaulting.save_wallet_decrypted_data"]
 value = false
 schema = { type = "boolean" }
 description = "Whether to save wallet decrypted data"
