@@ -685,8 +685,15 @@ pub enum BlocklistDataKind {
 #[serde(rename_all = "snake_case")]
 pub enum BlockReason {
     BlockedBin,
+    BlockedCardInfoUnavailable,
     BlockedCardType(CardType),
+    BlockedCardNetwork,
+    BlockedFundingSource,
     BlockedCardSubtype,
+    BlockedCardSegmentType,
+    BlockedVirtualCard,
+    BlockedNonReloadablePrepaidCard,
+    BlockedGamblingCard,
     BlockedIssuerCountry,
     BlockedIssuer,
 }
@@ -695,12 +702,37 @@ impl BlockReason {
     pub fn error_message(&self) -> String {
         match self {
             Self::BlockedBin => "We're unable to accept this card, please try another card or a different payment method".to_string(),
+            Self::BlockedCardInfoUnavailable => "We couldn't verify this card's information, please try a different card".to_string(),
             Self::BlockedCardType(card_type) => {
                 format!("{} cards are not accepted for this transaction, please try a different card", card_type.title_case())
             }
+            Self::BlockedCardNetwork => "This card network is not accepted for this transaction, please try a different card".to_string(),
+            Self::BlockedFundingSource => "This card funding source is not accepted for this transaction, please try a different card".to_string(),
             Self::BlockedCardSubtype => "This card is not accepted for this transaction, please try a different card".to_string(),
+            Self::BlockedCardSegmentType => "This card segment is not accepted for this transaction, please try a different card".to_string(),
+            Self::BlockedVirtualCard => "Virtual cards are not accepted for this transaction, please try a different card".to_string(),
+            Self::BlockedNonReloadablePrepaidCard => "Non-reloadable prepaid cards are not accepted for this transaction, please try a different card".to_string(),
+            Self::BlockedGamblingCard => "Cards associated with gambling are not accepted for this transaction, please try a different card".to_string(),
             Self::BlockedIssuerCountry => "Cards issued in your region aren't supported for this transaction, please try a different card".to_string(),
             Self::BlockedIssuer => "We can't process payments from this bank, please try another card or a different payment method".to_string(),
+        }
+    }
+
+    /// A stable, machine-readable identifier for the block reason.
+    pub fn code(&self) -> &'static str {
+        match self {
+            Self::BlockedBin => "blocked_bin",
+            Self::BlockedCardInfoUnavailable => "blocked_card_info_unavailable",
+            Self::BlockedCardType(_) => "blocked_card_type",
+            Self::BlockedCardNetwork => "blocked_card_network",
+            Self::BlockedFundingSource => "blocked_funding_source",
+            Self::BlockedCardSubtype => "blocked_card_subtype",
+            Self::BlockedCardSegmentType => "blocked_card_segment_type",
+            Self::BlockedVirtualCard => "blocked_virtual_card",
+            Self::BlockedNonReloadablePrepaidCard => "blocked_non_reloadable_prepaid_card",
+            Self::BlockedGamblingCard => "blocked_gambling_card",
+            Self::BlockedIssuerCountry => "blocked_issuer_country",
+            Self::BlockedIssuer => "blocked_issuer",
         }
     }
 }

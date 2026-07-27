@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use api_models::blocklist as api_blocklist;
 use common_enums::{BlockReason, MerchantDecision};
 use common_utils::errors::CustomResult;
@@ -547,7 +548,7 @@ pub async fn should_payment_be_blocked_by_profile_config(
         match card_info {
             None => {
                 if card_config.should_block_if_bin_info_unavailable() {
-                    block_reason = Some(BlockReason::BlockedBin);
+                    block_reason = Some(BlockReason::BlockedCardInfoUnavailable);
                 }
             }
             Some(info) => {
@@ -570,11 +571,52 @@ pub async fn should_payment_be_blocked_by_profile_config(
                     .flatten()
                 })
                 .or_else(|| {
+                    card_config
+                        .funding_sources
+                        .as_ref()
+                        .zip(info.funding_source.as_ref())
+                        .is_some_and(|(blocked_sources, source)| blocked_sources.contains(source))
+                        .then_some(BlockReason::BlockedFundingSource)
+                })
+                .or_else(|| {
+                    card_config
+                        .card_networks
+                        .as_ref()
+                        .zip(info.card_network.as_ref())
+                        .is_some_and(|(blocked_networks, network)| {
+                            blocked_networks.contains(network)
+                        })
+                        .then_some(BlockReason::BlockedCardNetwork)
+                })
+                .or_else(|| {
                     CardBlockingConfig::should_block_by_attribute(
                         &card_config.card_subtypes,
                         info.card_subtype.as_deref(),
                     )
                     .then_some(BlockReason::BlockedCardSubtype)
+                })
+                .or_else(|| {
+                    CardBlockingConfig::should_block_by_attribute(
+                        &card_config.card_segment_types,
+                        info.card_segment_type.as_deref(),
+                    )
+                    .then_some(BlockReason::BlockedCardSegmentType)
+                })
+                .or_else(|| {
+                    (card_config.block_virtual_cards == Some(true)
+                        && info.virtual_card == Some(true))
+                    .then_some(BlockReason::BlockedVirtualCard)
+                })
+                .or_else(|| {
+                    (card_config.block_non_reloadable_prepaid_cards == Some(true)
+                        && info.prepaid == Some(true)
+                        && info.reloadable_prepaid == Some(false))
+                    .then_some(BlockReason::BlockedNonReloadablePrepaidCard)
+                })
+                .or_else(|| {
+                    (card_config.gambling_blocked == Some(true)
+                        && info.gambling_blocked == Some(true))
+                    .then_some(BlockReason::BlockedGamblingCard)
                 });
 
                 // Check card issuer — profile stores IDs, cards_info has name
@@ -597,7 +639,7 @@ pub async fn should_payment_be_blocked_by_profile_config(
                             .unwrap_or_default()
                             .into_iter()
                             .map(|i| i.issuer_name)
-                            .collect::<std::collections::HashSet<_>>();
+                            .collect::<HashSet<_>>();
                         if resolved_names.contains(issuer_name.as_str()) {
                             block_reason = Some(BlockReason::BlockedIssuer);
                         }
@@ -640,4 +682,42 @@ pub async fn generate_payment_fingerprint(
             None
         },
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn block_reasons_have_distinct_error_messages() {
+        let network_message = BlockReason::BlockedCardNetwork.error_message();
+        let funding_source_message = BlockReason::BlockedFundingSource.error_message();
+
+        assert_eq!(
+            network_message,
+            "This card network is not accepted for this transaction, please try a different card"
+        );
+        assert_eq!(
+            funding_source_message,
+            "This card funding source is not accepted for this transaction, please try a different card"
+        );
+
+        let messages = [
+            BlockReason::BlockedBin.error_message(),
+            BlockReason::BlockedCardInfoUnavailable.error_message(),
+            BlockReason::BlockedCardType(common_enums::CardType::Credit).error_message(),
+            network_message,
+            funding_source_message,
+            BlockReason::BlockedCardSubtype.error_message(),
+            BlockReason::BlockedCardSegmentType.error_message(),
+            BlockReason::BlockedVirtualCard.error_message(),
+            BlockReason::BlockedNonReloadablePrepaidCard.error_message(),
+            BlockReason::BlockedGamblingCard.error_message(),
+            BlockReason::BlockedIssuerCountry.error_message(),
+            BlockReason::BlockedIssuer.error_message(),
+        ];
+        let unique_messages = messages.iter().collect::<HashSet<_>>();
+
+        assert_eq!(messages.len(), unique_messages.len());
+    }
 }

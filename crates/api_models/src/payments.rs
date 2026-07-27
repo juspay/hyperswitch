@@ -10843,7 +10843,11 @@ pub enum NextActionCall {
     /// The next action is to await for a merchant callback
     AwaitMerchantCallback,
     /// The next action is to deny the payment with an error message
-    Deny { message: String },
+    Deny {
+        message: String,
+        /// A stable, machine-readable identifier for the reason the payment was denied
+        code: Option<String>,
+    },
     /// The next action is to perform eligibility check
     EligibilityCheck,
 }
