@@ -654,10 +654,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
 
         cy.step("List Customer Payment Methods", () => {
           if (!shouldContinue) {
-            cy.task(
-              "cli_log",
-              "Skipping step: List Customer Payment Methods"
-            );
+            cy.task("cli_log", "Skipping step: List Customer Payment Methods");
             return;
           }
           cy.listCustomerPMCallTest(globalState);
@@ -691,10 +688,7 @@ describe("Card - Mandates using Payment Method Id flow test", () => {
 
         cy.step("List Customer Payment Methods", () => {
           if (!shouldContinue) {
-            cy.task(
-              "cli_log",
-              "Skipping step: List Customer Payment Methods"
-            );
+            cy.task("cli_log", "Skipping step: List Customer Payment Methods");
             return;
           }
           cy.listCustomerPMCallTest(globalState);

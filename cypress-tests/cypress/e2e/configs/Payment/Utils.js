@@ -606,7 +606,7 @@ export const CONNECTOR_LISTS = {
       "novalnet",
       "payload",
       "paypal",
-      "trustpay"
+      "trustpay",
     ],
     REFUNDS_WEBHOOK: [
       "airwallex",
