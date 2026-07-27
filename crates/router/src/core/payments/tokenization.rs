@@ -1132,10 +1132,7 @@ pub async fn save_payment_method_sync<FData>(
     payment_method_token: Option<hyperswitch_domain_models::router_data::PaymentMethodToken>,
     customer_details: Option<api_models::customers::CustomerDocumentDetails>,
     dimensions: &DimensionsWithProcessorAndProviderMerchantId,
-) -> RouterResult<(
-    SavePaymentMethodDataResponse,
-    Option<LockerSaveContext>,
-)>
+) -> RouterResult<(SavePaymentMethodDataResponse, Option<LockerSaveContext>)>
 where
     FData: mandate::MandateBehaviour + Clone,
 {
@@ -1385,13 +1382,12 @@ where
                 let external_vault_mca_id = external_vault_details
                     .map(|connector_details| connector_details.vault_connector_id.clone());
 
-                let vault_source_details =
-                    domain::PaymentMethodVaultSourceDetails::try_from((
-                        vault_type,
-                        external_vault_mca_id,
-                    ))
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Unable to create vault source details")?;
+                let vault_source_details = domain::PaymentMethodVaultSourceDetails::try_from((
+                    vault_type,
+                    external_vault_mca_id,
+                ))
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Unable to create vault source details")?;
 
                 let should_save_walled_decrypted_token = dimensions
                     .get_save_wallet_decrypted_data(
@@ -1436,9 +1432,7 @@ where
                                 Ok(None)
                             } else {
                                 Err(error)
-                                    .change_context(
-                                        errors::ApiErrorResponse::InternalServerError,
-                                    )
+                                    .change_context(errors::ApiErrorResponse::InternalServerError)
                                     .attach_printable(
                                         "failed to find payment methods for a customer",
                                     )
@@ -1485,10 +1479,13 @@ where
                             payment_method_data
                                 .get_co_badged_card_data()
                                 .and_then(|cbcd| {
-                                    cbcd.card_network.map(|card_network| card_network.to_string())
+                                    cbcd.card_network
+                                        .map(|card_network| card_network.to_string())
                                 })
                                 .or_else(|| {
-                                    if let domain::PaymentMethodData::Card(card) = &payment_method_data {
+                                    if let domain::PaymentMethodData::Card(card) =
+                                        &payment_method_data
+                                    {
                                         card.card_network.as_ref().map(|cn| cn.to_string())
                                     } else {
                                         None
@@ -1507,29 +1504,28 @@ where
                     payment_method_id
                 };
 
-                let locker_ctx = if state.conf.locker.locker_enabled
-                    && customer_saved_pm_option.is_none()
-                {
-                    Some(LockerSaveContext {
-                        payment_method_id: payment_method_id.clone(),
-                        customer_id: customer_id_resolved,
-                        payment_method_create_request: payment_method_create_request.clone(),
-                        payment_method_data: payment_method_data.clone(),
-                        payment_method_status,
-                        vault_operation: vault_operation.clone(),
-                        payment_method_info: payment_method_info.clone(),
-                        is_network_tokenization_enabled,
-                        connector_token: connector_token.clone(),
-                        customer_acceptance: customer_acceptance.clone(),
-                        network_transaction_id: network_transaction_id.clone(),
-                        network_transaction_link_id: network_transaction_link_id.clone(),
-                        payment_method_billing_address: payment_method_billing_address.cloned(),
-                        customer_details: customer_details.clone(),
-                        dimensions: dimensions.clone(),
-                    })
-                } else {
-                    None
-                };
+                let locker_ctx =
+                    if state.conf.locker.locker_enabled && customer_saved_pm_option.is_none() {
+                        Some(LockerSaveContext {
+                            payment_method_id: payment_method_id.clone(),
+                            customer_id: customer_id_resolved,
+                            payment_method_create_request: payment_method_create_request.clone(),
+                            payment_method_data: payment_method_data.clone(),
+                            payment_method_status,
+                            vault_operation: vault_operation.clone(),
+                            payment_method_info: payment_method_info.clone(),
+                            is_network_tokenization_enabled,
+                            connector_token: connector_token.clone(),
+                            customer_acceptance: customer_acceptance.clone(),
+                            network_transaction_id: network_transaction_id.clone(),
+                            network_transaction_link_id: network_transaction_link_id.clone(),
+                            payment_method_billing_address: payment_method_billing_address.cloned(),
+                            customer_details: customer_details.clone(),
+                            dimensions: dimensions.clone(),
+                        })
+                    } else {
+                        None
+                    };
 
                 Some((Some(payment_method_id), locker_ctx))
             } else {
@@ -1706,33 +1702,36 @@ pub async fn save_payment_method_locker_async(
                         None => None,
                     };
 
-                    let compat_action = payment_methods::payment_method_modular_forward_compat_action(
-                        state,
-                        &pm.merchant_id,
-                        pm.customer_id.as_ref(),
-                    )
-                    .await;
+                    let compat_action =
+                        payment_methods::payment_method_modular_forward_compat_action(
+                            state,
+                            &pm.merchant_id,
+                            pm.customer_id.as_ref(),
+                        )
+                        .await;
 
-                    let pm_update = diesel_models::payment_method::PaymentMethodUpdate::AdditionalDataUpdate {
-                        locker_id: Some(card_reference.clone()),
-                        payment_method_data: None,
-                        status: None,
-                        payment_method: None,
-                        payment_method_type: None,
-                        payment_method_issuer: None,
-                        network_token_requestor_reference_id: network_token_requestor_ref_id.clone(),
-                        network_token_locker_id: network_token_locker_id.clone(),
-                        network_token_payment_method_data: pm_network_token_data_encrypted
-                            .map(Into::into),
-                        last_modified_by: platform
-                            .get_initiator()
-                            .and_then(|initiator| initiator.to_created_by())
-                            .map(|last_modified_by| last_modified_by.to_string()),
-                        metadata: None,
-                        last_used_at: Some(common_utils::date_time::now()),
-                        connector_mandate_details: None,
-                        network_tokenization_data: None,
-                    };
+                    let pm_update =
+                        diesel_models::payment_method::PaymentMethodUpdate::AdditionalDataUpdate {
+                            locker_id: Some(card_reference.clone()),
+                            payment_method_data: None,
+                            status: None,
+                            payment_method: None,
+                            payment_method_type: None,
+                            payment_method_issuer: None,
+                            network_token_requestor_reference_id: network_token_requestor_ref_id
+                                .clone(),
+                            network_token_locker_id: network_token_locker_id.clone(),
+                            network_token_payment_method_data: pm_network_token_data_encrypted
+                                .map(Into::into),
+                            last_modified_by: platform
+                                .get_initiator()
+                                .and_then(|initiator| initiator.to_created_by())
+                                .map(|last_modified_by| last_modified_by.to_string()),
+                            metadata: None,
+                            last_used_at: Some(common_utils::date_time::now()),
+                            connector_mandate_details: None,
+                            network_tokenization_data: None,
+                        };
 
                     db.update_payment_method(
                         platform.get_provider().get_key_store(),
@@ -1775,7 +1774,9 @@ pub async fn save_payment_method_locker_async(
                                 card_reference
                             );
                         }
-                        Some(payment_methods::transformers::DataDuplicationCheck::MetaDataChanged) => {
+                        Some(
+                            payment_methods::transformers::DataDuplicationCheck::MetaDataChanged,
+                        ) => {
                             logger::info!(
                                 "Locker detected metadata change for PM {} — card_reference: {}",
                                 payment_method_id,

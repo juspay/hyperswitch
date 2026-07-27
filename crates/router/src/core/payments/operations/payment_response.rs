@@ -695,9 +695,7 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
                 ..
             } = sync_response;
 
-            payment_data.payment_method_info = if let Some(payment_method_id) =
-                &payment_method_id
-            {
+            payment_data.payment_method_info = if let Some(payment_method_id) = &payment_method_id {
                 match state
                     .store
                     .find_payment_method(
@@ -714,9 +712,7 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
                             None
                         } else {
                             Err(error)
-                                .change_context(
-                                    errors::ApiErrorResponse::InternalServerError,
-                                )
+                                .change_context(errors::ApiErrorResponse::InternalServerError)
                                 .attach_printable("Error retrieving payment method from db")
                                 .map_err(|err| logger::error!(payment_method_retrieve=?err))
                                 .ok()
@@ -727,17 +723,14 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
                 None
             };
             payment_data.payment_attempt.payment_method_id = payment_method_id;
-            payment_data.payment_attempt.connector_mandate_detail =
-                connector_mandate_reference_id
-                    .clone()
-                    .map(ForeignFrom::foreign_from);
+            payment_data.payment_attempt.connector_mandate_detail = connector_mandate_reference_id
+                .clone()
+                .map(ForeignFrom::foreign_from);
             payment_data.set_mandate_id(mandates::MandateIds {
                 mandate_id: None,
-                mandate_reference_id: connector_mandate_reference_id.map(
-                    |connector_mandate_id| {
-                        MandateReferenceId::ConnectorMandateId(connector_mandate_id)
-                    },
-                ),
+                mandate_reference_id: connector_mandate_reference_id.map(|connector_mandate_id| {
+                    MandateReferenceId::ConnectorMandateId(connector_mandate_id)
+                }),
             });
             Ok(())
         } else if should_avoid_saving {
