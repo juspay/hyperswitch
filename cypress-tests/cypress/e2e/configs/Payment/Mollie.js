@@ -9,6 +9,7 @@ const successfulNo3DSCardDetails = {
   card_cvc: "123",
 };
 
+
 const successfulThreeDSTestCardDetails = {
   card_number: "5555555555554444",
   card_exp_month: "01",
@@ -167,6 +168,7 @@ export const connectorDetails = {
     "3DSManualCapture": {
       Request: {
         payment_method: "card",
+        payment_method_type: "credit",
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
         },
@@ -185,6 +187,7 @@ export const connectorDetails = {
     "3DSAutoCapture": {
       Request: {
         payment_method: "card",
+        payment_method_type: "credit",
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
         },
@@ -722,6 +725,24 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
+        },
+      },
+    },
+      No3DSFailPayment: {
+      Request: {
+        amount: 6000,
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+        billing: billingAddress,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded", // There is no failure test cards for Mollie
         },
       },
     },
