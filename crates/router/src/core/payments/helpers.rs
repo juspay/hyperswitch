@@ -9234,22 +9234,25 @@ pub fn validate_platform_request_for_marketplace(
         },
         Some(common_types::payments::SplitPaymentsRequest::PayloadSplitPayment(
             payload_split_payment,
-        )) => payload_split_payment
+        )) => {
+            let total_ledger_amount: i64 = payload_split_payment
                 .ledger
                 .iter()
-                .try_for_each(|split_item| {
-                    if split_item.amount.get_amount_as_i64() > 0 {
-                        return Err(errors::ApiErrorResponse::InvalidDataValue {
-                            field_name: "split_payments.payload_split_payment.ledger.amount is expected to have a negative value",
-                        });
-                    }
-                    if split_item.receiver_id.is_empty() {
-                        return Err(errors::ApiErrorResponse::MissingRequiredField {
-                            field_name: "split_payments.payload_split_payment.ledger.receiver_id",
-                        });
-                    }
-                    Ok(())
-                })?,
+                .map(|split_item| split_item.amount.get_amount_as_i64())
+                .sum();
+
+            let total_amount: i64 = match amount {
+                api::Amount::Zero => 0,
+                api::Amount::Value(amount) => amount.into(),
+            };
+
+            if total_ledger_amount > total_amount {
+                return Err(errors::ApiErrorResponse::PreconditionFailed {
+                    message: "The sum of split amounts should not exceed the total amount"
+                        .to_string(),
+                });
+            }
+        }
         None => (),
     }
     Ok(())

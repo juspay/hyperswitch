@@ -4,7 +4,10 @@ use api_models::{
     merchant_connector_webhook_management::ScopeIdentifier, webhooks::IncomingWebhookEvent,
 };
 use common_enums::{self as common_enums, enums};
-use common_utils::{ext_traits::ValueExt, types::StringMajorUnit};
+use common_utils::{
+    ext_traits::ValueExt,
+    types::{MinorUnit, StringMajorUnit},
+};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     address::AddressDetails,
@@ -81,7 +84,9 @@ fn get_payload_ledger_entries(
         .ledger
         .iter()
         .map(|item| requests::PayloadSplitLedgerEntry {
-            amount: item.amount,
+            // Payload expects each ledger entry as a negative amount (a debit against the payment);
+            // merchants provide the positive amount routed to the receiver, so it is negated here.
+            amount: MinorUnit::new(-item.amount.get_amount_as_i64()),
             receiver_id: item.receiver_id.clone(),
         })
         .collect()

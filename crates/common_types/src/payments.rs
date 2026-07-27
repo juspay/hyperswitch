@@ -118,8 +118,8 @@ impl_to_sql_from_sql_json!(StripeSplitPaymentRequest);
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 /// A single ledger entry distributing payment to one receiver for Payload split payments
 pub struct PayloadLedgerItem {
-    /// Signed amount in minor units (negative = debit from the payment)
-    #[schema(value_type = i64, example = -995)]
+    /// Amount in minor units to be routed to this receiver out of the payment
+    #[schema(value_type = i64, example = 995)]
     #[smithy(value_type = "i64")]
     pub amount: MinorUnit,
     /// processing_id of the receiver
