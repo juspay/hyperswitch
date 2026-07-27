@@ -181,9 +181,6 @@ bg_metrics_collection_interval_in_secs = 15           # Interval for collecting 
 mode = "disabled" # allowed values: "disabled", "record", "replay"
 run_id = ""       # stable run identifier; empty lets the runtime choose a safe default
 
-[deja.recording]
-graph = "disabled" # allowed values: "disabled", "enabled" — execution-graph nodes on the recording stream
-
 [deja.recording.kafka]
 brokers = []
 topic = "hyperswitch-deja-recording-events"
@@ -199,7 +196,6 @@ lookup_dir = ""
 observed_sink = ""
 
 [deja.sampler]
-enabled = false
 record_key = "deja_record"
 timeout_ms = 25
 fail_closed = true
