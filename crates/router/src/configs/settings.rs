@@ -253,17 +253,9 @@ impl DejaSettings {
 #[derive(Debug, Deserialize, Clone, Default)]
 #[serde(default)]
 pub struct DejaRecordingSettings {
-    pub graph: DejaGraphMode,
+    // Execution-graph capture is coupled to the runtime mode (the graph layer
+    // rides the installed Record/Replay hook), so there is no `graph` dial here.
     pub kafka: DejaRecordingKafkaSettings,
-}
-
-#[cfg(feature = "deja")]
-#[derive(Debug, Deserialize, Clone, Copy, PartialEq, Eq, Default)]
-#[serde(rename_all = "snake_case")]
-pub enum DejaGraphMode {
-    #[default]
-    Disabled,
-    Enabled,
 }
 
 #[cfg(feature = "deja")]
@@ -317,11 +309,13 @@ pub struct DejaReplaySettings {
     pub observed_sink: Option<String>,
 }
 
+/// Per-request recording-sampler settings. The sampler is active exactly when
+/// `deja.mode = "record"` — there is no separate on/off switch; `fail_closed`
+/// governs what happens when the sampling source cannot answer.
 #[cfg(feature = "deja")]
 #[derive(Debug, Deserialize, Clone)]
 #[serde(default)]
 pub struct DejaSamplerSettings {
-    pub enabled: bool,
     pub record_key: Option<String>,
     pub timeout_ms: u64,
     pub fail_closed: bool,
@@ -331,7 +325,6 @@ pub struct DejaSamplerSettings {
 impl Default for DejaSamplerSettings {
     fn default() -> Self {
         Self {
-            enabled: false,
             record_key: None,
             timeout_ms: 25,
             fail_closed: true,
