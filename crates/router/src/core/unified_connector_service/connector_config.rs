@@ -1343,19 +1343,23 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                         .transpose()?;
 
                     Ok(Self::TsysTransit {
-                    device_id: api_key.clone(),
-                    transaction_key: key1.clone(),
-                    developer_id: api_secret.clone(),
-                    merchant_street_address: tsys_transit_meta
-                        .as_ref()
-                        .and_then(|metadata| metadata.merchant_street_address.clone()),
-                    customer_service_phone_number: tsys_transit_meta
-                        .as_ref()
-                        .and_then(|metadata| metadata.customer_service_phone_number.clone()),
-                    merchant_url: tsys_transit_meta
-                        .as_ref()
-                        .and_then(|metadata| metadata.merchant_url.as_ref().map(|merchant_url| merchant_url.to_string())),
-                })},
+                        device_id: api_key.clone(),
+                        transaction_key: key1.clone(),
+                        developer_id: api_secret.clone(),
+                        merchant_street_address: tsys_transit_meta
+                            .as_ref()
+                            .and_then(|metadata| metadata.merchant_street_address.clone()),
+                        customer_service_phone_number: tsys_transit_meta
+                            .as_ref()
+                            .and_then(|metadata| metadata.customer_service_phone_number.clone()),
+                        merchant_url: tsys_transit_meta.as_ref().and_then(|metadata| {
+                            metadata
+                                .merchant_url
+                                .as_ref()
+                                .map(|merchant_url| merchant_url.to_string())
+                        }),
+                    })
+                }
                 _ => Err(err("TsysTransit requires SignatureKey auth type")),
             },
             Connector::Wellsfargo => match auth {
