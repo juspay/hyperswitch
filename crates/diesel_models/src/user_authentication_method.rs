@@ -5,6 +5,7 @@ use time::PrimitiveDateTime;
 use crate::{enums, schema::user_authentication_methods};
 
 #[derive(Clone, Debug, Identifiable, Queryable, Selectable)]
+#[cfg_attr(feature = "deja", derive(serde::Serialize, serde::Deserialize))]
 #[diesel(table_name = user_authentication_methods, check_for_backend(diesel::pg::Pg))]
 pub struct UserAuthenticationMethod {
     pub id: String,

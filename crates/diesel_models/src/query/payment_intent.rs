@@ -13,7 +13,7 @@ use crate::{
 
 impl PaymentIntentNew {
     pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<PaymentIntent> {
-        generics::generic_insert(conn, self).await
+        Box::pin(generics::generic_insert(conn, self)).await
     }
 
     pub async fn generate_drainer_insert_query(
@@ -31,11 +31,12 @@ impl PaymentIntent {
         conn: &PgPooledConn,
         payment_intent_update: payment_intent::PaymentIntentUpdateInternal,
     ) -> StorageResult<Self> {
-        match generics::generic_update_by_id::<<Self as HasTable>::Table, _, _, _>(
-            conn,
-            self.id.to_owned(),
-            payment_intent_update,
-        )
+        match Box::pin(generics::generic_update_by_id::<
+            <Self as HasTable>::Table,
+            _,
+            _,
+            _,
+        >(conn, self.id.to_owned(), payment_intent_update))
         .await
         {
             Err(error) => match error.current_context() {

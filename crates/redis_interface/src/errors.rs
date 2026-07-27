@@ -1,5 +1,10 @@
 //! Errors specific to this custom redis interface
 
+// Deja replay reconstructs a recorded redis error as the SAME typed context the
+// recording threw ("recording threw ⇒ replay throws"); the serde derives give
+// the variants a lossless wire form (variant-name string; `InvalidConfiguration`
+// carries its String payload).
+#[cfg_attr(feature = "deja", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, thiserror::Error, PartialEq)]
 pub enum RedisError {
     #[error("Invalid Redis configuration: {0}")]
