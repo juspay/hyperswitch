@@ -13,12 +13,14 @@ pub struct PaymentLinkFormData {
     pub css_script: String,
     pub sdk_url: url::Url,
     pub html_meta_tags: String,
+    pub redirection_log_endpoint: Option<url::Url>,
 }
 
 #[derive(Debug, Eq, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PaymentLinkStatusData {
     pub js_script: String,
     pub css_script: String,
+    pub redirection_log_endpoint: Option<url::Url>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]

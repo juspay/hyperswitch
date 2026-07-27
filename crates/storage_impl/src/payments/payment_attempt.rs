@@ -89,24 +89,26 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<PaymentAttempt, errors::StorageError> {
         let conn = pg_connection_write(self).await?;
-        payment_attempt
-            .construct_new()
-            .await
-            .change_context(errors::StorageError::EncryptionError)?
-            .insert(&conn)
-            .await
-            .map_err(|error| {
-                let new_error = diesel_error_to_data_error(*error.current_context());
-                error.change_context(new_error)
-            })?
-            .convert(
-                self.get_keymanager_state()
-                    .attach_printable("Missing KeyManagerState")?,
-                merchant_key_store.key.get_inner(),
-                merchant_key_store.merchant_id.clone().into(),
-            )
-            .await
-            .change_context(errors::StorageError::DecryptionError)
+        Box::pin(
+            payment_attempt
+                .construct_new()
+                .await
+                .change_context(errors::StorageError::EncryptionError)?
+                .insert(&conn),
+        )
+        .await
+        .map_err(|error| {
+            let new_error = diesel_error_to_data_error(*error.current_context());
+            error.change_context(new_error)
+        })?
+        .convert(
+            self.get_keymanager_state()
+                .attach_printable("Missing KeyManagerState")?,
+            merchant_key_store.key.get_inner(),
+            merchant_key_store.merchant_id.clone().into(),
+        )
+        .await
+        .change_context(errors::StorageError::DecryptionError)
     }
 
     #[cfg(feature = "v1")]
@@ -122,26 +124,28 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
         let key_manager_state = self
             .get_keymanager_state()
             .attach_printable("Missing KeyManagerState")?;
-        this.convert()
-            .await
-            .change_context(errors::StorageError::EncryptionError)?
-            .update_with_attempt_id(&conn, payment_attempt.to_storage_model())
-            .await
-            .map_err(|er| {
-                let new_err = diesel_error_to_data_error(*er.current_context());
-                er.change_context(new_err)
-            })
-            .async_map(|diesel_payment_attempt| async {
-                PaymentAttempt::convert_back(
-                    key_manager_state,
-                    diesel_payment_attempt,
-                    merchant_key_store.key.get_inner(),
-                    merchant_key_store.merchant_id.clone().into(),
-                )
+        Box::pin(
+            this.convert()
                 .await
-                .change_context(errors::StorageError::DecryptionError)
-            })
-            .await?
+                .change_context(errors::StorageError::EncryptionError)?
+                .update_with_attempt_id(&conn, payment_attempt.to_storage_model()),
+        )
+        .await
+        .map_err(|er| {
+            let new_err = diesel_error_to_data_error(*er.current_context());
+            er.change_context(new_err)
+        })
+        .async_map(|diesel_payment_attempt| async {
+            PaymentAttempt::convert_back(
+                key_manager_state,
+                diesel_payment_attempt,
+                merchant_key_store.key.get_inner(),
+                merchant_key_store.merchant_id.clone().into(),
+            )
+            .await
+            .change_context(errors::StorageError::DecryptionError)
+        })
+        .await?
     }
 
     #[cfg(feature = "v2")]
@@ -155,26 +159,28 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
     ) -> CustomResult<PaymentAttempt, errors::StorageError> {
         let conn = pg_connection_write(self).await?;
 
-        Conversion::convert(this)
-            .await
-            .change_context(errors::StorageError::EncryptionError)?
-            .update_with_attempt_id(
-                &conn,
-                diesel_models::PaymentAttemptUpdateInternal::from(payment_attempt),
-            )
-            .await
-            .map_err(|error| {
-                let new_error = diesel_error_to_data_error(*error.current_context());
-                error.change_context(new_error)
-            })?
-            .convert(
-                self.get_keymanager_state()
-                    .attach_printable("Missing KeyManagerState")?,
-                merchant_key_store.key.get_inner(),
-                merchant_key_store.merchant_id.clone().into(),
-            )
-            .await
-            .change_context(errors::StorageError::DecryptionError)
+        Box::pin(
+            Conversion::convert(this)
+                .await
+                .change_context(errors::StorageError::EncryptionError)?
+                .update_with_attempt_id(
+                    &conn,
+                    diesel_models::PaymentAttemptUpdateInternal::from(payment_attempt),
+                ),
+        )
+        .await
+        .map_err(|error| {
+            let new_error = diesel_error_to_data_error(*error.current_context());
+            error.change_context(new_error)
+        })?
+        .convert(
+            self.get_keymanager_state()
+                .attach_printable("Missing KeyManagerState")?,
+            merchant_key_store.key.get_inner(),
+            merchant_key_store.merchant_id.clone().into(),
+        )
+        .await
+        .change_context(errors::StorageError::DecryptionError)
     }
 
     #[cfg(feature = "v1")]
@@ -1405,7 +1411,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<PaymentAttempt, errors::StorageError> {
         let conn = pg_connection_read(self).await?;
-        self.find_resource_by_id(
+        Box::pin(self.find_resource_by_id(
             merchant_key_store,
             storage_scheme,
             DieselPaymentAttempt::find_by_profile_id_connector_transaction_id(
@@ -1417,7 +1423,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                 profile_id.get_string_repr(),
                 connector_transaction_id,
             )),
-        )
+        ))
         .await
     }
 
@@ -1673,12 +1679,12 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PaymentAttempt, errors::StorageError> {
         let conn = pg_connection_read(self).await?;
-        self.find_resource_by_id(
+        Box::pin(self.find_resource_by_id(
             merchant_key_store,
             storage_scheme,
             DieselPaymentAttempt::find_by_id(&conn, attempt_id),
             FindResourceBy::LookupId(label::get_global_id_label(attempt_id)),
-        )
+        ))
         .await
     }
 
@@ -1691,7 +1697,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Vec<PaymentAttempt>, errors::StorageError> {
         let conn = pg_connection_read(self).await?;
-        self.filter_resources(
+        Box::pin(self.filter_resources(
             merchant_key_store,
             storage_scheme,
             DieselPaymentAttempt::find_by_payment_id(&conn, payment_id),
@@ -1701,7 +1707,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                 pattern: "pa_*",
                 limit: None,
             },
-        )
+        ))
         .await
     }
 
