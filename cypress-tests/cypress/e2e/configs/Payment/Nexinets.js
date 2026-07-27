@@ -453,15 +453,15 @@ export const connectorDetails = {
       Request: {
         currency: "EUR",
         billing: germanBillingAddress,
-      
-      customer_acceptance: {
-        acceptance_type: "offline",
-        accepted_at: "1963-05-03T04:07:52.723Z",
-        online: {
-          ip_address: "127.0.0.1",
-          user_agent: "amet irure esse",
+        customer_acceptance: {
+          acceptance_type: "offline",
+          accepted_at: "1963-05-03T04:07:52.723Z",
+          online: {
+            ip_address: "127.0.0.1",
+            user_agent: "amet irure esse",
+          },
         },
-      },},
+      },
     }),
     MITManualCapture: getCustomExchange({
       //MIT is not implemented for Nexinets
