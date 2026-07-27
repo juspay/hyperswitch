@@ -1094,6 +1094,722 @@ where
     }
 }
 
+pub struct LockerSaveContext {
+    pub payment_method_id: String,
+    pub customer_id: id_type::CustomerId,
+    pub payment_method_create_request: api::PaymentMethodCreate,
+    pub payment_method_data: domain::PaymentMethodData,
+    pub payment_method_status: common_enums::PaymentMethodStatus,
+    pub vault_operation: Option<hyperswitch_domain_models::payments::VaultOperation>,
+    pub payment_method_info: Option<domain::PaymentMethod>,
+    pub is_network_tokenization_enabled: bool,
+    pub connector_token: Option<(String, String)>,
+    pub customer_acceptance: Option<serde_json::Value>,
+    pub network_transaction_id: Option<String>,
+    pub network_transaction_link_id: Option<String>,
+    pub payment_method_billing_address: Option<hyperswitch_domain_models::address::Address>,
+    pub customer_details: Option<api_models::customers::CustomerDocumentDetails>,
+    pub dimensions: DimensionsWithProcessorAndProviderMerchantId,
+}
+
+#[cfg(feature = "v1")]
+#[instrument(skip_all)]
+#[allow(clippy::too_many_arguments)]
+pub async fn save_payment_method_sync<FData>(
+    state: &SessionState,
+    connector_name: String,
+    save_payment_method_data: SavePaymentMethodData<FData>,
+    customer_id: Option<id_type::CustomerId>,
+    platform: &domain::Platform,
+    payment_method_type: Option<storage_enums::PaymentMethodType>,
+    billing_name: Option<Secret<String>>,
+    payment_method_billing_address: Option<&hyperswitch_domain_models::address::Address>,
+    business_profile: &domain::Profile,
+    mut original_connector_mandate_reference_id: Option<ConnectorMandateReferenceId>,
+    _merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
+    vault_operation: Option<hyperswitch_domain_models::payments::VaultOperation>,
+    payment_method_info: Option<domain::PaymentMethod>,
+    payment_method_token: Option<hyperswitch_domain_models::router_data::PaymentMethodToken>,
+    customer_details: Option<api_models::customers::CustomerDocumentDetails>,
+    dimensions: &DimensionsWithProcessorAndProviderMerchantId,
+) -> RouterResult<(
+    SavePaymentMethodDataResponse,
+    Option<LockerSaveContext>,
+)>
+where
+    FData: mandate::MandateBehaviour + Clone,
+{
+    let mut pm_status = None;
+    let cards = PmCards {
+        state,
+        provider: platform.get_provider(),
+    };
+
+    match save_payment_method_data.response {
+        Ok(responses) => {
+            let db = &*state.store;
+            let token_store = state
+                .conf
+                .tokenization
+                .0
+                .get(&connector_name.to_string())
+                .map(|token_filter| token_filter.long_lived_token)
+                .unwrap_or(false);
+
+            let (network_transaction_id, network_transaction_link_id) = match &responses {
+                types::PaymentsResponseData::TransactionResponse {
+                    network_txn_id,
+                    network_txn_link_id,
+                    ..
+                } => (network_txn_id.clone(), network_txn_link_id.clone()),
+                _ => (None, None),
+            };
+
+            let network_transaction_id =
+                if save_payment_method_data.request.get_setup_future_usage()
+                    == Some(storage_enums::FutureUsage::OffSession)
+                {
+                    if network_transaction_id.is_some() {
+                        network_transaction_id
+                    } else {
+                        logger::info!("Skip storing network transaction id");
+                        None
+                    }
+                } else {
+                    None
+                };
+
+            let network_transaction_link_id =
+                if save_payment_method_data.request.get_setup_future_usage()
+                    == Some(storage_enums::FutureUsage::OffSession)
+                {
+                    network_transaction_link_id
+                } else {
+                    None
+                };
+
+            let connector_token = if token_store {
+                let tokens = save_payment_method_data
+                    .payment_method_token
+                    .to_owned()
+                    .get_required_value("payment_token")?;
+                let token = match tokens {
+                    types::PaymentMethodToken::Token(connector_token) => connector_token.expose(),
+                    types::PaymentMethodToken::ApplePayDecrypt(_) => {
+                        Err(errors::ApiErrorResponse::NotSupported {
+                            message: "Apple Pay Decrypt token is not supported".to_string(),
+                        })?
+                    }
+                    types::PaymentMethodToken::PazeDecrypt(_) => {
+                        Err(errors::ApiErrorResponse::NotSupported {
+                            message: "Paze Decrypt token is not supported".to_string(),
+                        })?
+                    }
+                    types::PaymentMethodToken::GooglePayDecrypt(_) => {
+                        Err(errors::ApiErrorResponse::NotSupported {
+                            message: "Google Pay Decrypt token is not supported".to_string(),
+                        })?
+                    }
+                };
+                Some((connector_name.clone(), token))
+            } else {
+                None
+            };
+
+            let mandate_data_customer_acceptance = save_payment_method_data
+                .request
+                .get_setup_mandate_details()
+                .and_then(|mandate_data| mandate_data.customer_acceptance.clone());
+
+            let customer_acceptance = save_payment_method_data
+                .request
+                .get_customer_acceptance()
+                .or(mandate_data_customer_acceptance.clone())
+                .map(|ca| ca.encode_to_value())
+                .transpose()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Unable to serialize customer acceptance to value")?;
+
+            let (connector_mandate_id, mandate_metadata, connector_mandate_request_reference_id) =
+                match &responses {
+                    types::PaymentsResponseData::TransactionResponse {
+                        mandate_reference, ..
+                    } => {
+                        if let Some(ref mandate_ref) = *mandate_reference {
+                            (
+                                mandate_ref.connector_mandate_id.clone(),
+                                mandate_ref.mandate_metadata.clone(),
+                                mandate_ref.connector_mandate_request_reference_id.clone(),
+                            )
+                        } else {
+                            (None, None, None)
+                        }
+                    }
+                    _ => (None, None, None),
+                };
+
+            let locker_context = if customer_acceptance.is_some() {
+                let payment_method_data =
+                    save_payment_method_data.request.get_payment_method_data();
+                let payment_method_create_request =
+                    payment_methods::get_payment_method_create_request(
+                        Some(&payment_method_data),
+                        Some(save_payment_method_data.payment_method),
+                        payment_method_type,
+                        &customer_id,
+                        billing_name.clone(),
+                        payment_method_billing_address,
+                    )
+                    .await?;
+
+                let co_badged_card_data = payment_method_data.get_co_badged_card_data().cloned();
+
+                let customer_id_resolved =
+                    customer_id.to_owned().get_required_value("customer_id")?;
+                let is_network_tokenization_enabled =
+                    business_profile.is_network_tokenization_enabled;
+
+                let payment_method_status = common_enums::PaymentMethodStatus::from(
+                    save_payment_method_data.attempt_status,
+                );
+                pm_status = Some(payment_method_status);
+
+                let optional_pm_details = match &payment_method_data {
+                    domain::PaymentMethodData::Card(card) => {
+                        let card_detail = CardDetailFromLocker {
+                            scheme: card
+                                .card_network
+                                .clone()
+                                .map(|card_network| card_network.to_string()),
+                            last4_digits: Some(card.card_number.get_last4()),
+                            issuer_country: card.card_issuing_country.clone(),
+                            issuer_country_code: card.card_issuing_country_code.clone(),
+                            card_number: Some(card.card_number.clone()),
+                            expiry_month: Some(card.card_exp_month.clone()),
+                            expiry_year: Some(card.card_exp_year.clone()),
+                            card_token: None,
+                            card_fingerprint: None,
+                            card_holder_name: billing_name.clone(),
+                            nick_name: card.nick_name.clone(),
+                            card_isin: Some(card.card_number.get_card_isin()),
+                            card_issuer: card.card_issuer.clone(),
+                            card_network: card.card_network.clone(),
+                            card_type: card.card_type.clone(),
+                            saved_to_locker: false,
+                        };
+                        Some(domain::PaymentMethodsData::Card(
+                            domain::CardDetailsPaymentMethod::from((
+                                card_detail,
+                                co_badged_card_data.as_ref(),
+                            )),
+                        ))
+                    }
+                    domain::PaymentMethodData::Wallet(domain::WalletData::ApplePay(applepay)) => {
+                        Some(domain::PaymentMethodsData::WalletDetails(
+                            get_applepay_wallet_info(applepay, payment_method_token.clone()),
+                        ))
+                    }
+                    domain::PaymentMethodData::Wallet(domain::WalletData::GooglePay(googlepay)) => {
+                        Some(domain::PaymentMethodsData::WalletDetails(
+                            get_googlepay_wallet_info(googlepay, payment_method_token.clone()),
+                        ))
+                    }
+                    domain::PaymentMethodData::BankDebit(bank_debit_data) => bank_debit_data
+                        .get_bank_debit_details()
+                        .map(domain::PaymentMethodsData::BankDebit),
+                    _ => None,
+                };
+
+                let key_manager_state = state.into();
+                let pm_data_encrypted: Option<Encryptable<Secret<serde_json::Value>>> =
+                    optional_pm_details
+                        .async_map(|pm| {
+                            create_encrypted_data(
+                                &key_manager_state,
+                                platform.get_provider().get_key_store(),
+                                pm,
+                                common_utils::type_name!(
+                                    diesel_models::payment_method::PaymentMethod
+                                ),
+                            )
+                        })
+                        .await
+                        .transpose()
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Unable to encrypt payment method data")?;
+
+                let encrypted_payment_method_billing_address: Option<
+                    Encryptable<Secret<serde_json::Value>>,
+                > = payment_method_billing_address
+                    .async_map(|address| {
+                        create_encrypted_data(
+                            &key_manager_state,
+                            platform.get_provider().get_key_store(),
+                            address.clone(),
+                            common_utils::type_name!(diesel_models::payment_method::PaymentMethod),
+                        )
+                    })
+                    .await
+                    .transpose()
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Unable to encrypt payment method billing address")?;
+
+                let payment_method_customer_details_encrypted: Option<
+                    Encryptable<Secret<serde_json::Value>>,
+                > = customer_details
+                    .async_map(|customer_details| {
+                        create_encrypted_data(
+                            &key_manager_state,
+                            platform.get_provider().get_key_store(),
+                            customer_details,
+                            common_utils::type_name!(diesel_models::payment_method::PaymentMethod),
+                        )
+                    })
+                    .await
+                    .transpose()
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Unable to encrypt payment method customer details")?;
+
+                let external_vault_profile =
+                    helpers::resolve_provider_profile(state, platform, business_profile).await?;
+                let (external_vault_details, vault_type) = match &external_vault_profile
+                    .external_vault_details
+                {
+                    hyperswitch_domain_models::business_profile::ExternalVaultDetails::ExternalVaultEnabled(external_vault_connector_details) => {
+                        (Some(external_vault_connector_details), Some(common_enums::VaultType::External))
+                    }
+                    hyperswitch_domain_models::business_profile::ExternalVaultDetails::Skip => {
+                        (None, Some(common_enums::VaultType::Internal))
+                    }
+                };
+                let external_vault_mca_id = external_vault_details
+                    .map(|connector_details| connector_details.vault_connector_id.clone());
+
+                let vault_source_details =
+                    domain::PaymentMethodVaultSourceDetails::try_from((
+                        vault_type,
+                        external_vault_mca_id,
+                    ))
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Unable to create vault source details")?;
+
+                let should_save_walled_decrypted_token = dimensions
+                    .get_save_wallet_decrypted_data(
+                        state.store.as_ref(),
+                        state.superposition_service.as_ref(),
+                        Some(&customer_id_resolved),
+                    )
+                    .await;
+                let wallet_decrypt_preference = WalletDecryptedToken::foreign_from((
+                    save_payment_method_data.payment_method_token.as_ref(),
+                    should_save_walled_decrypted_token,
+                ));
+
+                let check_for_customer_pm = payment_method_type
+                    .map(|payment_method_type_value| {
+                        payment_method_type_value
+                            .should_check_for_customer_saved_payment_method_type(
+                                wallet_decrypt_preference,
+                            )
+                    })
+                    .unwrap_or(false);
+
+                let customer_saved_pm_option = if check_for_customer_pm {
+                    match state
+                        .store
+                        .find_payment_method_by_customer_id_merchant_id_list(
+                            platform.get_provider().get_key_store(),
+                            &customer_id_resolved,
+                            platform.get_provider().get_account().get_id(),
+                            None,
+                        )
+                        .await
+                    {
+                        Ok(customer_payment_methods) => Ok(customer_payment_methods
+                            .iter()
+                            .find(|payment_method| {
+                                payment_method.get_payment_method_subtype() == payment_method_type
+                            })
+                            .cloned()),
+                        Err(error) => {
+                            if error.current_context().is_db_not_found() {
+                                Ok(None)
+                            } else {
+                                Err(error)
+                                    .change_context(
+                                        errors::ApiErrorResponse::InternalServerError,
+                                    )
+                                    .attach_printable(
+                                        "failed to find payment methods for a customer",
+                                    )
+                            }
+                        }
+                    }
+                } else {
+                    Ok(None)
+                }?;
+
+                let payment_method_id = if let Some(customer_saved_pm) = customer_saved_pm_option {
+                    payment_methods::cards::update_last_used_at(
+                        &customer_saved_pm,
+                        state,
+                        platform.get_provider().get_account().storage_scheme,
+                        platform.get_provider().get_key_store(),
+                    )
+                    .await
+                    .map_err(|e| {
+                        logger::error!("Failed to update last used at: {:?}", e);
+                    })
+                    .ok();
+                    customer_saved_pm.payment_method_id
+                } else {
+                    let payment_method_id = generate_id(consts::ID_LENGTH, "pm");
+                    let pm_metadata =
+                        create_payment_method_metadata(None, connector_token.clone())?;
+
+                    cards
+                        .create_payment_method(
+                            &payment_method_create_request,
+                            &customer_id_resolved,
+                            &payment_method_id,
+                            None,
+                            platform.get_provider().get_account().get_id(),
+                            pm_metadata,
+                            customer_acceptance.clone(),
+                            pm_data_encrypted,
+                            None,
+                            pm_status,
+                            network_transaction_id.clone(),
+                            encrypted_payment_method_billing_address,
+                            network_transaction_link_id.clone(),
+                            payment_method_data
+                                .get_co_badged_card_data()
+                                .and_then(|cbcd| {
+                                    cbcd.card_network.map(|card_network| card_network.to_string())
+                                })
+                                .or_else(|| {
+                                    if let domain::PaymentMethodData::Card(card) = &payment_method_data {
+                                        card.card_network.as_ref().map(|cn| cn.to_string())
+                                    } else {
+                                        None
+                                    }
+                                }),
+                            None,
+                            None,
+                            None,
+                            Some(vault_source_details),
+                            payment_method_customer_details_encrypted,
+                            None,
+                            platform.get_initiator(),
+                        )
+                        .await?;
+
+                    payment_method_id
+                };
+
+                let locker_ctx = if state.conf.locker.locker_enabled
+                    && customer_saved_pm_option.is_none()
+                {
+                    Some(LockerSaveContext {
+                        payment_method_id: payment_method_id.clone(),
+                        customer_id: customer_id_resolved,
+                        payment_method_create_request: payment_method_create_request.clone(),
+                        payment_method_data: payment_method_data.clone(),
+                        payment_method_status,
+                        vault_operation: vault_operation.clone(),
+                        payment_method_info: payment_method_info.clone(),
+                        is_network_tokenization_enabled,
+                        connector_token: connector_token.clone(),
+                        customer_acceptance: customer_acceptance.clone(),
+                        network_transaction_id: network_transaction_id.clone(),
+                        network_transaction_link_id: network_transaction_link_id.clone(),
+                        payment_method_billing_address: payment_method_billing_address.cloned(),
+                        customer_details: customer_details.clone(),
+                        dimensions: dimensions.clone(),
+                    })
+                } else {
+                    None
+                };
+
+                Some((Some(payment_method_id), locker_ctx))
+            } else {
+                let is_network_tokenization_enabled =
+                    business_profile.is_network_tokenization_enabled;
+                let is_payment_method_saved = payment_method_info.is_some();
+
+                if is_network_tokenization_enabled && is_payment_method_saved {
+                    generate_network_token_and_update_payment_method(
+                        state,
+                        platform,
+                        &save_payment_method_data.request.get_payment_method_data(),
+                        save_payment_method_data.payment_method,
+                        payment_method_type,
+                        customer_id,
+                        billing_name,
+                        payment_method_billing_address,
+                        payment_method_info,
+                    )
+                    .await
+                    .inspect_err(|err| {
+                        logger::error!("Failed to process network tokenization: {:?}", err);
+                    })
+                    .attach_printable("Failed to process network tokenization")
+                    .ok();
+                }
+
+                None
+            };
+
+            let connector_mandate_reference_id = if connector_mandate_id.is_some() {
+                if let Some(ref mut record) = original_connector_mandate_reference_id {
+                    record.update(
+                        connector_mandate_id,
+                        None,
+                        None,
+                        mandate_metadata,
+                        connector_mandate_request_reference_id,
+                    );
+                    Some(record.clone())
+                } else {
+                    Some(ConnectorMandateReferenceId::new(
+                        connector_mandate_id,
+                        None,
+                        None,
+                        mandate_metadata,
+                        connector_mandate_request_reference_id,
+                        None,
+                    ))
+                }
+            } else {
+                None
+            };
+
+            let (pm_id, locker_ctx) = locker_context.unwrap_or((None, None));
+
+            Ok((
+                SavePaymentMethodDataResponse {
+                    payment_method_id: pm_id,
+                    payment_method_status: pm_status,
+                    connector_mandate_reference_id,
+                },
+                locker_ctx,
+            ))
+        }
+        Err(_) => Ok((
+            SavePaymentMethodDataResponse {
+                payment_method_id: None,
+                payment_method_status: None,
+                connector_mandate_reference_id: None,
+            },
+            None,
+        )),
+    }
+}
+
+#[cfg(feature = "v1")]
+#[instrument(skip_all)]
+pub async fn save_payment_method_locker_async(
+    state: &SessionState,
+    platform: &domain::Platform,
+    business_profile: &domain::Profile,
+    ctx: LockerSaveContext,
+) {
+    let LockerSaveContext {
+        payment_method_id,
+        customer_id,
+        payment_method_create_request,
+        payment_method_data,
+        payment_method_status,
+        vault_operation,
+        payment_method_info,
+        is_network_tokenization_enabled,
+        connector_token,
+        customer_acceptance: _,
+        network_transaction_id: _,
+        network_transaction_link_id: _,
+        payment_method_billing_address: _,
+        customer_details: _,
+        dimensions: _,
+    } = ctx;
+
+    let db = &*state.store;
+
+    let locker_result = Box::pin(save_card_and_network_token_in_locker(
+        state,
+        customer_id.clone(),
+        payment_method_status,
+        payment_method_data.clone(),
+        vault_operation,
+        payment_method_info,
+        platform,
+        payment_method_create_request.clone(),
+        is_network_tokenization_enabled,
+        business_profile,
+    ))
+    .await;
+
+    match locker_result {
+        Ok(((resp, duplication_check, network_token_requestor_ref_id), network_token_resp)) => {
+            let card_reference = resp.payment_method_id.clone();
+            let network_token_locker_id = match network_token_resp {
+                Some(ref token_resp) => {
+                    if network_token_requestor_ref_id.is_some() {
+                        Some(token_resp.payment_method_id.clone())
+                    } else {
+                        None
+                    }
+                }
+                None => None,
+            };
+
+            let pm = db
+                .find_payment_method(
+                    platform.get_provider().get_key_store(),
+                    &payment_method_id,
+                    platform.get_provider().get_account().storage_scheme,
+                )
+                .await;
+
+            match pm {
+                Ok(pm) => {
+                    let key_manager_state = state.into();
+                    let pm_network_token_data_encrypted: Option<
+                        Encryptable<Secret<serde_json::Value>>,
+                    > = match &network_token_resp {
+                        Some(token_resp) => {
+                            let pm_token_details = token_resp.card.as_ref().map(|card| {
+                                domain::PaymentMethodsData::Card(
+                                    domain::CardDetailsPaymentMethod::from((card.clone(), None)),
+                                )
+                            });
+                            pm_token_details
+                                .async_map(|pm_card| {
+                                    create_encrypted_data(
+                                        &key_manager_state,
+                                        platform.get_provider().get_key_store(),
+                                        pm_card,
+                                        common_utils::type_name!(
+                                            diesel_models::payment_method::PaymentMethod
+                                        ),
+                                    )
+                                })
+                                .await
+                                .transpose()
+                                .inspect_err(|err| {
+                                    logger::error!(
+                                        "Failed to encrypt network token data: {:?}",
+                                        err
+                                    );
+                                })
+                                .ok()
+                        }
+                        None => None,
+                    };
+
+                    let compat_action = payment_methods::payment_method_modular_forward_compat_action(
+                        state,
+                        &pm.merchant_id,
+                        pm.customer_id.as_ref(),
+                    )
+                    .await;
+
+                    let pm_update = diesel_models::payment_method::PaymentMethodUpdate::AdditionalDataUpdate {
+                        locker_id: Some(card_reference.clone()),
+                        payment_method_data: None,
+                        status: None,
+                        payment_method: None,
+                        payment_method_type: None,
+                        payment_method_issuer: None,
+                        network_token_requestor_reference_id: network_token_requestor_ref_id.clone(),
+                        network_token_locker_id: network_token_locker_id.clone(),
+                        network_token_payment_method_data: pm_network_token_data_encrypted
+                            .map(Into::into),
+                        last_modified_by: platform
+                            .get_initiator()
+                            .and_then(|initiator| initiator.to_created_by())
+                            .map(|last_modified_by| last_modified_by.to_string()),
+                        metadata: None,
+                        last_used_at: Some(common_utils::date_time::now()),
+                        connector_mandate_details: None,
+                        network_tokenization_data: None,
+                    };
+
+                    db.update_payment_method(
+                        platform.get_provider().get_key_store(),
+                        pm.clone(),
+                        pm_update,
+                        platform.get_provider().get_account().storage_scheme,
+                        compat_action,
+                    )
+                    .await
+                    .inspect_err(|err| {
+                        logger::error!("Failed to update PM locker_id: {:?}", err);
+                    })
+                    .ok();
+
+                    if let Some(nt_ref_id) = network_token_requestor_ref_id {
+                        save_network_token_details_in_nt_mapper(
+                            state,
+                            platform.get_provider(),
+                            &customer_id,
+                            payment_method_id.clone(),
+                            nt_ref_id,
+                        )
+                        .await
+                        .inspect_err(|err| {
+                            logger::error!(
+                                "Failed to save network token details in callback_mapper: {:?}",
+                                err
+                            );
+                        })
+                        .ok();
+                    }
+
+                    match duplication_check {
+                        Some(payment_methods::transformers::DataDuplicationCheck::Duplicated) => {
+                            logger::warn!(
+                                "Locker detected duplicate card for PM {} — a new PM was \
+                                 created synchronously before duplication was known. \
+                                 The existing PM in locker has card_reference: {}",
+                                payment_method_id,
+                                card_reference
+                            );
+                        }
+                        Some(payment_methods::transformers::DataDuplicationCheck::MetaDataChanged) => {
+                            logger::info!(
+                                "Locker detected metadata change for PM {} — card_reference: {}",
+                                payment_method_id,
+                                card_reference
+                            );
+                        }
+                        None => {
+                            logger::info!(
+                                "Locker saved card successfully for PM {} — card_reference: {}",
+                                payment_method_id,
+                                card_reference
+                            );
+                        }
+                    }
+                }
+                Err(err) => {
+                    logger::error!(
+                        "Failed to find PM {} for locker_id update: {:?}",
+                        payment_method_id,
+                        err
+                    );
+                }
+            }
+        }
+        Err(err) => {
+            logger::error!(
+                "Async locker save failed for PM {}: {:?}",
+                payment_method_id,
+                err
+            );
+        }
+    }
+}
+
 #[cfg(feature = "v2")]
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]

@@ -561,24 +561,6 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
             .attach_printable("Failed to extract customer document details from payment_intent")?;
 
         let async_dimension = dimensions.clone();
-        let save_payment_call_future = Box::pin(tokenization::save_payment_method(
-            state,
-            connector_name.clone(),
-            save_payment_data,
-            customer_id.clone(),
-            platform,
-            resp.request.payment_method_type,
-            billing_name.clone(),
-            payment_method_billing_address,
-            business_profile,
-            connector_mandate_reference_id.clone(),
-            merchant_connector_id.clone(),
-            vault_operation.clone(),
-            payment_method_info.clone(),
-            payment_data.payment_method_token.clone(),
-            customer_details.clone(),
-            &async_dimension,
-        ));
 
         let is_connector_mandate = resp.request.customer_acceptance.is_some()
             && matches!(
@@ -612,10 +594,47 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
         };
 
         if is_legacy_mandate {
-            // Mandate is created on the application side and at the connector.
+            let (sync_response, locker_ctx) = tokenization::save_payment_method_sync(
+                state,
+                connector_name.clone(),
+                save_payment_data,
+                customer_id.clone(),
+                platform,
+                resp.request.payment_method_type,
+                billing_name.clone(),
+                payment_method_billing_address,
+                business_profile,
+                connector_mandate_reference_id.clone(),
+                merchant_connector_id.clone(),
+                vault_operation.clone(),
+                payment_method_info.clone(),
+                payment_data.payment_method_token.clone(),
+                customer_details.clone(),
+                &async_dimension,
+            )
+            .await?;
+
+            if let Some(ctx) = locker_ctx {
+                let state = state.clone();
+                let cloned_platform = platform.clone();
+                let cloned_profile = business_profile.clone();
+                tokio::spawn(
+                    async move {
+                        tokenization::save_payment_method_locker_async(
+                            &state,
+                            &cloned_platform,
+                            &cloned_profile,
+                            ctx,
+                        )
+                        .await;
+                    }
+                    .in_current_span(),
+                );
+            }
+
             let tokenization::SavePaymentMethodDataResponse {
                 payment_method_id, ..
-            } = save_payment_call_future.await?;
+            } = sync_response;
 
             let mandate_id = mandate::mandate_procedure(
                 state,
@@ -632,63 +651,94 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
 
             Ok(())
         } else if is_connector_mandate {
-            // The mandate is created on connector's end.
-            let save_payment_call_response = save_payment_call_future.await;
-            match save_payment_call_response {
-                Ok(tokenization::SavePaymentMethodDataResponse {
-                    payment_method_id,
-                    connector_mandate_reference_id,
-                    ..
-                }) => {
-                    payment_data.payment_method_info = if let Some(payment_method_id) =
-                        &payment_method_id
-                    {
-                        match state
-                            .store
-                            .find_payment_method(
-                                platform.get_provider().get_key_store(),
-                                payment_method_id,
-                                platform.get_provider().get_account().storage_scheme,
-                            )
-                            .await
-                        {
-                            Ok(payment_method) => Some(payment_method),
-                            Err(error) => {
-                                if error.current_context().is_db_not_found() {
-                                    logger::info!("Payment Method not found in db {:?}", error);
-                                    None
-                                } else {
-                                    Err(error)
-                                        .change_context(
-                                            errors::ApiErrorResponse::InternalServerError,
-                                        )
-                                        .attach_printable("Error retrieving payment method from db")
-                                        .map_err(|err| logger::error!(payment_method_retrieve=?err))
-                                        .ok()
-                                }
-                            }
-                        }
-                    } else {
-                        None
-                    };
-                    payment_data.payment_attempt.payment_method_id = payment_method_id;
-                    payment_data.payment_attempt.connector_mandate_detail =
-                        connector_mandate_reference_id
-                            .clone()
-                            .map(ForeignFrom::foreign_from);
-                    payment_data.set_mandate_id(mandates::MandateIds {
-                        mandate_id: None,
-                        mandate_reference_id: connector_mandate_reference_id.map(
-                            |connector_mandate_id| {
-                                MandateReferenceId::ConnectorMandateId(connector_mandate_id)
-                            },
-                        ),
-                    })
-                }
-                Err(err) => {
-                    logger::error!("Error while storing the payment method in locker {:?}", err);
-                }
+            let (sync_response, locker_ctx) = tokenization::save_payment_method_sync(
+                state,
+                connector_name.clone(),
+                save_payment_data,
+                customer_id.clone(),
+                platform,
+                resp.request.payment_method_type,
+                billing_name.clone(),
+                payment_method_billing_address,
+                business_profile,
+                connector_mandate_reference_id.clone(),
+                merchant_connector_id.clone(),
+                vault_operation.clone(),
+                payment_method_info.clone(),
+                payment_data.payment_method_token.clone(),
+                customer_details.clone(),
+                &async_dimension,
+            )
+            .await?;
+
+            if let Some(ctx) = locker_ctx {
+                let state = state.clone();
+                let cloned_platform = platform.clone();
+                let cloned_profile = business_profile.clone();
+                tokio::spawn(
+                    async move {
+                        tokenization::save_payment_method_locker_async(
+                            &state,
+                            &cloned_platform,
+                            &cloned_profile,
+                            ctx,
+                        )
+                        .await;
+                    }
+                    .in_current_span(),
+                );
             }
+
+            let tokenization::SavePaymentMethodDataResponse {
+                payment_method_id,
+                connector_mandate_reference_id,
+                ..
+            } = sync_response;
+
+            payment_data.payment_method_info = if let Some(payment_method_id) =
+                &payment_method_id
+            {
+                match state
+                    .store
+                    .find_payment_method(
+                        platform.get_provider().get_key_store(),
+                        payment_method_id,
+                        platform.get_provider().get_account().storage_scheme,
+                    )
+                    .await
+                {
+                    Ok(payment_method) => Some(payment_method),
+                    Err(error) => {
+                        if error.current_context().is_db_not_found() {
+                            logger::info!("Payment Method not found in db {:?}", error);
+                            None
+                        } else {
+                            Err(error)
+                                .change_context(
+                                    errors::ApiErrorResponse::InternalServerError,
+                                )
+                                .attach_printable("Error retrieving payment method from db")
+                                .map_err(|err| logger::error!(payment_method_retrieve=?err))
+                                .ok()
+                        }
+                    }
+                }
+            } else {
+                None
+            };
+            payment_data.payment_attempt.payment_method_id = payment_method_id;
+            payment_data.payment_attempt.connector_mandate_detail =
+                connector_mandate_reference_id
+                    .clone()
+                    .map(ForeignFrom::foreign_from);
+            payment_data.set_mandate_id(mandates::MandateIds {
+                mandate_id: None,
+                mandate_reference_id: connector_mandate_reference_id.map(
+                    |connector_mandate_id| {
+                        MandateReferenceId::ConnectorMandateId(connector_mandate_id)
+                    },
+                ),
+            });
             Ok(())
         } else if should_avoid_saving {
             if let Some(pm_info) = &payment_data.payment_method_info {
