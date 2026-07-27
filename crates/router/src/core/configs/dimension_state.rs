@@ -566,6 +566,17 @@ pub type DimensionsWithProviderMerchantId = Dimensions<
     NoWebhookEvent,
 >;
 
+// Type alias - provider merchant ID and organization ID present
+pub type DimensionsWithProviderMerchantIdAndOrgId = Dimensions<
+    HasProviderMerchantId,
+    NoProcessorMerchantId,
+    HasOrgId,
+    NoProfileId,
+    NoConnector,
+    NoPayoutRetryType,
+    NoWebhookEvent,
+>;
+
 // Type alias - only processor merchant ID present
 pub type DimensionsWithProcessorMerchantId = Dimensions<
     NoProviderMerchantId,

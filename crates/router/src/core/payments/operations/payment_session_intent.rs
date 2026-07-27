@@ -276,10 +276,9 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsSessionRequest, payments::Payment
     ) -> CustomResult<api::ConnectorCallType, errors::ApiErrorResponse> {
         let db = &state.store;
         let all_connector_accounts = db
-            .find_merchant_connector_account_by_merchant_id_and_disabled_list(
+            .find_merchant_connector_account_without_encrypted_by_merchant_id_and_disabled_list(
                 platform.get_processor().get_account().get_id(),
                 false,
-                platform.get_processor().get_key_store(),
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)

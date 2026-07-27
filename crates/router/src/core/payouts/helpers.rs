@@ -832,6 +832,8 @@ pub async fn save_payout_data_to_locker(
                 existing_pm,
                 pm_update,
                 platform.get_processor().get_account().storage_scheme,
+                // Payout payment method writes are outside PM modular card compat.
+                None,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1491,22 +1493,16 @@ pub async fn update_payouts_and_payout_attempt(
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Error updating payouts")?;
-    let updated_business_country =
-        payout_attempt
-            .business_country
-            .map_or(req.business_country.to_owned(), |c| {
-                req.business_country
-                    .to_owned()
-                    .and_then(|nc| if nc != c { Some(nc) } else { None })
-            });
-    let updated_business_label =
-        payout_attempt
-            .business_label
-            .map_or(req.business_label.to_owned(), |l| {
-                req.business_label
-                    .to_owned()
-                    .and_then(|nl| if nl != l { Some(nl) } else { None })
-            });
+    let updated_business_country = payout_attempt
+        .business_country
+        .map_or(req.business_country.to_owned(), |c| {
+            req.business_country.to_owned().filter(|&nc| nc != c)
+        });
+    let updated_business_label = payout_attempt
+        .business_label
+        .map_or(req.business_label.to_owned(), |l| {
+            req.business_label.to_owned().filter(|nl| *nl != l)
+        });
     if updated_business_country.is_some()
         || updated_business_label.is_some()
         || customer_id.is_some()

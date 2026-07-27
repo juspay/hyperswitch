@@ -15596,7 +15596,7 @@
           "card_subtypes": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/CardSubtype"
+              "type": "string"
             },
             "description": "Set of card subtypes to block",
             "nullable": true
@@ -15940,7 +15940,10 @@
           "Star",
           "Pulse",
           "Accel",
-          "Nyce"
+          "Nyce",
+          "Prop",
+          "PrivateLabel",
+          "Dinacard"
         ]
       },
       "CardNetworkTokenizeRequest": {
@@ -16244,267 +16247,6 @@
           }
         }
       },
-      "CardSubtype": {
-        "type": "string",
-        "enum": [
-          "aarp",
-          "airmilespremier",
-          "atmcard",
-          "atmonly",
-          "atmonly_cashlinecard",
-          "best_price_save_max",
-          "best_price_save_smart",
-          "bharat",
-          "bharat_cashback",
-          "bharat_platinum",
-          "black",
-          "blackcard",
-          "blue",
-          "blue_and_revolving",
-          "blueairmilescashbackcard",
-          "bluecash",
-          "blueforbusiness",
-          "bmiplus",
-          "bonus",
-          "business",
-          "business_gold",
-          "business_moneyback",
-          "business_platinum",
-          "business_prepaid",
-          "business_regalia",
-          "business_regalia_first",
-          "businesscard",
-          "businesselite",
-          "businessimmediatedebit",
-          "businessloan",
-          "cashback",
-          "cashrebate",
-          "centurion",
-          "centurionservicio",
-          "chargecard",
-          "checkcard",
-          "classic",
-          "classicpremium",
-          "commercial",
-          "commercialtransportebt",
-          "companion",
-          "consumer",
-          "consumercard",
-          "corp_goldd_and_ranges",
-          "corp_golds_and_ranges",
-          "corp_greend_and_ranges",
-          "corp_greens_and_ranges",
-          "corp_purchasingcard",
-          "corpo_co_s_and_ranges",
-          "corporate",
-          "corporate_platinum",
-          "corporate_premium",
-          "corporatecard",
-          "corporateexecutive",
-          "corporatefleetcard",
-          "corporategold",
-          "corporategoldyplatinum",
-          "corporategreen",
-          "corporategreenebta",
-          "corporatepurchasing",
-          "corporaterevolving",
-          "corporatet",
-          "corporate_t_and_e",
-          "corporation",
-          "credit",
-          "ctslandcard",
-          "debit",
-          "delayeddebit",
-          "delta",
-          "diners_club_black",
-          "diners_club_miles",
-          "diners_club_premium",
-          "diners_club_privilege",
-          "diners_club_rewardz",
-          "doctors_platinum",
-          "doctors_regalia",
-          "doctors_superia",
-          "dorada",
-          "dummy_logo",
-          "easy_emi",
-          "edge_platinum",
-          "electricorange",
-          "electron",
-          "electronic",
-          "electronicunembossed",
-          "embossed",
-          "executivebusiness",
-          "express",
-          "firstcitizen",
-          "firstcitizen_black",
-          "fleetcard",
-          "flipkart_wholesale",
-          "freedom",
-          "freedom_platinum",
-          "general_purpose_re_loadable_card",
-          "gift",
-          "gift_cards",
-          "globalpayment",
-          "gmcard",
-          "gold",
-          "gold_personal",
-          "gold_platinum",
-          "gold_prem",
-          "goldcashbackcard",
-          "goldgrccyblue",
-          "goldimmediatedebit",
-          "goldpremium",
-          "governmentcommercialcard",
-          "governmentservicesloan",
-          "green",
-          "gsacard",
-          "gsacorporate_t_and_e",
-          "gsapurchasing",
-          "hsanon_substantiated",
-          "icard",
-          "ikeacard",
-          "immediatedebit",
-          "indian_oil",
-          "indigo6e_rewards",
-          "individual",
-          "infinia",
-          "infinite",
-          "intermiles_diners_club",
-          "intermiles_premium",
-          "intermiles_signature",
-          "ix_rbl09",
-          "ix_rbl24",
-          "ix_slice01",
-          "ix_slice02",
-          "jcb_classic",
-          "jcb_platinum",
-          "jcb_select",
-          "jumbo_loan",
-          "lowescard",
-          "mastercard",
-          "mastermoney",
-          "micro_businesscard",
-          "millennia",
-          "moneyback_insta",
-          "moneyback_platinum",
-          "moneyback_plus",
-          "moneyback_st",
-          "newworld",
-          "newworldimmediatedebit",
-          "optima",
-          "others",
-          "ourocard",
-          "paymentcard",
-          "paypass",
-          "payroll_cards",
-          "paytm",
-          "paytm_business",
-          "paytm_mobile",
-          "paytm_select",
-          "peony",
-          "peonymoneylink",
-          "pinelabs",
-          "pinelabs_pro",
-          "platinum",
-          "platinum1",
-          "platinum_edge",
-          "platinum_freedom",
-          "platinum_plus",
-          "platinum_solitaire",
-          "platinum_times",
-          "platinumimmediatedebit",
-          "platinumtravel",
-          "plus",
-          "pmjdy",
-          "premier",
-          "premium",
-          "premiumcard",
-          "premiumplus",
-          "prepaid",
-          "prepaid_electron",
-          "prepaid_privatelabel",
-          "prepaidcash",
-          "prepaidtravelmoney",
-          "private",
-          "privatelabel",
-          "pro",
-          "proprietary",
-          "proprietary_atm",
-          "purchasing",
-          "quantum",
-          "rebate",
-          "regalia",
-          "regalia_first",
-          "revolving",
-          "rewards",
-          "rewardsonly",
-          "rupay_select",
-          "salute",
-          "sap_concur_solutions_black_corporate",
-          "sap_concur_solutions_prime_corporate",
-          "sbsgoldyblue",
-          "sears",
-          "signature",
-          "signaturebusiness",
-          "signaturebusinessplatinum",
-          "silver",
-          "6e_rewards",
-          "6e_rewards_xl",
-          "smallbusiness",
-          "smallbusinesscard",
-          "smallbusinesssbsgreen",
-          "smallcorporate",
-          "smallcorporatecard",
-          "solitaire",
-          "solitaire_platinum",
-          "standard",
-          "standardunembossed",
-          "tata_neu_infinity",
-          "tata_neu_plus",
-          "teachers_platinum",
-          "test_plastic",
-          "titanium",
-          "titanium_edge",
-          "titanium_personal",
-          "titanium_times",
-          "tjpersonal",
-          "travelmoney",
-          "uat_range",
-          "unembossed",
-          "virginatlantic",
-          "virtual",
-          "visa_business",
-          "visa_business_enhanced",
-          "visa_classic",
-          "visa_corporate_t_and_e",
-          "visa_electron",
-          "visa_enhanced",
-          "visa_gold",
-          "visa_infinite",
-          "visa_infinite_business",
-          "visa_platinum",
-          "visa_platinum_business",
-          "visa_purchasing",
-          "visa_purchasing_with_fleet",
-          "visa_rewards",
-          "visa_signature",
-          "visa_signature_business",
-          "visa_traditional",
-          "visacash",
-          "visacommerce",
-          "vpay",
-          "world",
-          "world_master",
-          "worldblack",
-          "worldcard",
-          "worlddebitembossed",
-          "worldelite",
-          "worldeliteforbusiness",
-          "worldembossed",
-          "worldforbusiness",
-          "worldsigniaimmediatedebit"
-        ]
-      },
       "CardTestingGuardConfig": {
         "type": "object",
         "required": [
@@ -16670,6 +16412,77 @@
           "transaction_link_id": {
             "type": "string",
             "description": "The Mastercard Transaction Link Identifier (TLID) provided by the card network during a CIT (Customer Initiated Transaction),\nwhen `setup_future_usage` is set to `off_session`.",
+            "nullable": true
+          }
+        }
+      },
+      "CardWithNoCVC": {
+        "type": "object",
+        "required": [
+          "card_number",
+          "card_exp_month",
+          "card_exp_year",
+          "card_holder_name"
+        ],
+        "properties": {
+          "card_number": {
+            "type": "string",
+            "description": "The card number",
+            "example": "4242424242424242"
+          },
+          "card_exp_month": {
+            "type": "string",
+            "description": "The card's expiry month",
+            "example": "24"
+          },
+          "card_exp_year": {
+            "type": "string",
+            "description": "The card's expiry year",
+            "example": "24"
+          },
+          "card_holder_name": {
+            "type": "string",
+            "description": "The card holder's name",
+            "example": "John Test"
+          },
+          "card_issuer": {
+            "type": "string",
+            "description": "The name of the issuer of card",
+            "example": "chase",
+            "nullable": true
+          },
+          "card_network": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardNetwork"
+              }
+            ],
+            "nullable": true
+          },
+          "card_type": {
+            "type": "string",
+            "example": "CREDIT",
+            "nullable": true
+          },
+          "card_issuing_country": {
+            "type": "string",
+            "example": "INDIA",
+            "nullable": true
+          },
+          "card_issuing_country_code": {
+            "type": "string",
+            "example": "IN",
+            "nullable": true
+          },
+          "bank_code": {
+            "type": "string",
+            "example": "JP_AMEX",
+            "nullable": true
+          },
+          "nick_name": {
+            "type": "string",
+            "description": "The card holder's nick name",
+            "example": "John Test",
             "nullable": true
           }
         }
@@ -17171,6 +16984,7 @@
           "forte",
           "getnet",
           "gigadat",
+          "givepayments",
           "globalpay",
           "globepay",
           "gocardless",
@@ -17609,6 +17423,14 @@
         "type": "object",
         "description": "Register a webhook at the connector",
         "properties": {
+          "scope": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Scope"
+              }
+            ],
+            "nullable": true
+          },
           "event_type": {
             "allOf": [
               {
@@ -17617,8 +17439,7 @@
             ],
             "nullable": true
           }
-        },
-        "additionalProperties": false
+        }
       },
       "ConnectorWebhookResponse": {
         "type": "object",
@@ -17626,6 +17447,9 @@
           "connector_webhook_id"
         ],
         "properties": {
+          "connector_webhook_id": {
+            "type": "string"
+          },
           "event_type": {
             "allOf": [
               {
@@ -17634,11 +17458,74 @@
             ],
             "nullable": true
           },
-          "connector_webhook_id": {
-            "type": "string"
+          "scope": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ConnectorWebhookScope"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
+      },
+      "ConnectorWebhookScope": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "type"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "not_specific"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "value",
+              "type"
+            ],
+            "properties": {
+              "value": {
+                "$ref": "#/components/schemas/PaymentMethodType"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "payment_method_type"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "value",
+              "type"
+            ],
+            "properties": {
+              "value": {
+                "$ref": "#/components/schemas/EventType"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "event_type"
+                ]
+              }
+            }
+          }
+        ],
+        "description": "Scope of a single registered connector webhook.",
+        "discriminator": {
+          "propertyName": "type"
+        }
       },
       "ContractBasedRoutingConfig": {
         "type": "object",
@@ -21588,6 +21475,16 @@
           "error_message": {
             "type": "string",
             "description": "Error Message",
+            "nullable": true
+          },
+          "challenge_cancel_code": {
+            "type": "string",
+            "description": "Challenge Cancel Code",
+            "nullable": true
+          },
+          "trans_status_reason": {
+            "type": "string",
+            "description": "Trans Status Reason Code",
             "nullable": true
           }
         }
@@ -28686,6 +28583,14 @@
           },
           "currency": {
             "$ref": "#/components/schemas/Currency"
+          },
+          "business_country": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Country"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -29854,6 +29759,18 @@
             "properties": {
               "card": {
                 "$ref": "#/components/schemas/Card"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "title": "CardWithNoCVC",
+            "required": [
+              "card_with_no_cvc"
+            ],
+            "properties": {
+              "card_with_no_cvc": {
+                "$ref": "#/components/schemas/CardWithNoCVC"
               }
             }
           },
@@ -40314,6 +40231,7 @@
       },
       "RegisterConnectorWebhookResponse": {
         "type": "object",
+        "description": "Response for registering connector webhooks.\nThe response shape mirrors the request shape:\nlegacy requests that use `event_type` receive the legacy fields, while new requests that use `scope` receive `scope_type`, `requested`, and `results`.",
         "properties": {
           "event_type": {
             "allOf": [
@@ -40325,6 +40243,7 @@
           },
           "connector_webhook_id": {
             "type": "string",
+            "description": "To be Deprecated soon; prefer `results` for per-identifier registration outcomes.",
             "nullable": true
           },
           "webhook_registration_status": {
@@ -40337,10 +40256,12 @@
           },
           "error_code": {
             "type": "string",
+            "description": "To be Deprecated soon; prefer `results` for per-identifier registration outcomes.",
             "nullable": true
           },
           "error_message": {
             "type": "string",
+            "description": "To be Deprecated soon; prefer `results` for per-identifier registration outcomes.",
             "nullable": true
           },
           "secret_generation_status": {
@@ -40357,6 +40278,30 @@
                 "$ref": "#/components/schemas/WebhookSecretErrorDetails"
               }
             ],
+            "nullable": true
+          },
+          "scope_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ScopeType"
+              }
+            ],
+            "nullable": true
+          },
+          "requested": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ScopeIdentifier"
+            },
+            "description": "List of identifiers that were requested to be registered.",
+            "nullable": true
+          },
+          "results": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WebhookRegistrationResult"
+            },
+            "description": "Per-identifier registration results.",
             "nullable": true
           }
         },
@@ -41270,6 +41215,7 @@
           "forte",
           "getnet",
           "gigadat",
+          "givepayments",
           "globalpay",
           "globepay",
           "gocardless",
@@ -42110,6 +42056,113 @@
             "nullable": true
           }
         }
+      },
+      "Scope": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "type"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "not_specific"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "values"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "payment_method_types"
+                ]
+              },
+              "values": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/PaymentMethodType"
+                },
+                "description": "Scoped by payment method types (e.g., Pix, Boleto)"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "values"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "event_types"
+                ]
+              },
+              "values": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/EventType"
+                },
+                "description": "Scoped by event types (e.g., Payments, Refunds, Disputes)"
+              }
+            }
+          }
+        ],
+        "description": "The scope of webhook registration.\nDetermines which entities the connector should register webhooks for.",
+        "discriminator": {
+          "propertyName": "type"
+        }
+      },
+      "ScopeIdentifier": {
+        "oneOf": [
+          {
+            "type": "string",
+            "enum": [
+              "NotSpecific"
+            ]
+          },
+          {
+            "type": "object",
+            "required": [
+              "PaymentMethodType"
+            ],
+            "properties": {
+              "PaymentMethodType": {
+                "$ref": "#/components/schemas/PaymentMethodType"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "EventType"
+            ],
+            "properties": {
+              "EventType": {
+                "$ref": "#/components/schemas/EventType"
+              }
+            }
+          }
+        ]
+      },
+      "ScopeType": {
+        "type": "string",
+        "description": "Discriminator for the scope type in the response",
+        "enum": [
+          "not_specific",
+          "payment_method_type",
+          "event_type"
+        ]
       },
       "SdkDisplayMode": {
         "type": "string",
@@ -43800,6 +43853,10 @@
                 "$ref": "#/components/schemas/AcquirerData"
               }
             ],
+            "nullable": true
+          },
+          "metadata": {
+            "description": "Optional metadata about the payment.",
             "nullable": true
           }
         },
@@ -45914,6 +45971,51 @@
           }
         },
         "additionalProperties": false
+      },
+      "WebhookRegistrationError": {
+        "type": "object",
+        "description": "Error details for a failed webhook registration.",
+        "required": [
+          "code",
+          "message"
+        ],
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "WebhookRegistrationResult": {
+        "type": "object",
+        "description": "Result of registering a webhook for a single scope identifier.",
+        "required": [
+          "identifier",
+          "status"
+        ],
+        "properties": {
+          "identifier": {
+            "$ref": "#/components/schemas/ScopeIdentifier"
+          },
+          "status": {
+            "$ref": "#/components/schemas/WebhookRegistrationStatus"
+          },
+          "connector_webhook_id": {
+            "type": "string",
+            "description": "The connector-generated webhook ID, if successful.",
+            "nullable": true
+          },
+          "error": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/WebhookRegistrationError"
+              }
+            ],
+            "nullable": true
+          }
+        }
       },
       "WebhookRegistrationStatus": {
         "type": "string",

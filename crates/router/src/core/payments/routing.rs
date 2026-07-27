@@ -2080,10 +2080,9 @@ pub async fn refresh_cgraph_cache(
 ) -> RoutingResult<Arc<hyperswitch_constraint_graph::ConstraintGraph<euclid_dir::DirValue>>> {
     let mut merchant_connector_accounts = state
         .store
-        .find_merchant_connector_account_by_merchant_id_and_disabled_list(
+        .find_merchant_connector_account_without_encrypted_by_merchant_id_and_disabled_list(
             &key_store.merchant_id,
             false,
-            key_store,
         )
         .await
         .change_context(errors::RoutingError::KgraphCacheRefreshFailed)?;
@@ -2121,7 +2120,7 @@ pub async fn refresh_cgraph_cache(
 
     let api_mcas = merchant_connector_accounts
         .into_iter()
-        .map(admin_api::MerchantConnectorResponse::foreign_try_from)
+        .map(admin_api::MCACGraphData::foreign_try_from)
         .collect::<Result<Vec<_>, _>>()
         .change_context(errors::RoutingError::KgraphCacheRefreshFailed)?;
     let connector_configs = state
@@ -4091,14 +4090,13 @@ pub async fn get_active_mca_ids(
 ) -> RoutingResult<std::collections::HashSet<common_utils::id_type::MerchantConnectorAccountId>> {
     let db_mcas = state
         .store
-        .find_merchant_connector_account_by_merchant_id_and_disabled_list(
+        .find_merchant_connector_account_without_encrypted_by_merchant_id_and_disabled_list(
             &key_store.merchant_id,
             false,
-            key_store,
         )
         .await
         .unwrap_or_else(|_| {
-            hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccounts::new(
+            hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccountsWithoutEncrypted::new(
                 vec![],
             )
         });

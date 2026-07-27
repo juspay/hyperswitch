@@ -266,6 +266,9 @@ pub enum CardNetworkLowercase {
     Pulse,
     Accel,
     Nyce,
+    Prop,
+    PrivateLabel,
+    Dinacard,
 }
 
 impl From<common_enums::CardNetwork> for CardNetworkLowercase {
@@ -286,6 +289,9 @@ impl From<common_enums::CardNetwork> for CardNetworkLowercase {
             common_enums::CardNetwork::Pulse => Self::Pulse,
             common_enums::CardNetwork::Accel => Self::Accel,
             common_enums::CardNetwork::Nyce => Self::Nyce,
+            common_enums::CardNetwork::Prop => Self::Prop,
+            common_enums::CardNetwork::PrivateLabel => Self::PrivateLabel,
+            common_enums::CardNetwork::Dinacard => Self::Dinacard,
         }
     }
 }
@@ -517,11 +523,7 @@ impl
                 amount: get_amount_details(item),
                 cof_data: CardOnFileData {
                     cof_type: get_cof_type(item),
-                    source: if item.router_data.request.is_cit_mandate_payment() {
-                        CofSource::Cit
-                    } else {
-                        CofSource::Mit
-                    },
+                    source: CofSource::Cit,
                     mode: CofMode::Initial,
                 },
                 rrn: get_rrn(&peachpayments_data),
