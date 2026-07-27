@@ -7,6 +7,8 @@ pub mod consts;
 pub mod core;
 pub mod cors;
 pub mod db;
+#[cfg(feature = "deja")]
+pub mod deja_boot;
 pub mod env;
 pub mod locale;
 pub(crate) mod macros;
@@ -38,6 +40,70 @@ use tokio::sync::{mpsc, oneshot};
 pub use self::env::logger;
 pub(crate) use self::macros::*;
 use crate::{configs::settings, core::errors};
+
+#[cfg(feature = "deja")]
+struct SuperpositionDejaRecordingSampler {
+    superposition_service: std::sync::Arc<external_services::superposition::SuperpositionClient>,
+    superposition_enabled: bool,
+    record_key: String,
+    timeout_ms: u64,
+    /// Decision when the sampling source cannot answer (superposition
+    /// disabled, lookup error, or timeout): `true` → don't record
+    /// (production-safe default), `false` → record (demo/dev rigs that must
+    /// never silently produce an empty tape).
+    fail_closed: bool,
+}
+
+#[cfg(feature = "deja")]
+impl router_env::request_id::RequestRecordingSampler for SuperpositionDejaRecordingSampler {
+    fn should_record(
+        &self,
+        facts: router_env::request_id::RequestRecordingFacts,
+    ) -> router_env::request_id::RequestRecordingSamplerFuture<'_> {
+        // No sampling source to consult: the configured failure default
+        // decides, exactly as it does for lookup errors and timeouts below.
+        let failure_default = !self.fail_closed;
+        if !self.superposition_enabled {
+            return Box::pin(async move { failure_default });
+        }
+
+        let superposition_service = std::sync::Arc::clone(&self.superposition_service);
+        let record_key = self.record_key.clone();
+        let timeout_ms = self.timeout_ms.max(1);
+        Box::pin(async move {
+            let context = external_services::superposition::ConfigContext::new()
+                .with("method", &facts.method)
+                .with("path", &facts.path);
+            let lookup = superposition_service.get_config_value::<bool>(
+                &record_key,
+                Some(&context),
+                Some(&facts.request_id),
+            );
+
+            match tokio::time::timeout(std::time::Duration::from_millis(timeout_ms), lookup).await {
+                Ok(Ok(decision)) => decision,
+                Ok(Err(error)) => {
+                    router_env::logger::warn!(
+                        error = ?error,
+                        request_id = %facts.request_id,
+                        failure_default,
+                        "Failed to resolve Deja recording sampler decision; using configured failure default"
+                    );
+                    failure_default
+                }
+                Err(_elapsed) => {
+                    router_env::logger::warn!(
+                        timeout_ms,
+                        request_id = %facts.request_id,
+                        failure_default,
+                        "Timed out resolving Deja recording sampler decision; using configured failure default"
+                    );
+                    failure_default
+                }
+            }
+        })
+    }
+}
 
 #[cfg(feature = "mimalloc")]
 #[global_allocator]
@@ -124,10 +190,38 @@ pub fn mk_app(
         InitError = (),
     >,
 > {
+    // The recording sampler exists exactly when the process records: record
+    // mode always consults the sampling source per request, every other mode
+    // has nothing to sample.
+    #[cfg(feature = "deja")]
+    let deja_recording_sampler: Option<
+        std::sync::Arc<dyn router_env::request_id::RequestRecordingSampler>,
+    > = matches!(state.conf.deja.mode, settings::DejaMode::Record).then(|| {
+        let sampler: std::sync::Arc<dyn router_env::request_id::RequestRecordingSampler> =
+            std::sync::Arc::new(SuperpositionDejaRecordingSampler {
+                superposition_service: state.superposition_service.clone(),
+                superposition_enabled: state.conf.superposition.get_inner().validate().is_ok(),
+                record_key: state
+                    .conf
+                    .deja
+                    .sampler
+                    .record_key
+                    .as_deref()
+                    .filter(|record_key| !record_key.is_empty())
+                    .unwrap_or("deja_record")
+                    .to_owned(),
+                timeout_ms: state.conf.deja.sampler.timeout_ms,
+                fail_closed: state.conf.deja.sampler.fail_closed,
+            });
+        sampler
+    });
+
     let mut server_app = get_application_builder(
         request_body_limit,
         state.conf.cors.clone(),
         state.conf.trace_header.clone(),
+        #[cfg(feature = "deja")]
+        deja_recording_sampler,
     );
 
     #[cfg(feature = "dummy_connector")]
@@ -394,6 +488,9 @@ pub fn get_application_builder(
     request_body_limit: usize,
     cors: settings::CorsSettings,
     trace_header: settings::TraceHeaderConfig,
+    #[cfg(feature = "deja")] deja_recording_sampler: Option<
+        std::sync::Arc<dyn router_env::request_id::RequestRecordingSampler>,
+    >,
 ) -> actix_web::App<
     impl ServiceFactory<
         ServiceRequest,
@@ -407,6 +504,28 @@ pub fn get_application_builder(
         .limit(request_body_limit)
         .content_type_required(true)
         .error_handler(utils::error_parser::custom_json_error_handler);
+
+    let request_identifier = router_env::RequestIdentifier::new(&trace_header.header_name)
+        .use_incoming_id({
+            #[cfg(feature = "deja")]
+            {
+                if deja::replay_is_active() {
+                    router_env::IdReuse::UseIncoming
+                } else {
+                    trace_header.id_reuse_strategy
+                }
+            }
+            #[cfg(not(feature = "deja"))]
+            {
+                trace_header.id_reuse_strategy
+            }
+        });
+
+    #[cfg(feature = "deja")]
+    let request_identifier = match deja_recording_sampler {
+        Some(sampler) => request_identifier.with_recording_sampler(sampler),
+        None => request_identifier,
+    };
 
     actix_web::App::new()
         .app_data(json_cfg)
@@ -428,8 +547,5 @@ pub fn get_application_builder(
         .wrap(router_env::tracing_actix_web::TracingLogger::<
             router_env::CustomRootSpanBuilder,
         >::new())
-        .wrap(
-            router_env::RequestIdentifier::new(&trace_header.header_name)
-                .use_incoming_id(trace_header.id_reuse_strategy),
-        )
+        .wrap(request_identifier)
 }
