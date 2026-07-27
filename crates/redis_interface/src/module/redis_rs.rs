@@ -8,7 +8,11 @@ pub mod types;
 
 use std::sync::{atomic, Arc};
 
-use common_utils::errors::CustomResult;
+use common_utils::{
+    errors::CustomResult,
+    external_service::{ExternalServiceEventEmitter, NoOpEventEmitter},
+    request_id_context::RequestIdContext,
+};
 use error_stack::ResultExt;
 use redis::AsyncCommands;
 use tracing::Instrument;
@@ -357,12 +361,33 @@ pub struct RedisConnectionPool {
     pub subscriber: Arc<SubscriberClient>,
     pub publisher: Arc<PublisherClient>,
     pub is_redis_available: Arc<atomic::AtomicBool>,
+    pub event_emitter: Arc<dyn ExternalServiceEventEmitter>,
+}
+
+/// A request-scoped Redis handle.
+///
+/// Wraps the shared [`RedisConnectionPool`] and carries the request ID of the
+/// execution that created it, so per-roundtrip events can be correlated back to
+/// the originating API request. Built via [`RedisConnectionPool::get_connection`]
+/// (no request context) or
+/// [`RedisConnectionPool::get_connection_with_context`] (request-scoped).
+#[derive(Clone)]
+pub struct RedisConnectionWithContext {
+    pub redis_conn: Arc<RedisConnectionPool>,
+    pub request_id: Option<String>,
 }
 
 impl RedisConnectionPool {
     /// Create a new Redis connection
     pub async fn new(
         conf: &crate::types::RedisSettings,
+    ) -> CustomResult<Self, crate::errors::RedisError> {
+        Self::new_with_event_emitter(conf, Arc::new(NoOpEventEmitter)).await
+    }
+
+    pub async fn new_with_event_emitter(
+        conf: &crate::types::RedisSettings,
+        event_emitter: Arc<dyn ExternalServiceEventEmitter>,
     ) -> CustomResult<Self, crate::errors::RedisError> {
         let (pool, subscriber, publisher) = match conf.cluster_enabled {
             true => {
@@ -488,6 +513,7 @@ impl RedisConnectionPool {
             subscriber,
             publisher,
             key_prefix: String::default(),
+            event_emitter,
         })
     }
 
@@ -499,6 +525,37 @@ impl RedisConnectionPool {
             subscriber: Arc::clone(&self.subscriber),
             publisher: Arc::clone(&self.publisher),
             is_redis_available: Arc::clone(&self.is_redis_available),
+            event_emitter: Arc::clone(&self.event_emitter),
+        }
+    }
+
+    /// Prefix `key` with this pool's tenant key prefix.
+    pub fn add_prefix(&self, key: &str) -> String {
+        if self.key_prefix.is_empty() {
+            key.to_string()
+        } else {
+            format!("{}:{}", self.key_prefix, key)
+        }
+    }
+
+    /// Get a Redis handle with no request context. Calls made through it emit no
+    /// events — use only for background work (drainer, scheduler, health checks).
+    pub fn get_connection(self: &Arc<Self>) -> RedisConnectionWithContext {
+        RedisConnectionWithContext {
+            redis_conn: Arc::clone(self),
+            request_id: None,
+        }
+    }
+
+    /// Get a request-scoped Redis handle. Calls made through it emit events
+    /// correlated to `context`'s request ID.
+    pub fn get_connection_with_context(
+        self: &Arc<Self>,
+        context: &dyn RequestIdContext,
+    ) -> RedisConnectionWithContext {
+        RedisConnectionWithContext {
+            redis_conn: Arc::clone(self),
+            request_id: context.request_id().map(str::to_owned),
         }
     }
 

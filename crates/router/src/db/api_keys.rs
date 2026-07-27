@@ -501,6 +501,7 @@ mod tests {
 
         let redis_conn = db.get_redis_conn().unwrap();
         redis_conn
+            .redis_conn
             .subscribe("hyperswitch_invalidate")
             .await
             .unwrap();
