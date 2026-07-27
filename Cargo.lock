@@ -1821,6 +1821,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "card_metadata"
+version = "0.1.0"
+dependencies = [
+ "error-stack 0.4.1",
+ "serde",
+ "thiserror 1.0.69",
+ "toml 0.8.22",
+]
+
+[[package]]
 name = "cards"
 version = "0.1.0"
 dependencies = [
@@ -3473,6 +3483,7 @@ name = "euclid_wasm"
 version = "0.1.0"
 dependencies = [
  "api_models",
+ "card_metadata",
  "common_enums",
  "common_types",
  "connector_configs",
