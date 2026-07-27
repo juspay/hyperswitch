@@ -90,19 +90,71 @@ pub struct HybridRoutingOutcome {
     pub routing_approach: RoutingApproach,
 }
 
-fn decision_engine_endpoint_label(path: &str) -> &'static str {
-    let path = path.split('?').next().unwrap_or(path).trim_matches('/');
-    match path {
-        "decide-gateway" => "decide_gateway",
-        "update-gateway-score" => "update_gateway_score",
-        "routing/evaluate" => "routing_evaluate",
-        "routing/hybrid" => "routing_hybrid",
-        "routing/create" => "routing_create",
-        "routing/activate" => "routing_activate",
-        p if p.starts_with("routing/list/active") => "routing_list_active",
-        p if p.starts_with("routing/list") => "routing_list",
-        p if p.starts_with("rule") => "rule_config",
-        _ => "other",
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum DecisionEngineEndpoint {
+    DecideGateway,
+    UpdateGatewayScore,
+    RoutingEvaluate,
+    RoutingHybrid,
+    RoutingCreate,
+    RoutingActivate,
+    RoutingListActive,
+    RoutingList,
+    RuleConfig,
+    Other,
+}
+
+impl DecisionEngineEndpoint {
+    const DECIDE_GATEWAY_PATH: &'static str = "decide-gateway";
+    const UPDATE_GATEWAY_SCORE_PATH: &'static str = "update-gateway-score";
+    const ROUTING_EVALUATE_PATH: &'static str = "routing/evaluate";
+    const ROUTING_HYBRID_PATH: &'static str = "routing/hybrid";
+    const ROUTING_CREATE_PATH: &'static str = "routing/create";
+    const ROUTING_ACTIVATE_PATH: &'static str = "routing/activate";
+    const ROUTING_LIST_ACTIVE_PATH: &'static str = "routing/list/active";
+    const ROUTING_LIST_PATH: &'static str = "routing/list";
+    const RULE_PATH: &'static str = "rule";
+
+    const DECIDE_GATEWAY_LABEL: &'static str = "decide_gateway";
+    const UPDATE_GATEWAY_SCORE_LABEL: &'static str = "update_gateway_score";
+    const ROUTING_EVALUATE_LABEL: &'static str = "routing_evaluate";
+    const ROUTING_HYBRID_LABEL: &'static str = "routing_hybrid";
+    const ROUTING_CREATE_LABEL: &'static str = "routing_create";
+    const ROUTING_ACTIVATE_LABEL: &'static str = "routing_activate";
+    const ROUTING_LIST_ACTIVE_LABEL: &'static str = "routing_list_active";
+    const ROUTING_LIST_LABEL: &'static str = "routing_list";
+    const RULE_CONFIG_LABEL: &'static str = "rule_config";
+    const OTHER_LABEL: &'static str = "other";
+
+    fn from_path(path: &str) -> Self {
+        let path = path.split('?').next().unwrap_or(path).trim_matches('/');
+        match path {
+            Self::DECIDE_GATEWAY_PATH => Self::DecideGateway,
+            Self::UPDATE_GATEWAY_SCORE_PATH => Self::UpdateGatewayScore,
+            Self::ROUTING_EVALUATE_PATH => Self::RoutingEvaluate,
+            Self::ROUTING_HYBRID_PATH => Self::RoutingHybrid,
+            Self::ROUTING_CREATE_PATH => Self::RoutingCreate,
+            Self::ROUTING_ACTIVATE_PATH => Self::RoutingActivate,
+            p if p.starts_with(Self::ROUTING_LIST_ACTIVE_PATH) => Self::RoutingListActive,
+            p if p.starts_with(Self::ROUTING_LIST_PATH) => Self::RoutingList,
+            p if p.starts_with(Self::RULE_PATH) => Self::RuleConfig,
+            _ => Self::Other,
+        }
+    }
+
+    fn as_label(self) -> &'static str {
+        match self {
+            Self::DecideGateway => Self::DECIDE_GATEWAY_LABEL,
+            Self::UpdateGatewayScore => Self::UPDATE_GATEWAY_SCORE_LABEL,
+            Self::RoutingEvaluate => Self::ROUTING_EVALUATE_LABEL,
+            Self::RoutingHybrid => Self::ROUTING_HYBRID_LABEL,
+            Self::RoutingCreate => Self::ROUTING_CREATE_LABEL,
+            Self::RoutingActivate => Self::ROUTING_ACTIVATE_LABEL,
+            Self::RoutingListActive => Self::ROUTING_LIST_ACTIVE_LABEL,
+            Self::RoutingList => Self::ROUTING_LIST_LABEL,
+            Self::RuleConfig => Self::RULE_CONFIG_LABEL,
+            Self::Other => Self::OTHER_LABEL,
+        }
     }
 }
 
@@ -140,7 +192,7 @@ where
         .map(|wrapper| wrapper.parse_response)
         .unwrap_or(true);
 
-    let endpoint_label = decision_engine_endpoint_label(path);
+    let endpoint_label = DecisionEngineEndpoint::from_path(path).as_label();
 
     let closure = || async {
         let request_start = std::time::Instant::now();
