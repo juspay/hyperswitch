@@ -319,6 +319,13 @@ pub async fn external_authentication_update_trackers<F: Clone, Req>(
                 let authentication_status = common_enums::AuthenticationStatus::foreign_from(
                     authentication_details.trans_status.clone(),
                 );
+                let exemption_accepted =
+                    authentication.psd2_sca_exemption_type.as_ref().map(|_| {
+                        matches!(
+                            &authentication_details.trans_status,
+                            common_enums::TransactionStatus::Success
+                        )
+                    });
                 authentication_details
                     .authentication_value
                     .async_map(|auth_val| {
@@ -375,6 +382,8 @@ pub async fn external_authentication_update_trackers<F: Clone, Req>(
                         device_display: device_details
                             .as_ref()
                             .and_then(|details| details.device_display.clone()),
+                        platform: None,
+                        exemption_accepted,
                         updated_by: storage_scheme.to_string(),
                     },
                 )

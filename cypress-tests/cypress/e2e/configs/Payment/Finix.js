@@ -43,7 +43,7 @@ const failedNo3DSCardDetails = {
 //     last4: "1111",
 //     card_type: "DEBIT",
 //     card_network: "Visa",
-//     card_issuer: "CONOTOXIA SP Z O.O.",
+//     card_issuer: "CONOTOXIA SP Z OO",
 //     card_issuing_country: "POLAND",
 //     card_isin: "411111",
 //     card_extended_bin: null,
