@@ -917,7 +917,7 @@ fn compile_config_graph(
 #[cfg(feature = "v2")]
 fn compile_merchant_connector_graph(
     builder: &mut cgraph::ConstraintGraphBuilder<dir::DirValue>,
-    mca: admin_api::MerchantConnectorResponse,
+    mca: admin_api::MCACGraphData,
     config: &kgraph_types::CountryCurrencyFilter,
 ) -> Result<(), KgraphError> {
     let connector = euclid::enums::RoutableConnectors::try_from(mca.connector_name)
@@ -988,7 +988,7 @@ fn compile_merchant_connector_graph(
 #[cfg(feature = "v1")]
 fn compile_merchant_connector_graph(
     builder: &mut cgraph::ConstraintGraphBuilder<dir::DirValue>,
-    mca: admin_api::MerchantConnectorResponse,
+    mca: admin_api::MCACGraphData,
     config: &kgraph_types::CountryCurrencyFilter,
 ) -> Result<(), KgraphError> {
     let connector = euclid::enums::RoutableConnectors::from_str(&mca.connector_name)
@@ -1058,7 +1058,7 @@ fn compile_merchant_connector_graph(
 
 // #[cfg(feature = "v1")]
 pub fn make_mca_graph(
-    accts: Vec<admin_api::MerchantConnectorResponse>,
+    accts: Vec<admin_api::MCACGraphData>,
     config: &kgraph_types::CountryCurrencyFilter,
 ) -> Result<cgraph::ConstraintGraph<dir::DirValue>, KgraphError> {
     let mut builder = cgraph::ConstraintGraphBuilder::new();
@@ -1090,7 +1090,6 @@ mod tests {
 
     fn build_test_data() -> ConstraintGraph<dir::DirValue> {
         use api_models::{admin::*, payment_methods::*};
-        let profile_id = common_utils::generate_profile_id_of_default_length();
 
         // #[cfg(feature = "v2")]
         // let stripe_account = MerchantConnectorResponse {
@@ -1148,19 +1147,8 @@ mod tests {
         //     connector_wallets_details: None,
         // };
         #[cfg(feature = "v1")]
-        let stripe_account = MerchantConnectorResponse {
-            connector_type: api_enums::ConnectorType::FizOperations,
+        let stripe_account = MCACGraphData {
             connector_name: "stripe".to_string(),
-            merchant_connector_id:
-                common_utils::generate_merchant_connector_account_id_of_default_length(),
-            business_country: Some(api_enums::CountryAlpha2::US),
-            connector_label: Some("something".to_string()),
-            business_label: Some("food".to_string()),
-            business_sub_label: None,
-            connector_account_details: hyperswitch_masking::Secret::new(serde_json::json!({})),
-            test_mode: None,
-            disabled: None,
-            metadata: None,
             payment_methods_enabled: Some(vec![PaymentMethodsEnabled {
                 payment_method: api_enums::PaymentMethod::Card,
                 payment_method_types: Some(vec![
@@ -1198,15 +1186,6 @@ mod tests {
                     },
                 ]),
             }]),
-            frm_configs: None,
-            connector_webhook_details: None,
-            profile_id,
-            applepay_verified_domains: None,
-            pm_auth_config: None,
-            status: api_enums::ConnectorStatus::Inactive,
-            additional_merchant_data: None,
-            connector_wallets_details: None,
-            webhook_setup_capabilities: None,
         };
 
         let config_map = kgraph_types::CountryCurrencyFilter {
@@ -1559,8 +1538,7 @@ mod tests {
             }
         ]);
 
-        let data: Vec<admin_api::MerchantConnectorResponse> =
-            serde_json::from_value(value).expect("data");
+        let data: Vec<admin_api::MCACGraphData> = serde_json::from_value(value).expect("data");
         let config = kgraph_types::CountryCurrencyFilter {
             connector_configs: HashMap::new(),
             default_configs: None,

@@ -378,7 +378,7 @@ async fn get_tracker_for_sync<
         .attach_printable_lazy(|| {
             format!(
                 "Failed while getting refund list for, payment_id: {:?}, merchant_id: {:?}",
-                &payment_id,
+                payment_id,
                 platform.get_processor().get_account().get_id()
             )
         })?;
@@ -393,7 +393,7 @@ async fn get_tracker_for_sync<
         .attach_printable_lazy(|| {
             format!(
                 "Failed while getting authorizations list for, payment_id: {:?}, merchant_id: {:?}",
-                &payment_id,
+                payment_id,
                 platform.get_processor().get_account().get_id()
             )
         })?;

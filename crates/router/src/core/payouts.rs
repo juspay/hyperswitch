@@ -2463,6 +2463,8 @@ pub async fn create_recipient_disburse_account(
                             pm_method,
                             pm_update,
                             platform.get_processor().get_account().storage_scheme,
+                            // Payout payment method writes are outside PM modular card compat.
+                            None,
                         )
                         .await
                         .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)

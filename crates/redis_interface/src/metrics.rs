@@ -32,6 +32,7 @@ pub(crate) enum RedisOperation {
     GetHashField,
     GetHashFields,
     Hscan,
+    DeleteHashFields,
     Scan,
     Sadd,
     StreamAppendEntry,

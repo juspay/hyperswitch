@@ -12,6 +12,9 @@ pub struct PaymentData {
     /// The currency of the payment.
     #[schema(value_type = Currency)]
     pub currency: common_enums::Currency,
+    /// The business country of the payment.
+    #[schema(value_type = Option<Country>)]
+    pub business_country: Option<common_enums::Country>,
 }
 
 /// Represents metadata about the payment method used in the 3DS decision rule.
@@ -73,6 +76,8 @@ pub struct ThreeDsDecisionRuleExecuteRequest {
     pub issuer: Option<IssuerData>,
     /// Optional data about the acquirer.
     pub acquirer: Option<AcquirerData>,
+    /// Optional metadata about the payment.
+    pub metadata: Option<serde_json::Value>,
 }
 
 /// Represents the response from executing a 3DS decision rule.
