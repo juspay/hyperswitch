@@ -31,9 +31,6 @@ bg_metrics_collection_interval_in_secs = 15                 # Interval for colle
 mode = "disabled"
 run_id = ""
 
-[deja.recording]
-graph = "disabled"
-
 [deja.recording.kafka]
 brokers = ["kafka0:29092"]
 topic = "hyperswitch-deja-recording-events"
@@ -49,7 +46,6 @@ lookup_dir = ""
 observed_sink = ""
 
 [deja.sampler]
-enabled = false
 record_key = "deja_record"
 timeout_ms = 25
 fail_closed = true

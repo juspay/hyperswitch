@@ -97,4 +97,58 @@ echo "$SEED_JSON" | jq -c '."default-configs" | to_entries[] | {key: .key, value
     post_or_fail "$SUPERPOSITION_URL/default-config" "$config" "default-config $key"
 done
 
+# Seed the Deja recording sampler: cohort dimension + override
+# ------------------------------------------------------------------------------
+# `deja_dimension` is a LOCAL_COHORT on the `path` dimension: its json-logic
+# classifies the RAW request path (substring `in`, so parametric paths like
+# /payments/{id}/confirm are covered) into "recordable"/"otherwise". The override
+# records the recordable bucket; `deja_record` defaults to false (seeded above),
+# so /health and other probe traffic skip. The path -> deja_dimension dependency
+# graph is derived server-side from the LOCAL_COHORT type.
+# Posted here as explicit JSON (not via the TOML) because a cohort's
+# dimension_type + json-logic definitions do not round-trip cleanly through yq.
+echo "Seeding Deja recording sampler (deja_dimension cohort + deja_record override)..."
+post_or_fail "$SUPERPOSITION_URL/dimension" '{
+    "dimension": "deja_dimension",
+    "position": 10,
+    "dimension_type": { "LOCAL_COHORT": "path" },
+    "description": "Deja request treatment class (path-derived cohort)",
+    "change_reason": "Deja recording sampler",
+    "schema": {
+        "type": "string",
+        "enum": ["recordable", "otherwise"],
+        "definitions": {
+            "recordable": { "or": [
+                { "in": ["/payments", { "var": "path" }] },
+                { "in": ["/accounts", { "var": "path" }] },
+                { "in": ["/user/signup", { "var": "path" }] },
+                { "in": ["/organization", { "var": "path" }] },
+                { "in": ["/api_keys", { "var": "path" }] },
+                { "in": ["/configs", { "var": "path" }] }
+            ]}
+        }
+    }
+}' "deja_dimension cohort"
+
+# The override context is created via PUT /context (context = condition map,
+# override = config values): deja_dimension == "recordable" -> deja_record = true.
+echo "Creating deja_record override for the recordable cohort..."
+ctx_tmp=$(mktemp)
+ctx_status=$(curl -sS -o "$ctx_tmp" -w "%{http_code}" -X PUT "$SUPERPOSITION_URL/context" \
+    -H "Content-Type: application/json" \
+    -H "x-org-id: $ORG_ID" \
+    -H "x-workspace: $WORKSPACE_ID" \
+    -d '{
+        "context": { "deja_dimension": "recordable" },
+        "override": { "deja_record": true },
+        "description": "Record the recordable endpoint bucket",
+        "change_reason": "Deja recording sampler"
+    }')
+case "$ctx_status" in
+    2??) ;;
+    409) echo "  deja_record override already exists (HTTP 409), continuing" ;;
+    *) echo "Error: deja_record override failed with HTTP $ctx_status"; cat "$ctx_tmp"; rm -f "$ctx_tmp"; exit 1 ;;
+esac
+rm -f "$ctx_tmp"
+
 echo "Seeding complete!"
