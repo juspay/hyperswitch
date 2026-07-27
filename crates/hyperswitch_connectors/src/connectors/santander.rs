@@ -1421,23 +1421,27 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for San
                             })
                             .transpose()?;
 
-                        let (expiry_date, issue_date) = voucher_data
+                        let (_, issue_date) = voucher_data
                             .as_ref()
                             .and_then(|data| data.expiry_date.zip(data.entry_date.clone()))
                             .ok_or(errors::ConnectorError::MissingRequiredField {
                                 field_name: "issue_date/due_date",
                             })?;
+                        let payment_date_final = time::OffsetDateTime::now_utc()
+                            .date()
+                            .format(&time::macros::format_description!("[year]-[month]-[day]"))
+                            .change_context(errors::ConnectorError::DateFormattingFailed)?;
 
                         Ok(format!(
     "{boleto_base_url}collection_bill_management/{version}/workspaces/{workspace_id}/bank_slips?\
-    paymentDateFinal={due_date}&\
+    paymentDateFinal={payment_date_final}&\
     paymentDateInitial={issue_date}&\
     status=LIQUIDADO&\
     bankNumber={connector_transaction_id}",
     boleto_base_url = boleto_base_url,
     version = version,
     workspace_id = workspace_id,
-    due_date = expiry_date,
+    payment_date_final = payment_date_final,
     issue_date = issue_date,
     connector_transaction_id = connector_transaction_id
 ))
