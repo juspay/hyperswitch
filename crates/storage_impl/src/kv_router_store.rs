@@ -20,7 +20,6 @@ use serde::de;
 
 #[cfg(not(feature = "payouts"))]
 pub use crate::database::store::Store;
-pub use crate::{database::store::DatabaseStore, mock_db::MockDb};
 use crate::{
     database::store::PgPool,
     diesel_error_to_data_error,
@@ -33,6 +32,10 @@ use crate::{
     },
     utils::{find_all_combined_kv_database, try_redis_get_else_try_database_get},
     RouterStore, TenantConfig, UniqueConstraints,
+};
+pub use crate::{
+    database::store::{DatabaseStore, DatabaseStoreWithContext},
+    mock_db::MockDb,
 };
 
 #[derive(Debug, Clone)]
@@ -128,6 +131,9 @@ where
         tenant_config: &dyn TenantConfig,
         _test_transaction: bool,
         key_manager_state: Option<KeyManagerState>,
+        _event_emitter: std::sync::Arc<
+            dyn common_utils::external_service::ExternalServiceEventEmitter,
+        >,
     ) -> StorageResult<Self> {
         let (router_store, _, drainer_num_partitions, ttl_for_kv, soft_kill_mode) = config;
         let drainer_stream_name = format!("{}_{}", tenant_config.get_schema(), config.1);
@@ -161,6 +167,8 @@ impl<T: DatabaseStore> RequestContext for KVRouterStore<T> {
         self.request_id.as_deref()
     }
 }
+
+impl<T: DatabaseStore> DatabaseStoreWithContext for KVRouterStore<T> {}
 
 impl<T: DatabaseStore> RedisConnInterface for KVRouterStore<T> {
     fn get_redis_conn(

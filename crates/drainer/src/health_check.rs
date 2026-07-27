@@ -3,9 +3,10 @@ use std::{collections::HashMap, sync::Arc};
 use actix_web::{web, Scope};
 use async_bb8_diesel::{AsyncConnection, AsyncRunQueryDsl};
 use common_utils::{errors::CustomResult, id_type};
-use diesel_models::{Config, ConfigNew};
+use diesel_models::{Config, ConfigNew, DatabaseConnection};
 use error_stack::ResultExt;
 use router_env::{instrument, logger, tracing};
+use storage_impl::database::store::DatabaseTransactionConnectionWithContext;
 
 use crate::{
     connection::pg_connection,
@@ -118,16 +119,24 @@ pub trait HealthCheckInterface {
 impl HealthCheckInterface for Store {
     async fn health_check_db(&self) -> CustomResult<(), HealthCheckDBError> {
         let conn = pg_connection(&self.master_pool).await;
+        let event_context = conn.event_context().clone();
 
-        conn
-            .transaction_async(|conn| {
+        conn.raw_connection()
+            .transaction_async(move |raw_connection| {
                 Box::pin(async move {
+                    let conn = DatabaseTransactionConnectionWithContext::new(
+                        raw_connection,
+                        event_context,
+                    );
                     let query =
                         diesel::select(diesel::dsl::sql::<diesel::sql_types::Integer>("1 + 1"));
-                    let _x: i32 = query.get_result_async(&conn).await.map_err(|err| {
-                        logger::error!(read_err=?err,"Error while reading element in the database");
-                        HealthCheckDBError::DbReadError
-                    })?;
+                    let _x: i32 = query
+                        .get_result_async(conn.raw_connection())
+                        .await
+                        .map_err(|err| {
+                            logger::error!(read_err=?err,"Error while reading element in the database");
+                            HealthCheckDBError::DbReadError
+                        })?;
 
                     logger::debug!("Database read was successful");
 

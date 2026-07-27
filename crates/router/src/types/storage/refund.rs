@@ -179,7 +179,7 @@ impl RefundDbExt for Refund {
         logger::debug!(query = %diesel::debug_query::<diesel::pg::Pg, _>(&filter).to_string());
 
         db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
-            filter.get_results_async(conn),
+            filter.get_results_async(conn.raw_connection()),
             db_metrics::DatabaseOperation::Filter,
         )
         .await
@@ -253,7 +253,7 @@ impl RefundDbExt for Refund {
         logger::debug!(query = %diesel::debug_query::<diesel::pg::Pg, _>(&filter).to_string());
 
         db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
-            filter.get_results_async(conn),
+            filter.get_results_async(conn.raw_connection()),
             db_metrics::DatabaseOperation::Filter,
         )
         .await
@@ -292,7 +292,7 @@ impl RefundDbExt for Refund {
             .select(dsl::connector)
             .distinct()
             .order_by(dsl::connector.asc())
-            .get_results_async(conn)
+            .get_results_async(conn.raw_connection())
             .await
             .change_context(errors::DatabaseError::Others)
             .attach_printable("Error filtering records by connector")?;
@@ -302,7 +302,7 @@ impl RefundDbExt for Refund {
             .select(dsl::currency)
             .distinct()
             .order_by(dsl::currency.asc())
-            .get_results_async(conn)
+            .get_results_async(conn.raw_connection())
             .await
             .change_context(errors::DatabaseError::Others)
             .attach_printable("Error filtering records by currency")?;
@@ -311,7 +311,7 @@ impl RefundDbExt for Refund {
             .select(dsl::refund_status)
             .distinct()
             .order_by(dsl::refund_status.asc())
-            .get_results_async(conn)
+            .get_results_async(conn.raw_connection())
             .await
             .change_context(errors::DatabaseError::Others)
             .attach_printable("Error filtering records by refund status")?;
@@ -414,7 +414,7 @@ impl RefundDbExt for Refund {
         logger::debug!(query = %diesel::debug_query::<diesel::pg::Pg, _>(&filter).to_string());
 
         filter
-            .get_result_async::<i64>(conn)
+            .get_result_async::<i64>(conn.raw_connection())
             .await
             .change_context(errors::DatabaseError::NotFound)
             .attach_printable_lazy(|| "Error filtering count of refunds")
@@ -482,7 +482,7 @@ impl RefundDbExt for Refund {
         logger::debug!(query = %diesel::debug_query::<diesel::pg::Pg, _>(&filter).to_string());
 
         filter
-            .get_result_async::<i64>(conn)
+            .get_result_async::<i64>(conn.raw_connection())
             .await
             .change_context(errors::DatabaseError::NotFound)
             .attach_printable_lazy(|| "Error filtering count of refunds")
@@ -521,7 +521,7 @@ impl RefundDbExt for Refund {
         logger::debug!(filter = %diesel::debug_query::<diesel::pg::Pg,_>(&query).to_string());
 
         db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
-            query.get_results_async::<(RefundStatus, i64)>(conn),
+            query.get_results_async::<(RefundStatus, i64)>(conn.raw_connection()),
             db_metrics::DatabaseOperation::Count,
         )
         .await

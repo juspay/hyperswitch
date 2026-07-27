@@ -373,7 +373,7 @@ impl PaymentAttempt {
             .clone()
             .select(dsl::connector)
             .distinct()
-            .get_results_async::<Option<String>>(conn)
+            .get_results_async::<Option<String>>(conn.raw_connection())
             .await
             .change_context(DatabaseError::Others)
             .attach_printable("Error filtering records by connector")?
@@ -385,7 +385,7 @@ impl PaymentAttempt {
             .clone()
             .select(dsl::currency)
             .distinct()
-            .get_results_async::<Option<enums::Currency>>(conn)
+            .get_results_async::<Option<enums::Currency>>(conn.raw_connection())
             .await
             .change_context(DatabaseError::Others)
             .attach_printable("Error filtering records by currency")?
@@ -397,7 +397,7 @@ impl PaymentAttempt {
             .clone()
             .select(dsl::payment_method)
             .distinct()
-            .get_results_async::<Option<enums::PaymentMethod>>(conn)
+            .get_results_async::<Option<enums::PaymentMethod>>(conn.raw_connection())
             .await
             .change_context(DatabaseError::Others)
             .attach_printable("Error filtering records by payment method")?
@@ -409,7 +409,7 @@ impl PaymentAttempt {
             .clone()
             .select(dsl::payment_method_type)
             .distinct()
-            .get_results_async::<Option<enums::PaymentMethodType>>(conn)
+            .get_results_async::<Option<enums::PaymentMethodType>>(conn.raw_connection())
             .await
             .change_context(DatabaseError::Others)
             .attach_printable("Error filtering records by payment method type")?
@@ -421,7 +421,7 @@ impl PaymentAttempt {
             .clone()
             .select(dsl::authentication_type)
             .distinct()
-            .get_results_async::<Option<enums::AuthenticationType>>(conn)
+            .get_results_async::<Option<enums::AuthenticationType>>(conn.raw_connection())
             .await
             .change_context(DatabaseError::Others)
             .attach_printable("Error filtering records by authentication type")?
@@ -484,7 +484,7 @@ impl PaymentAttempt {
         let start_time = std::time::Instant::now();
         router_env::logger::debug!("Executing count query start_time: {:?}", start_time);
         let result = db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
-            filter.get_result_async::<i64>(conn),
+            filter.get_result_async::<i64>(conn.raw_connection()),
             db_metrics::DatabaseOperation::Filter,
         )
         .await
@@ -546,7 +546,7 @@ impl PaymentAttempt {
         let start_time = std::time::Instant::now();
         router_env::logger::debug!("Executing count query start_time: {:?}", start_time);
         let result = db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
-            filter.get_result_async::<i64>(conn),
+            filter.get_result_async::<i64>(conn.raw_connection()),
             db_metrics::DatabaseOperation::Filter,
         )
         .await

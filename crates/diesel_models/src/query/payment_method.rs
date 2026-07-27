@@ -153,7 +153,7 @@ impl PaymentMethod {
         router_env::logger::debug!(query = %debug_query::<Pg, _>(&filter).to_string());
 
         generics::db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
-            filter.get_result_async::<i64>(conn),
+            filter.get_result_async::<i64>(conn.raw_connection()),
             generics::db_metrics::DatabaseOperation::Count,
         )
         .await
@@ -175,7 +175,7 @@ impl PaymentMethod {
         router_env::logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
 
         generics::db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
-            query.get_result_async::<i64>(conn),
+            query.get_result_async::<i64>(conn.raw_connection()),
             generics::db_metrics::DatabaseOperation::Count,
         )
         .await
@@ -373,7 +373,7 @@ impl PaymentMethod {
         router_env::logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
 
         generics::db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
-            query.get_result_async::<i64>(conn),
+            query.get_result_async::<i64>(conn.raw_connection()),
             generics::db_metrics::DatabaseOperation::Count,
         )
         .await

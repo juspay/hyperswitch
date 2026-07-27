@@ -65,12 +65,48 @@ pub mod user_authentication_method;
 pub mod user_key_store;
 pub mod user_role;
 
+use std::sync::Arc;
+
+use common_utils::external_service::ExternalServiceEventEmitter;
 use diesel_impl::{DieselArray, OptionalDieselArray};
 #[cfg(feature = "v2")]
 use diesel_impl::{RequiredFromNullable, RequiredFromNullableWithDefault};
 
 pub type StorageResult<T> = error_stack::Result<T, errors::DatabaseError>;
-pub type PgPooledConn = async_bb8_diesel::Connection<diesel::PgConnection>;
+pub type RawPgConnection = async_bb8_diesel::Connection<diesel::PgConnection>;
+
+#[derive(Debug, Clone)]
+pub struct DatabaseEventContext {
+    request_id: Option<String>,
+    event_emitter: Arc<dyn ExternalServiceEventEmitter>,
+}
+
+impl DatabaseEventContext {
+    pub fn new(
+        request_id: Option<String>,
+        event_emitter: Arc<dyn ExternalServiceEventEmitter>,
+    ) -> Self {
+        Self {
+            request_id,
+            event_emitter,
+        }
+    }
+
+    pub fn request_id(&self) -> Option<&str> {
+        self.request_id.as_deref()
+    }
+
+    pub fn event_emitter(&self) -> &dyn ExternalServiceEventEmitter {
+        self.event_emitter.as_ref()
+    }
+}
+
+pub trait DatabaseConnection: Send + Sync {
+    fn raw_connection(&self) -> &RawPgConnection;
+    fn event_context(&self) -> &DatabaseEventContext;
+}
+
+pub type PgPooledConn = dyn DatabaseConnection;
 pub use self::{
     address::*, api_keys::*, callback_mapper::*, capture::*, cards_info::*, configs::*,
     customers::*, dispute::*, ephemeral_key::*, events::*, file::*, generic_link::*,

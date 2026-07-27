@@ -90,7 +90,7 @@ impl RoutingAlgorithm {
                 PrimitiveDateTime,
                 PrimitiveDateTime,
                 enums::TransactionType,
-            )>(conn)
+            )>(conn.raw_connection())
             .await
             .change_context(DatabaseError::Others)?
             .into_iter()
@@ -150,7 +150,7 @@ impl RoutingAlgorithm {
                 PrimitiveDateTime,
                 PrimitiveDateTime,
                 enums::TransactionType,
-            )>(conn)
+            )>(conn.raw_connection())
             .await
             .change_context(DatabaseError::Others)?
             .into_iter()
@@ -216,7 +216,7 @@ impl RoutingAlgorithm {
                 PrimitiveDateTime,
                 PrimitiveDateTime,
                 enums::TransactionType,
-            )>(conn)
+            )>(conn.raw_connection())
             .await
             .change_context(DatabaseError::Others)?
             .into_iter()
@@ -284,7 +284,7 @@ impl RoutingAlgorithm {
                 PrimitiveDateTime,
                 PrimitiveDateTime,
                 enums::TransactionType,
-            )>(conn)
+            )>(conn.raw_connection())
             .await
             .change_context(DatabaseError::Others)?
             .into_iter()

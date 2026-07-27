@@ -1,21 +1,15 @@
-use bb8::PooledConnection;
-use diesel::PgConnection;
-use error_stack::ResultExt;
-
 use crate::{
+    database::store::DatabaseConnectionWithContext,
     errors::{RedisErrorExt, StorageError},
-    metrics, DatabaseStore,
+    metrics, DatabaseStoreWithContext,
 };
 
-pub async fn pg_connection_read<T: DatabaseStore>(
+pub async fn pg_connection_read<T: DatabaseStoreWithContext>(
     store: &T,
-) -> error_stack::Result<
-    PooledConnection<'_, async_bb8_diesel::ConnectionManager<PgConnection>>,
-    StorageError,
-> {
+) -> error_stack::Result<DatabaseConnectionWithContext, StorageError> {
     // If only OLAP is enabled get replica pool.
     #[cfg(all(feature = "olap", not(feature = "oltp")))]
-    let pool = store.get_replica_pool();
+    return store.get_read_connection().await;
 
     // If either one of these are true we need to get master pool.
     //  1. Only OLTP is enabled.
@@ -26,36 +20,22 @@ pub async fn pg_connection_read<T: DatabaseStore>(
         all(feature = "olap", feature = "oltp"),
         all(not(feature = "olap"), not(feature = "oltp"))
     ))]
-    let pool = store.get_master_pool();
-
-    pool.get()
-        .await
-        .change_context(StorageError::DatabaseConnectionError)
+    store.get_write_connection().await
 }
 
-pub async fn pg_connection_write<T: DatabaseStore>(
+pub async fn pg_connection_write<T: DatabaseStoreWithContext>(
     store: &T,
-) -> error_stack::Result<
-    PooledConnection<'_, async_bb8_diesel::ConnectionManager<PgConnection>>,
-    StorageError,
-> {
+) -> error_stack::Result<DatabaseConnectionWithContext, StorageError> {
     // Since all writes should happen to master DB only choose master DB.
-    let pool = store.get_master_pool();
-
-    pool.get()
-        .await
-        .change_context(StorageError::DatabaseConnectionError)
+    store.get_write_connection().await
 }
 
-pub async fn pg_accounts_connection_read<T: DatabaseStore>(
+pub async fn pg_accounts_connection_read<T: DatabaseStoreWithContext>(
     store: &T,
-) -> error_stack::Result<
-    PooledConnection<'_, async_bb8_diesel::ConnectionManager<PgConnection>>,
-    StorageError,
-> {
+) -> error_stack::Result<DatabaseConnectionWithContext, StorageError> {
     // If only OLAP is enabled get replica pool.
     #[cfg(all(feature = "olap", not(feature = "oltp")))]
-    let pool = store.get_accounts_replica_pool();
+    return store.get_accounts_read_connection().await;
 
     // If either one of these are true we need to get master pool.
     //  1. Only OLTP is enabled.
@@ -66,25 +46,14 @@ pub async fn pg_accounts_connection_read<T: DatabaseStore>(
         all(feature = "olap", feature = "oltp"),
         all(not(feature = "olap"), not(feature = "oltp"))
     ))]
-    let pool = store.get_accounts_master_pool();
-
-    pool.get()
-        .await
-        .change_context(StorageError::DatabaseConnectionError)
+    store.get_accounts_write_connection().await
 }
 
-pub async fn pg_accounts_connection_write<T: DatabaseStore>(
+pub async fn pg_accounts_connection_write<T: DatabaseStoreWithContext>(
     store: &T,
-) -> error_stack::Result<
-    PooledConnection<'_, async_bb8_diesel::ConnectionManager<PgConnection>>,
-    StorageError,
-> {
+) -> error_stack::Result<DatabaseConnectionWithContext, StorageError> {
     // Since all writes should happen to master DB only choose master DB.
-    let pool = store.get_accounts_master_pool();
-
-    pool.get()
-        .await
-        .change_context(StorageError::DatabaseConnectionError)
+    store.get_accounts_write_connection().await
 }
 
 pub async fn try_redis_get_else_try_database_get<F, RFut, DFut, T>(

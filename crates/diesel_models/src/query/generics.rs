@@ -78,8 +78,11 @@ where
     let query = diesel::insert_into(<T as HasTable>::table()).values(values);
     logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
 
-    match track_database_call::<T, _, _>(query.get_result_async(conn), DatabaseOperation::Insert)
-        .await
+    match track_database_call::<T, _, _>(
+        query.get_result_async(conn.raw_connection()),
+        DatabaseOperation::Insert,
+    )
+    .await
     {
         Ok(value) => Ok(value),
         Err(err) => match err {
@@ -112,10 +115,13 @@ where
     let query = diesel::update(<T as HasTable>::table().filter(predicate)).set(values);
     logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
 
-    track_database_call::<T, _, _>(query.execute_async(conn), DatabaseOperation::Update)
-        .await
-        .change_context(errors::DatabaseError::Others)
-        .attach_printable_lazy(|| format!("Error while updating {debug_values}"))
+    track_database_call::<T, _, _>(
+        query.execute_async(conn.raw_connection()),
+        DatabaseOperation::Update,
+    )
+    .await
+    .change_context(errors::DatabaseError::Others)
+    .attach_printable_lazy(|| format!("Error while updating {debug_values}"))
 }
 
 pub async fn generic_update_with_results<T, V, P, R>(
@@ -145,7 +151,7 @@ where
     let query = diesel::update(<T as HasTable>::table().filter(predicate)).set(values);
 
     match track_database_call::<T, _, _>(
-        query.to_owned().get_results_async(conn),
+        query.to_owned().get_results_async(conn.raw_connection()),
         DatabaseOperation::UpdateWithResults,
     )
     .await
@@ -232,7 +238,7 @@ where
     let query = diesel::update(<T as HasTable>::table().find(id.to_owned())).set(values);
 
     match track_database_call::<T, _, _>(
-        query.to_owned().get_result_async(conn),
+        query.to_owned().get_result_async(conn.raw_connection()),
         DatabaseOperation::UpdateOne,
     )
     .await
@@ -265,20 +271,21 @@ where
     let query = diesel::delete(<T as HasTable>::table().filter(predicate));
     logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
 
-    track_database_call::<T, _, _>(query.execute_async(conn), DatabaseOperation::Delete)
-        .await
-        .change_context(errors::DatabaseError::Others)
-        .attach_printable("Error while deleting")
-        .and_then(|result| match result {
-            n if n > 0 => {
-                logger::debug!("{n} records deleted");
-                Ok(true)
-            }
-            0 => {
-                Err(report!(errors::DatabaseError::NotFound).attach_printable("No records deleted"))
-            }
-            _ => Ok(true), // n is usize, rustc requires this for exhaustive check
-        })
+    track_database_call::<T, _, _>(
+        query.execute_async(conn.raw_connection()),
+        DatabaseOperation::Delete,
+    )
+    .await
+    .change_context(errors::DatabaseError::Others)
+    .attach_printable("Error while deleting")
+    .and_then(|result| match result {
+        n if n > 0 => {
+            logger::debug!("{n} records deleted");
+            Ok(true)
+        }
+        0 => Err(report!(errors::DatabaseError::NotFound).attach_printable("No records deleted")),
+        _ => Ok(true), // n is usize, rustc requires this for exhaustive check
+    })
 }
 
 pub async fn generic_delete_one_with_result<T, P, R>(
@@ -298,7 +305,7 @@ where
     logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
 
     track_database_call::<T, _, _>(
-        query.get_results_async(conn),
+        query.get_results_async(conn.raw_connection()),
         DatabaseOperation::DeleteWithResult,
     )
     .await
@@ -323,7 +330,11 @@ where
     let query = <T as HasTable>::table().find(id.to_owned());
     logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
 
-    match track_database_call::<T, _, _>(query.first_async(conn), DatabaseOperation::FindOne).await
+    match track_database_call::<T, _, _>(
+        query.first_async(conn.raw_connection()),
+        DatabaseOperation::FindOne,
+    )
+    .await
     {
         Ok(value) => Ok(value),
         Err(err) => match err {
@@ -371,13 +382,16 @@ where
     let query = <T as HasTable>::table().filter(predicate);
     logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
 
-    track_database_call::<T, _, _>(query.get_result_async(conn), DatabaseOperation::FindOne)
-        .await
-        .map_err(|err| match err {
-            DieselError::NotFound => report!(err).change_context(errors::DatabaseError::NotFound),
-            _ => report!(err).change_context(errors::DatabaseError::Others),
-        })
-        .attach_printable("Error finding record by predicate")
+    track_database_call::<T, _, _>(
+        query.get_result_async(conn.raw_connection()),
+        DatabaseOperation::FindOne,
+    )
+    .await
+    .map_err(|err| match err {
+        DieselError::NotFound => report!(err).change_context(errors::DatabaseError::NotFound),
+        _ => report!(err).change_context(errors::DatabaseError::Others),
+    })
+    .attach_printable("Error finding record by predicate")
 }
 
 pub async fn generic_find_one<T, P, R>(conn: &PgPooledConn, predicate: P) -> StorageResult<R>
@@ -439,10 +453,13 @@ where
 
     logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
 
-    track_database_call::<T, _, _>(query.get_results_async(conn), DatabaseOperation::Filter)
-        .await
-        .change_context(errors::DatabaseError::Others)
-        .attach_printable("Error filtering records by predicate")
+    track_database_call::<T, _, _>(
+        query.get_results_async(conn.raw_connection()),
+        DatabaseOperation::Filter,
+    )
+    .await
+    .change_context(errors::DatabaseError::Others)
+    .attach_printable("Error filtering records by predicate")
 }
 
 pub async fn generic_count<T, P>(conn: &PgPooledConn, predicate: P) -> StorageResult<usize>
@@ -458,11 +475,13 @@ where
 
     logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
 
-    let count_i64: i64 =
-        track_database_call::<T, _, _>(query.get_result_async(conn), DatabaseOperation::Count)
-            .await
-            .change_context(errors::DatabaseError::Others)
-            .attach_printable("Error counting records by predicate")?;
+    let count_i64: i64 = track_database_call::<T, _, _>(
+        query.get_result_async(conn.raw_connection()),
+        DatabaseOperation::Count,
+    )
+    .await
+    .change_context(errors::DatabaseError::Others)
+    .attach_printable("Error counting records by predicate")?;
 
     let count_usize = usize::try_from(count_i64).map_err(|_| {
         report!(errors::DatabaseError::Others).attach_printable("Count value does not fit in usize")

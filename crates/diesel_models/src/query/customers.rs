@@ -59,7 +59,7 @@ impl Customer {
             ));
 
         match query
-            .first_async::<CustomerGlobalIdMigrationRow>(conn)
+            .first_async::<CustomerGlobalIdMigrationRow>(conn.raw_connection())
             .await
         {
             Ok(row) => Ok(row),
@@ -95,7 +95,7 @@ impl Customer {
         ));
 
         match query
-            .get_result_async::<CustomerGlobalIdMigrationRow>(conn)
+            .get_result_async::<CustomerGlobalIdMigrationRow>(conn.raw_connection())
             .await
         {
             Ok(row) => Ok(row),

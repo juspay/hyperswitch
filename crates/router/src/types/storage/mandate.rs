@@ -61,7 +61,7 @@ impl MandateDbExt for Mandate {
         logger::debug!(query = %diesel::debug_query::<diesel::pg::Pg, _>(&filter).to_string());
 
         filter
-            .get_results_async(conn)
+            .get_results_async(conn.raw_connection())
             .await
             // The query built here returns an empty Vec when no records are found, and if any error does occur,
             // it would be an internal database error, due to which we are raising a DatabaseError::Unknown error

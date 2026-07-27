@@ -94,6 +94,7 @@ impl SerializableQuery {
             )?;
 
         let bind_collector = conn
+            .raw_connection()
             .run(move |c| {
                 let mut bc = RawBytesBindCollector::<Pg>::new();
                 query.collect_binds(&mut bc, c, &Pg)?;
@@ -145,7 +146,8 @@ impl SerializableQuery {
 
         logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
 
-        conn.run(move |c| ExecuteDsl::execute(query, c))
+        conn.raw_connection()
+            .run(move |c| ExecuteDsl::execute(query, c))
             .await
             .attach_printable("Failed to execute drainer query")
             .switch()

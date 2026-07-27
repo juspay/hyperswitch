@@ -136,7 +136,7 @@ impl Payouts {
         router_env::logger::debug!(query = %debug_query::<Pg, _>(&filter).to_string());
 
         db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
-            filter.get_result_async::<i64>(conn),
+            filter.get_result_async::<i64>(conn.raw_connection()),
             db_metrics::DatabaseOperation::Filter,
         )
         .await

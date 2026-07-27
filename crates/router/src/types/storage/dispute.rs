@@ -107,7 +107,7 @@ impl DisputeDbExt for Dispute {
         logger::debug!(query = %diesel::debug_query::<diesel::pg::Pg, _>(&filter).to_string());
 
         db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
-            filter.get_results_async(conn),
+            filter.get_results_async(conn.raw_connection()),
             db_metrics::DatabaseOperation::Filter,
         )
         .await
@@ -147,7 +147,7 @@ impl DisputeDbExt for Dispute {
         logger::debug!(query = %diesel::debug_query::<diesel::pg::Pg,_>(&query).to_string());
 
         db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
-            query.get_results_async::<(common_enums::DisputeStatus, i64)>(conn),
+            query.get_results_async::<(common_enums::DisputeStatus, i64)>(conn.raw_connection()),
             db_metrics::DatabaseOperation::Count,
         )
         .await

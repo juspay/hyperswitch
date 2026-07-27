@@ -30,7 +30,7 @@ pub async fn insert_payment_intents(
     logger::debug!(query = %debug_query::<diesel::pg::Pg,_>(&query).to_string());
 
     query
-        .get_results_async(conn)
+        .get_results_async(conn.raw_connection())
         .await
         .change_context(errors::DatabaseError::Others)
         .attach_printable("Error while inserting payment intents")
@@ -46,7 +46,7 @@ pub async fn insert_payment_attempts(
     logger::debug!(query = %debug_query::<diesel::pg::Pg,_>(&query).to_string());
 
     query
-        .get_results_async(conn)
+        .get_results_async(conn.raw_connection())
         .await
         .change_context(errors::DatabaseError::Others)
         .attach_printable("Error while inserting payment attempts")
@@ -61,7 +61,7 @@ pub async fn insert_refunds(
     logger::debug!(query = %debug_query::<diesel::pg::Pg,_>(&query).to_string());
 
     query
-        .get_results_async(conn)
+        .get_results_async(conn.raw_connection())
         .await
         .change_context(errors::DatabaseError::Others)
         .attach_printable("Error while inserting refunds")
@@ -76,7 +76,7 @@ pub async fn insert_disputes(
     logger::debug!(query = %debug_query::<diesel::pg::Pg,_>(&query).to_string());
 
     query
-        .get_results_async(conn)
+        .get_results_async(conn.raw_connection())
         .await
         .change_context(errors::DatabaseError::Others)
         .attach_printable("Error while inserting disputes")
@@ -94,7 +94,7 @@ pub async fn delete_payment_intents(
     logger::debug!(query = %debug_query::<diesel::pg::Pg,_>(&query).to_string());
 
     query
-        .get_results_async(conn)
+        .get_results_async(conn.raw_connection())
         .await
         .change_context(errors::DatabaseError::Others)
         .attach_printable("Error while deleting payment intents")
@@ -121,7 +121,7 @@ pub async fn delete_payment_intents(
     logger::debug!(query = %debug_query::<diesel::pg::Pg,_>(&query).to_string());
 
     query
-        .get_results_async(conn)
+        .get_results_async(conn.raw_connection())
         .await
         .change_context(errors::DatabaseError::Others)
         .attach_printable("Error while deleting payment intents")
@@ -146,7 +146,7 @@ pub async fn delete_payment_attempts(
     logger::debug!(query = %debug_query::<diesel::pg::Pg,_>(&query).to_string());
 
     query
-        .get_results_async(conn)
+        .get_results_async(conn.raw_connection())
         .await
         .change_context(errors::DatabaseError::Others)
         .attach_printable("Error while deleting payment attempts")
@@ -172,7 +172,7 @@ pub async fn delete_refunds(
     logger::debug!(query = %debug_query::<diesel::pg::Pg,_>(&query).to_string());
 
     query
-        .get_results_async(conn)
+        .get_results_async(conn.raw_connection())
         .await
         .change_context(errors::DatabaseError::Others)
         .attach_printable("Error while deleting refunds")
@@ -198,7 +198,7 @@ pub async fn delete_disputes(
     logger::debug!(query = %debug_query::<diesel::pg::Pg,_>(&query).to_string());
 
     query
-        .get_results_async(conn)
+        .get_results_async(conn.raw_connection())
         .await
         .change_context(errors::DatabaseError::Others)
         .attach_printable("Error while deleting disputes")

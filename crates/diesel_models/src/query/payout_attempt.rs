@@ -228,7 +228,7 @@ impl PayoutAttempt {
             .clone()
             .select(dsl::connector)
             .distinct()
-            .get_results_async::<Option<String>>(conn)
+            .get_results_async::<Option<String>>(conn.raw_connection())
             .await
             .change_context(DatabaseError::Others)
             .attach_printable("Error filtering records by connector")?
@@ -240,7 +240,7 @@ impl PayoutAttempt {
             .clone()
             .select(payout_dsl::destination_currency)
             .distinct()
-            .get_results_async::<enums::Currency>(conn)
+            .get_results_async::<enums::Currency>(conn.raw_connection())
             .await
             .change_context(DatabaseError::Others)
             .attach_printable("Error filtering records by currency")?
@@ -251,7 +251,7 @@ impl PayoutAttempt {
             .clone()
             .select(payout_dsl::payout_type)
             .distinct()
-            .get_results_async::<Option<enums::PayoutType>>(conn)
+            .get_results_async::<Option<enums::PayoutType>>(conn.raw_connection())
             .await
             .change_context(DatabaseError::Others)
             .attach_printable("Error filtering records by payout type")?

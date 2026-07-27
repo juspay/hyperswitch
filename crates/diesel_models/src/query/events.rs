@@ -105,10 +105,13 @@ impl Event {
 
         logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
 
-        track_database_call::<Self, _, _>(query.get_results_async(conn), DatabaseOperation::Filter)
-            .await
-            .change_context(DatabaseError::Others) // Query returns empty Vec when no records are found
-            .attach_printable("Error filtering events by constraints")
+        track_database_call::<Self, _, _>(
+            query.get_results_async(conn.raw_connection()),
+            DatabaseOperation::Filter,
+        )
+        .await
+        .change_context(DatabaseError::Others) // Query returns empty Vec when no records are found
+        .attach_printable("Error filtering events by constraints")
     }
 
     pub async fn find_initial_attempt_by_merchant_id_initial_attempt_id(
@@ -167,10 +170,13 @@ impl Event {
 
         logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
 
-        track_database_call::<Self, _, _>(query.get_results_async(conn), DatabaseOperation::Filter)
-            .await
-            .change_context(DatabaseError::Others) // Query returns empty Vec when no records are found
-            .attach_printable("Error filtering events by constraints")
+        track_database_call::<Self, _, _>(
+            query.get_results_async(conn.raw_connection()),
+            DatabaseOperation::Filter,
+        )
+        .await
+        .change_context(DatabaseError::Others) // Query returns empty Vec when no records are found
+        .attach_printable("Error filtering events by constraints")
     }
 
     pub async fn list_by_merchant_id_initial_attempt_id(
@@ -192,10 +198,13 @@ impl Event {
 
         logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
 
-        track_database_call::<Self, _, _>(query.get_results_async(conn), DatabaseOperation::Filter)
-            .await
-            .change_context(DatabaseError::Others) // Query returns empty Vec when no records are found
-            .attach_printable("Error filtering events by constraints")
+        track_database_call::<Self, _, _>(
+            query.get_results_async(conn.raw_connection()),
+            DatabaseOperation::Filter,
+        )
+        .await
+        .change_context(DatabaseError::Others) // Query returns empty Vec when no records are found
+        .attach_printable("Error filtering events by constraints")
     }
 
     pub async fn list_initial_attempts_by_initiator_merchant_id_primary_object_id(
@@ -234,12 +243,15 @@ impl Event {
 
         logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
 
-        track_database_call::<Self, _, _>(query.get_results_async(conn), DatabaseOperation::Filter)
-            .await
-            .change_context(DatabaseError::Others)
-            .attach_printable(
-                "Error filtering initial events by initiator merchant ID and primary object ID",
-            )
+        track_database_call::<Self, _, _>(
+            query.get_results_async(conn.raw_connection()),
+            DatabaseOperation::Filter,
+        )
+        .await
+        .change_context(DatabaseError::Others)
+        .attach_printable(
+            "Error filtering initial events by initiator merchant ID and primary object ID",
+        )
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -287,10 +299,13 @@ impl Event {
 
         logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
 
-        track_database_call::<Self, _, _>(query.get_results_async(conn), DatabaseOperation::Filter)
-            .await
-            .change_context(DatabaseError::Others) // Query returns empty Vec when no records are found
-            .attach_printable("Error filtering events by constraints")
+        track_database_call::<Self, _, _>(
+            query.get_results_async(conn.raw_connection()),
+            DatabaseOperation::Filter,
+        )
+        .await
+        .change_context(DatabaseError::Others) // Query returns empty Vec when no records are found
+        .attach_printable("Error filtering events by constraints")
     }
 
     pub async fn list_by_initiator_merchant_id_initial_attempt_id(
@@ -321,10 +336,13 @@ impl Event {
 
         logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
 
-        track_database_call::<Self, _, _>(query.get_results_async(conn), DatabaseOperation::Filter)
-            .await
-            .change_context(DatabaseError::Others) // Query returns empty Vec when no records are found
-            .attach_printable("Error filtering events by constraints")
+        track_database_call::<Self, _, _>(
+            query.get_results_async(conn.raw_connection()),
+            DatabaseOperation::Filter,
+        )
+        .await
+        .change_context(DatabaseError::Others) // Query returns empty Vec when no records are found
+        .attach_printable("Error filtering events by constraints")
     }
 
     pub async fn list_initial_attempts_by_profile_id_primary_object_id(
@@ -348,10 +366,13 @@ impl Event {
 
         logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
 
-        track_database_call::<Self, _, _>(query.get_results_async(conn), DatabaseOperation::Filter)
-            .await
-            .change_context(DatabaseError::Others) // Query returns empty Vec when no records are found
-            .attach_printable("Error filtering events by constraints")
+        track_database_call::<Self, _, _>(
+            query.get_results_async(conn.raw_connection()),
+            DatabaseOperation::Filter,
+        )
+        .await
+        .change_context(DatabaseError::Others) // Query returns empty Vec when no records are found
+        .attach_printable("Error filtering events by constraints")
     }
 
     pub async fn find_initial_attempt_by_profile_id_initial_attempt_id(
@@ -410,10 +431,13 @@ impl Event {
 
         logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
 
-        track_database_call::<Self, _, _>(query.get_results_async(conn), DatabaseOperation::Filter)
-            .await
-            .change_context(DatabaseError::Others) // Query returns empty Vec when no records are found
-            .attach_printable("Error filtering events by constraints")
+        track_database_call::<Self, _, _>(
+            query.get_results_async(conn.raw_connection()),
+            DatabaseOperation::Filter,
+        )
+        .await
+        .change_context(DatabaseError::Others) // Query returns empty Vec when no records are found
+        .attach_printable("Error filtering events by constraints")
     }
 
     pub async fn list_by_profile_id_initial_attempt_id(
@@ -619,7 +643,7 @@ impl Event {
         logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
 
         track_database_call::<Self, _, _>(
-            query.get_result_async::<i64>(conn),
+            query.get_result_async::<i64>(conn.raw_connection()),
             DatabaseOperation::Count,
         )
         .await
@@ -660,7 +684,7 @@ impl Event {
         logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
 
         track_database_call::<Self, _, _>(
-            query.get_result_async::<i64>(conn),
+            query.get_result_async::<i64>(conn.raw_connection()),
             DatabaseOperation::Count,
         )
         .await
@@ -713,7 +737,7 @@ impl Event {
         logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
 
         track_database_call::<Self, _, _>(
-            query.get_result_async::<i64>(conn),
+            query.get_result_async::<i64>(conn.raw_connection()),
             DatabaseOperation::Count,
         )
         .await
