@@ -1,2 +1,2 @@
 ALTER TABLE payouts
-ADD COLUMN billing_descriptor JSONB;
+ADD COLUMN IF NOT EXISTS billing_descriptor JSONB;

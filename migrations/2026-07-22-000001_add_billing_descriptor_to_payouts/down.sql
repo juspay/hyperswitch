@@ -1,2 +1,2 @@
 ALTER TABLE payouts
-DROP COLUMN billing_descriptor;
+DROP COLUMN IF EXISTS billing_descriptor;
