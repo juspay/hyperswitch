@@ -37,6 +37,22 @@ use crate::{
 
 impl KvStorePartition for PaymentMethod {}
 
+#[cfg(feature = "v1")]
+fn payment_method_matches_connector_mandate_id(
+    payment_method: &DomainPaymentMethod,
+    connector_mandate_id: &str,
+) -> bool {
+    let Ok(common_mandate_reference) = payment_method.get_common_mandate_reference() else {
+        return false;
+    };
+
+    common_mandate_reference
+        .payments
+        .iter()
+        .flat_map(|payments| payments.values())
+        .any(|record| record.connector_mandate_id == connector_mandate_id)
+}
+
 #[async_trait::async_trait]
 impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
     type Error = errors::StorageError;
@@ -110,6 +126,26 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
                 key_store,
                 merchant_id,
                 payment_method_ids,
+                storage_scheme,
+            )
+            .await
+    }
+
+    // not supported in kv
+    #[cfg(feature = "v1")]
+    #[instrument(skip_all)]
+    async fn find_payment_method_by_merchant_id_connector_mandate_id(
+        &self,
+        key_store: &MerchantKeyStore,
+        merchant_id: &id_type::MerchantId,
+        connector_mandate_id: &str,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<DomainPaymentMethod, errors::StorageError> {
+        self.router_store
+            .find_payment_method_by_merchant_id_connector_mandate_id(
+                key_store,
+                merchant_id,
+                connector_mandate_id,
                 storage_scheme,
             )
             .await
@@ -565,6 +601,33 @@ impl<T: DatabaseStore> PaymentMethodInterface for RouterStore<T> {
 
     #[cfg(feature = "v1")]
     #[instrument(skip_all)]
+    async fn find_payment_method_by_merchant_id_connector_mandate_id(
+        &self,
+        key_store: &MerchantKeyStore,
+        merchant_id: &id_type::MerchantId,
+        connector_mandate_id: &str,
+        _storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<DomainPaymentMethod, errors::StorageError> {
+        let conn = pg_connection_read(self).await?;
+        let payment_methods = self
+            .find_resources(
+                key_store,
+                PaymentMethod::find_by_merchant_id(&conn, merchant_id),
+            )
+            .await?;
+
+        payment_methods
+            .into_iter()
+            .find(|pm| payment_method_matches_connector_mandate_id(pm, connector_mandate_id))
+            .ok_or_else(|| {
+                error_stack::report!(errors::StorageError::ValueNotFound(
+                    "payment method not found for connector mandate id".to_string(),
+                ))
+            })
+    }
+
+    #[cfg(feature = "v1")]
+    #[instrument(skip_all)]
     async fn get_payment_method_count_by_customer_id_merchant_id_status(
         &self,
         customer_id: &id_type::CustomerId,
@@ -948,6 +1011,44 @@ impl PaymentMethodInterface for MockDb {
             "cannot find payment method".to_string(),
         )
         .await
+    }
+
+    #[cfg(feature = "v1")]
+    async fn find_payment_method_by_merchant_id_connector_mandate_id(
+        &self,
+        key_store: &MerchantKeyStore,
+        merchant_id: &id_type::MerchantId,
+        connector_mandate_id: &str,
+        _storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<DomainPaymentMethod, errors::StorageError> {
+        let payment_methods = self.payment_methods.lock().await;
+        let mut matched = self
+            .get_resources(
+                key_store,
+                payment_methods,
+                |pm| {
+                    pm.merchant_id == *merchant_id
+                        && pm.connector_mandate_details.as_ref().is_some_and(|details| {
+                            diesel_models::CommonMandateReference::parse_payments_reference_with_token_fallback(
+                                details.clone(),
+                            )
+                            .ok()
+                            .map(|payments| {
+                                payments.values().any(|record| {
+                                    record.connector_mandate_id == connector_mandate_id
+                                })
+                            })
+                            .unwrap_or(false)
+                        })
+                },
+                "cannot find payment method".to_string(),
+            )
+            .await?;
+        matched.pop().ok_or_else(|| {
+            error_stack::report!(errors::StorageError::ValueNotFound(
+                "payment method not found for connector mandate id".to_string(),
+            ))
+        })
     }
 
     #[cfg(feature = "v1")]

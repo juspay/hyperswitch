@@ -397,9 +397,11 @@ pub struct SantanderCalendarResponse {
 #[serde(untagged)]
 pub enum SantanderPaymentsSyncResponse {
     PixQRCode(Box<SantanderPixQRCodeSyncResponse>),
+    PixAutomaticoCobrSync(Box<SantanderPixAutomaticoCobrSyncResponse>),
+    PixQrWebhook(Box<SantanderPixQrWebhookResponse>),
+    PixAutomaticoCobrWebhook(Box<SantanderPixAutomaticoCobrWebhookResponse>),
     Boleto(Box<SantanderBoletoPSyncResponse>),
     PixAutomaticoConsultAndActivateJourney(Box<SantanderPixAutomaticRecResponse>),
-    PixAutomaticoCobrSync(Box<SantanderPixAutomaticoCobrSyncResponse>),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -909,6 +911,138 @@ pub struct SantanderPaymentDetails {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum SantanderBoletoEventType {
+    Pagamento,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SantanderPixEmvWebhookBody {
+    pub pix: Vec<SantanderPix>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct SantanderPixQrWebhookResponse {
+    pub pix: Vec<SantanderPix>,
+}
+
+/// Incoming webhook payload sent by Santander's Billing API when a boleto is paid.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SantanderBoletoWebhookBody {
+    pub message: String,
+    pub function: SantanderBoletoEventType,
+    pub payment_type: String,
+    pub issue_date: String,
+    pub payment_date: String,
+    pub bank_code: String,
+    pub payment_channel: String,
+    pub payment_kind: String,
+    pub covenant: String,
+    pub type_of_person_agreement: String,
+    pub agreement_document: String,
+    pub bank_number: String,
+    pub client_number: Option<String>,
+    pub participant_code: Option<String>,
+    pub tx_id: Option<String>,
+    pub payer_document_type: String,
+    pub payer_document_number: String,
+    pub payer_name: String,
+    #[serde(
+        default,
+        alias = "finalBeneficiaryrDocumentType",
+        alias = "finalBeneficiaryDocumentType"
+    )]
+    pub final_beneficiary_document_type: Option<String>,
+    pub final_beneficiary_document_number: Option<String>,
+    pub final_beneficiary_name: Option<String>,
+    pub due_date: String,
+    pub nominal_value: f64,
+    pub payed_value: f64,
+    pub interest_value: f64,
+    #[serde(default)]
+    pub fine: f64,
+    #[serde(default)]
+    pub deduction_value: f64,
+    #[serde(default)]
+    pub rebate_value: f64,
+    #[serde(default)]
+    pub iof_value: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SantanderPixAutomaticoRecWebhookEntry {
+    /// Recurrence ID (maps to Hyperswitch connector_mandate_id)
+    pub id_rec: String,
+    /// Current status of the recurrence
+    pub status: RecurrenceStatus,
+    /// Status update history
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub atualizacao: Option<Vec<SantanderPixAutomaticoAtualizacao>>,
+    /// Activation journey details
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ativacao: Option<SantanderPixAutomaticoAtivacao>,
+    /// Closure details (present on cancellation/rejection)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub encerramento: Option<SantanderPixAutomaticoEncerramento>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SantanderPixAutomaticoRecWebhookBody {
+    pub recs: Vec<SantanderPixAutomaticoRecWebhookEntry>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SantanderPixAutomaticoCobrWebhookEntry {
+    /// Recurrence ID (maps to Hyperswitch connector_mandate_id)
+    pub id_rec: String,
+    /// Transaction ID of this recurring charge
+    pub txid: String,
+    /// Current status of the recurring charge
+    pub status: SantanderPixAutomaticoCobrStatus,
+    /// Status update history
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub atualizacao: Option<Vec<SantanderPixAutomaticoAtualizacao>>,
+    /// Pix transaction details (present when the charge is paid)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub pix: Option<Vec<SantanderCobrSyncPix>>,
+    /// Attempt history
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tentativas: Option<Vec<SantanderCobrSyncTentativa>>,
+    /// Closure details (present on cancellation/rejection)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub encerramento: Option<SantanderPixAutomaticoEncerramento>,
+}
+
+/// Incoming webhook payload sent by Santander when a Pix Automático recurring
+/// charge (cobr / MIT) status changes.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SantanderPixAutomaticoCobrWebhookBody {
+    pub cobsr: Vec<SantanderPixAutomaticoCobrWebhookEntry>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct SantanderPixAutomaticoCobrWebhookResponse {
+    pub cobsr: Vec<SantanderPixAutomaticoCobrWebhookEntry>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum SantanderWebhookBody {
+    PixEmv(SantanderPixEmvWebhookBody),
+    Cobr(SantanderPixAutomaticoCobrWebhookBody),
+    Recurrence(SantanderPixAutomaticoRecWebhookBody),
+    Boleto(Box<SantanderBoletoWebhookBody>),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum SantanderBoletoStatus {
     /// The boleto is registered and waiting for payment.
@@ -1111,7 +1245,7 @@ pub struct SantanderPixAutomaticoRejeicao {
 #[serde(rename_all = "camelCase")]
 pub struct SantanderPixAutomaticoAtivacao {
     /// Type of journey/flow used to activate the recurrence
-    pub tipo_jornada: Option<String>,
+    pub tipo_jornada: Option<SantanderJourneyType>,
     /// Data associated with the activation journey
     pub dados_jornada: Option<SantanderPixAutomaticoDadosJornada>,
 }

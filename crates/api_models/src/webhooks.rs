@@ -42,6 +42,7 @@ pub enum IncomingWebhookEvent {
     DisputeLost,
     MandateActive,
     MandateRevoked,
+    MandateActionRequired,
     EndpointVerification,
     ExternalAuthenticationARes,
     FrmApproved,
@@ -129,6 +130,17 @@ impl IncomingWebhookEvent {
             #[cfg(feature = "payouts")]
             36 => Self::PayoutReversed,
             _ => Self::EventNotSupported,
+        }
+    }
+}
+
+impl TryFrom<IncomingWebhookEvent> for api_enums::AttemptStatus {
+    type Error = String;
+    fn try_from(value: IncomingWebhookEvent) -> Result<Self, Self::Error> {
+        match value {
+            IncomingWebhookEvent::MandateActive => Ok(Self::Charged),
+            IncomingWebhookEvent::MandateRevoked => Ok(Self::Failure),
+            _ => Ok(Self::Pending),
         }
     }
 }
@@ -291,9 +303,9 @@ impl From<IncomingWebhookEvent> for WebhookFlow {
             IncomingWebhookEvent::RefundSuccess | IncomingWebhookEvent::RefundFailure => {
                 Self::Refund
             }
-            IncomingWebhookEvent::MandateActive | IncomingWebhookEvent::MandateRevoked => {
-                Self::Mandate
-            }
+            IncomingWebhookEvent::MandateActive
+            | IncomingWebhookEvent::MandateRevoked
+            | IncomingWebhookEvent::MandateActionRequired => Self::Mandate,
             IncomingWebhookEvent::DisputeOpened
             | IncomingWebhookEvent::DisputeAccepted
             | IncomingWebhookEvent::DisputeExpired

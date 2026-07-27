@@ -503,6 +503,43 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
 
     #[cfg(feature = "v1")]
     #[instrument(skip_all)]
+    async fn find_payment_attempts_by_processor_merchant_id_payment_method_id(
+        &self,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
+        payment_method_id: &str,
+        _storage_scheme: MerchantStorageScheme,
+        merchant_key_store: &MerchantKeyStore,
+    ) -> CustomResult<Vec<PaymentAttempt>, errors::StorageError> {
+        let conn = pg_connection_read(self).await?;
+        let key_manager_state = self
+            .get_keymanager_state()
+            .attach_printable("Missing KeyManagerState")?;
+        DieselPaymentAttempt::find_by_processor_merchant_id_payment_method_id(
+            &conn,
+            processor_merchant_id,
+            payment_method_id,
+        )
+        .await
+        .map_err(|er| {
+            let new_err = diesel_error_to_data_error(*er.current_context());
+            er.change_context(new_err)
+        })
+        .map(|v| {
+            try_join_all(v.into_iter().map(|diesel_payment_attempt| {
+                PaymentAttempt::convert_back(
+                    key_manager_state,
+                    diesel_payment_attempt,
+                    merchant_key_store.key.get_inner(),
+                    merchant_key_store.merchant_id.clone().into(),
+                )
+            }))
+            .map(|join_result| join_result.change_context(errors::StorageError::DecryptionError))
+        })?
+        .await
+    }
+
+    #[cfg(feature = "v1")]
+    #[instrument(skip_all)]
     async fn find_payment_attempt_by_attempt_id_processor_merchant_id(
         &self,
         attempt_id: &str,
@@ -1876,6 +1913,26 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
     ) -> error_stack::Result<PaymentListFilters, errors::StorageError> {
         self.router_store
             .get_filters_for_payments(pi, processor_merchant_id, storage_scheme)
+            .await
+    }
+
+    #[cfg(feature = "v1")]
+    #[instrument(skip_all)]
+    async fn find_payment_attempts_by_processor_merchant_id_payment_method_id(
+        &self,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
+        payment_method_id: &str,
+        storage_scheme: MerchantStorageScheme,
+        merchant_key_store: &MerchantKeyStore,
+    ) -> error_stack::Result<Vec<PaymentAttempt>, errors::StorageError> {
+        // KV does not index by payment_method_id; always delegate to Postgres.
+        self.router_store
+            .find_payment_attempts_by_processor_merchant_id_payment_method_id(
+                processor_merchant_id,
+                payment_method_id,
+                storage_scheme,
+                merchant_key_store,
+            )
             .await
     }
 
