@@ -391,6 +391,34 @@ export const connectorDetails = {
     MITAutoCapture: getCustomExchange({
       ...commonConnectorDetails.card_pm.MITAutoCapture,
     }),
+    MITAutoCaptureWithCustomerAcceptance: getCustomExchange({
+      Request: {
+        customer_acceptance: {
+          acceptance_type: "offline",
+          accepted_at: "1963-05-03T04:07:52.723Z",
+          online: {
+            ip_address: "127.0.0.1",
+            user_agent: "amet irure esse",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+      ResponseCustom: {
+        status: 400,
+        body: {
+          error: {
+            message:
+              "No eligible connector was found for the current payment method configuration",
+            type: "invalid_request",
+          },
+        },
+      },
+    }),
     MITManualCapture: {
       Request: {},
       Response: {
