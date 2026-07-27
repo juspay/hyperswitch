@@ -103,7 +103,7 @@ impl<T: DatabaseStore> ReverseLookupInterface for KVRouterStore<T> {
                     self,
                     KvOperation::SetNx(&created_rev_lookup, drainer_query),
                     PartitionKey::CombinationKey {
-                        combination: &format!("reverse_lookup_{}", &created_rev_lookup.lookup_id),
+                        combination: &format!("reverse_lookup_{}", created_rev_lookup.lookup_id),
                     },
                 ))
                 .await

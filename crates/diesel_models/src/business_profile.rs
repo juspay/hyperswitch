@@ -19,6 +19,7 @@ use crate::schema_v2::business_profile;
 /// fields read / written will be interchanged
 #[cfg(feature = "v1")]
 #[derive(Clone, Debug, Identifiable, Queryable, Selectable, router_derive::DebugAsDisplay)]
+#[cfg_attr(feature = "deja", derive(serde::Serialize, serde::Deserialize))]
 #[diesel(table_name = business_profile, primary_key(profile_id), check_for_backend(diesel::pg::Pg))]
 pub struct Profile {
     pub profile_id: common_utils::id_type::ProfileId,
@@ -233,6 +234,7 @@ pub struct ProfileUpdateInternal {
 /// fields read / written will be interchanged
 #[cfg(feature = "v2")]
 #[derive(Clone, Debug, Identifiable, Queryable, Selectable, router_derive::DebugAsDisplay)]
+#[cfg_attr(feature = "deja", derive(serde::Serialize, serde::Deserialize))]
 #[diesel(table_name = business_profile, primary_key(id), check_for_backend(diesel::pg::Pg))]
 pub struct Profile {
     pub merchant_id: common_utils::id_type::MerchantId,
@@ -686,7 +688,7 @@ pub struct CardBlockingConfig {
     /// Set of card types to block (e.g., ["Credit", "Debit"])
     pub card_types: Option<HashSet<common_enums::CardType>>,
     /// Set of card subtypes to block
-    pub card_subtypes: Option<HashSet<common_enums::CardSubtype>>,
+    pub card_subtypes: Option<HashSet<String>>,
     /// Set of card issuers to block (e.g., ["HDFC Bank", "ICICI Bank"])
     pub issuers: Option<HashSet<String>>,
     /// Whether to block if BIN is provided but no matching record found in cards_info table.

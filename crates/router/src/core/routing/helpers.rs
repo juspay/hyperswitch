@@ -466,17 +466,16 @@ impl RoutingAlgorithmHelpers<'_> {
 #[cfg(feature = "v1")]
 pub async fn validate_connectors_in_routing_config(
     state: &SessionState,
-    key_store: &domain::MerchantKeyStore,
+    _key_store: &domain::MerchantKeyStore,
     merchant_id: &id_type::MerchantId,
     profile_id: &id_type::ProfileId,
     routing_algorithm: &routing_types::StaticRoutingAlgorithm,
 ) -> RouterResult<()> {
     let all_mcas = state
         .store
-        .find_merchant_connector_account_by_merchant_id_and_disabled_list(
+        .find_merchant_connector_account_without_encrypted_by_merchant_id_and_disabled_list(
             merchant_id,
             true,
-            key_store,
         )
         .await
         .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {

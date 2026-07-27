@@ -294,10 +294,9 @@ pub async fn create_routing_algorithm_under_profile(
     core_utils::validate_profile_id_from_auth_layer(authentication_profile_id, &business_profile)?;
     let all_mcas = state
         .store
-        .find_merchant_connector_account_by_merchant_id_and_disabled_list(
+        .find_merchant_connector_account_without_encrypted_by_merchant_id_and_disabled_list(
             processor_merchant_id,
             true,
-            processor.get_key_store(),
         )
         .await
         .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
