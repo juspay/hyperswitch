@@ -18,7 +18,7 @@ use common_types::{
     customers::DocumentKind, payments as common_payments_types, primitive_wrappers,
 };
 use common_utils::{
-    consts::default_payments_list_limit,
+    consts::{default_payments_list_limit, DISCOUNT_PERCENTAGE_PRECISION_LENGTH},
     crypto,
     errors::ValidationError,
     ext_traits::{ConfigExt, Encode, ValueExt},
@@ -26,7 +26,7 @@ use common_utils::{
     id_type,
     new_type::MaskedBankAccount,
     pii::{self, Email},
-    types::{AmountConvertor, MinorUnit, SemanticVersion, StringMajorUnit},
+    types::{AmountConvertor, MinorUnit, Percentage, SemanticVersion, StringMajorUnit},
 };
 use error_stack::ResultExt;
 
@@ -9633,9 +9633,8 @@ pub struct OrderDetailsWithAmount {
     #[smithy(value_type = "Option<i64>")]
     pub unit_discount_amount: Option<MinorUnit>,
     /// Discount percentage applied to this item.
-    #[schema(value_type = Option<f64>)]
-    #[smithy(value_type = "Option<f64>")]
-    pub discount_percentage: Option<f64>,
+    #[smithy(value_type = "Option<Percentage<2>>")]
+    pub discount_percentage: Option<Percentage<DISCOUNT_PERCENTAGE_PRECISION_LENGTH>>,
     /// Discount type applied to this item.
     #[smithy(value_type = "Option<String>")]
     pub discount_type: Option<String>,

@@ -3,9 +3,10 @@ use common_enums::enums::PaymentConnectorTransmission;
 #[cfg(feature = "v2")]
 use common_utils::id_type;
 use common_utils::{
+    consts::DISCOUNT_PERCENTAGE_PRECISION_LENGTH,
     hashing::HashedString,
     pii,
-    types::{MinorUnit, StringMajorUnit},
+    types::{MinorUnit, Percentage, StringMajorUnit},
 };
 use diesel::{
     sql_types::{Json, Jsonb},
@@ -60,7 +61,7 @@ pub struct OrderDetailsWithAmount {
     /// discount amount on the unit
     pub unit_discount_amount: Option<MinorUnit>,
     /// discount percentage on the unit
-    pub discount_percentage: Option<f64>,
+    pub discount_percentage: Option<Percentage<DISCOUNT_PERCENTAGE_PRECISION_LENGTH>>,
     /// discount type on the unit
     pub discount_type: Option<String>,
 }

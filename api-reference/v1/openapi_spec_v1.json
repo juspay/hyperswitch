@@ -27640,9 +27640,11 @@
             "nullable": true
           },
           "discount_percentage": {
-            "type": "number",
-            "format": "double",
-            "description": "Discount percentage applied to this item.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Percentage"
+              }
+            ],
             "nullable": true
           },
           "discount_type": {
@@ -37718,6 +37720,20 @@
           }
         }
       },
+      "Percentage": {
+        "type": "object",
+        "description": "Represents Percentage Value between 0 and 100 both inclusive",
+        "required": [
+          "percentage"
+        ],
+        "properties": {
+          "percentage": {
+            "type": "number",
+            "format": "double",
+            "description": "Percentage value ranging between 0 and 100"
+          }
+        }
+      },
       "PeriodUnit": {
         "type": "string",
         "enum": [
@@ -43672,7 +43688,7 @@
         "properties": {
           "percentage": {
             "type": "number",
-            "format": "float"
+            "format": "double"
           }
         }
       },
