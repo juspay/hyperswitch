@@ -6,14 +6,15 @@
 # Extra fields (description, change_reason) are used only by the seeding script
 # and are silently ignored by the FileDataSource parser.
 
-[default-configs.deja_record]
-value = true
-schema = { type = "boolean" }
-description = "Whether Deja request recording is enabled for matching request contexts (inert unless deja.sampler.enabled is set)"
-change_reason = "Initial setup"
-
+# ── Deja recording sampler dimensions ────────────────────────────────────────
+# The sampler passes the RAW request `path` + `method` as evaluation context;
+# Superposition derives the `deja_dimension` cohort (a LOCAL_COHORT on `path`,
+# seeded by scripts/seed_superposition.sh) and resolves `deja_record`. `path`
+# must be a registered dimension so the server builds the cohort's dependency
+# graph (path → deja_dimension).
 
 [default-configs]
+deja_record = { value = false, schema = { type = "boolean" }, description = "Deja per-request recording decision — default SKIP (false). The deja_dimension cohort override (seeded by scripts/seed_superposition.sh) sets this true for the recordable endpoint bucket; /health and other probe traffic fall through to false.", change_reason = "Deja recording sampler"}
 client_session_validation_enabled = { value = true, schema = { type = "boolean" } }
 "dynamic_fields.bank_debit.ach_bank_debit.account_number._confirm_request_write_path" = { value = "payment_method_data.bank_debit.ach_bank_debit.account_number", schema = { type = "string" } }
 "dynamic_fields.bank_debit.ach_bank_debit.account_number._default_label_text" = { value = "Account Number", schema = { type = "string" } }
@@ -1690,8 +1691,9 @@ enforced_profile_id = { position = 15, schema = { pattern = ".*", type = "string
 enforced_provider_merchant_id = { position = 17, schema = { pattern = ".*", type = "string" }, type = "REGULAR" }
 incoming_webhook_events = { position = 10, schema = { pattern = ".*", type = "string" }, type = "REGULAR" }
 mandate_type = { position = 6, schema = { enum = ["mandate", "non_mandate"], type = "string" }, type = "REGULAR" }
+method = { position = 20, schema = { type = "string" }, type = "REGULAR", description = "HTTP request method (Deja recording sampler context)", change_reason = "Deja recording sampler" }
 organization_id = { position = 11, schema = { pattern = ".*", type = "string" }, type = "REGULAR" }
-path = { position = 19, schema = { type = "string" }, type = "REGULAR" }
+path = { position = 19, schema = { type = "string" }, type = "REGULAR", description = "HTTP request path (basis of the deja_dimension cohort)", change_reason = "Deja recording sampler" }
 payment_method = { position = 2, schema = { enum = ["BankDebit", "BankRedirect", "BankTransfer", "Card", "CardRedirect", "Crypto", "GiftCard", "MobilePayment", "PayLater", "Upi", "Voucher", "Wallet"], type = "string" }, type = "REGULAR" }
 payment_method_type = { position = 3, schema = { enum = ["Ach", "Affirm", "AfterpayClearpay", "Alfamart", "Alma", "AmazonPay", "ApplePay", "Atome", "Bacs", "BancontactCard", "BcaBankTransfer", "Becs", "Benefit", "Blik", "BniVa", "Boleto", "BriVa", "CimbVa", "Credit", "CryptoCurrency", "DanamonVa", "Debit", "DirectCarrierBilling", "Eps", "EftDebitOrder", "FamilyMart", "Flexiti", "Giropay", "Givex", "GooglePay", "Ideal", "Indomaret", "InstantBankTransfer", "InstantBankTransferFinland", "InstantBankTransferPoland", "Interac", "Klarna", "Knet", "Lawson", "LocalBankTransfer", "MandiriVa", "MbWay", "Mifinity", "MiniStop", "MomoAtm", "Multibanco", "OnlineBankingCzechRepublic", "OnlineBankingFinland", "OnlineBankingFpx", "OnlineBankingPoland", "OnlineBankingSlovakia", "OnlineBankingThailand", "OpenBanking", "OpenBankingUk", "PayBright", "PayEasy", "Paypal", "PermataBankTransfer", "Pix", "PixAutomaticoPush", "PixAutomaticoQr", "Przelewy24", "SamsungPay", "Seicomart", "Sepa", "SepaBankTransfer", "SevenEleven", "Skrill", "Sofort", "Trustly", "UpiCollect", "Walley"], type = "string" }, type = "REGULAR" }
 payout_retry_type = { position = 9, schema = { enum = ["single_connector", "multi_connector"], type = "string" }, type = "REGULAR" }

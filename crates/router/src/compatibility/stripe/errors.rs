@@ -78,6 +78,9 @@ pub enum StripeErrorCode {
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "customer_redacted", message = "Customer has redacted")]
     CustomerRedacted,
 
+    #[error(error_type = StripeErrorType::InvalidRequestError, code = "payment_method_redacted", message = "Payment method has already been redacted")]
+    PaymentMethodRedacted,
+
     #[error(error_type = StripeErrorType::InvalidRequestError, code = "customer_already_exists", message = "Customer with the given customer_id already exists")]
     DuplicateCustomer,
 
@@ -541,6 +544,7 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
             }
             errors::ApiErrorResponse::MandateActive => Self::MandateActive, //not a stripe code
             errors::ApiErrorResponse::CustomerRedacted => Self::CustomerRedacted, //not a stripe code
+            errors::ApiErrorResponse::PaymentMethodRedacted => Self::PaymentMethodRedacted, //not a stripe code
             errors::ApiErrorResponse::ConfigNotFound => Self::ConfigNotFound, // not a stripe code
             errors::ApiErrorResponse::DuplicateConfig => Self::DuplicateConfig, // not a stripe code
             errors::ApiErrorResponse::DuplicateRefundRequest => Self::DuplicateRefundRequest,
@@ -798,6 +802,7 @@ impl actix_web::ResponseError for StripeErrorCode {
             | Self::InternalServerError
             | Self::MandateActive
             | Self::CustomerRedacted
+            | Self::PaymentMethodRedacted
             | Self::WebhookProcessingError
             | Self::InvalidTenant
             | Self::ExternalVaultFailed

@@ -38,7 +38,7 @@ use crate::{
         disputes,
         encryption::transfer_encryption_key,
         errors::{self, RouterResponse, RouterResult, StorageErrorExt},
-        payment_methods::{cards, transformers},
+        payment_methods::{cards, transformers, vault},
         payments::helpers::{self},
         pm_auth::helpers::PaymentAuthConnectorDataExt,
         routing, utils as core_utils,
@@ -64,7 +64,18 @@ use crate::{
     utils,
 };
 
+// deja: the publishable key embeds a random UUIDv4 and is persisted on the
+// merchant row + returned in the response, so it must replay to the recorded
+// string for byte-exact self-replay.
 #[inline]
+#[cfg_attr(
+    feature = "deja",
+    deja::id(
+        component = "router::admin",
+        operation = "create_merchant_publishable_key",
+        codec = SerdeCodec,
+    )
+)]
 pub fn create_merchant_publishable_key() -> String {
     format!(
         "pk_{}_{}",
@@ -313,6 +324,14 @@ pub async fn create_merchant_account(
 
     let key_manager_state: &KeyManagerState = &(&state).into();
     let merchant_id = req.get_merchant_reference_id();
+
+    if state.conf.locker.locker_enabled && state.conf.locker.create_entity_on_merchant_create {
+        vault::create_entity_in_locker(&state, &merchant_id)
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to create entity in locker for merchant")?;
+    }
+
     let identifier = km_types::Identifier::Merchant(merchant_id.clone());
     keymanager::transfer_key_to_key_manager(
         key_manager_state,

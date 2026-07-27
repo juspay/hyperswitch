@@ -253,17 +253,9 @@ impl DejaSettings {
 #[derive(Debug, Deserialize, Clone, Default)]
 #[serde(default)]
 pub struct DejaRecordingSettings {
-    pub graph: DejaGraphMode,
+    // Execution-graph capture is coupled to the runtime mode (the graph layer
+    // rides the installed Record/Replay hook), so there is no `graph` dial here.
     pub kafka: DejaRecordingKafkaSettings,
-}
-
-#[cfg(feature = "deja")]
-#[derive(Debug, Deserialize, Clone, Copy, PartialEq, Eq, Default)]
-#[serde(rename_all = "snake_case")]
-pub enum DejaGraphMode {
-    #[default]
-    Disabled,
-    Enabled,
 }
 
 #[cfg(feature = "deja")]
@@ -317,11 +309,13 @@ pub struct DejaReplaySettings {
     pub observed_sink: Option<String>,
 }
 
+/// Per-request recording-sampler settings. The sampler is active exactly when
+/// `deja.mode = "record"` — there is no separate on/off switch; `fail_closed`
+/// governs what happens when the sampling source cannot answer.
 #[cfg(feature = "deja")]
 #[derive(Debug, Deserialize, Clone)]
 #[serde(default)]
 pub struct DejaSamplerSettings {
-    pub enabled: bool,
     pub record_key: Option<String>,
     pub timeout_ms: u64,
     pub fail_closed: bool,
@@ -331,7 +325,6 @@ pub struct DejaSamplerSettings {
 impl Default for DejaSamplerSettings {
     fn default() -> Self {
         Self {
-            enabled: false,
             record_key: None,
             timeout_ms: 25,
             fail_closed: true,
@@ -469,6 +462,10 @@ pub struct DecisionConfig {
     pub base_url: String,
 }
 
+type StorageInterfaceMap = HashMap<id_type::TenantId, Box<dyn app::StorageInterface>>;
+type AccountsStorageInterfaceMap =
+    HashMap<id_type::TenantId, Box<dyn app::AccountsStorageInterface>>;
+
 #[derive(Debug, Clone, Default)]
 pub struct TenantConfig(pub HashMap<id_type::TenantId, Tenant>);
 
@@ -476,72 +473,47 @@ impl TenantConfig {
     /// # Panics
     ///
     /// Panics if Failed to create event handler
-    pub async fn get_store_interface_map(
+    pub async fn get_store_interface_maps(
         &self,
         storage_impl: &app::StorageImpl,
         conf: &configs::Settings,
         cache_store: Arc<storage_impl::redis::RedisStore>,
         testable: bool,
-    ) -> HashMap<id_type::TenantId, Box<dyn app::StorageInterface>> {
+    ) -> (StorageInterfaceMap, AccountsStorageInterfaceMap) {
         #[allow(clippy::expect_used)]
         let event_handler = conf
             .events
             .get_event_handler()
             .await
             .expect("Failed to create event handler");
-        futures::future::join_all(self.0.iter().map(|(tenant_name, tenant)| async {
-            let store = Box::pin(AppState::get_store_interface(
-                storage_impl,
-                &event_handler,
-                conf,
-                tenant,
-                conf.master_database.clone().into_inner(),
-                conf.accounts_database_config(),
-                cache_store.clone(),
-                testable,
-            ))
-            .await
-            .get_storage_interface();
-            (tenant_name.clone(), store)
-        }))
-        .await
-        .into_iter()
-        .collect()
-    }
-    /// # Panics
-    ///
-    /// Panics if Failed to create event handler
-    pub async fn get_accounts_store_interface_map(
-        &self,
-        storage_impl: &app::StorageImpl,
-        conf: &configs::Settings,
-        cache_store: Arc<storage_impl::redis::RedisStore>,
-        testable: bool,
-    ) -> HashMap<id_type::TenantId, Box<dyn app::AccountsStorageInterface>> {
-        #[allow(clippy::expect_used)]
-        let event_handler = conf
-            .events
-            .get_event_handler()
-            .await
-            .expect("Failed to create event handler");
-        futures::future::join_all(self.0.iter().map(|(tenant_name, tenant)| async {
-            let store = Box::pin(AppState::get_store_interface(
-                storage_impl,
-                &event_handler,
-                conf,
-                tenant,
-                conf.master_database.clone().into_inner(),
-                conf.accounts_database_config(),
-                cache_store.clone(),
-                testable,
-            ))
-            .await
-            .get_accounts_storage_interface();
-            (tenant_name.clone(), store)
-        }))
-        .await
-        .into_iter()
-        .collect()
+        let tenant_stores =
+            futures::future::join_all(self.0.iter().map(|(tenant_name, tenant)| async {
+                let store = Box::pin(AppState::get_store_interface(
+                    storage_impl,
+                    &event_handler,
+                    conf,
+                    tenant,
+                    conf.master_database.clone().into_inner(),
+                    conf.accounts_database_config(),
+                    cache_store.clone(),
+                    testable,
+                ))
+                .await;
+                (tenant_name.clone(), store)
+            }))
+            .await;
+
+        let stores = tenant_stores
+            .iter()
+            .map(|(tenant_name, store)| (tenant_name.clone(), store.get_storage_interface()))
+            .collect();
+        let accounts_store = tenant_stores
+            .iter()
+            .map(|(tenant_name, store)| {
+                (tenant_name.clone(), store.get_accounts_storage_interface())
+            })
+            .collect();
+        (stores, accounts_store)
     }
     #[cfg(feature = "olap")]
     pub async fn get_pools_map(
@@ -994,6 +966,7 @@ pub struct Locker {
     pub locker_enabled: bool,
     pub ttl_for_storage_in_secs: i64,
     pub decryption_scheme: DecryptionScheme,
+    pub create_entity_on_merchant_create: bool,
 }
 
 impl Locker {
