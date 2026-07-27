@@ -556,6 +556,17 @@ impl<Pm, M, O, P, Cn, PRT, Ev> DimensionsBase for Dimensions<Pm, M, O, P, Cn, PR
 }
 
 // Type aliases
+
+pub type DimensionsEmpty = Dimensions<
+    NoProviderMerchantId,
+    NoProcessorMerchantId,
+    NoOrgId,
+    NoProfileId,
+    NoConnector,
+    NoPayoutRetryType,
+    NoWebhookEvent,
+>;
+
 pub type DimensionsWithProviderMerchantId = Dimensions<
     HasProviderMerchantId,
     NoProcessorMerchantId,

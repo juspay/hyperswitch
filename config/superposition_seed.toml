@@ -125,8 +125,8 @@ change_reason = "Offer Engine disabled by default; enable via Superposition over
 [default-configs.offer_engine_credential_source]
 value = "none"
 schema = { type = "string", enum = ["none", "application"] }
-description = "Source of Offer Engine credentials once offer_engine_enabled is true: 'none' still skips Offer Engine; 'application' uses the static offer_engine application config. Future org/merchant/profile sources will extend this enum alongside their credential storage."
-change_reason = "Offer Engine credential source is a string enum (extensible to org/merchant/profile sources)"
+description = "Source of Offer Engine credentials once offer_engine_enabled is true: 'none' skips Offer Engine; 'application' uses the static offer_engine application config. Future org/merchant/profile sources will extend the enum alongside their credential storage."
+change_reason = "Offer Engine credential source is a string enum: 'none' disables, 'application' enables; extensible to org/merchant/profile sources"
 
 [default-configs.should_enable_mit_with_limited_card_data]
 value = false

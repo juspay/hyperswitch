@@ -1,20 +1,21 @@
 use hyperswitch_masking::Secret;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    strum::EnumString,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 pub enum OfferEngineCredentialSource {
+    None,
     Application,
-}
-
-impl OfferEngineCredentialSource {
-    pub fn parse(raw: &str) -> Result<Option<Self>, error_stack::Report<OfferEngineError>> {
-        match raw.trim().to_ascii_lowercase().as_str() {
-            "" | "none" => Ok(None),
-            "application" => Ok(Some(Self::Application)),
-            other => Err(error_stack::report!(
-                OfferEngineError::InvalidCredentialSource(other.to_string())
-            )),
-        }
-    }
 }
 
 #[derive(Debug, Clone)]
@@ -26,12 +27,6 @@ pub struct ResolvedOfferEngineConfig {
 
 #[derive(Debug, thiserror::Error)]
 pub enum OfferEngineError {
-    #[error("Failed to fetch Offer Engine enablement flag from Superposition")]
-    EnablementUnavailable,
-    #[error("Failed to fetch Offer Engine credential source from Superposition")]
-    CredentialSourceUnavailable,
-    #[error("Unrecognised Offer Engine credential source: {0}")]
-    InvalidCredentialSource(String),
     #[error("Offer Engine application config is missing or invalid: {0}")]
     MissingApplicationConfig(String),
     #[error("Offer Engine request failed")]

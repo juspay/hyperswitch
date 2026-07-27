@@ -19,7 +19,7 @@ pub struct OfferEngineConnectivityResponse {
 pub async fn check_offer_engine_connectivity(
     state: SessionState,
 ) -> RouterResponse<OfferEngineConnectivityResponse> {
-    let response = match resolve_offer_engine_config(&state, None, None).await {
+    let response = match resolve_offer_engine_config(&state).await {
         Err(err) => OfferEngineConnectivityResponse {
             enabled: false,
             reachable: None,
