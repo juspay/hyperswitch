@@ -9,7 +9,6 @@ const successfulNo3DSCardDetails = {
   card_cvc: "123",
 };
 
-
 const successfulThreeDSTestCardDetails = {
   card_number: "5555555555554444",
   card_exp_month: "01",
@@ -728,7 +727,7 @@ export const connectorDetails = {
         },
       },
     },
-      No3DSFailPayment: {
+    No3DSFailPayment: {
       Request: {
         amount: 6000,
         payment_method: "card",
