@@ -25,6 +25,30 @@ min_idle_pool_size = 2
 idle_timeout = 300
 max_lifetime = 1800
 
+[accounts_database]
+username = "postgres"
+password = "postgres"
+host = "db"
+port = 5432
+dbname = "loadtest_router"
+max_pool_size = 20
+connection_timeout = 10
+min_idle_pool_size = 2
+idle_timeout = 300
+max_lifetime = 1800
+
+[global_database]
+username = "postgres"
+password = "postgres"
+host = "db"
+port = 5432
+dbname = "loadtest_router"
+max_pool_size = 20
+connection_timeout = 10
+min_idle_pool_size = 2
+idle_timeout = 300
+max_lifetime = 1800
+
 [server]
 host = "0.0.0.0"
 
@@ -60,6 +84,7 @@ host = ""
 mock_locker = true
 locker_enabled = true
 ttl_for_storage_in_secs = 220752000
+create_entity_on_merchant_create = false
 
 [forex_api]
 api_key = ""
@@ -147,6 +172,7 @@ fiuu.third_base_url = "https://api.merchant.razer.com/"
 forte.base_url = "https://sandbox.forte.net/api/v3"
 getnet.base_url = "https://api-test.getneteurope.com/engine/rest"
 gigadat.base_url = "https://interac.express-connect.com/"
+givepayments.base_url = "https://api-sandbox.givepayments.com"
 globalpay.base_url = "https://apis.sandbox.globalpay.com/ucp/"
 globepay.base_url = "https://pay.globepay.co/"
 gocardless.base_url = "https://api-sandbox.gocardless.com"
@@ -175,7 +201,7 @@ moneris.base_url = "https://api.sb.moneris.io"
 mpgs.base_url = "https://test-gateway.mastercard.com"
 mollie.secondary_base_url = "https://api.cc.mollie.com/v1/"
 multisafepay.base_url = "https://testapi.multisafepay.com/"
-netcetera.base_url = "https://{{merchant_endpoint_prefix}}.3ds-server.prev.netcetera-cloud-payment.ch"
+netcetera.base_url = "https://api.prev.euc1.acquiring.cloud.netcetera.com/3ds-server"
 nexinets.base_url = "https://apitest.payengine.de/v1"
 nexixpay.base_url = "https://xpaysandbox.nexigroup.com/api/phoenix-0.0/psp/api/v1"
 payconex.base_url = "https://cert.payconex.net"
@@ -695,6 +721,8 @@ eft = { country = "NG, ZA, GH, KE, CI", currency = "NGN, GHS, ZAR, KES, USD" }
 [pm_filters.santander]
 pix_qr = { country = "BR", currency = "BRL" }
 boleto = { country = "BR", currency = "BRL" }
+pix_automatico_qr = { country = "BR", currency = "BRL" }
+pix_automatico_push = { country = "BR", currency = "BRL" }
 
 [pm_filters.calida]
 bluecode = { country = "AT,BE,BG,HR,CY,CZ,DK,EE,FI,FR,DE,GR,HU,IE,IT,LV,LT,LU,MT,NL,PL,PT,RO,SK,SI,ES,SE,IS,LI,NO", currency = "EUR" }
@@ -813,8 +841,8 @@ bank_debit.ach = { connector_list = "gocardless,adyen,stripe" }
 bank_debit.becs = { connector_list = "gocardless,stripe,adyen" }
 bank_debit.bacs = { connector_list = "stripe,gocardless" }
 bank_debit.sepa = { connector_list = "gocardless,adyen,stripe,deutschebank" }
-card.credit.connector_list = "aci,checkout,stripe,adyen,authorizedotnet,cybersource,datatrans,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,braintree,nuvei,payme,wellsfargo,bamboraapac,elavon,fiuu,nexixpay,novalnet,paybox,paypal,xendit,moneris,worldpayvantiv,payload,mollie,airwallex,imerchantsolutions"
-card.debit.connector_list = "aci,checkout,stripe,adyen,authorizedotnet,cybersource,datatrans,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,braintree,nuvei,payme,wellsfargo,bamboraapac,elavon,fiuu,nexixpay,novalnet,paybox,paypal,xendit,moneris,worldpayvantiv,payload,mollie,airwallex,imerchantsolutions"
+card.credit.connector_list = "aci,checkout,stripe,adyen,authorizedotnet,cybersource,datatrans,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,braintree,nuvei,payme,wellsfargo,bamboraapac,elavon,fiuu,nexixpay,novalnet,paybox,paypal,xendit,moneris,worldpayvantiv,payload,mollie,airwallex,imerchantsolutions,givepayments"
+card.debit.connector_list = "aci,checkout,stripe,adyen,authorizedotnet,cybersource,datatrans,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,braintree,nuvei,payme,wellsfargo,bamboraapac,elavon,fiuu,nexixpay,novalnet,paybox,paypal,xendit,moneris,worldpayvantiv,payload,mollie,airwallex,imerchantsolutions,givepayments"
 pay_later.klarna.connector_list = "adyen,aci"
 wallet.apple_pay.connector_list = "aci,stripe,adyen,braintree,cybersource,noon,bankofamerica,nexinets,novalnet,authorizedotnet,worldpayxml,imerchantsolutions"
 wallet.samsung_pay.connector_list = "aci,cybersource"

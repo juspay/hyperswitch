@@ -1069,23 +1069,10 @@ pub fn validate_card_data(
 ) -> CustomResult<(), errors::ApiErrorResponse> {
     match payment_method_data {
         Some(api::PaymentMethodData::Card(card)) => {
-            let cvc = card.card_cvc.peek().to_string();
-            if cvc.len() < 3 || cvc.len() > 4 {
-                Err(report!(errors::ApiErrorResponse::PreconditionFailed {
-                    message: "Invalid card_cvc length".to_string()
-                }))?
-            }
-            let card_cvc =
-                cvc.parse::<u16>()
-                    .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                        field_name: "card_cvc",
-                    })?;
-            ::cards::CardSecurityCode::try_from(card_cvc).change_context(
-                errors::ApiErrorResponse::PreconditionFailed {
-                    message: "Invalid Card CVC".to_string(),
-                },
-            )?;
-
+            validate_card_cvc(&card.card_cvc)?;
+            validate_card_expiry(&card.card_exp_month, &card.card_exp_year)?;
+        }
+        Some(api::PaymentMethodData::CardWithNoCVC(card)) => {
             validate_card_expiry(&card.card_exp_month, &card.card_exp_year)?;
         }
         Some(api::PaymentMethodData::NetworkToken(network_token)) => {
@@ -1103,6 +1090,30 @@ pub fn validate_card_data(
         }
         _ => (),
     }
+    Ok(())
+}
+
+#[instrument(skip_all)]
+fn validate_card_cvc(
+    card_cvc: &hyperswitch_masking::Secret<String>,
+) -> CustomResult<(), errors::ApiErrorResponse> {
+    let cvc = card_cvc.peek().to_string();
+    if cvc.len() < 3 || cvc.len() > 4 {
+        Err(report!(errors::ApiErrorResponse::PreconditionFailed {
+            message: "Invalid card_cvc length".to_string()
+        }))?
+    }
+    let card_cvc =
+        cvc.parse::<u16>()
+            .change_context(errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "card_cvc",
+            })?;
+    ::cards::CardSecurityCode::try_from(card_cvc).change_context(
+        errors::ApiErrorResponse::PreconditionFailed {
+            message: "Invalid Card CVC".to_string(),
+        },
+    )?;
+
     Ok(())
 }
 
@@ -2147,12 +2158,12 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                     let pm_modular_dimensions = dimensions
                         .without_profile_id()
                         .with_organization_id(provider.get_account().organization_id.clone())
-                        .without_provider_merchant_id()
                         .without_processor_merchant_id();
                     let should_call_pm_modular_service =
-                        payment_methods::utils::get_organization_eligibility_config_for_pm_modular_service(
+                        payment_methods::utils::get_should_call_pm_modular_service(
                             state,
                             &pm_modular_dimensions,
+                            None,
                         )
                         .await;
 
@@ -3564,7 +3575,8 @@ impl<'a>
                     domain::CardDetailsForNetworkTransactionId::foreign_try_from(card_data)?,
                 ),
             ),
-            // Raw card as last preference for CardWithOptionalCVC.
+            // CardWithOptionalCVC becomes regular Card when CVC is available, and
+            // remains CardWithOptionalCVC for no-CVC paths.
             (Some(domain::PaymentMethodData::CardWithOptionalCVC(card_data)), _) => {
                 Some(domain::PaymentMethodData::foreign_try_from(card_data)?)
             }

@@ -21,6 +21,7 @@ v2 = []
 
 [dependencies]
 api_models = { version = "0.1.0", path = "../api_models", package = "api_models" }
+card_metadata = { version = "0.1.0", path = "../card_metadata" }
 common_enums = { version = "0.1.0", path = "../common_enums" }
 common_types = { version = "0.1.0", path = "../common_types" }
 connector_configs = { version = "0.1.0", path = "../connector_configs" }
