@@ -8,7 +8,7 @@ pub mod routes {
 
     use actix_web::{web, Responder, Scope};
     use analytics::{
-        api_event::api_events_core,
+        api_event::{api_events_core, critical_actions, get_org_user_activity_log_core},
         connector_events::{connector_events_core, ConnectorEventSource},
         enums::AuthInfo,
         errors::AnalyticsError,
@@ -30,7 +30,8 @@ pub mod routes {
         GetAuthEventMetricRequest, GetDisputeMetricRequest, GetFrmFilterRequest,
         GetFrmMetricRequest, GetPaymentFiltersRequest, GetPaymentIntentFiltersRequest,
         GetPaymentIntentMetricRequest, GetPaymentMetricRequest, GetRefundFilterRequest,
-        GetRefundMetricRequest, GetSdkEventFiltersRequest, GetSdkEventMetricRequest, ReportRequest,
+        GetRefundMetricRequest, GetSdkEventFiltersRequest, GetSdkEventMetricRequest,
+        GetUserActivityLogRequest, GetUserActivityLogResponse, ReportRequest, UserActivityLogEntry,
     };
     use common_enums::EntityType;
     use common_utils::{pii::Email, types::TimeRange};
@@ -391,6 +392,10 @@ pub mod routes {
                                 .service(
                                     web::resource("metrics/auth_events/sankey")
                                         .route(web::post().to(get_org_auth_event_sankey)),
+                                )
+                                .service(
+                                    web::resource("user_activity_log")
+                                        .route(web::post().to(get_org_user_activity_log)),
                                 ),
                         )
                         .service(
@@ -3186,6 +3191,115 @@ pub mod routes {
                 allow_connected: true,
                 allow_platform: true,
             },
+            api_locking::LockAction::NotApplicable,
+        ))
+        .await
+    }
+
+    /// Lets an organization admin see which dashboard user (via merchant_jwt/user_jwt)
+    /// performed which critical action (e.g. modified a connector, revoked an API key)
+    /// across every merchant account in their organization.
+    ///
+    /// Org-scoping is done by resolving the caller's `organization_id` to every
+    /// `merchant_id` in that organization via Postgres, then filtering the existing
+    /// `api_events` ClickHouse table by `merchant_id IN (...)` — no ClickHouse schema
+    /// change is required. Only a curated allowlist of critical `api_flow`s is surfaced,
+    /// and only metadata columns are returned (never the raw request/response/error).
+    pub async fn get_org_user_activity_log(
+        state: web::Data<AppState>,
+        req: actix_web::HttpRequest,
+        json_payload: web::Json<GetUserActivityLogRequest>,
+    ) -> impl Responder {
+        let flow = AnalyticsFlow::GetUserActivityLog;
+        Box::pin(api::server_wrap(
+            flow,
+            state.clone(),
+            &req,
+            json_payload.into_inner(),
+            |state, auth: AuthenticationData, payload, _| async move {
+                let org_id = auth
+                    .platform
+                    .get_processor()
+                    .get_account()
+                    .get_org_id()
+                    .clone();
+
+                let merchant_ids = state
+                    .store
+                    .list_merchant_accounts_by_organization_id(&org_id)
+                    .await
+                    .change_context(AnalyticsError::UnknownError)
+                    .attach_printable("Failed to list merchant accounts for organization")?
+                    .into_iter()
+                    .map(|merchant_account| merchant_account.get_id().clone())
+                    .collect::<Vec<_>>();
+
+                let rows =
+                    get_org_user_activity_log_core(&state.pool, payload, &merchant_ids).await?;
+
+                let user_ids = rows
+                    .iter()
+                    .filter_map(|row| row.user_id.clone())
+                    .collect::<HashSet<_>>()
+                    .into_iter()
+                    .collect::<Vec<_>>();
+
+                let user_email_by_id = if user_ids.is_empty() {
+                    HashMap::new()
+                } else {
+                    state
+                        .global_store
+                        .find_active_users_by_user_ids(user_ids)
+                        .await
+                        .change_context(AnalyticsError::UnknownError)
+                        .attach_printable("Failed to resolve dashboard users for activity log")?
+                        .into_iter()
+                        .map(|user| {
+                            let email = UserEmail::from_pii_email(user.email)
+                                .change_context(AnalyticsError::MissingEmail)?
+                                .get_secret()
+                                .expose()
+                                .to_string();
+                            Ok((user.user_id, email))
+                        })
+                        .collect::<Result<HashMap<_, _>, error_stack::Report<AnalyticsError>>>()?
+                };
+
+                let data = rows
+                    .into_iter()
+                    .map(|row| {
+                        let user_email = row
+                            .user_id
+                            .as_ref()
+                            .and_then(|user_id| user_email_by_id.get(user_id).cloned());
+                        UserActivityLogEntry {
+                            timestamp: row.created_at,
+                            user_id: row.user_id,
+                            user_email,
+                            action: critical_actions::action_label(&row.api_flow),
+                            merchant_id: row.merchant_id,
+                            ip_addr: row.ip_addr,
+                            status_code: i64::from(row.status_code),
+                        }
+                    })
+                    .collect();
+
+                Ok(ApplicationResponse::Json(GetUserActivityLogResponse {
+                    data,
+                }))
+            },
+            auth::auth_type(
+                &auth::PlatformOrgAdminAuth {
+                    is_admin_auth_allowed: false,
+                    organization_id: None,
+                },
+                &auth::JWTAuth {
+                    permission: Permission::OrganizationAuditLogRead,
+                    allow_connected: true,
+                    allow_platform: true,
+                },
+                req.headers(),
+            ),
             api_locking::LockAction::NotApplicable,
         ))
         .await

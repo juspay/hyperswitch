@@ -111,6 +111,10 @@ generate_permissions! {
             scopes: [Read, Write],
             entities: [Profile]
         },
+        AuditLog: {
+            scopes: [Read],
+            entities: [Organization]
+        },
     ]
 }
 
@@ -148,6 +152,7 @@ pub fn get_resource_name(resource: Resource, entity_type: EntityType) -> Option<
         (Resource::ReconTransaction, _) => Some("Recon Transactions"),
         (Resource::ReconRule, _) => Some("Recon Rules"),
         (Resource::SuperpositionConfig, _) => Some("Superposition Configs"),
+        (Resource::AuditLog, _) => Some("Activity Log"),
     }
 }
 

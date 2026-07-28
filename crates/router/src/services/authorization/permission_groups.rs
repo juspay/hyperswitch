@@ -30,7 +30,8 @@ impl PermissionGroupExt for PermissionGroup {
             | Self::ReconSourcesView
             | Self::ReconTransactionsView
             | Self::ReconExceptionsView
-            | Self::ReconRulesView => PermissionScope::Read,
+            | Self::ReconRulesView
+            | Self::AuditLogView => PermissionScope::Read,
 
             Self::OperationsManage
             | Self::ConnectorsManage
@@ -69,6 +70,7 @@ impl PermissionGroupExt for PermissionGroup {
                 ParentGroup::ReconTransactions
             }
             Self::ReconRulesView | Self::ReconRulesManage => ParentGroup::ReconRules,
+            Self::AuditLogView => ParentGroup::AuditLog,
         }
     }
 
@@ -157,13 +159,16 @@ impl PermissionGroupExt for PermissionGroup {
                 Self::ReconRulesView,
                 Self::ReconTransactionsView,
             ],
+            Self::AuditLogView => vec![Self::AuditLogView],
         }
     }
 
     fn get_role_product_category(&self) -> RoleProductCategory {
         match self {
             // Common across every product — not validated against the merchant's category.
-            Self::UsersView | Self::UsersManage => RoleProductCategory::Dashboard,
+            Self::UsersView | Self::UsersManage | Self::AuditLogView => {
+                RoleProductCategory::Dashboard
+            }
 
             // Orchestration-only groups.
             Self::OperationsView
@@ -225,6 +230,7 @@ impl ParentGroupExt for ParentGroup {
             Self::ReconExceptions => RECON_EXCEPTIONS.to_vec(),
             Self::ReconTransactions => RECON_TRANSACTIONS.to_vec(),
             Self::ReconRules => RECON_RULES.to_vec(),
+            Self::AuditLog => AUDIT_LOG.to_vec(),
         }
     }
 
@@ -316,3 +322,5 @@ pub static RECON_TRANSACTIONS: [Resource; 3] = [
 ];
 
 pub static RECON_RULES: [Resource; 2] = [Resource::ReconRule, Resource::Account];
+
+pub static AUDIT_LOG: [Resource; 1] = [Resource::AuditLog];

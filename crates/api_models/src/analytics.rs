@@ -482,6 +482,43 @@ pub struct GetApiEventMetricRequest {
     pub delta: bool,
 }
 
+/// Request payload for fetching the organization-scoped, curated critical-action user
+/// activity log, used by organization admins to audit which dashboard user performed
+/// which critical action across every merchant account in the organization.
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GetUserActivityLogRequest {
+    pub time_range: TimeRange,
+    /// Number of records to skip, for pagination.
+    #[serde(default)]
+    pub offset: Option<u64>,
+    /// Maximum number of records to return, for pagination.
+    #[serde(default)]
+    pub limit: Option<u64>,
+}
+
+/// A single critical-action entry performed by a dashboard user, scoped to metadata only.
+/// Deliberately excludes the raw request/response/error/authentication_data, since those
+/// may contain secrets.
+#[derive(Debug, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UserActivityLogEntry {
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub timestamp: time::PrimitiveDateTime,
+    pub user_id: Option<String>,
+    pub user_email: Option<String>,
+    pub action: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
+    pub ip_addr: Option<String>,
+    pub status_code: i64,
+}
+
+#[derive(Debug, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GetUserActivityLogResponse {
+    pub data: Vec<UserActivityLogEntry>,
+}
+
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GetDisputeFilterRequest {

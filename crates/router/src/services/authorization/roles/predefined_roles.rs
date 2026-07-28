@@ -136,6 +136,7 @@ pub static PREDEFINED_ROLES: LazyLock<HashMap<&'static str, RoleInfo>> = LazyLoc
                 PermissionGroup::ReconTransactionsManage,
                 PermissionGroup::ReconRulesView,
                 PermissionGroup::ReconRulesManage,
+                PermissionGroup::AuditLogView,
             ],
             role_id: common_utils::consts::ROLE_ID_ORGANIZATION_ADMIN.to_string(),
             role_name: "organization_admin".to_string(),

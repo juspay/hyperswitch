@@ -27,6 +27,7 @@ use crate::{
         events::ApiLogsResult,
         filters::ApiEventFilter,
         metrics::{latency::LatencyAvg, ApiEventMetricRow},
+        org::OrgUserActivityLogRow,
     },
     auth_events::filters::AuthEventFilterRow,
     connector_events::events::ConnectorEventsResult,
@@ -193,6 +194,7 @@ impl super::auth_events::filters::AuthEventFilterAnalytics for ClickhouseClient 
 impl super::api_event::events::ApiLogsFilterAnalytics for ClickhouseClient {}
 impl super::api_event::filters::ApiEventFilterAnalytics for ClickhouseClient {}
 impl super::api_event::metrics::ApiEventMetricAnalytics for ClickhouseClient {}
+impl super::api_event::org::OrgUserActivityLogFilterAnalytics for ClickhouseClient {}
 impl super::connector_events::events::ConnectorEventLogAnalytics for ClickhouseClient {}
 impl super::routing_events::events::RoutingEventLogAnalytics for ClickhouseClient {}
 impl super::outgoing_webhook_event::events::OutgoingWebhookLogsFilterAnalytics
@@ -369,6 +371,16 @@ impl TryInto<DisputeFilterRow> for serde_json::Value {
     fn try_into(self) -> Result<DisputeFilterRow, Self::Error> {
         serde_json::from_value(self).change_context(ParsingError::StructParseFailure(
             "Failed to parse DisputeFilterRow in clickhouse results",
+        ))
+    }
+}
+
+impl TryInto<OrgUserActivityLogRow> for serde_json::Value {
+    type Error = Report<ParsingError>;
+
+    fn try_into(self) -> Result<OrgUserActivityLogRow, Self::Error> {
+        serde_json::from_value(self).change_context(ParsingError::StructParseFailure(
+            "Failed to parse OrgUserActivityLogRow in clickhouse results",
         ))
     }
 }

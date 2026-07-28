@@ -6,7 +6,7 @@ use api_models::analytics::{
         ApiMetricsBucketResponse,
     },
     AnalyticsMetadata, ApiEventFiltersResponse, GetApiEventFiltersRequest,
-    GetApiEventMetricRequest, MetricsResponse,
+    GetApiEventMetricRequest, GetUserActivityLogRequest, MetricsResponse,
 };
 use common_utils::errors::ReportSwitchExt;
 use error_stack::ResultExt;
@@ -18,6 +18,7 @@ use router_env::{
 use super::{
     events::{get_api_event, ApiLogsResult},
     metrics::ApiEventMetricRow,
+    org::{get_org_user_activity_log, OrgUserActivityLogRow},
 };
 use crate::{
     errors::{AnalyticsError, AnalyticsResult},
@@ -41,6 +42,42 @@ pub async fn api_events_core(
         AnalyticsProvider::CombinedSqlx(_sqlx_pool, ckh_pool)
         | AnalyticsProvider::CombinedCkh(_sqlx_pool, ckh_pool) => {
             get_api_event(merchant_id, req, ckh_pool).await
+        }
+    }
+    .switch()?;
+    Ok(data)
+}
+
+/// Fetches the org-scoped, curated critical-action user activity log for organization admins.
+///
+/// `merchant_ids` is every `merchant_id` resolved for the caller's organization via Postgres
+/// (`api_events` has no `organization_id` column, so org-scoping is expressed as a
+/// `merchant_id IN (...)` filter rather than the generic `AuthInfo` org filter).
+#[instrument(skip_all)]
+pub async fn get_org_user_activity_log_core(
+    pool: &AnalyticsProvider,
+    req: GetUserActivityLogRequest,
+    merchant_ids: &[common_utils::id_type::MerchantId],
+) -> AnalyticsResult<Vec<OrgUserActivityLogRow>> {
+    let data = match pool {
+        AnalyticsProvider::Sqlx(_) => Err(FiltersError::NotImplemented(
+            "User Activity Log not implemented for SQLX",
+        ))
+        .attach_printable("SQL Analytics is not implemented for the user activity log"),
+        AnalyticsProvider::Clickhouse(pool) => {
+            get_org_user_activity_log(merchant_ids, &req.time_range, req.offset, req.limit, pool)
+                .await
+        }
+        AnalyticsProvider::CombinedSqlx(_sqlx_pool, ckh_pool)
+        | AnalyticsProvider::CombinedCkh(_sqlx_pool, ckh_pool) => {
+            get_org_user_activity_log(
+                merchant_ids,
+                &req.time_range,
+                req.offset,
+                req.limit,
+                ckh_pool,
+            )
+            .await
         }
     }
     .switch()?;
