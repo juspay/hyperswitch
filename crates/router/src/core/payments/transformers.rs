@@ -429,12 +429,12 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
     });
 
     // Check if this is a MIT payment (MIT with mandate_id or MandatePayment)
-    let is_mit_payment = payment_data.payment_method_data.map(
+    let is_mit_payment = payment_data.payment_method_data.as_ref().map(
         |data| matches!(
             data,
             hyperswitch_domain_models::payment_method_data::PaymentMethodData::MandatePayment
         ),
-    ).unwrap_or(false);
+    );
 
     // TODO: few fields are repeated in both routerdata and request
     let request = types::PaymentsAuthorizeData {
