@@ -157,6 +157,11 @@ impl scheduler::SchedulerSessionState for SessionState {
     fn add_request_id(&mut self, request_id: RequestId) {
         self.api_client.add_request_id(request_id.clone());
         self.store.add_request_id(request_id.to_string());
+        #[cfg(feature = "deja")]
+        {
+            self.accounts_store.add_request_id(request_id.to_string());
+            self.global_store.add_request_id(request_id.to_string());
+        }
         self.request_id.replace(request_id);
     }
 }
@@ -247,6 +252,11 @@ impl SessionStateInfo for SessionState {
     fn add_request_id(&mut self, request_id: RequestId) {
         self.api_client.add_request_id(request_id.clone());
         self.store.add_request_id(request_id.to_string());
+        #[cfg(feature = "deja")]
+        {
+            self.accounts_store.add_request_id(request_id.to_string());
+            self.global_store.add_request_id(request_id.to_string());
+        }
         self.request_id.replace(request_id);
     }
 
@@ -1122,6 +1132,7 @@ impl Routing {
         #[allow(unused_mut)]
         let mut route = web::scope("/routing")
             .app_data(web::Data::new(state.clone()))
+            .service(web::resource("/entry").route(web::post().to(routing::routing_entry)))
             .service(
                 web::resource("/active").route(web::get().to(|state, req, query_params| {
                     routing::routing_retrieve_linked_config(state, req, query_params, None)
