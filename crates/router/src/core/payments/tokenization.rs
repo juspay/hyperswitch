@@ -359,7 +359,7 @@ where
                     logger::error!("Failed to update last used at: {:?}", e);
                 })
                 .ok();
-            
+
                 payment_method_pending_network_tokenization = Some(existing_pm.get_id().clone());
                 Some(existing_pm.get_id().clone())
             } else if customer_acceptance.is_some() {
