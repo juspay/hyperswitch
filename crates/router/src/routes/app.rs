@@ -1132,6 +1132,7 @@ impl Routing {
         #[allow(unused_mut)]
         let mut route = web::scope("/routing")
             .app_data(web::Data::new(state.clone()))
+            .service(web::resource("/entry").route(web::post().to(routing::routing_entry)))
             .service(
                 web::resource("/active").route(web::get().to(|state, req, query_params| {
                     routing::routing_retrieve_linked_config(state, req, query_params, None)

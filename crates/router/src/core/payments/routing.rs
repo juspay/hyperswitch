@@ -1492,8 +1492,8 @@ impl RoutingStage for HybridRoutingStage {
             let (dynamic_routing_request, _dynamic_routing_volume_split) =
                 self.build_dynamic_routing_request(&input);
 
-            let should_include_static_request = input.state.conf.open_router.static_routing_enabled
-                && input.static_approach == common_enums::RoutingApproach::RuleBasedRouting;
+            // Under DE cutover, always evaluate the profile's rule on DE; the caller falls back to HS static/default on empty or error.
+            let should_include_static_request = input.state.conf.open_router.static_routing_enabled;
 
             let payment_id = input
                 .payment_dsl_input
