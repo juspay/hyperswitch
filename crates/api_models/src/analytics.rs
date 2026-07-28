@@ -497,6 +497,8 @@ pub struct GetUserActivityLogRequest {
     pub limit: Option<u64>,
 }
 
+impl ApiEventMetric for GetUserActivityLogRequest {}
+
 /// A single critical-action entry performed by a dashboard user, scoped to metadata only.
 /// Deliberately excludes the raw request/response/error/authentication_data, since those
 /// may contain secrets.
@@ -518,6 +520,8 @@ pub struct UserActivityLogEntry {
 pub struct GetUserActivityLogResponse {
     pub data: Vec<UserActivityLogEntry>,
 }
+
+impl ApiEventMetric for GetUserActivityLogResponse {}
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
