@@ -4,6 +4,25 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.07.28.0
+
+### Features
+
+- **deja:** [2/5] per-request correlation substrate + ingress boundary + clock/id seams ([#13286](https://github.com/juspay/hyperswitch/pull/13286)) ([`4ded16a`](https://github.com/juspay/hyperswitch/commit/4ded16aa9a9f9a4587736088176c9a55d6c8c482))
+- **routing:** Decision Engine cut-over routing entry and per-card SSO handoff ([#13452](https://github.com/juspay/hyperswitch/pull/13452)) ([`4dd76de`](https://github.com/juspay/hyperswitch/commit/4dd76de472c97d496710117985421d9124119ba9))
+
+### Bug Fixes
+
+- **superposition:** Bumped superposition to enable rbac support ([#13447](https://github.com/juspay/hyperswitch/pull/13447)) ([`31fc5be`](https://github.com/juspay/hyperswitch/commit/31fc5beb6ee245dfe3a3e4c74e1d66a1179cba2d))
+
+### Refactors
+
+- **payment_methods:** Add async network tokenization process tracker job ([#13430](https://github.com/juspay/hyperswitch/pull/13430)) ([`272715a`](https://github.com/juspay/hyperswitch/commit/272715a8471df03099edd27117df5a6e27147767))
+
+**Full Changelog:** [`2026.07.27.0...2026.07.28.0`](https://github.com/juspay/hyperswitch/compare/2026.07.27.0...2026.07.28.0)
+
+- - -
+
 ## 2026.07.27.0
 
 ### Features
