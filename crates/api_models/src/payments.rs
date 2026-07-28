@@ -9559,6 +9559,9 @@ pub struct PaymentsRetrieveRequest {
     pub all_keys_required: Option<bool>,
 }
 
+/// Percentage value used to represent the discount applied on an item.
+pub type DiscountPercentage = Percentage<DISCOUNT_PERCENTAGE_PRECISION_LENGTH>;
+
 #[derive(
     Debug, Default, PartialEq, serde::Deserialize, serde::Serialize, Clone, ToSchema, SmithyModel,
 )]
@@ -9633,8 +9636,9 @@ pub struct OrderDetailsWithAmount {
     #[smithy(value_type = "Option<i64>")]
     pub unit_discount_amount: Option<MinorUnit>,
     /// Discount percentage applied to this item.
-    #[smithy(value_type = "Option<Percentage<2>>")]
-    pub discount_percentage: Option<Percentage<DISCOUNT_PERCENTAGE_PRECISION_LENGTH>>,
+    #[schema(value_type = Option<Percentage<DISCOUNT_PERCENTAGE_PRECISION_LENGTH>>)]
+    #[smithy(value_type = "Option<Percentage<DISCOUNT_PERCENTAGE_PRECISION_LENGTH>>")]
+    pub discount_percentage: Option<DiscountPercentage>,
     /// Discount type applied to this item.
     #[smithy(value_type = "Option<String>")]
     pub discount_type: Option<String>,
