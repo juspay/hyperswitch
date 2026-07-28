@@ -10054,6 +10054,9 @@ pub enum ConnectorMetadataResponse {
 pub struct SantanderData {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub end_to_end_id: Option<String>,
+    /// Actual timestamp when the payment was completed, as reported by Santander.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub paid_at: Option<String>,
 }
 
 impl ConnectorMetadata {

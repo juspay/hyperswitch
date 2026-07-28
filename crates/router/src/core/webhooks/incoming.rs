@@ -639,6 +639,8 @@ async fn process_webhook_business_logic(
                 source_verified,
                 event_type,
                 merchant_connector_account,
+                connector,
+                request_details,
             ))
             .await
             .attach_printable("Incoming webhook flow for mandates failed"),
@@ -2133,11 +2135,20 @@ async fn mandates_incoming_webhook_flow(
     source_verified: bool,
     event_type: webhooks::IncomingWebhookEvent,
     merchant_connector_account: domain::MerchantConnectorAccount,
+    connector: &ConnectorEnum,
+    request_details: &IncomingWebhookRequestDetails<'_>,
 ) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
     if source_verified {
         let db = &*state.store;
         let merchant_id = platform.get_processor().get_account().get_id();
         let storage_scheme = platform.get_processor().get_account().storage_scheme;
+
+        let connector_metadata = connector
+            .get_connector_attempt_metadata_from_mandate_webhook(request_details)
+            .switch()
+            .attach_printable(
+                "Failed to extract connector attempt metadata from mandate webhook",
+            )?;
 
         match webhook_details.object_reference_id {
             webhooks::ObjectReferenceId::MandateId(webhooks::MandateIdType::MandateId(
@@ -2163,6 +2174,7 @@ async fn mandates_incoming_webhook_flow(
                     merchant_connector_account,
                     connector_mandate_id,
                     event_type,
+                    connector_metadata,
                 ))
                 .await
             }
@@ -2183,6 +2195,7 @@ async fn update_connector_managed_mandate(
     merchant_connector_account: domain::MerchantConnectorAccount,
     connector_mandate_id: String,
     event_type: webhooks::IncomingWebhookEvent,
+    connector_metadata: Option<serde_json::Value>,
 ) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
     let db = &*state.store;
     let merchant_id = platform.get_processor().get_account().get_id();
@@ -2228,9 +2241,57 @@ async fn update_connector_managed_mandate(
                     .into_iter()
                     .find(|attempt| attempt.net_amount.get_order_amount() == MinorUnit::zero())
                 {
-                    let attempt_update = storage::PaymentAttemptUpdate::StatusUpdate {
-                        status: attempt_status,
-                        updated_by: storage_scheme.to_string(),
+                    let attempt_update = if connector_metadata.is_some() {
+                        storage::PaymentAttemptUpdate::ResponseUpdate {
+                            status: attempt_status,
+                            connector: None,
+                            connector_transaction_id: None,
+                            network_transaction_id: None,
+                            network_transaction_link_id: None,
+                            authentication_type: None,
+                            payment_method_id: None,
+                            mandate_id: None,
+                            connector_metadata,
+                            payment_token: None,
+                            error_code: None,
+                            error_message: None,
+                            error_reason: None,
+                            connector_response_reference_id: None,
+                            amount_capturable: None,
+                            updated_by: storage_scheme.to_string(),
+                            authentication_data: None,
+                            encoded_data: None,
+                            unified_code: None,
+                            unified_message: None,
+                            standardised_code: None,
+                            description: None,
+                            user_guidance_message: None,
+                            capture_before: None,
+                            extended_authorization_last_applied_at: None,
+                            extended_authorization_applied: None,
+                            payment_method_data: None,
+                            encrypted_payment_method_data: None,
+                            connector_mandate_detail: Box::new(None),
+                            tokenization: None,
+                            charges: None,
+                            setup_future_usage_applied: None,
+                            debit_routing_savings: None,
+                            is_overcapture_enabled: None,
+                            authorized_amount: None,
+                            issuer_error_code: None,
+                            issuer_error_message: None,
+                            network_details: None,
+                            network_error_message: None,
+                            advice_message: None,
+                            recommended_action: None,
+                            card_network: None,
+                            sender_payment_instrument_id: None,
+                        }
+                    } else {
+                        storage::PaymentAttemptUpdate::StatusUpdate {
+                            status: attempt_status,
+                            updated_by: storage_scheme.to_string(),
+                        }
                     };
 
                     if let Ok(updated_attempt) = db

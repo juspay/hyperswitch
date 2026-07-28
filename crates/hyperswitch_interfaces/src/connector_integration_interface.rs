@@ -418,6 +418,20 @@ impl IncomingWebhook for ConnectorEnum {
         }
     }
 
+    fn get_connector_attempt_metadata_from_mandate_webhook(
+        &self,
+        request: &IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<Option<serde_json::Value>, errors::ConnectorError> {
+        match self {
+            Self::Old(connector) => {
+                connector.get_connector_attempt_metadata_from_mandate_webhook(request)
+            }
+            Self::New(connector) => {
+                connector.get_connector_attempt_metadata_from_mandate_webhook(request)
+            }
+        }
+    }
+
     fn get_network_txn_id(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,

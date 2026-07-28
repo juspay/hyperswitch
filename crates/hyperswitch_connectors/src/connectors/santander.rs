@@ -6,7 +6,7 @@ use std::sync::LazyLock;
 
 use api_models::{
     merchant_connector_webhook_management::{Scope, ScopeIdentifier},
-    payments::PaymentIdType,
+    payments::{PaymentIdType, SantanderData},
     webhooks::{IncomingWebhookEvent, MandateIdType, ObjectReferenceId},
 };
 use common_enums::enums;
@@ -2305,6 +2305,41 @@ impl webhooks::IncomingWebhook for Santander {
                 connector_mandate_id: Secret::new(id),
             }
         }))
+    }
+
+    fn get_connector_attempt_metadata_from_mandate_webhook(
+        &self,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<Option<serde_json::Value>, errors::ConnectorError> {
+        let body: SantanderWebhookBody = request
+            .body
+            .parse_struct("SantanderWebhookBody")
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+
+        let metadata = match body {
+            SantanderWebhookBody::Recurrence(SantanderPixAutomaticoRecWebhookBody { recs }) => recs
+                .first()
+                .filter(|entry| matches!(entry.status, responses::RecurrenceStatus::Aprovada))
+                .and_then(|entry| entry.atualizacao.as_ref())
+                .and_then(|updates| {
+                    updates.iter().find(|update| {
+                        matches!(update.status, Some(responses::RecurrenceStatus::Aprovada))
+                    })
+                })
+                .map(|update| {
+                    let data = SantanderData {
+                        end_to_end_id: None,
+                        paid_at: Some(update.data.clone()),
+                    };
+                    serde_json::to_value(data)
+                        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+                        .attach_printable("Failed to serialize SantanderData")
+                })
+                .transpose()?,
+            _ => None,
+        };
+
+        Ok(metadata)
     }
 }
 

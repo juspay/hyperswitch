@@ -334,6 +334,14 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
         Ok(None)
     }
 
+    /// fn get_connector_attempt_metadata_from_mandate_webhook
+    fn get_connector_attempt_metadata_from_mandate_webhook(
+        &self,
+        _request: &IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<Option<serde_json::Value>, errors::ConnectorError> {
+        Ok(None)
+    }
+
     /// fn get_webhook_resource_object
     fn get_webhook_resource_object(
         &self,
