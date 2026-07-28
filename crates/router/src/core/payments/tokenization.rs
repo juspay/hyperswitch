@@ -359,6 +359,8 @@ where
                     logger::error!("Failed to update last used at: {:?}", e);
                 })
                 .ok();
+            
+                payment_method_pending_network_tokenization = existing_pm.get_id().clone();
                 Some(existing_pm.get_id().clone())
             } else if customer_acceptance.is_some() {
                 let payment_method_data =
@@ -1104,14 +1106,6 @@ where
 
                 Some(resp.payment_method_id)
             } else {
-                // No customer acceptance was provided in this transaction, so no new payment
-                // method is created. But the payment method may already have been saved earlier
-                // (e.g. recurring / MIT flow reusing a stored card). If that saved payment method
-                // still lacks a network token, defer generation to the process tracker.
-                payment_method_pending_network_tokenization = payment_method_info
-                    .as_ref()
-                    .filter(|pm_info| pm_info.network_token_requestor_reference_id.is_none())
-                    .map(|pm_info| pm_info.payment_method_id.clone());
                 None
             };
 
