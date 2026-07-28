@@ -384,6 +384,8 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::admin::PaymentMethodBlockingConfig,
         api_models::admin::CardBlockingConfig,
         api_models::admin::WalletBlockingConfig,
+        api_models::enums::CardSegmentType,
+        api_models::enums::FundingSource,
         api_models::admin::SurchargeConnectorDetails,
         api_models::merchant_connector_webhook_management::ConnectorWebhookRegisterRequest,
         api_models::merchant_connector_webhook_management::WebhookSecretErrorDetails,

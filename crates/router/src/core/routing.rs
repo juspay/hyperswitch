@@ -70,6 +70,71 @@ use crate::{
     utils::{self, OptionExt},
 };
 
+/// Dashboard routing entry: reports the profile's routing source and, for a cut-over profile with a `target`, returns a one-time DE dashboard deep-link.
+#[cfg(all(feature = "olap", feature = "v1"))]
+pub async fn routing_entry(
+    state: SessionState,
+    platform: domain::Platform,
+    profile_id: Option<common_utils::id_type::ProfileId>,
+    target: Option<routing_types::DecisionEngineRoutingTarget>,
+) -> RouterResponse<routing_types::RoutingEntryResponse> {
+    let profile_id = profile_id.get_required_value("profile_id")?;
+
+    let dimensions = dimension_state::Dimensions::new()
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+        .with_profile_id(profile_id.clone());
+
+    let routing_source = get_routing_result_source(&state, &dimensions).await;
+    let is_cutover = matches!(
+        routing_source,
+        routing_types::RoutingResultSource::DecisionEngine
+    );
+
+    // Mint a fresh one-time code only when a card was clicked (`target`) on a cut-over profile.
+    let redirect_url = match (is_cutover, target) {
+        (true, Some(target)) => {
+            let code = match helpers::mint_decision_engine_sso_code(&state, &profile_id).await {
+                Ok(code) => code,
+                // Provision the DE merchant only when it does not exist yet (DE returns 404), then retry once.
+                Err(err)
+                    if matches!(
+                        err.current_context(),
+                        errors::RoutingError::RoutingEventsError {
+                            status_code: 404,
+                            ..
+                        }
+                    ) =>
+                {
+                    let _ = helpers::create_decision_engine_merchant(&state, &profile_id).await;
+                    helpers::mint_decision_engine_sso_code(&state, &profile_id)
+                        .await
+                        .change_context(errors::ApiErrorResponse::InternalServerError)?
+                }
+                Err(err) => {
+                    return Err(err)
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed to mint Decision Engine SSO code");
+                }
+            };
+            Some(format!(
+                "{}/{}?code={}",
+                state.conf.open_router.dashboard_url,
+                target.dashboard_path(),
+                code
+            ))
+        }
+        _ => None,
+    };
+
+    Ok(service_api::ApplicationResponse::Json(
+        routing_types::RoutingEntryResponse {
+            is_cutover,
+            redirect_url,
+        },
+    ))
+}
+
 pub enum TransactionData<'a> {
     Payment(PaymentsDslInput<'a>),
     #[cfg(feature = "payouts")]
