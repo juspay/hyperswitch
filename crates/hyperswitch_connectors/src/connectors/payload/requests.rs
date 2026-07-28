@@ -1,6 +1,6 @@
 use common_utils::{
     pii::Email,
-    types::{MinorUnit, StringMajorUnit},
+    types::{FloatMajorUnit, StringMajorUnit},
 };
 use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
@@ -39,8 +39,8 @@ pub struct BillingAddress {
 /// A single ledger entry in a split payment request, routing a signed amount to one receiver
 #[derive(Clone, Debug, Serialize, PartialEq)]
 pub struct PayloadSplitLedgerEntry {
-    /// Signed amount in minor units (negative = debit from the payment)
-    pub amount: MinorUnit,
+    /// Signed amount in major units (negative = debit from the payment)
+    pub amount: FloatMajorUnit,
     /// processing_id of the receiver account
     pub receiver_id: String,
 }

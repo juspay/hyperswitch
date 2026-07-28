@@ -6,7 +6,7 @@ use api_models::{
 use common_enums::{self as common_enums, enums};
 use common_utils::{
     ext_traits::ValueExt,
-    types::{MinorUnit, StringMajorUnit},
+    types::{FloatMajorUnitForConnector, MinorUnit, StringMajorUnit},
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
@@ -79,15 +79,23 @@ fn get_filtered_metadata(metadata: Option<&serde_json::Value>) -> Option<serde_j
 
 fn get_payload_ledger_entries(
     split: &common_types::payments::PayloadSplitPaymentRequest,
-) -> Vec<requests::PayloadSplitLedgerEntry> {
+    currency: enums::Currency,
+) -> Result<Vec<requests::PayloadSplitLedgerEntry>, Error> {
     split
         .ledger
         .iter()
-        .map(|item| requests::PayloadSplitLedgerEntry {
+        .map(|item| {
             // Payload expects each ledger entry as a negative amount (a debit against the payment);
             // merchants provide the positive amount routed to the receiver, so it is negated here.
-            amount: MinorUnit::new(-item.amount.get_amount_as_i64()),
-            receiver_id: item.receiver_id.clone(),
+            let amount = crate::utils::convert_amount(
+                &FloatMajorUnitForConnector,
+                MinorUnit::new(-item.amount.get_amount_as_i64()),
+                currency,
+            )?;
+            Ok(requests::PayloadSplitLedgerEntry {
+                amount,
+                receiver_id: item.receiver_id.clone(),
+            })
         })
         .collect()
 }
@@ -435,9 +443,9 @@ impl TryFrom<&PayloadRouterData<&PaymentsAuthorizeRouterData>>
         let metadata = item.router_data.request.metadata.as_ref();
 
         let split_ledger = match item.router_data.request.split_payments.as_ref() {
-            Some(common_types::payments::SplitPaymentsRequest::PayloadSplitPayment(split)) => {
-                Some(get_payload_ledger_entries(split))
-            }
+            Some(common_types::payments::SplitPaymentsRequest::PayloadSplitPayment(split)) => Some(
+                get_payload_ledger_entries(split, item.router_data.request.currency)?,
+            ),
             _ => None,
         };
 
