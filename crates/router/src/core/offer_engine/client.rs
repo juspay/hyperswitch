@@ -117,9 +117,9 @@ hyperswitch_interfaces::impl_microservice_flow!(
     v2_response = serde_json::Value,
     v1_response = OfferConnectivityResponse,
     client = OfferEngineClient,
-    body = |_: &OfferConnectivity, _: OfferConnectivityRequest| Some(
-        RequestContent::Json(Box::new(serde_json::json!({})))
-    )
+    body = |_: &OfferConnectivity, _: OfferConnectivityRequest| Some(RequestContent::Json(
+        Box::new(serde_json::json!({}))
+    ))
 );
 
 #[derive(Debug, Clone, serde::Serialize)]

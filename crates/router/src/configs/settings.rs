@@ -658,9 +658,7 @@ pub struct OfferEngineConfig {
 
 impl OfferEngineConfig {
     pub fn is_configured(&self) -> bool {
-        !self.base_url.is_empty()
-            || !self.api_key.peek().is_empty()
-            || !self.merchant_id.is_empty()
+        !self.base_url.is_empty() || !self.api_key.peek().is_empty() || !self.merchant_id.is_empty()
     }
 
     pub fn validate(&self) -> ApplicationResult<()> {
