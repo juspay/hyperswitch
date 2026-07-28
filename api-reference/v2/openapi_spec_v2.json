@@ -30513,6 +30513,11 @@
           "end_to_end_id": {
             "type": "string",
             "nullable": true
+          },
+          "paid_at": {
+            "type": "string",
+            "description": "Actual timestamp when the payment was completed, as reported by Santander.",
+            "nullable": true
           }
         },
         "additionalProperties": false
