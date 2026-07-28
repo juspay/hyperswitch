@@ -194,6 +194,16 @@ where
 
     let endpoint_label = DecisionEngineEndpoint::from_path(path).as_label();
 
+    let (merchant_id_label, profile_id_label) = events_wrapper
+        .as_ref()
+        .map(|wrapper| {
+            (
+                wrapper.merchant_id.get_string_repr().to_string(),
+                wrapper.profile_id.get_string_repr().to_string(),
+            )
+        })
+        .unwrap_or_else(|| ("unknown".to_string(), "unknown".to_string()));
+
     let closure = || async {
         let request_start = std::time::Instant::now();
         let response =
@@ -208,6 +218,8 @@ where
         let metrics_attributes = router_env::metric_attributes!(
             ("endpoint", endpoint_label),
             ("status_code", status_code.to_string()),
+            ("merchant_id", merchant_id_label.clone()),
+            ("profile_id", profile_id_label.clone()),
         );
         metrics::DECISION_ENGINE_REQUEST_TIME
             .record(request_start.elapsed().as_secs_f64(), metrics_attributes);
