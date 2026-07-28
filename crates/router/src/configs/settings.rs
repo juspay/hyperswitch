@@ -400,6 +400,9 @@ pub struct OpenRouter {
     pub dynamic_routing_enabled: bool,
     pub static_routing_enabled: bool,
     pub url: String,
+    /// Browser-facing Decision Engine dashboard base URL, used for the merchant SSO redirect.
+    #[serde(default)]
+    pub dashboard_url: String,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
