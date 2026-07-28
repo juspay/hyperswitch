@@ -545,7 +545,7 @@ impl super::RedisConnectionWithContext {
                 {
                     let tenant_unaware_keys: Vec<RedisKey> = keys
                         .iter()
-                        .map(|key| key.tenant_unaware_key(self.redis_conn).into())
+                        .map(|key| key.tenant_unaware_key(&self.redis_conn).into())
                         .collect();
 
                     self.get_keys_by_mode(&tenant_unaware_keys).await
@@ -598,7 +598,7 @@ impl super::RedisConnectionWithContext {
                         RedisOperation::Exists,
                         self.redis_conn
                             .pool
-                            .exists(key.tenant_unaware_key(self.redis_conn)),
+                            .exists(key.tenant_unaware_key(&self.redis_conn)),
                     )
                     .await
                     .change_context(errors::RedisError::GetFailed)
@@ -697,7 +697,7 @@ impl super::RedisConnectionWithContext {
                         RedisOperation::DeleteKey,
                         self.redis_conn
                             .pool
-                            .del(key.tenant_unaware_key(self.redis_conn)),
+                            .del(key.tenant_unaware_key(&self.redis_conn)),
                     )
                     .await
                     .change_context(errors::RedisError::DeleteFailed)
