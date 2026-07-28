@@ -1,8 +1,9 @@
+use crate::router_request_types::merchant_connector_webhook_management;
+
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct ConnectorWebhookRegisterResponse {
     /// The scope identifier this response is for.
-    pub identifier:
-        crate::router_request_types::merchant_connector_webhook_management::ScopeIdentifier,
+    pub identifier: merchant_connector_webhook_management::ScopeIdentifier,
     /// Status of the registration.
     pub status: common_enums::WebhookRegistrationStatus,
     /// Connector-generated webhook ID, if successful.

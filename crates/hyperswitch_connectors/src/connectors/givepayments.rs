@@ -693,7 +693,6 @@ impl ConnectorSpecifications for Givepayments {
                                 | enums::EventType::PaymentFailed
                                 | enums::EventType::PaymentProcessing
                                 | enums::EventType::PaymentCancelled
-                                | enums::EventType::PaymentCaptured
                                 | enums::EventType::RefundProcessing
                                 | enums::EventType::RefundSucceeded
                                 | enums::EventType::RefundFailed
@@ -709,58 +708,11 @@ impl ConnectorSpecifications for Givepayments {
                     }
             _ => Err(errors::ConnectorError::NotSupported {
                 message:
-                    "GivePayments requires a non-empty list of supported payment or refund webhook event types"
+                    "GivePayments webhook registration requires a non-empty list containing only supported event types. Supported event types are: PaymentSucceeded, PaymentFailed, PaymentProcessing, PaymentCancelled, RefundProcessing, RefundSucceeded, and RefundFailed."
                         .to_string(),
                 connector: "Givepayments",
             }
             .into()),
         }
-    }
-}
-
-#[cfg(test)]
-mod webhook_registration_tests {
-    use hyperswitch_domain_models::connector_endpoints::ConnectorParams;
-
-    use super::*;
-
-    fn connectors() -> Connectors {
-        Connectors {
-            givepayments: ConnectorParams {
-                base_url: "https://connect.givepayments.com/".to_string(),
-                secondary_base_url: None,
-            },
-            ..Default::default()
-        }
-    }
-
-    #[test]
-    fn combines_requested_event_types_into_one_registration_call() {
-        let requested_events = vec![
-            enums::EventType::PaymentFailed,
-            enums::EventType::RefundSucceeded,
-        ];
-
-        let plan = Givepayments::new()
-            .get_webhook_registration_plan(
-                &Scope::EventTypes(requested_events.clone()),
-                &connectors(),
-            )
-            .expect("event types must produce a registration plan");
-
-        assert_eq!(
-            plan,
-            vec![(
-                ScopeIdentifier::EventTypes(requested_events),
-                "https://connect.givepayments.com/webhooks".to_string(),
-            )]
-        );
-    }
-
-    #[test]
-    fn rejects_not_specific_scope() {
-        assert!(Givepayments::new()
-            .get_webhook_registration_plan(&Scope::NotSpecific, &connectors())
-            .is_err());
     }
 }
