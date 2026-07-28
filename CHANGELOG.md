@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.07.15.0-hotfix5
+
+### Bug Fixes
+
+- **payment_methods:** Prevent orphan payment_methods row on recurring/MIT charge via connector mandate ([#13478](https://github.com/juspay/hyperswitch/pull/13478)) ([`1203ea3`](https://github.com/juspay/hyperswitch/commit/1203ea382a19ba6ed8218fe067f1e9cff09012b1))
+
+**Full Changelog:** [`2026.07.15.0-hotfix4...2026.07.15.0-hotfix5`](https://github.com/juspay/hyperswitch/compare/2026.07.15.0-hotfix4...2026.07.15.0-hotfix5)
+
+- - -
+
 ## 2026.07.15.0-hotfix4
 
 ### Features
