@@ -1122,6 +1122,8 @@ sofort = { country = "DZ,AO,BJ,BW,BF,BI,CM,CV,TD,KM,CI,CD,DJ,EG,ER,ET,GA,GM,GN,G
 [pm_filters.datatrans]
 credit = { country = "AL,AD,AM,AT,AZ,BY,BE,BA,BG,CH,CY,CZ,DE,DK,EE,ES,FI,FR,GB,GE,GR,HR,HU,IE,IS,IT,KZ,LI,LT,LU,LV,MC,MD,ME,MK,MT,NL,NO,PL,PT,RO,RU,SE,SI,SK,SM,TR,UA,VA",  currency = "BHD,BIF,CHF,DJF,EUR,GBP,GNF,IQD,ISK,JPY,JOD,KMF,KRW,KWD,LYD,OMR,PYG,RWF,TND,UGX,USD,VND,VUV,XAF,XOF,XPF" }
 debit = { country = "AL,AD,AM,AT,AZ,BY,BE,BA,BG,CH,CY,CZ,DE,DK,EE,ES,FI,FR,GB,GE,GR,HR,HU,IE,IS,IT,KZ,LI,LT,LU,LV,MC,MD,ME,MK,MT,NL,NO,PL,PT,RO,RU,SE,SI,SK,SM,TR,UA,VA",  currency = "BHD,BIF,CHF,DJF,EUR,GBP,GNF,IQD,ISK,JPY,JOD,KMF,KRW,KWD,LYD,OMR,PYG,RWF,TND,UGX,USD,VND,VUV,XAF,XOF,XPF" }
+apple_pay = { country = "AL,AD,AM,AT,AZ,BY,BE,BA,BG,CH,CY,CZ,DE,DK,EE,ES,FI,FR,GB,GE,GR,HR,HU,IE,IS,IT,KZ,LI,LT,LU,LV,MC,MD,ME,MK,MT,NL,NO,PL,PT,RO,RU,SE,SI,SK,SM,TR,UA,VA",  currency = "BHD,BIF,CHF,DJF,EUR,GBP,GNF,IQD,ISK,JPY,JOD,KMF,KRW,KWD,LYD,OMR,PYG,RWF,TND,UGX,USD,VND,VUV,XAF,XOF,XPF" }
+google_pay = { country = "AL,AD,AM,AT,AZ,BY,BE,BA,BG,CH,CY,CZ,DE,DK,EE,ES,FI,FR,GB,GE,GR,HR,HU,IE,IS,IT,KZ,LI,LT,LU,LV,MC,MD,ME,MK,MT,NL,NO,PL,PT,RO,RU,SE,SI,SK,SM,TR,UA,VA",  currency = "BHD,BIF,CHF,DJF,EUR,GBP,GNF,IQD,ISK,JPY,JOD,KMF,KRW,KWD,LYD,OMR,PYG,RWF,TND,UGX,USD,VND,VUV,XAF,XOF,XPF" }
 
 [pm_filters.payme]
 credit = { country = "US,CA,IL,GB", currency = "ILS,USD,EUR" }
@@ -1159,9 +1161,9 @@ bank_debit.sepa = { connector_list = "gocardless,adyen" }
 card.credit.connector_list = "checkout,stripe,adyen,authorizedotnet,cybersource,datatrans,worldpay,nmi,bankofamerica,wellsfargo,bamboraapac,nexixpay,novalnet,paypal,archipel,mollie,imerchantsolutions,peachpayments"
 card.debit.connector_list = "checkout,stripe,adyen,authorizedotnet,cybersource,datatrans,worldpay,nmi,bankofamerica,wellsfargo,bamboraapac,nexixpay,novalnet,paypal,archipel,mollie,imerchantsolutions,peachpayments"
 pay_later.klarna.connector_list = "adyen"
-wallet.apple_pay.connector_list = "aci,stripe,adyen,cybersource,bankofamerica,novalnet,authorizedotnet,worldpayxml,imerchantsolutions"
+wallet.apple_pay.connector_list = "aci,stripe,adyen,cybersource,bankofamerica,novalnet,authorizedotnet,worldpayxml,imerchantsolutions,datatrans"
 wallet.samsung_pay.connector_list = "aci,cybersource"
-wallet.google_pay.connector_list = "aci,stripe,adyen,cybersource,bankofamerica,novalnet,authorizedotnet,worldpayxml,imerchantsolutions"
+wallet.google_pay.connector_list = "aci,stripe,adyen,cybersource,bankofamerica,novalnet,authorizedotnet,worldpayxml,imerchantsolutions,datatrans"
 wallet.paypal.connector_list = "adyen,novalnet"
 wallet.momo.connector_list = "adyen"
 wallet.kakao_pay.connector_list = "adyen"
@@ -1180,8 +1182,8 @@ network_token.network_token.connector_list = "peachpayments"
 
 [mandates.supported_payment_methods]
 pay_later.klarna = { connector_list = "adyen,aci" }
-wallet.google_pay = { connector_list = "stripe,cybersource,adyen,zift,bankofamerica,authorizedotnet,noon,novalnet,multisafepay,wellsfargo,nuvei,worldpayxml,imerchantsolutions" }
-wallet.apple_pay = { connector_list = "stripe,adyen,braintree,cybersource,zift,noon,bankofamerica,authorizedotnet,novalnet,multisafepay,wellsfargo,nuvei,worldpayxml,payme,imerchantsolutions" }
+wallet.google_pay = { connector_list = "stripe,cybersource,adyen,zift,bankofamerica,authorizedotnet,noon,novalnet,multisafepay,wellsfargo,nuvei,worldpayxml,imerchantsolutions,datatrans" }
+wallet.apple_pay = { connector_list = "stripe,adyen,braintree,cybersource,zift,noon,bankofamerica,authorizedotnet,novalnet,multisafepay,wellsfargo,nuvei,worldpayxml,payme,imerchantsolutions,datatrans" }
 wallet.samsung_pay = { connector_list = "cybersource" }
 wallet.paypal = { connector_list = "adyen,novalnet,authorizedotnet" }
 card.credit = { connector_list = "aci,checkout,stripe,adyen,authorizedotnet,zift,cybersource,datatrans,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,elavon,xendit,novalnet,bamboraapac,archipel,wellsfargo,worldpayvantiv,payload,mollie,airwallex,peachpayments,imerchantsolutions,givepayments" }
@@ -1473,11 +1475,15 @@ job_schedule_buffer_time_in_seconds = 3600  # time in seconds to be added in sch
 reopen_workflow_buffer_time_in_seconds = 60  # time in seconds to be added in scheduling for calculate workflow
 
 [clone_connector_allowlist]
-connector_names = "stripe, adyen, peachpayments"    # Comma-separated list of cloneable connector names
+connector_names = "stripe, adyen, peachpayments, cybersource, braintree, nuvei, worldpay, loonio, gigadat, zift"    # Comma-separated list of cloneable connector names
 
 [clone_connector_allowlist.payment_method_types]
 card = "credit, debit"                          # <payment_method> = comma-separated cloneable payment_method_types
 network_token = "network_token"
+bank_transfer = "ach, bacs, sepa, multibanco"
+bank_redirect = "ideal, giropay, sofort, eps, bancontact_card, przelewy24, interac"
+pay_later = "klarna, affirm, afterpay_clearpay"
+wallet = "apple_pay, google_pay, paze, samsung_pay, paypal"
 
 [infra_values]
 cluster = "CLUSTER"         # value of CLUSTER from deployment

@@ -1,0 +1,119 @@
+---
+title: "A/B Testing: Results"
+description: "Curl examples for reading A/B test results, transaction logs, and enabling real-payment interception."
+---
+
+# A/B Testing: Results
+
+Once an experiment (see [Create An Experiment](/decision-engine-api-reference/api-reference/guides/ab-testing/ab-testing-create)) is active and taking traffic, use these endpoints to monitor it. Both routes below live under `/analytics/` and require `$TENANT_HEADER` in addition to `$AUTH_HEADER` — see [Environment setup](/decision-engine-api-reference/api-reference/guides/api-ref#environment-setup).
+
+## Experiment Results
+
+Runs a statistical significance test (two-sample z-test on expected value, or plain auth-rate when the experiment is auth-only) between the control and variant arms.
+
+```bash
+curl "$BASE_URL/analytics/experiment/routing_a1b2c3d4-1111-2222-3333-444455556666/results" \
+  --header "$AUTH_HEADER" \
+  --header "$TENANT_HEADER"
+```
+
+Optional query parameters: `start_ms`, `end_ms`, `min_sample_size`, `guardrail_threshold_pp`, `evaluation_margin` — override the experiment's stored thresholds for an ad-hoc window or sensitivity check.
+
+```json
+{
+  "experiment_id": "routing_a1b2c3d4-1111-2222-3333-444455556666",
+  "merchant_id": "merchant_demo",
+  "control": {
+    "arm": "control",
+    "transaction_count": 4820,
+    "success_count": 4531,
+    "failure_count": 289,
+    "auth_rate": 0.94,
+    "first_attempt_auth_rate": 0.91,
+    "total_cost_saved": null,
+    "avg_latency_ms": 6.2,
+    "avg_chosen_cost_bps": 182.4,
+    "avg_cost_saved_bps": null,
+    "net_ev_bps": 17660.0
+  },
+  "variant": {
+    "arm": "variant",
+    "transaction_count": 1204,
+    "success_count": 1101,
+    "failure_count": 103,
+    "auth_rate": 0.914,
+    "first_attempt_auth_rate": 0.887,
+    "total_cost_saved": 962.3,
+    "avg_latency_ms": 6.5,
+    "avg_chosen_cost_bps": 150.1,
+    "avg_cost_saved_bps": 32.3,
+    "net_ev_bps": 17944.0
+  },
+  "delta_pp": -2.6,
+  "p_value": 0.031,
+  "confidence_interval": [-4.9, -0.3],
+  "verdict": "variant_wins",
+  "min_sample_size": 1000,
+  "net_delta_bps": 284.0,
+  "evaluation_margin": 0.2
+}
+```
+
+### Verdict Values
+
+| Verdict | Meaning |
+| --- | --- |
+| `collecting_data` | At least one arm hasn't reached `min_sample_size` yet. |
+| `not_significant` | Enough data, but the difference isn't statistically significant. |
+| `variant_wins` | Variant significantly outperforms control on net expected value. |
+| `variant_loses` | Variant significantly underperforms control. |
+| `guardrail_breached` | Variant's auth rate dropped more than `guardrail_threshold_pp` below control — short-circuits before significance is even computed. |
+
+For an auth-only experiment (no cost data / multi-objective involved on either arm), the significance test collapses to a pure auth-rate z-test and cost-related fields (`total_cost_saved`, `avg_cost_saved_bps`, `net_ev_bps`, `net_delta_bps`) are `null`.
+
+## Experiment Transactions
+
+Paginated per-transaction log — which arm each payment landed in and its outcome. Useful for spot-checking arm assignment or debugging a specific payment.
+
+```bash
+curl "$BASE_URL/analytics/experiment/routing_a1b2c3d4-1111-2222-3333-444455556666/transactions?page=1&page_size=20" \
+  --header "$AUTH_HEADER" \
+  --header "$TENANT_HEADER"
+```
+
+```json
+{
+  "experiment_id": "routing_a1b2c3d4-1111-2222-3333-444455556666",
+  "total": 6024,
+  "transactions": [
+    {
+      "payment_id": "pay_9f21",
+      "variant_arm": "variant",
+      "gateway": "adyen",
+      "status": "success",
+      "created_at_ms": 1784271600000
+    }
+  ]
+}
+```
+
+`page_size` is capped at 100. Optional `start_ms` narrows to a time window.
+
+## Enabling Real-Payment Interception
+
+A newly created experiment does not affect live traffic until real-payment interception is turned on for the merchant:
+
+```bash
+curl --location "$BASE_URL/merchant-account/merchant_demo/features/ab-test-real-payments" \
+  --header "$AUTH_HEADER" \
+  --header "Content-Type: application/json" \
+  --data '{ "enabled": true }'
+```
+
+See [Merchant Features](/decision-engine-api-reference/api-reference/guides/autopilot/merchant-features) for the full feature-flag reference. Until this is enabled, `/routing/evaluate` still previews both arms for simulation purposes even though `/decide-gateway` traffic is unaffected.
+
+## Related
+
+- [A/B Testing: Create An Experiment](/decision-engine-api-reference/api-reference/guides/ab-testing/ab-testing-create)
+- [Merchant Features](/decision-engine-api-reference/api-reference/guides/autopilot/merchant-features)
+- [Analytics Endpoints](/decision-engine-api-reference/api-reference/guides/analytics-audit/analytics-endpoints)
