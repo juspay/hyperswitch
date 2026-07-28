@@ -5715,6 +5715,21 @@ where
         )
         .await?;
 
+    // Connectors whose vault cannot ingest a raw wallet payload need a second
+    // tokenization pass to turn the single-use handle above into a reusable one, so
+    // a `setup_future_usage` payment leaves a handle a later MIT can replay. Runs
+    // before the result is folded in, so the conversion request still carries the
+    // wallet payment method token rather than the handle just minted.
+    let payment_method_token_response = router_data
+        .convert_wallet_vault_token(
+            state,
+            &connector,
+            payment_method_token_response,
+            should_continue_further,
+            &context,
+        )
+        .await?;
+
     let should_continue_further = tokenization::update_router_data_with_payment_method_token_result(
         payment_method_token_response,
         &mut router_data,
@@ -6277,12 +6292,28 @@ where
             &gateway_context,
         )
         .await?;
+    // Connectors whose vault cannot ingest a raw wallet payload need a second
+    // tokenization pass to turn the single-use handle above into a reusable one, so
+    // a `setup_future_usage` payment leaves a handle a later MIT can replay. Runs
+    // before the result is folded in, so the conversion request still carries the
+    // wallet payment method token rather than the handle just minted.
+    let payment_method_token_response = router_data
+        .convert_wallet_vault_token(
+            state,
+            &connector,
+            payment_method_token_response,
+            should_continue_further,
+            &gateway_context,
+        )
+        .await?;
+
     let should_continue_further = tokenization::update_router_data_with_payment_method_token_result(
         payment_method_token_response,
         &mut router_data,
         is_retry_payment,
         should_continue_further,
     );
+
     let should_continue = match router_data
         .create_order_at_connector(state, &connector, should_continue_further, &gateway_context)
         .await?
@@ -9248,15 +9279,6 @@ where
         })
         .unwrap_or(false);
 
-    // Connector tokenization must also run for a one-shot PaymentCreate with
-    // confirm=true (the payment reaches the connector in the same call), not just
-    // the standalone Confirm operation — otherwise a connector that mints a
-    // pre-authorize token (e.g. Paysafe payment handles) gets an Authorize with
-    // none. Mirrors the wallet-predecrypt gate in
-    // get_decrypted_wallet_payment_method_token.
-    let is_confirm_leg = is_operation_confirm(&operation)
-        || (is_operation_create(&operation) && payment_data.get_payment_attempt().confirm);
-
     let payment_data_and_tokenization_action = match connector {
         Some(_) if is_mandate => {
             if should_use_modular_pm_path {
@@ -9267,7 +9289,7 @@ where
                 TokenizationAction::SkipConnectorTokenization,
             )
         }
-        Some(connector) if is_confirm_leg => {
+        Some(connector) if is_operation_confirm(&operation) => {
             let payment_method = payment_data
                 .get_payment_attempt()
                 .payment_method
@@ -10126,10 +10148,6 @@ pub fn is_operation_confirm<Op: Debug>(operation: &Op) -> bool {
 
 pub fn is_operation_complete_authorize<Op: Debug>(operation: &Op) -> bool {
     matches!(format!("{operation:?}").as_str(), "CompleteAuthorize")
-}
-
-pub fn is_operation_create<Op: Debug>(operation: &Op) -> bool {
-    matches!(format!("{operation:?}").as_str(), "PaymentCreate")
 }
 
 #[cfg(all(feature = "olap", feature = "v1"))]

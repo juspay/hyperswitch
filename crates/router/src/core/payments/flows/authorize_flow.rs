@@ -456,6 +456,27 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         .await
     }
 
+    async fn convert_wallet_vault_token(
+        &self,
+        state: &SessionState,
+        connector: &api::ConnectorData,
+        payment_method_token_result: types::PaymentMethodTokenResult,
+        should_continue_payment: bool,
+        gateway_context: &gateway_context::RouterGatewayContext,
+    ) -> RouterResult<types::PaymentMethodTokenResult> {
+        let request = self.request.clone();
+        tokenization::convert_wallet_vault_token(
+            state,
+            connector,
+            self,
+            types::PaymentMethodTokenizationData::try_from(request)?,
+            payment_method_token_result,
+            should_continue_payment,
+            gateway_context,
+        )
+        .await
+    }
+
     async fn pre_authentication_step<'a>(
         self,
         state: &SessionState,

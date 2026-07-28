@@ -307,6 +307,33 @@ pub trait Feature<F, T> {
         Ok(None)
     }
 
+    /// Convert a single-use wallet payment method token into a reusable one.
+    ///
+    /// Connectors whose vault cannot ingest a raw wallet payload (e.g. Paysafe)
+    /// need a second tokenization pass before the authorization, so that a
+    /// `setup_future_usage` payment leaves behind a handle a later MIT can replay.
+    /// Only flows that can carry a wallet CIT implement this; the rest keep the
+    /// no-op default.
+    ///
+    /// Takes and returns the first pass's result so it can run before that result is
+    /// folded into the router data — the conversion request still needs the wallet
+    /// payment method token, not the handle the first pass just produced.
+    async fn convert_wallet_vault_token(
+        &self,
+        _state: &SessionState,
+        _connector: &api::ConnectorData,
+        payment_method_token_result: types::PaymentMethodTokenResult,
+        _should_continue_payment: bool,
+        _gateway_context: &gateway_context::RouterGatewayContext,
+    ) -> RouterResult<types::PaymentMethodTokenResult>
+    where
+        F: Clone,
+        Self: Sized,
+        dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>,
+    {
+        Ok(payment_method_token_result)
+    }
+
     fn update_router_data_with_create_order_response(
         &mut self,
         _create_order_result: types::CreateOrderResult,
