@@ -17520,6 +17520,27 @@
                 ]
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "values",
+              "type"
+            ],
+            "properties": {
+              "values": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/EventType"
+                }
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "event_types"
+                ]
+              }
+            }
           }
         ],
         "description": "Scope of a single registered connector webhook.",
@@ -21283,6 +21304,7 @@
           "payment_captured",
           "payment_expired",
           "action_required",
+          "refund_processing",
           "refund_succeeded",
           "refund_failed",
           "dispute_opened",
