@@ -46,7 +46,6 @@ klick = "klick" # Swedish word for clicks
 FPR = "FPR" # Fraud Prevention Rules
 LSO = "LSO" # Lesotho country code
 NAM = "NAM"  # Namibia country code
-nd = "nd" # closure variable for network_details
 ND = "ND"  # North Dakota state code
 optin = "optin" # Boku preflow name
 optin_id = "optin_id" # Boku's id for optin flow
