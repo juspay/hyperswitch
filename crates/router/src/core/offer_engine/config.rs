@@ -1,5 +1,4 @@
 use common_utils::errors::CustomResult;
-use hyperswitch_masking::PeekInterface;
 
 use super::types::{OfferEngineCredentialSource, OfferEngineError, ResolvedOfferEngineConfig};
 use crate::{core::configs::dimension_state, routes::SessionState};
@@ -32,25 +31,9 @@ pub async fn resolve_offer_engine_config(
 fn resolve_application_config(
     state: &SessionState,
 ) -> CustomResult<ResolvedOfferEngineConfig, OfferEngineError> {
-    let app_config = state
-        .conf
-        .offer_engine
-        .as_ref()
-        .ok_or_else(|| {
-            error_stack::report!(OfferEngineError::MissingApplicationConfig(
-                "offer_engine application config is not set".to_string()
-            ))
-        })?;
-
-    common_utils::fp_utils::when(app_config.api_key.peek().is_empty(), || {
-        Err(error_stack::report!(
-            OfferEngineError::MissingApplicationConfig("api_key is not set".to_string())
-        ))
-    })?;
-
-    common_utils::fp_utils::when(app_config.merchant_id.is_empty(), || {
-        Err(error_stack::report!(
-            OfferEngineError::MissingApplicationConfig("merchant_id is not set".to_string())
+    let app_config = state.conf.offer_engine.as_ref().ok_or_else(|| {
+        error_stack::report!(OfferEngineError::MissingApplicationConfig(
+            "offer_engine application config is not set".to_string()
         ))
     })?;
 

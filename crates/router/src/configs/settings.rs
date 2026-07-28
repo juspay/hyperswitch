@@ -33,7 +33,7 @@ pub use hyperswitch_interfaces::{
     },
     types::{ComparisonServiceConfig, Proxy},
 };
-use hyperswitch_masking::{Maskable, PeekInterface, Secret};
+use hyperswitch_masking::{Maskable, Secret};
 pub use payment_methods::configs::{
     settings::{
         BankRedirectConfig, BanksVector, ConnectorBankNames, ConnectorFields,
@@ -658,8 +658,10 @@ pub struct OfferEngineConfig {
 impl OfferEngineConfig {
     pub fn validate(&self) -> ApplicationResult<()> {
         common_utils::fp_utils::when(!self.base_url.path().ends_with('/'), || {
-            Err(ApplicationError::InvalidConfigurationValueError(
-                "offer_engine.base_url must end with a trailing slash".into(),
+            Err(error_stack::Report::from(
+                ApplicationError::InvalidConfigurationValueError(
+                    "offer_engine.base_url must end with a trailing slash".into(),
+                ),
             ))
         })
     }
