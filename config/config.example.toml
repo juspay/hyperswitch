@@ -1513,9 +1513,9 @@ request_timeout =  60                           # Request timeout in seconds for
 backup_file_path = "./config/superposition_seed.toml" # Path to a local file for fallback configuration. Used when the Superposition HTTP service is unavailable. If set, the client will fall back to reading configuration from this file instead of failing completely. This ensures graceful degradation during network outages or service disruptions.
 
 [offer_engine]
-base_url = ""     # Base URL of the Offer Engine service (also requires infra allowlisting)
-api_key = ""      # API key for API-key authenticated Offer Engine calls
-merchant_id = ""  # Offer Engine merchant id sent in request bodies
+base_url = "https://offer-engine.example.com/" # Base URL of the Offer Engine service
+api_key = ""                                  # API key for API-key authenticated Offer Engine calls
+merchant_id = ""                              # Offer Engine merchant id sent in request bodies
 
 [micro_services]
 # Base URLs for modular microservices

@@ -992,6 +992,6 @@ internal_api_key = "test_internal_api_key" # API key for internal merchant id an
 payments_base_url = "http://localhost:8080"
 
 [offer_engine]
-base_url = ""     # Base URL of the Offer Engine service (also requires infra allowlisting)
-api_key = ""      # API key for API-key authenticated Offer Engine calls
-merchant_id = ""  # Offer Engine merchant id sent in request bodies
+base_url = "https://offer-engine.example.com/" # Base URL of the Offer Engine service
+api_key = ""                                  # API key for API-key authenticated Offer Engine calls
+merchant_id = ""                              # Offer Engine merchant id sent in request bodies

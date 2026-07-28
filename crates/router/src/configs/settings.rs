@@ -648,48 +648,19 @@ pub struct ForexApi {
     pub redis_ttl_in_seconds: u32,
 }
 
-#[derive(Debug, Deserialize, Clone, Default)]
-#[serde(default)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct OfferEngineConfig {
-    pub base_url: String,
+    pub base_url: url::Url,
     pub api_key: Secret<String>,
     pub merchant_id: String,
 }
 
 impl OfferEngineConfig {
-    pub fn is_configured(&self) -> bool {
-        !self.base_url.is_empty() || !self.api_key.peek().is_empty() || !self.merchant_id.is_empty()
-    }
-
     pub fn validate(&self) -> ApplicationResult<()> {
-        common_utils::fp_utils::when(self.is_configured(), || {
-            common_utils::fp_utils::when(self.base_url.is_empty(), || {
-                Err(ApplicationError::InvalidConfigurationValueError(
-                    "offer_engine.base_url must not be empty".into(),
-                ))
-            })?;
-            let base_url = url::Url::parse(&self.base_url).map_err(|_| {
-                ApplicationError::InvalidConfigurationValueError(
-                    "offer_engine.base_url must be a valid URL".into(),
-                )
-            })?;
-            common_utils::fp_utils::when(!base_url.path().ends_with('/'), || {
-                Err(ApplicationError::InvalidConfigurationValueError(
-                    "offer_engine.base_url must end with a trailing slash".into(),
-                ))
-            })?;
-            common_utils::fp_utils::when(self.api_key.peek().is_empty(), || {
-                Err(ApplicationError::InvalidConfigurationValueError(
-                    "offer_engine.api_key must not be empty".into(),
-                ))
-            })?;
-            common_utils::fp_utils::when(self.merchant_id.is_empty(), || {
-                Err(error_stack::Report::from(
-                    ApplicationError::InvalidConfigurationValueError(
-                        "offer_engine.merchant_id must not be empty".into(),
-                    ),
-                ))
-            })
+        common_utils::fp_utils::when(!self.base_url.path().ends_with('/'), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "offer_engine.base_url must end with a trailing slash".into(),
+            ))
         })
     }
 }

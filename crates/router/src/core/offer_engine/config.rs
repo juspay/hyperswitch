@@ -1,5 +1,5 @@
 use common_utils::errors::CustomResult;
-use error_stack::ResultExt;
+use hyperswitch_masking::PeekInterface;
 
 use super::types::{OfferEngineCredentialSource, OfferEngineError, ResolvedOfferEngineConfig};
 use crate::{core::configs::dimension_state, routes::SessionState};
@@ -36,19 +36,26 @@ fn resolve_application_config(
         .conf
         .offer_engine
         .as_ref()
-        .filter(|config| config.is_configured())
         .ok_or_else(|| {
             error_stack::report!(OfferEngineError::MissingApplicationConfig(
                 "offer_engine application config is not set".to_string()
             ))
         })?;
 
-    let base_url = url::Url::parse(&app_config.base_url).change_context(
-        OfferEngineError::MissingApplicationConfig("base_url is not a valid URL".to_string()),
-    )?;
+    common_utils::fp_utils::when(app_config.api_key.peek().is_empty(), || {
+        Err(error_stack::report!(
+            OfferEngineError::MissingApplicationConfig("api_key is not set".to_string())
+        ))
+    })?;
+
+    common_utils::fp_utils::when(app_config.merchant_id.is_empty(), || {
+        Err(error_stack::report!(
+            OfferEngineError::MissingApplicationConfig("merchant_id is not set".to_string())
+        ))
+    })?;
 
     Ok(ResolvedOfferEngineConfig {
-        base_url,
+        base_url: app_config.base_url.clone(),
         api_key: app_config.api_key.clone(),
         merchant_id: app_config.merchant_id.clone(),
     })
