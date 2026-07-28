@@ -5,7 +5,9 @@ use time::PrimitiveDateTime;
 
 use super::critical_actions::CRITICAL_ACTION_FLOWS;
 use crate::{
-    query::{Aggregate, FilterTypes, GroupByClause, Order, QueryBuilder, QueryFilter, ToSql, Window},
+    query::{
+        Aggregate, FilterTypes, GroupByClause, Order, QueryBuilder, QueryFilter, ToSql, Window,
+    },
     types::{AnalyticsCollection, AnalyticsDataSource, FiltersError, FiltersResult, LoadRow},
 };
 
