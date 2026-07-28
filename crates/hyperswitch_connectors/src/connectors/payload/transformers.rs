@@ -616,8 +616,8 @@ where
                         connector_metadata: None,
                     })
                 } else {
-                    let charges = item.data.request.get_split_payment_data().and_then(|sp| {
-                        match sp {
+                    let charges = item.data.request.get_split_payment_data().and_then(|split_payment| {
+                        match split_payment {
                             common_types::payments::SplitPaymentsRequest::PayloadSplitPayment(
                                 split,
                             ) => Some(
