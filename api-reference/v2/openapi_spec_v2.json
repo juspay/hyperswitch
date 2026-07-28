@@ -10986,8 +10986,8 @@
       "CardType": {
         "type": "string",
         "enum": [
-          "credit",
-          "debit"
+          "CREDIT",
+          "DEBIT"
         ]
       },
       "CardWithLimitedData": {
