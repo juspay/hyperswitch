@@ -33,7 +33,7 @@ pub use hyperswitch_interfaces::{
     },
     types::{ComparisonServiceConfig, Proxy},
 };
-use hyperswitch_masking::{Maskable, Secret};
+use hyperswitch_masking::{Maskable, PeekInterface, Secret};
 pub use payment_methods::configs::{
     settings::{
         BankRedirectConfig, BanksVector, ConnectorBankNames, ConnectorFields,
@@ -654,6 +654,46 @@ pub struct OfferEngineConfig {
     pub base_url: String,
     pub api_key: Secret<String>,
     pub merchant_id: String,
+}
+
+impl OfferEngineConfig {
+    pub fn is_configured(&self) -> bool {
+        !self.base_url.is_empty()
+            || !self.api_key.peek().is_empty()
+            || !self.merchant_id.is_empty()
+    }
+
+    pub fn validate(&self) -> ApplicationResult<()> {
+        common_utils::fp_utils::when(self.is_configured(), || {
+            common_utils::fp_utils::when(self.base_url.is_empty(), || {
+                Err(ApplicationError::InvalidConfigurationValueError(
+                    "offer_engine.base_url must not be empty".into(),
+                ))
+            })?;
+            let base_url = url::Url::parse(&self.base_url).map_err(|_| {
+                ApplicationError::InvalidConfigurationValueError(
+                    "offer_engine.base_url must be a valid URL".into(),
+                )
+            })?;
+            common_utils::fp_utils::when(!base_url.path().ends_with('/'), || {
+                Err(ApplicationError::InvalidConfigurationValueError(
+                    "offer_engine.base_url must end with a trailing slash".into(),
+                ))
+            })?;
+            common_utils::fp_utils::when(self.api_key.peek().is_empty(), || {
+                Err(ApplicationError::InvalidConfigurationValueError(
+                    "offer_engine.api_key must not be empty".into(),
+                ))
+            })?;
+            common_utils::fp_utils::when(self.merchant_id.is_empty(), || {
+                Err(error_stack::Report::from(
+                    ApplicationError::InvalidConfigurationValueError(
+                        "offer_engine.merchant_id must not be empty".into(),
+                    ),
+                ))
+            })
+        })
+    }
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -1457,6 +1497,11 @@ impl Settings<SecuredSecret> {
         self.network_tokenization_service
             .as_ref()
             .map(|x| x.get_inner().validate())
+            .transpose()?;
+
+        self.offer_engine
+            .as_ref()
+            .map(|offer_engine| offer_engine.validate())
             .transpose()?;
 
         self.paze_decrypt_keys

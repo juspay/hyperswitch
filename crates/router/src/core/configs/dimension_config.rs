@@ -778,7 +778,7 @@ config! {
     superposition_key = OFFER_ENGINE_ENABLED,
     output = bool,
     default = false,
-    requires = dimension_state::DimensionsEmpty,
+    requires = dimension_state::DimensionsGlobal,
     targeting_key = id_type::PaymentId
 }
 
@@ -791,7 +791,7 @@ config! {
     output = crate::core::offer_engine::types::OfferEngineCredentialSource,
     default = crate::core::offer_engine::types::OfferEngineCredentialSource::None,
     string_enum = true,
-    requires = dimension_state::DimensionsEmpty,
+    requires = dimension_state::DimensionsGlobal,
     targeting_key = id_type::PaymentId
 }
 

@@ -1,133 +1,126 @@
 use base64::Engine;
-use common_utils::{
-    errors::CustomResult,
-    request::{Method, RequestBuilder, RequestContent},
+use common_utils::request::{Headers, Method, RequestContent};
+use hyperswitch_interfaces::micro_service::{
+    MicroserviceClient, MicroserviceClientError, MicroserviceClientErrorKind,
 };
-use error_stack::ResultExt;
-use external_services::http_client;
 use hyperswitch_masking::{Mask, PeekInterface};
+use router_env::{IdReuse, RequestIdentifier};
 
-use super::types::{OfferEngineError, ResolvedOfferEngineConfig};
+use super::types::ResolvedOfferEngineConfig;
 use crate::{consts::BASE64_ENGINE, routes::SessionState};
 
 const OFFERS_LIST_PATH: &str = "v1/offers/list";
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct OfferEngineClient {
-    config: ResolvedOfferEngineConfig,
+    base_url: url::Url,
+    parent_headers: Headers,
+    trace: RequestIdentifier,
+    merchant_id: String,
 }
 
 impl OfferEngineClient {
-    pub fn new(config: ResolvedOfferEngineConfig) -> Self {
-        Self { config }
-    }
-
-    fn build_url(&self, path: &str) -> CustomResult<url::Url, OfferEngineError> {
-        let mut base_url = self.config.base_url.clone();
-        if !base_url.path().ends_with('/') {
-            let with_slash = format!("{}/", base_url.path());
-            base_url.set_path(&with_slash);
-        }
-        base_url
-            .join(path)
-            .change_context(OfferEngineError::RequestFailed)
-            .attach_printable_lazy(|| format!("Failed to build Offer Engine URL for path: {path}"))
-    }
-
-    pub async fn send<Req, Resp>(
-        &self,
-        state: &SessionState,
-        method: Method,
-        path: &str,
-        body: Option<Req>,
-    ) -> CustomResult<Resp, OfferEngineError>
-    where
-        Req: serde::Serialize + Send + 'static,
-        Resp: serde::de::DeserializeOwned,
-    {
-        let url = self.build_url(path)?;
-
+    pub fn new(config: ResolvedOfferEngineConfig, trace_header_name: &str) -> Self {
         let auth_value = format!(
             "Basic {}",
-            BASE64_ENGINE.encode(format!("{}:", self.config.api_key.peek()))
+            BASE64_ENGINE.encode(format!("{}:", config.api_key.peek()))
         );
+        let mut parent_headers = Headers::new();
+        parent_headers.insert(("Authorization".to_string(), auth_value.into_masked()));
 
-        let mut request_builder = RequestBuilder::new()
-            .method(method)
-            .url(url.as_str())
-            .attach_default_headers()
-            .headers(vec![(
-                "Authorization".to_string(),
-                auth_value.into_masked(),
-            )]);
+        let trace = RequestIdentifier::new(trace_header_name).use_incoming_id(IdReuse::UseIncoming);
 
-        if let Some(body) = body {
-            request_builder = request_builder.set_body(RequestContent::Json(Box::new(body)));
+        Self {
+            base_url: config.base_url,
+            parent_headers,
+            trace,
+            merchant_id: config.merchant_id,
         }
+    }
 
-        let request = request_builder.build();
-
-        http_client::send_request(&state.conf.proxy, request, None)
-            .await
-            .change_context(OfferEngineError::RequestFailed)
-            .attach_printable("Error while sending request to Offer Engine")?
-            .json::<Resp>()
-            .await
-            .change_context(OfferEngineError::ResponseParseFailed)
-            .attach_printable("Error while deserializing Offer Engine response")
+    pub fn merchant_id(&self) -> &str {
+        &self.merchant_id
     }
 
     pub async fn check_connectivity(&self, state: &SessionState) -> ConnectivityResult {
-        let url = match self.build_url(OFFERS_LIST_PATH) {
-            Ok(url) => url,
-            Err(err) => {
-                return ConnectivityResult {
+        match OfferConnectivity::call(state, self, OfferConnectivityRequest).await {
+            Ok(_) => ConnectivityResult {
+                reachable: true,
+                status_code: None,
+                detail: "Reached Offer Engine".to_string(),
+            },
+            Err(err) => match err.kind {
+                MicroserviceClientErrorKind::Upstream { status, .. } => {
+                    let detail = match status {
+                        401 | 403 => "Reached Offer Engine, but authentication failed".to_string(),
+                        _ => format!("Reached Offer Engine (HTTP {status})"),
+                    };
+                    ConnectivityResult {
+                        reachable: true,
+                        status_code: Some(status),
+                        detail,
+                    }
+                }
+                MicroserviceClientErrorKind::Deserialize(_) => ConnectivityResult {
+                    reachable: true,
+                    status_code: None,
+                    detail: "Reached Offer Engine".to_string(),
+                },
+                other => ConnectivityResult {
                     reachable: false,
                     status_code: None,
-                    detail: format!("Failed to build Offer Engine URL: {err:?}"),
-                }
-            }
-        };
-
-        let auth_value = format!(
-            "Basic {}",
-            BASE64_ENGINE.encode(format!("{}:", self.config.api_key.peek()))
-        );
-
-        let request = RequestBuilder::new()
-            .method(Method::Post)
-            .url(url.as_str())
-            .attach_default_headers()
-            .headers(vec![(
-                "Authorization".to_string(),
-                auth_value.into_masked(),
-            )])
-            .set_body(RequestContent::Json(Box::new(serde_json::json!({}))))
-            .build();
-
-        match http_client::send_request(&state.conf.proxy, request, None).await {
-            Ok(response) => {
-                let status = response.status().as_u16();
-                let detail = match status {
-                    401 | 403 => "Reached Offer Engine, but authentication failed".to_string(),
-                    _ => format!("Reached Offer Engine (HTTP {status})"),
-                };
-                ConnectivityResult {
-                    reachable: true,
-                    status_code: Some(status),
-                    detail,
-                }
-            }
-            Err(err) => ConnectivityResult {
-                reachable: false,
-                status_code: None,
-                detail: format!(
-                    "Could not reach Offer Engine (network / allowlisting issue): {err:?}"
-                ),
+                    detail: format!("Could not reach Offer Engine: {other}"),
+                },
             },
         }
     }
 }
+
+impl MicroserviceClient for OfferEngineClient {
+    fn base_url(&self) -> &url::Url {
+        &self.base_url
+    }
+
+    fn parent_headers(&self) -> &Headers {
+        &self.parent_headers
+    }
+
+    fn trace(&self) -> &RequestIdentifier {
+        &self.trace
+    }
+}
+
+pub struct OfferConnectivity;
+pub struct OfferConnectivityRequest;
+pub struct OfferConnectivityResponse;
+
+impl TryFrom<&OfferConnectivityRequest> for OfferConnectivityRequest {
+    type Error = MicroserviceClientError;
+    fn try_from(_: &OfferConnectivityRequest) -> Result<Self, Self::Error> {
+        Ok(Self)
+    }
+}
+
+impl TryFrom<serde_json::Value> for OfferConnectivityResponse {
+    type Error = MicroserviceClientError;
+    fn try_from(_: serde_json::Value) -> Result<Self, Self::Error> {
+        Ok(Self)
+    }
+}
+
+hyperswitch_interfaces::impl_microservice_flow!(
+    OfferConnectivity,
+    method = Method::Post,
+    path = OFFERS_LIST_PATH,
+    v1_request = OfferConnectivityRequest,
+    v2_request = OfferConnectivityRequest,
+    v2_response = serde_json::Value,
+    v1_response = OfferConnectivityResponse,
+    client = OfferEngineClient,
+    body = |_: &OfferConnectivity, _: OfferConnectivityRequest| Some(
+        RequestContent::Json(Box::new(serde_json::json!({})))
+    )
+);
 
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct ConnectivityResult {

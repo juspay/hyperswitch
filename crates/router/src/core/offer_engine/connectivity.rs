@@ -1,5 +1,9 @@
 use super::{client::OfferEngineClient, config::resolve_offer_engine_config};
-use crate::{core::errors::RouterResponse, routes::SessionState, services::ApplicationResponse};
+use crate::{
+    core::{configs::dimension_state, errors::RouterResponse},
+    routes::SessionState,
+    services::ApplicationResponse,
+};
 
 impl common_utils::events::ApiEventMetric for OfferEngineConnectivityResponse {}
 
@@ -19,7 +23,8 @@ pub struct OfferEngineConnectivityResponse {
 pub async fn check_offer_engine_connectivity(
     state: SessionState,
 ) -> RouterResponse<OfferEngineConnectivityResponse> {
-    let response = match resolve_offer_engine_config(&state).await {
+    let dimensions: dimension_state::DimensionsGlobal = dimension_state::Dimensions::new();
+    let response = match resolve_offer_engine_config(&state, &dimensions).await {
         Err(err) => OfferEngineConnectivityResponse {
             enabled: false,
             reachable: None,
@@ -30,12 +35,12 @@ pub async fn check_offer_engine_connectivity(
             enabled: false,
             reachable: None,
             status_code: None,
-            detail: "Offer Engine is not enabled for this context \
+            detail: "Offer Engine is not enabled in global config \
                 (offer_engine_enabled is false or credential source is none)"
                 .to_string(),
         },
         Ok(Some(config)) => {
-            let result = OfferEngineClient::new(config)
+            let result = OfferEngineClient::new(config, &state.conf.trace_header.header_name)
                 .check_connectivity(&state)
                 .await;
             OfferEngineConnectivityResponse {
