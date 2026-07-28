@@ -7,7 +7,7 @@ use crate::core::refunds::*;
 #[cfg(feature = "v2")]
 use crate::core::refunds_v2::*;
 use crate::{
-    core::api_locking::{self, GetLockingInput},
+    core::api_locking,
     routes::lock_utils,
     services::{api, authentication as auth, authorization::permissions::Permission},
     types::api::refunds,
@@ -30,7 +30,7 @@ mod internal_payload_types {
         pub payload: T,
     }
 
-    impl<T: serde::Serialize> GetLockingInput for RefundsGenericRequestWithResourceId<T> {
+    impl<T: serde::Serialize> api_locking::GetLockingInput for RefundsGenericRequestWithResourceId<T> {
         fn get_locking_input<F>(&self, flow: F) -> api_locking::LockAction
         where
             F: types::FlowMetric,
