@@ -21,33 +21,45 @@ use crate::{
 
 /// Result type for Dynamic Routing
 pub type UnifiedConnectorServiceResult<T> = CustomResult<T, UnifiedConnectorServiceError>;
+
+/// The transport under every UCS service client. Under the `deja` feature it is
+/// the gRPC egress boundary wrapper — every unary rpc (payment, refund, …) is
+/// recorded/substituted at the wire level with rank-2 span-path identity;
+/// otherwise it is the raw tonic channel. Threading this alias through the
+/// client fields + their construction keeps the feature-off build byte-identical.
+#[cfg(feature = "deja")]
+pub type UcsChannel = super::deja_transport::DejaGrpcTransport<tonic::transport::Channel>;
+/// The transport under every UCS service client (raw tonic channel; see the
+/// `deja`-gated definition above for the recording/substituting variant).
+#[cfg(not(feature = "deja"))]
+pub type UcsChannel = tonic::transport::Channel;
 /// Contains the  Unified Connector Service client
 #[derive(Debug, Clone)]
 pub struct UnifiedConnectorServiceClient {
     /// The Payment Service Client
-    pub payment_service_client: payments_grpc::payment_service_client::PaymentServiceClient<tonic::transport::Channel>,
+    pub payment_service_client: payments_grpc::payment_service_client::PaymentServiceClient<UcsChannel>,
     /// The Refund Service Client
-    pub refund_service_client: payments_grpc::refund_service_client::RefundServiceClient<tonic::transport::Channel>,
+    pub refund_service_client: payments_grpc::refund_service_client::RefundServiceClient<UcsChannel>,
     /// The Event Service Client
-    pub event_service_client: payments_grpc::event_service_client::EventServiceClient<tonic::transport::Channel>,
+    pub event_service_client: payments_grpc::event_service_client::EventServiceClient<UcsChannel>,
     /// The Recurring Payment Service Client
-    pub recurring_payment_service_client: payments_grpc::recurring_payment_service_client::RecurringPaymentServiceClient<tonic::transport::Channel>,
+    pub recurring_payment_service_client: payments_grpc::recurring_payment_service_client::RecurringPaymentServiceClient<UcsChannel>,
     /// The Dispute Service Client
-    pub dispute_service_client: payments_grpc::dispute_service_client::DisputeServiceClient<tonic::transport::Channel>,
+    pub dispute_service_client: payments_grpc::dispute_service_client::DisputeServiceClient<UcsChannel>,
     /// The Payment Method Service Client
-    pub payment_method_service_client: payments_grpc::payment_method_service_client::PaymentMethodServiceClient<tonic::transport::Channel>,
+    pub payment_method_service_client: payments_grpc::payment_method_service_client::PaymentMethodServiceClient<UcsChannel>,
     /// The Customer Service Client
-    pub customer_service_client: payments_grpc::customer_service_client::CustomerServiceClient<tonic::transport::Channel>,
+    pub customer_service_client: payments_grpc::customer_service_client::CustomerServiceClient<UcsChannel>,
     /// The Merchant Authentication Service Client
     pub merchant_authentication_service_client:
-        payments_grpc::merchant_authentication_service_client::MerchantAuthenticationServiceClient<tonic::transport::Channel>,
+        payments_grpc::merchant_authentication_service_client::MerchantAuthenticationServiceClient<UcsChannel>,
     /// The Payment Method Authentication Service Client
     pub payment_method_authentication_service_client:
-        payments_grpc::payment_method_authentication_service_client::PaymentMethodAuthenticationServiceClient<tonic::transport::Channel>,
+        payments_grpc::payment_method_authentication_service_client::PaymentMethodAuthenticationServiceClient<UcsChannel>,
         /// The Payout Service Client
-    pub payout_service_client: payments_grpc::payout_service_client::PayoutServiceClient<tonic::transport::Channel>,
+    pub payout_service_client: payments_grpc::payout_service_client::PayoutServiceClient<UcsChannel>,
     /// The Surcharge Service Client
-    pub surcharge_service_client: payments_grpc::surcharge_service_client::SurchargeServiceClient<tonic::transport::Channel>,
+    pub surcharge_service_client: payments_grpc::surcharge_service_client::SurchargeServiceClient<UcsChannel>,
 }
 
 /// Contains the Unified Connector Service Client config
@@ -199,7 +211,15 @@ macro_rules! build_grpc_client {
         let endpoint = tonic::transport::Channel::builder($uri.clone())
             .timeout($request_timeout.as_duration());
         match timeout($connection_timeout.as_duration(), endpoint.connect()).await {
-            Ok(Ok(channel)) => <$client>::new(channel),
+            Ok(Ok(channel)) => {
+                // deja: wrap the UCS channel in the gRPC egress boundary at its
+                // construction site so every unary rpc is recorded/substituted at
+                // the wire level (rank-2 identity). Feature-off passes the raw
+                // channel unchanged.
+                #[cfg(feature = "deja")]
+                let channel = $crate::grpc_client::deja_transport::DejaGrpcTransport::new(channel);
+                <$client>::new(channel)
+            }
             Ok(Err(err)) => {
                 router_env::logger::error!(
                     "Failed to connect to Unified Connector Service for {}: {:?}",
@@ -251,7 +271,7 @@ impl UnifiedConnectorServiceClient {
 
                 let payment_service_client = build_grpc_client!(
                     payments_grpc::payment_service_client::PaymentServiceClient<
-                        tonic::transport::Channel,
+                        UcsChannel,
                     >,
                     "payment_service_client",
                     uri,
@@ -261,7 +281,7 @@ impl UnifiedConnectorServiceClient {
 
                 let refund_service_client = build_grpc_client!(
                     payments_grpc::refund_service_client::RefundServiceClient<
-                        tonic::transport::Channel,
+                        UcsChannel,
                     >,
                     "refund_service_client",
                     uri,
@@ -271,7 +291,7 @@ impl UnifiedConnectorServiceClient {
 
                 let event_service_client = build_grpc_client!(
                     payments_grpc::event_service_client::EventServiceClient<
-                        tonic::transport::Channel,
+                        UcsChannel,
                     >,
                     "event_service_client",
                     uri,
@@ -281,7 +301,7 @@ impl UnifiedConnectorServiceClient {
 
                 let recurring_payment_service_client = build_grpc_client!(
                     payments_grpc::recurring_payment_service_client::RecurringPaymentServiceClient<
-                        tonic::transport::Channel,
+                        UcsChannel,
                     >,
                     "recurring_payment_service_client",
                     uri,
@@ -291,7 +311,7 @@ impl UnifiedConnectorServiceClient {
 
                 let dispute_service_client = build_grpc_client!(
                     payments_grpc::dispute_service_client::DisputeServiceClient<
-                        tonic::transport::Channel,
+                        UcsChannel,
                     >,
                     "dispute_service_client",
                     uri,
@@ -301,7 +321,7 @@ impl UnifiedConnectorServiceClient {
 
                 let payment_method_service_client = build_grpc_client!(
                     payments_grpc::payment_method_service_client::PaymentMethodServiceClient<
-                        tonic::transport::Channel,
+                        UcsChannel,
                     >,
                     "payment_method_service_client",
                     uri,
@@ -311,7 +331,7 @@ impl UnifiedConnectorServiceClient {
 
                 let customer_service_client = build_grpc_client!(
                     payments_grpc::customer_service_client::CustomerServiceClient<
-                        tonic::transport::Channel,
+                        UcsChannel,
                     >,
                     "customer_service_client",
                     uri,
@@ -320,7 +340,7 @@ impl UnifiedConnectorServiceClient {
                 );
 
                 let merchant_authentication_service_client = build_grpc_client!(
-                    payments_grpc::merchant_authentication_service_client::MerchantAuthenticationServiceClient<tonic::transport::Channel>,
+                    payments_grpc::merchant_authentication_service_client::MerchantAuthenticationServiceClient<UcsChannel>,
                     "merchant_authentication_service_client",
                     uri,
                     connection_timeout,
@@ -328,7 +348,7 @@ impl UnifiedConnectorServiceClient {
                 );
 
                 let payment_method_authentication_service_client = build_grpc_client!(
-                    payments_grpc::payment_method_authentication_service_client::PaymentMethodAuthenticationServiceClient<tonic::transport::Channel>,
+                    payments_grpc::payment_method_authentication_service_client::PaymentMethodAuthenticationServiceClient<UcsChannel>,
                     "payment_method_authentication_service_client",
                     uri,
                     connection_timeout,
@@ -337,7 +357,7 @@ impl UnifiedConnectorServiceClient {
 
                 let payout_service_client = build_grpc_client!(
                     payments_grpc::payout_service_client::PayoutServiceClient<
-                        tonic::transport::Channel,
+                        UcsChannel,
                     >,
                     "payout_service_client",
                     uri,
@@ -347,7 +367,7 @@ impl UnifiedConnectorServiceClient {
 
                 let surcharge_service_client = build_grpc_client!(
                     payments_grpc::surcharge_service_client::SurchargeServiceClient<
-                        tonic::transport::Channel,
+                        UcsChannel,
                     >,
                     "surcharge_service_client",
                     uri,

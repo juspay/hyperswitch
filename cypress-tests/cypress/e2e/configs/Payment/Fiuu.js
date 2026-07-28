@@ -448,6 +448,9 @@ export const connectorDetails = {
       },
     },
     MITWithoutBillingAddress: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         billing: null,
       },
@@ -461,6 +464,9 @@ export const connectorDetails = {
       },
     },
     MITManualCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {},
       Response: {
         status: 200,
