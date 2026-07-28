@@ -34,7 +34,8 @@ pub struct ApiEvent {
     status_code: i64,
     #[serde(flatten)]
     auth_type: AuthenticationType,
-    user_id: Option<String>,
+    #[serde(rename = "user_id")]
+    auth_user_id: Option<String>,
     request: String,
     user_agent: Option<String>,
     ip_addr: Option<String>,
@@ -62,13 +63,13 @@ impl ApiEvent {
         response: Option<serde_json::Value>,
         hs_latency: Option<u128>,
         auth_type: AuthenticationType,
+        auth_user_id: Option<String>,
         error: Option<serde_json::Value>,
         event_type: ApiEventsType,
         http_req: &HttpRequest,
         http_method: &http::Method,
         infra_components: Option<serde_json::Value>,
     ) -> Self {
-        let user_id = auth_type.get_user_id();
         Self {
             tenant_id,
             merchant_id,
@@ -80,7 +81,7 @@ impl ApiEvent {
             request: request.to_string(),
             response: response.map(|resp| resp.to_string()),
             auth_type,
-            user_id,
+            auth_user_id,
             error,
             ip_addr: http_req
                 .connection_info()
