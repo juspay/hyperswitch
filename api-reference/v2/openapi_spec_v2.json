@@ -6692,8 +6692,7 @@
             "nullable": true
           },
           "connector": {
-            "type": "string",
-            "description": "The session token is w.r.t this connector"
+            "$ref": "#/components/schemas/Connector"
           },
           "delayed_session_token": {
             "type": "boolean",

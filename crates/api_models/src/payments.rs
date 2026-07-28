@@ -10795,8 +10795,9 @@ pub struct ApplepaySessionTokenResponse {
     #[smithy(value_type = "Option<ApplePayPaymentRequest>")]
     pub payment_request_data: Option<ApplePayPaymentRequest>,
     /// The session token is w.r.t this connector
-    #[smithy(value_type = "String")]
-    pub connector: String,
+    #[schema(value_type = Connector, example = "bluesnap")]
+    #[smithy(value_type = "Connector")]
+    pub connector: api_enums::Connector,
     /// Identifier for the delayed session response
     #[smithy(value_type = "bool")]
     pub delayed_session_token: bool,

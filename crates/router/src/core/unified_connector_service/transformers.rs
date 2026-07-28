@@ -5440,7 +5440,13 @@ impl transformers::ForeignTryFrom<payments_grpc::ClientAuthenticationTokenData> 
                         .as_ref()
                         .map(ApplePayPaymentRequest::foreign_try_from)
                         .transpose()?,
-                    connector: apay_session_token_response.connector.clone(),
+                    connector: common_enums::connector_enums::Connector::from_str(
+                        &apay_session_token_response.connector,
+                    )
+                    .change_context(UnifiedConnectorServiceError::ParsingFailed)
+                    .attach_printable(
+                        "Failed to parse connector name in Apple Pay session token response",
+                    )?,
                     sdk_next_action: SdkNextAction::foreign_try_from(
                         apay_session_token_response.sdk_next_action(),
                     )?,

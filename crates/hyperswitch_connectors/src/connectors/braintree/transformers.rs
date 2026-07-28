@@ -2,7 +2,7 @@ use api_models::{
     payments::{self as payment_types, ApplePaySessionResponse, PaypalCaptureMethod, SessionToken},
     webhooks::IncomingWebhookEvent,
 };
-use common_enums::enums;
+use common_enums::{connector_enums::Connector, enums};
 use common_utils::{
     ext_traits::{OptionExt, ValueExt},
     pii,
@@ -1890,7 +1890,7 @@ impl
                                         recurring_payment_request: None,
                                     },
                                 ),
-                                connector: data.connector.clone(),
+                                connector: Connector::Braintree,
                                 delayed_session_token: false,
                                 sdk_next_action: api_models::payments::SdkNextAction {
                                     next_action: api_models::payments::NextActionCall::Confirm,
