@@ -89,7 +89,7 @@ schema = { type = "string" }
 description = "HTTP request method (Deja recording sampler context)"
 change_reason = "Deja recording sampler"
 
-[default-configs."paymemts.requires_cvv"]
+[default-configs."payments.requires_cvv"]
 value = true
 schema = { type = "boolean" }
 description = "Whether CVV is required for payments"
