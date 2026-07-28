@@ -10846,6 +10846,7 @@ pub enum NextActionCall {
     Deny {
         message: String,
         /// A stable, machine-readable identifier for the reason the payment was denied
+        #[schema(value_type = Option<BlockReasonCode>)]
         #[smithy(value_type = "Option<BlockReasonCode>")]
         code: Option<api_enums::BlockReasonCode>,
     },
