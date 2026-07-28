@@ -4,8 +4,8 @@ use crate::routing::{
     ContractBasedRoutingPayloadWrapper, ContractBasedRoutingSetupPayloadWrapper,
     CreateDynamicRoutingWrapper, DynamicRoutingUpdateConfigQuery, EliminationRoutingPayloadWrapper,
     LinkedRoutingConfigRetrieveResponse, MerchantRoutingAlgorithm, ProfileDefaultRoutingConfig,
-    RoutingAlgorithmId, RoutingConfigRequest, RoutingDictionaryRecord, RoutingKind,
-    RoutingLinkWrapper, RoutingPayloadWrapper, RoutingRetrieveLinkQuery,
+    RoutingAlgorithmId, RoutingConfigRequest, RoutingDictionaryRecord, RoutingEntryResponse,
+    RoutingKind, RoutingLinkWrapper, RoutingPayloadWrapper, RoutingRetrieveLinkQuery,
     RoutingRetrieveLinkQueryWrapper, RoutingRetrieveQuery, RoutingVolumeSplit,
     RoutingVolumeSplitResponse, RoutingVolumeSplitWrapper, RuleMigrationError, RuleMigrationQuery,
     RuleMigrationResponse, RuleMigrationResult, SuccessBasedRoutingConfig,
@@ -14,6 +14,12 @@ use crate::routing::{
 };
 
 impl ApiEventMetric for RoutingKind {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Routing)
+    }
+}
+
+impl ApiEventMetric for RoutingEntryResponse {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::Routing)
     }

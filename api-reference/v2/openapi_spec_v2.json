@@ -19408,6 +19408,11 @@
                 "properties": {
                   "message": {
                     "type": "string"
+                  },
+                  "code": {
+                    "type": "string",
+                    "description": "A stable, machine-readable identifier for the reason the payment was denied",
+                    "nullable": true
                   }
                 }
               }
