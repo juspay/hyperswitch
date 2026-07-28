@@ -73,6 +73,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::RoutingLinkConfig
             | Flow::RoutingUnlinkConfig
             | Flow::RoutingRetrieveConfig
+            | Flow::DecisionEngineSsoRedirect
             | Flow::RoutingRetrieveActiveConfig
             | Flow::RoutingRetrieveDefaultConfig
             | Flow::RoutingRetrieveDictionary
