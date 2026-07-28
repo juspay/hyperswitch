@@ -13453,7 +13453,7 @@ pub enum CheckResult {
     Allow,
     Deny {
         message: String,
-        code: Option<String>,
+        code: Option<common_enums::BlockReasonCode>,
     },
 }
 
@@ -13523,7 +13523,7 @@ impl EligibilityCheck for BlockListCheck {
                 logger::warn!(block_reason = ?reason, "Payment blocked by blocklist");
                 Ok(CheckResult::Deny {
                     message: reason.error_message(),
-                    code: Some(reason.code().to_string()),
+                    code: Some(reason.into()),
                 })
             }
             None => Ok(CheckResult::Allow),

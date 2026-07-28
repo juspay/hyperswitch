@@ -680,9 +680,7 @@ pub enum BlocklistDataKind {
     ExtendedCardBin,
 }
 
-/// Reasons for blocking a payment method.
-#[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema)]
-#[serde(rename_all = "snake_case")]
+#[derive(Debug)]
 pub enum BlockReason {
     BlockedBin,
     BlockedCardInfoUnavailable,
@@ -696,6 +694,46 @@ pub enum BlockReason {
     BlockedGamblingCard,
     BlockedIssuerCountry,
     BlockedIssuer,
+}
+
+/// A stable, machine-readable identifier for the reason a payment was blocked.
+#[derive(
+    Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, SmithyModel, ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub enum BlockReasonCode {
+    BlockedBin,
+    BlockedCardInfoUnavailable,
+    BlockedCardType,
+    BlockedCardNetwork,
+    BlockedFundingSource,
+    BlockedCardSubtype,
+    BlockedCardSegmentType,
+    BlockedVirtualCard,
+    BlockedNonReloadablePrepaidCard,
+    BlockedGamblingCard,
+    BlockedIssuerCountry,
+    BlockedIssuer,
+}
+
+impl From<BlockReason> for BlockReasonCode {
+    fn from(block_reason: BlockReason) -> Self {
+        match block_reason {
+            BlockReason::BlockedBin => Self::BlockedBin,
+            BlockReason::BlockedCardInfoUnavailable => Self::BlockedCardInfoUnavailable,
+            BlockReason::BlockedCardType(_) => Self::BlockedCardType,
+            BlockReason::BlockedCardNetwork => Self::BlockedCardNetwork,
+            BlockReason::BlockedFundingSource => Self::BlockedFundingSource,
+            BlockReason::BlockedCardSubtype => Self::BlockedCardSubtype,
+            BlockReason::BlockedCardSegmentType => Self::BlockedCardSegmentType,
+            BlockReason::BlockedVirtualCard => Self::BlockedVirtualCard,
+            BlockReason::BlockedNonReloadablePrepaidCard => Self::BlockedNonReloadablePrepaidCard,
+            BlockReason::BlockedGamblingCard => Self::BlockedGamblingCard,
+            BlockReason::BlockedIssuerCountry => Self::BlockedIssuerCountry,
+            BlockReason::BlockedIssuer => Self::BlockedIssuer,
+        }
+    }
 }
 
 impl BlockReason {
@@ -715,24 +753,6 @@ impl BlockReason {
             Self::BlockedGamblingCard => "Cards associated with gambling are not accepted for this transaction, please try a different card".to_string(),
             Self::BlockedIssuerCountry => "Cards issued in your region aren't supported for this transaction, please try a different card".to_string(),
             Self::BlockedIssuer => "We can't process payments from this bank, please try another card or a different payment method".to_string(),
-        }
-    }
-
-    /// A stable, machine-readable identifier for the block reason.
-    pub fn code(&self) -> &'static str {
-        match self {
-            Self::BlockedBin => "blocked_bin",
-            Self::BlockedCardInfoUnavailable => "blocked_card_info_unavailable",
-            Self::BlockedCardType(_) => "blocked_card_type",
-            Self::BlockedCardNetwork => "blocked_card_network",
-            Self::BlockedFundingSource => "blocked_funding_source",
-            Self::BlockedCardSubtype => "blocked_card_subtype",
-            Self::BlockedCardSegmentType => "blocked_card_segment_type",
-            Self::BlockedVirtualCard => "blocked_virtual_card",
-            Self::BlockedNonReloadablePrepaidCard => "blocked_non_reloadable_prepaid_card",
-            Self::BlockedGamblingCard => "blocked_gambling_card",
-            Self::BlockedIssuerCountry => "blocked_issuer_country",
-            Self::BlockedIssuer => "blocked_issuer",
         }
     }
 }
