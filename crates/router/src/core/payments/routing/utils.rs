@@ -34,7 +34,7 @@ use serde::{Deserialize, Serialize};
 
 use super::RoutingResult;
 use crate::{
-    core::{configs::dimension_state, errors},
+    core::{configs::dimension_state, errors, metrics},
     db::domain,
     routes::{app::SessionStateInfo, SessionState},
     services::{self, logger},
@@ -90,6 +90,74 @@ pub struct HybridRoutingOutcome {
     pub routing_approach: RoutingApproach,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum DecisionEngineEndpoint {
+    DecideGateway,
+    UpdateGatewayScore,
+    RoutingEvaluate,
+    RoutingHybrid,
+    RoutingCreate,
+    RoutingActivate,
+    RoutingListActive,
+    RoutingList,
+    RuleConfig,
+    Other,
+}
+
+impl DecisionEngineEndpoint {
+    const DECIDE_GATEWAY_PATH: &'static str = "decide-gateway";
+    const UPDATE_GATEWAY_SCORE_PATH: &'static str = "update-gateway-score";
+    const ROUTING_EVALUATE_PATH: &'static str = "routing/evaluate";
+    const ROUTING_HYBRID_PATH: &'static str = "routing/hybrid";
+    const ROUTING_CREATE_PATH: &'static str = "routing/create";
+    const ROUTING_ACTIVATE_PATH: &'static str = "routing/activate";
+    const ROUTING_LIST_ACTIVE_PATH: &'static str = "routing/list/active";
+    const ROUTING_LIST_PATH: &'static str = "routing/list";
+    const RULE_PATH: &'static str = "rule";
+
+    const DECIDE_GATEWAY_LABEL: &'static str = "decide_gateway";
+    const UPDATE_GATEWAY_SCORE_LABEL: &'static str = "update_gateway_score";
+    const ROUTING_EVALUATE_LABEL: &'static str = "routing_evaluate";
+    const ROUTING_HYBRID_LABEL: &'static str = "routing_hybrid";
+    const ROUTING_CREATE_LABEL: &'static str = "routing_create";
+    const ROUTING_ACTIVATE_LABEL: &'static str = "routing_activate";
+    const ROUTING_LIST_ACTIVE_LABEL: &'static str = "routing_list_active";
+    const ROUTING_LIST_LABEL: &'static str = "routing_list";
+    const RULE_CONFIG_LABEL: &'static str = "rule_config";
+    const OTHER_LABEL: &'static str = "other";
+
+    fn from_path(path: &str) -> Self {
+        let path = path.split('?').next().unwrap_or(path).trim_matches('/');
+        match path {
+            Self::DECIDE_GATEWAY_PATH => Self::DecideGateway,
+            Self::UPDATE_GATEWAY_SCORE_PATH => Self::UpdateGatewayScore,
+            Self::ROUTING_EVALUATE_PATH => Self::RoutingEvaluate,
+            Self::ROUTING_HYBRID_PATH => Self::RoutingHybrid,
+            Self::ROUTING_CREATE_PATH => Self::RoutingCreate,
+            Self::ROUTING_ACTIVATE_PATH => Self::RoutingActivate,
+            p if p.starts_with(Self::ROUTING_LIST_ACTIVE_PATH) => Self::RoutingListActive,
+            p if p.starts_with(Self::ROUTING_LIST_PATH) => Self::RoutingList,
+            p if p.starts_with(Self::RULE_PATH) => Self::RuleConfig,
+            _ => Self::Other,
+        }
+    }
+
+    fn as_label(self) -> &'static str {
+        match self {
+            Self::DecideGateway => Self::DECIDE_GATEWAY_LABEL,
+            Self::UpdateGatewayScore => Self::UPDATE_GATEWAY_SCORE_LABEL,
+            Self::RoutingEvaluate => Self::ROUTING_EVALUATE_LABEL,
+            Self::RoutingHybrid => Self::ROUTING_HYBRID_LABEL,
+            Self::RoutingCreate => Self::ROUTING_CREATE_LABEL,
+            Self::RoutingActivate => Self::ROUTING_ACTIVATE_LABEL,
+            Self::RoutingListActive => Self::ROUTING_LIST_ACTIVE_LABEL,
+            Self::RoutingList => Self::ROUTING_LIST_LABEL,
+            Self::RuleConfig => Self::RULE_CONFIG_LABEL,
+            Self::Other => Self::OTHER_LABEL,
+        }
+    }
+}
+
 pub async fn build_and_send_decision_engine_http_request<Req, Res, ErrRes>(
     state: &SessionState,
     http_method: services::Method,
@@ -124,11 +192,38 @@ where
         .map(|wrapper| wrapper.parse_response)
         .unwrap_or(true);
 
+    let endpoint_label = DecisionEngineEndpoint::from_path(path).as_label();
+
+    let (merchant_id_label, profile_id_label) = events_wrapper
+        .as_ref()
+        .map(|wrapper| {
+            (
+                wrapper.merchant_id.get_string_repr().to_string(),
+                wrapper.profile_id.get_string_repr().to_string(),
+            )
+        })
+        .unwrap_or_else(|| ("unknown".to_string(), "unknown".to_string()));
+
     let closure = || async {
+        let request_start = std::time::Instant::now();
         let response =
             services::call_connector_api(state, http_request, "Decision Engine API call")
                 .await
                 .change_context(errors::RoutingError::OpenRouterCallFailed)?;
+
+        let status_code = match &response {
+            Ok(res) => res.status_code,
+            Err(err) => err.status_code,
+        };
+        let metrics_attributes = router_env::metric_attributes!(
+            ("endpoint", endpoint_label),
+            ("status_code", status_code.to_string()),
+            ("merchant_id", merchant_id_label.clone()),
+            ("profile_id", profile_id_label.clone()),
+        );
+        metrics::DECISION_ENGINE_REQUEST_TIME
+            .record(request_start.elapsed().as_secs_f64(), metrics_attributes);
+        metrics::DECISION_ENGINE_REQUESTS.add(1, metrics_attributes);
 
         match response {
             Ok(resp) => {
