@@ -41,9 +41,14 @@ pub async fn pg_connection_read<T: crate::DatabaseStore>(
     ))]
     let pool = store.get_master_pool();
 
-    pool.get()
+    #[cfg_attr(not(feature = "deja"), allow(unused_mut))]
+    let mut conn = pool
+        .get()
         .await
-        .change_context(crate::errors::StorageError::DatabaseConnectionError)
+        .change_context(crate::errors::StorageError::DatabaseConnectionError)?;
+    #[cfg(feature = "deja")]
+    crate::utils::deja_route_replay_schema(&mut conn, store).await;
+    Ok(conn)
 }
 
 pub async fn pg_connection_write<T: crate::DatabaseStore>(
@@ -55,7 +60,12 @@ pub async fn pg_connection_write<T: crate::DatabaseStore>(
     // Since all writes should happen to master DB only choose master DB.
     let pool = store.get_master_pool();
 
-    pool.get()
+    #[cfg_attr(not(feature = "deja"), allow(unused_mut))]
+    let mut conn = pool
+        .get()
         .await
-        .change_context(crate::errors::StorageError::DatabaseConnectionError)
+        .change_context(crate::errors::StorageError::DatabaseConnectionError)?;
+    #[cfg(feature = "deja")]
+    crate::utils::deja_route_replay_schema(&mut conn, store).await;
+    Ok(conn)
 }

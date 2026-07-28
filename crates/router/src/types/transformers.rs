@@ -788,6 +788,8 @@ impl
             version,
             error_code: authn_data.error_code.clone(),
             error_message: authn_data.error_message.clone(),
+            challenge_cancel_code: authn_data.challenge_cancel.clone(),
+            trans_status_reason: authn_data.challenge_code_reason.clone(),
         }
     }
 }
@@ -832,6 +834,7 @@ impl ForeignFrom<diesel_models::cards_info::CardInfo> for api_models::cards_info
             card_network: item.card_network.map(|x| x.to_string()),
             card_issuer: item.card_issuer,
             card_issuing_country: item.card_issuing_country,
+            country_code: item.country_code,
             funding_source: item.funding_source.map(|x| x.to_string()),
             card_iin_type: item.card_iin_type.map(|x| x.to_string()),
             virtual_card: item.virtual_card,
@@ -2453,6 +2456,12 @@ impl ForeignFrom<api_models::admin::CardBlockingConfig>
             card_subtypes: item.card_subtypes,
             issuers: item.issuers,
             block_if_bin_info_unavailable: item.block_if_bin_info_unavailable,
+            card_networks: item.card_networks,
+            funding_sources: item.funding_sources,
+            card_segment_types: item.card_segment_types,
+            block_virtual_cards: item.block_virtual_cards,
+            block_non_reloadable_prepaid_cards: item.block_non_reloadable_prepaid_cards,
+            gambling_blocked: item.gambling_blocked,
         }
     }
 }
@@ -2463,6 +2472,8 @@ impl ForeignFrom<api_models::admin::WalletBlockingConfig>
     fn foreign_from(item: api_models::admin::WalletBlockingConfig) -> Self {
         Self {
             card_types: item.card_types,
+            apple_pay: item.apple_pay.map(|config| config.foreign_into()),
+            google_pay: item.google_pay.map(|config| config.foreign_into()),
         }
     }
 }
@@ -2488,6 +2499,12 @@ impl ForeignFrom<diesel_models::business_profile::CardBlockingConfig>
             card_subtypes: item.card_subtypes,
             issuers: item.issuers,
             block_if_bin_info_unavailable: item.block_if_bin_info_unavailable,
+            card_networks: item.card_networks,
+            funding_sources: item.funding_sources,
+            card_segment_types: item.card_segment_types,
+            block_virtual_cards: item.block_virtual_cards,
+            block_non_reloadable_prepaid_cards: item.block_non_reloadable_prepaid_cards,
+            gambling_blocked: item.gambling_blocked,
         }
     }
 }
@@ -2498,6 +2515,8 @@ impl ForeignFrom<diesel_models::business_profile::WalletBlockingConfig>
     fn foreign_from(item: diesel_models::business_profile::WalletBlockingConfig) -> Self {
         Self {
             card_types: item.card_types,
+            apple_pay: item.apple_pay.map(|config| config.foreign_into()),
+            google_pay: item.google_pay.map(|config| config.foreign_into()),
         }
     }
 }
