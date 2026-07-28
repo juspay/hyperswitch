@@ -16366,8 +16366,8 @@
       "CardType": {
         "type": "string",
         "enum": [
-          "CREDIT",
-          "DEBIT"
+          "credit",
+          "debit"
         ]
       },
       "CardWithLimitedData": {

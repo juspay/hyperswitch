@@ -890,12 +890,10 @@ pub struct CardDetail {
     Eq,
     PartialEq,
 )]
-#[serde(rename_all = "UPPERCASE")]
+#[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "UPPERCASE")]
 pub enum CardType {
-    #[serde(alias = "credit")]
     Credit,
-    #[serde(alias = "debit")]
     Debit,
 }
 

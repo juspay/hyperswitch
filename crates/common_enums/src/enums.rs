@@ -3407,11 +3407,9 @@ pub enum FundingSource {
 )]
 #[router_derive::diesel_enum(storage_type = "db_enum")]
 #[strum(serialize_all = "UPPERCASE")]
-#[serde(rename_all = "UPPERCASE")]
+#[serde(rename_all = "snake_case")]
 pub enum CardType {
-    #[serde(alias = "credit")]
     Credit,
-    #[serde(alias = "debit")]
     Debit,
 }
 
