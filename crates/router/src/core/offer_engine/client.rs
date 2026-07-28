@@ -94,9 +94,9 @@ pub struct OfferConnectivity;
 pub struct OfferConnectivityRequest;
 pub struct OfferConnectivityResponse;
 
-impl TryFrom<&OfferConnectivityRequest> for OfferConnectivityRequest {
+impl TryFrom<&Self> for OfferConnectivityRequest {
     type Error = MicroserviceClientError;
-    fn try_from(_: &OfferConnectivityRequest) -> Result<Self, Self::Error> {
+    fn try_from(_: &Self) -> Result<Self, Self::Error> {
         Ok(Self)
     }
 }
