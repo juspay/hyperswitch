@@ -1664,6 +1664,13 @@ where
                 first_payment_attempt_network_advice_code: first_network_advice_code,
                 first_payment_attempt_network_decline_code: first_network_decline_code,
                 first_payment_attempt_pg_error_code: first_pg_error_code,
+                // Preserve the existing A/B routing assignment. The router
+                // chokepoint sets it on first assignment; it must stay sticky
+                // across subsequent attempts (rebuilding this metadata must not
+                // wipe assigned_at/outcome or force a Superposition re-query).
+                recovery_routing: revenue_recovery
+                    .as_ref()
+                    .and_then(|data| data.recovery_routing.clone()),
             }),
             None => Err(errors::api_error_response::ApiErrorResponse::InternalServerError)
                 .attach_printable("Connector not found in payment attempt")?,

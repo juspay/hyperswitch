@@ -43,6 +43,12 @@ impl GlobalPaymentId {
     }
 }
 
+impl crate::id_type::TargetingKey for GlobalPaymentId {
+    fn targeting_key_value(&self) -> &str {
+        self.get_string_repr()
+    }
+}
+
 // TODO: refactor the macro to include this id use case as well
 impl TryFrom<std::borrow::Cow<'static, str>> for GlobalPaymentId {
     type Error = error_stack::Report<errors::ValidationError>;
