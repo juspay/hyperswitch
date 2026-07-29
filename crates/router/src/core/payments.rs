@@ -13461,7 +13461,10 @@ trait EligibilityCheck {
 #[derive(Debug, Clone)]
 pub enum CheckResult {
     Allow,
-    Deny { message: String },
+    Deny {
+        message: String,
+        code: Option<common_enums::BlockReasonCode>,
+    },
 }
 
 #[cfg(feature = "v1")]
@@ -13469,8 +13472,8 @@ impl From<CheckResult> for Option<api_models::payments::SdkNextAction> {
     fn from(result: CheckResult) -> Self {
         match result {
             CheckResult::Allow => None,
-            CheckResult::Deny { message } => Some(api_models::payments::SdkNextAction {
-                next_action: api_models::payments::NextActionCall::Deny { message },
+            CheckResult::Deny { message, code } => Some(api_models::payments::SdkNextAction {
+                next_action: api_models::payments::NextActionCall::Deny { message, code },
                 should_block_confirm: None,
             }),
         }
@@ -13530,6 +13533,7 @@ impl EligibilityCheck for BlockListCheck {
                 logger::warn!(block_reason = ?reason, "Payment blocked by blocklist");
                 Ok(CheckResult::Deny {
                     message: reason.error_message(),
+                    code: Some(reason.into()),
                 })
             }
             None => Ok(CheckResult::Allow),
@@ -13588,6 +13592,7 @@ impl EligibilityCheck for CardTestingCheck {
                         errors::ApiErrorResponse::PreconditionFailed { message } => {
                             Ok(CheckResult::Deny {
                                 message: message.to_string(),
+                                code: None,
                             })
                         }
                         // For any other error, propagate it
