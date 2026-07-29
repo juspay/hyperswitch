@@ -651,9 +651,14 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
 
         let mut domain_merchant_account = domain::MerchantAccount::from(merchant_account);
 
-        CreateProfile::new(self.primary_business_details.clone())
-            .create_profiles(state, &mut domain_merchant_account, &key_store)
-            .await?;
+        Box::pin(
+            CreateProfile::new(self.primary_business_details.clone()).create_profiles(
+                state,
+                &mut domain_merchant_account,
+                &key_store,
+            ),
+        )
+        .await?;
 
         Ok(domain_merchant_account)
     }
@@ -774,12 +779,12 @@ impl CreateProfile {
             Self::CreateFromPrimaryBusinessDetails {
                 primary_business_details,
             } => {
-                let business_profiles = Self::create_profiles_for_each_business_details(
+                let business_profiles = Box::pin(Self::create_profiles_for_each_business_details(
                     state,
                     merchant_account.clone(),
                     primary_business_details,
                     key_store,
-                )
+                ))
                 .await?;
 
                 // Update the default business profile in merchant account
@@ -790,9 +795,12 @@ impl CreateProfile {
                 }
             }
             Self::CreateDefaultProfile => {
-                let business_profile = self
-                    .create_default_business_profile(state, merchant_account.clone(), key_store)
-                    .await?;
+                let business_profile = Box::pin(self.create_default_business_profile(
+                    state,
+                    merchant_account.clone(),
+                    key_store,
+                ))
+                .await?;
 
                 merchant_account.default_profile = Some(business_profile.get_id().to_owned());
             }
@@ -1190,13 +1198,13 @@ impl MerchantAccountUpdateBridge for api::MerchantAccountUpdate {
         self.primary_business_details
             .clone()
             .async_map(|primary_business_details| async {
-                let _ = create_profile_from_business_labels(
+                let _ = Box::pin(create_profile_from_business_labels(
                     state,
                     db,
                     key_store,
                     merchant_id,
                     primary_business_details,
-                )
+                ))
                 .await;
             })
             .await;

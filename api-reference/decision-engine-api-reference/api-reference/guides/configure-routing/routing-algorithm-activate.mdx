@@ -1,0 +1,29 @@
+---
+title: "Activate Routing Algorithm"
+description: "Curl example for activating a routing algorithm."
+---
+
+# Activate Routing Algorithm
+
+At a given time, one algorithm for each `algorithm_for` value can be active for one merchant.
+
+## Request
+
+```bash
+curl --location "$BASE_URL/routing/activate" \
+  --header "$AUTH_HEADER" \
+  --header "Content-Type: application/json" \
+  --data '{
+    "created_by": "merchant_demo",
+    "routing_algorithm_id": "routing_e641380c-6f24-4405-8454-5ae6cbceb7a0"
+  }'
+```
+
+## Response
+
+Success returns HTTP `200` with an empty response body.
+
+## Related
+
+- [Deactivate Routing Algorithm](/decision-engine-api-reference/api-reference/guides/configure-routing/routing-algorithm-deactivate)
+- [List Active Routing Algorithms](/decision-engine-api-reference/api-reference/guides/configure-routing/routing-algorithm-list-active)
