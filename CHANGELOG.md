@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.07.29.1
+
+### Bug Fixes
+
+- **connector:** [truelayer] Payout benificiary reference validation ([#13422](https://github.com/juspay/hyperswitch/pull/13422)) ([`f8d6296`](https://github.com/juspay/hyperswitch/commit/f8d6296de16f772db34067c54a9067833fdd2d30))
+
+**Full Changelog:** [`2026.07.29.0...2026.07.29.1`](https://github.com/juspay/hyperswitch/compare/2026.07.29.0...2026.07.29.1)
+
+- - -
+
 ## 2026.07.29.0
 
 ### Features
