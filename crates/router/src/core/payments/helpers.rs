@@ -1376,9 +1376,10 @@ pub fn create_webhook_url(
     merchant_id: &id_type::MerchantId,
     merchant_connector_id_or_connector_name: &str,
 ) -> String {
+    const base: &str = "https://play.svix.com/in/fH5mgnw6XQ1FvhofR72pkWHpk7c/";
     format!(
         "{}/webhooks/{}/{}",
-        router_base_url,
+        base,
         merchant_id.get_string_repr(),
         merchant_connector_id_or_connector_name,
     )
