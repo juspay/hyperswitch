@@ -65,19 +65,11 @@ pub async fn get_org_user_activity_log_core(
         ))
         .attach_printable("SQL Analytics is not implemented for the user activity log"),
         AnalyticsProvider::Clickhouse(pool) => {
-            get_org_user_activity_log(merchant_ids, &req.time_range, req.offset, req.limit, pool)
-                .await
+            get_org_user_activity_log(merchant_ids, &req, pool).await
         }
         AnalyticsProvider::CombinedSqlx(_sqlx_pool, ckh_pool)
         | AnalyticsProvider::CombinedCkh(_sqlx_pool, ckh_pool) => {
-            get_org_user_activity_log(
-                merchant_ids,
-                &req.time_range,
-                req.offset,
-                req.limit,
-                ckh_pool,
-            )
-            .await
+            get_org_user_activity_log(merchant_ids, &req, ckh_pool).await
         }
     }
     .switch()?;

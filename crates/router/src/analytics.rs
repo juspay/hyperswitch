@@ -3254,15 +3254,24 @@ pub mod routes {
                         .change_context(AnalyticsError::UnknownError)
                         .attach_printable("Failed to resolve dashboard users for activity log")?
                         .into_iter()
-                        .map(|user| {
-                            let email = UserEmail::from_pii_email(user.email)
-                                .change_context(AnalyticsError::MissingEmail)?
-                                .get_secret()
-                                .expose()
-                                .to_string();
-                            Ok((user.user_id, email))
+                        .filter_map(|user| {
+                            let user_id = user.user_id.clone();
+                            match UserEmail::from_pii_email(user.email) {
+                                Ok(email) => {
+                                    Some((user_id, email.get_secret().expose().to_string()))
+                                }
+                                Err(err) => {
+                                    logger::warn!(
+                                        ?err,
+                                        %user_id,
+                                        "Failed to resolve email for user in activity log; \
+                                         showing user_id without an email for this row"
+                                    );
+                                    None
+                                }
+                            }
                         })
-                        .collect::<Result<HashMap<_, _>, error_stack::Report<AnalyticsError>>>()?
+                        .collect::<HashMap<_, _>>()
                 };
 
                 let data = rows

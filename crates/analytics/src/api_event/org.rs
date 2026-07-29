@@ -1,9 +1,9 @@
-use api_models::analytics::{Granularity, TimeRange};
+use api_models::analytics::{GetUserActivityLogRequest, Granularity};
 use common_utils::errors::ReportSwitchExt;
 use error_stack::ResultExt;
 use time::PrimitiveDateTime;
 
-use super::critical_actions::CRITICAL_ACTION_FLOWS;
+use super::critical_actions;
 use crate::{
     query::{
         Aggregate, FilterTypes, GroupByClause, Order, QueryBuilder, QueryFilter, ToSql, Window,
@@ -24,12 +24,9 @@ pub trait OrgUserActivityLogFilterAnalytics: LoadRow<OrgUserActivityLogRow> {}
 ///
 /// Only metadata columns are selected; `request`/`response`/`error`/`authentication_data`
 /// are intentionally never read here since they may contain secrets.
-#[allow(clippy::too_many_arguments)]
 pub async fn get_org_user_activity_log<T>(
     merchant_ids: &[common_utils::id_type::MerchantId],
-    time_range: &TimeRange,
-    offset: Option<u64>,
-    limit: Option<u64>,
+    req: &GetUserActivityLogRequest,
     pool: &T,
 ) -> FiltersResult<Vec<OrgUserActivityLogRow>>
 where
@@ -54,13 +51,13 @@ where
         .attach_printable("Error adding merchant_id filter")
         .switch()?;
 
-    time_range
+    req.time_range
         .set_filter_clause(&mut query_builder)
         .attach_printable("Error filtering time range")
         .switch()?;
 
     query_builder
-        .add_filter_in_range_clause("api_flow", CRITICAL_ACTION_FLOWS)
+        .add_filter_in_range_clause("api_flow", &critical_actions::critical_action_flows())
         .attach_printable("Error adding api_flow allowlist filter")
         .switch()?;
 
@@ -74,7 +71,7 @@ where
         .attach_printable("Error adding order by created_at")
         .switch()?;
 
-    query_builder.set_limit_offset(limit, offset);
+    query_builder.set_limit_offset(req.limit, req.offset);
 
     query_builder
         .execute_query::<OrgUserActivityLogRow, _>(pool)
