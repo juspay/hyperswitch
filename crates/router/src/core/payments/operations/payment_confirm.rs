@@ -17,7 +17,6 @@ use hyperswitch_domain_models::{
     mandates,
     mandates::{ConnectorMandateReferenceId, MandateTransactionType},
     payment_method_data::RecurringDetails as domain_recurring_details,
-    payment_methods::PaymentMethodWithRawData,
     payments::{self as domain_payments, payment_intent::PaymentIntentUpdateFields},
     router_request_types::unified_authentication_service,
 };
@@ -94,6 +93,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             payment_method_info: prefetched_payment_method_info,
             payment_method_with_raw_data,
             token_data: prefetched_token_data,
+            cvc_redis_references,
         } = payment_method_fetch_data;
         let processor_merchant_id = platform.get_processor().get_account().get_id();
         let storage_scheme = platform.get_processor().get_account().storage_scheme;
@@ -351,6 +351,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                         &payment_intent,
                         &payment_attempt,
                         business_profile.is_manual_retry_enabled,
+                        business_profile.get_order_fulfillment_time(),
                         "confirm",
                     )?;
 
@@ -919,6 +920,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             attempts: None,
             sessions_token: vec![],
             card_cvc: request.card_cvc.clone(),
+            cvc_redis_references,
             creds_identifier,
             pm_token: None,
             connector_customer_id: None,
@@ -1297,16 +1299,13 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                 logger::debug!(
                         "Organization is enabled for modular service, fetching payment method from PM Modular Service"
                     );
-                let pm_info = self
-                    .fetch_payment_method_from_modular_service(
-                        state,
-                        req,
-                        platform,
-                        &payment_method_ref_to_use,
-                    )
-                    .await?;
-
-                operations::PaymentMethodFetchData::from_modular(pm_info)
+                self.fetch_payment_method_from_modular_service(
+                    state,
+                    req,
+                    platform,
+                    &payment_method_ref_to_use,
+                )
+                .await?
             } else {
                 operations::PaymentMethodFetchData::default()
             }
@@ -1359,16 +1358,13 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                         "Payment method version is V2, fetching payment method from PM Modular Service"
                     );
                     let payment_method_id = payment_method.get_id().to_owned();
-                    let pm_info = self
-                        .fetch_payment_method_from_modular_service(
-                            state,
-                            req,
-                            platform,
-                            &payment_method_id,
-                        )
-                        .await?;
-
-                    operations::PaymentMethodFetchData::from_modular(pm_info)
+                    self.fetch_payment_method_from_modular_service(
+                        state,
+                        req,
+                        platform,
+                        &payment_method_id,
+                    )
+                    .await?
                 }
                 Some(payment_method) => {
                     logger::info!("Organization is not eligible for PM Modular Service, skipping fetch payment method.");
@@ -1378,6 +1374,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     payment_method_info: None,
                     payment_method_with_raw_data: None,
                     token_data,
+                    cvc_redis_references: Vec::new(),
                 },
             }
         };
@@ -2402,16 +2399,40 @@ impl PaymentConfirm {
         req: &api::PaymentsRequest,
         platform: &domain::Platform,
         payment_method_ref: &str,
-    ) -> RouterResult<PaymentMethodWithRawData> {
-        let profile_id = req
+    ) -> RouterResult<operations::PaymentMethodFetchData> {
+        let payment_id = req
+            .payment_id
+            .as_ref()
+            .get_required_value("payment_id")?
+            .get_payment_intent_id()
+            .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
+        let payment_intent = state
+            .store
+            .find_payment_intent_by_payment_id_processor_merchant_id(
+                &payment_id,
+                platform.get_processor().get_account().get_id(),
+                platform.get_processor().get_key_store(),
+                platform.get_processor().get_account().storage_scheme,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+        let profile_id = payment_intent
             .profile_id
-            .clone()
-            .or(platform
-                .get_processor()
-                .get_account()
-                .get_default_profile()
-                .clone())
-            .get_required_value("profile_id")?;
+            .get_required_value("profile_id")
+            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+        let profile = state
+            .store
+            .find_business_profile_by_profile_id(
+                platform.get_processor().get_key_store(),
+                &profile_id,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
+                id: profile_id.get_string_repr().to_owned(),
+            })?;
+        let cvc_read_mode = crate::core::payment_methods::vault::CvcReadMode::for_profile(&profile);
+        let mut cvc_redis_references = Vec::new();
 
         let pmd = req
             .payment_method_data
@@ -2430,12 +2451,16 @@ impl PaymentConfirm {
         if let Some(token) = card_token_data.as_mut() {
             if let Some(card_cvc_token) = token.card_cvc_token.take() {
                 let resolved_cvc =
-                    crate::core::payment_methods::vault::retrieve_and_delete_cvc_from_payment_token(
+                    crate::core::payment_methods::vault::retrieve_cvc_from_payment_token(
                         state,
                         card_cvc_token.peek(),
                         platform.get_provider().get_key_store(),
+                        cvc_read_mode,
                     )
                     .await?;
+                if cvc_read_mode == crate::core::payment_methods::vault::CvcReadMode::ReadOnly {
+                    cvc_redis_references.push(card_cvc_token.expose());
+                }
                 token.card_cvc = Some(resolved_cvc);
             }
         }
@@ -2462,6 +2487,15 @@ impl PaymentConfirm {
         .await?;
         logger::info!("Payment method fetched from PM Modular Service.");
 
+        if cvc_read_mode == crate::core::payment_methods::vault::CvcReadMode::ReadOnly
+            && matches!(
+                &pm_info.raw_payment_method_data,
+                Some(domain::PaymentMethodData::Card(_))
+            )
+        {
+            cvc_redis_references.push(pm_info.payment_method.get_id().to_owned());
+        }
+
         utils::when(
             req.get_customer_id().is_some_and(|customer_id| {
                 pm_info.payment_method.customer_id.as_ref() != Some(customer_id)
@@ -2474,7 +2508,11 @@ impl PaymentConfirm {
             },
         )?;
 
-        Ok(pm_info)
+        let mut payment_method_fetch_data =
+            operations::PaymentMethodFetchData::from_modular(pm_info);
+        payment_method_fetch_data.cvc_redis_references = cvc_redis_references;
+
+        Ok(payment_method_fetch_data)
     }
 
     fn get_payment_method_reference(self, req: &api::PaymentsRequest) -> Option<&str> {

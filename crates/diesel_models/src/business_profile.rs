@@ -88,6 +88,7 @@ pub struct Profile {
     pub payment_method_blocking: Option<PaymentMethodBlockingConfig>,
     pub default_fallback_routing: Option<pii::SecretSerdeValue>,
     pub surcharge_connector_details: Option<SurchargeConnectorDetails>,
+    pub order_fulfillment_time: Option<i64>,
 }
 
 #[cfg(feature = "v1")]
@@ -155,6 +156,7 @@ pub struct ProfileNew {
     pub payment_method_blocking: Option<PaymentMethodBlockingConfig>,
     pub default_fallback_routing: Option<pii::SecretSerdeValue>,
     pub surcharge_connector_details: Option<SurchargeConnectorDetails>,
+    pub order_fulfillment_time: Option<i64>,
 }
 
 #[cfg(feature = "v1")]
@@ -224,6 +226,7 @@ pub struct ProfileUpdateInternal {
     pub payment_method_blocking: Option<PaymentMethodBlockingConfig>,
     pub default_fallback_routing: Option<pii::SecretSerdeValue>,
     pub surcharge_connector_details: Option<SurchargeConnectorDetails>,
+    pub order_fulfillment_time: Option<i64>,
 }
 
 /// Note: The order of fields in the struct is important.

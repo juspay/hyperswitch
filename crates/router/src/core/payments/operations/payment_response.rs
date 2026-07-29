@@ -3082,6 +3082,13 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
         .await;
     }
 
+    handle_cvc_lifecycle_after_authorization(
+        state,
+        payment_data.payment_attempt.status,
+        &payment_data.cvc_redis_references,
+    )
+    .await;
+
     match router_data.integrity_check {
         Ok(()) => Ok(payment_data),
         Err(err) => {
@@ -3116,6 +3123,41 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                 },
             ))
         }
+    }
+}
+
+#[cfg(feature = "v1")]
+async fn handle_cvc_lifecycle_after_authorization(
+    state: &SessionState,
+    attempt_status: enums::AttemptStatus,
+    cvc_redis_references: &[String],
+) {
+    if [
+        enums::AttemptStatus::Authorized,
+        enums::AttemptStatus::PartiallyAuthorized,
+        enums::AttemptStatus::Charged,
+        enums::AttemptStatus::PartialCharged,
+        enums::AttemptStatus::PartialChargedAndChargeable,
+    ]
+    .contains(&attempt_status)
+    {
+        for cvc_reference in cvc_redis_references {
+            payment_methods::vault::delete_cvc_from_payment_token(state, cvc_reference)
+                .await
+                .inspect_err(|error| {
+                    logger::error!(?error, "Failed to delete retained CVC after authorization");
+                })
+                .ok();
+        }
+    } else if [
+        enums::AttemptStatus::AuthenticationFailed,
+        enums::AttemptStatus::AuthorizationFailed,
+        enums::AttemptStatus::Failure,
+    ]
+    .contains(&attempt_status)
+        && !cvc_redis_references.is_empty()
+    {
+        metrics::CVC_RETAINED_AFTER_FAILURE.add(1, &[]);
     }
 }
 

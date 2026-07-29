@@ -2361,6 +2361,24 @@ pub struct TemporaryVaultCvc {
     card_cvc: hyperswitch_masking::Secret<String>,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum CvcReadMode {
+    ReadAndDelete,
+    ReadOnly,
+}
+
+impl CvcReadMode {
+    pub fn for_profile(profile: &domain::Profile) -> Self {
+        if profile.is_manual_retry_enabled == Some(true)
+            && profile.get_order_fulfillment_time().is_some()
+        {
+            Self::ReadOnly
+        } else {
+            Self::ReadAndDelete
+        }
+    }
+}
+
 #[cfg(feature = "v2")]
 #[instrument(skip_all)]
 pub async fn insert_cvc_using_payment_token(
@@ -2413,10 +2431,11 @@ pub async fn insert_cvc_using_payment_token(
 
 #[cfg(any(feature = "v1", feature = "v2"))]
 #[instrument(skip_all)]
-pub async fn retrieve_and_delete_cvc_from_payment_token(
+pub async fn retrieve_cvc_from_payment_token(
     state: &routes::SessionState,
     payment_method_id: &String,
     key_store: &domain::MerchantKeyStore,
+    read_mode: CvcReadMode,
 ) -> RouterResult<hyperswitch_masking::Secret<String>> {
     let redis_conn = state
         .store
@@ -2429,6 +2448,11 @@ pub async fn retrieve_and_delete_cvc_from_payment_token(
     let resp: Encryption = redis_conn
         .get_and_deserialize_key::<Encryption>(&key.clone().into(), "Vec<u8>")
         .await
+        .inspect_err(|_| {
+            if read_mode == CvcReadMode::ReadOnly {
+                metrics::MANUAL_RETRY_CVC_LOOKUP_MISS.add(1, &[]);
+            }
+        })
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
     let cvc_data: TemporaryVaultCvc = pm_cards::decrypt_generic_data(state, Some(resp), key_store)
@@ -2439,17 +2463,64 @@ pub async fn retrieve_and_delete_cvc_from_payment_token(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to get required decrypted volatile payment method vault data")?;
 
-    logger::info!(
-        "CVC retrieved successfully from redis for payment method id: {}",
-        payment_method_id
-    );
+    logger::info!("CVC retrieved successfully from redis");
 
-    // delete key after retrieving the cvc
-    let _ = redis_conn.delete_key(&key.into()).await.map_err(|err| {
-        logger::error!("Failed to delete token from redis: {:?}", err);
-    });
+    match read_mode {
+        CvcReadMode::ReadAndDelete => {
+            let _ = redis_conn.delete_key(&key.into()).await.map_err(|err| {
+                logger::error!("Failed to delete CVC from redis: {:?}", err);
+            });
+        }
+        CvcReadMode::ReadOnly => {
+            metrics::CVC_READ_ONLY_RETRIEVAL.add(1, &[]);
+        }
+    }
 
     Ok(cvc_data.card_cvc)
+}
+
+#[cfg(any(feature = "v1", feature = "v2"))]
+#[instrument(skip_all)]
+pub async fn retrieve_and_delete_cvc_from_payment_token(
+    state: &routes::SessionState,
+    payment_method_id: &String,
+    key_store: &domain::MerchantKeyStore,
+) -> RouterResult<hyperswitch_masking::Secret<String>> {
+    retrieve_cvc_from_payment_token(
+        state,
+        payment_method_id,
+        key_store,
+        CvcReadMode::ReadAndDelete,
+    )
+    .await
+}
+
+#[cfg(any(feature = "v1", feature = "v2"))]
+#[instrument(skip_all)]
+pub async fn delete_cvc_from_payment_token(
+    state: &routes::SessionState,
+    payment_method_id: &str,
+) -> RouterResult<()> {
+    let redis_conn = state
+        .store
+        .get_redis_conn()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to get redis connection")?;
+
+    let key = format!("pm_token_{payment_method_id}_hyperswitch_cvc");
+
+    redis_conn
+        .delete_key(&key.into())
+        .await
+        .map(|_| {
+            metrics::CVC_DELETED_AFTER_SUCCESS.add(1, &[]);
+        })
+        .inspect_err(|_| {
+            metrics::CVC_DELETION_FAILURE.add(1, &[]);
+        })
+        .map_err(Into::<errors::StorageError>::into)
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to delete CVC from redis")
 }
 
 #[cfg(feature = "v2")]
@@ -2513,6 +2584,7 @@ pub async fn retrieve_payment_method_data_from_storage(
     profile: &domain::Profile,
     pm: &domain::PaymentMethod,
     storage_type: enums::StorageType,
+    cvc_read_mode: Option<CvcReadMode>,
 ) -> RouterResult<pm_types::VaultRetrieveResponse> {
     let mut payment_method_data = match storage_type {
         enums::StorageType::Persistent => {
@@ -2531,21 +2603,21 @@ pub async fn retrieve_payment_method_data_from_storage(
         }
     };
 
-    let card_cvc = retrieve_and_delete_cvc_from_payment_token(
-        state,
-        &pm.id.get_string_repr().to_string(),
-        platform.get_provider().get_key_store(),
-    )
-    .await
-    .inspect_err(|err| {
-        logger::warn!(
-            "Failed to retrieve CVC for payment method {}",
-            pm.id.get_string_repr()
-        );
-    });
+    if let Some(read_mode) = cvc_read_mode {
+        let card_cvc = retrieve_cvc_from_payment_token(
+            state,
+            &pm.id.get_string_repr().to_string(),
+            platform.get_provider().get_key_store(),
+            read_mode,
+        )
+        .await
+        .inspect_err(|_| {
+            logger::warn!("Failed to retrieve CVC for payment method");
+        });
 
-    if let Ok(card_cvc) = card_cvc {
-        payment_method_data.data.set_card_cvc(card_cvc);
+        if let Ok(card_cvc) = card_cvc {
+            payment_method_data.data.set_card_cvc(card_cvc);
+        }
     }
 
     Ok(payment_method_data)
