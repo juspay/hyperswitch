@@ -4,6 +4,20 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.07.22.0-hotfix2
+
+### Bug Fixes
+
+- **payment_methods:** Prevent orphan payment_methods row on recurring/MIT charge via connector mandate ([#13482](https://github.com/juspay/hyperswitch/pull/13482)) ([`bb141a6`](https://github.com/juspay/hyperswitch/commit/bb141a63f63d8f2a4fac8d6b696410077808953b))
+
+### Refactors
+
+- **payment_methods:** Add async network tokenization process tracker job ([#13486](https://github.com/juspay/hyperswitch/pull/13486)) ([`d4d9fb3`](https://github.com/juspay/hyperswitch/commit/d4d9fb3666bc5162124170e7b7f877d2dd492fd7))
+
+**Full Changelog:** [`2026.07.22.0-hotfix1...2026.07.22.0-hotfix2`](https://github.com/juspay/hyperswitch/compare/2026.07.22.0-hotfix1...2026.07.22.0-hotfix2)
+
+- - -
+
 ## 2026.07.22.0-hotfix1
 
 ### Bug Fixes
