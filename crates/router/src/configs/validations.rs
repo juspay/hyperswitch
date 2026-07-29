@@ -375,8 +375,6 @@ impl super::settings::AccountUpdaterConfig {
     pub fn validate(&self) -> Result<(), ApplicationError> {
         use common_utils::fp_utils::when;
 
-        // UCS builds the provider endpoint by concatenation (`{base_url}cardAccountUpdater`), so a
-        // missing trailing slash silently produces a wrong host path rather than a failure.
         when(!self.base_url.path().ends_with('/'), || {
             Err(ApplicationError::InvalidConfigurationValueError(
                 "account_updater.base_url must end with a trailing slash".into(),

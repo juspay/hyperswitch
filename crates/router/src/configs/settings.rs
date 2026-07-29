@@ -386,9 +386,6 @@ pub struct OnSessionConfig {
         HashMap<enums::PaymentMethod, HashSet<enums::PaymentMethodType>>,
 }
 
-/// Credentials for the Account Updater flow, forwarded to UCS in the connector config header.
-/// Absent unless the deployment provisions it; validated at startup by
-/// `AccountUpdaterConfig::validate`, so the call path never re-checks individual fields.
 #[derive(Debug, Deserialize, Clone)]
 pub struct AccountUpdaterConfig {
     pub base_url: url::Url,

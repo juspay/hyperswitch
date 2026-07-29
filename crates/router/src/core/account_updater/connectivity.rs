@@ -7,22 +7,13 @@ use crate::{
 
 impl common_utils::events::ApiEventMetric for AccountUpdaterConnectivityResponse {}
 
-/// Result of the Account Updater configuration check.
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct AccountUpdaterConnectivityResponse {
-    /// Whether Account Updater is enabled and its credentials resolved for this context.
     pub enabled: bool,
-    /// Whether the credentials could be rendered into the connector config sent to UCS.
     pub connector_config_built: Option<bool>,
-    /// Human-readable outcome (disabled / config error / ready).
     pub detail: String,
 }
 
-/// Reports whether Account Updater would be called and whether its credentials resolve.
-///
-/// Hyperswitch does not call the provider directly — UCS owns the HTTP call and the encryption —
-/// so this deliberately makes no network call. Reachability is only meaningful once the `Refresh`
-/// RPC is wired, and is verified there.
 pub async fn check_account_updater_connectivity(
     state: SessionState,
 ) -> RouterResponse<AccountUpdaterConnectivityResponse> {

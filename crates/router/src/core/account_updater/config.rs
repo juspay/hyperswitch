@@ -5,11 +5,6 @@ use super::types::{
 };
 use crate::{core::configs::dimension_state, routes::SessionState};
 
-/// Resolves whether Account Updater may be called, together with the credentials to call it with.
-///
-/// Evaluates the master gate first and short-circuits without reading any credential, so a
-/// deployment that never seeds Superposition behaves exactly like "Account Updater off".
-/// `Some(_)` is returned only when a call is permitted, so callers never re-check enablement.
 pub async fn resolve_account_updater_config(
     state: &SessionState,
     dimensions: &dimension_state::DimensionsGlobal,
@@ -35,10 +30,6 @@ pub async fn resolve_account_updater_config(
     }
 }
 
-/// Reads the statically configured Account Updater credentials.
-///
-/// Field-level validation happens once at startup in `AccountUpdaterConfig::validate`, so a section
-/// that is present here is already complete.
 fn resolve_application_config(
     state: &SessionState,
 ) -> CustomResult<ResolvedAccountUpdaterConfig, AccountUpdaterError> {

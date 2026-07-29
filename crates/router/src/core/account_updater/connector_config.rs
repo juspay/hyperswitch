@@ -4,11 +4,6 @@ use hyperswitch_masking::Secret;
 
 use super::types::{AccountUpdaterError, ResolvedAccountUpdaterConfig};
 
-/// Account Updater credentials in the shape UCS deserializes them.
-///
-/// Two field names differ from ours: Hyperswitch has no Juspay connector, so `juspay_*` would be a
-/// misnomer here, while UCS names the fields after the provider. The renames are declared on the
-/// fields so a rename on either side breaks at the one place the mapping is written.
 #[derive(Debug, serde::Serialize)]
 struct JuspayConnectorConfig {
     api_key: Secret<String>,
@@ -26,12 +21,6 @@ enum AccountUpdaterConnectorConfig {
     Juspay(JuspayConnectorConfig),
 }
 
-/// Builds the `x-connector-config` header value carrying Account Updater credentials to UCS.
-///
-/// Mirrors the envelope `build_connector_config_header` produces for merchant-account-sourced
-/// connectors: `{"config": {"Juspay": { .. }}}`. Account Updater credentials are application-level
-/// rather than per-merchant, so they cannot go through that function, which derives the header
-/// from a `ConnectorAuthType`.
 pub fn build_account_updater_connector_config(
     config: &ResolvedAccountUpdaterConfig,
 ) -> CustomResult<Secret<String>, AccountUpdaterError> {
@@ -72,8 +61,6 @@ mod tests {
         }
     }
 
-    /// The two renamed fields are what UCS keys off; getting them wrong surfaces only as a
-    /// `MissingRequiredField` from the provider at runtime.
     #[test]
     fn serializes_key_fields_under_the_names_ucs_expects() {
         let header = build_account_updater_connector_config(&resolved_config()).unwrap();
