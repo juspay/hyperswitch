@@ -332,12 +332,12 @@ where
             // need not be a mutable variable.
             let (pm_id, payment_method_pending_network_tokenization) = if let Some(existing_pm) =
                 payment_method_info.clone().filter(|_| {
-                matches!(
-                    save_payment_method_data.request.get_payment_method_data(),
-                    domain::PaymentMethodData::MandatePayment
-                        | domain::PaymentMethodData::CardToken(_)
-                )
-            }) {
+                    matches!(
+                        save_payment_method_data.request.get_payment_method_data(),
+                        domain::PaymentMethodData::MandatePayment
+                            | domain::PaymentMethodData::CardToken(_)
+                    )
+                }) {
                 // Recharge of an already-saved payment method where the request
                 // carries no fresh raw card data — either a recurring/MIT charge via
                 // an established connector mandate (PaymentMethodData::MandatePayment)

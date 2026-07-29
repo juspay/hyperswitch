@@ -1,16 +1,16 @@
 use common_utils::ext_traits::ValueExt;
-use scheduler::workflows::ProcessTrackerWorkflow;
-use scheduler::{consumer::types::process_data, utils as pt_utils};
+use scheduler::{
+    consumer::types::process_data, utils as pt_utils, workflows::ProcessTrackerWorkflow,
+};
 
 #[cfg(feature = "v2")]
 use crate::core::payment_methods;
 #[cfg(feature = "v1")]
 use crate::core::payments::tokenization;
-use crate::types::storage::NetworkTokenizationTrackingData;
 use crate::{
     errors, logger,
     routes::SessionState,
-    types::{domain, storage},
+    types::{domain, storage, storage::NetworkTokenizationTrackingData},
 };
 
 const NETWORK_TOKENIZATION_DISABLED_STATUS: &str = "SKIPPED_NT_DISABLED";
@@ -128,7 +128,9 @@ impl ProcessTrackerWorkflow<SessionState> for NetworkTokenizationWorkflow {
                             )
                         };
                         match pt_utils::get_time_from_delta(time_delta) {
-                            Some(s_time) => db.as_scheduler().retry_process(process, s_time).await?,
+                            Some(s_time) => {
+                                db.as_scheduler().retry_process(process, s_time).await?
+                            }
                             None => {
                                 db.as_scheduler()
                                     .finish_process_with_business_status(
@@ -252,7 +254,9 @@ impl ProcessTrackerWorkflow<SessionState> for NetworkTokenizationWorkflow {
                             )
                         };
                         match pt_utils::get_time_from_delta(time_delta) {
-                            Some(s_time) => db.as_scheduler().retry_process(process, s_time).await?,
+                            Some(s_time) => {
+                                db.as_scheduler().retry_process(process, s_time).await?
+                            }
                             None => {
                                 db.as_scheduler()
                                     .finish_process_with_business_status(

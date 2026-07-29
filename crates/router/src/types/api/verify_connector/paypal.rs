@@ -30,8 +30,8 @@ impl VerifyConnector for connector::Paypal {
 
         let response =
             services::call_connector_api(&state.to_owned(), request, "get_access_token", None)
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
         match response {
             Ok(res) => Some(
