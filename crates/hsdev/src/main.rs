@@ -80,7 +80,7 @@ pub fn get_toml_table<'a>(table_name: &'a str, toml_data: &'a Value) -> &'a Valu
         match toml_data.get(table_name) {
             Some(value) => value,
             None => {
-                eprintln!("Unable to find toml table: \"{}\"", &table_name);
+                eprintln!("Unable to find toml table: \"{table_name}\"");
                 std::process::abort()
             }
         }

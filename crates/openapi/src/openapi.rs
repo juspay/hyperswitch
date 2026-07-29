@@ -384,12 +384,20 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::admin::PaymentMethodBlockingConfig,
         api_models::admin::CardBlockingConfig,
         api_models::admin::WalletBlockingConfig,
+        api_models::enums::CardSegmentType,
+        api_models::enums::FundingSource,
         api_models::admin::SurchargeConnectorDetails,
         api_models::merchant_connector_webhook_management::ConnectorWebhookRegisterRequest,
         api_models::merchant_connector_webhook_management::WebhookSecretErrorDetails,
         api_models::merchant_connector_webhook_management::RegisterConnectorWebhookResponse,
         api_models::merchant_connector_webhook_management::ConnectorWebhookResponse,
         api_models::merchant_connector_webhook_management::ConnectorWebhookListResponse,
+        api_models::merchant_connector_webhook_management::Scope,
+        api_models::merchant_connector_webhook_management::ScopeIdentifier,
+        api_models::merchant_connector_webhook_management::ScopeType,
+        api_models::merchant_connector_webhook_management::WebhookRegistrationResult,
+        api_models::merchant_connector_webhook_management::WebhookRegistrationError,
+        api_models::merchant_connector_webhook_management::ConnectorWebhookScope,
         api_models::customers::CustomerRequest,
         api_models::customers::CustomerUpdateRequest,
         api_models::customers::CustomerDeleteResponse,
@@ -516,7 +524,6 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::admin::MerchantConnectorWebhookDetails,
         api_models::admin::ProfileCreate,
         api_models::admin::ProfileResponse,
-        api_models::enums::CardSubtype,
         api_models::admin::BusinessPaymentLinkConfig,
         api_models::admin::PaymentLinkBackgroundImageConfig,
         api_models::admin::PaymentLinkConfigRequest,
@@ -628,6 +635,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::MandateType,
         api_models::payments::MandateAmountData,
         api_models::payments::Card,
+        api_models::payments::CardWithNoCVC,
         api_models::payments::CardRedirectData,
         api_models::payments::CardToken,
         api_models::payments::VaultCardToken,
@@ -710,6 +718,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::ApplepaySessionTokenResponse,
         api_models::payments::SdkNextAction,
         api_models::payments::NextActionCall,
+        api_models::enums::BlockReasonCode,
         api_models::payments::SdkNextActionData,
         api_models::payments::SamsungPayWalletData,
         api_models::payments::WeChatPay,
@@ -851,6 +860,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::NetworkTokenResponse,
         api_models::payments::Address,
         api_models::payments::BankCodeResponse,
+        common_types::payouts::PayoutsBillingDescriptor,
         api_models::payouts::CardPayout,
         api_models::payouts::Wallet,
         api_models::payouts::Paypal,
@@ -1176,6 +1186,8 @@ Never share your secret api keys. Keep them guarded and secure.
 #[allow(dead_code)]
 pub(crate) struct ApiDoc;
 
+// Bypass clippy lint for not being constructed
+#[allow(dead_code)]
 struct SecurityAddon;
 
 impl utoipa::Modify for SecurityAddon {

@@ -12,6 +12,7 @@ use hyperswitch_interfaces::{
     api::gateway as payment_gateway,
     connector_integration_interface::{BoxedConnectorIntegrationInterface, RouterDataConversion},
     errors::ConnectorError,
+    unified_connector_service::transformers::UnifiedConnectorServiceError,
 };
 use unified_connector_service_client::payments as payments_grpc;
 
@@ -165,7 +166,7 @@ where
             header_payload,
             unified_connector_service_execution_mode,
             |mut router_data, create_access_token_request, grpc_headers| async move {
-                let response = client
+                let response = match client
                     .create_access_token(
                         create_access_token_request,
                         connector_auth_metadata,
@@ -173,7 +174,30 @@ where
                         connector_type,
                     )
                     .await
-                    .attach_printable("Failed to create access token")?;
+                {
+                    Ok(response) => response,
+                    Err(report) => {
+                        if let UnifiedConnectorServiceError::ConnectorError(inner) =
+                            report.current_context()
+                        {
+                            logger::debug!(
+                                "Connector error via UCS for access token (connector {}, status {}): {} - {}",
+                                inner.connector,
+                                inner.status_code,
+                                inner.code,
+                                inner.message
+                            );
+                            router_data.response = Err(inner.as_ref().into());
+                            router_data.connector_http_status_code = Some(inner.status_code);
+                            return Ok((
+                                router_data,
+                                (),
+                                payments_grpc::MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse::default(),
+                            ));
+                        }
+                        return Err(report.attach_printable("Failed to create access token"));
+                    }
+                };
 
                 let create_access_token_response = response.into_inner();
 
@@ -202,7 +226,7 @@ where
         ))
         .await
         .map(|(router_data, _)| router_data)
-        .change_context(ConnectorError::ResponseHandlingFailed)
+        .map_err(super::convert_ucs_error_to_connector_error)
     }
 }
 

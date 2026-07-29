@@ -34,12 +34,11 @@ use crate::types::transformers::ForeignFrom;
 use crate::{
     consts,
     core::{
-        configs::dimension_state,
         connector_validation::ConnectorAuthTypeAndMetadataValidation,
         disputes,
         encryption::transfer_encryption_key,
         errors::{self, RouterResponse, RouterResult, StorageErrorExt},
-        payment_methods::{cards, transformers},
+        payment_methods::{cards, transformers, vault},
         payments::helpers::{self},
         pm_auth::helpers::PaymentAuthConnectorDataExt,
         routing, utils as core_utils,
@@ -65,28 +64,24 @@ use crate::{
     utils,
 };
 
+// deja: the publishable key embeds a random UUIDv4 and is persisted on the
+// merchant row + returned in the response, so it must replay to the recorded
+// string for byte-exact self-replay.
 #[inline]
+#[cfg_attr(
+    feature = "deja",
+    deja::id(
+        component = "router::admin",
+        operation = "create_merchant_publishable_key",
+        codec = SerdeCodec,
+    )
+)]
 pub fn create_merchant_publishable_key() -> String {
     format!(
         "pk_{}_{}",
         router_env::env::prefix_for_env(),
         Uuid::new_v4().simple()
     )
-}
-
-/// Insert merchant configs using Superposition for fingerprint_secret
-pub async fn insert_merchant_configs_with_superposition(
-    state: &SessionState,
-    dimensions: &dimension_state::DimensionsWithProcessorMerchantId,
-) -> RouterResult<()> {
-    let fingerprint_secret = utils::generate_id(consts::FINGERPRINT_SECRET_LENGTH, "fs");
-
-    dimensions
-        .set_fingerprint_secret(state.superposition_service.as_ref(), &fingerprint_secret)
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to create fingerprint_secret in Superposition")?;
-    Ok(())
 }
 
 #[cfg(feature = "olap")]
@@ -329,6 +324,14 @@ pub async fn create_merchant_account(
 
     let key_manager_state: &KeyManagerState = &(&state).into();
     let merchant_id = req.get_merchant_reference_id();
+
+    if state.conf.locker.locker_enabled && state.conf.locker.create_entity_on_merchant_create {
+        vault::create_entity_in_locker(&state, &merchant_id)
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to create entity in locker for merchant")?;
+    }
+
     let identifier = km_types::Identifier::Merchant(merchant_id.clone());
     keymanager::transfer_key_to_key_manager(
         key_manager_state,
@@ -397,16 +400,7 @@ pub async fn create_merchant_account(
         None,
     );
 
-    let dimensions = dimension_state::Dimensions::new()
-        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id());
-
     add_publishable_key_to_decision_service(&state, &platform);
-
-    Box::pin(insert_merchant_configs_with_superposition(
-        &state,
-        &dimensions,
-    ))
-    .await?;
 
     Ok(service_api::ApplicationResponse::Json(
         api::MerchantAccountResponse::foreign_try_from(merchant_account)
@@ -645,6 +639,10 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
                     product_type: self.product_type,
                     merchant_account_type,
                     network_tokenization_credentials,
+                    fingerprint_secret: Some(Secret::new(utils::generate_id(
+                        consts::FINGERPRINT_SECRET_LENGTH,
+                        "fs",
+                    ))),
                 },
             )
         }
@@ -653,9 +651,14 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
 
         let mut domain_merchant_account = domain::MerchantAccount::from(merchant_account);
 
-        CreateProfile::new(self.primary_business_details.clone())
-            .create_profiles(state, &mut domain_merchant_account, &key_store)
-            .await?;
+        Box::pin(
+            CreateProfile::new(self.primary_business_details.clone()).create_profiles(
+                state,
+                &mut domain_merchant_account,
+                &key_store,
+            ),
+        )
+        .await?;
 
         Ok(domain_merchant_account)
     }
@@ -776,12 +779,12 @@ impl CreateProfile {
             Self::CreateFromPrimaryBusinessDetails {
                 primary_business_details,
             } => {
-                let business_profiles = Self::create_profiles_for_each_business_details(
+                let business_profiles = Box::pin(Self::create_profiles_for_each_business_details(
                     state,
                     merchant_account.clone(),
                     primary_business_details,
                     key_store,
-                )
+                ))
                 .await?;
 
                 // Update the default business profile in merchant account
@@ -792,9 +795,12 @@ impl CreateProfile {
                 }
             }
             Self::CreateDefaultProfile => {
-                let business_profile = self
-                    .create_default_business_profile(state, merchant_account.clone(), key_store)
-                    .await?;
+                let business_profile = Box::pin(self.create_default_business_profile(
+                    state,
+                    merchant_account.clone(),
+                    key_store,
+                ))
+                .await?;
 
                 merchant_account.default_profile = Some(business_profile.get_id().to_owned());
             }
@@ -941,6 +947,10 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
                     version: common_types::consts::API_VERSION,
                     product_type: self.product_type,
                     merchant_account_type,
+                    fingerprint_secret: Some(Secret::new(utils::generate_id(
+                        consts::FINGERPRINT_SECRET_LENGTH,
+                        "fs",
+                    ))),
                 }),
             )
         }
@@ -1188,13 +1198,13 @@ impl MerchantAccountUpdateBridge for api::MerchantAccountUpdate {
         self.primary_business_details
             .clone()
             .async_map(|primary_business_details| async {
-                let _ = create_profile_from_business_labels(
+                let _ = Box::pin(create_profile_from_business_labels(
                     state,
                     db,
                     key_store,
                     merchant_id,
                     primary_business_details,
-                )
+                ))
                 .await;
             })
             .await;

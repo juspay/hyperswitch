@@ -15,6 +15,7 @@ pub(crate) enum RedisOperation {
     SetKey,
     SetKeyWithoutModifyingTtl,
     SetKeyWithExpiry,
+    #[cfg(not(feature = "deja"))]
     SerializeAndSetKeyWithExpiry,
     SetMultipleKeysIfNotExist,
     SetKeyIfNotExistsWithExpiry,
@@ -32,6 +33,7 @@ pub(crate) enum RedisOperation {
     GetHashField,
     GetHashFields,
     Hscan,
+    DeleteHashFields,
     Scan,
     Sadd,
     StreamAppendEntry,

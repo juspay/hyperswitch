@@ -275,6 +275,8 @@ pub enum Flow {
     RoutingUnlinkConfig,
     /// Routing retrieve config
     RoutingRetrieveConfig,
+    /// Decision engine merchant SSO redirect
+    DecisionEngineSsoRedirect,
     /// Routing retrieve active config
     RoutingRetrieveActiveConfig,
     /// Routing retrieve default config
