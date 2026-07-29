@@ -9286,12 +9286,8 @@ where
                 .get_mandate_id()
                 .as_ref()
                 .and_then(|inner| inner.mandate_reference_id.as_ref())
-                .is_some_and(|mandate_reference| {
-                    matches!(
-                        mandate_reference,
-                        mandates::MandateReferenceId::NetworkMandateId(_)
-                    )
-                });
+                .map(|mandate_reference| mandate_reference.is_network_mandate_id())
+                .unwrap_or(false);
 
             let payment_method_action = decide_payment_method_tokenize_action(
                 state,
