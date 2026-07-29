@@ -381,17 +381,21 @@ impl super::settings::AccountUpdaterConfig {
             ))
         })?;
 
-        let secrets = [
-            ("api_key", self.api_key.peek()),
+        let required = [
+            ("api_key", self.api_key.peek().as_str()),
+            ("merchant_id", self.merchant_id.as_str()),
             (
                 "euler_encryption_public_key",
-                self.euler_encryption_public_key.peek(),
+                self.euler_encryption_public_key.as_str(),
             ),
-            ("au_decryption_pvt_key", self.au_decryption_pvt_key.peek()),
-            ("card_sync_key_id", self.card_sync_key_id.peek()),
+            (
+                "au_decryption_pvt_key",
+                self.au_decryption_pvt_key.peek().as_str(),
+            ),
+            ("card_sync_key_id", self.card_sync_key_id.as_str()),
         ];
 
-        for (field, value) in secrets {
+        for (field, value) in required {
             when(value.trim().is_empty(), || {
                 Err(ApplicationError::InvalidConfigurationValueError(format!(
                     "account_updater.{field} must not be empty"
@@ -399,10 +403,6 @@ impl super::settings::AccountUpdaterConfig {
             })?;
         }
 
-        when(self.merchant_id.trim().is_empty(), || {
-            Err(ApplicationError::InvalidConfigurationValueError(
-                "account_updater.merchant_id must not be empty".into(),
-            ))
-        })
+        Ok(())
     }
 }

@@ -203,7 +203,7 @@ pub struct Settings<S: SecretState> {
     pub comparison_service: Option<ComparisonServiceConfig>,
     pub authentication_service_enabled_connectors: AuthenticationServiceEnabledConnectors,
     pub save_payment_method_on_session: OnSessionConfig,
-    pub account_updater: Option<AccountUpdaterConfig>,
+    pub account_updater: Option<SecretStateContainer<AccountUpdaterConfig, S>>,
 }
 
 #[cfg(feature = "deja")]
@@ -392,9 +392,9 @@ pub struct AccountUpdaterConfig {
     pub base_url: url::Url,
     pub api_key: Secret<String>,
     pub merchant_id: String,
-    pub euler_encryption_public_key: Secret<String>,
+    pub euler_encryption_public_key: String,
     pub au_decryption_pvt_key: Secret<String>,
-    pub card_sync_key_id: Secret<String>,
+    pub card_sync_key_id: String,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -1498,7 +1498,7 @@ impl Settings<SecuredSecret> {
 
         self.account_updater
             .as_ref()
-            .map(|account_updater| account_updater.validate())
+            .map(|account_updater| account_updater.get_inner().validate())
             .transpose()?;
 
         self.paze_decrypt_keys

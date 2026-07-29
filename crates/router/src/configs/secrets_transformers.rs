@@ -412,6 +412,26 @@ impl SecretsHandler for settings::OidcSettings {
     }
 }
 
+#[async_trait::async_trait]
+impl SecretsHandler for settings::AccountUpdaterConfig {
+    async fn convert_to_raw_secret(
+        value: SecretStateContainer<Self, SecuredSecret>,
+        secret_management_client: &dyn SecretManagementInterface,
+    ) -> CustomResult<SecretStateContainer<Self, RawSecret>, SecretsManagementError> {
+        let account_updater = value.get_inner();
+        let (api_key, au_decryption_pvt_key) = tokio::try_join!(
+            secret_management_client.get_secret(account_updater.api_key.clone()),
+            secret_management_client.get_secret(account_updater.au_decryption_pvt_key.clone()),
+        )?;
+
+        Ok(value.transition_state(|account_updater| Self {
+            api_key,
+            au_decryption_pvt_key,
+            ..account_updater
+        }))
+    }
+}
+
 /// # Panics
 ///
 /// Will panic even if kms decryption fails for at least one field
@@ -580,6 +600,20 @@ pub(crate) async fn fetch_raw_secrets(
         .await
         .expect("Failed to decrypt oidc configs");
 
+    #[allow(clippy::expect_used)]
+    let account_updater = if let Some(account_updater) = conf.account_updater {
+        Some(
+            settings::AccountUpdaterConfig::convert_to_raw_secret(
+                account_updater,
+                secret_management_client,
+            )
+            .await
+            .expect("Failed to decrypt account updater configuration"),
+        )
+    } else {
+        None
+    };
+
     Settings {
         server: conf.server,
         application_source: conf.application_source,
@@ -703,6 +737,6 @@ pub(crate) async fn fetch_raw_secrets(
         comparison_service: conf.comparison_service,
         authentication_service_enabled_connectors: conf.authentication_service_enabled_connectors,
         save_payment_method_on_session: conf.save_payment_method_on_session,
-        account_updater: conf.account_updater,
+        account_updater,
     }
 }

@@ -67,8 +67,8 @@ use super::verification::{apple_pay_merchant_registration, retrieve_apple_pay_ve
 #[cfg(feature = "oltp")]
 use super::webhooks::*;
 use super::{
-    account_updater, admin, api_keys, cache::*, card_issuer, chat, connector_onboarding, disputes,
-    files, gsm, health::*, offer_engine, oidc, profiles, relay, user, user_role,
+    admin, api_keys, cache::*, card_issuer, chat, connector_onboarding, disputes, files, gsm,
+    health::*, offer_engine, oidc, profiles, relay, user, user_role,
 };
 #[cfg(feature = "v1")]
 use super::{
@@ -742,19 +742,6 @@ impl OfferEngine {
             .service(
                 web::resource("/connectivity")
                     .route(web::post().to(offer_engine::offer_engine_connectivity_check)),
-            )
-    }
-}
-
-pub struct AccountUpdater;
-
-impl AccountUpdater {
-    pub fn server(state: AppState) -> Scope {
-        web::scope("/account_updater")
-            .app_data(web::Data::new(state))
-            .service(
-                web::resource("/connectivity")
-                    .route(web::post().to(account_updater::account_updater_connectivity_check)),
             )
     }
 }

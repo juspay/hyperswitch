@@ -356,7 +356,6 @@ pub fn mk_app(
         server_app = server_app.service(routes::Proxy::server(state.clone()));
     }
 
-    server_app = server_app.service(routes::AccountUpdater::server(state.clone()));
     server_app = server_app.service(routes::Cache::server(state.clone()));
     server_app = server_app.service(routes::Health::server(state.clone()));
     server_app = server_app.service(routes::OfferEngine::server(state.clone()));
