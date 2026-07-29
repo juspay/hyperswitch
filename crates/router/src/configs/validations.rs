@@ -386,7 +386,7 @@ impl super::settings::AccountUpdaterConfig {
             ("merchant_id", self.merchant_id.as_str()),
             (
                 "euler_encryption_public_key",
-                self.euler_encryption_public_key.as_str(),
+                self.euler_encryption_public_key.peek().as_str(),
             ),
             (
                 "au_decryption_pvt_key",

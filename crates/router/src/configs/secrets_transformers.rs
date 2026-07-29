@@ -419,13 +419,16 @@ impl SecretsHandler for settings::AccountUpdaterConfig {
         secret_management_client: &dyn SecretManagementInterface,
     ) -> CustomResult<SecretStateContainer<Self, RawSecret>, SecretsManagementError> {
         let account_updater = value.get_inner();
-        let (api_key, au_decryption_pvt_key) = tokio::try_join!(
+        let (api_key, euler_encryption_public_key, au_decryption_pvt_key) = tokio::try_join!(
             secret_management_client.get_secret(account_updater.api_key.clone()),
+            secret_management_client
+                .get_secret(account_updater.euler_encryption_public_key.clone()),
             secret_management_client.get_secret(account_updater.au_decryption_pvt_key.clone()),
         )?;
 
         Ok(value.transition_state(|account_updater| Self {
             api_key,
+            euler_encryption_public_key,
             au_decryption_pvt_key,
             ..account_updater
         }))

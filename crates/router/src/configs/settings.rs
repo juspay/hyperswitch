@@ -392,7 +392,7 @@ pub struct AccountUpdaterConfig {
     pub base_url: url::Url,
     pub api_key: Secret<String>,
     pub merchant_id: String,
-    pub euler_encryption_public_key: String,
+    pub euler_encryption_public_key: Secret<String>,
     pub au_decryption_pvt_key: Secret<String>,
     pub card_sync_key_id: String,
 }
