@@ -34,7 +34,6 @@ pub struct ApiEvent {
     status_code: i64,
     #[serde(flatten)]
     auth_type: AuthenticationType,
-    #[serde(rename = "user_id")]
     auth_user_id: Option<String>,
     request: String,
     user_agent: Option<String>,
