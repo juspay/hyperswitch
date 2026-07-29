@@ -56,6 +56,8 @@ pub enum Flow {
     HealthCheck,
     /// Deep health Check
     DeepHealthCheck,
+    /// Offer Engine connectivity check (dev/admin only)
+    OfferEngineConnectivityCheck,
     /// OIDC Discovery endpoint
     OidcDiscovery,
     /// OIDC JWKS endpoint
@@ -275,6 +277,8 @@ pub enum Flow {
     RoutingUnlinkConfig,
     /// Routing retrieve config
     RoutingRetrieveConfig,
+    /// Decision engine merchant SSO redirect
+    DecisionEngineSsoRedirect,
     /// Routing retrieve active config
     RoutingRetrieveActiveConfig,
     /// Routing retrieve default config
