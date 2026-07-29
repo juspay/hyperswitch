@@ -662,7 +662,7 @@ pub enum MandateReferenceId {
 
 impl MandateReferenceId {
     pub fn is_network_mandate_id(&self) -> bool {
-        matches!(self, MandateReferenceId::NetworkMandateId(_))
+        matches!(self, Self::NetworkMandateId(_))
     }
 }
 
