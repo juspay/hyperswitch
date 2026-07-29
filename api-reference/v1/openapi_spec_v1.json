@@ -14668,6 +14668,24 @@
           }
         }
       },
+      "BlockReasonCode": {
+        "type": "string",
+        "description": "A stable, machine-readable identifier for the reason a payment was blocked.",
+        "enum": [
+          "blocked_bin",
+          "blocked_card_info_unavailable",
+          "blocked_card_type",
+          "blocked_card_network",
+          "blocked_funding_source",
+          "blocked_card_subtype",
+          "blocked_card_segment_type",
+          "blocked_virtual_card",
+          "blocked_non_reloadable_prepaid_card",
+          "blocked_gambling_card",
+          "blocked_issuer_country",
+          "blocked_issuer"
+        ]
+      },
       "BlocklistDataKind": {
         "type": "string",
         "enum": [
@@ -26971,6 +26989,14 @@
                 "properties": {
                   "message": {
                     "type": "string"
+                  },
+                  "code": {
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/BlockReasonCode"
+                      }
+                    ],
+                    "nullable": true
                   }
                 }
               }

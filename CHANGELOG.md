@@ -4,6 +4,32 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.07.29.0
+
+### Features
+
+- **blocklist:** Extend card-bin blocking with more attributes and surface deny code ([#13474](https://github.com/juspay/hyperswitch/pull/13474)) ([`ef23a45`](https://github.com/juspay/hyperswitch/commit/ef23a45733f52241732b51430155da7ad803eb3a))
+- **card:** Extend card-bin-blocking config with networks, funding, segment types, and per-wallet rules ([#13437](https://github.com/juspay/hyperswitch/pull/13437)) ([`62901af`](https://github.com/juspay/hyperswitch/commit/62901afa31718c2eecab39977abd7c58ea077987))
+- **connector:** [Datatrans] Add WASM changes for ApplePay and GooglePay ([#13456](https://github.com/juspay/hyperswitch/pull/13456)) ([`b1fc9c6`](https://github.com/juspay/hyperswitch/commit/b1fc9c69135f040c059450c7b65cecc0abc5f782))
+- **routing:** Add metrics for decision engine HTTP requests ([#13457](https://github.com/juspay/hyperswitch/pull/13457)) ([`13363d3`](https://github.com/juspay/hyperswitch/commit/13363d3ddede560cbc327e0c67de65f1f7210d35))
+- **stripe:** Googlepay decrypted FPAN token + 3ds ([#13445](https://github.com/juspay/hyperswitch/pull/13445)) ([`e87eaa6`](https://github.com/juspay/hyperswitch/commit/e87eaa6aee429f89b642480261f3f1e0b18946ae))
+- **superposition:** Added superposition seed.json file as backup for superposition service failure or local seeding ([#13333](https://github.com/juspay/hyperswitch/pull/13333)) ([`75adb88`](https://github.com/juspay/hyperswitch/commit/75adb8890ea990a9a12412eca995b32342fe8cfe))
+- **user:** Copy wallet, FRM and additional merchant data while cloning a connector ([#13443](https://github.com/juspay/hyperswitch/pull/13443)) ([`9663171`](https://github.com/juspay/hyperswitch/commit/9663171d2c4d6a2da0b2b4adc1830b4180729056))
+
+### Bug Fixes
+
+- **api_models:** Serialize CardType enum values as uppercase via strum ([#13448](https://github.com/juspay/hyperswitch/pull/13448)) ([`351bcc3`](https://github.com/juspay/hyperswitch/commit/351bcc3c526b658f656741b66ce9e3a8a3e424a4))
+- **cypress:** Correct expected status for EURNo3DSAutoCapture adyen ([#13473](https://github.com/juspay/hyperswitch/pull/13473)) ([`4404e6c`](https://github.com/juspay/hyperswitch/commit/4404e6c2aaaa9cfe469b3105d3e4cc99f19f3319))
+- **ucs:** Read connector_reference_id instead of merchant_transaction_id ([#13383](https://github.com/juspay/hyperswitch/pull/13383)) ([`1405135`](https://github.com/juspay/hyperswitch/commit/1405135486242d65f49e364c729da121e14e4b35))
+
+### Documentation
+
+- Add api-refs for decision engine with multi-objective routing ([#13425](https://github.com/juspay/hyperswitch/pull/13425)) ([`34e71c3`](https://github.com/juspay/hyperswitch/commit/34e71c3e43916732742711783b6fd677dbc87120))
+
+**Full Changelog:** [`2026.07.28.0...2026.07.29.0`](https://github.com/juspay/hyperswitch/compare/2026.07.28.0...2026.07.29.0)
+
+- - -
+
 ## 2026.07.28.0
 
 ### Features

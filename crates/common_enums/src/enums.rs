@@ -680,25 +680,77 @@ pub enum BlocklistDataKind {
     ExtendedCardBin,
 }
 
-/// Reasons for blocking a payment method.
-#[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema)]
-#[serde(rename_all = "snake_case")]
+#[derive(Debug)]
 pub enum BlockReason {
     BlockedBin,
+    BlockedCardInfoUnavailable,
     BlockedCardType(CardType),
+    BlockedCardNetwork,
+    BlockedFundingSource,
     BlockedCardSubtype,
+    BlockedCardSegmentType,
+    BlockedVirtualCard,
+    BlockedNonReloadablePrepaidCard,
+    BlockedGamblingCard,
     BlockedIssuerCountry,
     BlockedIssuer,
+}
+
+/// A stable, machine-readable identifier for the reason a payment was blocked.
+#[derive(
+    Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, SmithyModel, ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub enum BlockReasonCode {
+    BlockedBin,
+    BlockedCardInfoUnavailable,
+    BlockedCardType,
+    BlockedCardNetwork,
+    BlockedFundingSource,
+    BlockedCardSubtype,
+    BlockedCardSegmentType,
+    BlockedVirtualCard,
+    BlockedNonReloadablePrepaidCard,
+    BlockedGamblingCard,
+    BlockedIssuerCountry,
+    BlockedIssuer,
+}
+
+impl From<BlockReason> for BlockReasonCode {
+    fn from(block_reason: BlockReason) -> Self {
+        match block_reason {
+            BlockReason::BlockedBin => Self::BlockedBin,
+            BlockReason::BlockedCardInfoUnavailable => Self::BlockedCardInfoUnavailable,
+            BlockReason::BlockedCardType(_) => Self::BlockedCardType,
+            BlockReason::BlockedCardNetwork => Self::BlockedCardNetwork,
+            BlockReason::BlockedFundingSource => Self::BlockedFundingSource,
+            BlockReason::BlockedCardSubtype => Self::BlockedCardSubtype,
+            BlockReason::BlockedCardSegmentType => Self::BlockedCardSegmentType,
+            BlockReason::BlockedVirtualCard => Self::BlockedVirtualCard,
+            BlockReason::BlockedNonReloadablePrepaidCard => Self::BlockedNonReloadablePrepaidCard,
+            BlockReason::BlockedGamblingCard => Self::BlockedGamblingCard,
+            BlockReason::BlockedIssuerCountry => Self::BlockedIssuerCountry,
+            BlockReason::BlockedIssuer => Self::BlockedIssuer,
+        }
+    }
 }
 
 impl BlockReason {
     pub fn error_message(&self) -> String {
         match self {
             Self::BlockedBin => "We're unable to accept this card, please try another card or a different payment method".to_string(),
+            Self::BlockedCardInfoUnavailable => "We couldn't verify this card's information, please try a different card".to_string(),
             Self::BlockedCardType(card_type) => {
                 format!("{} cards are not accepted for this transaction, please try a different card", card_type.title_case())
             }
+            Self::BlockedCardNetwork => "This card network is not accepted for this transaction, please try a different card".to_string(),
+            Self::BlockedFundingSource => "This card funding source is not accepted for this transaction, please try a different card".to_string(),
             Self::BlockedCardSubtype => "This card is not accepted for this transaction, please try a different card".to_string(),
+            Self::BlockedCardSegmentType => "This card segment is not accepted for this transaction, please try a different card".to_string(),
+            Self::BlockedVirtualCard => "Virtual cards are not accepted for this transaction, please try a different card".to_string(),
+            Self::BlockedNonReloadablePrepaidCard => "Non-reloadable prepaid cards are not accepted for this transaction, please try a different card".to_string(),
+            Self::BlockedGamblingCard => "Cards associated with gambling are not accepted for this transaction, please try a different card".to_string(),
             Self::BlockedIssuerCountry => "Cards issued in your region aren't supported for this transaction, please try a different card".to_string(),
             Self::BlockedIssuer => "We can't process payments from this bank, please try another card or a different payment method".to_string(),
         }
