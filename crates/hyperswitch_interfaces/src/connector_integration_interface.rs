@@ -1,6 +1,6 @@
 use api_models::{
     merchant_connector_webhook_management::{Scope, ScopeIdentifier},
-    webhooks::ObjectReferenceId,
+    webhooks::{IncomingWebhookEvent, ObjectReferenceId},
 };
 use common_enums::PaymentAction;
 use common_utils::{crypto, errors::CustomResult, request::Request};
@@ -334,7 +334,7 @@ impl IncomingWebhook for ConnectorEnum {
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
         snapshot: Option<&WebhookContext>,
-    ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
+    ) -> CustomResult<IncomingWebhookEvent, errors::ConnectorError> {
         match self {
             Self::Old(connector) => connector.get_webhook_event_type(request, snapshot),
             Self::New(connector) => connector.get_webhook_event_type(request, snapshot),

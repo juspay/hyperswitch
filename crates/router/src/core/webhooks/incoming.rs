@@ -2136,8 +2136,6 @@ async fn mandates_incoming_webhook_flow(
 ) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
     if source_verified {
         let db = &*state.store;
-        let merchant_id = platform.get_processor().get_account().get_id();
-        let storage_scheme = platform.get_processor().get_account().storage_scheme;
 
         match webhook_details.object_reference_id {
             webhooks::ObjectReferenceId::MandateId(webhooks::MandateIdType::MandateId(
@@ -2145,9 +2143,9 @@ async fn mandates_incoming_webhook_flow(
             )) => {
                 let mandate = db
                     .find_mandate_by_merchant_id_mandate_id(
-                        merchant_id,
+                        platform.get_processor().get_account().get_id(),
                         mandate_id.as_str(),
-                        storage_scheme,
+                        platform.get_processor().get_account().storage_scheme,
                     )
                     .await
                     .to_not_found_response(errors::ApiErrorResponse::MandateNotFound)?;
@@ -2209,7 +2207,7 @@ async fn update_connector_managed_mandate(
     )
     .await?;
 
-    if event_type == webhooks::IncomingWebhookEvent::MandateActive
+    let tracker = if event_type == webhooks::IncomingWebhookEvent::MandateActive
         || event_type == webhooks::IncomingWebhookEvent::MandateRevoked
     {
         let attempt_status = AttemptStatus::try_from(event_type).unwrap_or(AttemptStatus::Pending);
@@ -2224,16 +2222,17 @@ async fn update_connector_managed_mandate(
             .await
         {
             Ok(payment_attempts) => {
-                if let Some(setup_attempt) = payment_attempts
-                    .into_iter()
-                    .find(|attempt| attempt.net_amount.get_order_amount() == MinorUnit::zero())
-                {
+                if let Some(setup_attempt) = payment_attempts.into_iter().find(|attempt| {
+                    attempt.net_amount.get_order_amount() == MinorUnit::zero()
+                        && attempt.setup_future_usage_applied
+                            == Some(enums::FutureUsage::OffSession)
+                }) {
                     let attempt_update = storage::PaymentAttemptUpdate::StatusUpdate {
                         status: attempt_status,
                         updated_by: storage_scheme.to_string(),
                     };
 
-                    if let Ok(updated_attempt) = db
+                    match db
                         .update_payment_attempt_with_attempt_id(
                             setup_attempt.clone(),
                             attempt_update,
@@ -2243,46 +2242,54 @@ async fn update_connector_managed_mandate(
                         .await
                         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
                     {
-                        let intent_status = IntentStatus::from(attempt_status);
-                        let intent_update = storage::PaymentIntentUpdate::ManualUpdate {
-                            status: Some(intent_status),
-                            updated_by: storage_scheme.to_string(),
-                            amount_captured: Some(MinorUnit::zero()),
-                        };
+                        Ok(updated_attempt) => {
+                            let intent_status = IntentStatus::from(attempt_status);
+                            let intent_update = storage::PaymentIntentUpdate::ManualUpdate {
+                                status: Some(intent_status),
+                                updated_by: storage_scheme.to_string(),
+                                amount_captured: Some(MinorUnit::zero()),
+                            };
 
-                        if let Ok(payment_intent) = db
-                            .find_payment_intent_by_payment_id_processor_merchant_id(
-                                &updated_attempt.payment_id,
-                                merchant_id,
-                                platform.get_provider().get_key_store(),
-                                storage_scheme,
-                            )
-                            .await
-                            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
-                        {
-                            db.update_payment_intent(
-                                payment_intent,
-                                intent_update,
-                                platform.get_provider().get_key_store(),
-                                storage_scheme,
-                            )
-                            .await
-                            .attach_printable("Failed to update payment intent status")
-                            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+                            if let Ok(payment_intent) = db
+                                .find_payment_intent_by_payment_id_processor_merchant_id(
+                                    &updated_attempt.payment_id,
+                                    merchant_id,
+                                    platform.get_provider().get_key_store(),
+                                    storage_scheme,
+                                )
+                                .await
+                                .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
+                            {
+                                db.update_payment_intent(
+                                    payment_intent,
+                                    intent_update,
+                                    platform.get_provider().get_key_store(),
+                                    storage_scheme,
+                                )
+                                .await
+                                .attach_printable("Failed to update payment intent status")
+                                .change_context(errors::ApiErrorResponse::InternalServerError)?;
+                            }
+
+                            WebhookResponseTracker::Payment {
+                                payment_id: updated_attempt.payment_id,
+                                status: intent_status,
+                            }
                         }
-
-                        return Ok(WebhookResponseTracker::Payment {
-                            payment_id: updated_attempt.payment_id,
-                            status: intent_status,
-                        });
+                        Err(_) => tracker,
                     }
+                } else {
+                    tracker
                 }
             }
             Err(e) => {
                 logger::warn!(?e, "Failed to find payment attempts by payment method id");
+                tracker
             }
         }
-    }
+    } else {
+        tracker
+    };
 
     Ok(tracker)
 }
@@ -2365,23 +2372,21 @@ async fn update_payment_method_mandate_status(
         .attach_printable("Failed to parse payment method mandate details")?;
 
     let (connector_mandate_status, payment_method_status) = match event_type {
-        webhooks::IncomingWebhookEvent::MandateActive => (
+        webhooks::IncomingWebhookEvent::MandateActive => Ok((
             ConnectorMandateStatus::Active,
             enums::PaymentMethodStatus::Active,
-        ),
-        webhooks::IncomingWebhookEvent::MandateRevoked => (
+        )),
+        webhooks::IncomingWebhookEvent::MandateRevoked => Ok((
             ConnectorMandateStatus::Inactive,
             enums::PaymentMethodStatus::Inactive,
-        ),
-        webhooks::IncomingWebhookEvent::MandateActionRequired => (
+        )),
+        webhooks::IncomingWebhookEvent::MandateActionRequired => Ok((
             ConnectorMandateStatus::Inactive,
             enums::PaymentMethodStatus::Inactive,
-        ),
-        _ => {
-            return Err(errors::ApiErrorResponse::WebhookProcessingFailure)
-                .attach_printable("received a non-mandate status event");
-        }
-    };
+        )),
+        _ => Err(report!(errors::ApiErrorResponse::WebhookProcessingFailure)
+            .attach_printable("received a non-mandate status event")),
+    }?;
 
     let payment_mandate_reference = common_mandate_reference
         .payments

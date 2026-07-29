@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use api_models::payments::{
     MandateAmountData as ApiMandateAmountData, MandateData as ApiMandateData, MandateType,
 };
-use common_enums::Currency;
+use common_enums::{AttemptStatus, Currency};
 use common_types::payments as common_payments_types;
 use common_utils::{
     date_time,
@@ -15,7 +15,7 @@ use error_stack::ResultExt;
 use hyperswitch_masking::Secret;
 use time::PrimitiveDateTime;
 
-use crate::router_data::RecurringMandatePaymentData;
+use crate::{payments::payment_attempt::PaymentAttempt, router_data::RecurringMandatePaymentData};
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
@@ -601,6 +601,40 @@ impl From<PaymentsMandateReferenceRecord> for diesel_models::PaymentsMandateRefe
 pub enum MandateTransactionType {
     NewMandateTransaction,
     RecurringMandateTransaction,
+}
+
+/// Activation state of a connector mandate as inferred from a payment attempt.
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+pub enum MandateActivation {
+    /// The connector issued a mandate identifier but the customer's action is still pending.
+    Pending,
+    /// The payment succeeded and the connector mandate can be treated as active.
+    Successful,
+    /// The mandate could not be activated (missing identifier or terminal/non-success status).
+    Failed,
+}
+
+#[cfg(feature = "v1")]
+impl From<&PaymentAttempt> for MandateActivation {
+    fn from(payment_attempt: &PaymentAttempt) -> Self {
+        let has_connector_mandate_id = payment_attempt
+            .connector_mandate_detail
+            .as_ref()
+            .and_then(|cmr| cmr.connector_mandate_id.as_ref())
+            .is_some();
+
+        if !has_connector_mandate_id {
+            return Self::Failed;
+        }
+
+        match payment_attempt.status {
+            AttemptStatus::AuthenticationPending => Self::Pending,
+            AttemptStatus::Charged
+            | AttemptStatus::Authorized
+            | AttemptStatus::PartiallyAuthorized => Self::Successful,
+            _ => Self::Failed,
+        }
+    }
 }
 
 #[derive(Default, Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone)]

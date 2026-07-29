@@ -42,15 +42,16 @@ fn payment_method_matches_connector_mandate_id(
     payment_method: &DomainPaymentMethod,
     connector_mandate_id: &str,
 ) -> bool {
-    let Ok(common_mandate_reference) = payment_method.get_common_mandate_reference() else {
-        return false;
-    };
-
-    common_mandate_reference
-        .payments
-        .iter()
-        .flat_map(|payments| payments.values())
-        .any(|record| record.connector_mandate_id == connector_mandate_id)
+    payment_method
+        .get_common_mandate_reference()
+        .map(|common_mandate_reference| {
+            common_mandate_reference
+                .payments
+                .iter()
+                .flat_map(|payments| payments.values())
+                .any(|record| record.connector_mandate_id == connector_mandate_id)
+        })
+        .unwrap_or(false)
 }
 
 #[async_trait::async_trait]
