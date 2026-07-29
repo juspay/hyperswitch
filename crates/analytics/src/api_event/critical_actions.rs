@@ -24,7 +24,10 @@ const CRITICAL_ACTIONS: &[(&str, &str)] = &[
     ("RoutingLinkConfig", "Routing Config Activated"),
     ("RoutingUnlinkConfig", "Routing Config Deactivated"),
     ("RoutingUpdateConfig", "Routing Config Updated"),
-    ("RoutingUpdateDefaultConfig", "Default Routing Config Updated"),
+    (
+        "RoutingUpdateDefaultConfig",
+        "Default Routing Config Updated",
+    ),
     ("ProfileCreate", "Business Profile Created"),
     ("ProfileUpdate", "Business Profile Updated"),
     ("ProfileDelete", "Business Profile Deleted"),
