@@ -15,6 +15,8 @@
 
 [default-configs]
 deja_record = { value = false, schema = { type = "boolean" }, description = "Deja per-request recording decision — default SKIP (false). The deja_dimension cohort override (seeded by scripts/seed_superposition.sh) sets this true for the recordable endpoint bucket; /health and other probe traffic fall through to false.", change_reason = "Deja recording sampler"}
+offer_engine_enabled = { value = false, schema = { type = "boolean" }, description = "Master gate for the Offer Engine integration. When false (default) Offer Engine is never called, regardless of offer_engine_credential_source. Set true (per tenant/env override) to allow Offer Engine calls.", change_reason = "Offer Engine disabled by default; enable via Superposition override"}
+offer_engine_credential_source = { value = "none", schema = { type = "string", enum = ["none", "application"] }, description = "Source of Offer Engine credentials once offer_engine_enabled is true: 'none' skips Offer Engine; 'application' uses the static offer_engine application config. Future org/merchant/profile sources will extend the enum alongside their credential storage.", change_reason = "Offer Engine credential source is a string enum: 'none' disables, 'application' enables; extensible to org/merchant/profile sources"}
 client_session_validation_enabled = { value = true, schema = { type = "boolean" } }
 "dynamic_fields.bank_debit.ach_bank_debit.account_number._confirm_request_write_path" = { value = "payment_method_data.bank_debit.ach_bank_debit.account_number", schema = { type = "string" } }
 "dynamic_fields.bank_debit.ach_bank_debit.account_number._default_label_text" = { value = "Account Number", schema = { type = "string" } }
