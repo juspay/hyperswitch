@@ -1,0 +1,4 @@
+CREATE INDEX CONCURRENTLY IF NOT EXISTS merchant_connector_account_merchant_id_index
+ON merchant_connector_account (merchant_id);
+
+DROP INDEX CONCURRENTLY IF EXISTS merchant_connector_account_merchant_id_profile_id_index;
