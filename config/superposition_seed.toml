@@ -14,15 +14,20 @@
 # graph (path → deja_dimension).
 
 [default-configs]
-deja_record = { value = false, schema = { type = "boolean" }, description = "Deja per-request recording decision — default SKIP (false). The deja_dimension cohort override (seeded by scripts/seed_superposition.sh) sets this true for the recordable endpoint bucket; /health and other probe traffic fall through to false.", change_reason = "Deja recording sampler"}
-offer_engine_enabled = { value = false, schema = { type = "boolean" }, description = "Master gate for the Offer Engine integration. When false (default) Offer Engine is never called, regardless of offer_engine_credential_source. Set true (per tenant/env override) to allow Offer Engine calls.", change_reason = "Offer Engine disabled by default; enable via Superposition override"}
-offer_engine_credential_source = { value = "none", schema = { type = "string", enum = ["none", "application"] }, description = "Source of Offer Engine credentials once offer_engine_enabled is true: 'none' skips Offer Engine; 'application' uses the static offer_engine application config. Future org/merchant/profile sources will extend the enum alongside their credential storage.", change_reason = "Offer Engine credential source is a string enum: 'none' disables, 'application' enables; extensible to org/merchant/profile sources"}
+deja_record = { value = false, schema = { type = "boolean" }, description = "Deja per-request recording decision — default SKIP (false). The deja_dimension cohort override (seeded by scripts/seed_superposition.sh) sets this true for the recordable endpoint bucket; /health and other probe traffic fall through to false.", change_reason = "Deja recording sampler" }
+offer_engine_enabled = { value = false, schema = { type = "boolean" }, description = "Master gate for the Offer Engine integration. When false (default) Offer Engine is never called, regardless of offer_engine_credential_source. Set true (per tenant/env override) to allow Offer Engine calls.", change_reason = "Offer Engine disabled by default; enable via Superposition override" }
+offer_engine_credential_source = { value = "none", schema = { type = "string", enum = [
+    "none",
+    "application",
+] }, description = "Source of Offer Engine credentials once offer_engine_enabled is true: 'none' skips Offer Engine; 'application' uses the static offer_engine application config. Future org/merchant/profile sources will extend the enum alongside their credential storage.", change_reason = "Offer Engine credential source is a string enum: 'none' disables, 'application' enables; extensible to org/merchant/profile sources" }
 client_session_validation_enabled = { value = true, schema = { type = "boolean" } }
 "dynamic_fields.bank_debit.ach_bank_debit.account_number._confirm_request_write_path" = { value = "payment_method_data.bank_debit.ach_bank_debit.account_number", schema = { type = "string" } }
 "dynamic_fields.bank_debit.ach_bank_debit.account_number._default_label_text" = { value = "Account Number", schema = { type = "string" } }
 "dynamic_fields.bank_debit.ach_bank_debit.account_number._default_placeholder_text" = { value = "000123456789", schema = { type = "string" } }
-"dynamic_fields.bank_debit.ach_bank_debit.account_number._dropdown_options" = { value = [], schema = { type = "array" } }
-"dynamic_fields.bank_debit.ach_bank_debit.account_number._extended_dropdown_options" = { value = [], schema = { type = "array" } }
+"dynamic_fields.bank_debit.ach_bank_debit.account_number._dropdown_options" = { value = [
+], schema = { type = "array" } }
+"dynamic_fields.bank_debit.ach_bank_debit.account_number._extended_dropdown_options" = { value = [
+], schema = { type = "array" } }
 "dynamic_fields.bank_debit.ach_bank_debit.account_number._field_display_order" = { value = 260, schema = { type = "number" } }
 "dynamic_fields.bank_debit.ach_bank_debit.account_number._field_render_type" = { value = "Generic", schema = { type = "string" } }
 "dynamic_fields.bank_debit.ach_bank_debit.account_number._html_autocomplete_attribute" = { value = "on", schema = { type = "string" } }
@@ -41,8 +46,10 @@ client_session_validation_enabled = { value = true, schema = { type = "boolean" 
 "dynamic_fields.bank_debit.ach_bank_debit.bank_account_holder_name._confirm_request_write_path" = { value = "payment_method_data.bank_debit.ach_bank_debit.bank_account_holder_name", schema = { type = "string" } }
 "dynamic_fields.bank_debit.ach_bank_debit.bank_account_holder_name._default_label_text" = { value = "Account Holder Name", schema = { type = "string" } }
 "dynamic_fields.bank_debit.ach_bank_debit.bank_account_holder_name._default_placeholder_text" = { value = "eg: John Doe", schema = { type = "string" } }
-"dynamic_fields.bank_debit.ach_bank_debit.bank_account_holder_name._dropdown_options" = { value = [], schema = { type = "array" } }
-"dynamic_fields.bank_debit.ach_bank_debit.bank_account_holder_name._extended_dropdown_options" = { value = [], schema = { type = "array" } }
+"dynamic_fields.bank_debit.ach_bank_debit.bank_account_holder_name._dropdown_options" = { value = [
+], schema = { type = "array" } }
+"dynamic_fields.bank_debit.ach_bank_debit.bank_account_holder_name._extended_dropdown_options" = { value = [
+], schema = { type = "array" } }
 "dynamic_fields.bank_debit.ach_bank_debit.bank_account_holder_name._field_display_order" = { value = 280, schema = { type = "number" } }
 "dynamic_fields.bank_debit.ach_bank_debit.bank_account_holder_name._field_render_type" = { value = "CardHolderName", schema = { type = "string" } }
 "dynamic_fields.bank_debit.ach_bank_debit.bank_account_holder_name._html_autocomplete_attribute" = { value = "name", schema = { type = "string" } }
@@ -61,8 +68,12 @@ client_session_validation_enabled = { value = true, schema = { type = "boolean" 
 "dynamic_fields.bank_debit.ach_bank_debit.bank_type._confirm_request_write_path" = { value = "payment_method_data.bank_debit.ach_bank_debit.bank_type", schema = { type = "string" } }
 "dynamic_fields.bank_debit.ach_bank_debit.bank_type._default_label_text" = { value = "Bank Type", schema = { type = "string" } }
 "dynamic_fields.bank_debit.ach_bank_debit.bank_type._default_placeholder_text" = { value = "Select Bank Type", schema = { type = "string" } }
-"dynamic_fields.bank_debit.ach_bank_debit.bank_type._dropdown_options" = { value = ["Checking", "Savings"], schema = { type = "array" } }
-"dynamic_fields.bank_debit.ach_bank_debit.bank_type._extended_dropdown_options" = { value = [], schema = { type = "array" } }
+"dynamic_fields.bank_debit.ach_bank_debit.bank_type._dropdown_options" = { value = [
+    "Checking",
+    "Savings",
+], schema = { type = "array" } }
+"dynamic_fields.bank_debit.ach_bank_debit.bank_type._extended_dropdown_options" = { value = [
+], schema = { type = "array" } }
 "dynamic_fields.bank_debit.ach_bank_debit.bank_type._field_display_order" = { value = 290, schema = { type = "number" } }
 "dynamic_fields.bank_debit.ach_bank_debit.bank_type._field_render_type" = { value = "Dropdown", schema = { type = "string" } }
 "dynamic_fields.bank_debit.ach_bank_debit.bank_type._html_autocomplete_attribute" = { value = "on", schema = { type = "string" } }
@@ -80,8 +91,10 @@ client_session_validation_enabled = { value = true, schema = { type = "boolean" 
 "dynamic_fields.bank_debit.ach_bank_debit.routing_number._confirm_request_write_path" = { value = "payment_method_data.bank_debit.ach_bank_debit.routing_number", schema = { type = "string" } }
 "dynamic_fields.bank_debit.ach_bank_debit.routing_number._default_label_text" = { value = "Routing Number", schema = { type = "string" } }
 "dynamic_fields.bank_debit.ach_bank_debit.routing_number._default_placeholder_text" = { value = "123456789", schema = { type = "string" } }
-"dynamic_fields.bank_debit.ach_bank_debit.routing_number._dropdown_options" = { value = [], schema = { type = "array" } }
-"dynamic_fields.bank_debit.ach_bank_debit.routing_number._extended_dropdown_options" = { value = [], schema = { type = "array" } }
+"dynamic_fields.bank_debit.ach_bank_debit.routing_number._dropdown_options" = { value = [
+], schema = { type = "array" } }
+"dynamic_fields.bank_debit.ach_bank_debit.routing_number._extended_dropdown_options" = { value = [
+], schema = { type = "array" } }
 "dynamic_fields.bank_debit.ach_bank_debit.routing_number._field_display_order" = { value = 270, schema = { type = "number" } }
 "dynamic_fields.bank_debit.ach_bank_debit.routing_number._field_render_type" = { value = "Generic", schema = { type = "string" } }
 "dynamic_fields.bank_debit.ach_bank_debit.routing_number._html_autocomplete_attribute" = { value = "on", schema = { type = "string" } }
@@ -100,8 +113,10 @@ client_session_validation_enabled = { value = true, schema = { type = "boolean" 
 "dynamic_fields.bank_debit.bacs_bank_debit.account_number._confirm_request_write_path" = { value = "payment_method_data.bank_debit.bacs_bank_debit.account_number", schema = { type = "string" } }
 "dynamic_fields.bank_debit.bacs_bank_debit.account_number._default_label_text" = { value = "Account Number", schema = { type = "string" } }
 "dynamic_fields.bank_debit.bacs_bank_debit.account_number._default_placeholder_text" = { value = "00012345", schema = { type = "string" } }
-"dynamic_fields.bank_debit.bacs_bank_debit.account_number._dropdown_options" = { value = [], schema = { type = "array" } }
-"dynamic_fields.bank_debit.bacs_bank_debit.account_number._extended_dropdown_options" = { value = [], schema = { type = "array" } }
+"dynamic_fields.bank_debit.bacs_bank_debit.account_number._dropdown_options" = { value = [
+], schema = { type = "array" } }
+"dynamic_fields.bank_debit.bacs_bank_debit.account_number._extended_dropdown_options" = { value = [
+], schema = { type = "array" } }
 "dynamic_fields.bank_debit.bacs_bank_debit.account_number._field_display_order" = { value = 310, schema = { type = "number" } }
 "dynamic_fields.bank_debit.bacs_bank_debit.account_number._field_render_type" = { value = "Generic", schema = { type = "string" } }
 "dynamic_fields.bank_debit.bacs_bank_debit.account_number._html_autocomplete_attribute" = { value = "on", schema = { type = "string" } }
@@ -120,8 +135,10 @@ client_session_validation_enabled = { value = true, schema = { type = "boolean" 
 "dynamic_fields.bank_debit.bacs_bank_debit.sort_code._confirm_request_write_path" = { value = "payment_method_data.bank_debit.bacs_bank_debit.sort_code", schema = { type = "string" } }
 "dynamic_fields.bank_debit.bacs_bank_debit.sort_code._default_label_text" = { value = "Sort Code", schema = { type = "string" } }
 "dynamic_fields.bank_debit.bacs_bank_debit.sort_code._default_placeholder_text" = { value = "10-80-00", schema = { type = "string" } }
-"dynamic_fields.bank_debit.bacs_bank_debit.sort_code._dropdown_options" = { value = [], schema = { type = "array" } }
-"dynamic_fields.bank_debit.bacs_bank_debit.sort_code._extended_dropdown_options" = { value = [], schema = { type = "array" } }
+"dynamic_fields.bank_debit.bacs_bank_debit.sort_code._dropdown_options" = { value = [
+], schema = { type = "array" } }
+"dynamic_fields.bank_debit.bacs_bank_debit.sort_code._extended_dropdown_options" = { value = [
+], schema = { type = "array" } }
 "dynamic_fields.bank_debit.bacs_bank_debit.sort_code._field_display_order" = { value = 320, schema = { type = "number" } }
 "dynamic_fields.bank_debit.bacs_bank_debit.sort_code._field_render_type" = { value = "Generic", schema = { type = "string" } }
 "dynamic_fields.bank_debit.bacs_bank_debit.sort_code._html_autocomplete_attribute" = { value = "on", schema = { type = "string" } }
@@ -140,8 +157,10 @@ client_session_validation_enabled = { value = true, schema = { type = "boolean" 
 "dynamic_fields.bank_debit.becs_bank_debit.account_number._confirm_request_write_path" = { value = "payment_method_data.bank_debit.becs_bank_debit.account_number", schema = { type = "string" } }
 "dynamic_fields.bank_debit.becs_bank_debit.account_number._default_label_text" = { value = "Account Number", schema = { type = "string" } }
 "dynamic_fields.bank_debit.becs_bank_debit.account_number._default_placeholder_text" = { value = "000123456789", schema = { type = "string" } }
-"dynamic_fields.bank_debit.becs_bank_debit.account_number._dropdown_options" = { value = [], schema = { type = "array" } }
-"dynamic_fields.bank_debit.becs_bank_debit.account_number._extended_dropdown_options" = { value = [], schema = { type = "array" } }
+"dynamic_fields.bank_debit.becs_bank_debit.account_number._dropdown_options" = { value = [
+], schema = { type = "array" } }
+"dynamic_fields.bank_debit.becs_bank_debit.account_number._extended_dropdown_options" = { value = [
+], schema = { type = "array" } }
 "dynamic_fields.bank_debit.becs_bank_debit.account_number._field_display_order" = { value = 330, schema = { type = "number" } }
 "dynamic_fields.bank_debit.becs_bank_debit.account_number._field_render_type" = { value = "Generic", schema = { type = "string" } }
 "dynamic_fields.bank_debit.becs_bank_debit.account_number._html_autocomplete_attribute" = { value = "on", schema = { type = "string" } }
@@ -160,8 +179,10 @@ client_session_validation_enabled = { value = true, schema = { type = "boolean" 
 "dynamic_fields.bank_debit.becs_bank_debit.bsb_number._confirm_request_write_path" = { value = "payment_method_data.bank_debit.becs_bank_debit.bsb_number", schema = { type = "string" } }
 "dynamic_fields.bank_debit.becs_bank_debit.bsb_number._default_label_text" = { value = "BSB Number", schema = { type = "string" } }
 "dynamic_fields.bank_debit.becs_bank_debit.bsb_number._default_placeholder_text" = { value = "eg: 000-000", schema = { type = "string" } }
-"dynamic_fields.bank_debit.becs_bank_debit.bsb_number._dropdown_options" = { value = [], schema = { type = "array" } }
-"dynamic_fields.bank_debit.becs_bank_debit.bsb_number._extended_dropdown_options" = { value = [], schema = { type = "array" } }
+"dynamic_fields.bank_debit.becs_bank_debit.bsb_number._dropdown_options" = { value = [
+], schema = { type = "array" } }
+"dynamic_fields.bank_debit.becs_bank_debit.bsb_number._extended_dropdown_options" = { value = [
+], schema = { type = "array" } }
 "dynamic_fields.bank_debit.becs_bank_debit.bsb_number._field_display_order" = { value = 340, schema = { type = "number" } }
 "dynamic_fields.bank_debit.becs_bank_debit.bsb_number._field_render_type" = { value = "Generic", schema = { type = "string" } }
 "dynamic_fields.bank_debit.becs_bank_debit.bsb_number._html_autocomplete_attribute" = { value = "on", schema = { type = "string" } }
@@ -180,8 +201,10 @@ client_session_validation_enabled = { value = true, schema = { type = "boolean" 
 "dynamic_fields.bank_debit.becs_bank_debit.sort_code._confirm_request_write_path" = { value = "payment_method_data.bank_debit.becs_bank_debit.sort_code", schema = { type = "string" } }
 "dynamic_fields.bank_debit.becs_bank_debit.sort_code._default_label_text" = { value = "Sort Code", schema = { type = "string" } }
 "dynamic_fields.bank_debit.becs_bank_debit.sort_code._default_placeholder_text" = { value = "Sort Code", schema = { type = "string" } }
-"dynamic_fields.bank_debit.becs_bank_debit.sort_code._dropdown_options" = { value = [], schema = { type = "array" } }
-"dynamic_fields.bank_debit.becs_bank_debit.sort_code._extended_dropdown_options" = { value = [], schema = { type = "array" } }
+"dynamic_fields.bank_debit.becs_bank_debit.sort_code._dropdown_options" = { value = [
+], schema = { type = "array" } }
+"dynamic_fields.bank_debit.becs_bank_debit.sort_code._extended_dropdown_options" = { value = [
+], schema = { type = "array" } }
 "dynamic_fields.bank_debit.becs_bank_debit.sort_code._field_display_order" = { value = 350, schema = { type = "number" } }
 "dynamic_fields.bank_debit.becs_bank_debit.sort_code._field_render_type" = { value = "Generic", schema = { type = "string" } }
 "dynamic_fields.bank_debit.becs_bank_debit.sort_code._html_autocomplete_attribute" = { value = "on", schema = { type = "string" } }
@@ -200,8 +223,10 @@ client_session_validation_enabled = { value = true, schema = { type = "boolean" 
 "dynamic_fields.bank_debit.eft_debit_order.account_number._confirm_request_write_path" = { value = "payment_method_data.bank_debit.eft_debit_order.account_number", schema = { type = "string" } }
 "dynamic_fields.bank_debit.eft_debit_order.account_number._default_label_text" = { value = "Account Number", schema = { type = "string" } }
 "dynamic_fields.bank_debit.eft_debit_order.account_number._default_placeholder_text" = { value = "000123456789", schema = { type = "string" } }
-"dynamic_fields.bank_debit.eft_debit_order.account_number._dropdown_options" = { value = [], schema = { type = "array" } }
-"dynamic_fields.bank_debit.eft_debit_order.account_number._extended_dropdown_options" = { value = [], schema = { type = "array" } }
+"dynamic_fields.bank_debit.eft_debit_order.account_number._dropdown_options" = { value = [
+], schema = { type = "array" } }
+"dynamic_fields.bank_debit.eft_debit_order.account_number._extended_dropdown_options" = { value = [
+], schema = { type = "array" } }
 "dynamic_fields.bank_debit.eft_debit_order.account_number._field_display_order" = { value = 381, schema = { type = "number" } }
 "dynamic_fields.bank_debit.eft_debit_order.account_number._field_render_type" = { value = "Generic", schema = { type = "string" } }
 "dynamic_fields.bank_debit.eft_debit_order.account_number._html_autocomplete_attribute" = { value = "on", schema = { type = "string" } }
@@ -220,8 +245,10 @@ client_session_validation_enabled = { value = true, schema = { type = "boolean" 
 "dynamic_fields.bank_debit.eft_debit_order.bank_account_holder_name._confirm_request_write_path" = { value = "payment_method_data.bank_debit.eft_debit_order.bank_account_holder_name", schema = { type = "string" } }
 "dynamic_fields.bank_debit.eft_debit_order.bank_account_holder_name._default_label_text" = { value = "Account Holder Name", schema = { type = "string" } }
 "dynamic_fields.bank_debit.eft_debit_order.bank_account_holder_name._default_placeholder_text" = { value = "eg: John Doe", schema = { type = "string" } }
-"dynamic_fields.bank_debit.eft_debit_order.bank_account_holder_name._dropdown_options" = { value = [], schema = { type = "array" } }
-"dynamic_fields.bank_debit.eft_debit_order.bank_account_holder_name._extended_dropdown_options" = { value = [], schema = { type = "array" } }
+"dynamic_fields.bank_debit.eft_debit_order.bank_account_holder_name._dropdown_options" = { value = [
+], schema = { type = "array" } }
+"dynamic_fields.bank_debit.eft_debit_order.bank_account_holder_name._extended_dropdown_options" = { value = [
+], schema = { type = "array" } }
 "dynamic_fields.bank_debit.eft_debit_order.bank_account_holder_name._field_display_order" = { value = 383, schema = { type = "number" } }
 "dynamic_fields.bank_debit.eft_debit_order.bank_account_holder_name._field_render_type" = { value = "CardHolderName", schema = { type = "string" } }
 "dynamic_fields.bank_debit.eft_debit_order.bank_account_holder_name._html_autocomplete_attribute" = { value = "name", schema = { type = "string" } }
@@ -240,8 +267,10 @@ client_session_validation_enabled = { value = true, schema = { type = "boolean" 
 "dynamic_fields.bank_debit.eft_debit_order.bank_name._confirm_request_write_path" = { value = "payment_method_data.bank_debit.eft_debit_order.bank_name", schema = { type = "string" } }
 "dynamic_fields.bank_debit.eft_debit_order.bank_name._default_label_text" = { value = "Bank Name", schema = { type = "string" } }
 "dynamic_fields.bank_debit.eft_debit_order.bank_name._default_placeholder_text" = { value = "Bank Name", schema = { type = "string" } }
-"dynamic_fields.bank_debit.eft_debit_order.bank_name._dropdown_options" = { value = [], schema = { type = "array" } }
-"dynamic_fields.bank_debit.eft_debit_order.bank_name._extended_dropdown_options" = { value = [], schema = { type = "array" } }
+"dynamic_fields.bank_debit.eft_debit_order.bank_name._dropdown_options" = { value = [
+], schema = { type = "array" } }
+"dynamic_fields.bank_debit.eft_debit_order.bank_name._extended_dropdown_options" = { value = [
+], schema = { type = "array" } }
 "dynamic_fields.bank_debit.eft_debit_order.bank_name._field_display_order" = { value = 382, schema = { type = "number" } }
 "dynamic_fields.bank_debit.eft_debit_order.bank_name._field_render_type" = { value = "BankNamesSelect", schema = { type = "string" } }
 "dynamic_fields.bank_debit.eft_debit_order.bank_name._html_autocomplete_attribute" = { value = "name", schema = { type = "string" } }
@@ -259,8 +288,12 @@ client_session_validation_enabled = { value = true, schema = { type = "boolean" 
 "dynamic_fields.bank_debit.eft_debit_order.bank_type._confirm_request_write_path" = { value = "payment_method_data.bank_debit.eft_debit_order.bank_type", schema = { type = "string" } }
 "dynamic_fields.bank_debit.eft_debit_order.bank_type._default_label_text" = { value = "Bank Type", schema = { type = "string" } }
 "dynamic_fields.bank_debit.eft_debit_order.bank_type._default_placeholder_text" = { value = "Select Bank Type", schema = { type = "string" } }
-"dynamic_fields.bank_debit.eft_debit_order.bank_type._dropdown_options" = { value = ["Checking", "Savings"], schema = { type = "array" } }
-"dynamic_fields.bank_debit.eft_debit_order.bank_type._extended_dropdown_options" = { value = [], schema = { type = "array" } }
+"dynamic_fields.bank_debit.eft_debit_order.bank_type._dropdown_options" = { value = [
+    "Checking",
+    "Savings",
+], schema = { type = "array" } }
+"dynamic_fields.bank_debit.eft_debit_order.bank_type._extended_dropdown_options" = { value = [
+], schema = { type = "array" } }
 "dynamic_fields.bank_debit.eft_debit_order.bank_type._field_display_order" = { value = 384, schema = { type = "number" } }
 "dynamic_fields.bank_debit.eft_debit_order.bank_type._field_render_type" = { value = "Dropdown", schema = { type = "string" } }
 "dynamic_fields.bank_debit.eft_debit_order.bank_type._html_autocomplete_attribute" = { value = "on", schema = { type = "string" } }
@@ -278,8 +311,10 @@ client_session_validation_enabled = { value = true, schema = { type = "boolean" 
 "dynamic_fields.bank_debit.sepa_bank_debit.iban._confirm_request_write_path" = { value = "payment_method_data.bank_debit.sepa_bank_debit.iban", schema = { type = "string" } }
 "dynamic_fields.bank_debit.sepa_bank_debit.iban._default_label_text" = { value = "IBAN", schema = { type = "string" } }
 "dynamic_fields.bank_debit.sepa_bank_debit.iban._default_placeholder_text" = { value = "eg: DE00 0000 0000 0000 0000 00", schema = { type = "string" } }
-"dynamic_fields.bank_debit.sepa_bank_debit.iban._dropdown_options" = { value = [], schema = { type = "array" } }
-"dynamic_fields.bank_debit.sepa_bank_debit.iban._extended_dropdown_options" = { value = [], schema = { type = "array" } }
+"dynamic_fields.bank_debit.sepa_bank_debit.iban._dropdown_options" = { value = [
+], schema = { type = "array" } }
+"dynamic_fields.bank_debit.sepa_bank_debit.iban._extended_dropdown_options" = { value = [
+], schema = { type = "array" } }
 "dynamic_fields.bank_debit.sepa_bank_debit.iban._field_display_order" = { value = 300, schema = { type = "number" } }
 "dynamic_fields.bank_debit.sepa_bank_debit.iban._field_render_type" = { value = "Generic", schema = { type = "string" } }
 "dynamic_fields.bank_debit.sepa_bank_debit.iban._html_autocomplete_attribute" = { value = "on", schema = { type = "string" } }
@@ -298,8 +333,10 @@ client_session_validation_enabled = { value = true, schema = { type = "boolean" 
 "dynamic_fields.bank_redirect.bancontact_card.card_exp_month._confirm_request_write_path" = { value = "payment_method_data.bank_redirect.bancontact_card.card_exp_month", schema = { type = "string" } }
 "dynamic_fields.bank_redirect.bancontact_card.card_exp_month._default_label_text" = { value = "Expiry Month", schema = { type = "string" } }
 "dynamic_fields.bank_redirect.bancontact_card.card_exp_month._default_placeholder_text" = { value = "Select Month", schema = { type = "string" } }
-"dynamic_fields.bank_redirect.bancontact_card.card_exp_month._dropdown_options" = { value = [], schema = { type = "array" } }
-"dynamic_fields.bank_redirect.bancontact_card.card_exp_month._extended_dropdown_options" = { value = [], schema = { type = "array" } }
+"dynamic_fields.bank_redirect.bancontact_card.card_exp_month._dropdown_options" = { value = [
+], schema = { type = "array" } }
+"dynamic_fields.bank_redirect.bancontact_card.card_exp_month._extended_dropdown_options" = { value = [
+], schema = { type = "array" } }
 "dynamic_fields.bank_redirect.bancontact_card.card_exp_month._field_display_order" = { value = 130, schema = { type = "number" } }
 "dynamic_fields.bank_redirect.bancontact_card.card_exp_month._field_render_type" = { value = "Generic", schema = { type = "string" } }
 "dynamic_fields.bank_redirect.bancontact_card.card_exp_month._html_autocomplete_attribute" = { value = "cc-exp-month", schema = { type = "string" } }
@@ -318,8 +355,10 @@ client_session_validation_enabled = { value = true, schema = { type = "boolean" 
 "dynamic_fields.bank_redirect.bancontact_card.card_exp_year._confirm_request_write_path" = { value = "payment_method_data.bank_redirect.bancontact_card.card_exp_year", schema = { type = "string" } }
 "dynamic_fields.bank_redirect.bancontact_card.card_exp_year._default_label_text" = { value = "Expiry Year", schema = { type = "string" } }
 "dynamic_fields.bank_redirect.bancontact_card.card_exp_year._default_placeholder_text" = { value = "Select Year", schema = { type = "string" } }
-"dynamic_fields.bank_redirect.bancontact_card.card_exp_year._dropdown_options" = { value = [], schema = { type = "array" } }
-"dynamic_fields.bank_redirect.bancontact_card.card_exp_year._extended_dropdown_options" = { value = [], schema = { type = "array" } }
+"dynamic_fields.bank_redirect.bancontact_card.card_exp_year._dropdown_options" = { value = [
+], schema = { type = "array" } }
+"dynamic_fields.bank_redirect.bancontact_card.card_exp_year._extended_dropdown_options" = { value = [
+], schema = { type = "array" } }
 "dynamic_fields.bank_redirect.bancontact_card.card_exp_year._field_display_order" = { value = 140, schema = { type = "number" } }
 "dynamic_fields.bank_redirect.bancontact_card.card_exp_year._field_render_type" = { value = "Generic", schema = { type = "string" } }
 "dynamic_fields.bank_redirect.bancontact_card.card_exp_year._html_autocomplete_attribute" = { value = "cc-exp-year", schema = { type = "string" } }
@@ -338,8 +377,10 @@ client_session_validation_enabled = { value = true, schema = { type = "boolean" 
 "dynamic_fields.bank_redirect.bancontact_card.card_number._confirm_request_write_path" = { value = "payment_method_data.bank_redirect.bancontact_card.card_number", schema = { type = "string" } }
 "dynamic_fields.bank_redirect.bancontact_card.card_number._default_label_text" = { value = "Card Number", schema = { type = "string" } }
 "dynamic_fields.bank_redirect.bancontact_card.card_number._default_placeholder_text" = { value = "1234 1234 1234 1234", schema = { type = "string" } }
-"dynamic_fields.bank_redirect.bancontact_card.card_number._dropdown_options" = { value = [], schema = { type = "array" } }
-"dynamic_fields.bank_redirect.bancontact_card.card_number._extended_dropdown_options" = { value = [], schema = { type = "array" } }
+"dynamic_fields.bank_redirect.bancontact_card.card_number._dropdown_options" = { value = [
+], schema = { type = "array" } }
+"dynamic_fields.bank_redirect.bancontact_card.card_number._extended_dropdown_options" = { value = [
+], schema = { type = "array" } }
 "dynamic_fields.bank_redirect.bancontact_card.card_number._field_display_order" = { value = 120, schema = { type = "number" } }
 "dynamic_fields.bank_redirect.bancontact_card.card_number._field_render_type" = { value = "CardNumber", schema = { type = "string" } }
 "dynamic_fields.bank_redirect.bancontact_card.card_number._html_autocomplete_attribute" = { value = "cc-number", schema = { type = "string" } }
@@ -358,8 +399,10 @@ client_session_validation_enabled = { value = true, schema = { type = "boolean" 
 "dynamic_fields.bank_redirect.blik.blik_code._confirm_request_write_path" = { value = "payment_method_data.bank_redirect.blik.blik_code", schema = { type = "string" } }
 "dynamic_fields.bank_redirect.blik.blik_code._default_label_text" = { value = "BLIK Code", schema = { type = "string" } }
 "dynamic_fields.bank_redirect.blik.blik_code._default_placeholder_text" = { value = "000 000", schema = { type = "string" } }
-"dynamic_fields.bank_redirect.blik.blik_code._dropdown_options" = { value = [], schema = { type = "array" } }
-"dynamic_fields.bank_redirect.blik.blik_code._extended_dropdown_options" = { value = [], schema = { type = "array" } }
+"dynamic_fields.bank_redirect.blik.blik_code._dropdown_options" = { value = [
+], schema = { type = "array" } }
+"dynamic_fields.bank_redirect.blik.blik_code._extended_dropdown_options" = { value = [
+], schema = { type = "array" } }
 "dynamic_fields.bank_redirect.blik.blik_code._field_display_order" = { value = 170, schema = { type = "number" } }
 "dynamic_fields.bank_redirect.blik.blik_code._field_render_type" = { value = "Generic", schema = { type = "string" } }
 "dynamic_fields.bank_redirect.blik.blik_code._html_autocomplete_attribute" = { value = "on", schema = { type = "string" } }
@@ -378,8 +421,52 @@ client_session_validation_enabled = { value = true, schema = { type = "boolean" 
 "dynamic_fields.bank_redirect.eps.bank_name._confirm_request_write_path" = { value = "payment_method_data.bank_redirect.eps.bank_name", schema = { type = "string" } }
 "dynamic_fields.bank_redirect.eps.bank_name._default_label_text" = { value = "Bank Name", schema = { type = "string" } }
 "dynamic_fields.bank_redirect.eps.bank_name._default_placeholder_text" = { value = "Bank Name", schema = { type = "string" } }
-"dynamic_fields.bank_redirect.eps.bank_name._dropdown_options" = { value = ["AbnAmro", "ArzteUndApothekerBank", "AsnBank", "AustrianAnadiBankAg", "BankAustria", "BankhausCarlSpangler", "BankhausSchelhammerUndSchatteraAg", "BawagPskAg", "BksBankAg", "BrullKallmusBankAg", "BtvVierLanderBank", "Bunq", "CapitalBankGraweGruppeAg", "Citi", "Dolomitenbank", "EasybankAg", "ErsteBankUndSparkassen", "Handelsbanken", "HypoAlpeadriabankInternationalAg", "HypoNoeLbFurNiederosterreichUWien", "HypoOberosterreichSalzburgSteiermark", "HypoTirolBankAg", "HypoVorarlbergBankAg", "HypoBankBurgenlandAktiengesellschaft", "Ing", "Knab", "MarchfelderBank", "OberbankAg", "RaiffeisenBankengruppeOsterreich", "Rabobank", "Regiobank", "Revolut", "SnsBank", "TriodosBank", "VanLanschot", "Moneyou", "SchoellerbankAg", "SpardaBankWien", "VolksbankGruppe", "VolkskreditbankAg", "VrBankBraunau", "PlusBank"], schema = { type = "array" } }
-"dynamic_fields.bank_redirect.eps.bank_name._extended_dropdown_options" = { value = [], schema = { type = "array" } }
+"dynamic_fields.bank_redirect.eps.bank_name._dropdown_options" = { value = [
+    "AbnAmro",
+    "ArzteUndApothekerBank",
+    "AsnBank",
+    "AustrianAnadiBankAg",
+    "BankAustria",
+    "BankhausCarlSpangler",
+    "BankhausSchelhammerUndSchatteraAg",
+    "BawagPskAg",
+    "BksBankAg",
+    "BrullKallmusBankAg",
+    "BtvVierLanderBank",
+    "Bunq",
+    "CapitalBankGraweGruppeAg",
+    "Citi",
+    "Dolomitenbank",
+    "EasybankAg",
+    "ErsteBankUndSparkassen",
+    "Handelsbanken",
+    "HypoAlpeadriabankInternationalAg",
+    "HypoNoeLbFurNiederosterreichUWien",
+    "HypoOberosterreichSalzburgSteiermark",
+    "HypoTirolBankAg",
+    "HypoVorarlbergBankAg",
+    "HypoBankBurgenlandAktiengesellschaft",
+    "Ing",
+    "Knab",
+    "MarchfelderBank",
+    "OberbankAg",
+    "RaiffeisenBankengruppeOsterreich",
+    "Rabobank",
+    "Regiobank",
+    "Revolut",
+    "SnsBank",
+    "TriodosBank",
+    "VanLanschot",
+    "Moneyou",
+    "SchoellerbankAg",
+    "SpardaBankWien",
+    "VolksbankGruppe",
+    "VolkskreditbankAg",
+    "VrBankBraunau",
+    "PlusBank",
+], schema = { type = "array" } }
+"dynamic_fields.bank_redirect.eps.bank_name._extended_dropdown_options" = { value = [
+], schema = { type = "array" } }
 "dynamic_fields.bank_redirect.eps.bank_name._field_display_order" = { value = 160, schema = { type = "number" } }
 "dynamic_fields.bank_redirect.eps.bank_name._field_render_type" = { value = "BankNamesSelect", schema = { type = "string" } }
 "dynamic_fields.bank_redirect.eps.bank_name._html_autocomplete_attribute" = { value = "on", schema = { type = "string" } }
@@ -397,8 +484,26 @@ client_session_validation_enabled = { value = true, schema = { type = "boolean" 
 "dynamic_fields.bank_redirect.ideal.bank_name._confirm_request_write_path" = { value = "payment_method_data.bank_redirect.ideal.bank_name", schema = { type = "string" } }
 "dynamic_fields.bank_redirect.ideal.bank_name._default_label_text" = { value = "Bank Name", schema = { type = "string" } }
 "dynamic_fields.bank_redirect.ideal.bank_name._default_placeholder_text" = { value = "Bank Name", schema = { type = "string" } }
-"dynamic_fields.bank_redirect.ideal.bank_name._dropdown_options" = { value = ["abn_amro", "asn_bank", "bunq", "handelsbanken", "ing", "knab", "moneyou", "n26", "nationale_nederlanden", "rabobank", "regiobank", "revolut", "sns_bank", "triodos_bank", "van_lanschot", "yoursafe"], schema = { type = "array" } }
-"dynamic_fields.bank_redirect.ideal.bank_name._extended_dropdown_options" = { value = [], schema = { type = "array" } }
+"dynamic_fields.bank_redirect.ideal.bank_name._dropdown_options" = { value = [
+    "abn_amro",
+    "asn_bank",
+    "bunq",
+    "handelsbanken",
+    "ing",
+    "knab",
+    "moneyou",
+    "n26",
+    "nationale_nederlanden",
+    "rabobank",
+    "regiobank",
+    "revolut",
+    "sns_bank",
+    "triodos_bank",
+    "van_lanschot",
+    "yoursafe",
+], schema = { type = "array" } }
+"dynamic_fields.bank_redirect.ideal.bank_name._extended_dropdown_options" = { value = [
+], schema = { type = "array" } }
 "dynamic_fields.bank_redirect.ideal.bank_name._field_display_order" = { value = 150, schema = { type = "number" } }
 "dynamic_fields.bank_redirect.ideal.bank_name._field_render_type" = { value = "BankNamesSelect", schema = { type = "string" } }
 "dynamic_fields.bank_redirect.ideal.bank_name._html_autocomplete_attribute" = { value = "on", schema = { type = "string" } }
@@ -416,8 +521,13 @@ client_session_validation_enabled = { value = true, schema = { type = "boolean" 
 "dynamic_fields.bank_redirect.online_banking_czech_republic.issuer._confirm_request_write_path" = { value = "payment_method_data.bank_redirect.online_banking_czech_republic.issuer", schema = { type = "string" } }
 "dynamic_fields.bank_redirect.online_banking_czech_republic.issuer._default_label_text" = { value = "Bank Issuer", schema = { type = "string" } }
 "dynamic_fields.bank_redirect.online_banking_czech_republic.issuer._default_placeholder_text" = { value = "Select Bank Issuer", schema = { type = "string" } }
-"dynamic_fields.bank_redirect.online_banking_czech_republic.issuer._dropdown_options" = { value = ["ceska_sporitelna", "komercni_banka", "platnosc_online_karta_platnicza"], schema = { type = "array" } }
-"dynamic_fields.bank_redirect.online_banking_czech_republic.issuer._extended_dropdown_options" = { value = [], schema = { type = "array" } }
+"dynamic_fields.bank_redirect.online_banking_czech_republic.issuer._dropdown_options" = { value = [
+    "ceska_sporitelna",
+    "komercni_banka",
+    "platnosc_online_karta_platnicza",
+], schema = { type = "array" } }
+"dynamic_fields.bank_redirect.online_banking_czech_republic.issuer._extended_dropdown_options" = { value = [
+], schema = { type = "array" } }
 "dynamic_fields.bank_redirect.online_banking_czech_republic.issuer._field_display_order" = { value = 70, schema = { type = "number" } }
 "dynamic_fields.bank_redirect.online_banking_czech_republic.issuer._field_render_type" = { value = "BankNamesSelect", schema = { type = "string" } }
 "dynamic_fields.bank_redirect.online_banking_czech_republic.issuer._html_autocomplete_attribute" = { value = "on", schema = { type = "string" } }
@@ -435,8 +545,29 @@ client_session_validation_enabled = { value = true, schema = { type = "boolean" 
 "dynamic_fields.bank_redirect.online_banking_fpx.issuer._confirm_request_write_path" = { value = "payment_method_data.bank_redirect.online_banking_fpx.issuer", schema = { type = "string" } }
 "dynamic_fields.bank_redirect.online_banking_fpx.issuer._default_label_text" = { value = "Bank Issuer", schema = { type = "string" } }
 "dynamic_fields.bank_redirect.online_banking_fpx.issuer._default_placeholder_text" = { value = "Select Bank Issuer", schema = { type = "string" } }
-"dynamic_fields.bank_redirect.online_banking_fpx.issuer._dropdown_options" = { value = ["affin_bank", "agro_bank", "alliance_bank", "am_bank", "bank_of_china", "bank_islam", "bank_muamalat", "bank_rakyat", "bank_simpanan_nasional", "cimb_bank", "hong_leong_bank", "hsbc_bank", "kuwait_finance_house", "maybank", "ocbc_bank", "public_bank", "rhb_bank", "standard_chartered_bank", "uob_bank"], schema = { type = "array" } }
-"dynamic_fields.bank_redirect.online_banking_fpx.issuer._extended_dropdown_options" = { value = [], schema = { type = "array" } }
+"dynamic_fields.bank_redirect.online_banking_fpx.issuer._dropdown_options" = { value = [
+    "affin_bank",
+    "agro_bank",
+    "alliance_bank",
+    "am_bank",
+    "bank_of_china",
+    "bank_islam",
+    "bank_muamalat",
+    "bank_rakyat",
+    "bank_simpanan_nasional",
+    "cimb_bank",
+    "hong_leong_bank",
+    "hsbc_bank",
+    "kuwait_finance_house",
+    "maybank",
+    "ocbc_bank",
+    "public_bank",
+    "rhb_bank",
+    "standard_chartered_bank",
+    "uob_bank",
+], schema = { type = "array" } }
+"dynamic_fields.bank_redirect.online_banking_fpx.issuer._extended_dropdown_options" = { value = [
+], schema = { type = "array" } }
 "dynamic_fields.bank_redirect.online_banking_fpx.issuer._field_display_order" = { value = 100, schema = { type = "number" } }
 "dynamic_fields.bank_redirect.online_banking_fpx.issuer._field_render_type" = { value = "BankNamesSelect", schema = { type = "string" } }
 "dynamic_fields.bank_redirect.online_banking_fpx.issuer._html_autocomplete_attribute" = { value = "on", schema = { type = "string" } }
@@ -454,8 +585,29 @@ client_session_validation_enabled = { value = true, schema = { type = "boolean" 
 "dynamic_fields.bank_redirect.online_banking_poland.issuer._confirm_request_write_path" = { value = "payment_method_data.bank_redirect.online_banking_poland.issuer", schema = { type = "string" } }
 "dynamic_fields.bank_redirect.online_banking_poland.issuer._default_label_text" = { value = "Bank Issuer", schema = { type = "string" } }
 "dynamic_fields.bank_redirect.online_banking_poland.issuer._default_placeholder_text" = { value = "Select Bank Issuer", schema = { type = "string" } }
-"dynamic_fields.bank_redirect.online_banking_poland.issuer._dropdown_options" = { value = ["blik_p_s_p", "place_z_i_p_k_o", "m_bank", "pay_with_i_n_g", "santander_przelew24", "bank_p_e_k_a_o_s_a", "bank_millennium", "pay_with_alior_bank", "banki_spoldzielcze", "pay_with_inteligo", "b_n_p_paribas_poland", "bank_nowy_s_a", "credit_agricole", "pay_with_b_o_s", "pay_with_citi_handlowy", "pay_with_plus_bank", "toyota_bank", "velo_bank", "e_transfer_pocztowy24"], schema = { type = "array" } }
-"dynamic_fields.bank_redirect.online_banking_poland.issuer._extended_dropdown_options" = { value = [], schema = { type = "array" } }
+"dynamic_fields.bank_redirect.online_banking_poland.issuer._dropdown_options" = { value = [
+    "blik_p_s_p",
+    "place_z_i_p_k_o",
+    "m_bank",
+    "pay_with_i_n_g",
+    "santander_przelew24",
+    "bank_p_e_k_a_o_s_a",
+    "bank_millennium",
+    "pay_with_alior_bank",
+    "banki_spoldzielcze",
+    "pay_with_inteligo",
+    "b_n_p_paribas_poland",
+    "bank_nowy_s_a",
+    "credit_agricole",
+    "pay_with_b_o_s",
+    "pay_with_citi_handlowy",
+    "pay_with_plus_bank",
+    "toyota_bank",
+    "velo_bank",
+    "e_transfer_pocztowy24",
+], schema = { type = "array" } }
+"dynamic_fields.bank_redirect.online_banking_poland.issuer._extended_dropdown_options" = { value = [
+], schema = { type = "array" } }
 "dynamic_fields.bank_redirect.online_banking_poland.issuer._field_display_order" = { value = 80, schema = { type = "number" } }
 "dynamic_fields.bank_redirect.online_banking_poland.issuer._field_render_type" = { value = "BankNamesSelect", schema = { type = "string" } }
 "dynamic_fields.bank_redirect.online_banking_poland.issuer._html_autocomplete_attribute" = { value = "on", schema = { type = "string" } }
@@ -473,8 +625,18 @@ client_session_validation_enabled = { value = true, schema = { type = "boolean" 
 "dynamic_fields.bank_redirect.online_banking_slovakia.issuer._confirm_request_write_path" = { value = "payment_method_data.bank_redirect.online_banking_slovakia.issuer", schema = { type = "string" } }
 "dynamic_fields.bank_redirect.online_banking_slovakia.issuer._default_label_text" = { value = "Bank Issuer", schema = { type = "string" } }
 "dynamic_fields.bank_redirect.online_banking_slovakia.issuer._default_placeholder_text" = { value = "Select Bank Issuer", schema = { type = "string" } }
-"dynamic_fields.bank_redirect.online_banking_slovakia.issuer._dropdown_options" = { value = ["e_platby_v_u_b", "postova_banka", "sporo_pay", "tatra_pay", "viamo", "volksbank_gruppe", "volkskreditbank_ag", "vr_bank_braunau"], schema = { type = "array" } }
-"dynamic_fields.bank_redirect.online_banking_slovakia.issuer._extended_dropdown_options" = { value = [], schema = { type = "array" } }
+"dynamic_fields.bank_redirect.online_banking_slovakia.issuer._dropdown_options" = { value = [
+    "e_platby_v_u_b",
+    "postova_banka",
+    "sporo_pay",
+    "tatra_pay",
+    "viamo",
+    "volksbank_gruppe",
+    "volkskreditbank_ag",
+    "vr_bank_braunau",
+], schema = { type = "array" } }
+"dynamic_fields.bank_redirect.online_banking_slovakia.issuer._extended_dropdown_options" = { value = [
+], schema = { type = "array" } }
 "dynamic_fields.bank_redirect.online_banking_slovakia.issuer._field_display_order" = { value = 90, schema = { type = "number" } }
 "dynamic_fields.bank_redirect.online_banking_slovakia.issuer._field_render_type" = { value = "BankNamesSelect", schema = { type = "string" } }
 "dynamic_fields.bank_redirect.online_banking_slovakia.issuer._html_autocomplete_attribute" = { value = "on", schema = { type = "string" } }
@@ -492,8 +654,15 @@ client_session_validation_enabled = { value = true, schema = { type = "boolean" 
 "dynamic_fields.bank_redirect.online_banking_thailand.issuer._confirm_request_write_path" = { value = "payment_method_data.bank_redirect.online_banking_thailand.issuer", schema = { type = "string" } }
 "dynamic_fields.bank_redirect.online_banking_thailand.issuer._default_label_text" = { value = "Bank Issuer", schema = { type = "string" } }
 "dynamic_fields.bank_redirect.online_banking_thailand.issuer._default_placeholder_text" = { value = "Select Bank Issuer", schema = { type = "string" } }
-"dynamic_fields.bank_redirect.online_banking_thailand.issuer._dropdown_options" = { value = ["bangkok_bank", "krungsri_bank", "krung_thai_bank", "the_siam_commercial_bank", "kasikorn_bank"], schema = { type = "array" } }
-"dynamic_fields.bank_redirect.online_banking_thailand.issuer._extended_dropdown_options" = { value = [], schema = { type = "array" } }
+"dynamic_fields.bank_redirect.online_banking_thailand.issuer._dropdown_options" = { value = [
+    "bangkok_bank",
+    "krungsri_bank",
+    "krung_thai_bank",
+    "the_siam_commercial_bank",
+    "kasikorn_bank",
+], schema = { type = "array" } }
+"dynamic_fields.bank_redirect.online_banking_thailand.issuer._extended_dropdown_options" = { value = [
+], schema = { type = "array" } }
 "dynamic_fields.bank_redirect.online_banking_thailand.issuer._field_display_order" = { value = 110, schema = { type = "number" } }
 "dynamic_fields.bank_redirect.online_banking_thailand.issuer._field_render_type" = { value = "BankNamesSelect", schema = { type = "string" } }
 "dynamic_fields.bank_redirect.online_banking_thailand.issuer._html_autocomplete_attribute" = { value = "on", schema = { type = "string" } }
@@ -511,8 +680,13 @@ client_session_validation_enabled = { value = true, schema = { type = "boolean" 
 "dynamic_fields.bank_redirect.open_banking_czech_republic.issuer._confirm_request_write_path" = { value = "payment_method_data.bank_redirect.open_banking_czech_republic.issuer", schema = { type = "string" } }
 "dynamic_fields.bank_redirect.open_banking_czech_republic.issuer._default_label_text" = { value = "Bank Issuer", schema = { type = "string" } }
 "dynamic_fields.bank_redirect.open_banking_czech_republic.issuer._default_placeholder_text" = { value = "Select Bank Issuer", schema = { type = "string" } }
-"dynamic_fields.bank_redirect.open_banking_czech_republic.issuer._dropdown_options" = { value = ["ceska_sporitelna", "komercni_banka", "platnosc_online_karta_platnicza"], schema = { type = "array" } }
-"dynamic_fields.bank_redirect.open_banking_czech_republic.issuer._extended_dropdown_options" = { value = [], schema = { type = "array" } }
+"dynamic_fields.bank_redirect.open_banking_czech_republic.issuer._dropdown_options" = { value = [
+    "ceska_sporitelna",
+    "komercni_banka",
+    "platnosc_online_karta_platnicza",
+], schema = { type = "array" } }
+"dynamic_fields.bank_redirect.open_banking_czech_republic.issuer._extended_dropdown_options" = { value = [
+], schema = { type = "array" } }
 "dynamic_fields.bank_redirect.open_banking_czech_republic.issuer._field_display_order" = { value = 71, schema = { type = "number" } }
 "dynamic_fields.bank_redirect.open_banking_czech_republic.issuer._field_render_type" = { value = "BankNamesSelect", schema = { type = "string" } }
 "dynamic_fields.bank_redirect.open_banking_czech_republic.issuer._html_autocomplete_attribute" = { value = "on", schema = { type = "string" } }
@@ -530,8 +704,29 @@ client_session_validation_enabled = { value = true, schema = { type = "boolean" 
 "dynamic_fields.bank_redirect.open_banking_fpx.issuer._confirm_request_write_path" = { value = "payment_method_data.bank_redirect.open_banking_fpx.issuer", schema = { type = "string" } }
 "dynamic_fields.bank_redirect.open_banking_fpx.issuer._default_label_text" = { value = "Bank Issuer", schema = { type = "string" } }
 "dynamic_fields.bank_redirect.open_banking_fpx.issuer._default_placeholder_text" = { value = "Select Bank Issuer", schema = { type = "string" } }
-"dynamic_fields.bank_redirect.open_banking_fpx.issuer._dropdown_options" = { value = ["affin_bank", "agro_bank", "alliance_bank", "am_bank", "bank_of_china", "bank_islam", "bank_muamalat", "bank_rakyat", "bank_simpanan_nasional", "cimb_bank", "hong_leong_bank", "hsbc_bank", "kuwait_finance_house", "maybank", "ocbc_bank", "public_bank", "rhb_bank", "standard_chartered_bank", "uob_bank"], schema = { type = "array" } }
-"dynamic_fields.bank_redirect.open_banking_fpx.issuer._extended_dropdown_options" = { value = [], schema = { type = "array" } }
+"dynamic_fields.bank_redirect.open_banking_fpx.issuer._dropdown_options" = { value = [
+    "affin_bank",
+    "agro_bank",
+    "alliance_bank",
+    "am_bank",
+    "bank_of_china",
+    "bank_islam",
+    "bank_muamalat",
+    "bank_rakyat",
+    "bank_simpanan_nasional",
+    "cimb_bank",
+    "hong_leong_bank",
+    "hsbc_bank",
+    "kuwait_finance_house",
+    "maybank",
+    "ocbc_bank",
+    "public_bank",
+    "rhb_bank",
+    "standard_chartered_bank",
+    "uob_bank",
+], schema = { type = "array" } }
+"dynamic_fields.bank_redirect.open_banking_fpx.issuer._extended_dropdown_options" = { value = [
+], schema = { type = "array" } }
 "dynamic_fields.bank_redirect.open_banking_fpx.issuer._field_display_order" = { value = 74, schema = { type = "number" } }
 "dynamic_fields.bank_redirect.open_banking_fpx.issuer._field_render_type" = { value = "BankNamesSelect", schema = { type = "string" } }
 "dynamic_fields.bank_redirect.open_banking_fpx.issuer._html_autocomplete_attribute" = { value = "on", schema = { type = "string" } }
@@ -549,8 +744,18 @@ client_session_validation_enabled = { value = true, schema = { type = "boolean" 
 "dynamic_fields.bank_redirect.open_banking_slovakia.issuer._confirm_request_write_path" = { value = "payment_method_data.bank_redirect.open_banking_slovakia.issuer", schema = { type = "string" } }
 "dynamic_fields.bank_redirect.open_banking_slovakia.issuer._default_label_text" = { value = "Bank Issuer", schema = { type = "string" } }
 "dynamic_fields.bank_redirect.open_banking_slovakia.issuer._default_placeholder_text" = { value = "Select Bank Issuer", schema = { type = "string" } }
-"dynamic_fields.bank_redirect.open_banking_slovakia.issuer._dropdown_options" = { value = ["e_platby_v_u_b", "postova_banka", "sporo_pay", "tatra_pay", "viamo", "volksbank_gruppe", "volkskreditbank_ag", "vr_bank_braunau"], schema = { type = "array" } }
-"dynamic_fields.bank_redirect.open_banking_slovakia.issuer._extended_dropdown_options" = { value = [], schema = { type = "array" } }
+"dynamic_fields.bank_redirect.open_banking_slovakia.issuer._dropdown_options" = { value = [
+    "e_platby_v_u_b",
+    "postova_banka",
+    "sporo_pay",
+    "tatra_pay",
+    "viamo",
+    "volksbank_gruppe",
+    "volkskreditbank_ag",
+    "vr_bank_braunau",
+], schema = { type = "array" } }
+"dynamic_fields.bank_redirect.open_banking_slovakia.issuer._extended_dropdown_options" = { value = [
+], schema = { type = "array" } }
 "dynamic_fields.bank_redirect.open_banking_slovakia.issuer._field_display_order" = { value = 73, schema = { type = "number" } }
 "dynamic_fields.bank_redirect.open_banking_slovakia.issuer._field_render_type" = { value = "BankNamesSelect", schema = { type = "string" } }
 "dynamic_fields.bank_redirect.open_banking_slovakia.issuer._html_autocomplete_attribute" = { value = "on", schema = { type = "string" } }
@@ -568,8 +773,15 @@ client_session_validation_enabled = { value = true, schema = { type = "boolean" 
 "dynamic_fields.bank_redirect.open_banking_thailand.issuer._confirm_request_write_path" = { value = "payment_method_data.bank_redirect.open_banking_thailand.issuer", schema = { type = "string" } }
 "dynamic_fields.bank_redirect.open_banking_thailand.issuer._default_label_text" = { value = "Bank Issuer", schema = { type = "string" } }
 "dynamic_fields.bank_redirect.open_banking_thailand.issuer._default_placeholder_text" = { value = "Select Bank Issuer", schema = { type = "string" } }
-"dynamic_fields.bank_redirect.open_banking_thailand.issuer._dropdown_options" = { value = ["bangkok_bank", "krungsri_bank", "krung_thai_bank", "the_siam_commercial_bank", "kasikorn_bank"], schema = { type = "array" } }
-"dynamic_fields.bank_redirect.open_banking_thailand.issuer._extended_dropdown_options" = { value = [], schema = { type = "array" } }
+"dynamic_fields.bank_redirect.open_banking_thailand.issuer._dropdown_options" = { value = [
+    "bangkok_bank",
+    "krungsri_bank",
+    "krung_thai_bank",
+    "the_siam_commercial_bank",
+    "kasikorn_bank",
+], schema = { type = "array" } }
+"dynamic_fields.bank_redirect.open_banking_thailand.issuer._extended_dropdown_options" = { value = [
+], schema = { type = "array" } }
 "dynamic_fields.bank_redirect.open_banking_thailand.issuer._field_display_order" = { value = 75, schema = { type = "number" } }
 "dynamic_fields.bank_redirect.open_banking_thailand.issuer._field_render_type" = { value = "BankNamesSelect", schema = { type = "string" } }
 "dynamic_fields.bank_redirect.open_banking_thailand.issuer._html_autocomplete_attribute" = { value = "on", schema = { type = "string" } }
@@ -587,8 +799,32 @@ client_session_validation_enabled = { value = true, schema = { type = "boolean" 
 "dynamic_fields.bank_redirect.open_banking_uk.issuer._confirm_request_write_path" = { value = "payment_method_data.bank_redirect.open_banking_uk.issuer", schema = { type = "string" } }
 "dynamic_fields.bank_redirect.open_banking_uk.issuer._default_label_text" = { value = "Bank Issuer", schema = { type = "string" } }
 "dynamic_fields.bank_redirect.open_banking_uk.issuer._default_placeholder_text" = { value = "Select Bank Issuer", schema = { type = "string" } }
-"dynamic_fields.bank_redirect.open_banking_uk.issuer._dropdown_options" = { value = ["aib", "bank_of_scotland", "barclays", "danske_bank", "first_direct", "first_trust", "halifax", "hsbc_bank", "lloyds", "monzo", "nat_west", "nationwide_bank", "revolut", "royal_bank_of_scotland", "santander_przelew24", "starling", "tesco_bank", "tsb_bank", "ulster_bank", "open_bank_success", "open_bank_failure", "open_bank_cancelled"], schema = { type = "array" } }
-"dynamic_fields.bank_redirect.open_banking_uk.issuer._extended_dropdown_options" = { value = [], schema = { type = "array" } }
+"dynamic_fields.bank_redirect.open_banking_uk.issuer._dropdown_options" = { value = [
+    "aib",
+    "bank_of_scotland",
+    "barclays",
+    "danske_bank",
+    "first_direct",
+    "first_trust",
+    "halifax",
+    "hsbc_bank",
+    "lloyds",
+    "monzo",
+    "nat_west",
+    "nationwide_bank",
+    "revolut",
+    "royal_bank_of_scotland",
+    "santander_przelew24",
+    "starling",
+    "tesco_bank",
+    "tsb_bank",
+    "ulster_bank",
+    "open_bank_success",
+    "open_bank_failure",
+    "open_bank_cancelled",
+], schema = { type = "array" } }
+"dynamic_fields.bank_redirect.open_banking_uk.issuer._extended_dropdown_options" = { value = [
+], schema = { type = "array" } }
 "dynamic_fields.bank_redirect.open_banking_uk.issuer._field_display_order" = { value = 60, schema = { type = "number" } }
 "dynamic_fields.bank_redirect.open_banking_uk.issuer._field_render_type" = { value = "BankNamesSelect", schema = { type = "string" } }
 "dynamic_fields.bank_redirect.open_banking_uk.issuer._html_autocomplete_attribute" = { value = "on", schema = { type = "string" } }
@@ -606,8 +842,10 @@ client_session_validation_enabled = { value = true, schema = { type = "boolean" 
 "dynamic_fields.bank_transfer.pix.pix_key._confirm_request_write_path" = { value = "payment_method_data.bank_transfer.pix.pix_key", schema = { type = "string" } }
 "dynamic_fields.bank_transfer.pix.pix_key._default_label_text" = { value = "PIX Key", schema = { type = "string" } }
 "dynamic_fields.bank_transfer.pix.pix_key._default_placeholder_text" = { value = "Enter Pix key.", schema = { type = "string" } }
-"dynamic_fields.bank_transfer.pix.pix_key._dropdown_options" = { value = [], schema = { type = "array" } }
-"dynamic_fields.bank_transfer.pix.pix_key._extended_dropdown_options" = { value = [], schema = { type = "array" } }
+"dynamic_fields.bank_transfer.pix.pix_key._dropdown_options" = { value = [
+], schema = { type = "array" } }
+"dynamic_fields.bank_transfer.pix.pix_key._extended_dropdown_options" = { value = [
+], schema = { type = "array" } }
 "dynamic_fields.bank_transfer.pix.pix_key._field_display_order" = { value = 360, schema = { type = "number" } }
 "dynamic_fields.bank_transfer.pix.pix_key._field_render_type" = { value = "Generic", schema = { type = "string" } }
 "dynamic_fields.bank_transfer.pix.pix_key._html_autocomplete_attribute" = { value = "on", schema = { type = "string" } }
@@ -626,8 +864,10 @@ client_session_validation_enabled = { value = true, schema = { type = "boolean" 
 "dynamic_fields.bank_transfer.pix.source_bank_account_id._confirm_request_write_path" = { value = "payment_method_data.bank_transfer.pix.source_bank_account_id", schema = { type = "string" } }
 "dynamic_fields.bank_transfer.pix.source_bank_account_id._default_label_text" = { value = "Source Bank Account ID", schema = { type = "string" } }
 "dynamic_fields.bank_transfer.pix.source_bank_account_id._default_placeholder_text" = { value = "Source Bank Account ID", schema = { type = "string" } }
-"dynamic_fields.bank_transfer.pix.source_bank_account_id._dropdown_options" = { value = [], schema = { type = "array" } }
-"dynamic_fields.bank_transfer.pix.source_bank_account_id._extended_dropdown_options" = { value = [], schema = { type = "array" } }
+"dynamic_fields.bank_transfer.pix.source_bank_account_id._dropdown_options" = { value = [
+], schema = { type = "array" } }
+"dynamic_fields.bank_transfer.pix.source_bank_account_id._extended_dropdown_options" = { value = [
+], schema = { type = "array" } }
 "dynamic_fields.bank_transfer.pix.source_bank_account_id._field_display_order" = { value = 370, schema = { type = "number" } }
 "dynamic_fields.bank_transfer.pix.source_bank_account_id._field_render_type" = { value = "Generic", schema = { type = "string" } }
 "dynamic_fields.bank_transfer.pix.source_bank_account_id._html_autocomplete_attribute" = { value = "on", schema = { type = "string" } }
@@ -646,8 +886,10 @@ client_session_validation_enabled = { value = true, schema = { type = "boolean" 
 "dynamic_fields.bank_transfer.pix_automatico_push.account_number._confirm_request_write_path" = { value = "payment_method_data.bank_transfer.pix_automatico_push.account_number", schema = { type = "string" } }
 "dynamic_fields.bank_transfer.pix_automatico_push.account_number._default_label_text" = { value = "Account Number", schema = { type = "string" } }
 "dynamic_fields.bank_transfer.pix_automatico_push.account_number._default_placeholder_text" = { value = "Account Number", schema = { type = "string" } }
-"dynamic_fields.bank_transfer.pix_automatico_push.account_number._dropdown_options" = { value = [], schema = { type = "array" } }
-"dynamic_fields.bank_transfer.pix_automatico_push.account_number._extended_dropdown_options" = { value = [], schema = { type = "array" } }
+"dynamic_fields.bank_transfer.pix_automatico_push.account_number._dropdown_options" = { value = [
+], schema = { type = "array" } }
+"dynamic_fields.bank_transfer.pix_automatico_push.account_number._extended_dropdown_options" = { value = [
+], schema = { type = "array" } }
 "dynamic_fields.bank_transfer.pix_automatico_push.account_number._field_display_order" = { value = 380, schema = { type = "number" } }
 "dynamic_fields.bank_transfer.pix_automatico_push.account_number._field_render_type" = { value = "Generic", schema = { type = "string" } }
 "dynamic_fields.bank_transfer.pix_automatico_push.account_number._html_autocomplete_attribute" = { value = "on", schema = { type = "string" } }
@@ -666,8 +908,10 @@ client_session_validation_enabled = { value = true, schema = { type = "boolean" 
 "dynamic_fields.bank_transfer.pix_automatico_push.bank_identifier._confirm_request_write_path" = { value = "payment_method_data.bank_transfer.pix_automatico_push.bank_identifier", schema = { type = "string" } }
 "dynamic_fields.bank_transfer.pix_automatico_push.bank_identifier._default_label_text" = { value = "Bank Identifier", schema = { type = "string" } }
 "dynamic_fields.bank_transfer.pix_automatico_push.bank_identifier._default_placeholder_text" = { value = "Bank Identifier", schema = { type = "string" } }
-"dynamic_fields.bank_transfer.pix_automatico_push.bank_identifier._dropdown_options" = { value = [], schema = { type = "array" } }
-"dynamic_fields.bank_transfer.pix_automatico_push.bank_identifier._extended_dropdown_options" = { value = [], schema = { type = "array" } }
+"dynamic_fields.bank_transfer.pix_automatico_push.bank_identifier._dropdown_options" = { value = [
+], schema = { type = "array" } }
+"dynamic_fields.bank_transfer.pix_automatico_push.bank_identifier._extended_dropdown_options" = { value = [
+], schema = { type = "array" } }
 "dynamic_fields.bank_transfer.pix_automatico_push.bank_identifier._field_display_order" = { value = 400, schema = { type = "number" } }
 "dynamic_fields.bank_transfer.pix_automatico_push.bank_identifier._field_render_type" = { value = "Generic", schema = { type = "string" } }
 "dynamic_fields.bank_transfer.pix_automatico_push.bank_identifier._html_autocomplete_attribute" = { value = "on", schema = { type = "string" } }
@@ -686,8 +930,10 @@ client_session_validation_enabled = { value = true, schema = { type = "boolean" 
 "dynamic_fields.bank_transfer.pix_automatico_push.branch_code._confirm_request_write_path" = { value = "payment_method_data.bank_transfer.pix_automatico_push.branch_code", schema = { type = "string" } }
 "dynamic_fields.bank_transfer.pix_automatico_push.branch_code._default_label_text" = { value = "Branch Code", schema = { type = "string" } }
 "dynamic_fields.bank_transfer.pix_automatico_push.branch_code._default_placeholder_text" = { value = "Branch Code", schema = { type = "string" } }
-"dynamic_fields.bank_transfer.pix_automatico_push.branch_code._dropdown_options" = { value = [], schema = { type = "array" } }
-"dynamic_fields.bank_transfer.pix_automatico_push.branch_code._extended_dropdown_options" = { value = [], schema = { type = "array" } }
+"dynamic_fields.bank_transfer.pix_automatico_push.branch_code._dropdown_options" = { value = [
+], schema = { type = "array" } }
+"dynamic_fields.bank_transfer.pix_automatico_push.branch_code._extended_dropdown_options" = { value = [
+], schema = { type = "array" } }
 "dynamic_fields.bank_transfer.pix_automatico_push.branch_code._field_display_order" = { value = 390, schema = { type = "number" } }
 "dynamic_fields.bank_transfer.pix_automatico_push.branch_code._field_render_type" = { value = "Generic", schema = { type = "string" } }
 "dynamic_fields.bank_transfer.pix_automatico_push.branch_code._html_autocomplete_attribute" = { value = "on", schema = { type = "string" } }
@@ -706,8 +952,10 @@ client_session_validation_enabled = { value = true, schema = { type = "boolean" 
 "dynamic_fields.bank_transfer.pix_emv.pix_key._confirm_request_write_path" = { value = "payment_method_data.bank_transfer.pix_emv.pix_key", schema = { type = "string" } }
 "dynamic_fields.bank_transfer.pix_emv.pix_key._default_label_text" = { value = "PIX Key", schema = { type = "string" } }
 "dynamic_fields.bank_transfer.pix_emv.pix_key._default_placeholder_text" = { value = "Enter Pix key.", schema = { type = "string" } }
-"dynamic_fields.bank_transfer.pix_emv.pix_key._dropdown_options" = { value = [], schema = { type = "array" } }
-"dynamic_fields.bank_transfer.pix_emv.pix_key._extended_dropdown_options" = { value = [], schema = { type = "array" } }
+"dynamic_fields.bank_transfer.pix_emv.pix_key._dropdown_options" = { value = [
+], schema = { type = "array" } }
+"dynamic_fields.bank_transfer.pix_emv.pix_key._extended_dropdown_options" = { value = [
+], schema = { type = "array" } }
 "dynamic_fields.bank_transfer.pix_emv.pix_key._field_display_order" = { value = 360, schema = { type = "number" } }
 "dynamic_fields.bank_transfer.pix_emv.pix_key._field_render_type" = { value = "Generic", schema = { type = "string" } }
 "dynamic_fields.bank_transfer.pix_emv.pix_key._html_autocomplete_attribute" = { value = "on", schema = { type = "string" } }
@@ -726,8 +974,10 @@ client_session_validation_enabled = { value = true, schema = { type = "boolean" 
 "dynamic_fields.bank_transfer.pix_emv.source_bank_account_id._confirm_request_write_path" = { value = "payment_method_data.bank_transfer.pix_emv.source_bank_account_id", schema = { type = "string" } }
 "dynamic_fields.bank_transfer.pix_emv.source_bank_account_id._default_label_text" = { value = "Source Bank Account ID", schema = { type = "string" } }
 "dynamic_fields.bank_transfer.pix_emv.source_bank_account_id._default_placeholder_text" = { value = "Source Bank Account ID", schema = { type = "string" } }
-"dynamic_fields.bank_transfer.pix_emv.source_bank_account_id._dropdown_options" = { value = [], schema = { type = "array" } }
-"dynamic_fields.bank_transfer.pix_emv.source_bank_account_id._extended_dropdown_options" = { value = [], schema = { type = "array" } }
+"dynamic_fields.bank_transfer.pix_emv.source_bank_account_id._dropdown_options" = { value = [
+], schema = { type = "array" } }
+"dynamic_fields.bank_transfer.pix_emv.source_bank_account_id._extended_dropdown_options" = { value = [
+], schema = { type = "array" } }
 "dynamic_fields.bank_transfer.pix_emv.source_bank_account_id._field_display_order" = { value = 370, schema = { type = "number" } }
 "dynamic_fields.bank_transfer.pix_emv.source_bank_account_id._field_render_type" = { value = "Generic", schema = { type = "string" } }
 "dynamic_fields.bank_transfer.pix_emv.source_bank_account_id._html_autocomplete_attribute" = { value = "on", schema = { type = "string" } }
@@ -746,8 +996,10 @@ client_session_validation_enabled = { value = true, schema = { type = "boolean" 
 "dynamic_fields.bank_transfer.pix_qr.pix_key._confirm_request_write_path" = { value = "payment_method_data.bank_transfer.pix_qr.pix_key", schema = { type = "string" } }
 "dynamic_fields.bank_transfer.pix_qr.pix_key._default_label_text" = { value = "PIX Key", schema = { type = "string" } }
 "dynamic_fields.bank_transfer.pix_qr.pix_key._default_placeholder_text" = { value = "Enter Pix key.", schema = { type = "string" } }
-"dynamic_fields.bank_transfer.pix_qr.pix_key._dropdown_options" = { value = [], schema = { type = "array" } }
-"dynamic_fields.bank_transfer.pix_qr.pix_key._extended_dropdown_options" = { value = [], schema = { type = "array" } }
+"dynamic_fields.bank_transfer.pix_qr.pix_key._dropdown_options" = { value = [
+], schema = { type = "array" } }
+"dynamic_fields.bank_transfer.pix_qr.pix_key._extended_dropdown_options" = { value = [
+], schema = { type = "array" } }
 "dynamic_fields.bank_transfer.pix_qr.pix_key._field_display_order" = { value = 360, schema = { type = "number" } }
 "dynamic_fields.bank_transfer.pix_qr.pix_key._field_render_type" = { value = "Generic", schema = { type = "string" } }
 "dynamic_fields.bank_transfer.pix_qr.pix_key._html_autocomplete_attribute" = { value = "on", schema = { type = "string" } }
@@ -766,8 +1018,10 @@ client_session_validation_enabled = { value = true, schema = { type = "boolean" 
 "dynamic_fields.bank_transfer.pix_qr.source_bank_account_id._confirm_request_write_path" = { value = "payment_method_data.bank_transfer.pix_qr.source_bank_account_id", schema = { type = "string" } }
 "dynamic_fields.bank_transfer.pix_qr.source_bank_account_id._default_label_text" = { value = "Source Bank Account ID", schema = { type = "string" } }
 "dynamic_fields.bank_transfer.pix_qr.source_bank_account_id._default_placeholder_text" = { value = "Source Bank Account ID", schema = { type = "string" } }
-"dynamic_fields.bank_transfer.pix_qr.source_bank_account_id._dropdown_options" = { value = [], schema = { type = "array" } }
-"dynamic_fields.bank_transfer.pix_qr.source_bank_account_id._extended_dropdown_options" = { value = [], schema = { type = "array" } }
+"dynamic_fields.bank_transfer.pix_qr.source_bank_account_id._dropdown_options" = { value = [
+], schema = { type = "array" } }
+"dynamic_fields.bank_transfer.pix_qr.source_bank_account_id._extended_dropdown_options" = { value = [
+], schema = { type = "array" } }
 "dynamic_fields.bank_transfer.pix_qr.source_bank_account_id._field_display_order" = { value = 370, schema = { type = "number" } }
 "dynamic_fields.bank_transfer.pix_qr.source_bank_account_id._field_render_type" = { value = "Generic", schema = { type = "string" } }
 "dynamic_fields.bank_transfer.pix_qr.source_bank_account_id._html_autocomplete_attribute" = { value = "on", schema = { type = "string" } }
@@ -786,8 +1040,10 @@ client_session_validation_enabled = { value = true, schema = { type = "boolean" 
 "dynamic_fields.billing.address.city._confirm_request_write_path" = { value = "payment_method_data.billing.address.city", schema = { type = "string" } }
 "dynamic_fields.billing.address.city._default_label_text" = { value = "City", schema = { type = "string" } }
 "dynamic_fields.billing.address.city._default_placeholder_text" = { value = "City", schema = { type = "string" } }
-"dynamic_fields.billing.address.city._dropdown_options" = { value = [], schema = { type = "array" } }
-"dynamic_fields.billing.address.city._extended_dropdown_options" = { value = [], schema = { type = "array" } }
+"dynamic_fields.billing.address.city._dropdown_options" = { value = [
+], schema = { type = "array" } }
+"dynamic_fields.billing.address.city._extended_dropdown_options" = { value = [
+], schema = { type = "array" } }
 "dynamic_fields.billing.address.city._field_display_order" = { value = 560, schema = { type = "number" } }
 "dynamic_fields.billing.address.city._field_render_type" = { value = "Generic", schema = { type = "string" } }
 "dynamic_fields.billing.address.city._html_autocomplete_attribute" = { value = "billing address-level2", schema = { type = "string" } }
@@ -806,8 +1062,262 @@ client_session_validation_enabled = { value = true, schema = { type = "boolean" 
 "dynamic_fields.billing.address.country._confirm_request_write_path" = { value = "payment_method_data.billing.address.country", schema = { type = "string" } }
 "dynamic_fields.billing.address.country._default_label_text" = { value = "Country", schema = { type = "string" } }
 "dynamic_fields.billing.address.country._default_placeholder_text" = { value = "Select Country", schema = { type = "string" } }
-"dynamic_fields.billing.address.country._dropdown_options" = { value = ["AC", "AD", "AE", "AF", "AG", "AI", "AL", "AM", "AO", "AQ", "AR", "AS", "AT", "AU", "AW", "AX", "AZ", "BA", "BB", "BD", "BE", "BF", "BG", "BH", "BI", "BJ", "BL", "BM", "BN", "BO", "BQ", "BR", "BS", "BT", "BV", "BW", "BY", "BZ", "CA", "CC", "CD", "CF", "CG", "CH", "CI", "CK", "CL", "CM", "CN", "CO", "CR", "CU", "CV", "CW", "CX", "CY", "CZ", "DE", "DJ", "DK", "DM", "DO", "DZ", "EC", "EE", "EG", "EH", "ER", "ES", "ET", "FI", "FJ", "FK", "FM", "FO", "FR", "GA", "GB", "GD", "GE", "GF", "GG", "GH", "GI", "GL", "GM", "GN", "GP", "GQ", "GR", "GS", "GT", "GU", "GW", "GY", "HK", "HM", "HN", "HR", "HT", "HU", "ID", "IE", "IL", "IM", "IN", "IO", "IQ", "IR", "IS", "IT", "JE", "JM", "JO", "JP", "KE", "KG", "KH", "KI", "KM", "KN", "KP", "KR", "KW", "KY", "KZ", "LA", "LB", "LC", "LI", "LK", "LR", "LS", "LT", "LU", "LV", "LY", "MA", "MC", "MD", "ME", "MF", "MG", "MH", "MK", "ML", "MM", "MN", "MO", "MP", "MQ", "MR", "MS", "MT", "MU", "MV", "MW", "MX", "MY", "MZ", "NA", "NC", "NE", "NF", "NG", "NI", "NL", "NO", "NP", "NR", "NU", "NZ", "OM", "PA", "PE", "PF", "PG", "PH", "PK", "PL", "PM", "PN", "PR", "PS", "PT", "PW", "PY", "QA", "RE", "RO", "RS", "RU", "RW", "SA", "SB", "SC", "SD", "SE", "SG", "SH", "SI", "SJ", "SK", "SL", "SM", "SN", "SO", "SR", "SS", "ST", "SV", "SX", "SY", "SZ", "TA", "TC", "TD", "TF", "TG", "TH", "TJ", "TK", "TL", "TM", "TN", "TO", "TR", "TT", "TV", "TW", "TZ", "UA", "UG", "UM", "US", "UY", "UZ", "VA", "VC", "VE", "VG", "VI", "VN", "VU", "WF", "WS", "XK", "YE", "YT", "ZA", "ZM", "ZW"], schema = { type = "array" } }
-"dynamic_fields.billing.address.country._extended_dropdown_options" = { value = [], schema = { type = "array" } }
+"dynamic_fields.billing.address.country._dropdown_options" = { value = [
+    "AC",
+    "AD",
+    "AE",
+    "AF",
+    "AG",
+    "AI",
+    "AL",
+    "AM",
+    "AO",
+    "AQ",
+    "AR",
+    "AS",
+    "AT",
+    "AU",
+    "AW",
+    "AX",
+    "AZ",
+    "BA",
+    "BB",
+    "BD",
+    "BE",
+    "BF",
+    "BG",
+    "BH",
+    "BI",
+    "BJ",
+    "BL",
+    "BM",
+    "BN",
+    "BO",
+    "BQ",
+    "BR",
+    "BS",
+    "BT",
+    "BV",
+    "BW",
+    "BY",
+    "BZ",
+    "CA",
+    "CC",
+    "CD",
+    "CF",
+    "CG",
+    "CH",
+    "CI",
+    "CK",
+    "CL",
+    "CM",
+    "CN",
+    "CO",
+    "CR",
+    "CU",
+    "CV",
+    "CW",
+    "CX",
+    "CY",
+    "CZ",
+    "DE",
+    "DJ",
+    "DK",
+    "DM",
+    "DO",
+    "DZ",
+    "EC",
+    "EE",
+    "EG",
+    "EH",
+    "ER",
+    "ES",
+    "ET",
+    "FI",
+    "FJ",
+    "FK",
+    "FM",
+    "FO",
+    "FR",
+    "GA",
+    "GB",
+    "GD",
+    "GE",
+    "GF",
+    "GG",
+    "GH",
+    "GI",
+    "GL",
+    "GM",
+    "GN",
+    "GP",
+    "GQ",
+    "GR",
+    "GS",
+    "GT",
+    "GU",
+    "GW",
+    "GY",
+    "HK",
+    "HM",
+    "HN",
+    "HR",
+    "HT",
+    "HU",
+    "ID",
+    "IE",
+    "IL",
+    "IM",
+    "IN",
+    "IO",
+    "IQ",
+    "IR",
+    "IS",
+    "IT",
+    "JE",
+    "JM",
+    "JO",
+    "JP",
+    "KE",
+    "KG",
+    "KH",
+    "KI",
+    "KM",
+    "KN",
+    "KP",
+    "KR",
+    "KW",
+    "KY",
+    "KZ",
+    "LA",
+    "LB",
+    "LC",
+    "LI",
+    "LK",
+    "LR",
+    "LS",
+    "LT",
+    "LU",
+    "LV",
+    "LY",
+    "MA",
+    "MC",
+    "MD",
+    "ME",
+    "MF",
+    "MG",
+    "MH",
+    "MK",
+    "ML",
+    "MM",
+    "MN",
+    "MO",
+    "MP",
+    "MQ",
+    "MR",
+    "MS",
+    "MT",
+    "MU",
+    "MV",
+    "MW",
+    "MX",
+    "MY",
+    "MZ",
+    "NA",
+    "NC",
+    "NE",
+    "NF",
+    "NG",
+    "NI",
+    "NL",
+    "NO",
+    "NP",
+    "NR",
+    "NU",
+    "NZ",
+    "OM",
+    "PA",
+    "PE",
+    "PF",
+    "PG",
+    "PH",
+    "PK",
+    "PL",
+    "PM",
+    "PN",
+    "PR",
+    "PS",
+    "PT",
+    "PW",
+    "PY",
+    "QA",
+    "RE",
+    "RO",
+    "RS",
+    "RU",
+    "RW",
+    "SA",
+    "SB",
+    "SC",
+    "SD",
+    "SE",
+    "SG",
+    "SH",
+    "SI",
+    "SJ",
+    "SK",
+    "SL",
+    "SM",
+    "SN",
+    "SO",
+    "SR",
+    "SS",
+    "ST",
+    "SV",
+    "SX",
+    "SY",
+    "SZ",
+    "TA",
+    "TC",
+    "TD",
+    "TF",
+    "TG",
+    "TH",
+    "TJ",
+    "TK",
+    "TL",
+    "TM",
+    "TN",
+    "TO",
+    "TR",
+    "TT",
+    "TV",
+    "TW",
+    "TZ",
+    "UA",
+    "UG",
+    "UM",
+    "US",
+    "UY",
+    "UZ",
+    "VA",
+    "VC",
+    "VE",
+    "VG",
+    "VI",
+    "VN",
+    "VU",
+    "WF",
+    "WS",
+    "XK",
+    "YE",
+    "YT",
+    "ZA",
+    "ZM",
+    "ZW",
+], schema = { type = "array" } }
+"dynamic_fields.billing.address.country._extended_dropdown_options" = { value = [
+], schema = { type = "array" } }
 "dynamic_fields.billing.address.country._field_display_order" = { value = 580, schema = { type = "number" } }
 "dynamic_fields.billing.address.country._field_render_type" = { value = "Country", schema = { type = "string" } }
 "dynamic_fields.billing.address.country._html_autocomplete_attribute" = { value = "billing country", schema = { type = "string" } }
@@ -825,8 +1335,10 @@ client_session_validation_enabled = { value = true, schema = { type = "boolean" 
 "dynamic_fields.billing.address.first_name._confirm_request_write_path" = { value = "payment_method_data.billing.address.first_name", schema = { type = "string" } }
 "dynamic_fields.billing.address.first_name._default_label_text" = { value = "Full Name", schema = { type = "string" } }
 "dynamic_fields.billing.address.first_name._default_placeholder_text" = { value = "First Name", schema = { type = "string" } }
-"dynamic_fields.billing.address.first_name._dropdown_options" = { value = [], schema = { type = "array" } }
-"dynamic_fields.billing.address.first_name._extended_dropdown_options" = { value = [], schema = { type = "array" } }
+"dynamic_fields.billing.address.first_name._dropdown_options" = { value = [
+], schema = { type = "array" } }
+"dynamic_fields.billing.address.first_name._extended_dropdown_options" = { value = [
+], schema = { type = "array" } }
 "dynamic_fields.billing.address.first_name._field_display_order" = { value = 480, schema = { type = "number" } }
 "dynamic_fields.billing.address.first_name._field_render_type" = { value = "CardHolderName", schema = { type = "string" } }
 "dynamic_fields.billing.address.first_name._html_autocomplete_attribute" = { value = "billing given-name", schema = { type = "string" } }
@@ -845,8 +1357,10 @@ client_session_validation_enabled = { value = true, schema = { type = "boolean" 
 "dynamic_fields.billing.address.last_name._confirm_request_write_path" = { value = "payment_method_data.billing.address.last_name", schema = { type = "string" } }
 "dynamic_fields.billing.address.last_name._default_label_text" = { value = "Last Name", schema = { type = "string" } }
 "dynamic_fields.billing.address.last_name._default_placeholder_text" = { value = "Last Name", schema = { type = "string" } }
-"dynamic_fields.billing.address.last_name._dropdown_options" = { value = [], schema = { type = "array" } }
-"dynamic_fields.billing.address.last_name._extended_dropdown_options" = { value = [], schema = { type = "array" } }
+"dynamic_fields.billing.address.last_name._dropdown_options" = { value = [
+], schema = { type = "array" } }
+"dynamic_fields.billing.address.last_name._extended_dropdown_options" = { value = [
+], schema = { type = "array" } }
 "dynamic_fields.billing.address.last_name._field_display_order" = { value = 490, schema = { type = "number" } }
 "dynamic_fields.billing.address.last_name._field_render_type" = { value = "CardHolderName", schema = { type = "string" } }
 "dynamic_fields.billing.address.last_name._html_autocomplete_attribute" = { value = "billing family-name", schema = { type = "string" } }
@@ -865,8 +1379,10 @@ client_session_validation_enabled = { value = true, schema = { type = "boolean" 
 "dynamic_fields.billing.address.line1._confirm_request_write_path" = { value = "payment_method_data.billing.address.line1", schema = { type = "string" } }
 "dynamic_fields.billing.address.line1._default_label_text" = { value = "Address Line 1", schema = { type = "string" } }
 "dynamic_fields.billing.address.line1._default_placeholder_text" = { value = "Street address", schema = { type = "string" } }
-"dynamic_fields.billing.address.line1._dropdown_options" = { value = [], schema = { type = "array" } }
-"dynamic_fields.billing.address.line1._extended_dropdown_options" = { value = [], schema = { type = "array" } }
+"dynamic_fields.billing.address.line1._dropdown_options" = { value = [
+], schema = { type = "array" } }
+"dynamic_fields.billing.address.line1._extended_dropdown_options" = { value = [
+], schema = { type = "array" } }
 "dynamic_fields.billing.address.line1._field_display_order" = { value = 540, schema = { type = "number" } }
 "dynamic_fields.billing.address.line1._field_render_type" = { value = "Generic", schema = { type = "string" } }
 "dynamic_fields.billing.address.line1._html_autocomplete_attribute" = { value = "billing address-line1", schema = { type = "string" } }
@@ -885,8 +1401,10 @@ client_session_validation_enabled = { value = true, schema = { type = "boolean" 
 "dynamic_fields.billing.address.line2._confirm_request_write_path" = { value = "payment_method_data.billing.address.line2", schema = { type = "string" } }
 "dynamic_fields.billing.address.line2._default_label_text" = { value = "Address Line 2", schema = { type = "string" } }
 "dynamic_fields.billing.address.line2._default_placeholder_text" = { value = "Apt., unit number, etc (optional)", schema = { type = "string" } }
-"dynamic_fields.billing.address.line2._dropdown_options" = { value = [], schema = { type = "array" } }
-"dynamic_fields.billing.address.line2._extended_dropdown_options" = { value = [], schema = { type = "array" } }
+"dynamic_fields.billing.address.line2._dropdown_options" = { value = [
+], schema = { type = "array" } }
+"dynamic_fields.billing.address.line2._extended_dropdown_options" = { value = [
+], schema = { type = "array" } }
 "dynamic_fields.billing.address.line2._field_display_order" = { value = 550, schema = { type = "number" } }
 "dynamic_fields.billing.address.line2._field_render_type" = { value = "Generic", schema = { type = "string" } }
 "dynamic_fields.billing.address.line2._html_autocomplete_attribute" = { value = "billing address-line2", schema = { type = "string" } }
@@ -905,8 +1423,10 @@ client_session_validation_enabled = { value = true, schema = { type = "boolean" 
 "dynamic_fields.billing.address.state._confirm_request_write_path" = { value = "payment_method_data.billing.address.state", schema = { type = "string" } }
 "dynamic_fields.billing.address.state._default_label_text" = { value = "State/Province", schema = { type = "string" } }
 "dynamic_fields.billing.address.state._default_placeholder_text" = { value = "Select State", schema = { type = "string" } }
-"dynamic_fields.billing.address.state._dropdown_options" = { value = [], schema = { type = "array" } }
-"dynamic_fields.billing.address.state._extended_dropdown_options" = { value = [], schema = { type = "array" } }
+"dynamic_fields.billing.address.state._dropdown_options" = { value = [
+], schema = { type = "array" } }
+"dynamic_fields.billing.address.state._extended_dropdown_options" = { value = [
+], schema = { type = "array" } }
 "dynamic_fields.billing.address.state._field_display_order" = { value = 570, schema = { type = "number" } }
 "dynamic_fields.billing.address.state._field_render_type" = { value = "State", schema = { type = "string" } }
 "dynamic_fields.billing.address.state._html_autocomplete_attribute" = { value = "billing address-level1", schema = { type = "string" } }
@@ -924,8 +1444,10 @@ client_session_validation_enabled = { value = true, schema = { type = "boolean" 
 "dynamic_fields.billing.address.zip._confirm_request_write_path" = { value = "payment_method_data.billing.address.zip", schema = { type = "string" } }
 "dynamic_fields.billing.address.zip._default_label_text" = { value = "ZIP/Postal Code", schema = { type = "string" } }
 "dynamic_fields.billing.address.zip._default_placeholder_text" = { value = "Postal Code", schema = { type = "string" } }
-"dynamic_fields.billing.address.zip._dropdown_options" = { value = [], schema = { type = "array" } }
-"dynamic_fields.billing.address.zip._extended_dropdown_options" = { value = [], schema = { type = "array" } }
+"dynamic_fields.billing.address.zip._dropdown_options" = { value = [
+], schema = { type = "array" } }
+"dynamic_fields.billing.address.zip._extended_dropdown_options" = { value = [
+], schema = { type = "array" } }
 "dynamic_fields.billing.address.zip._field_display_order" = { value = 590, schema = { type = "number" } }
 "dynamic_fields.billing.address.zip._field_render_type" = { value = "Generic", schema = { type = "string" } }
 "dynamic_fields.billing.address.zip._html_autocomplete_attribute" = { value = "billing postal-code", schema = { type = "string" } }
@@ -944,8 +1466,10 @@ client_session_validation_enabled = { value = true, schema = { type = "boolean" 
 "dynamic_fields.billing.email._confirm_request_write_path" = { value = "payment_method_data.billing.email", schema = { type = "string" } }
 "dynamic_fields.billing.email._default_label_text" = { value = "Email Address", schema = { type = "string" } }
 "dynamic_fields.billing.email._default_placeholder_text" = { value = "Email", schema = { type = "string" } }
-"dynamic_fields.billing.email._dropdown_options" = { value = [], schema = { type = "array" } }
-"dynamic_fields.billing.email._extended_dropdown_options" = { value = [], schema = { type = "array" } }
+"dynamic_fields.billing.email._dropdown_options" = { value = [
+], schema = { type = "array" } }
+"dynamic_fields.billing.email._extended_dropdown_options" = { value = [
+], schema = { type = "array" } }
 "dynamic_fields.billing.email._field_display_order" = { value = 510, schema = { type = "number" } }
 "dynamic_fields.billing.email._field_render_type" = { value = "Email", schema = { type = "string" } }
 "dynamic_fields.billing.email._html_autocomplete_attribute" = { value = "billing email", schema = { type = "string" } }
@@ -964,8 +1488,10 @@ client_session_validation_enabled = { value = true, schema = { type = "boolean" 
 "dynamic_fields.billing.phone.country_code._confirm_request_write_path" = { value = "payment_method_data.billing.phone.country_code", schema = { type = "string" } }
 "dynamic_fields.billing.phone.country_code._default_label_text" = { value = "Dialing Code", schema = { type = "string" } }
 "dynamic_fields.billing.phone.country_code._default_placeholder_text" = { value = "Select Dialing Code", schema = { type = "string" } }
-"dynamic_fields.billing.phone.country_code._dropdown_options" = { value = [], schema = { type = "array" } }
-"dynamic_fields.billing.phone.country_code._extended_dropdown_options" = { value = [], schema = { type = "array" } }
+"dynamic_fields.billing.phone.country_code._dropdown_options" = { value = [
+], schema = { type = "array" } }
+"dynamic_fields.billing.phone.country_code._extended_dropdown_options" = { value = [
+], schema = { type = "array" } }
 "dynamic_fields.billing.phone.country_code._field_display_order" = { value = 520, schema = { type = "number" } }
 "dynamic_fields.billing.phone.country_code._field_render_type" = { value = "PhoneCountryCode", schema = { type = "string" } }
 "dynamic_fields.billing.phone.country_code._html_autocomplete_attribute" = { value = "billing tel-country-code", schema = { type = "string" } }
@@ -983,8 +1509,10 @@ client_session_validation_enabled = { value = true, schema = { type = "boolean" 
 "dynamic_fields.billing.phone.number._confirm_request_write_path" = { value = "payment_method_data.billing.phone.number", schema = { type = "string" } }
 "dynamic_fields.billing.phone.number._default_label_text" = { value = "Phone Number", schema = { type = "string" } }
 "dynamic_fields.billing.phone.number._default_placeholder_text" = { value = "000 000 000", schema = { type = "string" } }
-"dynamic_fields.billing.phone.number._dropdown_options" = { value = [], schema = { type = "array" } }
-"dynamic_fields.billing.phone.number._extended_dropdown_options" = { value = [], schema = { type = "array" } }
+"dynamic_fields.billing.phone.number._dropdown_options" = { value = [
+], schema = { type = "array" } }
+"dynamic_fields.billing.phone.number._extended_dropdown_options" = { value = [
+], schema = { type = "array" } }
 "dynamic_fields.billing.phone.number._field_display_order" = { value = 530, schema = { type = "number" } }
 "dynamic_fields.billing.phone.number._field_render_type" = { value = "Phone", schema = { type = "string" } }
 "dynamic_fields.billing.phone.number._html_autocomplete_attribute" = { value = "billing tel-national", schema = { type = "string" } }
@@ -1003,8 +1531,10 @@ client_session_validation_enabled = { value = true, schema = { type = "boolean" 
 "dynamic_fields.card.card_cvc._confirm_request_write_path" = { value = "payment_method_data.card.card_cvc", schema = { type = "string" } }
 "dynamic_fields.card.card_cvc._default_label_text" = { value = "CVV", schema = { type = "string" } }
 "dynamic_fields.card.card_cvc._default_placeholder_text" = { value = "123", schema = { type = "string" } }
-"dynamic_fields.card.card_cvc._dropdown_options" = { value = [], schema = { type = "array" } }
-"dynamic_fields.card.card_cvc._extended_dropdown_options" = { value = [], schema = { type = "array" } }
+"dynamic_fields.card.card_cvc._dropdown_options" = { value = [
+], schema = { type = "array" } }
+"dynamic_fields.card.card_cvc._extended_dropdown_options" = { value = [
+], schema = { type = "array" } }
 "dynamic_fields.card.card_cvc._field_display_order" = { value = 40, schema = { type = "number" } }
 "dynamic_fields.card.card_cvc._field_render_type" = { value = "Cvc", schema = { type = "string" } }
 "dynamic_fields.card.card_cvc._html_autocomplete_attribute" = { value = "cc-csc", schema = { type = "string" } }
@@ -1023,8 +1553,10 @@ client_session_validation_enabled = { value = true, schema = { type = "boolean" 
 "dynamic_fields.card.card_exp_month._confirm_request_write_path" = { value = "payment_method_data.card.card_exp_month", schema = { type = "string" } }
 "dynamic_fields.card.card_exp_month._default_label_text" = { value = "Expiry Month", schema = { type = "string" } }
 "dynamic_fields.card.card_exp_month._default_placeholder_text" = { value = "Select Month", schema = { type = "string" } }
-"dynamic_fields.card.card_exp_month._dropdown_options" = { value = [], schema = { type = "array" } }
-"dynamic_fields.card.card_exp_month._extended_dropdown_options" = { value = [], schema = { type = "array" } }
+"dynamic_fields.card.card_exp_month._dropdown_options" = { value = [
+], schema = { type = "array" } }
+"dynamic_fields.card.card_exp_month._extended_dropdown_options" = { value = [
+], schema = { type = "array" } }
 "dynamic_fields.card.card_exp_month._field_display_order" = { value = 20, schema = { type = "number" } }
 "dynamic_fields.card.card_exp_month._field_render_type" = { value = "CardExpiryMonth", schema = { type = "string" } }
 "dynamic_fields.card.card_exp_month._html_autocomplete_attribute" = { value = "cc-exp-month", schema = { type = "string" } }
@@ -1043,8 +1575,10 @@ client_session_validation_enabled = { value = true, schema = { type = "boolean" 
 "dynamic_fields.card.card_exp_year._confirm_request_write_path" = { value = "payment_method_data.card.card_exp_year", schema = { type = "string" } }
 "dynamic_fields.card.card_exp_year._default_label_text" = { value = "Expiry Year", schema = { type = "string" } }
 "dynamic_fields.card.card_exp_year._default_placeholder_text" = { value = "Select Year", schema = { type = "string" } }
-"dynamic_fields.card.card_exp_year._dropdown_options" = { value = [], schema = { type = "array" } }
-"dynamic_fields.card.card_exp_year._extended_dropdown_options" = { value = [], schema = { type = "array" } }
+"dynamic_fields.card.card_exp_year._dropdown_options" = { value = [
+], schema = { type = "array" } }
+"dynamic_fields.card.card_exp_year._extended_dropdown_options" = { value = [
+], schema = { type = "array" } }
 "dynamic_fields.card.card_exp_year._field_display_order" = { value = 30, schema = { type = "number" } }
 "dynamic_fields.card.card_exp_year._field_render_type" = { value = "CardExpiryYear", schema = { type = "string" } }
 "dynamic_fields.card.card_exp_year._html_autocomplete_attribute" = { value = "cc-exp-year", schema = { type = "string" } }
@@ -1063,8 +1597,10 @@ client_session_validation_enabled = { value = true, schema = { type = "boolean" 
 "dynamic_fields.card.card_network._confirm_request_write_path" = { value = "payment_method_data.card.card_network", schema = { type = "string" } }
 "dynamic_fields.card.card_network._default_label_text" = { value = "Card Network", schema = { type = "string" } }
 "dynamic_fields.card.card_network._default_placeholder_text" = { value = "Select Card Network", schema = { type = "string" } }
-"dynamic_fields.card.card_network._dropdown_options" = { value = [], schema = { type = "array" } }
-"dynamic_fields.card.card_network._extended_dropdown_options" = { value = [], schema = { type = "array" } }
+"dynamic_fields.card.card_network._dropdown_options" = { value = [
+], schema = { type = "array" } }
+"dynamic_fields.card.card_network._extended_dropdown_options" = { value = [
+], schema = { type = "array" } }
 "dynamic_fields.card.card_network._field_display_order" = { value = 50, schema = { type = "number" } }
 "dynamic_fields.card.card_network._field_render_type" = { value = "CardNetwork", schema = { type = "string" } }
 "dynamic_fields.card.card_network._html_autocomplete_attribute" = { value = "cc-type", schema = { type = "string" } }
@@ -1083,8 +1619,10 @@ client_session_validation_enabled = { value = true, schema = { type = "boolean" 
 "dynamic_fields.card.card_number._confirm_request_write_path" = { value = "payment_method_data.card.card_number", schema = { type = "string" } }
 "dynamic_fields.card.card_number._default_label_text" = { value = "Card Number", schema = { type = "string" } }
 "dynamic_fields.card.card_number._default_placeholder_text" = { value = "1234 1234 1234 1234", schema = { type = "string" } }
-"dynamic_fields.card.card_number._dropdown_options" = { value = [], schema = { type = "array" } }
-"dynamic_fields.card.card_number._extended_dropdown_options" = { value = [], schema = { type = "array" } }
+"dynamic_fields.card.card_number._dropdown_options" = { value = [
+], schema = { type = "array" } }
+"dynamic_fields.card.card_number._extended_dropdown_options" = { value = [
+], schema = { type = "array" } }
 "dynamic_fields.card.card_number._field_display_order" = { value = 10, schema = { type = "number" } }
 "dynamic_fields.card.card_number._field_render_type" = { value = "CardNumber", schema = { type = "string" } }
 "dynamic_fields.card.card_number._html_autocomplete_attribute" = { value = "cc-number", schema = { type = "string" } }
@@ -1103,8 +1641,10 @@ client_session_validation_enabled = { value = true, schema = { type = "boolean" 
 "dynamic_fields.crypto.network._confirm_request_write_path" = { value = "payment_method_data.crypto.network", schema = { type = "string" } }
 "dynamic_fields.crypto.network._default_label_text" = { value = "Currency Networks", schema = { type = "string" } }
 "dynamic_fields.crypto.network._default_placeholder_text" = { value = "Network", schema = { type = "string" } }
-"dynamic_fields.crypto.network._dropdown_options" = { value = [], schema = { type = "array" } }
-"dynamic_fields.crypto.network._extended_dropdown_options" = { value = [], schema = { type = "array" } }
+"dynamic_fields.crypto.network._dropdown_options" = { value = [
+], schema = { type = "array" } }
+"dynamic_fields.crypto.network._extended_dropdown_options" = { value = [
+], schema = { type = "array" } }
 "dynamic_fields.crypto.network._field_display_order" = { value = 210, schema = { type = "number" } }
 "dynamic_fields.crypto.network._field_render_type" = { value = "CryptoNetwork", schema = { type = "string" } }
 "dynamic_fields.crypto.network._html_autocomplete_attribute" = { value = "on", schema = { type = "string" } }
@@ -1122,8 +1662,25 @@ client_session_validation_enabled = { value = true, schema = { type = "boolean" 
 "dynamic_fields.crypto.pay_currency._confirm_request_write_path" = { value = "payment_method_data.crypto.pay_currency", schema = { type = "string" } }
 "dynamic_fields.crypto.pay_currency._default_label_text" = { value = "Currency", schema = { type = "string" } }
 "dynamic_fields.crypto.pay_currency._default_placeholder_text" = { value = "Select Currency", schema = { type = "string" } }
-"dynamic_fields.crypto.pay_currency._dropdown_options" = { value = ["BTC", "LTC", "ETH", "XRP", "XLM", "BCH", "ADA", "SOL", "SHIB", "TRX", "DOGE", "BNB", "USDT", "USDC", "DAI"], schema = { type = "array" } }
-"dynamic_fields.crypto.pay_currency._extended_dropdown_options" = { value = [], schema = { type = "array" } }
+"dynamic_fields.crypto.pay_currency._dropdown_options" = { value = [
+    "BTC",
+    "LTC",
+    "ETH",
+    "XRP",
+    "XLM",
+    "BCH",
+    "ADA",
+    "SOL",
+    "SHIB",
+    "TRX",
+    "DOGE",
+    "BNB",
+    "USDT",
+    "USDC",
+    "DAI",
+], schema = { type = "array" } }
+"dynamic_fields.crypto.pay_currency._extended_dropdown_options" = { value = [
+], schema = { type = "array" } }
 "dynamic_fields.crypto.pay_currency._field_display_order" = { value = 200, schema = { type = "number" } }
 "dynamic_fields.crypto.pay_currency._field_render_type" = { value = "CryptoCurrency", schema = { type = "string" } }
 "dynamic_fields.crypto.pay_currency._html_autocomplete_attribute" = { value = "on", schema = { type = "string" } }
@@ -1141,8 +1698,10 @@ client_session_validation_enabled = { value = true, schema = { type = "boolean" 
 "dynamic_fields.customer.document_details.document_number._confirm_request_write_path" = { value = "customer.document_details.document_number", schema = { type = "string" } }
 "dynamic_fields.customer.document_details.document_number._default_label_text" = { value = "Document Number", schema = { type = "string" } }
 "dynamic_fields.customer.document_details.document_number._default_placeholder_text" = { value = "Document Number", schema = { type = "string" } }
-"dynamic_fields.customer.document_details.document_number._dropdown_options" = { value = [], schema = { type = "array" } }
-"dynamic_fields.customer.document_details.document_number._extended_dropdown_options" = { value = [], schema = { type = "array" } }
+"dynamic_fields.customer.document_details.document_number._dropdown_options" = { value = [
+], schema = { type = "array" } }
+"dynamic_fields.customer.document_details.document_number._extended_dropdown_options" = { value = [
+], schema = { type = "array" } }
 "dynamic_fields.customer.document_details.document_number._field_display_order" = { value = 230, schema = { type = "number" } }
 "dynamic_fields.customer.document_details.document_number._field_render_type" = { value = "Generic", schema = { type = "string" } }
 "dynamic_fields.customer.document_details.document_number._html_autocomplete_attribute" = { value = "on", schema = { type = "string" } }
@@ -1161,8 +1720,10 @@ client_session_validation_enabled = { value = true, schema = { type = "boolean" 
 "dynamic_fields.customer.document_details.document_type._confirm_request_write_path" = { value = "customer.document_details.document_type", schema = { type = "string" } }
 "dynamic_fields.customer.document_details.document_type._default_label_text" = { value = "Document Type", schema = { type = "string" } }
 "dynamic_fields.customer.document_details.document_type._default_placeholder_text" = { value = "Select Document Type", schema = { type = "string" } }
-"dynamic_fields.customer.document_details.document_type._dropdown_options" = { value = [], schema = { type = "array" } }
-"dynamic_fields.customer.document_details.document_type._extended_dropdown_options" = { value = [], schema = { type = "array" } }
+"dynamic_fields.customer.document_details.document_type._dropdown_options" = { value = [
+], schema = { type = "array" } }
+"dynamic_fields.customer.document_details.document_type._extended_dropdown_options" = { value = [
+], schema = { type = "array" } }
 "dynamic_fields.customer.document_details.document_type._field_display_order" = { value = 220, schema = { type = "number" } }
 "dynamic_fields.customer.document_details.document_type._field_render_type" = { value = "Dropdown", schema = { type = "string" } }
 "dynamic_fields.customer.document_details.document_type._html_autocomplete_attribute" = { value = "on", schema = { type = "string" } }
@@ -1180,8 +1741,10 @@ client_session_validation_enabled = { value = true, schema = { type = "boolean" 
 "dynamic_fields.description._confirm_request_write_path" = { value = "description", schema = { type = "string" } }
 "dynamic_fields.description._default_label_text" = { value = "Description", schema = { type = "string" } }
 "dynamic_fields.description._default_placeholder_text" = { value = "Description", schema = { type = "string" } }
-"dynamic_fields.description._dropdown_options" = { value = [], schema = { type = "array" } }
-"dynamic_fields.description._extended_dropdown_options" = { value = [], schema = { type = "array" } }
+"dynamic_fields.description._dropdown_options" = { value = [
+], schema = { type = "array" } }
+"dynamic_fields.description._extended_dropdown_options" = { value = [
+], schema = { type = "array" } }
 "dynamic_fields.description._field_display_order" = { value = 710, schema = { type = "number" } }
 "dynamic_fields.description._field_render_type" = { value = "Generic", schema = { type = "string" } }
 "dynamic_fields.description._html_autocomplete_attribute" = { value = "on", schema = { type = "string" } }
@@ -1200,8 +1763,10 @@ client_session_validation_enabled = { value = true, schema = { type = "boolean" 
 "dynamic_fields.email._confirm_request_write_path" = { value = "email", schema = { type = "string" } }
 "dynamic_fields.email._default_label_text" = { value = "Email", schema = { type = "string" } }
 "dynamic_fields.email._default_placeholder_text" = { value = "Email", schema = { type = "string" } }
-"dynamic_fields.email._dropdown_options" = { value = [], schema = { type = "array" } }
-"dynamic_fields.email._extended_dropdown_options" = { value = [], schema = { type = "array" } }
+"dynamic_fields.email._dropdown_options" = { value = [
+], schema = { type = "array" } }
+"dynamic_fields.email._extended_dropdown_options" = { value = [
+], schema = { type = "array" } }
 "dynamic_fields.email._field_display_order" = { value = 500, schema = { type = "number" } }
 "dynamic_fields.email._field_render_type" = { value = "Email", schema = { type = "string" } }
 "dynamic_fields.email._html_autocomplete_attribute" = { value = "email", schema = { type = "string" } }
@@ -1220,8 +1785,10 @@ client_session_validation_enabled = { value = true, schema = { type = "boolean" 
 "dynamic_fields.gift_card.cvc._confirm_request_write_path" = { value = "payment_method_data.gift_card.givex.cvc", schema = { type = "string" } }
 "dynamic_fields.gift_card.cvc._default_label_text" = { value = "Gift Card PIN", schema = { type = "string" } }
 "dynamic_fields.gift_card.cvc._default_placeholder_text" = { value = "123456", schema = { type = "string" } }
-"dynamic_fields.gift_card.cvc._dropdown_options" = { value = [], schema = { type = "array" } }
-"dynamic_fields.gift_card.cvc._extended_dropdown_options" = { value = [], schema = { type = "array" } }
+"dynamic_fields.gift_card.cvc._dropdown_options" = { value = [
+], schema = { type = "array" } }
+"dynamic_fields.gift_card.cvc._extended_dropdown_options" = { value = [
+], schema = { type = "array" } }
 "dynamic_fields.gift_card.cvc._field_display_order" = { value = 440, schema = { type = "number" } }
 "dynamic_fields.gift_card.cvc._field_render_type" = { value = "Generic", schema = { type = "string" } }
 "dynamic_fields.gift_card.cvc._html_autocomplete_attribute" = { value = "on", schema = { type = "string" } }
@@ -1240,8 +1807,10 @@ client_session_validation_enabled = { value = true, schema = { type = "boolean" 
 "dynamic_fields.gift_card.givex.cvc._confirm_request_write_path" = { value = "payment_method_data.gift_card.givex.cvc", schema = { type = "string" } }
 "dynamic_fields.gift_card.givex.cvc._default_label_text" = { value = "Gift Card PIN", schema = { type = "string" } }
 "dynamic_fields.gift_card.givex.cvc._default_placeholder_text" = { value = "123456", schema = { type = "string" } }
-"dynamic_fields.gift_card.givex.cvc._dropdown_options" = { value = [], schema = { type = "array" } }
-"dynamic_fields.gift_card.givex.cvc._extended_dropdown_options" = { value = [], schema = { type = "array" } }
+"dynamic_fields.gift_card.givex.cvc._dropdown_options" = { value = [
+], schema = { type = "array" } }
+"dynamic_fields.gift_card.givex.cvc._extended_dropdown_options" = { value = [
+], schema = { type = "array" } }
 "dynamic_fields.gift_card.givex.cvc._field_display_order" = { value = 420, schema = { type = "number" } }
 "dynamic_fields.gift_card.givex.cvc._field_render_type" = { value = "Generic", schema = { type = "string" } }
 "dynamic_fields.gift_card.givex.cvc._html_autocomplete_attribute" = { value = "on", schema = { type = "string" } }
@@ -1260,8 +1829,10 @@ client_session_validation_enabled = { value = true, schema = { type = "boolean" 
 "dynamic_fields.gift_card.givex.number._confirm_request_write_path" = { value = "payment_method_data.gift_card.givex.number", schema = { type = "string" } }
 "dynamic_fields.gift_card.givex.number._default_label_text" = { value = "Gift Card Number", schema = { type = "string" } }
 "dynamic_fields.gift_card.givex.number._default_placeholder_text" = { value = "ABCD1234EFGH5678", schema = { type = "string" } }
-"dynamic_fields.gift_card.givex.number._dropdown_options" = { value = [], schema = { type = "array" } }
-"dynamic_fields.gift_card.givex.number._extended_dropdown_options" = { value = [], schema = { type = "array" } }
+"dynamic_fields.gift_card.givex.number._dropdown_options" = { value = [
+], schema = { type = "array" } }
+"dynamic_fields.gift_card.givex.number._extended_dropdown_options" = { value = [
+], schema = { type = "array" } }
 "dynamic_fields.gift_card.givex.number._field_display_order" = { value = 410, schema = { type = "number" } }
 "dynamic_fields.gift_card.givex.number._field_render_type" = { value = "Generic", schema = { type = "string" } }
 "dynamic_fields.gift_card.givex.number._html_autocomplete_attribute" = { value = "on", schema = { type = "string" } }
@@ -1280,8 +1851,10 @@ client_session_validation_enabled = { value = true, schema = { type = "boolean" 
 "dynamic_fields.gift_card.number._confirm_request_write_path" = { value = "payment_method_data.gift_card.givex.number", schema = { type = "string" } }
 "dynamic_fields.gift_card.number._default_label_text" = { value = "Gift Card Number", schema = { type = "string" } }
 "dynamic_fields.gift_card.number._default_placeholder_text" = { value = "ABCD1234EFGH5678", schema = { type = "string" } }
-"dynamic_fields.gift_card.number._dropdown_options" = { value = [], schema = { type = "array" } }
-"dynamic_fields.gift_card.number._extended_dropdown_options" = { value = [], schema = { type = "array" } }
+"dynamic_fields.gift_card.number._dropdown_options" = { value = [
+], schema = { type = "array" } }
+"dynamic_fields.gift_card.number._extended_dropdown_options" = { value = [
+], schema = { type = "array" } }
 "dynamic_fields.gift_card.number._field_display_order" = { value = 430, schema = { type = "number" } }
 "dynamic_fields.gift_card.number._field_render_type" = { value = "Generic", schema = { type = "string" } }
 "dynamic_fields.gift_card.number._html_autocomplete_attribute" = { value = "on", schema = { type = "string" } }
@@ -1300,8 +1873,10 @@ client_session_validation_enabled = { value = true, schema = { type = "boolean" 
 "dynamic_fields.mobile_payment.direct_carrier_billing.client_uid._confirm_request_write_path" = { value = "payment_method_data.mobile_payment.direct_carrier_billing.client_uid", schema = { type = "string" } }
 "dynamic_fields.mobile_payment.direct_carrier_billing.client_uid._default_label_text" = { value = "Client UID", schema = { type = "string" } }
 "dynamic_fields.mobile_payment.direct_carrier_billing.client_uid._default_placeholder_text" = { value = "Client UID", schema = { type = "string" } }
-"dynamic_fields.mobile_payment.direct_carrier_billing.client_uid._dropdown_options" = { value = [], schema = { type = "array" } }
-"dynamic_fields.mobile_payment.direct_carrier_billing.client_uid._extended_dropdown_options" = { value = [], schema = { type = "array" } }
+"dynamic_fields.mobile_payment.direct_carrier_billing.client_uid._dropdown_options" = { value = [
+], schema = { type = "array" } }
+"dynamic_fields.mobile_payment.direct_carrier_billing.client_uid._extended_dropdown_options" = { value = [
+], schema = { type = "array" } }
 "dynamic_fields.mobile_payment.direct_carrier_billing.client_uid._field_display_order" = { value = 460, schema = { type = "number" } }
 "dynamic_fields.mobile_payment.direct_carrier_billing.client_uid._field_render_type" = { value = "Generic", schema = { type = "string" } }
 "dynamic_fields.mobile_payment.direct_carrier_billing.client_uid._html_autocomplete_attribute" = { value = "on", schema = { type = "string" } }
@@ -1320,8 +1895,10 @@ client_session_validation_enabled = { value = true, schema = { type = "boolean" 
 "dynamic_fields.mobile_payment.direct_carrier_billing.msisdn._confirm_request_write_path" = { value = "payment_method_data.mobile_payment.direct_carrier_billing.msisdn", schema = { type = "string" } }
 "dynamic_fields.mobile_payment.direct_carrier_billing.msisdn._default_label_text" = { value = "Phone Number", schema = { type = "string" } }
 "dynamic_fields.mobile_payment.direct_carrier_billing.msisdn._default_placeholder_text" = { value = "Your Phone", schema = { type = "string" } }
-"dynamic_fields.mobile_payment.direct_carrier_billing.msisdn._dropdown_options" = { value = [], schema = { type = "array" } }
-"dynamic_fields.mobile_payment.direct_carrier_billing.msisdn._extended_dropdown_options" = { value = [], schema = { type = "array" } }
+"dynamic_fields.mobile_payment.direct_carrier_billing.msisdn._dropdown_options" = { value = [
+], schema = { type = "array" } }
+"dynamic_fields.mobile_payment.direct_carrier_billing.msisdn._extended_dropdown_options" = { value = [
+], schema = { type = "array" } }
 "dynamic_fields.mobile_payment.direct_carrier_billing.msisdn._field_display_order" = { value = 450, schema = { type = "number" } }
 "dynamic_fields.mobile_payment.direct_carrier_billing.msisdn._field_render_type" = { value = "Phone", schema = { type = "string" } }
 "dynamic_fields.mobile_payment.direct_carrier_billing.msisdn._html_autocomplete_attribute" = { value = "tel", schema = { type = "string" } }
@@ -1340,8 +1917,10 @@ client_session_validation_enabled = { value = true, schema = { type = "boolean" 
 "dynamic_fields.order_details.0.product_name._confirm_request_write_path" = { value = "order_details.0.product_name", schema = { type = "string" } }
 "dynamic_fields.order_details.0.product_name._default_label_text" = { value = "Product Name", schema = { type = "string" } }
 "dynamic_fields.order_details.0.product_name._default_placeholder_text" = { value = "Product Name", schema = { type = "string" } }
-"dynamic_fields.order_details.0.product_name._dropdown_options" = { value = [], schema = { type = "array" } }
-"dynamic_fields.order_details.0.product_name._extended_dropdown_options" = { value = [], schema = { type = "array" } }
+"dynamic_fields.order_details.0.product_name._dropdown_options" = { value = [
+], schema = { type = "array" } }
+"dynamic_fields.order_details.0.product_name._extended_dropdown_options" = { value = [
+], schema = { type = "array" } }
 "dynamic_fields.order_details.0.product_name._field_display_order" = { value = 470, schema = { type = "number" } }
 "dynamic_fields.order_details.0.product_name._field_render_type" = { value = "Generic", schema = { type = "string" } }
 "dynamic_fields.order_details.0.product_name._html_autocomplete_attribute" = { value = "on", schema = { type = "string" } }
@@ -1360,8 +1939,10 @@ client_session_validation_enabled = { value = true, schema = { type = "boolean" 
 "dynamic_fields.shipping.address.city._confirm_request_write_path" = { value = "shipping.address.city", schema = { type = "string" } }
 "dynamic_fields.shipping.address.city._default_label_text" = { value = "City", schema = { type = "string" } }
 "dynamic_fields.shipping.address.city._default_placeholder_text" = { value = "City", schema = { type = "string" } }
-"dynamic_fields.shipping.address.city._dropdown_options" = { value = [], schema = { type = "array" } }
-"dynamic_fields.shipping.address.city._extended_dropdown_options" = { value = [], schema = { type = "array" } }
+"dynamic_fields.shipping.address.city._dropdown_options" = { value = [
+], schema = { type = "array" } }
+"dynamic_fields.shipping.address.city._extended_dropdown_options" = { value = [
+], schema = { type = "array" } }
 "dynamic_fields.shipping.address.city._field_display_order" = { value = 650, schema = { type = "number" } }
 "dynamic_fields.shipping.address.city._field_render_type" = { value = "Generic", schema = { type = "string" } }
 "dynamic_fields.shipping.address.city._html_autocomplete_attribute" = { value = "shipping address-level2", schema = { type = "string" } }
@@ -1380,8 +1961,262 @@ client_session_validation_enabled = { value = true, schema = { type = "boolean" 
 "dynamic_fields.shipping.address.country._confirm_request_write_path" = { value = "shipping.address.country", schema = { type = "string" } }
 "dynamic_fields.shipping.address.country._default_label_text" = { value = "Country", schema = { type = "string" } }
 "dynamic_fields.shipping.address.country._default_placeholder_text" = { value = "Select Country", schema = { type = "string" } }
-"dynamic_fields.shipping.address.country._dropdown_options" = { value = ["AC", "AD", "AE", "AF", "AG", "AI", "AL", "AM", "AO", "AQ", "AR", "AS", "AT", "AU", "AW", "AX", "AZ", "BA", "BB", "BD", "BE", "BF", "BG", "BH", "BI", "BJ", "BL", "BM", "BN", "BO", "BQ", "BR", "BS", "BT", "BV", "BW", "BY", "BZ", "CA", "CC", "CD", "CF", "CG", "CH", "CI", "CK", "CL", "CM", "CN", "CO", "CR", "CU", "CV", "CW", "CX", "CY", "CZ", "DE", "DJ", "DK", "DM", "DO", "DZ", "EC", "EE", "EG", "EH", "ER", "ES", "ET", "FI", "FJ", "FK", "FM", "FO", "FR", "GA", "GB", "GD", "GE", "GF", "GG", "GH", "GI", "GL", "GM", "GN", "GP", "GQ", "GR", "GS", "GT", "GU", "GW", "GY", "HK", "HM", "HN", "HR", "HT", "HU", "ID", "IE", "IL", "IM", "IN", "IO", "IQ", "IR", "IS", "IT", "JE", "JM", "JO", "JP", "KE", "KG", "KH", "KI", "KM", "KN", "KP", "KR", "KW", "KY", "KZ", "LA", "LB", "LC", "LI", "LK", "LR", "LS", "LT", "LU", "LV", "LY", "MA", "MC", "MD", "ME", "MF", "MG", "MH", "MK", "ML", "MM", "MN", "MO", "MP", "MQ", "MR", "MS", "MT", "MU", "MV", "MW", "MX", "MY", "MZ", "NA", "NC", "NE", "NF", "NG", "NI", "NL", "NO", "NP", "NR", "NU", "NZ", "OM", "PA", "PE", "PF", "PG", "PH", "PK", "PL", "PM", "PN", "PR", "PS", "PT", "PW", "PY", "QA", "RE", "RO", "RS", "RU", "RW", "SA", "SB", "SC", "SD", "SE", "SG", "SH", "SI", "SJ", "SK", "SL", "SM", "SN", "SO", "SR", "SS", "ST", "SV", "SX", "SY", "SZ", "TA", "TC", "TD", "TF", "TG", "TH", "TJ", "TK", "TL", "TM", "TN", "TO", "TR", "TT", "TV", "TW", "TZ", "UA", "UG", "UM", "US", "UY", "UZ", "VA", "VC", "VE", "VG", "VI", "VN", "VU", "WF", "WS", "XK", "YE", "YT", "ZA", "ZM", "ZW"], schema = { type = "array" } }
-"dynamic_fields.shipping.address.country._extended_dropdown_options" = { value = [], schema = { type = "array" } }
+"dynamic_fields.shipping.address.country._dropdown_options" = { value = [
+    "AC",
+    "AD",
+    "AE",
+    "AF",
+    "AG",
+    "AI",
+    "AL",
+    "AM",
+    "AO",
+    "AQ",
+    "AR",
+    "AS",
+    "AT",
+    "AU",
+    "AW",
+    "AX",
+    "AZ",
+    "BA",
+    "BB",
+    "BD",
+    "BE",
+    "BF",
+    "BG",
+    "BH",
+    "BI",
+    "BJ",
+    "BL",
+    "BM",
+    "BN",
+    "BO",
+    "BQ",
+    "BR",
+    "BS",
+    "BT",
+    "BV",
+    "BW",
+    "BY",
+    "BZ",
+    "CA",
+    "CC",
+    "CD",
+    "CF",
+    "CG",
+    "CH",
+    "CI",
+    "CK",
+    "CL",
+    "CM",
+    "CN",
+    "CO",
+    "CR",
+    "CU",
+    "CV",
+    "CW",
+    "CX",
+    "CY",
+    "CZ",
+    "DE",
+    "DJ",
+    "DK",
+    "DM",
+    "DO",
+    "DZ",
+    "EC",
+    "EE",
+    "EG",
+    "EH",
+    "ER",
+    "ES",
+    "ET",
+    "FI",
+    "FJ",
+    "FK",
+    "FM",
+    "FO",
+    "FR",
+    "GA",
+    "GB",
+    "GD",
+    "GE",
+    "GF",
+    "GG",
+    "GH",
+    "GI",
+    "GL",
+    "GM",
+    "GN",
+    "GP",
+    "GQ",
+    "GR",
+    "GS",
+    "GT",
+    "GU",
+    "GW",
+    "GY",
+    "HK",
+    "HM",
+    "HN",
+    "HR",
+    "HT",
+    "HU",
+    "ID",
+    "IE",
+    "IL",
+    "IM",
+    "IN",
+    "IO",
+    "IQ",
+    "IR",
+    "IS",
+    "IT",
+    "JE",
+    "JM",
+    "JO",
+    "JP",
+    "KE",
+    "KG",
+    "KH",
+    "KI",
+    "KM",
+    "KN",
+    "KP",
+    "KR",
+    "KW",
+    "KY",
+    "KZ",
+    "LA",
+    "LB",
+    "LC",
+    "LI",
+    "LK",
+    "LR",
+    "LS",
+    "LT",
+    "LU",
+    "LV",
+    "LY",
+    "MA",
+    "MC",
+    "MD",
+    "ME",
+    "MF",
+    "MG",
+    "MH",
+    "MK",
+    "ML",
+    "MM",
+    "MN",
+    "MO",
+    "MP",
+    "MQ",
+    "MR",
+    "MS",
+    "MT",
+    "MU",
+    "MV",
+    "MW",
+    "MX",
+    "MY",
+    "MZ",
+    "NA",
+    "NC",
+    "NE",
+    "NF",
+    "NG",
+    "NI",
+    "NL",
+    "NO",
+    "NP",
+    "NR",
+    "NU",
+    "NZ",
+    "OM",
+    "PA",
+    "PE",
+    "PF",
+    "PG",
+    "PH",
+    "PK",
+    "PL",
+    "PM",
+    "PN",
+    "PR",
+    "PS",
+    "PT",
+    "PW",
+    "PY",
+    "QA",
+    "RE",
+    "RO",
+    "RS",
+    "RU",
+    "RW",
+    "SA",
+    "SB",
+    "SC",
+    "SD",
+    "SE",
+    "SG",
+    "SH",
+    "SI",
+    "SJ",
+    "SK",
+    "SL",
+    "SM",
+    "SN",
+    "SO",
+    "SR",
+    "SS",
+    "ST",
+    "SV",
+    "SX",
+    "SY",
+    "SZ",
+    "TA",
+    "TC",
+    "TD",
+    "TF",
+    "TG",
+    "TH",
+    "TJ",
+    "TK",
+    "TL",
+    "TM",
+    "TN",
+    "TO",
+    "TR",
+    "TT",
+    "TV",
+    "TW",
+    "TZ",
+    "UA",
+    "UG",
+    "UM",
+    "US",
+    "UY",
+    "UZ",
+    "VA",
+    "VC",
+    "VE",
+    "VG",
+    "VI",
+    "VN",
+    "VU",
+    "WF",
+    "WS",
+    "XK",
+    "YE",
+    "YT",
+    "ZA",
+    "ZM",
+    "ZW",
+], schema = { type = "array" } }
+"dynamic_fields.shipping.address.country._extended_dropdown_options" = { value = [
+], schema = { type = "array" } }
 "dynamic_fields.shipping.address.country._field_display_order" = { value = 680, schema = { type = "number" } }
 "dynamic_fields.shipping.address.country._field_render_type" = { value = "Country", schema = { type = "string" } }
 "dynamic_fields.shipping.address.country._html_autocomplete_attribute" = { value = "shipping country", schema = { type = "string" } }
@@ -1399,8 +2234,10 @@ client_session_validation_enabled = { value = true, schema = { type = "boolean" 
 "dynamic_fields.shipping.address.first_name._confirm_request_write_path" = { value = "shipping.address.first_name", schema = { type = "string" } }
 "dynamic_fields.shipping.address.first_name._default_label_text" = { value = "First Name", schema = { type = "string" } }
 "dynamic_fields.shipping.address.first_name._default_placeholder_text" = { value = "First Name", schema = { type = "string" } }
-"dynamic_fields.shipping.address.first_name._dropdown_options" = { value = [], schema = { type = "array" } }
-"dynamic_fields.shipping.address.first_name._extended_dropdown_options" = { value = [], schema = { type = "array" } }
+"dynamic_fields.shipping.address.first_name._dropdown_options" = { value = [
+], schema = { type = "array" } }
+"dynamic_fields.shipping.address.first_name._extended_dropdown_options" = { value = [
+], schema = { type = "array" } }
 "dynamic_fields.shipping.address.first_name._field_display_order" = { value = 600, schema = { type = "number" } }
 "dynamic_fields.shipping.address.first_name._field_render_type" = { value = "FirstName", schema = { type = "string" } }
 "dynamic_fields.shipping.address.first_name._html_autocomplete_attribute" = { value = "shipping given-name", schema = { type = "string" } }
@@ -1419,8 +2256,10 @@ client_session_validation_enabled = { value = true, schema = { type = "boolean" 
 "dynamic_fields.shipping.address.last_name._confirm_request_write_path" = { value = "shipping.address.last_name", schema = { type = "string" } }
 "dynamic_fields.shipping.address.last_name._default_label_text" = { value = "Last Name", schema = { type = "string" } }
 "dynamic_fields.shipping.address.last_name._default_placeholder_text" = { value = "Last Name", schema = { type = "string" } }
-"dynamic_fields.shipping.address.last_name._dropdown_options" = { value = [], schema = { type = "array" } }
-"dynamic_fields.shipping.address.last_name._extended_dropdown_options" = { value = [], schema = { type = "array" } }
+"dynamic_fields.shipping.address.last_name._dropdown_options" = { value = [
+], schema = { type = "array" } }
+"dynamic_fields.shipping.address.last_name._extended_dropdown_options" = { value = [
+], schema = { type = "array" } }
 "dynamic_fields.shipping.address.last_name._field_display_order" = { value = 610, schema = { type = "number" } }
 "dynamic_fields.shipping.address.last_name._field_render_type" = { value = "LastName", schema = { type = "string" } }
 "dynamic_fields.shipping.address.last_name._html_autocomplete_attribute" = { value = "shipping family-name", schema = { type = "string" } }
@@ -1439,8 +2278,10 @@ client_session_validation_enabled = { value = true, schema = { type = "boolean" 
 "dynamic_fields.shipping.address.line1._confirm_request_write_path" = { value = "shipping.address.line1", schema = { type = "string" } }
 "dynamic_fields.shipping.address.line1._default_label_text" = { value = "Address Line 1", schema = { type = "string" } }
 "dynamic_fields.shipping.address.line1._default_placeholder_text" = { value = "Street address", schema = { type = "string" } }
-"dynamic_fields.shipping.address.line1._dropdown_options" = { value = [], schema = { type = "array" } }
-"dynamic_fields.shipping.address.line1._extended_dropdown_options" = { value = [], schema = { type = "array" } }
+"dynamic_fields.shipping.address.line1._dropdown_options" = { value = [
+], schema = { type = "array" } }
+"dynamic_fields.shipping.address.line1._extended_dropdown_options" = { value = [
+], schema = { type = "array" } }
 "dynamic_fields.shipping.address.line1._field_display_order" = { value = 630, schema = { type = "number" } }
 "dynamic_fields.shipping.address.line1._field_render_type" = { value = "Generic", schema = { type = "string" } }
 "dynamic_fields.shipping.address.line1._html_autocomplete_attribute" = { value = "shipping address-line1", schema = { type = "string" } }
@@ -1459,8 +2300,10 @@ client_session_validation_enabled = { value = true, schema = { type = "boolean" 
 "dynamic_fields.shipping.address.line2._confirm_request_write_path" = { value = "shipping.address.line2", schema = { type = "string" } }
 "dynamic_fields.shipping.address.line2._default_label_text" = { value = "Address Line 2", schema = { type = "string" } }
 "dynamic_fields.shipping.address.line2._default_placeholder_text" = { value = "Apt., unit number, etc (optional)", schema = { type = "string" } }
-"dynamic_fields.shipping.address.line2._dropdown_options" = { value = [], schema = { type = "array" } }
-"dynamic_fields.shipping.address.line2._extended_dropdown_options" = { value = [], schema = { type = "array" } }
+"dynamic_fields.shipping.address.line2._dropdown_options" = { value = [
+], schema = { type = "array" } }
+"dynamic_fields.shipping.address.line2._extended_dropdown_options" = { value = [
+], schema = { type = "array" } }
 "dynamic_fields.shipping.address.line2._field_display_order" = { value = 640, schema = { type = "number" } }
 "dynamic_fields.shipping.address.line2._field_render_type" = { value = "Generic", schema = { type = "string" } }
 "dynamic_fields.shipping.address.line2._html_autocomplete_attribute" = { value = "shipping address-line2", schema = { type = "string" } }
@@ -1479,8 +2322,10 @@ client_session_validation_enabled = { value = true, schema = { type = "boolean" 
 "dynamic_fields.shipping.address.state._confirm_request_write_path" = { value = "shipping.address.state", schema = { type = "string" } }
 "dynamic_fields.shipping.address.state._default_label_text" = { value = "State/Province", schema = { type = "string" } }
 "dynamic_fields.shipping.address.state._default_placeholder_text" = { value = "Select State", schema = { type = "string" } }
-"dynamic_fields.shipping.address.state._dropdown_options" = { value = [], schema = { type = "array" } }
-"dynamic_fields.shipping.address.state._extended_dropdown_options" = { value = [], schema = { type = "array" } }
+"dynamic_fields.shipping.address.state._dropdown_options" = { value = [
+], schema = { type = "array" } }
+"dynamic_fields.shipping.address.state._extended_dropdown_options" = { value = [
+], schema = { type = "array" } }
 "dynamic_fields.shipping.address.state._field_display_order" = { value = 660, schema = { type = "number" } }
 "dynamic_fields.shipping.address.state._field_render_type" = { value = "State", schema = { type = "string" } }
 "dynamic_fields.shipping.address.state._html_autocomplete_attribute" = { value = "shipping address-level1", schema = { type = "string" } }
@@ -1498,8 +2343,10 @@ client_session_validation_enabled = { value = true, schema = { type = "boolean" 
 "dynamic_fields.shipping.address.zip._confirm_request_write_path" = { value = "shipping.address.zip", schema = { type = "string" } }
 "dynamic_fields.shipping.address.zip._default_label_text" = { value = "ZIP/Postal Code", schema = { type = "string" } }
 "dynamic_fields.shipping.address.zip._default_placeholder_text" = { value = "Postal Code", schema = { type = "string" } }
-"dynamic_fields.shipping.address.zip._dropdown_options" = { value = [], schema = { type = "array" } }
-"dynamic_fields.shipping.address.zip._extended_dropdown_options" = { value = [], schema = { type = "array" } }
+"dynamic_fields.shipping.address.zip._dropdown_options" = { value = [
+], schema = { type = "array" } }
+"dynamic_fields.shipping.address.zip._extended_dropdown_options" = { value = [
+], schema = { type = "array" } }
 "dynamic_fields.shipping.address.zip._field_display_order" = { value = 670, schema = { type = "number" } }
 "dynamic_fields.shipping.address.zip._field_render_type" = { value = "Generic", schema = { type = "string" } }
 "dynamic_fields.shipping.address.zip._html_autocomplete_attribute" = { value = "shipping postal-code", schema = { type = "string" } }
@@ -1518,8 +2365,10 @@ client_session_validation_enabled = { value = true, schema = { type = "boolean" 
 "dynamic_fields.shipping.email._confirm_request_write_path" = { value = "shipping.email", schema = { type = "string" } }
 "dynamic_fields.shipping.email._default_label_text" = { value = "Email Address", schema = { type = "string" } }
 "dynamic_fields.shipping.email._default_placeholder_text" = { value = "Email Address", schema = { type = "string" } }
-"dynamic_fields.shipping.email._dropdown_options" = { value = [], schema = { type = "array" } }
-"dynamic_fields.shipping.email._extended_dropdown_options" = { value = [], schema = { type = "array" } }
+"dynamic_fields.shipping.email._dropdown_options" = { value = [
+], schema = { type = "array" } }
+"dynamic_fields.shipping.email._extended_dropdown_options" = { value = [
+], schema = { type = "array" } }
 "dynamic_fields.shipping.email._field_display_order" = { value = 620, schema = { type = "number" } }
 "dynamic_fields.shipping.email._field_render_type" = { value = "Email", schema = { type = "string" } }
 "dynamic_fields.shipping.email._html_autocomplete_attribute" = { value = "shipping email", schema = { type = "string" } }
@@ -1538,8 +2387,10 @@ client_session_validation_enabled = { value = true, schema = { type = "boolean" 
 "dynamic_fields.shipping.phone.country_code._confirm_request_write_path" = { value = "shipping.phone.country_code", schema = { type = "string" } }
 "dynamic_fields.shipping.phone.country_code._default_label_text" = { value = "Dialing Code", schema = { type = "string" } }
 "dynamic_fields.shipping.phone.country_code._default_placeholder_text" = { value = "Select Dialing Code", schema = { type = "string" } }
-"dynamic_fields.shipping.phone.country_code._dropdown_options" = { value = [], schema = { type = "array" } }
-"dynamic_fields.shipping.phone.country_code._extended_dropdown_options" = { value = [], schema = { type = "array" } }
+"dynamic_fields.shipping.phone.country_code._dropdown_options" = { value = [
+], schema = { type = "array" } }
+"dynamic_fields.shipping.phone.country_code._extended_dropdown_options" = { value = [
+], schema = { type = "array" } }
 "dynamic_fields.shipping.phone.country_code._field_display_order" = { value = 700, schema = { type = "number" } }
 "dynamic_fields.shipping.phone.country_code._field_render_type" = { value = "PhoneCountryCode", schema = { type = "string" } }
 "dynamic_fields.shipping.phone.country_code._html_autocomplete_attribute" = { value = "shipping tel-country-code", schema = { type = "string" } }
@@ -1557,8 +2408,10 @@ client_session_validation_enabled = { value = true, schema = { type = "boolean" 
 "dynamic_fields.shipping.phone.number._confirm_request_write_path" = { value = "shipping.phone.number", schema = { type = "string" } }
 "dynamic_fields.shipping.phone.number._default_label_text" = { value = "Phone Number", schema = { type = "string" } }
 "dynamic_fields.shipping.phone.number._default_placeholder_text" = { value = "Your Phone", schema = { type = "string" } }
-"dynamic_fields.shipping.phone.number._dropdown_options" = { value = [], schema = { type = "array" } }
-"dynamic_fields.shipping.phone.number._extended_dropdown_options" = { value = [], schema = { type = "array" } }
+"dynamic_fields.shipping.phone.number._dropdown_options" = { value = [
+], schema = { type = "array" } }
+"dynamic_fields.shipping.phone.number._extended_dropdown_options" = { value = [
+], schema = { type = "array" } }
 "dynamic_fields.shipping.phone.number._field_display_order" = { value = 690, schema = { type = "number" } }
 "dynamic_fields.shipping.phone.number._field_render_type" = { value = "Phone", schema = { type = "string" } }
 "dynamic_fields.shipping.phone.number._html_autocomplete_attribute" = { value = "shipping tel-national", schema = { type = "string" } }
@@ -1577,8 +2430,10 @@ client_session_validation_enabled = { value = true, schema = { type = "boolean" 
 "dynamic_fields.upi.upi_collect.vpa_id._confirm_request_write_path" = { value = "payment_method_data.upi.upi_collect.vpa_id", schema = { type = "string" } }
 "dynamic_fields.upi.upi_collect.vpa_id._default_label_text" = { value = "UPI ID", schema = { type = "string" } }
 "dynamic_fields.upi.upi_collect.vpa_id._default_placeholder_text" = { value = "Eg: johndoe@upi", schema = { type = "string" } }
-"dynamic_fields.upi.upi_collect.vpa_id._dropdown_options" = { value = [], schema = { type = "array" } }
-"dynamic_fields.upi.upi_collect.vpa_id._extended_dropdown_options" = { value = [], schema = { type = "array" } }
+"dynamic_fields.upi.upi_collect.vpa_id._dropdown_options" = { value = [
+], schema = { type = "array" } }
+"dynamic_fields.upi.upi_collect.vpa_id._extended_dropdown_options" = { value = [
+], schema = { type = "array" } }
 "dynamic_fields.upi.upi_collect.vpa_id._field_display_order" = { value = 250, schema = { type = "number" } }
 "dynamic_fields.upi.upi_collect.vpa_id._field_render_type" = { value = "Generic", schema = { type = "string" } }
 "dynamic_fields.upi.upi_collect.vpa_id._html_autocomplete_attribute" = { value = "on", schema = { type = "string" } }
@@ -1597,8 +2452,10 @@ client_session_validation_enabled = { value = true, schema = { type = "boolean" 
 "dynamic_fields.voucher.boleto.social_security_number._confirm_request_write_path" = { value = "payment_method_data.voucher.boleto.social_security_number", schema = { type = "string" } }
 "dynamic_fields.voucher.boleto.social_security_number._default_label_text" = { value = "Social Security Number", schema = { type = "string" } }
 "dynamic_fields.voucher.boleto.social_security_number._default_placeholder_text" = { value = "Enter Pix CPF.", schema = { type = "string" } }
-"dynamic_fields.voucher.boleto.social_security_number._dropdown_options" = { value = [], schema = { type = "array" } }
-"dynamic_fields.voucher.boleto.social_security_number._extended_dropdown_options" = { value = [], schema = { type = "array" } }
+"dynamic_fields.voucher.boleto.social_security_number._dropdown_options" = { value = [
+], schema = { type = "array" } }
+"dynamic_fields.voucher.boleto.social_security_number._extended_dropdown_options" = { value = [
+], schema = { type = "array" } }
 "dynamic_fields.voucher.boleto.social_security_number._field_display_order" = { value = 240, schema = { type = "number" } }
 "dynamic_fields.voucher.boleto.social_security_number._field_render_type" = { value = "Generic", schema = { type = "string" } }
 "dynamic_fields.voucher.boleto.social_security_number._html_autocomplete_attribute" = { value = "on", schema = { type = "string" } }
@@ -1617,8 +2474,10 @@ client_session_validation_enabled = { value = true, schema = { type = "boolean" 
 "dynamic_fields.wallet.mifinity.date_of_birth._confirm_request_write_path" = { value = "payment_method_data.wallet.mifinity.date_of_birth", schema = { type = "string" } }
 "dynamic_fields.wallet.mifinity.date_of_birth._default_label_text" = { value = "Date of Birth", schema = { type = "string" } }
 "dynamic_fields.wallet.mifinity.date_of_birth._default_placeholder_text" = { value = "Enter Date of Birth.", schema = { type = "string" } }
-"dynamic_fields.wallet.mifinity.date_of_birth._dropdown_options" = { value = [], schema = { type = "array" } }
-"dynamic_fields.wallet.mifinity.date_of_birth._extended_dropdown_options" = { value = [], schema = { type = "array" } }
+"dynamic_fields.wallet.mifinity.date_of_birth._dropdown_options" = { value = [
+], schema = { type = "array" } }
+"dynamic_fields.wallet.mifinity.date_of_birth._extended_dropdown_options" = { value = [
+], schema = { type = "array" } }
 "dynamic_fields.wallet.mifinity.date_of_birth._field_display_order" = { value = 180, schema = { type = "number" } }
 "dynamic_fields.wallet.mifinity.date_of_birth._field_render_type" = { value = "DateOfBirth", schema = { type = "string" } }
 "dynamic_fields.wallet.mifinity.date_of_birth._html_autocomplete_attribute" = { value = "bday", schema = { type = "string" } }
@@ -1636,8 +2495,43 @@ client_session_validation_enabled = { value = true, schema = { type = "boolean" 
 "dynamic_fields.wallet.mifinity.language_preference._confirm_request_write_path" = { value = "payment_method_data.wallet.mifinity.language_preference", schema = { type = "string" } }
 "dynamic_fields.wallet.mifinity.language_preference._default_label_text" = { value = "Language Preference", schema = { type = "string" } }
 "dynamic_fields.wallet.mifinity.language_preference._default_placeholder_text" = { value = "Select Language", schema = { type = "string" } }
-"dynamic_fields.wallet.mifinity.language_preference._dropdown_options" = { value = ["BR", "PT_BR", "CN", "ZH_CN", "DE", "DK", "DA", "DA_DK", "EN", "ES", "FI", "FR", "GR", "EL", "EL_GR", "HR", "IT", "JP", "JA", "JA_JP", "LA", "ES_LA", "NL", "NO", "PL", "PT", "RU", "SV", "SE", "SV_SE", "ZH", "TW", "ZH_TW"], schema = { type = "array" } }
-"dynamic_fields.wallet.mifinity.language_preference._extended_dropdown_options" = { value = [], schema = { type = "array" } }
+"dynamic_fields.wallet.mifinity.language_preference._dropdown_options" = { value = [
+    "BR",
+    "PT_BR",
+    "CN",
+    "ZH_CN",
+    "DE",
+    "DK",
+    "DA",
+    "DA_DK",
+    "EN",
+    "ES",
+    "FI",
+    "FR",
+    "GR",
+    "EL",
+    "EL_GR",
+    "HR",
+    "IT",
+    "JP",
+    "JA",
+    "JA_JP",
+    "LA",
+    "ES_LA",
+    "NL",
+    "NO",
+    "PL",
+    "PT",
+    "RU",
+    "SV",
+    "SE",
+    "SV_SE",
+    "ZH",
+    "TW",
+    "ZH_TW",
+], schema = { type = "array" } }
+"dynamic_fields.wallet.mifinity.language_preference._extended_dropdown_options" = { value = [
+], schema = { type = "array" } }
 "dynamic_fields.wallet.mifinity.language_preference._field_display_order" = { value = 190, schema = { type = "number" } }
 "dynamic_fields.wallet.mifinity.language_preference._field_render_type" = { value = "LanguagePreference", schema = { type = "string" } }
 "dynamic_fields.wallet.mifinity.language_preference._html_autocomplete_attribute" = { value = "on", schema = { type = "string" } }
@@ -1652,53 +2546,791 @@ client_session_validation_enabled = { value = true, schema = { type = "boolean" 
 "dynamic_fields.wallet.mifinity.language_preference._render_when_prefilled" = { value = false, schema = { type = "boolean" } }
 "dynamic_fields.wallet.mifinity.language_preference._validation_regex_pattern" = { value = ".*", schema = { type = "string" } }
 "dynamic_fields.wallet.mifinity.language_preference._validation_rule_type" = { value = "no_validation", schema = { type = "string" } }
-enable_extended_card_bin = { value = false, schema = { type = "boolean" } }
-gsm_payout_call = { value = false, schema = { type = "boolean" } }
-implicit_customer_update = { value = false, schema = { type = "boolean" } }
-incoming_webhook_disabled_events = { value = false, schema = { type = "boolean" } }
-max_auto_payout_retries = { value = 0, schema = { maximum = 4294967295, minimum = 0, type = "integer" } }
-payout_tracker_mapping = { value = { frequencies = [[300, 5]], start_after = 60 }, schema = { type = "object" } }
-poll_config_external_three_ds = { value = { delay_in_secs = 2, frequency = 5 }, schema = { type = "object" } }
-pt_mapping_dispute_sync = { value = { default_mapping = { frequencies = [[300, 5]], start_after = 60 }, max_retries_count = 5 }, schema = { type = "object" } }
-pt_mapping_outgoing_webhooks = { value = { default_mapping = { frequencies = [[300, 2], [600, 5], [3600, 5], [21600, 3]], start_after = 60 } }, schema = { type = "object" } }
-pt_mapping_payment_sync = { value = { default_mapping = { frequencies = [[300, 5]], start_after = 60 }, max_retries_count = 5 }, schema = { type = "object" } }
-pt_mapping_pcr_retries = { value = { default_mapping = { frequencies = [[10800, 2], [21600, 3], [32400, 3], [43200, 3], [64800, 3]], start_after = 60 } }, schema = { type = "object" } }
-pt_mapping_refund_sync = { value = { default_mapping = { frequencies = [[300, 5]], start_after = 60 }, max_retries_count = 5 }, schema = { type = "object" } }
-requires_cvv = { value = true, schema = { type = "boolean" } }
-routing_result_source = { value = "hyperswitch_routing", schema = { enum = ["decision_engine", "hyperswitch_routing"], type = "string" } }
-save_wallet_decrypted_data = { value = true, schema = { type = "boolean" } }
-should_call_gsm = { value = false, schema = { type = "boolean" } }
-should_call_pm_modular_service = { value = false, schema = { type = "boolean" } }
-should_disable_vault_tokenization = { value = false, schema = { type = "boolean" } }
-should_enable_mit_with_limited_card_data = { value = false, schema = { type = "boolean" } }
-should_perform_eligibility = { value = false, schema = { type = "boolean" } }
-should_return_raw_payment_method_details = { value = false, schema = { type = "boolean" } }
-should_schedule_modular_backward_compat = { value = false, schema = { type = "boolean" } }
-should_schedule_modular_forward_compat = { value = false, schema = { type = "boolean" } }
-should_store_eligibility_check_data_for_authentication = { value = false, schema = { type = "boolean" } }
-should_trigger_backwards_compatibility_inline = { value = false, schema = { type = "boolean" } }
-should_trigger_fingerprint_migration = { value = true, schema = { type = "boolean" } }
-threeds_routing_region_uas = { value = "region1", schema = { enum = ["region1", "region2"], type = "string" } }
+"payments.enable_extended_card_bin" = { value = false, schema = { type = "boolean" }, description = "Whether to use extended card BIN (8-digit) for payment method data", change_reason = "Initial setup" }
+"payouts.gsm_payout_call" = { value = false, schema = { type = "boolean" }, description = "Whether to call GSM for payout retries", change_reason = "Initial setup" }
+"payments.implicit_customer_update" = { value = false, schema = { type = "boolean" }, description = "Whether to implicitly update customer details on payment", change_reason = "Initial setup" }
+"webhooks.incoming_webhook_disabled_events" = { value = false, schema = { type = "boolean" }, description = "Whether a specific incoming webhook event is disabled for a given connector", change_reason = "Initial setup" }
+"payouts.max_auto_payout_retries" = { value = 0, schema = { maximum = 4294967295, minimum = 0, type = "integer" }, description = "Maximum auto payout retries, differentiated by payout_retry_type dimension (single_connector or multi_connector)", change_reason = "Initial setup" }
+"payouts.payout_tracker_mapping" = { value = { frequencies = [
+    [
+        300,
+        5,
+    ],
+], start_after = 60 }, schema = { type = "object" }, description = "Payout sync retry mapping configuration per connector", change_reason = "Initial setup" }
+"payments.poll_config_external_three_ds" = { value = { delay_in_secs = 2, frequency = 5 }, schema = { type = "object" }, description = "Poll configuration for external 3DS authentication per connector", change_reason = "Initial setup" }
+"process_tracker.pt_mapping_dispute_sync" = { value = { default_mapping = { frequencies = [
+    [
+        300,
+        5,
+    ],
+], start_after = 60 }, max_retries_count = 5 }, schema = { type = "object" }, description = "Dispute sync retry process tracker mapping configuration", change_reason = "Initial setup" }
+"process_tracker.pt_mapping_outgoing_webhooks" = { value = { default_mapping = { frequencies = [
+    [
+        300,
+        2,
+    ],
+    [
+        600,
+        5,
+    ],
+    [
+        3600,
+        5,
+    ],
+    [
+        21600,
+        3,
+    ],
+], start_after = 60 } }, schema = { type = "object" }, description = "Outgoing webhook retry process tracker mapping configuration", change_reason = "Initial setup" }
+pt_mapping_outgoing_connector_webhooks = { value = { default_mapping = { frequencies = [
+    [
+        300,
+        2,
+    ],
+    [
+        600,
+        5,
+    ],
+    [
+        3600,
+        5,
+    ],
+    [
+        21600,
+        3,
+    ],
+], start_after = 60 } }, schema = { type = "object" }, description = "Outgoing connector webhook retry process tracker mapping configuration", change_reason = "Initial setup" }
+"process_tracker.pt_mapping_payment_sync" = { value = { default_mapping = { frequencies = [
+    [
+        300,
+        5,
+    ],
+], start_after = 60 }, max_retries_count = 5 }, schema = { type = "object" }, description = "Payment sync (psync) retry process tracker mapping configuration", change_reason = "Initial setup" }
+"process_tracker.pt_mapping_pcr_retries" = { value = { default_mapping = { frequencies = [
+    [
+        10800,
+        2,
+    ],
+    [
+        21600,
+        3,
+    ],
+    [
+        32400,
+        3,
+    ],
+    [
+        43200,
+        3,
+    ],
+    [
+        64800,
+        3,
+    ],
+], start_after = 60 } }, schema = { type = "object" }, description = "Revenue recovery (PCR) payment retry process tracker mapping configuration", change_reason = "Initial setup" }
+"process_tracker.pt_mapping_refund_sync" = { value = { default_mapping = { frequencies = [
+    [
+        300,
+        5,
+    ],
+], start_after = 60 }, max_retries_count = 5 }, schema = { type = "object" }, description = "Refund sync retry process tracker mapping configuration", change_reason = "Initial setup" }
+"payments.requires_cvv" = { value = true, schema = { type = "boolean" }, description = "Whether CVV is required for payments", change_reason = "Initial setup" }
+"routing.routing_result_source" = { value = "hyperswitch_routing", schema = { enum = [
+    "decision_engine",
+    "hyperswitch_routing",
+], type = "string" }, description = "Source of routing result: decision_engine (external DE) or hyperswitch_routing (inbuilt)", change_reason = "Initial setup" }
+"vaulting.save_wallet_decrypted_data" = { value = false, schema = { type = "boolean" }, description = "Whether to save wallet decrypted data", change_reason = "Initial setup" }
+"vaulting.fingerprint_secret" = { value = "", schema = { type = "string" }, description = "Fingerprint secret used as a migration fallback for merchant accounts", change_reason = "Retain during merchant account migration" }
+"payments.should_call_gsm" = { value = false, schema = { type = "boolean" }, description = "Whether to call GSM (Global Status Mapping) for auto-retries on payment failure", change_reason = "Initial setup" }
+"system.should_call_pm_modular_service" = { value = false, schema = { type = "boolean" }, description = "Whether to call the PM modular service for a provider merchant, with organization fallback", change_reason = "Initial setup" }
+"vaulting.should_disable_vault_tokenization" = { value = false, schema = { type = "boolean" }, description = "Whether to disable vault tokenization for a merchant", change_reason = "Initial setup" }
+"payments.should_enable_mit_with_limited_card_data" = { value = false, schema = { type = "boolean" }, description = "Whether to allow merchant-initiated transactions (MIT) with limited card data", change_reason = "Initial setup" }
+"payments.should_perform_eligibility" = { value = false, schema = { type = "boolean" }, description = "Whether the SDK should perform an eligibility check before confirming payment", change_reason = "Initial setup" }
+"payments.should_return_raw_payment_method_details" = { value = false, schema = { type = "boolean" }, description = "Whether to return raw payment method details (v2 only)", change_reason = "Initial setup" }
+should_schedule_modular_backward_compat = { value = false, schema = { type = "boolean" }, description = "Whether to schedule PM modular backward compatibility PT for a provider merchant, with organization fallback", change_reason = "Initial setup" }
+"system.should_schedule_modular_forward_compat" = { value = false, schema = { type = "boolean" }, description = "Whether to schedule PM modular forward compatibility PT for a provider merchant, with organization fallback", change_reason = "Initial setup" }
+"payments.should_store_eligibility_check_data_for_authentication" = { value = false, schema = { type = "boolean" }, description = "Whether to store eligibility check data during authentication", change_reason = "Initial setup" }
+"system.should_trigger_backwards_compatibility_inline" = { value = false, schema = { type = "boolean" }, description = "Whether to trigger PM modular backward compatibility inline for a provider merchant, with organization fallback", change_reason = "Initial setup" }
+"vaulting.should_trigger_fingerprint_migration" = { value = false, schema = { type = "boolean" }, description = "Whether to trigger fingerprint and entity_id migration for a merchant", change_reason = "Initial setup" }
+"routing.threeds_routing_region_uas" = { value = "region1", schema = { enum = [
+    "region1",
+    "region2",
+], type = "string" }, description = "3DS routing region for UAS (Unified Authentication Service) per organization", change_reason = "Initial setup" }
+"vaulting.should_perform_sdk_vaulting" = { value = true, schema = { type = "boolean" }, description = "Org level override on top of should_call_pm_modular_service; when false the SDK skips vaulting", change_reason = "Initial setup" }
 
 
 [dimensions]
 always_collect_billing_details_from_wallet_connector = { position = 7, schema = { type = "boolean" }, type = "REGULAR" }
 always_collect_shipping_details_from_wallet_connector = { position = 8, schema = { type = "boolean" }, type = "REGULAR" }
-connector = { position = 1, schema = { enum = ["authipay", "adyenplatform", "stripe_billing_test", "phonypay", "fauxpay", "fiservcommercehub", "pretendpay", "stripe_test", "adyen_test", "checkout_test", "paypal_test", "aci", "adyen", "affirm", "airwallex", "amazonpay", "archipel", "authorizedotnet", "bambora", "bamboraapac", "bankofamerica", "barclaycard", "billwerk", "bitpay", "bluesnap", "blackhawknetwork", "calida", "boku", "braintree", "breadpay", "cardinal", "cashtocode", "celero", "chargebee", "checkbook", "checkout", "coinbase", "coingate", "custombilling", "cryptopay", "ctp_mastercard", "ctp_visa", "cybersource", "cybersourcedecisionmanager", "datatrans", "deutschebank", "digitalvirgo", "dlocal", "dwolla", "ebanx", "elavon", "facilitapay", "finix", "fiserv", "fiservemea", "fiuu", "flexiti", "forte", "getnet", "gigadat", "globalpay", "globepay", "gocardless", "gpayments", "hipay", "helcim", "hyperpg", "hyperswitch_vault", "inespay", "iatapay", "itaubank", "jpmorgan", "juspaythreedsserver", "klarna", "loonio", "mifinity", "mollie", "moneris", "multisafepay", "netcetera", "nexinets", "nexixpay", "nmi", "nomupay", "noon", "nordea", "novalnet", "nuvei", "opennode", "paybox", "payload", "payme", "payone", "paypal", "paysafe", "paystack", "paytm", "payu", "peachpayments", "payjustnow", "payjustnowinstore", "phonepe", "placetopay", "powertranz", "prophetpay", "rapyd", "razorpay", "recurly", "redsys", "revolv3", "santander", "shift4", "silverflow", "square", "stax", "stripe", "stripebilling", "taxjar", "threedsecureio", "tesouro", "tokenex", "tokenio", "trustpay", "trustpayments", "tsys", "vgs", "volt", "wellsfargo", "wise", "worldline", "worldpay", "worldpayvantiv", "worldpayxml", "worldpaymodular", "signifyd", "plaid", "riskified", "xendit", "zen", "zift", "zsl", "absa_sanlam", "givepayments", "imerchantsolutions", "truelayer", "trustly", "tsys_transit"], type = "string" }, type = "REGULAR" }
-country = { position = 4, schema = { enum = ["AC", "AD", "AE", "AF", "AG", "AI", "AL", "AM", "AO", "AQ", "AR", "AS", "AT", "AU", "AW", "AX", "AZ", "BA", "BB", "BD", "BE", "BF", "BG", "BH", "BI", "BJ", "BL", "BM", "BN", "BO", "BQ", "BR", "BS", "BT", "BV", "BW", "BY", "BZ", "CA", "CC", "CD", "CF", "CG", "CH", "CI", "CK", "CL", "CM", "CN", "CO", "CR", "CU", "CV", "CW", "CX", "CY", "CZ", "DE", "DJ", "DK", "DM", "DO", "DZ", "EC", "EE", "EG", "EH", "ER", "ES", "ET", "FI", "FJ", "FK", "FM", "FO", "FR", "GA", "GB", "GD", "GE", "GF", "GG", "GH", "GI", "GL", "GM", "GN", "GP", "GQ", "GR", "GS", "GT", "GU", "GW", "GY", "HK", "HM", "HN", "HR", "HT", "HU", "ID", "IE", "IL", "IM", "IN", "IO", "IQ", "IR", "IS", "IT", "JE", "JM", "JO", "JP", "KE", "KG", "KH", "KI", "KM", "KN", "KP", "KR", "KW", "KY", "KZ", "LA", "LB", "LC", "LI", "LK", "LR", "LS", "LT", "LU", "LV", "LY", "MA", "MC", "MD", "ME", "MF", "MG", "MH", "MK", "ML", "MM", "MN", "MO", "MP", "MQ", "MR", "MS", "MT", "MU", "MV", "MW", "MX", "MY", "MZ", "NA", "NC", "NE", "NF", "NG", "NI", "NL", "NO", "NP", "NR", "NU", "NZ", "OM", "PA", "PE", "PF", "PG", "PH", "PK", "PL", "PM", "PN", "PR", "PS", "PT", "PW", "PY", "QA", "RE", "RO", "RS", "RU", "RW", "SA", "SB", "SC", "SD", "SE", "SG", "SH", "SI", "SJ", "SK", "SL", "SM", "SN", "SO", "SR", "SS", "ST", "SV", "SX", "SY", "SZ", "TA", "TC", "TD", "TF", "TG", "TH", "TJ", "TK", "TL", "TM", "TN", "TO", "TR", "TT", "TV", "TW", "TZ", "UA", "UG", "UM", "US", "UY", "UZ", "VA", "VC", "VE", "VG", "VI", "VN", "VU", "WF", "WS", "XK", "YE", "YT", "ZA", "ZM", "ZW"], type = "string" }, type = "REGULAR" }
-currency = { position = 5, schema = { enum = ["AED", "AFN", "ALL", "AMD", "ANG", "AOA", "ARS", "AUD", "AWG", "AZN", "BAM", "BBD", "BDT", "BGN", "BHD", "BIF", "BMD", "BND", "BOB", "BRL", "BSD", "BTN", "BWP", "BYN", "BZD", "CAD", "CDF", "CHF", "CLF", "CLP", "CNY", "COP", "CRC", "CUC", "CUP", "CVE", "CZK", "DJF", "DKK", "DOP", "DZD", "EGP", "ERN", "ETB", "EUR", "FJD", "FKP", "GBP", "GEL", "GHS", "GIP", "GMD", "GNF", "GTQ", "GYD", "HKD", "HNL", "HRK", "HTG", "HUF", "IDR", "ILS", "INR", "IQD", "IRR", "ISK", "JMD", "JOD", "JPY", "KES", "KGS", "KHR", "KMF", "KPW", "KRW", "KWD", "KYD", "KZT", "LAK", "LBP", "LKR", "LRD", "LSL", "LYD", "MAD", "MDL", "MGA", "MKD", "MMK", "MNT", "MOP", "MRU", "MUR", "MVR", "MWK", "MXN", "MYR", "MZN", "NAD", "NGN", "NIO", "NOK", "NPR", "NZD", "OMR", "PAB", "PEN", "PGK", "PHP", "PKR", "PLN", "PYG", "QAR", "RON", "RSD", "RUB", "RWF", "SAR", "SBD", "SCR", "SDG", "SEK", "SGD", "SHP", "SLE", "SLL", "SOS", "SRD", "SSP", "STD", "STN", "SVC", "SYP", "SZL", "THB", "TJS", "TMT", "TND", "TOP", "TRY", "TTD", "TWD", "TZS", "UAH", "UGX", "USD", "UYU", "UZS", "VES", "VND", "VUV", "WST", "XAF", "XCD", "XOF", "XPF", "YER", "ZAR", "ZMW", "ZWL"], type = "string" }, type = "REGULAR" }
+connector = { position = 1, schema = { enum = [
+    "authipay",
+    "adyenplatform",
+    "stripe_billing_test",
+    "phonypay",
+    "fauxpay",
+    "fiservcommercehub",
+    "pretendpay",
+    "stripe_test",
+    "adyen_test",
+    "checkout_test",
+    "paypal_test",
+    "aci",
+    "adyen",
+    "affirm",
+    "airwallex",
+    "amazonpay",
+    "archipel",
+    "authorizedotnet",
+    "bambora",
+    "bamboraapac",
+    "bankofamerica",
+    "barclaycard",
+    "billwerk",
+    "bitpay",
+    "bluesnap",
+    "blackhawknetwork",
+    "calida",
+    "boku",
+    "braintree",
+    "breadpay",
+    "cardinal",
+    "cashtocode",
+    "celero",
+    "chargebee",
+    "checkbook",
+    "checkout",
+    "coinbase",
+    "coingate",
+    "custombilling",
+    "cryptopay",
+    "ctp_mastercard",
+    "ctp_visa",
+    "cybersource",
+    "cybersourcedecisionmanager",
+    "datatrans",
+    "deutschebank",
+    "digitalvirgo",
+    "dlocal",
+    "dwolla",
+    "ebanx",
+    "elavon",
+    "facilitapay",
+    "finix",
+    "fiserv",
+    "fiservemea",
+    "fiuu",
+    "flexiti",
+    "forte",
+    "getnet",
+    "gigadat",
+    "globalpay",
+    "globepay",
+    "gocardless",
+    "gpayments",
+    "hipay",
+    "helcim",
+    "hyperpg",
+    "hyperswitch_vault",
+    "inespay",
+    "iatapay",
+    "itaubank",
+    "jpmorgan",
+    "juspaythreedsserver",
+    "klarna",
+    "loonio",
+    "mifinity",
+    "mollie",
+    "moneris",
+    "multisafepay",
+    "netcetera",
+    "nexinets",
+    "nexixpay",
+    "nmi",
+    "nomupay",
+    "noon",
+    "nordea",
+    "novalnet",
+    "nuvei",
+    "opennode",
+    "paybox",
+    "payload",
+    "payme",
+    "payone",
+    "paypal",
+    "paysafe",
+    "paystack",
+    "paytm",
+    "payu",
+    "peachpayments",
+    "payjustnow",
+    "payjustnowinstore",
+    "phonepe",
+    "placetopay",
+    "powertranz",
+    "prophetpay",
+    "rapyd",
+    "razorpay",
+    "recurly",
+    "redsys",
+    "revolv3",
+    "santander",
+    "shift4",
+    "silverflow",
+    "square",
+    "stax",
+    "stripe",
+    "stripebilling",
+    "taxjar",
+    "threedsecureio",
+    "tesouro",
+    "tokenex",
+    "tokenio",
+    "trustpay",
+    "trustpayments",
+    "tsys",
+    "vgs",
+    "volt",
+    "wellsfargo",
+    "wise",
+    "worldline",
+    "worldpay",
+    "worldpayvantiv",
+    "worldpayxml",
+    "worldpaymodular",
+    "signifyd",
+    "plaid",
+    "riskified",
+    "xendit",
+    "zen",
+    "zift",
+    "zsl",
+    "absa_sanlam",
+    "givepayments",
+    "imerchantsolutions",
+    "truelayer",
+    "trustly",
+    "tsys_transit",
+], type = "string" }, type = "REGULAR" }
+country = { position = 4, schema = { enum = [
+    "AC",
+    "AD",
+    "AE",
+    "AF",
+    "AG",
+    "AI",
+    "AL",
+    "AM",
+    "AO",
+    "AQ",
+    "AR",
+    "AS",
+    "AT",
+    "AU",
+    "AW",
+    "AX",
+    "AZ",
+    "BA",
+    "BB",
+    "BD",
+    "BE",
+    "BF",
+    "BG",
+    "BH",
+    "BI",
+    "BJ",
+    "BL",
+    "BM",
+    "BN",
+    "BO",
+    "BQ",
+    "BR",
+    "BS",
+    "BT",
+    "BV",
+    "BW",
+    "BY",
+    "BZ",
+    "CA",
+    "CC",
+    "CD",
+    "CF",
+    "CG",
+    "CH",
+    "CI",
+    "CK",
+    "CL",
+    "CM",
+    "CN",
+    "CO",
+    "CR",
+    "CU",
+    "CV",
+    "CW",
+    "CX",
+    "CY",
+    "CZ",
+    "DE",
+    "DJ",
+    "DK",
+    "DM",
+    "DO",
+    "DZ",
+    "EC",
+    "EE",
+    "EG",
+    "EH",
+    "ER",
+    "ES",
+    "ET",
+    "FI",
+    "FJ",
+    "FK",
+    "FM",
+    "FO",
+    "FR",
+    "GA",
+    "GB",
+    "GD",
+    "GE",
+    "GF",
+    "GG",
+    "GH",
+    "GI",
+    "GL",
+    "GM",
+    "GN",
+    "GP",
+    "GQ",
+    "GR",
+    "GS",
+    "GT",
+    "GU",
+    "GW",
+    "GY",
+    "HK",
+    "HM",
+    "HN",
+    "HR",
+    "HT",
+    "HU",
+    "ID",
+    "IE",
+    "IL",
+    "IM",
+    "IN",
+    "IO",
+    "IQ",
+    "IR",
+    "IS",
+    "IT",
+    "JE",
+    "JM",
+    "JO",
+    "JP",
+    "KE",
+    "KG",
+    "KH",
+    "KI",
+    "KM",
+    "KN",
+    "KP",
+    "KR",
+    "KW",
+    "KY",
+    "KZ",
+    "LA",
+    "LB",
+    "LC",
+    "LI",
+    "LK",
+    "LR",
+    "LS",
+    "LT",
+    "LU",
+    "LV",
+    "LY",
+    "MA",
+    "MC",
+    "MD",
+    "ME",
+    "MF",
+    "MG",
+    "MH",
+    "MK",
+    "ML",
+    "MM",
+    "MN",
+    "MO",
+    "MP",
+    "MQ",
+    "MR",
+    "MS",
+    "MT",
+    "MU",
+    "MV",
+    "MW",
+    "MX",
+    "MY",
+    "MZ",
+    "NA",
+    "NC",
+    "NE",
+    "NF",
+    "NG",
+    "NI",
+    "NL",
+    "NO",
+    "NP",
+    "NR",
+    "NU",
+    "NZ",
+    "OM",
+    "PA",
+    "PE",
+    "PF",
+    "PG",
+    "PH",
+    "PK",
+    "PL",
+    "PM",
+    "PN",
+    "PR",
+    "PS",
+    "PT",
+    "PW",
+    "PY",
+    "QA",
+    "RE",
+    "RO",
+    "RS",
+    "RU",
+    "RW",
+    "SA",
+    "SB",
+    "SC",
+    "SD",
+    "SE",
+    "SG",
+    "SH",
+    "SI",
+    "SJ",
+    "SK",
+    "SL",
+    "SM",
+    "SN",
+    "SO",
+    "SR",
+    "SS",
+    "ST",
+    "SV",
+    "SX",
+    "SY",
+    "SZ",
+    "TA",
+    "TC",
+    "TD",
+    "TF",
+    "TG",
+    "TH",
+    "TJ",
+    "TK",
+    "TL",
+    "TM",
+    "TN",
+    "TO",
+    "TR",
+    "TT",
+    "TV",
+    "TW",
+    "TZ",
+    "UA",
+    "UG",
+    "UM",
+    "US",
+    "UY",
+    "UZ",
+    "VA",
+    "VC",
+    "VE",
+    "VG",
+    "VI",
+    "VN",
+    "VU",
+    "WF",
+    "WS",
+    "XK",
+    "YE",
+    "YT",
+    "ZA",
+    "ZM",
+    "ZW",
+], type = "string" }, type = "REGULAR" }
+currency = { position = 5, schema = { enum = [
+    "AED",
+    "AFN",
+    "ALL",
+    "AMD",
+    "ANG",
+    "AOA",
+    "ARS",
+    "AUD",
+    "AWG",
+    "AZN",
+    "BAM",
+    "BBD",
+    "BDT",
+    "BGN",
+    "BHD",
+    "BIF",
+    "BMD",
+    "BND",
+    "BOB",
+    "BRL",
+    "BSD",
+    "BTN",
+    "BWP",
+    "BYN",
+    "BZD",
+    "CAD",
+    "CDF",
+    "CHF",
+    "CLF",
+    "CLP",
+    "CNY",
+    "COP",
+    "CRC",
+    "CUC",
+    "CUP",
+    "CVE",
+    "CZK",
+    "DJF",
+    "DKK",
+    "DOP",
+    "DZD",
+    "EGP",
+    "ERN",
+    "ETB",
+    "EUR",
+    "FJD",
+    "FKP",
+    "GBP",
+    "GEL",
+    "GHS",
+    "GIP",
+    "GMD",
+    "GNF",
+    "GTQ",
+    "GYD",
+    "HKD",
+    "HNL",
+    "HRK",
+    "HTG",
+    "HUF",
+    "IDR",
+    "ILS",
+    "INR",
+    "IQD",
+    "IRR",
+    "ISK",
+    "JMD",
+    "JOD",
+    "JPY",
+    "KES",
+    "KGS",
+    "KHR",
+    "KMF",
+    "KPW",
+    "KRW",
+    "KWD",
+    "KYD",
+    "KZT",
+    "LAK",
+    "LBP",
+    "LKR",
+    "LRD",
+    "LSL",
+    "LYD",
+    "MAD",
+    "MDL",
+    "MGA",
+    "MKD",
+    "MMK",
+    "MNT",
+    "MOP",
+    "MRU",
+    "MUR",
+    "MVR",
+    "MWK",
+    "MXN",
+    "MYR",
+    "MZN",
+    "NAD",
+    "NGN",
+    "NIO",
+    "NOK",
+    "NPR",
+    "NZD",
+    "OMR",
+    "PAB",
+    "PEN",
+    "PGK",
+    "PHP",
+    "PKR",
+    "PLN",
+    "PYG",
+    "QAR",
+    "RON",
+    "RSD",
+    "RUB",
+    "RWF",
+    "SAR",
+    "SBD",
+    "SCR",
+    "SDG",
+    "SEK",
+    "SGD",
+    "SHP",
+    "SLE",
+    "SLL",
+    "SOS",
+    "SRD",
+    "SSP",
+    "STD",
+    "STN",
+    "SVC",
+    "SYP",
+    "SZL",
+    "THB",
+    "TJS",
+    "TMT",
+    "TND",
+    "TOP",
+    "TRY",
+    "TTD",
+    "TWD",
+    "TZS",
+    "UAH",
+    "UGX",
+    "USD",
+    "UYU",
+    "UZS",
+    "VES",
+    "VND",
+    "VUV",
+    "WST",
+    "XAF",
+    "XCD",
+    "XOF",
+    "XPF",
+    "YER",
+    "ZAR",
+    "ZMW",
+    "ZWL",
+], type = "string" }, type = "REGULAR" }
 enforced_organization_id = { position = 18, schema = { pattern = ".*", type = "string" }, type = "REGULAR" }
 enforced_processor_merchant_id = { position = 16, schema = { pattern = ".*", type = "string" }, type = "REGULAR" }
 enforced_profile_id = { position = 15, schema = { pattern = ".*", type = "string" }, type = "REGULAR" }
 enforced_provider_merchant_id = { position = 17, schema = { pattern = ".*", type = "string" }, type = "REGULAR" }
 incoming_webhook_events = { position = 10, schema = { pattern = ".*", type = "string" }, type = "REGULAR" }
-mandate_type = { position = 6, schema = { enum = ["mandate", "non_mandate"], type = "string" }, type = "REGULAR" }
+mandate_type = { position = 6, schema = { enum = [
+    "mandate",
+    "non_mandate",
+], type = "string" }, type = "REGULAR" }
 method = { position = 20, schema = { type = "string" }, type = "REGULAR", description = "HTTP request method (Deja recording sampler context)", change_reason = "Deja recording sampler" }
 organization_id = { position = 11, schema = { pattern = ".*", type = "string" }, type = "REGULAR" }
 path = { position = 19, schema = { type = "string" }, type = "REGULAR", description = "HTTP request path (basis of the deja_dimension cohort)", change_reason = "Deja recording sampler" }
-payment_method = { position = 2, schema = { enum = ["BankDebit", "BankRedirect", "BankTransfer", "Card", "CardRedirect", "Crypto", "GiftCard", "MobilePayment", "PayLater", "Upi", "Voucher", "Wallet"], type = "string" }, type = "REGULAR" }
-payment_method_type = { position = 3, schema = { enum = ["Ach", "Affirm", "AfterpayClearpay", "Alfamart", "Alma", "AmazonPay", "ApplePay", "Atome", "Bacs", "BancontactCard", "BcaBankTransfer", "Becs", "Benefit", "Blik", "BniVa", "Boleto", "BriVa", "CimbVa", "Credit", "CryptoCurrency", "DanamonVa", "Debit", "DirectCarrierBilling", "Eps", "EftDebitOrder", "FamilyMart", "Flexiti", "Giropay", "Givex", "GooglePay", "Ideal", "Indomaret", "InstantBankTransfer", "InstantBankTransferFinland", "InstantBankTransferPoland", "Interac", "Klarna", "Knet", "Lawson", "LocalBankTransfer", "MandiriVa", "MbWay", "Mifinity", "MiniStop", "MomoAtm", "Multibanco", "OnlineBankingCzechRepublic", "OnlineBankingFinland", "OnlineBankingFpx", "OnlineBankingPoland", "OnlineBankingSlovakia", "OnlineBankingThailand", "OpenBanking", "OpenBankingUk", "PayBright", "PayEasy", "Paypal", "PermataBankTransfer", "Pix", "PixAutomaticoPush", "PixAutomaticoQr", "Przelewy24", "SamsungPay", "Seicomart", "Sepa", "SepaBankTransfer", "SevenEleven", "Skrill", "Sofort", "Trustly", "UpiCollect", "Walley"], type = "string" }, type = "REGULAR" }
-payout_retry_type = { position = 9, schema = { enum = ["single_connector", "multi_connector"], type = "string" }, type = "REGULAR" }
+payment_method = { position = 2, schema = { enum = [
+    "BankDebit",
+    "BankRedirect",
+    "BankTransfer",
+    "Card",
+    "CardRedirect",
+    "Crypto",
+    "GiftCard",
+    "MobilePayment",
+    "PayLater",
+    "Upi",
+    "Voucher",
+    "Wallet",
+], type = "string" }, type = "REGULAR" }
+payment_method_type = { position = 3, schema = { enum = [
+    "Ach",
+    "Affirm",
+    "AfterpayClearpay",
+    "Alfamart",
+    "Alma",
+    "AmazonPay",
+    "ApplePay",
+    "Atome",
+    "Bacs",
+    "BancontactCard",
+    "BcaBankTransfer",
+    "Becs",
+    "Benefit",
+    "Blik",
+    "BniVa",
+    "Boleto",
+    "BriVa",
+    "CimbVa",
+    "Credit",
+    "CryptoCurrency",
+    "DanamonVa",
+    "Debit",
+    "DirectCarrierBilling",
+    "Eps",
+    "EftDebitOrder",
+    "FamilyMart",
+    "Flexiti",
+    "Giropay",
+    "Givex",
+    "GooglePay",
+    "Ideal",
+    "Indomaret",
+    "InstantBankTransfer",
+    "InstantBankTransferFinland",
+    "InstantBankTransferPoland",
+    "Interac",
+    "Klarna",
+    "Knet",
+    "Lawson",
+    "LocalBankTransfer",
+    "MandiriVa",
+    "MbWay",
+    "Mifinity",
+    "MiniStop",
+    "MomoAtm",
+    "Multibanco",
+    "OnlineBankingCzechRepublic",
+    "OnlineBankingFinland",
+    "OnlineBankingFpx",
+    "OnlineBankingPoland",
+    "OnlineBankingSlovakia",
+    "OnlineBankingThailand",
+    "OpenBanking",
+    "OpenBankingUk",
+    "PayBright",
+    "PayEasy",
+    "Paypal",
+    "PermataBankTransfer",
+    "Pix",
+    "PixAutomaticoPush",
+    "PixAutomaticoQr",
+    "Przelewy24",
+    "SamsungPay",
+    "Seicomart",
+    "Sepa",
+    "SepaBankTransfer",
+    "SevenEleven",
+    "Skrill",
+    "Sofort",
+    "Trustly",
+    "UpiCollect",
+    "Walley",
+], type = "string" }, type = "REGULAR" }
+payout_retry_type = { position = 9, schema = { enum = [
+    "single_connector",
+    "multi_connector",
+], type = "string" }, type = "REGULAR" }
 processor_merchant_id = { position = 13, schema = { pattern = ".*", type = "string" }, type = "REGULAR" }
 profile_id = { position = 14, schema = { pattern = ".*", type = "string" }, type = "REGULAR" }
 provider_merchant_id = { position = 12, schema = { pattern = ".*", type = "string" }, type = "REGULAR" }
@@ -1737,7 +3369,10 @@ _context_ = { connector = "adyen", payment_method = "BankDebit", payment_method_
 _context_ = { connector = "payload", payment_method = "BankDebit", payment_method_type = "Ach" }
 "dynamic_fields.bank_debit.ach_bank_debit.account_number._is_required" = true
 "dynamic_fields.bank_debit.ach_bank_debit.bank_account_holder_name._is_required" = true
-"dynamic_fields.bank_debit.ach_bank_debit.bank_type._dropdown_options" = ["Checking", "Savings"]
+"dynamic_fields.bank_debit.ach_bank_debit.bank_type._dropdown_options" = [
+    "Checking",
+    "Savings",
+]
 "dynamic_fields.bank_debit.ach_bank_debit.bank_type._is_required" = true
 "dynamic_fields.bank_debit.ach_bank_debit.routing_number._is_required" = true
 "dynamic_fields.billing.address.zip._is_required" = true
@@ -1869,12 +3504,25 @@ _context_ = { connector = "adyen", payment_method = "BankRedirect", payment_meth
 
 [[overrides]]
 _context_ = { connector = "globalpay", payment_method = "BankRedirect", payment_method_type = "Sofort" }
-"dynamic_fields.billing.address.country._dropdown_options" = ["AT", "BE", "DE", "ES", "IT", "NL"]
+"dynamic_fields.billing.address.country._dropdown_options" = [
+    "AT",
+    "BE",
+    "DE",
+    "ES",
+    "IT",
+    "NL",
+]
 "dynamic_fields.billing.address.country._is_required" = true
 
 [[overrides]]
 _context_ = { connector = "stripe", payment_method = "BankRedirect", payment_method_type = "Sofort" }
-"dynamic_fields.billing.address.country._dropdown_options" = ["ES", "AT", "NL", "DE", "BE"]
+"dynamic_fields.billing.address.country._dropdown_options" = [
+    "ES",
+    "AT",
+    "NL",
+    "DE",
+    "BE",
+]
 "dynamic_fields.billing.address.country._is_required" = true
 "dynamic_fields.billing.address.first_name._is_required" = true
 "dynamic_fields.billing.address.last_name._is_required" = true
@@ -1927,7 +3575,38 @@ _context_ = { connector = "trustpay", payment_method = "BankTransfer", payment_m
 [[overrides]]
 _context_ = { connector = "calida", payment_method = "BankTransfer", payment_method_type = "Pix" }
 "dynamic_fields.billing.address.city._is_required" = true
-"dynamic_fields.billing.address.country._dropdown_options" = ["AT", "BE", "BG", "HR", "CY", "CZ", "DK", "EE", "FI", "FR", "DE", "GR", "HU", "IE", "IT", "LV", "LT", "LU", "MT", "NL", "PL", "PT", "RO", "SK", "SI", "ES", "SE", "IS", "LI", "NO"]
+"dynamic_fields.billing.address.country._dropdown_options" = [
+    "AT",
+    "BE",
+    "BG",
+    "HR",
+    "CY",
+    "CZ",
+    "DK",
+    "EE",
+    "FI",
+    "FR",
+    "DE",
+    "GR",
+    "HU",
+    "IE",
+    "IT",
+    "LV",
+    "LT",
+    "LU",
+    "MT",
+    "NL",
+    "PL",
+    "PT",
+    "RO",
+    "SK",
+    "SI",
+    "ES",
+    "SE",
+    "IS",
+    "LI",
+    "NO",
+]
 "dynamic_fields.billing.address.country._is_required" = true
 "dynamic_fields.billing.address.first_name._is_required" = true
 "dynamic_fields.billing.address.last_name._is_required" = true
@@ -1943,7 +3622,10 @@ _context_ = { connector = "facilitapay", payment_method = "BankTransfer", paymen
 "dynamic_fields.billing.address.first_name._is_required" = true
 "dynamic_fields.billing.address.last_name._is_required" = true
 "dynamic_fields.customer.document_details.document_number._is_required" = true
-"dynamic_fields.customer.document_details.document_type._dropdown_options" = ["CPF", "CNPJ"]
+"dynamic_fields.customer.document_details.document_type._dropdown_options" = [
+    "CPF",
+    "CNPJ",
+]
 "dynamic_fields.customer.document_details.document_type._is_required" = true
 
 [[overrides]]
@@ -1952,7 +3634,10 @@ _context_ = { connector = "itaubank", payment_method = "BankTransfer", payment_m
 "dynamic_fields.billing.address.first_name._is_required" = true
 "dynamic_fields.billing.address.last_name._is_required" = true
 "dynamic_fields.customer.document_details.document_number._is_required" = true
-"dynamic_fields.customer.document_details.document_type._dropdown_options" = ["CPF", "CNPJ"]
+"dynamic_fields.customer.document_details.document_type._dropdown_options" = [
+    "CPF",
+    "CNPJ",
+]
 "dynamic_fields.customer.document_details.document_type._is_required" = true
 
 [[overrides]]
@@ -1967,7 +3652,10 @@ _context_ = { connector = "santander", payment_method = "BankTransfer", payment_
 "dynamic_fields.billing.address.state._is_required" = true
 "dynamic_fields.billing.address.zip._is_required" = true
 "dynamic_fields.customer.document_details.document_number._is_required" = true
-"dynamic_fields.customer.document_details.document_type._dropdown_options" = ["cpf", "cnpj"]
+"dynamic_fields.customer.document_details.document_type._dropdown_options" = [
+    "cpf",
+    "cnpj",
+]
 "dynamic_fields.customer.document_details.document_type._is_required" = true
 
 [[overrides]]
@@ -1978,7 +3666,10 @@ _context_ = { connector = "santander", payment_method = "BankTransfer", payment_
 "dynamic_fields.billing.address.first_name._is_required" = true
 "dynamic_fields.billing.address.last_name._is_required" = true
 "dynamic_fields.customer.document_details.document_number._is_required" = true
-"dynamic_fields.customer.document_details.document_type._dropdown_options" = ["cpf", "cnpj"]
+"dynamic_fields.customer.document_details.document_type._dropdown_options" = [
+    "cpf",
+    "cnpj",
+]
 "dynamic_fields.customer.document_details.document_type._is_required" = true
 
 [[overrides]]
@@ -1986,12 +3677,22 @@ _context_ = { connector = "santander", payment_method = "BankTransfer", payment_
 "dynamic_fields.billing.address.first_name._is_required" = true
 "dynamic_fields.billing.address.last_name._is_required" = true
 "dynamic_fields.customer.document_details.document_number._is_required" = true
-"dynamic_fields.customer.document_details.document_type._dropdown_options" = ["cpf", "cnpj"]
+"dynamic_fields.customer.document_details.document_type._dropdown_options" = [
+    "cpf",
+    "cnpj",
+]
 "dynamic_fields.customer.document_details.document_type._is_required" = true
 
 [[overrides]]
 _context_ = { connector = "stripe", payment_method = "BankTransfer", payment_method_type = "SepaBankTransfer" }
-"dynamic_fields.billing.address.country._dropdown_options" = ["BE", "DE", "ES", "FR", "IE", "NL"]
+"dynamic_fields.billing.address.country._dropdown_options" = [
+    "BE",
+    "DE",
+    "ES",
+    "FR",
+    "IE",
+    "NL",
+]
 "dynamic_fields.billing.address.country._is_required" = true
 "dynamic_fields.billing.address.first_name._is_required" = true
 "dynamic_fields.billing.address.last_name._is_required" = true
@@ -2742,7 +4443,13 @@ _context_ = { connector = "digitalvirgo", payment_method = "MobilePayment", paym
 [[overrides]]
 _context_ = { connector = "stripe", payment_method = "PayLater", payment_method_type = "AfterpayClearpay" }
 "dynamic_fields.billing.address.city._is_required" = true
-"dynamic_fields.billing.address.country._dropdown_options" = ["GB", "AU", "CA", "US", "NZ"]
+"dynamic_fields.billing.address.country._dropdown_options" = [
+    "GB",
+    "AU",
+    "CA",
+    "US",
+    "NZ",
+]
 "dynamic_fields.billing.address.country._is_required" = true
 "dynamic_fields.billing.address.first_name._is_required" = true
 "dynamic_fields.billing.address.last_name._is_required" = true
@@ -2765,7 +4472,30 @@ _context_ = { connector = "adyen", payment_method = "PayLater", payment_method_t
 
 [[overrides]]
 _context_ = { connector = "klarna", payment_method = "PayLater", payment_method_type = "Klarna" }
-"dynamic_fields.billing.address.country._dropdown_options" = ["AU", "AT", "BE", "CA", "CZ", "DK", "FI", "FR", "DE", "GR", "IE", "IT", "NL", "NZ", "NO", "PL", "PT", "ES", "SE", "CH", "GB", "US"]
+"dynamic_fields.billing.address.country._dropdown_options" = [
+    "AU",
+    "AT",
+    "BE",
+    "CA",
+    "CZ",
+    "DK",
+    "FI",
+    "FR",
+    "DE",
+    "GR",
+    "IE",
+    "IT",
+    "NL",
+    "NZ",
+    "NO",
+    "PL",
+    "PT",
+    "ES",
+    "SE",
+    "CH",
+    "GB",
+    "US",
+]
 "dynamic_fields.billing.address.country._is_required" = true
 
 [[overrides]]
@@ -2930,7 +4660,235 @@ _context_ = { connector = "wellsfargo", payment_method = "Wallet", payment_metho
 [[overrides]]
 _context_ = { connector = "mifinity", payment_method = "Wallet", payment_method_type = "Mifinity" }
 "dynamic_fields.billing.address.city._is_required" = true
-"dynamic_fields.billing.address.country._dropdown_options" = ["BR", "CN", "SG", "MY", "DE", "CH", "DK", "GB", "ES", "AD", "GI", "FI", "FR", "GR", "HR", "IT", "JP", "MX", "AR", "CO", "CL", "PE", "VE", "UY", "PY", "BO", "EC", "GT", "HN", "SV", "NI", "CR", "PA", "DO", "CU", "PR", "NL", "NO", "PL", "PT", "SE", "RU", "TR", "TW", "HK", "MO", "AX", "AL", "DZ", "AS", "AO", "AI", "AG", "AM", "AW", "AU", "AT", "AZ", "BS", "BH", "BD", "BB", "BE", "BZ", "BJ", "BM", "BT", "BQ", "BA", "BW", "IO", "BN", "BG", "BF", "BI", "KH", "CM", "CA", "CV", "KY", "CF", "TD", "CX", "CC", "KM", "CG", "CK", "CI", "CW", "CY", "CZ", "DJ", "DM", "EG", "GQ", "ER", "EE", "ET", "FK", "FO", "FJ", "GF", "PF", "TF", "GA", "GM", "GE", "GH", "GL", "GD", "GP", "GU", "GG", "GN", "GW", "GY", "HT", "HM", "VA", "IS", "IN", "ID", "IE", "IM", "IL", "JE", "JO", "KZ", "KE", "KI", "KW", "KG", "LA", "LV", "LB", "LS", "LI", "LT", "LU", "MK", "MG", "MW", "MV", "ML", "MT", "MH", "MQ", "MR", "MU", "YT", "FM", "MD", "MC", "MN", "ME", "MS", "MA", "MZ", "NA", "NR", "NP", "NC", "NZ", "NE", "NG", "NU", "NF", "MP", "OM", "PK", "PW", "PS", "PG", "PH", "PN", "QA", "RE", "RO", "RW", "BL", "SH", "KN", "LC", "MF", "PM", "VC", "WS", "SM", "ST", "SA", "SN", "RS", "SC", "SL", "SX", "SK", "SI", "SB", "SO", "ZA", "GS", "KR", "LK", "SR", "SJ", "SZ", "TH", "TL", "TG", "TK", "TO", "TT", "TN", "TM", "TC", "TV", "UG", "UA", "AE", "UZ", "VU", "VN", "VG", "VI", "WF", "EH", "ZM"]
+"dynamic_fields.billing.address.country._dropdown_options" = [
+    "BR",
+    "CN",
+    "SG",
+    "MY",
+    "DE",
+    "CH",
+    "DK",
+    "GB",
+    "ES",
+    "AD",
+    "GI",
+    "FI",
+    "FR",
+    "GR",
+    "HR",
+    "IT",
+    "JP",
+    "MX",
+    "AR",
+    "CO",
+    "CL",
+    "PE",
+    "VE",
+    "UY",
+    "PY",
+    "BO",
+    "EC",
+    "GT",
+    "HN",
+    "SV",
+    "NI",
+    "CR",
+    "PA",
+    "DO",
+    "CU",
+    "PR",
+    "NL",
+    "NO",
+    "PL",
+    "PT",
+    "SE",
+    "RU",
+    "TR",
+    "TW",
+    "HK",
+    "MO",
+    "AX",
+    "AL",
+    "DZ",
+    "AS",
+    "AO",
+    "AI",
+    "AG",
+    "AM",
+    "AW",
+    "AU",
+    "AT",
+    "AZ",
+    "BS",
+    "BH",
+    "BD",
+    "BB",
+    "BE",
+    "BZ",
+    "BJ",
+    "BM",
+    "BT",
+    "BQ",
+    "BA",
+    "BW",
+    "IO",
+    "BN",
+    "BG",
+    "BF",
+    "BI",
+    "KH",
+    "CM",
+    "CA",
+    "CV",
+    "KY",
+    "CF",
+    "TD",
+    "CX",
+    "CC",
+    "KM",
+    "CG",
+    "CK",
+    "CI",
+    "CW",
+    "CY",
+    "CZ",
+    "DJ",
+    "DM",
+    "EG",
+    "GQ",
+    "ER",
+    "EE",
+    "ET",
+    "FK",
+    "FO",
+    "FJ",
+    "GF",
+    "PF",
+    "TF",
+    "GA",
+    "GM",
+    "GE",
+    "GH",
+    "GL",
+    "GD",
+    "GP",
+    "GU",
+    "GG",
+    "GN",
+    "GW",
+    "GY",
+    "HT",
+    "HM",
+    "VA",
+    "IS",
+    "IN",
+    "ID",
+    "IE",
+    "IM",
+    "IL",
+    "JE",
+    "JO",
+    "KZ",
+    "KE",
+    "KI",
+    "KW",
+    "KG",
+    "LA",
+    "LV",
+    "LB",
+    "LS",
+    "LI",
+    "LT",
+    "LU",
+    "MK",
+    "MG",
+    "MW",
+    "MV",
+    "ML",
+    "MT",
+    "MH",
+    "MQ",
+    "MR",
+    "MU",
+    "YT",
+    "FM",
+    "MD",
+    "MC",
+    "MN",
+    "ME",
+    "MS",
+    "MA",
+    "MZ",
+    "NA",
+    "NR",
+    "NP",
+    "NC",
+    "NZ",
+    "NE",
+    "NG",
+    "NU",
+    "NF",
+    "MP",
+    "OM",
+    "PK",
+    "PW",
+    "PS",
+    "PG",
+    "PH",
+    "PN",
+    "QA",
+    "RE",
+    "RO",
+    "RW",
+    "BL",
+    "SH",
+    "KN",
+    "LC",
+    "MF",
+    "PM",
+    "VC",
+    "WS",
+    "SM",
+    "ST",
+    "SA",
+    "SN",
+    "RS",
+    "SC",
+    "SL",
+    "SX",
+    "SK",
+    "SI",
+    "SB",
+    "SO",
+    "ZA",
+    "GS",
+    "KR",
+    "LK",
+    "SR",
+    "SJ",
+    "SZ",
+    "TH",
+    "TL",
+    "TG",
+    "TK",
+    "TO",
+    "TT",
+    "TN",
+    "TM",
+    "TC",
+    "TV",
+    "UG",
+    "UA",
+    "AE",
+    "UZ",
+    "VU",
+    "VN",
+    "VG",
+    "VI",
+    "WF",
+    "EH",
+    "ZM",
+]
 "dynamic_fields.billing.address.country._is_required" = true
 "dynamic_fields.billing.address.first_name._is_required" = true
 "dynamic_fields.billing.address.last_name._is_required" = true
@@ -2939,7 +4897,41 @@ _context_ = { connector = "mifinity", payment_method = "Wallet", payment_method_
 "dynamic_fields.billing.phone.country_code._is_required" = true
 "dynamic_fields.billing.phone.number._is_required" = true
 "dynamic_fields.wallet.mifinity.date_of_birth._is_required" = true
-"dynamic_fields.wallet.mifinity.language_preference._dropdown_options" = ["BR", "PT_BR", "CN", "ZH_CN", "DE", "DK", "DA", "DA_DK", "EN", "ES", "FI", "FR", "GR", "EL", "EL_GR", "HR", "IT", "JP", "JA", "JA_JP", "LA", "ES_LA", "NL", "NO", "PL", "PT", "RU", "SV", "SE", "SV_SE", "ZH", "TW", "ZH_TW"]
+"dynamic_fields.wallet.mifinity.language_preference._dropdown_options" = [
+    "BR",
+    "PT_BR",
+    "CN",
+    "ZH_CN",
+    "DE",
+    "DK",
+    "DA",
+    "DA_DK",
+    "EN",
+    "ES",
+    "FI",
+    "FR",
+    "GR",
+    "EL",
+    "EL_GR",
+    "HR",
+    "IT",
+    "JP",
+    "JA",
+    "JA_JP",
+    "LA",
+    "ES_LA",
+    "NL",
+    "NO",
+    "PL",
+    "PT",
+    "RU",
+    "SV",
+    "SE",
+    "SV_SE",
+    "ZH",
+    "TW",
+    "ZH_TW",
+]
 "dynamic_fields.wallet.mifinity.language_preference._is_required" = true
 
 [[overrides]]
@@ -3842,7 +5834,10 @@ _context_ = { country = "ZW", payment_method = "Wallet" }
 _context_ = { connector = "dwolla", mandate_type = "non_mandate", payment_method = "BankDebit", payment_method_type = "Ach" }
 "dynamic_fields.bank_debit.ach_bank_debit.account_number._is_required" = true
 "dynamic_fields.bank_debit.ach_bank_debit.bank_account_holder_name._is_required" = true
-"dynamic_fields.bank_debit.ach_bank_debit.bank_type._dropdown_options" = ["Checking", "Savings"]
+"dynamic_fields.bank_debit.ach_bank_debit.bank_type._dropdown_options" = [
+    "Checking",
+    "Savings",
+]
 "dynamic_fields.bank_debit.ach_bank_debit.bank_type._is_required" = true
 "dynamic_fields.bank_debit.ach_bank_debit.routing_number._is_required" = true
 "dynamic_fields.billing.address.first_name._is_required" = true
@@ -4030,12 +6025,36 @@ _context_ = { connector = "stripe", mandate_type = "non_mandate", payment_method
 
 [[overrides]]
 _context_ = { connector = "aci", mandate_type = "non_mandate", payment_method = "BankRedirect", payment_method_type = "Sofort" }
-"dynamic_fields.billing.address.country._dropdown_options" = ["ES", "GB", "SE", "AT", "NL", "DE", "CH", "BE", "FR", "FI", "IT", "PL"]
+"dynamic_fields.billing.address.country._dropdown_options" = [
+    "ES",
+    "GB",
+    "SE",
+    "AT",
+    "NL",
+    "DE",
+    "CH",
+    "BE",
+    "FR",
+    "FI",
+    "IT",
+    "PL",
+]
 "dynamic_fields.billing.address.country._is_required" = true
 
 [[overrides]]
 _context_ = { connector = "nuvei", mandate_type = "non_mandate", payment_method = "BankRedirect", payment_method_type = "Sofort" }
-"dynamic_fields.billing.address.country._dropdown_options" = ["ES", "GB", "IT", "DE", "FR", "AT", "BE", "NL", "BE", "SK"]
+"dynamic_fields.billing.address.country._dropdown_options" = [
+    "ES",
+    "GB",
+    "IT",
+    "DE",
+    "FR",
+    "AT",
+    "BE",
+    "NL",
+    "BE",
+    "SK",
+]
 "dynamic_fields.billing.address.country._is_required" = true
 "dynamic_fields.billing.address.first_name._is_required" = true
 "dynamic_fields.billing.address.last_name._is_required" = true
@@ -4043,7 +6062,14 @@ _context_ = { connector = "nuvei", mandate_type = "non_mandate", payment_method 
 
 [[overrides]]
 _context_ = { connector = "paypal", mandate_type = "non_mandate", payment_method = "BankRedirect", payment_method_type = "Sofort" }
-"dynamic_fields.billing.address.country._dropdown_options" = ["ES", "GB", "AT", "NL", "DE", "BE"]
+"dynamic_fields.billing.address.country._dropdown_options" = [
+    "ES",
+    "GB",
+    "AT",
+    "NL",
+    "DE",
+    "BE",
+]
 "dynamic_fields.billing.address.country._is_required" = true
 "dynamic_fields.billing.address.first_name._is_required" = true
 "dynamic_fields.billing.address.last_name._is_required" = true
@@ -4055,7 +6081,20 @@ _context_ = { connector = "stripe", mandate_type = "mandate", payment_method = "
 [[overrides]]
 _context_ = { connector = "trustpay", mandate_type = "non_mandate", payment_method = "BankRedirect", payment_method_type = "Sofort" }
 "dynamic_fields.billing.address.city._is_required" = true
-"dynamic_fields.billing.address.country._dropdown_options" = ["ES", "GB", "SE", "AT", "NL", "DE", "CH", "BE", "FR", "FI", "IT", "PL"]
+"dynamic_fields.billing.address.country._dropdown_options" = [
+    "ES",
+    "GB",
+    "SE",
+    "AT",
+    "NL",
+    "DE",
+    "CH",
+    "BE",
+    "FR",
+    "FI",
+    "IT",
+    "PL",
+]
 "dynamic_fields.billing.address.country._is_required" = true
 "dynamic_fields.billing.address.first_name._is_required" = true
 "dynamic_fields.billing.address.line1._is_required" = true
@@ -4063,7 +6102,21 @@ _context_ = { connector = "trustpay", mandate_type = "non_mandate", payment_meth
 
 [[overrides]]
 _context_ = { connector = "airwallex", mandate_type = "non_mandate", payment_method = "BankRedirect", payment_method_type = "Trustly" }
-"dynamic_fields.billing.address.country._dropdown_options" = ["DE", "DK", "EE", "ES", "FI", "GB", "LV", "LT", "NL", "PL", "PT", "SE", "SK"]
+"dynamic_fields.billing.address.country._dropdown_options" = [
+    "DE",
+    "DK",
+    "EE",
+    "ES",
+    "FI",
+    "GB",
+    "LV",
+    "LT",
+    "NL",
+    "PL",
+    "PT",
+    "SE",
+    "SK",
+]
 "dynamic_fields.billing.address.country._is_required" = true
 "dynamic_fields.billing.address.first_name._is_required" = true
 "dynamic_fields.billing.address.last_name._is_required" = true
@@ -4611,7 +6664,23 @@ _context_ = { connector = "adyen", mandate_type = "non_mandate", payment_method 
 [[overrides]]
 _context_ = { connector = "cryptopay", mandate_type = "non_mandate", payment_method = "Crypto", payment_method_type = "CryptoCurrency" }
 "dynamic_fields.crypto.network._is_required" = true
-"dynamic_fields.crypto.pay_currency._dropdown_options" = ["BTC", "LTC", "ETH", "XRP", "XLM", "BCH", "ADA", "SOL", "SHIB", "TRX", "DOGE", "BNB", "USDT", "USDC", "DAI"]
+"dynamic_fields.crypto.pay_currency._dropdown_options" = [
+    "BTC",
+    "LTC",
+    "ETH",
+    "XRP",
+    "XLM",
+    "BCH",
+    "ADA",
+    "SOL",
+    "SHIB",
+    "TRX",
+    "DOGE",
+    "BNB",
+    "USDT",
+    "USDC",
+    "DAI",
+]
 "dynamic_fields.crypto.pay_currency._is_required" = true
 
 [[overrides]]
@@ -4648,7 +6717,13 @@ _context_ = { connector = "affirm", mandate_type = "non_mandate", payment_method
 [[overrides]]
 _context_ = { connector = "adyen", mandate_type = "non_mandate", payment_method = "PayLater", payment_method_type = "AfterpayClearpay" }
 "dynamic_fields.billing.address.city._is_required" = true
-"dynamic_fields.billing.address.country._dropdown_options" = ["GB", "AU", "CA", "US", "NZ"]
+"dynamic_fields.billing.address.country._dropdown_options" = [
+    "GB",
+    "AU",
+    "CA",
+    "US",
+    "NZ",
+]
 "dynamic_fields.billing.address.country._is_required" = true
 "dynamic_fields.billing.address.first_name._is_required" = true
 "dynamic_fields.billing.address.last_name._is_required" = true
@@ -4658,7 +6733,13 @@ _context_ = { connector = "adyen", mandate_type = "non_mandate", payment_method 
 "dynamic_fields.billing.address.zip._is_required" = true
 "dynamic_fields.billing.email._is_required" = true
 "dynamic_fields.shipping.address.city._is_required" = true
-"dynamic_fields.shipping.address.country._dropdown_options" = ["GB", "AU", "CA", "US", "NZ"]
+"dynamic_fields.shipping.address.country._dropdown_options" = [
+    "GB",
+    "AU",
+    "CA",
+    "US",
+    "NZ",
+]
 "dynamic_fields.shipping.address.country._is_required" = true
 "dynamic_fields.shipping.address.line1._is_required" = true
 "dynamic_fields.shipping.address.line2._is_required" = true
@@ -4718,13 +6799,53 @@ _context_ = { connector = "flexiti", mandate_type = "non_mandate", payment_metho
 
 [[overrides]]
 _context_ = { connector = "airwallex", mandate_type = "non_mandate", payment_method = "PayLater", payment_method_type = "Klarna" }
-"dynamic_fields.billing.address.country._dropdown_options" = ["AT", "BE", "FI", "FR", "DE", "GR", "IE", "IT", "NL", "PT", "ES", "DK", "NO", "PL", "SE", "CH", "GB", "CZ", "US"]
+"dynamic_fields.billing.address.country._dropdown_options" = [
+    "AT",
+    "BE",
+    "FI",
+    "FR",
+    "DE",
+    "GR",
+    "IE",
+    "IT",
+    "NL",
+    "PT",
+    "ES",
+    "DK",
+    "NO",
+    "PL",
+    "SE",
+    "CH",
+    "GB",
+    "CZ",
+    "US",
+]
 "dynamic_fields.billing.address.country._is_required" = true
 
 [[overrides]]
 _context_ = { connector = "mollie", mandate_type = "non_mandate", payment_method = "PayLater", payment_method_type = "Klarna" }
 "dynamic_fields.billing.address.city._is_required" = true
-"dynamic_fields.billing.address.country._dropdown_options" = ["DE", "AT", "NL", "BE", "FR", "UK", "IT", "ES", "PT", "SE", "DK", "FI", "NO", "CH", "IR", "CZ", "PL", "GR", "SK"]
+"dynamic_fields.billing.address.country._dropdown_options" = [
+    "DE",
+    "AT",
+    "NL",
+    "BE",
+    "FR",
+    "UK",
+    "IT",
+    "ES",
+    "PT",
+    "SE",
+    "DK",
+    "FI",
+    "NO",
+    "CH",
+    "IR",
+    "CZ",
+    "PL",
+    "GR",
+    "SK",
+]
 "dynamic_fields.billing.address.country._is_required" = true
 "dynamic_fields.billing.address.first_name._is_required" = true
 "dynamic_fields.billing.address.last_name._is_required" = true
@@ -4735,7 +6856,31 @@ _context_ = { connector = "mollie", mandate_type = "non_mandate", payment_method
 
 [[overrides]]
 _context_ = { connector = "stripe", mandate_type = "non_mandate", payment_method = "PayLater", payment_method_type = "Klarna" }
-"dynamic_fields.billing.address.country._dropdown_options" = ["AU", "AT", "BE", "CA", "CZ", "DK", "FI", "FR", "GR", "DE", "IE", "IT", "NL", "NZ", "NO", "PL", "PT", "RO", "ES", "SE", "CH", "GB", "US"]
+"dynamic_fields.billing.address.country._dropdown_options" = [
+    "AU",
+    "AT",
+    "BE",
+    "CA",
+    "CZ",
+    "DK",
+    "FI",
+    "FR",
+    "GR",
+    "DE",
+    "IE",
+    "IT",
+    "NL",
+    "NZ",
+    "NO",
+    "PL",
+    "PT",
+    "RO",
+    "ES",
+    "SE",
+    "CH",
+    "GB",
+    "US",
+]
 "dynamic_fields.billing.address.country._is_required" = true
 "dynamic_fields.billing.email._is_required" = true
 
@@ -4761,7 +6906,12 @@ _context_ = { connector = "adyen", mandate_type = "non_mandate", payment_method 
 
 [[overrides]]
 _context_ = { connector = "adyen", mandate_type = "non_mandate", payment_method = "PayLater", payment_method_type = "Walley" }
-"dynamic_fields.billing.address.country._dropdown_options" = ["DK", "FI", "NO", "SE"]
+"dynamic_fields.billing.address.country._dropdown_options" = [
+    "DK",
+    "FI",
+    "NO",
+    "SE",
+]
 "dynamic_fields.billing.address.country._is_required" = true
 "dynamic_fields.billing.email._is_required" = true
 "dynamic_fields.billing.phone.country_code._is_required" = true
@@ -4798,7 +6948,10 @@ _context_ = { connector = "santander", mandate_type = "non_mandate", payment_met
 "dynamic_fields.billing.address.state._is_required" = true
 "dynamic_fields.billing.address.zip._is_required" = true
 "dynamic_fields.customer.document_details.document_number._is_required" = true
-"dynamic_fields.customer.document_details.document_type._dropdown_options" = ["cpf", "cnpj"]
+"dynamic_fields.customer.document_details.document_type._dropdown_options" = [
+    "cpf",
+    "cnpj",
+]
 "dynamic_fields.customer.document_details.document_type._is_required" = true
 
 [[overrides]]
