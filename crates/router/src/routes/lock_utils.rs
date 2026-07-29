@@ -73,6 +73,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::RoutingLinkConfig
             | Flow::RoutingUnlinkConfig
             | Flow::RoutingRetrieveConfig
+            | Flow::DecisionEngineSsoRedirect
             | Flow::RoutingRetrieveActiveConfig
             | Flow::RoutingRetrieveDefaultConfig
             | Flow::RoutingRetrieveDictionary
@@ -129,6 +130,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::CustomersListWithConstraints => Self::Customers,
             Flow::EphemeralKeyCreate | Flow::EphemeralKeyDelete => Self::Ephemeral,
             Flow::DeepHealthCheck | Flow::HealthCheck => Self::Health,
+            Flow::OfferEngineConnectivityCheck => Self::Health,
             Flow::MandatesRetrieve | Flow::MandatesRevoke | Flow::MandatesList => Self::Mandates,
             Flow::PaymentMethodsCreate
             | Flow::PaymentMethodsMigrate
