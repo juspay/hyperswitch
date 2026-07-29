@@ -411,6 +411,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::UpdateCardIssuer
             | Flow::DeleteCardIssuer
             | Flow::ListCardIssuers => Self::CardIssuers,
+            Flow::AccountUpdaterConnectivityCheck => Self::Health,
         }
     }
 }

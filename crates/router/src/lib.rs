@@ -356,6 +356,7 @@ pub fn mk_app(
         server_app = server_app.service(routes::Proxy::server(state.clone()));
     }
 
+    server_app = server_app.service(routes::AccountUpdater::server(state.clone()));
     server_app = server_app.service(routes::Cache::server(state.clone()));
     server_app = server_app.service(routes::Health::server(state.clone()));
     // Registered at the end because this entry has an empty scope

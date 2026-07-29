@@ -773,3 +773,28 @@ impl DatabaseBackedConfig for SaveWalletDecryptedData {
             .map(|id| format!("{}_{}", Self::KEY, id.get_string_repr()))
     }
 }
+
+config! {
+    superposition_key = ACCOUNT_UPDATER_ENABLED,
+    output = bool,
+    default = false,
+    requires = dimension_state::DimensionsGlobal,
+    targeting_key = id_type::PaymentId
+}
+
+impl DatabaseBackedConfig for AccountUpdaterEnabled {
+    const KEY: &'static str = "account_updater_enabled";
+}
+
+config! {
+    superposition_key = ACCOUNT_UPDATER_CREDENTIAL_SOURCE,
+    output = crate::core::account_updater::types::AccountUpdaterCredentialSource,
+    default = crate::core::account_updater::types::AccountUpdaterCredentialSource::None,
+    string_enum = true,
+    requires = dimension_state::DimensionsGlobal,
+    targeting_key = id_type::PaymentId
+}
+
+impl DatabaseBackedConfig for AccountUpdaterCredentialSource {
+    const KEY: &'static str = "account_updater_credential_source";
+}

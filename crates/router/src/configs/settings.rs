@@ -202,6 +202,7 @@ pub struct Settings<S: SecretState> {
     pub comparison_service: Option<ComparisonServiceConfig>,
     pub authentication_service_enabled_connectors: AuthenticationServiceEnabledConnectors,
     pub save_payment_method_on_session: OnSessionConfig,
+    pub account_updater: Option<AccountUpdaterConfig>,
 }
 
 #[cfg(feature = "deja")]
@@ -383,6 +384,19 @@ pub struct OnSessionConfig {
     #[serde(default, deserialize_with = "deserialize_hashmap")]
     pub unsupported_payment_methods:
         HashMap<enums::PaymentMethod, HashSet<enums::PaymentMethodType>>,
+}
+
+/// Credentials for the Account Updater flow, forwarded to UCS in the connector config header.
+/// Absent unless the deployment provisions it; validated at startup by
+/// `AccountUpdaterConfig::validate`, so the call path never re-checks individual fields.
+#[derive(Debug, Deserialize, Clone)]
+pub struct AccountUpdaterConfig {
+    pub base_url: url::Url,
+    pub api_key: Secret<String>,
+    pub merchant_id: String,
+    pub euler_encryption_public_key: Secret<String>,
+    pub au_decryption_pvt_key: Secret<String>,
+    pub card_sync_key_id: Secret<String>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -1429,6 +1443,11 @@ impl Settings<SecuredSecret> {
 
         self.lock_settings.validate()?;
         self.events.validate()?;
+
+        self.account_updater
+            .as_ref()
+            .map(|account_updater| account_updater.validate())
+            .transpose()?;
 
         #[cfg(feature = "olap")]
         self.opensearch.validate()?;

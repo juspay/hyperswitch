@@ -440,6 +440,11 @@ pub mod superposition {
     pub const INCOMING_WEBHOOK_DISABLED_EVENTS: &str = "incoming_webhook_disabled_events";
     /// save wallet decrypted data in locker
     pub const SAVE_WALLET_DECRYPTED_DATA: &str = "save_wallet_decrypted_data";
+    /// Account Updater master gate key: `false` (default) disables all Account Updater calls
+    pub const ACCOUNT_UPDATER_ENABLED: &str = "account_updater_enabled";
+    /// Account Updater credential source key: `"none"` skips Account Updater, `"application"` uses
+    /// the static application config
+    pub const ACCOUNT_UPDATER_CREDENTIAL_SOURCE: &str = "account_updater_credential_source";
 }
 
 #[cfg(test)]

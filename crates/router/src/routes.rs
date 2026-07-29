@@ -1,3 +1,4 @@
+pub mod account_updater;
 pub mod admin;
 pub mod api_keys;
 pub mod app;
@@ -90,12 +91,13 @@ pub use self::app::PaymentMethodSession;
 #[cfg(all(feature = "oltp", feature = "v2"))]
 pub use self::app::Proxy;
 pub use self::app::{
-    ApiKeys, AppState, ApplePayCertificatesMigration, Authentication, Cache, CardIssuers, Cards,
-    Chat, Configs, ConnectorOnboarding, Customers, Disputes, Embedded, EphemeralKey, FeatureMatrix,
-    Files, Forex, Gsm, Health, Hypersense, Mandates, MerchantAccount, MerchantConnectorAccount,
-    Oidc, PaymentLink, PaymentMethods, Payments, Poll, ProcessTracker, ProcessTrackerDeprecated,
-    Profile, ProfileAcquirer, ProfileNew, Refunds, Relay, RelayWebhooks, SdkConfig, SessionState,
-    SuperpositionProxy, ThreeDsDecisionRule, User, UserDeprecated, Webhooks,
+    AccountUpdater, ApiKeys, AppState, ApplePayCertificatesMigration, Authentication, Cache,
+    CardIssuers, Cards, Chat, Configs, ConnectorOnboarding, Customers, Disputes, Embedded,
+    EphemeralKey, FeatureMatrix, Files, Forex, Gsm, Health, Hypersense, Mandates, MerchantAccount,
+    MerchantConnectorAccount, Oidc, PaymentLink, PaymentMethods, Payments, Poll, ProcessTracker,
+    ProcessTrackerDeprecated, Profile, ProfileAcquirer, ProfileNew, Refunds, Relay, RelayWebhooks,
+    SdkConfig, SessionState, SuperpositionProxy, ThreeDsDecisionRule, User, UserDeprecated,
+    Webhooks,
 };
 #[cfg(feature = "olap")]
 pub use self::app::{Blocklist, Organization, Routing, Subscription, Verify, WebhookEvents};

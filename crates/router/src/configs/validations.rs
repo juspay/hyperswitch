@@ -370,3 +370,41 @@ impl super::settings::SageSettings {
         )
     }
 }
+
+impl super::settings::AccountUpdaterConfig {
+    pub fn validate(&self) -> Result<(), ApplicationError> {
+        use common_utils::fp_utils::when;
+
+        // UCS builds the provider endpoint by concatenation (`{base_url}cardAccountUpdater`), so a
+        // missing trailing slash silently produces a wrong host path rather than a failure.
+        when(!self.base_url.path().ends_with('/'), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "account_updater.base_url must end with a trailing slash".into(),
+            ))
+        })?;
+
+        let secrets = [
+            ("api_key", self.api_key.peek()),
+            (
+                "euler_encryption_public_key",
+                self.euler_encryption_public_key.peek(),
+            ),
+            ("au_decryption_pvt_key", self.au_decryption_pvt_key.peek()),
+            ("card_sync_key_id", self.card_sync_key_id.peek()),
+        ];
+
+        for (field, value) in secrets {
+            when(value.trim().is_empty(), || {
+                Err(ApplicationError::InvalidConfigurationValueError(format!(
+                    "account_updater.{field} must not be empty"
+                )))
+            })?;
+        }
+
+        when(self.merchant_id.trim().is_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "account_updater.merchant_id must not be empty".into(),
+            ))
+        })
+    }
+}

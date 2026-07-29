@@ -67,8 +67,8 @@ use super::verification::{apple_pay_merchant_registration, retrieve_apple_pay_ve
 #[cfg(feature = "oltp")]
 use super::webhooks::*;
 use super::{
-    admin, api_keys, cache::*, card_issuer, chat, connector_onboarding, disputes, files, gsm,
-    health::*, oidc, profiles, relay, user, user_role,
+    account_updater, admin, api_keys, cache::*, card_issuer, chat, connector_onboarding, disputes,
+    files, gsm, health::*, oidc, profiles, relay, user, user_role,
 };
 #[cfg(feature = "v1")]
 use super::{
@@ -3457,6 +3457,19 @@ impl SuperpositionProxy {
             .service(
                 web::resource("/audit")
                     .route(web::get().to(super::superposition_proxy::list_audit_logs)),
+            )
+    }
+}
+
+pub struct AccountUpdater;
+
+impl AccountUpdater {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/account_updater")
+            .app_data(web::Data::new(state))
+            .service(
+                web::resource("/connectivity")
+                    .route(web::post().to(account_updater::account_updater_connectivity_check)),
             )
     }
 }

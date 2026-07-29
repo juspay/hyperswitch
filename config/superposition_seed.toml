@@ -308,3 +308,15 @@ value = false
 schema = { type = "boolean" }
 description = "Whether to save wallet decrypted data"
 change_reason = "Initial setup"
+
+[default-configs.account_updater_enabled]
+value = false
+schema = { type = "boolean" }
+description = "Master gate for the Account Updater integration. When false (default) Account Updater is never called, regardless of account_updater_credential_source. Set true (per tenant/env override) to allow Account Updater calls."
+change_reason = "Account Updater disabled by default; enable via Superposition override"
+
+[default-configs.account_updater_credential_source]
+value = "none"
+schema = { type = "string", enum = ["none", "application"] }
+description = "Source of Account Updater credentials once account_updater_enabled is true: 'none' skips Account Updater; 'application' uses the static account_updater application config. Future org/merchant/profile sources will extend the enum alongside their credential storage."
+change_reason = "Account Updater credential source is a string enum: 'none' disables, 'application' enables; extensible to org/merchant/profile sources"

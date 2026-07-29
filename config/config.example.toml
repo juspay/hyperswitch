@@ -1503,6 +1503,14 @@ internal_api_key = "test_internal_api_key" # API key for internal merchant id an
 [internal_services] # Internal services base urls and configs
 payments_base_url = "http://localhost:8080"
 
+[account_updater] # Credentials forwarded to UCS for the Account Updater flow; omit the section entirely to keep it off
+base_url = "https://account-updater.example.com/" # Account Updater base URL, must end with a trailing slash (also requires infra allowlisting)
+api_key = ""                     # API key for the Account Updater provider
+merchant_id = ""                 # Merchant id sent in Account Updater request bodies
+euler_encryption_public_key = "" # Provider RSA public key, used to seal outbound card data
+au_decryption_pvt_key = ""       # Our RSA private key, used to open the response payload
+card_sync_key_id = ""            # Id of our public key as registered with the provider
+
 [superposition]
 endpoint = "http://superposition:8080"          # Superposition service endpoint URL
 token = "your_superposition_token"              # Superposition token

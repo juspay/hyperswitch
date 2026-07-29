@@ -702,5 +702,6 @@ pub(crate) async fn fetch_raw_secrets(
         comparison_service: conf.comparison_service,
         authentication_service_enabled_connectors: conf.authentication_service_enabled_connectors,
         save_payment_method_on_session: conf.save_payment_method_on_session,
+        account_updater: conf.account_updater,
     }
 }
