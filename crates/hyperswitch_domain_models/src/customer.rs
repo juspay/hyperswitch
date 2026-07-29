@@ -105,6 +105,34 @@ pub struct Customer {
     pub last_modified_by: Option<CreatedBy>,
 }
 
+/// Customer fields required for existence and status checks that do not require decryption.
+#[cfg(feature = "v2")]
+#[derive(Clone, Debug)]
+pub struct CustomerWithoutEncrypted {
+    pub merchant_id: id_type::MerchantId,
+    pub status: DeleteStatus,
+}
+
+#[cfg(feature = "v2")]
+impl From<storage_types::Customer> for CustomerWithoutEncrypted {
+    fn from(customer: storage_types::Customer) -> Self {
+        Self {
+            merchant_id: customer.merchant_id,
+            status: customer.status,
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
+impl From<Customer> for CustomerWithoutEncrypted {
+    fn from(customer: Customer) -> Self {
+        Self {
+            merchant_id: customer.merchant_id,
+            status: customer.status,
+        }
+    }
+}
+
 impl Customer {
     #[cfg(feature = "v1")]
     #[allow(clippy::too_many_arguments)]
@@ -928,6 +956,15 @@ where
         key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Customer, Self::Error>;
+
+    #[cfg(feature = "v2")]
+    async fn find_customer_without_encrypted_by_global_id_merchant_id(
+        &self,
+        id: &id_type::GlobalCustomerId,
+        merchant_id: &id_type::MerchantId,
+        key_store: &MerchantKeyStore,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<CustomerWithoutEncrypted, Self::Error>;
 }
 
 #[cfg(feature = "v1")]
