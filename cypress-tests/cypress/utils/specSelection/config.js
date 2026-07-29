@@ -60,17 +60,6 @@ export const CONNECTOR_PAYMENT_METHODS = Object.freeze({
   volt: ["bank_redirect"],
 });
 
-/** Spec directory behind each `cypress:<service>` npm script. */
-export const SERVICE_SPEC_DIRS = Object.freeze({
-  misc: "cypress/e2e/spec/Misc",
-  "modular-pm-service": "cypress/e2e/spec/ModularPmService",
-  "payment-method-list": "cypress/e2e/spec/PaymentMethodList",
-  payments: "cypress/e2e/spec/Payment",
-  payouts: "cypress/e2e/spec/Payout",
-  platform: "cypress/e2e/spec/Platform",
-  routing: "cypress/e2e/spec/Routing",
-});
-
 /**
  * Payment spec -> the payment methods it exercises, from `PAYMENT_METHODS`.
  *
@@ -182,7 +171,16 @@ const PAYMENT_SPEC_METHODS = Object.freeze({
   "56-VaultTokenizationDisable.cy.js": ["card"],
 });
 
-/** Services absent from this map are never filtered. */
-export const SERVICE_SPEC_METHODS = Object.freeze({
-  payments: PAYMENT_SPEC_METHODS,
+/**
+ * Services whose specs are selected per connector, keyed by the
+ * `cypress:<service>` npm script that runs them.
+ *
+ * Only `payments` is wired today; the remaining `cypress:*` scripts keep their
+ * plain spec globs. Register a service here to filter it too.
+ */
+export const SERVICES = Object.freeze({
+  payments: {
+    specDir: "cypress/e2e/spec/Payment",
+    specMethods: PAYMENT_SPEC_METHODS,
+  },
 });

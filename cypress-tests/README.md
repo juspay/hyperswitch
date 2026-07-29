@@ -192,10 +192,10 @@ CYPRESS_CONNECTOR=loonio npm run cypress:specs -- payments --print-specs
 
 Implementation lives in `cypress/utils/specSelection/`:
 
-| File        | Responsibility                                                         |
-| ----------- | ---------------------------------------------------------------------- |
-| `config.js` | Connector → payment methods, spec → payment methods, service spec dirs |
-| `index.js`  | `resolveSpecs({ service, connectorId })`                               |
+| File        | Responsibility                                      |
+| ----------- | --------------------------------------------------- |
+| `config.js` | Connector → payment methods, spec → payment methods |
+| `index.js`  | `resolveSpecs({ service, connectorId })`            |
 
 When adding a payment spec, tag it in `config.js`. Untagged specs run for every
 connector, so forgetting to tag one costs time but never coverage.

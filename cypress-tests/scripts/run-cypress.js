@@ -20,7 +20,7 @@ import { fileURLToPath } from "url";
 
 import {
   resolveSpecs,
-  SERVICE_SPEC_DIRS,
+  SERVICES,
 } from "../cypress/utils/specSelection/index.js";
 
 const PACKAGE_ROOT = path.resolve(
@@ -30,9 +30,9 @@ const PACKAGE_ROOT = path.resolve(
 
 const [service, ...args] = process.argv.slice(2);
 
-if (!SERVICE_SPEC_DIRS[service]) {
+if (!SERVICES[service]) {
   console.error(
-    `Usage: node scripts/run-cypress.js <${Object.keys(SERVICE_SPEC_DIRS).join("|")}> [...cypress args]`
+    `Usage: node scripts/run-cypress.js <${Object.keys(SERVICES).join("|")}> [...cypress args]`
   );
   process.exit(1);
 }
