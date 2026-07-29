@@ -24,6 +24,9 @@ use crate::{
 /// UCS error code indicating the connector returned a 4xx/5xx HTTP response (with `http_status_code` set).
 const CONNECTOR_ERROR_RESPONSE_CODE: &str = "CONNECTOR_ERROR_RESPONSE";
 
+const UCS_CONNECTOR_REQUEST_TIMEOUT_MESSAGE: &str = "Server responded with Request Timeout";
+const UCS_CONNECTOR_GATEWAY_TIMEOUT_MESSAGE: &str = "Server responded with Gateway Timeout";
+
 /// Unified Connector Service error variants
 #[derive(Debug, Clone, thiserror::Error)]
 pub enum UnifiedConnectorServiceError {
@@ -1143,6 +1146,10 @@ impl UnifiedConnectorServiceError {
             return error_from_details;
         }
 
+        if let Some(timeout_error) = Self::decode_connector_timeout(status, connector_name) {
+            return timeout_error;
+        }
+
         Self::TonicStatus {
             code: status.code(),
             message: status.message().to_string(),
@@ -1215,6 +1222,31 @@ impl UnifiedConnectorServiceError {
                 .and_then(|ei| ei.issuer_details.as_ref())
                 .and_then(|id| id.network_details.as_ref())
                 .and_then(|nd| nd.error_message.clone()),
+        })))
+    }
+
+    fn decode_connector_timeout(status: &tonic::Status, connector_name: &str) -> Option<Self> {
+        let message = status.message();
+        let is_connector_timeout = status.code() == tonic::Code::DeadlineExceeded
+            && matches!(
+                message,
+                UCS_CONNECTOR_REQUEST_TIMEOUT_MESSAGE | UCS_CONNECTOR_GATEWAY_TIMEOUT_MESSAGE
+            );
+
+        if !is_connector_timeout {
+            return None;
+        }
+
+        Some(Self::ConnectorError(Box::new(ConnectorErrorInner {
+            code: crate::consts::REQUEST_TIMEOUT_ERROR_CODE.to_string(),
+            message: crate::consts::REQUEST_TIMEOUT_ERROR_MESSAGE.to_string(),
+            status_code: Self::tonic_to_http_status(status.code()),
+            reason: Some(crate::consts::REQUEST_TIMEOUT_ERROR_MESSAGE.to_string()),
+            connector: connector_name.to_string(),
+            connector_transaction_id: None,
+            network_decline_code: None,
+            network_advice_code: None,
+            network_error_message: None,
         })))
     }
 }
