@@ -746,6 +746,19 @@ impl OfferEngine {
     }
 }
 
+pub struct AccountUpdater;
+
+impl AccountUpdater {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/account_updater")
+            .app_data(web::Data::new(state))
+            .service(
+                web::resource("/connectivity")
+                    .route(web::post().to(account_updater::account_updater_connectivity_check)),
+            )
+    }
+}
+
 #[cfg(feature = "dummy_connector")]
 pub struct DummyConnector;
 
@@ -3470,19 +3483,6 @@ impl SuperpositionProxy {
             .service(
                 web::resource("/audit")
                     .route(web::get().to(super::superposition_proxy::list_audit_logs)),
-            )
-    }
-}
-
-pub struct AccountUpdater;
-
-impl AccountUpdater {
-    pub fn server(state: AppState) -> Scope {
-        web::scope("/account_updater")
-            .app_data(web::Data::new(state))
-            .service(
-                web::resource("/connectivity")
-                    .route(web::post().to(account_updater::account_updater_connectivity_check)),
             )
     }
 }

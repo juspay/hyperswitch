@@ -1471,11 +1471,6 @@ impl Settings<SecuredSecret> {
         self.lock_settings.validate()?;
         self.events.validate()?;
 
-        self.account_updater
-            .as_ref()
-            .map(|account_updater| account_updater.validate())
-            .transpose()?;
-
         #[cfg(feature = "olap")]
         self.opensearch.validate()?;
 
@@ -1499,6 +1494,11 @@ impl Settings<SecuredSecret> {
         self.offer_engine
             .as_ref()
             .map(|offer_engine| offer_engine.validate())
+            .transpose()?;
+
+        self.account_updater
+            .as_ref()
+            .map(|account_updater| account_updater.validate())
             .transpose()?;
 
         self.paze_decrypt_keys

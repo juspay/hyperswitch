@@ -131,6 +131,7 @@ impl From<Flow> for ApiIdentifier {
             Flow::EphemeralKeyCreate | Flow::EphemeralKeyDelete => Self::Ephemeral,
             Flow::DeepHealthCheck | Flow::HealthCheck => Self::Health,
             Flow::OfferEngineConnectivityCheck => Self::Health,
+            Flow::AccountUpdaterConnectivityCheck => Self::Health,
             Flow::MandatesRetrieve | Flow::MandatesRevoke | Flow::MandatesList => Self::Mandates,
             Flow::PaymentMethodsCreate
             | Flow::PaymentMethodsMigrate
@@ -412,7 +413,6 @@ impl From<Flow> for ApiIdentifier {
             | Flow::UpdateCardIssuer
             | Flow::DeleteCardIssuer
             | Flow::ListCardIssuers => Self::CardIssuers,
-            Flow::AccountUpdaterConnectivityCheck => Self::Health,
         }
     }
 }

@@ -52,14 +52,14 @@ pub enum Tag {
 /// API Flow
 #[derive(Debug, Display, Clone, PartialEq, Eq)]
 pub enum Flow {
-    /// Account Updater configuration check (dev/admin only)
-    AccountUpdaterConnectivityCheck,
     /// Health check
     HealthCheck,
     /// Deep health Check
     DeepHealthCheck,
     /// Offer Engine connectivity check (dev/admin only)
     OfferEngineConnectivityCheck,
+    /// Account Updater configuration check (dev/admin only)
+    AccountUpdaterConnectivityCheck,
     /// OIDC Discovery endpoint
     OidcDiscovery,
     /// OIDC JWKS endpoint
