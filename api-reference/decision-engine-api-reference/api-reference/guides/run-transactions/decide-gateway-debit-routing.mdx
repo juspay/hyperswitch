@@ -1,0 +1,70 @@
+---
+title: "Decide Gateway: Debit Routing"
+description: "Curl example for /decide-gateway using NTW_BASED_ROUTING."
+---
+
+# Decide Gateway: Debit Routing
+
+Enable the merchant debit-routing flag before this call. The backend reads debit inputs from `paymentInfo.metadata`, so `metadata` must be a JSON string with `co_badged_card_data`.
+
+## Request
+
+```bash
+curl --location "$BASE_URL/decide-gateway" \
+  --header "$AUTH_HEADER" \
+  --header "Content-Type: application/json" \
+  --data '{
+    "merchantId": "merchant_demo",
+    "eligibleGatewayList": ["stripe", "adyen"],
+    "rankingAlgorithm": "NTW_BASED_ROUTING",
+    "eliminationEnabled": false,
+    "enableMultiObjective": false,
+    "paymentInfo": {
+      "paymentId": "debit_001",
+      "amount": 1000,
+      "currency": "USD",
+      "paymentType": "ORDER_PAYMENT",
+      "paymentMethodType": "CARD",
+      "paymentMethod": "DEBIT",
+      "authType": "THREE_DS",
+      "metadata": "{\"merchant_category_code\":\"merchant_category_code_0001\",\"acquirer_country\":\"US\",\"co_badged_card_data\":{\"co_badged_card_networks\":[\"VISA\",\"NYCE\",\"PULSE\",\"STAR\"],\"issuer_country\":\"US\",\"is_regulated\":false,\"regulated_name\":null,\"card_type\":\"debit\"}}"
+    }
+  }'
+```
+
+## Response
+
+```json
+{
+  "decided_gateway": "stripe",
+  "gateway_priority_map": null,
+  "filter_wise_gateways": null,
+  "priority_logic_tag": null,
+  "routing_approach": "NTW_BASED_ROUTING",
+  "gateway_before_evaluation": null,
+  "priority_logic_output": null,
+  "debit_routing_output": {
+    "co_badged_card_networks_info": [
+      { "network": "NYCE", "saving_percentage": 1.2 },
+      { "network": "PULSE", "saving_percentage": 0.9 },
+      { "network": "VISA", "saving_percentage": 0.1 }
+    ],
+    "issuer_country": "US",
+    "is_regulated": false,
+    "regulated_name": null,
+    "card_type": "debit"
+  },
+  "reset_approach": "NO_RESET",
+  "routing_dimension": null,
+  "routing_dimension_level": null,
+  "is_scheduled_outage": false,
+  "is_dynamic_mga_enabled": false,
+  "gateway_mga_id_map": null,
+  "is_rust_based_decider": true,
+  "multi_objective_info": null
+}
+```
+
+## Multi-Objective Option
+
+When multi-objective routing is enabled (request field `enableMultiObjective`, or the `multi_objective_routing_enabled` merchant feature flag), a cost-aware post-step may re-rank the SR result and the response gains a `multi_objective_info` block. Details and examples: [Multi-objective routing](/decision-engine-api-reference/api-reference/guides/run-transactions/decide-gateway-multi-objective).

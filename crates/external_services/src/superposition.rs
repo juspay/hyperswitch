@@ -1021,13 +1021,23 @@ pub trait Config {
     /// it to `fetch` and to every generic `C: Config` caller (e.g. router's
     /// `fetch_db_config`) without scattering per-call-site where-clauses. All
     /// real Output types (bool/String/i64/u32/f64/serde_json::Value) satisfy it.
-    type Output: Default + Clone + serde::Serialize + serde::de::DeserializeOwned;
+    type Output: Default + Clone + serde::Serialize + serde::de::DeserializeOwned + Send;
 
     /// The type used as the targeting key for experiment traffic splitting
     type TargetingKey: TargetingKey + Send + Sync;
 
     /// Get the Superposition key for this config
     const SUPERPOSITION_KEY: &'static str;
+
+    /// Get the legacy, non-foldered Superposition key for this config.
+    ///
+    /// Superposition represents folders by dot-delimited key prefixes. During a
+    /// folder migration, retrying the portion after the final dot allows a new
+    /// application version to continue reading configs from a workspace that
+    /// has not been migrated yet.
+    fn legacy_superposition_key() -> Option<&'static str> {
+        Self::SUPERPOSITION_KEY.rsplit_once('.').map(|(_, key)| key)
+    }
 
     /// Get the default value for this config
     /// Default implementation uses `Default::default()`, can be overridden for custom defaults
@@ -1046,18 +1056,54 @@ pub trait Config {
     {
         let targeting_key_str = targeting_key.map(|id| id.targeting_key_value().to_owned());
         async move {
-            match superposition_client
+            let primary_result = superposition_client
                 .get_config_value::<Self::Output>(
                     Self::SUPERPOSITION_KEY,
                     context,
                     targeting_key_str.as_ref(),
                 )
-                .await
-            {
+                .await;
+
+            let (resolved_key, result) = match primary_result {
+                Ok(value) => (Self::SUPERPOSITION_KEY, Ok(value)),
+                Err(primary_error) => match Self::legacy_superposition_key() {
+                    Some(legacy_key) => {
+                        match superposition_client
+                            .get_config_value::<Self::Output>(
+                                legacy_key,
+                                context,
+                                targeting_key_str.as_ref(),
+                            )
+                            .await
+                        {
+                            Ok(value) => {
+                                router_env::logger::warn!(
+                                    "Superposition config resolved using legacy key: key='{}', legacy_key='{}'",
+                                    Self::SUPERPOSITION_KEY,
+                                    legacy_key,
+                                );
+                                (legacy_key, Ok(value))
+                            }
+                            Err(legacy_error) => {
+                                router_env::logger::warn!(
+                                    "Superposition legacy config miss: key='{}', legacy_key='{}', error='{:?}'",
+                                    Self::SUPERPOSITION_KEY,
+                                    legacy_key,
+                                    legacy_error,
+                                );
+                                (legacy_key, Err(legacy_error))
+                            }
+                        }
+                    }
+                    None => (Self::SUPERPOSITION_KEY, Err(primary_error)),
+                },
+            };
+
+            match result {
                 Ok(value) => {
                     router_env::logger::info!(
                         "Superposition config hit: key='{}', type='{}'",
-                        Self::SUPERPOSITION_KEY,
+                        resolved_key,
                         std::any::type_name::<Self::Output>()
                     );
                     config_metrics::CONFIG_SUPERPOSITION_FETCH.add(
@@ -1066,14 +1112,14 @@ pub trait Config {
                     );
                     Ok(value)
                 }
-                Err(e) => {
+                Err(error) => {
                     router_env::logger::warn!(
                         "Superposition config miss: key='{}', type='{}', error='{:?}'",
-                        Self::SUPERPOSITION_KEY,
+                        resolved_key,
                         std::any::type_name::<Self::Output>(),
-                        e
+                        error
                     );
-                    Err(e)
+                    Err(error)
                 }
             }
         }

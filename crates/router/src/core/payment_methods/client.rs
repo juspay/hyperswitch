@@ -195,28 +195,23 @@ impl CustomerPaymentMethodsFetcher for ModularCustomerPaymentMethodsFetcher {
             )
             .await;
 
-        // Fetch all MCAs for the merchant so we can check whether the connector that
-        // issued a mandate token is still active for this profile — mirroring the
+        // Fetch enabled MCAs for the merchant so we can check whether the connector that
+        // issued a mandate token is still enabled for this profile — mirroring the
         // `get_mca_status` check performed in the legacy DB flow.
         let merchant_connector_accounts = state
             .store
-            .find_merchant_connector_account_without_encrypted_by_merchant_id_and_disabled_list(
+            .list_enabled_merchant_connector_accounts_without_encrypted_by_merchant_id_profile_id(
                 &merchant_id,
-                true,
+                &self.profile_id,
             )
             .await
             .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
                 id: merchant_id.get_string_repr().to_owned(),
             })?;
 
-        // Pre-compute the set of MCA IDs that are active for this profile
         let active_mca_ids: std::collections::HashSet<id_type::MerchantConnectorAccountId> =
             merchant_connector_accounts
                 .iter()
-                .filter(|mca| {
-                    mca.disabled.is_some_and(|disabled| !disabled)
-                        && mca.profile_id == self.profile_id
-                })
                 .map(|mca| mca.get_id())
                 .collect();
 
