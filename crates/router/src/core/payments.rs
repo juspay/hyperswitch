@@ -12386,11 +12386,12 @@ where
 {
     let chosen = connectors.apply_filter_for_session_routing();
 
-    let active_mca_ids = routing::get_active_mca_ids(&state, processor.get_key_store())
-        .await
-        .change_context(errors::ApiErrorResponse::GenericNotFoundError {
-            message: "Active mca_ids not found".to_string(),
-        })?;
+    let active_mca_ids =
+        routing::get_active_mca_ids(&state, processor.get_key_store(), business_profile.get_id())
+            .await
+            .change_context(errors::ApiErrorResponse::GenericNotFoundError {
+                message: "Active mca_ids not found".to_string(),
+            })?;
 
     let session_input = routing::SessionRoutingInput {
         state: &state,
@@ -13451,7 +13452,10 @@ trait EligibilityCheck {
 #[derive(Debug, Clone)]
 pub enum CheckResult {
     Allow,
-    Deny { message: String },
+    Deny {
+        message: String,
+        code: Option<common_enums::BlockReasonCode>,
+    },
 }
 
 #[cfg(feature = "v1")]
@@ -13459,8 +13463,8 @@ impl From<CheckResult> for Option<api_models::payments::SdkNextAction> {
     fn from(result: CheckResult) -> Self {
         match result {
             CheckResult::Allow => None,
-            CheckResult::Deny { message } => Some(api_models::payments::SdkNextAction {
-                next_action: api_models::payments::NextActionCall::Deny { message },
+            CheckResult::Deny { message, code } => Some(api_models::payments::SdkNextAction {
+                next_action: api_models::payments::NextActionCall::Deny { message, code },
                 should_block_confirm: None,
             }),
         }
@@ -13520,6 +13524,7 @@ impl EligibilityCheck for BlockListCheck {
                 logger::warn!(block_reason = ?reason, "Payment blocked by blocklist");
                 Ok(CheckResult::Deny {
                     message: reason.error_message(),
+                    code: Some(reason.into()),
                 })
             }
             None => Ok(CheckResult::Allow),
@@ -13578,6 +13583,7 @@ impl EligibilityCheck for CardTestingCheck {
                         errors::ApiErrorResponse::PreconditionFailed { message } => {
                             Ok(CheckResult::Deny {
                                 message: message.to_string(),
+                                code: None,
                             })
                         }
                         // For any other error, propagate it
