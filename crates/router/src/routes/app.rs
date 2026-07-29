@@ -68,7 +68,7 @@ use super::verification::{apple_pay_merchant_registration, retrieve_apple_pay_ve
 use super::webhooks::*;
 use super::{
     admin, api_keys, cache::*, card_issuer, chat, connector_onboarding, disputes, files, gsm,
-    health::*, oidc, profiles, relay, user, user_role,
+    health::*, offer_engine, oidc, profiles, relay, user, user_role,
 };
 #[cfg(feature = "v1")]
 use super::{
@@ -157,6 +157,11 @@ impl scheduler::SchedulerSessionState for SessionState {
     fn add_request_id(&mut self, request_id: RequestId) {
         self.api_client.add_request_id(request_id.clone());
         self.store.add_request_id(request_id.to_string());
+        #[cfg(feature = "deja")]
+        {
+            self.accounts_store.add_request_id(request_id.to_string());
+            self.global_store.add_request_id(request_id.to_string());
+        }
         self.request_id.replace(request_id);
     }
 }
@@ -247,6 +252,11 @@ impl SessionStateInfo for SessionState {
     fn add_request_id(&mut self, request_id: RequestId) {
         self.api_client.add_request_id(request_id.clone());
         self.store.add_request_id(request_id.to_string());
+        #[cfg(feature = "deja")]
+        {
+            self.accounts_store.add_request_id(request_id.to_string());
+            self.global_store.add_request_id(request_id.to_string());
+        }
         self.request_id.replace(request_id);
     }
 
@@ -723,6 +733,19 @@ impl Health {
     }
 }
 
+pub struct OfferEngine;
+
+impl OfferEngine {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/offer_engine")
+            .app_data(web::Data::new(state))
+            .service(
+                web::resource("/connectivity")
+                    .route(web::post().to(offer_engine::offer_engine_connectivity_check)),
+            )
+    }
+}
+
 #[cfg(feature = "dummy_connector")]
 pub struct DummyConnector;
 
@@ -1122,6 +1145,7 @@ impl Routing {
         #[allow(unused_mut)]
         let mut route = web::scope("/routing")
             .app_data(web::Data::new(state.clone()))
+            .service(web::resource("/entry").route(web::post().to(routing::routing_entry)))
             .service(
                 web::resource("/active").route(web::get().to(|state, req, query_params| {
                     routing::routing_retrieve_linked_config(state, req, query_params, None)

@@ -79,6 +79,7 @@ pub const DECISION_ENGINE_RULE_GET_ENDPOINT: &str = "rule/get";
 pub const DECISION_ENGINE_RULE_DELETE_ENDPOINT: &str = "rule/delete";
 pub const DECISION_ENGINE_MERCHANT_BASE_ENDPOINT: &str = "merchant-account";
 pub const DECISION_ENGINE_MERCHANT_CREATE_ENDPOINT: &str = "merchant-account/create";
+pub const DECISION_ENGINE_MERCHANT_TOKEN_ENDPOINT: &str = "auth/admin/merchant-token";
 
 /// Provides us with all the configured configs of the Merchant in the ascending time configured
 /// manner and chooses the first of them
@@ -2731,6 +2732,47 @@ pub async fn create_decision_engine_merchant(
     .attach_printable("Failed to create merchant account on decision engine")?;
 
     Ok(())
+}
+
+#[cfg(feature = "v1")]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct DecisionEngineMerchantTokenResponse {
+    pub code: String,
+}
+
+/// Mint a one-time SSO handoff code from the Decision Engine for the profile (keyed on profile_id).
+#[cfg(feature = "v1")]
+#[instrument(skip_all)]
+pub async fn mint_decision_engine_sso_code(
+    state: &SessionState,
+    profile_id: &id_type::ProfileId,
+) -> error_stack::Result<String, errors::RoutingError> {
+    let merchant_token_req = open_router::MerchantAccount {
+        merchant_id: profile_id.get_string_repr().to_string(),
+        gateway_success_rate_based_decider_input: None,
+    };
+
+    let response: Option<DecisionEngineMerchantTokenResponse> =
+        routing_utils::ConfigApiClient::send_decision_engine_request(
+            state,
+            services::Method::Post,
+            DECISION_ENGINE_MERCHANT_TOKEN_ENDPOINT,
+            Some(merchant_token_req),
+            None,
+            None,
+        )
+        .await
+        .attach_printable("Failed to mint SSO code on decision engine")?
+        .response;
+
+    let code = response
+        .ok_or(errors::RoutingError::OpenRouterError(
+            "Decision engine returned an empty SSO code response".to_string(),
+        ))
+        .attach_printable("Decision engine returned an empty SSO code response")?
+        .code;
+
+    Ok(code)
 }
 
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
