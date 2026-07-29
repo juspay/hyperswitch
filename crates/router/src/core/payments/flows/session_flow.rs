@@ -534,6 +534,7 @@ async fn create_applepay_session_token(
                     state,
                     applepay_session_request,
                     "create_apple_pay_session_token",
+                    None,
                 )
                 .await;
 
@@ -563,6 +564,7 @@ async fn create_applepay_session_token(
                             state,
                             applepay_retry_session_request,
                             "create_apple_pay_session_token",
+                            None,
                         )
                         .await
                     }

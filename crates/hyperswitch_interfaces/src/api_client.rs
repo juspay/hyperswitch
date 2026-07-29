@@ -278,9 +278,13 @@ where
                     let request_url = request.url.clone();
                     let request_method = request.method;
                     let current_time = Instant::now();
-                    let response =
-                        call_connector_api(state, request, "execute_connector_processing_step")
-                            .await;
+                    let response = call_connector_api(
+                        state,
+                        request,
+                        "execute_connector_processing_step",
+                        None,
+                    )
+                    .await;
                     let external_latency = current_time.elapsed().as_millis();
                     logger::info!(raw_connector_request=?masked_request_body);
                     let status_code = response
@@ -468,13 +472,14 @@ pub async fn call_connector_api(
     state: &dyn ApiClientWrapper,
     request: Request,
     flow_name: &str,
+    option_timeout_secs: Option<u64>,
 ) -> CustomResult<Result<types::Response, types::Response>, ApiClientError> {
     let current_time = Instant::now();
     let headers = request.headers.clone();
     let url = request.url.clone();
     let response = state
         .get_api_client()
-        .send_request(state, request, None, true)
+        .send_request(state, request, option_timeout_secs, true)
         .await;
 
     match response.as_ref() {

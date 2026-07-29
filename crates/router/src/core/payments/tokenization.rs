@@ -326,11 +326,12 @@ where
                 .get_payment_method_data()
                 .get_card_data()
                 .and_then(|card| card.card_network.clone());
-            // Payment method that was saved without a network token, and therefore still needs
-            // one to be generated asynchronously by the process tracker.
-            let mut payment_method_pending_network_tokenization: Option<String> = None;
-
-            let pm_id = if let Some(existing_pm) = payment_method_info.clone().filter(|_| {
+            // `payment_method_pending_network_tokenization` holds the id of a payment method
+            // that was saved without a network token and therefore still needs one generated
+            // asynchronously by the process tracker. Captured alongside `pm_id` below so it
+            // need not be a mutable variable.
+            let (pm_id, payment_method_pending_network_tokenization) = if let Some(existing_pm) =
+                payment_method_info.clone().filter(|_| {
                 matches!(
                     save_payment_method_data.request.get_payment_method_data(),
                     domain::PaymentMethodData::MandatePayment
@@ -359,7 +360,7 @@ where
                     logger::error!("Failed to update last used at: {:?}", e);
                 })
                 .ok();
-                Some(existing_pm.get_id().clone())
+                (Some(existing_pm.get_id().clone()), None)
             } else if customer_acceptance.is_some() {
                 let payment_method_data =
                     save_payment_method_data.request.get_payment_method_data();
@@ -1095,24 +1096,22 @@ where
                 // network or a failed tokenization service call. In every such case, defer
                 // generation to the process tracker. The workflow skips payment methods that are
                 // already tokenized, so this is safe for duplicated cards as well.
-                if save_payment_method_data.payment_method == PaymentMethod::Card
-                    && !network_token_generated
-                {
-                    payment_method_pending_network_tokenization =
-                        Some(resp.payment_method_id.clone());
-                }
+                let pending_network_tokenization = (save_payment_method_data.payment_method
+                    == PaymentMethod::Card
+                    && !network_token_generated)
+                    .then(|| resp.payment_method_id.clone());
 
-                Some(resp.payment_method_id)
+                (Some(resp.payment_method_id), pending_network_tokenization)
             } else {
                 // No customer acceptance was provided in this transaction, so no new payment
                 // method is created. But the payment method may already have been saved earlier
                 // (e.g. recurring / MIT flow reusing a stored card). If that saved payment method
                 // still lacks a network token, defer generation to the process tracker.
-                payment_method_pending_network_tokenization = payment_method_info
+                let pending_network_tokenization = payment_method_info
                     .as_ref()
                     .filter(|pm_info| pm_info.network_token_requestor_reference_id.is_none())
                     .map(|pm_info| pm_info.payment_method_id.clone());
-                None
+                (None, pending_network_tokenization)
             };
 
             // If network tokenization is enabled for the profile, trigger the process tracker
@@ -1667,8 +1666,10 @@ pub async fn save_network_token_in_locker(
                 // The CVC is never stored in the locker, so cards read back from it carry an
                 // empty CVC. Send no card security code at all in that case, rather than an
                 // empty one.
+                // Clone the CVC only when there is one to send — cards read back from the
+                // locker carry an empty CVC, in which case no card security code is sent.
                 let optional_card_cvc =
-                    Some(card_data.card_cvc.clone()).filter(|cvc| !cvc.peek().is_empty());
+                    (!card_data.card_cvc.peek().is_empty()).then(|| card_data.card_cvc.clone());
                 match network_tokenization::make_card_network_tokenization_request(
                     state,
                     &domain::CardDetail::from(card_data),

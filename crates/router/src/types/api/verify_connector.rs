@@ -173,7 +173,12 @@ pub trait VerifyConnector {
             .ok_or(errors::ApiErrorResponse::InternalServerError)?;
 
         let response =
-            services::call_connector_api(&state.to_owned(), request, "verify_connector_request")
+            services::call_connector_api(
+                &state.to_owned(),
+                request,
+                "verify_connector_request",
+                None,
+            )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
