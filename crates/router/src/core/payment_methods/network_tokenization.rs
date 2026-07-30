@@ -37,11 +37,6 @@ use crate::{
 
 pub const NETWORK_TOKEN_SERVICE: &str = "NETWORK_TOKEN";
 
-/// Timeout (in seconds) for fetching a network token from the tokenization service during a
-/// payment. If the fetch does not complete within this budget, the caller falls back to the
-/// card details from the locker instead of blocking the payment.
-const NETWORK_TOKEN_FETCH_TIMEOUT_IN_SECS: u64 = 4;
-
 #[derive(Debug, Clone)]
 pub enum AltIdDecision {
     Proceed, // Fetch Alt-ID for this transaction
@@ -524,6 +519,12 @@ pub async fn get_network_token(
         .unwrap_or(serde_json::json!({ "error": "failed to mask serialize"}));
     logger::info!(raw_network_token_service_request=?masked_request_body);
 
+    // Bound the fetch so a slow tokenization service does not block the payment; on timeout the
+    // caller falls back to the card details from the locker. The budget is resolved from
+    // superposition (`network_token_fetch_timeout_in_secs`) with database fallback.
+    let fetch_timeout_in_secs =
+        payment_methods::utils::get_network_token_fetch_timeout_in_secs(state).await;
+
     let response = call_network_token_service(
         state,
         tokenization_service,
@@ -531,7 +532,7 @@ pub async fn get_network_token(
         tokenization_service.fetch_token_url.as_str(),
         Some(RequestContent::Json(Box::new(payload))),
         "get_network_token",
-        Some(NETWORK_TOKEN_FETCH_TIMEOUT_IN_SECS),
+        Some(fetch_timeout_in_secs),
     )
     .await;
 

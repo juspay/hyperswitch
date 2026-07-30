@@ -556,6 +556,18 @@ impl<Pm, M, O, P, Cn, PRT, Ev> DimensionsBase for Dimensions<Pm, M, O, P, Cn, PR
 }
 
 // Type aliases
+
+// Type alias - no dimensions present, for global (deployment-wide) configs
+pub type DimensionsGlobal = Dimensions<
+    NoProviderMerchantId,
+    NoProcessorMerchantId,
+    NoOrgId,
+    NoProfileId,
+    NoConnector,
+    NoPayoutRetryType,
+    NoWebhookEvent,
+>;
+
 pub type DimensionsWithProviderMerchantId = Dimensions<
     HasProviderMerchantId,
     NoProcessorMerchantId,
