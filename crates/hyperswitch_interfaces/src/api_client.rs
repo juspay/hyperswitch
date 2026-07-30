@@ -5,9 +5,9 @@ use std::{
 
 use common_enums::ApiClientError;
 #[cfg(feature = "ext_services_latency")]
-use common_utils::consts::{EXTERNAL_CALL_TAG, X_REQUEST_ID};
+use common_utils::consts::EXTERNAL_CALL_TAG;
 use common_utils::{
-    consts::{X_CONNECTOR_NAME, X_FLOW_NAME},
+    consts::{X_CONNECTOR_NAME, X_FLOW_NAME, X_REQUEST_ID},
     errors::CustomResult,
     request::{Request, RequestContent},
 };
