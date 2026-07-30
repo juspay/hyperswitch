@@ -1518,7 +1518,7 @@ api_key = ""                                  # API key for API-key authenticate
 merchant_id = ""                              # Offer Engine merchant id sent in request bodies
 
 [account_updater] # Credentials forwarded to UCS for the Account Updater flow; omit the section entirely to keep it off
-base_url = "https://account-updater.example.com/" # Account Updater base URL, must end with a trailing slash (also requires infra allowlisting)
+base_url = "https://account-updater.example.com/" # Account Updater base URL
 api_key = ""                     # API key for the Account Updater provider
 merchant_id = ""                 # Merchant id sent in Account Updater request bodies
 euler_encryption_public_key = "" # Provider RSA public key, used to seal outbound card data
