@@ -412,29 +412,37 @@ impl SecretsHandler for settings::OidcSettings {
     }
 }
 
+impl settings::JuspayAccountUpdaterConfig {
+    async fn convert_to_raw_secret(
+        self,
+        secret_management_client: &dyn SecretManagementInterface,
+    ) -> CustomResult<Self, SecretsManagementError> {
+        let (api_key, euler_encryption_public_key, au_decryption_pvt_key) = tokio::try_join!(
+            secret_management_client.get_secret(self.api_key.clone()),
+            secret_management_client.get_secret(self.euler_encryption_public_key.clone()),
+            secret_management_client.get_secret(self.au_decryption_pvt_key.clone()),
+        )?;
+
+        Ok(Self {
+            api_key,
+            euler_encryption_public_key,
+            au_decryption_pvt_key,
+            ..self
+        })
+    }
+}
+
 #[async_trait::async_trait]
 impl SecretsHandler for settings::AccountUpdaterConfig {
     async fn convert_to_raw_secret(
         value: SecretStateContainer<Self, SecuredSecret>,
         secret_management_client: &dyn SecretManagementInterface,
     ) -> CustomResult<SecretStateContainer<Self, RawSecret>, SecretsManagementError> {
-        let Self::Juspay(juspay) = value.get_inner();
+        let Self::Juspay(juspay) = value.get_inner().clone();
 
-        let (api_key, euler_encryption_public_key, au_decryption_pvt_key) = tokio::try_join!(
-            secret_management_client.get_secret(juspay.api_key.clone()),
-            secret_management_client.get_secret(juspay.euler_encryption_public_key.clone()),
-            secret_management_client.get_secret(juspay.au_decryption_pvt_key.clone()),
-        )?;
+        let juspay = juspay.convert_to_raw_secret(secret_management_client).await?;
 
-        Ok(value.transition_state(|account_updater| {
-            let Self::Juspay(juspay) = account_updater;
-            Self::Juspay(settings::JuspayAccountUpdaterConfig {
-                api_key,
-                euler_encryption_public_key,
-                au_decryption_pvt_key,
-                ..juspay
-            })
-        }))
+        Ok(value.transition_state(|_| Self::Juspay(juspay)))
     }
 }
 

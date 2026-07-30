@@ -388,7 +388,7 @@ pub struct OnSessionConfig {
 }
 
 #[derive(Debug, Deserialize, Clone)]
-#[serde(tag = "provider", rename_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
 pub enum AccountUpdaterConfig {
     Juspay(JuspayAccountUpdaterConfig),
 }

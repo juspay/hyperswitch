@@ -385,7 +385,7 @@ impl super::settings::JuspayAccountUpdaterConfig {
 
         when(!self.base_url.path().ends_with('/'), || {
             Err(ApplicationError::InvalidConfigurationValueError(
-                "account_updater.base_url must end with a trailing slash".into(),
+                "account_updater.juspay.base_url must end with a trailing slash".into(),
             ))
         })?;
 
@@ -406,7 +406,7 @@ impl super::settings::JuspayAccountUpdaterConfig {
         for (field, value) in required {
             when(value.trim().is_empty(), || {
                 Err(ApplicationError::InvalidConfigurationValueError(format!(
-                    "account_updater.{field} must not be empty"
+                    "account_updater.juspay.{field} must not be empty"
                 )))
             })?;
         }
