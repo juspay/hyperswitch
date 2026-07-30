@@ -9144,6 +9144,7 @@ pub enum AuthenticationConnectors {
     Juspaythreedsserver,
     CtpVisa,
     Cardinal,
+    Aci,
 }
 
 impl AuthenticationConnectors {
@@ -9155,7 +9156,9 @@ impl AuthenticationConnectors {
             | Self::UnifiedAuthenticationService
             | Self::Juspaythreedsserver
             | Self::CtpVisa
-            | Self::Cardinal => false,
+            | Self::Cardinal
+            // ACI performs versioning as part of `POST /v1/threeDSecure`.
+            | Self::Aci => false,
             Self::Gpayments => true,
         }
     }
@@ -9168,7 +9171,8 @@ impl AuthenticationConnectors {
             | Self::UnifiedAuthenticationService
             | Self::Juspaythreedsserver
             | Self::CtpVisa
-            | Self::Gpayments => false,
+            | Self::Gpayments
+            | Self::Aci => false,
             Self::Cardinal => true,
         }
     }
