@@ -332,12 +332,12 @@ where
             // need not be a mutable variable.
             let (pm_id, payment_method_pending_network_tokenization) = if let Some(existing_pm) =
                 payment_method_info.clone().filter(|_| {
-                matches!(
-                    save_payment_method_data.request.get_payment_method_data(),
-                    domain::PaymentMethodData::MandatePayment
-                        | domain::PaymentMethodData::CardToken(_)
-                )
-            }) {
+                    matches!(
+                        save_payment_method_data.request.get_payment_method_data(),
+                        domain::PaymentMethodData::MandatePayment
+                            | domain::PaymentMethodData::CardToken(_)
+                    )
+                }) {
                 // Recharge of an already-saved payment method where the request
                 // carries no fresh raw card data — either a recurring/MIT charge via
                 // an established connector mandate (PaymentMethodData::MandatePayment)
@@ -1122,7 +1122,7 @@ where
                     payment_method_pending_network_tokenization,
                     customer_id_for_network_tokenization,
                 ) {
-                    payment_methods::add_network_tokenization_task(
+                    let scheduling_result = payment_methods::add_network_tokenization_task(
                         db,
                         types::storage::NetworkTokenizationTrackingData {
                             payment_method_id: pending_pm_id.clone(),
@@ -1136,22 +1136,21 @@ where
                         },
                         state.conf.application_source,
                     )
-                    .await
-                    .map_or_else(
-                        |err| {
-                            logger::error!(
-                                payment_method_id=%pending_pm_id,
-                                ?err,
-                                "Failed to schedule NetworkTokenizationWorkflow process tracker task"
-                            );
-                        },
-                        |()| {
-                            logger::info!(
-                                payment_method_id=%pending_pm_id,
-                                "Scheduled NetworkTokenizationWorkflow process tracker task"
-                            );
-                        },
-                    );
+                    .await;
+
+                    // Scheduling is best effort: the payment method has already been saved, so a
+                    // failure to enqueue is logged rather than failing the payment.
+                    match scheduling_result {
+                        Ok(()) => logger::info!(
+                            payment_method_id=%pending_pm_id,
+                            "Scheduled NetworkTokenizationWorkflow process tracker task"
+                        ),
+                        Err(err) => logger::error!(
+                            payment_method_id=%pending_pm_id,
+                            ?err,
+                            "Failed to schedule NetworkTokenizationWorkflow process tracker task"
+                        ),
+                    }
                 }
             }
             // check if there needs to be a config if yes then remove it to a different place
@@ -1666,8 +1665,6 @@ pub async fn save_network_token_in_locker(
                 // The CVC is never stored in the locker, so cards read back from it carry an
                 // empty CVC. Send no card security code at all in that case, rather than an
                 // empty one.
-                // Clone the CVC only when there is one to send — cards read back from the
-                // locker carry an empty CVC, in which case no card security code is sent.
                 let optional_card_cvc =
                     (!card_data.card_cvc.peek().is_empty()).then(|| card_data.card_cvc.clone());
                 match network_tokenization::make_card_network_tokenization_request(
