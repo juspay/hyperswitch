@@ -595,21 +595,11 @@ impl
     ) -> Result<Self, Self::Error> {
         let currency = payments_grpc::Currency::foreign_try_from(router_data.request.currency)?;
 
-        // On a redirect-complete callback (e.g. PayPal wallet), the inbound request is a bare
-        // GET carrying only redirect params, so `payment_method_data` is None. UCS/prism still
-        // requires `payment_method` on the authorize call, so reconstruct a minimal payment
-        // method from the attempt's `payment_method_type` for redirect-based APMs. Mirrors the
-        // CompleteAuthorize reconstruct used for other redirect connectors.
         let payment_method_data = router_data.request.payment_method_data.clone().or_else(|| {
-            use hyperswitch_domain_models::payment_method_data::{
-                PaymentMethodData, PaypalRedirection, WalletData,
-            };
-            match router_data.request.payment_method_type {
-                Some(common_enums::PaymentMethodType::Paypal) => Some(PaymentMethodData::Wallet(
-                    WalletData::PaypalRedirect(PaypalRedirection { email: None }),
-                )),
-                _ => None,
-            }
+            unified_connector_service::reconstruct_payment_method_data_for_redirect_completion(
+                router_data.request.payment_method_type,
+                router_data.request.email.clone(),
+            )
         });
 
         let payment_method = payment_method_data
@@ -808,10 +798,7 @@ impl
                 .map(payments_grpc::Tokenization::foreign_from)
                 .map(Into::into),
             l2_l3_data: None,
-            // Thread the connector's order id from the pending payment so the connector
-            // captures the EXISTING order after redirect (PayPal /orders/{id}/capture)
-            // instead of creating a new one. This is the builder the CompleteAuthorize
-            // gateway actually calls (tuple-arg with CallConnectorAction).
+            // Captures the order created before the redirect instead of creating a new one.
             connector_order_id: router_data.request.connector_transaction_id.clone(),
             merchant_request_id: None,
             partner_merchant_identifier_details: None,
@@ -2239,12 +2226,8 @@ impl
             .map(payments_grpc::CaptureMethod::foreign_try_from)
             .transpose()?;
 
-        // For MIT/recurring charges the merchant does not resend the payment method,
-        // so `request.payment_method_type` is `None`. The subtype for the saved payment
-        // method lives in `recurring_mandate_payment_data` (populated by HS from the
-        // stored mandate). Mirror the native connector, which reads it via
-        // `get_recurring_mandate_payment_data()`, so connectors like PayPal can route the
-        // vault token to the correct payment source (Card vs Paypal).
+        // MIT/recurring charges do not resend the payment method, so the subtype of the saved
+        // payment method comes from the stored mandate via `recurring_mandate_payment_data`.
         let payment_method_type = router_data
             .request
             .payment_method_type
