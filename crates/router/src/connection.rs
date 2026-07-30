@@ -43,10 +43,7 @@ async fn deja_route_replay_schema<T: DatabaseStore>(
 
 pub async fn pg_connection_read<T: DatabaseStore + RequestContext>(
     store: &T,
-) -> errors::CustomResult<
-    DatabaseConnectionWithContext,
-    storage_errors::StorageError,
-> {
+) -> errors::CustomResult<DatabaseConnectionWithContext, storage_errors::StorageError> {
     // If only OLAP is enabled get replica pool.
     #[cfg(all(feature = "olap", not(feature = "oltp")))]
     let pool = store.get_replica_pool();
@@ -80,10 +77,7 @@ pub async fn pg_connection_read<T: DatabaseStore + RequestContext>(
 
 pub async fn pg_accounts_connection_read<T: DatabaseStore + RequestContext>(
     store: &T,
-) -> errors::CustomResult<
-    DatabaseConnectionWithContext,
-    storage_errors::StorageError,
-> {
+) -> errors::CustomResult<DatabaseConnectionWithContext, storage_errors::StorageError> {
     // If only OLAP is enabled get replica pool.
     #[cfg(all(feature = "olap", not(feature = "oltp")))]
     let pool = store.get_accounts_replica_pool();
@@ -117,10 +111,7 @@ pub async fn pg_accounts_connection_read<T: DatabaseStore + RequestContext>(
 
 pub async fn pg_connection_write<T: DatabaseStore + RequestContext>(
     store: &T,
-) -> errors::CustomResult<
-    DatabaseConnectionWithContext,
-    storage_errors::StorageError,
-> {
+) -> errors::CustomResult<DatabaseConnectionWithContext, storage_errors::StorageError> {
     // Since all writes should happen to master DB only choose master DB.
     let pool = store.get_master_pool();
 
@@ -142,10 +133,7 @@ pub async fn pg_connection_write<T: DatabaseStore + RequestContext>(
 
 pub async fn pg_accounts_connection_write<T: DatabaseStore + RequestContext>(
     store: &T,
-) -> errors::CustomResult<
-    DatabaseConnectionWithContext,
-    storage_errors::StorageError,
-> {
+) -> errors::CustomResult<DatabaseConnectionWithContext, storage_errors::StorageError> {
     // Since all writes should happen to master DB only choose master DB.
     let pool = store.get_accounts_master_pool();
 
