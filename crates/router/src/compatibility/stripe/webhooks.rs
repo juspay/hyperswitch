@@ -149,7 +149,9 @@ impl From<common_enums::PayoutStatus> for StripePayoutStatus {
     fn from(status: common_enums::PayoutStatus) -> Self {
         match status {
             common_enums::PayoutStatus::Success => Self::PayoutSuccess,
-            common_enums::PayoutStatus::Failed => Self::PayoutFailure,
+            common_enums::PayoutStatus::Failed | common_enums::PayoutStatus::NotPermitted => {
+                Self::PayoutFailure
+            }
             common_enums::PayoutStatus::Cancelled => Self::PayoutCancelled,
             common_enums::PayoutStatus::Initiated => Self::PayoutInitiated,
             common_enums::PayoutStatus::Expired => Self::PayoutExpired,
