@@ -16,10 +16,7 @@ pub mod request;
 #[cfg(feature = "deja")]
 mod boundary;
 
-use std::{
-    error::Error,
-    time::Duration,
-};
+use std::{error::Error, time::Duration};
 
 pub use common_utils::request::{ContentType, Method, RequestBuilder};
 use common_utils::request::{RequestContent, XmlConfig};

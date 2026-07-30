@@ -11,6 +11,8 @@ use once_cell::sync::OnceCell;
 use router_env::{instrument, logger, tracing};
 use time::OffsetDateTime;
 
+#[cfg(feature = "ext_services_latency")]
+use crate::consts::EXTERNAL_CALL_TAG;
 use crate::{
     consts::{BASE64_ENGINE, TENANT_HEADER},
     errors,
@@ -21,16 +23,11 @@ use crate::{
         TransientBatchDecryptDataRequest, TransientDecryptDataRequest,
     },
 };
-#[cfg(feature = "ext_services_latency")]
-use crate::consts::EXTERNAL_CALL_TAG;
 
 const CONTENT_TYPE: &str = "Content-Type";
 static ENCRYPTION_API_CLIENT: OnceCell<reqwest::Client> = OnceCell::new();
 static DEFAULT_ENCRYPTION_VERSION: &str = "v1";
-#[cfg(any(
-    feature = "km_forward_x_request_id",
-    feature = "ext_services_latency"
-))]
+#[cfg(any(feature = "km_forward_x_request_id", feature = "ext_services_latency"))]
 const X_REQUEST_ID: &str = "X-Request-Id";
 
 /// Get keymanager client constructed from the url and state

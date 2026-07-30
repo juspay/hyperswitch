@@ -4,14 +4,12 @@ use std::{
 };
 
 use common_enums::ApiClientError;
+#[cfg(feature = "ext_services_latency")]
+use common_utils::consts::{EXTERNAL_CALL_TAG, X_REQUEST_ID};
 use common_utils::{
     consts::{X_CONNECTOR_NAME, X_FLOW_NAME},
     errors::CustomResult,
     request::{Request, RequestContent},
-};
-#[cfg(feature = "ext_services_latency")]
-use common_utils::{
-    consts::{EXTERNAL_CALL_TAG, X_REQUEST_ID},
 };
 use error_stack::{report, ResultExt};
 use http::Method;
