@@ -214,6 +214,8 @@ pub struct LoonioTransactionSyncResponse {
     pub transaction_id: String,
     pub state: LoonioTransactionStatus,
     pub customer_bank_info: Option<LoonioCustomerInfo>,
+    pub amount: Option<FloatMajorUnit>,
+    pub currency_code: Option<Currency>,
 }
 
 #[derive(Default, Debug, Serialize)]
@@ -354,6 +356,8 @@ impl From<RefundStatus> for enums::RefundStatus {
 pub struct RefundResponse {
     id: String,
     status: RefundStatus,
+    pub amount: Option<FloatMajorUnit>,
+    pub currency_code: Option<Currency>,
 }
 
 impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>> for RefundsRouterData<Execute> {
@@ -431,6 +435,7 @@ pub enum LoonioWebhookTransactionType {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct LoonioWebhookBody {
     pub amount: FloatMajorUnit,
+    pub currency_code: Option<Currency>,
     pub api_transaction_id: String,
     pub signature: Option<String>,
     pub event_code: LoonioWebhookEventCode,

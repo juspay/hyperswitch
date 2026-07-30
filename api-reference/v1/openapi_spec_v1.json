@@ -6589,7 +6589,7 @@
         ],
         "operationId": "Upload a batch blocklist CSV",
         "requestBody": {
-          "description": "A multipart/form-data request with a `file` field containing a UTF-8 CSV (max 5 MB). The CSV must have a header row: `type,data,metadata`. `type`: one of `card_bin` (6 digits), `extended_card_bin` (8 digits), `fingerprint`. `metadata`: optional, `key=value` pairs separated by `;` (e.g. `reason=fraud;source=manual`). Maximum 100,000 data rows.",
+          "description": "A multipart/form-data request with a `file` field containing a UTF-8 CSV (max 5 MiB). The CSV must have a header row: `type,data,metadata`. `type`: one of `card_bin` (6 digits), `extended_card_bin` (8 digits), `fingerprint`. `metadata`: optional, `key=value` pairs separated by `;` (e.g. `reason=fraud;source=manual`). Maximum 100,000 data rows.",
           "content": {
             "multipart/form-data": {
               "schema": {
@@ -6611,7 +6611,7 @@
             }
           },
           "400": {
-            "description": "CSV validation error or file exceeds 5 MB limit"
+            "description": "CSV validation error or file exceeds 5 MiB limit"
           }
         },
         "security": [

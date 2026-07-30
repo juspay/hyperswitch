@@ -1,3 +1,4 @@
+pub mod account_updater;
 pub mod admin;
 pub mod api_keys;
 pub mod api_locking;
