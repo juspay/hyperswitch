@@ -1,17 +1,17 @@
 use common_utils::ext_traits::ValueExt;
 use error_stack::Report;
-use scheduler::workflows::ProcessTrackerWorkflow;
-use scheduler::{consumer::types::process_data, utils as pt_utils};
+use scheduler::{
+    consumer::types::process_data, utils as pt_utils, workflows::ProcessTrackerWorkflow,
+};
 
 #[cfg(feature = "v2")]
 use crate::core::payment_methods;
 #[cfg(feature = "v1")]
 use crate::core::payments::tokenization;
-use crate::types::storage::NetworkTokenizationTrackingData;
 use crate::{
     errors, logger,
     routes::SessionState,
-    types::{domain, storage},
+    types::{domain, storage, storage::NetworkTokenizationTrackingData},
 };
 
 const NETWORK_TOKENIZATION_DISABLED_STATUS: &str = "SKIPPED_NT_DISABLED";
