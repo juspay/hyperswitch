@@ -1166,7 +1166,7 @@ impl super::RedisConnectionWithContext {
         pattern: &str,
         count: Option<u32>,
     ) -> CustomResult<Vec<String>, errors::RedisError> {
-        use futures::StreamExt;
+        use futures::{FutureExt, StreamExt};
 
         Ok(track_redis_call(self.request_id.as_deref(), self.redis_conn.event_emitter.as_ref(),
             RedisOperation::Hscan,
@@ -1189,9 +1189,11 @@ impl super::RedisConnectionWithContext {
                     }
                 })
                 .flatten()
-                .collect::<Vec<_>>(),
+                .collect::<Vec<_>>()
+                .map(crate::metrics::ScanOutcome),
         )
-        .await)
+        .await
+        .0)
     }
 
     #[instrument(level = "DEBUG", skip(self))]
@@ -1213,7 +1215,7 @@ impl super::RedisConnectionWithContext {
         count: Option<u32>,
         scan_type: Option<crate::types::RedisScanType>,
     ) -> CustomResult<Vec<String>, errors::RedisError> {
-        use futures::StreamExt;
+        use futures::{FutureExt, StreamExt};
 
         let fred_scan_type = scan_type.map(fred::types::ScanType::from);
 
@@ -1237,9 +1239,11 @@ impl super::RedisConnectionWithContext {
                     }
                 })
                 .flatten()
-                .collect::<Vec<_>>(),
+                .collect::<Vec<_>>()
+                .map(crate::metrics::ScanOutcome),
         )
-        .await)
+        .await
+        .0)
     }
 
     #[instrument(level = "DEBUG", skip(self))]
