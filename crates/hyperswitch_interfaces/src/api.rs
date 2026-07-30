@@ -543,6 +543,19 @@ pub trait ConnectorSpecifications {
         ConnectorCustomerAction::NoAction
     }
 
+    /// Whether this connector needs a post-authorization tokenization pass to
+    /// convert the single-use handle spent by a successful wallet CIT into a
+    /// reusable (multi-use) handle for later MITs.
+    /// Connectors whose vault endpoint rejects raw wallet payloads (e.g. Paysafe)
+    /// override this to opt into the core's wallet-vault-conversion leg.
+    fn requires_wallet_vault_conversion(
+        &self,
+        _tokenization_data: &router_request_types::PaymentMethodTokenizationData,
+        _has_connector_customer: bool,
+    ) -> bool {
+        false
+    }
+
     /// Validate if another operation is required
     fn is_payment_recurrence_operation_needed(
         &self,

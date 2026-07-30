@@ -456,6 +456,21 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         .await
     }
 
+    async fn post_authorize_wallet_vault_conversion(
+        self,
+        state: &SessionState,
+        connector: &api::ConnectorData,
+        gateway_context: &gateway_context::RouterGatewayContext,
+    ) -> RouterResult<Self> {
+        tokenization::convert_wallet_vault_token_after_authorize(
+            state,
+            connector,
+            self,
+            gateway_context,
+        )
+        .await
+    }
+
     async fn pre_authentication_step<'a>(
         self,
         state: &SessionState,

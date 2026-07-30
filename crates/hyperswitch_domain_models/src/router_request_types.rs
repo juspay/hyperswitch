@@ -577,6 +577,11 @@ pub struct PaymentMethodTokenizationData {
     pub mandate_id: Option<mandates::MandateIds>,
     pub router_return_url: Option<String>,
     pub capture_method: Option<storage_enums::CaptureMethod>,
+    /// Opaque per-connector data forwarded on the tokenize request. Core sets
+    /// this when it sequences a connector's second, vault-conversion tokenize
+    /// pass (e.g. the leg-1 payment-handle token that pass consumes), so the
+    /// connector gateway stays a single granular call.
+    pub connector_feature_data: Option<Secret<String>>,
 }
 
 impl TryFrom<SetupMandateRequestData> for PaymentMethodTokenizationData {
@@ -596,6 +601,7 @@ impl TryFrom<SetupMandateRequestData> for PaymentMethodTokenizationData {
             payment_method_type: data.payment_method_type,
             router_return_url: data.router_return_url,
             capture_method: data.capture_method,
+            connector_feature_data: None,
         })
     }
 }
@@ -618,6 +624,7 @@ impl<F> From<&RouterData<F, PaymentsAuthorizeData, response_types::PaymentsRespo
             payment_method_type: data.payment_method_type,
             router_return_url: None,
             capture_method: None,
+            connector_feature_data: None,
         }
     }
 }
@@ -639,6 +646,7 @@ impl TryFrom<PaymentsAuthorizeData> for PaymentMethodTokenizationData {
             payment_method_type: data.payment_method_type,
             router_return_url: data.router_return_url,
             capture_method: data.capture_method,
+            connector_feature_data: None,
         })
     }
 }
@@ -665,6 +673,7 @@ impl TryFrom<CompleteAuthorizeData> for PaymentMethodTokenizationData {
             payment_method_type: data.payment_method_type,
             router_return_url: data.router_return_url,
             capture_method: data.capture_method,
+            connector_feature_data: None,
         })
     }
 }

@@ -5879,6 +5879,10 @@ where
         Ok(router_data)
     }?;
 
+    let router_data = router_data
+        .post_authorize_wallet_vault_conversion(state, connector, &gateway_context)
+        .await?;
+
     let should_continue_payment = router_data.response.is_ok();
 
     // Call push notification step after the authorize/setup mandate flow completes
@@ -6283,6 +6287,7 @@ where
         is_retry_payment,
         should_continue_further,
     );
+
     let should_continue = match router_data
         .create_order_at_connector(state, &connector, should_continue_further, &gateway_context)
         .await?
@@ -6398,6 +6403,10 @@ where
     } else {
         Ok(router_data)
     }?;
+
+    let router_data = router_data
+        .post_authorize_wallet_vault_conversion(state, connector, &gateway_context)
+        .await?;
 
     let should_continue_payment = router_data.response.is_ok();
 

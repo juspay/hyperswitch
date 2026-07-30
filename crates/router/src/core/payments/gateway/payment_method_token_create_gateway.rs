@@ -116,6 +116,7 @@ where
             .merchant_reference_id(merchant_reference_id)
             .resource_id(resource_id)
             .lineage_ids(lineage_ids);
+
         Box::pin(unified_connector_service::ucs_logging_wrapper_granular(
             router_data.clone(),
             state,

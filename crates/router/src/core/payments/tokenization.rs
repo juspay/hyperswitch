@@ -23,7 +23,7 @@ use hyperswitch_domain_models::{
     payment_method_data::{get_applepay_wallet_info, get_googlepay_wallet_info},
     transformers::ForeignFrom as _,
 };
-use hyperswitch_interfaces::api::gateway;
+use hyperswitch_interfaces::api::{gateway, ConnectorSpecifications};
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use router_env::{instrument, tracing};
 
@@ -1844,6 +1844,188 @@ pub async fn add_payment_method_token<F: Clone, T: types::Tokenizable + Clone>(
             connector_response: None,
         })
     }
+}
+
+/// Convert the single-use token spent by a successful wallet CIT into the
+/// reusable token that is persisted for later MITs.
+pub async fn convert_wallet_vault_token_after_authorize(
+    state: &SessionState,
+    connector: &api::ConnectorData,
+    mut router_data: types::PaymentsAuthorizeRouterData,
+    gateway_context: &gateway_context::RouterGatewayContext,
+) -> RouterResult<types::PaymentsAuthorizeRouterData> {
+    let pm_token_request_data =
+        types::PaymentMethodTokenizationData::try_from(router_data.request.clone())?;
+    if !connector.connector.requires_wallet_vault_conversion(
+        &pm_token_request_data,
+        router_data.connector_customer.is_some(),
+    ) {
+        return Ok(router_data);
+    }
+
+    if !matches!(
+        router_data.status,
+        common_enums::AttemptStatus::Charged | common_enums::AttemptStatus::Authorized
+    ) || !matches!(
+        &router_data.response,
+        Ok(types::PaymentsResponseData::TransactionResponse { .. })
+    ) {
+        return Ok(router_data);
+    }
+
+    let single_use_token = match router_data.payment_method_token.as_ref() {
+        Some(types::PaymentMethodToken::Token(token)) => token.peek().to_string(),
+        _ => {
+            clear_wallet_recurring_artifacts(&mut router_data);
+            record_wallet_vault_conversion_outcome(
+                connector,
+                &router_data,
+                "missing_single_use_token",
+            );
+            logger::warn!(
+                "Wallet CIT succeeded without a single-use connector token; not persisting a recurring mandate"
+            );
+            return Ok(router_data);
+        }
+    };
+
+    if !has_connector_mandate_reference(&router_data) {
+        clear_wallet_recurring_artifacts(&mut router_data);
+        record_wallet_vault_conversion_outcome(
+            connector,
+            &router_data,
+            "missing_mandate_reference",
+        );
+        logger::warn!(
+            "Wallet CIT succeeded without connector mandate data; not persisting a recurring mandate"
+        );
+        return Ok(router_data);
+    }
+
+    let conversion_integration: services::BoxedPaymentConnectorIntegrationInterface<
+        api::PaymentMethodToken,
+        types::PaymentMethodTokenizationData,
+        types::PaymentsResponseData,
+    > = connector.connector.get_connector_integration();
+
+    let mut conversion_router_data =
+        helpers::router_data_type_conversion::<_, api::PaymentMethodToken, _, _, _, _>(
+            router_data.clone(),
+            pm_token_request_data,
+            Err(types::ErrorResponse::default()),
+        );
+    conversion_router_data.request.connector_feature_data =
+        Some(wallet_vault_conversion_feature_data(&single_use_token));
+    // The CIT router data carries the single-use token. Clear it only on the
+    // conversion sub-request so UCS receives the original wallet payload and can
+    // select the connector's paymentHandleTokenFrom request variant.
+    conversion_router_data.payment_method_token = None;
+
+    let converted = gateway::execute_payment_gateway(
+        state,
+        conversion_integration,
+        &conversion_router_data,
+        payments::CallConnectorAction::Trigger,
+        None,
+        None,
+        gateway_context.clone(),
+    )
+    .await;
+
+    let (converted_token, conversion_outcome) = match converted {
+        Ok(mut converted) => {
+            handle_tokenization_response(&mut converted);
+            match converted.response {
+                Ok(types::PaymentsResponseData::TokenizationResponse { token }) => {
+                    (Some(token), "success")
+                }
+                Ok(_) => {
+                    logger::warn!(
+                        "Wallet vault conversion returned an unexpected response; not persisting a recurring mandate"
+                    );
+                    (None, "unexpected_response")
+                }
+                Err(err) => {
+                    logger::warn!(
+                        error = ?err,
+                        "Wallet vault conversion declined by connector; not persisting a recurring mandate"
+                    );
+                    (None, "connector_error")
+                }
+            }
+        }
+        Err(err) => {
+            logger::warn!(
+                error = ?err,
+                "Wallet vault conversion call failed; not persisting a recurring mandate"
+            );
+            (None, "gateway_error")
+        }
+    };
+
+    match converted_token {
+        Some(token) => apply_wallet_vault_conversion_token(&mut router_data, token),
+        None => clear_wallet_recurring_artifacts(&mut router_data),
+    }
+    record_wallet_vault_conversion_outcome(connector, &router_data, conversion_outcome);
+
+    Ok(router_data)
+}
+
+fn wallet_vault_conversion_feature_data(single_use_token: &str) -> Secret<String> {
+    Secret::new(serde_json::json!({ "payment_handle_token": single_use_token }).to_string())
+}
+
+fn has_connector_mandate_reference(router_data: &types::PaymentsAuthorizeRouterData) -> bool {
+    matches!(
+        &router_data.response,
+        Ok(types::PaymentsResponseData::TransactionResponse {
+            mandate_reference,
+            ..
+        }) if mandate_reference.is_some()
+    )
+}
+
+fn apply_wallet_vault_conversion_token(
+    router_data: &mut types::PaymentsAuthorizeRouterData,
+    token: String,
+) {
+    router_data.payment_method_token =
+        Some(types::PaymentMethodToken::Token(Secret::new(token.clone())));
+    if let Ok(types::PaymentsResponseData::TransactionResponse {
+        mandate_reference, ..
+    }) = &mut router_data.response
+    {
+        if let Some(mandate_reference) = mandate_reference.as_mut() {
+            mandate_reference.connector_mandate_id = Some(token);
+        }
+    }
+}
+
+fn clear_wallet_recurring_artifacts(router_data: &mut types::PaymentsAuthorizeRouterData) {
+    router_data.payment_method_token = None;
+    if let Ok(types::PaymentsResponseData::TransactionResponse {
+        mandate_reference, ..
+    }) = &mut router_data.response
+    {
+        *mandate_reference = Box::new(None);
+    }
+}
+
+fn record_wallet_vault_conversion_outcome(
+    connector: &api::ConnectorData,
+    router_data: &types::PaymentsAuthorizeRouterData,
+    outcome: &'static str,
+) {
+    metrics::CONNECTOR_PAYMENT_METHOD_TOKENIZATION.add(
+        1,
+        router_env::metric_attributes!(
+            ("connector", connector.connector_name.to_string()),
+            ("payment_method", router_data.payment_method.to_string()),
+            ("tokenization_step", "wallet_vault_conversion"),
+            ("outcome", outcome),
+        ),
+    );
 }
 
 pub fn update_router_data_with_payment_method_token_result<F: Clone, T>(

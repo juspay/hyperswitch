@@ -307,6 +307,22 @@ pub trait Feature<F, T> {
         Ok(None)
     }
 
+    /// Convert a successful wallet CIT's single-use connector token into the
+    /// reusable token that will be persisted for later MITs.
+    async fn post_authorize_wallet_vault_conversion(
+        self,
+        _state: &SessionState,
+        _connector: &api::ConnectorData,
+        _gateway_context: &gateway_context::RouterGatewayContext,
+    ) -> RouterResult<Self>
+    where
+        F: Clone,
+        Self: Sized,
+        dyn api::Connector: services::ConnectorIntegration<F, T, types::PaymentsResponseData>,
+    {
+        Ok(self)
+    }
+
     fn update_router_data_with_create_order_response(
         &mut self,
         _create_order_result: types::CreateOrderResult,

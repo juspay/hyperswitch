@@ -825,6 +825,20 @@ impl ConnectorSpecifications for ConnectorEnum {
         }
     }
 
+    fn requires_wallet_vault_conversion(
+        &self,
+        tokenization_data:
+            &hyperswitch_domain_models::router_request_types::PaymentMethodTokenizationData,
+        has_connector_customer: bool,
+    ) -> bool {
+        match self {
+            Self::Old(connector) => connector
+                .requires_wallet_vault_conversion(tokenization_data, has_connector_customer),
+            Self::New(connector) => connector
+                .requires_wallet_vault_conversion(tokenization_data, has_connector_customer),
+        }
+    }
+
     fn is_payment_recurrence_operation_needed(
         &self,
         payment_intent: &hyperswitch_domain_models::payments::PaymentIntent,
