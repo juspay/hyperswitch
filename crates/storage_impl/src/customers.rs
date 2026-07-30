@@ -503,7 +503,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
         }
     }
 
-    #[cfg(all(feature = "v2", feature = "customer_decryption_optimization"))]
+    #[cfg(feature = "v2")]
     #[instrument(skip_all)]
     async fn find_customer_by_global_id_merchant_id_without_encrypted(
         &self,
@@ -923,7 +923,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
         }
     }
 
-    #[cfg(all(feature = "v2", feature = "customer_decryption_optimization"))]
+    #[cfg(feature = "v2")]
     #[instrument(skip_all)]
     async fn find_customer_by_global_id_merchant_id_without_encrypted(
         &self,
@@ -1229,7 +1229,7 @@ impl domain::CustomerInterface for MockDb {
         Err(StorageError::MockDbError)?
     }
 
-    #[cfg(all(feature = "v2", feature = "customer_decryption_optimization"))]
+    #[cfg(feature = "v2")]
     async fn find_customer_by_global_id_merchant_id_without_encrypted(
         &self,
         _id: &id_type::GlobalCustomerId,

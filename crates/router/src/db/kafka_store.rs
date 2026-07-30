@@ -570,7 +570,7 @@ impl CustomerInterface for KafkaStore {
             .await
     }
 
-    #[cfg(all(feature = "v2", feature = "customer_decryption_optimization"))]
+    #[cfg(feature = "v2")]
     async fn find_customer_by_global_id_merchant_id_without_encrypted(
         &self,
         id: &id_type::GlobalCustomerId,

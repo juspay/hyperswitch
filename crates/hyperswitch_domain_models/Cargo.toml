@@ -10,7 +10,6 @@ license.workspace = true
 [features]
 default = ["olap", "frm"]
 encryption_service = ["common_utils/encryption_service"]
-customer_decryption_optimization = []
 olap = []
 payouts = ["api_models/payouts"]
 frm = ["api_models/frm"]

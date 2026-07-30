@@ -106,7 +106,7 @@ pub struct Customer {
 }
 
 /// A customer view containing only fields that do not require key-manager decryption.
-#[cfg(all(feature = "v2", feature = "customer_decryption_optimization"))]
+#[cfg(feature = "v2")]
 #[derive(Clone, Debug)]
 pub struct CustomerWithoutEncrypted {
     pub id: id_type::GlobalCustomerId,
@@ -116,7 +116,7 @@ pub struct CustomerWithoutEncrypted {
     pub default_payment_method_id: Option<id_type::GlobalPaymentMethodId>,
 }
 
-#[cfg(all(feature = "v2", feature = "customer_decryption_optimization"))]
+#[cfg(feature = "v2")]
 impl From<storage_types::Customer> for CustomerWithoutEncrypted {
     fn from(customer: storage_types::Customer) -> Self {
         Self {
@@ -953,7 +953,7 @@ where
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Customer, Self::Error>;
 
-    #[cfg(all(feature = "v2", feature = "customer_decryption_optimization"))]
+    #[cfg(feature = "v2")]
     async fn find_customer_by_global_id_merchant_id_without_encrypted(
         &self,
         id: &id_type::GlobalCustomerId,
