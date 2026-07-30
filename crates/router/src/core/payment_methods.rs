@@ -1671,7 +1671,6 @@ pub async fn create_volatile_payment_method_core(
         .await
         .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
         .attach_printable("Customer not found for the payment method")?;
-
     }
 
     let payment_method_billing_address = req
