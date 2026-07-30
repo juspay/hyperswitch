@@ -31,12 +31,96 @@ use crate::{
     },
 };
 
+// Deja: serde-native proxy mirror of `fred::types::RedisValue`.
+//
+// The concrete proxy lets replay substitute generic Redis reads without adding
+// serde bounds to public `FromRedis` APIs.
+#[cfg(feature = "deja")]
+#[derive(serde::Serialize, serde::Deserialize)]
+enum DejaRedisValue {
+    Null,
+    Boolean(bool),
+    Integer(i64),
+    Double(f64),
+    String(String),
+    Bytes(Vec<u8>),
+    Array(Vec<Self>),
+    Map(Vec<(Self, Self)>),
+    Queued,
+}
+
+#[cfg(feature = "deja")]
+impl From<RedisValue> for DejaRedisValue {
+    fn from(v: RedisValue) -> Self {
+        use fred::types::RedisValue as R;
+        match v {
+            R::Null => Self::Null,
+            R::Boolean(b) => Self::Boolean(b),
+            R::Integer(i) => Self::Integer(i),
+            R::Double(d) => Self::Double(d),
+            R::String(s) => Self::String(s.to_string()),
+            R::Bytes(b) => Self::Bytes(b.to_vec()),
+            R::Queued => Self::Queued,
+            R::Array(a) => Self::Array(a.into_iter().map(Self::from).collect()),
+            R::Map(m) => Self::Map(
+                m.inner()
+                    .into_iter()
+                    .map(|(k, val)| (Self::from(R::from(k)), Self::from(val)))
+                    .collect(),
+            ),
+        }
+    }
+}
+
+#[cfg(feature = "deja")]
+impl TryFrom<DejaRedisValue> for RedisValue {
+    type Error = fred::error::RedisError;
+
+    fn try_from(v: DejaRedisValue) -> Result<Self, Self::Error> {
+        match v {
+            DejaRedisValue::Null => Ok(Self::Null),
+            DejaRedisValue::Boolean(b) => Ok(Self::Boolean(b)),
+            DejaRedisValue::Integer(i) => Ok(Self::Integer(i)),
+            DejaRedisValue::Double(d) => Ok(Self::Double(d)),
+            DejaRedisValue::String(s) => Ok(Self::String(s.into())),
+            DejaRedisValue::Bytes(b) => Ok(Self::Bytes(b.into())),
+            DejaRedisValue::Queued => Ok(Self::Queued),
+            DejaRedisValue::Array(a) => Ok(Self::Array(
+                a.into_iter()
+                    .map(Self::try_from)
+                    .collect::<Result<Vec<_>, _>>()?,
+            )),
+            DejaRedisValue::Map(m) => {
+                let pairs = m
+                    .into_iter()
+                    .map(|(k, val)| Ok((Self::try_from(k)?, Self::try_from(val)?)))
+                    .collect::<Result<Vec<_>, Self::Error>>()?;
+                pairs.try_into().map(Self::Map)
+            }
+        }
+    }
+}
+
 impl super::RedisConnectionWithContext {
     /// Prefix `key` with the tenant key prefix of the underlying pool.
     pub fn add_prefix(&self, key: &str) -> String {
         self.redis_conn.add_prefix(key)
     }
 
+    #[cfg_attr(
+        feature = "deja",
+        deja::redis(
+            operation = "set_key",
+            codec = deja::codec::ResultCodec::<(), errors::RedisError>,
+            args = {
+                serde_json::json!({
+                    "key": key.as_str(),
+                    "command": "SET",
+                    "has_ttl": true,
+                })
+            },
+        )
+    )]
     #[instrument(level = "DEBUG", skip(self))]
     pub async fn set_key<V>(&self, key: &RedisKey, value: V) -> CustomResult<(), errors::RedisError>
     where
@@ -59,6 +143,19 @@ impl super::RedisConnectionWithContext {
         .change_context(errors::RedisError::SetFailed)
     }
 
+    #[cfg_attr(
+        feature = "deja",
+        deja::redis(
+            operation = "set_key_without_modifying_ttl",
+            codec = deja::codec::ResultCodec::<(), errors::RedisError>,
+            args = {
+                serde_json::json!({
+                    "key": key.as_str(),
+                    "command": "SET_KEEP_TTL",
+                })
+            },
+        )
+    )]
     pub async fn set_key_without_modifying_ttl<V>(
         &self,
         key: &RedisKey,
@@ -84,6 +181,18 @@ impl super::RedisConnectionWithContext {
         .change_context(errors::RedisError::SetFailed)
     }
 
+    #[instrument(level = "DEBUG", skip(self))]
+    #[cfg_attr(
+        feature = "deja",
+        deja::redis(
+            operation = "set_multiple_keys_if_not_exist",
+            args = {
+                serde_json::json!({
+                    "command": "MSETNX",
+                })
+            },
+        )
+    )]
     pub async fn set_multiple_keys_if_not_exist<K, V>(
         &self,
         key_value_pairs: &[(K, V)],
@@ -175,39 +284,67 @@ impl super::RedisConnectionWithContext {
             .encode_to_vec()
             .change_context(errors::RedisError::JsonSerializationFailed)?;
 
-        track_redis_call(
-            self.request_id.as_deref(),
-            self.redis_conn.event_emitter.as_ref(),
-            RedisOperation::SerializeAndSetKeyWithExpiry,
-            self.redis_conn.pool.set(
-                key.tenant_aware_key(&self.redis_conn),
-                serialized.as_slice(),
-                Some(Expiration::EX(seconds)),
-                None,
-                false,
-            ),
-        )
-        .await
-        .change_context(errors::RedisError::SetExFailed)
+        #[cfg(feature = "deja")]
+        {
+            self.set_key_with_expiry(key, serialized.as_slice(), seconds)
+                .await
+        }
+
+        #[cfg(not(feature = "deja"))]
+        {
+            track_redis_call(
+                self.request_id.as_deref(),
+                self.redis_conn.event_emitter.as_ref(),
+                RedisOperation::SerializeAndSetKeyWithExpiry,
+                self.redis_conn.pool.set(
+                    key.tenant_aware_key(&self.redis_conn),
+                    serialized.as_slice(),
+                    Some(Expiration::EX(seconds)),
+                    None,
+                    false,
+                ),
+            )
+            .await
+            .change_context(errors::RedisError::SetExFailed)
+        }
     }
 
+    // Deja hermetic boundary for GET.
+    //
+    // The boundary lives on this inner method, which fetches the RAW redis reply
+    // (`fred::types::RedisValue`) and mirrors it into the serde-native
+    // `DejaRedisValue`. Because the recorded/replayed type is concrete and
+    // serde-native, the typed `ResultCodec` works without leaking a serde bound
+    // onto the public `get_key<V>`.
+    #[cfg(feature = "deja")]
     #[instrument(level = "DEBUG", skip(self))]
-    pub async fn get_key<V>(&self, key: &RedisKey) -> CustomResult<V, errors::RedisError>
-    where
-        V: FromRedis + Unpin + Send + 'static,
-    {
+    #[deja::redis(
+        operation = "get_key",
+        codec = deja::codec::ResultCodec::<DejaRedisValue, errors::RedisError>,
+        state_read = key.tenant_aware_key(&self.redis_conn),
+        args = {
+            serde_json::json!({
+                "key": key.as_str(),
+                "command": "GET",
+            })
+        },
+    )]
+    async fn get_key_raw(
+        &self,
+        key: &RedisKey,
+    ) -> CustomResult<DejaRedisValue, errors::RedisError> {
         match track_redis_call(
             self.request_id.as_deref(),
             self.redis_conn.event_emitter.as_ref(),
             RedisOperation::GetKey,
             self.redis_conn
                 .pool
-                .get(key.tenant_aware_key(&self.redis_conn)),
+                .get::<RedisValue, _>(key.tenant_aware_key(&self.redis_conn)),
         )
         .await
         .change_context(errors::RedisError::GetFailed)
         {
-            Ok(v) => Ok(v),
+            Ok(v) => Ok(DejaRedisValue::from(v)),
             Err(_err) => {
                 #[cfg(not(feature = "multitenancy_fallback"))]
                 {
@@ -222,10 +359,63 @@ impl super::RedisConnectionWithContext {
                         RedisOperation::GetKey,
                         self.redis_conn
                             .pool
-                            .get(key.tenant_unaware_key(self.redis_conn)),
+                            .get::<RedisValue, _>(key.tenant_unaware_key(&self.redis_conn)),
                     )
                     .await
                     .change_context(errors::RedisError::GetFailed)
+                    .map(DejaRedisValue::from)
+                }
+            }
+        }
+    }
+
+    #[instrument(level = "DEBUG", skip(self))]
+    pub async fn get_key<V>(&self, key: &RedisKey) -> CustomResult<V, errors::RedisError>
+    where
+        V: FromRedis + Unpin + Send + 'static,
+    {
+        #[cfg(feature = "deja")]
+        {
+            let raw = self.get_key_raw(key).await?;
+            let value: RedisValue = raw.try_into().map_err(|err: fred::error::RedisError| {
+                report!(err).change_context(errors::RedisError::GetFailed)
+            })?;
+            V::from_value(value).change_context(errors::RedisError::GetFailed)
+        }
+
+        #[cfg(not(feature = "deja"))]
+        {
+            match track_redis_call(
+                self.request_id.as_deref(),
+                self.redis_conn.event_emitter.as_ref(),
+                RedisOperation::GetKey,
+                self.redis_conn
+                    .pool
+                    .get(key.tenant_aware_key(&self.redis_conn)),
+            )
+            .await
+            .change_context(errors::RedisError::GetFailed)
+            {
+                Ok(v) => Ok(v),
+                Err(_err) => {
+                    #[cfg(not(feature = "multitenancy_fallback"))]
+                    {
+                        Err(_err)
+                    }
+
+                    #[cfg(feature = "multitenancy_fallback")]
+                    {
+                        track_redis_call(
+                            self.request_id.as_deref(),
+                            self.redis_conn.event_emitter.as_ref(),
+                            RedisOperation::GetKey,
+                            self.redis_conn
+                                .pool
+                                .get(key.tenant_unaware_key(&self.redis_conn)),
+                        )
+                        .await
+                        .change_context(errors::RedisError::GetFailed)
+                    }
                 }
             }
         }
@@ -308,6 +498,29 @@ impl super::RedisConnectionWithContext {
         }
     }
 
+    #[cfg_attr(
+        feature = "deja",
+        deja::redis(
+            operation = "get_multiple_keys",
+            read_set = keys.iter().map(|key| key.tenant_aware_key(&self.redis_conn)).collect::<Vec<_>>(),
+            args = {
+                serde_json::json!({
+                    "key_count": keys.len(),
+                    "keys": keys.iter().map(|key| key.as_str()).collect::<Vec<_>>(),
+                    "command": "MGET",
+                })
+            },
+            result = {
+                (
+                    match &__deja_result {
+                        Ok(_) => serde_json::json!({"ok": true}),
+                        Err(e) => serde_json::json!({"ok": false, "error": format!("{:?}", e)}),
+                    },
+                    __deja_result.is_err(),
+                )
+            },
+        )
+    )]
     #[instrument(level = "DEBUG", skip(self))]
     pub async fn get_multiple_keys<V>(
         &self,
@@ -332,7 +545,7 @@ impl super::RedisConnectionWithContext {
                 {
                     let tenant_unaware_keys: Vec<RedisKey> = keys
                         .iter()
-                        .map(|key| key.tenant_unaware_key(self.redis_conn).into())
+                        .map(|key| key.tenant_unaware_key(&self.redis_conn).into())
                         .collect();
 
                     self.get_keys_by_mode(&tenant_unaware_keys).await
@@ -341,6 +554,19 @@ impl super::RedisConnectionWithContext {
         }
     }
 
+    #[cfg_attr(
+        feature = "deja",
+        deja::redis(
+            operation = "exists",
+            codec = deja::codec::ResultCodec::<bool, errors::RedisError>,
+            args = {
+                serde_json::json!({
+                    "key": key.as_str(),
+                    "command": "EXISTS",
+                })
+            },
+        )
+    )]
     #[instrument(level = "DEBUG", skip(self))]
     pub async fn exists<V>(&self, key: &RedisKey) -> CustomResult<bool, errors::RedisError>
     where
@@ -372,7 +598,7 @@ impl super::RedisConnectionWithContext {
                         RedisOperation::Exists,
                         self.redis_conn
                             .pool
-                            .exists(key.tenant_unaware_key(self.redis_conn)),
+                            .exists(key.tenant_unaware_key(&self.redis_conn)),
                     )
                     .await
                     .change_context(errors::RedisError::GetFailed)
@@ -430,6 +656,19 @@ impl super::RedisConnectionWithContext {
         Ok(results)
     }
 
+    #[cfg_attr(
+        feature = "deja",
+        deja::redis(
+            operation = "delete_key",
+            codec = deja::codec::ResultCodec::<DelReply, errors::RedisError>,
+            args = {
+                serde_json::json!({
+                    "key": key.as_str(),
+                    "command": "DEL",
+                })
+            },
+        )
+    )]
     #[instrument(level = "DEBUG", skip(self))]
     pub async fn delete_key(&self, key: &RedisKey) -> CustomResult<DelReply, errors::RedisError> {
         match track_redis_call(
@@ -458,7 +697,7 @@ impl super::RedisConnectionWithContext {
                         RedisOperation::DeleteKey,
                         self.redis_conn
                             .pool
-                            .del(key.tenant_unaware_key(self.redis_conn)),
+                            .del(key.tenant_unaware_key(&self.redis_conn)),
                     )
                     .await
                     .change_context(errors::RedisError::DeleteFailed)
@@ -467,6 +706,8 @@ impl super::RedisConnectionWithContext {
         }
     }
 
+    // deja: NO boundary — the inner delete_key calls carry record/replay; an outer
+    // boundary would nest and omit them. See `docs/design/deja-non-boundaries.md`.
     #[instrument(level = "DEBUG", skip(self))]
     pub async fn delete_multiple_keys(
         &self,
@@ -481,6 +722,20 @@ impl super::RedisConnectionWithContext {
         Ok(del_result)
     }
 
+    #[cfg_attr(
+        feature = "deja",
+        deja::redis(
+            operation = "set_key_with_expiry",
+            codec = deja::codec::ResultCodec::<(), errors::RedisError>,
+            args = {
+                serde_json::json!({
+                    "key": key.as_str(),
+                    "command": "SETEX",
+                    "ttl_seconds": seconds,
+                })
+            },
+        )
+    )]
     #[instrument(level = "DEBUG", skip(self))]
     pub async fn set_key_with_expiry<V>(
         &self,
@@ -508,6 +763,25 @@ impl super::RedisConnectionWithContext {
         .change_context(errors::RedisError::SetExFailed)
     }
 
+    #[cfg_attr(
+        feature = "deja",
+        deja::redis(
+            operation = "set_key_if_not_exists_with_expiry",
+            codec = deja::codec::ResultCodec::<SetnxReply, errors::RedisError>,
+            // Declare the key we WRITE so the seed plan's pristine rule masks a
+            // later read-back of it (e.g. the lock GET after this SETNX). Without
+            // this the read-back is seeded as "present", and the replayed Execute
+            // SETNX then sees the lock held → never acquires → retry storm.
+            state_write = key.tenant_aware_key(&self.redis_conn),
+            args = {
+                serde_json::json!({
+                    "key": key.as_str(),
+                    "command": "SETNX",
+                    "ttl_seconds": seconds,
+                })
+            },
+        )
+    )]
     #[instrument(level = "DEBUG", skip(self))]
     pub async fn set_key_if_not_exists_with_expiry<V>(
         &self,
@@ -537,6 +811,20 @@ impl super::RedisConnectionWithContext {
         .change_context(errors::RedisError::SetFailed)
     }
 
+    #[cfg_attr(
+        feature = "deja",
+        deja::redis(
+            operation = "set_expiry",
+            codec = deja::codec::ResultCodec::<(), errors::RedisError>,
+            args = {
+                serde_json::json!({
+                    "key": key.as_str(),
+                    "command": "EXPIRE",
+                    "ttl_seconds": seconds,
+                })
+            },
+        )
+    )]
     #[instrument(level = "DEBUG", skip(self))]
     pub async fn set_expiry(
         &self,
@@ -555,6 +843,20 @@ impl super::RedisConnectionWithContext {
         .change_context(errors::RedisError::SetExpiryFailed)
     }
 
+    #[cfg_attr(
+        feature = "deja",
+        deja::redis(
+            operation = "set_expire_at",
+            codec = deja::codec::ResultCodec::<(), errors::RedisError>,
+            args = {
+                serde_json::json!({
+                    "key": key.as_str(),
+                    "command": "EXPIREAT",
+                    "timestamp": timestamp,
+                })
+            },
+        )
+    )]
     #[instrument(level = "DEBUG", skip(self))]
     pub async fn set_expire_at(
         &self,
@@ -573,6 +875,19 @@ impl super::RedisConnectionWithContext {
         .change_context(errors::RedisError::SetExpiryFailed)
     }
 
+    #[cfg_attr(
+        feature = "deja",
+        deja::redis(
+            operation = "get_ttl",
+            codec = deja::codec::ResultCodec::<i64, errors::RedisError>,
+            args = {
+                serde_json::json!({
+                    "key": key.as_str(),
+                    "command": "TTL",
+                })
+            },
+        )
+    )]
     #[instrument(level = "DEBUG", skip(self))]
     pub async fn get_ttl(&self, key: &RedisKey) -> CustomResult<i64, errors::RedisError> {
         track_redis_call(
@@ -587,6 +902,20 @@ impl super::RedisConnectionWithContext {
         .change_context(errors::RedisError::GetFailed)
     }
 
+    #[cfg_attr(
+        feature = "deja",
+        deja::redis(
+            operation = "set_hash_fields",
+            codec = deja::codec::ResultCodec::<(), errors::RedisError>,
+            args = {
+                serde_json::json!({
+                    "key": key.as_str(),
+                    "command": "HSET",
+                    "ttl_seconds": ttl,
+                })
+            },
+        )
+    )]
     #[instrument(level = "DEBUG", skip(self))]
     pub async fn set_hash_fields<F, V>(
         &self,
@@ -618,16 +947,59 @@ impl super::RedisConnectionWithContext {
         .await
         .change_context(errors::RedisError::SetHashFailed);
         // setting expiry for the key
-        output
-            .async_and_then(|_| {
-                self.set_expiry(
-                    key,
-                    ttl.unwrap_or(self.redis_conn.config.default_hash_ttl.into()),
-                )
-            })
-            .await
+        #[cfg(not(feature = "deja"))]
+        {
+            output
+                .async_and_then(|_| {
+                    self.set_expiry(
+                        key,
+                        ttl.unwrap_or(self.redis_conn.config.default_hash_ttl.into()),
+                    )
+                })
+                .await
+        }
+        // Deja: set expiry via a RAW `pool.expire`, NOT the instrumented
+        // `set_expiry`. This method already carries its own `set_hash_fields`
+        // Ok-only codec boundary; nesting the instrumented `set_expiry` under it
+        // would orphan the inner EXPIRE event on replay (the outer no-op
+        // substitution skips it → "omitted" divergence). Inlining keeps
+        // HSET+EXPIRE as one recorded write that round-trips cleanly.
+        #[cfg(feature = "deja")]
+        {
+            output
+                .async_and_then(|_| async {
+                    let _: () = track_redis_call(
+                        self.request_id.as_deref(),
+                        self.redis_conn.event_emitter.as_ref(),
+                        RedisOperation::SetExpiry,
+                        self.redis_conn.pool.expire(
+                            key.tenant_aware_key(&self.redis_conn),
+                            ttl.unwrap_or(self.redis_conn.config.default_hash_ttl.into()),
+                        ),
+                    )
+                    .await
+                    .change_context(errors::RedisError::SetExpiryFailed)?;
+                    Ok(())
+                })
+                .await
+        }
     }
 
+    #[cfg_attr(
+        feature = "deja",
+        deja::redis(
+            operation = "set_hash_field_if_not_exist",
+            codec = deja::codec::ResultCodec::<HsetnxReply, errors::RedisError>,
+            args = {
+                serde_json::json!({
+                    "key": key.as_str(),
+                    "command": "HSETNX",
+                    "field": field,
+                    "ttl_seconds": ttl,
+                })
+            },
+        )
+    )]
     #[instrument(level = "DEBUG", skip(self))]
     pub async fn set_hash_field_if_not_exist<V>(
         &self,
@@ -651,17 +1023,44 @@ impl super::RedisConnectionWithContext {
         .await
         .change_context(errors::RedisError::SetHashFieldFailed);
 
-        output
-            .async_and_then(|inner| async {
-                self.set_expiry(
-                    key,
-                    ttl.unwrap_or(self.redis_conn.config.default_hash_ttl)
-                        .into(),
-                )
-                .await?;
-                Ok(inner)
-            })
-            .await
+        #[cfg(not(feature = "deja"))]
+        {
+            output
+                .async_and_then(|inner| async {
+                    self.set_expiry(
+                        key,
+                        ttl.unwrap_or(self.redis_conn.config.default_hash_ttl)
+                            .into(),
+                    )
+                    .await?;
+                    Ok(inner)
+                })
+                .await
+        }
+        // Deja: raw `pool.expire` (not the instrumented `set_expiry`) for the same
+        // reason as `set_hash_fields`: this method's own `set_hash_field_if_not_exist`
+        // Ok-only boundary would skip a nested instrumented EXPIRE on replay,
+        // orphaning its recorded event.
+        #[cfg(feature = "deja")]
+        {
+            output
+                .async_and_then(|inner| async {
+                    let _: () = track_redis_call(
+                        self.request_id.as_deref(),
+                        self.redis_conn.event_emitter.as_ref(),
+                        RedisOperation::SetExpiry,
+                        self.redis_conn.pool.expire(
+                            key.tenant_aware_key(&self.redis_conn),
+                            ttl.unwrap_or(self.redis_conn.config.default_hash_ttl)
+                                .into(),
+                        ),
+                    )
+                    .await
+                    .change_context(errors::RedisError::SetExpiryFailed)?;
+                    Ok(inner)
+                })
+                .await
+        }
     }
 
     #[instrument(level = "DEBUG", skip(self))]
@@ -704,6 +1103,20 @@ impl super::RedisConnectionWithContext {
     }
 
     #[instrument(level = "DEBUG", skip(self))]
+    #[cfg_attr(
+        feature = "deja",
+        deja::redis(
+            replay = Substitute,
+            operation = "increment_fields_in_hash",
+            args = {
+                serde_json::json!({
+                    "key": key.as_str(),
+                    "command": "HINCRBY",
+                    "field_count": fields_to_increment.len(),
+                })
+            },
+        )
+    )]
     pub async fn increment_fields_in_hash<T>(
         &self,
         key: &RedisKey,
@@ -734,6 +1147,19 @@ impl super::RedisConnectionWithContext {
     }
 
     #[instrument(level = "DEBUG", skip(self))]
+    #[cfg_attr(
+        feature = "deja",
+        deja::redis(
+            operation = "hscan",
+            args = {
+                serde_json::json!({
+                    "key": key.as_str(),
+                    "command": "HSCAN",
+                    "pattern": pattern,
+                })
+            },
+        )
+    )]
     pub async fn hscan(
         &self,
         key: &RedisKey,
@@ -769,6 +1195,18 @@ impl super::RedisConnectionWithContext {
     }
 
     #[instrument(level = "DEBUG", skip(self))]
+    #[cfg_attr(
+        feature = "deja",
+        deja::redis(
+            operation = "scan",
+            args = {
+                serde_json::json!({
+                    "pattern": pattern.as_str(),
+                    "command": "SCAN",
+                })
+            },
+        )
+    )]
     pub async fn scan(
         &self,
         pattern: &RedisKey,
@@ -824,6 +1262,69 @@ impl super::RedisConnectionWithContext {
             .collect())
     }
 
+    // Deja hermetic boundary for HGET — same shape as `get_key_raw`: the boundary
+    // lives on this inner method which fetches the RAW reply and mirrors it into
+    // the serde-native `DejaRedisValue`, so the typed `ResultCodec` substitutes the field read
+    // WITHOUT leaking a serde bound onto the public `get_hash_field<V>`. A
+    // record-only `result={"ok":bool}` capture would record NO value, leaving
+    // replay nothing to reconstruct `V` from — the read would fall through to
+    // live redis.
+    #[cfg(feature = "deja")]
+    #[instrument(level = "DEBUG", skip(self))]
+    #[deja::redis(
+        operation = "get_hash_field",
+        codec = deja::codec::ResultCodec::<DejaRedisValue, errors::RedisError>,
+        state_read = format!("{}:{}", key.tenant_aware_key(&self.redis_conn), field),
+        args = {
+            serde_json::json!({
+                "key": key.as_str(),
+                "command": "HGET",
+                "field": field,
+            })
+        },
+    )]
+    async fn get_hash_field_raw(
+        &self,
+        key: &RedisKey,
+        field: &str,
+    ) -> CustomResult<DejaRedisValue, errors::RedisError> {
+        match track_redis_call(
+            self.request_id.as_deref(),
+            self.redis_conn.event_emitter.as_ref(),
+            RedisOperation::GetHashField,
+            self.redis_conn
+                .pool
+                .hget::<RedisValue, _, _>(key.tenant_aware_key(&self.redis_conn), field),
+        )
+        .await
+        .change_context(errors::RedisError::GetHashFieldFailed)
+        {
+            Ok(v) => Ok(DejaRedisValue::from(v)),
+            Err(_err) => {
+                #[cfg(feature = "multitenancy_fallback")]
+                {
+                    track_redis_call(
+                        self.request_id.as_deref(),
+                        self.redis_conn.event_emitter.as_ref(),
+                        RedisOperation::GetHashField,
+                        self.redis_conn.pool.hget::<RedisValue, _, _>(
+                            key.tenant_unaware_key(&self.redis_conn),
+                            field,
+                        ),
+                    )
+                    .await
+                    .change_context(errors::RedisError::GetHashFieldFailed)
+                    .map(DejaRedisValue::from)
+                }
+
+                #[cfg(not(feature = "multitenancy_fallback"))]
+                {
+                    Err(_err)
+                }
+            }
+        }
+    }
+
     #[instrument(level = "DEBUG", skip(self))]
     pub async fn get_hash_field<V>(
         &self,
@@ -833,31 +1334,96 @@ impl super::RedisConnectionWithContext {
     where
         V: FromRedis + Unpin + Send + 'static,
     {
+        #[cfg(feature = "deja")]
+        {
+            let raw = self.get_hash_field_raw(key, field).await?;
+            let value: RedisValue = raw.try_into().map_err(|err: fred::error::RedisError| {
+                report!(err).change_context(errors::RedisError::GetHashFieldFailed)
+            })?;
+            V::from_value(value).change_context(errors::RedisError::GetHashFieldFailed)
+        }
+
+        #[cfg(not(feature = "deja"))]
+        {
+            match track_redis_call(
+                self.request_id.as_deref(),
+                self.redis_conn.event_emitter.as_ref(),
+                RedisOperation::GetHashField,
+                self.redis_conn
+                    .pool
+                    .hget(key.tenant_aware_key(&self.redis_conn), field),
+            )
+            .await
+            .change_context(errors::RedisError::GetHashFieldFailed)
+            {
+                Ok(v) => Ok(v),
+                Err(_err) => {
+                    #[cfg(feature = "multitenancy_fallback")]
+                    {
+                        track_redis_call(
+                            self.request_id.as_deref(),
+                            self.redis_conn.event_emitter.as_ref(),
+                            RedisOperation::GetHashField,
+                            self.redis_conn
+                                .pool
+                                .hget(key.tenant_unaware_key(&self.redis_conn), field),
+                        )
+                        .await
+                        .change_context(errors::RedisError::GetHashFieldFailed)
+                    }
+
+                    #[cfg(not(feature = "multitenancy_fallback"))]
+                    {
+                        Err(_err)
+                    }
+                }
+            }
+        }
+    }
+
+    #[cfg(feature = "deja")]
+    #[instrument(level = "DEBUG", skip(self))]
+    #[deja::redis(
+        operation = "get_hash_fields",
+        codec = deja::codec::ResultCodec::<DejaRedisValue, errors::RedisError>,
+        state_read = key.tenant_aware_key(&self.redis_conn),
+        args = {
+            serde_json::json!({
+                "key": key.as_str(),
+                "command": "HGETALL",
+            })
+        },
+    )]
+    async fn get_hash_fields_raw(
+        &self,
+        key: &RedisKey,
+    ) -> CustomResult<DejaRedisValue, errors::RedisError> {
         match track_redis_call(
             self.request_id.as_deref(),
             self.redis_conn.event_emitter.as_ref(),
-            RedisOperation::GetHashField,
+            RedisOperation::GetHashFields,
             self.redis_conn
                 .pool
-                .hget(key.tenant_aware_key(&self.redis_conn), field),
+                .hgetall::<RedisValue, _>(key.tenant_aware_key(&self.redis_conn)),
         )
         .await
         .change_context(errors::RedisError::GetHashFieldFailed)
         {
-            Ok(v) => Ok(v),
+            Ok(v) => Ok(DejaRedisValue::from(v)),
             Err(_err) => {
                 #[cfg(feature = "multitenancy_fallback")]
                 {
                     track_redis_call(
                         self.request_id.as_deref(),
                         self.redis_conn.event_emitter.as_ref(),
-                        RedisOperation::GetHashField,
+                        RedisOperation::GetHashFields,
                         self.redis_conn
                             .pool
-                            .hget(key.tenant_unaware_key(self), field),
+                            .hgetall::<RedisValue, _>(key.tenant_unaware_key(&self.redis_conn)),
                     )
                     .await
                     .change_context(errors::RedisError::GetHashFieldFailed)
+                    .map(DejaRedisValue::from)
                 }
 
                 #[cfg(not(feature = "multitenancy_fallback"))]
@@ -873,34 +1439,48 @@ impl super::RedisConnectionWithContext {
     where
         V: FromRedis + Unpin + Send + 'static,
     {
-        match track_redis_call(
-            self.request_id.as_deref(),
-            self.redis_conn.event_emitter.as_ref(),
-            RedisOperation::GetHashFields,
-            self.redis_conn
-                .pool
-                .hgetall(key.tenant_aware_key(&self.redis_conn)),
-        )
-        .await
-        .change_context(errors::RedisError::GetHashFieldFailed)
+        #[cfg(feature = "deja")]
         {
-            Ok(v) => Ok(v),
-            Err(_err) => {
-                #[cfg(feature = "multitenancy_fallback")]
-                {
-                    track_redis_call(
-                        self.request_id.as_deref(),
-                        self.redis_conn.event_emitter.as_ref(),
-                        RedisOperation::GetHashFields,
-                        self.redis_conn.pool.hgetall(key.tenant_unaware_key(self)),
-                    )
-                    .await
-                    .change_context(errors::RedisError::GetHashFieldFailed)
-                }
+            let raw = self.get_hash_fields_raw(key).await?;
+            let value: RedisValue = raw.try_into().map_err(|err: fred::error::RedisError| {
+                report!(err).change_context(errors::RedisError::GetHashFieldFailed)
+            })?;
+            V::from_value(value).change_context(errors::RedisError::GetHashFieldFailed)
+        }
 
-                #[cfg(not(feature = "multitenancy_fallback"))]
-                {
-                    Err(_err)
+        #[cfg(not(feature = "deja"))]
+        {
+            match track_redis_call(
+                self.request_id.as_deref(),
+                self.redis_conn.event_emitter.as_ref(),
+                RedisOperation::GetHashFields,
+                self.redis_conn
+                    .pool
+                    .hgetall(key.tenant_aware_key(&self.redis_conn)),
+            )
+            .await
+            .change_context(errors::RedisError::GetHashFieldFailed)
+            {
+                Ok(v) => Ok(v),
+                Err(_err) => {
+                    #[cfg(feature = "multitenancy_fallback")]
+                    {
+                        track_redis_call(
+                            self.request_id.as_deref(),
+                            self.redis_conn.event_emitter.as_ref(),
+                            RedisOperation::GetHashFields,
+                            self.redis_conn
+                                .pool
+                                .hgetall(key.tenant_unaware_key(&self.redis_conn)),
+                        )
+                        .await
+                        .change_context(errors::RedisError::GetHashFieldFailed)
+                    }
+
+                    #[cfg(not(feature = "multitenancy_fallback"))]
+                    {
+                        Err(_err)
+                    }
                 }
             }
         }
@@ -948,6 +1528,21 @@ impl super::RedisConnectionWithContext {
         .change_context(errors::RedisError::DeleteHashFieldFailed)
     }
 
+    #[cfg_attr(
+        feature = "deja",
+        deja::redis(
+            replay = Substitute,
+            operation = "sadd",
+            codec = deja::codec::ResultCodec::<SaddReply, errors::RedisError>,
+            state_write = key.tenant_aware_key(&self.redis_conn),
+            args = {
+                serde_json::json!({
+                    "key": key.as_str(),
+                    "command": "SADD",
+                })
+            },
+        )
+    )]
     #[instrument(level = "DEBUG", skip(self))]
     pub async fn sadd<V>(
         &self,
@@ -971,6 +1566,19 @@ impl super::RedisConnectionWithContext {
     }
 
     #[instrument(level = "DEBUG", skip(self))]
+    #[cfg_attr(
+        feature = "deja",
+        deja::redis(
+            replay = Substitute,
+            operation = "stream_append_entry",
+            args = {
+                serde_json::json!({
+                    "key": stream.as_str(),
+                    "command": "XADD",
+                })
+            },
+        )
+    )]
     pub async fn stream_append_entry<F, V>(
         &self,
         stream: &RedisKey,
@@ -1009,6 +1617,19 @@ impl super::RedisConnectionWithContext {
     }
 
     #[instrument(level = "DEBUG", skip(self))]
+    #[cfg_attr(
+        feature = "deja",
+        deja::redis(
+            replay = Substitute,
+            operation = "stream_delete_entries",
+            args = {
+                serde_json::json!({
+                    "key": stream.as_str(),
+                    "command": "XDEL",
+                })
+            },
+        )
+    )]
     pub async fn stream_delete_entries(
         &self,
         stream: &RedisKey,
@@ -1028,6 +1649,19 @@ impl super::RedisConnectionWithContext {
     }
 
     #[instrument(level = "DEBUG", skip(self))]
+    #[cfg_attr(
+        feature = "deja",
+        deja::redis(
+            replay = Substitute,
+            operation = "stream_trim_entries",
+            args = {
+                serde_json::json!({
+                    "key": stream.as_str(),
+                    "command": "XTRIM",
+                })
+            },
+        )
+    )]
     pub async fn stream_trim_entries(
         &self,
         stream: &RedisKey,
@@ -1049,6 +1683,20 @@ impl super::RedisConnectionWithContext {
     }
 
     #[instrument(level = "DEBUG", skip(self))]
+    #[cfg_attr(
+        feature = "deja",
+        deja::redis(
+            replay = Substitute,
+            operation = "stream_acknowledge_entries",
+            args = {
+                serde_json::json!({
+                    "key": stream.as_str(),
+                    "command": "XACK",
+                    "group": group,
+                })
+            },
+        )
+    )]
     pub async fn stream_acknowledge_entries(
         &self,
         stream: &RedisKey,
@@ -1069,6 +1717,18 @@ impl super::RedisConnectionWithContext {
     }
 
     #[instrument(level = "DEBUG", skip(self))]
+    #[cfg_attr(
+        feature = "deja",
+        deja::redis(
+            operation = "stream_get_length",
+            args = {
+                serde_json::json!({
+                    "key": stream.as_str(),
+                    "command": "XLEN",
+                })
+            },
+        )
+    )]
     pub async fn stream_get_length(
         &self,
         stream: &RedisKey,
@@ -1094,6 +1754,17 @@ impl super::RedisConnectionWithContext {
     }
 
     #[instrument(level = "DEBUG", skip(self))]
+    #[cfg_attr(
+        feature = "deja",
+        deja::redis(
+            operation = "stream_read_entries",
+            args = {
+                serde_json::json!({
+                    "command": "XREAD",
+                })
+            },
+        )
+    )]
     pub async fn stream_read_entries(
         &self,
         streams: &[RedisKey],
@@ -1147,6 +1818,17 @@ impl super::RedisConnectionWithContext {
     }
 
     #[instrument(level = "DEBUG", skip(self))]
+    #[cfg_attr(
+        feature = "deja",
+        deja::redis(
+            operation = "stream_read_with_options",
+            args = {
+                serde_json::json!({
+                    "command": if group.is_some() { "XREADGROUP" } else { "XREAD" },
+                })
+            },
+        )
+    )]
     pub async fn stream_read_with_options(
         &self,
         streams: &[RedisKey],
@@ -1223,6 +1905,19 @@ impl super::RedisConnectionWithContext {
     }
 
     #[instrument(level = "DEBUG", skip(self))]
+    #[cfg_attr(
+        feature = "deja",
+        deja::redis(
+            replay = Substitute,
+            operation = "append_elements_to_list",
+            args = {
+                serde_json::json!({
+                    "key": key.as_str(),
+                    "command": "RPUSH",
+                })
+            },
+        )
+    )]
     pub async fn append_elements_to_list<V>(
         &self,
         key: &RedisKey,
@@ -1245,6 +1940,20 @@ impl super::RedisConnectionWithContext {
     }
 
     #[instrument(level = "DEBUG", skip(self))]
+    #[cfg_attr(
+        feature = "deja",
+        deja::redis(
+            operation = "get_list_elements",
+            args = {
+                serde_json::json!({
+                    "key": key.as_str(),
+                    "command": "LRANGE",
+                    "start": start,
+                    "stop": stop,
+                })
+            },
+        )
+    )]
     pub async fn get_list_elements(
         &self,
         key: &RedisKey,
@@ -1264,6 +1973,18 @@ impl super::RedisConnectionWithContext {
     }
 
     #[instrument(level = "DEBUG", skip(self))]
+    #[cfg_attr(
+        feature = "deja",
+        deja::redis(
+            operation = "get_list_length",
+            args = {
+                serde_json::json!({
+                    "key": key.as_str(),
+                    "command": "LLEN",
+                })
+            },
+        )
+    )]
     pub async fn get_list_length(&self, key: &RedisKey) -> CustomResult<usize, errors::RedisError> {
         track_redis_call(
             self.request_id.as_deref(),
@@ -1278,6 +1999,20 @@ impl super::RedisConnectionWithContext {
     }
 
     #[instrument(level = "DEBUG", skip(self))]
+    #[cfg_attr(
+        feature = "deja",
+        deja::redis(
+            replay = Substitute,
+            operation = "lpop_list_elements",
+            args = {
+                serde_json::json!({
+                    "key": key.as_str(),
+                    "command": "LPOP",
+                    "count": count,
+                })
+            },
+        )
+    )]
     pub async fn lpop_list_elements(
         &self,
         key: &RedisKey,
@@ -1298,6 +2033,20 @@ impl super::RedisConnectionWithContext {
     //                                              Consumer Group API
 
     #[instrument(level = "DEBUG", skip(self))]
+    #[cfg_attr(
+        feature = "deja",
+        deja::redis(
+            replay = Substitute,
+            operation = "consumer_group_create",
+            args = {
+                serde_json::json!({
+                    "key": stream.as_str(),
+                    "command": "XGROUP_CREATE",
+                    "group": group,
+                })
+            },
+        )
+    )]
     pub async fn consumer_group_create(
         &self,
         stream: &RedisKey,
@@ -1328,6 +2077,20 @@ impl super::RedisConnectionWithContext {
     }
 
     #[instrument(level = "DEBUG", skip(self))]
+    #[cfg_attr(
+        feature = "deja",
+        deja::redis(
+            replay = Substitute,
+            operation = "consumer_group_destroy",
+            args = {
+                serde_json::json!({
+                    "key": stream.as_str(),
+                    "command": "XGROUP_DESTROY",
+                    "group": group,
+                })
+            },
+        )
+    )]
     pub async fn consumer_group_destroy(
         &self,
         stream: &RedisKey,
@@ -1348,6 +2111,21 @@ impl super::RedisConnectionWithContext {
 
     // the number of pending messages that the consumer had before it was deleted
     #[instrument(level = "DEBUG", skip(self))]
+    #[cfg_attr(
+        feature = "deja",
+        deja::redis(
+            replay = Substitute,
+            operation = "consumer_group_delete_consumer",
+            args = {
+                serde_json::json!({
+                    "key": stream.as_str(),
+                    "command": "XGROUP_DELCONSUMER",
+                    "group": group,
+                    "consumer": consumer,
+                })
+            },
+        )
+    )]
     pub async fn consumer_group_delete_consumer(
         &self,
         stream: &RedisKey,
@@ -1369,6 +2147,20 @@ impl super::RedisConnectionWithContext {
     }
 
     #[instrument(level = "DEBUG", skip(self))]
+    #[cfg_attr(
+        feature = "deja",
+        deja::redis(
+            replay = Substitute,
+            operation = "consumer_group_set_last_id",
+            args = {
+                serde_json::json!({
+                    "key": stream.as_str(),
+                    "command": "XGROUP_SETID",
+                    "group": group,
+                })
+            },
+        )
+    )]
     pub async fn consumer_group_set_last_id(
         &self,
         stream: &RedisKey,
@@ -1392,6 +2184,33 @@ impl super::RedisConnectionWithContext {
     }
 
     #[instrument(level = "DEBUG", skip(self))]
+    #[cfg_attr(
+        feature = "deja",
+        deja::redis(
+            replay = Substitute,
+            operation = "consumer_group_set_message_owner",
+            args = {
+                serde_json::json!({
+                    "key": stream.as_str(),
+                    "command": "XCLAIM",
+                    "group": group,
+                    "consumer": consumer,
+                })
+            },
+            // Generic `R: FromRedis` is NOT `Debug`, so the default `result_debug`
+            // capture would not compile. Record only the ok/err verdict (record-only
+            // leaf — no replay reconstruction needed).
+            result = {
+                (
+                    match &__deja_result {
+                        Ok(_) => serde_json::json!({"ok": true}),
+                        Err(e) => serde_json::json!({"ok": false, "error": format!("{:?}", e)}),
+                    },
+                    __deja_result.is_err(),
+                )
+            },
+        )
+    )]
     pub async fn consumer_group_set_message_owner<R>(
         &self,
         stream: &RedisKey,
@@ -1426,6 +2245,31 @@ impl super::RedisConnectionWithContext {
     }
 
     #[instrument(level = "DEBUG", skip(self))]
+    #[cfg_attr(
+        feature = "deja",
+        deja::redis(
+            replay = Substitute,
+            operation = "evaluate_redis_script",
+            args = {
+                serde_json::json!({
+                    "command": "EVAL",
+                    "key_count": key.len(),
+                })
+            },
+            // Generic `T` is NOT `Debug`, so the default `result_debug` capture
+            // would not compile. Record only the ok/err verdict (record-only leaf —
+            // an EVAL result is never reconstructed without an explicit override).
+            result = {
+                (
+                    match &__deja_result {
+                        Ok(_) => serde_json::json!({"ok": true}),
+                        Err(e) => serde_json::json!({"ok": false, "error": format!("{:?}", e)}),
+                    },
+                    __deja_result.is_err(),
+                )
+            },
+        )
+    )]
     pub async fn evaluate_redis_script<V, T>(
         &self,
         lua_script: &'static str,
@@ -1478,6 +2322,32 @@ impl super::RedisConnectionWithContext {
     /// Sets a value in Redis if not already present, and returns the value (either existing or newly set).
     /// This operation is atomic using Redis transactions.
     #[instrument(level = "DEBUG", skip(self))]
+    #[cfg_attr(
+        feature = "deja",
+        deja::redis(
+            operation = "set_key_if_not_exists_and_get_value",
+            args = {
+                serde_json::json!({
+                    "key": key.as_str(),
+                    "command": "SETNX_GET",
+                    "ttl_seconds": ttl,
+                })
+            },
+            // `SetGetReply<V>` carries a generic `V` with no `Debug` bound, so the
+            // default `result_debug` capture would not compile. Record only the
+            // ok/err verdict (record-only leaf — no replay reconstruction needed;
+            // an RMW transaction always re-executes live on replay).
+            result = {
+                (
+                    match &__deja_result {
+                        Ok(_) => serde_json::json!({"ok": true}),
+                        Err(e) => serde_json::json!({"ok": false, "error": format!("{:?}", e)}),
+                    },
+                    __deja_result.is_err(),
+                )
+            },
+        )
+    )]
     pub async fn set_key_if_not_exists_and_get_value<V>(
         &self,
         key: &RedisKey,

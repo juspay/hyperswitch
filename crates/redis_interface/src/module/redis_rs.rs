@@ -545,11 +545,16 @@ impl RedisConnectionPool {
 
     /// Prefix `key` with this pool's tenant key prefix.
     pub fn add_prefix(&self, key: &str) -> String {
-        if self.key_prefix.is_empty() {
+        let physical = if self.key_prefix.is_empty() {
             key.to_string()
         } else {
             format!("{}:{}", self.key_prefix, key)
+        };
+        #[cfg(feature = "deja")]
+        if let Some(corr) = deja::replay_key_namespace() {
+            return format!("{corr}:{physical}");
         }
+        physical
     }
 
     /// Monitor for connection errors.

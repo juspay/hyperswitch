@@ -301,11 +301,24 @@ impl RedisConnectionPool {
 
     /// Prefix `key` with this pool's tenant key prefix.
     pub fn add_prefix(&self, key: &str) -> String {
-        if self.key_prefix.is_empty() {
+        let physical = if self.key_prefix.is_empty() {
             key.to_string()
         } else {
             format!("{}:{}", self.key_prefix, key)
+        };
+        // Deja replay isolation: during REPLAY, namespace every physical key
+        // by the active correlation so each test case's store is isolated — no
+        // cross-case collisions and no read-modify-write double-apply, which is
+        // what makes it safe to Execute stateful redis ops against the seeded
+        // store. The harness seeds each correlation under the same
+        // `{correlation}:{physical}` namespace. Inert during record and when no
+        // correlation is in scope, so recorded keys and normal operation are
+        // unchanged (and for Substitute ops the real command never runs anyway).
+        #[cfg(feature = "deja")]
+        if let Some(corr) = deja::replay_key_namespace() {
+            return format!("{corr}:{physical}");
         }
+        physical
     }
 
     pub async fn on_error(&self, tx: tokio::sync::oneshot::Sender<()>) {
