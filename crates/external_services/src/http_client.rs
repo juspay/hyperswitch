@@ -1,4 +1,4 @@
-use common_utils::{consts, errors::CustomResult, request::Request};
+use common_utils::{errors::CustomResult, request::Request};
 use hyperswitch_interfaces::{errors::HttpClientError, types::Proxy};
 use quick_xml::{
     events::{BytesDecl, BytesText, Event},
@@ -18,7 +18,7 @@ mod boundary;
 
 use std::{
     error::Error,
-    time::{Duration, Instant},
+    time::Duration,
 };
 
 pub use common_utils::request::{ContentType, Method, RequestBuilder};
@@ -94,11 +94,6 @@ pub async fn send_request(
     logger::info!(method=?request.method, headers=?request.headers, payload=?request.body, ?request);
 
     let url = url::Url::parse(&request.url).change_context(HttpClientError::UrlParsingFailed)?;
-    let dependency = url.host_str().unwrap_or_default().to_owned();
-    let operation = url.path().to_owned();
-    let method = format!("{:?}", request.method);
-    let request_started_at = Instant::now();
-
     let client = client::create_client(
         client_proxy,
         request.certificate,
@@ -247,42 +242,6 @@ pub async fn send_request(
         }
         response => response,
     };
-
-    let elapsed_milliseconds = request_started_at.elapsed().as_secs_f64() * 1000.0;
-    match response.as_ref() {
-        Ok(response) => {
-            let status_code = response.status().as_u16();
-            let downstream_request_id = response
-                .headers()
-                .get(consts::X_REQUEST_ID)
-                .and_then(|value| value.to_str().ok());
-            logger::info!(
-                tag = "ExternalServiceCall",
-                dependency,
-                operation,
-                method,
-                outcome = if response.status().is_success() {
-                    "success"
-                } else {
-                    "http_error"
-                },
-                status_code,
-                elapsed_milliseconds,
-                downstream_request_id,
-            );
-        }
-        Err(error) => {
-            logger::info!(
-                tag = "ExternalServiceCall",
-                dependency,
-                operation,
-                method,
-                outcome = "transport_error",
-                elapsed_milliseconds,
-                error = ?error,
-            );
-        }
-    }
 
     #[cfg(feature = "deja")]
     {

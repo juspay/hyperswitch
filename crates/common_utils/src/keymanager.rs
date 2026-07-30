@@ -21,10 +21,16 @@ use crate::{
         TransientBatchDecryptDataRequest, TransientDecryptDataRequest,
     },
 };
+#[cfg(feature = "ext_services_latency")]
+use crate::consts::EXTERNAL_CALL_TAG;
 
 const CONTENT_TYPE: &str = "Content-Type";
 static ENCRYPTION_API_CLIENT: OnceCell<reqwest::Client> = OnceCell::new();
 static DEFAULT_ENCRYPTION_VERSION: &str = "v1";
+#[cfg(any(
+    feature = "km_forward_x_request_id",
+    feature = "ext_services_latency"
+))]
 const X_REQUEST_ID: &str = "X-Request-Id";
 
 /// Get keymanager client constructed from the url and state
@@ -98,25 +104,22 @@ where
     let elapsed = start_time.elapsed();
     let latency_ms = elapsed.as_millis();
     let created_at_timestamp = OffsetDateTime::now_utc().unix_timestamp_nanos();
-    let downstream_request_id = response
-        .headers()
-        .get(X_REQUEST_ID)
-        .and_then(|value| value.to_str().ok());
+    #[cfg(feature = "ext_services_latency")]
+    {
+        let downstream_request_id = response
+            .headers()
+            .get(X_REQUEST_ID)
+            .and_then(|value| value.to_str().ok());
 
-    logger::info!(
-        tag = "ExternalServiceCall",
-        dependency = "encryption_service",
-        operation = endpoint,
-        method = method_str,
-        outcome = if response.status().is_success() {
-            "success"
-        } else {
-            "http_error"
-        },
-        status_code = response.status().as_u16(),
-        elapsed_milliseconds = elapsed.as_secs_f64() * 1000.0,
-        downstream_request_id,
-    );
+        logger::info!(
+            tag = EXTERNAL_CALL_TAG,
+            operation = endpoint,
+            method = method_str,
+            status_code = response.status().as_u16(),
+            latency_ms = elapsed.as_secs_f64() * 1000.0,
+            downstream_request_id,
+        );
+    }
 
     if let Some(request_id) = &state.request_id {
         state
