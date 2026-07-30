@@ -1,3 +1,7 @@
+#[cfg(feature = "deja")]
+use bb8::PooledConnection;
+#[cfg(feature = "deja")]
+use diesel::PgConnection;
 use error_stack::ResultExt;
 
 use crate::{
@@ -18,15 +22,10 @@ use crate::{
 // STOP rather than silently serve wrong-schema rows, so the hard failures below
 // panic. This runs only in a replay sandbox pod (guarded by `replay_is_active`),
 // never on a production request path — hence the `clippy::panic` allowance.
-//
-// Takes `&DatabaseConnectionWithContext` rather than `&mut PooledConnection`: the
-// underlying `RawPgConnection` (`async_bb8_diesel::Connection`) wraps an
-// `Arc<Mutex<_>>` internally, so `AsyncConnection::run` only needs `&self` — no
-// mutable access to the lease is required to run the `SET search_path`.
 #[cfg(feature = "deja")]
 #[allow(clippy::panic)]
 pub(crate) async fn deja_route_replay_schema<T: DatabaseStore>(
-    conn: &DatabaseConnectionWithContext,
+    conn: &mut PooledConnection<'_, async_bb8_diesel::ConnectionManager<PgConnection>>,
     store: &T,
 ) {
     use async_bb8_diesel::AsyncConnection;
@@ -57,8 +56,7 @@ pub(crate) async fn deja_route_replay_schema<T: DatabaseStore>(
     // The SET must succeed under replay — a swallowed failure leaves the
     // connection on the wrong schema. Propagate loudly (replay-only code).
     let corr_for_set = corr.clone();
-    conn.raw_connection()
-        .run(move |c| diesel::connection::SimpleConnection::batch_execute(c, &sql))
+    conn.run(move |c| diesel::connection::SimpleConnection::batch_execute(c, &sql))
         .await
         .unwrap_or_else(|e| {
             panic!("deja replay: SET search_path failed for correlation {corr_for_set}: {e:?}")
@@ -71,22 +69,21 @@ pub(crate) async fn deja_route_replay_schema<T: DatabaseStore>(
     // after a per-correlation SET means the schema was never materialized.
     if deja_replay_schema_needs_check(&corr) {
         let corr_for_assert = corr.clone();
-        conn.raw_connection()
-            .run(move |c| {
-                diesel::connection::SimpleConnection::batch_execute(
-                    c,
-                    "DO $$ BEGIN IF current_schema() = 'public' THEN \
-                     RAISE EXCEPTION 'deja replay: correlation schema missing — \
-                     search_path resolved to public'; END IF; END $$;",
-                )
-            })
-            .await
-            .unwrap_or_else(|e| {
-                panic!(
-                    "deja replay: schema-existence check failed for correlation \
-                     {corr_for_assert} (schema missing or unreachable): {e:?}"
-                )
-            });
+        conn.run(move |c| {
+            diesel::connection::SimpleConnection::batch_execute(
+                c,
+                "DO $$ BEGIN IF current_schema() = 'public' THEN \
+                 RAISE EXCEPTION 'deja replay: correlation schema missing — \
+                 search_path resolved to public'; END IF; END $$;",
+            )
+        })
+        .await
+        .unwrap_or_else(|e| {
+            panic!(
+                "deja replay: schema-existence check failed for correlation \
+                 {corr_for_assert} (schema missing or unreachable): {e:?}"
+            )
+        });
         deja_replay_schema_mark_checked(corr);
     }
 }
@@ -150,20 +147,21 @@ pub async fn pg_connection_read<T: DatabaseStore + RequestContext>(
     ))]
     let pool = store.get_master_pool();
 
-    let connection = pool
+    #[cfg_attr(not(feature = "deja"), allow(unused_mut))]
+    let mut connection = pool
         .pg_pool
         .get_owned()
         .await
         .change_context(StorageError::DatabaseConnectionError)?;
 
-    let conn = DatabaseConnectionWithContext::new(
+    #[cfg(feature = "deja")]
+    deja_route_replay_schema(&mut connection, store).await;
+
+    Ok(DatabaseConnectionWithContext::new(
         connection,
         store.request_id().map(str::to_owned),
         pool.event_emitter.clone(),
-    );
-    #[cfg(feature = "deja")]
-    deja_route_replay_schema(&conn, store).await;
-    Ok(conn)
+    ))
 }
 
 pub async fn pg_connection_write<T: DatabaseStore + RequestContext>(
@@ -172,20 +170,21 @@ pub async fn pg_connection_write<T: DatabaseStore + RequestContext>(
     // Since all writes should happen to master DB only choose master DB.
     let pool = store.get_master_pool();
 
-    let connection = pool
+    #[cfg_attr(not(feature = "deja"), allow(unused_mut))]
+    let mut connection = pool
         .pg_pool
         .get_owned()
         .await
         .change_context(StorageError::DatabaseConnectionError)?;
 
-    let conn = DatabaseConnectionWithContext::new(
+    #[cfg(feature = "deja")]
+    deja_route_replay_schema(&mut connection, store).await;
+
+    Ok(DatabaseConnectionWithContext::new(
         connection,
         store.request_id().map(str::to_owned),
         pool.event_emitter.clone(),
-    );
-    #[cfg(feature = "deja")]
-    deja_route_replay_schema(&conn, store).await;
-    Ok(conn)
+    ))
 }
 
 pub async fn pg_accounts_connection_read<T: DatabaseStore + RequestContext>(
@@ -206,20 +205,21 @@ pub async fn pg_accounts_connection_read<T: DatabaseStore + RequestContext>(
     ))]
     let pool = store.get_accounts_master_pool();
 
-    let connection = pool
+    #[cfg_attr(not(feature = "deja"), allow(unused_mut))]
+    let mut connection = pool
         .pg_pool
         .get_owned()
         .await
         .change_context(StorageError::DatabaseConnectionError)?;
 
-    let conn = DatabaseConnectionWithContext::new(
+    #[cfg(feature = "deja")]
+    deja_route_replay_schema(&mut connection, store).await;
+
+    Ok(DatabaseConnectionWithContext::new(
         connection,
         store.request_id().map(str::to_owned),
         pool.event_emitter.clone(),
-    );
-    #[cfg(feature = "deja")]
-    deja_route_replay_schema(&conn, store).await;
-    Ok(conn)
+    ))
 }
 
 pub async fn pg_accounts_connection_write<T: DatabaseStore + RequestContext>(
@@ -228,20 +228,21 @@ pub async fn pg_accounts_connection_write<T: DatabaseStore + RequestContext>(
     // Since all writes should happen to master DB only choose master DB.
     let pool = store.get_accounts_master_pool();
 
-    let connection = pool
+    #[cfg_attr(not(feature = "deja"), allow(unused_mut))]
+    let mut connection = pool
         .pg_pool
         .get_owned()
         .await
         .change_context(StorageError::DatabaseConnectionError)?;
 
-    let conn = DatabaseConnectionWithContext::new(
+    #[cfg(feature = "deja")]
+    deja_route_replay_schema(&mut connection, store).await;
+
+    Ok(DatabaseConnectionWithContext::new(
         connection,
         store.request_id().map(str::to_owned),
         pool.event_emitter.clone(),
-    );
-    #[cfg(feature = "deja")]
-    deja_route_replay_schema(&conn, store).await;
-    Ok(conn)
+    ))
 }
 
 pub async fn try_redis_get_else_try_database_get<F, RFut, DFut, T>(

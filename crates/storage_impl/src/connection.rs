@@ -24,20 +24,21 @@ pub async fn pg_connection_read<T: DatabaseStore + RequestContext>(
     ))]
     let pool = store.get_master_pool();
 
-    let connection = pool
+    #[cfg_attr(not(feature = "deja"), allow(unused_mut))]
+    let mut connection = pool
         .pg_pool
         .get_owned()
         .await
         .change_context(StorageError::DatabaseConnectionError)?;
 
-    let conn = DatabaseConnectionWithContext::new(
+    #[cfg(feature = "deja")]
+    crate::utils::deja_route_replay_schema(&mut connection, store).await;
+
+    Ok(DatabaseConnectionWithContext::new(
         connection,
         store.request_id().map(str::to_owned),
         pool.event_emitter.clone(),
-    );
-    #[cfg(feature = "deja")]
-    crate::utils::deja_route_replay_schema(&conn, store).await;
-    Ok(conn)
+    ))
 }
 
 pub async fn pg_connection_write<T: DatabaseStore + RequestContext>(
@@ -46,18 +47,19 @@ pub async fn pg_connection_write<T: DatabaseStore + RequestContext>(
     // Since all writes should happen to master DB only choose master DB.
     let pool = store.get_master_pool();
 
-    let connection = pool
+    #[cfg_attr(not(feature = "deja"), allow(unused_mut))]
+    let mut connection = pool
         .pg_pool
         .get_owned()
         .await
         .change_context(StorageError::DatabaseConnectionError)?;
 
-    let conn = DatabaseConnectionWithContext::new(
+    #[cfg(feature = "deja")]
+    crate::utils::deja_route_replay_schema(&mut connection, store).await;
+
+    Ok(DatabaseConnectionWithContext::new(
         connection,
         store.request_id().map(str::to_owned),
         pool.event_emitter.clone(),
-    );
-    #[cfg(feature = "deja")]
-    crate::utils::deja_route_replay_schema(&conn, store).await;
-    Ok(conn)
+    ))
 }
