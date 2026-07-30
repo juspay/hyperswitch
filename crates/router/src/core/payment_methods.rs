@@ -1556,7 +1556,17 @@ pub async fn create_persistent_payment_method_core(
         .get_required_value("customer_id")?;
     let key_manager_state = &(state).into();
 
-    db.find_customer_without_encrypted_by_global_id_merchant_id(
+    #[cfg(feature = "customer_decryption_optimization")]
+    db.find_customer_by_global_id_merchant_id_without_encrypted(
+        &customer_id,
+        platform.get_provider().get_account().get_id(),
+    )
+    .await
+    .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
+    .attach_printable("Customer not found for the payment method")?;
+
+    #[cfg(not(feature = "customer_decryption_optimization"))]
+    db.find_customer_by_global_id_merchant_id(
         &customer_id,
         platform.get_provider().get_account().get_id(),
         platform.get_provider().get_key_store(),
@@ -1666,7 +1676,17 @@ pub async fn create_volatile_payment_method_core(
     let key_manager_state = &(state).into();
 
     if let Some(ref customer_id) = customer_id {
-        db.find_customer_without_encrypted_by_global_id_merchant_id(
+        #[cfg(feature = "customer_decryption_optimization")]
+        db.find_customer_by_global_id_merchant_id_without_encrypted(
+            customer_id,
+            platform.get_provider().get_account().get_id(),
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
+        .attach_printable("Customer not found for the payment method")?;
+
+        #[cfg(not(feature = "customer_decryption_optimization"))]
+        db.find_customer_by_global_id_merchant_id(
             customer_id,
             platform.get_provider().get_account().get_id(),
             platform.get_provider().get_key_store(),
@@ -3751,6 +3771,16 @@ pub async fn payment_method_intent_create(
     let customer_id = req.customer_id.to_owned();
     let key_manager_state = &(state).into();
 
+    #[cfg(feature = "customer_decryption_optimization")]
+    db.find_customer_by_global_id_merchant_id_without_encrypted(
+        &customer_id,
+        provider.get_account().get_id(),
+    )
+    .await
+    .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
+    .attach_printable("Customer not found for the payment method")?;
+
+    #[cfg(not(feature = "customer_decryption_optimization"))]
     db.find_customer_by_global_id_merchant_id(
         &customer_id,
         provider.get_account().get_id(),
@@ -5324,6 +5354,16 @@ pub async fn list_payment_methods_core(
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
 
+    #[cfg(feature = "customer_decryption_optimization")]
+    let customer = db
+        .find_customer_by_global_id_merchant_id_without_encrypted(
+            customer_id,
+            provider.get_account().get_id(),
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
+
+    #[cfg(not(feature = "customer_decryption_optimization"))]
     let customer = db
         .find_customer_by_global_id_merchant_id(
             customer_id,
@@ -5382,6 +5422,16 @@ pub async fn list_customer_payment_methods_core(
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
 
+    #[cfg(feature = "customer_decryption_optimization")]
+    let customer = db
+        .find_customer_by_global_id_merchant_id_without_encrypted(
+            customer_id,
+            provider.get_account().get_id(),
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
+
+    #[cfg(not(feature = "customer_decryption_optimization"))]
     let customer = db
         .find_customer_by_global_id_merchant_id(
             customer_id,
@@ -6194,6 +6244,17 @@ pub async fn delete_payment_method_core(
         || Err(errors::ApiErrorResponse::PaymentMethodRedacted),
     )?;
 
+    #[cfg(feature = "customer_decryption_optimization")]
+    let _customer = db
+        .find_customer_by_global_id_merchant_id_without_encrypted(
+            customer_id,
+            platform.get_provider().get_account().get_id(),
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Customer not found for the payment method")?;
+
+    #[cfg(not(feature = "customer_decryption_optimization"))]
     let _customer = db
         .find_customer_by_global_id_merchant_id(
             customer_id,

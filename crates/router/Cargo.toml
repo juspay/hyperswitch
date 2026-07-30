@@ -45,6 +45,10 @@ encryption_service = [
     "subscriptions/encryption_service",
     "payment_methods/encryption_service",
 ]
+customer_decryption_optimization = [
+    "hyperswitch_domain_models/customer_decryption_optimization",
+    "storage_impl/customer_decryption_optimization",
+]
 km_forward_x_request_id = ["common_utils/km_forward_x_request_id"]
 frm = [
     "api_models/frm",

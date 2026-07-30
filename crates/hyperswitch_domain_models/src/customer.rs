@@ -105,30 +105,26 @@ pub struct Customer {
     pub last_modified_by: Option<CreatedBy>,
 }
 
-/// Customer fields required for existence and status checks that do not require decryption.
-#[cfg(feature = "v2")]
+/// A customer view containing only fields that do not require key-manager decryption.
+#[cfg(all(feature = "v2", feature = "customer_decryption_optimization"))]
 #[derive(Clone, Debug)]
 pub struct CustomerWithoutEncrypted {
+    pub id: id_type::GlobalCustomerId,
     pub merchant_id: id_type::MerchantId,
     pub status: DeleteStatus,
+    pub connector_customer: Option<common_types::customers::ConnectorCustomerMap>,
+    pub default_payment_method_id: Option<id_type::GlobalPaymentMethodId>,
 }
 
-#[cfg(feature = "v2")]
+#[cfg(all(feature = "v2", feature = "customer_decryption_optimization"))]
 impl From<storage_types::Customer> for CustomerWithoutEncrypted {
     fn from(customer: storage_types::Customer) -> Self {
         Self {
+            id: customer.id,
             merchant_id: customer.merchant_id,
             status: customer.status,
-        }
-    }
-}
-
-#[cfg(feature = "v2")]
-impl From<Customer> for CustomerWithoutEncrypted {
-    fn from(customer: Customer) -> Self {
-        Self {
-            merchant_id: customer.merchant_id,
-            status: customer.status,
+            connector_customer: customer.connector_customer,
+            default_payment_method_id: customer.default_payment_method_id,
         }
     }
 }
@@ -957,13 +953,11 @@ where
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Customer, Self::Error>;
 
-    #[cfg(feature = "v2")]
-    async fn find_customer_without_encrypted_by_global_id_merchant_id(
+    #[cfg(all(feature = "v2", feature = "customer_decryption_optimization"))]
+    async fn find_customer_by_global_id_merchant_id_without_encrypted(
         &self,
         id: &id_type::GlobalCustomerId,
         merchant_id: &id_type::MerchantId,
-        key_store: &MerchantKeyStore,
-        storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<CustomerWithoutEncrypted, Self::Error>;
 }
 

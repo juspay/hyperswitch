@@ -503,27 +503,13 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
         }
     }
 
-    #[cfg(feature = "v2")]
+    #[cfg(all(feature = "v2", feature = "customer_decryption_optimization"))]
     #[instrument(skip_all)]
-    async fn find_customer_without_encrypted_by_global_id_merchant_id(
+    async fn find_customer_by_global_id_merchant_id_without_encrypted(
         &self,
         id: &id_type::GlobalCustomerId,
         merchant_id: &id_type::MerchantId,
-        key_store: &MerchantKeyStore,
-        storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::CustomerWithoutEncrypted, StorageError> {
-        if storage_scheme != MerchantStorageScheme::PostgresOnly {
-            return self
-                .find_customer_by_global_id_merchant_id(
-                    id,
-                    merchant_id,
-                    key_store,
-                    storage_scheme,
-                )
-                .await
-                .map(Into::into);
-        }
-
         let conn = pg_connection_read(self).await?;
         let result = customers::Customer::find_by_global_id_merchant_id(&conn, id, merchant_id)
             .await
@@ -937,14 +923,12 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
         }
     }
 
-    #[cfg(feature = "v2")]
+    #[cfg(all(feature = "v2", feature = "customer_decryption_optimization"))]
     #[instrument(skip_all)]
-    async fn find_customer_without_encrypted_by_global_id_merchant_id(
+    async fn find_customer_by_global_id_merchant_id_without_encrypted(
         &self,
         id: &id_type::GlobalCustomerId,
         merchant_id: &id_type::MerchantId,
-        _key_store: &MerchantKeyStore,
-        _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::CustomerWithoutEncrypted, StorageError> {
         let conn = pg_connection_read(self).await?;
         let customer = customers::Customer::find_by_global_id_merchant_id(&conn, id, merchant_id)
@@ -952,7 +936,11 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
             .map(domain::CustomerWithoutEncrypted::from)
             .map_err(StorageError::DatabaseError)?;
 
-        if customer.status == common_enums::DeleteStatus::Redacted {
+        if customer.merchant_id != *merchant_id {
+            Err(StorageError::ValueNotFound(
+                "db value not found".to_string(),
+            ))?
+        } else if customer.status == common_enums::DeleteStatus::Redacted {
             Err(StorageError::CustomerRedacted)?
         } else {
             Ok(customer)
@@ -1241,13 +1229,11 @@ impl domain::CustomerInterface for MockDb {
         Err(StorageError::MockDbError)?
     }
 
-    #[cfg(feature = "v2")]
-    async fn find_customer_without_encrypted_by_global_id_merchant_id(
+    #[cfg(all(feature = "v2", feature = "customer_decryption_optimization"))]
+    async fn find_customer_by_global_id_merchant_id_without_encrypted(
         &self,
         _id: &id_type::GlobalCustomerId,
         _merchant_id: &id_type::MerchantId,
-        _key_store: &MerchantKeyStore,
-        _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::CustomerWithoutEncrypted, StorageError> {
         // [#172]: Implement function for `MockDb`
         Err(StorageError::MockDbError)?
