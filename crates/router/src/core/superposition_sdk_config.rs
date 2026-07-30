@@ -152,18 +152,13 @@ pub async fn get_profile_superposition_sdk_config(
             id: profile_id.to_owned(),
         })?;
 
-    let all_mcas = db
-        .find_merchant_connector_account_without_encrypted_by_merchant_id_and_disabled_list(
+    let mcas = db
+        .list_enabled_merchant_connector_accounts_without_encrypted_by_merchant_id_profile_id(
             platform.get_processor().get_account().get_id(),
-            false,
+            &profile_id_typed,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
-
-    let filtered_mcas: Vec<_> = all_mcas
-        .into_iter()
-        .filter(|mca| mca.profile_id == profile_id_typed)
-        .collect();
 
     let mut payment_experiences_consolidated_hm: std::collections::HashMap<
         api_enums::PaymentMethod,
@@ -194,7 +189,7 @@ pub async fn get_profile_superposition_sdk_config(
         Vec<String>,
     > = std::collections::HashMap::new();
 
-    for mca in &filtered_mcas {
+    for mca in &mcas {
         if let Some(payment_methods_enabled_list) = &mca.payment_methods_enabled {
             for pm_value in payment_methods_enabled_list {
                 if let Ok(pm_enabled) = serde_json::from_value::<
@@ -300,8 +295,7 @@ pub async fn get_profile_superposition_sdk_config(
     dimension_filter.insert(
         "connector".to_string(),
         serde_json::Value::Array(
-            filtered_mcas
-                .iter()
+            mcas.iter()
                 .map(|mca| serde_json::Value::String(mca.connector_name.clone()))
                 .collect(),
         ),

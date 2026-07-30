@@ -33,7 +33,7 @@ pub use hyperswitch_interfaces::{
     },
     types::{ComparisonServiceConfig, Proxy},
 };
-use hyperswitch_masking::{Maskable, Secret};
+use hyperswitch_masking::{Maskable, PeekInterface, Secret};
 pub use payment_methods::configs::{
     settings::{
         BankRedirectConfig, BanksVector, ConnectorBankNames, ConnectorFields,
@@ -194,6 +194,7 @@ pub struct Settings<S: SecretState> {
     #[serde(default)]
     pub enhancement: Option<HashMap<String, String>>,
     pub superposition: SecretStateContainer<SuperpositionClientConfig, S>,
+    pub offer_engine: Option<OfferEngineConfig>,
     pub proxy_status_mapping: ProxyStatusMapping,
     pub trace_header: TraceHeaderConfig,
     pub internal_services: InternalServicesConfig,
@@ -645,6 +646,35 @@ pub struct ForexApi {
     pub data_expiration_delay_in_seconds: u32,
     pub redis_lock_timeout_in_seconds: u32,
     pub redis_ttl_in_seconds: u32,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct OfferEngineConfig {
+    pub base_url: url::Url,
+    pub api_key: Secret<String>,
+    pub merchant_id: String,
+}
+
+impl OfferEngineConfig {
+    pub fn validate(&self) -> ApplicationResult<()> {
+        common_utils::fp_utils::when(!self.base_url.path().ends_with('/'), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "offer_engine.base_url must end with a trailing slash".into(),
+            ))
+        })?;
+        common_utils::fp_utils::when(self.api_key.peek().is_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "offer_engine.api_key must not be empty".into(),
+            ))
+        })?;
+        common_utils::fp_utils::when(self.merchant_id.is_empty(), || {
+            Err(error_stack::Report::from(
+                ApplicationError::InvalidConfigurationValueError(
+                    "offer_engine.merchant_id must not be empty".into(),
+                ),
+            ))
+        })
+    }
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -1448,6 +1478,11 @@ impl Settings<SecuredSecret> {
         self.network_tokenization_service
             .as_ref()
             .map(|x| x.get_inner().validate())
+            .transpose()?;
+
+        self.offer_engine
+            .as_ref()
+            .map(|offer_engine| offer_engine.validate())
             .transpose()?;
 
         self.paze_decrypt_keys

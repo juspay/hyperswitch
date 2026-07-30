@@ -9130,11 +9130,13 @@ async fn decide_payment_method_tokenize_action(
     payment_intent_data: payments::PaymentIntent,
     pm_parent_token: Option<&str>,
     is_connector_tokenization_enabled: bool,
+    is_network_transaction_id_flow: bool,
 ) -> RouterResult<TokenizationAction> {
     if matches!(
         payment_intent_data.split_payments,
         Some(common_types::payments::SplitPaymentsRequest::StripeSplitPayment(_))
-    ) {
+    ) && !is_network_transaction_id_flow
+    {
         match pm_parent_token {
             None => Ok(TokenizationAction::TokenizeInConnector),
             Some(_) => Ok(TokenizationAction::TokenizeInConnectorAndRouter),
@@ -9280,6 +9282,13 @@ where
                     payment_data.get_payment_attempt().authentication_type,
                 )?;
 
+            let is_network_transaction_id_flow = payment_data
+                .get_mandate_id()
+                .as_ref()
+                .and_then(|inner| inner.mandate_reference_id.as_ref())
+                .map(|mandate_reference| mandate_reference.is_network_mandate_id())
+                .unwrap_or(false);
+
             let payment_method_action = decide_payment_method_tokenize_action(
                 state,
                 &connector,
@@ -9287,6 +9296,7 @@ where
                 payment_data.get_payment_intent().clone(),
                 payment_data.get_token(),
                 is_connector_tokenization_enabled,
+                is_network_transaction_id_flow,
             )
             .await?;
 
@@ -12386,11 +12396,12 @@ where
 {
     let chosen = connectors.apply_filter_for_session_routing();
 
-    let active_mca_ids = routing::get_active_mca_ids(&state, processor.get_key_store())
-        .await
-        .change_context(errors::ApiErrorResponse::GenericNotFoundError {
-            message: "Active mca_ids not found".to_string(),
-        })?;
+    let active_mca_ids =
+        routing::get_active_mca_ids(&state, processor.get_key_store(), business_profile.get_id())
+            .await
+            .change_context(errors::ApiErrorResponse::GenericNotFoundError {
+                message: "Active mca_ids not found".to_string(),
+            })?;
 
     let session_input = routing::SessionRoutingInput {
         state: &state,

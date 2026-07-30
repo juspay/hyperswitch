@@ -218,6 +218,8 @@ pub async fn construct_generate_secret_router_data<'a>(
     })
 }
 
+/// Recursively merges `patch` into `base`.
+/// Nested objects are merged key-by-key; non-object values are overwritten.
 fn deep_merge_json_values(base: &mut serde_json::Value, patch: serde_json::Value) {
     match (base, patch) {
         (serde_json::Value::Object(base_map), serde_json::Value::Object(patch_map)) => {
@@ -234,16 +236,45 @@ fn deep_merge_json_values(base: &mut serde_json::Value, patch: serde_json::Value
     }
 }
 
+/// Checks whether a stored scope matches the given scope identifier.
+fn scope_matches_identifier(identifier: &ScopeIdentifier, scope: &ConnectorWebhookScope) -> bool {
+    match (identifier, scope) {
+        (ScopeIdentifier::NotSpecific, ConnectorWebhookScope::NotSpecific) => true,
+        (
+            ScopeIdentifier::PaymentMethodType(pmt),
+            ConnectorWebhookScope::PaymentMethodType { value },
+        ) => pmt == value,
+        (ScopeIdentifier::EventType(evt), ConnectorWebhookScope::EventType { value }) => {
+            evt == value
+        }
+        _ => false,
+    }
+}
+
 #[cfg(feature = "v1")]
+/// Builds the DB update for connector webhook registration.
+///
+/// - `registration_entries`: `(connector_webhook_id, scope)` pairs that fully succeeded
+///   and must be persisted.
+/// - `scopes_to_remove`: scopes whose existing stored entries must be removed before
+///   inserting the new ones. This covers partially-failed scopes (so they are not
+///   persisted) and scopes that are being re-registered (so stale webhook IDs are
+///   replaced rather than duplicated).
 pub fn construct_connector_webhook_registration_details(
     merchant_connector_account: &domain::MerchantConnectorAccount,
     registration_entries: Vec<(String, ScopeIdentifier)>,
     generated_secret: Option<Secret<String>>,
     metadata_patches: Vec<common_utils::pii::SecretSerdeValue>,
+    scopes_to_remove: &[ScopeIdentifier],
 ) -> RouterResult<domain::MerchantConnectorAccountUpdate> {
-    let connector_webhook_registration_details = if registration_entries.is_empty() {
+    // Only touch stored registration details if we have something to add or remove.
+    let has_registration_changes = !registration_entries.is_empty() || !scopes_to_remove.is_empty();
+    let performed_removals = !scopes_to_remove.is_empty();
+
+    let connector_webhook_registration_details = if !has_registration_changes {
         None
     } else {
+        // Start from existing registrations, or an empty object if none exist.
         let mut connector_webhook_registration_details = merchant_connector_account
             .get_connector_webhook_registration_details()
             .unwrap_or_else(|| serde_json::Value::Object(Default::default()));
@@ -252,6 +283,24 @@ pub fn construct_connector_webhook_registration_details(
             .as_object_mut()
             .ok_or(errors::ApiErrorResponse::InternalServerError)?;
 
+        // Step 1: Remove stored entries for scopes that failed or are being replaced.
+        // Legacy (event_type based) and unparseable entries are kept unchanged.
+        if performed_removals {
+            let scopes_to_remove = scopes_to_remove.to_vec();
+            map.retain(|_, entry_value| {
+                let stored: Result<StoredConnectorWebhookEntry, _> =
+                    serde_json::from_value(entry_value.clone());
+                match stored {
+                    Ok(StoredConnectorWebhookEntry::New(scope)) => !scopes_to_remove
+                        .iter()
+                        .any(|identifier| scope_matches_identifier(identifier, &scope)),
+                    Ok(StoredConnectorWebhookEntry::Legacy(_)) => true,
+                    Err(_) => true,
+                }
+            });
+        }
+
+        // Step 2: Persist the new webhook IDs for fully-successful scopes.
         for (connector_webhook_id, scope) in registration_entries {
             let entry_value = match &scope {
                 ScopeIdentifier::NotSpecific => {
@@ -269,9 +318,18 @@ pub fn construct_connector_webhook_registration_details(
             map.insert(connector_webhook_id, entry_value);
         }
 
-        Some(connector_webhook_registration_details)
+        if map.is_empty() {
+            // If we intentionally removed every entry, return an empty object so the
+            // DB update is still written. Returning None here would skip the update
+            // and leave stale registrations behind.
+            performed_removals.then(|| serde_json::Value::Object(Default::default()))
+        } else {
+            Some(connector_webhook_registration_details)
+        }
     };
 
+    // Merge connector-returned metadata patches into the existing metadata,
+    // creating a fresh metadata object if none exists yet.
     let metadata = if metadata_patches.is_empty() {
         None
     } else {
@@ -287,6 +345,8 @@ pub fn construct_connector_webhook_registration_details(
         Some(common_utils::pii::SecretSerdeValue::new(merged_metadata))
     };
 
+    // If the connector requires a generated webhook secret, persist it while preserving
+    // any existing additional_secret already stored for this merchant connector.
     let connector_webhook_details = generated_secret
         .map(|secret| {
             build_connector_webhook_details_with_secret(merchant_connector_account, secret)
@@ -303,6 +363,8 @@ pub fn construct_connector_webhook_registration_details(
 }
 
 #[cfg(feature = "v1")]
+/// Encodes the generated webhook secret into `MerchantConnectorWebhookDetails`,
+/// preserving any existing `additional_secret` instead of overwriting it.
 fn build_connector_webhook_details_with_secret(
     merchant_connector_account: &domain::MerchantConnectorAccount,
     secret: Secret<String>,
@@ -404,6 +466,10 @@ pub fn extract_requested_identifiers(scope: &Scope) -> Vec<ScopeIdentifier> {
 
 #[cfg(feature = "v1")]
 #[allow(deprecated)]
+/// Builds the response for the connector webhook register API.
+///
+/// Legacy requests receive a flattened single-status response. Non-legacy requests
+/// receive the full list of requested scope identifiers and one result per connector call.
 pub fn construct_connector_webhook_registration_response(
     results: Vec<WebhookRegistrationResult>,
     scope_type: ScopeType,
@@ -411,6 +477,7 @@ pub fn construct_connector_webhook_registration_response(
     generate_secret_response: Option<&ConnectorWebhookGenerateSecretResponse>,
     is_legacy_request: bool,
 ) -> RouterResult<RegisterConnectorWebhookResponse> {
+    // Extract the optional webhook-secret generation status/error to include in the response.
     let (secret_generation_status, secret_error) = generate_secret_response
         .map(|resp| {
             let secret_error =
@@ -424,6 +491,8 @@ pub fn construct_connector_webhook_registration_response(
         })
         .unwrap_or((None, None));
 
+    // Legacy callers only see one top-level status/id/error.
+    // Non-legacy callers receive the detailed per-call results below.
     let (connector_webhook_id, webhook_registration_status, error_code, error_message) =
         if is_legacy_request {
             if let Some(success) = results
@@ -508,6 +577,10 @@ enum StoredConnectorWebhookEntry {
 
 #[cfg(feature = "v1")]
 #[allow(deprecated)]
+/// Converts the persisted `connector_webhook_registration_details` blob into a list response.
+///
+/// Supports both the old event_type-based entries and the new scope-based entries so that
+/// webhooks registered before this change continue to be listed correctly.
 pub fn get_connector_webhook_list_response(
     register_webhook_response: &Option<serde_json::Value>,
 ) -> RouterResult<Vec<ConnectorWebhookResponse>> {
