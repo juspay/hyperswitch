@@ -121,6 +121,7 @@ impl DatabaseConnectionWithContext {
     }
 }
 
+// This alias helps reduce the blast radius by avoiding return type changes across query functions.
 pub type PgPooledConn = DatabaseConnectionWithContext;
 
 pub use self::{

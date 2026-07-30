@@ -30,11 +30,14 @@ pub async fn pg_connection_read<T: DatabaseStore + RequestContext>(
         .await
         .change_context(StorageError::DatabaseConnectionError)?;
 
-    Ok(DatabaseConnectionWithContext::new(
+    let conn = DatabaseConnectionWithContext::new(
         connection,
         store.request_id().map(str::to_owned),
         pool.event_emitter.clone(),
-    ))
+    );
+    #[cfg(feature = "deja")]
+    crate::utils::deja_route_replay_schema(&conn, store).await;
+    Ok(conn)
 }
 
 pub async fn pg_connection_write<T: DatabaseStore + RequestContext>(
@@ -49,9 +52,12 @@ pub async fn pg_connection_write<T: DatabaseStore + RequestContext>(
         .await
         .change_context(StorageError::DatabaseConnectionError)?;
 
-    Ok(DatabaseConnectionWithContext::new(
+    let conn = DatabaseConnectionWithContext::new(
         connection,
         store.request_id().map(str::to_owned),
         pool.event_emitter.clone(),
-    ))
+    );
+    #[cfg(feature = "deja")]
+    crate::utils::deja_route_replay_schema(&conn, store).await;
+    Ok(conn)
 }
