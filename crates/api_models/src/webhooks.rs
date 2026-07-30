@@ -134,13 +134,12 @@ impl IncomingWebhookEvent {
     }
 }
 
-impl TryFrom<IncomingWebhookEvent> for api_enums::AttemptStatus {
-    type Error = String;
-    fn try_from(value: IncomingWebhookEvent) -> Result<Self, Self::Error> {
+impl From<IncomingWebhookEvent> for api_enums::AttemptStatus {
+    fn from(value: IncomingWebhookEvent) -> Self {
         match value {
-            IncomingWebhookEvent::MandateActive => Ok(Self::Charged),
-            IncomingWebhookEvent::MandateRevoked => Ok(Self::Failure),
-            _ => Ok(Self::Pending),
+            IncomingWebhookEvent::MandateActive => Self::Charged,
+            IncomingWebhookEvent::MandateRevoked => Self::Failure,
+            _ => Self::Pending,
         }
     }
 }

@@ -2161,11 +2161,18 @@ impl webhooks::IncomingWebhook for Santander {
                     return Ok(None);
                 }
 
-                Ok(entry
-                    .encerramento
-                    .as_ref()
-                    .and_then(|encerramento| encerramento.rejeicao.as_ref())
-                    .and_then(|rejeicao| rejeicao.descricao.clone()))
+                Ok(entry.encerramento.as_ref().and_then(|encerramento| {
+                    encerramento
+                        .cancelamento
+                        .as_ref()
+                        .and_then(|cancelamento| cancelamento.descricao.clone())
+                        .or_else(|| {
+                            encerramento
+                                .rejeicao
+                                .as_ref()
+                                .and_then(|rejeicao| rejeicao.descricao.clone())
+                        })
+                }))
             }
             _ => Ok(None),
         }

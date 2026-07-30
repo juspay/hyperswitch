@@ -1230,6 +1230,8 @@ pub struct SantanderPixAutomaticoLoc {
 pub struct SantanderPixAutomaticoEncerramento {
     /// Rejection information if the recurrence was closed due to rejection
     pub rejeicao: Option<SantanderPixAutomaticoRejeicao>,
+    /// Cancellation information if the recurrence was cancelled
+    pub cancelamento: Option<SantanderPixAutomaticoCancelamento>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1238,6 +1240,17 @@ pub struct SantanderPixAutomaticoRejeicao {
     /// Error code for the rejection
     pub codigo: Option<String>,
     /// Description of the rejection reason
+    pub descricao: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SantanderPixAutomaticoCancelamento {
+    /// Who requested the cancellation (e.g. "USUARIO_PAGADOR")
+    pub solicitante: Option<String>,
+    /// Cancellation code
+    pub codigo: Option<String>,
+    /// Description of the cancellation reason
     pub descricao: Option<String>,
 }
 

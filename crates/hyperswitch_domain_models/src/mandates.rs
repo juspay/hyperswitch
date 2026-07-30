@@ -623,15 +623,14 @@ impl From<&PaymentAttempt> for MandateActivation {
             .and_then(|cmr| cmr.connector_mandate_id.as_ref())
             .is_some();
 
-        if !has_connector_mandate_id {
-            return Self::Failed;
-        }
-
-        match payment_attempt.status {
-            AttemptStatus::AuthenticationPending => Self::Pending,
-            AttemptStatus::Charged
-            | AttemptStatus::Authorized
-            | AttemptStatus::PartiallyAuthorized => Self::Successful,
+        match (has_connector_mandate_id, payment_attempt.status) {
+            (true, AttemptStatus::AuthenticationPending) => Self::Pending,
+            (
+                true,
+                AttemptStatus::Charged
+                | AttemptStatus::Authorized
+                | AttemptStatus::PartiallyAuthorized,
+            ) => Self::Successful,
             _ => Self::Failed,
         }
     }

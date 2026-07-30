@@ -639,6 +639,8 @@ async fn process_webhook_business_logic(
                 source_verified,
                 event_type,
                 merchant_connector_account,
+                connector,
+                request_details,
             ))
             .await
             .attach_printable("Incoming webhook flow for mandates failed"),
@@ -2133,6 +2135,8 @@ async fn mandates_incoming_webhook_flow(
     source_verified: bool,
     event_type: webhooks::IncomingWebhookEvent,
     merchant_connector_account: domain::MerchantConnectorAccount,
+    connector: &ConnectorEnum,
+    request_details: &IncomingWebhookRequestDetails<'_>,
 ) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
     if source_verified {
         let db = &*state.store;
@@ -2158,9 +2162,12 @@ async fn mandates_incoming_webhook_flow(
                 Box::pin(update_connector_managed_mandate(
                     state,
                     platform,
+                    business_profile,
                     merchant_connector_account,
                     connector_mandate_id,
                     event_type,
+                    connector,
+                    request_details,
                 ))
                 .await
             }
@@ -2178,9 +2185,12 @@ async fn mandates_incoming_webhook_flow(
 async fn update_connector_managed_mandate(
     state: SessionState,
     platform: domain::Platform,
+    business_profile: domain::Profile,
     merchant_connector_account: domain::MerchantConnectorAccount,
     connector_mandate_id: String,
     event_type: webhooks::IncomingWebhookEvent,
+    connector: &ConnectorEnum,
+    request_details: &IncomingWebhookRequestDetails<'_>,
 ) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
     let db = &*state.store;
     let merchant_id = platform.get_processor().get_account().get_id();
@@ -2210,7 +2220,12 @@ async fn update_connector_managed_mandate(
     let tracker = if event_type == webhooks::IncomingWebhookEvent::MandateActive
         || event_type == webhooks::IncomingWebhookEvent::MandateRevoked
     {
-        let attempt_status = AttemptStatus::try_from(event_type).unwrap_or(AttemptStatus::Pending);
+        let attempt_status = AttemptStatus::from(event_type);
+
+        let error_message = connector
+            .get_mandate_webhook_error_message(request_details)
+            .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
+            .attach_printable("Failed to get mandate webhook error message")?;
 
         match db
             .find_payment_attempts_by_processor_merchant_id_payment_method_id(
@@ -2227,9 +2242,16 @@ async fn update_connector_managed_mandate(
                         && attempt.setup_future_usage_applied
                             == Some(enums::FutureUsage::OffSession)
                 }) {
-                    let attempt_update = storage::PaymentAttemptUpdate::StatusUpdate {
-                        status: attempt_status,
+                    let attempt_update = storage::PaymentAttemptUpdate::ManualUpdate {
+                        status: Some(attempt_status),
+                        error_code: None,
+                        error_message,
+                        error_reason: None,
                         updated_by: storage_scheme.to_string(),
+                        unified_code: None,
+                        unified_message: None,
+                        connector_transaction_id: None,
+                        amount_capturable: None,
                     };
 
                     match db
@@ -2250,7 +2272,7 @@ async fn update_connector_managed_mandate(
                                 amount_captured: Some(MinorUnit::zero()),
                             };
 
-                            if let Ok(payment_intent) = db
+                            let updated_intent = match db
                                 .find_payment_intent_by_payment_id_processor_merchant_id(
                                     &updated_attempt.payment_id,
                                     merchant_id,
@@ -2260,15 +2282,79 @@ async fn update_connector_managed_mandate(
                                 .await
                                 .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
                             {
-                                db.update_payment_intent(
-                                    payment_intent,
-                                    intent_update,
-                                    platform.get_provider().get_key_store(),
-                                    storage_scheme,
-                                )
-                                .await
-                                .attach_printable("Failed to update payment intent status")
-                                .change_context(errors::ApiErrorResponse::InternalServerError)?;
+                                Ok(payment_intent) => db
+                                    .update_payment_intent(
+                                        payment_intent,
+                                        intent_update,
+                                        platform.get_provider().get_key_store(),
+                                        storage_scheme,
+                                    )
+                                    .await
+                                    .attach_printable("Failed to update payment intent status")
+                                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                                    .ok(),
+                                Err(_) => None,
+                            };
+
+                            // Fire the outgoing payment webhook only when both the payment
+                            // attempt and the payment intent have been updated.
+                            if let Some(updated_intent) = updated_intent {
+                                let event_type: Option<enums::EventType> =
+                                    updated_intent.status.into();
+                                if let Some(outgoing_event_type) = event_type {
+                                    match utils::resolve_webhook_recipient_from_created_by(
+                                        &state,
+                                        &platform,
+                                        &business_profile,
+                                        updated_attempt.created_by.as_ref(),
+                                    )
+                                    .await
+                                    {
+                                        Ok(webhook_recipient) => {
+                                            let payments_response =
+                                                api::PaymentsResponse::foreign_from((
+                                                    updated_intent.clone(),
+                                                    updated_attempt.clone(),
+                                                ));
+                                            let payment_id = updated_attempt.payment_id.clone();
+
+                                            if let Err(err) = Box::pin(
+                                                super::create_event_and_trigger_outgoing_webhook(
+                                                    state.clone(),
+                                                    platform.clone(),
+                                                    outgoing_event_type,
+                                                    enums::EventClass::Payments,
+                                                    payment_id.get_string_repr().to_owned(),
+                                                    enums::EventObjectType::PaymentDetails,
+                                                    api::OutgoingWebhookContent::PaymentDetails(
+                                                        Box::new(payments_response),
+                                                    ),
+                                                    Some(updated_intent.created_at),
+                                                    webhook_recipient,
+                                                    Some(WebhookResourceData::Payment {
+                                                        payment_attempt: updated_attempt.clone(),
+                                                    }),
+                                                    business_profile.clone(),
+                                                ),
+                                            )
+                                            .await
+                                            {
+                                                logger::error!(
+                                                    ?err,
+                                                    "Failed to trigger outgoing payment webhook \
+                                                     for connector managed mandate status update"
+                                                );
+                                            };
+                                        }
+                                        Err(err) => {
+                                            logger::error!(
+                                                ?err,
+                                                "Failed to resolve webhook recipient for connector \
+                                                 managed mandate status update"
+                                            );
+                                        }
+                                    }
+                                }
                             }
 
                             WebhookResponseTracker::Payment {
@@ -3148,6 +3234,8 @@ fn insert_mandate_details(
                 .to_string(),
         ),
         mandate_metadata,
+        ConnectorMandateStatus::try_from(payment_attempt.status)
+            .unwrap_or(ConnectorMandateStatus::Inactive),
         connector_mandate_request_reference_id,
     )?;
     Ok(connector_mandate_details)

@@ -22,10 +22,7 @@ use hyperswitch_domain_models::payments::{
 };
 use hyperswitch_domain_models::{
     behaviour::Conversion,
-    mandates::{
-        self, CommonMandateReference, ConnectorMandateReferenceId, MandateActivation,
-        MandateReferenceId,
-    },
+    mandates::{self, ConnectorMandateReferenceId, MandateActivation, MandateReferenceId},
     payments::payment_attempt::PaymentAttempt,
 };
 use hyperswitch_masking::ExposeInterface;
@@ -389,6 +386,9 @@ where
                         )
                     })
                     .unwrap_or((None, None, None));
+            let connector_mandate_status =
+                common_enums::ConnectorMandateStatus::try_from(payment_attempt.status)
+                    .unwrap_or(common_enums::ConnectorMandateStatus::Inactive);
 
             let connector_mandate_details = tokenization::update_connector_mandate_details(
                 Some(mandate_details),
@@ -403,6 +403,7 @@ where
                 payment_attempt.merchant_connector_id.clone(),
                 connector_mandate_id,
                 mandate_metadata,
+                connector_mandate_status,
                 connector_mandate_request_reference_id,
             )?;
 
@@ -451,21 +452,20 @@ where
         connector_mandate_reference_id.clone(),
     ) {
         let existing_mandate_details = payment_method_info
-            .connector_mandate_details
-            .clone()
-            .map(|details| details.parse_value::<CommonMandateReference>("CommonMandateReference"))
-            .transpose()
+            .get_common_mandate_reference()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to parse existing payment method mandate details")?;
 
         let connector_mandate_details = tokenization::update_connector_mandate_details(
-            existing_mandate_details,
+            Some(existing_mandate_details),
             payment_data.payment_attempt.payment_method_type,
             Some(authorized_amount.get_amount_as_i64()),
             payment_data.payment_attempt.currency,
             Some(merchant_connector_id),
             connector_mandate_reference_id.get_connector_mandate_id(),
             connector_mandate_reference_id.get_mandate_metadata(),
+            common_enums::ConnectorMandateStatus::try_from(payment_data.payment_attempt.status)
+                .unwrap_or(common_enums::ConnectorMandateStatus::Inactive),
             connector_mandate_reference_id.get_connector_mandate_request_reference_id(),
         )
         .change_context(errors::ApiErrorResponse::InternalServerError)
