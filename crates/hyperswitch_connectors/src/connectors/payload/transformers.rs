@@ -1,8 +1,6 @@
 use std::collections::HashMap;
 
-use api_models::{
-    merchant_connector_webhook_management::ScopeIdentifier, webhooks::IncomingWebhookEvent,
-};
+use api_models::webhooks::IncomingWebhookEvent;
 use common_enums::{self as common_enums, enums};
 use common_utils::{ext_traits::ValueExt, types::StringMajorUnit};
 use error_stack::ResultExt;
@@ -19,7 +17,7 @@ use hyperswitch_domain_models::{
         refunds::{Execute, RSync},
     },
     router_request_types::{
-        merchant_connector_webhook_management::ConnectorWebhookRegisterRequest,
+        merchant_connector_webhook_management::{ConnectorWebhookRegisterRequest, ScopeIdentifier},
         PaymentsCancelPostCaptureData, ResponseId,
     },
     router_response_types::{
@@ -945,9 +943,11 @@ impl TryFrom<ScopeIdentifier> for requests::PayloadEventType {
                     })),
                 }
             }
-            ScopeIdentifier::NotSpecific | ScopeIdentifier::PaymentMethodType(_) => Err(
-                error_stack::report!(errors::ConnectorError::WebhookEventTypeNotFound),
-            ),
+            ScopeIdentifier::NotSpecific
+            | ScopeIdentifier::PaymentMethodType(_)
+            | ScopeIdentifier::EventTypes(_) => Err(error_stack::report!(
+                errors::ConnectorError::WebhookEventTypeNotFound
+            )),
         }
     }
 }
@@ -980,6 +980,7 @@ impl
             response: Ok(ConnectorWebhookRegisterResponse {
                 identifier: item.data.request.scope.clone(),
                 connector_webhook_id: Some(item.response.id),
+                connector_webhook_secret: None,
                 status: common_enums::WebhookRegistrationStatus::Success,
                 error_code: None,
                 error_message: None,

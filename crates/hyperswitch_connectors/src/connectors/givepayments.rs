@@ -2,6 +2,7 @@ pub mod transformers;
 
 use std::sync::LazyLock;
 
+use api_models::merchant_connector_webhook_management::Scope;
 use common_enums::enums;
 use common_utils::{
     errors::CustomResult,
@@ -18,9 +19,10 @@ use hyperswitch_domain_models::{
         refunds::{Execute, RSync},
     },
     router_request_types::{
-        AccessTokenRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
-        PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
-        RefundsData, SetupMandateRequestData,
+        merchant_connector_webhook_management::ScopeIdentifier, AccessTokenRequestData,
+        PaymentMethodTokenizationData, PaymentsAuthorizeData, PaymentsCancelData,
+        PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData, RefundsData,
+        SetupMandateRequestData,
     },
     router_response_types::{
         ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
@@ -660,7 +662,8 @@ static GIVEPAYMENTS_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     integration_status: enums::ConnectorIntegrationStatus::Alpha,
 };
 
-static GIVEPAYMENTS_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];
+static GIVEPAYMENTS_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 2] =
+    [enums::EventClass::Payments, enums::EventClass::Refunds];
 
 impl ConnectorSpecifications for Givepayments {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
@@ -673,5 +676,43 @@ impl ConnectorSpecifications for Givepayments {
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
         Some(&GIVEPAYMENTS_SUPPORTED_WEBHOOK_FLOWS)
+    }
+
+    fn get_webhook_registration_plan(
+        &self,
+        scope: &Scope,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(ScopeIdentifier, String)>, errors::ConnectorError> {
+        match scope {
+            Scope::EventTypes(event_types)
+                if !event_types.is_empty()
+                    && event_types.iter().all(|event_type| {
+                        matches!(
+                            event_type,
+                            enums::EventType::PaymentSucceeded
+                                | enums::EventType::PaymentFailed
+                                | enums::EventType::PaymentProcessing
+                                | enums::EventType::PaymentCancelled
+                                | enums::EventType::RefundProcessing
+                                | enums::EventType::RefundSucceeded
+                                | enums::EventType::RefundFailed
+                        )
+                    }) => {
+                        Ok(vec![(
+                            ScopeIdentifier::EventTypes(event_types.clone()),
+                            format!(
+                                "{}/webhooks",
+                                self.base_url(connectors).trim_end_matches('/')
+                            ),
+                        )])
+                    }
+            _ => Err(errors::ConnectorError::NotSupported {
+                message:
+                    "GivePayments webhook registration requires a non-empty list containing only supported event types. Supported event types are: PaymentSucceeded, PaymentFailed, PaymentProcessing, PaymentCancelled, RefundProcessing, RefundSucceeded, and RefundFailed."
+                        .to_string(),
+                connector: "Givepayments",
+            }
+            .into()),
+        }
     }
 }

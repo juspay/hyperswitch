@@ -1,7 +1,6 @@
 pub mod transformers;
 use std::sync::LazyLock;
 
-use api_models::merchant_connector_webhook_management::ScopeIdentifier;
 use base64::Engine;
 use common_enums::enums::{self, PaymentMethodType};
 use common_utils::{
@@ -33,7 +32,7 @@ use hyperswitch_domain_models::{
     },
     router_request_types::{
         merchant_connector_webhook_management::{
-            ConnectorWebhookGenerateSecretRequest, ConnectorWebhookRegisterRequest,
+            ConnectorWebhookGenerateSecretRequest, ConnectorWebhookRegisterRequest, ScopeIdentifier,
         },
         AcceptDisputeRequestData, AccessTokenRequestData, DefendDisputeRequestData,
         GiftCardBalanceCheckRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
@@ -3615,7 +3614,7 @@ impl ConnectorSpecifications for Adyen {
         scope: &api_models::merchant_connector_webhook_management::Scope,
         connectors: &Connectors,
     ) -> CustomResult<Vec<(ScopeIdentifier, String)>, errors::ConnectorError> {
-        use api_models::merchant_connector_webhook_management::{Scope, ScopeIdentifier};
+        use api_models::merchant_connector_webhook_management::Scope;
         let endpoint = connectors.adyen.management_base_url.as_str();
         match scope {
             Scope::NotSpecific => Ok(vec![(

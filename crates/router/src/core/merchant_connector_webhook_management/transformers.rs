@@ -9,7 +9,9 @@ use common_utils::ext_traits::{Encode, ValueExt};
 use error_stack::{ensure, Report, ResultExt};
 use hyperswitch_domain_models::{
     connector_endpoints::Connectors,
-    router_request_types::merchant_connector_webhook_management::ConnectorWebhookRegisterRequest,
+    router_request_types::merchant_connector_webhook_management::{
+        ConnectorWebhookRegisterRequest, ScopeIdentifier as DomainScopeIdentifier,
+    },
 };
 use hyperswitch_interfaces::api::ConnectorSpecifications;
 use hyperswitch_masking::{ExposeInterface, Secret};
@@ -69,7 +71,7 @@ pub async fn construct_webhook_register_router_data<'a>(
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
     let (payment_method, payment_method_type) = match &webhook_register_request.scope {
-        ScopeIdentifier::PaymentMethodType(pmt) => {
+        DomainScopeIdentifier::PaymentMethodType(pmt) => {
             let pm = common_enums::PaymentMethod::from(*pmt);
             (pm, Some(*pmt))
         }
@@ -237,7 +239,7 @@ fn deep_merge_json_values(base: &mut serde_json::Value, patch: serde_json::Value
 #[cfg(feature = "v1")]
 pub fn construct_connector_webhook_registration_details(
     merchant_connector_account: &domain::MerchantConnectorAccount,
-    registration_entries: Vec<(String, ScopeIdentifier)>,
+    registration_entries: Vec<(String, DomainScopeIdentifier)>,
     generated_secret: Option<Secret<String>>,
     metadata_patches: Vec<common_utils::pii::SecretSerdeValue>,
 ) -> RouterResult<domain::MerchantConnectorAccountUpdate> {
@@ -254,14 +256,19 @@ pub fn construct_connector_webhook_registration_details(
 
         for (connector_webhook_id, scope) in registration_entries {
             let entry_value = match &scope {
-                ScopeIdentifier::NotSpecific => {
+                DomainScopeIdentifier::NotSpecific => {
                     serde_json::to_value(ConnectorWebhookScope::NotSpecific)
                 }
-                ScopeIdentifier::PaymentMethodType(pmt) => {
+                DomainScopeIdentifier::PaymentMethodType(pmt) => {
                     serde_json::to_value(ConnectorWebhookScope::PaymentMethodType { value: *pmt })
                 }
-                ScopeIdentifier::EventType(evt) => {
+                DomainScopeIdentifier::EventType(evt) => {
                     serde_json::to_value(ConnectorWebhookScope::EventType { value: *evt })
+                }
+                DomainScopeIdentifier::EventTypes(evts) => {
+                    serde_json::to_value(ConnectorWebhookScope::EventTypes {
+                        values: evts.clone(),
+                    })
                 }
             }
             .change_context(errors::ApiErrorResponse::InternalServerError)?;

@@ -7911,6 +7911,19 @@ key1 = "Account Id"
 api_key = "API Key"
 [givepayments.connector_webhook_details]
 merchant_secret="Source verification key"
+[givepayments.connector_webhook_register_details]
+label="Webhook Registration"
+webhook_auto_configuration_supported=true
+event_types=[
+    "payment_processing",
+    "payment_cancelled",
+    "payment_failed",
+    "payment_succeeded",
+    "refund_processing",
+    "refund_failed",
+    "refund_succeeded"
+]
+scope_type="event_type"
 [[givepayments.credit]]
 payment_method_type = "Mastercard"
 [[givepayments.credit]]

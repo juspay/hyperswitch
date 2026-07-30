@@ -1177,6 +1177,7 @@ pub async fn connector_webhook_register(
         |state, auth, req, _| {
             register_connector_webhook(
                 state,
+                auth.platform,
                 &merchant_id,
                 auth.profile.map(|profile| profile.get_id().clone()),
                 &merchant_connector_id,

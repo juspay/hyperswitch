@@ -4,7 +4,6 @@ use std::{num::NonZeroU8, ops::Deref, str::FromStr};
 use api_models::payouts::{self, PayoutMethodData};
 use api_models::{
     enums,
-    merchant_connector_webhook_management::ScopeIdentifier,
     payments::{self, PollConfig, QrCodeInformation, VoucherNextStepData},
 };
 use base64::Engine;
@@ -38,7 +37,7 @@ use hyperswitch_domain_models::{
     },
     router_request_types::{
         merchant_connector_webhook_management::{
-            ConnectorWebhookGenerateSecretRequest, ConnectorWebhookRegisterRequest,
+            ConnectorWebhookGenerateSecretRequest, ConnectorWebhookRegisterRequest, ScopeIdentifier,
         },
         GiftCardBalanceCheckRequestData, ResponseId, SubmitEvidenceRequestData,
     },
@@ -7363,6 +7362,13 @@ impl TryFrom<&ConnectorWebhookRegisterRouterData> for WebhookRegister {
             }
             ScopeIdentifier::NotSpecific => WebhookRegisterType::Standard,
             ScopeIdentifier::PaymentMethodType(_) => WebhookRegisterType::Standard,
+            ScopeIdentifier::EventTypes(_) => {
+                return Err(errors::ConnectorError::NotSupported {
+                    message: "Webhook Register for multiple event types".to_string(),
+                    connector: "Adyen",
+                }
+                .into())
+            }
         };
         Ok(Self {
             webhook_type,
@@ -7407,6 +7413,7 @@ impl
             response: Ok(ConnectorWebhookRegisterResponse {
                 identifier: item.data.request.scope.clone(),
                 connector_webhook_id: Some(item.response.id.clone()),
+                connector_webhook_secret: None,
                 status: common_enums::WebhookRegistrationStatus::Success,
                 error_code: None,
                 error_message: None,
