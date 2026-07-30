@@ -1,4 +1,4 @@
-use common_utils::{errors::CustomResult, request::Request};
+use common_utils::{consts, errors::CustomResult, request::Request};
 use hyperswitch_interfaces::{errors::HttpClientError, types::Proxy};
 use quick_xml::{
     events::{BytesDecl, BytesText, Event},
