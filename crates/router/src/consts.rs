@@ -372,78 +372,80 @@ pub mod superposition {
     /// Offer Engine credential source key: `"none"` skips Offer Engine, `"application"` uses the static app config.
     pub const OFFER_ENGINE_CREDENTIAL_SOURCE: &str = "offer_engine_credential_source";
     /// CVV requirement configuration key
-    pub const REQUIRES_CVV: &str = "requires_cvv";
+    pub const REQUIRES_CVV: &str = "payments.requires_cvv";
     /// implicit customer update configuration key
-    pub const IMPLICIT_CUSTOMER_UPDATE: &str = "implicit_customer_update";
+    pub const IMPLICIT_CUSTOMER_UPDATE: &str = "payments.implicit_customer_update";
     /// Fingerprint secret configuration key retained for migration fallback
-    pub const FINGERPRINT_SECRET: &str = "fingerprint_secret";
+    pub const FINGERPRINT_SECRET: &str = "vaulting.fingerprint_secret";
     /// Poll config for external 3DS authentication key
-    pub const POLL_CONFIG_EXTERNAL_THREE_DS: &str = "poll_config_external_three_ds";
+    pub const POLL_CONFIG_EXTERNAL_THREE_DS: &str = "payments.poll_config_external_three_ds";
     /// Outgoing webhook retry process tracker mapping key
-    pub const PT_MAPPING_OUTGOING_WEBHOOKS: &str = "pt_mapping_outgoing_webhooks";
+    pub const PT_MAPPING_OUTGOING_WEBHOOKS: &str = "process_tracker.pt_mapping_outgoing_webhooks";
     /// Outgoing connector webhook retry process tracker mapping key
     pub const PT_MAPPING_OUTGOING_CONNECTOR_WEBHOOKS: &str =
         "pt_mapping_outgoing_connector_webhooks";
     /// PCR (Revenue Recovery) payments retry process tracker mapping key
-    pub const PT_MAPPING_PCR_RETRIES: &str = "pt_mapping_pcr_retries";
+    pub const PT_MAPPING_PCR_RETRIES: &str = "process_tracker.pt_mapping_pcr_retries";
     /// Payment sync (psync) retry process tracker mapping key
-    pub const PT_MAPPING_PAYMENT_SYNC: &str = "pt_mapping_payment_sync";
+    pub const PT_MAPPING_PAYMENT_SYNC: &str = "process_tracker.pt_mapping_payment_sync";
     /// Refund sync retry process tracker mapping key
-    pub const PT_MAPPING_REFUND_SYNC: &str = "pt_mapping_refund_sync";
+    pub const PT_MAPPING_REFUND_SYNC: &str = "process_tracker.pt_mapping_refund_sync";
     /// Dispute sync retry process tracker mapping key
-    pub const PT_MAPPING_DISPUTE_SYNC: &str = "pt_mapping_dispute_sync";
+    pub const PT_MAPPING_DISPUTE_SYNC: &str = "process_tracker.pt_mapping_dispute_sync";
     /// GSM (Global Status Map) call configuration key
-    pub const SHOULD_CALL_GSM: &str = "should_call_gsm";
+    pub const SHOULD_CALL_GSM: &str = "payments.should_call_gsm";
     /// Eligibility check configuration key
-    pub const SHOULD_PERFORM_ELIGIBILITY: &str = "should_perform_eligibility";
+    pub const SHOULD_PERFORM_ELIGIBILITY: &str = "payments.should_perform_eligibility";
     /// MIT with limited card data configuration key
     pub const SHOULD_ENABLE_MIT_WITH_LIMITED_CARD_DATA: &str =
-        "should_enable_mit_with_limited_card_data";
+        "payments.should_enable_mit_with_limited_card_data";
     /// Store eligibility check data for authentication configuration key
     pub const SHOULD_STORE_ELIGIBILITY_CHECK_DATA_FOR_AUTHENTICATION: &str =
-        "should_store_eligibility_check_data_for_authentication";
+        "payments.should_store_eligibility_check_data_for_authentication";
     /// Extended card BIN configuration key
-    pub const ENABLE_EXTENDED_CARD_BIN: &str = "enable_extended_card_bin";
+    pub const ENABLE_EXTENDED_CARD_BIN: &str = "payments.enable_extended_card_bin";
     /// Max auto payout retries configuration key
-    pub const MAX_AUTO_PAYOUT_RETRIES: &str = "max_auto_payout_retries";
+    pub const MAX_AUTO_PAYOUT_RETRIES: &str = "payouts.max_auto_payout_retries";
     /// GSM payout call configuration key (scoped by merchant, profile, and payout retry type)
-    pub const GSM_PAYOUT_CALL: &str = "gsm_payout_call";
+    pub const GSM_PAYOUT_CALL: &str = "payouts.gsm_payout_call";
     /// Disable vault tokenization configuration key
-    pub const SHOULD_DISABLE_VAULT_TOKENIZATION: &str = "should_disable_vault_tokenization";
+    pub const SHOULD_DISABLE_VAULT_TOKENIZATION: &str =
+        "vaulting.should_disable_vault_tokenization";
     /// Return raw payment method details configuration key
     pub const SHOULD_RETURN_RAW_PAYMENT_METHOD_DETAILS: &str =
-        "should_return_raw_payment_method_details";
+        "payments.should_return_raw_payment_method_details";
     /// Call PM modular service configuration key
-    pub const SHOULD_CALL_PM_MODULAR_SERVICE: &str = "should_call_pm_modular_service";
+    pub const SHOULD_CALL_PM_MODULAR_SERVICE: &str = "system.should_call_pm_modular_service";
     /// Schedule PM modular forward compatibility PT configuration key
     pub const SHOULD_SCHEDULE_MODULAR_FORWARD_COMPAT: &str =
-        "should_schedule_modular_forward_compat";
+        "system.should_schedule_modular_forward_compat";
     /// Schedule PM modular backward compatibility PT configuration key
     pub const SHOULD_SCHEDULE_MODULAR_BACKWARD_COMPAT: &str =
-        "should_schedule_modular_backward_compat";
+        "system.should_schedule_modular_backward_compat";
     /// Trigger PM modular backward compatibility inline configuration key
     pub const SHOULD_TRIGGER_BACKWARDS_COMPATIBILITY_INLINE: &str =
-        "should_trigger_backwards_compatibility_inline";
+        "system.should_trigger_backwards_compatibility_inline";
     /// Trigger fingerprint migration configuration key
-    pub const SHOULD_TRIGGER_FINGERPRINT_MIGRATION: &str = "should_trigger_fingerprint_migration";
+    pub const SHOULD_TRIGGER_FINGERPRINT_MIGRATION: &str =
+        "vaulting.should_trigger_fingerprint_migration";
     /// Perform SDK vaulting action configuration key. Acts as a merchant level override on top of
     /// `should_call_pm_modular_service`: defaults to `true` for all merchants and can be set to
     /// `false` for specific merchants to force the SDK to skip tokenization.
-    pub const SHOULD_PERFORM_SDK_VAULTING: &str = "should_perform_sdk_vaulting";
+    pub const SHOULD_PERFORM_SDK_VAULTING: &str = "vaulting.should_perform_sdk_vaulting";
     /// dynamic fields configuration key for sdk config
     pub const DYNAMIC_FIELDS: &str = "dynamic_fields";
     /// payout sync tracker configuration key
-    pub const PAYOUT_TRACKER_MAPPING: &str = "payout_tracker_mapping";
+    pub const PAYOUT_TRACKER_MAPPING: &str = "payouts.payout_tracker_mapping";
     /// client session validation enabled configuration key
     pub const CLIENT_SESSION_VALIDATION_ENABLED: &str = "client_session_validation_enabled";
     /// routing result source configuration key (selects between Hyperswitch and Decision Engine)
-    pub const ROUTING_RESULT_SOURCE: &str = "routing_result_source";
+    pub const ROUTING_RESULT_SOURCE: &str = "routing.routing_result_source";
     /// 3DS routing region configuration key for UAS
-    pub const THREEDS_ROUTING_REGION_UAS: &str = "threeds_routing_region_uas";
+    pub const THREEDS_ROUTING_REGION_UAS: &str = "routing.threeds_routing_region_uas";
     /// disabled webhook events configuration key per merchant and connector
-    pub const INCOMING_WEBHOOK_DISABLED_EVENTS: &str = "incoming_webhook_disabled_events";
+    pub const INCOMING_WEBHOOK_DISABLED_EVENTS: &str = "webhooks.incoming_webhook_disabled_events";
     /// save wallet decrypted data in locker
-    pub const SAVE_WALLET_DECRYPTED_DATA: &str = "save_wallet_decrypted_data";
+    pub const SAVE_WALLET_DECRYPTED_DATA: &str = "vaulting.save_wallet_decrypted_data";
 }
 
 #[cfg(test)]
