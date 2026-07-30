@@ -373,6 +373,10 @@ pub mod superposition {
     pub const OFFER_ENGINE_ENABLED: &str = "offer_engine_enabled";
     /// Offer Engine credential source key: `"none"` skips Offer Engine, `"application"` uses the static app config.
     pub const OFFER_ENGINE_CREDENTIAL_SOURCE: &str = "offer_engine_credential_source";
+    /// Account Updater master gate key: `false` (default) disables all Account Updater calls.
+    pub const ACCOUNT_UPDATER_ENABLED: &str = "account_updater.enabled";
+    /// Account Updater credential source key: `"none"` skips Account Updater, `"application"` uses the static application config.
+    pub const ACCOUNT_UPDATER_CREDENTIAL_SOURCE: &str = "account_updater.credential_source";
     /// CVV requirement configuration key
     pub const REQUIRES_CVV: &str = "payments.requires_cvv";
     /// implicit customer update configuration key
