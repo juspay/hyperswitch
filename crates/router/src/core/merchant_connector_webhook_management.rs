@@ -233,6 +233,14 @@ pub async fn register_connector_webhook(
         Option<common_utils::pii::SecretSerdeValue>,
         Option<String>,
     );
+    type GroupedRegistrationOutcomes = HashMap<
+        ScopeIdentifier,
+        Vec<(
+            WebhookRegistrationResult,
+            Option<common_utils::pii::SecretSerdeValue>,
+            Option<String>,
+        )>,
+    >;
 
     let registration_futures = registration_plan.into_iter().map(|(identifier, base_url)| {
         let state = &state;
@@ -386,14 +394,7 @@ pub async fn register_connector_webhook(
         .into_iter()
         .collect::<errors::RouterResult<Vec<RegistrationOutcome>>>()?;
     let mut results = Vec::with_capacity(registration_outcomes.len());
-    let mut grouped_outcomes: HashMap<
-        ScopeIdentifier,
-        Vec<(
-            WebhookRegistrationResult,
-            Option<common_utils::pii::SecretSerdeValue>,
-            Option<String>,
-        )>,
-    > = HashMap::new();
+    let mut grouped_outcomes: GroupedRegistrationOutcomes = HashMap::new();
 
     for (identifier, result, metadata, connector_webhook_id) in registration_outcomes {
         results.push(result.clone());
