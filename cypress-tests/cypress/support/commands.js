@@ -553,6 +553,27 @@ function validateErrorMessage(response, resData) {
   }
 }
 
+// Walk a dotted path on an object, returning undefined if any segment is missing.
+function getNestedValue(obj, path) {
+  return path.split(".").reduce((acc, key) => {
+    if (acc === null || acc === undefined) return undefined;
+    return acc[key];
+  }, obj);
+}
+
+// Assert that every path in `resData.assertNotNull` resolves to a non-null,
+// non-undefined value on `response.body`. This is how connectors verify that
+// their response-field mappings actually populate (e.g. auth_code, CITI,
+// payment_checks) without pinning to specific dynamic values.
+function assertNotNullPaths(response, resData) {
+  if (!resData || !Array.isArray(resData.assertNotNull)) return;
+  for (const path of resData.assertNotNull) {
+    const value = getNestedValue(response.body, path);
+    expect(value, path).to.not.be.null;
+    expect(value, path).to.not.be.undefined;
+  }
+}
+
 Cypress.Commands.add("healthCheck", (globalState) => {
   const baseUrl = globalState.get("baseUrl");
   const url = `${baseUrl}/health`;
@@ -3347,6 +3368,7 @@ Cypress.Commands.add(
               `Invalid capture method ${response.body.capture_method}`
             );
           }
+          assertNotNullPaths(response, resData);
         } else {
           defaultErrorHandler(response, resData);
         }
@@ -4054,6 +4076,7 @@ Cypress.Commands.add(
               );
             }
           }
+          assertNotNullPaths(response, resData);
         } else {
           defaultErrorHandler(response, resData);
         }
@@ -4357,7 +4380,7 @@ Cypress.Commands.add(
     connectedMerchantId,
     unconfirmedPayment = false,
   }) => {
-    const { Configs: configs = {} } = data || {};
+    const { Configs: configs = {}, Response: resData } = data || {};
 
     const configInfo = execConfig(validateConfig(configs));
     const payment_id = globalState.get("paymentID");
@@ -4511,6 +4534,7 @@ Cypress.Commands.add(
               }
             }
           }
+          assertNotNullPaths(response, resData);
         } else {
           throw new Error(
             `Retrieve Payment Call Failed with error code "${response.body.error.code}" error message "${response.body.error.message}"`
@@ -4720,6 +4744,7 @@ Cypress.Commands.add(
             expect(resData.body[key]).to.equal(response.body[key]);
           }
           expect(response.body.payment_id).to.equal(payment_id);
+          assertNotNullPaths(response, resData);
         } else {
           defaultErrorHandler(response, resData);
         }
