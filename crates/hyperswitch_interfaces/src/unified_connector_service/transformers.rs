@@ -24,8 +24,10 @@ use crate::{
 /// UCS error code indicating the connector returned a 4xx/5xx HTTP response (with `http_status_code` set).
 const CONNECTOR_ERROR_RESPONSE_CODE: &str = "CONNECTOR_ERROR_RESPONSE";
 
-const UCS_CONNECTOR_REQUEST_TIMEOUT_MESSAGE: &str = "Server responded with Request Timeout";
-const UCS_CONNECTOR_GATEWAY_TIMEOUT_MESSAGE: &str = "Server responded with Gateway Timeout";
+// Synthetic timeout status used when UCS reports a connector-side timeout over gRPC.
+// No connector HTTP response is available in this path; this keeps UCS aligned with
+// direct connector timeout handling.
+const CONNECTOR_TIMEOUT_HTTP_STATUS_CODE: u16 = 504;
 
 /// Unified Connector Service error variants
 #[derive(Debug, Clone, thiserror::Error)]
@@ -105,8 +107,10 @@ pub enum UnifiedConnectorServiceError {
         message: String,
     },
 
-    /// Connector error received through UCS (contains original connector HTTP status code).
-    /// Distinguishes connector errors from UCS errors by presence of status_code.
+    /// Connector error received through UCS.
+    /// For connector HTTP errors, this contains the original connector HTTP status code.
+    /// For connector timeout errors without a connector HTTP response, this contains the
+    /// synthetic timeout status used by Hyperswitch.
     #[error("Connector error via UCS: {0:?}")]
     ConnectorError(Box<ConnectorErrorInner>),
 
@@ -239,7 +243,8 @@ pub struct ConnectorErrorInner {
     pub code: String,
     /// Connector error message
     pub message: String,
-    /// Original HTTP status code from connector
+    /// Connector HTTP status code, or the synthetic timeout status when no connector HTTP
+    /// response was received.
     pub status_code: u16,
     /// Optional reason for the error
     pub reason: Option<String>,
@@ -1226,21 +1231,16 @@ impl UnifiedConnectorServiceError {
     }
 
     fn decode_connector_timeout(status: &tonic::Status, connector_name: &str) -> Option<Self> {
-        let message = status.message();
-        let is_connector_timeout = status.code() == tonic::Code::DeadlineExceeded
-            && matches!(
-                message,
-                UCS_CONNECTOR_REQUEST_TIMEOUT_MESSAGE | UCS_CONNECTOR_GATEWAY_TIMEOUT_MESSAGE
-            );
-
-        if !is_connector_timeout {
+        // UCS maps connector/API client request timeouts to gRPC DeadlineExceeded. The
+        // status message is not a stable contract, so rely only on the gRPC code.
+        if status.code() != tonic::Code::DeadlineExceeded {
             return None;
         }
 
         Some(Self::ConnectorError(Box::new(ConnectorErrorInner {
             code: crate::consts::REQUEST_TIMEOUT_ERROR_CODE.to_string(),
             message: crate::consts::REQUEST_TIMEOUT_ERROR_MESSAGE.to_string(),
-            status_code: Self::tonic_to_http_status(status.code()),
+            status_code: CONNECTOR_TIMEOUT_HTTP_STATUS_CODE,
             reason: Some(crate::consts::REQUEST_TIMEOUT_ERROR_MESSAGE.to_string()),
             connector: connector_name.to_string(),
             connector_transaction_id: None,
