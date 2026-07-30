@@ -440,7 +440,9 @@ impl SecretsHandler for settings::AccountUpdaterConfig {
     ) -> CustomResult<SecretStateContainer<Self, RawSecret>, SecretsManagementError> {
         let Self::Juspay(juspay) = value.get_inner().clone();
 
-        let juspay = juspay.convert_to_raw_secret(secret_management_client).await?;
+        let juspay = juspay
+            .convert_to_raw_secret(secret_management_client)
+            .await?;
 
         Ok(value.transition_state(|_| Self::Juspay(juspay)))
     }
