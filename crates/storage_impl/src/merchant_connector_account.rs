@@ -1,6 +1,6 @@
 use async_bb8_diesel::AsyncConnection;
 use common_utils::{encryption::Encryption, ext_traits::AsyncExt};
-use diesel_models::{merchant_connector_account as storage, DatabaseConnection};
+use diesel_models::merchant_connector_account as storage;
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
     behaviour::{Conversion, ReverseConversion},
@@ -12,7 +12,6 @@ use router_env::{instrument, tracing};
 #[cfg(feature = "accounts_cache")]
 use crate::redis::cache;
 use crate::{
-    database::store::DatabaseTransactionConnectionWithContext,
     kv_router_store,
     utils::{pg_accounts_connection_read, pg_accounts_connection_write},
     CustomResult, DatabaseStore, MockDb, RouterStore, StorageError,
@@ -651,7 +650,6 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
         )>,
     ) -> CustomResult<(), Self::Error> {
         let conn = pg_accounts_connection_write(self).await?;
-        let event_context = conn.event_context().clone();
 
         async fn update_call(
             connection: &diesel_models::PgPooledConn,
@@ -669,10 +667,11 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
             Ok(())
         }
 
+        // The connection handed to the closure is another handle to the connection `conn` already
+        // holds, so queries issued through `conn` run within this transaction.
+        let connection_pool = &conn;
         conn.raw_connection()
-            .transaction_async(move |connection_pool| async move {
-                let connection_pool =
-                    DatabaseTransactionConnectionWithContext::new(connection_pool, event_context);
+            .transaction_async(move |_| async move {
                 for (merchant_connector_account, update_merchant_connector_account) in
                     merchant_connector_accounts
                 {
@@ -688,7 +687,7 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
                     let _merchant_connector_id = merchant_connector_account.get_id().clone();
 
                     let update = update_call(
-                        &connection_pool,
+                        connection_pool,
                         (
                             merchant_connector_account,
                             update_merchant_connector_account,

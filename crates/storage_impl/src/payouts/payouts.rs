@@ -11,7 +11,6 @@ use diesel::{JoinOnDsl, NullableExpressionMethods};
 use diesel_models::{
     address::Address as DieselAddress, customers::Customer as DieselCustomer,
     enums as storage_enums, query::generics::db_metrics, schema::payouts::dsl as po_dsl,
-    DatabaseConnection,
 };
 use diesel_models::{
     enums::MerchantStorageScheme,
@@ -50,7 +49,7 @@ use crate::{
     kv_router_store::KVRouterStore,
     redis::kv_store::{decide_storage_scheme, kv_wrapper, KvOperation, Op, PartitionKey},
     utils::{self, pg_connection_read, pg_connection_write},
-    DataModelExt, DatabaseStore, DatabaseStoreWithContext,
+    DataModelExt, DatabaseStore,
 };
 
 #[async_trait::async_trait]
@@ -489,7 +488,6 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Vec<Payouts>, StorageError> {
         let conn = connection::pg_connection_read(self).await?;
-        let conn = conn.raw_connection();
 
         //[#350]: Replace this with Boxable Expression and pass it into generic filter
         // when https://github.com/rust-lang/rust/issues/52662 becomes stable
@@ -563,8 +561,10 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
         logger::debug!(query = %diesel::debug_query::<diesel::pg::Pg,_>(&query).to_string());
 
         db_metrics::track_database_call::<<DieselPayouts as HasTable>::Table, _, _>(
-            query.get_results_async::<DieselPayouts>(conn),
+            conn.request_id(),
+            conn.event_emitter(),
             db_metrics::DatabaseOperation::Filter,
+            query.get_results_async::<DieselPayouts>(conn.raw_connection()),
         )
         .await
         .map(|payouts| {
@@ -788,7 +788,7 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
         status: Option<Vec<storage_enums::PayoutStatus>>,
         payout_type: Option<Vec<storage_enums::PayoutType>>,
     ) -> error_stack::Result<i64, StorageError> {
-        let conn = self.get_read_connection().await?;
+        let conn = pg_connection_read(self).await?;
         let connector_strings = connector.as_ref().map(|connectors| {
             connectors
                 .iter()
@@ -820,7 +820,6 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
         constraints: &PayoutFetchConstraints,
     ) -> error_stack::Result<Vec<common_utils::id_type::PayoutId>, StorageError> {
         let conn = connection::pg_connection_read(self).await?;
-        let conn = conn.raw_connection();
         let mut query = DieselPayouts::table()
             .inner_join(
                 diesel_models::schema::payout_attempt::table
@@ -877,8 +876,10 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
         logger::debug!(filter = %diesel::debug_query::<diesel::pg::Pg,_>(&query).to_string());
 
         db_metrics::track_database_call::<<DieselPayouts as HasTable>::Table, _, _>(
-            query.get_results_async::<String>(conn),
+            conn.request_id(),
+            conn.event_emitter(),
             db_metrics::DatabaseOperation::Filter,
+            query.get_results_async::<String>(conn.raw_connection()),
         )
         .await
         .map_err(|er| {
@@ -913,7 +914,6 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
         time_range: &common_utils::types::TimeRange,
     ) -> error_stack::Result<Vec<(common_enums::PayoutStatus, i64)>, StorageError> {
         let conn = connection::pg_connection_read(self).await?;
-        let conn = conn.raw_connection();
 
         let mut query = <DieselPayouts as HasTable>::table()
             .group_by(po_dsl::status)
@@ -935,8 +935,10 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
         logger::debug!(filter = %diesel::debug_query::<diesel::pg::Pg,_>(&query).to_string());
 
         db_metrics::track_database_call::<<DieselPayouts as HasTable>::Table, _, _>(
-            query.get_results_async::<(common_enums::PayoutStatus, i64)>(conn),
+            conn.request_id(),
+            conn.event_emitter(),
             db_metrics::DatabaseOperation::Filter,
+            query.get_results_async::<(common_enums::PayoutStatus, i64)>(conn.raw_connection()),
         )
         .await
         .map_err(|er| {

@@ -25,8 +25,6 @@ use diesel_models::schema_v2::{
     payment_attempt::{self as payment_attempt_schema, dsl as pa_dsl},
     payment_intent::dsl as pi_dsl,
 };
-#[cfg(feature = "olap")]
-use diesel_models::DatabaseConnection;
 use diesel_models::{
     enums::MerchantStorageScheme, payment_intent::PaymentIntent as DieselPaymentIntent,
 };
@@ -927,7 +925,6 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         use futures::{future::try_join_all, FutureExt};
 
         let conn = connection::pg_connection_read(self).await?;
-        let conn = conn.raw_connection();
 
         //[#350]: Replace this with Boxable Expression and pass it into generic filter
         // when https://github.com/rust-lang/rust/issues/52662 becomes stable
@@ -1014,8 +1011,10 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
             .attach_printable("Missing KeyManagerState")?;
         logger::debug!(query = %diesel::debug_query::<diesel::pg::Pg,_>(&query).to_string());
         db_metrics::track_database_call::<<DieselPaymentIntent as HasTable>::Table, _, _>(
-            query.get_results_async::<DieselPaymentIntent>(conn),
+            conn.request_id(),
+            conn.event_emitter(),
             db_metrics::DatabaseOperation::Filter,
+            query.get_results_async::<DieselPaymentIntent>(conn.raw_connection()),
         )
         .await
         .map(|payment_intents| {
@@ -1065,7 +1064,6 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         time_range: &common_utils::types::TimeRange,
     ) -> error_stack::Result<Vec<(common_enums::IntentStatus, i64)>, StorageError> {
         let conn = connection::pg_connection_read(self).await?;
-        let conn = conn.raw_connection();
 
         let mut query = <DieselPaymentIntent as HasTable>::table()
             .group_by(pi_dsl::status)
@@ -1087,8 +1085,10 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         logger::debug!(filter = %diesel::debug_query::<diesel::pg::Pg,_>(&query).to_string());
 
         db_metrics::track_database_call::<<DieselPaymentIntent as HasTable>::Table, _, _>(
-            query.get_results_async::<(common_enums::IntentStatus, i64)>(conn),
+            conn.request_id(),
+            conn.event_emitter(),
             db_metrics::DatabaseOperation::Filter,
+            query.get_results_async::<(common_enums::IntentStatus, i64)>(conn.raw_connection()),
         )
         .await
         .map_err(|er| {
@@ -1562,7 +1562,6 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Vec<Option<String>>, StorageError> {
         let conn = connection::pg_connection_read(self).await?;
-        let conn = conn.raw_connection();
         let mut query = DieselPaymentIntent::table()
             .select(pi_dsl::active_attempt_id)
             .filter(pi_dsl::merchant_id.eq(merchant_id.to_owned()))
@@ -1628,8 +1627,10 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         };
 
         db_metrics::track_database_call::<<DieselPaymentIntent as HasTable>::Table, _, _>(
-            query.get_results_async::<Option<String>>(conn),
+            conn.request_id(),
+            conn.event_emitter(),
             db_metrics::DatabaseOperation::Filter,
+            query.get_results_async::<Option<String>>(conn.raw_connection()),
         )
         .await
         .map_err(|er| {
@@ -1647,7 +1648,6 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Vec<String>, StorageError> {
         let conn = connection::pg_connection_read(self).await?;
-        let conn = conn.raw_connection();
         let mut query = DieselPaymentIntent::table()
             .select(pi_dsl::active_attempt_id)
             .filter(pi_dsl::processor_merchant_id.eq(processor_merchant_id.to_owned()))
@@ -1712,8 +1712,10 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         };
 
         db_metrics::track_database_call::<<DieselPaymentIntent as HasTable>::Table, _, _>(
-            query.get_results_async::<String>(conn),
+            conn.request_id(),
+            conn.event_emitter(),
             db_metrics::DatabaseOperation::Filter,
+            query.get_results_async::<String>(conn.raw_connection()),
         )
         .await
         .map_err(|er| {

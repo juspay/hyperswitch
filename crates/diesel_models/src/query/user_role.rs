@@ -299,8 +299,10 @@ impl UserRole {
         router_env::logger::debug!(query = %debug_query::<Pg,_>(&query).to_string());
 
         match generics::db_metrics::track_database_call::<Self, _, _>(
-            query.get_results_async(conn.raw_connection()),
+            conn.request_id(),
+            conn.event_emitter(),
             generics::db_metrics::DatabaseOperation::Filter,
+            query.get_results_async(conn.raw_connection()),
         )
         .await
         {
@@ -357,8 +359,10 @@ impl UserRole {
         router_env::logger::debug!(query = %debug_query::<Pg,_>(&query).to_string());
 
         match generics::db_metrics::track_database_call::<Self, _, _>(
-            query.get_results_async(conn.raw_connection()),
+            conn.request_id(),
+            conn.event_emitter(),
             generics::db_metrics::DatabaseOperation::Filter,
+            query.get_results_async(conn.raw_connection()),
         )
         .await
         {
@@ -387,8 +391,10 @@ impl UserRole {
         router_env::logger::debug!(query = %debug_query::<Pg,_>(&query).to_string());
 
         match generics::db_metrics::track_database_call::<Self, _, _>(
-            query.get_results_async(conn.raw_connection()),
+            conn.request_id(),
+            conn.event_emitter(),
             generics::db_metrics::DatabaseOperation::Filter,
+            query.get_results_async(conn.raw_connection()),
         )
         .await
         {

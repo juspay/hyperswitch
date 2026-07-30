@@ -37,7 +37,13 @@ pub async fn diesel_make_pg_pool(
 
 #[allow(clippy::expect_used)]
 pub async fn pg_connection(pool: &PgPool) -> DatabaseConnectionWithContext {
-    pool.get_without_context()
+    let connection = pool
+        .pg_pool
+        .get_owned()
         .await
-        .expect("Couldn't retrieve PostgreSQL connection")
+        .expect("Couldn't retrieve PostgreSQL connection");
+
+    // The drainer serves no API request, so its queries carry no request id and emit no external
+    // service call events.
+    DatabaseConnectionWithContext::new(connection, None, pool.event_emitter.clone())
 }

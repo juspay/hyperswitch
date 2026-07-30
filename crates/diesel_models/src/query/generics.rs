@@ -28,6 +28,9 @@ use router_env::logger;
 use crate::{errors, query::utils::GetPrimaryKey, PgPooledConn, StorageResult};
 
 pub mod db_metrics {
+    use common_utils::external_service::{ExternalServiceCall, ExternalServiceEventEmitter};
+    use diesel::result::Error as DieselError;
+
     #[derive(Debug)]
     pub enum DatabaseOperation {
         FindOne,
@@ -41,10 +44,56 @@ pub mod db_metrics {
         Count,
     }
 
+    pub trait DatabaseCallStatus {
+        fn is_success(&self) -> bool;
+    }
+
+    impl<T> DatabaseCallStatus for Result<T, DieselError> {
+        fn is_success(&self) -> bool {
+            matches!(self, Ok(_) | Err(DieselError::NotFound))
+        }
+    }
+
+    fn emit_database_call_event<U>(
+        request_id: Option<&str>,
+        event_emitter: &dyn ExternalServiceEventEmitter,
+        table_name: &str,
+        operation: &DatabaseOperation,
+        time_elapsed: std::time::Duration,
+        output: &U,
+    ) where
+        U: DatabaseCallStatus,
+    {
+        if let Some(request_id) = request_id {
+            let success = output.is_success();
+            event_emitter.emit_external_service_call(ExternalServiceCall {
+                service_name: "database".to_string(),
+                endpoint: table_name.to_string(),
+                method: format!("{operation:?}"),
+                request_id: request_id.to_string(),
+                status_code: if success { 200 } else { 500 },
+                success,
+                latency_ms: time_elapsed.as_millis(),
+                created_at_timestamp: common_utils::date_time::now_unix_timestamp_nanos(),
+            });
+        }
+    }
+
+    /// Times a single database call, records its latency metric, and emits one
+    /// `ExternalServiceCall` event reflecting that call.
+    ///
+    /// When `request_id` is absent (background work, drainer, scheduler) no event is emitted: the
+    /// correlator joins on `request_id` and cannot place request-less rows.
     #[inline]
-    pub async fn track_database_call<T, Fut, U>(future: Fut, operation: DatabaseOperation) -> U
+    pub async fn track_database_call<T, Fut, U>(
+        request_id: Option<&str>,
+        event_emitter: &dyn ExternalServiceEventEmitter,
+        operation: DatabaseOperation,
+        future: Fut,
+    ) -> U
     where
         Fut: std::future::Future<Output = U>,
+        U: DatabaseCallStatus,
     {
         let start = std::time::Instant::now();
         let output = future.await;
@@ -59,6 +108,15 @@ pub mod db_metrics {
 
         crate::metrics::DATABASE_CALLS_COUNT.add(1, attributes);
         crate::metrics::DATABASE_CALL_TIME.record(time_elapsed.as_secs_f64(), attributes);
+
+        emit_database_call_event(
+            request_id,
+            event_emitter,
+            table_name.unwrap_or("undefined"),
+            &operation,
+            time_elapsed,
+            &output,
+        );
 
         output
     }
@@ -511,8 +569,10 @@ where
 
     execute_generic_insert(
         track_database_call::<T, _, _>(
-            query.get_result_async(conn.raw_connection()),
+            conn.request_id(),
+            conn.event_emitter(),
             DatabaseOperation::Insert,
+            query.get_result_async(conn.raw_connection()),
         ),
         table_name::<T>(),
         Secret::new(sql),
@@ -549,8 +609,10 @@ where
 
     execute_generic_update(
         track_database_call::<T, _, _>(
-            query.execute_async(conn.raw_connection()),
+            conn.request_id(),
+            conn.event_emitter(),
             DatabaseOperation::Update,
+            query.execute_async(conn.raw_connection()),
         ),
         table_name::<T>(),
         Secret::new(sql),
@@ -594,8 +656,10 @@ where
 
     execute_generic_update_with_results(
         track_database_call::<T, _, _>(
-            query.to_owned().get_results_async(conn.raw_connection()),
+            conn.request_id(),
+            conn.event_emitter(),
             DatabaseOperation::UpdateWithResults,
+            query.to_owned().get_results_async(conn.raw_connection()),
         ),
         table_name::<T>(),
         Secret::new(sql),
@@ -678,8 +742,10 @@ where
 
     execute_generic_update_by_id(
         track_database_call::<T, _, _>(
-            query.to_owned().get_result_async(conn.raw_connection()),
+            conn.request_id(),
+            conn.event_emitter(),
             DatabaseOperation::UpdateOne,
+            query.to_owned().get_result_async(conn.raw_connection()),
         ),
         table_name::<T>(),
         Secret::new(sql),
@@ -707,8 +773,10 @@ where
 
     execute_generic_delete(
         track_database_call::<T, _, _>(
-            query.execute_async(conn.raw_connection()),
+            conn.request_id(),
+            conn.event_emitter(),
             DatabaseOperation::Delete,
+            query.execute_async(conn.raw_connection()),
         ),
         table_name::<T>(),
         Secret::new(sql),
@@ -739,8 +807,10 @@ where
 
     execute_generic_delete_one_with_result(
         track_database_call::<T, _, _>(
-            query.get_results_async(conn.raw_connection()),
+            conn.request_id(),
+            conn.event_emitter(),
             DatabaseOperation::DeleteWithResult,
+            query.get_results_async(conn.raw_connection()),
         ),
         table_name::<T>(),
         Secret::new(sql),
@@ -766,8 +836,10 @@ where
 
     execute_generic_find_by_id(
         track_database_call::<T, _, _>(
-            query.first_async(conn.raw_connection()),
+            conn.request_id(),
+            conn.event_emitter(),
             DatabaseOperation::FindOne,
+            query.first_async(conn.raw_connection()),
         ),
         table_name::<T>(),
         Secret::new(sql),
@@ -818,8 +890,10 @@ where
 
     execute_generic_find_one(
         track_database_call::<T, _, _>(
-            query.get_result_async(conn.raw_connection()),
+            conn.request_id(),
+            conn.event_emitter(),
             DatabaseOperation::FindOne,
+            query.get_result_async(conn.raw_connection()),
         ),
         table_name::<T>(),
         Secret::new(sql),
@@ -896,8 +970,10 @@ where
 
     execute_generic_filter(
         track_database_call::<T, _, _>(
-            query.get_results_async(conn.raw_connection()),
+            conn.request_id(),
+            conn.event_emitter(),
             DatabaseOperation::Filter,
+            query.get_results_async(conn.raw_connection()),
         ),
         table_name::<T>(),
         Secret::new(sql),
@@ -925,8 +1001,10 @@ where
 
     execute_generic_count(
         track_database_call::<T, _, _>(
-            query.get_result_async(conn.raw_connection()),
+            conn.request_id(),
+            conn.event_emitter(),
             DatabaseOperation::Count,
+            query.get_result_async(conn.raw_connection()),
         ),
         table_name::<T>(),
         Secret::new(sql),

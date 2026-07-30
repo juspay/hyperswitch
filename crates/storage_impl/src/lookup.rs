@@ -14,7 +14,7 @@ use crate::{
     kv_router_store::KVRouterStore,
     redis::kv_store::{decide_storage_scheme, kv_wrapper, KvOperation, Op, PartitionKey},
     utils::{self, try_redis_get_else_try_database_get},
-    DatabaseStore, DatabaseStoreWithContext, RouterStore,
+    DatabaseStore, RouterStore,
 };
 
 #[async_trait::async_trait]
@@ -38,7 +38,7 @@ impl<T: DatabaseStore> ReverseLookupInterface for RouterStore<T> {
         new: DieselReverseLookupNew,
         _storage_scheme: storage_enums::MerchantStorageScheme,
     ) -> CustomResult<DieselReverseLookup, errors::StorageError> {
-        let conn = self.get_write_connection().await?;
+        let conn = utils::pg_connection_write(self).await?;
         new.insert(&conn).await.map_err(|er| {
             let new_err = diesel_error_to_data_error(*er.current_context());
             er.change_context(new_err)

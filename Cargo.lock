@@ -3104,6 +3104,7 @@ version = "0.1.0"
 dependencies = [
  "async-bb8-diesel",
  "base64 0.22.1",
+ "bb8",
  "common_enums",
  "common_types",
  "common_utils",

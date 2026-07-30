@@ -145,8 +145,10 @@ impl Theme {
         logger::debug!(query = %debug_query::<Pg,_>(&query).to_string());
 
         let data: Vec<Self> = match track_database_call::<Self, _, _>(
-            query.get_results_async(conn.raw_connection()),
+            conn.request_id(),
+            conn.event_emitter(),
             DatabaseOperation::Filter,
+            query.get_results_async(conn.raw_connection()),
         )
         .await
         {
@@ -222,8 +224,10 @@ impl Theme {
         logger::debug!(query = %debug_query::<Pg,_>(&query).to_string());
 
         match track_database_call::<Self, _, _>(
-            query.get_results_async(conn.raw_connection()),
+            conn.request_id(),
+            conn.event_emitter(),
             DatabaseOperation::Filter,
+            query.get_results_async(conn.raw_connection()),
         )
         .await
         {

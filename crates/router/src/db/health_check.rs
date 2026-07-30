@@ -1,8 +1,7 @@
 use async_bb8_diesel::{AsyncConnection, AsyncRunQueryDsl};
-use diesel_models::{ConfigNew, DatabaseConnection};
+use diesel_models::ConfigNew;
 use error_stack::ResultExt;
 use router_env::{instrument, logger, tracing};
-use storage_impl::database::store::DatabaseTransactionConnectionWithContext;
 
 use super::{MockDb, Store};
 use crate::{
@@ -23,12 +22,12 @@ impl HealthCheckDbInterface for Store {
         let conn = connection::pg_connection_write(self)
             .await
             .change_context(errors::HealthCheckDBError::DBError)?;
-        let event_context = conn.event_context().clone();
 
+        // The connection handed to the closure is another handle to the connection `conn` already
+        // holds, so queries issued through `conn` run within this transaction.
+        let conn = &conn;
         conn.raw_connection()
-            .transaction_async(move |raw_connection| async move {
-                let conn =
-                    DatabaseTransactionConnectionWithContext::new(raw_connection, event_context);
+            .transaction_async(move |_| async move {
                 let query =
                     diesel::select(diesel::dsl::sql::<diesel::sql_types::Integer>("1 + 1"));
                 let _x: i32 = query
@@ -46,14 +45,14 @@ impl HealthCheckDbInterface for Store {
                     config: "test_value".to_string(),
                 };
 
-                config.insert(&conn).await.map_err(|err| {
+                config.insert(conn).await.map_err(|err| {
                     logger::error!(write_err=?err,"Error while writing to database");
                     errors::HealthCheckDBError::DBWriteError
                 })?;
 
                 logger::debug!("Database write was successful");
 
-                storage::Config::delete_by_key(&conn, "test_key")
+                storage::Config::delete_by_key(conn, "test_key")
                     .await
                     .map_err(|err| {
                         logger::error!(delete_err=?err,"Error while deleting element in the database");

@@ -25,8 +25,10 @@ impl BlocklistNew {
             .do_nothing();
 
         generics::db_metrics::track_database_call::<<Blocklist as HasTable>::Table, _, _>(
-            query.execute_async(conn.raw_connection()),
+            conn.request_id(),
+            conn.event_emitter(),
             generics::db_metrics::DatabaseOperation::Insert,
+            query.execute_async(conn.raw_connection()),
         )
         .await
         .map_err(|e| error_stack::report!(e))

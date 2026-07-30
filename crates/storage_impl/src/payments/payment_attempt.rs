@@ -38,7 +38,7 @@ use crate::{
     lookup::ReverseLookupInterface,
     redis::kv_store::{decide_storage_scheme, kv_wrapper, KvOperation, Op, PartitionKey},
     utils::{pg_connection_read, pg_connection_write, try_redis_get_else_try_database_get},
-    DataModelExt, DatabaseStore, DatabaseStoreWithContext, RouterStore,
+    DataModelExt, DatabaseStore, RouterStore,
 };
 
 #[async_trait::async_trait]
@@ -622,7 +622,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
         card_discovery: Option<Vec<common_enums::CardDiscovery>>,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<i64, errors::StorageError> {
-        let conn = self.get_read_connection().await?;
+        let conn = pg_connection_read(self).await?;
         let connector_strings = connector.as_ref().map(|connector| {
             connector
                 .iter()
@@ -661,7 +661,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
         card_network: Option<Vec<common_enums::CardNetwork>>,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<i64, errors::StorageError> {
-        let conn = self.get_read_connection().await?;
+        let conn = pg_connection_read(self).await?;
 
         DieselPaymentAttempt::get_total_count_of_attempts(
             &conn,

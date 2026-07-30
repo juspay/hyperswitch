@@ -3,10 +3,9 @@ use std::{collections::HashMap, sync::Arc};
 use actix_web::{web, Scope};
 use async_bb8_diesel::{AsyncConnection, AsyncRunQueryDsl};
 use common_utils::{errors::CustomResult, id_type};
-use diesel_models::{Config, ConfigNew, DatabaseConnection};
+use diesel_models::{Config, ConfigNew};
 use error_stack::ResultExt;
 use router_env::{instrument, logger, tracing};
-use storage_impl::database::store::DatabaseTransactionConnectionWithContext;
 
 use crate::{
     connection::pg_connection,
@@ -119,15 +118,13 @@ pub trait HealthCheckInterface {
 impl HealthCheckInterface for Store {
     async fn health_check_db(&self) -> CustomResult<(), HealthCheckDBError> {
         let conn = pg_connection(&self.master_pool).await;
-        let event_context = conn.event_context().clone();
 
+        // The connection handed to the closure is another handle to the connection `conn` already
+        // holds, so queries issued through `conn` run within this transaction.
+        let conn = &conn;
         conn.raw_connection()
-            .transaction_async(move |raw_connection| {
+            .transaction_async(move |_| {
                 Box::pin(async move {
-                    let conn = DatabaseTransactionConnectionWithContext::new(
-                        raw_connection,
-                        event_context,
-                    );
                     let query =
                         diesel::select(diesel::dsl::sql::<diesel::sql_types::Integer>("1 + 1"));
                     let _x: i32 = query
@@ -145,14 +142,14 @@ impl HealthCheckInterface for Store {
                         config: "test_value".to_string(),
                     };
 
-                    config.insert(&conn).await.map_err(|err| {
+                    config.insert(conn).await.map_err(|err| {
                         logger::error!(write_err=?err,"Error while writing to database");
                         HealthCheckDBError::DbWriteError
                     })?;
 
                     logger::debug!("Database write was successful");
 
-                    Config::delete_by_key(&conn, "test_key").await.map_err(|err| {
+                    Config::delete_by_key(conn, "test_key").await.map_err(|err| {
                         logger::error!(delete_err=?err,"Error while deleting element in the database");
                         HealthCheckDBError::DbDeleteError
                     })?;

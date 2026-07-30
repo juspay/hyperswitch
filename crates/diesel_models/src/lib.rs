@@ -75,21 +75,41 @@ use diesel_impl::{RequiredFromNullable, RequiredFromNullableWithDefault};
 pub type StorageResult<T> = error_stack::Result<T, errors::DatabaseError>;
 pub type RawPgConnection = async_bb8_diesel::Connection<diesel::PgConnection>;
 
-#[derive(Debug, Clone)]
-pub struct DatabaseEventContext {
+/// A connection leased from a database pool, along with the request context that queries run on
+/// it are attributed to. The connection is returned to the pool when this value is dropped.
+///
+/// Every query in this crate is issued through this type, so a query cannot be run without first
+/// stating whether a request context exists for it.
+///
+/// The lease is `'static` because it is acquired through `bb8::Pool::get_owned`, which keeps the
+/// pool alive through the guard itself. Leasing through `bb8::Pool::get` would instead tie the
+/// guard to the pool borrow, and that lifetime would have to be carried by [`PgPooledConn`] and
+/// therefore by every query signature in this crate.
+pub struct DatabaseConnectionWithContext {
+    connection:
+        bb8::PooledConnection<'static, async_bb8_diesel::ConnectionManager<diesel::PgConnection>>,
     request_id: Option<String>,
     event_emitter: Arc<dyn ExternalServiceEventEmitter>,
 }
 
-impl DatabaseEventContext {
+impl DatabaseConnectionWithContext {
     pub fn new(
+        connection: bb8::PooledConnection<
+            'static,
+            async_bb8_diesel::ConnectionManager<diesel::PgConnection>,
+        >,
         request_id: Option<String>,
         event_emitter: Arc<dyn ExternalServiceEventEmitter>,
     ) -> Self {
         Self {
+            connection,
             request_id,
             event_emitter,
         }
+    }
+
+    pub fn raw_connection(&self) -> &RawPgConnection {
+        &self.connection
     }
 
     pub fn request_id(&self) -> Option<&str> {
@@ -101,12 +121,8 @@ impl DatabaseEventContext {
     }
 }
 
-pub trait DatabaseConnection: Send + Sync {
-    fn raw_connection(&self) -> &RawPgConnection;
-    fn event_context(&self) -> &DatabaseEventContext;
-}
+pub type PgPooledConn = DatabaseConnectionWithContext;
 
-pub type PgPooledConn = dyn DatabaseConnection;
 pub use self::{
     address::*, api_keys::*, callback_mapper::*, capture::*, cards_info::*, configs::*,
     customers::*, dispute::*, ephemeral_key::*, events::*, file::*, generic_link::*,

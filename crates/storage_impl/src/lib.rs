@@ -59,10 +59,7 @@ use redis_interface::{errors::RedisError, RedisConnectionWithContext, SaddReply}
 #[cfg(not(feature = "payouts"))]
 pub use crate::database::store::Store;
 use crate::redis::kv_store;
-pub use crate::{
-    database::store::{DatabaseStore, DatabaseStoreWithContext},
-    errors::StorageError,
-};
+pub use crate::{database::store::DatabaseStore, errors::StorageError};
 
 #[derive(Debug, Clone)]
 pub struct RouterStore<T: DatabaseStore> {
@@ -172,8 +169,6 @@ impl<T: DatabaseStore> RequestContext for RouterStore<T> {
         self.request_id.as_deref()
     }
 }
-
-impl<T: DatabaseStore> DatabaseStoreWithContext for RouterStore<T> {}
 
 impl<T: DatabaseStore> RouterStore<T> {
     pub async fn from_config(
