@@ -2379,15 +2379,15 @@ impl CvcReadMode {
     }
 }
 
-#[cfg(feature = "v2")]
+#[cfg(any(feature = "v1", feature = "v2"))]
 #[instrument(skip_all)]
-pub async fn insert_cvc_using_payment_token(
+pub async fn store_cvc_in_redis(
     state: &routes::SessionState,
     token: &str,
     card_cvc: hyperswitch_masking::Secret<String>,
     fulfillment_time: i64,
     key_store: &domain::MerchantKeyStore,
-) -> RouterResult<api_models::payment_methods::CardCVCTokenStorageDetails> {
+) -> RouterResult<()> {
     let redis_conn = state
         .store
         .get_redis_conn()
@@ -2399,7 +2399,7 @@ pub async fn insert_cvc_using_payment_token(
     let payload_to_be_encrypted = TemporaryVaultCvc { card_cvc };
 
     // Encrypt the CVC and store it in Redis
-    let encrypted_payload: Encryption = create_encrypted_data(
+    let encrypted_payload: Encryption = core_utils::create_encrypted_data(
         &(state.into()),
         key_store,
         payload_to_be_encrypted.clone(),
@@ -2420,6 +2420,68 @@ pub async fn insert_cvc_using_payment_token(
         .map_err(Into::<errors::StorageError>::into)
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to add encrypted cvc to redis")?;
+
+    Ok(())
+}
+
+#[cfg(any(feature = "v1", feature = "v2"))]
+#[instrument(skip_all)]
+pub async fn store_cvc_in_redis_without_extending_ttl(
+    state: &routes::SessionState,
+    token: &str,
+    card_cvc: hyperswitch_masking::Secret<String>,
+    fulfillment_time: i64,
+    key_store: &domain::MerchantKeyStore,
+) -> RouterResult<()> {
+    let redis_conn = state
+        .store
+        .get_redis_conn()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to get redis connection")?;
+
+    let key = format!("pm_token_{token}_hyperswitch_cvc");
+    let encrypted_payload: Encryption = core_utils::create_encrypted_data(
+        &(state.into()),
+        key_store,
+        TemporaryVaultCvc { card_cvc },
+        common_utils::type_name!(diesel_models::payment_method::PaymentMethod),
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to encrypt TemporaryVaultCvc for vault")?
+    .into();
+
+    match redis_conn
+        .serialize_and_set_key_if_not_exist(
+            &key.as_str().into(),
+            encrypted_payload.clone(),
+            Some(fulfillment_time),
+        )
+        .await
+        .map_err(Into::<errors::StorageError>::into)
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to add encrypted cvc to redis")?
+    {
+        redis_interface::types::SetnxReply::KeySet => Ok(()),
+        redis_interface::types::SetnxReply::KeyNotSet => redis_conn
+            .serialize_and_set_key_without_modifying_ttl(&key.as_str().into(), encrypted_payload)
+            .await
+            .map_err(Into::<errors::StorageError>::into)
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to update encrypted cvc in redis"),
+    }
+}
+
+#[cfg(feature = "v2")]
+#[instrument(skip_all)]
+pub async fn insert_cvc_using_payment_token(
+    state: &routes::SessionState,
+    token: &str,
+    card_cvc: hyperswitch_masking::Secret<String>,
+    fulfillment_time: i64,
+    key_store: &domain::MerchantKeyStore,
+) -> RouterResult<api_models::payment_methods::CardCVCTokenStorageDetails> {
+    store_cvc_in_redis(state, token, card_cvc, fulfillment_time, key_store).await?;
 
     let card_token_cvc_storage =
         api_models::payment_methods::CardCVCTokenStorageDetails::generate_expiry_timestamp(

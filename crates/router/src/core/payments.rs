@@ -1491,8 +1491,10 @@ where
         }
 
         let payment_intent_status = payment_data.get_payment_intent().status;
-        let retain_payment_method_token_for_retry =
-            payment_intent_status == enums::IntentStatus::Failed && payment_data.has_retained_cvc();
+        let retain_payment_method_token_for_retry = payment_intent_status
+            == enums::IntentStatus::Failed
+            && business_profile.is_manual_retry_enabled == Some(true)
+            && business_profile.intent_fulfillment_time.is_some();
 
         payment_data
             .get_payment_attempt()
@@ -9582,7 +9584,7 @@ where
     pub attempts: Option<Vec<storage::PaymentAttempt>>,
     pub sessions_token: Vec<api::SessionToken>,
     pub card_cvc: Option<Secret<String>>,
-    pub cvc_redis_references: Vec<String>,
+    pub retained_cvc_tokens: Vec<String>,
     pub creds_identifier: Option<String>,
     pub pm_token: Option<String>,
     pub connector_customer_id: Option<String>,
@@ -14317,11 +14319,6 @@ pub trait OperationSessionGetters<F> {
     fn get_is_manual_retry_enabled(&self) -> Option<bool>;
 
     #[cfg(feature = "v1")]
-    fn has_retained_cvc(&self) -> bool {
-        false
-    }
-
-    #[cfg(feature = "v1")]
     fn get_client_session_id(&self) -> Option<id_type::ClientSessionId>;
 
     #[cfg(feature = "v1")]
@@ -14583,10 +14580,6 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentData<F> {
 
     fn get_is_manual_retry_enabled(&self) -> Option<bool> {
         self.is_manual_retry_enabled
-    }
-
-    fn has_retained_cvc(&self) -> bool {
-        !self.cvc_redis_references.is_empty()
     }
 
     fn get_installment_details(&self) -> Option<&common_types::payments::InstallmentData> {

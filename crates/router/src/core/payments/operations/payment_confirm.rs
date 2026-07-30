@@ -93,7 +93,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             payment_method_info: prefetched_payment_method_info,
             payment_method_with_raw_data,
             token_data: prefetched_token_data,
-            cvc_redis_references,
+            retained_cvc_tokens,
         } = payment_method_fetch_data;
         let processor_merchant_id = platform.get_processor().get_account().get_id();
         let storage_scheme = platform.get_processor().get_account().storage_scheme;
@@ -920,7 +920,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             attempts: None,
             sessions_token: vec![],
             card_cvc: request.card_cvc.clone(),
-            cvc_redis_references,
+            retained_cvc_tokens,
             creds_identifier,
             pm_token: None,
             connector_customer_id: None,
@@ -1374,7 +1374,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     payment_method_info: None,
                     payment_method_with_raw_data: None,
                     token_data,
-                    cvc_redis_references: Vec::new(),
+                    retained_cvc_tokens: Vec::new(),
                 },
             }
         };
@@ -2432,7 +2432,7 @@ impl PaymentConfirm {
                 id: profile_id.get_string_repr().to_owned(),
             })?;
         let cvc_read_mode = crate::core::payment_methods::vault::CvcReadMode::for_profile(&profile);
-        let mut cvc_redis_references = Vec::new();
+        let mut retained_cvc_tokens = Vec::new();
 
         let pmd = req
             .payment_method_data
@@ -2459,7 +2459,7 @@ impl PaymentConfirm {
                     )
                     .await?;
                 if cvc_read_mode == crate::core::payment_methods::vault::CvcReadMode::ReadOnly {
-                    cvc_redis_references.push(card_cvc_token.expose());
+                    retained_cvc_tokens.push(card_cvc_token.expose());
                 }
                 token.card_cvc = Some(resolved_cvc);
             }
@@ -2493,7 +2493,7 @@ impl PaymentConfirm {
                 Some(domain::PaymentMethodData::Card(_))
             )
         {
-            cvc_redis_references.push(pm_info.payment_method.get_id().to_owned());
+            retained_cvc_tokens.push(pm_info.payment_method.get_id().to_owned());
         }
 
         utils::when(
@@ -2510,7 +2510,7 @@ impl PaymentConfirm {
 
         let mut payment_method_fetch_data =
             operations::PaymentMethodFetchData::from_modular(pm_info);
-        payment_method_fetch_data.cvc_redis_references = cvc_redis_references;
+        payment_method_fetch_data.retained_cvc_tokens = retained_cvc_tokens;
 
         Ok(payment_method_fetch_data)
     }

@@ -68,7 +68,7 @@ pub struct PaymentMethodFetchData {
     pub payment_method_info: Option<domain::PaymentMethod>,
     pub payment_method_with_raw_data: Option<PaymentMethodWithRawData>,
     pub token_data: Option<storage::PaymentTokenData>,
-    pub cvc_redis_references: Vec<String>,
+    pub retained_cvc_tokens: Vec<String>,
 }
 
 #[cfg(feature = "v1")]
@@ -78,7 +78,7 @@ impl PaymentMethodFetchData {
             payment_method_info: Some(payment_method_with_raw_data.payment_method.clone()),
             payment_method_with_raw_data: Some(payment_method_with_raw_data),
             token_data: None,
-            cvc_redis_references: Vec::new(),
+            retained_cvc_tokens: Vec::new(),
         }
     }
 
@@ -90,7 +90,7 @@ impl PaymentMethodFetchData {
             payment_method_info: Some(payment_method_info),
             payment_method_with_raw_data: None,
             token_data,
-            cvc_redis_references: Vec::new(),
+            retained_cvc_tokens: Vec::new(),
         }
     }
 }

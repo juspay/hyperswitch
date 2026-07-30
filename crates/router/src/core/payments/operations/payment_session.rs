@@ -208,7 +208,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsSessionR
             attempts: None,
             sessions_token: vec![],
             card_cvc: None,
-            cvc_redis_references: Vec::new(),
+            retained_cvc_tokens: Vec::new(),
             creds_identifier,
             pm_token: None,
             connector_customer_id: None,
