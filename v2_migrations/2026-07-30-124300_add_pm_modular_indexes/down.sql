@@ -1,0 +1,4 @@
+DROP INDEX CONCURRENTLY IF EXISTS customers_merchant_id_reference_id_index;
+DROP INDEX CONCURRENTLY IF EXISTS customers_id_merchant_id_index;
+DROP INDEX CONCURRENTLY IF EXISTS payment_methods_id_index;
+DROP INDEX CONCURRENTLY IF EXISTS payment_methods_locker_fingerprint_id_index;
