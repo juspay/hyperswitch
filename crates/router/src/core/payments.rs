@@ -5715,21 +5715,6 @@ where
         )
         .await?;
 
-    // Connectors whose vault cannot ingest a raw wallet payload need a second
-    // tokenization pass to turn the single-use handle above into a reusable one, so
-    // a `setup_future_usage` payment leaves a handle a later MIT can replay. Runs
-    // before the result is folded in, so the conversion request still carries the
-    // wallet payment method token rather than the handle just minted.
-    let payment_method_token_response = router_data
-        .convert_wallet_vault_token(
-            state,
-            &connector,
-            payment_method_token_response,
-            should_continue_further,
-            &context,
-        )
-        .await?;
-
     let should_continue_further = tokenization::update_router_data_with_payment_method_token_result(
         payment_method_token_response,
         &mut router_data,
@@ -5893,6 +5878,10 @@ where
     } else {
         Ok(router_data)
     }?;
+
+    let router_data = router_data
+        .post_authorize_wallet_vault_conversion(state, connector, &gateway_context)
+        .await?;
 
     let should_continue_payment = router_data.response.is_ok();
 
@@ -6292,21 +6281,6 @@ where
             &gateway_context,
         )
         .await?;
-    // Connectors whose vault cannot ingest a raw wallet payload need a second
-    // tokenization pass to turn the single-use handle above into a reusable one, so
-    // a `setup_future_usage` payment leaves a handle a later MIT can replay. Runs
-    // before the result is folded in, so the conversion request still carries the
-    // wallet payment method token rather than the handle just minted.
-    let payment_method_token_response = router_data
-        .convert_wallet_vault_token(
-            state,
-            &connector,
-            payment_method_token_response,
-            should_continue_further,
-            &gateway_context,
-        )
-        .await?;
-
     let should_continue_further = tokenization::update_router_data_with_payment_method_token_result(
         payment_method_token_response,
         &mut router_data,
@@ -6429,6 +6403,10 @@ where
     } else {
         Ok(router_data)
     }?;
+
+    let router_data = router_data
+        .post_authorize_wallet_vault_conversion(state, connector, &gateway_context)
+        .await?;
 
     let should_continue_payment = router_data.response.is_ok();
 

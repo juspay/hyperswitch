@@ -373,11 +373,33 @@ impl
     ) -> Result<Self, Self::Error> {
         let currency = payments_grpc::Currency::foreign_try_from(router_data.request.currency)?;
 
+        let paysafe_wallet_payment_handle = if router_data.connector == "paysafe"
+            && matches!(
+                &router_data.request.payment_method_data,
+                hyperswitch_domain_models::payment_method_data::PaymentMethodData::Wallet(
+                    hyperswitch_domain_models::payment_method_data::WalletData::ApplePay(_)
+                        | hyperswitch_domain_models::payment_method_data::WalletData::GooglePay(_)
+                )
+            ) {
+            match router_data.payment_method_token.as_ref() {
+                Some(hyperswitch_domain_models::router_data::PaymentMethodToken::Token(token)) => {
+                    Some(token.clone())
+                }
+                _ => None,
+            }
+        } else {
+            None
+        };
+
         let payment_method =
             unified_connector_service::build_unified_connector_service_payment_method(
                 router_data.request.payment_method_data.clone(),
                 router_data.request.payment_method_type,
-                router_data.payment_method_token.as_ref(),
+                if paysafe_wallet_payment_handle.is_some() {
+                    None
+                } else {
+                    router_data.payment_method_token.as_ref()
+                },
                 router_data.connector_meta_data.as_ref(),
             )?;
 
@@ -438,7 +460,11 @@ impl
                 .as_ref()
                 .map(payments_grpc::SplitPaymentsDetails::foreign_from),
             domain_data: None,
-            mit_category: None,
+            mit_category: router_data
+                .request
+                .mit_category
+                .map(payments_grpc::MitCategory::foreign_from)
+                .map(Into::into),
             surcharge_amount: None,
             amount: Some(payments_grpc::Money {
                 minor_amount: router_data.request.minor_amount.get_amount_as_i64(),
@@ -539,7 +565,13 @@ impl
                 .map(payments_grpc::PaymentChannel::foreign_try_from)
                 .transpose()?
                 .map(|payment_channel| payment_channel.into()),
-            connector_feature_data: None,
+            connector_feature_data: paysafe_wallet_payment_handle.map(|token| {
+                serde_json::json!({
+                    "payment_handle_token": token.peek(),
+                })
+                .to_string()
+                .into()
+            }),
             locale: router_data.request.locale.clone(),
             continue_redirection_url: router_data.request.complete_authorize_url.clone(),
             redirection_response: None,
@@ -1736,7 +1768,11 @@ impl
                 .as_ref()
                 .map(payments_grpc::SplitPaymentsDetails::foreign_from),
             domain_data: None,
-            mit_category: None,
+            mit_category: router_data
+                .request
+                .mit_category
+                .map(payments_grpc::MitCategory::foreign_from)
+                .map(Into::into),
             surcharge_amount: None,
             amount: Some(payments_grpc::Money {
                 minor_amount: router_data.request.minor_amount.get_amount_as_i64(),
@@ -2083,7 +2119,11 @@ impl
             .map(ConnectorState::foreign_from);
 
         Ok(Self {
-            mit_category: None,
+            mit_category: router_data
+                .request
+                .mit_category
+                .map(payments_grpc::MitCategory::foreign_from)
+                .map(Into::into),
             merchant_recurring_payment_id: router_data.connector_request_reference_id.clone(),
             amount: Some(payments_grpc::Money {
                 minor_amount: router_data.request.minor_amount.get_amount_as_i64(),

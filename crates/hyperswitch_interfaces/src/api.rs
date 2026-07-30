@@ -543,8 +543,9 @@ pub trait ConnectorSpecifications {
         ConnectorCustomerAction::NoAction
     }
 
-    /// Whether this connector needs a second tokenization pass to convert a
-    /// single-use wallet handle into a reusable (multi-use) one for recurring.
+    /// Whether this connector needs a post-authorization tokenization pass to
+    /// convert the single-use handle spent by a successful wallet CIT into a
+    /// reusable (multi-use) handle for later MITs.
     /// Connectors whose vault endpoint rejects raw wallet payloads (e.g. Paysafe)
     /// override this to opt into the core's wallet-vault-conversion leg.
     fn requires_wallet_vault_conversion(

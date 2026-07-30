@@ -456,22 +456,16 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
         .await
     }
 
-    async fn convert_wallet_vault_token(
-        &self,
+    async fn post_authorize_wallet_vault_conversion(
+        self,
         state: &SessionState,
         connector: &api::ConnectorData,
-        payment_method_token_result: types::PaymentMethodTokenResult,
-        should_continue_payment: bool,
         gateway_context: &gateway_context::RouterGatewayContext,
-    ) -> RouterResult<types::PaymentMethodTokenResult> {
-        let request = self.request.clone();
-        tokenization::convert_wallet_vault_token(
+    ) -> RouterResult<Self> {
+        tokenization::convert_wallet_vault_token_after_authorize(
             state,
             connector,
             self,
-            types::PaymentMethodTokenizationData::try_from(request)?,
-            payment_method_token_result,
-            should_continue_payment,
             gateway_context,
         )
         .await

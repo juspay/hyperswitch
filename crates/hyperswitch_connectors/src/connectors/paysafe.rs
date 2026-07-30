@@ -1427,10 +1427,10 @@ impl ConnectorSpecifications for Paysafe {
         }
     }
 
-    // Paysafe's customer vault rejects raw applePay/googlePay payloads, so a
-    // reusable (MULTI_USE) wallet handle can only be made by a second tokenize
-    // that converts the single-use handle (paymentHandleTokenFrom). Opt into the
-    // core's wallet-vault-conversion leg for wallet CITs with a connector customer.
+    // Paysafe's customer vault rejects raw applePay/googlePay payloads. After a
+    // successful wallet CIT spends the SINGLE_USE handle, convert that handle
+    // through paymentHandleTokenFrom and persist the returned MULTI_USE handle
+    // for later MITs.
     fn requires_wallet_vault_conversion(
         &self,
         tokenization_data: &PaymentMethodTokenizationData,
