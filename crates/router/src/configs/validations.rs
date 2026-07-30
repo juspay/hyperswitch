@@ -373,6 +373,14 @@ impl super::settings::SageSettings {
 
 impl super::settings::AccountUpdaterConfig {
     pub fn validate(&self) -> Result<(), ApplicationError> {
+        match self {
+            Self::Juspay(juspay) => juspay.validate(),
+        }
+    }
+}
+
+impl super::settings::JuspayAccountUpdaterConfig {
+    pub fn validate(&self) -> Result<(), ApplicationError> {
         use common_utils::fp_utils::when;
 
         when(!self.base_url.path().ends_with('/'), || {

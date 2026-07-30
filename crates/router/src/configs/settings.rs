@@ -388,7 +388,13 @@ pub struct OnSessionConfig {
 }
 
 #[derive(Debug, Deserialize, Clone)]
-pub struct AccountUpdaterConfig {
+#[serde(tag = "provider", rename_all = "snake_case")]
+pub enum AccountUpdaterConfig {
+    Juspay(JuspayAccountUpdaterConfig),
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct JuspayAccountUpdaterConfig {
     pub base_url: url::Url,
     pub api_key: Secret<String>,
     pub merchant_id: String,

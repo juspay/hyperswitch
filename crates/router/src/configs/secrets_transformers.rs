@@ -418,19 +418,22 @@ impl SecretsHandler for settings::AccountUpdaterConfig {
         value: SecretStateContainer<Self, SecuredSecret>,
         secret_management_client: &dyn SecretManagementInterface,
     ) -> CustomResult<SecretStateContainer<Self, RawSecret>, SecretsManagementError> {
-        let account_updater = value.get_inner();
+        let Self::Juspay(juspay) = value.get_inner();
+
         let (api_key, euler_encryption_public_key, au_decryption_pvt_key) = tokio::try_join!(
-            secret_management_client.get_secret(account_updater.api_key.clone()),
-            secret_management_client
-                .get_secret(account_updater.euler_encryption_public_key.clone()),
-            secret_management_client.get_secret(account_updater.au_decryption_pvt_key.clone()),
+            secret_management_client.get_secret(juspay.api_key.clone()),
+            secret_management_client.get_secret(juspay.euler_encryption_public_key.clone()),
+            secret_management_client.get_secret(juspay.au_decryption_pvt_key.clone()),
         )?;
 
-        Ok(value.transition_state(|account_updater| Self {
-            api_key,
-            euler_encryption_public_key,
-            au_decryption_pvt_key,
-            ..account_updater
+        Ok(value.transition_state(|account_updater| {
+            let Self::Juspay(juspay) = account_updater;
+            Self::Juspay(settings::JuspayAccountUpdaterConfig {
+                api_key,
+                euler_encryption_public_key,
+                au_decryption_pvt_key,
+                ..juspay
+            })
         }))
     }
 }

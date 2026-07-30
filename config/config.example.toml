@@ -1518,6 +1518,7 @@ api_key = ""                                  # API key for API-key authenticate
 merchant_id = ""                              # Offer Engine merchant id sent in request bodies
 
 [account_updater] # Credentials forwarded to UCS for the Account Updater flow; omit the section entirely to keep it off
+provider = "juspay"                               # Account Updater provider
 base_url = "https://account-updater.example.com/" # Account Updater base URL
 api_key = ""                     # API key for the Account Updater provider
 merchant_id = ""                 # Merchant id sent in Account Updater request bodies
