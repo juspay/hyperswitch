@@ -481,17 +481,34 @@ pub async fn call_connector_api(
         Ok(resp) => {
             let status_code = resp.status().as_u16();
             let elapsed_time = current_time.elapsed();
+            let downstream_request_id = resp
+                .headers()
+                .get(X_REQUEST_ID)
+                .and_then(|value| value.to_str().ok());
             logger::info!(
+                tag = "ExternalServiceCall",
+                dependency = "connector",
+                operation = ?flow_name,
+                outcome = if resp.status().is_success() { "success" } else { "http_error" },
                 ?headers,
                 url,
                 status_code,
                 flow=?flow_name,
-                ?elapsed_time
+                ?elapsed_time,
+                elapsed_milliseconds = elapsed_time.as_secs_f64() * 1000.0,
+                downstream_request_id,
             );
         }
         Err(err) => {
+            let elapsed_time = current_time.elapsed();
             logger::info!(
-                call_connector_api_error=?err
+                tag = "ExternalServiceCall",
+                dependency = "connector",
+                operation = ?flow_name,
+                outcome = "transport_error",
+                url,
+                elapsed_milliseconds = elapsed_time.as_secs_f64() * 1000.0,
+                call_connector_api_error=?err,
             );
         }
     }
