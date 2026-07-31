@@ -19,7 +19,6 @@ use crate::{
     utils::{pg_connection_read, pg_connection_write},
     CustomResult, DatabaseStore, MockDb, RouterStore,
 };
-
 #[cfg(feature = "v2")]
 use crate::{
     redis::kv_store::{kv_wrapper, KvOperation},
