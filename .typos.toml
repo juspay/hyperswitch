@@ -118,6 +118,7 @@ requestor = "requestor" #Used in external 3ds flows
 substituters = "substituters" # Present in `flake.nix`
 unsuccess = "unsuccess" # Used in cryptopay request
 automatico = "automatico" # Pix Automático (Portuguese for Automatic) - payment method name
+iof = "iof" # Financial operations tax in Brazil / Imposto sobre Operações Financeiras
 
 [files]
 extend-exclude = [

@@ -28,7 +28,7 @@ use hyperswitch_domain_models::router_data_v2::flow_common_types as common_types
 pub use hyperswitch_domain_models::{
     api::{
         ApplicationResponse, GenericExpiredLinkData, GenericLinkFormData, GenericLinkStatusData,
-        GenericLinks, PaymentLinkAction, RedirectionFormData,
+        GenericLinks, PaymentLinkAction, RedirectionFormData, WebhookResponse,
     },
     payment_method_data::PaymentMethodData,
     router_response_types::RedirectForm,
@@ -190,7 +190,7 @@ where
     let mut app_state = state.get_ref().clone();
 
     let start_instant = Instant::now();
-    let serialized_request = hyperswitch_masking::masked_serialize(&payload)
+    let mut serialized_request = hyperswitch_masking::masked_serialize(&payload)
         .attach_printable("Failed to serialize json request")
         .change_context(errors::ApiErrorResponse::InternalServerError.switch())?;
 
@@ -316,6 +316,24 @@ where
                     .conf
                     .proxy_status_mapping
                     .extract_connector_http_status_code(headers);
+            } else if let ApplicationResponse::IncomingWebhookEvent { response, metadata } = res {
+                serialized_request = metadata.serialized_request.peek().clone();
+
+                if let Some(tracker_data) = &metadata.webhook_tracker_data {
+                    serialized_response = Some(tracker_data.clone());
+                }
+
+                if let WebhookResponse::JsonWithHeaders((_, headers)) = response.as_ref() {
+                    if let Some((_, value)) = headers.iter().find(|(key, _)| key == X_HS_LATENCY) {
+                        if let Ok(external_latency) = value.clone().into_inner().parse::<u128>() {
+                            overhead_latency.replace(external_latency);
+                        }
+                    }
+                    extracted_status_code = state
+                        .conf
+                        .proxy_status_mapping
+                        .extract_connector_http_status_code(headers);
+                }
             }
             event_type = res.get_api_event_type().or(event_type);
 
@@ -432,6 +450,12 @@ where
     )
     .await
     .map(|response| {
+        let response = match response {
+            ApplicationResponse::IncomingWebhookEvent {
+                response: inner, ..
+            } => ApplicationResponse::from(*inner),
+            other => other,
+        };
         logger::info!(api_response =? response);
         response
     });
@@ -563,6 +587,7 @@ where
                 ),
             }
         }
+        Ok(ApplicationResponse::IncomingWebhookEvent { .. }) => http_response_ok(),
         Err(error) => log_and_return_error_response(error),
     };
 
@@ -1694,7 +1719,7 @@ pub fn build_redirection_form(
                                     var data = JSON.parse(event.data);
                                     var responseForm = document.createElement('form');
                                     responseForm.action=window.location.pathname.replace(
-                                        new RegExp("payments/redirect/(\\w+)/(\\w+)/\\w+"),
+                                        new RegExp("payments/redirect/([^/]+)/([^/]+)/[^/]+"),
                                         "payments/$1/$2/redirect/complete/worldpayxml"
                                     );
                                     responseForm.method='POST';
@@ -1716,7 +1741,7 @@ pub fn build_redirection_form(
                                 }} catch (e) {{
                                     var responseForm = document.createElement('form');
                                     responseForm.action=window.location.pathname.replace(
-                                        new RegExp("payments/redirect/(\\w+)/(\\w+)/\\w+"),
+                                        new RegExp("payments/redirect/([^/]+)/([^/]+)/[^/]+"),
                                         "payments/$1/$2/redirect/complete/worldpayxml"
                                     );
                                     responseForm.method='POST';

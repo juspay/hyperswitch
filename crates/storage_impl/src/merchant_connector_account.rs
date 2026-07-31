@@ -153,6 +153,31 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for kv_router_store::KV
     }
 
     #[instrument(skip_all)]
+    async fn list_merchant_connector_accounts_without_encrypted_including_disabled_by_merchant_id_profile_id(
+        &self,
+        merchant_id: &common_utils::id_type::MerchantId,
+        profile_id: &common_utils::id_type::ProfileId,
+    ) -> CustomResult<domain::MerchantConnectorAccountsWithoutEncrypted, Self::Error> {
+        self.router_store
+            .list_merchant_connector_accounts_without_encrypted_including_disabled_by_merchant_id_profile_id(merchant_id, profile_id)
+            .await
+    }
+
+    #[instrument(skip_all)]
+    async fn list_enabled_merchant_connector_accounts_without_encrypted_by_merchant_id_profile_id(
+        &self,
+        merchant_id: &common_utils::id_type::MerchantId,
+        profile_id: &common_utils::id_type::ProfileId,
+    ) -> CustomResult<domain::MerchantConnectorAccountsWithoutEncrypted, Self::Error> {
+        self.router_store
+            .list_enabled_merchant_connector_accounts_without_encrypted_by_merchant_id_profile_id(
+                merchant_id,
+                profile_id,
+            )
+            .await
+    }
+
+    #[instrument(skip_all)]
     #[cfg(all(feature = "olap", feature = "v2"))]
     async fn list_connector_account_by_profile_id(
         &self,
@@ -596,6 +621,58 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
             &conn,
             merchant_id,
             get_disabled,
+        )
+        .await
+        .map_err(|error| report!(Self::Error::from(error)))?;
+
+        let output = items
+            .into_iter()
+            .map(domain::MerchantConnectorAccountWithoutEncrypted::try_from)
+            .collect::<Result<Vec<_>, _>>()
+            .change_context(Self::Error::DecryptionError)?;
+
+        Ok(domain::MerchantConnectorAccountsWithoutEncrypted::new(
+            output,
+        ))
+    }
+
+    #[instrument(skip_all)]
+    async fn list_merchant_connector_accounts_without_encrypted_including_disabled_by_merchant_id_profile_id(
+        &self,
+        merchant_id: &common_utils::id_type::MerchantId,
+        profile_id: &common_utils::id_type::ProfileId,
+    ) -> CustomResult<domain::MerchantConnectorAccountsWithoutEncrypted, Self::Error> {
+        let conn = pg_accounts_connection_read(self).await?;
+        let items = storage::MerchantConnectorAccount::list_merchant_connector_accounts_without_encrypted_including_disabled_by_merchant_id_profile_id(
+            &conn,
+            merchant_id,
+            profile_id,
+        )
+        .await
+        .map_err(|error| report!(Self::Error::from(error)))?;
+
+        let output = items
+            .into_iter()
+            .map(domain::MerchantConnectorAccountWithoutEncrypted::try_from)
+            .collect::<Result<Vec<_>, _>>()
+            .change_context(Self::Error::DecryptionError)?;
+
+        Ok(domain::MerchantConnectorAccountsWithoutEncrypted::new(
+            output,
+        ))
+    }
+
+    #[instrument(skip_all)]
+    async fn list_enabled_merchant_connector_accounts_without_encrypted_by_merchant_id_profile_id(
+        &self,
+        merchant_id: &common_utils::id_type::MerchantId,
+        profile_id: &common_utils::id_type::ProfileId,
+    ) -> CustomResult<domain::MerchantConnectorAccountsWithoutEncrypted, Self::Error> {
+        let conn = pg_accounts_connection_read(self).await?;
+        let items = storage::MerchantConnectorAccount::list_enabled_merchant_connector_accounts_without_encrypted_by_merchant_id_profile_id(
+            &conn,
+            merchant_id,
+            profile_id,
         )
         .await
         .map_err(|error| report!(Self::Error::from(error)))?;
@@ -1408,6 +1485,72 @@ impl MerchantConnectorAccountInterface for MockDb {
                 } else {
                     account.merchant_id == *merchant_id && account.disabled == Some(false)
                 }
+            })
+            .cloned()
+            .collect::<Vec<storage::MerchantConnectorAccount>>();
+
+        let output = accounts
+            .into_iter()
+            .map(domain::MerchantConnectorAccountWithoutEncrypted::try_from)
+            .collect::<Result<Vec<_>, _>>()
+            .change_context(StorageError::DecryptionError)?;
+
+        Ok(domain::MerchantConnectorAccountsWithoutEncrypted::new(
+            output,
+        ))
+    }
+
+    async fn list_merchant_connector_accounts_without_encrypted_including_disabled_by_merchant_id_profile_id(
+        &self,
+        merchant_id: &common_utils::id_type::MerchantId,
+        profile_id: &common_utils::id_type::ProfileId,
+    ) -> CustomResult<domain::MerchantConnectorAccountsWithoutEncrypted, StorageError> {
+        let accounts = self
+            .merchant_connector_accounts
+            .lock()
+            .await
+            .iter()
+            .filter(|account: &&storage::MerchantConnectorAccount| {
+                #[cfg(feature = "v1")]
+                let profile_matches = account.profile_id.as_ref() == Some(profile_id);
+                #[cfg(feature = "v2")]
+                let profile_matches = account.profile_id == *profile_id;
+
+                account.merchant_id == *merchant_id && profile_matches
+            })
+            .cloned()
+            .collect::<Vec<storage::MerchantConnectorAccount>>();
+
+        let output = accounts
+            .into_iter()
+            .map(domain::MerchantConnectorAccountWithoutEncrypted::try_from)
+            .collect::<Result<Vec<_>, _>>()
+            .change_context(StorageError::DecryptionError)?;
+
+        Ok(domain::MerchantConnectorAccountsWithoutEncrypted::new(
+            output,
+        ))
+    }
+
+    async fn list_enabled_merchant_connector_accounts_without_encrypted_by_merchant_id_profile_id(
+        &self,
+        merchant_id: &common_utils::id_type::MerchantId,
+        profile_id: &common_utils::id_type::ProfileId,
+    ) -> CustomResult<domain::MerchantConnectorAccountsWithoutEncrypted, StorageError> {
+        let accounts = self
+            .merchant_connector_accounts
+            .lock()
+            .await
+            .iter()
+            .filter(|account: &&storage::MerchantConnectorAccount| {
+                #[cfg(feature = "v1")]
+                let profile_matches = account.profile_id.as_ref() == Some(profile_id);
+                #[cfg(feature = "v2")]
+                let profile_matches = account.profile_id == *profile_id;
+
+                account.merchant_id == *merchant_id
+                    && profile_matches
+                    && account.disabled == Some(false)
             })
             .cloned()
             .collect::<Vec<storage::MerchantConnectorAccount>>();

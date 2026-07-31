@@ -68,7 +68,7 @@ use super::verification::{apple_pay_merchant_registration, retrieve_apple_pay_ve
 use super::webhooks::*;
 use super::{
     admin, api_keys, cache::*, card_issuer, chat, connector_onboarding, disputes, files, gsm,
-    health::*, oidc, profiles, relay, user, user_role,
+    health::*, offer_engine, oidc, profiles, relay, user, user_role,
 };
 #[cfg(feature = "v1")]
 use super::{
@@ -157,6 +157,11 @@ impl scheduler::SchedulerSessionState for SessionState {
     fn add_request_id(&mut self, request_id: RequestId) {
         self.api_client.add_request_id(request_id.clone());
         self.store.add_request_id(request_id.to_string());
+        #[cfg(feature = "deja")]
+        {
+            self.accounts_store.add_request_id(request_id.to_string());
+            self.global_store.add_request_id(request_id.to_string());
+        }
         self.request_id.replace(request_id);
     }
 }
@@ -247,6 +252,11 @@ impl SessionStateInfo for SessionState {
     fn add_request_id(&mut self, request_id: RequestId) {
         self.api_client.add_request_id(request_id.clone());
         self.store.add_request_id(request_id.to_string());
+        #[cfg(feature = "deja")]
+        {
+            self.accounts_store.add_request_id(request_id.to_string());
+            self.global_store.add_request_id(request_id.to_string());
+        }
         self.request_id.replace(request_id);
     }
 
@@ -478,6 +488,8 @@ impl AppState {
                     &event_handler,
                     &conf,
                     &conf.multitenancy.global_tenant,
+                    conf.global_database_config(),
+                    conf.global_database_config(),
                     Arc::clone(&cache_store),
                     testable,
                 ))
@@ -489,20 +501,10 @@ impl AppState {
                 .tenants
                 .get_pools_map(conf.analytics.get_inner())
                 .await;
-            let stores = conf
+            let (stores, accounts_store) = conf
                 .multitenancy
                 .tenants
-                .get_store_interface_map(&storage_impl, &conf, Arc::clone(&cache_store), testable)
-                .await;
-            let accounts_store = conf
-                .multitenancy
-                .tenants
-                .get_accounts_store_interface_map(
-                    &storage_impl,
-                    &conf,
-                    Arc::clone(&cache_store),
-                    testable,
-                )
+                .get_store_interface_maps(&storage_impl, &conf, Arc::clone(&cache_store), testable)
                 .await;
 
             #[cfg(feature = "email")]
@@ -553,11 +555,14 @@ impl AppState {
     /// # Panics
     ///
     /// Panics if Failed to create store
+    #[allow(clippy::too_many_arguments)]
     pub async fn get_store_interface(
         storage_impl: &StorageImpl,
         event_handler: &EventsHandler,
         conf: &Settings,
         tenant: &dyn TenantConfig,
+        master_config: settings::Database,
+        accounts_config: settings::Database,
         cache_store: Arc<RedisStore>,
         testable: bool,
     ) -> Box<dyn CommonStorageInterface> {
@@ -589,6 +594,8 @@ impl AppState {
                         get_store(
                             &conf.clone(),
                             tenant,
+                            master_config.clone(),
+                            accounts_config.clone(),
                             Arc::clone(&cache_store),
                             testable,
                             key_manager_state,
@@ -606,6 +613,8 @@ impl AppState {
                     get_store(
                         conf,
                         tenant,
+                        master_config,
+                        accounts_config,
                         Arc::clone(&cache_store),
                         testable,
                         key_manager_state,
@@ -721,6 +730,19 @@ impl Health {
             .app_data(web::Data::new(state))
             .service(web::resource("").route(web::get().to(health)))
             .service(web::resource("/ready").route(web::get().to(deep_health_check)))
+    }
+}
+
+pub struct OfferEngine;
+
+impl OfferEngine {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/offer_engine")
+            .app_data(web::Data::new(state))
+            .service(
+                web::resource("/connectivity")
+                    .route(web::post().to(offer_engine::offer_engine_connectivity_check)),
+            )
     }
 }
 
@@ -1123,6 +1145,7 @@ impl Routing {
         #[allow(unused_mut)]
         let mut route = web::scope("/routing")
             .app_data(web::Data::new(state.clone()))
+            .service(web::resource("/entry").route(web::post().to(routing::routing_entry)))
             .service(
                 web::resource("/active").route(web::get().to(|state, req, query_params| {
                     routing::routing_retrieve_linked_config(state, req, query_params, None)
@@ -3437,12 +3460,24 @@ impl SuperpositionProxy {
                     .route(web::get().to(super::superposition_proxy::list_default_configs)),
             )
             .service(
+                web::resource("/default-config/{key}")
+                    .route(web::get().to(super::superposition_proxy::get_default_config)),
+            )
+            .service(
                 web::resource("/dimension")
                     .route(web::get().to(super::superposition_proxy::list_dimensions)),
             )
             .service(
+                web::resource("/dimension/{dimension_name}")
+                    .route(web::get().to(super::superposition_proxy::get_dimension)),
+            )
+            .service(
                 web::resource("/config/resolve/detailed")
                     .route(web::post().to(super::superposition_proxy::resolve_detailed_config)),
+            )
+            .service(
+                web::resource("/config/resolve/explain/{key}")
+                    .route(web::post().to(super::superposition_proxy::resolve_config_explanation)),
             )
             .service(
                 web::resource("/audit")

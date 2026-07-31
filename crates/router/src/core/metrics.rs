@@ -1,4 +1,4 @@
-use router_env::{counter_metric, global_meter};
+use router_env::{counter_metric, global_meter, histogram_metric_f64};
 
 global_meter!(GLOBAL_METER, "ROUTER_API");
 
@@ -89,6 +89,9 @@ counter_metric!(
 counter_metric!(DYNAMIC_SUCCESS_BASED_ROUTING, GLOBAL_METER);
 counter_metric!(DYNAMIC_CONTRACT_BASED_ROUTING, GLOBAL_METER);
 
+histogram_metric_f64!(DECISION_ENGINE_REQUEST_TIME, GLOBAL_METER);
+counter_metric!(DECISION_ENGINE_REQUESTS, GLOBAL_METER);
+
 #[cfg(feature = "partial-auth")]
 counter_metric!(PARTIAL_AUTH_FAILURE, GLOBAL_METER);
 
@@ -105,3 +108,5 @@ counter_metric!(POST_AUTHENTICATION_TOKEN_PUSHED_TO_VGS, GLOBAL_METER);
 counter_metric!(SDK_AUTH_LEGACY_FLOW_TOTAL, GLOBAL_METER); // No. of SDK auth requests without session_id (legacy flow) - tracked per merchant_id
 counter_metric!(SDK_AUTH_SESSION_VALIDATED_TOTAL, GLOBAL_METER); // No. of SDK auth requests with valid session_id - tracked per merchant_id
 counter_metric!(SDK_AUTH_INVALID_SESSION_TOTAL, GLOBAL_METER); // No. of SDK auth requests with invalid session_id - tracked per merchant_id
+
+counter_metric!(FINGERPRINT_SECRET_SUPERPOSITION_FETCH_COUNT, GLOBAL_METER); // No. of fingerprint secret fetches from Superposition during migration fallback

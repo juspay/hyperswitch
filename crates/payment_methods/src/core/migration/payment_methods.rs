@@ -734,6 +734,7 @@ pub async fn skip_locker_call_and_migrate_payment_method(
                 compatibility_updated_at: None,
             },
             provider.get_account().storage_scheme,
+            None,
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
