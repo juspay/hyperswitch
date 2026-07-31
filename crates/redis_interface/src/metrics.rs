@@ -84,18 +84,10 @@ impl<T, E> RedisCallStatus for Result<T, E> {
     }
 }
 
-/// Output of the `SCAN`/`HSCAN` streaming helpers, which collect successful
-/// pages into a `Vec<String>` after logging and dropping page-level errors. At
-/// this layer no error signal remains, so completion is treated as success for
-/// event emission.
-///
-/// Only the `fred` backend streams pages this way; `redis-rs` loops per-page
-/// `track_redis_call`s that already return a `Result`, so it never needs this type.
-#[cfg(feature = "fred")]
-pub(crate) struct ScanOutcome(pub Vec<String>);
-
-#[cfg(feature = "fred")]
-impl RedisCallStatus for ScanOutcome {
+/// Fred's streaming `SCAN`/`HSCAN` helpers collect successful pages into a
+/// `Vec<String>` after logging and dropping page-level errors. At this layer no
+/// error signal remains, so completion is treated as success for event emission.
+impl RedisCallStatus for Vec<String> {
     fn is_success(&self) -> bool {
         true
     }
