@@ -557,7 +557,7 @@ impl<Pm, M, O, P, Cn, PRT, Ev> DimensionsBase for Dimensions<Pm, M, O, P, Cn, PR
 
 // Type aliases
 
-// Type alias - no dimensions present, for global (deployment-wide) configs
+// Global config scope: no Superposition dimensions are required.
 pub type DimensionsGlobal = Dimensions<
     NoProviderMerchantId,
     NoProcessorMerchantId,

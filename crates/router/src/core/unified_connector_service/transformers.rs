@@ -120,6 +120,9 @@ fn build_ucs_order_details(
                     unit_discount_amount: detail
                         .unit_discount_amount
                         .map(|amount| amount.get_amount_as_i64()),
+                    discount_name: None,
+                    discount_percentage: None,
+                    discount_type: None,
                 })
                 .collect()
         })
@@ -592,10 +595,14 @@ impl
     ) -> Result<Self, Self::Error> {
         let currency = payments_grpc::Currency::foreign_try_from(router_data.request.currency)?;
 
-        let payment_method = router_data
-            .request
-            .payment_method_data
-            .clone()
+        let payment_method_data = router_data.request.payment_method_data.clone().or_else(|| {
+            unified_connector_service::reconstruct_payment_method_data_for_redirect_completion(
+                router_data.request.payment_method_type,
+                router_data.request.email.clone(),
+            )
+        });
+
+        let payment_method = payment_method_data
             .map(|payment_method_data| {
                 unified_connector_service::build_unified_connector_service_payment_method(
                     payment_method_data,
@@ -791,7 +798,8 @@ impl
                 .map(payments_grpc::Tokenization::foreign_from)
                 .map(Into::into),
             l2_l3_data: None,
-            connector_order_id: None,
+            // Captures the order created before the redirect instead of creating a new one.
+            connector_order_id: router_data.request.connector_transaction_id.clone(),
             merchant_request_id: None,
             partner_merchant_identifier_details: None,
         })
@@ -2218,9 +2226,17 @@ impl
             .map(payments_grpc::CaptureMethod::foreign_try_from)
             .transpose()?;
 
+        // MIT/recurring charges do not resend the payment method, so the subtype of the saved
+        // payment method comes from the stored mandate via `recurring_mandate_payment_data`.
         let payment_method_type = router_data
             .request
             .payment_method_type
+            .or_else(|| {
+                router_data
+                    .recurring_mandate_payment_data
+                    .as_ref()
+                    .and_then(|data| data.payment_method_type)
+            })
             .map(payments_grpc::PaymentMethodType::foreign_try_from)
             .transpose()?
             .map(|pm_type| pm_type.into());
@@ -2468,6 +2484,8 @@ impl
                     }),
                 }),
             auth_type: Some(auth_type.into()),
+            // Provide the HS complete-authorize URL so a wallet MIT that needs buyer
+            // re-approval returns to HS (→ CompleteAuthorize) rather than the merchant URL.
             complete_authorize_url: router_data.request.complete_authorize_url.clone(),
             payment_channel: router_data
                 .request
@@ -2877,7 +2895,7 @@ impl
                 status_code,
                 attempt_status,
                 connector_transaction_id: connector_transaction_id.get_optional_response_id(),
-                connector_response_reference_id: response.merchant_transaction_id.clone(),
+                connector_response_reference_id: response.connector_reference_id.clone(),
                 network_decline_code: error_info.issuer_details.as_ref().and_then(|id| {
                     id.network_details
                         .as_ref()
@@ -2906,7 +2924,7 @@ impl
                     connector_metadata,
                     network_txn_id: response.network_transaction_id.clone(),
                     network_txn_link_id: response.network_txn_link_id.clone(),
-                    connector_response_reference_id: response.merchant_transaction_id.clone(),
+                    connector_response_reference_id: response.connector_reference_id.clone(),
                     incremental_authorization_allowed: response.incremental_authorization_allowed,
                     authentication_data: None,
                     charges: response.splits.map(common_types::payments::ConnectorChargeResponseData::foreign_try_from).transpose()?,
@@ -2985,7 +3003,7 @@ impl transformers::ForeignTryFrom<(payments_grpc::PaymentServiceCaptureResponse,
                 status_code,
                 attempt_status,
                 connector_transaction_id: connector_transaction_id.get_optional_response_id(),
-                connector_response_reference_id: response.merchant_capture_id.clone(),
+                connector_response_reference_id: response.connector_reference_id.clone(),
                 network_decline_code: error_info.issuer_details.as_ref().and_then(|id| {
                     id.network_details
                         .as_ref()
@@ -3013,7 +3031,7 @@ impl transformers::ForeignTryFrom<(payments_grpc::PaymentServiceCaptureResponse,
                     connector_metadata,
                     network_txn_id: None,
                     network_txn_link_id: None,
-                    connector_response_reference_id: response.merchant_capture_id.clone(),
+                    connector_response_reference_id: response.connector_reference_id.clone(),
                     incremental_authorization_allowed: response.incremental_authorization_allowed,
                     authentication_data: None,
                     charges: response.splits.map(common_types::payments::ConnectorChargeResponseData::foreign_try_from).transpose()?,
@@ -3322,11 +3340,17 @@ impl
             Ok((
                 PaymentsResponseData::TransactionResponse {
                     resource_id: connector_transaction_id,
-                    redirection_data: Box::new(None),
+                    redirection_data: Box::new(
+                        response
+                            .redirection_data
+                            .clone()
+                            .map(RedirectForm::foreign_try_from)
+                            .transpose()?,
+                    ),
                     mandate_reference: Box::new(response.mandate_reference_details.map(hyperswitch_domain_models::router_response_types::MandateReference::foreign_try_from).transpose()?),
                     connector_metadata,
                     network_txn_id: response.network_transaction_id.clone(),
-                    network_txn_link_id: None,
+                    network_txn_link_id: response.network_txn_link_id.clone(),
                     connector_response_reference_id: response.merchant_charge_id.clone(),
                     incremental_authorization_allowed: response.incremental_authorization_allowed,
                     authentication_data: None,
@@ -6795,7 +6819,7 @@ impl transformers::ForeignTryFrom<(payments_grpc::PaymentServiceVoidResponse, At
                 status_code,
                 attempt_status,
                 connector_transaction_id: connector_transaction_id.get_optional_response_id(),
-                connector_response_reference_id: response.merchant_void_id.clone(),
+                connector_response_reference_id: response.connector_reference_id.clone(),
                 network_decline_code: error_info.issuer_details.as_ref().and_then(|id| {
                     id.network_details
                         .as_ref()
@@ -6824,7 +6848,7 @@ impl transformers::ForeignTryFrom<(payments_grpc::PaymentServiceVoidResponse, At
                     connector_metadata,
                     network_txn_id: None,
                     network_txn_link_id: None,
-                    connector_response_reference_id: response.merchant_void_id.clone(),
+                    connector_response_reference_id: response.connector_reference_id.clone(),
                     incremental_authorization_allowed: response.incremental_authorization_allowed,
                     authentication_data: None,
                     charges: response.splits.map(common_types::payments::ConnectorChargeResponseData::foreign_try_from).transpose()?,
@@ -8249,6 +8273,7 @@ impl ForeignFrom<&common_types::payments::SplitPaymentsRequest>
                 ),
             ),
             common_types::payments::SplitPaymentsRequest::XenditSplitPayment(_) => None,
+            common_types::payments::SplitPaymentsRequest::PayloadSplitPayment(_) => None,
         };
         Self { split_payment_type }
     }
