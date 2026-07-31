@@ -45429,6 +45429,7 @@
               "$ref": "#/components/schemas/CardType"
             },
             "description": "Set of card types to block for all wallet payments (e.g., [\"Credit\", \"Debit\"]).\nRetained for backwards compatibility with existing configurations.",
+            "deprecated": true,
             "nullable": true
           },
           "apple_pay": {
