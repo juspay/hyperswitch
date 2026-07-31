@@ -4,6 +4,25 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.07.31.0
+
+### Features
+
+- **account_updater:** Add Superposition gating and credential resolution ([#13488](https://github.com/juspay/hyperswitch/pull/13488)) ([`c491332`](https://github.com/juspay/hyperswitch/commit/c4913321aecced1b1108013c3408160c1e162f16))
+- **core:** Align UCS connector timeout handling with Hyperswitch direct connector timeout response ([#13497](https://github.com/juspay/hyperswitch/pull/13497)) ([`7d60e0c`](https://github.com/juspay/hyperswitch/commit/7d60e0ceb2bf47ed998aee939ae43c9d3c3651d7))
+- **unified_connector_service:** Add Tesouro ConnectorSpecificConfig ([#13421](https://github.com/juspay/hyperswitch/pull/13421)) ([`72b7d26`](https://github.com/juspay/hyperswitch/commit/72b7d26a6004ab213099e592eef8c9d83bd4e4e7))
+
+### Bug Fixes
+
+- **core:** Prevent Partial Registrations for Any Scope Identifier for Connector Webhook Register API ([#13484](https://github.com/juspay/hyperswitch/pull/13484)) ([`f5ac09d`](https://github.com/juspay/hyperswitch/commit/f5ac09d899064b296c512ad21ab2548db247b4a6))
+- **router:**
+  - Register MultipartFormConfig so per-field multipart limits are reachable ([#13504](https://github.com/juspay/hyperswitch/pull/13504)) ([`fffdd13`](https://github.com/juspay/hyperswitch/commit/fffdd136b7ee804855758d76c98c389e4bc7edce))
+  - Handle fallback in dispute connector-dispute-id lookup ([#13502](https://github.com/juspay/hyperswitch/pull/13502)) ([`d63f296`](https://github.com/juspay/hyperswitch/commit/d63f296dade20806edf1b98733e30a34778d1fe8))
+
+**Full Changelog:** [`2026.07.30.0...2026.07.31.0`](https://github.com/juspay/hyperswitch/compare/2026.07.30.0...2026.07.31.0)
+
+- - -
+
 ## 2026.07.30.0
 
 ### Features

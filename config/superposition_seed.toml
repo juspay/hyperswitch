@@ -20,6 +20,11 @@ offer_engine_credential_source = { value = "none", schema = { type = "string", e
     "none",
     "application",
 ] }, description = "Source of Offer Engine credentials once offer_engine_enabled is true: 'none' skips Offer Engine; 'application' uses the static offer_engine application config. Future org/merchant/profile sources will extend the enum alongside their credential storage.", change_reason = "Offer Engine credential source is a string enum: 'none' disables, 'application' enables; extensible to org/merchant/profile sources" }
+"account_updater.enabled" = { value = false, schema = { type = "boolean" }, description = "Master gate for the Account Updater integration. When false (default) Account Updater is never called, regardless of account_updater.credential_source. Set true (per tenant/env override) to allow Account Updater calls.", change_reason = "Account Updater disabled by default; enable via Superposition override" }
+"account_updater.credential_source" = { value = "none", schema = { type = "string", enum = [
+    "none",
+    "application",
+] }, description = "Source of Account Updater credentials once account_updater.enabled is true: 'none' skips Account Updater; 'application' uses the static account_updater application config. Future org/merchant/profile sources will extend the enum alongside their credential storage.", change_reason = "Account Updater credential source is a string enum: 'none' disables, 'application' enables; extensible to org/merchant/profile sources" }
 client_session_validation_enabled = { value = true, schema = { type = "boolean" } }
 "dynamic_fields.bank_debit.ach_bank_debit.account_number._confirm_request_write_path" = { value = "payment_method_data.bank_debit.ach_bank_debit.account_number", schema = { type = "string" } }
 "dynamic_fields.bank_debit.ach_bank_debit.account_number._default_label_text" = { value = "Account Number", schema = { type = "string" } }

@@ -1429,7 +1429,7 @@ dashboard_url = "http://localhost:5173" # Decision Engine dashboard (browser) UR
 base_url = "http://localhost:8000"      # Unified Connector Service Base URL
 connection_timeout = 10                 # Connection Timeout Duration in Seconds
 request_timeout = 35                    # Per-RPC Request Timeout in Seconds
-ucs_only_connectors = "imerchantsolutions, paytm, phonepe, hyperpg, revolv3, fiservcommercehub, absa_sanlam, interpayments, dlocal, barclaycard, tsys_transit, jpmorgan, datatrans, givepayments"    # Comma-separated list of connectors that use UCS only
+ucs_only_connectors = "imerchantsolutions, paytm, phonepe, hyperpg, revolv3, fiservcommercehub, absa_sanlam, interpayments, dlocal, barclaycard, tsys_transit, jpmorgan, datatrans, givepayments, tesouro"    # Comma-separated list of connectors that use UCS only
 ucs_psync_disabled_connectors = "cashtocode, trustly"    # Comma-separated list of connectors to disable UCS PSync call
 
 [grpc_client.recovery_decider_client] # Revenue recovery client base url
@@ -1516,6 +1516,15 @@ backup_file_path = "./config/superposition_seed.toml" # Path to a local file for
 base_url = "https://offer-engine.example.com/" # Base URL of the Offer Engine service
 api_key = ""                                  # API key for API-key authenticated Offer Engine calls
 merchant_id = ""                              # Offer Engine merchant id sent in request bodies
+
+# Credentials forwarded to UCS for the Account Updater flow; omit the section entirely to keep it off
+[account_updater.juspay]
+base_url = "https://account-updater.example.com/" # Account Updater base URL
+api_key = ""                     # API key for the Account Updater provider
+merchant_id = ""                 # Merchant id sent in Account Updater request bodies
+euler_encryption_public_key = "" # Provider RSA public key, used to seal outbound card data
+au_decryption_pvt_key = ""       # Our RSA private key, used to open the response payload
+card_sync_key_id = ""            # Id of our public key as registered with the provider
 
 [micro_services]
 # Base URLs for modular microservices

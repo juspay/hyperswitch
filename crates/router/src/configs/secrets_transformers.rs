@@ -412,6 +412,42 @@ impl SecretsHandler for settings::OidcSettings {
     }
 }
 
+impl settings::JuspayAccountUpdaterConfig {
+    async fn convert_to_raw_secret(
+        self,
+        secret_management_client: &dyn SecretManagementInterface,
+    ) -> CustomResult<Self, SecretsManagementError> {
+        let (api_key, euler_encryption_public_key, au_decryption_pvt_key) = tokio::try_join!(
+            secret_management_client.get_secret(self.api_key.clone()),
+            secret_management_client.get_secret(self.euler_encryption_public_key.clone()),
+            secret_management_client.get_secret(self.au_decryption_pvt_key.clone()),
+        )?;
+
+        Ok(Self {
+            api_key,
+            euler_encryption_public_key,
+            au_decryption_pvt_key,
+            ..self
+        })
+    }
+}
+
+#[async_trait::async_trait]
+impl SecretsHandler for settings::AccountUpdaterConfig {
+    async fn convert_to_raw_secret(
+        value: SecretStateContainer<Self, SecuredSecret>,
+        secret_management_client: &dyn SecretManagementInterface,
+    ) -> CustomResult<SecretStateContainer<Self, RawSecret>, SecretsManagementError> {
+        let Self::Juspay(juspay) = value.get_inner().clone();
+
+        let juspay = juspay
+            .convert_to_raw_secret(secret_management_client)
+            .await?;
+
+        Ok(value.transition_state(|_| Self::Juspay(juspay)))
+    }
+}
+
 /// # Panics
 ///
 /// Will panic even if kms decryption fails for at least one field
@@ -580,6 +616,20 @@ pub(crate) async fn fetch_raw_secrets(
         .await
         .expect("Failed to decrypt oidc configs");
 
+    #[allow(clippy::expect_used)]
+    let account_updater = if let Some(account_updater) = conf.account_updater {
+        Some(
+            settings::AccountUpdaterConfig::convert_to_raw_secret(
+                account_updater,
+                secret_management_client,
+            )
+            .await
+            .expect("Failed to decrypt account updater configuration"),
+        )
+    } else {
+        None
+    };
+
     Settings {
         server: conf.server,
         application_source: conf.application_source,
@@ -703,5 +753,6 @@ pub(crate) async fn fetch_raw_secrets(
         comparison_service: conf.comparison_service,
         authentication_service_enabled_connectors: conf.authentication_service_enabled_connectors,
         save_payment_method_on_session: conf.save_payment_method_on_session,
+        account_updater,
     }
 }

@@ -6655,7 +6655,7 @@ type="Text"
 label="Webhook Registration & Workspace Creation"
 webhook_auto_configuration_supported=true 
 scope_type="payment_method_type"
-payment_method_types=["pix_emv", "pix_automatico_push", "pix_automatico_qr", "boleto"]
+payment_method_types=["pix_qr", "pix_automatico_push", "pix_automatico_qr", "boleto"]
 
 [blackhawknetwork]
 [[blackhawknetwork.gift_card]]
