@@ -7461,6 +7461,14 @@ impl
             merchant_payout_id: router_data.payout_id.clone(),
             connector_payout_id: router_data.request.connector_payout_id.clone(),
             access_token: router_data.access_token.clone().map(|at| at.token),
+            // Debtor account for connectors (e.g. Deutsche Bank) that need it to
+            // perform a status enquiry, rather than smuggling it inside connector_payout_id.
+            source_bank_data: router_data
+                .request
+                .source_bank_data
+                .as_ref()
+                .map(payments_grpc::SourceBankData::foreign_try_from)
+                .transpose()?,
         })
     }
 }
@@ -7894,6 +7902,7 @@ impl transformers::ForeignTryFrom<&api_models::payouts::SepaBankTransfer>
             bank_city: item.bank_city.clone(),
             iban: Some(item.iban.clone()),
             bic: item.bic.clone(),
+            account_holder_name: item.account_holder_name.clone(),
         })
     }
 }
