@@ -190,6 +190,26 @@ pub struct RedisConnectionWithContext {
     pub request_id: Option<String>,
 }
 
+impl RedisConnectionWithContext {
+    pub fn new(pool: Arc<RedisConnectionPool>, context: &dyn RequestContext) -> Self {
+        Self {
+            redis_conn: pool,
+            request_id: context.request_id().map(str::to_owned),
+        }
+    }
+
+    pub fn new_without_context(pool: Arc<RedisConnectionPool>) -> Self {
+        Self {
+            redis_conn: pool,
+            request_id: None,
+        }
+    }
+
+    pub fn get_transaction(&self) -> Transaction {
+        self.redis_conn.pool.next().multi()
+    }
+}
+
 impl RedisConnectionPool {
     /// Create a new Redis connection
     pub async fn new_without_event_emitter(
@@ -355,26 +375,6 @@ impl RedisConnectionPool {
                 Ok(())
             })
         });
-    }
-}
-
-impl RedisConnectionWithContext {
-    pub fn new(pool: Arc<RedisConnectionPool>, context: &dyn RequestContext) -> Self {
-        Self {
-            redis_conn: pool,
-            request_id: context.request_id().map(str::to_owned),
-        }
-    }
-
-    pub fn new_without_context(pool: Arc<RedisConnectionPool>) -> Self {
-        Self {
-            redis_conn: pool,
-            request_id: None,
-        }
-    }
-
-    pub fn get_transaction(&self) -> Transaction {
-        self.redis_conn.pool.next().multi()
     }
 }
 

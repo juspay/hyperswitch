@@ -108,6 +108,7 @@ impl<T: DatabaseStore> PayoutsInterface for KVRouterStore<T> {
                     organization_id: new.organization_id.clone(),
                     processor_merchant_id: new.processor_merchant_id.clone(),
                     created_by: new.created_by.clone(),
+                    billing_descriptor: new.billing_descriptor.clone(),
                 };
 
                 let mut query_gen_conn = pg_connection_write(self).await?;
@@ -980,6 +981,7 @@ impl DataModelExt for Payouts {
             organization_id: self.organization_id,
             processor_merchant_id: self.processor_merchant_id,
             created_by: self.created_by.map(|created_by| created_by.to_string()),
+            billing_descriptor: self.billing_descriptor,
         }
     }
 
@@ -1014,6 +1016,7 @@ impl DataModelExt for Payouts {
             created_by: storage_model
                 .created_by
                 .and_then(|created_by| created_by.parse::<common_utils::types::CreatedBy>().ok()),
+            billing_descriptor: storage_model.billing_descriptor,
         }
     }
 }
@@ -1049,6 +1052,7 @@ impl DataModelExt for PayoutsNew {
             organization_id: self.organization_id,
             processor_merchant_id: self.processor_merchant_id,
             created_by: self.created_by.map(|created_by| created_by.to_string()),
+            billing_descriptor: self.billing_descriptor,
         }
     }
 
@@ -1083,6 +1087,7 @@ impl DataModelExt for PayoutsNew {
             created_by: storage_model
                 .created_by
                 .and_then(|created_by| created_by.parse::<common_utils::types::CreatedBy>().ok()),
+            billing_descriptor: storage_model.billing_descriptor,
         }
     }
 }
@@ -1106,6 +1111,7 @@ impl DataModelExt for PayoutsUpdate {
                 payout_type,
                 address_id,
                 customer_id,
+                billing_descriptor,
             } => DieselPayoutsUpdate::Update {
                 amount,
                 destination_currency,
@@ -1122,6 +1128,7 @@ impl DataModelExt for PayoutsUpdate {
                 payout_type,
                 address_id,
                 customer_id,
+                billing_descriptor,
             },
             Self::PayoutMethodIdUpdate { payout_method_id } => {
                 DieselPayoutsUpdate::PayoutMethodIdUpdate { payout_method_id }
