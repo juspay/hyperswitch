@@ -366,6 +366,7 @@ pub enum RoutableConnectors {
     CtpMastercard,
     CtpVisa,
     Netcetera,
+    Vgs,
     Cardinal,
     Threedsecureio,
 }
@@ -520,6 +521,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Phonepe => Ok(Self::Phonepe),
             Connector::Payjustnow => Ok(Self::Payjustnow),
             Connector::Payjustnowinstore => Ok(Self::Payjustnowinstore),
+            Connector::Vgs => Ok(Self::Vgs),
             Connector::CtpMastercard
             | Connector::Gpayments
             | Connector::HyperswitchVault
@@ -527,7 +529,6 @@ impl TryFrom<Connector> for RoutableConnectors {
             | Connector::Netcetera
             | Connector::Taxjar
             | Connector::Threedsecureio
-            | Connector::Vgs
             | Connector::CtpVisa
             | Connector::Cardinal
             | Connector::Tokenex => Err("Invalid conversion. Not a routable connector"),
@@ -691,6 +692,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Netcetera => Self::Netcetera,
             RoutableConnectors::Cardinal => Self::Cardinal,
             RoutableConnectors::Threedsecureio => Self::Threedsecureio,
+            RoutableConnectors::Vgs => Self::Vgs,
         }
     }
 }
