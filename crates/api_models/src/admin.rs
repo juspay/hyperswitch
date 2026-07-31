@@ -356,7 +356,7 @@ pub struct CardBlockingConfig {
 pub struct WalletBlockingConfig {
     /// Set of card types to block for all wallet payments (e.g., ["Credit", "Debit"]).
     /// Retained for backwards compatibility with existing configurations.
-    #[schema(value_type = Option<Vec<CardType>>)]
+    #[schema(value_type = Option<Vec<CardType>>, deprecated)]
     pub card_types: Option<HashSet<common_enums::CardType>>,
     /// Apple Pay-specific blocking configuration
     pub apple_pay: Option<CardBlockingConfig>,
