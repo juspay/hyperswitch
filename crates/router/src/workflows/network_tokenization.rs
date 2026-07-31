@@ -86,11 +86,25 @@ async fn generate_network_token(
 
     let key_store = db
         .get_merchant_key_store_by_merchant_id(&merchant_id, &db.get_master_key().to_vec().into())
-        .await?;
+        .await
+        .inspect_err(|error| {
+            logger::error!(
+                merchant_id=%merchant_id.get_string_repr(),
+                ?error,
+                "Failed to fetch merchant key store for network tokenization workflow"
+            );
+        })?;
 
     let merchant_account = db
         .find_merchant_account_by_merchant_id(&merchant_id, &key_store)
-        .await?;
+        .await
+        .inspect_err(|error| {
+            logger::error!(
+                merchant_id=%merchant_id.get_string_repr(),
+                ?error,
+                "Failed to fetch merchant account for network tokenization workflow"
+            );
+        })?;
 
     let business_profile = db
         .find_business_profile_by_merchant_id_profile_id(
@@ -98,7 +112,15 @@ async fn generate_network_token(
             &merchant_id,
             &tracking_data.profile_id,
         )
-        .await?;
+        .await
+        .inspect_err(|error| {
+            logger::error!(
+                merchant_id=%merchant_id.get_string_repr(),
+                profile_id=%tracking_data.profile_id.get_string_repr(),
+                ?error,
+                "Failed to fetch business profile for network tokenization workflow"
+            );
+        })?;
 
     if !business_profile.is_network_tokenization_enabled {
         // A skip is a terminal success, not a failure, so finish with a business status rather
@@ -115,7 +137,14 @@ async fn generate_network_token(
                 &tracking_data.payment_method_id,
                 merchant_account.storage_scheme,
             )
-            .await?;
+            .await
+            .inspect_err(|error| {
+                logger::error!(
+                    payment_method_id=%get_payment_method_id(tracking_data),
+                    ?error,
+                    "Failed to fetch payment method for network tokenization workflow"
+                );
+            })?;
 
         if payment_method
             .network_token_requestor_reference_id
@@ -167,11 +196,25 @@ async fn generate_network_token(
 
     let key_store = db
         .get_merchant_key_store_by_merchant_id(&merchant_id, &db.get_master_key().to_vec().into())
-        .await?;
+        .await
+        .inspect_err(|error| {
+            logger::error!(
+                merchant_id=%merchant_id.get_string_repr(),
+                ?error,
+                "Failed to fetch merchant key store for network tokenization workflow"
+            );
+        })?;
 
     let merchant_account = db
         .find_merchant_account_by_merchant_id(&merchant_id, &key_store)
-        .await?;
+        .await
+        .inspect_err(|error| {
+            logger::error!(
+                merchant_id=%merchant_id.get_string_repr(),
+                ?error,
+                "Failed to fetch merchant account for network tokenization workflow"
+            );
+        })?;
 
     let business_profile = db
         .find_business_profile_by_merchant_id_profile_id(
@@ -179,7 +222,15 @@ async fn generate_network_token(
             &merchant_id,
             &tracking_data.profile_id,
         )
-        .await?;
+        .await
+        .inspect_err(|error| {
+            logger::error!(
+                merchant_id=%merchant_id.get_string_repr(),
+                profile_id=%tracking_data.profile_id.get_string_repr(),
+                ?error,
+                "Failed to fetch business profile for network tokenization workflow"
+            );
+        })?;
 
     if !business_profile.is_network_tokenization_enabled {
         // A skip is a terminal success, not a failure, so finish with a business status rather
@@ -196,7 +247,14 @@ async fn generate_network_token(
                 &tracking_data.payment_method_id,
                 merchant_account.storage_scheme,
             )
-            .await?;
+            .await
+            .inspect_err(|error| {
+                logger::error!(
+                    payment_method_id=%get_payment_method_id(tracking_data),
+                    ?error,
+                    "Failed to fetch payment method for network tokenization workflow"
+                );
+            })?;
 
         if payment_method
             .network_token_requestor_reference_id

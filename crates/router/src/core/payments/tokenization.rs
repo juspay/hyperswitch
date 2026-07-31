@@ -326,16 +326,19 @@ where
                 .get_payment_method_data()
                 .get_card_data()
                 .and_then(|card| card.card_network.clone());
-            
-            let mut payment_method_pending_network_tokenization: Option<String> = None;
 
-            let pm_id = if let Some(existing_pm) = payment_method_info.clone().filter(|_| {
-                matches!(
-                    save_payment_method_data.request.get_payment_method_data(),
-                    domain::PaymentMethodData::MandatePayment
-                        | domain::PaymentMethodData::CardToken(_)
-                )
-            }) {
+            // `payment_method_pending_network_tokenization` carries the id of a payment method
+            // that may still need a network token generated asynchronously by the process
+            // tracker. It is produced alongside `pm_id` by the branches below instead of being
+            // assigned to a mutable variable.
+            let (pm_id, payment_method_pending_network_tokenization) = if let Some(existing_pm) =
+                payment_method_info.clone().filter(|_| {
+                    matches!(
+                        save_payment_method_data.request.get_payment_method_data(),
+                        domain::PaymentMethodData::MandatePayment
+                            | domain::PaymentMethodData::CardToken(_)
+                    )
+                }) {
                 // Recharge of an already-saved payment method where the request
                 // carries no fresh raw card data — either a recurring/MIT charge via
                 // an established connector mandate (PaymentMethodData::MandatePayment)
@@ -359,8 +362,10 @@ where
                 })
                 .ok();
 
-                payment_method_pending_network_tokenization = Some(existing_pm.get_id().clone());
-                Some(existing_pm.get_id().clone())
+                // The existing payment method may still be missing a network token (the workflow
+                // skips it if one is already present), so hand it to the process tracker as well.
+                let existing_pm_id = existing_pm.get_id().clone();
+                (Some(existing_pm_id.clone()), Some(existing_pm_id))
             } else if customer_acceptance.is_some() {
                 let payment_method_data =
                     save_payment_method_data.request.get_payment_method_data();
@@ -1096,14 +1101,14 @@ where
                 // network or a failed tokenization service call. In every such case, defer
                 // generation to the process tracker. The workflow skips payment methods that are
                 // already tokenized, so this is safe for duplicated cards as well.
-                payment_method_pending_network_tokenization = (save_payment_method_data.payment_method
+                let pending_network_tokenization = (save_payment_method_data.payment_method
                     == PaymentMethod::Card
                     && !network_token_generated)
                     .then(|| resp.payment_method_id.clone());
 
-                Some(resp.payment_method_id)
+                (Some(resp.payment_method_id), pending_network_tokenization)
             } else {
-                None
+                (None, None)
             };
 
             // If network tokenization is enabled for the profile, trigger the process tracker
