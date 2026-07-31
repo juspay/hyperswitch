@@ -575,9 +575,14 @@ impl CustomerInterface for KafkaStore {
         &self,
         id: &id_type::GlobalCustomerId,
         merchant_id: &id_type::MerchantId,
+        storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::CustomerWithoutEncrypted, errors::StorageError> {
         self.diesel_store
-            .find_customer_by_global_id_merchant_id_without_encrypted(id, merchant_id)
+            .find_customer_by_global_id_merchant_id_without_encrypted(
+                id,
+                merchant_id,
+                storage_scheme,
+            )
             .await
     }
 

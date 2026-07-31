@@ -112,7 +112,6 @@ pub struct CustomerWithoutEncrypted {
     pub id: id_type::GlobalCustomerId,
     pub merchant_id: id_type::MerchantId,
     pub status: DeleteStatus,
-    pub connector_customer: Option<common_types::customers::ConnectorCustomerMap>,
     pub default_payment_method_id: Option<id_type::GlobalPaymentMethodId>,
 }
 
@@ -123,7 +122,18 @@ impl From<storage_types::Customer> for CustomerWithoutEncrypted {
             id: customer.id,
             merchant_id: customer.merchant_id,
             status: customer.status,
-            connector_customer: customer.connector_customer,
+            default_payment_method_id: customer.default_payment_method_id,
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
+impl From<storage_types::CustomerWithoutEncrypted> for CustomerWithoutEncrypted {
+    fn from(customer: storage_types::CustomerWithoutEncrypted) -> Self {
+        Self {
+            id: customer.id,
+            merchant_id: customer.merchant_id,
+            status: customer.status,
             default_payment_method_id: customer.default_payment_method_id,
         }
     }
@@ -958,6 +968,7 @@ where
         &self,
         id: &id_type::GlobalCustomerId,
         merchant_id: &id_type::MerchantId,
+        storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<CustomerWithoutEncrypted, Self::Error>;
 }
 

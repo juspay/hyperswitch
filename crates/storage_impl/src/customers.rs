@@ -20,6 +20,12 @@ use crate::{
     CustomResult, DatabaseStore, MockDb, RouterStore,
 };
 
+#[cfg(feature = "v2")]
+use crate::{
+    redis::kv_store::{kv_wrapper, KvOperation},
+    utils::try_redis_get_else_try_database_get,
+};
+
 impl KvStorePartition for customers::Customer {}
 
 #[cfg(feature = "v2")]
@@ -509,12 +515,50 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
         &self,
         id: &id_type::GlobalCustomerId,
         merchant_id: &id_type::MerchantId,
+        storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::CustomerWithoutEncrypted, StorageError> {
         let conn = pg_connection_read(self).await?;
-        let result = customers::Customer::find_by_global_id_merchant_id(&conn, id, merchant_id)
-            .await
-            .map(domain::CustomerWithoutEncrypted::from)
-            .map_err(StorageError::DatabaseError)?;
+        let database_call = || async {
+            Ok::<_, error_stack::Report<StorageError>>(
+                customers::Customer::find_by_global_id_merchant_id_without_encrypted(
+                    &conn,
+                    id,
+                    merchant_id,
+                )
+                .await
+                .map(domain::CustomerWithoutEncrypted::from)
+                .map_err(StorageError::from)?,
+            )
+        };
+        let storage_scheme = Box::pin(decide_storage_scheme::<T, customers::Customer>(
+            self,
+            storage_scheme,
+            Op::Find,
+        ))
+        .await;
+        let result = match storage_scheme {
+            MerchantStorageScheme::PostgresOnly => database_call().await?,
+            MerchantStorageScheme::RedisKv => {
+                let field = format!("cust_{}", id.get_string_repr());
+                let key = PartitionKey::GlobalId {
+                    id: id.get_string_repr(),
+                };
+                Box::pin(try_redis_get_else_try_database_get(
+                    async {
+                        let customer: customers::Customer = Box::pin(kv_wrapper(
+                            self,
+                            KvOperation::<customers::Customer>::HGet(&field),
+                            key,
+                        ))
+                        .await?
+                        .try_into_hget()?;
+                        Ok(domain::CustomerWithoutEncrypted::from(customer))
+                    },
+                    database_call,
+                ))
+                .await?
+            }
+        };
 
         if result.merchant_id != *merchant_id {
             Err(StorageError::ValueNotFound(
@@ -929,12 +973,17 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
         &self,
         id: &id_type::GlobalCustomerId,
         merchant_id: &id_type::MerchantId,
+        _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::CustomerWithoutEncrypted, StorageError> {
         let conn = pg_connection_read(self).await?;
-        let customer = customers::Customer::find_by_global_id_merchant_id(&conn, id, merchant_id)
-            .await
-            .map(domain::CustomerWithoutEncrypted::from)
-            .map_err(StorageError::DatabaseError)?;
+        let customer = customers::Customer::find_by_global_id_merchant_id_without_encrypted(
+            &conn,
+            id,
+            merchant_id,
+        )
+        .await
+        .map(domain::CustomerWithoutEncrypted::from)
+        .map_err(StorageError::from)?;
 
         if customer.merchant_id != *merchant_id {
             Err(StorageError::ValueNotFound(
@@ -1234,6 +1283,7 @@ impl domain::CustomerInterface for MockDb {
         &self,
         _id: &id_type::GlobalCustomerId,
         _merchant_id: &id_type::MerchantId,
+        _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::CustomerWithoutEncrypted, StorageError> {
         // [#172]: Implement function for `MockDb`
         Err(StorageError::MockDbError)?

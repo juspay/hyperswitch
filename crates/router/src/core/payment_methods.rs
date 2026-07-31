@@ -1559,6 +1559,7 @@ pub async fn create_persistent_payment_method_core(
     db.find_customer_by_global_id_merchant_id_without_encrypted(
         &customer_id,
         platform.get_provider().get_account().get_id(),
+        platform.get_provider().get_account().storage_scheme,
     )
     .await
     .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
@@ -1667,6 +1668,7 @@ pub async fn create_volatile_payment_method_core(
         db.find_customer_by_global_id_merchant_id_without_encrypted(
             customer_id,
             platform.get_provider().get_account().get_id(),
+            platform.get_provider().get_account().storage_scheme,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
@@ -3803,6 +3805,7 @@ pub async fn payment_method_intent_create(
     db.find_customer_by_global_id_merchant_id_without_encrypted(
         &customer_id,
         provider.get_account().get_id(),
+        provider.get_account().storage_scheme,
     )
     .await
     .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
@@ -5375,6 +5378,7 @@ pub async fn list_payment_methods_core(
         .find_customer_by_global_id_merchant_id_without_encrypted(
             customer_id,
             provider.get_account().get_id(),
+            provider.get_account().storage_scheme,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
@@ -5431,6 +5435,7 @@ pub async fn list_customer_payment_methods_core(
         .find_customer_by_global_id_merchant_id_without_encrypted(
             customer_id,
             provider.get_account().get_id(),
+            provider.get_account().storage_scheme,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
@@ -6241,6 +6246,7 @@ pub async fn delete_payment_method_core(
         .find_customer_by_global_id_merchant_id_without_encrypted(
             customer_id,
             platform.get_provider().get_account().get_id(),
+            platform.get_provider().get_account().storage_scheme,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
