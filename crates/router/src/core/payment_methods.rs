@@ -82,6 +82,7 @@ use super::{
 use crate::{
     configs::settings,
     core::{
+        account_updater,
         payment_methods::{transformers as pm_transforms, utils as payment_method_utils},
         tokenization as tokenization_core,
     },
@@ -5477,6 +5478,7 @@ pub async fn retrieve_payment_method(
     platform: domain::Platform,
     api_key_type: enums::ApiKeyType,
     fetch_raw_detail_query_param: bool,
+    force_sync: bool,
 ) -> RouterResponse<api::PaymentMethodResponse> {
     let db = state.store.as_ref();
 
@@ -5510,6 +5512,24 @@ pub async fn retrieve_payment_method(
                 .attach_printable("Payment method is inactive or redacted"))
         },
     )?;
+
+    // 3. Optionally run the Account Updater evaluation
+    if force_sync {
+        let account_updater_terminal_state = Box::pin(account_updater::evaluate(
+            &state,
+            &platform,
+            &profile,
+            &payment_method,
+            storage_type,
+            &dimensions.without_provider_merchant_id(),
+        ))
+        .await;
+
+        logger::debug!(
+            ?account_updater_terminal_state,
+            "Account Updater evaluation completed"
+        );
+    }
 
     let raw_payment_method_fetch_access = get_raw_payment_method_data_fetch_access(
         &state,
@@ -5610,6 +5630,7 @@ pub async fn retrieve_payment_method_olap(
         profile,
         platform,
         enums::ApiKeyType::External,
+        false,
         false,
     ))
     .await?

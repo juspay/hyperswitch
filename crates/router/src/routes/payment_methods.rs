@@ -298,6 +298,7 @@ pub async fn payment_method_retrieve_api(
                 auth.platform,
                 api_key_type,
                 query_payload.fetch_raw_detail,
+                query_payload.force_sync,
             )
         },
         &*auth_type,

@@ -54,7 +54,10 @@ use unified_connector_service_client::payments::{
 };
 
 use crate::{
-    core::{mandate::MandateBehaviour, unified_connector_service},
+    core::{
+        account_updater::types::RefreshOutcome, mandate::MandateBehaviour,
+        unified_connector_service,
+    },
     types::{
         api,
         transformers::{self, ForeignFrom},
@@ -847,6 +850,7 @@ impl
                 .map(payments_grpc::PaymentMethodType::foreign_try_from)
                 .transpose()?
                 .map(|payment_method_type| payment_method_type.into()),
+            order_details: build_ucs_order_details(router_data.request.order_details.as_deref()),
         })
     }
 }
@@ -6176,6 +6180,20 @@ impl ForeignFrom<common_enums::Tokenization> for payments_grpc::Tokenization {
         match tokenization {
             common_enums::Tokenization::TokenizeAtPsp => Self::TokenizeAtPsp,
             common_enums::Tokenization::SkipPsp => Self::SkipPsp,
+        }
+    }
+}
+
+impl ForeignFrom<payments_grpc::CardRefreshOutcome> for RefreshOutcome {
+    fn foreign_from(outcome: payments_grpc::CardRefreshOutcome) -> Self {
+        match outcome {
+            payments_grpc::CardRefreshOutcome::CardRefreshAccountUpdated => Self::AccountUpdated,
+            payments_grpc::CardRefreshOutcome::CardRefreshExpiryUpdated => Self::ExpiryUpdated,
+            payments_grpc::CardRefreshOutcome::CardRefreshNoChange => Self::NoChange,
+            payments_grpc::CardRefreshOutcome::CardRefreshClosed => Self::Closed,
+            payments_grpc::CardRefreshOutcome::CardRefreshNotFound => Self::NotFound,
+            payments_grpc::CardRefreshOutcome::CardRefreshContactIssuer => Self::ContactIssuer,
+            payments_grpc::CardRefreshOutcome::Unspecified => Self::Unspecified,
         }
     }
 }

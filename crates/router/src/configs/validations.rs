@@ -411,6 +411,12 @@ impl super::settings::JuspayAccountUpdaterConfig {
             })?;
         }
 
+        when(self.refresh_timeout_ms == 0, || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "account_updater.juspay.refresh_timeout_ms must be greater than zero".into(),
+            ))
+        })?;
+
         Ok(())
     }
 }
