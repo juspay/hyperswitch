@@ -382,32 +382,9 @@ pub async fn should_payment_be_blocked(
                 _ => None,
             });
 
-    let dpan_extended_bin_fingerprint =
-        payment_method_data
-            .as_ref()
-            .and_then(|pm_data| match pm_data {
-                domain::EligibilityPaymentMethodData::Wallet(domain::WalletData::GooglePay(
-                    google_pay,
-                )) => google_pay
-                    .tokenization_data
-                    .get_decrypted_google_pay_payment_data_optional()
-                    .map(|decrypted_data| {
-                        decrypted_data
-                            .application_primary_account_number
-                            .get_extended_card_bin()
-                    }),
-                domain::EligibilityPaymentMethodData::Wallet(domain::WalletData::ApplePay(
-                    apple_pay,
-                )) => apple_pay
-                    .payment_data
-                    .get_decrypted_apple_pay_payment_data_optional()
-                    .map(|decrypted_data| {
-                        decrypted_data
-                            .application_primary_account_number
-                            .get_extended_card_bin()
-                    }),
-                _ => None,
-            });
+    let dpan_extended_bin_fingerprint = payment_method_data
+        .as_ref()
+        .and_then(|pm_data| pm_data.get_dpan());
 
     //validating the payment method.
     let mut blocklist_futures = Vec::new();
