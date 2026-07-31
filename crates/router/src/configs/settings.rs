@@ -203,6 +203,7 @@ pub struct Settings<S: SecretState> {
     pub comparison_service: Option<ComparisonServiceConfig>,
     pub authentication_service_enabled_connectors: AuthenticationServiceEnabledConnectors,
     pub save_payment_method_on_session: OnSessionConfig,
+    pub account_updater: Option<SecretStateContainer<AccountUpdaterConfig, S>>,
 }
 
 #[cfg(feature = "deja")]
@@ -384,6 +385,22 @@ pub struct OnSessionConfig {
     #[serde(default, deserialize_with = "deserialize_hashmap")]
     pub unsupported_payment_methods:
         HashMap<enums::PaymentMethod, HashSet<enums::PaymentMethodType>>,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+#[serde(rename_all = "snake_case")]
+pub enum AccountUpdaterConfig {
+    Juspay(JuspayAccountUpdaterConfig),
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct JuspayAccountUpdaterConfig {
+    pub base_url: url::Url,
+    pub api_key: Secret<String>,
+    pub merchant_id: String,
+    pub euler_encryption_public_key: Secret<String>,
+    pub au_decryption_pvt_key: Secret<String>,
+    pub card_sync_key_id: String,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -1483,6 +1500,11 @@ impl Settings<SecuredSecret> {
         self.offer_engine
             .as_ref()
             .map(|offer_engine| offer_engine.validate())
+            .transpose()?;
+
+        self.account_updater
+            .as_ref()
+            .map(|account_updater| account_updater.get_inner().validate())
             .transpose()?;
 
         self.paze_decrypt_keys
