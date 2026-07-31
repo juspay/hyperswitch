@@ -1996,7 +1996,6 @@ pub async fn call_to_vault<V: pm_types::VaultingInterface>(
     let locker = &state.conf.locker;
     let jwekey = state.conf.jwekey.get_inner();
     let mut additional_headers = additional_headers.unwrap_or_default();
-    #[cfg(feature = "ext_services_latency")]
     if let Some(request_id) = state.request_id.as_ref() {
         additional_headers.insert(
             common_utils::consts::X_REQUEST_ID.to_string(),
