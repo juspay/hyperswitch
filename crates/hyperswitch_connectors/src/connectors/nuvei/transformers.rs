@@ -2321,8 +2321,10 @@ impl
                     response.transaction_id.clone(),
                     response.order_id.clone(),
                     response.session_token.clone(),
-                    response.external_scheme_transaction_id.clone(),
-                    response.transaction_link_id.clone(),
+                    NuveiNetworkTransactionData {
+                        id: response.external_scheme_transaction_id.clone(),
+                        link_id: response.transaction_link_id.clone(),
+                    },
                     response.payment_option.clone(),
                 )?)
             },
@@ -2430,14 +2432,18 @@ fn process_nuvei_payment_response(
 }
 
 // Helper function to create transaction response
+struct NuveiNetworkTransactionData {
+    id: Option<Secret<String>>,
+    link_id: Option<String>,
+}
+
 fn create_transaction_response(
     redirection_data: Option<RedirectForm>,
     ip_address: Option<String>,
     transaction_id: Option<String>,
     order_id: Option<String>,
     session_token: Option<Secret<String>>,
-    external_scheme_transaction_id: Option<Secret<String>>,
-    transaction_link_id: Option<String>,
+    network_transaction_data: NuveiNetworkTransactionData,
     payment_option: Option<PaymentOption>,
 ) -> Result<PaymentsResponseData, error_stack::Report<errors::ConnectorError>> {
     Ok(PaymentsResponseData::TransactionResponse {
@@ -2470,8 +2476,8 @@ fn create_transaction_response(
         } else {
             None
         },
-        network_txn_id: get_network_txn_id(external_scheme_transaction_id),
-        network_txn_link_id: transaction_link_id,
+        network_txn_id: get_network_txn_id(network_transaction_data.id),
+        network_txn_link_id: network_transaction_data.link_id,
         connector_response_reference_id: order_id.clone(),
         incremental_authorization_allowed: None,
         authentication_data: None,
@@ -2546,8 +2552,10 @@ impl
                     response.transaction_id.clone(),
                     response.order_id.clone(),
                     response.session_token.clone(),
-                    response.external_scheme_transaction_id.clone(),
-                    response.transaction_link_id.clone(),
+                    NuveiNetworkTransactionData {
+                        id: response.external_scheme_transaction_id.clone(),
+                        link_id: response.transaction_link_id.clone(),
+                    },
                     response.payment_option.clone(),
                 )?)
             },
@@ -2607,8 +2615,10 @@ where
                     response.transaction_id.clone(),
                     response.order_id.clone(),
                     response.session_token.clone(),
-                    response.external_scheme_transaction_id.clone(),
-                    response.transaction_link_id.clone(),
+                    NuveiNetworkTransactionData {
+                        id: response.external_scheme_transaction_id.clone(),
+                        link_id: response.transaction_link_id.clone(),
+                    },
                     response.payment_option.clone(),
                 )?)
             },
@@ -2746,8 +2756,10 @@ where
                         .and_then(|data| data.transaction_id.clone()),
                     None,
                     None,
-                    None,
-                    response.transaction_link_id.clone(),
+                    NuveiNetworkTransactionData {
+                        id: None,
+                        link_id: response.transaction_link_id.clone(),
+                    },
                     response.payment_option.clone(),
                 )?)
             },
