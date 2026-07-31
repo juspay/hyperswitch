@@ -519,14 +519,10 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
         let conn = pg_connection_read(self).await?;
         let database_call = || async {
             Ok::<_, error_stack::Report<StorageError>>(
-                customers::Customer::find_by_global_id_merchant_id_without_encrypted(
-                    &conn,
-                    id,
-                    merchant_id,
-                )
-                .await
-                .map(domain::CustomerWithoutEncrypted::from)
-                .map_err(StorageError::from)?,
+                customers::Customer::find_by_global_id(&conn, id)
+                    .await
+                    .map(domain::CustomerWithoutEncrypted::from)
+                    .map_err(StorageError::from)?,
             )
         };
         let storage_scheme = Box::pin(decide_storage_scheme::<T, customers::Customer>(
@@ -975,14 +971,10 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::CustomerWithoutEncrypted, StorageError> {
         let conn = pg_connection_read(self).await?;
-        let customer = customers::Customer::find_by_global_id_merchant_id_without_encrypted(
-            &conn,
-            id,
-            merchant_id,
-        )
-        .await
-        .map(domain::CustomerWithoutEncrypted::from)
-        .map_err(StorageError::from)?;
+        let customer = customers::Customer::find_by_global_id(&conn, id)
+            .await
+            .map(domain::CustomerWithoutEncrypted::from)
+            .map_err(StorageError::from)?;
 
         if customer.merchant_id != *merchant_id {
             Err(StorageError::ValueNotFound(

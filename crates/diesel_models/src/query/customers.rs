@@ -9,7 +9,7 @@ use error_stack::{report, ResultExt};
 
 use super::generics;
 #[cfg(feature = "v2")]
-use crate::customers::{CustomerGlobalIdMigrationRow, CustomerWithoutEncrypted};
+use crate::customers::CustomerGlobalIdMigrationRow;
 #[cfg(feature = "v1")]
 use crate::schema::customers::dsl;
 #[cfg(feature = "v2")]
@@ -151,35 +151,6 @@ impl Customer {
                 .and(dsl::merchant_id.eq(merchant_id.to_owned())),
         )
         .await
-    }
-
-    #[cfg(feature = "v2")]
-    pub async fn find_by_global_id_merchant_id_without_encrypted(
-        conn: &PgPooledConn,
-        id: &id_type::GlobalCustomerId,
-        merchant_id: &id_type::MerchantId,
-    ) -> StorageResult<CustomerWithoutEncrypted> {
-        let query = dsl::customers
-            .filter(
-                dsl::id
-                    .eq(id.to_owned())
-                    .and(dsl::merchant_id.eq(merchant_id.to_owned())),
-            )
-            .select((
-                dsl::id,
-                dsl::merchant_id,
-                dsl::status,
-                dsl::default_payment_method_id,
-            ));
-
-        match query.first_async::<CustomerWithoutEncrypted>(conn).await {
-            Ok(customer) => Ok(customer),
-            Err(diesel::result::Error::NotFound) => Err(report!(errors::DatabaseError::NotFound))
-                .attach_printable("No customer found for global id and merchant id"),
-            Err(error) => Err(error)
-                .change_context(errors::DatabaseError::Others)
-                .attach_printable("Error while finding customer by global id and merchant id"),
-        }
     }
 
     #[cfg(feature = "v1")]

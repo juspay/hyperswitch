@@ -109,32 +109,46 @@ pub struct Customer {
 #[cfg(feature = "v2")]
 #[derive(Clone, Debug)]
 pub struct CustomerWithoutEncrypted {
-    pub id: id_type::GlobalCustomerId,
     pub merchant_id: id_type::MerchantId,
-    pub status: DeleteStatus,
+    pub phone_country_code: Option<String>,
+    pub description: Option<Description>,
+    pub created_at: PrimitiveDateTime,
+    pub metadata: Option<pii::SecretSerdeValue>,
+    pub connector_customer: Option<common_types::customers::ConnectorCustomerMap>,
+    pub modified_at: PrimitiveDateTime,
     pub default_payment_method_id: Option<id_type::GlobalPaymentMethodId>,
+    pub updated_by: Option<String>,
+    pub merchant_reference_id: Option<id_type::CustomerId>,
+    pub id: id_type::GlobalCustomerId,
+    pub version: common_enums::ApiVersion,
+    pub status: DeleteStatus,
+    pub created_by: Option<CreatedBy>,
+    pub last_modified_by: Option<CreatedBy>,
 }
 
 #[cfg(feature = "v2")]
 impl From<storage_types::Customer> for CustomerWithoutEncrypted {
     fn from(customer: storage_types::Customer) -> Self {
         Self {
-            id: customer.id,
             merchant_id: customer.merchant_id,
-            status: customer.status,
+            phone_country_code: customer.phone_country_code,
+            description: customer.description,
+            created_at: customer.created_at,
+            metadata: customer.metadata,
+            connector_customer: customer.connector_customer,
+            modified_at: customer.modified_at,
             default_payment_method_id: customer.default_payment_method_id,
-        }
-    }
-}
-
-#[cfg(feature = "v2")]
-impl From<storage_types::CustomerWithoutEncrypted> for CustomerWithoutEncrypted {
-    fn from(customer: storage_types::CustomerWithoutEncrypted) -> Self {
-        Self {
+            updated_by: customer.updated_by,
+            merchant_reference_id: customer.merchant_reference_id,
             id: customer.id,
-            merchant_id: customer.merchant_id,
+            version: customer.version,
             status: customer.status,
-            default_payment_method_id: customer.default_payment_method_id,
+            created_by: customer
+                .created_by
+                .and_then(|created_by| created_by.parse::<CreatedBy>().ok()),
+            last_modified_by: customer
+                .last_modified_by
+                .and_then(|last_modified_by| last_modified_by.parse::<CreatedBy>().ok()),
         }
     }
 }

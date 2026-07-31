@@ -210,16 +210,6 @@ pub struct CustomerGlobalIdMigrationRow {
     pub version: ApiVersion,
 }
 
-#[cfg(feature = "v2")]
-#[derive(Clone, Debug, diesel::Queryable)]
-pub struct CustomerWithoutEncrypted {
-    pub id: common_utils::id_type::GlobalCustomerId,
-    pub merchant_id: common_utils::id_type::MerchantId,
-    #[diesel(deserialize_as = RequiredFromNullableWithDefault<DeleteStatus>)]
-    pub status: DeleteStatus,
-    pub default_payment_method_id: Option<common_utils::id_type::GlobalPaymentMethodId>,
-}
-
 #[cfg(feature = "v1")]
 #[derive(
     Clone, Debug, AsChangeset, router_derive::DebugAsDisplay, serde::Deserialize, serde::Serialize,
