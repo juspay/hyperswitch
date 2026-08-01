@@ -9229,6 +9229,27 @@ pub fn validate_platform_request_for_marketplace(
             }
             common_types::payments::XenditSplitRequest::SingleSplit(_) => (),
         },
+        Some(common_types::payments::SplitPaymentsRequest::PayloadSplitPayment(
+            payload_split_payment,
+        )) => {
+            let total_ledger_amount: i64 = payload_split_payment
+                .ledger
+                .iter()
+                .map(|split_item| split_item.amount.get_amount_as_i64())
+                .sum();
+
+            let total_amount: i64 = match amount {
+                api::Amount::Zero => 0,
+                api::Amount::Value(amount) => amount.into(),
+            };
+
+            if total_ledger_amount > total_amount {
+                return Err(errors::ApiErrorResponse::PreconditionFailed {
+                    message: "The sum of split amounts should not exceed the total amount"
+                        .to_string(),
+                });
+            }
+        }
         None => (),
     }
     Ok(())
