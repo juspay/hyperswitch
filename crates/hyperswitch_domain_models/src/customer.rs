@@ -969,6 +969,7 @@ where
     ) -> CustomResult<Customer, Self::Error>;
 
     #[cfg(feature = "v2")]
+    // TODO: Remove merchant_id from here once `id` is an unique key in DB
     async fn find_customer_by_global_id_merchant_id(
         &self,
         id: &id_type::GlobalCustomerId,
@@ -978,6 +979,7 @@ where
     ) -> CustomResult<Customer, Self::Error>;
 
     #[cfg(feature = "v2")]
+    // TODO: Remove merchant_id from here once `id` is an unique key in DB
     async fn find_customer_by_global_id_merchant_id_without_encrypted(
         &self,
         id: &id_type::GlobalCustomerId,
