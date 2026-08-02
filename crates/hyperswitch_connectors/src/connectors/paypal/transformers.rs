@@ -460,6 +460,26 @@ pub struct VaultStruct {
     vault_id: Secret<String>,
 }
 
+/// PayPal keeps legacy Billing Agreements in a different namespace from Vault v3 tokens, and
+/// accepts them on their own field rather than as a `vault_id`. Billing connectors such as
+/// Chargebee hand us the agreement id for stored PayPal payment methods, so a mandate payment
+/// has to be able to charge either kind of credential.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct BillingAgreementStruct {
+    billing_agreement_id: Secret<String>,
+}
+
+impl BillingAgreementStruct {
+    /// PayPal billing agreement ids are consistently `B-` prefixed, which is the only signal
+    /// available here - the mandate id reaches the connector as an opaque string with no
+    /// accompanying metadata describing which namespace it belongs to.
+    const ID_PREFIX: &'static str = "B-";
+
+    fn is_billing_agreement_id(mandate_id: &str) -> bool {
+        mandate_id.starts_with(Self::ID_PREFIX)
+    }
+}
+
 #[derive(Debug, Serialize)]
 #[serde(untagged)]
 pub enum CardRequest {
@@ -517,6 +537,7 @@ pub enum ShippingPreference {
 pub enum PaypalRedirectionRequest {
     PaypalRedirectionStruct(PaypalRedirectionStruct),
     PaypalVaultStruct(VaultStruct),
+    BillingAgreementStruct(BillingAgreementStruct),
 }
 
 #[derive(Debug, Serialize)]
@@ -1215,9 +1236,17 @@ impl TryFrom<&PaypalRouterData<&PaymentsAuthorizeRouterData>> for PaypalPayments
                         }),
                     ))),
                     enums::PaymentMethodType::Paypal => Ok(Some(PaymentSourceItem::Paypal(
-                        PaypalRedirectionRequest::PaypalVaultStruct(VaultStruct {
-                            vault_id: connector_mandate_id.into(),
-                        }),
+                        if BillingAgreementStruct::is_billing_agreement_id(&connector_mandate_id) {
+                            PaypalRedirectionRequest::BillingAgreementStruct(
+                                BillingAgreementStruct {
+                                    billing_agreement_id: connector_mandate_id.into(),
+                                },
+                            )
+                        } else {
+                            PaypalRedirectionRequest::PaypalVaultStruct(VaultStruct {
+                                vault_id: connector_mandate_id.into(),
+                            })
+                        },
                     ))),
                     enums::PaymentMethodType::Ach
                     | enums::PaymentMethodType::Affirm
