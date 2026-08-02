@@ -1,7 +1,6 @@
 import { customerAcceptance } from "./Commons";
 
-// TSYS TransIT test card numbers
-// Visa
+// TSYS TransIT test card numbers — No 3DS
 const successfulNo3DSCardDetailsVisa = {
   card_number: "4012000033330026",
   card_exp_month: "12",
@@ -10,7 +9,6 @@ const successfulNo3DSCardDetailsVisa = {
   card_cvc: "123",
 };
 
-// Mastercard
 const successfulNo3DSCardDetailsMastercard = {
   card_number: "5424000000000015",
   card_exp_month: "12",
@@ -19,8 +17,32 @@ const successfulNo3DSCardDetailsMastercard = {
   card_cvc: "123",
 };
 
-// American Express
 const successfulNo3DSCardDetailsAmex = {
+  card_number: "371449635398431",
+  card_exp_month: "12",
+  card_exp_year: "30",
+  card_holder_name: "Joseph Doe",
+  card_cvc: "1234",
+};
+
+// TSYS TransIT test card numbers — 3DS
+const successfulThreeDSCardDetailsVisa = {
+  card_number: "4012000033330026",
+  card_exp_month: "12",
+  card_exp_year: "30",
+  card_holder_name: "Joseph Doe",
+  card_cvc: "123",
+};
+
+const successfulThreeDSCardDetailsMastercard = {
+  card_number: "5424000000000015",
+  card_exp_month: "12",
+  card_exp_year: "30",
+  card_holder_name: "Joseph Doe",
+  card_cvc: "123",
+};
+
+const successfulThreeDSCardDetailsAmex = {
   card_number: "371449635398431",
   card_exp_month: "12",
   card_exp_year: "30",
@@ -145,7 +167,7 @@ export const connectorDetails = {
       },
     },
 
-    // ── Basic card flows ──────────────────────────────────────────
+    // ── No-3DS card flows ─────────────────────────────────────────
 
     No3DSAutoCapture: {
       Request: {
@@ -206,6 +228,86 @@ export const connectorDetails = {
           error_message: "The card has been declined",
           unified_code: "UE_9000",
           unified_message: "Something went wrong",
+        },
+      },
+    },
+
+    // ── 3DS card flows — Visa ─────────────────────────────────────
+
+    "3DSAutoCapture": {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulThreeDSCardDetailsVisa,
+        },
+        billing: billingAddress,
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+
+    "3DSManualCapture": {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulThreeDSCardDetailsVisa,
+        },
+        billing: billingAddress,
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+
+    // 3DS — Mastercard variant
+    "3DSAutoCaptureMastercard": {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulThreeDSCardDetailsMastercard,
+        },
+        billing: billingAddress,
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+
+    // 3DS — Amex variant
+    "3DSAutoCaptureAmex": {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulThreeDSCardDetailsAmex,
+        },
+        billing: billingAddress,
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
         },
       },
     },
@@ -336,7 +438,6 @@ export const connectorDetails = {
 
     // ── Moto CIT — connector agnostic token, off_session ─────────
     // Profile must have is_connector_agnostic_mit_enabled = true.
-    // Visa variant (primary — used by 25-ConnectorAgnosticNTID.cy.js)
 
     SaveCardUseNo3DSAutoCapture: {
       Request: {
@@ -449,6 +550,61 @@ export const connectorDetails = {
       },
     },
 
+    // 3DS SaveCard flows
+    SaveCardUse3DSAutoCapture: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulThreeDSCardDetailsVisa,
+        },
+        currency: "USD",
+        setup_future_usage: "on_session",
+        customer_acceptance: customerAcceptance,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+
+    SaveCardUse3DSAutoCaptureOnSession: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulThreeDSCardDetailsVisa,
+        },
+        currency: "USD",
+        setup_future_usage: "on_session",
+        customer_acceptance: customerAcceptance,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+
+    SaveCardUse3DSAutoCaptureOffSession: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulThreeDSCardDetailsVisa,
+        },
+        currency: "USD",
+        setup_future_usage: "off_session",
+        customer_acceptance: customerAcceptance,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+
     PaymentIntentOffSession: {
       Request: {
         currency: "USD",
@@ -510,7 +666,6 @@ export const connectorDetails = {
     },
 
     // Moto MIT — with payment_method_id (NTID flow; psp token not present)
-    // Profile 2 uses NTID from Profile 1's CIT to authorise the MIT.
     MITAutoCapture: {
       Request: {},
       Response: {
@@ -590,7 +745,43 @@ export const connectorDetails = {
       },
     },
 
-    // ── Mandate flows (single-use / multi-use) ────────────────────
+    PaymentMethodIdMandate3DSAutoCapture: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulThreeDSCardDetailsVisa,
+        },
+        currency: "USD",
+        mandate_data: null,
+        customer_acceptance: customerAcceptance,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+
+    PaymentMethodIdMandate3DSManualCapture: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulThreeDSCardDetailsVisa,
+        },
+        currency: "USD",
+        mandate_data: null,
+        customer_acceptance: customerAcceptance,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+
+    // ── Single-use mandate flows ──────────────────────────────────
 
     MandateSingleUseNo3DSAutoCapture: {
       Request: {
@@ -644,6 +835,60 @@ export const connectorDetails = {
       },
     },
 
+    MandateSingleUse3DSAutoCapture: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulThreeDSCardDetailsVisa,
+        },
+        currency: "USD",
+        customer_acceptance: customerAcceptance,
+        mandate_data: {
+          customer_acceptance: customerAcceptance,
+          mandate_type: {
+            single_use: {
+              amount: 8000,
+              currency: "USD",
+            },
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+
+    MandateSingleUse3DSManualCapture: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulThreeDSCardDetailsVisa,
+        },
+        currency: "USD",
+        customer_acceptance: customerAcceptance,
+        mandate_data: {
+          customer_acceptance: customerAcceptance,
+          mandate_type: {
+            single_use: {
+              amount: 8000,
+              currency: "USD",
+            },
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+
+    // ── Multi-use mandate flows ───────────────────────────────────
+
     MandateMultiUseNo3DSAutoCapture: {
       Request: {
         payment_method: "card",
@@ -692,6 +937,58 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_capture",
+        },
+      },
+    },
+
+    MandateMultiUse3DSAutoCapture: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulThreeDSCardDetailsVisa,
+        },
+        currency: "USD",
+        customer_acceptance: customerAcceptance,
+        mandate_data: {
+          customer_acceptance: customerAcceptance,
+          mandate_type: {
+            multi_use: {
+              amount: 8000,
+              currency: "USD",
+            },
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+
+    MandateMultiUse3DSManualCapture: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulThreeDSCardDetailsVisa,
+        },
+        currency: "USD",
+        customer_acceptance: customerAcceptance,
+        mandate_data: {
+          customer_acceptance: customerAcceptance,
+          mandate_type: {
+            multi_use: {
+              amount: 8000,
+              currency: "USD",
+            },
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
         },
       },
     },
@@ -754,194 +1051,7 @@ export const connectorDetails = {
       },
     },
 
-    // ── 3DS (not supported) ───────────────────────────────────────
-
-    "3DSAutoCapture": {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
-      Request: {},
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            message: "3DS not supported for TsysTransit",
-            code: "IR_00",
-          },
-        },
-      },
-    },
-
-    "3DSManualCapture": {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
-      Request: {},
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            message: "3DS not supported for TsysTransit",
-            code: "IR_00",
-          },
-        },
-      },
-    },
-
-    MandateSingleUse3DSAutoCapture: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
-      Request: {},
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            message: "3DS not supported for TsysTransit",
-            code: "IR_00",
-          },
-        },
-      },
-    },
-
-    MandateSingleUse3DSManualCapture: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
-      Request: {},
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            message: "3DS not supported for TsysTransit",
-            code: "IR_00",
-          },
-        },
-      },
-    },
-
-    MandateMultiUse3DSAutoCapture: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
-      Request: {},
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            message: "3DS not supported for TsysTransit",
-            code: "IR_00",
-          },
-        },
-      },
-    },
-
-    MandateMultiUse3DSManualCapture: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
-      Request: {},
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            message: "3DS not supported for TsysTransit",
-            code: "IR_00",
-          },
-        },
-      },
-    },
-
-    PaymentMethodIdMandate3DSAutoCapture: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
-      Request: {},
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            message: "3DS not supported for TsysTransit",
-            code: "IR_00",
-          },
-        },
-      },
-    },
-
-    PaymentMethodIdMandate3DSManualCapture: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
-      Request: {},
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            message: "3DS not supported for TsysTransit",
-            code: "IR_00",
-          },
-        },
-      },
-    },
-
-    SaveCardUse3DSAutoCapture: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
-      Request: {},
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            message: "3DS not supported for TsysTransit",
-            code: "IR_00",
-          },
-        },
-      },
-    },
-
-    SaveCardUse3DSAutoCaptureOnSession: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
-      Request: {},
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            message: "3DS not supported for TsysTransit",
-            code: "IR_00",
-          },
-        },
-      },
-    },
-
-    SaveCardUse3DSAutoCaptureOffSession: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
-      Request: {},
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            message: "3DS not supported for TsysTransit",
-            code: "IR_00",
-          },
-        },
-      },
-    },
+    // ── Misc ──────────────────────────────────────────────────────
 
     PaymentIntentWithShippingCost: {
       Request: {
