@@ -569,6 +569,12 @@ pub enum ConnectorSpecificConfig {
         merchant_account: Secret<String>,
         api_secret: Secret<String>,
     },
+    /// Tesouro connector configuration
+    Tesouro {
+        api_key: Secret<String>,
+        key1: Secret<String>,
+        api_secret: Secret<String>,
+    },
     /// Finix connector configuration
     Finix {
         finix_user_name: Secret<String>,
@@ -610,6 +616,8 @@ pub enum ConnectorSpecificConfig {
         api_key: Secret<String>,
         base_url: Option<String>,
     },
+    /// Givepayments connector configuration
+    Givepayments { api_key: Secret<String> },
 }
 
 impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
@@ -1084,6 +1092,18 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                     api_secret: api_secret.clone(),
                 }),
                 _ => Err(err("Barclaycard requires SignatureKey auth type")),
+            },
+            Connector::Tesouro => match auth {
+                ConnectorAuthType::SignatureKey {
+                    api_key,
+                    key1,
+                    api_secret,
+                } => Ok(Self::Tesouro {
+                    api_key: api_key.clone(),
+                    key1: key1.clone(),
+                    api_secret: api_secret.clone(),
+                }),
+                _ => Err(err("Tesouro requires SignatureKey auth type")),
             },
             Connector::Checkout => match auth {
                 ConnectorAuthType::SignatureKey {
@@ -1573,6 +1593,12 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                     base_url: None,
                 }),
                 _ => Err(err("Interpayments requires HeaderKey auth type")),
+            },
+            Connector::Givepayments => match auth {
+                ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Givepayments {
+                    api_key: api_key.clone(),
+                }),
+                _ => Err(err("Givepayments requires HeaderKey auth type")),
             },
             // --- Unsupported connectors ---
             _ => Err(

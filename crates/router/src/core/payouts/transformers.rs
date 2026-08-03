@@ -81,6 +81,7 @@ impl
             business_country: payout_attempt.business_country,
             business_label: payout_attempt.business_label,
             description: payout.description,
+            billing_descriptor: payout.billing_descriptor,
             entity_type: payout.entity_type,
             recurring: payout.recurring,
             metadata: payout.metadata,
