@@ -402,9 +402,9 @@ fn get_sepa_fields() -> HashMap<String, RequiredFieldInfo> {
 
 fn get_paypal_fields() -> HashMap<String, RequiredFieldInfo> {
     HashMap::from([(
-        "payout_method_data.wallet.telephone_number".to_string(),
+        "payout_method_data.wallet.paypal.telephone_number".to_string(),
         RequiredFieldInfo {
-            required_field: "payout_method_data.wallet.telephone_number".to_string(),
+            required_field: "payout_method_data.wallet.paypal.telephone_number".to_string(),
             display_name: "telephone_number".to_string(),
             field_type: FieldType::Text,
             value: None,
