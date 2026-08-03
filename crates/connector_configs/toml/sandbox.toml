@@ -7959,6 +7959,18 @@ label="Decrypt"
 placeholder="Enter decrypt value"
 required=true
 type="Text"
+[[paysafe.metadata.account_id.apple_pay.EUR.encrypt]]
+name="encrypt"
+label="Encrypt"
+placeholder="Enter encrypt value"
+required=true
+type="Text"
+[[paysafe.metadata.account_id.apple_pay.EUR.decrypt]]
+name="decrypt"
+label="Decrypt"
+placeholder="Enter decrypt value"
+required=true
+type="Text"
 
 [[paysafe.metadata.apple_pay]]
 name="certificate"
