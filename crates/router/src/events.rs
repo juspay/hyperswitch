@@ -15,6 +15,8 @@ use crate::{
     services::kafka::{KafkaMessage, KafkaSettings},
 };
 
+#[cfg(feature = "v2")]
+pub mod account_updater;
 pub mod api_logs;
 pub mod audit_events;
 pub mod connector_api_logs;
@@ -41,6 +43,7 @@ pub enum EventType {
     RoutingApiLogs,
     RevenueRecovery,
     ExternalServiceCall,
+    AccountUpdater,
 }
 
 #[derive(Debug, Default, Deserialize, Clone)]
@@ -49,6 +52,8 @@ pub struct EventsConfig {
     pub source: EventsSource,
     #[serde(default)]
     pub emit_external_service_call_events: bool,
+    #[serde(default)]
+    pub emit_account_updater_events: bool,
 }
 
 #[derive(Debug, Default, Deserialize, Clone)]
@@ -108,6 +113,9 @@ impl EventsConfig {
                 kafka.validate()?;
                 if self.emit_external_service_call_events {
                     kafka.validate_external_service_call_topic()?;
+                }
+                if self.emit_account_updater_events {
+                    kafka.validate_account_updater_topic()?;
                 }
                 Ok(())
             }

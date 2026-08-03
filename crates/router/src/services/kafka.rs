@@ -166,6 +166,7 @@ pub struct KafkaSettings {
     routing_logs_topic: String,
     revenue_recovery_topic: String,
     external_service_call_topic: String,
+    account_updater_topic: String,
 }
 
 /// Base rdkafka client configuration for this deployment's Kafka cluster.
@@ -300,6 +301,20 @@ impl KafkaSettings {
             },
         )
     }
+
+    pub fn validate_account_updater_topic(
+        &self,
+    ) -> Result<(), crate::core::errors::ApplicationError> {
+        use common_utils::ext_traits::ConfigExt;
+
+        use crate::core::errors::ApplicationError;
+
+        common_utils::fp_utils::when(self.account_updater_topic.is_default_or_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "Kafka Account Updater topic must not be empty".into(),
+            ))
+        })
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -322,6 +337,7 @@ pub struct KafkaProducer {
     routing_logs_topic: String,
     revenue_recovery_topic: String,
     external_service_call_topic: String,
+    account_updater_topic: String,
 }
 
 struct RdKafkaProducer(ThreadedProducer<DefaultProducerContext>);
@@ -372,6 +388,7 @@ impl KafkaProducer {
             routing_logs_topic: conf.routing_logs_topic.clone(),
             revenue_recovery_topic: conf.revenue_recovery_topic.clone(),
             external_service_call_topic: conf.external_service_call_topic.clone(),
+            account_updater_topic: conf.account_updater_topic.clone(),
         })
     }
 
@@ -712,6 +729,7 @@ impl KafkaProducer {
             EventType::RoutingApiLogs => &self.routing_logs_topic,
             EventType::RevenueRecovery => &self.revenue_recovery_topic,
             EventType::ExternalServiceCall => &self.external_service_call_topic,
+            EventType::AccountUpdater => &self.account_updater_topic,
         }
     }
 }

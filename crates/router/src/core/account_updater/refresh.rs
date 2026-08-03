@@ -17,7 +17,7 @@ use crate::{
     types::{domain, transformers::ForeignFrom},
 };
 
-const ACCOUNT_UPDATER_CONNECTOR_NAME: &str = "juspay";
+pub(crate) const ACCOUNT_UPDATER_CONNECTOR_NAME: &str = "juspay";
 
 #[instrument(skip_all)]
 pub async fn refresh_card(
