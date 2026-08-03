@@ -15,7 +15,7 @@ describe("Split Payments test", () => {
         if (
           utils.shouldIncludeConnector(
             connector,
-            utils.CONNECTOR_LISTS.INCLUDE.SPLIT_PAYMENTS_CYPRESS_COVERAGE
+            utils.CONNECTOR_LISTS.INCLUDE.SPLIT_PAYMENTS
           )
         ) {
           skip = true;
