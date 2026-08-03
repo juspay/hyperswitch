@@ -88,11 +88,12 @@ impl<const PRECISION: u8> Percentage<PRECISION> {
     }
 
     /// apply the percentage to amount and ceil the result
-    #[allow(clippy::as_conversions)]
     pub fn apply_and_ceil_result(
         &self,
         amount: MinorUnit,
     ) -> CustomResult<MinorUnit, PercentageError> {
+        // Cap the input so the original f64 math stayed precise: i64::MAX/10000 (~9.2e14) is well
+        // within f64's exact-integer range (2^53). Pre-existing bound; kept as-is.
         let max_amount = i64::MAX / 10000;
         let amount = amount.0;
         if amount > max_amount {
@@ -105,8 +106,37 @@ impl<const PRECISION: u8> Percentage<PRECISION> {
                 "Cannot calculate percentage for amount greater than {max_amount}",
             ))
         } else {
-            let percentage_f64 = f64::from(self.percentage);
-            let result = (amount as f64 * (percentage_f64 / 100.0)).ceil() as i64;
+            // Compute the surcharge in Decimal, never in binary float. `self.percentage` is an f32,
+            // which cannot store e.g. 2.22 exactly (it holds ~2.22000003), so the previous
+            // `(amount as f64 * (pct / 100.0)).ceil()` produced 2_220_001 instead of 2_220_000 for
+            // 2.22% of 100_000_000. `round_dp(PRECISION)` is REQUIRED (not defensive): it removes
+            // that f32 representation error and recovers the validated value. The surcharge ceiling
+            // is the `.ceil()` on the result below.
+            // Decimal is a bit slower than f64, but a surcharge runs once per payment, not in a
+            // tight loop, so correctness wins over the cost.
+            // `self.percentage` is range-validated to 0..=100 at construction, so it is always
+            // finite; `from_f64` returns `None` only for NaN/Inf, so this arm is unreachable.
+            let percentage_decimal = Decimal::from_f64(f64::from(self.percentage))
+                .map(|percentage| percentage.round_dp(u32::from(PRECISION)))
+                .ok_or_else(|| {
+                    report!(PercentageError::InvalidPercentageValue)
+                        .attach_printable("percentage could not be represented as a decimal")
+                })?;
+            // `Decimal::from(i64)` is infallible for any i64, so there is no error path here.
+            let amount_decimal = Decimal::from(amount);
+            // `to_i64` returns None only above i64::MAX. Here the percentage is capped at 100%
+            // (range-validated) and `amount` is guarded to i64::MAX/10000, so the result =
+            // ceil(amount * pct/100) <= amount <= i64::MAX/10000, at most ~1/10000 of i64::MAX.
+            // The error is a defensive fallback the bounds make unreachable.
+            let result = (amount_decimal * percentage_decimal / Decimal::from(100))
+                .ceil()
+                .to_i64()
+                .ok_or_else(|| {
+                    report!(PercentageError::UnableToApplyPercentage {
+                        percentage: self.percentage,
+                        amount: MinorUnit::new(amount),
+                    })
+                })?;
             Ok(MinorUnit::new(result))
         }
     }
@@ -789,6 +819,84 @@ mod amount_conversion_tests {
     const TWO_DECIMAL_CURRENCY: enums::Currency = enums::Currency::USD;
     const THREE_DECIMAL_CURRENCY: enums::Currency = enums::Currency::BHD;
     const ZERO_DECIMAL_CURRENCY: enums::Currency = enums::Currency::JPY;
+
+    #[test]
+    fn percentage_apply_and_ceil_is_decimal_exact() {
+        // Surcharge percentages must be applied exactly. The previous f64 implementation
+        // returned 2_220_001 / 33_330_002 for these cases because `pct / 100.0` is not
+        // representable in binary floating point.
+        let two_twenty_two = Percentage::<2>::from_string("2.22".to_string()).unwrap();
+        assert_eq!(
+            two_twenty_two
+                .apply_and_ceil_result(MinorUnit::new(100_000_000))
+                .unwrap(),
+            MinorUnit::new(2_220_000)
+        );
+
+        let thirty_three = Percentage::<2>::from_string("33.33".to_string()).unwrap();
+        assert_eq!(
+            thirty_three
+                .apply_and_ceil_result(MinorUnit::new(100_000_000))
+                .unwrap(),
+            MinorUnit::new(33_330_000)
+        );
+
+        // A genuine fraction is still ceiled up: 10% of 105 minor units is 10.5 -> 11.
+        let ten = Percentage::<2>::from_string("10".to_string()).unwrap();
+        assert_eq!(
+            ten.apply_and_ceil_result(MinorUnit::new(105)).unwrap(),
+            MinorUnit::new(11)
+        );
+    }
+
+    #[test]
+    fn percentage_apply_and_ceil_edge_cases() {
+        // 0% and 100% boundaries.
+        let zero = Percentage::<2>::from_string("0".to_string()).unwrap();
+        assert_eq!(zero.apply_and_ceil_result(MinorUnit::new(12_345)).unwrap(), MinorUnit::new(0));
+        let full = Percentage::<2>::from_string("100".to_string()).unwrap();
+        assert_eq!(
+            full.apply_and_ceil_result(MinorUnit::new(12_345)).unwrap(),
+            MinorUnit::new(12_345)
+        );
+
+        // A tiny surcharge on a single minor unit still ceils up to 1.
+        let small = Percentage::<2>::from_string("2.22".to_string()).unwrap();
+        assert_eq!(small.apply_and_ceil_result(MinorUnit::new(1)).unwrap(), MinorUnit::new(1));
+
+        // Overflow guard: the boundary amount (i64::MAX/10000) is accepted; larger amounts error.
+        let max_amount = MinorUnit::new(i64::MAX / 10000);
+        assert_eq!(full.apply_and_ceil_result(max_amount).unwrap(), max_amount);
+        assert!(full.apply_and_ceil_result(MinorUnit::new(i64::MAX)).is_err());
+
+        // A surcharge above 100% cannot exist: the percentage range is validated to 0..=100.
+        assert!(Percentage::<2>::from_string("999.99".to_string()).is_err());
+    }
+
+    #[test]
+    fn percentage_apply_and_ceil_other_precision() {
+        // The impl is generic over PRECISION (surcharge uses 2); exercise PRECISION = 4 to confirm
+        // `round_dp` recovers higher-precision values exactly.
+        let p = Percentage::<4>::from_string("2.2225".to_string()).unwrap();
+        assert_eq!(
+            p.apply_and_ceil_result(MinorUnit::new(100_000_000)).unwrap(),
+            MinorUnit::new(2_222_500)
+        );
+
+        let q = Percentage::<4>::from_string("0.0125".to_string()).unwrap();
+        assert_eq!(
+            q.apply_and_ceil_result(MinorUnit::new(80_000_000)).unwrap(),
+            MinorUnit::new(10_000)
+        );
+
+        // 4-decimal fraction still ceils up: 0.3333% of 1000 = 3.333 -> 4.
+        let r = Percentage::<4>::from_string("0.3333".to_string()).unwrap();
+        assert_eq!(r.apply_and_ceil_result(MinorUnit::new(1_000)).unwrap(), MinorUnit::new(4));
+
+        // PRECISION = 4 rejects a value with too many decimals (5 here).
+        assert!(Percentage::<4>::from_string("0.12345".to_string()).is_err());
+    }
+
     #[test]
     fn amount_conversion_to_float_major_unit() {
         let request_amount = MinorUnit::new(999999999);
