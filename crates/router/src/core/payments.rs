@@ -9654,7 +9654,7 @@ async fn decrypt_apple_pay_wallet_for_eligibility(
     merchant_connector_id: &id_type::MerchantConnectorAccountId,
     apple_pay_wallet_data: &domain::ApplePayWalletData,
 ) -> RouterResult<Option<domain::EligibilityPaymentMethodData>> {
-    let merchant_connector_account = match state
+    let payment_processing_details = state
         .store
         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
             processor.get_account().get_id(),
@@ -9662,39 +9662,51 @@ async fn decrypt_apple_pay_wallet_for_eligibility(
             processor.get_key_store(),
         )
         .await
-    {
-        Ok(mca) => helpers::MerchantConnectorAccountType::DbVal(Box::new(mca)),
-        Err(error) => {
+        .inspect_err(|error| {
             logger::warn!(
                 ?error,
                 merchant_connector_id = merchant_connector_id.get_string_repr(),
                 "failed to fetch the merchant connector account for Apple Pay eligibility decryption"
-            );
-            return Ok(None);
+            )
+        })
+        .ok()
+        .map(|merchant_connector_account| {
+            helpers::MerchantConnectorAccountType::DbVal(Box::new(merchant_connector_account))
+        })
+        .and_then(|merchant_connector_account| {
+            check_apple_pay_metadata(state, Some(&merchant_connector_account))
+                .and_then(|apple_pay_flow| match apple_pay_flow {
+                    domain::ApplePayFlow::DecryptAtApplication(payment_processing_details) => {
+                        Some(payment_processing_details)
+                    }
+                    domain::ApplePayFlow::SkipDecryption => None,
+                })
+                .or_else(|| {
+                    logger::warn!(
+                        merchant_connector_id = merchant_connector_id.get_string_repr(),
+                        "Apple Pay decrypt-at-application not configured for this connector account; skipping eligibility decryption"
+                    );
+                    None
+                })
+        });
+
+    match payment_processing_details {
+        Some(payment_processing_details) => {
+            let apple_pay_predecrypt =
+                decrypt_apple_pay_wallet_data(&payment_processing_details, apple_pay_wallet_data)
+                    .await?;
+
+            Ok(Some(domain::EligibilityPaymentMethodData::Wallet(
+                domain::WalletData::ApplePay(domain::ApplePayWalletData {
+                    payment_data: common_types::payments::ApplePayPaymentData::Decrypted(
+                        apple_pay_predecrypt,
+                    ),
+                    ..apple_pay_wallet_data.clone()
+                }),
+            )))
         }
-    };
-
-    let Some(domain::ApplePayFlow::DecryptAtApplication(payment_processing_details)) =
-        check_apple_pay_metadata(state, Some(&merchant_connector_account))
-    else {
-        logger::warn!(
-            merchant_connector_id = merchant_connector_id.get_string_repr(),
-            "Apple Pay decrypt-at-application not configured for this connector account; skipping eligibility decryption"
-        );
-        return Ok(None);
-    };
-
-    let apple_pay_predecrypt =
-        decrypt_apple_pay_wallet_data(&payment_processing_details, apple_pay_wallet_data).await?;
-
-    Ok(Some(domain::EligibilityPaymentMethodData::Wallet(
-        domain::WalletData::ApplePay(domain::ApplePayWalletData {
-            payment_data: common_types::payments::ApplePayPaymentData::Decrypted(
-                apple_pay_predecrypt,
-            ),
-            ..apple_pay_wallet_data.clone()
-        }),
-    )))
+        None => Ok(None),
+    }
 }
 
 /// Decrypts a Google Pay wallet token for the pre-confirm eligibility check, using the specific
@@ -9708,7 +9720,7 @@ async fn decrypt_google_pay_wallet_for_eligibility(
     merchant_connector_id: &id_type::MerchantConnectorAccountId,
     google_pay_wallet_data: &domain::GooglePayWalletData,
 ) -> RouterResult<Option<domain::EligibilityPaymentMethodData>> {
-    let merchant_connector_account = match state
+    let payment_processing_details = state
         .store
         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
             processor.get_account().get_id(),
@@ -9716,39 +9728,46 @@ async fn decrypt_google_pay_wallet_for_eligibility(
             processor.get_key_store(),
         )
         .await
-    {
-        Ok(mca) => helpers::MerchantConnectorAccountType::DbVal(Box::new(mca)),
-        Err(error) => {
+        .inspect_err(|error| {
             logger::warn!(
                 ?error,
                 merchant_connector_id = merchant_connector_id.get_string_repr(),
                 "failed to fetch the merchant connector account for Google Pay eligibility decryption"
-            );
-            return Ok(None);
+            )
+        })
+        .ok()
+        .map(|merchant_connector_account| {
+            helpers::MerchantConnectorAccountType::DbVal(Box::new(merchant_connector_account))
+        })
+        .and_then(|merchant_connector_account| {
+            get_google_pay_connector_wallet_details(state, &merchant_connector_account).or_else(
+                || {
+                    logger::warn!(
+                        merchant_connector_id = merchant_connector_id.get_string_repr(),
+                        "Google Pay decrypt keys not configured for this connector account; skipping eligibility decryption"
+                    );
+                    None
+                },
+            )
+        });
+
+    match payment_processing_details {
+        Some(payment_processing_details) => {
+            let google_pay_predecrypt =
+                decrypt_google_pay_wallet_data(&payment_processing_details, google_pay_wallet_data)
+                    .await?;
+
+            Ok(Some(domain::EligibilityPaymentMethodData::Wallet(
+                domain::WalletData::GooglePay(domain::GooglePayWalletData {
+                    tokenization_data: common_types::payments::GpayTokenizationData::Decrypted(
+                        google_pay_predecrypt,
+                    ),
+                    ..google_pay_wallet_data.clone()
+                }),
+            )))
         }
-    };
-
-    let Some(payment_processing_details) =
-        get_google_pay_connector_wallet_details(state, &merchant_connector_account)
-    else {
-        logger::warn!(
-            merchant_connector_id = merchant_connector_id.get_string_repr(),
-            "Google Pay decrypt keys not configured for this connector account; skipping eligibility decryption"
-        );
-        return Ok(None);
-    };
-
-    let google_pay_predecrypt =
-        decrypt_google_pay_wallet_data(&payment_processing_details, google_pay_wallet_data).await?;
-
-    Ok(Some(domain::EligibilityPaymentMethodData::Wallet(
-        domain::WalletData::GooglePay(domain::GooglePayWalletData {
-            tokenization_data: common_types::payments::GpayTokenizationData::Decrypted(
-                google_pay_predecrypt,
-            ),
-            ..google_pay_wallet_data.clone()
-        }),
-    )))
+        None => Ok(None),
+    }
 }
 
 #[cfg(feature = "v1")]
