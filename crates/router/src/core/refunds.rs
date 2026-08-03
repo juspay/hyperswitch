@@ -1542,6 +1542,144 @@ pub async fn refund_list(
 }
 
 #[instrument(skip_all)]
+#[cfg(all(feature = "olap", feature = "v1"))]
+pub async fn refund_list_for_platform(
+    state: SessionState,
+    platform: domain::Platform,
+    req: api_models::refunds::PlatformRefundListRequest,
+) -> RouterResponse<api_models::refunds::PlatformRefundListResponse> {
+    common_utils::fp_utils::when(
+        !platform.get_provider().get_account().is_platform_account(),
+        || {
+            Err(report!(errors::ApiErrorResponse::Unauthorized))
+                .attach_printable("Platform refunds list is only accessible to platform merchants")
+        },
+    )?;
+
+    let db = state.store;
+    let limit = validator::validate_refund_list(req.limit)?;
+    let offset = req.offset.unwrap_or_default();
+    let platform_merchant_id = platform.get_provider().get_account().get_id();
+    let refund_constraints: hyperswitch_domain_models::refunds::RefundListConstraints = req.into();
+
+    let refund_list = db
+        .filter_refund_by_platform_merchant_id(
+            platform_merchant_id,
+            &refund_constraints,
+            limit,
+            offset,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::RefundNotFound)?;
+
+    let data: Vec<api_models::refunds::PlatformRefundListItem> = refund_list
+        .into_iter()
+        .map(ForeignFrom::foreign_from)
+        .collect();
+
+    let total_count = db
+        .get_total_count_of_refunds_for_platform(platform_merchant_id, &refund_constraints)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?;
+
+    Ok(services::ApplicationResponse::Json(
+        api_models::refunds::PlatformRefundListResponse {
+            count: data.len(),
+            total_count,
+            data,
+        },
+    ))
+}
+
+/// Available filter values for a platform, aggregated across all of its connected merchants.
+///
+/// Connectors are derived from the *configured* merchant connector accounts of every connected
+/// merchant under the platform's organization (not from refund data), mirroring
+/// [`get_filters_for_refunds`]. Currency and refund status are the full set of supported values.
+#[instrument(skip_all)]
+#[cfg(all(feature = "olap", feature = "v1"))]
+pub async fn get_platform_refund_filters(
+    state: SessionState,
+    platform: domain::Platform,
+    profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
+) -> RouterResponse<api_models::refunds::PlatformRefundListFilters> {
+    common_utils::fp_utils::when(
+        !platform.get_provider().get_account().is_platform_account(),
+        || {
+            Err(report!(errors::ApiErrorResponse::Unauthorized)).attach_printable(
+                "Platform refund filters are only accessible to platform merchants",
+            )
+        },
+    )?;
+
+    let db = state.store.as_ref();
+
+    let merchant_accounts = db
+        .list_merchant_accounts_by_organization_id(
+            platform.get_provider().get_account().get_org_id(),
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
+
+    let mut connector_map: HashMap<String, Vec<MerchantConnectorInfo>> = HashMap::new();
+
+    for connected_account in merchant_accounts.into_iter().filter(|account| {
+        account.merchant_account_type == common_enums::MerchantAccountType::Connected
+    }) {
+        let merchant_id = connected_account.get_id().clone();
+        let key_store = db
+            .get_merchant_key_store_by_merchant_id(
+                &merchant_id,
+                &db.get_master_key().to_vec().into(),
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
+
+        let processor = domain::Platform::new(
+            connected_account.clone(),
+            key_store.clone(),
+            connected_account,
+            key_store,
+            None,
+        )
+        .get_processor()
+        .clone();
+
+        let merchant_connector_accounts = if let services::ApplicationResponse::Json(data) =
+            super::admin::list_payment_connectors(state.clone(), processor, profile_id_list.clone())
+                .await?
+        {
+            data
+        } else {
+            return Err(errors::ApiErrorResponse::InternalServerError.into());
+        };
+
+        merchant_connector_accounts
+            .into_iter()
+            .filter_map(|merchant_connector_account| {
+                merchant_connector_account
+                    .connector_label
+                    .clone()
+                    .map(|label| {
+                        let info = merchant_connector_account.to_merchant_connector_info(&label);
+                        (merchant_connector_account.connector_name, info)
+                    })
+            })
+            .for_each(|(connector_name, info)| {
+                connector_map.entry(connector_name).or_default().push(info);
+            });
+    }
+
+    Ok(services::ApplicationResponse::Json(
+        api_models::refunds::PlatformRefundListFilters {
+            connector: connector_map,
+            currency: enums::Currency::iter().collect(),
+            refund_status: enums::RefundStatus::iter().collect(),
+        },
+    ))
+}
+
+#[instrument(skip_all)]
 #[cfg(feature = "olap")]
 pub async fn refund_filter_list(
     state: SessionState,
@@ -1797,6 +1935,35 @@ impl ForeignFrom<diesel_refund::Refund> for api::RefundResponse {
                 .as_ref()
                 .map(ConnectorTransactionId::get_id)
                 .map(ToOwned::to_owned),
+        }
+    }
+}
+
+#[cfg(all(feature = "olap", feature = "v1"))]
+impl ForeignFrom<diesel_refund::Refund> for api_models::refunds::PlatformRefundListItem {
+    fn foreign_from(refund: diesel_refund::Refund) -> Self {
+        Self {
+            refund_id: refund.refund_id,
+            payment_id: refund.payment_id,
+            merchant_id: refund.merchant_id,
+            processor_merchant_id: refund.processor_merchant_id,
+            profile_id: refund.profile_id,
+            connector: refund.connector,
+            merchant_connector_id: refund.merchant_connector_id,
+            connector_refund_id: refund
+                .connector_refund_id
+                .as_ref()
+                .map(ConnectorTransactionId::get_id)
+                .map(ToOwned::to_owned),
+            attempt_id: refund.attempt_id,
+            refund_amount: refund.refund_amount,
+            total_amount: refund.total_amount,
+            currency: refund.currency,
+            refund_status: refund.refund_status,
+            refund_reason: refund.refund_reason,
+            description: refund.description,
+            created_at: refund.created_at,
+            modified_at: refund.modified_at,
         }
     }
 }
