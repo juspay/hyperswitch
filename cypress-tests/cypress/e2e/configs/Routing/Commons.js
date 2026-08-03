@@ -176,73 +176,176 @@ export const connectorDetails = {
     },
   },
   SurchargeDecisionManager: {
-    Create: {
+    CreateRate: {
       Request: {
         name: "surcharge_config_rate",
         merchant_surcharge_configs: {},
         algorithm: {
-          type: "rate",
-          rate: 2.5,
           defaultSelection: {
-            surcharge_type: "rate",
-            rate: 2.5,
+            surcharge_details: {
+              surcharge: {
+                type: "rate",
+                value: {
+                  percentage: 2.5,
+                },
+              },
+            },
           },
           rules: [],
+          metadata: {},
         },
       },
       Response: {
         status: 200,
-        body: {
-          name: "surcharge_config_rate",
-          merchant_surcharge_configs: {},
-          algorithm: {
-            type: "rate",
-            rate: 2.5,
-            defaultSelection: {
-              surcharge_type: "rate",
-              rate: 2.5,
-            },
-            rules: [],
-          },
-        },
+        body: {},
       },
     },
-    Retrieve: {
+    RetrieveRate: {
       Request: {},
       Response: {
         status: 200,
-        body: {
-          name: "surcharge_config_rate",
-          merchant_surcharge_configs: {},
-          algorithm: {
-            type: "rate",
-            rate: 2.5,
-            defaultSelection: {
-              surcharge_type: "rate",
-              rate: 2.5,
+        body: {},
+      },
+    },
+    CreateFixed: {
+      Request: {
+        name: "surcharge_config_fixed",
+        merchant_surcharge_configs: {},
+        algorithm: {
+          defaultSelection: {
+            surcharge_details: {
+              surcharge: {
+                type: "fixed",
+                value: {
+                  amount: 100,
+                },
+              },
             },
-            rules: [],
+          },
+          rules: [],
+          metadata: {},
+        },
+      },
+      Response: {
+        status: 200,
+        body: {},
+      },
+    },
+    RetrieveFixed: {
+      Request: {},
+      Response: {
+        status: 200,
+        body: {},
+      },
+    },
+    CreateConditional: {
+      Request: {
+        name: "surcharge_config_complex",
+        merchant_surcharge_configs: {
+          show_surcharge_breakup_screen: true,
+        },
+        algorithm: {
+          defaultSelection: {
+            surcharge_details: {
+              surcharge: {
+                type: "rate",
+                value: {
+                  percentage: 2.5,
+                },
+              },
+            },
+          },
+          rules: [
+            {
+              name: "Card Rule",
+              connectorSelection: {
+                surcharge_details: {
+                  surcharge: {
+                    type: "rate",
+                    value: {
+                      percentage: 3.0,
+                    },
+                  },
+                  tax_on_surcharge: null,
+                },
+              },
+              statements: [
+                {
+                  condition: [
+                    {
+                      lhs: "payment_method",
+                      comparison: "equal",
+                      value: {
+                        type: "enum_variant",
+                        value: "card",
+                      },
+                      metadata: {},
+                    },
+                  ],
+                  nested: null,
+                },
+              ],
+            },
+            {
+              name: "Pay Later Rule",
+              connectorSelection: {
+                surcharge_details: {
+                  surcharge: {
+                    type: "fixed",
+                    value: {
+                      amount: 200,
+                    },
+                  },
+                  tax_on_surcharge: null,
+                },
+              },
+              statements: [
+                {
+                  condition: [
+                    {
+                      lhs: "payment_method",
+                      comparison: "equal",
+                      value: {
+                        type: "enum_variant",
+                        value: "pay_later",
+                      },
+                      metadata: {},
+                    },
+                  ],
+                  nested: null,
+                },
+              ],
+            },
+          ],
+          metadata: {
+            description: "Complex surcharge with payment method conditions",
           },
         },
+      },
+      Response: {
+        status: 200,
+        body: {},
+      },
+    },
+    RetrieveConditional: {
+      Request: {},
+      Response: {
+        status: 200,
+        body: {},
       },
     },
     Delete: {
       Request: {},
       Response: {
         status: 200,
-        body: {
-          name: "surcharge_config_rate",
-          merchant_surcharge_configs: {},
-          algorithm: {
-            type: "rate",
-            rate: 2.5,
-            defaultSelection: {
-              surcharge_type: "rate",
-              rate: 2.5,
-            },
-            rules: [],
-          },
-        },
+        body: {},
+      },
+    },
+    RetrieveDeleted: {
+      Request: {},
+      Response: {
+        status: 404,
+        body: {},
       },
     },
   },
