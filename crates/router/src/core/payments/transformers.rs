@@ -36,6 +36,10 @@ use diesel_models::{
         NetworkDetails as DieselNetworkDetails,
     },
 };
+#[cfg(all(feature = "v1", feature = "olap"))]
+use diesel_models::{
+    payment_attempt::PaymentAttempt as DieselPaymentAttempt, PaymentIntent as DieselPaymentIntent,
+};
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
     mandates,
@@ -4590,6 +4594,80 @@ pub fn construct_connector_invoke_hidden_frame(
     };
 
     Ok(api_models::payments::NextActionData::InvokeHiddenIframe { iframe_data })
+}
+
+#[cfg(all(feature = "v1", feature = "olap"))]
+impl ForeignFrom<(DieselPaymentIntent, DieselPaymentAttempt)> for api::PlatformPaymentListItem {
+    fn foreign_from((pi, pa): (DieselPaymentIntent, DieselPaymentAttempt)) -> Self {
+        let connector_transaction_id =
+            common_utils::types::ConnectorTransactionIdTrait::get_optional_connector_transaction_id(
+                &pa,
+            )
+            .map(ToString::to_string);
+        Self {
+            payment_id: pi.payment_id,
+            merchant_id: pi.merchant_id,
+            processor_merchant_id: pi.processor_merchant_id,
+            status: pi.status,
+            amount: pi.amount,
+            net_amount: pa.net_amount,
+            amount_capturable: pa.amount_capturable,
+            state_metadata: pi.state_metadata,
+            client_secret: pi.client_secret.map(Secret::new),
+            created: Some(pi.created_at),
+            modified_at: Some(pi.modified_at),
+            currency: pi.currency,
+            customer_id: pi.customer_id,
+            description: pi.description,
+            order_details: pi.order_details,
+            connector: pa.connector,
+            payment_method: pa.payment_method,
+            payment_method_type: pa.payment_method_type,
+            business_label: pi.business_label,
+            business_country: pi.business_country,
+            business_sub_label: pa.business_sub_label,
+            setup_future_usage: pa.setup_future_usage_applied.or(pi.setup_future_usage),
+            capture_method: pa.capture_method,
+            authentication_type: pa.authentication_type,
+            connector_transaction_id,
+            attempt_count: pi.attempt_count,
+            profile_id: pi.profile_id,
+            merchant_connector_id: pa.merchant_connector_id,
+            merchant_order_reference_id: pi.merchant_order_reference_id,
+            metadata: pi.metadata,
+            error_message: pa.error_message,
+            updated: Some(pi.modified_at),
+            extended_authorization_applied: pa.extended_authorization_applied,
+            extended_authorization_last_applied_at: pa.extended_authorization_last_applied_at,
+            capture_before: pa.capture_before,
+            card_discovery: pa.card_discovery,
+            mit_category: pi.mit_category,
+            tokenization: pi.tokenization,
+            force_3ds_challenge: pi.force_3ds_challenge,
+            force_3ds_challenge_trigger: pi.force_3ds_challenge_trigger,
+            issuer_error_code: pa.issuer_error_code,
+            issuer_error_message: pa.issuer_error_message,
+            is_iframe_redirection_enabled: pi.is_iframe_redirection_enabled,
+            payment_channel: pi.payment_channel,
+            enable_partial_authorization: pi.enable_partial_authorization,
+            enable_overcapture: pi.enable_overcapture,
+            is_overcapture_enabled: pa.is_overcapture_enabled,
+            network_details: pa.network_details.map(NetworkDetails::foreign_from),
+            is_stored_credential: pa.is_stored_credential,
+            request_extended_authorization: pa.request_extended_authorization,
+            billing_descriptor: pi.billing_descriptor,
+            partner_merchant_identifier_details: pi.partner_merchant_identifier_details,
+            installment_data: pa.installment_data,
+            sender_payment_instrument_id: pa.sender_payment_instrument_id,
+            surcharge_details: pa.surcharge_amount.map(|surcharge_amount| {
+                RequestSurchargeDetails {
+                    surcharge_amount,
+                    tax_amount: pa.tax_amount,
+                }
+            }),
+            installment_options: pi.installment_options.map(|options| options.0),
+        }
+    }
 }
 
 #[cfg(feature = "v1")]

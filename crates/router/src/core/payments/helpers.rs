@@ -4130,6 +4130,7 @@ pub(super) fn validate_payment_list_request(
     )?;
     Ok(())
 }
+
 #[cfg(feature = "olap")]
 pub(super) fn validate_payment_list_request_for_joins(
     limit: u32,
