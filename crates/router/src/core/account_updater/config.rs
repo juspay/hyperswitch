@@ -23,15 +23,14 @@ pub async fn resolve_account_updater_config(
         .await
     {
         AccountUpdaterCredentialSource::None => Err(SkipReason::CredentialSourceNone),
-        AccountUpdaterCredentialSource::Application => {
-            resolve_application_config(state).ok_or_else(|| {
+        AccountUpdaterCredentialSource::Application => resolve_application_config(state)
+            .ok_or_else(|| {
                 logger::warn!(
                     "Account Updater credential source is 'application' but the account_updater \
                      section is not configured"
                 );
                 SkipReason::CredentialsUnavailable
-            })
-        }
+            }),
     }
 }
 
