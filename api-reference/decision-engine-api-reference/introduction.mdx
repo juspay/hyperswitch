@@ -1,0 +1,102 @@
+---
+title: "Decision Engine"
+description: "What Decision Engine does — routing strategies, cost-aware routing, A/B testing, autopilot, analytics, and the dashboard"
+---
+
+## What It Is
+
+Decision Engine is a Rust service that sits between your orchestrator and your payment gateways. On every payment, it picks the best gateway from an eligible list — by rule, by live success rate, by cost, or some mix of all three — and records the outcome so future decisions keep improving. It runs standalone over HTTP: no vendor lock-in, no mandatory orchestrator.
+
+## Core Capabilities
+
+### Routing Strategies
+
+`POST /decide-gateway` picks a connector using one of these strategies:
+
+| Strategy | What it does |
+| --- | --- |
+| **Rule-based routing** | Priority order, single fixed connector, percentage volume split, or a full AND/OR/nested condition tree — authored via Euclid, Juspay's open rule engine, and evaluated in `POST /routing/create`/`/routing/evaluate`. |
+| **Success-rate (auth-rate) based routing** | `SR_BASED_ROUTING` — ranks gateways by live transaction success rate, with hedging (exploration) and automatic downtime elimination for failing gateways. |
+| **Debit / network-based routing** | `NTW_BASED_ROUTING` — routes debit transactions by co-badged card network for cost/compliance reasons. |
+| **Network + SR hybrid routing** | `NTW_SR_HYBRID_ROUTING` — combines network eligibility with success-rate ranking. |
+| **Multi-objective (cost-aware) routing** | Not a `rankingAlgorithm` value — a post-step *on top of* success-rate routing. Re-ranks gateways with cost data by expected value and promotes a cheaper one if it wins. See below. |
+
+The first four are selected per request with `rankingAlgorithm`. See the [routing configuration guides](/decision-engine-api-reference/api-reference/guides/configure-routing/routing-algorithm-create) and [decide-gateway examples](/decision-engine-api-reference/api-reference/guides/run-transactions/decide-gateway-sr-based) for full request/response detail.
+
+### Multi-Objective (Cost-Aware) Routing
+
+A post-step on top of success-rate scoring: after SR picks a head gateway, Decision Engine re-ranks every gateway with cost data by **economic value** (`EV = auth rate × settlement value`, where `settlement value = txn amount − cost of payment processing (acquirer, issuer & network fee)`), and promotes a cheaper gateway if it wins on EV. Toggle it per request (`enableMultiObjective`) or per merchant (`multi_objective_routing_enabled` feature flag). See [Multi-Objective Routing](/decision-engine-api-reference/api-reference/guides/run-transactions/decide-gateway-multi-objective).
+
+### Cost Data Ingestion
+
+Learns each connector's *real* fee — not a static rate card — from settlement reports and invoices, fitted down to a per-cluster level (connector × card network × variant × funding × issuer country × currency × interchange category). This is what feeds multi-objective routing's cost side. Reports arrive by webhook, scheduled poll, or manual upload; fees can be read, overridden per connector or per cluster, and audited for coverage. See [Cost Ingestion: Connector Setup](/decision-engine-api-reference/api-reference/guides/cost-ingestion/cost-ingestion-setup).
+
+### A/B Testing
+
+Split live traffic between a control and variant routing strategy — auth-only vs. cost-aware, manual vs. autopilot, or any two saved algorithms — with a configurable split percentage, a minimum sample size, and a guardrail that auto-flags a regression before it does damage. Built-in statistical significance testing (two-sample z-test) tells you when a variant actually wins. See [A/B Testing: Create An Experiment](/decision-engine-api-reference/api-reference/guides/ab-testing/ab-testing-create).
+
+### Autopilot & Auto-Calibration
+
+A background job that self-tunes success-rate scoring — hedging percentage and bucket size — from observed traffic, with no manual retuning. Every calibration run is logged as an auditable event, and a merchant can hard-reset live scores back to a clean baseline at any time. See [Merchant Features: Autopilot & Feature Flags](/decision-engine-api-reference/api-reference/guides/autopilot/merchant-features).
+
+### Analytics & Audit
+
+ClickHouse-backed views for everything above: routing overview, gateway score trends, decision volume, cost savings, routing events (leader changes, autopilot re-tunes), and a single-payment audit trail that answers "which gateway was picked, and why" for any transaction. See [Analytics Endpoints](/decision-engine-api-reference/api-reference/guides/analytics-audit/analytics-endpoints) and [Payment Audit](/decision-engine-api-reference/payment-audit).
+
+### Dashboard
+
+A React operator UI for configuring routing, running A/B tests, watching analytics, and auditing decisions without touching the API directly. See [Dashboard](/decision-engine-api-reference/dashboard-guide).
+
+### Platform
+
+- **Multi-DB** — MySQL and PostgreSQL as interchangeable backends.
+- **Team management** — invite and manage members per merchant account, with role-based access.
+- **API keys** — server-to-server auth alongside dashboard JWT sessions.
+- **Debit routing gate** — per-merchant toggle for debit-network routing.
+
+## Main API Surface
+
+The API is organized into the following endpoint groups:
+
+| Group | Endpoints | Purpose |
+| --- | --- | --- |
+| Health | `GET /health`, `GET /health/ready`, `GET /health/diagnostics` | Liveness, readiness, and dependency diagnostics. |
+| Auth | `POST /auth/signup`, `POST /auth/login`, `GET /auth/me` | Dashboard operator sign-up, login, and session. |
+| Decisions | `POST /decide-gateway` | Choose a connector for a payment — see Routing Strategies above. |
+| Feedback | `POST /update-gateway-score` | Report authorization outcomes back to scoring. |
+| Merchant accounts | `POST /merchant-account/create`, `GET`/`DELETE /merchant-account/{merchantId}`, feature flags, debit-routing settings | Manage merchants and their configuration. |
+| Routing | `POST /routing/*`, `POST /rule/*` | Create, activate, evaluate, and A/B test routing algorithms. |
+| Cost ingestion | `POST/GET/DELETE /merchant-account/{merchantId}/connectors/*`, `.../cost-*` | Connector credentials, settlement/invoice uploads, fee overrides. |
+| Analytics | `GET /analytics/*` | Gateway scores, decisions, cost savings, routing events, experiment results, audit. |
+
+For copy-paste `curl` examples of each flow, see the [API Guide](/decision-engine-api-reference/api-reference/guides/api-ref). For exact request and response schemas, use the OpenAPI-backed endpoint pages under [API Reference](/decision-engine-api-reference/api-reference).
+
+## Run Locally
+
+For API only:
+
+```bash
+docker compose --profile postgres-ghcr up -d
+curl http://localhost:8080/health
+```
+
+For API + dashboard + docs:
+
+```bash
+docker compose --profile dashboard-postgres-ghcr up -d
+```
+
+URLs:
+
+- API: `http://localhost:8080`
+- Dashboard: `http://localhost:8081/dashboard/`
+- Docs: `http://localhost:8081/introduction`
+
+Use [Installation](/decision-engine-api-reference/installation) for the full Compose, database, and Helm matrix.
+
+## Where To Go Next
+
+- [Installation](/decision-engine-api-reference/installation) — Docker Compose, PostgreSQL/MySQL setup, and configuration, end to end.
+- [Dashboard](/decision-engine-api-reference/dashboard-guide) — route-by-route guide to the React operator dashboard.
+- [API Guide (curl examples)](/decision-engine-api-reference/api-reference/guides/api-ref) — copy-paste flows for every route family, including cost ingestion, A/B testing, and autopilot.
+- [API Reference (OpenAPI)](/decision-engine-api-reference/api-reference) — schema-backed endpoint pages with a request playground.

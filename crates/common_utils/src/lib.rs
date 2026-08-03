@@ -29,6 +29,7 @@ pub mod payout_method_utils;
 pub mod pii;
 #[allow(missing_docs)] // Todo: add docs
 pub mod request;
+pub mod request_context;
 #[cfg(feature = "signals")]
 pub mod signals;
 pub mod transformers;
@@ -99,6 +100,11 @@ pub mod date_time {
     )]
     pub fn now_unix_timestamp() -> i64 {
         OffsetDateTime::now_utc().unix_timestamp()
+    }
+
+    /// Return the UNIX timestamp in nanoseconds of the current date and time in UTC
+    pub fn now_unix_timestamp_nanos() -> i128 {
+        OffsetDateTime::now_utc().unix_timestamp_nanos()
     }
 
     /// Calculate execution time for a async block in milliseconds
