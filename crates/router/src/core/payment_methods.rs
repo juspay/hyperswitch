@@ -86,6 +86,7 @@ use crate::{
         payment_methods::{transformers as pm_transforms, utils as payment_method_utils},
         tokenization as tokenization_core,
     },
+    events::account_updater as account_updater_events,
     headers,
     routes::{self, payment_methods as pm_routes},
     services::encryption,
@@ -5515,6 +5516,8 @@ pub async fn retrieve_payment_method(
 
     // 3. Optionally run the Account Updater evaluation
     if force_sync {
+        let started_at = std::time::Instant::now();
+
         let account_updater_terminal_state = Box::pin(account_updater::evaluate(
             &state,
             &platform,
@@ -5529,6 +5532,20 @@ pub async fn retrieve_payment_method(
             ?account_updater_terminal_state,
             "Account Updater evaluation completed"
         );
+
+        if state.conf.events.emit_account_updater_events {
+            let event = account_updater_events::KafkaAccountUpdaterEvent::new(
+                state.request_id.as_ref().map(|id| id.to_string()),
+                platform.get_processor().get_account().get_id(),
+                profile.get_id(),
+                &payment_method,
+                account_updater::refresh::ACCOUNT_UPDATER_CONNECTOR_NAME,
+                account_updater_terminal_state,
+                started_at.elapsed().as_millis(),
+            );
+
+            state.event_handler.log_event(&event);
+        }
     }
 
     let raw_payment_method_fetch_access = get_raw_payment_method_data_fetch_access(

@@ -1406,6 +1406,7 @@ enabled = true
 [events]
 source = "logs"
 emit_external_service_call_events = false
+emit_account_updater_events = false
 
 [events.kafka]
 brokers = ["localhost:9092"]
@@ -1424,6 +1425,7 @@ authentication_analytics_topic = "hyperswitch-authentication-events"
 routing_logs_topic = "hyperswitch-routing-api-events"
 revenue_recovery_topic = "hyperswitch-revenue-recovery-events"
 external_service_call_topic = "hyperswitch-external-service-call-events"
+account_updater_topic = "hyperswitch-account-updater-events"
 
 [debit_routing_config]
 supported_currencies = "USD"
