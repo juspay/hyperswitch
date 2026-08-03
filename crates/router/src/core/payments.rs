@@ -9881,41 +9881,34 @@ impl PaymentEligibilityData {
                 platform.get_processor().get_key_store(),
             )
             .await
-            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
+            .attach_printable(
+                "Error while fetching the payment attempt to resolve the wallet pre-routing connector",
+            )?;
 
-        let Some(straight_through_algorithm) = payment_attempt.straight_through_algorithm else {
-            return Ok(None);
-        };
-
-        let routing_info: storage::PaymentRoutingInfo = match straight_through_algorithm
-            .parse_value("PaymentRoutingInfo")
-        {
-            Ok(info) => info,
-            Err(error) => {
-                logger::warn!(
-                    ?error,
-                    "failed to parse straight_through_algorithm as PaymentRoutingInfo for eligibility check"
-                );
-                return Ok(None);
-            }
-        };
-
-        let routable_connector_list = match routing_info
-            .pre_routing_results
-            .and_then(|mut results| results.remove(&payment_method_type))
-        {
-            Some(storage::PreRoutingConnectorChoice::Single(routable_connector)) => {
-                vec![routable_connector]
-            }
-            Some(storage::PreRoutingConnectorChoice::Multiple(routable_connector_list)) => {
-                routable_connector_list
-            }
-            None => Vec::new(),
-        };
-
-        Ok(routable_connector_list
-            .into_iter()
-            .next()
+        Ok(payment_attempt
+            .straight_through_algorithm
+            .and_then(|straight_through_algorithm| {
+                straight_through_algorithm
+                    .parse_value::<storage::PaymentRoutingInfo>("PaymentRoutingInfo")
+                    .inspect_err(|error| {
+                        logger::warn!(
+                            ?error,
+                            "failed to parse straight_through_algorithm as PaymentRoutingInfo for eligibility check"
+                        )
+                    })
+                    .ok()
+            })
+            .and_then(|routing_info| routing_info.pre_routing_results)
+            .and_then(|mut pre_routing_results| pre_routing_results.remove(&payment_method_type))
+            .and_then(|pre_routing_choice| match pre_routing_choice {
+                storage::PreRoutingConnectorChoice::Single(routable_connector) => {
+                    Some(routable_connector)
+                }
+                storage::PreRoutingConnectorChoice::Multiple(routable_connector_list) => {
+                    routable_connector_list.into_iter().next()
+                }
+            })
             .and_then(|routable_connector| routable_connector.merchant_connector_id))
     }
 
