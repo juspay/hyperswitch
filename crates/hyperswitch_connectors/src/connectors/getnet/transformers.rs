@@ -444,7 +444,7 @@ pub fn psync_attempt_status_from_transaction_state(
 ) -> AttemptStatus {
     match getnet_status {
         GetnetPaymentStatus::Success => {
-            if is_auto_capture && transaction_type == GetnetTransactionType::CaptureAuthorization {
+            if is_auto_capture || transaction_type == GetnetTransactionType::CaptureAuthorization {
                 AttemptStatus::Charged
             } else {
                 AttemptStatus::Authorized
@@ -627,7 +627,7 @@ pub fn capture_status_from_transaction_state(getnet_status: GetnetPaymentStatus)
     match getnet_status {
         GetnetPaymentStatus::Success => AttemptStatus::Charged,
         GetnetPaymentStatus::InProgress => AttemptStatus::Pending,
-        GetnetPaymentStatus::Failed => AttemptStatus::Authorized,
+        GetnetPaymentStatus::Failed => AttemptStatus::CaptureFailed,
     }
 }
 
@@ -1143,5 +1143,109 @@ pub fn get_incoming_webhook_event(
             GetnetPaymentStatus::Failed => IncomingWebhookEvent::PaymentIntentCancelFailure,
             GetnetPaymentStatus::InProgress => IncomingWebhookEvent::PaymentIntentCancelFailure,
         },
+    }
+}
+
+#[cfg(test)]
+mod test_getnet_attempt_status {
+    use common_enums::AttemptStatus;
+
+    use crate::connectors::getnet::transformers::{
+        cancel_status_from_transaction_state, capture_status_from_transaction_state,
+        psync_attempt_status_from_transaction_state, GetnetPaymentStatus, GetnetTransactionType,
+    };
+
+    const AUTO_CAPTURE: bool = true;
+    const MANUAL_CAPTURE: bool = false;
+
+    #[test]
+    fn capture_failure_should_map_to_capture_failed() {
+        // A capture rejected by Getnet must surface as a failure, not as a state that
+        // still looks capturable to the merchant.
+        assert_eq!(
+            capture_status_from_transaction_state(GetnetPaymentStatus::Failed),
+            AttemptStatus::CaptureFailed
+        );
+    }
+
+    #[test]
+    fn capture_success_and_pending_should_be_unchanged() {
+        assert_eq!(
+            capture_status_from_transaction_state(GetnetPaymentStatus::Success),
+            AttemptStatus::Charged
+        );
+        assert_eq!(
+            capture_status_from_transaction_state(GetnetPaymentStatus::InProgress),
+            AttemptStatus::Pending
+        );
+    }
+
+    #[test]
+    fn cancel_failure_should_map_to_void_failed() {
+        // Guards the capture/cancel parity that the capture mapping previously broke.
+        assert_eq!(
+            cancel_status_from_transaction_state(GetnetPaymentStatus::Failed),
+            AttemptStatus::VoidFailed
+        );
+    }
+
+    #[test]
+    fn psync_should_report_charged_for_auto_captured_purchase() {
+        // An automatic-capture payment is submitted as `Purchase`, never as
+        // `CaptureAuthorization`, so it must still sync back as `Charged`.
+        assert_eq!(
+            psync_attempt_status_from_transaction_state(
+                GetnetPaymentStatus::Success,
+                AUTO_CAPTURE,
+                GetnetTransactionType::Purchase,
+            ),
+            AttemptStatus::Charged
+        );
+    }
+
+    #[test]
+    fn psync_should_report_charged_after_manual_capture() {
+        // `is_auto_capture` is derived from `capture_method` alone, so it stays false
+        // for a manual-capture payment even once the capture has succeeded.
+        assert_eq!(
+            psync_attempt_status_from_transaction_state(
+                GetnetPaymentStatus::Success,
+                MANUAL_CAPTURE,
+                GetnetTransactionType::CaptureAuthorization,
+            ),
+            AttemptStatus::Charged
+        );
+    }
+
+    #[test]
+    fn psync_should_report_authorized_before_manual_capture() {
+        assert_eq!(
+            psync_attempt_status_from_transaction_state(
+                GetnetPaymentStatus::Success,
+                MANUAL_CAPTURE,
+                GetnetTransactionType::Authorization,
+            ),
+            AttemptStatus::Authorized
+        );
+    }
+
+    #[test]
+    fn psync_non_success_states_should_be_unchanged() {
+        assert_eq!(
+            psync_attempt_status_from_transaction_state(
+                GetnetPaymentStatus::Failed,
+                MANUAL_CAPTURE,
+                GetnetTransactionType::Authorization,
+            ),
+            AttemptStatus::Failure
+        );
+        assert_eq!(
+            psync_attempt_status_from_transaction_state(
+                GetnetPaymentStatus::InProgress,
+                MANUAL_CAPTURE,
+                GetnetTransactionType::Authorization,
+            ),
+            AttemptStatus::Pending
+        );
     }
 }
