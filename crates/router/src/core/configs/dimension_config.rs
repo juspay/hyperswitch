@@ -291,6 +291,25 @@ impl DatabaseBackedConfig for EnableExtendedCardBin {
 }
 
 config! {
+    superposition_key = GUARD_BLOCKLIST,
+    output = bool,
+    default = false,
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantId,
+    targeting_key = id_type::PaymentId
+}
+
+impl DatabaseBackedConfig for GuardBlocklist {
+    const KEY: &'static str = "guard_blocklist";
+
+    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        // Matches the existing key format: "guard_blocklist_for_{merchant_id}"
+        dimensions
+            .get_processor_merchant_id()
+            .map(|id| format!("{}_for_{}", Self::KEY, id.get_string_repr()))
+    }
+}
+
+config! {
     superposition_key = GSM_PAYOUT_CALL,
     output = bool,
     default = false,

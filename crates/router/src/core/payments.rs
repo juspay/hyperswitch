@@ -7759,6 +7759,7 @@ pub async fn get_merchant_bank_data_for_open_banking_connectors(
     Ok(final_recipient_data)
 }
 
+#[cfg(feature = "v1")]
 async fn blocklist_guard<F, ApiRequest, D>(
     state: &SessionState,
     processor: &domain::Processor,
@@ -7771,24 +7772,13 @@ where
     F: Send + Clone + Sync,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
 {
-    let processor_merchant_id = processor.get_account().get_id();
-    let blocklist_enabled_key = processor_merchant_id.get_blocklist_guard_key();
-    let blocklist_guard_enabled = state
-        .store
-        .find_config_by_key_unwrap_or(&blocklist_enabled_key, Some("false".to_string()))
+    let blocklist_guard_enabled = dimensions
+        .get_guard_blocklist(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            Some(payment_data.get_payment_intent().get_id()),
+        )
         .await;
-
-    let blocklist_guard_enabled: bool = match blocklist_guard_enabled {
-        Ok(config) => serde_json::from_str(&config.config).unwrap_or(false),
-
-        // If it is not present in db we are defaulting it to false
-        Err(inner) => {
-            if !inner.current_context().is_db_not_found() {
-                logger::error!("Error fetching guard blocklist enabled config {:?}", inner);
-            }
-            false
-        }
-    };
 
     if blocklist_guard_enabled {
         Ok(operation
@@ -13443,6 +13433,7 @@ trait EligibilityCheck {
         &self,
         state: &SessionState,
         platform: &domain::Platform,
+        payment_elgibility_data: &PaymentEligibilityData,
     ) -> CustomResult<bool, errors::ApiErrorResponse>;
 
     // Run the actual check and return the SDK Next Action if applicable
@@ -13494,25 +13485,19 @@ impl EligibilityCheck for BlockListCheck {
         &self,
         state: &SessionState,
         platform: &domain::Platform,
+        payment_elgibility_data: &PaymentEligibilityData,
     ) -> CustomResult<bool, errors::ApiErrorResponse> {
-        let merchant_id = platform.get_processor().get_account().get_id();
-        let blocklist_enabled_key = merchant_id.get_blocklist_guard_key();
-        let blocklist_guard_enabled = state
-            .store
-            .find_config_by_key_unwrap_or(&blocklist_enabled_key, Some("false".to_string()))
-            .await;
+        let dimensions = Dimensions::new()
+            .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+            .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
 
-        Ok(match blocklist_guard_enabled {
-            Ok(config) => serde_json::from_str(&config.config).unwrap_or(false),
-
-            // If it is not present in db we are defaulting it to false
-            Err(inner) => {
-                if !inner.current_context().is_db_not_found() {
-                    logger::error!("Error fetching guard blocklist enabled config {:?}", inner);
-                }
-                false
-            }
-        })
+        Ok(dimensions
+            .get_guard_blocklist(
+                state.store.as_ref(),
+                state.superposition_service.as_ref(),
+                Some(&payment_elgibility_data.payment_intent.payment_id),
+            )
+            .await)
     }
 
     async fn execute_check(
@@ -13559,6 +13544,7 @@ impl EligibilityCheck for CardTestingCheck {
         &self,
         _state: &SessionState,
         _platform: &domain::Platform,
+        _payment_elgibility_data: &PaymentEligibilityData,
     ) -> CustomResult<bool, errors::ApiErrorResponse> {
         // This check is always run as there is no runtime config enablement
         Ok(true)
@@ -13640,7 +13626,9 @@ impl EligibilityHandler {
         &self,
         check: C,
     ) -> CustomResult<Option<api_models::payments::SdkNextAction>, errors::ApiErrorResponse> {
-        let should_run = check.should_run(&self.state, &self.platform).await?;
+        let should_run = check
+            .should_run(&self.state, &self.platform, &self.payment_eligibility_data)
+            .await?;
         Ok(match should_run {
             true => check
                 .execute_check(
