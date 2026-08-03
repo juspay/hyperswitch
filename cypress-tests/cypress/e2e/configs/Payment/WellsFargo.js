@@ -194,6 +194,15 @@ export const connectorDetails = {
           amount_received: 6000,
         },
       },
+      ResponseCustom: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          amount: 8000,
+          amount_capturable: 0,
+          amount_received: 8000,
+        },
+      },
     },
     PartialCapture: {
       Request: {
@@ -642,6 +651,20 @@ export const connectorDetails = {
         status: 400,
         body: {
           error: threeDsValidationData,
+        },
+      },
+    },
+    IncrementalAuth: {
+      Request: {
+        amount: 8000,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
+          amount: 6000,
+          amount_capturable: 8000,
+          amount_received: null,
         },
       },
     },
