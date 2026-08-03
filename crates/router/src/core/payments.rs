@@ -5315,7 +5315,7 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
                 .is_external_vault_enabled()
                 && match payment_attempt.payment_token.as_ref() {
                     Some(token) => read_external_vault_alias_from_temp_locker(
-                        &state,
+                        state,
                         token,
                         platform.get_processor().get_key_store(),
                     )

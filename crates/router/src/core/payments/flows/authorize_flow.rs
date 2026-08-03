@@ -1794,14 +1794,13 @@ pub async fn call_unified_connector_service_pre_authenticate_proxy(
             headers_builder,
             unified_connector_service_execution_mode,
             |mut router_data, payment_pre_authenticate_request, grpc_headers| async move {
-                let response = client
-                    .payment_pre_authenticate(
-                        payment_pre_authenticate_request,
-                        connector_auth_metadata,
-                        grpc_headers,
-                    )
-                    .await
-                    .attach_printable("Failed to pre authenticate payment")?;
+                let response = Box::pin(client.payment_pre_authenticate(
+                    payment_pre_authenticate_request,
+                    connector_auth_metadata,
+                    grpc_headers,
+                ))
+                .await
+                .attach_printable("Failed to pre authenticate payment")?;
 
                 let payment_pre_authenticate_response = response.into_inner();
 
