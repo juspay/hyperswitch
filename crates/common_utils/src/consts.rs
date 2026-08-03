@@ -170,6 +170,12 @@ pub const X_FLOW_NAME: &str = "x-flow";
 /// Connector name
 pub const X_CONNECTOR_NAME: &str = "x-connector";
 
+/// Payment method
+pub const X_PAYMENT_METHOD: &str = "x-payment-method";
+
+/// Payment method type
+pub const X_PAYMENT_METHOD_TYPE: &str = "x-payment-method-type";
+
 /// Sub-flow name
 pub const X_SUB_FLOW_NAME: &str = "x-sub-flow";
 

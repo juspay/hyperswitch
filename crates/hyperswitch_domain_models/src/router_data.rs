@@ -157,6 +157,29 @@ pub struct OrderInfo {
     pub duty_amount: Option<MinorUnit>,
 }
 
+impl OrderInfo {
+    /// True when no order-info field carries data. Destructures the struct so
+    /// a newly added field forces this check to be revisited by the compiler.
+    pub fn is_empty(&self) -> bool {
+        let Self {
+            order_date,
+            order_details,
+            merchant_order_reference_id,
+            discount_amount,
+            shipping_cost,
+            duty_amount,
+        } = self;
+        order_date.is_none()
+            && order_details
+                .as_ref()
+                .is_none_or(|details| details.is_empty())
+            && merchant_order_reference_id.is_none()
+            && discount_amount.is_none()
+            && shipping_cost.is_none()
+            && duty_amount.is_none()
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TaxInfo {
     pub tax_status: Option<common_enums::TaxStatus>,
@@ -164,6 +187,25 @@ pub struct TaxInfo {
     pub merchant_tax_registration_id: Option<Secret<String>>,
     pub shipping_amount_tax: Option<MinorUnit>,
     pub order_tax_amount: Option<MinorUnit>,
+}
+
+impl TaxInfo {
+    /// True when no tax-info field carries data. Destructures the struct so a
+    /// newly added field forces this check to be revisited by the compiler.
+    pub fn is_empty(&self) -> bool {
+        let Self {
+            tax_status,
+            customer_tax_registration_id,
+            merchant_tax_registration_id,
+            shipping_amount_tax,
+            order_tax_amount,
+        } = self;
+        tax_status.is_none()
+            && customer_tax_registration_id.is_none()
+            && merchant_tax_registration_id.is_none()
+            && shipping_amount_tax.is_none()
+            && order_tax_amount.is_none()
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

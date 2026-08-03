@@ -61,7 +61,7 @@ pub async fn perform_authentication(
         amount,
         currency,
         message_category,
-        device_channel,
+        device_channel.clone(),
         merchant_connector_account,
         authentication_data.clone(),
         return_url,
@@ -91,6 +91,7 @@ pub async fn perform_authentication(
                 .and_then(|sdk_information| sdk_information.device_details),
             merchant_category_code: None,
             merchant_country_code: None,
+            platform: Some(device_channel),
         };
     let authentication = Box::pin(utils::update_trackers(
         state,
@@ -135,7 +136,7 @@ pub async fn perform_post_authentication(
         );
     let authentication = state
         .store
-        .find_authentication_by_merchant_id_authentication_id(
+        .find_authentication_by_processor_merchant_id_authentication_id(
             &business_profile.merchant_id,
             &authentication_id,
             processor.get_key_store(),
@@ -179,6 +180,7 @@ pub async fn perform_post_authentication(
                 device_details: None,
                 merchant_category_code: None,
                 merchant_country_code: None,
+                platform: None,
             };
 
         utils::update_trackers(
@@ -221,6 +223,7 @@ pub async fn perform_post_authentication(
 pub async fn perform_pre_authentication(
     state: &SessionState,
     processor: &domain::Processor,
+    provider_merchant_id: common_utils::id_type::MerchantId,
     card: hyperswitch_domain_models::payment_method_data::Card,
     token: String,
     business_profile: &domain::Profile,
@@ -231,7 +234,10 @@ pub async fn perform_pre_authentication(
     psd2_sca_exemption_type: Option<common_enums::ScaExemptionType>,
     billing_address: Option<hyperswitch_domain_models::address::Address>,
     shipping_address: Option<hyperswitch_domain_models::address::Address>,
+    browser_info: Option<core_types::BrowserInformation>,
     initiator: Option<&domain::Initiator>,
+    amount: Option<common_utils::types::MinorUnit>,
+    currency: Option<Currency>,
 ) -> CustomResult<
     hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore,
     ApiErrorResponse,
@@ -241,10 +247,10 @@ pub async fn perform_pre_authentication(
     let authentication_connector_name = authentication_connector.to_string();
     let authentication = utils::create_new_authentication(
         state,
-        business_profile.merchant_id.clone(),
+        provider_merchant_id,
         authentication_connector_name.clone(),
         token,
-        business_profile.get_id().to_owned(),
+        business_profile,
         payment_id.clone(),
         three_ds_connector_account
             .get_mca_id()
@@ -255,6 +261,13 @@ pub async fn perform_pre_authentication(
         psd2_sca_exemption_type,
         processor,
         initiator,
+        &card,
+        browser_info.as_ref(),
+        acquirer_details.as_ref(),
+        billing_address.as_ref(),
+        shipping_address.as_ref(),
+        amount,
+        currency,
     )
     .await?;
 
@@ -284,6 +297,7 @@ pub async fn perform_pre_authentication(
                 device_details: None,
                 merchant_category_code: None,
                 merchant_country_code: None,
+                platform: None,
             };
 
         let updated_authentication = Box::pin(utils::update_trackers(
@@ -334,6 +348,7 @@ pub async fn perform_pre_authentication(
             device_details: None,
             merchant_category_code: None,
             merchant_country_code: None,
+            platform: None,
         };
 
     let authentication_update = Box::pin(utils::update_trackers(

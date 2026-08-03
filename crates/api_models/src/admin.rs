@@ -327,21 +327,41 @@ pub struct CardBlockingConfig {
     #[schema(value_type = Option<Vec<CardType>>)]
     pub card_types: Option<HashSet<common_enums::CardType>>,
     /// Set of card subtypes to block
-    #[schema(value_type = Option<Vec<CardSubtype>>)]
-    pub card_subtypes: Option<HashSet<common_enums::CardSubtype>>,
+    #[schema(value_type = Option<Vec<String>>)]
+    pub card_subtypes: Option<HashSet<String>>,
     /// Set of card issuer IDs to block
     pub issuers: Option<HashSet<String>>,
     /// Whether to block if BIN is provided but no matching record found in cards_info table.
     /// Defaults to false (allow payment if BIN not found in database).
     pub block_if_bin_info_unavailable: Option<bool>,
+    /// Set of card networks to block
+    #[schema(value_type = Option<Vec<CardNetwork>>)]
+    pub card_networks: Option<HashSet<common_enums::CardNetwork>>,
+    /// Set of card funding sources to block
+    #[schema(value_type = Option<Vec<FundingSource>>)]
+    pub funding_sources: Option<HashSet<common_enums::FundingSource>>,
+    /// Set of card segment types to block
+    #[schema(value_type = Option<Vec<CardSegmentType>>)]
+    pub card_segment_types: Option<HashSet<common_enums::CardSegmentType>>,
+    /// Whether virtual cards should be blocked
+    pub block_virtual_cards: Option<bool>,
+    /// Whether non-reloadable prepaid cards should be blocked
+    pub block_non_reloadable_prepaid_cards: Option<bool>,
+    /// Whether cards from BINs marked for gambling should be blocked
+    pub gambling_blocked: Option<bool>,
 }
 
 /// Wallet-specific blocking configuration for Apple Pay and Google Pay
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
 pub struct WalletBlockingConfig {
-    /// Set of card types to block for wallet payments (e.g., ["Credit", "Debit"])
+    /// Set of card types to block for all wallet payments (e.g., ["Credit", "Debit"]).
+    /// Retained for backwards compatibility with existing configurations.
     #[schema(value_type = Option<Vec<CardType>>)]
     pub card_types: Option<HashSet<common_enums::CardType>>,
+    /// Apple Pay-specific blocking configuration
+    pub apple_pay: Option<CardBlockingConfig>,
+    /// Google Pay-specific blocking configuration
+    pub google_pay: Option<CardBlockingConfig>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -1632,7 +1652,7 @@ pub struct MerchantConnectorResponse {
     pub connector_wallets_details: Option<ConnectorWalletDetails>,
 
     /// Details about the connector’s webhook configuration
-    #[schema(value_type = Option<WebhookSetupCapabilities>)]
+    #[schema(value_type = Option<WebhookSetupCapabilities>, deprecated)]
     pub webhook_setup_capabilities:
         Option<common_types::connector_webhook_configuration::WebhookSetupCapabilities>,
 }
@@ -2213,7 +2233,7 @@ pub struct MerchantConnectorDetailsWrap {
     #[schema(value_type = Option<MerchantConnectorDetails>, example = r#"{
        "connector_account_details": {
             "auth_type": "HeaderKey",
-            "api_key":"sk_test_xxxxxexamplexxxxxx12345"
+            "api_key":"<stripe_test_secret_key>"
         },
         "metadata": {
             "user_defined_field_1": "sample_1",
@@ -3475,15 +3495,25 @@ impl BusinessGenericLinkConfig {
     }
 }
 
-#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
+#[derive(
+    Clone,
+    Debug,
+    serde::Deserialize,
+    serde::Serialize,
+    PartialEq,
+    ToSchema,
+    router_derive::ValidateXSSOrSQLi,
+)]
 pub struct BusinessPaymentLinkConfig {
     /// Custom domain name to be used for hosting the link in your own domain
     pub domain_name: Option<String>,
     /// Default payment link config for all future payment link
     #[serde(flatten)]
     #[schema(value_type = PaymentLinkConfigRequest)]
+    #[xss_clean(recurse)]
     pub default_config: Option<PaymentLinkConfigRequest>,
     /// list of configs for multi theme setup
+    #[xss_clean(recurse)]
     pub business_specific_configs: Option<HashMap<String, PaymentLinkConfigRequest>>,
     /// A list of allowed domains (glob patterns) where this link can be embedded / opened from
     #[schema(value_type = Option<HashSet<String>>)]
@@ -3494,6 +3524,7 @@ pub struct BusinessPaymentLinkConfig {
 
 impl BusinessPaymentLinkConfig {
     pub fn validate(&self) -> Result<(), String> {
+        common_utils::validation::ValidateXSSOrSQLi::validate_xss_or_sqli(self)?;
         let host_domain_valid = self
             .domain_name
             .clone()
@@ -3530,7 +3561,15 @@ impl BusinessPaymentLinkConfig {
     }
 }
 
-#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
+#[derive(
+    Clone,
+    Debug,
+    serde::Deserialize,
+    serde::Serialize,
+    PartialEq,
+    ToSchema,
+    router_derive::ValidateXSSOrSQLi,
+)]
 pub struct PaymentLinkConfigRequest {
     /// custom theme for the payment link
     #[schema(value_type = Option<String>, max_length = 255, example = "#4E6ADD")]
@@ -3557,6 +3596,7 @@ pub struct PaymentLinkConfigRequest {
     #[schema(default = true, example = true)]
     pub show_card_form_by_default: Option<bool>,
     /// Dynamic details related to merchant to be rendered in payment link
+    #[xss_clean(recurse)]
     pub transaction_details: Option<Vec<PaymentLinkTransactionDetails>>,
     /// Configurations for the background image for details section
     pub background_image: Option<PaymentLinkBackgroundImageConfig>,
@@ -3604,34 +3644,8 @@ pub struct PaymentLinkConfigRequest {
 
 impl PaymentLinkConfigRequest {
     pub fn validate(&self) -> Result<(), String> {
-        if let Some(ref seller_name) = self.seller_name {
-            if common_utils::validation::contains_potential_xss_or_sqli(seller_name) {
-                return Err("seller_name contains potential XSS or SQLi attack vectors".to_string());
-            }
-        }
-        if let Some(ref button_text) = self.payment_button_text {
-            if common_utils::validation::contains_potential_xss_or_sqli(button_text) {
-                return Err(
-                    "payment_button_text contains potential XSS or SQLi attack vectors".to_string(),
-                );
-            }
-        }
-        if let Some(ref card_terms) = self.custom_message_for_card_terms {
-            if common_utils::validation::contains_potential_xss_or_sqli(card_terms) {
-                return Err(
-                    "custom_message_for_card_terms contains potential XSS or SQLi attack vectors"
-                        .to_string(),
-                );
-            }
-        }
-        if let Some(ref header_text) = self.payment_form_header_text {
-            if common_utils::validation::contains_potential_xss_or_sqli(header_text) {
-                return Err(
-                    "payment_form_header_text contains potential XSS or SQLi attack vectors"
-                        .to_string(),
-                );
-            }
-        }
+        common_utils::validation::ValidateXSSOrSQLi::validate_xss_or_sqli(self)?;
+
         if let Some(custom_message) = self.custom_message_for_payment_method_types.as_ref() {
             custom_message.validate().map_err(|e| e.to_string())?;
         }
@@ -3639,7 +3653,15 @@ impl PaymentLinkConfigRequest {
     }
 }
 
-#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
+#[derive(
+    Clone,
+    Debug,
+    serde::Deserialize,
+    serde::Serialize,
+    PartialEq,
+    ToSchema,
+    router_derive::ValidateXSSOrSQLi,
+)]
 pub struct PaymentLinkTransactionDetails {
     /// Key for the transaction details
     #[schema(value_type = String, max_length = 255, example = "Policy-Number")]
@@ -3677,7 +3699,15 @@ pub struct PaymentLinkBackgroundImageConfig {
     pub size: Option<api_enums::ElementSize>,
 }
 
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq, ToSchema)]
+#[derive(
+    Clone,
+    Debug,
+    serde::Serialize,
+    serde::Deserialize,
+    PartialEq,
+    ToSchema,
+    router_derive::ValidateXSSOrSQLi,
+)]
 pub struct PaymentLinkConfig {
     /// custom theme for the payment link
     pub theme: String,
@@ -3698,6 +3728,7 @@ pub struct PaymentLinkConfig {
     /// A list of allowed domains (glob patterns) where this link can be embedded / opened from
     pub allowed_domains: Option<HashSet<String>>,
     /// Dynamic details related to merchant to be rendered in payment link
+    #[xss_clean(recurse)]
     pub transaction_details: Option<Vec<PaymentLinkTransactionDetails>>,
     /// Configurations for the background image for details section
     pub background_image: Option<PaymentLinkBackgroundImageConfig>,
@@ -3803,6 +3834,20 @@ impl std::ops::Deref for TtlForExtendedCardInfo {
     fn deref(&self) -> &Self::Target {
         &self.0
     }
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug)]
+pub struct MCACGraphData {
+    pub connector_name: common_enums::connector_enums::Connector,
+    pub payment_methods_enabled: Option<Vec<common_types::payment_methods::PaymentMethodsEnabled>>,
+}
+
+#[cfg(feature = "v1")]
+#[derive(Debug, Deserialize)]
+pub struct MCACGraphData {
+    pub connector_name: String,
+    pub payment_methods_enabled: Option<Vec<PaymentMethodsEnabled>>,
 }
 
 #[cfg(test)]

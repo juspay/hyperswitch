@@ -704,7 +704,7 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
                 mandates::MandateReferenceId::ConnectorMandateId(_) => true,
                 mandates::MandateReferenceId::NetworkMandateId(_)
                 | mandates::MandateReferenceId::NetworkTokenWithNTI(_)
-                | mandates::MandateReferenceId::CardWithLimitedData => false,
+                | mandates::MandateReferenceId::CardWithLimitedData(_) => false,
             })
             .unwrap_or(false);
 

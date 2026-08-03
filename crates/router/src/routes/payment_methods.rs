@@ -1,6 +1,8 @@
 #[cfg(all(feature = "v1", any(feature = "olap", feature = "oltp")))]
 use std::collections::HashMap;
 
+#[cfg(feature = "v1")]
+mod migrate;
 use ::payment_methods::{
     controller::PaymentMethodsController,
     core::{migration, migration::payment_methods::migrate_payment_method},
@@ -15,6 +17,8 @@ use hyperswitch_domain_models::{
     bulk_tokenization::CardNetworkTokenizeRequest, merchant_key_store::MerchantKeyStore,
     payment_methods::PaymentMethodCustomerMigrate, transformers::ForeignTryFrom,
 };
+#[cfg(feature = "v1")]
+pub use migrate::modular_migrate_payment_methods;
 use router_env::{instrument, logger, tracing, Flow};
 
 use super::app::{AppState, SessionState};
@@ -646,13 +650,13 @@ pub async fn save_payment_method_api(
                     req.client_secret = Some(client_secret);
                 }
 
-                cards::add_payment_method_data(
+                Box::pin(cards::add_payment_method_data(
                     state,
                     req,
                     auth.platform.get_provider().clone(),
                     auth.platform.get_initiator().cloned(),
                     pm_id,
-                )
+                ))
                 .await
             })
         },
