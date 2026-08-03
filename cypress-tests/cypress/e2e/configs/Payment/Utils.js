@@ -549,12 +549,7 @@ export const CONNECTOR_LISTS = {
 
   // Inclusion lists (only run for these connectors)
   INCLUDE: {
-    // Backend support: crates/common_types/src/payments.rs `SplitPaymentsRequest`
-    // (StripeSplitPayment / AdyenSplitPayment / XenditSplitPayment / PayloadSplitPayment).
-    // For now scoped to connectors with actual Cypress split_payments config
-    // + spec coverage (just "payload"). stripeconnect/adyen/xendit also
-    // support split_payments on the backend but have no Cypress coverage
-    // yet — add them here once their config files gain split_payments data.
+    // Tracking extension to other connectors: #13520
     SPLIT_PAYMENTS: ["payload"],
     MANDATES_USING_NTID_PROXY: ["cybersource", "checkout"],
     INCREMENTAL_AUTH: [
