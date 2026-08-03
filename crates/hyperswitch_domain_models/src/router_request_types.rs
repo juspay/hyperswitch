@@ -936,6 +936,8 @@ impl TryFrom<PaymentsAuthorizeData> for PaymentsAuthenticateData {
             // This is hard coded to None to avoid back and forth authentication_data conversion between UcsAuthenticationData and AuthenticationData.
             // This is handled within authentication_step function in authorize_flow.rs
             authentication_data: None,
+            sdk_information: None,
+            device_channel: None,
         })
     }
 }
@@ -953,6 +955,8 @@ pub struct PaymentsAuthenticateData {
     pub minor_amount: Option<MinorUnit>,
     pub capture_method: Option<storage_enums::CaptureMethod>,
     pub authentication_data: Option<UcsAuthenticationData>,
+    pub sdk_information: Option<api_models::payments::SdkInformation>,
+    pub device_channel: Option<api_models::payments::DeviceChannel>,
 }
 
 impl TryFrom<CompleteAuthorizeData> for PaymentsAuthenticateData {
@@ -971,6 +975,8 @@ impl TryFrom<CompleteAuthorizeData> for PaymentsAuthenticateData {
             redirect_response: data.redirect_response,
             capture_method: data.capture_method,
             authentication_data: data.authentication_data,
+            sdk_information: None,
+            device_channel: None,
         })
     }
 }

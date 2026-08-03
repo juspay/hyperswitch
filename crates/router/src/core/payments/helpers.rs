@@ -8816,6 +8816,58 @@ pub async fn get_payment_external_authentication_flow_during_confirm<F: Clone>(
     })
 }
 
+/// External-vault-proxy analogue of `PaymentExternalAuthenticationFlow`. Variants carry no
+/// card/token/acquirer_details — the proxy has no real card (that data lives on
+/// `payment_data.external_vault_pmd` instead), and `perform_pre_authentication_proxy` resolves
+/// the authentication connector/acquirer metadata itself. This is a deliberate, narrow
+/// near-duplicate of `PaymentExternalAuthenticationFlow`/`get_payment_external_authentication_flow_during_confirm`
+/// above (left untouched) rather than a shared-predicate refactor, since the card-vs-vault-alias
+/// difference and the synchronous-vs-async (no MCA fetch needed here) shape don't factor cleanly.
+#[cfg(feature = "v1")]
+#[derive(Debug)]
+pub enum PaymentExternalAuthenticationFlowProxy {
+    PreAuthenticationFlow,
+    PostAuthenticationFlow {
+        authentication_id: id_type::AuthenticationId,
+    },
+}
+
+#[cfg(feature = "v1")]
+pub fn get_payment_external_authentication_flow_during_confirm_proxy<F: Clone>(
+    payment_data: &PaymentData<F>,
+    connector_call_type: &api::ConnectorCallType,
+    mandate_type: Option<mandates::MandateTransactionType>,
+) -> Option<PaymentExternalAuthenticationFlowProxy> {
+    let authentication_id = payment_data.payment_attempt.authentication_id.clone();
+    let is_authentication_type_3ds = payment_data.payment_attempt.authentication_type
+        == Some(common_enums::AuthenticationType::ThreeDs);
+    let separate_authentication_requested = payment_data
+        .payment_intent
+        .request_external_three_ds_authentication
+        .unwrap_or(false);
+    let separate_three_ds_authentication_attempted = payment_data
+        .payment_attempt
+        .external_three_ds_authentication_attempted
+        .unwrap_or(false);
+    let connector_supports_separate_authn =
+        authentication::utils::get_connector_data_if_separate_authn_supported(connector_call_type);
+
+    if separate_three_ds_authentication_attempted {
+        authentication_id.map(|authentication_id| {
+            PaymentExternalAuthenticationFlowProxy::PostAuthenticationFlow { authentication_id }
+        })
+    } else if separate_authentication_requested
+        && is_authentication_type_3ds
+        && mandate_type != Some(mandates::MandateTransactionType::RecurringMandateTransaction)
+        && connector_supports_separate_authn.is_some()
+        && payment_data.external_vault_pmd.is_some()
+    {
+        Some(PaymentExternalAuthenticationFlowProxy::PreAuthenticationFlow)
+    } else {
+        None
+    }
+}
+
 pub fn get_redis_key_for_extended_card_info(
     merchant_id: &id_type::MerchantId,
     payment_id: &id_type::PaymentId,
