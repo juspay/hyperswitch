@@ -5,6 +5,11 @@ use common_utils::{
     request_context::RequestContext,
     types::TenantConfig,
 };
+use common_utils::{
+    external_service::{ExternalServiceEventEmitter, NoOpEventEmitter},
+    request_context::RequestContext,
+    types::TenantConfig,
+};
 use diesel_models as store;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{

@@ -3,11 +3,13 @@ use std::{
     time::{Duration, Instant},
 };
 
-use common_enums::ApiClientError;
+use common_enums::{ApiClientError, PaymentMethod, PaymentMethodType};
 use common_utils::{
-    consts::{X_CONNECTOR_NAME, X_FLOW_NAME, X_REQUEST_ID},
+    consts::{
+        X_CONNECTOR_NAME, X_FLOW_NAME, X_PAYMENT_METHOD, X_PAYMENT_METHOD_TYPE, X_REQUEST_ID,
+    },
     errors::CustomResult,
-    request::{Request, RequestContent},
+    request::{Headers, Request, RequestContent},
 };
 use error_stack::{report, ResultExt};
 use http::Method;
@@ -267,6 +269,11 @@ where
                         X_CONNECTOR_NAME.to_string(),
                         Maskable::Masked(hyperswitch_masking::Secret::new(connector_name.clone().to_string())),
                     ));
+                    add_payment_method_headers(
+                        &mut request.headers,
+                        req.payment_method,
+                        req.payment_method_type,
+                    );
                     state.get_request_id().as_ref().map(|id| {
                         let request_id = id.to_string();
                         request.headers.insert((
@@ -459,6 +466,24 @@ where
                 None => Ok(router_data),
             }
         }
+    }
+}
+
+fn add_payment_method_headers(
+    headers: &mut Headers,
+    payment_method: PaymentMethod,
+    payment_method_type: Option<PaymentMethodType>,
+) {
+    headers.insert((
+        X_PAYMENT_METHOD.to_string(),
+        Maskable::Normal(payment_method.to_string()),
+    ));
+
+    if let Some(payment_method_type) = payment_method_type {
+        headers.insert((
+            X_PAYMENT_METHOD_TYPE.to_string(),
+            Maskable::Normal(payment_method_type.to_string()),
+        ));
     }
 }
 
