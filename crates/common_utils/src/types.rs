@@ -448,7 +448,9 @@ impl MinorUnit {
     }
 
     ///Convert minor unit to string minor unit
-    fn to_minor_unit_as_string(self) -> Result<StringMinorUnit, error_stack::Report<ParsingError>> {
+    pub fn to_minor_unit_as_string(
+        self,
+    ) -> Result<StringMinorUnit, error_stack::Report<ParsingError>> {
         Ok(StringMinorUnit::new(self.0.to_string()))
     }
 }
