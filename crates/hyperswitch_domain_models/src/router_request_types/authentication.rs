@@ -185,7 +185,7 @@ pub struct AuthenticationStore {
     pub authentication: authentication::Authentication,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct AuthenticationInfo {
     pub billing_address: Option<address::Address>,
     pub shipping_address: Option<address::Address>,

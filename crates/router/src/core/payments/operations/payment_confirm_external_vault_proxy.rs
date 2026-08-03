@@ -1045,6 +1045,33 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsRequest, PaymentData<F>>
                             .is_failed()
                     {
                         *should_continue_confirm_transaction = false;
+                        // Same as `payment_confirm.rs`'s non-proxy sibling: while the SDK waits on
+                        // the challenge (or the authentication has already failed), tell it how to
+                        // poll `RetrievePollStatus` — a connector-tuned cadence instead of whatever
+                        // generic default the SDK falls back to without this.
+                        let authentication_connector = authentication_store
+                            .authentication
+                            .authentication_connector
+                            .clone()
+                            .ok_or(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable(
+                                "authentication_connector not present in authentication record",
+                            )?;
+                        let connector = authentication_connector
+                            .parse::<common_enums::connector_enums::Connector>()
+                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable("Invalid authentication connector name")?;
+                        let dimensions = dimension_state::Dimensions::new()
+                            .with_processor_merchant_id(processor.get_processor_merchant_id())
+                            .with_connector(connector);
+                        let poll_config = dimensions
+                            .get_poll_config_external_three_ds(
+                                state.store.as_ref(),
+                                state.superposition_service.as_ref(),
+                                Some(payment_data.payment_intent.get_id()),
+                            )
+                            .await;
+                        payment_data.poll_config = Some(poll_config);
                     }
                 }
                 if let Some(token) = alias_token {

@@ -3082,6 +3082,14 @@ where
         )
         .await?;
 
+    tokenize_in_router_when_external_authentication_proxy(
+        state,
+        &mut payment_data,
+        &business_profile,
+        platform.get_processor().get_key_store(),
+    )
+    .await?;
+
     // Dispatch external 3DS (Netcetera-over-VGS) pre-/post-authentication if eligible, exactly
     // the same trait hook `payments_operation_core` dispatches for the normal flow — never a
     // free function called directly. `should_continue_confirm_transaction=false` means either a
@@ -5306,11 +5314,17 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
                 ..Default::default()
             };
             let is_setup_mandate = payment_intent.is_setup_mandate();
+            // External vault enablement is configured on the provider's own profile for
+            // platform-connected merchants (see `webhooks/incoming.rs`'s identical resolution
+            // before this same check) — resolve it before probing, else a connected processor's
+            // own profile (which may not carry this config) is checked instead.
+            let provider_business_profile =
+                helpers::resolve_provider_profile(state, &platform, &business_profile).await?;
             // A merchant with external vault enabled can still accept a plain (non-proxied)
             // card for an individual payment — probe whether this payment's payment_token
             // actually resolves to a vault alias before committing to the proxy resume path,
             // mirroring the same check in `payment_external_authentication`.
-            let is_external_vault_payment = business_profile
+            let is_external_vault_payment = provider_business_profile
                 .external_vault_details
                 .is_external_vault_enabled()
                 && match payment_attempt.payment_token.as_ref() {
@@ -12874,6 +12888,56 @@ pub async fn tokenize_external_vault_alias_proxy(
     Ok(token)
 }
 
+/// Proxy analogue of `tokenize_in_router_when_confirm_false_or_external_authentication`: when
+/// external 3DS was requested for this payment, mint the vault-alias temp-locker token up front —
+/// before the eligibility/pre-authentication hook runs — the same way classic's version makes
+/// `payment_data.token` available before `get_payment_external_authentication_flow_during_confirm`
+/// even checks it. Proxy's own eligibility check doesn't hard-require a pre-existing token (it
+/// checks `external_vault_pmd` instead, see `get_payment_external_authentication_flow_during_confirm_proxy`),
+/// so this isn't a precondition the way it is for classic — but doing it here, rather than
+/// reactively inside `perform_pre_authentication_proxy` after the UCS call already succeeded,
+/// mirrors classic's structure and keeps `payment_data.token`/`payment_attempt.payment_token`
+/// consistent regardless of what the eligibility check decides. No-ops if a token already exists
+/// (e.g. a saved-card resume) or there's no vault alias to tokenize yet.
+#[cfg(feature = "v1")]
+pub async fn tokenize_in_router_when_external_authentication_proxy<F, D>(
+    state: &SessionState,
+    payment_data: &mut D,
+    business_profile: &domain::Profile,
+    key_store: &domain::MerchantKeyStore,
+) -> RouterResult<()>
+where
+    F: Send + Clone,
+    D: OperationSessionGetters<F> + OperationSessionSetters<F>,
+{
+    let is_external_authentication_requested = payment_data
+        .get_payment_intent()
+        .request_external_three_ds_authentication
+        .unwrap_or(false);
+    if !is_external_authentication_requested || payment_data.get_token().is_some() {
+        return Ok(());
+    }
+    let Some(external_vault_pmd) = payment_data.get_external_vault_pmd().cloned() else {
+        return Ok(());
+    };
+    let payment_method = payment_data
+        .get_payment_attempt()
+        .payment_method
+        .unwrap_or(common_enums::PaymentMethod::Card);
+
+    let alias_token = tokenize_external_vault_alias_proxy(
+        state,
+        &external_vault_pmd,
+        payment_method,
+        business_profile,
+        key_store,
+    )
+    .await
+    .attach_printable("Failed to mint external vault alias token ahead of 3DS eligibility check")?;
+    payment_data.set_token(alias_token);
+    Ok(())
+}
+
 #[cfg(feature = "v1")]
 pub(crate) async fn read_external_vault_alias_from_temp_locker(
     state: &SessionState,
@@ -13085,12 +13149,18 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
         .clone()
         .get_required_value("authentication_connector_details")
         .attach_printable("authentication_connector_details not configured by the merchant")?;
+    // External vault enablement is configured on the provider's own profile for
+    // platform-connected merchants (see `webhooks/incoming.rs`'s identical resolution before
+    // this same check) — resolve it before probing, else a connected processor's own profile
+    // (which may not carry this config) is checked instead.
+    let provider_business_profile =
+        helpers::resolve_provider_profile(&state, &platform, &business_profile).await?;
     // A merchant with external vault enabled can still accept a plain (non-proxied) card for
     // an individual payment — the profile flag alone doesn't tell us whether *this* payment's
     // payment_token actually points at a vault alias. Probe it before committing to the proxy
     // path, so a plain card falls through to the classic/UAS branches below instead of hard
     // failing on a temp-locker value that isn't external-vault-shaped.
-    let is_external_vault_payment = if business_profile
+    let is_external_vault_payment = if provider_business_profile
         .external_vault_details
         .is_external_vault_enabled()
     {
@@ -13117,6 +13187,7 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
             amount,
             currency,
             billing_address.as_ref().map(|address| address.into()),
+            shipping_address.as_ref().map(|address| address.into()),
             optional_customer.and_then(|customer| customer.email.map(pii::Email::from)),
             HeaderPayload::default(),
             req.device_channel,

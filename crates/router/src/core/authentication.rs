@@ -19,7 +19,7 @@ use crate::{
         domain::{self},
         transformers::ForeignFrom,
     },
-    utils::check_if_pull_mechanism_for_external_3ds_enabled_from_connector_metadata,
+    utils::{check_if_pull_mechanism_for_external_3ds_enabled_from_connector_metadata, OptionExt},
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -173,16 +173,7 @@ pub async fn perform_post_authentication(
         .await?;
 
         let authentication_info =
-            hyperswitch_domain_models::router_request_types::authentication::AuthenticationInfo {
-                billing_address: None,
-                shipping_address: None,
-                browser_info: None,
-                email: None,
-                device_details: None,
-                merchant_category_code: None,
-                merchant_country_code: None,
-                platform: None,
-            };
+            hyperswitch_domain_models::router_request_types::authentication::AuthenticationInfo::default();
 
         utils::update_trackers(
             state,
@@ -293,12 +284,7 @@ pub async fn perform_pre_authentication(
             hyperswitch_domain_models::router_request_types::authentication::AuthenticationInfo {
                 billing_address: billing_address.clone(),
                 shipping_address: shipping_address.clone(),
-                browser_info: None,
-                email: None,
-                device_details: None,
-                merchant_category_code: None,
-                merchant_country_code: None,
-                platform: None,
+                ..Default::default()
             };
 
         let updated_authentication = Box::pin(utils::update_trackers(
@@ -344,12 +330,7 @@ pub async fn perform_pre_authentication(
         hyperswitch_domain_models::router_request_types::authentication::AuthenticationInfo {
             billing_address,
             shipping_address,
-            browser_info: None,
-            email: None,
-            device_details: None,
-            merchant_category_code: None,
-            merchant_country_code: None,
-            platform: None,
+            ..Default::default()
         };
 
     let authentication_update = Box::pin(utils::update_trackers(
@@ -474,9 +455,110 @@ where
     }))
 }
 
+/// Drives the live UCS pre-authenticate call for `perform_pre_authentication_proxy`. Mirrors
+/// `call_ucs_post_authenticate_proxy`'s error shape: returns `Ok(Err(ErrorResponse))` — not a
+/// hard `Err` — when the UCS call itself fails or the connector reports a decline, so the caller
+/// can feed it into a single `update_trackers` call and let its existing `Err(error) => ErrorUpdate`
+/// arm persist the failure onto the already-created `Authentication` row, instead of a bespoke
+/// early return that would leave that row created but never updated. A plain `Err` here means
+/// something is broken/misconfigured, the same class of error the non-proxy sibling would also
+/// just propagate via `?`.
+#[cfg(feature = "v1")]
+#[allow(clippy::too_many_arguments)]
+async fn call_ucs_pre_authenticate_proxy(
+    pre_authenticate_router_data: &core_types::RouterData<
+        api::PreAuthenticate,
+        core_types::PaymentsPreAuthenticateData,
+        core_types::PaymentsResponseData,
+    >,
+    external_vault_pmd: &domain::ExternalVaultPaymentMethodData,
+    state: &SessionState,
+    header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
+    lineage_ids: external_services::grpc_client::LineageIds,
+    auth_merchant_connector_account: payments_core::helpers::MerchantConnectorAccountType,
+    external_vault_merchant_connector_account: payments_core::helpers::MerchantConnectorAccountType,
+    processor: &domain::Processor,
+    connector_enum: common_enums::connector_enums::Connector,
+    execution_mode: common_enums::ExecutionMode,
+) -> CustomResult<
+    Result<core_types::authentication::AuthenticationResponseData, core_types::ErrorResponse>,
+    ApiErrorResponse,
+> {
+    let pre_authenticate_router_data = Box::pin(
+        payments_core::flows::authorize_flow::call_unified_connector_service_pre_authenticate_proxy(
+            pre_authenticate_router_data,
+            external_vault_pmd,
+            state,
+            header_payload,
+            lineage_ids,
+            auth_merchant_connector_account,
+            external_vault_merchant_connector_account,
+            processor,
+            connector_enum,
+            execution_mode,
+        ),
+    )
+    .await;
+
+    let pre_authenticate_router_data = match pre_authenticate_router_data {
+        Ok(router_data) => router_data,
+        Err(err) => {
+            return Ok(Err(core_types::ErrorResponse {
+                message: format!("UCS pre-authenticate call failed: {err}"),
+                ..Default::default()
+            }));
+        }
+    };
+
+    let ucs_authentication_data = match pre_authenticate_router_data.response {
+        Ok(core_types::PaymentsResponseData::TransactionResponse {
+            authentication_data,
+            ..
+        }) => authentication_data.map(|boxed| *boxed),
+        Ok(_) => None,
+        Err(err) => return Ok(Err(err)),
+    };
+
+    let default_message_version = common_utils::types::SemanticVersion::new(2, 2, 0);
+    let message_version = ucs_authentication_data
+        .as_ref()
+        .and_then(|data| data.message_version.clone())
+        .unwrap_or(default_message_version);
+    let threeds_server_transaction_id = ucs_authentication_data
+        .as_ref()
+        .and_then(|data| data.threeds_server_transaction_id.clone())
+        .unwrap_or_default();
+    let connector_authentication_id = ucs_authentication_data
+        .as_ref()
+        .and_then(|data| data.transaction_id.clone())
+        .filter(|txn_id| !txn_id.is_empty())
+        .unwrap_or_else(|| threeds_server_transaction_id.clone());
+    let directory_server_id = ucs_authentication_data
+        .as_ref()
+        .and_then(|data| data.ds_trans_id.clone());
+
+    Ok(Ok(
+        core_types::authentication::AuthenticationResponseData::PreAuthNResponse {
+            threeds_server_transaction_id,
+            maximum_supported_3ds_version: message_version.clone(),
+            connector_authentication_id,
+            three_ds_method_data: None,
+            three_ds_method_url: None,
+            message_version,
+            connector_metadata: None,
+            directory_server_id,
+            scheme_id: None,
+        },
+    ))
+}
+
 /// Proxy analogue of `perform_pre_authentication`, driving the auth connector over UCS instead of
-/// calling it directly. Returns `Ok((None, None))` when UCS isn't enabled (proceed as if external
-/// 3DS was never requested), otherwise the `AuthenticationStore` plus the alias `payment_token`.
+/// calling it directly. Errors (fails closed) if UCS isn't enabled for the connector — the
+/// merchant explicitly requested external 3DS for this payment, so silently proceeding without
+/// it would drop liability-shift/SCA coverage with no record that 3DS was skipped. Otherwise
+/// returns the `AuthenticationStore` plus the alias `payment_token`. `create_new_authentication`
+/// runs before the UCS call (matching the non-proxy ordering) so a UCS failure still has a row to
+/// persist onto, rather than leaving no record this payment ever attempted external 3DS.
 #[cfg(feature = "v1")]
 pub async fn perform_pre_authentication_proxy<F: Clone>(
     state: &SessionState,
@@ -573,7 +655,15 @@ pub async fn perform_pre_authentication_proxy<F: Clone>(
     )
     .await?
     else {
-        return Ok((None, None));
+        // The merchant explicitly requested external 3DS for this payment
+        // (`request_external_three_ds_authentication: true`) — silently proceeding without it
+        // would leave the transaction without liability shift / SCA coverage the merchant
+        // configured for, with no record anywhere that 3DS was skipped. Fail closed instead.
+        return Err(error_stack::report!(ApiErrorResponse::PreconditionFailed {
+            message: "External 3DS authentication was requested for this payment, but UCS is \
+                      not enabled for this connector; cannot proceed without performing 3DS"
+                .to_string(),
+        }));
     };
 
     let (authentication_connector, auth_merchant_connector_account) =
@@ -599,54 +689,7 @@ pub async fn perform_pre_authentication_proxy<F: Clone>(
         )
     });
 
-    let mut pre_authenticate_router_data = psp_router_data;
-    pre_authenticate_router_data.connector = connector_enum.to_string();
-    pre_authenticate_router_data.request.webhook_url = auth_webhook_url;
-
-    let lineage_ids = external_services::grpc_client::LineageIds::new(
-        business_profile.merchant_id.clone(),
-        business_profile.get_id().clone(),
-    );
-    let header_payload = hyperswitch_domain_models::payments::HeaderPayload::default();
-
-    let pre_authenticate_router_data = Box::pin(
-        payments_core::flows::authorize_flow::call_unified_connector_service_pre_authenticate_proxy(
-            &pre_authenticate_router_data,
-            &external_vault_pmd,
-            &updated_state,
-            &header_payload,
-            lineage_ids,
-            auth_merchant_connector_account.clone(),
-            external_vault_merchant_connector_account,
-            processor,
-            connector_enum,
-            execution_mode,
-        ),
-    )
-    .await
-    .change_context(ApiErrorResponse::InternalServerError)
-    .attach_printable("Failed to call UCS pre-authenticate for external vault proxy")?;
-
-    let ucs_authentication_data = pre_authenticate_router_data
-        .response
-        .map_err(|err| ApiErrorResponse::ExternalConnectorError {
-            code: err.code,
-            message: err.message,
-            connector: connector_enum.to_string(),
-            status_code: err.status_code,
-            reason: err.reason,
-        })
-        .attach_printable("UCS pre-authenticate call failed for external vault proxy")?;
-    let ucs_authentication_data = match ucs_authentication_data {
-        core_types::PaymentsResponseData::TransactionResponse {
-            authentication_data,
-            ..
-        } => authentication_data.map(|boxed| *boxed),
-        _ => None,
-    };
-
     let authentication_connector_name = authentication_connector.to_string();
-
     let authentication = utils::create_new_authentication(
         state,
         business_profile.merchant_id.clone(),
@@ -670,43 +713,29 @@ pub async fn perform_pre_authentication_proxy<F: Clone>(
     )
     .await?;
 
-    let default_message_version = common_utils::types::SemanticVersion::new(2, 2, 0);
-    let message_version = ucs_authentication_data
-        .as_ref()
-        .and_then(|data| data.message_version.clone())
-        .unwrap_or(default_message_version);
-    let threeds_server_transaction_id = ucs_authentication_data
-        .as_ref()
-        .and_then(|data| data.threeds_server_transaction_id.clone())
-        .unwrap_or_default();
-    let connector_authentication_id = ucs_authentication_data
-        .as_ref()
-        .and_then(|data| data.transaction_id.clone())
-        .filter(|txn_id| !txn_id.is_empty())
-        .unwrap_or_else(|| threeds_server_transaction_id.clone());
-    let directory_server_id = ucs_authentication_data
-        .as_ref()
-        .and_then(|data| data.ds_trans_id.clone());
+    let mut pre_authenticate_router_data = psp_router_data;
+    pre_authenticate_router_data.connector = connector_enum.to_string();
+    pre_authenticate_router_data.request.webhook_url = auth_webhook_url;
 
-    // Reuse `utils::update_trackers` (the same function the non-proxy `perform_pre_authentication`
-    // uses) instead of hand-rolling the `AuthenticationUpdate` + store call — it only ever reads
-    // `router_data.response`, so a minimal `RouterData` shell whose `.response` carries the UCS
-    // result adapted into the connector-agnostic `AuthenticationResponseData::PreAuthNResponse`
-    // shape drives it unchanged. `three_ds_method_data`/`three_ds_method_url`/`connector_metadata`/
-    // `scheme_id` were already hardcoded to `None` here before this refactor — UCS's
-    // `UcsAuthenticationData` doesn't carry them, so nothing is lost.
-    let pre_authenticate_response_data =
-        core_types::authentication::AuthenticationResponseData::PreAuthNResponse {
-            threeds_server_transaction_id,
-            maximum_supported_3ds_version: message_version.clone(),
-            connector_authentication_id,
-            three_ds_method_data: None,
-            three_ds_method_url: None,
-            message_version,
-            connector_metadata: None,
-            directory_server_id,
-            scheme_id: None,
-        };
+    let lineage_ids = external_services::grpc_client::LineageIds::new(
+        business_profile.merchant_id.clone(),
+        business_profile.get_id().clone(),
+    );
+    let header_payload = hyperswitch_domain_models::payments::HeaderPayload::default();
+
+    let pre_authenticate_response_data = call_ucs_pre_authenticate_proxy(
+        &pre_authenticate_router_data,
+        &external_vault_pmd,
+        &updated_state,
+        &header_payload,
+        lineage_ids,
+        auth_merchant_connector_account.clone(),
+        external_vault_merchant_connector_account,
+        processor,
+        connector_enum,
+        execution_mode,
+    )
+    .await?;
 
     let mut pre_authenticate_router_data: core_types::RouterData<
         api::PreAuthentication,
@@ -723,11 +752,8 @@ pub async fn perform_pre_authentication_proxy<F: Clone>(
         payment_data.payment_intent.psd2_sca_exemption_type,
         payment_data.payment_attempt.payment_id.clone(),
     )?;
-    pre_authenticate_router_data.response = Ok(pre_authenticate_response_data);
+    pre_authenticate_router_data.response = pre_authenticate_response_data;
 
-    // Preserves the exact fields the hand-rolled update used to set: billing/shipping address
-    // stayed `None` there too, and `browser_info` carries the same raw value forward (parsed back
-    // into the structured type since `update_trackers` re-encodes it itself).
     let browser_info = payment_data
         .payment_attempt
         .browser_info
@@ -738,14 +764,10 @@ pub async fn perform_pre_authentication_proxy<F: Clone>(
         .attach_printable("Failed to parse browser_info from payment_attempt")?;
     let authentication_info =
         hyperswitch_domain_models::router_request_types::authentication::AuthenticationInfo {
-            billing_address: None,
-            shipping_address: None,
+            billing_address: payment_data.address.get_payment_method_billing().cloned(),
+            shipping_address: payment_data.address.get_shipping().cloned(),
             browser_info,
-            email: None,
-            device_details: None,
-            merchant_category_code: None,
-            merchant_country_code: None,
-            platform: None,
+            ..Default::default()
         };
 
     let authentication = Box::pin(utils::update_trackers(
@@ -759,18 +781,16 @@ pub async fn perform_pre_authentication_proxy<F: Clone>(
     ))
     .await?;
 
-    let alias_token = payments_core::tokenize_external_vault_alias_proxy(
-        state,
-        &external_vault_pmd,
-        payment_data
-            .payment_attempt
-            .payment_method
-            .unwrap_or(common_enums::PaymentMethod::Card),
-        business_profile,
-        processor.get_key_store(),
-    )
-    .await
-    .attach_printable("Failed to mint external vault alias token for 3DS challenge resume")?;
+    // Minted by `tokenize_in_router_when_external_authentication_proxy`, which always runs before
+    // this function is reached (same eligibility gate: `request_external_three_ds_authentication`)
+    let alias_token = payment_data
+        .token
+        .clone()
+        .get_required_value("token")
+        .change_context(ApiErrorResponse::InternalServerError)
+        .attach_printable(
+            "payment_data.token should not be None while making external vault pre authentication call",
+        )?;
 
     Ok((
         Some(
@@ -783,16 +803,8 @@ pub async fn perform_pre_authentication_proxy<F: Clone>(
     ))
 }
 
-/// Drives the live UCS post-authenticate call for `perform_post_authentication_proxy`'s
-/// `!is_terminal_status() && is_pull_mechanism_enabled` branch. Returns `Ok(Err(ErrorResponse))`
-/// — not a hard `Err` — for any outcome that means "the 3DS operation itself didn't succeed"
-/// (UCS not eligible for this connector, the UCS call failing, the connector reporting a
-/// decline, or a success response with no usable CAVV), so the caller can feed it straight into
-/// a single `update_trackers` call and let its existing `Err(error) => ErrorUpdate` arm persist
-/// the failure uniformly — exactly how `perform_post_authentication` (the non-proxy sibling)
-/// already handles a failed connector call, with no bespoke per-failure-mode branching. A plain
-/// `Err` here means something is broken/misconfigured (MCA lookup, address parsing, etc.), the
-/// same class of error `perform_post_authentication` would also just propagate via `?`.
+/// Drives the live UCS post-authenticate call. Returns `Ok(Err(ErrorResponse))` (not a hard `Err`)
+/// for any 3DS-outcome failure, so the caller can persist it via a single `update_trackers` call.
 #[cfg(feature = "v1")]
 #[allow(clippy::too_many_arguments)]
 async fn call_ucs_post_authenticate_proxy<F: Clone>(
@@ -999,17 +1011,8 @@ async fn call_ucs_post_authenticate_proxy<F: Clone>(
     ))
 }
 
-/// Proxy analogue of `perform_post_authentication`. Unlike the pre-authentication variant above,
-/// the `Authentication` record is guaranteed to already exist by this point (created during
-/// pre-authentication).
-///
-/// Mirrors the non-proxy sibling's shape exactly: `!is_terminal_status() && is_pull_mechanism_enabled`
-/// gates a live connector call (here, `call_ucs_post_authenticate_proxy` over UCS instead of
-/// `do_auth_connector_call` direct to the connector); otherwise the existing row is passed through
-/// unchanged. Either way, `utils::update_trackers` is the single place that turns the outcome
-/// (success or connector-reported failure) into a persisted update — there is no separate
-/// "mark failed" path, so a resume that merely raced ahead of its own RRes webhook (not terminal,
-/// but pull disabled) is left as-is rather than being permanently marked `Failed`.
+/// Proxy analogue of `perform_post_authentication`, driving the auth connector over UCS instead
+/// of directly. Mirrors its `!is_terminal_status() && is_pull_mechanism_enabled` gating shape.
 #[cfg(feature = "v1")]
 pub async fn perform_post_authentication_proxy<F: Clone>(
     state: &SessionState,
@@ -1098,16 +1101,7 @@ pub async fn perform_post_authentication_proxy<F: Clone>(
         post_authenticate_tracker_router_data.response = post_authenticate_response_data;
 
         let authentication_info =
-            hyperswitch_domain_models::router_request_types::authentication::AuthenticationInfo {
-                billing_address: None,
-                shipping_address: None,
-                browser_info: None,
-                email: None,
-                device_details: None,
-                merchant_category_code: None,
-                merchant_country_code: None,
-                platform: None,
-            };
+            hyperswitch_domain_models::router_request_types::authentication::AuthenticationInfo::default();
 
         Box::pin(utils::update_trackers(
             state,
@@ -1120,15 +1114,9 @@ pub async fn perform_post_authentication_proxy<F: Clone>(
         ))
         .await?
     } else {
-        // trigger in case of webhook flow
         authentication
     };
 
-    // getting authentication value from temp locker before moving ahead with authorisation —
-    // same unconditional vault fetch `perform_post_authentication` uses. This also covers the
-    // "already Success" case that used to be a separate fast path above: whether the CAVV was
-    // vaulted by the webhook handler earlier, or just now by `update_trackers` in the branch
-    // above, it lives under the same `authentication_id` key either way.
     let tokenized_data = crate::core::payment_methods::vault::get_tokenized_data(
         state,
         authentication_id.get_string_repr(),
@@ -1156,7 +1144,26 @@ pub async fn perform_post_authentication_proxy<F: Clone>(
 /// `PaymentAttemptUpdate::AuthenticationUpdate`, returning the same `AuthenticationResponse` type.
 #[cfg(feature = "v1")]
 #[allow(clippy::too_many_arguments)]
-pub async fn perform_authentication_proxy(
+struct AuthenticateProxyContext {
+    authenticate_router_data: core_types::RouterData<
+        api::Authenticate,
+        core_types::PaymentsAuthenticateData,
+        core_types::PaymentsResponseData,
+    >,
+    authentication: authentication::Authentication,
+    authentication_id: common_utils::id_type::AuthenticationId,
+    auth_connector_enum: common_enums::connector_enums::Connector,
+    auth_merchant_connector_account: payments_core::helpers::MerchantConnectorAccountType,
+    payment_method: common_enums::PaymentMethod,
+    browser_info: Option<core_types::BrowserInformation>,
+}
+
+/// Drives the live UCS authenticate (AReq) call. Mirrors `call_ucs_pre_authenticate_proxy`/
+/// `call_ucs_post_authenticate_proxy`'s split from their `perform_*_proxy` callers: everything
+/// needed to resolve the vault/PSP context, build the request, and make the actual UCS call
+/// lives here; response interpretation is `parse_ucs_authenticate_response`'s job.
+#[allow(clippy::too_many_arguments)]
+async fn call_ucs_authenticate_proxy(
     state: &SessionState,
     platform: &domain::Platform,
     payment_intent: &hyperswitch_domain_models::payments::PaymentIntent,
@@ -1166,10 +1173,10 @@ pub async fn perform_authentication_proxy(
     currency: Currency,
     billing_address: Option<hyperswitch_domain_models::address::Address>,
     optional_email: Option<common_utils::pii::Email>,
-    header_payload: hyperswitch_domain_models::payments::HeaderPayload,
+    header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
     device_channel: payments::DeviceChannel,
     sdk_information: Option<payments::SdkInformation>,
-) -> CustomResult<api::authentication::AuthenticationResponse, ApiErrorResponse> {
+) -> CustomResult<AuthenticateProxyContext, ApiErrorResponse> {
     let processor = platform.get_processor();
     let key_store = processor.get_key_store();
     let key_manager_state = state.into();
@@ -1386,7 +1393,7 @@ pub async fn perform_authentication_proxy(
             &authenticate_router_data,
             &external_vault_pmd,
             &updated_state,
-            &header_payload,
+            header_payload,
             lineage_ids,
             auth_merchant_connector_account.clone(),
             external_vault_merchant_connector_account,
@@ -1405,8 +1412,46 @@ pub async fn perform_authentication_proxy(
     .change_context(ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to call UCS authenticate for external vault proxy")?;
 
+    Ok(AuthenticateProxyContext {
+        authenticate_router_data,
+        authentication,
+        authentication_id,
+        auth_connector_enum,
+        auth_merchant_connector_account,
+        payment_method,
+        browser_info,
+    })
+}
+
+struct ParsedAuthenticateResponse {
+    authenticate_response_data: core_types::authentication::AuthenticationResponseData,
+    authentication_type: common_enums::DecoupledAuthenticationType,
+    trans_status: common_enums::TransactionStatus,
+    acs_url: Option<url::Url>,
+    challenge_request: Option<String>,
+    acs_reference_number: Option<String>,
+    acs_trans_id: Option<String>,
+    three_ds_server_transaction_id: Option<String>,
+    acs_signed_content: Option<String>,
+    error_message: Option<String>,
+}
+
+/// Interprets the raw UCS authenticate response into `AuthenticationResponseData::AuthNResponse`
+/// plus the SDK-facing challenge/ARes fields; `AppChallengeAcsMetadata` reads ACS fields back out
+/// of the JSON-stuffed `connector_metadata` since UCS has no typed slots for them.
+fn parse_ucs_authenticate_response(
+    response: &Result<core_types::PaymentsResponseData, core_types::ErrorResponse>,
+    fallback_threeds_server_transaction_id: Option<String>,
+) -> CustomResult<ParsedAuthenticateResponse, ApiErrorResponse> {
+    #[derive(serde::Deserialize)]
+    struct AppChallengeAcsMetadata {
+        acs_signed_content: Option<String>,
+        acs_reference_number: Option<String>,
+        acs_trans_id: Option<String>,
+    }
+
     let (areq_authentication_data, redirection_data, areq_error_message, connector_metadata) =
-        match &authenticate_router_data.response {
+        match response {
             Ok(core_types::PaymentsResponseData::TransactionResponse {
                 authentication_data,
                 redirection_data,
@@ -1422,12 +1467,6 @@ pub async fn perform_authentication_proxy(
             Err(err) => (None, None, Some(err.message.clone()), None),
         };
 
-    #[derive(serde::Deserialize)]
-    struct AppChallengeAcsMetadata {
-        acs_signed_content: Option<String>,
-        acs_reference_number: Option<String>,
-        acs_trans_id: Option<String>,
-    }
     let app_acs = connector_metadata.as_ref().and_then(|metadata| {
         serde_json::from_value::<AppChallengeAcsMetadata>(metadata.clone()).ok()
     });
@@ -1481,7 +1520,7 @@ pub async fn perform_authentication_proxy(
     let three_ds_server_transaction_id = areq_authentication_data
         .as_ref()
         .and_then(|data| data.threeds_server_transaction_id.clone())
-        .or_else(|| authentication.threeds_server_transaction_id.clone());
+        .or(fallback_threeds_server_transaction_id);
 
     // Frictionless authentications (trans_status Y) carry the cavv in the ARes. The `cavv` DB
     // column is only writable at creation, so vault the cavv (encrypted, keyed by
@@ -1505,15 +1544,6 @@ pub async fn perform_authentication_proxy(
         .change_context(ApiErrorResponse::InternalServerError)
         .attach_printable("acs_url returned by UCS authenticate is not a valid URL")?;
 
-    // Reuse `utils::update_trackers` (same as `perform_authentication`'s non-proxy sibling) by
-    // shaping the parsed UCS fields into the same connector-agnostic `AuthNFlowType`/
-    // `AuthenticationResponseData::AuthNResponse` every connector's own `ConnectorIntegration`
-    // produces natively — instead of hand-rolling the `AuthenticationUpdate` + store call. This
-    // also vaults `authentication_value` (the frictionless cavv) via `update_trackers`'s
-    // `AuthNResponse` arm, replacing the separate manual vault call the old code needed here, and
-    // fills in `device_type`/`device_brand`/`device_os`/`device_display` from `sdk_information`
-    // (via `AuthenticationInfo.device_details`) — the old hand-rolled update always left those
-    // `None`.
     let authn_flow_type = match authentication_type {
         common_enums::DecoupledAuthenticationType::Challenge => {
             hyperswitch_domain_models::router_request_types::authentication::AuthNFlowType::Challenge(Box::new(
@@ -1547,6 +1577,80 @@ pub async fn perform_authentication_proxy(
             message_extension: None,
         };
 
+    Ok(ParsedAuthenticateResponse {
+        authenticate_response_data,
+        authentication_type,
+        trans_status,
+        acs_url,
+        challenge_request,
+        acs_reference_number,
+        acs_trans_id,
+        three_ds_server_transaction_id,
+        acs_signed_content,
+        error_message: areq_error_message,
+    })
+}
+
+#[allow(clippy::too_many_arguments)]
+pub async fn perform_authentication_proxy(
+    state: &SessionState,
+    platform: &domain::Platform,
+    payment_intent: &hyperswitch_domain_models::payments::PaymentIntent,
+    payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
+    business_profile: &domain::Profile,
+    amount: common_utils::types::MinorUnit,
+    currency: Currency,
+    billing_address: Option<hyperswitch_domain_models::address::Address>,
+    shipping_address: Option<hyperswitch_domain_models::address::Address>,
+    optional_email: Option<common_utils::pii::Email>,
+    header_payload: hyperswitch_domain_models::payments::HeaderPayload,
+    device_channel: payments::DeviceChannel,
+    sdk_information: Option<payments::SdkInformation>,
+) -> CustomResult<api::authentication::AuthenticationResponse, ApiErrorResponse> {
+    let processor = platform.get_processor();
+    let key_store = processor.get_key_store();
+    let storage_scheme = processor.get_account().storage_scheme;
+
+    let AuthenticateProxyContext {
+        authenticate_router_data,
+        authentication,
+        authentication_id,
+        auth_connector_enum,
+        auth_merchant_connector_account,
+        payment_method,
+        browser_info,
+    } = call_ucs_authenticate_proxy(
+        state,
+        platform,
+        payment_intent,
+        payment_attempt,
+        business_profile,
+        amount,
+        currency,
+        billing_address.clone(),
+        optional_email.clone(),
+        &header_payload,
+        device_channel.clone(),
+        sdk_information.clone(),
+    )
+    .await?;
+
+    let ParsedAuthenticateResponse {
+        authenticate_response_data,
+        authentication_type,
+        trans_status,
+        acs_url,
+        challenge_request,
+        acs_reference_number,
+        acs_trans_id,
+        three_ds_server_transaction_id,
+        acs_signed_content,
+        error_message: areq_error_message,
+    } = parse_ucs_authenticate_response(
+        &authenticate_router_data.response,
+        authentication.threeds_server_transaction_id.clone(),
+    )?;
+
     let mut authenticate_tracker_router_data: core_types::RouterData<
         api::Authentication,
         (),
@@ -1572,15 +1676,14 @@ pub async fn perform_authentication_proxy(
     let authentication_info =
         hyperswitch_domain_models::router_request_types::authentication::AuthenticationInfo {
             billing_address,
-            shipping_address: None,
+            shipping_address,
             browser_info,
             email: optional_email,
             device_details: sdk_information
                 .as_ref()
                 .and_then(|sdk_information| sdk_information.device_details.clone()),
-            merchant_category_code: None,
-            merchant_country_code: None,
             platform: Some(device_channel),
+            ..Default::default()
         };
 
     let authentication = Box::pin(utils::update_trackers(
