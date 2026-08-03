@@ -24652,7 +24652,8 @@
       "MerchantAccountCreate": {
         "type": "object",
         "required": [
-          "merchant_id"
+          "merchant_id",
+          "merchant_name"
         ],
         "properties": {
           "merchant_id": {
@@ -24665,8 +24666,7 @@
           "merchant_name": {
             "type": "string",
             "description": "Name of the Merchant Account",
-            "example": "NewAge Retailer",
-            "nullable": true
+            "example": "NewAge Retailer"
           },
           "merchant_details": {
             "allOf": [
