@@ -308,9 +308,50 @@ pub trait DbConnectionParams {
     fn get_host(&self) -> &str;
     fn get_port(&self) -> u16;
     fn get_dbname(&self) -> &str;
+
+    /// Seconds of idle time before the OS starts sending TCP keepalive probes
+    /// on this connection. Without overriding this, it falls back to the OS
+    /// default (commonly ~2 hours on Linux), which is far too slow to detect
+    /// a connection silently killed by an RDS/Aurora failover.
+    fn get_pool_keepalives_idle(&self) -> u64 {
+        5
+    }
+    /// Seconds between successive keepalive probes if no ACK is received.
+    fn get_pool_keepalives_interval(&self) -> u64 {
+        2
+    }
+    /// Number of unacknowledged keepalive probes before the OS declares the
+    /// connection dead. With the values above, a connection that dies while a
+    /// query is in flight is detected in ~idle + interval*count = ~11s,
+    /// instead of hanging indefinitely. (A connection that dies while *idle*
+    /// is instead bounded by `get_pool_tcp_user_timeout_ms` below, which
+    /// governs a different kernel timer -- see its docs.)
+    fn get_pool_keepalives_count(&self) -> u32 {
+        3
+    }
+    /// Milliseconds of unacknowledged *transmitted* data before the OS
+    /// forcibly closes the connection. This is what bounds a fresh write
+    /// (e.g. the pool's own `is_valid()` checkout ping) sent to a connection
+    /// that went idle before dying silently -- without this, that specific
+    /// path can hang far longer than the keepalive settings above would
+    /// suggest, since it's governed by normal TCP retransmission timers
+    /// instead of the keepalive mechanism.
+    ///
+    /// MUST stay comfortably below the pool's `connection_timeout` (currently
+    /// 10s). `connection_timeout` wraps the whole `pool.get()`, including the
+    /// `is_valid()` ping this bounds; if the outer timeout wins the race, bb8
+    /// never runs its `Err => mark Invalid` path and the dead connection goes
+    /// back into the idle queue looking healthy. Measured against a real
+    /// failover with all connections idle: at 10_000 (== connection_timeout)
+    /// a checkout hard-failed at 10.002s and full recovery took ~16s; at
+    /// 5_000 there were no failures and recovery took ~12s.
+    fn get_pool_tcp_user_timeout_ms(&self) -> u64 {
+        5_000
+    }
+
     fn get_database_url(&self, schema: &str) -> String {
         format!(
-            "postgres://{}:{}@{}:{}/{}?application_name={}&options=-c%20search_path%3D{}",
+            "postgres://{}:{}@{}:{}/{}?application_name={}&options=-c%20search_path%3D{}&keepalives=1&keepalives_idle={}&keepalives_interval={}&keepalives_count={}&tcp_user_timeout={}",
             self.get_username(),
             self.get_password().peek(),
             self.get_host(),
@@ -318,6 +359,10 @@ pub trait DbConnectionParams {
             self.get_dbname(),
             schema,
             schema,
+            self.get_pool_keepalives_idle(),
+            self.get_pool_keepalives_interval(),
+            self.get_pool_keepalives_count(),
+            self.get_pool_tcp_user_timeout_ms(),
         )
     }
 }
