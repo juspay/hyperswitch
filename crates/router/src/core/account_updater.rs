@@ -1,6 +1,7 @@
-pub mod config;
 pub mod types;
 
+#[cfg(feature = "v2")]
+pub mod config;
 #[cfg(feature = "v2")]
 pub mod connector_config;
 #[cfg(feature = "v2")]

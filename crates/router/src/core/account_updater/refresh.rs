@@ -2,6 +2,9 @@ use std::{str::FromStr, time::Duration};
 
 use common_enums::ExecutionMode;
 use external_services::grpc_client::LineageIds;
+use hyperswitch_interfaces::{
+    consts as interfaces_consts, unified_connector_service::UnifiedConnectorServiceError,
+};
 use router_env::{instrument, logger, tracing};
 use unified_connector_service_cards::CardNumber;
 use unified_connector_service_client::payments as payments_grpc;
@@ -18,6 +21,13 @@ use crate::{
 };
 
 const ACCOUNT_UPDATER_CONNECTOR_NAME: &str = "juspay";
+
+/// Sent as the `grpc-timeout` deadline, so UCS abandons the inquiry rather than us alone.
+const REFRESH_TIMEOUT: Duration = Duration::from_secs(5);
+
+/// Backstop for a UCS that does not honour `grpc-timeout`. Kept above `REFRESH_TIMEOUT` so the
+/// gRPC deadline always wins the race and timeouts classify consistently.
+const REFRESH_TIMEOUT_BACKSTOP: Duration = Duration::from_secs(7);
 
 #[instrument(skip_all)]
 pub async fn refresh_card(
@@ -55,23 +65,48 @@ pub async fn refresh_card(
         ))
         .build();
 
-    Box::pin(client.payment_method_refresh(
-        request,
-        connector_auth_metadata,
-        grpc_headers,
-        Duration::from_millis(config.refresh_timeout_ms),
-    ))
+    tokio::time::timeout(
+        REFRESH_TIMEOUT_BACKSTOP,
+        Box::pin(client.payment_method_refresh(
+            request,
+            connector_auth_metadata,
+            grpc_headers,
+            REFRESH_TIMEOUT,
+        )),
+    )
     .await
+    .map_err(|_elapsed| {
+        logger::warn!("Account Updater refresh call to UCS outlived its gRPC deadline");
+        AccountUpdaterFailure::RefreshTimedOut
+    })?
     .map(|response| response.into_inner())
     .map_err(|error| {
-        logger::warn!(?error, "Account Updater refresh call to UCS failed");
-        AccountUpdaterFailure::RefreshCallFailed
+        let failure = classify_call_error(error.current_context());
+        logger::warn!(
+            ?error,
+            ?failure,
+            "Account Updater refresh call to UCS failed"
+        );
+        failure
     })
     .and_then(classify_response)
 }
 
-/// Branches on `error` before reading the outcome: a failed response also carries an unspecified
-/// outcome, so the outcome alone cannot separate "asked and got an odd answer" from "could not ask".
+/// UCS reports both its own deadline and a connector-side timeout as a `TIMEOUT` connector error;
+/// either way the inquiry did not complete in time.
+fn classify_call_error(error: &UnifiedConnectorServiceError) -> AccountUpdaterFailure {
+    match error {
+        UnifiedConnectorServiceError::ConnectorError(inner)
+            if inner.code == interfaces_consts::REQUEST_TIMEOUT_ERROR_CODE =>
+        {
+            AccountUpdaterFailure::RefreshTimedOut
+        }
+        _ => AccountUpdaterFailure::RefreshCallFailed,
+    }
+}
+
+/// Checks `error` first: a failed response also carries an unspecified outcome, so the outcome
+/// alone cannot distinguish an odd answer from no answer.
 fn classify_response(
     response: payments_grpc::PaymentMethodServiceRefreshResponse,
 ) -> Result<RefreshOutcome, AccountUpdaterFailure> {
@@ -89,8 +124,7 @@ fn classify_response(
         .and_then(|result| result.result)
         .map(|result| match result {
             payments_grpc::refresh_result::Result::Card(card) => {
-                // An unrecognised code is still a successful inquiry, so it normalizes rather
-                // than failing.
+                // An unrecognised code is still a successful inquiry, so it normalizes.
                 payments_grpc::CardRefreshOutcome::try_from(card.outcome)
                     .map(RefreshOutcome::foreign_from)
                     .unwrap_or(RefreshOutcome::Unspecified)
@@ -103,8 +137,8 @@ fn build_refresh_request(
     sync_card: SyncCard,
 ) -> Result<payments_grpc::PaymentMethodServiceRefreshRequest, AccountUpdaterFailure> {
     let card_number = CardNumber::from_str(&sync_card.card_number.get_card_no()).map_err(|_| {
-        logger::warn!("Account Updater could not encode the card number for UCS");
-        AccountUpdaterFailure::RefreshCallFailed
+        logger::warn!("Account Updater unvaulted a card number that UCS rejected as invalid");
+        AccountUpdaterFailure::CardNumberInvalid
     })?;
 
     let card = payments_grpc::CardDetailsWithNoCvc {
@@ -129,4 +163,18 @@ fn build_refresh_request(
             )),
         }),
     })
+}
+
+impl ForeignFrom<payments_grpc::CardRefreshOutcome> for RefreshOutcome {
+    fn foreign_from(outcome: payments_grpc::CardRefreshOutcome) -> Self {
+        match outcome {
+            payments_grpc::CardRefreshOutcome::CardRefreshAccountUpdated => Self::AccountUpdated,
+            payments_grpc::CardRefreshOutcome::CardRefreshExpiryUpdated => Self::ExpiryUpdated,
+            payments_grpc::CardRefreshOutcome::CardRefreshNoChange => Self::NoChange,
+            payments_grpc::CardRefreshOutcome::CardRefreshClosed => Self::Closed,
+            payments_grpc::CardRefreshOutcome::CardRefreshNotFound => Self::NotFound,
+            payments_grpc::CardRefreshOutcome::CardRefreshContactIssuer => Self::ContactIssuer,
+            payments_grpc::CardRefreshOutcome::Unspecified => Self::Unspecified,
+        }
+    }
 }

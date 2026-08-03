@@ -1525,7 +1525,6 @@ merchant_id = ""                 # Merchant id sent in Account Updater request b
 euler_encryption_public_key = "" # Provider RSA public key, used to seal outbound card data
 au_decryption_pvt_key = ""       # Our RSA private key, used to open the response payload
 card_sync_key_id = ""            # Id of our public key as registered with the provider
-refresh_timeout_ms = 5000        # Per-request deadline on the UCS Refresh call
 
 [micro_services]
 # Base URLs for modular microservices

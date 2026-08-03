@@ -5477,8 +5477,7 @@ pub async fn retrieve_payment_method(
     profile: domain::Profile,
     platform: domain::Platform,
     api_key_type: enums::ApiKeyType,
-    fetch_raw_detail_query_param: bool,
-    force_sync: bool,
+    request: payment_methods::PaymentMethodRetrieveRequest,
 ) -> RouterResponse<api::PaymentMethodResponse> {
     let db = state.store.as_ref();
 
@@ -5514,8 +5513,8 @@ pub async fn retrieve_payment_method(
     )?;
 
     // 3. Optionally run the Account Updater evaluation
-    if force_sync {
-        let account_updater_terminal_state = Box::pin(account_updater::evaluate(
+    if request.force_sync {
+        Box::pin(account_updater::evaluate(
             &state,
             &platform,
             &profile,
@@ -5524,18 +5523,13 @@ pub async fn retrieve_payment_method(
             &dimensions.without_provider_merchant_id(),
         ))
         .await;
-
-        logger::debug!(
-            ?account_updater_terminal_state,
-            "Account Updater evaluation completed"
-        );
     }
 
     let raw_payment_method_fetch_access = get_raw_payment_method_data_fetch_access(
         &state,
         &dimensions,
         api_key_type,
-        fetch_raw_detail_query_param,
+        request.fetch_raw_detail,
         payment_method.customer_id.as_ref(),
     )
     .await
@@ -5630,8 +5624,7 @@ pub async fn retrieve_payment_method_olap(
         profile,
         platform,
         enums::ApiKeyType::External,
-        false,
-        false,
+        payment_methods::PaymentMethodRetrieveRequest::default(),
     ))
     .await?
     .get_json_body()

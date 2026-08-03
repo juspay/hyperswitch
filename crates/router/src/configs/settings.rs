@@ -401,12 +401,6 @@ pub struct JuspayAccountUpdaterConfig {
     pub euler_encryption_public_key: Secret<String>,
     pub au_decryption_pvt_key: Secret<String>,
     pub card_sync_key_id: String,
-    #[serde(default = "default_account_updater_refresh_timeout_ms")]
-    pub refresh_timeout_ms: u64,
-}
-
-fn default_account_updater_refresh_timeout_ms() -> u64 {
-    5_000
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]

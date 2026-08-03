@@ -54,10 +54,7 @@ use unified_connector_service_client::payments::{
 };
 
 use crate::{
-    core::{
-        account_updater::types::RefreshOutcome, mandate::MandateBehaviour,
-        unified_connector_service,
-    },
+    core::{mandate::MandateBehaviour, unified_connector_service},
     types::{
         api,
         transformers::{self, ForeignFrom},
@@ -6180,20 +6177,6 @@ impl ForeignFrom<common_enums::Tokenization> for payments_grpc::Tokenization {
         match tokenization {
             common_enums::Tokenization::TokenizeAtPsp => Self::TokenizeAtPsp,
             common_enums::Tokenization::SkipPsp => Self::SkipPsp,
-        }
-    }
-}
-
-impl ForeignFrom<payments_grpc::CardRefreshOutcome> for RefreshOutcome {
-    fn foreign_from(outcome: payments_grpc::CardRefreshOutcome) -> Self {
-        match outcome {
-            payments_grpc::CardRefreshOutcome::CardRefreshAccountUpdated => Self::AccountUpdated,
-            payments_grpc::CardRefreshOutcome::CardRefreshExpiryUpdated => Self::ExpiryUpdated,
-            payments_grpc::CardRefreshOutcome::CardRefreshNoChange => Self::NoChange,
-            payments_grpc::CardRefreshOutcome::CardRefreshClosed => Self::Closed,
-            payments_grpc::CardRefreshOutcome::CardRefreshNotFound => Self::NotFound,
-            payments_grpc::CardRefreshOutcome::CardRefreshContactIssuer => Self::ContactIssuer,
-            payments_grpc::CardRefreshOutcome::Unspecified => Self::Unspecified,
         }
     }
 }

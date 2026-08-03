@@ -3,8 +3,7 @@ use router_env::logger;
 
 use super::types::{AccountUpdaterFailure, ResolvedAccountUpdaterConfig};
 
-/// Two field names differ from ours: Hyperswitch has no Juspay connector, so `juspay_*` would be a
-/// misnomer here. Declared on the fields so a rename on either side breaks in one place.
+/// Two field names differ from the provider's; renames are on the fields so either side can move.
 #[derive(Debug, serde::Serialize)]
 struct JuspayConnectorConfig {
     api_key: Secret<String>,
@@ -27,9 +26,8 @@ struct AccountUpdaterConnectorConfigEnvelope {
     config: AccountUpdaterConnectorConfig,
 }
 
-/// Produces the same `{"config": {"Juspay": {..}}}` header value as
-/// `build_connector_config_header`, which cannot be reused here because it derives the header from
-/// a `ConnectorAuthType` and these credentials are application-level.
+/// Mirrors `build_connector_config_header`, which cannot be reused here because it derives the
+/// header from a `ConnectorAuthType` and these credentials are application-level.
 pub fn build_account_updater_connector_config(
     config: &ResolvedAccountUpdaterConfig,
 ) -> Result<Secret<String>, AccountUpdaterFailure> {

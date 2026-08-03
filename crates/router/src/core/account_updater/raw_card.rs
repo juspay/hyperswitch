@@ -7,7 +7,7 @@ use crate::{
     core::payment_methods::RawPaymentMethodFetchAccess, routes::SessionState, types::domain,
 };
 
-/// Unvaults on an internal grant, independent of whatever the caller was granted.
+/// Unvaults on an internal grant, independent of the caller's own grant.
 #[instrument(skip_all)]
 pub async fn fetch_card_for_sync(
     state: &SessionState,
@@ -28,7 +28,9 @@ pub async fn fetch_card_for_sync(
     let card_details = match raw_payment_method_data {
         Some(RawPaymentMethodData::Card(card_details)) => card_details,
         Some(RawPaymentMethodData::CardWithNT(details)) => details.card_details,
-        _ => return Err(AccountUpdaterFailure::RawCardUnavailable),
+        Some(RawPaymentMethodData::BankDebit(_) | RawPaymentMethodData::ProxyCard(_)) | None => {
+            return Err(AccountUpdaterFailure::RawCardUnavailable)
+        }
     };
 
     Ok(SyncCard {
