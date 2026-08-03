@@ -301,6 +301,38 @@ pub fn generate_time_ordered_id_without_prefix() -> String {
 pub fn generate_id_with_len(length: usize) -> String {
     nanoid::nanoid!(length, &consts::ALPHABETS)
 }
+/// Seconds of idle time before the OS starts sending TCP keepalive probes on a
+/// database connection. Left to the OS this is commonly ~2 hours on Linux, far
+/// too slow to notice a connection silently killed by an RDS/Aurora failover.
+pub const DEFAULT_DB_KEEPALIVES_IDLE_SECS: u64 = 5;
+
+/// Seconds between successive TCP keepalive probes when one goes unanswered.
+/// The OS default is ~75s, which would make detection minutes-slow.
+pub const DEFAULT_DB_KEEPALIVES_INTERVAL_SECS: u64 = 2;
+
+/// Unanswered TCP keepalive probes tolerated before the OS declares a database
+/// connection dead. With the two values above, a connection that dies while a
+/// query is in flight is detected in ~idle + interval*count = ~11s instead of
+/// hanging indefinitely.
+pub const DEFAULT_DB_KEEPALIVES_COUNT: u32 = 3;
+
+/// Milliseconds of unacknowledged *transmitted* data before the OS forcibly
+/// closes a database connection. This bounds a fresh write -- notably the
+/// pool's own checkout health-check ping -- sent to a connection that went
+/// idle before dying silently; that path is governed by ordinary TCP
+/// retransmission timers rather than the keepalive mechanism above, so the
+/// keepalive settings alone do not cover it.
+///
+/// MUST stay comfortably below the pool's `connection_timeout` (10s by
+/// default). `connection_timeout` wraps the entire connection checkout,
+/// including the health-check ping this bounds. If the outer timeout wins the
+/// race, the pool never runs its "mark connection invalid" path and the dead
+/// connection is returned to the idle queue looking healthy. Measured against
+/// a real failover with an all-idle pool: at 10_000 (equal to
+/// `connection_timeout`) one checkout hard-failed at 10.002s and full recovery
+/// took ~16s; at 5_000 there were no failures and recovery took ~12s.
+pub const DEFAULT_DB_TCP_USER_TIMEOUT_MS: u64 = 5_000;
+
 #[allow(missing_docs)]
 pub trait DbConnectionParams {
     fn get_username(&self) -> &str;
@@ -309,44 +341,21 @@ pub trait DbConnectionParams {
     fn get_port(&self) -> u16;
     fn get_dbname(&self) -> &str;
 
-    /// Seconds of idle time before the OS starts sending TCP keepalive probes
-    /// on this connection. Without overriding this, it falls back to the OS
-    /// default (commonly ~2 hours on Linux), which is far too slow to detect
-    /// a connection silently killed by an RDS/Aurora failover.
+    /// See [`DEFAULT_DB_KEEPALIVES_IDLE_SECS`].
     fn get_pool_keepalives_idle(&self) -> u64 {
-        5
+        DEFAULT_DB_KEEPALIVES_IDLE_SECS
     }
-    /// Seconds between successive keepalive probes if no ACK is received.
+    /// See [`DEFAULT_DB_KEEPALIVES_INTERVAL_SECS`].
     fn get_pool_keepalives_interval(&self) -> u64 {
-        2
+        DEFAULT_DB_KEEPALIVES_INTERVAL_SECS
     }
-    /// Number of unacknowledged keepalive probes before the OS declares the
-    /// connection dead. With the values above, a connection that dies while a
-    /// query is in flight is detected in ~idle + interval*count = ~11s,
-    /// instead of hanging indefinitely. (A connection that dies while *idle*
-    /// is instead bounded by `get_pool_tcp_user_timeout_ms` below, which
-    /// governs a different kernel timer -- see its docs.)
+    /// See [`DEFAULT_DB_KEEPALIVES_COUNT`].
     fn get_pool_keepalives_count(&self) -> u32 {
-        3
+        DEFAULT_DB_KEEPALIVES_COUNT
     }
-    /// Milliseconds of unacknowledged *transmitted* data before the OS
-    /// forcibly closes the connection. This is what bounds a fresh write
-    /// (e.g. the pool's own `is_valid()` checkout ping) sent to a connection
-    /// that went idle before dying silently -- without this, that specific
-    /// path can hang far longer than the keepalive settings above would
-    /// suggest, since it's governed by normal TCP retransmission timers
-    /// instead of the keepalive mechanism.
-    ///
-    /// MUST stay comfortably below the pool's `connection_timeout` (currently
-    /// 10s). `connection_timeout` wraps the whole `pool.get()`, including the
-    /// `is_valid()` ping this bounds; if the outer timeout wins the race, bb8
-    /// never runs its `Err => mark Invalid` path and the dead connection goes
-    /// back into the idle queue looking healthy. Measured against a real
-    /// failover with all connections idle: at 10_000 (== connection_timeout)
-    /// a checkout hard-failed at 10.002s and full recovery took ~16s; at
-    /// 5_000 there were no failures and recovery took ~12s.
+    /// See [`DEFAULT_DB_TCP_USER_TIMEOUT_MS`].
     fn get_pool_tcp_user_timeout_ms(&self) -> u64 {
-        5_000
+        DEFAULT_DB_TCP_USER_TIMEOUT_MS
     }
 
     fn get_database_url(&self, schema: &str) -> String {

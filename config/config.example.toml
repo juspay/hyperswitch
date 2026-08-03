@@ -58,6 +58,10 @@ connection_timeout = 10   # Timeout for database connection in seconds
 queue_strategy = "Fifo"   # Add the queue strategy used by the database bb8 client
 idle_timeout = 300        # Maximum idle duration in seconds before a connection is closed
 max_lifetime = 1800       # Maximum lifetime in seconds before a connection is reaped
+keepalives_idle = 5       # Idle seconds before the OS sends TCP keepalive probes (detects silently-dead connections, e.g. after an RDS failover)
+keepalives_interval = 2   # Seconds between keepalive probes when one goes unanswered
+keepalives_count = 3      # Unanswered keepalive probes tolerated before the OS declares the connection dead
+tcp_user_timeout_ms = 5000 # Milliseconds of unacknowledged sent data before the OS closes the connection; must stay well below connection_timeout
 
 # Replica SQL data store credentials
 [replica_database]
@@ -72,6 +76,10 @@ connection_timeout = 10   # Timeout for database connection in seconds
 queue_strategy = "Fifo"   # Add the queue strategy used by the database bb8 client
 idle_timeout = 300        # Maximum idle duration in seconds before a connection is closed
 max_lifetime = 1800       # Maximum lifetime in seconds before a connection is reaped
+keepalives_idle = 5       # Idle seconds before the OS sends TCP keepalive probes (detects silently-dead connections, e.g. after an RDS failover)
+keepalives_interval = 2   # Seconds between keepalive probes when one goes unanswered
+keepalives_count = 3      # Unanswered keepalive probes tolerated before the OS declares the connection dead
+tcp_user_timeout_ms = 5000 # Milliseconds of unacknowledged sent data before the OS closes the connection; must stay well below connection_timeout
 
 # Accounts schema SQL data store credentials (merchant accounts, profiles, MCAs, key stores)
 [accounts_database]
@@ -86,6 +94,10 @@ connection_timeout = 10   # Timeout for database connection in seconds
 queue_strategy = "Fifo"   # Add the queue strategy used by the database bb8 client
 idle_timeout = 300        # Maximum idle duration in seconds before a connection is closed
 max_lifetime = 1800       # Maximum lifetime in seconds before a connection is reaped
+keepalives_idle = 5       # Idle seconds before the OS sends TCP keepalive probes (detects silently-dead connections, e.g. after an RDS failover)
+keepalives_interval = 2   # Seconds between keepalive probes when one goes unanswered
+keepalives_count = 3      # Unanswered keepalive probes tolerated before the OS declares the connection dead
+tcp_user_timeout_ms = 5000 # Milliseconds of unacknowledged sent data before the OS closes the connection; must stay well below connection_timeout
 
 # Global tenant (users, roles) SQL data store credentials
 [global_database]
@@ -100,6 +112,10 @@ connection_timeout = 10   # Timeout for database connection in seconds
 queue_strategy = "Fifo"   # Add the queue strategy used by the database bb8 client
 idle_timeout = 300        # Maximum idle duration in seconds before a connection is closed
 max_lifetime = 1800       # Maximum lifetime in seconds before a connection is reaped
+keepalives_idle = 5       # Idle seconds before the OS sends TCP keepalive probes (detects silently-dead connections, e.g. after an RDS failover)
+keepalives_interval = 2   # Seconds between keepalive probes when one goes unanswered
+keepalives_count = 3      # Unanswered keepalive probes tolerated before the OS declares the connection dead
+tcp_user_timeout_ms = 5000 # Milliseconds of unacknowledged sent data before the OS closes the connection; must stay well below connection_timeout
 
 # Redis credentials
 [redis]
