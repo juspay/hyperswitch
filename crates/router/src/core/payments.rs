@@ -10815,10 +10815,13 @@ pub async fn get_vault_operation_for_pre_network_tokenization(
     customer_id: id_type::CustomerId,
     card_data: &hyperswitch_domain_models::payment_method_data::Card,
 ) -> payments::VaultOperation {
-    let pre_tokenization_response =
-        Box::pin(tokenization::pre_payment_tokenization(state, customer_id, card_data))
-            .await
-            .ok();
+    let pre_tokenization_response = Box::pin(tokenization::pre_payment_tokenization(
+        state,
+        customer_id,
+        card_data,
+    ))
+    .await
+    .ok();
     match pre_tokenization_response {
         Some((Some(token_response), Some(token_ref))) => {
             let token_data = domain::NetworkTokenData::from(token_response);
