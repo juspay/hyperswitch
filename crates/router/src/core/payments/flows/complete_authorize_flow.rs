@@ -860,7 +860,7 @@ pub async fn call_unified_connector_service_authenticate(
         },
     ))
     .await
-    .change_context(interface_errors::ConnectorError::ResponseHandlingFailed)?;
+    .map_err(payments_gateway::convert_ucs_error_to_connector_error)?;
 
     Ok(router_data)
 }
@@ -974,7 +974,7 @@ pub async fn call_unified_connector_service_post_authenticate(
         },
     ))
     .await
-    .change_context(interface_errors::ConnectorError::ResponseHandlingFailed)?;
+    .map_err(payments_gateway::convert_ucs_error_to_connector_error)?;
 
     Ok(router_data)
 }
