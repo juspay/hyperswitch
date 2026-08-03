@@ -524,7 +524,10 @@ pub async fn perform_pre_authentication_proxy<F: Clone>(
 
     let pre_authenticate_request_data = core_types::PaymentsPreAuthenticateData {
         payment_method_data: domain::PaymentMethodData::Card(domain::Card::default()),
-        amount: payment_data.payment_attempt.get_total_amount().get_amount_as_i64(),
+        amount: payment_data
+            .payment_attempt
+            .get_total_amount()
+            .get_amount_as_i64(),
         minor_amount: payment_data.payment_attempt.get_total_amount(),
         email: None,
         capture_method: payment_data.payment_attempt.capture_method,
@@ -692,17 +695,18 @@ pub async fn perform_pre_authentication_proxy<F: Clone>(
     // shape drives it unchanged. `three_ds_method_data`/`three_ds_method_url`/`connector_metadata`/
     // `scheme_id` were already hardcoded to `None` here before this refactor — UCS's
     // `UcsAuthenticationData` doesn't carry them, so nothing is lost.
-    let pre_authenticate_response_data = core_types::authentication::AuthenticationResponseData::PreAuthNResponse {
-        threeds_server_transaction_id,
-        maximum_supported_3ds_version: message_version.clone(),
-        connector_authentication_id,
-        three_ds_method_data: None,
-        three_ds_method_url: None,
-        message_version,
-        connector_metadata: None,
-        directory_server_id,
-        scheme_id: None,
-    };
+    let pre_authenticate_response_data =
+        core_types::authentication::AuthenticationResponseData::PreAuthNResponse {
+            threeds_server_transaction_id,
+            maximum_supported_3ds_version: message_version.clone(),
+            connector_authentication_id,
+            three_ds_method_data: None,
+            three_ds_method_url: None,
+            message_version,
+            connector_metadata: None,
+            directory_server_id,
+            scheme_id: None,
+        };
 
     let mut pre_authenticate_router_data: core_types::RouterData<
         api::PreAuthentication,
@@ -810,7 +814,9 @@ async fn call_ucs_post_authenticate_proxy<F: Clone>(
         .connector
         .clone()
         .ok_or(ApiErrorResponse::InternalServerError)
-        .attach_printable("connector missing on attempt for external vault 3DS post-authenticate")?;
+        .attach_printable(
+            "connector missing on attempt for external vault 3DS post-authenticate",
+        )?;
     let psp_merchant_connector_account = payments_core::helpers::get_merchant_connector_account(
         state,
         processor,
@@ -842,12 +848,15 @@ async fn call_ucs_post_authenticate_proxy<F: Clone>(
         capture_method: payment_data.payment_attempt.capture_method,
         browser_info,
         connector_transaction_id: authentication.threeds_server_transaction_id.clone(),
-        redirect_response: authentication.threeds_server_transaction_id.clone().map(
-            |tds| hyperswitch_domain_models::router_request_types::CompleteAuthorizeRedirectResponse {
-                params: Some(hyperswitch_masking::Secret::new(tds)),
-                payload: None,
-            },
-        ),
+        redirect_response: authentication
+            .threeds_server_transaction_id
+            .clone()
+            .map(|tds| {
+                hyperswitch_domain_models::router_request_types::CompleteAuthorizeRedirectResponse {
+                    params: Some(hyperswitch_masking::Secret::new(tds)),
+                    payload: None,
+                }
+            }),
         metadata: None,
         complete_authorize_url: None,
     };
@@ -967,7 +976,8 @@ async fn call_ucs_post_authenticate_proxy<F: Clone>(
         .and_then(|data| data.cavv.as_ref().map(|cavv| cavv.peek().clone()))
         .or_else(|| authentication.cavv.clone());
 
-    let authentication_status = common_enums::AuthenticationStatus::foreign_from(trans_status.clone());
+    let authentication_status =
+        common_enums::AuthenticationStatus::foreign_from(trans_status.clone());
 
     if authentication_status != common_enums::AuthenticationStatus::Success || cavv.is_none() {
         return Ok(Err(core_types::ErrorResponse {
@@ -1183,8 +1193,7 @@ pub async fn perform_authentication_proxy(
     .await?;
 
     let provider_business_profile =
-        payments_core::helpers::resolve_provider_profile(state, platform, business_profile)
-            .await?;
+        payments_core::helpers::resolve_provider_profile(state, platform, business_profile).await?;
     let external_vault_mca_id = provider_business_profile
         .external_vault_details
         .get_vault_connector_id()
@@ -1244,7 +1253,10 @@ pub async fn perform_authentication_proxy(
     let ucs_authentication_data =
         hyperswitch_domain_models::router_request_types::UcsAuthenticationData {
             eci: authentication.eci.clone(),
-            cavv: authentication.cavv.clone().map(hyperswitch_masking::Secret::new),
+            cavv: authentication
+                .cavv
+                .clone()
+                .map(hyperswitch_masking::Secret::new),
             threeds_server_transaction_id: authentication.threeds_server_transaction_id.clone(),
             message_version: authentication.message_version.clone(),
             ds_trans_id: authentication.ds_trans_id.clone(),
@@ -1416,9 +1428,9 @@ pub async fn perform_authentication_proxy(
         acs_reference_number: Option<String>,
         acs_trans_id: Option<String>,
     }
-    let app_acs = connector_metadata
-        .as_ref()
-        .and_then(|metadata| serde_json::from_value::<AppChallengeAcsMetadata>(metadata.clone()).ok());
+    let app_acs = connector_metadata.as_ref().and_then(|metadata| {
+        serde_json::from_value::<AppChallengeAcsMetadata>(metadata.clone()).ok()
+    });
 
     let (acs_url, challenge_request, acs_signed_content, acs_reference_number, form_acs_trans_id) =
         match &redirection_data {
@@ -1439,8 +1451,11 @@ pub async fn perform_authentication_proxy(
         };
     let acs_signed_content =
         acs_signed_content.or_else(|| app_acs.as_ref().and_then(|m| m.acs_signed_content.clone()));
-    let acs_reference_number = acs_reference_number
-        .or_else(|| app_acs.as_ref().and_then(|m| m.acs_reference_number.clone()));
+    let acs_reference_number = acs_reference_number.or_else(|| {
+        app_acs
+            .as_ref()
+            .and_then(|m| m.acs_reference_number.clone())
+    });
 
     let trans_status = areq_authentication_data
         .as_ref()
@@ -1457,7 +1472,9 @@ pub async fn perform_authentication_proxy(
         .and_then(|data| data.acs_trans_id.clone())
         .or(form_acs_trans_id)
         .or_else(|| app_acs.as_ref().and_then(|m| m.acs_trans_id.clone()));
-    let eci = areq_authentication_data.as_ref().and_then(|data| data.eci.clone());
+    let eci = areq_authentication_data
+        .as_ref()
+        .and_then(|data| data.eci.clone());
     let ds_trans_id = areq_authentication_data
         .as_ref()
         .and_then(|data| data.ds_trans_id.clone());
@@ -1595,7 +1612,9 @@ pub async fn perform_authentication_proxy(
         )
         .await
         .to_not_found_response(ApiErrorResponse::PaymentNotFound)
-        .attach_printable("Error while updating the payment_attempt for external vault authenticate")?;
+        .attach_printable(
+            "Error while updating the payment_attempt for external vault authenticate",
+        )?;
 
     Ok(api::authentication::AuthenticationResponse {
         trans_status,

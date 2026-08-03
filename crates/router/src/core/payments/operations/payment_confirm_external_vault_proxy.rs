@@ -5,11 +5,11 @@ use async_trait::async_trait;
 use common_enums;
 use common_utils::ext_traits::{Encode, ValueExt};
 use error_stack::ResultExt;
-use hyperswitch_domain_models::payment_methods::VaultPaymentMethodData;
+use hyperswitch_domain_models::{
+    mandates::MandateTransactionType, payment_methods::VaultPaymentMethodData,
+};
 use hyperswitch_masking::{ExposeInterface, Secret};
 use router_env::{instrument, tracing};
-
-use hyperswitch_domain_models::mandates::MandateTransactionType;
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
@@ -1026,16 +1026,15 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsRequest, PaymentData<F>>
         );
         payment_data.authentication = match external_authentication_flow {
             Some(helpers::PaymentExternalAuthenticationFlowProxy::PreAuthenticationFlow) => {
-                let (authentication_store, alias_token) = Box::pin(
-                    authentication_core::perform_pre_authentication_proxy(
+                let (authentication_store, alias_token) =
+                    Box::pin(authentication_core::perform_pre_authentication_proxy(
                         state,
                         processor,
                         initiator,
                         business_profile,
                         payment_data,
-                    ),
-                )
-                .await?;
+                    ))
+                    .await?;
                 if let Some(authentication_store) = authentication_store.as_ref() {
                     if authentication_store
                         .authentication
@@ -1056,17 +1055,16 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsRequest, PaymentData<F>>
             Some(helpers::PaymentExternalAuthenticationFlowProxy::PostAuthenticationFlow {
                 authentication_id,
             }) => {
-                let authentication_store = Box::pin(
-                    authentication_core::perform_post_authentication_proxy(
+                let authentication_store =
+                    Box::pin(authentication_core::perform_post_authentication_proxy(
                         state,
                         processor,
                         initiator,
                         business_profile,
                         payment_data,
                         authentication_id,
-                    ),
-                )
-                .await?;
+                    ))
+                    .await?;
                 if authentication_store.authentication.authentication_status
                     != common_enums::AuthenticationStatus::Success
                 {
