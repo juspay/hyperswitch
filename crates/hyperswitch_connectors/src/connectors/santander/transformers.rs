@@ -1353,7 +1353,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, SantanderPaymentsSyncResponse, T, Payme
                                 let data = SantanderData {
                                     end_to_end_id: Some(pix.end_to_end_id.clone().expose()),
                                     paid_at: (attempt_status == AttemptStatus::Charged)
-                                        .then_some(pix.horario.clone()),
+                                        .then_some(pix.horario),
                                 };
                                 serde_json::to_value(data)
                                     .change_context(errors::ConnectorError::ParsingFailed)
@@ -1405,7 +1405,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, SantanderPaymentsSyncResponse, T, Payme
                         .map(|update| {
                             let data = SantanderData {
                                 end_to_end_id: None,
-                                paid_at: Some(update.data.clone()),
+                                paid_at: Some(update.data),
                             };
                             serde_json::to_value(data)
                                 .change_context(errors::ConnectorError::ParsingFailed)
@@ -1440,11 +1440,11 @@ impl<F, T> TryFrom<ResponseRouterData<F, SantanderPaymentsSyncResponse, T, Payme
                             AttemptStatus::Charged | AttemptStatus::PartialChargedAndChargeable
                         )
                     })
-                    .and_then(|data| data.payment.date.clone())
-                    .map(|paid_at| {
+                    .map(|data| {
+                        let paid_at = data.payment.date;
                         let data = SantanderData {
                             end_to_end_id: None,
-                            paid_at: Some(paid_at),
+                            paid_at,
                         };
                         serde_json::to_value(data)
                             .change_context(errors::ConnectorError::ParsingFailed)
@@ -1475,7 +1475,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, SantanderPaymentsSyncResponse, T, Payme
                         let data = SantanderData {
                             end_to_end_id: Some(pix.end_to_end_id.clone().expose()),
                             paid_at: (attempt_status == AttemptStatus::Charged)
-                                .then_some(pix.horario.clone()),
+                                .then_some(pix.horario),
                         };
                         serde_json::to_value(data)
                             .change_context(errors::ConnectorError::ParsingFailed)
