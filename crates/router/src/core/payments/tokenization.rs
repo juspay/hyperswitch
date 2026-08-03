@@ -1244,7 +1244,7 @@ pub async fn pre_payment_tokenization(
                     network_tokenization_service,
                 ) {
                     (Some(token_ref), Some(network_tokenization_service)) => {
-                        let network_token = record_operation_time(
+                        let network_token = Box::pin(record_operation_time(
                             async {
                                 network_tokenization::get_network_token(
                                     state,
@@ -1256,7 +1256,7 @@ pub async fn pre_payment_tokenization(
                             },
                             &metrics::FETCH_NETWORK_TOKEN_TIME,
                             &[],
-                        )
+                        ))
                         .await;
                         match network_token {
                             Ok(token_response) => {

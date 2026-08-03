@@ -637,7 +637,7 @@ pub async fn get_token_from_tokenization_service(
 ) -> errors::RouterResult<domain::NetworkTokenData> {
     let token_response =
         if let Some(network_tokenization_service) = &state.conf.network_tokenization_service {
-            record_operation_time(
+            Box::pin(record_operation_time(
                 async {
                     get_network_token(
                 state,
@@ -654,7 +654,7 @@ pub async fn get_token_from_tokenization_service(
                 },
                 &metrics::FETCH_NETWORK_TOKEN_TIME,
                 &[],
-            )
+            ))
             .await
         } else {
             Err(errors::NetworkTokenizationError::NetworkTokenizationServiceNotConfigured)
