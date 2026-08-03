@@ -10,6 +10,7 @@ use common_utils::{
     request::{Request, RequestContent},
 };
 use error_stack::{report, ResultExt};
+use futures::FutureExt;
 use http::Method;
 use hyperswitch_domain_models::{
     errors::api_error_response,
@@ -474,34 +475,41 @@ pub async fn call_connector_api(
     flow_name: &str,
     option_timeout_secs: Option<u64>,
 ) -> CustomResult<Result<types::Response, types::Response>, ApiClientError> {
-    let current_time = Instant::now();
-    let headers = request.headers.clone();
-    let url = request.url.clone();
-    let response = state
-        .get_api_client()
-        .send_request(state, request, option_timeout_secs, true)
-        .await;
+    // The `reqwest::Response` held across awaits nests decompression internals deeply
+    // enough to overflow the compiler's trait recursion limit when this future's type
+    // is composed into callers' futures, so it is erased behind a boxed trait object
+    async move {
+        let current_time = Instant::now();
+        let headers = request.headers.clone();
+        let url = request.url.clone();
+        let response = state
+            .get_api_client()
+            .send_request(state, request, option_timeout_secs, true)
+            .await;
 
-    match response.as_ref() {
-        Ok(resp) => {
-            let status_code = resp.status().as_u16();
-            let elapsed_time = current_time.elapsed();
-            logger::info!(
-                ?headers,
-                url,
-                status_code,
-                flow=?flow_name,
-                ?elapsed_time
-            );
+        match response.as_ref() {
+            Ok(resp) => {
+                let status_code = resp.status().as_u16();
+                let elapsed_time = current_time.elapsed();
+                logger::info!(
+                    ?headers,
+                    url,
+                    status_code,
+                    flow=?flow_name,
+                    ?elapsed_time
+                );
+            }
+            Err(err) => {
+                logger::info!(
+                    call_connector_api_error=?err
+                );
+            }
         }
-        Err(err) => {
-            logger::info!(
-                call_connector_api_error=?err
-            );
-        }
+
+        handle_response(response).await
     }
-
-    handle_response(response).await
+    .boxed()
+    .await
 }
 
 /// Handle the response from the API call
