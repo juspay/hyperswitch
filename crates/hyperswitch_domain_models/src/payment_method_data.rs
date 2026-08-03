@@ -393,8 +393,8 @@ impl EligibilityPaymentMethodData {
         }
     }
 
-    /// 8-digit BIN of a wallet's decrypted device PAN. `None` while the token is still encrypted.
-    pub fn get_dpan(&self) -> Option<String> {
+    /// 8-digit BIN of a wallet's decrypted token. `None` while the token is still encrypted.
+    pub fn get_decrypted_token_extended_bin(&self) -> Option<String> {
         match self {
             Self::Wallet(WalletData::GooglePay(google_pay)) => google_pay
                 .tokenization_data

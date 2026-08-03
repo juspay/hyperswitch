@@ -382,9 +382,10 @@ pub async fn should_payment_be_blocked(
                 _ => None,
             });
 
-    let dpan_extended_bin_fingerprint = payment_method_data
+    // Extended bin of the wallet's decrypted token, to check whether or not this payment should be blocked.
+    let decrypted_token_extended_bin = payment_method_data
         .as_ref()
-        .and_then(|pm_data| pm_data.get_dpan());
+        .and_then(|pm_data| pm_data.get_decrypted_token_extended_bin());
 
     //validating the payment method.
     let mut blocklist_futures = Vec::new();
@@ -415,11 +416,11 @@ pub async fn should_payment_be_blocked(
         );
     }
 
-    if let Some(dpan_extended_bin_fingerprint) = dpan_extended_bin_fingerprint.as_ref() {
+    if let Some(decrypted_token_extended_bin) = decrypted_token_extended_bin.as_ref() {
         blocklist_futures.push(
             db.find_blocklist_entry_by_processor_merchant_id_fingerprint_id(
                 processor_merchant_id,
-                dpan_extended_bin_fingerprint,
+                decrypted_token_extended_bin,
             ),
         );
     }
@@ -548,7 +549,7 @@ fn resolve_blocking_config_and_bin<'a>(
                 .wallet
                 .as_ref()
                 .and_then(|wallet_config| wallet_config.apple_pay.as_ref())
-                .zip(payment_method_data.get_dpan())
+                .zip(payment_method_data.get_decrypted_token_extended_bin())
         }
 
         domain::EligibilityPaymentMethodData::Wallet(domain::WalletData::GooglePay(_)) => {
@@ -556,7 +557,7 @@ fn resolve_blocking_config_and_bin<'a>(
                 .wallet
                 .as_ref()
                 .and_then(|wallet_config| wallet_config.google_pay.as_ref())
-                .zip(payment_method_data.get_dpan())
+                .zip(payment_method_data.get_decrypted_token_extended_bin())
         }
 
         _ => None,
