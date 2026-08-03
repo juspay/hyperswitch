@@ -32,15 +32,11 @@ import getConnectorDetails, {
   getValueByKey,
   injectHelcimTestCard,
   setNormalizedValue,
+  shouldValidateConnectorMandateId,
 } from "../e2e/configs/Payment/Utils";
 import { execConfig, validateConfig } from "../utils/featureFlags";
 import * as RequestBodyUtils from "../utils/RequestBodyUtils";
 import { isoTimeTomorrow, validateEnv } from "../utils/RequestBodyUtils.js";
-import {
-  handleQRCodeRedirection,
-  handleRedirection,
-  MICRODEPOSIT_CONFIG,
-} from "./redirectionHandler";
 import {
   isMockServer,
   isRecordMode,
@@ -51,6 +47,11 @@ import {
   mockReplayBankRedirect,
   resetMitmRedirectSeq,
 } from "./mitmProxy";
+import {
+  handleQRCodeRedirection,
+  handleRedirection,
+  MICRODEPOSIT_CONFIG,
+} from "./redirectionHandler";
 
 // Returns true (after logging a consistent skip line) when a redirection
 // command should bail out early because we're in replay mode.
@@ -2861,10 +2862,17 @@ Cypress.Commands.add(
           expect(response.body.payment_method_id, "payment_method_status").to.be
             .null;
           expect(response.body.profile_id, "profile_id").to.not.be.null;
-          expect(
-            response.body.merchant_order_reference_id,
-            "merchant_order_reference_id"
-          ).to.be.null;
+          if (typeof body.merchant_order_reference_id === "undefined") {
+            expect(
+              response.body.merchant_order_reference_id,
+              "merchant_order_reference_id"
+            ).to.be.null;
+          } else {
+            expect(
+              response.body.merchant_order_reference_id,
+              "merchant_order_reference_id"
+            ).to.equal(body.merchant_order_reference_id);
+          }
           expect(response.body.connector_mandate_id, "connector_mandate_id").to
             .be.null;
 
@@ -3255,7 +3263,10 @@ Cypress.Commands.add(
                 );
                 if (
                   response.body.setup_future_usage === "off_session" &&
-                  response.body.status === "succeeded"
+                  response.body.status === "succeeded" &&
+                  shouldValidateConnectorMandateId(
+                    globalState.get("connectorId")
+                  )
                 ) {
                   expect(
                     response.body.connector_mandate_id,
@@ -3329,7 +3340,10 @@ Cypress.Commands.add(
                 );
                 if (
                   response.body.setup_future_usage === "off_session" &&
-                  response.body.status === "succeeded"
+                  response.body.status === "succeeded" &&
+                  shouldValidateConnectorMandateId(
+                    globalState.get("connectorId")
+                  )
                 ) {
                   expect(
                     response.body.connector_mandate_id,
@@ -4949,7 +4963,9 @@ Cypress.Commands.add(
                   response.body.setup_future_usage === "off_session" &&
                   response.body.mandate_id === null &&
                   response.body.status === "succeeded" &&
-                  globalState.get("connectorId") !== "peachpayments" &&
+                  shouldValidateConnectorMandateId(
+                    globalState.get("connectorId")
+                  ) &&
                   requestBody.mandate_data !== null
                 ) {
                   expect(
@@ -5020,7 +5036,10 @@ Cypress.Commands.add(
                 if (
                   response.body.setup_future_usage === "off_session" &&
                   response.body.mandate_id === null &&
-                  response.body.status === "succeeded"
+                  response.body.status === "succeeded" &&
+                  shouldValidateConnectorMandateId(
+                    globalState.get("connectorId")
+                  )
                 ) {
                   expect(
                     response.body.connector_mandate_id,

@@ -1,28 +1,33 @@
 import { customerAcceptance } from "./Commons";
 
-// TSYS TransIT test card numbers — No 3DS
+// TSYS TransIT echoes the merchant order reference back to the connector, so a
+// fresh value is generated for every payment intent rather than once per run.
+const randomMerchantOrderReferenceId = () =>
+  `tsys_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
+
 const successfulNo3DSCardDetailsVisa = {
-  card_number: "4012000033330026",
+  card_number: "4012000098765439",
   card_exp_month: "12",
-  card_exp_year: "30",
+  card_exp_year: "28",
   card_holder_name: "Joseph Doe",
-  card_cvc: "123",
+  card_cvc: "999",
 };
 
 const successfulNo3DSCardDetailsMastercard = {
-  card_number: "5424000000000015",
+  card_number: "5146315000000055",
   card_exp_month: "12",
-  card_exp_year: "30",
+  card_exp_year: "28",
   card_holder_name: "Joseph Doe",
-  card_cvc: "123",
+  card_cvc: "998",
 };
 
+// 15 digit PAN, 4 digit CID
 const successfulNo3DSCardDetailsAmex = {
-  card_number: "371449635398431",
+  card_number: "371449635392376",
   card_exp_month: "12",
-  card_exp_year: "30",
+  card_exp_year: "28",
   card_holder_name: "Joseph Doe",
-  card_cvc: "1234",
+  card_cvc: "9997",
 };
 
 // TSYS TransIT test card numbers — 3DS
@@ -31,71 +36,22 @@ const successfulThreeDSCardDetailsVisa = {
   card_exp_month: "12",
   card_exp_year: "30",
   card_holder_name: "Joseph Doe",
-  card_cvc: "123",
+  card_cvc: "999",
 };
 
-const successfulThreeDSCardDetailsMastercard = {
-  card_number: "5424000000000015",
-  card_exp_month: "12",
-  card_exp_year: "30",
-  card_holder_name: "Joseph Doe",
-  card_cvc: "123",
-};
+const successfulThreeDSCardDetailsMastercard =
+  successfulNo3DSCardDetailsMastercard;
 
-const successfulThreeDSCardDetailsAmex = {
-  card_number: "371449635398431",
-  card_exp_month: "12",
-  card_exp_year: "30",
-  card_holder_name: "Joseph Doe",
-  card_cvc: "1234",
-};
+const successfulThreeDSCardDetailsAmex = successfulNo3DSCardDetailsAmex;
 
 const failedCardDetails = {
   ...successfulNo3DSCardDetailsVisa,
-  card_number: "4012000099990026",
-};
-
-const billingAddress = {
-  address: {
-    line1: "1467 Harrison Street",
-    line2: null,
-    line3: null,
-    city: "San Francisco",
-    state: "CA",
-    zip: "94122",
-    country: "NA",
-    first_name: "Joseph",
-    last_name: "Doe",
-  },
-  phone: {
-    number: "9123456789",
-    country_code: "+1",
-  },
-  email: "joseph.doe@example.com",
-};
-
-const billingUS = {
-  address: {
-    line1: "1467 Harrison Street",
-    line2: null,
-    line3: null,
-    city: "San Francisco",
-    state: "CA",
-    zip: "94122",
-    country: "US",
-    first_name: "Joseph",
-    last_name: "Doe",
-  },
-  phone: {
-    number: "9123456789",
-    country_code: "+1",
-  },
-  email: "joseph.doe@example.com",
+   card_cvc: "123",
 };
 
 const payment_method_data_visa = {
   card: {
-    last4: "0026",
+    last4: "5439",
     card_type: "DEBIT",
     card_network: "Visa",
     card_issuer: "VISA PRODUCTION SUPPORT CLIENT BID 1",
@@ -103,60 +59,32 @@ const payment_method_data_visa = {
     card_isin: "401200",
     card_extended_bin: null,
     card_exp_month: "12",
-    card_exp_year: "30",
+    card_exp_year: "28",
     card_holder_name: "Joseph Doe",
     payment_checks: null,
     authentication_data: null,
     auth_code: null,
   },
-  billing: billingUS,
-};
-
-const payment_method_data_mastercard = {
-  card: {
-    last4: "0015",
-    card_type: "CREDIT",
-    card_network: "Mastercard",
-    card_issuer: "MASTERCARD TEST",
-    card_issuing_country: "UNITEDSTATES",
-    card_isin: "542400",
-    card_extended_bin: null,
-    card_exp_month: "12",
-    card_exp_year: "30",
-    card_holder_name: "Joseph Doe",
-    payment_checks: null,
-    authentication_data: null,
-    auth_code: null,
-  },
-  billing: billingUS,
-};
-
-const payment_method_data_amex = {
-  card: {
-    last4: "8431",
-    card_type: "CREDIT",
-    card_network: "AmericanExpress",
-    card_issuer: "AMERICAN EXPRESS TEST",
-    card_issuing_country: "UNITEDSTATES",
-    card_isin: "371449",
-    card_extended_bin: null,
-    card_exp_month: "12",
-    card_exp_year: "30",
-    card_holder_name: "Joseph Doe",
-    payment_checks: null,
-    authentication_data: null,
-    auth_code: null,
-  },
-  billing: billingUS,
+  billing: null,
 };
 
 export const connectorDetails = {
   card_pm: {
     PaymentIntent: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 5000,
+        },
+      },
       Request: {
         currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
+        payment_channel: "telephone_order",
+        get merchant_order_reference_id() {
+          return randomMerchantOrderReferenceId();
+        },
       },
       Response: {
         status: 200,
@@ -170,20 +98,29 @@ export const connectorDetails = {
     // ── No-3DS card flows ─────────────────────────────────────────
 
     No3DSAutoCapture: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 5000,
+        },
+      },
       Request: {
+        payment_channel: "telephone_order",
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetailsVisa,
         },
-        billing: billingAddress,
         currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
+        get merchant_order_reference_id() {
+          return randomMerchantOrderReferenceId();
+        },
       },
       Response: {
         status: 200,
         body: {
-          status: "processing",
+          status: "succeeded",
           payment_method: "card",
           payment_method_data: payment_method_data_visa,
         },
@@ -191,12 +128,18 @@ export const connectorDetails = {
     },
 
     No3DSManualCapture: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 5000,
+        },
+      },
       Request: {
+        payment_channel: "telephone_order",
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetailsVisa,
         },
-        billing: billingAddress,
         currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
@@ -213,6 +156,7 @@ export const connectorDetails = {
 
     No3DSFailPayment: {
       Request: {
+        payment_channel: "telephone_order",
         payment_method: "card",
         payment_method_data: {
           card: failedCardDetails,
@@ -224,10 +168,8 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "failed",
-          error_code: "card_declined",
-          error_message: "The card has been declined",
-          unified_code: "UE_9000",
-          unified_message: "Something went wrong",
+          error_code: "D2020",
+          error_message: "CVV2 verification failed",
         },
       },
     },
@@ -235,12 +177,19 @@ export const connectorDetails = {
     // ── 3DS card flows — Visa ─────────────────────────────────────
 
     "3DSAutoCapture": {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 5000,
+        },
+        TRIGGER_SKIP: true,
+      },
       Request: {
+        payment_channel: "telephone_order",
         payment_method: "card",
         payment_method_data: {
-          card: successfulThreeDSCardDetailsVisa,
+          card: successfulNo3DSCardDetailsVisa,
         },
-        billing: billingAddress,
         currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
@@ -248,18 +197,25 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "requires_customer_action",
+          status: "succeeded",
         },
       },
     },
 
     "3DSManualCapture": {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 5000,
+        },
+        TRIGGER_SKIP: true,
+      },
       Request: {
+        payment_channel: "telephone_order",
         payment_method: "card",
         payment_method_data: {
           card: successfulThreeDSCardDetailsVisa,
         },
-        billing: billingAddress,
         currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
@@ -267,19 +223,26 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "requires_customer_action",
+          status: "requires_capture",
         },
       },
     },
 
     // 3DS — Mastercard variant
     "3DSAutoCaptureMastercard": {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 5000,
+        },
+        TRIGGER_SKIP: true,
+      },
       Request: {
+        payment_channel: "telephone_order",
         payment_method: "card",
         payment_method_data: {
           card: successfulThreeDSCardDetailsMastercard,
         },
-        billing: billingAddress,
         currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
@@ -287,19 +250,26 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "requires_customer_action",
+          status: "succeeded",
         },
       },
     },
 
     // 3DS — Amex variant
     "3DSAutoCaptureAmex": {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 5000,
+        },
+        TRIGGER_SKIP: true,
+      },
       Request: {
+        payment_channel: "telephone_order",
         payment_method: "card",
         payment_method_data: {
           card: successfulThreeDSCardDetailsAmex,
         },
-        billing: billingAddress,
         currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
@@ -307,7 +277,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "requires_customer_action",
+          status: "succeeded",
         },
       },
     },
@@ -321,7 +291,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "processing",
+          status: "succeeded",
           amount: 6000,
           amount_capturable: 6000,
           amount_received: null,
@@ -336,7 +306,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "processing",
+          status: "succeeded",
           amount: 6000,
           amount_capturable: 6000,
           amount_received: null,
@@ -345,6 +315,12 @@ export const connectorDetails = {
     },
 
     Void: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 5000,
+        },
+      },
       Request: {
         cancellation_reason: "VOID",
       },
@@ -357,6 +333,12 @@ export const connectorDetails = {
     },
 
     VoidAfterConfirm: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 5000,
+        },
+      },
       Request: {
         cancellation_reason: "VOID",
       },
@@ -376,6 +358,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
+          amount: 6000,
         },
       },
     },
@@ -388,6 +371,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
+          amount: 2000,
         },
       },
     },
@@ -421,15 +405,22 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
+          amount: 2000,
         },
       },
     },
 
     SyncPayment: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 5000,
+        },
+      },
       Response: {
         status: 200,
         body: {
-          status: "processing",
+          status: "succeeded",
           payment_method: "card",
           payment_method_data: payment_method_data_visa,
         },
@@ -440,7 +431,14 @@ export const connectorDetails = {
     // Profile must have is_connector_agnostic_mit_enabled = true.
 
     SaveCardUseNo3DSAutoCapture: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 5000,
+        },
+      },
       Request: {
+        payment_channel: "telephone_order",
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetailsVisa,
@@ -452,14 +450,22 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "processing",
+          status: "succeeded",
         },
       },
     },
 
     // Moto CIT — Visa, off_session (primary CIT for connector-agnostic MIT)
     SaveCardUseNo3DSAutoCaptureOffSession: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 5000,
+        },
+        TRIGGER_SKIP: true,
+      },
       Request: {
+        payment_channel: "telephone_order",
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetailsVisa,
@@ -471,51 +477,21 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "processing",
-        },
-      },
-    },
-
-    // Moto CIT — Mastercard, off_session
-    SaveCardUseNo3DSAutoCaptureOffSessionMastercard: {
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetailsMastercard,
-        },
-        currency: "USD",
-        setup_future_usage: "off_session",
-        customer_acceptance: customerAcceptance,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "processing",
-        },
-      },
-    },
-
-    // Moto CIT — Amex, off_session
-    SaveCardUseNo3DSAutoCaptureOffSessionAmex: {
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetailsAmex,
-        },
-        currency: "USD",
-        setup_future_usage: "off_session",
-        customer_acceptance: customerAcceptance,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "processing",
+          status: "succeeded",
         },
       },
     },
 
     SaveCardUseNo3DSManualCaptureOffSession: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 5000,
+        },
+        TRIGGER_SKIP: true,
+      },
       Request: {
+        payment_channel: "telephone_order",
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetailsVisa,
@@ -533,7 +509,14 @@ export const connectorDetails = {
     },
 
     SaveCardUseNo3DSManualCapture: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 5000,
+        },
+      },
       Request: {
+        payment_channel: "telephone_order",
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetailsVisa,
@@ -552,7 +535,15 @@ export const connectorDetails = {
 
     // 3DS SaveCard flows
     SaveCardUse3DSAutoCapture: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 5000,
+        },
+        TRIGGER_SKIP: true,
+      },
       Request: {
+        payment_channel: "telephone_order",
         payment_method: "card",
         payment_method_data: {
           card: successfulThreeDSCardDetailsVisa,
@@ -564,13 +555,21 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "requires_customer_action",
+          status: "succeeded",
         },
       },
     },
 
     SaveCardUse3DSAutoCaptureOnSession: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 5000,
+        },
+        TRIGGER_SKIP: true,
+      },
       Request: {
+        payment_channel: "telephone_order",
         payment_method: "card",
         payment_method_data: {
           card: successfulThreeDSCardDetailsVisa,
@@ -582,13 +581,21 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "requires_customer_action",
+          status: "succeeded",
         },
       },
     },
 
     SaveCardUse3DSAutoCaptureOffSession: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 5000,
+        },
+        TRIGGER_SKIP: true,
+      },
       Request: {
+        payment_channel: "telephone_order",
         payment_method: "card",
         payment_method_data: {
           card: successfulThreeDSCardDetailsVisa,
@@ -600,13 +607,20 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "requires_customer_action",
+          status: "succeeded",
         },
       },
     },
 
     PaymentIntentOffSession: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 5000,
+        },
+      },
       Request: {
+        payment_channel: "telephone_order",
         currency: "USD",
       },
       Response: {
@@ -619,7 +633,15 @@ export const connectorDetails = {
 
     // Moto MIT — using payment token of CIT (setup_future_usage: off_session)
     SaveCardConfirmAutoCaptureOffSession: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 5000,
+        },
+        TRIGGER_SKIP: true,
+      },
       Request: {
+        payment_channel: "telephone_order",
         setup_future_usage: "off_session",
         payment_method_data: {
           card: successfulNo3DSCardDetailsVisa,
@@ -628,13 +650,21 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "processing",
+          status: "succeeded",
         },
       },
     },
 
     SaveCardConfirmManualCaptureOffSession: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 5000,
+        },
+        TRIGGER_SKIP: true,
+      },
       Request: {
+        payment_channel: "telephone_order",
         setup_future_usage: "off_session",
         payment_method_data: {
           card: successfulNo3DSCardDetailsVisa,
@@ -643,13 +673,21 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "requires_capture",
+          status: "succeeded",
         },
       },
     },
 
     SaveCardConfirmAutoCaptureOffSessionWithoutBilling: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 5000,
+        },
+        TRIGGER_SKIP: true,
+      },
       Request: {
+        payment_channel: "telephone_order",
         setup_future_usage: "off_session",
         billing: null,
         payment_method_data: {
@@ -659,7 +697,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "processing",
+          status: "succeeded",
           billing: null,
         },
       },
@@ -667,25 +705,40 @@ export const connectorDetails = {
 
     // Moto MIT — with payment_method_id (NTID flow; psp token not present)
     MITAutoCapture: {
-      Request: {},
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 5000,
+        },
+      },
+      Request: {
+        payment_channel: "telephone_order",
+      },
       Response: {
         status: 200,
         body: {
-          status: "processing",
+          status: "succeeded",
           mandate_id: null,
           payment_method: "card",
-          payment_method_data: payment_method_data_visa,
           connector: "tsys_transit",
         },
       },
     },
 
     MITManualCapture: {
-      Request: {},
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 5000,
+        },
+      },
+      Request: {
+        payment_channel: "telephone_order",
+      },
       Response: {
         status: 200,
         body: {
-          status: "requires_capture",
+          status: "succeeded",
           mandate_id: null,
           payment_method: "card",
           payment_method_data: payment_method_data_visa,
@@ -695,13 +748,20 @@ export const connectorDetails = {
     },
 
     MITWithoutBillingAddress: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 5000,
+        },
+      },
       Request: {
+        payment_channel: "telephone_order",
         billing: null,
       },
       Response: {
         status: 200,
         body: {
-          status: "processing",
+          status: "succeeded",
           billing: null,
         },
       },
@@ -710,7 +770,15 @@ export const connectorDetails = {
     // ── PaymentMethodId mandate flows ─────────────────────────────
 
     PaymentMethodIdMandateNo3DSAutoCapture: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 5000,
+        },
+        TRIGGER_SKIP: true,
+      },
       Request: {
+        payment_channel: "telephone_order",
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetailsVisa,
@@ -722,13 +790,21 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "processing",
+          status: "succeeded",
         },
       },
     },
 
     PaymentMethodIdMandateNo3DSManualCapture: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 5000,
+        },
+        TRIGGER_SKIP: true,
+      },
       Request: {
+        payment_channel: "telephone_order",
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetailsVisa,
@@ -746,7 +822,15 @@ export const connectorDetails = {
     },
 
     PaymentMethodIdMandate3DSAutoCapture: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 5000,
+        },
+        TRIGGER_SKIP: true,
+      },
       Request: {
+        payment_channel: "telephone_order",
         payment_method: "card",
         payment_method_data: {
           card: successfulThreeDSCardDetailsVisa,
@@ -758,13 +842,21 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "requires_customer_action",
+          status: "succeeded",
         },
       },
     },
 
     PaymentMethodIdMandate3DSManualCapture: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 5000,
+        },
+        TRIGGER_SKIP: true,
+      },
       Request: {
+        payment_channel: "telephone_order",
         payment_method: "card",
         payment_method_data: {
           card: successfulThreeDSCardDetailsVisa,
@@ -776,219 +868,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "requires_customer_action",
-        },
-      },
-    },
-
-    // ── Single-use mandate flows ──────────────────────────────────
-
-    MandateSingleUseNo3DSAutoCapture: {
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetailsVisa,
-        },
-        currency: "USD",
-        customer_acceptance: customerAcceptance,
-        mandate_data: {
-          customer_acceptance: customerAcceptance,
-          mandate_type: {
-            single_use: {
-              amount: 8000,
-              currency: "USD",
-            },
-          },
-        },
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "processing",
-        },
-      },
-    },
-
-    MandateSingleUseNo3DSManualCapture: {
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetailsVisa,
-        },
-        currency: "USD",
-        customer_acceptance: customerAcceptance,
-        mandate_data: {
-          customer_acceptance: customerAcceptance,
-          mandate_type: {
-            single_use: {
-              amount: 8000,
-              currency: "USD",
-            },
-          },
-        },
-      },
-      Response: {
-        status: 200,
-        body: {
           status: "requires_capture",
-        },
-      },
-    },
-
-    MandateSingleUse3DSAutoCapture: {
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulThreeDSCardDetailsVisa,
-        },
-        currency: "USD",
-        customer_acceptance: customerAcceptance,
-        mandate_data: {
-          customer_acceptance: customerAcceptance,
-          mandate_type: {
-            single_use: {
-              amount: 8000,
-              currency: "USD",
-            },
-          },
-        },
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_customer_action",
-        },
-      },
-    },
-
-    MandateSingleUse3DSManualCapture: {
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulThreeDSCardDetailsVisa,
-        },
-        currency: "USD",
-        customer_acceptance: customerAcceptance,
-        mandate_data: {
-          customer_acceptance: customerAcceptance,
-          mandate_type: {
-            single_use: {
-              amount: 8000,
-              currency: "USD",
-            },
-          },
-        },
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_customer_action",
-        },
-      },
-    },
-
-    // ── Multi-use mandate flows ───────────────────────────────────
-
-    MandateMultiUseNo3DSAutoCapture: {
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetailsVisa,
-        },
-        currency: "USD",
-        customer_acceptance: customerAcceptance,
-        mandate_data: {
-          customer_acceptance: customerAcceptance,
-          mandate_type: {
-            multi_use: {
-              amount: 8000,
-              currency: "USD",
-            },
-          },
-        },
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "processing",
-        },
-      },
-    },
-
-    MandateMultiUseNo3DSManualCapture: {
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetailsVisa,
-        },
-        currency: "USD",
-        customer_acceptance: customerAcceptance,
-        mandate_data: {
-          customer_acceptance: customerAcceptance,
-          mandate_type: {
-            multi_use: {
-              amount: 8000,
-              currency: "USD",
-            },
-          },
-        },
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_capture",
-        },
-      },
-    },
-
-    MandateMultiUse3DSAutoCapture: {
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulThreeDSCardDetailsVisa,
-        },
-        currency: "USD",
-        customer_acceptance: customerAcceptance,
-        mandate_data: {
-          customer_acceptance: customerAcceptance,
-          mandate_type: {
-            multi_use: {
-              amount: 8000,
-              currency: "USD",
-            },
-          },
-        },
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_customer_action",
-        },
-      },
-    },
-
-    MandateMultiUse3DSManualCapture: {
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulThreeDSCardDetailsVisa,
-        },
-        currency: "USD",
-        customer_acceptance: customerAcceptance,
-        mandate_data: {
-          customer_acceptance: customerAcceptance,
-          mandate_type: {
-            multi_use: {
-              amount: 8000,
-              currency: "USD",
-            },
-          },
-        },
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_customer_action",
         },
       },
     },
@@ -996,7 +876,14 @@ export const connectorDetails = {
     // ── ZeroAuth ──────────────────────────────────────────────────
 
     ZeroAuthMandate: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 5000,
+        },
+      },
       Request: {
+        payment_channel: "telephone_order",
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetailsVisa,
@@ -1015,13 +902,20 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "processing",
+          status: "succeeded",
         },
       },
     },
 
     ZeroAuthPaymentIntent: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 5000,
+        },
+      },
       Request: {
+        payment_channel: "telephone_order",
         currency: "USD",
         amount: 0,
       },
@@ -1034,7 +928,14 @@ export const connectorDetails = {
     },
 
     ZeroAuthConfirmPayment: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 5000,
+        },
+      },
       Request: {
+        payment_channel: "telephone_order",
         payment_type: "setup_mandate",
         payment_method: "card",
         payment_method_data: {
@@ -1046,15 +947,21 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "processing",
+          status: "succeeded",
         },
       },
     },
-
     // ── Misc ──────────────────────────────────────────────────────
 
     PaymentIntentWithShippingCost: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 5000,
+        },
+      },
       Request: {
+        payment_channel: "telephone_order",
         currency: "USD",
         shipping_cost: 50,
       },
@@ -1069,7 +976,14 @@ export const connectorDetails = {
     },
 
     PaymentConfirmWithShippingCost: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 5000,
+        },
+      },
       Request: {
+        payment_channel: "telephone_order",
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetailsVisa,
@@ -1080,9 +994,287 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "processing",
+          status: "succeeded",
           payment_method: "card",
           payment_method_data: payment_method_data_visa,
+        },
+      },
+    },
+
+    // ══ 57-TsysTransitMandates.cy.js ══════════════════════════════
+    // Everything below belongs to the tagged TSYS TransIT spec only; the
+    // shared specs (04, 06, 09, 14, ...) never read these keys.
+    //
+    // `payment_method_data` is deliberately not asserted on the Mastercard and
+    // Amex flows: the issuer metadata returned for those BINs is not stable, so
+    // asserting it would fail on card bin data refreshes rather than on
+    // connector regressions.
+
+    // ── Auto capture, one card per network ────────────────────────
+
+    No3DSAutoCaptureVisa: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 5000,
+        },
+      },
+      Request: {
+        payment_channel: "telephone_order",
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetailsVisa,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+        get merchant_order_reference_id() {
+          return randomMerchantOrderReferenceId();
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          payment_method: "card",
+          payment_method_data: payment_method_data_visa,
+        },
+      },
+    },
+
+    No3DSAutoCaptureMastercard: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 5000,
+        },
+      },
+      Request: {
+        payment_channel: "telephone_order",
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetailsMastercard,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+        get merchant_order_reference_id() {
+          return randomMerchantOrderReferenceId();
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          payment_method: "card",
+        },
+      },
+    },
+
+    No3DSAutoCaptureAmex: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 5000,
+        },
+      },
+      Request: {
+        payment_channel: "telephone_order",
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetailsAmex,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+        get merchant_order_reference_id() {
+          return randomMerchantOrderReferenceId();
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          payment_method: "card",
+        },
+      },
+    },
+
+    // ── Off session CIT, one card per network ─────────────────────
+    // Runs on the connector agnostic profile the spec creates. No
+    // `connector_mandate_id` is returned by TSYS TransIT, the assertion on it
+    // is skipped for this connector.
+
+    SaveCardUseNo3DSAutoCaptureOffSessionVisa: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 5000,
+        },
+      },
+      Request: {
+        payment_channel: "telephone_order",
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetailsVisa,
+        },
+        currency: "USD",
+        setup_future_usage: "off_session",
+        customer_acceptance: customerAcceptance,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+
+    SaveCardUseNo3DSAutoCaptureOffSessionMastercard: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 5000,
+        },
+      },
+      Request: {
+        payment_channel: "telephone_order",
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetailsMastercard,
+        },
+        currency: "USD",
+        setup_future_usage: "off_session",
+        customer_acceptance: customerAcceptance,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+
+    SaveCardUseNo3DSAutoCaptureOffSessionAmex: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 5000,
+        },
+      },
+      Request: {
+        payment_channel: "telephone_order",
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetailsAmex,
+        },
+        currency: "USD",
+        setup_future_usage: "off_session",
+        customer_acceptance: customerAcceptance,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+
+    // ── Mandate flows on the connector agnostic profile ───────────
+    // The payment intents of these flows stay on the shared
+    // `PaymentIntentOffSession`; only the confirms are spec owned.
+
+    // CIT that saves the card, MIT then reuses the payment token
+    MandateCitOffSession: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 5000,
+        },
+      },
+      Request: {
+        payment_channel: "telephone_order",
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetailsVisa,
+        },
+        currency: "USD",
+        setup_future_usage: "off_session",
+        customer_acceptance: customerAcceptance,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+
+    MandateMitUsingToken: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 5000,
+        },
+      },
+      Request: {
+        payment_channel: "telephone_order",
+        setup_future_usage: "off_session",
+        payment_method_data: {
+          card: successfulNo3DSCardDetailsVisa,
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+
+    // CIT that registers the mandate, MIT then reuses the payment_method_id
+    MandatePmIdCit: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 5000,
+        },
+      },
+      Request: {
+        payment_channel: "telephone_order",
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetailsVisa,
+        },
+        currency: "USD",
+        mandate_data: null,
+        customer_acceptance: customerAcceptance,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+
+    MandatePmIdMit: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 5000,
+        },
+      },
+      Request: {
+        payment_channel: "telephone_order",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          mandate_id: null,
+          payment_method: "card",
+          connector: "tsys_transit",
         },
       },
     },

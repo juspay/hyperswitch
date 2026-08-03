@@ -400,6 +400,22 @@ export function createBusinessProfile(
   }
 }
 
+// Simplified deleteBusinessProfile; deletes the profile created by
+// `createBusinessProfile` for the same connector configuration
+export function deleteBusinessProfile(
+  globalState,
+  multipleConnector = { nextConnector: false }
+) {
+  const config = getConnectorConfig(globalState, multipleConnector);
+  const { profilePrefix } = execConfig(config);
+
+  if (
+    shouldProceedWithOperation(multipleConnector, config.multipleConnectors)
+  ) {
+    cy.deleteBusinessProfileTest(globalState, profilePrefix);
+  }
+}
+
 // Simplified createMerchantConnectorAccount
 export function createMerchantConnectorAccount(
   paymentType,
@@ -541,8 +557,13 @@ export const CONNECTOR_LISTS = {
       "redsys",
       "worldpayxml",
       "mifinity",
+      "tsys_transit",
     ],
     SAVE_CARD: ["helcim"],
+    // Connectors that never return a `connector_mandate_id` on the payments
+    // response. Recurring payments for them go through connector agnostic MIT,
+    // so the "connector_mandate_id must not be null" assertion is skipped
+    CONNECTOR_MANDATE_ID: ["peachpayments", "tsys_transit"],
     // Add more exclusion lists
     // Note: mitUsingPMId/mitForMandatesCallTest/listMandateCallTest use
     // per-config TRIGGER_SKIP or globalState checks instead of a static
@@ -552,6 +573,9 @@ export const CONNECTOR_LISTS = {
   // Inclusion lists (only run for these connectors)
   INCLUDE: {
     MANDATES_USING_NTID_PROXY: ["cybersource", "checkout"],
+    // Mandate flows that need a profile with connector agnostic MIT enabled,
+    // hence kept out of the shared mandate specs
+    CONNECTOR_AGNOSTIC_MANDATES: ["tsys_transit"],
     INCREMENTAL_AUTH: [
       "archipel",
       // "cybersource",    // issues with MULTIPLE_CONNECTORS handling
@@ -784,6 +808,14 @@ export const shouldIncludeConnector = (connectorId, list) => {
   if (!Array.isArray(list)) return true;
   return !list.includes(connectorId);
 };
+
+// `connector_mandate_id` is only asserted for connectors that actually return
+// one; see CONNECTOR_LISTS.EXCLUDE.CONNECTOR_MANDATE_ID
+export const shouldValidateConnectorMandateId = (connectorId) =>
+  !shouldExcludeConnector(
+    connectorId,
+    CONNECTOR_LISTS.EXCLUDE.CONNECTOR_MANDATE_ID
+  );
 
 export function setNormalizedValue(
   webhookBody,
