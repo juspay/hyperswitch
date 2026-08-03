@@ -110,6 +110,7 @@ pub struct ModularPMRetrieveResponse {
     pub raw_payment_method_data: Option<RawPaymentMethodData>,
     pub billing: Option<hyperswitch_domain_models::address::Address>,
     pub network_transaction_id: Option<String>,
+    pub acknowledgement_status: Option<common_enums::AcknowledgementStatus>,
 }
 /// V2 RawPaymentMethodData enum
 #[derive(Clone, Debug, Deserialize)]

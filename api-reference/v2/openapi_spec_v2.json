@@ -3798,7 +3798,7 @@
         ]
       }
     },
-    "/v1/{customer_id}/payment-methods/{payment_method_id}/default": {
+    "/v1/customers/{customer_id}/payment-methods/{payment_method_id}/default": {
       "post": {
         "tags": [
           "Payment Methods"

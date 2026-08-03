@@ -118,6 +118,7 @@ pub struct ModularPaymentMethodResponse {
     pub network_token: Option<api_models::payment_methods::NetworkTokenResponse>,
     pub storage_type: Option<common_enums::StorageType>,
     pub billing: Option<hyperswitch_domain_models::address::Address>,
+    pub acknowledgement_status: Option<common_enums::AcknowledgementStatus>,
 }
 
 #[derive(Clone, Debug)]
@@ -136,6 +137,7 @@ pub struct CreatePaymentMethodResponse {
     pub network_token: Option<api_models::payment_methods::NetworkTokenResponse>,
     pub billing: Option<hyperswitch_domain_models::address::Address>,
     pub storage_type: Option<common_enums::StorageType>,
+    pub acknowledgement_status: Option<common_enums::AcknowledgementStatus>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -357,6 +359,7 @@ impl TryFrom<ModularPaymentMethodResponse> for CreatePaymentMethodResponse {
             network_token: response.network_token,
             billing: response.billing,
             storage_type: response.storage_type,
+            acknowledgement_status: response.acknowledgement_status,
         })
     }
 }
