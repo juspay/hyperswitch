@@ -1812,7 +1812,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/MeResponse"
+                  "$ref": "#/components/schemas/CurrentUserResponse"
                 }
               }
             }
@@ -8276,7 +8276,7 @@
         },
         "description": "Full routing algorithm record as returned by the list endpoints."
       },
-      "MeResponse": {
+      "CurrentUserResponse": {
         "type": "object",
         "properties": {
           "user_id": {
