@@ -7631,13 +7631,13 @@ impl transformers::ForeignTryFrom<&api_models::payouts::SepaBankTransfer>
 }
 
 #[cfg(feature = "payouts")]
-impl ForeignFrom<&api_models::payouts::PixBankAccountType> for payments_grpc::PixBankAccountType {
-    fn foreign_from(item: &api_models::payouts::PixBankAccountType) -> Self {
+impl ForeignFrom<&common_enums::PixBankAccountType> for payments_grpc::PixBankAccountType {
+    fn foreign_from(item: &common_enums::PixBankAccountType) -> Self {
         match item {
-            api_models::payouts::PixBankAccountType::Checking => Self::Checking,
-            api_models::payouts::PixBankAccountType::Savings => Self::Savings,
-            api_models::payouts::PixBankAccountType::Salary => Self::Salary,
-            api_models::payouts::PixBankAccountType::Payment => Self::Payment,
+            common_enums::PixBankAccountType::Checking => Self::Checking,
+            common_enums::PixBankAccountType::Savings => Self::Savings,
+            common_enums::PixBankAccountType::Salary => Self::Salary,
+            common_enums::PixBankAccountType::Payment => Self::Payment,
         }
     }
 }

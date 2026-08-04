@@ -228,9 +228,9 @@ pub struct PixBankTransferAdditionalData {
     #[schema(value_type = Option<String>, example = "033")]
     pub bank_code: Option<String>,
 
-    /// Bank account type for PIX payouts (e.g. CONTA_CORRENTE, CONTA_POUPANCA).
-    #[schema(value_type = Option<String>, example = "CONTA_CORRENTE")]
-    pub bank_type: Option<String>,
+    /// Bank account type for PIX payouts
+    #[schema(value_type = Option<String>)]
+    pub bank_type: Option<common_enums::PixBankAccountType>,
 }
 
 /// Masked payout method details for Trustly bank transfer payout method

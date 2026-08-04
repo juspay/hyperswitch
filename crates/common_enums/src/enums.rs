@@ -9135,6 +9135,29 @@ pub enum PayoutType {
     BankRedirect,
 }
 
+/// Bank account type for PIX payouts
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum PixBankAccountType {
+    Checking,
+    Savings,
+    Salary,
+    Payment,
+}
+
 /// Type of entity to whom the payout is being carried out to, select from the given list of options
 #[derive(
     Clone,

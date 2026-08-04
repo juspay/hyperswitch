@@ -498,25 +498,6 @@ pub struct SepaBankTransfer {
     pub account_holder_name: Option<Secret<String>>,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, ToSchema, PartialEq, Eq)]
-#[serde(rename_all = "snake_case")]
-pub enum PixBankAccountType {
-    Checking,
-    Savings,
-    Salary,
-    Payment,
-}
-
-impl From<PixBankAccountType> for String {
-    fn from(val: PixBankAccountType) -> Self {
-        match val {
-            PixBankAccountType::Checking => "checking".to_string(),
-            PixBankAccountType::Savings => "savings".to_string(),
-            PixBankAccountType::Salary => "salary".to_string(),
-            PixBankAccountType::Payment => "payment".to_string(),
-        }
-    }
-}
 
 #[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
 pub struct PixBankTransfer {
@@ -553,7 +534,7 @@ pub struct PixBankTransfer {
     pub bank_code: Option<String>,
 
     /// Bank account type for PIX payouts.
-    pub bank_type: Option<PixBankAccountType>,
+    pub bank_type: Option<api_enums::PixBankAccountType>,
 
     /// Name of the account holder
     #[schema(value_type = Option<String>, example = "John Doe")]
@@ -587,7 +568,7 @@ pub struct PixAccountBankTransfer {
     pub bank_code: Option<String>,
 
     /// Bank account type for PIX payouts.
-    pub bank_type: Option<PixBankAccountType>,
+    pub bank_type: Option<api_enums::PixBankAccountType>,
 
     /// Name of the account holder
     #[schema(value_type = Option<String>, example = "John Doe")]
@@ -1379,7 +1360,7 @@ impl From<Bank> for payout_method_utils::BankAdditionalData {
                     emv: emv.map(From::from),
                     ispb,
                     bank_code,
-                    bank_type: bank_type.map(String::from),
+                    bank_type,
                 },
             )),
             Bank::Trustly(TrustlyBankTransfer {
@@ -1479,7 +1460,7 @@ impl From<BankTransfer> for payout_method_utils::BankAdditionalData {
                     tax_id: tax_id.map(From::from),
                     ispb,
                     bank_code,
-                    bank_type: bank_type.map(String::from),
+                    bank_type,
                 },
             )),
             BankTransfer::PixKey(PixKeyBankTransfer { pix_key }) => Self::Pix(Box::new(
