@@ -635,9 +635,10 @@ pub async fn get_token_from_tokenization_service(
     network_token_requestor_ref_id: String,
     pm_data: &domain::PaymentMethod,
 ) -> errors::RouterResult<domain::NetworkTokenData> {
-    let token_response =
-        if let Some(network_tokenization_service) = &state.conf.network_tokenization_service {
-            Box::pin(record_operation_time(
+    let token_response = if let Some(network_tokenization_service) =
+        &state.conf.network_tokenization_service
+    {
+        Box::pin(record_operation_time(
                 async {
                     get_network_token(
                         state,
@@ -656,13 +657,13 @@ pub async fn get_token_from_tokenization_service(
                 &[],
             ))
             .await
-        } else {
-            Err(errors::NetworkTokenizationError::NetworkTokenizationServiceNotConfigured)
-                .inspect_err(|err| {
-                    logger::error!(error=? err);
-                })
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-        }?;
+    } else {
+        Err(errors::NetworkTokenizationError::NetworkTokenizationServiceNotConfigured)
+            .inspect_err(|err| {
+                logger::error!(error=? err);
+            })
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+    }?;
 
     let token_decrypted = pm_data
         .network_token_payment_method_data

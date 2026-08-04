@@ -519,7 +519,8 @@ fn generate_task_id_for_network_tokenization_workflow(
     let prefix = format!("{runner}_{task}_");
     let payment_method_id_len = NETWORK_TOKENIZATION_PROCESS_TRACKER_ID_MAX_LENGTH
         .saturating_sub(prefix.len() + suffix.len() + 1);
-    let payment_method_id = &payment_method_id[..payment_method_id.len().min(payment_method_id_len)];
+    let payment_method_id =
+        &payment_method_id[..payment_method_id.len().min(payment_method_id_len)];
     format!("{prefix}{payment_method_id}_{suffix}")
 }
 
