@@ -2409,6 +2409,9 @@ impl
                         }
                     }),
                 }),
+            auth_type: Some(
+                payments_grpc::AuthenticationType::foreign_try_from(router_data.auth_type)?.into(),
+            ),
         })
     }
 }
@@ -7628,6 +7631,18 @@ impl transformers::ForeignTryFrom<&api_models::payouts::SepaBankTransfer>
 }
 
 #[cfg(feature = "payouts")]
+impl ForeignFrom<&api_models::payouts::PixBankAccountType> for payments_grpc::PixBankAccountType {
+    fn foreign_from(item: &api_models::payouts::PixBankAccountType) -> Self {
+        match item {
+            api_models::payouts::PixBankAccountType::Checking => Self::Checking,
+            api_models::payouts::PixBankAccountType::Savings => Self::Savings,
+            api_models::payouts::PixBankAccountType::Salary => Self::Salary,
+            api_models::payouts::PixBankAccountType::Payment => Self::Payment,
+        }
+    }
+}
+
+#[cfg(feature = "payouts")]
 impl transformers::ForeignTryFrom<&api_models::payouts::PixBankTransfer>
     for payments_grpc::PixBankTransferPayout
 {
@@ -7640,6 +7655,12 @@ impl transformers::ForeignTryFrom<&api_models::payouts::PixBankTransfer>
             bank_account_number: item.bank_account_number.clone(),
             tax_id: item.tax_id.clone(),
             ispb: item.ispb.clone().map(Secret::new),
+            bank_code: item.bank_code.clone(),
+            bank_type: item
+                .bank_type
+                .as_ref()
+                .map(|bank_type| payments_grpc::PixBankAccountType::foreign_from(bank_type) as i32),
+            account_holder_name: item.account_holder_name.clone(),
         })
     }
 }
@@ -7659,6 +7680,12 @@ impl transformers::ForeignTryFrom<&api_models::payouts::PixAccountBankTransfer>
             bank_account_number: Some(item.bank_account_number.clone()),
             tax_id: item.tax_id.clone(),
             ispb: item.ispb.clone().map(Secret::new),
+            bank_code: item.bank_code.clone(),
+            bank_type: item
+                .bank_type
+                .as_ref()
+                .map(|bank_type| payments_grpc::PixBankAccountType::foreign_from(bank_type) as i32),
+            account_holder_name: item.account_holder_name.clone(),
         })
     }
 }

@@ -223,6 +223,14 @@ pub struct PixBankTransferAdditionalData {
     /// ISPB code is a unique identifier assigned by Brazilian Central Bank to identify the financial institution of the recipient's bank account in Pix transactions.
     #[schema(value_type = Option<String>, example = "60701190")]
     pub ispb: Option<String>,
+
+    /// 3-digit COMPE/FEBRABAN bank code used to identify the financial institution for routing PIX payouts.
+    #[schema(value_type = Option<String>, example = "033")]
+    pub bank_code: Option<String>,
+
+    /// Bank account type for PIX payouts (e.g. CONTA_CORRENTE, CONTA_POUPANCA).
+    #[schema(value_type = Option<String>, example = "CONTA_CORRENTE")]
+    pub bank_type: Option<String>,
 }
 
 /// Masked payout method details for Trustly bank transfer payout method
