@@ -9,9 +9,9 @@ pub mod eligibility;
 #[cfg(feature = "v2")]
 pub mod evaluation;
 #[cfg(feature = "v2")]
-pub mod raw_card;
-#[cfg(feature = "v2")]
 pub mod refresh;
+#[cfg(feature = "v2")]
+pub mod unvault;
 
 #[cfg(feature = "v2")]
 pub use evaluation::run;

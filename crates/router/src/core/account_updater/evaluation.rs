@@ -4,9 +4,9 @@ use router_env::{instrument, logger, metric_attributes, tracing};
 use super::{
     config::resolve_account_updater_config,
     eligibility::evaluate_eligibility,
-    raw_card::fetch_card_for_sync,
     refresh::refresh_card,
     types::{AccountUpdaterTerminalState, RefreshOutcome},
+    unvault::fetch_card_for_sync,
 };
 use crate::{
     core::{configs::dimension_state, metrics},
