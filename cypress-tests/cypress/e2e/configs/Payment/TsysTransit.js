@@ -46,7 +46,7 @@ const successfulThreeDSCardDetailsAmex = successfulNo3DSCardDetailsAmex;
 
 const failedCardDetails = {
   ...successfulNo3DSCardDetailsVisa,
-   card_cvc: "123",
+  card_cvc: "123",
 };
 
 const payment_method_data_visa = {
