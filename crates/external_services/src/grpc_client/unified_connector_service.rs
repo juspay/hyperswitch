@@ -423,7 +423,7 @@ impl UnifiedConnectorServiceClient {
             })
     }
 
-    /// Performs Payment Method Refresh under a caller-supplied `grpc-timeout` deadline
+    /// Payment Method Refresh
     pub async fn payment_method_refresh(
         &self,
         payment_method_refresh_request: payments_grpc::PaymentMethodServiceRefreshRequest,
@@ -439,8 +439,6 @@ impl UnifiedConnectorServiceClient {
         let metadata =
             build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
         *request.metadata_mut() = metadata;
-
-        // Must follow the metadata assignment above, which replaces the whole map
         request.set_timeout(timeout);
 
         self.payment_method_service_client

@@ -3,7 +3,6 @@ use router_env::logger;
 use super::types::{AccountUpdaterCredentialSource, ResolvedAccountUpdaterConfig, SkipReason};
 use crate::{configs::settings, core::configs::dimension_state, routes::SessionState};
 
-/// Returns `Ok` only when a call is permitted, so callers never re-check enablement.
 pub async fn resolve_account_updater_config(
     state: &SessionState,
     dimensions: &dimension_state::DimensionsGlobal,
@@ -22,21 +21,22 @@ pub async fn resolve_account_updater_config(
         .get_account_updater_credential_source(store, superposition, None)
         .await
     {
-        AccountUpdaterCredentialSource::None => Err(SkipReason::CredentialSourceNone),
-        AccountUpdaterCredentialSource::Application => resolve_application_config(state)
-            .ok_or_else(|| {
-                logger::warn!(
-                    "Account Updater credential source is 'application' but the account_updater \
-                     section is not configured"
-                );
-                SkipReason::CredentialsUnavailable
-            }),
+        AccountUpdaterCredentialSource::None => None,
+        AccountUpdaterCredentialSource::Application => resolve_application_config(state),
     }
+    .ok_or(SkipReason::CredentialSourceNone)
 }
 
 fn resolve_application_config(state: &SessionState) -> Option<ResolvedAccountUpdaterConfig> {
-    let settings::AccountUpdaterConfig::Juspay(juspay) =
-        state.conf.account_updater.as_ref()?.get_inner();
+    let Some(account_updater) = state.conf.account_updater.as_ref() else {
+        logger::warn!(
+            "Account Updater credential source is 'application' but the account_updater \
+             section is not configured"
+        );
+        return None;
+    };
+
+    let settings::AccountUpdaterConfig::Juspay(juspay) = account_updater.get_inner();
 
     Some(ResolvedAccountUpdaterConfig {
         base_url: juspay.base_url.clone(),

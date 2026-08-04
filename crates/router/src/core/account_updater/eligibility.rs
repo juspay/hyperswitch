@@ -4,7 +4,6 @@ use hyperswitch_domain_models::payment_method_data::PaymentMethodsData;
 use super::types::{EligibleCard, SkipReason};
 use crate::types::domain;
 
-/// Runs on stored metadata only, so an ineligible card is never unvaulted.
 pub fn evaluate_eligibility(
     payment_method: &domain::PaymentMethod,
 ) -> Result<EligibleCard, SkipReason> {
@@ -33,15 +32,13 @@ fn evaluate_stored_card(
 
     let card_details = match payment_method_data {
         Some(PaymentMethodsData::Card(card_details)) => card_details,
-        Some(_) => return Err(SkipReason::StoredDataNotACard),
-        None => return Err(SkipReason::CardDetailsUnavailable),
+        _ => return Err(SkipReason::PaymentMethodNotACard),
     };
 
     match &card_details.card_network {
         Some(network @ (CardNetwork::Visa | CardNetwork::Mastercard)) => Ok(EligibleCard {
             network: network.clone(),
         }),
-        Some(_) => Err(SkipReason::UnsupportedNetwork),
-        None => Err(SkipReason::NetworkUnknown),
+        _ => Err(SkipReason::UnsupportedNetwork),
     }
 }

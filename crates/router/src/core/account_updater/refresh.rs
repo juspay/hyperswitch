@@ -92,8 +92,6 @@ pub async fn refresh_card(
     .and_then(classify_response)
 }
 
-/// UCS reports both its own deadline and a connector-side timeout as a `TIMEOUT` connector error;
-/// either way the inquiry did not complete in time.
 fn classify_call_error(error: &UnifiedConnectorServiceError) -> AccountUpdaterFailure {
     match error {
         UnifiedConnectorServiceError::ConnectorError(inner)
@@ -105,8 +103,6 @@ fn classify_call_error(error: &UnifiedConnectorServiceError) -> AccountUpdaterFa
     }
 }
 
-/// Checks `error` first: a failed response also carries an unspecified outcome, so the outcome
-/// alone cannot distinguish an odd answer from no answer.
 fn classify_response(
     response: payments_grpc::PaymentMethodServiceRefreshResponse,
 ) -> Result<RefreshOutcome, AccountUpdaterFailure> {
@@ -124,7 +120,6 @@ fn classify_response(
         .and_then(|result| result.result)
         .map(|result| match result {
             payments_grpc::refresh_result::Result::Card(card) => {
-                // An unrecognised code is still a successful inquiry, so it normalizes.
                 payments_grpc::CardRefreshOutcome::try_from(card.outcome)
                     .map(RefreshOutcome::foreign_from)
                     .unwrap_or(RefreshOutcome::Unspecified)

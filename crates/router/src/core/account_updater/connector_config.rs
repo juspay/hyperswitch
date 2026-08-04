@@ -3,7 +3,6 @@ use router_env::logger;
 
 use super::types::{AccountUpdaterFailure, ResolvedAccountUpdaterConfig};
 
-/// Two field names differ from the provider's; renames are on the fields so either side can move.
 #[derive(Debug, serde::Serialize)]
 struct JuspayConnectorConfig {
     api_key: Secret<String>,
@@ -26,8 +25,6 @@ struct AccountUpdaterConnectorConfigEnvelope {
     config: AccountUpdaterConnectorConfig,
 }
 
-/// Mirrors `build_connector_config_header`, which cannot be reused here because it derives the
-/// header from a `ConnectorAuthType` and these credentials are application-level.
 pub fn build_account_updater_connector_config(
     config: &ResolvedAccountUpdaterConfig,
 ) -> Result<Secret<String>, AccountUpdaterFailure> {

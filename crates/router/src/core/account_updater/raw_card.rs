@@ -7,7 +7,6 @@ use crate::{
     core::payment_methods::RawPaymentMethodFetchAccess, routes::SessionState, types::domain,
 };
 
-/// Unvaults on an internal grant, independent of the caller's own grant.
 #[instrument(skip_all)]
 pub async fn fetch_card_for_sync(
     state: &SessionState,

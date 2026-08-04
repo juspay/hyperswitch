@@ -14,7 +14,6 @@ use crate::{
     types::domain,
 };
 
-/// Records a terminal state for every path, so nothing here can fail the surrounding request.
 #[instrument(skip_all)]
 pub async fn evaluate(
     state: &SessionState,

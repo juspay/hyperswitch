@@ -34,13 +34,9 @@ pub struct ResolvedAccountUpdaterConfig {
 pub enum SkipReason {
     GateDisabled,
     CredentialSourceNone,
-    CredentialsUnavailable,
     PaymentMethodNotACard,
-    StoredDataNotACard,
     PaymentMethodNotActive,
     UnsupportedNetwork,
-    CardDetailsUnavailable,
-    NetworkUnknown,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
