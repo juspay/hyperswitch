@@ -51,7 +51,9 @@ EXCLUDED_CONNECTORS = {
     "juspaythreedsserver", "katapult", "mpgs", "payeezy", "payme",  # creds not available
     "paytm", "phonepe", "tokenio",  # creds not available
     "powertranz", "prophetpay", "santander", "sift", "silverflow", "square",
-    "hyperpg", "tokenex", "trustpayments", "zen"
+    "hyperpg", "tokenex", "trustpayments", "zen",
+    "truelayer",  # UCS only connector
+    "trustly",  # UCS only connector
 }
 
 # Payment method types to exclude from Bucket 2
@@ -74,9 +76,6 @@ EXCLUDED_FLOW_COMBINATIONS = {
     ("razorpay",  "Refund"),              # Not possible to verify e2e cases
     ("santander", "Refund"),              # Not possible to verify e2e cases
     ("stripe",    "Overcapture"),         # Creds not available
-    ("revolv3",   "Refund"),              # UCS only connector
-    ("truelayer", "Refund"),              # UCS only connector
-    ("trustly",   "Refund"),              # UCS only connector
     ("adyen",     "Split Refunds"),       # Creds not available
     ("adyen",          "Dispute Accept"), # No connector config data
     ("adyen",          "Dispute Defend"), # No connector config data
@@ -85,6 +84,7 @@ EXCLUDED_FLOW_COMBINATIONS = {
     ("worldpayvantiv", "Dispute Accept"), # No connector config data
     ("adyen",          "Split Payments"), # Creds not available
     ("xendit",         "Split Payments"), # Creds not available
+    ("volt",       "Refund"),              # Creds not available
 }
 
 # Features to exclude from Bucket 3
@@ -96,6 +96,7 @@ EXCLUDED_FEATURES_BUCKET3 = {
     "Dispute Polling Interval",      # Not possible in Cypress
     "FRM Routing Algorithm",         # Internal flow
     "Sub-Merchants",                 # Deprecated feature
+    "Network Tokenization Credentials",  # Creds not available
 }
 
 

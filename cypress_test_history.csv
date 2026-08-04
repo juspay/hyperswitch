@@ -1,6 +1,1 @@
 covered_in_tag,bucket,connector,pm,pmt,feature
-2026.07.13.0,1,payjustnowinstore,,,Refund
-2026.07.13.0,1,placetopay,,,Refund
-2026.07.13.0,2,payjustnowinstore,PayLater,Payjustnow,Payment
-2026.07.13.0,2,placetopay,Card,Credit,Payment
-2026.07.13.0,2,placetopay,Card,Debit,Payment

@@ -48,7 +48,9 @@ EXCLUDED_CONNECTORS = {
     "juspaythreedesserver", "katapult", "mpgs", "payeezy", "payme",  # creds not available
     "paytm", "phonepe", "tokenio",  # creds not available
     "powertranz", "prophetpay", "santander", "sift", "silverflow", "square",
-    "hyperpg", "tokenex", "trustpayments", "zen"
+    "hyperpg", "tokenex", "trustpayments", "zen",
+    "truelayer",  # UCS only connector
+    "trustly",  # UCS only connector
 }
 
 # Payment method types to exclude from Bucket 2
@@ -57,6 +59,16 @@ EXCLUDED_PM_TYPES_BUCKET2 = {"GooglePay", "ApplePay", "Paze", "SamsungPay"}  # P
 # Specific B2 (connector, pm, pmt, feature) combinations to exclude
 EXCLUDED_B2_COMBINATIONS = {
     ("braintree", "Wallet", "Paypal", "Payment"),  # Can't automate in cypress
+    ("aci", "Wallet", "AliPay", "Payment"),        # Creds not available
+    ("aci", "Wallet", "MbWay", "Payment"),         # Creds not available
+    ("deutschebank", "BankDebit", "Sepa", "Mandate"),  # Creds not available
+    ("deutschebank", "BankDebit", "Sepa", "Payment"),  # Creds not available
+    ("mollie", "BankDebit", "Sepa", "Payment"),    # Creds not available
+    ("mollie", "Wallet", "Paypal", "Payment"),     # Creds not available
+    ("nexinets", "Wallet", "Paypal", "Payment"),   # Creds not available
+    ("noon", "Wallet", "Paypal", "Payment"),       # Creds not available
+    ("sanlam", "BankDebit", "EftDebitOrder", "Payment"),  # Cypress not possible
+    ("coinbase", "Crypto", "CryptoCurrency", "Payment"),  # Creds not available
 }
 
 # Specific connector + flow combinations to exclude
@@ -77,8 +89,6 @@ EXCLUDED_FLOW_COMBINATIONS = {
     ("razorpay",  "Refund"),              # Not possible to verify e2e cases
     ("santander", "Refund"),              # Not possible to verify e2e cases
     ("stripe",    "Overcapture"),         # Creds not available
-    ("truelayer", "Refund"),              # UCS only connector
-    ("trustly",   "Refund"),              # UCS only connector
     ("adyen",     "Split Refunds"),       # Creds not available
     ("adyen",          "Dispute Accept"), # No connector config data
     ("adyen",          "Dispute Defend"), # No connector config data
@@ -98,6 +108,7 @@ EXCLUDED_FLOW_COMBINATIONS = {
     ("redsys",      "Pre-Authentication Flow"),     # Internal flow
     ("shift4",      "Pre-Authentication Flow"),     # Internal flow
     ("worldpayxml", "Pre-Authentication Flow"),     # Internal flow
+    ("volt",       "Refund"),              # Creds not available
 }
 
 # Features to exclude from Bucket 3
@@ -109,6 +120,7 @@ EXCLUDED_FEATURES_BUCKET3 = {
     "Dispute Polling Interval",      # Not possible in Cypress
     "FRM Routing Algorithm",         # Internal flow
     "Sub-Merchants",                 # Deprecated feature
+    "Network Tokenization Credentials",  # Creds not available
 }
 
 
