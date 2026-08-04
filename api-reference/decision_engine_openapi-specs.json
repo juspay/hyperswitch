@@ -2453,7 +2453,7 @@
             }
           },
           "400": {
-            "description": "Service is not ready \u2014 returns `{\"message\": \"Down\"}`.",
+            "description": "Service is not ready - returns `{\"message\": \"Down\"}`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -5206,7 +5206,7 @@
               "DECLINED"
             ],
             "example": "CHARGED",
-            "description": "Transaction status. Must be a TxnStatus value \u2014 lowercase values such as `success` are rejected with a 400."
+            "description": "Transaction status. Must be a TxnStatus value - lowercase values such as `success` are rejected with a 400."
           },
           "gatewayReferenceId": {
             "type": "string",
@@ -5911,7 +5911,7 @@
           "n": {
             "type": "integer",
             "format": "int64",
-            "description": "Transaction count; 0 for an override-only cluster no longer in the top set."
+            "description": "Transaction count. 0 for an override-only cluster no longer in the top set."
           },
           "gross_sum": {
             "type": "number",
@@ -5976,7 +5976,7 @@
           },
           "verdict": {
             "type": "string",
-            "description": "`GOOD`, `THIN`, `NON_LINEAR`, or `\"\"` for an override-only cluster. A non-GOOD rate is shown so it can be corrected \u2014 it is not what the router trusts."
+            "description": "`GOOD`, `THIN`, `NON_LINEAR`, or `\"\"` for an override-only cluster. A non-GOOD rate is shown so it can be corrected - it is not what the router trusts."
           },
           "card_product": {
             "type": "string",
@@ -8015,7 +8015,7 @@
                   "string",
                   "null"
                 ],
-                "description": "Required key; may be null."
+                "description": "Required key. May be null."
               }
             },
             "additionalProperties": true,
@@ -8032,7 +8032,7 @@
                   "string",
                   "null"
                 ],
-                "description": "Required key; may be null."
+                "description": "Required key. May be null."
               }
             },
             "additionalProperties": true,
@@ -8049,7 +8049,7 @@
                   "string",
                   "null"
                 ],
-                "description": "Required key; may be null."
+                "description": "Required key. May be null."
               }
             },
             "additionalProperties": true,
@@ -8058,7 +8058,7 @@
           "merchantAccount": {
             "type": "object",
             "additionalProperties": true,
-            "description": "Full internal merchant account object. `gatewaySuccessRateBasedDeciderInput` is a required string \u2014 `null` is rejected."
+            "description": "Full internal merchant account object. `gatewaySuccessRateBasedDeciderInput` is a required string - `null` is rejected."
           },
           "txnOfferDetails": {
             "type": [
@@ -8127,7 +8127,7 @@
             ]
           }
         },
-        "description": "Legacy decider payload built from full internal transaction objects. This is NOT the `/decide-gateway` shape \u2014 posting that body here is rejected with a 400. `orderMetadata`, `txnDetail` and `txnCardInfo` must each carry a `partitionKey` key (value may be null)."
+        "description": "Legacy decider payload built from full internal transaction objects. This is NOT the `/decide-gateway` shape - posting that body here is rejected with a 400. `orderMetadata`, `txnDetail` and `txnCardInfo` must each carry a `partitionKey` key (value may be null)."
       },
       "LegacyUpdateScoreRequest": {
         "type": "object",
@@ -8151,12 +8151,12 @@
                   "string",
                   "null"
                 ],
-                "description": "Required key; may be null."
+                "description": "Required key. May be null."
               },
               "id": {
                 "type": "string",
                 "example": "1",
-                "description": "Numeric string. Must be present and parse as an integer \u2014 the conversion unwraps the parsed value, so a missing or non-numeric id panics the handler instead of returning a 4xx."
+                "description": "Numeric string. Must be present and parse as an integer - the conversion unwraps the parsed value, so a missing or non-numeric id panics the handler instead of returning a 4xx."
               },
               "netAmount": {
                 "type": "number",
@@ -8183,7 +8183,7 @@
                   "string",
                   "null"
                 ],
-                "description": "Required key; may be null."
+                "description": "Required key. May be null."
               },
               "id": {
                 "type": "string",
@@ -8642,7 +8642,7 @@
             "example": "MerchantId not found"
           },
           "data": {
-            "description": "Optional structured detail; usually null."
+            "description": "Optional structured detail, usually null."
           }
         },
         "description": "Generic API error envelope: an error code, a human-readable message, and an optional structured payload."

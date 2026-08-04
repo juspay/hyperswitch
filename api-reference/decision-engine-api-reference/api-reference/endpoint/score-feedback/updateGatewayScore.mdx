@@ -49,14 +49,14 @@ curl --location "$BASE_URL/update-gateway-score" \
 }'
 ```
 
-`status` must be a transaction status value — `CHARGED`, `AUTHORIZATION_FAILED`,
+`status` must be a transaction status value - `CHARGED`, `AUTHORIZATION_FAILED`,
 `AUTHENTICATION_FAILED`, `JUSPAY_DECLINED`, `FAILURE`, and so on. Lowercase values such as
 `success` are rejected with a 400.
 
 Payment attributes (amount, currency, payment method, auth type) are **not** part of this
-payload — the engine already has them from the `/decide-gateway` call for this `paymentId`.
+payload - the engine already has them from the `/decide-gateway` call for this `paymentId`.
 Any unrecognised field is silently ignored, so a misspelled key fails quietly rather than
-erroring; note in particular that latency goes in `txnLatency.gatewayLatency`, not `latency`.
+erroring. Note in particular that latency goes in `txnLatency.gatewayLatency`, not `latency`.
 
 ## Response
 
