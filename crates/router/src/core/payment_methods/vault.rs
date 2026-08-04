@@ -1995,6 +1995,18 @@ pub async fn call_to_vault<V: pm_types::VaultingInterface>(
 ) -> CustomResult<String, errors::VaultError> {
     let locker = &state.conf.locker;
     let jwekey = state.conf.jwekey.get_inner();
+    let additional_headers = if cfg!(feature = "ext_services_latency") {
+        let mut additional_headers = additional_headers.unwrap_or_default();
+        if let Some(request_id) = state.request_id.as_ref() {
+            additional_headers.insert(
+                common_utils::consts::X_REQUEST_ID.to_string(),
+                request_id.to_string(),
+            );
+        }
+        additional_headers
+    } else {
+        additional_headers.unwrap_or_default()
+    };
 
     let request = create_vault_request::<V>(
         jwekey,
@@ -2002,7 +2014,7 @@ pub async fn call_to_vault<V: pm_types::VaultingInterface>(
         payload,
         state.tenant.tenant_id.to_owned(),
         query_params,
-        additional_headers,
+        Some(additional_headers),
     )
     .await?;
     let response = services::call_connector_api(state, request, V::get_vaulting_flow_name())

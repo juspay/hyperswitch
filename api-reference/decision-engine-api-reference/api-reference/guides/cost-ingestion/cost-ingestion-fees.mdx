@@ -1,0 +1,178 @@
+---
+title: "Cost Ingestion: Fees & Coverage"
+description: "Curl examples for reading fitted connector fees, setting manual overrides, inspecting top cost clusters, and checking cost-model coverage."
+---
+
+# Cost Ingestion: Fees & Coverage
+
+Once settlement data has been ingested (see [Connector Setup](/decision-engine-api-reference/api-reference/guides/cost-ingestion/cost-ingestion-setup) and [Uploads](/decision-engine-api-reference/api-reference/guides/cost-ingestion/cost-ingestion-uploads)), Decision Engine fits a per-cluster cost model — the input to [multi-objective routing](/decision-engine-api-reference/api-reference/guides/run-transactions/decide-gateway-multi-objective)'s expected-value ranking. These endpoints read that model and let you override it manually.
+
+Overrides take priority in this order: **cluster override** → **connector override** → **learned model**.
+
+## Connector Fees
+
+Per-connector blended fee (volume-weighted over trustworthy clusters), any manual override, and which one is effective.
+
+```bash
+curl "$BASE_URL/merchant-account/merchant_demo/connector-fees" \
+  --header "$AUTH_HEADER"
+```
+
+```json
+[
+  {
+    "connector": "adyen",
+    "account": "YOUR_ADYEN_MERCHANT_ACCOUNT_CODE",
+    "has_credentials": true,
+    "model_pct_bps": 182.4,
+    "model_fixed": 0.1,
+    "good_gross": 1284302.55,
+    "override_pct_bps": null,
+    "override_fixed": null,
+    "override_updated_at": null,
+    "effective_pct_bps": 182.4,
+    "effective_fixed": 0.1,
+    "source": "model"
+  }
+]
+```
+
+`source` is `"override"`, `"model"`, or `"none"` (configured but no fitted data yet).
+
+### Set A Connector Fee Override
+
+Replaces the learned model for every expected-value calculation on this connector.
+
+```bash
+curl --request PUT \
+  "$BASE_URL/merchant-account/merchant_demo/connectors/adyen/fee-override" \
+  --header "$AUTH_HEADER" \
+  --header "Content-Type: application/json" \
+  --data '{ "pct_bps": 175.0, "fixed": 0.1 }'
+```
+
+### Delete A Connector Fee Override
+
+```bash
+curl --request DELETE \
+  "$BASE_URL/merchant-account/merchant_demo/connectors/adyen/fee-override" \
+  --header "$AUTH_HEADER"
+```
+
+Both `pct_bps` and `fixed` must be finite and non-negative. Setting or clearing an override refreshes this merchant's served cost model immediately rather than waiting for the periodic refresh.
+
+## Cost Clusters
+
+The highest-traffic fitted clusters (by GMV) — the fine-grained segments underneath a connector's blended fee, and the target for surgical per-cluster overrides.
+
+```bash
+curl "$BASE_URL/merchant-account/merchant_demo/cost-clusters?limit=10" \
+  --header "$AUTH_HEADER"
+```
+
+Narrow to one connector's latest snapshot, or one exact ingestion:
+
+```bash
+curl "$BASE_URL/merchant-account/merchant_demo/cost-clusters?connector=adyen&account=YOUR_ADYEN_MERCHANT_ACCOUNT_CODE" \
+  --header "$AUTH_HEADER"
+```
+
+```json
+[
+  {
+    "key": "adyen|visa|credit|credit|us|usd|domestic",
+    "connector": "adyen",
+    "card_network": "visa",
+    "variant": "credit",
+    "funding": "credit",
+    "issuer_country": "us",
+    "currency": "usd",
+    "ic_category": "domestic",
+    "n": 18422,
+    "gross_sum": 512300.2,
+    "model_pct_bps": 178.2,
+    "model_fixed": 0.1,
+    "override_pct_bps": null,
+    "override_fixed": null,
+    "override_updated_at": null,
+    "effective_pct_bps": 178.2,
+    "effective_fixed": 0.1,
+    "source": "model"
+  }
+]
+```
+
+`key` is the opaque `connector|network|variant|funding|issuer|currency|ic_category` identifier used for the override calls below. `limit` defaults to 10, capped at 50.
+
+### Set A Cluster Fee Override
+
+```bash
+curl --request PUT \
+  "$BASE_URL/merchant-account/merchant_demo/cost-clusters/adyen%7Cvisa%7Ccredit%7Ccredit%7Cus%7Cusd%7Cdomestic/fee-override" \
+  --header "$AUTH_HEADER" \
+  --header "Content-Type: application/json" \
+  --data '{ "pct_bps": 165.0, "fixed": 0.1 }'
+```
+
+### Delete A Cluster Fee Override
+
+```bash
+curl --request DELETE \
+  "$BASE_URL/merchant-account/merchant_demo/cost-clusters/adyen%7Cvisa%7Ccredit%7Ccredit%7Cus%7Cusd%7Cdomestic/fee-override" \
+  --header "$AUTH_HEADER"
+```
+
+The `|` separators in `key` must be URL-encoded (`%7C`) when used as a path segment.
+
+## Cost Coverage
+
+Cost-aware routing is only as good as the cost data behind it. A fitted model is trustworthy for some clusters and shaky for others, and routing decisions made on a shaky estimate can do more harm than good. **Cost coverage is the honesty check**: it tells you what fraction of a merchant's real volume actually has a cost model solid enough to route on, so you know whether to lean on multi-objective routing or hold off until more settlement data arrives.
+
+Every fitted cluster is graded with one of three verdicts:
+
+- **`GOOD`** — enough transactions (`n ≥ 200`) and a tight linear fit (per-transaction error `bps_rmse ≤ 15`). These are the clusters cost routing trusts.
+- **`THIN`** — too little settlement volume to fit confidently yet. More data over time promotes these to `GOOD`.
+- **`NON_LINEAR`** — plenty of data, but the fee doesn't follow a clean `pct × amount + fixed` line (tiered pricing, surcharges, mixed assessments), so the linear estimate isn't reliable.
+
+Coverage is reported by **volume (money), not by cluster count**, because that's what matters economically: a merchant can have hundreds of tiny `THIN` clusters that together carry a rounding error of GMV. `good_gross_pct` — the share of settled *value* sitting in `GOOD` clusters — is therefore the headline number. Everything outside a `GOOD` cluster simply falls back to plain success-rate routing, so a low coverage figure doesn't break routing; it just means fewer payments get the cost lens. As a rule of thumb, wait for `good_gross_pct` to climb into a comfortable range before flipping the merchant-wide multi-objective flag.
+
+The raw fields:
+
+Answers "is cost estimation actually working for this merchant?" — the dashboard health-card summary. `good_gross_pct` (share of settled *volume* with a trustworthy model) is the headline number; everything not covered falls back to plain success-rate routing.
+
+```bash
+curl "$BASE_URL/merchant-account/merchant_demo/cost-coverage" \
+  --header "$AUTH_HEADER"
+```
+
+```json
+{
+  "total_clusters": 214,
+  "good_clusters": 178,
+  "thin_clusters": 28,
+  "non_linear_clusters": 8,
+  "total_txns": 96430,
+  "good_txns": 88112,
+  "thin_txns": 6900,
+  "non_linear_txns": 1418,
+  "good_txn_pct": 91.4,
+  "total_gross": 3182004.11,
+  "good_gross": 2984502.9,
+  "thin_gross": 154002.4,
+  "non_linear_gross": 43498.81,
+  "good_gross_pct": 93.79,
+  "bps_rmse_p50": 2.1,
+  "bps_rmse_p90": 6.4,
+  "report_date": "2026-07-01"
+}
+```
+
+- `GOOD` clusters have enough consistent data to trust; `THIN` have too little volume; `NON_LINEAR` have a fee structure the linear fit can't capture well.
+- `bps_rmse_p50`/`p90` are the fit accuracy (basis-point error) of the `GOOD` clusters.
+
+## Related
+
+- [Cost Ingestion: Connector Setup](/decision-engine-api-reference/api-reference/guides/cost-ingestion/cost-ingestion-setup)
+- [Cost Ingestion: Uploads](/decision-engine-api-reference/api-reference/guides/cost-ingestion/cost-ingestion-uploads)
+- [Multi-Objective Routing](/decision-engine-api-reference/api-reference/guides/run-transactions/decide-gateway-multi-objective)
+- [Analytics Endpoints](/decision-engine-api-reference/api-reference/guides/analytics-audit/analytics-endpoints) — see Cost Savings for the merchant-facing rollup.

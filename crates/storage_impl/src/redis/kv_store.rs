@@ -1,4 +1,4 @@
-use std::{fmt::Debug, sync::Arc};
+use std::fmt::Debug;
 
 use common_utils::errors::CustomResult;
 use diesel_models::enums::MerchantStorageScheme;
@@ -121,7 +121,7 @@ impl std::fmt::Display for PartitionKey<'_> {
 pub trait RedisConnInterface {
     fn get_redis_conn(
         &self,
-    ) -> error_stack::Result<Arc<redis_interface::RedisConnectionPool>, RedisError>;
+    ) -> error_stack::Result<redis_interface::RedisConnectionWithContext, RedisError>;
 }
 
 /// An enum to represent what operation to do on
@@ -145,6 +145,18 @@ pub enum KvResult<T: de::DeserializeOwned> {
     Scan(Vec<T>),
 }
 
+#[cfg(feature = "deja")]
+pub trait DejaKvValue: serde::Serialize {}
+
+#[cfg(feature = "deja")]
+impl<T: serde::Serialize> DejaKvValue for T {}
+
+#[cfg(not(feature = "deja"))]
+pub trait DejaKvValue {}
+
+#[cfg(not(feature = "deja"))]
+impl<T> DejaKvValue for T {}
+
 impl<T> std::fmt::Display for KvOperation<'_, T>
 where
     T: serde::Serialize + Debug,
@@ -167,11 +179,11 @@ pub async fn kv_wrapper<'a, T, D, S>(
     partition_key: PartitionKey<'a>,
 ) -> CustomResult<KvResult<T>, RedisError>
 where
-    T: de::DeserializeOwned,
+    T: de::DeserializeOwned + DejaKvValue,
     D: crate::database::store::DatabaseStore,
     S: serde::Serialize + Debug + KvStorePartition + UniqueConstraints + Sync,
 {
-    let redis_conn = store.get_redis_conn()?;
+    let redis_conn = store.router_store.get_redis_conn()?;
 
     let key = format!("{partition_key}");
 
