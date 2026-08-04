@@ -12396,9 +12396,10 @@ where
 {
     let chosen = connectors.apply_filter_for_session_routing();
 
-    // Session token routing must never hard-fail on a transient MCA fetch error: degrade
-    // to an empty active set so the merchant still gets session tokens via the fallback
-    // config, instead of returning a client-facing error for an infra failure.
+    // Degrade to an empty active set on a transient MCA fetch error, with an explicit
+    // log, instead of returning a client-facing error for an infra failure. Note the
+    // empty set filters out every MCA-carrying choice, so a warm-cache request yields no
+    // session tokens and a cold-cache refresh can still hard-error.
     let active_mca_ids = routing::get_active_mca_ids_for_session(
         &state,
         processor.get_key_store(),
