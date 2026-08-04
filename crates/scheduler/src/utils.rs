@@ -4,7 +4,7 @@ use common_utils::errors::CustomResult;
 use diesel_models::enums::{self, ProcessTrackerStatus};
 pub use diesel_models::process_tracker as storage;
 use error_stack::{report, ResultExt};
-use redis_interface::{RedisConnectionPool, RedisEntryId};
+use redis_interface::{RedisConnectionWithContext, RedisEntryId};
 use router_env::{instrument, tracing};
 use uuid::Uuid;
 
@@ -193,7 +193,7 @@ pub fn divide_into_batches(
 }
 
 pub async fn get_batches(
-    conn: &RedisConnectionPool,
+    conn: &RedisConnectionWithContext,
     stream_name: &str,
     group_name: &str,
     consumer_name: &str,

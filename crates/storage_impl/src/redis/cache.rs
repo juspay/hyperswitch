@@ -12,7 +12,7 @@ use common_utils::{
 use dyn_clone::DynClone;
 use error_stack::{Report, ResultExt};
 use moka::future::Cache as MokaCache;
-use redis_interface::{errors::RedisError, RedisConnectionPool, RedisValue};
+use redis_interface::{errors::RedisError, RedisConnectionWithContext, RedisValue};
 use router_env::{
     logger,
     tracing::{self, instrument},
@@ -21,7 +21,7 @@ use router_env::{
 use crate::{
     errors::StorageError,
     metrics,
-    redis::{PubSubInterface, RedisConnInterface},
+    redis::{kv_store::RedisConnInterface, pub_sub::PubSubInterface},
 };
 
 /// Redis channel name used for publishing invalidation messages
@@ -304,7 +304,7 @@ impl Cache {
 
 #[instrument(skip_all)]
 pub async fn get_or_populate_redis<T, F, Fut>(
-    redis: &Arc<RedisConnectionPool>,
+    redis: &RedisConnectionWithContext,
     key: impl AsRef<str>,
     fun: F,
 ) -> CustomResult<T, StorageError>
@@ -389,7 +389,7 @@ where
         .attach_printable("Failed to get redis connection")?;
     let cache_key = CacheKey {
         key: key.to_string(),
-        prefix: redis.key_prefix.clone(),
+        prefix: redis.redis_conn.key_prefix.clone(),
     };
     // Deja L1 seam: the in-memory (moka) lookup is a process-global cache that
     // spans correlations. Instrument the LOOKUP itself (not the surrounding
@@ -412,7 +412,7 @@ where
             .push(
                 CacheKey {
                     key: key.to_string(),
-                    prefix: redis.key_prefix.clone(),
+                    prefix: redis.redis_conn.key_prefix.clone(),
                 },
                 val.clone(),
             )
@@ -454,9 +454,9 @@ pub async fn redact_from_redis_and_publish<
 
     logger::debug!(redis_deletion_result=?deletion_result);
 
-    let futures = keys.into_iter().map(|key| async {
+    let redis_conn = &redis_conn;
+    let futures = keys.into_iter().map(move |key| async move {
         redis_conn
-            .clone()
             .publish(IMC_INVALIDATION_CHANNEL, key)
             .await
             .change_context(StorageError::KVError)
