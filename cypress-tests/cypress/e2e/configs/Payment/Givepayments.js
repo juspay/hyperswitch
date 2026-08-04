@@ -1,10 +1,15 @@
-import { generateRandomEmail } from "../../../utils/RequestBodyUtils";
 import { multiUseMandateData, singleUseMandateData } from "./Commons";
+
+// givepayments' sandbox rejects generateRandomEmail()'s domains
+// (example.com, sample.net, etc.) as "disposable or unreachable" — use a
+// real, accepted domain instead.
+const generateGivepaymentsEmail = () =>
+  `givepayments.test.${Date.now()}.${Math.floor(Math.random() * 10000)}@gmail.com`;
 
 const successfulNo3DSCardDetails = {
   card_number: "4111111111111111",
   card_exp_month: "12",
-  card_exp_year: "2029",
+  card_exp_year: "29",
   card_holder_name: "John Doe",
   card_cvc: "123",
   card_network: "Visa",
@@ -13,7 +18,7 @@ const successfulNo3DSCardDetails = {
 const successfulDebitCardDetails = {
   card_number: "4000056655665556",
   card_exp_month: "12",
-  card_exp_year: "2029",
+  card_exp_year: "29",
   card_holder_name: "John Doe",
   card_cvc: "123",
   card_network: "Visa",
@@ -40,8 +45,8 @@ export const connectorDetails = {
         currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
-        email: generateRandomEmail(),
-        billing: billingWithEmail(generateRandomEmail()),
+        email: generateGivepaymentsEmail(),
+        billing: billingWithEmail(generateGivepaymentsEmail()),
       },
       Response: {
         status: 200,
@@ -60,8 +65,8 @@ export const connectorDetails = {
         currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
-        email: generateRandomEmail(),
-        billing: billingWithEmail(generateRandomEmail()),
+        email: generateGivepaymentsEmail(),
+        billing: billingWithEmail(generateGivepaymentsEmail()),
       },
       Response: {
         status: 200,
@@ -80,8 +85,8 @@ export const connectorDetails = {
         currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
-        email: generateRandomEmail(),
-        billing: billingWithEmail(generateRandomEmail()),
+        email: generateGivepaymentsEmail(),
+        billing: billingWithEmail(generateGivepaymentsEmail()),
       },
       Response: {
         status: 200,
@@ -100,8 +105,8 @@ export const connectorDetails = {
         currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
-        email: generateRandomEmail(),
-        billing: billingWithEmail(generateRandomEmail()),
+        email: generateGivepaymentsEmail(),
+        billing: billingWithEmail(generateGivepaymentsEmail()),
       },
       Response: {
         status: 200,
@@ -120,8 +125,8 @@ export const connectorDetails = {
         currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
-        email: generateRandomEmail(),
-        billing: billingWithEmail(generateRandomEmail()),
+        email: generateGivepaymentsEmail(),
+        billing: billingWithEmail(generateGivepaymentsEmail()),
       },
       Response: {
         status: 200,
@@ -191,8 +196,8 @@ export const connectorDetails = {
         },
         currency: "USD",
         mandate_data: singleUseMandateData,
-        email: generateRandomEmail(),
-        billing: billingWithEmail(generateRandomEmail()),
+        email: generateGivepaymentsEmail(),
+        billing: billingWithEmail(generateGivepaymentsEmail()),
       },
       Response: {
         status: 200,
@@ -210,8 +215,8 @@ export const connectorDetails = {
         },
         currency: "USD",
         mandate_data: singleUseMandateData,
-        email: generateRandomEmail(),
-        billing: billingWithEmail(generateRandomEmail()),
+        email: generateGivepaymentsEmail(),
+        billing: billingWithEmail(generateGivepaymentsEmail()),
       },
       Response: {
         status: 200,
@@ -229,8 +234,8 @@ export const connectorDetails = {
         },
         currency: "USD",
         mandate_data: multiUseMandateData,
-        email: generateRandomEmail(),
-        billing: billingWithEmail(generateRandomEmail()),
+        email: generateGivepaymentsEmail(),
+        billing: billingWithEmail(generateGivepaymentsEmail()),
       },
       Response: {
         status: 200,
@@ -248,8 +253,8 @@ export const connectorDetails = {
         },
         currency: "USD",
         mandate_data: multiUseMandateData,
-        email: generateRandomEmail(),
-        billing: billingWithEmail(generateRandomEmail()),
+        email: generateGivepaymentsEmail(),
+        billing: billingWithEmail(generateGivepaymentsEmail()),
       },
       Response: {
         status: 200,
@@ -267,8 +272,8 @@ export const connectorDetails = {
         },
         currency: "USD",
         mandate_data: singleUseMandateData,
-        email: generateRandomEmail(),
-        billing: billingWithEmail(generateRandomEmail()),
+        email: generateGivepaymentsEmail(),
+        billing: billingWithEmail(generateGivepaymentsEmail()),
       },
       Response: {
         status: 200,
@@ -286,8 +291,8 @@ export const connectorDetails = {
         },
         currency: "USD",
         mandate_data: multiUseMandateData,
-        email: generateRandomEmail(),
-        billing: billingWithEmail(generateRandomEmail()),
+        email: generateGivepaymentsEmail(),
+        billing: billingWithEmail(generateGivepaymentsEmail()),
       },
       Response: {
         status: 200,
