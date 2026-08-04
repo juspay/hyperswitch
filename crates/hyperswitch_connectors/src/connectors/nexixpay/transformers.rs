@@ -1700,9 +1700,8 @@ impl<F>
             Box::new(None)
         };
         let prev_status = item.data.status;
-        let status = if item.response.operation.operation_result
-            == NexixpayPaymentStatus::Authorized
-            && (item.data.request.amount == 0 || is_auto_capture)
+        let status = if item.data.request.amount == 0
+            && item.response.operation.operation_result == NexixpayPaymentStatus::Authorized
         {
             AttemptStatus::Charged
         } else {
