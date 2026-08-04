@@ -3694,10 +3694,6 @@ pub async fn make_pm_data<'a, F: Clone, R, D>(
             })
             .ok();
         }
-
-        if cvc_read_mode == vault::CvcReadMode::ReadOnly && payment_data.card_cvc.is_some() {
-            payment_data.retained_cvc_tokens.push(cvc_reference);
-        }
     }
 
     let mut card_token_data = payment_data

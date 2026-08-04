@@ -3082,10 +3082,15 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
         .await;
     }
 
-    handle_retained_cvc(
+    delete_cvc_after_success(
         state,
         payment_data.payment_attempt.status,
-        &payment_data.retained_cvc_tokens,
+        payment_data.payment_method_info.as_ref(),
+        payment_data.card_cvc.is_some()
+            || payment_data
+                .payment_method_data
+                .as_ref()
+                .is_some_and(has_card_cvc),
     )
     .await;
 
@@ -3127,32 +3132,46 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
 }
 
 #[cfg(feature = "v1")]
-async fn handle_retained_cvc(
+fn has_card_cvc(payment_method_data: &domain::PaymentMethodData) -> bool {
+    match payment_method_data {
+        domain::PaymentMethodData::Card(_) => true,
+        domain::PaymentMethodData::CardToken(card) => card.card_cvc.is_some(),
+        domain::PaymentMethodData::CardWithOptionalCVC(card) => card.card_cvc.is_some(),
+        domain::PaymentMethodData::CardWithNetworkTokenDetails(card) => {
+            card.card_details.card_cvc.is_some()
+        }
+        _ => false,
+    }
+}
+
+#[cfg(feature = "v1")]
+async fn delete_cvc_after_success(
     state: &SessionState,
     attempt_status: enums::AttemptStatus,
-    retained_cvc_tokens: &[String],
+    payment_method_info: Option<&domain::PaymentMethod>,
+    card_cvc_used: bool,
 ) {
+    let card_payment_method_id = payment_method_info
+        .filter(|payment_method| {
+            card_cvc_used
+                && payment_method.get_payment_method_type() == Some(enums::PaymentMethod::Card)
+        })
+        .map(|payment_method| payment_method.get_id());
+
     match attempt_status {
         enums::AttemptStatus::Authorized
         | enums::AttemptStatus::PartiallyAuthorized
         | enums::AttemptStatus::Charged
         | enums::AttemptStatus::PartialCharged
         | enums::AttemptStatus::PartialChargedAndChargeable => {
-            for token in retained_cvc_tokens {
-                payment_methods::vault::delete_cvc_from_payment_token(state, token)
+            if let Some(payment_method_id) = card_payment_method_id {
+                payment_methods::vault::delete_cvc_from_payment_token(state, payment_method_id)
                     .await
                     .inspect_err(|error| {
                         logger::error!(?error, "Failed to delete retained CVC after authorization");
                     })
                     .ok();
             }
-        }
-        enums::AttemptStatus::AuthenticationFailed
-        | enums::AttemptStatus::AuthorizationFailed
-        | enums::AttemptStatus::Failure
-            if !retained_cvc_tokens.is_empty() =>
-        {
-            metrics::CVC_RETAINED_AFTER_FAILURE.add(1, &[]);
         }
         _ => {}
     }

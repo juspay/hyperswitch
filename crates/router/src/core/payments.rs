@@ -9584,7 +9584,6 @@ where
     pub attempts: Option<Vec<storage::PaymentAttempt>>,
     pub sessions_token: Vec<api::SessionToken>,
     pub card_cvc: Option<Secret<String>>,
-    pub retained_cvc_tokens: Vec<String>,
     pub creds_identifier: Option<String>,
     pub pm_token: Option<String>,
     pub connector_customer_id: Option<String>,
