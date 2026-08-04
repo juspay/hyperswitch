@@ -85,6 +85,17 @@ const requiredFields = {
   ],
 };
 
+const MITErrorResponse = {
+  status: 200,
+  body: {
+    status: "failed",
+    error_code:
+      "Your transaction has been denied due to merchant account issue",
+    error_message:
+      "Your transaction has been denied due to merchant account issue",
+  },
+};
+
 export const connectorDetails = {
   real_time_payment_pm: {
     DuitNow: {
@@ -438,16 +449,7 @@ export const connectorDetails = {
         currency: "MYR",
         billing: billingAddress,
       },
-      Response: {
-        status: 200,
-        body: {
-          status: "failed",
-          error_code:
-            "Your transaction has been denied due to merchant account issue",
-          error_message:
-            "Your transaction has been denied due to merchant account issue",
-        },
-      },
+      Response: MITErrorResponse,
     },
     MITWithoutBillingAddress: {
       Configs: {
@@ -469,17 +471,11 @@ export const connectorDetails = {
       Configs: {
         TRIGGER_SKIP: true,
       },
-      Request: {},
-      Response: {
-        status: 200,
-        body: {
-          status: "failed",
-          error_code:
-            "Your transaction has been denied due to merchant account issue",
-          error_message:
-            "Your transaction has been denied due to merchant account issue",
-        },
+      Request: {
+        currency: "MYR",
+        billing: billingAddress,
       },
+      Response: MITErrorResponse,
     },
     PaymentIntentOffSession: {
       Request: {
@@ -612,32 +608,14 @@ export const connectorDetails = {
         setup_future_usage: "off_session",
         billing: billingAddress,
       },
-      Response: {
-        status: 200,
-        body: {
-          status: "failed",
-          error_code:
-            "Your transaction has been denied due to merchant account issue",
-          error_message:
-            "Your transaction has been denied due to merchant account issue",
-        },
-      },
+      Response: MITErrorResponse,
     },
     SaveCardConfirmManualCaptureOffSession: {
       Request: {
         setup_future_usage: "off_session",
         billing: billingAddress,
       },
-      Response: {
-        status: 200,
-        body: {
-          status: "failed",
-          error_code:
-            "Your transaction has been denied due to merchant account issue",
-          error_message:
-            "Your transaction has been denied due to merchant account issue",
-        },
-      },
+      Response: MITErrorResponse,
     },
     PaymentMethodIdMandateNo3DSManualCapture: {
       Request: {
@@ -744,16 +722,7 @@ export const connectorDetails = {
         setup_future_usage: "off_session",
         billing: null,
       },
-      Response: {
-        status: 200,
-        body: {
-          status: "failed",
-          error_code:
-            "Your transaction has been denied due to merchant account issue",
-          error_message:
-            "Your transaction has been denied due to merchant account issue",
-        },
-      },
+      Response: MITErrorResponse,
     },
     ZeroAuthPaymentIntent: {
       Configs: {
