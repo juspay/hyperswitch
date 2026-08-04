@@ -1948,6 +1948,18 @@ fn get_cards_required_fields() -> HashMap<Connector, RequiredFieldFinal> {
             ),
         ),
         (
+            Connector::Tdaypay,
+            RequiredFieldFinal {
+                mandate: HashMap::new(),
+                non_mandate: HashMap::from([
+                    RequiredField::Email.to_tuple(),
+                    RequiredField::BillingUserFirstName.to_tuple(),
+                    RequiredField::BillingUserLastName.to_tuple(),
+                ]),
+                common: HashMap::new(),
+            },
+        ),
+        (
             Connector::Givepayments,
             RequiredFieldFinal {
                 mandate: HashMap::new(),

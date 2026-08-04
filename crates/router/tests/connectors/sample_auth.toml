@@ -414,3 +414,7 @@ key2 = "key2"
 
 [globalpayments_heartland]
 api_key = "Secret API Key"
+
+[tdaypay]
+api_key="Merchant Key"
+key1="Merchant ID"
