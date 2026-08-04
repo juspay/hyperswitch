@@ -1758,18 +1758,21 @@ impl PaymentAttempt {
     }
 
     pub fn extract_card_network(&self) -> Option<common_enums::CardNetwork> {
-        self.payment_method_data
-            .as_ref()
-            .and_then(|value| {
-                value
-                    .clone()
-                    .parse_value::<api_models::payments::AdditionalPaymentData>(
-                        "AdditionalPaymentData",
-                    )
-                    .ok()
-            })
-            .and_then(|data| data.get_additional_card_info())
+        let additional_payment_data = self.payment_method_data.as_ref().and_then(|value| {
+            value
+                .clone()
+                .parse_value::<api_models::payments::AdditionalPaymentData>("AdditionalPaymentData")
+                .ok()
+        })?;
+
+        // Cards carry the network as a typed enum; wallets persist it as a plain
+        // provider string, so fall back to the normalized wallet network. This
+        // ensures the `card_network` column is populated for wallet payments and
+        // the payments list card-network filter matches them.
+        additional_payment_data
+            .get_additional_card_info()
             .and_then(|card_info| card_info.card_network)
+            .or_else(|| additional_payment_data.get_wallet_card_network())
     }
 
     pub fn get_payment_method_data(&self) -> Option<api_models::payments::AdditionalPaymentData> {
