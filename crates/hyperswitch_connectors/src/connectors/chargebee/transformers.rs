@@ -469,6 +469,9 @@ pub struct ChargebeeInvoicePayments {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ChargebeeTransactionData {
+    // Chargebee's own transaction id (`txn_…`). Optional so that a payload without it keeps
+    // deserializing as before rather than being rejected outright.
+    id: Option<String>,
     id_at_gateway: Option<String>,
     status: ChargebeeTranasactionStatus,
     error_code: Option<String>,
@@ -873,10 +876,19 @@ impl TryFrom<ChargebeeWebhookBody> for revenue_recovery::RevenueRecoveryAttemptD
             item.content.invoice.id.get_string_repr(),
         )
         .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        // Chargebee only sets `id_at_gateway` when the gateway returned a reference of its own;
+        // external and offline transactions have none. This id is what recovery matches an
+        // incoming webhook against an already recorded attempt on
+        // (`find_attempt_in_attempts_list_using_connector_transaction_id`), so leaving it unset
+        // makes every replay record a duplicate attempt. Chargebee's own transaction id is stable
+        // per transaction, so it stands in as that key. It never leaks back to Chargebee as an
+        // `id_at_gateway`: record back only runs for internally triggered retries, which carry a
+        // real processor id.
         let connector_transaction_id = item
             .content
             .transaction
             .id_at_gateway
+            .or(item.content.transaction.id)
             .map(common_utils::types::ConnectorTransactionId::TxnId);
         let error_code = item.content.transaction.error_code.clone();
         let error_message = item.content.transaction.error_text.clone();
@@ -1897,6 +1909,73 @@ mod tests {
             attempt.processor_payment_method_token,
             "B-1AB23456CD789012E"
         );
+    }
+
+    /// External and offline transactions carry no `id_at_gateway`. Recovery dedups incoming
+    /// webhooks against recorded attempts by this id, so it must fall back to Chargebee's own
+    /// transaction id rather than being left unset.
+    #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+    #[test]
+    fn test_missing_id_at_gateway_falls_back_to_chargebee_transaction_id() {
+        let webhook = |transaction_ids: &str| {
+            format!(
+                r#"{{
+                    "event_type": "payment_failed",
+                    "content": {{
+                        "transaction": {{
+                            {transaction_ids}
+                            "status": "failure",
+                            "gateway_account_id": "gw_acct_123",
+                            "currency_code": "USD",
+                            "amount": 1000,
+                            "date": 1735689600,
+                            "payment_method": "card",
+                            "payment_method_details": "{{\"card\":{{\"iin\":\"424242\",\"brand\":\"visa\",\"funding_type\":\"credit\"}}}}"
+                        }},
+                        "invoice": {{
+                            "id": "inv_123",
+                            "total": 1000,
+                            "currency_code": "USD",
+                            "status": "not_paid",
+                            "customer_id": "cus_123",
+                            "subscription_id": "sub_123"
+                        }},
+                        "customer": {{
+                            "payment_method": {{
+                                "reference_id": "cus_gw_1/tok_1",
+                                "gateway": "stripe"
+                            }}
+                        }}
+                    }}
+                }}"#
+            )
+        };
+        let attempt_for = |transaction_ids: &str| {
+            let body: ChargebeeWebhookBody = serde_json::from_str(&webhook(transaction_ids))
+                .expect("webhook body should deserialize");
+            revenue_recovery::RevenueRecoveryAttemptData::try_from(body)
+                .expect("webhook should convert to a recovery attempt")
+        };
+
+        // No `id_at_gateway`: Chargebee's transaction id becomes the dedup key.
+        assert_eq!(
+            attempt_for(r#""id": "txn_16BdDfSlbaZ7Y2fJ","#).connector_transaction_id,
+            Some(common_utils::types::ConnectorTransactionId::TxnId(
+                "txn_16BdDfSlbaZ7Y2fJ".to_string()
+            ))
+        );
+
+        // `id_at_gateway` present: it still wins over Chargebee's own id.
+        assert_eq!(
+            attempt_for(r#""id": "txn_16BdDfSlbaZ7Y2fJ","id_at_gateway": "ch_gw_999","#)
+                .connector_transaction_id,
+            Some(common_utils::types::ConnectorTransactionId::TxnId(
+                "ch_gw_999".to_string()
+            ))
+        );
+
+        // Neither present: unchanged from the previous behaviour.
+        assert_eq!(attempt_for("").connector_transaction_id, None);
     }
 
     #[test]
