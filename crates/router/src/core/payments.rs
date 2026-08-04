@@ -12396,15 +12396,15 @@ where
 {
     let chosen = connectors.apply_filter_for_session_routing();
 
-    let merchant_connector_accounts = routing::get_active_merchant_connector_accounts(
+    // Session token routing must never hard-fail on a transient MCA fetch error: degrade
+    // to an empty active set so the merchant still gets session tokens via the fallback
+    // config, instead of returning a client-facing error for an infra failure.
+    let active_mca_ids = routing::get_active_mca_ids_for_session(
         &state,
         processor.get_key_store(),
         business_profile.get_id(),
     )
-    .await
-    .change_context(errors::ApiErrorResponse::GenericNotFoundError {
-        message: "Active merchant connector accounts not found".to_string(),
-    })?;
+    .await;
 
     let session_input = routing::SessionRoutingInput {
         state: &state,
@@ -12413,7 +12413,7 @@ where
         merchant_account: processor.get_account(),
         transaction_type: &transaction_type,
         chosen: &chosen,
-        merchant_connector_accounts: &merchant_connector_accounts,
+        active_mca_ids: &active_mca_ids,
         default_config: &fallback_config,
         backend_input: &mut backend_input,
     };

@@ -34,8 +34,6 @@ use helpers::{
 use hyperswitch_domain_models::{mandates, payment_address};
 use hyperswitch_masking::Secret;
 use payment_methods::helpers::StorageErrorExt;
-#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
-use rustc_hash::FxHashMap;
 use rustc_hash::FxHashSet;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use storage_impl::redis::cache;
@@ -2221,53 +2219,14 @@ pub async fn contract_based_dynamic_routing_setup(
     };
 
     // validate the contained mca_ids
-    let mut contained_mca = Vec::new();
     if let Some(info_vec) = &config.label_info {
-        let all_mcas = db
-            .list_merchant_connector_accounts_without_encrypted_including_disabled_by_merchant_id_profile_id(
-                processor.get_account().get_id(),
-                &profile_id,
-            )
-            .await
-            .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                id: processor.get_account().get_id().get_string_repr().to_owned(),
-            })?;
-
-        let mca_map: FxHashMap<_, _> = all_mcas
-            .iter()
-            .map(|mca| (mca.get_id().clone(), mca.connector_name.clone()))
-            .collect();
-
-        for info in info_vec {
-            utils::when(
-                contained_mca.iter().any(|mca_id| mca_id == &info.mca_id),
-                || {
-                    Err(error_stack::Report::new(
-                        errors::ApiErrorResponse::InvalidRequestData {
-                            message: "Duplicate mca configuration received".to_string(),
-                        },
-                    ))
-                },
-            )?;
-
-            let mca_connector_name = mca_map.get(&info.mca_id).ok_or_else(|| {
-                error_stack::Report::new(
-                    errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                        id: info.mca_id.get_string_repr().to_owned(),
-                    },
-                )
-            })?;
-
-            utils::when(mca_connector_name != &info.label, || {
-                Err(error_stack::Report::new(
-                    errors::ApiErrorResponse::InvalidRequestData {
-                        message: "Incorrect mca configuration received".to_string(),
-                    },
-                ))
-            })?;
-
-            contained_mca.push(info.mca_id.to_owned());
-        }
+        helpers::validate_contract_based_label_info(
+            db,
+            processor.get_account().get_id(),
+            &profile_id,
+            info_vec,
+        )
+        .await?;
     }
 
     let record = db
@@ -2325,51 +2284,14 @@ pub async fn contract_based_routing_update_configs(
         .attach_printable("unable to deserialize algorithm data from routing table into ContractBasedRoutingConfig")?;
 
     // validate the contained mca_ids
-    let mut contained_mca = Vec::new();
     if let Some(info_vec) = &request.label_info {
-        let all_mcas = db
-            .list_merchant_connector_accounts_without_encrypted_including_disabled_by_merchant_id_profile_id(
-                processor.get_account().get_id(),
-                &profile_id,
-            )
-            .await
-            .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                id: processor.get_account().get_id().get_string_repr().to_owned(),
-            })?;
-
-        let mca_map: FxHashMap<_, _> = all_mcas
-            .iter()
-            .map(|mca| (mca.get_id().clone(), mca.connector_name.clone()))
-            .collect();
-
-        for info in info_vec {
-            let mca_connector_name = mca_map.get(&info.mca_id).ok_or_else(|| {
-                error_stack::Report::new(
-                    errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                        id: info.mca_id.get_string_repr().to_owned(),
-                    },
-                )
-            })?;
-
-            utils::when(mca_connector_name != &info.label, || {
-                Err(errors::ApiErrorResponse::InvalidRequestData {
-                    message: "Incorrect mca configuration received".to_string(),
-                })
-            })?;
-
-            utils::when(
-                contained_mca.iter().any(|mca_id| mca_id == &info.mca_id),
-                || {
-                    Err(error_stack::Report::new(
-                        errors::ApiErrorResponse::InvalidRequestData {
-                            message: "Duplicate mca configuration received".to_string(),
-                        },
-                    ))
-                },
-            )?;
-
-            contained_mca.push(info.mca_id.to_owned());
-        }
+        helpers::validate_contract_based_label_info(
+            db,
+            processor.get_account().get_id(),
+            &profile_id,
+            info_vec,
+        )
+        .await?;
     }
 
     config_to_update.update(request);
