@@ -467,6 +467,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, PaymentsRequest>
                                 .payment_attempt
                                 .net_amount
                                 .get_installment_interest(),
+                            payment_data.payment_attempt.net_amount.get_offer_amount(),
                         ),
                     connector_mandate_detail: payment_data
                         .payment_attempt

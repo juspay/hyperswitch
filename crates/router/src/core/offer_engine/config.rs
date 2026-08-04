@@ -31,11 +31,16 @@ pub async fn resolve_offer_engine_config(
 fn resolve_application_config(
     state: &SessionState,
 ) -> CustomResult<ResolvedOfferEngineConfig, OfferEngineError> {
-    let app_config = state.conf.offer_engine.as_ref().ok_or_else(|| {
-        error_stack::report!(OfferEngineError::MissingApplicationConfig(
-            "offer_engine application config is not set".to_string()
-        ))
-    })?;
+    let app_config = state
+        .conf
+        .offer_engine
+        .as_ref()
+        .ok_or_else(|| {
+            error_stack::report!(OfferEngineError::MissingApplicationConfig(
+                "offer_engine application config is not set".to_string()
+            ))
+        })?
+        .get_inner();
 
     Ok(ResolvedOfferEngineConfig {
         base_url: app_config.base_url.clone(),

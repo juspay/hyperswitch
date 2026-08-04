@@ -1598,3 +1598,31 @@ pub struct ExternalSurchargeDetails {
 }
 
 impl_to_sql_from_sql_json!(ExternalSurchargeDetails);
+
+/// Applied-offer details from Offer Engine `/apply`, persisted on `payment_attempt` as JSONB.
+#[derive(
+    Clone,
+    Debug,
+    serde::Deserialize,
+    Eq,
+    ToSchema,
+    PartialEq,
+    serde::Serialize,
+    diesel::AsExpression,
+)]
+#[diesel(sql_type = Jsonb)]
+pub struct AppliedOfferDetails {
+    /// Offer Engine merchant id the offer was applied under
+    pub offer_engine_merchant_id: String,
+    /// Offer Engine transaction id (the Hyperswitch payment attempt id used at `/apply`)
+    pub offer_engine_txn_id: String,
+    /// Offer Engine offer id that was applied
+    pub offer_id: String,
+    /// Charge-reducing offer amount in minor units
+    pub offer_amount: MinorUnit,
+    /// Currency of the applied offer amount
+    #[schema(value_type = Currency, example = "USD")]
+    pub currency: enums::Currency,
+}
+
+impl_to_sql_from_sql_json!(AppliedOfferDetails);
