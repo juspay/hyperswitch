@@ -312,9 +312,10 @@ where
             .trigger_event(state, closure)
             .await?
     } else {
-        let resp = closure()
-            .await
-            .change_context(errors::RoutingError::OpenRouterCallFailed)?;
+        // Keep the closure's error context (e.g. `RoutingEventsError` carrying the DE status
+        // code) so callers can react to specific statuses, like the 404-gated merchant
+        // provisioning in the SSO mint flow.
+        let resp = closure().await?;
 
         RoutingEventsResponse::new(None, resp)
     };
