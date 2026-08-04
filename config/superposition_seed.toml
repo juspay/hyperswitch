@@ -1679,6 +1679,7 @@ should_store_eligibility_check_data_for_authentication = { value = false, schema
 should_trigger_backwards_compatibility_inline = { value = false, schema = { type = "boolean" } }
 should_trigger_fingerprint_migration = { value = true, schema = { type = "boolean" } }
 threeds_routing_region_uas = { value = "region1", schema = { enum = ["region1", "region2"], type = "string" } }
+"payments.network_token_fetch_timeout_in_secs" = { value = 4, schema = { maximum = 4294967295, minimum = 0, type = "integer" }, description = "Timeout in seconds for network token fetch", change_reason = "Initial setup" }
 
 
 [dimensions]
