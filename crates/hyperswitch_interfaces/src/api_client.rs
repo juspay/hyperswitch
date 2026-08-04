@@ -3,7 +3,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use common_enums::{ApiClientError, PaymentMethod, PaymentMethodType};
+use common_enums::ApiClientError;
 #[cfg(feature = "ext_services_latency")]
 use common_utils::consts::EXTERNAL_CALL_TAG;
 use common_utils::{
