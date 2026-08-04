@@ -24,21 +24,21 @@ pub async fn fetch_card_for_sync(
         .await
         .map_err(|error| {
             logger::warn!(?error, "Account Updater could not unvault the stored card");
-            SkipReason::RawCardUnusable
+            SkipReason::CardUnusable
         })?;
 
     let card_details = match raw_payment_method_data {
         Some(RawPaymentMethodData::Card(card_details)) => card_details,
         Some(RawPaymentMethodData::CardWithNT(details)) => details.card_details,
         Some(RawPaymentMethodData::BankDebit(_) | RawPaymentMethodData::ProxyCard(_)) | None => {
-            return Err(SkipReason::RawCardUnusable)
+            return Err(SkipReason::CardUnusable)
         }
     };
 
     let card_number =
         CardNumber::from_str(&card_details.card_number.get_card_no()).map_err(|_| {
-            logger::warn!("Account Updater unvaulted a card number that UCS rejected as invalid");
-            SkipReason::RawCardUnusable
+            logger::warn!("Failed to parse card number");
+            SkipReason::CardUnusable
         })?;
 
     Ok(SyncCard {

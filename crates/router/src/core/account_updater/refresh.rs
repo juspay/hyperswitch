@@ -19,8 +19,6 @@ use crate::{
     types::{domain, transformers::ForeignFrom},
 };
 
-const ACCOUNT_UPDATER_CONNECTOR_NAME: &str = "juspay";
-
 /// Sent as the `grpc-timeout` deadline, so UCS abandons the inquiry rather than us alone.
 const REFRESH_TIMEOUT: Duration = Duration::from_secs(5);
 
@@ -47,7 +45,7 @@ pub async fn refresh_card(
     let request = build_refresh_request(sync_card);
 
     let connector_auth_metadata = build_unified_connector_service_auth_metadata_without_mca(
-        ACCOUNT_UPDATER_CONNECTOR_NAME.to_string(),
+        config.connector_name().to_string(),
         consts::UCS_AUTH_HEADER_KEY.to_string(),
         platform.get_processor().get_account().get_id(),
         Some(connector_config),

@@ -1,6 +1,8 @@
 use router_env::logger;
 
-use super::types::{AccountUpdaterCredentialSource, ResolvedAccountUpdaterConfig, SkipReason};
+use super::types::{
+    AccountUpdaterCredentialSource, JuspayCredentials, ResolvedAccountUpdaterConfig, SkipReason,
+};
 use crate::{configs::settings, core::configs::dimension_state, routes::SessionState};
 
 pub async fn resolve_account_updater_config(
@@ -36,14 +38,16 @@ fn resolve_application_config(state: &SessionState) -> Option<ResolvedAccountUpd
         return None;
     };
 
-    let settings::AccountUpdaterConfig::Juspay(juspay) = account_updater.get_inner();
-
-    Some(ResolvedAccountUpdaterConfig {
-        base_url: juspay.base_url.clone(),
-        api_key: juspay.api_key.clone(),
-        merchant_id: juspay.merchant_id.clone(),
-        euler_encryption_public_key: juspay.euler_encryption_public_key.clone(),
-        au_decryption_pvt_key: juspay.au_decryption_pvt_key.clone(),
-        card_sync_key_id: juspay.card_sync_key_id.clone(),
-    })
+    match account_updater.get_inner() {
+        settings::AccountUpdaterConfig::Juspay(juspay) => {
+            Some(ResolvedAccountUpdaterConfig::Juspay(JuspayCredentials {
+                base_url: juspay.base_url.clone(),
+                api_key: juspay.api_key.clone(),
+                merchant_id: juspay.merchant_id.clone(),
+                euler_encryption_public_key: juspay.euler_encryption_public_key.clone(),
+                au_decryption_pvt_key: juspay.au_decryption_pvt_key.clone(),
+                card_sync_key_id: juspay.card_sync_key_id.clone(),
+            }))
+        }
+    }
 }

@@ -19,8 +19,20 @@ pub enum AccountUpdaterCredentialSource {
     Application,
 }
 
+#[derive(Debug, Clone, strum::IntoStaticStr)]
+#[strum(serialize_all = "snake_case")]
+pub enum ResolvedAccountUpdaterConfig {
+    Juspay(JuspayCredentials),
+}
+
+impl ResolvedAccountUpdaterConfig {
+    pub fn connector_name(&self) -> &'static str {
+        self.into()
+    }
+}
+
 #[derive(Debug, Clone)]
-pub struct ResolvedAccountUpdaterConfig {
+pub struct JuspayCredentials {
     pub base_url: url::Url,
     pub api_key: Secret<String>,
     pub merchant_id: String,
@@ -29,7 +41,7 @@ pub struct ResolvedAccountUpdaterConfig {
     pub card_sync_key_id: String,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, strum::IntoStaticStr)]
+#[derive(Debug, Clone, Copy, strum::IntoStaticStr)]
 #[strum(serialize_all = "snake_case")]
 pub enum SkipReason {
     GateDisabled,
@@ -37,15 +49,15 @@ pub enum SkipReason {
     PaymentMethodNotACard,
     PaymentMethodNotActive,
     UnsupportedNetwork,
-    RawCardUnusable,
+    CardUnusable,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug)]
 pub struct EligibleCard {
     pub network: CardNetwork,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, strum::IntoStaticStr)]
+#[derive(Debug, Clone, Copy, strum::IntoStaticStr)]
 #[strum(serialize_all = "snake_case")]
 pub enum AccountUpdaterFailure {
     RefreshCallFailed,
@@ -53,7 +65,7 @@ pub enum AccountUpdaterFailure {
     RefreshReturnedError,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, strum::IntoStaticStr)]
+#[derive(Debug, Clone, Copy, strum::IntoStaticStr)]
 #[strum(serialize_all = "snake_case")]
 pub enum RefreshOutcome {
     AccountUpdated,
@@ -65,7 +77,7 @@ pub enum RefreshOutcome {
     Unspecified,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy)]
 pub enum AccountUpdaterTerminalState {
     Skipped(SkipReason),
     Failed(AccountUpdaterFailure),

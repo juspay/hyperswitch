@@ -10,32 +10,11 @@ use common_utils::ext_traits::ValueExt;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::router_data::ConnectorAuthType;
 use hyperswitch_masking::{PeekInterface, Secret};
-use serde::Serialize;
 
 use crate::{
     core::errors::{self, RouterResult},
     types::transformers::ForeignTryFrom,
 };
-
-/// Connector-specific configuration wrapper for UCS.
-/// Serializes as: `{"config": {"ConnectorName": {...}}}`
-#[derive(Debug, Serialize)]
-pub struct UcsConnectorConfig {
-    pub config: serde_json::Map<String, serde_json::Value>,
-}
-
-impl UcsConnectorConfig {
-    /// Creates a new UCS connector config with the connector name as the key in PascalCase
-    pub fn new<T: Serialize>(connector: Connector, inner: T) -> RouterResult<Self> {
-        let connector_name = format!("{:?}", connector); // PascalCase: Braintree, Cybersource
-        let inner_json = serde_json::to_value(&inner)
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to serialize connector config inner value")?;
-        let mut config = serde_json::Map::new();
-        config.insert(connector_name, inner_json);
-        Ok(Self { config })
-    }
-}
 
 /// Metadata structures for parsing connector metadata
 #[derive(Debug, serde::Deserialize)]
@@ -618,6 +597,15 @@ pub enum ConnectorSpecificConfig {
     },
     /// Givepayments connector configuration
     Givepayments { api_key: Secret<String> },
+    /// Juspay Account Updater configuration.
+    Juspay {
+        api_key: Secret<String>,
+        merchant_id: String,
+        base_url: String,
+        juspay_encryption_public_key: Secret<String>,
+        response_decryption_private_key: Secret<String>,
+        card_sync_key_id: String,
+    },
 }
 
 impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
@@ -1628,16 +1616,20 @@ pub fn build_connector_config_header(
         merchant_account_metadata,
     ))?;
 
-    let config_json = serde_json::to_value(&config)
+    serialize_connector_config(&config).map(Some)
+}
+
+/// Serializes a [`ConnectorSpecificConfig`] into the `{"config": {"ConnectorName": {...}}}`
+/// envelope UCS expects for the connector config header.
+pub fn serialize_connector_config(config: &ConnectorSpecificConfig) -> RouterResult<String> {
+    let config_json = serde_json::to_value(config)
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to serialize connector config to JSON value")?;
 
     let mut outer_map = serde_json::Map::new();
     outer_map.insert("config".to_string(), config_json);
 
-    let config_string = serde_json::to_string(&outer_map)
+    serde_json::to_string(&outer_map)
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to serialize ConnectorSpecificConfig")?;
-
-    Ok(Some(config_string))
+        .attach_printable("Failed to serialize ConnectorSpecificConfig")
 }
