@@ -2007,6 +2007,10 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Cy
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res, event_builder)
+            .map(|mut error| {
+                error.attempt_status = Some(common_enums::AttemptStatus::Authorized);
+                error
+            })
     }
 
     fn get_5xx_error_response(
