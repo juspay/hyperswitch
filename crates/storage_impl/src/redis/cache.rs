@@ -491,7 +491,7 @@ where
     let cache_val = cache
         .get_val::<T>(CacheKey {
             key: key.to_string(),
-            prefix: redis.key_prefix.clone(),
+            prefix: redis.redis_conn.key_prefix.clone(),
         })
         .await;
     if let Some(val) = cache_val {
@@ -506,7 +506,7 @@ where
         .push(
             CacheKey {
                 key: key.to_string(),
-                prefix: redis.key_prefix.clone(),
+                prefix: redis.redis_conn.key_prefix.clone(),
             },
             domain_model.clone(),
         )
