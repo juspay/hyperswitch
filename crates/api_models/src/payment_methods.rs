@@ -121,7 +121,7 @@ pub struct PaymentMethodCreate {
 pub struct PaymentMethodRetrieveRequest {
     #[serde(default)]
     pub fetch_raw_detail: bool,
-    /// Trigger an Account Updater check for the stored card.
+    /// Trigger an Account Updater check for the stored payment method.
     #[serde(default)]
     pub force_sync: bool,
 }
