@@ -758,6 +758,25 @@ pub async fn should_call_unified_connector_service_for_webhooks(
     Ok((execution_path, rollout_result.webhook_flows))
 }
 
+/// On a redirect-complete callback the inbound request carries only redirect params, so
+/// `payment_method_data` is `None`. UCS still requires `payment_method` on the authorize call,
+/// so rebuild a minimal one from the attempt's payment method type.
+pub fn reconstruct_payment_method_data_for_redirect_completion(
+    payment_method_type: Option<PaymentMethodType>,
+    email: Option<common_utils::pii::Email>,
+) -> Option<hyperswitch_domain_models::payment_method_data::PaymentMethodData> {
+    match payment_method_type {
+        Some(PaymentMethodType::Paypal) => Some(
+            hyperswitch_domain_models::payment_method_data::PaymentMethodData::Wallet(
+                hyperswitch_domain_models::payment_method_data::WalletData::PaypalRedirect(
+                    hyperswitch_domain_models::payment_method_data::PaypalRedirection { email },
+                ),
+            ),
+        ),
+        _ => None,
+    }
+}
+
 pub fn build_unified_connector_service_payment_method(
     payment_method_data: hyperswitch_domain_models::payment_method_data::PaymentMethodData,
     payment_method_type: Option<PaymentMethodType>,

@@ -17174,6 +17174,17 @@
                 "$ref": "#/components/schemas/XenditChargeResponseData"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "payload_split_payment"
+            ],
+            "properties": {
+              "payload_split_payment": {
+                "$ref": "#/components/schemas/PayloadSplitPaymentRequest"
+              }
+            }
           }
         ],
         "description": "Charge Information"
@@ -28417,6 +28428,42 @@
               }
             ],
             "nullable": true
+          }
+        }
+      },
+      "PayloadLedgerItem": {
+        "type": "object",
+        "description": "A single ledger entry distributing payment to one receiver for Payload split payments",
+        "required": [
+          "amount",
+          "receiver_id"
+        ],
+        "properties": {
+          "amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Amount in minor units to be routed to this receiver out of the payment",
+            "example": 995
+          },
+          "receiver_id": {
+            "type": "string",
+            "description": "processing_id of the receiver"
+          }
+        }
+      },
+      "PayloadSplitPaymentRequest": {
+        "type": "object",
+        "description": "Split payment configuration for Payload — distributes a payment across multiple receivers via ledger entries",
+        "required": [
+          "ledger"
+        ],
+        "properties": {
+          "ledger": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PayloadLedgerItem"
+            },
+            "description": "Ledger entries specifying how the payment is distributed across receivers"
           }
         }
       },
@@ -42911,6 +42958,17 @@
             "properties": {
               "xendit_split_payment": {
                 "$ref": "#/components/schemas/XenditSplitRequest"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "payload_split_payment"
+            ],
+            "properties": {
+              "payload_split_payment": {
+                "$ref": "#/components/schemas/PayloadSplitPaymentRequest"
               }
             }
           }
