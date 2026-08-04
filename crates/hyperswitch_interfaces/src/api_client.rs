@@ -3,11 +3,15 @@ use std::{
     time::{Duration, Instant},
 };
 
-use common_enums::ApiClientError;
+use common_enums::{ApiClientError, PaymentMethod, PaymentMethodType};
+#[cfg(feature = "ext_services_latency")]
+use common_utils::consts::EXTERNAL_CALL_TAG;
 use common_utils::{
-    consts::{X_CONNECTOR_NAME, X_FLOW_NAME, X_REQUEST_ID},
+    consts::{
+        X_CONNECTOR_NAME, X_FLOW_NAME, X_PAYMENT_METHOD, X_PAYMENT_METHOD_TYPE, X_REQUEST_ID,
+    },
     errors::CustomResult,
-    request::{Request, RequestContent},
+    request::{Headers, Request, RequestContent},
 };
 use error_stack::{report, ResultExt};
 use http::Method;
@@ -267,6 +271,11 @@ where
                         X_CONNECTOR_NAME.to_string(),
                         Maskable::Masked(hyperswitch_masking::Secret::new(connector_name.clone().to_string())),
                     ));
+                    add_payment_method_headers(
+                        &mut request.headers,
+                        req.payment_method,
+                        req.payment_method_type,
+                    );
                     state.get_request_id().as_ref().map(|id| {
                         let request_id = id.to_string();
                         request.headers.insert((
@@ -462,6 +471,24 @@ where
     }
 }
 
+fn add_payment_method_headers(
+    headers: &mut Headers,
+    payment_method: PaymentMethod,
+    payment_method_type: Option<PaymentMethodType>,
+) {
+    headers.insert((
+        X_PAYMENT_METHOD.to_string(),
+        Maskable::Normal(payment_method.to_string()),
+    ));
+
+    if let Some(payment_method_type) = payment_method_type {
+        headers.insert((
+            X_PAYMENT_METHOD_TYPE.to_string(),
+            Maskable::Normal(payment_method_type.to_string()),
+        ));
+    }
+}
+
 /// Calls the connector API and handles the response
 #[instrument(skip_all)]
 pub async fn call_connector_api(
@@ -472,10 +499,28 @@ pub async fn call_connector_api(
     let current_time = Instant::now();
     let headers = request.headers.clone();
     let url = request.url.clone();
+    #[cfg(feature = "ext_services_latency")]
+    let method = request.method.to_string();
     let response = state
         .get_api_client()
         .send_request(state, request, None, true)
         .await;
+
+    #[cfg(feature = "ext_services_latency")]
+    if let Ok(resp) = response.as_ref() {
+        let downstream_request_id = resp
+            .headers()
+            .get(X_REQUEST_ID)
+            .and_then(|value| value.to_str().ok());
+        logger::info!(
+            tag = EXTERNAL_CALL_TAG,
+            operation = flow_name,
+            method,
+            status_code = resp.status().as_u16(),
+            latency_ms = current_time.elapsed().as_secs_f64() * 1000.0,
+            downstream_request_id,
+        );
+    }
 
     match response.as_ref() {
         Ok(resp) => {

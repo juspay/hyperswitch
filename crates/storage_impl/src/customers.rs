@@ -19,6 +19,11 @@ use crate::{
     utils::{pg_connection_read, pg_connection_write},
     CustomResult, DatabaseStore, MockDb, RouterStore,
 };
+#[cfg(feature = "v2")]
+use crate::{
+    redis::kv_store::{kv_wrapper, KvOperation},
+    utils::try_redis_get_else_try_database_get,
+};
 
 impl KvStorePartition for customers::Customer {}
 
@@ -505,6 +510,64 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
 
     #[cfg(feature = "v2")]
     #[instrument(skip_all)]
+    async fn find_customer_by_global_id_merchant_id_without_encrypted(
+        &self,
+        id: &id_type::GlobalCustomerId,
+        merchant_id: &id_type::MerchantId,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<domain::CustomerWithoutEncrypted, StorageError> {
+        let conn = pg_connection_read(self).await?;
+        let database_call = || async {
+            Ok::<_, error_stack::Report<StorageError>>(
+                customers::Customer::find_by_global_id(&conn, id)
+                    .await
+                    .map(domain::CustomerWithoutEncrypted::from)
+                    .map_err(StorageError::from)?,
+            )
+        };
+        let storage_scheme = Box::pin(decide_storage_scheme::<T, customers::Customer>(
+            self,
+            storage_scheme,
+            Op::Find,
+        ))
+        .await;
+        let result = match storage_scheme {
+            MerchantStorageScheme::PostgresOnly => database_call().await?,
+            MerchantStorageScheme::RedisKv => {
+                let field = format!("cust_{}", id.get_string_repr());
+                let key = PartitionKey::GlobalId {
+                    id: id.get_string_repr(),
+                };
+                Box::pin(try_redis_get_else_try_database_get(
+                    async {
+                        let customer: customers::Customer = Box::pin(kv_wrapper(
+                            self,
+                            KvOperation::<customers::Customer>::HGet(&field),
+                            key,
+                        ))
+                        .await?
+                        .try_into_hget()?;
+                        Ok(domain::CustomerWithoutEncrypted::from(customer))
+                    },
+                    database_call,
+                ))
+                .await?
+            }
+        };
+
+        if result.merchant_id != *merchant_id {
+            Err(StorageError::ValueNotFound(
+                "db value not found".to_string(),
+            ))?
+        } else if result.status == common_enums::DeleteStatus::Redacted {
+            Err(StorageError::CustomerRedacted)?
+        } else {
+            Ok(result)
+        }
+    }
+
+    #[cfg(feature = "v2")]
+    #[instrument(skip_all)]
     async fn update_customer_by_global_id(
         &self,
         id: &id_type::GlobalCustomerId,
@@ -898,6 +961,31 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
             _ => Ok(customer),
         }
     }
+
+    #[cfg(feature = "v2")]
+    #[instrument(skip_all)]
+    async fn find_customer_by_global_id_merchant_id_without_encrypted(
+        &self,
+        id: &id_type::GlobalCustomerId,
+        merchant_id: &id_type::MerchantId,
+        _storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<domain::CustomerWithoutEncrypted, StorageError> {
+        let conn = pg_connection_read(self).await?;
+        let customer = customers::Customer::find_by_global_id(&conn, id)
+            .await
+            .map(domain::CustomerWithoutEncrypted::from)
+            .map_err(StorageError::from)?;
+
+        if customer.merchant_id != *merchant_id {
+            Err(StorageError::ValueNotFound(
+                "db value not found".to_string(),
+            ))?
+        } else if customer.status == common_enums::DeleteStatus::Redacted {
+            Err(StorageError::CustomerRedacted)?
+        } else {
+            Ok(customer)
+        }
+    }
 }
 
 #[async_trait::async_trait]
@@ -1177,6 +1265,17 @@ impl domain::CustomerInterface for MockDb {
         _key_store: &MerchantKeyStore,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::Customer, StorageError> {
+        // [#172]: Implement function for `MockDb`
+        Err(StorageError::MockDbError)?
+    }
+
+    #[cfg(feature = "v2")]
+    async fn find_customer_by_global_id_merchant_id_without_encrypted(
+        &self,
+        _id: &id_type::GlobalCustomerId,
+        _merchant_id: &id_type::MerchantId,
+        _storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<domain::CustomerWithoutEncrypted, StorageError> {
         // [#172]: Implement function for `MockDb`
         Err(StorageError::MockDbError)?
     }

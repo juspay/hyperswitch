@@ -1556,10 +1556,9 @@ pub async fn create_persistent_payment_method_core(
         .get_required_value("customer_id")?;
     let key_manager_state = &(state).into();
 
-    db.find_customer_by_global_id_merchant_id(
+    db.find_customer_by_global_id_merchant_id_without_encrypted(
         &customer_id,
         platform.get_provider().get_account().get_id(),
-        platform.get_provider().get_key_store(),
         platform.get_provider().get_account().storage_scheme,
     )
     .await
@@ -1666,10 +1665,9 @@ pub async fn create_volatile_payment_method_core(
     let key_manager_state = &(state).into();
 
     if let Some(ref customer_id) = customer_id {
-        db.find_customer_by_global_id_merchant_id(
+        db.find_customer_by_global_id_merchant_id_without_encrypted(
             customer_id,
             platform.get_provider().get_account().get_id(),
-            platform.get_provider().get_key_store(),
             platform.get_provider().get_account().storage_scheme,
         )
         .await
@@ -2003,14 +2001,22 @@ impl LockerOperations for GenericLocker {
     ) -> RouterResult<PaymentMethodResolver> {
         let db = &*state.store;
 
-        let fingerprint_id = vault::get_fingerprint_id_for_payment_method(
-            state,
-            &payment_method_data,
-            customer_id.get_string_repr().to_owned(),
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to get fingerprint_id from vault using generic strategy")?;
+        let (fingerprint_id_result, auxiliary_fingerprint_id_result) = tokio::join!(
+            vault::get_fingerprint_id_for_payment_method(
+                state,
+                &payment_method_data,
+                customer_id.get_string_repr().to_owned(),
+            ),
+            vault::get_auxiliary_fingerprint_id_for_payment_method(
+                state,
+                &payment_method_data,
+                customer_id.get_string_repr().to_owned(),
+            ),
+        );
+
+        let fingerprint_id = fingerprint_id_result
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to get fingerprint_id from vault using generic strategy")?;
 
         match db
             .find_payment_method_by_fingerprint_id(
@@ -2062,13 +2068,7 @@ impl LockerOperations for GenericLocker {
 
                 logger::debug!("Payment method not found, falling back to creation");
 
-                let auxiliary_fingerprint_id =
-                    vault::get_auxiliary_fingerprint_id_for_payment_method(
-                        state,
-                        &payment_method_data,
-                        customer_id.get_string_repr().to_owned(),
-                    )
-                    .await
+                let auxiliary_fingerprint_id = auxiliary_fingerprint_id_result
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable(
                         "Failed to get auxiliary fingerprint_id from vault using generic strategy",
@@ -3749,10 +3749,9 @@ pub async fn payment_method_intent_create(
     let customer_id = req.customer_id.to_owned();
     let key_manager_state = &(state).into();
 
-    db.find_customer_by_global_id_merchant_id(
+    db.find_customer_by_global_id_merchant_id_without_encrypted(
         &customer_id,
         provider.get_account().get_id(),
-        provider.get_key_store(),
         provider.get_account().storage_scheme,
     )
     .await
@@ -5323,10 +5322,9 @@ pub async fn list_payment_methods_core(
         .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
 
     let customer = db
-        .find_customer_by_global_id_merchant_id(
+        .find_customer_by_global_id_merchant_id_without_encrypted(
             customer_id,
             provider.get_account().get_id(),
-            provider.get_key_store(),
             provider.get_account().storage_scheme,
         )
         .await
@@ -5381,10 +5379,9 @@ pub async fn list_customer_payment_methods_core(
         .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
 
     let customer = db
-        .find_customer_by_global_id_merchant_id(
+        .find_customer_by_global_id_merchant_id_without_encrypted(
             customer_id,
             provider.get_account().get_id(),
-            provider.get_key_store(),
             provider.get_account().storage_scheme,
         )
         .await
@@ -6193,10 +6190,9 @@ pub async fn delete_payment_method_core(
     )?;
 
     let _customer = db
-        .find_customer_by_global_id_merchant_id(
+        .find_customer_by_global_id_merchant_id_without_encrypted(
             customer_id,
             platform.get_provider().get_account().get_id(),
-            platform.get_provider().get_key_store(),
             platform.get_provider().get_account().storage_scheme,
         )
         .await
