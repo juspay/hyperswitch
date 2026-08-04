@@ -102,7 +102,10 @@ execute_test() {
 
   Xvfb "$DISPLAY" &
   local xvfb_pid=$!
-  trap "kill $xvfb_pid 2>/dev/null || true" RETURN
+  # RETURN covers normal completion; TERM covers GNU parallel's --timeout
+  # kill (it kills the job's whole process group, but this is a cheap
+  # extra guarantee Xvfb doesn't outlive a timed-out connector).
+  trap "kill $xvfb_pid 2>/dev/null || true" RETURN TERM
   sleep 1
 
   # -----------------------------
@@ -179,6 +182,7 @@ run_tests() {
 
       parallel --jobs "$jobs" \
                --delay 10 \
+               --timeout "${CONNECTOR_TIMEOUT_SECONDS:-900}" \
                --group \
                --joblog "$job_log" \
                execute_test {} "$service" "$tmp_file" {%} \
