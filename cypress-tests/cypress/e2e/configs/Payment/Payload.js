@@ -42,6 +42,7 @@ export const connectorDetails = {
         currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
+        split_payments: payloadSplitPaymentData,
       },
       Response: {
         status: 200,
@@ -223,31 +224,6 @@ export const connectorDetails = {
       },
     },
     No3DSAutoCapture: {
-      Configs: {
-        DELAY: {
-          STATUS: true,
-          TIMEOUT: DUPLICATION_TIMEOUT,
-        },
-      },
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "USD",
-        customer_acceptance: null,
-        setup_future_usage: "on_session",
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-          payment_method: "card",
-          attempt_count: 1,
-        },
-      },
-    },
-    No3DSAutoCaptureSplitPayment: {
       Configs: {
         DELAY: {
           STATUS: true,
@@ -617,30 +593,6 @@ export const connectorDetails = {
         },
       },
     },
-    MandateSingleUseNo3DSAutoCaptureSplitPayment: {
-      Configs: {
-        DELAY: {
-          STATUS: true,
-          TIMEOUT: DUPLICATION_TIMEOUT,
-        },
-      },
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "USD",
-        mandate_data: singleUseMandateData,
-        split_payments: payloadSplitPaymentData,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-          split_payments: payloadSplitPaymentData,
-        },
-      },
-    },
     MandateSingleUseNo3DSManualCapture: {
       Configs: {
         DELAY: {
@@ -789,28 +741,6 @@ export const connectorDetails = {
         },
       },
       ...commonConnectorDetails.card_pm.MITAutoCapture,
-    }),
-    MITAutoCaptureSplitPayment: getCustomExchange({
-      Configs: {
-        DELAY: {
-          STATUS: true,
-          TIMEOUT: DUPLICATION_TIMEOUT,
-        },
-      },
-      Request: {
-        ...commonConnectorDetails.card_pm.MITAutoCapture.Request,
-        split_payments: payloadSplitPaymentData,
-      },
-      // NOTE: split_payments must NOT be asserted in Response.body here —
-      // mitForMandatesCallTest's no_three_ds/automatic branch (commands.js)
-      // compares resData.body fields with plain `.to.equal`, which fails on
-      // nested objects even when their contents match (strict reference
-      // equality), unlike createConfirmPaymentTest/citForMandatesCallTest
-      // which use `.to.deep.equal`. The spec asserts the echoed ledger
-      // directly on the response instead.
-      Response: commonConnectorDetails.card_pm.MITAutoCapture.Response,
-      ResponseCustom:
-        commonConnectorDetails.card_pm.MITAutoCapture.ResponseCustom,
     }),
     MITManualCapture: {
       Configs: {

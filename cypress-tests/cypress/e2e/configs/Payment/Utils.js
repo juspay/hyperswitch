@@ -550,7 +550,7 @@ export const CONNECTOR_LISTS = {
   // Inclusion lists (only run for these connectors)
   INCLUDE: {
     // Tracking extension to other connectors: #13520
-    SPLIT_PAYMENTS: ["payload"],
+    SPLIT_PAYMENTS: ["stripeconnect", "payload"],
     MANDATES_USING_NTID_PROXY: ["cybersource", "checkout"],
     INCREMENTAL_AUTH: [
       "archipel",
