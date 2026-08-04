@@ -32,6 +32,7 @@ use crate::{metrics, RedisConnInterface};
 #[cfg(feature = "accounts_cache")]
 const PROFILE_REDIS_CACHE_TTL: i64 = 60 * 60;
 
+/// Cache key for a profile, shared by both the profile-scoped and merchant-scoped lookups.
 #[cfg(feature = "accounts_cache")]
 fn profile_cache_key(profile_id: &common_utils::id_type::ProfileId) -> String {
     format!("business_profile_{}", profile_id.get_string_repr())
@@ -223,7 +224,7 @@ impl<T: DatabaseStore> ProfileInterface for RouterStore<T> {
                 .get_keymanager_state()
                 .attach_printable("Missing KeyManagerState")?
                 .clone();
-            let key = merchant_key_store.key.clone();
+
             let identifier = merchant_key_store.merchant_id.clone().into();
 
             cache::get_or_populate_in_memory_with_transform(
@@ -233,7 +234,7 @@ impl<T: DatabaseStore> ProfileInterface for RouterStore<T> {
                 fetch_func,
                 |diesel_profile| async move {
                     diesel_profile
-                        .convert(&state, &key, identifier)
+                        .convert(&state, &merchant_key_store.key, identifier)
                         .await
                         .change_context(StorageError::DecryptionError)
                 },
@@ -249,31 +250,52 @@ impl<T: DatabaseStore> ProfileInterface for RouterStore<T> {
         merchant_id: &common_utils::id_type::MerchantId,
         profile_id: &common_utils::id_type::ProfileId,
     ) -> CustomResult<domain::Profile, StorageError> {
+        let fetch_func = || async {
+            let conn = pg_accounts_connection_read(self).await?;
+            diesel::Profile::find_by_merchant_id_profile_id(&conn, merchant_id, profile_id)
+                .await
+                .map_err(|error| report!(StorageError::from(error)))
+        };
+
         #[cfg(not(feature = "accounts_cache"))]
         {
-            let conn = pg_accounts_connection_read(self).await?;
-            self.call_database_new(
-                merchant_key_store,
-                diesel::Profile::find_by_merchant_id_profile_id(&conn, merchant_id, profile_id),
-            )
-            .await
+            let state = self
+                .get_keymanager_state()
+                .attach_printable("Missing KeyManagerState")?;
+            fetch_func()
+                .await?
+                .convert(
+                    state,
+                    merchant_key_store.key.get_inner(),
+                    merchant_key_store.merchant_id.clone().into(),
+                )
+                .await
+                .change_context(StorageError::DecryptionError)
         }
 
         #[cfg(feature = "accounts_cache")]
         {
-            // Reuses the profile_id-keyed cache entry; the merchant ownership check that the
-            // uncached query performs via its compound WHERE clause is enforced here instead
-            let business_profile = self
-                .find_business_profile_by_profile_id(merchant_key_store, profile_id)
-                .await?;
+            let state = self
+                .get_keymanager_state()
+                .attach_printable("Missing KeyManagerState")?
+                .clone();
 
-            if business_profile.merchant_id != *merchant_id {
-                return Err(report!(StorageError::ValueNotFound(format!(
-                    "No business profile found for profile_id = {profile_id:?} and merchant_id = {merchant_id:?}"
-                ))));
-            }
+            let identifier = merchant_key_store.merchant_id.clone().into();
 
-            Ok(business_profile)
+            cache::get_or_populate_in_memory_with_transform(
+                self,
+                &profile_cache_key(profile_id),
+                Some(PROFILE_REDIS_CACHE_TTL),
+                fetch_func,
+                |diesel_profile| async move {
+                    diesel_profile
+                        .convert(&state, &merchant_key_store.key, identifier)
+                        .await
+                        .change_context(StorageError::DecryptionError)
+                },
+                &ACCOUNTS_CACHE,
+            )
+            .await
         }
     }
 
