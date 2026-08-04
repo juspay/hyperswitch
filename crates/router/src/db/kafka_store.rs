@@ -570,6 +570,22 @@ impl CustomerInterface for KafkaStore {
             .await
     }
 
+    #[cfg(feature = "v2")]
+    async fn find_customer_by_global_id_merchant_id_without_encrypted(
+        &self,
+        id: &id_type::GlobalCustomerId,
+        merchant_id: &id_type::MerchantId,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<domain::CustomerWithoutEncrypted, errors::StorageError> {
+        self.diesel_store
+            .find_customer_by_global_id_merchant_id_without_encrypted(
+                id,
+                merchant_id,
+                storage_scheme,
+            )
+            .await
+    }
+
     async fn insert_customer(
         &self,
         customer_data: domain::Customer,
