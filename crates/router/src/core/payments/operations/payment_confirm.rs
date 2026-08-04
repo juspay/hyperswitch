@@ -2418,18 +2418,6 @@ impl PaymentConfirm {
             .get_required_value("profile_id")
             .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
-        let profile = state
-            .store
-            .find_business_profile_by_profile_id(
-                platform.get_processor().get_key_store(),
-                &profile_id,
-            )
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
-                id: profile_id.get_string_repr().to_owned(),
-            })?;
-        let cvc_read_mode = crate::core::payment_methods::vault::CvcReadMode::for_profile(&profile);
-
         let pmd = req
             .payment_method_data
             .clone()
@@ -2446,12 +2434,21 @@ impl PaymentConfirm {
         // token so it is not carried any further.
         if let Some(token) = card_token_data.as_mut() {
             if let Some(card_cvc_token) = token.card_cvc_token.take() {
+                utils::when(
+                    req.retry_action == Some(api_models::enums::RetryAction::ManualRetry),
+                    || {
+                        Err(errors::ApiErrorResponse::PreconditionFailed {
+                            message: "Manual retry is not supported with card_cvc_token"
+                                .to_string(),
+                        })
+                    },
+                )?;
                 let resolved_cvc =
                     crate::core::payment_methods::vault::retrieve_cvc_from_payment_token(
                         state,
                         card_cvc_token.peek(),
                         platform.get_provider().get_key_store(),
-                        cvc_read_mode,
+                        crate::core::payment_methods::vault::CvcReadMode::ReadAndDelete,
                     )
                     .await?;
                 token.card_cvc = Some(resolved_cvc);

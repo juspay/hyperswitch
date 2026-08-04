@@ -3646,56 +3646,6 @@ pub async fn make_pm_data<'a, F: Clone, R, D>(
     use crate::core::payments::OperationSessionGetters;
 
     let request = payment_data.payment_method_data.clone();
-    let legacy_cvc_reference = payment_data
-        .payment_method_info
-        .as_ref()
-        .filter(|payment_method| {
-            payment_method.version == common_enums::ApiVersion::V1
-                && payment_method.get_payment_method_type()
-                    == Some(storage_enums::PaymentMethod::Card)
-                && payment_data
-                    .token_data
-                    .as_ref()
-                    .is_some_and(storage::PaymentTokenData::is_permanent_card)
-        })
-        .map(|payment_method| payment_method.get_id().to_owned());
-
-    if let Some(cvc_reference) = legacy_cvc_reference {
-        let cvc_read_mode = vault::CvcReadMode::for_profile(business_profile);
-
-        if let Some(card_cvc) = payment_data.card_cvc.clone() {
-            if cvc_read_mode == vault::CvcReadMode::ReadOnly {
-                vault::store_cvc_in_redis_without_extending_ttl(
-                    state,
-                    &cvc_reference,
-                    card_cvc,
-                    business_profile
-                        .get_order_fulfillment_time()
-                        .unwrap_or(common_utils::consts::DEFAULT_INTENT_FULFILLMENT_TIME),
-                    platform.get_provider().get_key_store(),
-                )
-                .await
-                .inspect_err(|error| {
-                    logger::error!(?error, "Failed to retain CVC for manual retry");
-                    metrics::CVC_RETENTION_STAGING_FAILURE.add(1, &[]);
-                })
-                .ok();
-            }
-        } else {
-            payment_data.card_cvc = vault::retrieve_cvc_from_payment_token(
-                state,
-                &cvc_reference,
-                platform.get_provider().get_key_store(),
-                cvc_read_mode,
-            )
-            .await
-            .inspect_err(|error| {
-                logger::warn!(?error, "CVC is unavailable for saved-card payment");
-            })
-            .ok();
-        }
-    }
-
     let mut card_token_data = payment_data
         .payment_method_data
         .clone()

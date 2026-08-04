@@ -1974,17 +1974,6 @@ impl PaymentMethodsController for PmCards<'_> {
             }
         }
 
-        if let Some(card_cvc) = req.card.as_ref().and_then(|card| card.card_cvc.clone()) {
-            vault::store_cvc_in_redis(
-                self.state,
-                &resp.payment_method_id,
-                card_cvc,
-                consts::DEFAULT_INTENT_FULFILLMENT_TIME,
-                self.provider.get_key_store(),
-            )
-            .await?;
-        }
-
         let api_resp = api::PaymentMethodResponse::foreign_from(resp);
 
         Ok(services::ApplicationResponse::Json(api_resp))

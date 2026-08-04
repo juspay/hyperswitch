@@ -3154,6 +3154,7 @@ async fn delete_cvc_after_success(
     let card_payment_method_id = payment_method_info
         .filter(|payment_method| {
             card_cvc_used
+                && payment_method.version == common_enums::ApiVersion::V2
                 && payment_method.get_payment_method_type() == Some(enums::PaymentMethod::Card)
         })
         .map(|payment_method| payment_method.get_id());

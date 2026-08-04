@@ -1494,7 +1494,12 @@ where
         let retain_payment_method_token_for_retry = payment_intent_status
             == enums::IntentStatus::Failed
             && business_profile.is_manual_retry_enabled == Some(true)
-            && business_profile.intent_fulfillment_time.is_some();
+            && business_profile.intent_fulfillment_time.is_some()
+            && payment_data
+                .get_payment_method_info()
+                .is_some_and(|payment_method| {
+                    payment_method.version == common_enums::ApiVersion::V2
+                });
 
         payment_data
             .get_payment_attempt()
