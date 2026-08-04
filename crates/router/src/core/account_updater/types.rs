@@ -37,7 +37,7 @@ pub enum SkipReason {
     PaymentMethodNotACard,
     PaymentMethodNotActive,
     UnsupportedNetwork,
-    RawCardUnavailable,
+    RawCardUnusable,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
