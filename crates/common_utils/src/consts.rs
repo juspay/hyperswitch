@@ -1,5 +1,8 @@
 //! Commonly used constants
 
+/// Structured log tag for external service latency events.
+pub const EXTERNAL_CALL_TAG: &str = "ExternalCall";
+
 /// Number of characters in a generated ID
 pub const ID_LENGTH: usize = 20;
 
