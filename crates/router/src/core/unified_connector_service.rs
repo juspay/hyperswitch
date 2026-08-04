@@ -1847,8 +1847,6 @@ fn get_ucs_client(
         })
 }
 
-/// For application-level connectors that have no merchant connector account, where the credentials
-/// travel in `connector_config` rather than in the auth headers.
 pub fn build_unified_connector_service_auth_metadata_without_mca(
     connector_name: String,
     auth_type: String,

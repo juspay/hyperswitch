@@ -5512,9 +5512,8 @@ pub async fn retrieve_payment_method(
         },
     )?;
 
-    // 3. Optionally run the Account Updater evaluation
     if request.force_sync {
-        Box::pin(account_updater::evaluate(
+        Box::pin(account_updater::run(
             &state,
             &platform,
             &profile,

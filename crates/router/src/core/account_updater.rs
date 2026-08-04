@@ -14,5 +14,5 @@ pub mod raw_card;
 pub mod refresh;
 
 #[cfg(feature = "v2")]
-pub use evaluation::evaluate;
+pub use evaluation::run;
 pub use types::AccountUpdaterCredentialSource;

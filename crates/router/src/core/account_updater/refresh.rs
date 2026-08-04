@@ -1,4 +1,4 @@
-use std::{str::FromStr, time::Duration};
+use std::time::Duration;
 
 use common_enums::ExecutionMode;
 use external_services::grpc_client::LineageIds;
@@ -6,7 +6,6 @@ use hyperswitch_interfaces::{
     consts as interfaces_consts, unified_connector_service::UnifiedConnectorServiceError,
 };
 use router_env::{instrument, logger, tracing};
-use unified_connector_service_cards::CardNumber;
 use unified_connector_service_client::payments as payments_grpc;
 
 use super::{
@@ -41,11 +40,11 @@ pub async fn refresh_card(
         .grpc_client
         .unified_connector_service_client
         .as_ref()
-        .ok_or(AccountUpdaterFailure::UnifiedConnectorServiceUnavailable)?;
+        .ok_or(AccountUpdaterFailure::RefreshCallFailed)?;
 
     let connector_config = build_account_updater_connector_config(config)?;
 
-    let request = build_refresh_request(sync_card)?;
+    let request = build_refresh_request(sync_card);
 
     let connector_auth_metadata = build_unified_connector_service_auth_metadata_without_mca(
         ACCOUNT_UPDATER_CONNECTOR_NAME.to_string(),
@@ -125,19 +124,12 @@ fn classify_response(
                     .unwrap_or(RefreshOutcome::Unspecified)
             }
         })
-        .ok_or(AccountUpdaterFailure::RefreshResultMissing)
+        .ok_or(AccountUpdaterFailure::RefreshReturnedError)
 }
 
-fn build_refresh_request(
-    sync_card: SyncCard,
-) -> Result<payments_grpc::PaymentMethodServiceRefreshRequest, AccountUpdaterFailure> {
-    let card_number = CardNumber::from_str(&sync_card.card_number.get_card_no()).map_err(|_| {
-        logger::warn!("Account Updater unvaulted a card number that UCS rejected as invalid");
-        AccountUpdaterFailure::CardNumberInvalid
-    })?;
-
+fn build_refresh_request(sync_card: SyncCard) -> payments_grpc::PaymentMethodServiceRefreshRequest {
     let card = payments_grpc::CardDetailsWithNoCvc {
-        card_number: Some(card_number),
+        card_number: Some(sync_card.card_number),
         card_exp_month: Some(sync_card.expiry_month),
         card_exp_year: Some(sync_card.expiry_year),
         card_network: Some(i32::from(payments_grpc::CardNetwork::foreign_from(
@@ -151,13 +143,13 @@ fn build_refresh_request(
         nick_name: None,
     };
 
-    Ok(payments_grpc::PaymentMethodServiceRefreshRequest {
+    payments_grpc::PaymentMethodServiceRefreshRequest {
         payment_method: Some(payments_grpc::PaymentMethod {
             payment_method: Some(payments_grpc::payment_method::PaymentMethod::CardWithNoCvc(
                 card,
             )),
         }),
-    })
+    }
 }
 
 impl ForeignFrom<payments_grpc::CardRefreshOutcome> for RefreshOutcome {

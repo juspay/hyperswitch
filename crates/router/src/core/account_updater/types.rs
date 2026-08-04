@@ -37,6 +37,7 @@ pub enum SkipReason {
     PaymentMethodNotACard,
     PaymentMethodNotActive,
     UnsupportedNetwork,
+    RawCardUnavailable,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -47,14 +48,9 @@ pub struct EligibleCard {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, strum::IntoStaticStr)]
 #[strum(serialize_all = "snake_case")]
 pub enum AccountUpdaterFailure {
-    RawCardUnavailable,
-    CardNumberInvalid,
-    ConnectorConfigUnavailable,
-    UnifiedConnectorServiceUnavailable,
     RefreshCallFailed,
     RefreshTimedOut,
     RefreshReturnedError,
-    RefreshResultMissing,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, strum::IntoStaticStr)]
@@ -100,7 +96,7 @@ impl From<AccountUpdaterFailure> for AccountUpdaterTerminalState {
 
 /// Intentionally has no `Debug` impl and no conversion into any response type.
 pub struct SyncCard {
-    pub card_number: cards::CardNumber,
+    pub card_number: unified_connector_service_cards::CardNumber,
     pub expiry_month: Secret<String>,
     pub expiry_year: Secret<String>,
     pub network: CardNetwork,

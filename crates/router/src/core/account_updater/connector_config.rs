@@ -46,6 +46,6 @@ pub fn build_account_updater_connector_config(
                 ?error,
                 "Failed to serialize the Account Updater connector config"
             );
-            AccountUpdaterFailure::ConnectorConfigUnavailable
+            AccountUpdaterFailure::RefreshCallFailed
         })
 }

@@ -15,7 +15,7 @@ use crate::{
 };
 
 #[instrument(skip_all)]
-pub async fn evaluate(
+pub async fn run(
     state: &SessionState,
     platform: &domain::Platform,
     profile: &domain::Profile,
@@ -23,7 +23,7 @@ pub async fn evaluate(
     storage_type: StorageType,
     dimensions: &dimension_state::DimensionsGlobal,
 ) {
-    let terminal_state = run(
+    let terminal_state = evaluate(
         state,
         platform,
         profile,
@@ -51,7 +51,7 @@ pub async fn evaluate(
     );
 }
 
-async fn run(
+async fn evaluate(
     state: &SessionState,
     platform: &domain::Platform,
     profile: &domain::Profile,
