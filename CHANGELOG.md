@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.07.29.2-hotfix1
+
+### Bug Fixes
+
+- **router:** [stripe_connect] prevent calling connector for stripe split payments when it is an ntid flow ([#13541](https://github.com/juspay/hyperswitch/pull/13541)) ([`81ba700`](https://github.com/juspay/hyperswitch/commit/81ba700e24fe52570fd0b2b5e3bac7531b89f65d))
+
+**Full Changelog:** [`2026.07.29.2...2026.07.29.2-hotfix1`](https://github.com/juspay/hyperswitch/compare/2026.07.29.2...2026.07.29.2-hotfix1)
+
+- - -
+
 ## 2026.07.29.2
 
 ### Features
