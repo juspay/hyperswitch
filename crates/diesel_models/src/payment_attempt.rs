@@ -307,11 +307,11 @@ pub struct PaymentAttempt {
     pub installment_data: Option<common_types::payments::InstallmentData>,
     /// External surcharge details from InterPayments (stored as JSONB)
     pub external_surcharge_details: Option<common_types::payments::ExternalSurchargeDetails>,
-    pub applied_offer_details: Option<common_types::payments::AppliedOfferDetails>,
     pub network_transaction_link_id: Option<String>,
     /// A connector-specific identifier representing the stored payment instrument
     pub sender_payment_instrument_id: Option<String>,
     pub external_threeds_authentication_type: Option<common_enums::DecoupledAuthenticationType>,
+    pub applied_offer_details: Option<common_types::payments::AppliedOfferDetails>,
 }
 
 #[cfg(feature = "v1")]
@@ -564,10 +564,10 @@ pub struct PaymentAttemptNew {
     pub retry_type: Option<storage_enums::RetryType>,
     pub installment_data: Option<common_types::payments::InstallmentData>,
     pub external_surcharge_details: Option<common_types::payments::ExternalSurchargeDetails>,
-    pub applied_offer_details: Option<common_types::payments::AppliedOfferDetails>,
     pub network_transaction_link_id: Option<String>,
     pub sender_payment_instrument_id: Option<String>,
     pub external_threeds_authentication_type: Option<common_enums::DecoupledAuthenticationType>,
+    pub applied_offer_details: Option<common_types::payments::AppliedOfferDetails>,
 }
 
 #[cfg(feature = "v1")]
