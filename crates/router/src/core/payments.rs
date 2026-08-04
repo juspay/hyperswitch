@@ -136,7 +136,7 @@ use crate::{
     consts,
     core::{
         configs::dimension_state::{
-            Dimensions, DimensionsWithProcessorAndProviderMerchantId,
+            Dimensions, DimensionsGlobal, DimensionsWithProcessorAndProviderMerchantId,
             DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
         },
         errors::{self, CustomResult, RouterResponse, RouterResult},
@@ -172,7 +172,7 @@ use crate::{core::revenue_recovery::get_workflow_entries, db::storage::payment_m
 #[cfg(feature = "v1")]
 use crate::{
     core::{
-        authentication as authentication_core,
+        authentication as authentication_core, offer_engine,
         unified_connector_service::update_gateway_system_in_feature_metadata,
     },
     types::{api::authentication, BrowserInformation},
@@ -14196,6 +14196,20 @@ pub async fn payments_submit_eligibility(
     let state_for_surcharge = state.clone();
     let platform_for_surcharge = platform.clone();
 
+    // Capture Offer Engine inputs (order amount, currency, customer, card BIN)
+    // before the eligibility handler takes ownership of the eligibility data.
+    let offer_order_amount = payment_eligibility_data.payment_intent.amount;
+    let offer_currency = payment_eligibility_data.payment_intent.currency;
+    let offer_customer_id = payment_eligibility_data.payment_intent.customer_id.clone();
+    let offer_card_bin = payment_eligibility_data
+        .payment_method_data
+        .as_ref()
+        .and_then(|pmd| pmd.get_card_iin());
+    let offer_payment_method_type = eligibility_req
+        .payment_method_type
+        .to_string()
+        .to_uppercase();
+
     let eligibility_handler =
         EligibilityHandler::new(state, platform, payment_eligibility_data, business_profile);
     let sdk_next_action = eligibility_handler.run_all_eligiblity_checks().await?;
@@ -14216,13 +14230,148 @@ pub async fn payments_submit_eligibility(
         }
     };
 
+    // Offer Engine eligibility: resolve `/list` and, when an offer is selected,
+    // store the quote for confirm to validate `/apply` against.
+    let (amount_details, offer_details) = resolve_offer_eligibility_details(
+        &state_for_surcharge,
+        platform_for_surcharge.get_processor(),
+        &payment_id,
+        &sdk_next_action.next_action,
+        offer_order_amount,
+        offer_currency,
+        offer_customer_id.as_ref(),
+        offer_payment_method_type,
+        offer_card_bin,
+    )
+    .await?;
+
     Ok(services::ApplicationResponse::Json(
         api_models::payments::PaymentsEligibilityResponse {
             payment_id,
             sdk_next_action,
             surcharge_details,
+            amount_details,
+            offer_details,
         },
     ))
+}
+
+/// Resolve Offer Engine eligibility into `(amount_details, offer_details)` for the
+/// eligibility response.
+///
+/// Both are `None` when eligibility is denied or Offer Engine is not available
+/// (config resolution failures are treated as "offers not available"). A `/list`
+/// failure while Offer Engine is enabled fails eligibility. When enabled but no
+/// offer is selected, the payable amount is returned unchanged with an empty
+/// offer list.
+#[cfg(all(feature = "oltp", feature = "v1"))]
+async fn resolve_offer_eligibility_details(
+    state: &SessionState,
+    processor: &domain::Processor,
+    payment_id: &id_type::PaymentId,
+    next_action: &api_models::payments::NextActionCall,
+    order_amount: MinorUnit,
+    currency: Option<common_enums::Currency>,
+    customer_id: Option<&id_type::CustomerId>,
+    payment_method_type: String,
+    card_bin: Option<String>,
+) -> RouterResult<(
+    Option<api_models::payments::EligibilityAmountDetails>,
+    Option<api_models::payments::EligibilityOfferDetails>,
+)> {
+    // Offers apply only when eligibility is not denied, an Offer Engine config
+    // resolves, and the currency is known (config-resolution failures are treated
+    // as "offers not available").
+    let offer_context = if matches!(
+        next_action,
+        api_models::payments::NextActionCall::Deny { .. }
+    ) {
+        None
+    } else {
+        let offer_dimensions: DimensionsGlobal = Dimensions::new();
+        offer_engine::resolve_offer_engine_config(state, &offer_dimensions)
+            .await
+            .ok()
+            .flatten()
+            .zip(currency)
+    };
+
+    match offer_context {
+        None => Ok((None, None)),
+        Some((offer_config, currency)) => {
+            let ctx = offer_engine::eligibility::OfferEligibilityContext {
+                payment_id: payment_id.clone(),
+                order_amount,
+                currency,
+                customer_id: customer_id.cloned(),
+                payment_method_reference: payment_id.get_string_repr().to_string(),
+                payment_method_type,
+                payment_method: None,
+                card_bin,
+                card_type: None,
+                bank_code: None,
+                card_country: None,
+            };
+
+            // A `/list` failure while Offer Engine is enabled fails eligibility.
+            let selected =
+                offer_engine::eligibility::run_offer_eligibility(state, offer_config, ctx)
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Offer Engine /list failed")?;
+
+            match selected {
+                // Enabled but no eligible offer: payable amount unchanged.
+                None => Ok((
+                    Some(api_models::payments::EligibilityAmountDetails {
+                        total_amount: order_amount,
+                        net_amount: order_amount,
+                        currency,
+                    }),
+                    Some(api_models::payments::EligibilityOfferDetails::default()),
+                )),
+                // Eligible offer: store the quote for confirm to validate `/apply`
+                // against (keyed by offer id, the first-launch quote id; TTL kept).
+                Some(selected) => {
+                    let processor_merchant_id = processor.get_account().get_id().clone();
+                    let quotes = HashMap::from([(
+                        selected.offer_id.clone(),
+                        client_session::OfferQuote {
+                            offer_id: selected.offer_id.clone(),
+                            offer_amount: selected.offer_amount,
+                            currency: selected.currency,
+                        },
+                    )]);
+                    client_session::ClientSessionManager::store_offer_quotes(
+                        state,
+                        &processor_merchant_id,
+                        payment_id,
+                        quotes,
+                    )
+                    .await?;
+
+                    Ok((
+                        Some(api_models::payments::EligibilityAmountDetails {
+                            total_amount: order_amount,
+                            net_amount: order_amount - selected.offer_amount,
+                            currency,
+                        }),
+                        Some(api_models::payments::EligibilityOfferDetails {
+                            uplifted_offer_quote_ids: vec![selected.offer_id.clone()],
+                            eligible_offers: vec![api_models::payments::EligibleOffer {
+                                offer_quote_id: selected.offer_id,
+                                offer_amount: selected.offer_amount,
+                                currency: selected.currency,
+                                code: selected.code,
+                                title: selected.title,
+                                description: selected.description,
+                            }],
+                        }),
+                    ))
+                }
+            }
+        }
+    }
 }
 
 pub trait PaymentMethodChecker<F> {
