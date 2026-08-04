@@ -721,22 +721,29 @@ pub struct WalletBlockingConfig {
 }
 
 impl WalletBlockingConfig {
-    pub fn is_credit_blocked(&self) -> bool {
-        self.card_types
+    /// Per-wallet config only.
+    pub fn is_credit_blocked_for_apple_pay(&self) -> bool {
+        self.apple_pay
             .as_ref()
-            .is_some_and(|types| types.contains(&common_enums::CardType::Credit))
+            .is_some_and(CardBlockingConfig::is_credit_blocked)
     }
 
-    pub fn is_debit_blocked(&self) -> bool {
-        self.card_types
+    pub fn is_credit_blocked_for_google_pay(&self) -> bool {
+        self.google_pay
             .as_ref()
-            .is_some_and(|types| types.contains(&common_enums::CardType::Debit))
+            .is_some_and(CardBlockingConfig::is_credit_blocked)
     }
 }
 
 impl CardBlockingConfig {
     pub fn should_block_if_bin_info_unavailable(&self) -> bool {
         self.block_if_bin_info_unavailable.unwrap_or(false)
+    }
+
+    pub fn is_credit_blocked(&self) -> bool {
+        self.card_types
+            .as_ref()
+            .is_some_and(|card_types| card_types.contains(&common_enums::CardType::Credit))
     }
 
     pub fn should_block_by_attribute<T>(blocked: &Option<HashSet<T>>, value: Option<&str>) -> bool
