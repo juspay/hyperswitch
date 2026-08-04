@@ -3082,17 +3082,19 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
         .await;
     }
 
-    delete_cvc_after_success(
-        state,
-        payment_data.payment_attempt.status,
-        payment_data.payment_method_info.as_ref(),
-        payment_data.card_cvc.is_some()
-            || payment_data
-                .payment_method_data
-                .as_ref()
-                .is_some_and(has_card_cvc),
-    )
-    .await;
+    if payment_data.payment_attempt.payment_method == Some(enums::PaymentMethod::Card) {
+        delete_cvc_after_success(
+            state,
+            payment_data.payment_attempt.status,
+            payment_data.payment_method_info.as_ref(),
+            payment_data.card_cvc.is_some()
+                || payment_data
+                    .payment_method_data
+                    .as_ref()
+                    .is_some_and(has_card_cvc),
+        )
+        .await;
+    }
 
     match router_data.integrity_check {
         Ok(()) => Ok(payment_data),
@@ -3153,9 +3155,7 @@ async fn delete_cvc_after_success(
 ) {
     let card_payment_method_id = payment_method_info
         .filter(|payment_method| {
-            card_cvc_used
-                && payment_method.version == common_enums::ApiVersion::V2
-                && payment_method.get_payment_method_type() == Some(enums::PaymentMethod::Card)
+            card_cvc_used && payment_method.version == common_enums::ApiVersion::V2
         })
         .map(|payment_method| payment_method.get_id());
 

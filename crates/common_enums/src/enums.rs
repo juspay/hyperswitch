@@ -2077,6 +2077,10 @@ pub enum IntentStatus {
 }
 
 impl IntentStatus {
+    pub fn is_eligible_for_manual_retry(self) -> bool {
+        matches!(self, Self::Failed)
+    }
+
     /// Indicates whether the payment intent is in terminal state or not
     pub fn is_in_terminal_state(self) -> bool {
         match self {

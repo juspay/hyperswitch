@@ -6625,7 +6625,7 @@ pub async fn payment_methods_session_retrieve(
 
 /// Stores `card_cvc` as an encrypted CVC under `pm_token_{token}_hyperswitch_cvc` — the same
 /// `_hyperswitch_cvc` mechanism used by the first-time flow — so CVC retrieval (router-side
-/// `retrieve_and_delete_cvc_from_payment_token`) resolves it consistently. The card holder name is
+/// `retrieve_cvc_from_payment_token`) resolves it consistently. The card holder name is
 /// not vaulted with the CVC token; it is carried by the saved payment method itself.
 #[cfg(feature = "v2")]
 async fn store_cvc_and_card_holder_name_as_payment_token_in_redis(

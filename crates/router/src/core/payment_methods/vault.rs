@@ -44,7 +44,7 @@ use crate::{
     utils::{ConnectorResponseExt, StringExt},
 };
 // `pm_cards` and `OptionExt` are imported for v2 via the larger v2-only `use` block below; the v1
-// build needs them for `retrieve_and_delete_cvc_from_payment_token` (self-hosted vault CVC retrieval).
+// build needs them for self-hosted vault CVC retrieval.
 #[cfg(feature = "v1")]
 use crate::{core::payment_methods::cards as pm_cards, utils::ext_traits::OptionExt};
 #[cfg(feature = "v2")]
@@ -2361,14 +2361,15 @@ pub struct TemporaryVaultCvc {
     card_cvc: hyperswitch_masking::Secret<String>,
 }
 
+/// Controls whether reading a CVC also removes it from Redis.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum CvcReadMode {
     ReadAndDelete,
     ReadOnly,
 }
 
-#[cfg(any(feature = "v1", feature = "v2"))]
 #[instrument(skip_all)]
+/// Stores an encrypted CVC under a payment method ID or short-lived CVC token.
 pub async fn store_cvc_in_redis(
     state: &routes::SessionState,
     token: &str,
@@ -2414,6 +2415,7 @@ pub async fn store_cvc_in_redis(
 
 #[cfg(feature = "v2")]
 #[instrument(skip_all)]
+/// Stores a client-supplied CVC under its generated short-lived token and returns its expiry.
 pub async fn insert_cvc_using_payment_token(
     state: &routes::SessionState,
     token: &str,
@@ -2431,7 +2433,6 @@ pub async fn insert_cvc_using_payment_token(
     Ok(card_token_cvc_storage)
 }
 
-#[cfg(any(feature = "v1", feature = "v2"))]
 #[instrument(skip_all)]
 pub async fn retrieve_cvc_from_payment_token(
     state: &routes::SessionState,
@@ -2481,23 +2482,6 @@ pub async fn retrieve_cvc_from_payment_token(
     Ok(cvc_data.card_cvc)
 }
 
-#[cfg(any(feature = "v1", feature = "v2"))]
-#[instrument(skip_all)]
-pub async fn retrieve_and_delete_cvc_from_payment_token(
-    state: &routes::SessionState,
-    payment_method_id: &String,
-    key_store: &domain::MerchantKeyStore,
-) -> RouterResult<hyperswitch_masking::Secret<String>> {
-    retrieve_cvc_from_payment_token(
-        state,
-        payment_method_id,
-        key_store,
-        CvcReadMode::ReadAndDelete,
-    )
-    .await
-}
-
-#[cfg(any(feature = "v1", feature = "v2"))]
 #[instrument(skip_all)]
 pub async fn delete_cvc_from_payment_token(
     state: &routes::SessionState,

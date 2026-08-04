@@ -1492,7 +1492,7 @@ where
 
         let payment_intent_status = payment_data.get_payment_intent().status;
         let retain_payment_method_token_for_retry = payment_intent_status
-            == enums::IntentStatus::Failed
+            .is_eligible_for_manual_retry()
             && business_profile.is_manual_retry_enabled == Some(true)
             && business_profile.intent_fulfillment_time.is_some()
             && payment_data
