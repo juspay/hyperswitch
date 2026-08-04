@@ -123,6 +123,7 @@ pub mod stax;
 pub mod stripe;
 pub mod stripebilling;
 pub mod taxjar;
+pub mod tdaypay;
 pub mod tesouro;
 pub mod threedsecureio;
 pub mod thunes;
@@ -181,10 +182,10 @@ pub use self::{
     powertranz::Powertranz, prophetpay::Prophetpay, rapyd::Rapyd, razorpay::Razorpay,
     recurly::Recurly, redsys::Redsys, revolv3::Revolv3, riskified::Riskified, santander::Santander,
     shift4::Shift4, sift::Sift, signifyd::Signifyd, silverflow::Silverflow, square::Square,
-    stax::Stax, stripe::Stripe, stripebilling::Stripebilling, taxjar::Taxjar, tesouro::Tesouro,
-    threedsecureio::Threedsecureio, thunes::Thunes, tokenex::Tokenex, tokenio::Tokenio,
-    truelayer::Truelayer, trustly::Trustly, trustpay::Trustpay, trustpayments::Trustpayments,
-    tsys::Tsys, tsys_transit::TsysTransit,
+    stax::Stax, stripe::Stripe, stripebilling::Stripebilling, taxjar::Taxjar, tdaypay::Tdaypay,
+    tesouro::Tesouro, threedsecureio::Threedsecureio, thunes::Thunes, tokenex::Tokenex,
+    tokenio::Tokenio, truelayer::Truelayer, trustly::Trustly, trustpay::Trustpay,
+    trustpayments::Trustpayments, tsys::Tsys, tsys_transit::TsysTransit,
     unified_authentication_service::UnifiedAuthenticationService, vgs::Vgs, volt::Volt,
     wellsfargo::Wellsfargo, wellsfargopayout::Wellsfargopayout, wise::Wise, worldline::Worldline,
     worldpay::Worldpay, worldpaymodular::Worldpaymodular, worldpayvantiv::Worldpayvantiv,

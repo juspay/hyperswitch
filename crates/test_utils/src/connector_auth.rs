@@ -133,6 +133,7 @@ pub struct ConnectorAuthentication {
     pub stripe: Option<HeaderKey>,
     pub stripebilling: Option<HeaderKey>,
     pub taxjar: Option<HeaderKey>,
+    pub tdaypay: Option<BodyKey>,
     pub tesouro: Option<HeaderKey>,
     pub threedsecureio: Option<HeaderKey>,
     pub thunes: Option<HeaderKey>,
