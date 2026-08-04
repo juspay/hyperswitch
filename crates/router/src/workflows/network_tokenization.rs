@@ -1,7 +1,9 @@
 use common_utils::ext_traits::ValueExt;
 use error_stack::Report;
 use scheduler::{
-    consumer::types::process_data, utils as pt_utils, workflows::ProcessTrackerWorkflow,
+    consumer::{self, types::process_data},
+    utils as pt_utils,
+    workflows::ProcessTrackerWorkflow,
 };
 
 #[cfg(feature = "v2")]
@@ -52,12 +54,11 @@ impl ProcessTrackerWorkflow<SessionState> for NetworkTokenizationWorkflow {
 
     async fn error_handler<'a>(
         &'a self,
-        _state: &'a SessionState,
+        state: &'a SessionState,
         process: storage::ProcessTracker,
-        _error: errors::ProcessTrackerError,
+        error: errors::ProcessTrackerError,
     ) -> errors::CustomResult<(), errors::ProcessTrackerError> {
-        logger::error!(%process.id, "Failed while executing NetworkTokenizationWorkflow");
-        Ok(())
+        consumer::consumer_error_handler(state.store.as_scheduler(), process, error).await
     }
 }
 
