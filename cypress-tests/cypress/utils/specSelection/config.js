@@ -170,7 +170,7 @@ const PAYMENT_SPEC_METHODS = Object.freeze({
   "54-RefundType.cy.js": ["card"],
   "55-DynamicFields.cy.js": ["card"],
   "56-VaultTokenizationDisable.cy.js": ["card"],
-  "57-TsysTransitMandates.cy.js": ["card"],
+  "54-TsysTransitMandates.cy.js": ["card"],
 });
 
 /**

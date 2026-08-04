@@ -557,6 +557,10 @@ export const CONNECTOR_LISTS = {
   // Inclusion lists (only run for these connectors)
   INCLUDE: {
     MANDATES_USING_NTID_PROXY: ["cybersource", "checkout"],
+    // Card and mandate flows of 54-TsysTransitMandates. The mandates need a
+    // profile with connector agnostic MIT enabled, which keeps them out of the
+    // shared mandate specs, so the whole spec is scoped to this connector
+    CONNECTOR_AGNOSTIC_MANDATES: ["tsys_transit"],
     INCREMENTAL_AUTH: [
       "archipel",
       // "cybersource",    // issues with MULTIPLE_CONNECTORS handling
@@ -789,6 +793,14 @@ export const shouldIncludeConnector = (connectorId, list) => {
   if (!Array.isArray(list)) return true;
   return !list.includes(connectorId);
 };
+
+// `connector_mandate_id` is only asserted for connectors that actually return
+// one; see CONNECTOR_LISTS.EXCLUDE.CONNECTOR_MANDATE_ID
+export const shouldValidateConnectorMandateId = (connectorId) =>
+  !shouldExcludeConnector(
+    connectorId,
+    CONNECTOR_LISTS.EXCLUDE.CONNECTOR_MANDATE_ID
+  );
 
 export function setNormalizedValue(
   webhookBody,
