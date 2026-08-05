@@ -4,6 +4,30 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.08.05.1
+
+### Features
+
+- **routing:**
+  - Authenticate Decision Engine calls with x-admin-secret ([#13539](https://github.com/juspay/hyperswitch/pull/13539)) ([`6de35e4`](https://github.com/juspay/hyperswitch/commit/6de35e4e00eb5da931c1bff611fe9a76da988b68))
+  - Update decision engine openapi specs ([#13536](https://github.com/juspay/hyperswitch/pull/13536)) ([`6bbd84a`](https://github.com/juspay/hyperswitch/commit/6bbd84a88ccfe76156f753b13d27381b07b27ecc))
+
+### Bug Fixes
+
+- **ci:** Skip unnecessary waits in Cypress mock server replay mode ([#13323](https://github.com/juspay/hyperswitch/pull/13323)) ([`f156cd0`](https://github.com/juspay/hyperswitch/commit/f156cd054a77a5073221324bf397594e300e1a85))
+
+### Performance
+
+- **routing:** Reduce redundant MCA DB fetches ([#13374](https://github.com/juspay/hyperswitch/pull/13374)) ([`3ef8e1e`](https://github.com/juspay/hyperswitch/commit/3ef8e1e540a945744076aac19147f7fd3c8f1827))
+
+### Refactors
+
+- **payment_methods:** Add network tokenization pt job in modular payment method apis ([#13489](https://github.com/juspay/hyperswitch/pull/13489)) ([`1731313`](https://github.com/juspay/hyperswitch/commit/1731313cc218e0b71dba51c754511dbadf947311))
+
+**Full Changelog:** [`2026.08.05.0...2026.08.05.1`](https://github.com/juspay/hyperswitch/compare/2026.08.05.0...2026.08.05.1)
+
+- - -
+
 ## 2026.08.05.0
 
 ### Features
