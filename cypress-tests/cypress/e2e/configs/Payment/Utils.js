@@ -825,12 +825,21 @@ function coerceValue(value, type) {
       if (!Number.isFinite(num)) {
         throw new Error(`Cannot coerce "${value}" to number`);
       }
+      if (!Number.isSafeInteger(num)) {
+        return BigInt(value);
+      }
       return num;
     }
 
     default:
       return value;
   }
+}
+
+export function stringifyWithBigInt(obj) {
+  return JSON.stringify(obj, (_, value) =>
+    typeof value === "bigint" ? `__bigint__${value}` : value
+  ).replace(/"__bigint__(\d+)"/g, "$1");
 }
 
 export function stampPaymentMethodType(scenarios, paymentMethodType) {
