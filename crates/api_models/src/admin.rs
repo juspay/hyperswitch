@@ -355,8 +355,11 @@ pub struct CardBlockingConfig {
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
 pub struct WalletBlockingConfig {
     /// Set of card types to block for all wallet payments (e.g., ["Credit", "Debit"]).
-    /// Retained for backwards compatibility with existing configurations.
-    #[schema(value_type = Option<Vec<CardType>>)]
+    ///
+    /// Deprecated: this applies one rule to every wallet, so a card type cannot be blocked on
+    /// Apple Pay without also blocking it on Google Pay. Use `apple_pay.card_types` and
+    /// `google_pay.card_types` instead, which are evaluated per wallet against that wallet's decrypted card.
+    #[schema(value_type = Option<Vec<CardType>>, deprecated)]
     pub card_types: Option<HashSet<common_enums::CardType>>,
     /// Apple Pay-specific blocking configuration
     pub apple_pay: Option<CardBlockingConfig>,

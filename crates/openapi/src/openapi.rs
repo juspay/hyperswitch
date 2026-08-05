@@ -305,6 +305,8 @@ Never share your secret api keys. Keep them guarded and secure.
         common_types::payments::ApplePayPredecryptData,
         common_types::payments::ApplePayCryptogramData,
         common_types::payments::StripeSplitPaymentRequest,
+        common_types::payments::PayloadSplitPaymentRequest,
+        common_types::payments::PayloadLedgerItem,
         common_types::domain::AdyenSplitData,
         common_types::domain::AdyenSplitItem,
         common_types::payments::AcceptanceType,
@@ -718,6 +720,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::ApplepaySessionTokenResponse,
         api_models::payments::SdkNextAction,
         api_models::payments::NextActionCall,
+        api_models::enums::BlockReasonCode,
         api_models::payments::SdkNextActionData,
         api_models::payments::SamsungPayWalletData,
         api_models::payments::WeChatPay,
@@ -859,6 +862,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::NetworkTokenResponse,
         api_models::payments::Address,
         api_models::payments::BankCodeResponse,
+        common_types::payouts::PayoutsBillingDescriptor,
         api_models::payouts::CardPayout,
         api_models::payouts::Wallet,
         api_models::payouts::Paypal,
@@ -1177,6 +1181,7 @@ Never share your secret api keys. Keep them guarded and secure.
         common_types::payments::PaymentMethodsConfig,
         common_types::payments::TokenSource,
         common_types::payments::NetworkTransactionIdAndDecryptedWalletTokenDetails,
+        common_utils::types::Percentage<{ common_utils::consts::DISCOUNT_PERCENTAGE_PRECISION_LENGTH }>,
     )),
     modifiers(&SecurityAddon)
 )]
