@@ -2158,7 +2158,8 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                     let implicit_customer_creation_dimensions = dimensions
                         .without_profile_id()
                         .with_organization_id(provider.get_account().organization_id.clone())
-                        .without_processor_merchant_id();
+                        .without_processor_merchant_id()
+                        .without_provider_merchant_id();
                     let should_block_implicit_customer_creation =
                         implicit_customer_creation_dimensions
                             .get_block_implicit_customer_creation(

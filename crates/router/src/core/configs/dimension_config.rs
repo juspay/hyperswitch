@@ -185,7 +185,7 @@ config! {
     superposition_key = BLOCK_IMPLICIT_CUSTOMER_CREATION,
     output = bool,
     default = false,
-    requires = dimension_state::DimensionsWithProviderMerchantIdAndOrgId,
+    requires = dimension_state::DimensionsWithOrgId,
     targeting_key = id_type::CustomerId
 }
 
@@ -194,8 +194,8 @@ impl DatabaseBackedConfig for BlockImplicitCustomerCreation {
 
     fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
         dimensions
-            .get_provider_merchant_id()
-            .map(|id| format!("{}_{}", id.get_string_repr(), Self::KEY))
+            .get_organization_id()
+            .map(|id| format!("{}_{}", Self::KEY, id.get_string_repr()))
     }
 }
 
