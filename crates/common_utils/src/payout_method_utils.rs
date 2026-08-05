@@ -224,6 +224,10 @@ pub struct PixBankTransferAdditionalData {
     #[schema(value_type = Option<String>, example = "60701190")]
     pub ispb: Option<String>,
 
+    /// Account holder name
+    #[schema(value_type = Option<String>, example = "John Doe")]
+    pub account_holder_name: Option<Secret<String>>,
+
     /// 3-digit COMPE/FEBRABAN bank code used to identify the financial institution for routing PIX payouts.
     #[schema(value_type = Option<String>, example = "033")]
     pub bank_code: Option<String>,

@@ -1358,7 +1358,7 @@ impl From<Bank> for payout_method_utils::BankAdditionalData {
                 ispb,
                 bank_code,
                 bank_account_type,
-                account_holder_name: _,
+                account_holder_name,
             }) => Self::Pix(Box::new(
                 payout_method_utils::PixBankTransferAdditionalData {
                     bank_name,
@@ -1368,6 +1368,7 @@ impl From<Bank> for payout_method_utils::BankAdditionalData {
                     tax_id: tax_id.map(From::from),
                     emv: emv.map(From::from),
                     ispb,
+                    account_holder_name,
                     bank_code,
                     bank_account_type,
                 },
@@ -1458,7 +1459,7 @@ impl From<BankTransfer> for payout_method_utils::BankAdditionalData {
                 ispb,
                 bank_code,
                 bank_account_type,
-                account_holder_name: _,
+                account_holder_name,
             }) => Self::Pix(Box::new(
                 payout_method_utils::PixBankTransferAdditionalData {
                     bank_name,
@@ -1468,6 +1469,7 @@ impl From<BankTransfer> for payout_method_utils::BankAdditionalData {
                     emv: None,
                     tax_id: tax_id.map(From::from),
                     ispb,
+                    account_holder_name,
                     bank_code,
                     bank_account_type,
                 },
@@ -1481,6 +1483,7 @@ impl From<BankTransfer> for payout_method_utils::BankAdditionalData {
                     emv: None,
                     tax_id: None,
                     ispb: None,
+                    account_holder_name: None,
                     bank_code: None,
                     bank_account_type: None,
                 },
@@ -1494,6 +1497,7 @@ impl From<BankTransfer> for payout_method_utils::BankAdditionalData {
                     emv: Some(emv.into()),
                     tax_id: None,
                     ispb: None,
+                    account_holder_name: None,
                     bank_code: None,
                     bank_account_type: None,
                 },
