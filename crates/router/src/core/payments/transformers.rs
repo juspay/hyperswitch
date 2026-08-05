@@ -429,6 +429,14 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
             .and_then(|noon| noon.order_category.clone())
     });
 
+    // Check if this is a MIT payment (MIT with mandate_id or MandatePayment)
+    let is_mit_payment = payment_data.payment_method_data.as_ref().map(|data| {
+        matches!(
+            data,
+            hyperswitch_domain_models::payment_method_data::PaymentMethodData::MandatePayment
+        )
+    });
+
     // TODO: few fields are repeated in both routerdata and request
     let request = types::PaymentsAuthorizeData {
         payment_method_data: payment_data
@@ -436,7 +444,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
             .get_required_value("payment_method_data")?,
         setup_future_usage: Some(payment_data.payment_intent.setup_future_usage),
         mandate_id: payment_data.mandate_data.clone(),
-        off_session: None,
+        off_session: is_mit_payment,
         setup_mandate_details: None,
         confirm: true,
         capture_method: Some(payment_data.payment_intent.capture_method),
@@ -556,7 +564,17 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         payment_method_status: None,
         payment_method_token: None,
         connector_customer: connector_customer_id,
-        recurring_mandate_payment_data: None,
+        // Connectors read this on the `MandatePayment` branch to decide which stored credential
+        // to charge - PayPal, for instance, picks between a card vault and a PayPal vault based
+        // on the sub type - so it is only populated for MIT payments.
+        recurring_mandate_payment_data: is_mit_payment.unwrap_or(false).then(|| {
+            hyperswitch_domain_models::router_data::RecurringMandatePaymentData {
+                payment_method_type: payment_data.payment_attempt.payment_method_subtype,
+                original_payment_authorized_amount: None,
+                original_payment_authorized_currency: None,
+                mandate_metadata: None,
+            }
+        }),
         // TODO: This has to be generated as the reference id based on the connector configuration
         // Some connectros might not accept accept the global id. This has to be done when generating the reference id
         connector_request_reference_id,
