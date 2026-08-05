@@ -1,0 +1,27 @@
+deployment_config: ../deploy/config.yaml
+
+scenario:
+  merchant_path: non_modular
+  name: one_time
+
+load:
+  starting_rps: 1
+  target_rps: 1
+  step_rps: 1
+  hold_seconds: 1
+  idle_seconds: 0
+
+fixtures:
+  count: 1
+  concurrency: 1
+  fresh_merchant: true
+  amount: 1000
+  currency: USD
+  session_expiry: 900
+
+payments_api:
+  admin_api_key: test_admin
+  connector_name: stripe_test
+  request_timeout_ms: 30000
+
+state_file: state/smoke.json

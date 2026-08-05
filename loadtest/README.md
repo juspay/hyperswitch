@@ -1,79 +1,82 @@
-## Performance Benchmarking Setup
+# Payments load-test automation
 
-The setup uses docker compose to get the required components up and running. It also handles running database migration
-and starts [K6 load testing](https://k6.io/docs/) script at the end. The metrics are visible in the console as well as
-through Grafana dashboard.
+This directory owns the local payments load-test lifecycle: repositories, images, generated application configuration, state services, migrations, application containers, observability, fixtures, and direct API load generation.
 
-We have added a callback at the end of the script to compare result with existing baseline values. The env variable
-`LOADTEST_RUN_NAME` can be used to change the name of the run which will be used to create json, result summary and diff
-benchmark files. The default value is "baseline", and diff will be created by comparing new results against baseline.
-See 'How to run' section.
+## Configuration
 
-###  Structure/Files
+Copy the examples once:
 
-`config`:   contains router toml file to change settings. Also setting files for other components like Tempo etc.
-
-`grafana`:  data source and dashboard files
-
-`k6`:       K6 load testing tool scripts. The `setup.js` contain common functions like creating merchant api key etc.
-            Each js files will contain load testing scenario of each APIs. Currently, we have `health.js` and `payment-confirm.js`.
-
-`.env`:     It provide default value to docker compose file. Developer can specify which js script they want to run using env
-            variable called `LOADTEST_K6_SCRIPT`. The default script is `health.js`. See 'How to run' section.
-
-### How to run
-
-Build image of checked out branch.
 ```bash
-docker compose build
+cp loadtest/deploy/config.example.yaml loadtest/deploy/config.yaml
+cp loadtest/runner/config.example.yaml loadtest/runner/config.yaml
 ```
 
-Run default (`health.js`) script. It will generate baseline result.
+`deploy/config.yaml` is the single source of truth for repository locations, images, service endpoints, ports, CPU pinning, migrations, and inter-service configuration. `runner/config.yaml` contains only scenario and traffic settings and references the deployment config.
+
+Repositories support local `path` sources and Git sources. Preparation creates per-application TOML overrides and required key material before containers start. Payments and PM modular share the payments schema; their configured migration recipes remain distinct.
+
+## Local workflow
+
+Run all commands from `loadtest/`:
+
 ```bash
-bash loadtest.sh
+just deploy-preflight
+just deploy-ready
+just runner-preflight
+just runner-fixtures
+just runner-start
 ```
 
-The `loadtest.sh` script takes following flags,
+Useful operations:
 
-`-c`: _compare_ with baseline results [without argument]
-      auto assign run name based on current commit number
-
-`-r`: takes _run name_ as argument (default: baseline)
-
-`-s`: _script name_ exists in `k6` directory without the file extension as argument (default: health)
-
-`-a`: run loadtest for _all scripts_ existing in `k6` directory [without argument]
-
-For example, to run the baseline for `payment-confirm.js` script.
 ```bash
-bash loadtest.sh -s payment-confirm
+just runner-status
+just runner-discard
+just deploy-status
+just deploy-logs payments
+just deploy-down
 ```
 
-The run name could be anything. It will be used to prefix benchmarking files, stored at `./k6/benchmark`. For example,
+`deploy-ready` performs repository acquisition, builds missing images, prepares overrides and keys, starts PostgreSQL and Redis, runs migrations, starts applications, and starts observability.
+
+## Scenarios
+
+The runner has two merchant paths:
+
+- `non_modular`: payment create followed by payment confirm.
+- `modular`: PM session create, payment create, PM session confirm, then payment confirm using the returned token.
+
+Both paths support:
+
+- `one_time`: guest payment with no saved card.
+- `cit_on_session`: customer-initiated save-card flow with `on_session` future usage.
+- `cit_off_session`: customer-initiated save-card flow with `off_session` future usage.
+
+Scenarios are code-owned in `runner/lib/scenarios.js`; YAML selects a path and scenario but does not redefine API behavior. Fixtures are bound to their run and merchant and cannot be reused across scenarios.
+
+To add a flow, add one scenario definition and its API behavior, then add focused tests. Deployment, scheduling, fixture ownership, and observability should not need flow-specific branches.
+
+## Validation
+
+Run the unit suite and all six API smoke paths with public recipes:
+
 ```bash
-bash loadtest.sh -r made_calls_asyns -s payment-confirm
+just runner-test
+just e2e-smoke
 ```
 
-A preferred way to compare new changes with the baseline is using the `-c` flag. It automatically assigns commit numbers to
-easily match different results.
+Run one smoke path:
+
 ```bash
-bash loadtest.sh -c -s payment-confirm
+just smoke modular cit_off_session
 ```
 
-Assuming there is baseline files for all the script, following command will compare them with new changes,
-```bash
-bash loadtest.sh -ca
-```
-It uses `-c` compare flag and `-a` run loadtest using all the scripts.
+The smoke command uses the same merchant setup, fixture creation, and confirmation engine as a load run.
 
-Developer can observe live metrics using [K6 Load Testing Dashboard](http://localhost:3002/d/k6/k6-load-testing-results?orgId=1&refresh=5s&from=now-1m&to=now) in Grafana.
-The [Tempo datasource](http://localhost:3002/explore?orgId=1&left=%7B%22datasource%22:%22P214B5B846CF3925F%22,%22queries%22:%5B%7B%22refId%22:%22A%22,%22queryType%22:%22nativeSearch%22%7D%5D,%22range%22:%7B%22from%22:%22now-1m%22,%22to%22:%22now%22%7D%7D)
-is available to inspect tracing of individual requests.
+## Observability
 
-### Notes
+Grafana is available at `http://127.0.0.1:3002`. The provisioned **Payments Load Test** dashboard intentionally contains only request rate, 5-second rolling server latency percentiles, and service CPU usage. Loki discovers managed application containers through stable Podman labels rather than container-name patterns.
 
-1. The script will first "down" the already running docker compose to run loadtest on freshly created database.
-2. Make sure that the Rust compiler is happy with your changes before you start running a performance test. This will save a lot of your time.
-3. If the project image is available locally then `docker compose up` won't take your new changes into account.
-   Either first do `docker compose build` or `docker compose up --build k6`.
-4. For baseline, make sure you in the right branch and have build the image before running the loadtest script.
+## Legacy tests
+
+Existing k6 tests elsewhere under `loadtest/` remain available for their original use cases. They are not part of this automation runner and are not wrapped by its Just recipes.

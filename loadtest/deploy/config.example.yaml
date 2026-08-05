@@ -1,0 +1,257 @@
+# Copy this file to loadtest/deploy/config.yaml and adjust it for your machine.
+# DB and Redis are shared across app containers. Individual service TOMLs should
+# control schema/database details.
+
+logs:
+  root: logs
+
+repositories:
+  hyperswitch:
+    enabled: true
+    path: ../..
+    git: null
+    required: true
+
+  vault:
+    enabled: true
+    path: ../../../hyperswitch-card-vault
+    git: git@github.com:juspay/hyperswitch-card-vault.git
+    required: false
+
+  encryption:
+    enabled: true
+    path: ../../../hyperswitch-encryption-service
+    git: git@github.com:juspay/hyperswitch-encryption-service.git
+    required: false
+
+  superposition:
+    enabled: true
+    path: ../../../superposition
+    git: https://github.com/juspay/superposition.git
+    required: false
+
+  kronos:
+    enabled: true
+    path: ../../../kronos
+    git: https://github.com/juspay/kronos.git
+    ref: v0.1.0
+    required: true
+
+prepare:
+  output_dir: generated
+  generate_keys: true
+  rsa_bits: 2048
+  overrides:
+    vault: overrides/vault.toml
+    encryption: overrides/encryption.toml
+    router_jwekey: overrides/router-jwekey.toml
+  configs:
+    payments:
+      enabled: false
+      source: ../../config/development.toml
+      output: configs/payments.toml
+    modular:
+      enabled: false
+      source: ../../config/modular-development.toml
+      output: configs/modular.toml
+    vault:
+      enabled: false
+      source: ../../../hyperswitch-card-vault/config/development.toml
+      output: configs/vault.toml
+    encryption:
+      enabled: false
+      source: ../../../hyperswitch-encryption-service/config/development.toml
+      output: configs/encryption.toml
+
+state_services:
+  postgres:
+    enabled: true
+    container: hs-loadtest-postgres
+    image: postgres:16
+    cpuset: "7"
+    network: bridge
+    ports: [55432:55432]
+    health_url: null
+    env:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: hyperswitch
+    schemas:
+      payments: public
+      modular: public
+      vault: vault
+      encryption: encryption
+      superposition: superposition
+    volumes: [hs-loadtest-postgres-automation-v1:/var/lib/postgresql]
+    log_dir: postgres
+    log_mount: null
+    command: null
+
+  redis:
+    enabled: true
+    container: hs-loadtest-redis
+    image: redis:7
+    cpuset: "15"
+    network: bridge
+    ports: [8082:8080]
+    health_url: null
+    env:
+    volumes: [hs-loadtest-redis-automation-v1:/data]
+    log_dir: redis
+    log_mount: null
+    command: redis-server --appendonly yes
+
+application_services:
+  superposition:
+    enabled: true
+    container: hs-superposition
+    image: ghcr.io/juspay/superposition-demo:latest
+    build_enabled: false
+    build_repo: superposition
+    build_command: null
+    dockerfile: null
+    build_context: ../..
+    cpuset: "8"
+    network: host
+    base_url: http://127.0.0.1:8082
+    org_id: localorg
+    workspace_id: dev
+    secret: ""
+    propagation_wait_seconds: 6
+    health_url: http://127.0.0.1:8082/health
+    env_file: null
+    env:
+      API_HOSTNAME: http://127.0.0.1:8080
+    volumes: [{{DEPLOY_CONFIG_DIR}}/superposition/migrate-kronos.sh:/loadtest/migrate-kronos.sh:ro, {{REPO_KRONOS}}/crates/common/migrations/workspace_v1.sql:/loadtest/kronos-workspace.sql:ro]
+    log_dir: superposition
+    log_mount: null
+    command: null
+
+  payments:
+    enabled: true
+    container: hs-payments-8080
+    image: localhost/hs-payments:release-local
+    build_enabled: false
+    build_repo: hyperswitch
+    build_command: null
+    dockerfile: ../Dockerfile
+    build_context: ../..
+    cpuset: "3"
+    network: host
+    health_url: http://127.0.0.1:8080/health
+    env_file: null
+    env:
+    volumes: null
+    log_dir: payments
+    log_mount: /app/logs
+    command: null
+
+  modular:
+    enabled: true
+    container: hs-modular-8081
+    image: localhost/hs-modular:release-local
+    build_enabled: false
+    build_repo: hyperswitch
+    build_command: null
+    dockerfile: null
+    build_context: ../..
+    cpuset: "4"
+    network: host
+    health_url: http://127.0.0.1:8081/v2/health
+    env_file: null
+    env:
+    volumes: null
+    log_dir: modular
+    log_mount: /app/logs
+    command: null
+
+  vault:
+    enabled: true
+    container: hs-card-vault
+    image: localhost/hs-card-vault:release-local
+    build_enabled: false
+    build_repo: vault
+    build_command: null
+    dockerfile: null
+    build_context: ../..
+    cpuset: "5"
+    network: host
+    health_url: http://127.0.0.1:3011/health
+    env_file: null
+    env:
+    volumes: null
+    log_dir: vault
+    log_mount: null
+    command: null
+
+  encryption:
+    enabled: true
+    container: cripta
+    image: localhost/cripta:release-local
+    build_enabled: false
+    build_repo: encryption
+    build_command: null
+    dockerfile: null
+    build_context: ../..
+    cpuset: "6"
+    network: host
+    health_url: http://127.0.0.1:6128/health
+    env_file: null
+    env:
+    volumes: null
+    log_dir: encryption
+    log_mount: null
+    command: null
+
+observability:
+  enabled: true
+  compose_command: podman compose
+  compose_file: observability/compose.yaml
+  project_name: hyperswitch-loadtest
+  grafana_url: http://127.0.0.1:3002
+  prometheus_url: http://127.0.0.1:19090
+  loki_url: http://127.0.0.1:3100
+
+external_dependencies: null
+
+migrations:
+  payments:
+    enabled: true
+    repo: hyperswitch
+    command: nix develop -c diesel migration run --migration-dir {{HYPERSWITCH_REPO_PATH}}/migrations --config-file {{GENERATED_ROOT}}/state/diesel-migrations-only.toml
+    env:
+      DATABASE_URL: "{{PAYMENTS_DATABASE_URL}}"
+
+  modular:
+    enabled: true
+    repo: hyperswitch
+    command: just migrate_v2_compatible
+    env:
+      DATABASE_URL: "{{MODULAR_DATABASE_URL}}"
+
+  vault:
+    enabled: false
+    repo: vault
+    command: just migrate
+    env:
+      DATABASE_URL: "{{VAULT_DATABASE_URL}}"
+      PGOPTIONS: "-c search_path={{POSTGRES_SCHEMA_VAULT}}"
+
+  encryption:
+    enabled: false
+    repo: encryption
+    command: just migrate
+    env:
+      DATABASE_URL: "{{ENCRYPTION_DATABASE_URL}}"
+
+  superposition:
+    enabled: false
+    repo: superposition
+    command: just migrate
+    env:
+      DATABASE_URL: "{{SUPERPOSITION_DATABASE_URL}}"
+
+post_start:
+  superposition_kronos:
+    enabled: true
+    command: podman exec hs-superposition sh /loadtest/migrate-kronos.sh

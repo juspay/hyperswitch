@@ -1,0 +1,62 @@
+{
+  "annotations": {"list": []},
+  "editable": true,
+  "graphTooltip": 1,
+  "panels": [
+    {
+      "datasource": {"type": "loki", "uid": "loki"},
+      "fieldConfig": {"defaults": {"unit": "reqps"}, "overrides": []},
+      "gridPos": {"h": 9, "w": 24, "x": 0, "y": 0},
+      "id": 1,
+      "options": {"legend": {"displayMode": "table", "placement": "right", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
+      "targets": [
+        {"expr": "sum(rate({loadtest_service=\"payments\"} |= \"[HTTP REQUEST - END]\" | json | message=\"[HTTP REQUEST - END]\" | flow=\"PaymentsConfirm\" | __error__=\"\" [30s]))", "legendFormat": "payments confirm", "refId": "A"},
+        {"expr": "sum(rate({loadtest_service=\"modular\"} |= \"[HTTP REQUEST - END]\" | json | message=\"[HTTP REQUEST - END]\" | flow=\"PaymentMethodSessionConfirm\" | __error__=\"\" [30s]))", "legendFormat": "PM session confirm", "refId": "B"},
+        {"expr": "sum(rate({loadtest_service=\"vault\"} |= \"finished processing request\" [30s]))", "legendFormat": "vault", "refId": "C"},
+        {"expr": "sum(rate({loadtest_service=\"encryption\"} |= \"Finished processing request\" [30s]))", "legendFormat": "encryption", "refId": "D"}
+      ],
+      "title": "Request Rate",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "loki", "uid": "loki"},
+      "fieldConfig": {"defaults": {"unit": "ms"}, "overrides": []},
+      "gridPos": {"h": 10, "w": 16, "x": 0, "y": 9},
+      "id": 2,
+      "options": {"legend": {"displayMode": "table", "placement": "right", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
+      "targets": [
+        {"expr": "quantile_over_time(0.50, {loadtest_service=\"payments\"} |= \"[HTTP REQUEST - END]\" | json | message=\"[HTTP REQUEST - END]\" | flow=\"PaymentsConfirm\" | unwrap extra_elapsed_milliseconds | __error__=\"\" [5s])", "legendFormat": "payments p50", "refId": "A"},
+        {"expr": "quantile_over_time(0.75, {loadtest_service=\"payments\"} |= \"[HTTP REQUEST - END]\" | json | message=\"[HTTP REQUEST - END]\" | flow=\"PaymentsConfirm\" | unwrap extra_elapsed_milliseconds | __error__=\"\" [5s])", "legendFormat": "payments p75", "refId": "B"},
+        {"expr": "quantile_over_time(0.90, {loadtest_service=\"payments\"} |= \"[HTTP REQUEST - END]\" | json | message=\"[HTTP REQUEST - END]\" | flow=\"PaymentsConfirm\" | unwrap extra_elapsed_milliseconds | __error__=\"\" [5s])", "legendFormat": "payments p90", "refId": "C"},
+        {"expr": "quantile_over_time(0.95, {loadtest_service=\"payments\"} |= \"[HTTP REQUEST - END]\" | json | message=\"[HTTP REQUEST - END]\" | flow=\"PaymentsConfirm\" | unwrap extra_elapsed_milliseconds | __error__=\"\" [5s])", "legendFormat": "payments p95", "refId": "D"},
+        {"expr": "quantile_over_time(0.50, {loadtest_service=\"modular\"} |= \"[HTTP REQUEST - END]\" | json | message=\"[HTTP REQUEST - END]\" | flow=\"PaymentMethodSessionConfirm\" | unwrap extra_elapsed_milliseconds | __error__=\"\" [5s])", "legendFormat": "PM p50", "refId": "E"},
+        {"expr": "quantile_over_time(0.75, {loadtest_service=\"modular\"} |= \"[HTTP REQUEST - END]\" | json | message=\"[HTTP REQUEST - END]\" | flow=\"PaymentMethodSessionConfirm\" | unwrap extra_elapsed_milliseconds | __error__=\"\" [5s])", "legendFormat": "PM p75", "refId": "F"},
+        {"expr": "quantile_over_time(0.90, {loadtest_service=\"modular\"} |= \"[HTTP REQUEST - END]\" | json | message=\"[HTTP REQUEST - END]\" | flow=\"PaymentMethodSessionConfirm\" | unwrap extra_elapsed_milliseconds | __error__=\"\" [5s])", "legendFormat": "PM p90", "refId": "G"},
+        {"expr": "quantile_over_time(0.95, {loadtest_service=\"modular\"} |= \"[HTTP REQUEST - END]\" | json | message=\"[HTTP REQUEST - END]\" | flow=\"PaymentMethodSessionConfirm\" | unwrap extra_elapsed_milliseconds | __error__=\"\" [5s])", "legendFormat": "PM p95", "refId": "H"}
+      ],
+      "title": "Server Latency (5s rolling)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"unit": "percentunit", "min": 0}, "overrides": []},
+      "gridPos": {"h": 10, "w": 8, "x": 16, "y": 9},
+      "id": 3,
+      "options": {"legend": {"displayMode": "table", "placement": "right", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
+      "targets": [
+        {"expr": "sum by (name) (rate(podman_container_cpu_seconds_total[1m]) * on (id) group_left(name) podman_container_info{name=~\"hs-payments.*|hs-modular.*|hs-card-vault|cripta\"})", "legendFormat": "{{name}}", "refId": "A"}
+      ],
+      "title": "Service CPU Usage",
+      "type": "timeseries"
+    }
+  ],
+  "refresh": "5s",
+  "schemaVersion": 42,
+  "tags": ["loadtest", "payments"],
+  "templating": {"list": []},
+  "time": {"from": "now-15m", "to": "now"},
+  "timezone": "browser",
+  "title": "Payments Load Test",
+  "uid": "hs-loadtest-payments",
+  "version": 1
+}

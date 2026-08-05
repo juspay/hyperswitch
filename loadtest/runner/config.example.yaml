@@ -1,0 +1,27 @@
+deployment_config: ../deploy/config.yaml
+
+scenario:
+  merchant_path: modular
+  name: cit_off_session
+
+load:
+  starting_rps: 5
+  target_rps: 15
+  step_rps: 2
+  hold_seconds: 40
+  idle_seconds: 10
+
+fixtures:
+  count: auto
+  concurrency: 20
+  fresh_merchant: true
+  amount: 1000
+  currency: USD
+  session_expiry: 900
+
+payments_api:
+  admin_api_key: test_admin
+  connector_name: stripe_test
+  request_timeout_ms: 30000
+
+state_file: state/loadtest.json

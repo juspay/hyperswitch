@@ -1,0 +1,24 @@
+[log.console]
+enabled = true
+level = "INFO"
+log_format = "json"
+
+[log.telemetry]
+traces_enabled = false
+metrics_enabled = false
+
+[dummy_connector]
+enabled = true
+payment_duration = 1
+payment_tolerance = 1
+
+[jwekey]
+vault_encryption_key = """
+{{VAULT_PUBLIC_KEY}}
+"""
+rust_locker_encryption_key = """
+{{VAULT_PUBLIC_KEY}}
+"""
+vault_private_key = """
+{{VAULT_PRIVATE_KEY}}
+"""

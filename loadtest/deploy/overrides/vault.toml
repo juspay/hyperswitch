@@ -1,0 +1,76 @@
+[log.console]
+enabled = true
+level = "INFO"
+log_format = "json"
+
+[server]
+host = "0.0.0.0"
+port = 3001
+
+[trace_header]
+header_name = "x-request-id"
+id_reuse_strategy = "use_incoming"
+
+[limit]
+request_count = 1
+duration = 60
+
+[database]
+username = "{{POSTGRES_USER}}"
+password = "{{POSTGRES_PASSWORD}}"
+host = "{{POSTGRES_HOST}}"
+port = {{POSTGRES_PORT}}
+dbname = "{{POSTGRES_DB}}"
+pool_size = 60
+
+[cache]
+tti = 7200
+max_capacity = 5000
+
+[secrets]
+locker_private_key = """
+{{VAULT_PRIVATE_KEY}}
+"""
+
+[tenant_secrets]
+public = { master_key = "{{TENANT_MASTER_KEY}}", public_key = """
+{{VAULT_PUBLIC_KEY}}
+""", schema = "{{POSTGRES_SCHEMA_VAULT}}" }
+
+[external_key_manager]
+mode = "enabled"
+url = "{{ENCRYPTION_BASE_URL}}"
+
+[redis]
+host = "{{REDIS_HOST}}"
+port = {{REDIS_PORT}}
+pool_size = 5
+reconnect_max_attempts = 0
+reconnect_delay = 200
+default_ttl = 300
+default_hash_ttl = 900
+use_legacy_version = false
+stream_read_count = 1
+auto_pipeline = true
+broadcast_channel_capacity = 32
+disable_auto_backpressure = false
+max_in_flight_commands = 5000
+default_command_timeout = 30
+unresponsive_timeout = 10
+unresponsive_check_interval = 2
+max_feed_count = 200
+max_failure_threshold_seconds = 5
+
+[kv]
+drainer_stream_suffix = "DRAINER_STREAM"
+drainer_num_partitions = 16
+ttl_for_kv = 900
+
+[metrics]
+mode = "prometheus"
+host = "0.0.0.0"
+port = 9090
+background_metrics_collection_interval_secs = 5
+
+[runtime_config]
+mode = "disabled"
