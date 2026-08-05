@@ -1,5 +1,8 @@
 //! Commonly used constants
 
+/// Structured log tag for external service latency events.
+pub const EXTERNAL_CALL_TAG: &str = "ExternalCall";
+
 /// Number of characters in a generated ID
 pub const ID_LENGTH: usize = 20;
 
@@ -45,6 +48,9 @@ pub fn default_payouts_list_limit() -> u32 {
 
 /// surcharge percentage maximum precision length
 pub const SURCHARGE_PERCENTAGE_PRECISION_LENGTH: u8 = 2;
+
+/// discount percentage maximum precision length
+pub const DISCOUNT_PERCENTAGE_PRECISION_LENGTH: u8 = 2;
 
 /// installment interest rate maximum precision length
 pub const INSTALLMENT_INTEREST_RATE_PRECISION_LENGTH: u8 = 2;
@@ -169,6 +175,12 @@ pub const X_FLOW_NAME: &str = "x-flow";
 
 /// Connector name
 pub const X_CONNECTOR_NAME: &str = "x-connector";
+
+/// Payment method
+pub const X_PAYMENT_METHOD: &str = "x-payment-method";
+
+/// Payment method type
+pub const X_PAYMENT_METHOD_TYPE: &str = "x-payment-method-type";
 
 /// Sub-flow name
 pub const X_SUB_FLOW_NAME: &str = "x-sub-flow";

@@ -571,6 +571,17 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                 },
                 api_models::enums::Connector::Shift4 => true,
                 api_models::enums::Connector::Nuvei => true,
+                // Paysafe card + 3DS: PreAuthenticate mints the handle. When Paysafe returns no ACS
+                // redirect (frictionless / no challenge), continue straight to the settle Authorize
+                // in this flow; when it returns a redirect, break so the shopper completes the
+                // challenge and the settle runs from CompleteAuthorize.
+                api_models::enums::Connector::Paysafe => match &authorize_router_data.response {
+                    Ok(types::PaymentsResponseData::TransactionResponse {
+                        redirection_data,
+                        ..
+                    }) => redirection_data.is_none(),
+                    _ => false,
+                },
                 _ => false,
             };
             Ok((authorize_router_data, should_continue_after_preauthenticate))
@@ -1312,6 +1323,7 @@ impl<F>
             capture_method: item.request.capture_method,
             minor_payment_amount: item.request.minor_amount,
             minor_amount_to_capture: item.request.minor_amount,
+            order_tax_amount: item.request.order_tax_amount,
             integrity_object: None,
             split_payments: item.request.split_payments,
             webhook_url: item.request.webhook_url,
@@ -1654,15 +1666,19 @@ pub async fn call_unified_connector_service_pre_authenticate(
                 )
                 .attach_printable("Failed to deserialize UCS response")?;
 
-            let router_data_response = router_data_response.map(|(response, status)| {
-                router_data.status = status;
-                response
-            });
             let router_data_response = match router_data_response {
-                Ok(response) => Ok(transform_response_for_pre_authenticate_flow(
-                    connector, response,
-                )?),
-                Err(err) => Err(err),
+                Ok((response, status)) => {
+                    router_data.status = status;
+                    Ok(transform_response_for_pre_authenticate_flow(
+                        connector, response,
+                    )?)
+                }
+                Err(err) => {
+                    if let Some(attempt_status) = err.attempt_status {
+                        router_data.status = attempt_status;
+                    }
+                    Err(err)
+                }
             };
             // Extract authentication_data from the response to store in connector_metadata
             router_data.response = router_data_response;

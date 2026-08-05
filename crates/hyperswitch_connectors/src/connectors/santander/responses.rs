@@ -10,12 +10,19 @@ use crate::connectors::santander::requests;
 #[serde(rename_all = "camelCase")]
 pub struct Payer {
     pub name: Secret<String>,
-    pub document_type: SantanderDocumentKind,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub document_type: Option<SantanderDocumentKind>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub document_number: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub address: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub neighborhood: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub city: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub state: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub zip_code: Option<Secret<String>>,
 }
 
@@ -804,7 +811,7 @@ pub struct QrDataUrlSantander {
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(untagged)]
-pub enum SantanderUpdateMetadataResponse {
+pub enum SantanderUpdateResponse {
     Pix(Box<SantanderPixQRCodePaymentsResponse>),
     Boleto(Box<SantanderUpdateBoletoResponse>),
 }
@@ -1286,3 +1293,36 @@ pub struct RecurrenceStatusUpdate {
     /// Date/time of this status update
     pub data: String,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SantanderPixWebhookRegisterResponse {
+    pub chave: String,
+    pub webhook_url: String,
+    pub criacao: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SantanderBoletoCovenantResponse {
+    pub code: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SantanderBoletoWebhookRegisterResponse {
+    pub id: String,
+    pub status: String,
+    #[serde(rename = "type")]
+    pub workspace_type: String,
+    pub description: String,
+    pub covenants: Vec<SantanderBoletoCovenantResponse>,
+    #[serde(rename = "webhookURL")]
+    pub webhook_url: String,
+    #[serde(rename = "bankSlipBillingWebhookActive")]
+    pub bank_slip_billing_webhook_active: bool,
+    #[serde(rename = "pixBillingWebhookActive")]
+    pub pix_billing_webhook_active: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SantanderEmptyResponse {}

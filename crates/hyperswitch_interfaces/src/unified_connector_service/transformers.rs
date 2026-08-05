@@ -2,7 +2,7 @@ use std::str::FromStr;
 
 use common_enums::AttemptStatus;
 use common_types::primitive_wrappers::{ExtendedAuthorizationAppliedBool, OvercaptureEnabledBool};
-use common_utils::{errors::ErrorSwitch, request::Method};
+use common_utils::{errors::ErrorSwitch, request::Method, types::MinorUnit};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     errors::api_error_response::{ApiErrorResponse, NotImplementedMessage},
@@ -23,6 +23,11 @@ use crate::{
 
 /// UCS error code indicating the connector returned a 4xx/5xx HTTP response (with `http_status_code` set).
 const CONNECTOR_ERROR_RESPONSE_CODE: &str = "CONNECTOR_ERROR_RESPONSE";
+
+// Synthetic timeout status used when UCS reports a connector-side timeout over gRPC.
+// No connector HTTP response is available in this path; this keeps UCS aligned with
+// direct connector timeout handling.
+const CONNECTOR_TIMEOUT_HTTP_STATUS_CODE: u16 = 504;
 
 /// Unified Connector Service error variants
 #[derive(Debug, Clone, thiserror::Error)]
@@ -102,8 +107,10 @@ pub enum UnifiedConnectorServiceError {
         message: String,
     },
 
-    /// Connector error received through UCS (contains original connector HTTP status code).
-    /// Distinguishes connector errors from UCS errors by presence of status_code.
+    /// Connector error received through UCS.
+    /// For connector HTTP errors, this contains the original connector HTTP status code.
+    /// For connector timeout errors without a connector HTTP response, this contains the
+    /// synthetic timeout status used by Hyperswitch.
     #[error("Connector error via UCS: {0:?}")]
     ConnectorError(Box<ConnectorErrorInner>),
 
@@ -236,7 +243,8 @@ pub struct ConnectorErrorInner {
     pub code: String,
     /// Connector error message
     pub message: String,
-    /// Original HTTP status code from connector
+    /// Connector HTTP status code, or the synthetic timeout status when no connector HTTP
+    /// response was received.
     pub status_code: u16,
     /// Optional reason for the error
     pub reason: Option<String>,
@@ -253,6 +261,163 @@ pub struct ConnectorErrorInner {
     pub network_error_message: Option<String>,
 }
 
+impl From<&ConnectorErrorInner> for ErrorResponse {
+    fn from(error: &ConnectorErrorInner) -> Self {
+        Self {
+            code: error.code.clone(),
+            message: error.message.clone(),
+            reason: error.reason.clone(),
+            status_code: error.status_code,
+            attempt_status: None,
+            connector_transaction_id: error.connector_transaction_id.clone(),
+            connector_response_reference_id: None,
+            network_decline_code: error.network_decline_code.clone(),
+            network_advice_code: error.network_advice_code.clone(),
+            network_error_message: error.network_error_message.clone(),
+            connector_metadata: None,
+        }
+    }
+}
+
+impl ForeignTryFrom<payments_grpc::PaymentChargeType> for common_enums::PaymentChargeType {
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        charge_type: payments_grpc::PaymentChargeType,
+    ) -> Result<Self, Self::Error> {
+        match charge_type {
+            payments_grpc::PaymentChargeType::StripeDirect => {
+                Ok(Self::Stripe(common_enums::StripeChargeType::Direct))
+            }
+            payments_grpc::PaymentChargeType::StripeDestination => {
+                Ok(Self::Stripe(common_enums::StripeChargeType::Destination))
+            }
+            payments_grpc::PaymentChargeType::Unspecified => Err(error_stack::Report::new(
+                UnifiedConnectorServiceError::ParsingFailed,
+            )
+            .attach_printable("Received unspecified PaymentChargeType from gRPC")),
+        }
+    }
+}
+
+impl ForeignTryFrom<payments_grpc::AdyenSplitType> for common_enums::AdyenSplitType {
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(split_type: payments_grpc::AdyenSplitType) -> Result<Self, Self::Error> {
+        match split_type {
+            payments_grpc::AdyenSplitType::Unspecified => Err(error_stack::Report::new(
+                UnifiedConnectorServiceError::ParsingFailed,
+            )
+            .attach_printable("Received unspecified AdyenSplitType from gRPC")),
+            payments_grpc::AdyenSplitType::BalanceAccount => Ok(Self::BalanceAccount),
+            payments_grpc::AdyenSplitType::AcquiringFees => Ok(Self::AcquiringFees),
+            payments_grpc::AdyenSplitType::PaymentFee => Ok(Self::PaymentFee),
+            payments_grpc::AdyenSplitType::AdyenFees => Ok(Self::AdyenFees),
+            payments_grpc::AdyenSplitType::AdyenCommission => Ok(Self::AdyenCommission),
+            payments_grpc::AdyenSplitType::AdyenMarkup => Ok(Self::AdyenMarkup),
+            payments_grpc::AdyenSplitType::Interchange => Ok(Self::Interchange),
+            payments_grpc::AdyenSplitType::SchemeFee => Ok(Self::SchemeFee),
+            payments_grpc::AdyenSplitType::Commission => Ok(Self::Commission),
+            payments_grpc::AdyenSplitType::TopUp => Ok(Self::TopUp),
+            payments_grpc::AdyenSplitType::Vat => Ok(Self::Vat),
+        }
+    }
+}
+
+impl ForeignTryFrom<payments_grpc::AdyenSplitItem> for common_types::domain::AdyenSplitItem {
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(item: payments_grpc::AdyenSplitItem) -> Result<Self, Self::Error> {
+        Ok(Self {
+            amount: item.amount.map(MinorUnit::new),
+            split_type: common_enums::AdyenSplitType::foreign_try_from(
+                payments_grpc::AdyenSplitType::try_from(item.split_type).map_err(|_| {
+                    error_stack::Report::new(UnifiedConnectorServiceError::ParsingFailed)
+                        .attach_printable(format!(
+                            "Invalid AdyenSplitType value: {}",
+                            item.split_type
+                        ))
+                })?,
+            )?,
+            account: item.account,
+            reference: item.reference,
+            description: item.description,
+        })
+    }
+}
+
+impl ForeignTryFrom<payments_grpc::AdyenSplitData> for common_types::domain::AdyenSplitData {
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(data: payments_grpc::AdyenSplitData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            store: data.store,
+            split_items: data
+                .split_items
+                .into_iter()
+                .map(common_types::domain::AdyenSplitItem::foreign_try_from)
+                .collect::<Result<Vec<_>, _>>()?,
+        })
+    }
+}
+
+impl ForeignTryFrom<payments_grpc::StripeSplitResponseData>
+    for common_types::payments::StripeChargeResponseData
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        stripe: payments_grpc::StripeSplitResponseData,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            charge_id: stripe.charge_id,
+            charge_type: common_enums::PaymentChargeType::foreign_try_from(
+                payments_grpc::PaymentChargeType::try_from(stripe.charge_type).map_err(|_| {
+                    error_stack::Report::new(UnifiedConnectorServiceError::ParsingFailed)
+                        .attach_printable(format!(
+                            "Invalid PaymentChargeType value: {:?}",
+                            stripe.charge_type
+                        ))
+                })?,
+            )?,
+            application_fees: stripe.application_fees.map(MinorUnit::new),
+            transfer_account_id: stripe.transfer_account_id,
+            on_behalf_of: stripe.on_behalf_of,
+        })
+    }
+}
+
+impl ForeignTryFrom<payments_grpc::ConnectorSplitResponseData>
+    for common_types::payments::ConnectorChargeResponseData
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        split_data: payments_grpc::ConnectorSplitResponseData,
+    ) -> Result<Self, Self::Error> {
+        match split_data.split_response_type {
+            Some(
+                payments_grpc::connector_split_response_data::SplitResponseType::StripeSplitResponse(
+                    stripe,
+                ),
+            ) => Ok(Self::StripeSplitPayment(
+                common_types::payments::StripeChargeResponseData::foreign_try_from(stripe)?,
+            )),
+            Some(
+                payments_grpc::connector_split_response_data::SplitResponseType::AdyenSplitResponse(
+                    adyen,
+                ),
+            ) => Ok(Self::AdyenSplitPayment(
+                common_types::domain::AdyenSplitData::foreign_try_from(adyen)?,
+            )),
+            None => Err(error_stack::Report::new(
+                UnifiedConnectorServiceError::ParsingFailed,
+            )
+            .attach_printable("ConnectorSplitResponseData has no split_response_type")),
+        }
+    }
+}
+
 impl ForeignTryFrom<(payments_grpc::PaymentServiceGetResponse, AttemptStatus)>
     for Result<(PaymentsResponseData, AttemptStatus), ErrorResponse>
 {
@@ -263,10 +428,13 @@ impl ForeignTryFrom<(payments_grpc::PaymentServiceGetResponse, AttemptStatus)>
     ) -> Result<Self, Self::Error> {
         let status_code = convert_connector_service_status_code(response.status_code)?;
 
-        let connector_transaction_id =
+        let connector_transaction_id = if response.connector_transaction_id.is_empty() {
+            hyperswitch_domain_models::router_request_types::ResponseId::NoResponseId
+        } else {
             hyperswitch_domain_models::router_request_types::ResponseId::ConnectorTransactionId(
                 response.connector_transaction_id.clone(),
-            );
+            )
+        };
 
         let connector_details = response
             .error
@@ -299,7 +467,7 @@ impl ForeignTryFrom<(payments_grpc::PaymentServiceGetResponse, AttemptStatus)>
                 status_code,
                 attempt_status,
                 connector_transaction_id: connector_transaction_id.get_optional_response_id(),
-                connector_response_reference_id: response.merchant_transaction_id,
+                connector_response_reference_id: response.connector_reference_id,
                 network_decline_code: response.error.as_ref().and_then(|error| {
                     error.issuer_details.as_ref().and_then(|id| {
                         id.network_details
@@ -351,14 +519,21 @@ impl ForeignTryFrom<(payments_grpc::PaymentServiceGetResponse, AttemptStatus)>
                             .map(ForeignTryFrom::foreign_try_from)
                             .transpose()?,
                     ),
-                    mandate_reference: Box::new(response.mandate_reference.map(hyperswitch_domain_models::router_response_types::MandateReference::foreign_try_from).transpose()?),
+                    mandate_reference: Box::new(
+                        response
+                            .mandate_reference_details
+                            .map(
+                                hyperswitch_domain_models::router_response_types::MandateReference::foreign_try_from,
+                            )
+                            .transpose()?,
+                    ),
                     connector_metadata,
                     network_txn_id: response.network_transaction_id.clone(),
                     network_txn_link_id: response.network_txn_link_id.clone(),
-                    connector_response_reference_id: response.merchant_transaction_id,
+                    connector_response_reference_id: response.connector_reference_id,
                     incremental_authorization_allowed: response.incremental_authorization_allowed,
                     authentication_data: None,
-                    charges: None,
+                    charges: response.splits.map(common_types::payments::ConnectorChargeResponseData::foreign_try_from).transpose()?,
                 },
                 status,
             ))
@@ -368,25 +543,31 @@ impl ForeignTryFrom<(payments_grpc::PaymentServiceGetResponse, AttemptStatus)>
     }
 }
 
-impl ForeignTryFrom<payments_grpc::MandateReference>
+impl ForeignTryFrom<payments_grpc::MandateReferenceDetails>
     for hyperswitch_domain_models::router_response_types::MandateReference
 {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
-    fn foreign_try_from(value: payments_grpc::MandateReference) -> Result<Self, Self::Error> {
-        match value.mandate_id_type {
-            Some(payments_grpc::mandate_reference::MandateIdType::ConnectorMandateId(
-                connector_mandate_id,
-            )) => Ok(Self {
-                connector_mandate_id: connector_mandate_id.connector_mandate_id,
-                payment_method_id: connector_mandate_id.payment_method_id,
-                mandate_metadata: None,
-                connector_mandate_request_reference_id: connector_mandate_id
-                    .connector_mandate_request_reference_id,
-            }),
-            _ => Err(UnifiedConnectorServiceError::ResponseDeserializationFailed)
-                .attach_printable("Recieved Invalid MandateReference from UCS"),
-        }
+    fn foreign_try_from(
+        value: payments_grpc::MandateReferenceDetails,
+    ) -> Result<Self, Self::Error> {
+        let mandate_metadata = value
+            .mandate_metadata
+            .map(|metadata| {
+                let raw = metadata.expose();
+                serde_json::from_str::<serde_json::Value>(&raw)
+                    .map(hyperswitch_masking::Secret::new)
+                    .change_context(UnifiedConnectorServiceError::ResponseDeserializationFailed)
+                    .attach_printable("Failed to deserialize UCS mandate_metadata")
+            })
+            .transpose()?;
+
+        Ok(Self {
+            connector_mandate_id: value.connector_mandate_id,
+            payment_method_id: value.payment_method_id,
+            mandate_metadata,
+            connector_mandate_request_reference_id: value.connector_mandate_request_reference_id,
+        })
     }
 }
 
@@ -831,6 +1012,12 @@ impl ForeignTryFrom<payments_grpc::RedirectForm> for RedirectForm {
                 )
                 .into(),
             ),
+            Some(payments_grpc::redirect_form::FormType::HostedIframe(_)) => Err(
+                UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
+                    "Hosted iframe form type is not implemented".to_string(),
+                )
+                .into(),
+            ),
             Some(payments_grpc::redirect_form::FormType::Braintree(braintree)) => {
                 Ok(Self::Braintree {
                     client_token: braintree.client_token,
@@ -861,7 +1048,7 @@ impl ForeignTryFrom<payments_grpc::RedirectForm> for RedirectForm {
                 }
                 .attach_printable("Failed to parse currency from UCS Nmi redirect form")?;
                 Ok(Self::Nmi {
-                    amount: common_utils::types::MinorUnit::new(amount_money.minor_amount)
+                    amount: MinorUnit::new(amount_money.minor_amount)
                         .to_major_unit_as_f64(currency)
                         .change_context(UnifiedConnectorServiceError::ParsingFailed)?
                         .get_amount_as_f64()
@@ -964,6 +1151,10 @@ impl UnifiedConnectorServiceError {
             return error_from_details;
         }
 
+        if let Some(timeout_error) = Self::decode_connector_timeout(status, connector_name) {
+            return timeout_error;
+        }
+
         Self::TonicStatus {
             code: status.code(),
             message: status.message().to_string(),
@@ -1004,7 +1195,7 @@ impl UnifiedConnectorServiceError {
                 .as_ref()
                 .and_then(|error_info| error_info.connector_details.as_ref())
                 .and_then(|connector_details| connector_details.code.clone())
-                .unwrap_or_else(|| connector_error.error_code.clone()),
+                .unwrap_or_else(|| crate::consts::NO_ERROR_CODE.to_string()),
             message: connector_error.error_message,
             status_code,
             reason: connector_error
@@ -1036,6 +1227,26 @@ impl UnifiedConnectorServiceError {
                 .and_then(|ei| ei.issuer_details.as_ref())
                 .and_then(|id| id.network_details.as_ref())
                 .and_then(|nd| nd.error_message.clone()),
+        })))
+    }
+
+    fn decode_connector_timeout(status: &tonic::Status, connector_name: &str) -> Option<Self> {
+        // UCS maps connector/API client request timeouts to gRPC DeadlineExceeded. The
+        // status message is not a stable contract, so rely only on the gRPC code.
+        if status.code() != tonic::Code::DeadlineExceeded {
+            return None;
+        }
+
+        Some(Self::ConnectorError(Box::new(ConnectorErrorInner {
+            code: crate::consts::REQUEST_TIMEOUT_ERROR_CODE.to_string(),
+            message: crate::consts::REQUEST_TIMEOUT_ERROR_MESSAGE.to_string(),
+            status_code: CONNECTOR_TIMEOUT_HTTP_STATUS_CODE,
+            reason: Some(crate::consts::REQUEST_TIMEOUT_ERROR_MESSAGE.to_string()),
+            connector: connector_name.to_string(),
+            connector_transaction_id: None,
+            network_decline_code: None,
+            network_advice_code: None,
+            network_error_message: None,
         })))
     }
 }

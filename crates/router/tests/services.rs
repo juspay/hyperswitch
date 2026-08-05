@@ -26,7 +26,8 @@ async fn get_redis_conn_failure() {
         .unwrap();
 
     let _ = state.store.get_redis_conn().map(|conn| {
-        conn.is_redis_available
+        conn.redis_conn
+            .is_redis_available
             .store(false, atomic::Ordering::SeqCst)
     });
 

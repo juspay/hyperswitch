@@ -62,6 +62,9 @@ pub mod date_time {
 
 /// Crate specific constants
 pub mod consts {
+    /// Default per-RPC timeout (seconds) for unified connector service calls.
+    pub(crate) const DEFAULT_UCS_REQUEST_TIMEOUT_SECS: u64 = 35;
+
     /// General purpose base64 engine
     #[cfg(feature = "aws_kms")]
     pub(crate) const BASE64_ENGINE: base64::engine::GeneralPurpose =

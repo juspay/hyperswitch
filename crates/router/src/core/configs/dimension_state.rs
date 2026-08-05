@@ -721,6 +721,18 @@ impl<Pm, M, O, P, T, Cn, PRT, Ev, Wpmt> DimensionsBase
 }
 
 // Type aliases
+
+// Global config scope: no Superposition dimensions are required.
+pub type DimensionsGlobal = Dimensions<
+    NoProviderMerchantId,
+    NoProcessorMerchantId,
+    NoOrgId,
+    NoProfileId,
+    NoConnector,
+    NoPayoutRetryType,
+    NoWebhookEvent,
+>;
+
 pub type DimensionsWithProviderMerchantId = Dimensions<
     HasProviderMerchantId,
     NoProcessorMerchantId,
@@ -731,6 +743,17 @@ pub type DimensionsWithProviderMerchantId = Dimensions<
     NoPayoutRetryType,
     NoWebhookEvent,
     NoPaymentMethodType,
+>;
+
+// Type alias - provider merchant ID and organization ID present
+pub type DimensionsWithProviderMerchantIdAndOrgId = Dimensions<
+    HasProviderMerchantId,
+    NoProcessorMerchantId,
+    HasOrgId,
+    NoProfileId,
+    NoConnector,
+    NoPayoutRetryType,
+    NoWebhookEvent,
 >;
 
 // Type alias - only processor merchant ID present

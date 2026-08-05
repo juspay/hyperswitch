@@ -1995,6 +1995,18 @@ pub async fn call_to_vault<V: pm_types::VaultingInterface>(
 ) -> CustomResult<String, errors::VaultError> {
     let locker = &state.conf.locker;
     let jwekey = state.conf.jwekey.get_inner();
+    let additional_headers = if cfg!(feature = "ext_services_latency") {
+        let mut additional_headers = additional_headers.unwrap_or_default();
+        if let Some(request_id) = state.request_id.as_ref() {
+            additional_headers.insert(
+                common_utils::consts::X_REQUEST_ID.to_string(),
+                request_id.to_string(),
+            );
+        }
+        additional_headers
+    } else {
+        additional_headers.unwrap_or_default()
+    };
 
     let request = create_vault_request::<V>(
         jwekey,
@@ -2002,10 +2014,10 @@ pub async fn call_to_vault<V: pm_types::VaultingInterface>(
         payload,
         state.tenant.tenant_id.to_owned(),
         query_params,
-        additional_headers,
+        Some(additional_headers),
     )
     .await?;
-    let response = services::call_connector_api(state, request, V::get_vaulting_flow_name())
+    let response = services::call_connector_api(state, request, V::get_vaulting_flow_name(), None)
         .await
         .change_context(errors::VaultError::VaultAPIError);
 
@@ -2024,6 +2036,27 @@ pub async fn call_to_vault<V: pm_types::VaultingInterface>(
     .attach_printable("Error getting decrypted vault response payload")?;
 
     Ok(decrypted_payload)
+}
+
+pub async fn create_entity_in_locker(
+    state: &routes::SessionState,
+    entity_id: &id_type::MerchantId,
+) -> CustomResult<pm_types::EntityCreateResponse, errors::VaultError> {
+    let payload = pm_types::EntityCreateRequest {
+        entity_id: entity_id.clone(),
+    }
+    .encode_to_vec()
+    .change_context(errors::VaultError::RequestEncodingFailed)?;
+
+    let response = call_to_vault::<pm_types::EntityCreate>(state, payload, None, None)
+        .await
+        .change_context(errors::VaultError::VaultAPIError)
+        .attach_printable("Call to vault failed while creating locker entity")?;
+
+    response
+        .parse_struct("EntityCreateResponse")
+        .change_context(errors::VaultError::ResponseDeserializationFailed)
+        .attach_printable("Failed to parse EntityCreateResponse")
 }
 
 #[cfg(feature = "v2")]
@@ -3005,7 +3038,7 @@ pub async fn get_delete_tokenize_schedule_time(
             process_data::PaymentMethodsPTMapping::default()
         }
     };
-    let time_delta = process_tracker_utils::get_pm_schedule_time(mapping, pm, retry_count + 1);
+    let time_delta = process_tracker_utils::get_pm_schedule_time(mapping, pm, retry_count);
 
     process_tracker_utils::get_time_from_delta(time_delta)
 }
@@ -3015,7 +3048,7 @@ pub async fn retry_delete_tokenize(
     pm: enums::PaymentMethod,
     pt: storage::ProcessTracker,
 ) -> Result<(), errors::ProcessTrackerError> {
-    let schedule_time = get_delete_tokenize_schedule_time(db, pm, pt.retry_count).await;
+    let schedule_time = get_delete_tokenize_schedule_time(db, pm, pt.retry_count + 1).await;
 
     match schedule_time {
         Some(s_time) => {

@@ -891,6 +891,7 @@ pub struct CardDetail {
     PartialEq,
 )]
 #[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "UPPERCASE")]
 pub enum CardType {
     Credit,
     Debit,
@@ -2388,7 +2389,7 @@ impl From<Surcharge> for SurchargeResponse {
 
 #[derive(Clone, Default, Debug, PartialEq, serde::Serialize, ToSchema)]
 pub struct SurchargePercentage {
-    percentage: f32,
+    percentage: f64,
 }
 
 impl From<Percentage<SURCHARGE_PERCENTAGE_PRECISION_LENGTH>> for SurchargePercentage {
@@ -2890,6 +2891,10 @@ pub struct PaymentMethodListIntentData {
     /// The shipping address for the payment
     #[schema(value_type = Option<Address>)]
     pub shipping: Option<payments::Address>,
+
+    /// The email associated with the payment
+    #[schema(value_type = Option<String>)]
+    pub email: Option<pii::Email>,
 
     /// Additional metadata
     #[schema(value_type = Option<Object>)]
