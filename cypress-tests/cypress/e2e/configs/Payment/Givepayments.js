@@ -1,10 +1,22 @@
 import { multiUseMandateData, singleUseMandateData } from "./Commons";
 
 // givepayments' sandbox rejects generateRandomEmail()'s domains
-// (example.com, sample.net, etc.) as "disposable or unreachable" — use a
-// real, accepted domain instead.
+// (example.com, sample.net, etc.) as "disposable or unreachable", and also
+// flags synthetic-looking local parts (raw timestamps, the literal word
+// "test") even on gmail.com — use a human-looking name instead, still
+// randomized enough to avoid customer collisions across runs.
+const givepaymentsEmailNames = [
+  "john.doe",
+  "jane.smith",
+  "michael.brown",
+  "sarah.johnson",
+  "david.miller",
+  "emily.davis",
+  "robert.wilson",
+  "laura.moore",
+];
 const generateGivepaymentsEmail = () =>
-  `givepayments.test.${Date.now()}.${Math.floor(Math.random() * 10000)}@gmail.com`;
+  `${givepaymentsEmailNames[Math.floor(Math.random() * givepaymentsEmailNames.length)]}${Math.floor(Math.random() * 900) + 100}@gmail.com`;
 
 const successfulNo3DSCardDetails = {
   card_number: "4111111111111111",
