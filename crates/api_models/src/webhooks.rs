@@ -320,9 +320,11 @@ impl From<IncomingWebhookEvent> for WebhookFlow {
             IncomingWebhookEvent::RecoveryInvoiceCancel
             | IncomingWebhookEvent::RecoveryPaymentFailure
             | IncomingWebhookEvent::RecoveryPaymentPending
-            | IncomingWebhookEvent::RecoveryPaymentSuccess => Self::Recovery,
-            IncomingWebhookEvent::SetupWebhook => Self::Setup,
+            | IncomingWebhookEvent::RecoveryPaymentSuccess
+            | IncomingWebhookEvent::InvoiceGenerated => Self::Recovery,
+            #[cfg(not(all(feature = "revenue_recovery", feature = "v2")))]
             IncomingWebhookEvent::InvoiceGenerated => Self::Subscription,
+            IncomingWebhookEvent::SetupWebhook => Self::Setup,
         }
     }
 }
