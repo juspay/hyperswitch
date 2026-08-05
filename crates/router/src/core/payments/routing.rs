@@ -2078,6 +2078,9 @@ pub async fn refresh_cgraph_cache(
     profile_id: &common_utils::id_type::ProfileId,
     transaction_type: &api_enums::TransactionType,
 ) -> RoutingResult<Arc<hyperswitch_constraint_graph::ConstraintGraph<euclid_dir::DirValue>>> {
+    // Fetch the MCA list from the DB here (only reached on a cache miss) rather than
+    // reusing a caller-supplied snapshot, so the cached graph is always built from
+    // live data and cannot be poisoned by a stale pre-eviction snapshot.
     let mut merchant_connector_accounts = state
         .store
         .list_enabled_merchant_connector_accounts_without_encrypted_by_merchant_id_profile_id(
@@ -2330,6 +2333,7 @@ pub async fn perform_eligibility_analysis(
     transaction_data: &routing::TransactionData<'_>,
     eligible_connectors: Option<&Vec<api_enums::RoutableConnectors>>,
     profile_id: &common_utils::id_type::ProfileId,
+    active_mca_ids: &std::collections::HashSet<common_utils::id_type::MerchantConnectorAccountId>,
 ) -> RoutingResult<Vec<routing_types::RoutableConnectorChoice>> {
     let backend_input = match transaction_data {
         routing::TransactionData::Payment(payment_data) => make_dsl_input(payment_data)?,
@@ -2337,7 +2341,6 @@ pub async fn perform_eligibility_analysis(
         routing::TransactionData::Payout(payout_data) => make_dsl_input_for_payouts(payout_data)?,
     };
 
-    let active_mca_ids = get_active_mca_ids(state, key_store, profile_id).await?;
     perform_cgraph_filtering(
         state,
         key_store,
@@ -2346,9 +2349,51 @@ pub async fn perform_eligibility_analysis(
         eligible_connectors,
         profile_id,
         &api_enums::TransactionType::from(transaction_data),
-        &active_mca_ids,
+        active_mca_ids,
     )
     .await
+}
+
+/// Fetches the merchant's default (fallback) list of routable connectors.
+///
+/// This is the ultimate degrade target for routing: it never applies cgraph/MCA
+/// filtering, so it can be returned as-is when the active MCA list is unavailable.
+#[cfg_attr(feature = "v2", allow(clippy::unused_async))]
+async fn get_fallback_config(
+    state: &SessionState,
+    transaction_data: &routing::TransactionData<'_>,
+    #[cfg(feature = "v1")] _business_profile: &domain::Profile,
+    #[cfg(feature = "v2")] business_profile: &domain::Profile,
+) -> RoutingResult<Vec<routing_types::RoutableConnectorChoice>> {
+    #[cfg(feature = "v1")]
+    {
+        routing::helpers::get_merchant_default_config(
+            &*state.store,
+            match transaction_data {
+                routing::TransactionData::Payment(payment_data) => payment_data
+                    .payment_intent
+                    .profile_id
+                    .as_ref()
+                    .get_required_value("profile_id")
+                    .change_context(errors::RoutingError::ProfileIdMissing)?
+                    .get_string_repr(),
+                #[cfg(feature = "payouts")]
+                routing::TransactionData::Payout(payout_data) => {
+                    payout_data.payout_attempt.profile_id.get_string_repr()
+                }
+            },
+            &api_enums::TransactionType::from(transaction_data),
+        )
+        .await
+        .change_context(errors::RoutingError::FallbackConfigFetchFailed)
+    }
+    #[cfg(feature = "v2")]
+    {
+        let _ = (state, transaction_data);
+        admin::ProfileWrapper::new(business_profile.clone())
+            .get_default_fallback_list_of_connector_under_profile()
+            .change_context(errors::RoutingError::FallbackConfigFetchFailed)
+    }
 }
 
 pub async fn perform_fallback_routing(
@@ -2357,37 +2402,14 @@ pub async fn perform_fallback_routing(
     transaction_data: &routing::TransactionData<'_>,
     eligible_connectors: Option<&Vec<api_enums::RoutableConnectors>>,
     business_profile: &domain::Profile,
+    active_mca_ids: &std::collections::HashSet<common_utils::id_type::MerchantConnectorAccountId>,
 ) -> RoutingResult<Vec<routing_types::RoutableConnectorChoice>> {
-    #[cfg(feature = "v1")]
-    let fallback_config = routing::helpers::get_merchant_default_config(
-        &*state.store,
-        match transaction_data {
-            routing::TransactionData::Payment(payment_data) => payment_data
-                .payment_intent
-                .profile_id
-                .as_ref()
-                .get_required_value("profile_id")
-                .change_context(errors::RoutingError::ProfileIdMissing)?
-                .get_string_repr(),
-            #[cfg(feature = "payouts")]
-            routing::TransactionData::Payout(payout_data) => {
-                payout_data.payout_attempt.profile_id.get_string_repr()
-            }
-        },
-        &api_enums::TransactionType::from(transaction_data),
-    )
-    .await
-    .change_context(errors::RoutingError::FallbackConfigFetchFailed)?;
-    #[cfg(feature = "v2")]
-    let fallback_config = admin::ProfileWrapper::new(business_profile.clone())
-        .get_default_fallback_list_of_connector_under_profile()
-        .change_context(errors::RoutingError::FallbackConfigFetchFailed)?;
+    let fallback_config = get_fallback_config(state, transaction_data, business_profile).await?;
     let backend_input = match transaction_data {
         routing::TransactionData::Payment(payment_data) => make_dsl_input(payment_data)?,
         #[cfg(feature = "payouts")]
         routing::TransactionData::Payout(payout_data) => make_dsl_input_for_payouts(payout_data)?,
     };
-    let active_mca_ids = get_active_mca_ids(state, key_store, business_profile.get_id()).await?;
     perform_cgraph_filtering(
         state,
         key_store,
@@ -2396,7 +2418,7 @@ pub async fn perform_fallback_routing(
         eligible_connectors,
         business_profile.get_id(),
         &api_enums::TransactionType::from(transaction_data),
-        &active_mca_ids,
+        active_mca_ids,
     )
     .await
 }
@@ -2415,6 +2437,35 @@ pub async fn perform_eligibility_analysis_with_fallback(
     let eligible_connectors =
         update_eligible_connectors_for_installments(state, transaction_data, eligible_connectors);
 
+    // If the active-MCA fetch fails (e.g. a transient DB error), degrade to the
+    // merchant's fallback config instead of aborting the payment — log and return the
+    // fallback config, still restricted to the caller-specified eligible connectors
+    // (already intersected for installments) so a requested connector is never silently
+    // swapped for an arbitrary default. Hard failure can still occur downstream (e.g. a
+    // cold-cache refresh errors after this fetch succeeded); only the MCA-fetch failure
+    // is degraded here. Never populate the cgraph cache from a failed fetch.
+    let active_mca_ids =
+        match get_active_merchant_connector_accounts(state, key_store, business_profile.get_id())
+            .await
+        {
+            Ok(merchant_connector_accounts) => merchant_connector_accounts.get_ids(),
+            Err(err) => {
+                logger::error!(
+                    error = ?err,
+                    "euclid_routing: failed to fetch active merchant connector accounts; \
+                     degrading to eligibility-filtered fallback config"
+                );
+                return get_fallback_config(state, transaction_data, business_profile)
+                    .await
+                    .map(|mut fallback_config| {
+                        if let Some(eligible) = eligible_connectors {
+                            fallback_config.retain(|choice| eligible.contains(&choice.connector));
+                        }
+                        fallback_config
+                    });
+            }
+        };
+
     let mut final_selection = perform_eligibility_analysis(
         state,
         key_store,
@@ -2422,6 +2473,7 @@ pub async fn perform_eligibility_analysis_with_fallback(
         transaction_data,
         eligible_connectors.as_ref(),
         business_profile.get_id(),
+        &active_mca_ids,
     )
     .await?;
 
@@ -2431,6 +2483,7 @@ pub async fn perform_eligibility_analysis_with_fallback(
         transaction_data,
         eligible_connectors.as_ref(),
         business_profile,
+        &active_mca_ids,
     )
     .await;
 
@@ -2539,7 +2592,7 @@ pub async fn perform_session_flow_routing<'a>(
         api_enums::PaymentMethodType,
         Vec<routing_types::SessionRoutingChoice>,
     > = FxHashMap::default();
-    let active_mca_ids = get_active_mca_ids(state, key_store, &profile_id).await?;
+    let active_mca_ids = get_active_mca_ids_for_session(state, key_store, &profile_id).await;
 
     for (pm_type, allowed_connectors) in pm_type_map {
         let euclid_pmt: euclid_enums::PaymentMethodType = pm_type;
@@ -2704,7 +2757,8 @@ pub async fn perform_session_flow_routing(
     > = FxHashMap::default();
     let mut final_routing_approach = None;
     let active_mca_ids =
-        get_active_mca_ids(session_input.state, session_input.key_store, &profile_id).await?;
+        get_active_mca_ids_for_session(session_input.state, session_input.key_store, &profile_id)
+            .await;
 
     for (pm_type, allowed_connectors) in pm_type_map {
         let euclid_pmt: euclid_enums::PaymentMethodType = pm_type;
@@ -4085,25 +4139,40 @@ where
     }
 }
 
-pub async fn get_active_mca_ids(
+pub async fn get_active_merchant_connector_accounts(
     state: &SessionState,
     key_store: &domain::MerchantKeyStore,
     profile_id: &common_utils::id_type::ProfileId,
-) -> RoutingResult<std::collections::HashSet<common_utils::id_type::MerchantConnectorAccountId>> {
-    let db_mcas = state
+) -> RoutingResult<domain::MerchantConnectorAccountsWithoutEncrypted> {
+    state
         .store
         .list_enabled_merchant_connector_accounts_without_encrypted_by_merchant_id_profile_id(
             &key_store.merchant_id,
             profile_id,
         )
         .await
-        .unwrap_or_else(|_| {
-            hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccountsWithoutEncrypted::new(
-                vec![],
-            )
-        });
+        .change_context(errors::RoutingError::MerchantConnectorAccountsFetchFailed)
+}
 
-    let active_mca_ids: std::collections::HashSet<_> =
-        db_mcas.iter().map(|mca| mca.get_id().clone()).collect();
-    Ok(active_mca_ids)
+/// Fetches the set of active MCA ids for session routing, degrading to an empty set on
+/// failure, with an explicit log. Note the empty set does not yield fallback-config
+/// tokens: with a warm cgraph cache every MCA-carrying choice is filtered out (no
+/// session tokens), and with a cold cache the refresh's own DB fetch can still
+/// hard-error.
+pub async fn get_active_mca_ids_for_session(
+    state: &SessionState,
+    key_store: &domain::MerchantKeyStore,
+    profile_id: &common_utils::id_type::ProfileId,
+) -> std::collections::HashSet<common_utils::id_type::MerchantConnectorAccountId> {
+    match get_active_merchant_connector_accounts(state, key_store, profile_id).await {
+        Ok(merchant_connector_accounts) => merchant_connector_accounts.get_ids(),
+        Err(err) => {
+            logger::error!(
+                error = ?err,
+                "euclid_routing: failed to fetch active merchant connector accounts for \
+                 session routing; continuing with empty active set"
+            );
+            std::collections::HashSet::new()
+        }
+    }
 }

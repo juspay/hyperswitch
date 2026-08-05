@@ -12630,12 +12630,16 @@ where
 {
     let chosen = connectors.apply_filter_for_session_routing();
 
-    let active_mca_ids =
-        routing::get_active_mca_ids(&state, processor.get_key_store(), business_profile.get_id())
-            .await
-            .change_context(errors::ApiErrorResponse::GenericNotFoundError {
-                message: "Active mca_ids not found".to_string(),
-            })?;
+    // Degrade to an empty active set on a transient MCA fetch error, with an explicit
+    // log, instead of returning a client-facing error for an infra failure. Note the
+    // empty set filters out every MCA-carrying choice, so a warm-cache request yields no
+    // session tokens and a cold-cache refresh can still hard-error.
+    let active_mca_ids = routing::get_active_mca_ids_for_session(
+        &state,
+        processor.get_key_store(),
+        business_profile.get_id(),
+    )
+    .await;
 
     let session_input = routing::SessionRoutingInput {
         state: &state,

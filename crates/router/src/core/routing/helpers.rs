@@ -464,6 +464,72 @@ impl RoutingAlgorithmHelpers<'_> {
     }
 }
 
+/// Validates the `label_info` entries of a contract-based routing config against the
+/// merchant's connector accounts, in a single list fetch.
+///
+/// Shared by the contract-based setup and update endpoints so both apply the same
+/// checks in the same order:
+/// 1. duplicate `mca_id` in the request -> `InvalidRequestData` ("Duplicate ...")
+/// 2. `mca_id` not present for the profile -> `MerchantConnectorAccountNotFound`
+/// 3. label not matching the connector name -> `InvalidRequestData` ("Incorrect ...")
+///
+/// A failure of the list fetch itself is an infra error (an empty result is `Ok(vec![])`,
+/// not an error), so it maps to `InternalServerError` rather than a 404.
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+pub async fn validate_contract_based_label_info(
+    db: &dyn StorageInterface,
+    merchant_id: &id_type::MerchantId,
+    profile_id: &id_type::ProfileId,
+    label_info: &[routing_types::LabelInformation],
+) -> RouterResult<()> {
+    // Fetching disabled MCAs too: a contract config may reference a temporarily disabled
+    // MCA — validation checks connector existence and label, not activity.
+    let all_mcas = db
+        .list_merchant_connector_accounts_without_encrypted_including_disabled_by_merchant_id_profile_id(
+            merchant_id,
+            profile_id,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable(
+            "Failed to list merchant connector accounts for contract based routing validation",
+        )?;
+
+    let mca_map: std::collections::HashMap<_, _> = all_mcas
+        .iter()
+        .map(|mca| (mca.get_id(), mca.connector_name.clone()))
+        .collect();
+
+    let mut contained_mca = Vec::new();
+    for info in label_info {
+        if contained_mca.contains(&info.mca_id) {
+            return Err(error_stack::Report::new(
+                errors::ApiErrorResponse::InvalidRequestData {
+                    message: "Duplicate mca configuration received".to_string(),
+                },
+            ));
+        }
+
+        let mca_connector_name = mca_map.get(&info.mca_id).ok_or_else(|| {
+            error_stack::Report::new(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                id: info.mca_id.get_string_repr().to_owned(),
+            })
+        })?;
+
+        if mca_connector_name != &info.label {
+            return Err(error_stack::Report::new(
+                errors::ApiErrorResponse::InvalidRequestData {
+                    message: "Incorrect mca configuration received".to_string(),
+                },
+            ));
+        }
+
+        contained_mca.push(info.mca_id.clone());
+    }
+
+    Ok(())
+}
+
 #[cfg(feature = "v1")]
 pub async fn validate_connectors_in_routing_config(
     state: &SessionState,
