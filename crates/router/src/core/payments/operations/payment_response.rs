@@ -352,6 +352,7 @@ where
             let compat_action = payment_methods::payment_method_modular_forward_compat_action(
                 state,
                 &payment_method.merchant_id,
+                &provider.get_account().organization_id,
                 payment_method.customer_id.as_ref(),
             )
             .await;
@@ -427,6 +428,7 @@ where
             let compat_action = payment_methods::payment_method_modular_forward_compat_action(
                 state,
                 &payment_method.merchant_id,
+                &provider.get_account().organization_id,
                 payment_method.customer_id.as_ref(),
             )
             .await;
@@ -1129,6 +1131,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
             resp.status,
             resp.response.clone(),
             platform.get_provider().get_account().storage_scheme,
+            &platform.get_provider().get_account().organization_id,
             platform.get_initiator(),
         )
         .await?;
@@ -2148,6 +2151,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
             resp.status,
             resp.response.clone(),
             platform.get_provider().get_account().storage_scheme,
+            &platform.get_provider().get_account().organization_id,
             platform.get_initiator(),
         )
         .await?;
@@ -3227,6 +3231,7 @@ fn get_payment_intent_update_data<F: Clone, T: types::Capturable>(
 }
 
 #[cfg(feature = "v2")]
+#[allow(clippy::too_many_arguments)]
 async fn update_payment_method_status_and_ntid<F: Clone>(
     state: &SessionState,
     key_store: &domain::MerchantKeyStore,
@@ -3234,12 +3239,14 @@ async fn update_payment_method_status_and_ntid<F: Clone>(
     attempt_status: common_enums::AttemptStatus,
     payment_response: Result<types::PaymentsResponseData, ErrorResponse>,
     storage_scheme: enums::MerchantStorageScheme,
+    _organization_id: &common_utils::id_type::OrganizationId,
     _initiator: Option<&domain::Initiator>,
 ) -> RouterResult<()> {
     todo!()
 }
 
 #[cfg(feature = "v1")]
+#[allow(clippy::too_many_arguments)]
 async fn update_payment_method_status_and_ntid<F: Clone>(
     state: &SessionState,
     key_store: &domain::MerchantKeyStore,
@@ -3247,6 +3254,7 @@ async fn update_payment_method_status_and_ntid<F: Clone>(
     attempt_status: common_enums::AttemptStatus,
     payment_response: Result<types::PaymentsResponseData, ErrorResponse>,
     storage_scheme: enums::MerchantStorageScheme,
+    organization_id: &common_utils::id_type::OrganizationId,
     initiator: Option<&domain::Initiator>,
 ) -> RouterResult<()> {
     // If the payment_method is deleted then ignore the error related to retrieving payment method
@@ -3343,6 +3351,7 @@ async fn update_payment_method_status_and_ntid<F: Clone>(
         let compat_action = payment_methods::payment_method_modular_forward_compat_action(
             state,
             &payment_method.merchant_id,
+            organization_id,
             payment_method.customer_id.as_ref(),
         )
         .await;

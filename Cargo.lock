@@ -2188,6 +2188,7 @@ dependencies = [
  "blake3",
  "bytes 1.10.1",
  "common_enums",
+ "deja",
  "diesel",
  "error-stack 0.4.1",
  "fake",
@@ -2273,7 +2274,7 @@ dependencies = [
 [[package]]
 name = "config_patch_derive"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?tag=2026.07.10.1#51237c677236384f806534e9e0105cc3deedc566"
+source = "git+https://github.com/juspay/connector-service?tag=2026.07.21.0#0198c47eae01e7d8a8733223349067df3103174e"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2854,6 +2855,63 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "092966b41edc516079bdf31ec78a2e0588d1d0c08f78b91d8307215928642b2b"
 
 [[package]]
+name = "deja"
+version = "0.1.0"
+source = "git+https://github.com/juspay/deja?rev=075a614324897b8b6a878af36d7ac243fbec5d33#075a614324897b8b6a878af36d7ac243fbec5d33"
+dependencies = [
+ "deja-context",
+ "deja-core",
+ "deja-derive",
+ "deja-runtime",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "deja-context"
+version = "0.1.0"
+source = "git+https://github.com/juspay/deja?rev=075a614324897b8b6a878af36d7ac243fbec5d33#075a614324897b8b6a878af36d7ac243fbec5d33"
+dependencies = [
+ "pin-project-lite",
+]
+
+[[package]]
+name = "deja-core"
+version = "0.1.0"
+source = "git+https://github.com/juspay/deja?rev=075a614324897b8b6a878af36d7ac243fbec5d33#075a614324897b8b6a878af36d7ac243fbec5d33"
+dependencies = [
+ "serde",
+ "serde_json",
+ "thiserror 1.0.69",
+]
+
+[[package]]
+name = "deja-derive"
+version = "0.1.0"
+source = "git+https://github.com/juspay/deja?rev=075a614324897b8b6a878af36d7ac243fbec5d33#075a614324897b8b6a878af36d7ac243fbec5d33"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.101",
+]
+
+[[package]]
+name = "deja-runtime"
+version = "0.1.0"
+source = "git+https://github.com/juspay/deja?rev=075a614324897b8b6a878af36d7ac243fbec5d33#075a614324897b8b6a878af36d7ac243fbec5d33"
+dependencies = [
+ "async-trait",
+ "deja-context",
+ "deja-core",
+ "deja-derive",
+ "serde",
+ "serde_json",
+ "tokio 1.48.0",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "der"
 version = "0.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3038,6 +3096,7 @@ dependencies = [
  "common_enums",
  "common_types",
  "common_utils",
+ "deja",
  "diesel",
  "error-stack 0.4.1",
  "hyperswitch_masking",
@@ -3478,8 +3537,10 @@ dependencies = [
  "aws-smithy-runtime-api",
  "aws-smithy-types",
  "base64 0.22.1",
+ "bytes 1.10.1",
  "common_enums",
  "common_utils",
+ "deja",
  "dyn-clone",
  "error-stack 0.4.1",
  "hex",
@@ -4080,7 +4141,7 @@ checksum = "32619942b8be646939eaf3db0602b39f5229b74575b67efc897811ded1db4e57"
 [[package]]
 name = "grpc-api-types"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?tag=2026.07.10.1#51237c677236384f806534e9e0105cc3deedc566"
+source = "git+https://github.com/juspay/connector-service?tag=2026.07.21.0#0198c47eae01e7d8a8733223349067df3103174e"
 dependencies = [
  "axum 0.8.4",
  "bytes 1.10.1",
@@ -6754,6 +6815,7 @@ dependencies = [
  "tera",
  "thiserror 1.0.69",
  "toml 0.8.22",
+ "tracing",
  "url 2.5.4",
  "urlencoding",
  "wasm-bindgen",
@@ -7885,12 +7947,14 @@ name = "redis_interface"
 version = "0.1.0"
 dependencies = [
  "common_utils",
+ "deja",
  "error-stack 0.4.1",
  "fred",
  "futures 0.3.31",
  "redis",
  "router_env",
  "serde",
+ "serde_json",
  "thiserror 1.0.69",
  "tokio 1.48.0",
  "tokio-stream",
@@ -8210,9 +8274,12 @@ dependencies = [
  "common_types",
  "common_utils",
  "config",
+ "connector_configs",
  "cookie 0.18.1",
  "csv",
  "currency_conversion",
+ "deja",
+ "deja-core",
  "derive_deref",
  "diesel",
  "diesel_models",
@@ -8318,8 +8385,11 @@ name = "router_env"
 version = "0.1.0"
 dependencies = [
  "actix-web",
+ "bytes 1.10.1",
  "cargo_metadata 0.18.1",
  "config",
+ "deja",
+ "deja-core",
  "error-stack 0.4.1",
  "gethostname",
  "opentelemetry",
@@ -8373,7 +8443,7 @@ dependencies = [
 [[package]]
 name = "rust-grpc-client"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?tag=2026.07.10.1#51237c677236384f806534e9e0105cc3deedc566"
+source = "git+https://github.com/juspay/connector-service?tag=2026.07.21.0#0198c47eae01e7d8a8733223349067df3103174e"
 dependencies = [
  "grpc-api-types",
 ]
@@ -9654,6 +9724,7 @@ dependencies = [
  "common_utils",
  "config",
  "crc32fast",
+ "deja",
  "diesel",
  "diesel_models",
  "dyn-clone",
@@ -9802,9 +9873,9 @@ checksum = "13c2bddecc57b384dee18652358fb23172facb8a2c51ccc10d74c157bdea3292"
 
 [[package]]
 name = "superposition_core"
-version = "0.114.0"
+version = "0.115.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6b97214039991ceebacd02afa5fde5fa7de3c421145d3aad60c4000ab58c904e"
+checksum = "e639a2afe40c9950f1b7c957960b6cb8aea2e8058f6b10e35be5f73f8cc46a57"
 dependencies = [
  "bigdecimal 0.3.1",
  "blake3",
@@ -9823,9 +9894,9 @@ dependencies = [
 
 [[package]]
 name = "superposition_derives"
-version = "0.114.0"
+version = "0.115.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "94ce01eca383050e056a97cb540bc866c17a4caa5e1690dacd39b2099f83294d"
+checksum = "8d0cb48cd1822221a20cd0974c3f79094f6513ff60c6e00ab6f1c4df58f0803d"
 dependencies = [
  "proc-macro-crate 3.2.0",
  "quote",
@@ -9834,9 +9905,9 @@ dependencies = [
 
 [[package]]
 name = "superposition_provider"
-version = "0.114.0"
+version = "0.115.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "aac9de6c9317dd04c25c6cdd3985d8cec7de60cf146ca478089a190803d82d46"
+checksum = "0ac607bd5d6c30afadaf3c60218086e68e8f612c5a5f5fa27ea834ea616c997a"
 dependencies = [
  "async-trait",
  "aws-smithy-types",
@@ -9859,9 +9930,9 @@ dependencies = [
 
 [[package]]
 name = "superposition_sdk"
-version = "0.114.0"
+version = "0.115.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dff0c2b933ada9b3fb9e70b796de73d5374d13faa7e606aa10e5730c0fcbf3d0"
+checksum = "aad27e7b60dc111f73b6ebb45ab0f3fb88f6e7d1849a7ce339712fb9b19163ec"
 dependencies = [
  "aws-smithy-async",
  "aws-smithy-http 0.62.1",
@@ -9877,9 +9948,9 @@ dependencies = [
 
 [[package]]
 name = "superposition_types"
-version = "0.114.0"
+version = "0.115.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4e91fcc93ef75fee0a68c709b13219f9b90d7a4efa432f2e680969208a4b9fa0"
+checksum = "76fb39fb2879cbb2f8c185a0b09b2f8ce2b41168c4edb72a87105039a6fc76e6"
 dependencies = [
  "bigdecimal 0.3.1",
  "chrono",
@@ -11226,7 +11297,7 @@ checksum = "ed646292ffc8188ef8ea4d1e0e0150fb15a5c2e12ad9b8fc191ae7a8a7f3c4b9"
 [[package]]
 name = "ucs_cards"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?tag=2026.07.10.1#51237c677236384f806534e9e0105cc3deedc566"
+source = "git+https://github.com/juspay/connector-service?tag=2026.07.21.0#0198c47eae01e7d8a8733223349067df3103174e"
 dependencies = [
  "bytes 1.10.1",
  "error-stack 0.4.1",
@@ -11242,7 +11313,7 @@ dependencies = [
 [[package]]
 name = "ucs_common_enums"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?tag=2026.07.10.1#51237c677236384f806534e9e0105cc3deedc566"
+source = "git+https://github.com/juspay/connector-service?tag=2026.07.21.0#0198c47eae01e7d8a8733223349067df3103174e"
 dependencies = [
  "serde",
  "strum 0.26.3",
@@ -11253,7 +11324,7 @@ dependencies = [
 [[package]]
 name = "ucs_common_utils"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?tag=2026.07.10.1#51237c677236384f806534e9e0105cc3deedc566"
+source = "git+https://github.com/juspay/connector-service?tag=2026.07.21.0#0198c47eae01e7d8a8733223349067df3103174e"
 dependencies = [
  "anyhow",
  "base64 0.21.7",

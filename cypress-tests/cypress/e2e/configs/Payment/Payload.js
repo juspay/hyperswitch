@@ -774,6 +774,78 @@ export const connectorDetails = {
         },
       },
     }),
+    MandateSingleUseAch: getCustomExchange({
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: DUPLICATION_TIMEOUT,
+        },
+      },
+      Request: {
+        amount: 6540,
+        payment_method: "bank_debit",
+        payment_method_type: "ach",
+        currency: "USD",
+        payment_method_data: {
+          bank_debit: {
+            ach_bank_debit: {
+              account_number: "000123456789",
+              routing_number: "110000000",
+              bank_account_holder_name: "John Doe",
+              bank_type: "checking",
+            },
+          },
+        },
+        mandate_data: {
+          customer_acceptance: customerAcceptance,
+          mandate_type: {
+            multi_use: {
+              amount: 8000,
+              currency: "USD",
+            },
+          },
+        },
+        setup_future_usage: "off_session",
+        billing: {
+          address: {
+            first_name: "John",
+            last_name: "Doe",
+            line1: "123 Main St",
+            city: "San Francisco",
+            state: "California",
+            zip: "94122",
+            country: "US",
+          },
+        },
+        payment_type: "new_mandate",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    }),
+    MITAutoCaptureAch: getCustomExchange({
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: DUPLICATION_TIMEOUT,
+        },
+      },
+      Request: {
+        amount: 6540,
+        off_session: true,
+        confirm: true,
+        currency: "USD",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    }),
   },
   webhook: {
     TransactionIdConfig: {

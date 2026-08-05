@@ -1632,7 +1632,7 @@ pub struct MerchantConnectorResponse {
     pub connector_wallets_details: Option<ConnectorWalletDetails>,
 
     /// Details about the connector’s webhook configuration
-    #[schema(value_type = Option<WebhookSetupCapabilities>)]
+    #[schema(value_type = Option<WebhookSetupCapabilities>, deprecated)]
     pub webhook_setup_capabilities:
         Option<common_types::connector_webhook_configuration::WebhookSetupCapabilities>,
 }
@@ -2213,7 +2213,7 @@ pub struct MerchantConnectorDetailsWrap {
     #[schema(value_type = Option<MerchantConnectorDetails>, example = r#"{
        "connector_account_details": {
             "auth_type": "HeaderKey",
-            "api_key":"sk_test_xxxxxexamplexxxxxx12345"
+            "api_key":"<stripe_test_secret_key>"
         },
         "metadata": {
             "user_defined_field_1": "sample_1",

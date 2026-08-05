@@ -167,6 +167,31 @@ impl VaultingInterface for VaultDelete {
     }
 }
 
+#[derive(Debug)]
+pub struct EntityCreate;
+
+impl VaultingInterface for EntityCreate {
+    fn get_vaulting_request_url() -> &'static str {
+        consts::LOCKER_ENTITY_CREATE_REQUEST_URL
+    }
+
+    fn get_vaulting_flow_name() -> &'static str {
+        consts::LOCKER_ENTITY_CREATE_FLOW_TYPE
+    }
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct EntityCreateRequest {
+    pub entity_id: id_type::MerchantId,
+}
+
+#[derive(Debug, serde::Deserialize)]
+pub struct EntityCreateResponse {
+    pub entity_id: String,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub created_at: time::PrimitiveDateTime,
+}
+
 #[cfg(feature = "v2")]
 pub struct SavedPMLPaymentsInfo {
     pub payment_intent: storage::PaymentIntent,
