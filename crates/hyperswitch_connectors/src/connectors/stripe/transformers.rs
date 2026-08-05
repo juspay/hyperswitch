@@ -3009,6 +3009,9 @@ impl StripeChargeEnum {
 pub struct StripeCharge {
     pub id: String,
     pub payment_method_details: Option<StripePaymentMethodDetailsResponse>,
+    /// The `outcome` object from the Stripe charge, describing whether the payment was accepted
+    /// and the risk/network assessment behind that decision.
+    pub outcome: Option<StripeChargeOutcome>,
 }
 
 #[derive(Deserialize, Clone, Debug, PartialEq, Eq, Serialize)]
@@ -4571,6 +4574,113 @@ impl<F, T> TryFrom<ResponseRouterData<F, ChargesResponse, T, PaymentsResponseDat
         Ok(Self {
             status,
             response,
+            ..item.data
+        })
+    }
+}
+
+/// Full representation of the Stripe charge `outcome` object, shared by the
+/// charge sync response and the payment intent's `latest_charge`.
+/// See <https://docs.stripe.com/api/charges/object#charge_object-outcome>
+#[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
+pub struct StripeChargeOutcome {
+    /// Possible values: authorized, manual_review, issuer_declined, blocked, invalid
+    #[serde(rename = "type")]
+    pub outcome_type: Option<String>,
+    /// Possible values: approved_by_network, declined_by_network, not_sent_to_network,
+    /// reversed_after_approval
+    pub network_status: Option<String>,
+    /// Enumerated reason for the outcome type (e.g. highest_risk_level, rule)
+    pub reason: Option<String>,
+    /// Stripe Radar's evaluation of the riskiness (normal, elevated, highest, not_assessed, unknown)
+    pub risk_level: Option<String>,
+    /// Stripe Radar's numeric risk score (0-100), only available with Radar for Fraud Teams
+    pub risk_score: Option<i32>,
+    /// Human-readable description of the outcome, meant for the recipient of the payment
+    pub seller_message: Option<String>,
+    /// Advice on how to proceed with an error (confirm_card_data, do_not_try_again, try_again_later)
+    pub advice_code: Option<String>,
+    /// Network advice code for network-declined charges
+    pub network_advice_code: Option<String>,
+    /// Network decline code for network-declined charges
+    pub network_decline_code: Option<String>,
+    /// The ID of the Radar rule that matched the payment, if applicable
+    pub rule: Option<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct ChargeSyncResponse {
+    pub id: String,
+    pub status: StripePaymentStatus,
+    pub payment_intent: Option<String>,
+    pub amount_captured: Option<MinorUnit>,
+    pub failure_code: Option<String>,
+    pub failure_message: Option<String>,
+    pub outcome: Option<StripeChargeOutcome>,
+}
+
+impl<F, T> TryFrom<ResponseRouterData<F, ChargeSyncResponse, T, PaymentsResponseData>>
+    for RouterData<F, T, PaymentsResponseData>
+{
+    type Error = error_stack::Report<ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<F, ChargeSyncResponse, T, PaymentsResponseData>,
+    ) -> Result<Self, Self::Error> {
+        let status = get_stripe_payment_status(item.response.status, item.data.status);
+
+        let resource_id = item
+            .response
+            .payment_intent
+            .clone()
+            .unwrap_or_else(|| item.response.id.clone());
+        let outcome = item.response.outcome.clone();
+        let response = if is_payment_failure(status) {
+            Err(hyperswitch_domain_models::router_data::ErrorResponse {
+                code: item
+                    .response
+                    .failure_code
+                    .clone()
+                    .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
+                message: item
+                    .response
+                    .failure_message
+                    .clone()
+                    .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
+                reason: item.response.failure_message.clone(),
+                status_code: item.http_code,
+                attempt_status: Some(status),
+                connector_transaction_id: Some(resource_id.clone()),
+                connector_response_reference_id: Some(resource_id.clone()),
+                network_advice_code: outcome.as_ref().and_then(|o| o.network_advice_code.clone()),
+                network_decline_code: outcome
+                    .as_ref()
+                    .and_then(|o| o.network_decline_code.clone()),
+                network_error_message: outcome.as_ref().and_then(|o| o.seller_message.clone()),
+                connector_metadata: None,
+            })
+        } else {
+            Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(resource_id.clone()),
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(None),
+                connector_metadata: None,
+                network_txn_id: None,
+                network_txn_link_id: None,
+                connector_response_reference_id: Some(resource_id.clone()),
+                incremental_authorization_allowed: None,
+                authentication_data: None,
+                charges: None,
+            })
+        };
+
+        Ok(Self {
+            status,
+            response,
+            amount_captured: item
+                .response
+                .amount_captured
+                .map(|amount| amount.get_amount_as_i64()),
+            minor_amount_captured: item.response.amount_captured,
             ..item.data
         })
     }
