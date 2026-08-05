@@ -18,6 +18,7 @@ use super::{ConstructFlowSpecificData, Feature};
 use crate::{
     consts::PROTOCOL,
     core::{
+        configs::dimension_state,
         errors::{self, ConnectorErrorExt, RouterResult},
         payments::{
             self, access_token, customers,
@@ -270,6 +271,8 @@ async fn create_applepay_session_token(
     header_payload: hyperswitch_domain_models::payments::HeaderPayload,
 ) -> RouterResult<types::PaymentsSessionRouterData> {
     let delayed_response = is_session_response_delayed(state, connector);
+    let apple_pay_next_action =
+        resolve_wallet_eligibility_next_action(state, router_data, business_profile).await;
     if delayed_response {
         let delayed_response_apple_pay_session =
             Some(payment_types::ApplePaySessionResponse::NoSessionResponse(
@@ -281,7 +284,7 @@ async fn create_applepay_session_token(
             None, // Apple pay payment request will be none for delayed session response
             connector.connector_name.to_string(),
             delayed_response,
-            payment_types::NextActionCall::Confirm,
+            apple_pay_next_action,
             header_payload,
         )
     } else {
@@ -607,7 +610,7 @@ async fn create_applepay_session_token(
             Some(applepay_payment_request),
             connector.connector_name.to_string(),
             delayed_response,
-            payment_types::NextActionCall::Confirm,
+            apple_pay_next_action,
             header_payload,
         )
     }
@@ -912,7 +915,7 @@ fn apply_wallet_blocking_to_apple_pay_capabilities(
     wallet_blocking_config: Option<&diesel_models::business_profile::WalletBlockingConfig>,
 ) -> Vec<String> {
     if let Some(wallet_config) = wallet_blocking_config {
-        if wallet_config.is_credit_blocked() {
+        if wallet_config.is_credit_blocked_for_apple_pay() {
             capabilities.push("supportsDebit".to_string());
         }
     }
@@ -923,7 +926,7 @@ fn get_google_pay_card_type_restrictions(
     wallet_blocking_config: Option<&diesel_models::business_profile::WalletBlockingConfig>,
 ) -> Option<bool> {
     wallet_blocking_config.and_then(|wallet_config| {
-        if wallet_config.is_credit_blocked() {
+        if wallet_config.is_credit_blocked_for_google_pay() {
             Some(false)
         } else {
             None
@@ -1005,7 +1008,37 @@ fn create_apple_pay_session_response(
     }
 }
 
-fn create_gpay_session_token(
+/// Whether the SDK should call eligiblity check for this wallet.
+async fn resolve_wallet_eligibility_next_action(
+    state: &routes::SessionState,
+    router_data: &types::PaymentsSessionRouterData,
+    business_profile: &domain::Profile,
+) -> payment_types::NextActionCall {
+    let dimensions = dimension_state::Dimensions::new()
+        .with_processor_merchant_id(business_profile.merchant_id.clone().into())
+        .with_provider_merchant_id(
+            hyperswitch_domain_models::platform::ProviderMerchantId::new(
+                business_profile.merchant_id.clone(),
+            ),
+        )
+        .with_profile_id(business_profile.get_id().clone());
+
+    let should_perform_eligibility = dimensions
+        .get_should_perform_eligibility(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            router_data.customer_id.as_ref(),
+        )
+        .await;
+
+    if should_perform_eligibility {
+        payment_types::NextActionCall::EligibilityCheck
+    } else {
+        payment_types::NextActionCall::Confirm
+    }
+}
+
+async fn create_gpay_session_token(
     state: &routes::SessionState,
     router_data: &types::PaymentsSessionRouterData,
     connector: &api::ConnectorData,
@@ -1032,6 +1065,8 @@ fn create_gpay_session_token(
         .and_then(|connector_wallets_details| connector_wallets_details.google_pay);
     let connector_metadata = router_data.connector_meta_data.clone();
     let delayed_response = is_session_response_delayed(state, connector);
+    let google_pay_next_action =
+        resolve_wallet_eligibility_next_action(state, router_data, business_profile).await;
 
     if delayed_response {
         Ok(types::PaymentsSessionRouterData {
@@ -1042,7 +1077,7 @@ fn create_gpay_session_token(
                             delayed_session_token: true,
                             connector: connector.connector_name.to_string(),
                             sdk_next_action: payment_types::SdkNextAction {
-                                next_action: payment_types::NextActionCall::Confirm,
+                                next_action: google_pay_next_action.clone(),
                                 should_block_confirm: None,
                             },
                         },
@@ -1134,7 +1169,7 @@ fn create_gpay_session_token(
                                 transaction_info,
                                 connector: connector.connector_name.to_string(),
                                 sdk_next_action: payment_types::SdkNextAction {
-                                    next_action: payment_types::NextActionCall::Confirm,
+                                    next_action: google_pay_next_action.clone(),
                                     should_block_confirm: None,
                                 },
                                 delayed_session_token: false,
@@ -1236,7 +1271,7 @@ fn create_gpay_session_token(
                                 transaction_info,
                                 connector: connector.connector_name.to_string(),
                                 sdk_next_action: payment_types::SdkNextAction {
-                                    next_action: payment_types::NextActionCall::Confirm,
+                                    next_action: google_pay_next_action,
                                     should_block_confirm: None,
                                 },
                                 delayed_session_token: false,
@@ -1587,7 +1622,7 @@ impl RouterDataSession for types::PaymentsSessionRouterData {
     ) -> RouterResult<Self> {
         match connector.get_token {
             api::GetToken::GpayMetadata => {
-                create_gpay_session_token(state, self, connector, business_profile)
+                create_gpay_session_token(state, self, connector, business_profile).await
             }
             api::GetToken::SamsungPayMetadata => create_samsung_pay_session_token(
                 state,

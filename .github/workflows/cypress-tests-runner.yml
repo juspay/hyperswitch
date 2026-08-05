@@ -17,8 +17,7 @@ concurrency:
 env:
   CARGO_INCREMENTAL: 0
   CARGO_NET_RETRY: 10
-  MANDATORY_PAYMENTS_CONNECTORS_BATCH_1: "stripe authorizedotnet"
-  MANDATORY_PAYMENTS_CONNECTORS_BATCH_2: "adyen nexixpay finix"
+  MANDATORY_PAYMENTS_CONNECTORS_BATCH_1: "stripe"
   OPTIONAL_PAYMENTS_CONNECTORS_BATCH_1: "worldpay braintree cryptopay paypal worldpayxml volt"
   OPTIONAL_PAYMENTS_CONNECTORS_BATCH_2: "gigadat checkout redsys novalnet noon"
   OPTIONAL_PAYMENTS_CONNECTORS_BATCH_3: "loonio zift airwallex fiuu"
@@ -27,9 +26,10 @@ env:
   EXTENDED_PAYMENTS_CONNECTORS_BATCH_1: "bluesnap gigadat loonio nmi"
   EXTENDED_PAYMENTS_CONNECTORS_BATCH_2: "paypal redsys zift"
   EXTENDED_PAYOUTS_CONNECTORS: "adyenplatform wise"
-  MOCK_PAYMENTS_CONNECTORS_BATCH_1: "gigadat zift loonio redsys worldpayxml cybersource"
-  MOCK_PAYMENTS_CONNECTORS_BATCH_2: "braintree nmi calida adyen peachpayments novalnet"
-  MOCK_PAYMENTS_CONNECTORS_BATCH_3: "checkout cashtocode fiuu"
+  MOCK_PAYMENTS_CONNECTORS_BATCH_1: "gigadat zift loonio payload redsys worldpayxml"
+  MOCK_PAYMENTS_CONNECTORS_BATCH_2: "cybersource braintree nmi calida adyen peachpayments"
+  MOCK_PAYMENTS_CONNECTORS_BATCH_3: "novalnet checkout authorizedotnet cashtocode fiuu nexixpay"
+  MOCK_PAYMENTS_CONNECTORS_BATCH_4: "finix"
   MOCK_PAYOUTS_CONNECTORS: "adyenplatform wise"
   RUST_BACKTRACE: short
   RUSTUP_MAX_RETRIES: 10
@@ -219,13 +219,6 @@ jobs:
                   "parallel": 3,
                   "report_artifact_name": "cypress-mandatory-test-results-batch-1",
                   "server_logs_artifact": "mandatory-server-logs-batch-1"
-                },
-                {
-                  "name": "batch-2",
-                  "connectors": "'"${MANDATORY_PAYMENTS_CONNECTORS_BATCH_2}"'",
-                  "parallel": 3,
-                  "report_artifact_name": "cypress-mandatory-test-results-batch-2",
-                  "server_logs_artifact": "mandatory-server-logs-batch-2"
                 },
                 {
                   "name": "platform",
@@ -802,6 +795,15 @@ jobs:
                   "parallel": 3,
                   "report_artifact_name": "cypress-mock-test-results-payments-batch-3",
                   "server_logs_artifact": "mock-server-logs-payments-batch-3"
+                },
+                {
+                  "name": "mock-payments-batch-4",
+                  "payments_connectors": "'"${MOCK_PAYMENTS_CONNECTORS_BATCH_4}"'",
+                  "payouts_connectors": "",
+                  "platform_connectors": "",
+                  "parallel": 3,
+                  "report_artifact_name": "cypress-mock-test-results-payments-batch-4",
+                  "server_logs_artifact": "mock-server-logs-payments-batch-4"
                 }
               ]
             }'
