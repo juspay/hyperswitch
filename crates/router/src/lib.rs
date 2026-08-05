@@ -247,6 +247,10 @@ pub fn mk_app(
 
             server_app = server_app.service(routes::Profile::server(state.clone()));
         }
+        // MerchantConnectorAccount is BOTH — OLAP dashboard drives connector
+        // CRUD (`/account/{merchant_id}/connectors`) while OLTP payment flow
+        // reads `/account/payment_methods`. Per-endpoint split lives in
+        // `MerchantConnectorAccount::server`.
         server_app = server_app
             .service(routes::Payments::server(state.clone()))
             .service(routes::Customers::server(state.clone()))
@@ -267,7 +271,10 @@ pub fn mk_app(
             server_app = server_app.service(routes::Hypersense::server(state.clone()));
         }
 
-        #[cfg(feature = "oltp")]
+        // PaymentMethods is BOTH — `/payment_methods/filter` serves dashboard
+        // reference data (OLAP) while CRUD serves the customer payment flow (OLTP).
+        // The per-endpoint split lives inside `PaymentMethods::server`.
+        #[cfg(any(feature = "olap", feature = "oltp"))]
         {
             server_app = server_app.service(routes::PaymentMethods::server(state.clone()));
         }
@@ -291,9 +298,10 @@ pub fn mk_app(
                 .service(routes::SdkConfig::server(state.clone()))
                 .service(routes::SuperpositionProxy::server(state.clone()));
         }
+        // `/authentication` is the 3DS challenge/verification surface driven from
+        // the customer payment flow — OLTP-only.
         #[cfg(all(feature = "v1", feature = "oltp"))]
         {
-            // routes::Authentication::server - why only OLTP? Doesn't OLAP need it?
             server_app = server_app.service(routes::Authentication::server(state.clone()));
         }
     }

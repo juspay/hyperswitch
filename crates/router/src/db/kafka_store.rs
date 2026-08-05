@@ -3716,7 +3716,7 @@ impl UserInterface for KafkaStore {
             .await
     }
 
-    #[cfg(feature = "olap")] // this is update - shouldn't it be OLTP?
+    #[cfg(feature = "olap")]
     async fn update_active_user_by_user_email(
         &self,
         user_email: &domain::UserEmail,
