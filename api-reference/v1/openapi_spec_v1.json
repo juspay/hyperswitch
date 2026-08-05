@@ -45518,7 +45518,8 @@
             "items": {
               "$ref": "#/components/schemas/CardType"
             },
-            "description": "Set of card types to block for all wallet payments (e.g., [\"Credit\", \"Debit\"]).\nRetained for backwards compatibility with existing configurations.",
+            "description": "Set of card types to block for all wallet payments (e.g., [\"Credit\", \"Debit\"]).\n\nDeprecated: this applies one rule to every wallet, so a card type cannot be blocked on\nApple Pay without also blocking it on Google Pay. Use `apple_pay.card_types` and\n`google_pay.card_types` instead, which are evaluated per wallet against that wallet's decrypted card.",
+            "deprecated": true,
             "nullable": true
           },
           "apple_pay": {
