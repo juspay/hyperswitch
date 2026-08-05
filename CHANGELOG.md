@@ -4,6 +4,43 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.08.05.0
+
+### Features
+
+- **connector:** [Paysafe] Add WASM changes for GooglePay and EUR ApplePay account ids ([#13516](https://github.com/juspay/hyperswitch/pull/13516)) ([`9ce09cd`](https://github.com/juspay/hyperswitch/commit/9ce09cd03ec8ec689a8b79bbbc0b70f1945ee63a))
+- **payments:** Run blocklist against decrypted wallet DPAN in eligibility check ([#13508](https://github.com/juspay/hyperswitch/pull/13508)) ([`e857494`](https://github.com/juspay/hyperswitch/commit/e857494ec53f67a821c6fa7b419baa5be8eb96dd))
+- **router:** [tsys_tansit] add merchant details to MCA metadata and discount-related fields to the hyperswitch payment request ([#13400](https://github.com/juspay/hyperswitch/pull/13400)) ([`0fb9c79`](https://github.com/juspay/hyperswitch/commit/0fb9c79986872a9683072db0f64d3a32b842d21b))
+
+### Bug Fixes
+
+- **ci:** Consolidate mock-payments batches to 3 batches of 3 parallel ([#13506](https://github.com/juspay/hyperswitch/pull/13506)) ([`7cd8f8b`](https://github.com/juspay/hyperswitch/commit/7cd8f8b1152b9515a94998ada788b727974bfd41))
+
+### Performance
+
+- **core:** Cache business_profile ([#13351](https://github.com/juspay/hyperswitch/pull/13351)) ([`12011bd`](https://github.com/juspay/hyperswitch/commit/12011bd47f65e5905d37095020e360d9163a1876))
+- **payment-methods:** Optimize for payment method latency ([#13505](https://github.com/juspay/hyperswitch/pull/13505)) ([`fc49ced`](https://github.com/juspay/hyperswitch/commit/fc49ced8d01843694f364ebaefbe5dd4df345875))
+
+**Full Changelog:** [`2026.08.03.0...2026.08.05.0`](https://github.com/juspay/hyperswitch/compare/2026.08.03.0...2026.08.05.0)
+
+- - -
+
+## 2026.08.03.0
+
+### Features
+
+- **redis_interface:** Instrument Redis commands with external service call event emission ([#13091](https://github.com/juspay/hyperswitch/pull/13091)) ([`81b9d86`](https://github.com/juspay/hyperswitch/commit/81b9d86af8ceb0f79891f39f648e3c2d1f2aa62e))
+- **router:** Add support for payload split payments ([#13468](https://github.com/juspay/hyperswitch/pull/13468)) ([`31aca4b`](https://github.com/juspay/hyperswitch/commit/31aca4b883dfe4dafaaed6e032279dd6a1351416))
+- Add payment method headers to connector requests ([#13500](https://github.com/juspay/hyperswitch/pull/13500)) ([`63cfcc3`](https://github.com/juspay/hyperswitch/commit/63cfcc3e5e880ddc0e634b78c0da5672a0af3d52))
+
+### Bug Fixes
+
+- **unified_connector_service:** Complete PayPal wallet redirect over UCS ([#13242](https://github.com/juspay/hyperswitch/pull/13242)) ([`72921fb`](https://github.com/juspay/hyperswitch/commit/72921fb3664e5bd4b13c5d36536875223cbb0bf7))
+
+**Full Changelog:** [`2026.07.31.0...2026.08.03.0`](https://github.com/juspay/hyperswitch/compare/2026.07.31.0...2026.08.03.0)
+
+- - -
+
 ## 2026.07.31.0
 
 ### Features
