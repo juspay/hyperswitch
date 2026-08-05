@@ -2,9 +2,9 @@
 use api_models::payments::{AmountFilter, Order, SortBy, SortOn};
 #[cfg(feature = "olap")]
 use async_bb8_diesel::{AsyncConnection, AsyncRunQueryDsl};
-use common_utils::ext_traits::{AsyncExt, Encode};
+use common_utils::ext_traits::AsyncExt;
 #[cfg(feature = "v2")]
-use common_utils::fallback_reverse_lookup_not_found;
+use common_utils::{ext_traits::Encode, fallback_reverse_lookup_not_found};
 #[cfg(feature = "olap")]
 use diesel::{associations::HasTable, ExpressionMethods, JoinOnDsl, QueryDsl};
 #[cfg(feature = "v1")]
@@ -43,6 +43,7 @@ use hyperswitch_domain_models::{
         PaymentIntent,
     },
 };
+#[cfg(feature = "v2")]
 use redis_interface::HsetnxReply;
 #[cfg(feature = "olap")]
 use router_env::logger;
@@ -50,16 +51,24 @@ use router_env::{instrument, tracing};
 
 #[cfg(feature = "olap")]
 use crate::connection;
+#[cfg(feature = "v1")]
+use crate::kv_router_store::{FindResourceBy, InsertResourceParams, UpdateResourceParams};
 use crate::{
     diesel_error_to_data_error,
-    errors::{RedisErrorExt, StorageError},
+    errors::StorageError,
     kv_router_store::KVRouterStore,
-    redis::kv_store::{decide_storage_scheme, kv_wrapper, KvOperation, Op, PartitionKey},
-    utils::{self, pg_connection_read, pg_connection_write},
+    redis::kv_store::{Op, PartitionKey},
+    utils::{pg_connection_read, pg_connection_write},
     DatabaseStore,
 };
 #[cfg(feature = "v2")]
 use crate::{errors, lookup::ReverseLookupInterface};
+#[cfg(feature = "v2")]
+use crate::{
+    errors::RedisErrorExt,
+    redis::kv_store::{decide_storage_scheme, kv_wrapper, KvOperation},
+    utils,
+};
 
 #[async_trait::async_trait]
 impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
@@ -78,63 +87,33 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
             merchant_id: &processor_merchant_id,
             payment_id: &payment_id,
         };
-        let storage_scheme = Box::pin(decide_storage_scheme::<_, DieselPaymentIntent>(
-            self,
+
+        let conn = pg_connection_write(self).await?;
+        let new_payment_intent = payment_intent
+            .construct_new()
+            .await
+            .change_context(StorageError::EncryptionError)?;
+        let diesel_payment_intent = DieselPaymentIntent::from(new_payment_intent.clone());
+
+        let mut query_gen_conn = pg_connection_write(self).await?;
+        let drainer_query_fut = new_payment_intent
+            .clone()
+            .generate_drainer_insert_query(&mut query_gen_conn);
+
+        Box::pin(self.insert_resource(
+            merchant_key_store,
             storage_scheme,
-            Op::Insert,
+            new_payment_intent.insert(&conn),
+            diesel_payment_intent,
+            InsertResourceParams {
+                drainer_query_fut,
+                reverse_lookups: vec![],
+                key,
+                identifier: field,
+                resource_type: "payment_intent",
+            },
         ))
-        .await;
-        match storage_scheme {
-            MerchantStorageScheme::PostgresOnly => {
-                self.router_store
-                    .insert_payment_intent(payment_intent, merchant_key_store, storage_scheme)
-                    .await
-            }
-
-            MerchantStorageScheme::RedisKv => {
-                let key_str = key.to_string();
-                let new_payment_intent = payment_intent
-                    .clone()
-                    .construct_new()
-                    .await
-                    .change_context(StorageError::EncryptionError)?;
-
-                let diesel_payment_intent = payment_intent
-                    .clone()
-                    .convert()
-                    .await
-                    .change_context(StorageError::EncryptionError)?;
-
-                let mut query_gen_conn = pg_connection_write(self).await?;
-                let drainer_query = new_payment_intent
-                    .generate_drainer_insert_query(&mut query_gen_conn)
-                    .await
-                    .change_context(StorageError::KVError)
-                    .attach_printable("Failed to generate payment intent insert query")?;
-
-                match Box::pin(kv_wrapper::<DieselPaymentIntent, _, _>(
-                    self,
-                    KvOperation::<DieselPaymentIntent>::HSetNx(
-                        &field,
-                        &diesel_payment_intent,
-                        drainer_query,
-                    ),
-                    key,
-                ))
-                .await
-                .map_err(|err| err.to_redis_failed_response(&key_str))?
-                .try_into_hsetnx()
-                {
-                    Ok(HsetnxReply::KeyNotSet) => Err(StorageError::DuplicateValue {
-                        entity: "payment_intent",
-                        key: Some(key_str),
-                    }
-                    .into()),
-                    Ok(HsetnxReply::KeySet) => Ok(payment_intent),
-                    Err(error) => Err(error.change_context(StorageError::KVError)),
-                }
-            }
-        }
+        .await
     }
 
     #[cfg(feature = "v2")]
@@ -247,80 +226,40 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
     ) -> error_stack::Result<PaymentIntent, StorageError> {
         let processor_merchant_id = this.processor_merchant_id.clone();
         let payment_id = this.get_id().to_owned();
+        let updated_by = this.updated_by.clone();
         let key = PartitionKey::MerchantIdPaymentId {
             merchant_id: &processor_merchant_id,
             payment_id: &payment_id,
         };
         let field = format!("pi_{}", this.get_id().get_string_repr());
-        let storage_scheme = Box::pin(decide_storage_scheme::<_, DieselPaymentIntent>(
-            self,
+        let conn = pg_connection_write(self).await?;
+        let diesel_intent_update = DieselPaymentIntentUpdate::from(payment_intent_update);
+        let origin_diesel_intent = this
+            .convert()
+            .await
+            .change_context(StorageError::EncryptionError)?;
+        let diesel_intent = diesel_intent_update
+            .clone()
+            .apply_changeset(origin_diesel_intent.clone());
+
+        let mut query_gen_conn = pg_connection_write(self).await?;
+        let drainer_query_fut = diesel_intent_update.clone().generate_drainer_update_query(
+            &mut query_gen_conn,
+            origin_diesel_intent.payment_id.clone(),
+            origin_diesel_intent.processor_merchant_id.clone(),
+        );
+
+        Box::pin(self.update_resource(
+            merchant_key_store,
             storage_scheme,
-            Op::Update(key.clone(), &field, Some(&this.updated_by)),
+            origin_diesel_intent.update(&conn, diesel_intent_update),
+            diesel_intent,
+            UpdateResourceParams {
+                drainer_query_fut,
+                operation: Op::Update(key.clone(), &field, Some(updated_by.as_str())),
+            },
         ))
-        .await;
-        match storage_scheme {
-            MerchantStorageScheme::PostgresOnly => {
-                self.router_store
-                    .update_payment_intent(
-                        this,
-                        payment_intent_update,
-                        merchant_key_store,
-                        storage_scheme,
-                    )
-                    .await
-            }
-            MerchantStorageScheme::RedisKv => {
-                let key_str = key.to_string();
-
-                let diesel_intent_update = DieselPaymentIntentUpdate::from(payment_intent_update);
-                let origin_diesel_intent = this
-                    .convert()
-                    .await
-                    .change_context(StorageError::EncryptionError)?;
-
-                let diesel_intent = diesel_intent_update
-                    .clone()
-                    .apply_changeset(origin_diesel_intent.clone());
-                // Check for database presence as well Maybe use a read replica here ?
-
-                let redis_value = diesel_intent
-                    .encode_to_string_of_json()
-                    .change_context(StorageError::SerializationFailed)?;
-
-                let mut query_gen_conn = pg_connection_write(self).await?;
-                let drainer_query = diesel_intent_update
-                    .generate_drainer_update_query(
-                        &mut query_gen_conn,
-                        origin_diesel_intent.payment_id.clone(),
-                        origin_diesel_intent.processor_merchant_id.clone(),
-                    )
-                    .await
-                    .change_context(StorageError::KVError)
-                    .attach_printable("Failed to generate payment intent update query")?;
-
-                Box::pin(kv_wrapper::<(), _, _>(
-                    self,
-                    KvOperation::<DieselPaymentIntent>::Hset((&field, redis_value), drainer_query),
-                    key,
-                ))
-                .await
-                .map_err(|err| err.to_redis_failed_response(&key_str))?
-                .try_into_hset()
-                .change_context(StorageError::KVError)?;
-
-                let payment_intent = PaymentIntent::convert_back(
-                    self.get_keymanager_state()
-                        .attach_printable("Missing KeyManagerState")?,
-                    diesel_intent,
-                    merchant_key_store.key.get_inner(),
-                    processor_merchant_id.into(),
-                )
-                .await
-                .change_context(StorageError::DecryptionError)?;
-
-                Ok(payment_intent)
-            }
-        }
+        .await
     }
 
     #[cfg(feature = "v2")]
@@ -410,59 +349,24 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
         merchant_key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PaymentIntent, StorageError> {
-        let database_call = || async {
-            let conn = pg_connection_read(self).await?;
+        let conn = pg_connection_read(self).await?;
+        self.find_resource_by_id(
+            merchant_key_store,
+            storage_scheme,
             DieselPaymentIntent::find_by_payment_id_processor_merchant_id(
                 &conn,
                 payment_id,
                 processor_merchant_id,
-            )
-            .await
-            .map_err(|er| {
-                let new_err = diesel_error_to_data_error(*er.current_context());
-                er.change_context(new_err)
-            })
-        };
-        let storage_scheme = Box::pin(decide_storage_scheme::<_, DieselPaymentIntent>(
-            self,
-            storage_scheme,
-            Op::Find,
-        ))
-        .await;
-        let diesel_payment_intent = match storage_scheme {
-            MerchantStorageScheme::PostgresOnly => database_call().await,
-
-            MerchantStorageScheme::RedisKv => {
-                let key = PartitionKey::MerchantIdPaymentId {
+            ),
+            FindResourceBy::Id(
+                payment_id.get_hash_key_for_kv_store(),
+                PartitionKey::MerchantIdPaymentId {
                     merchant_id: processor_merchant_id,
                     payment_id,
-                };
-                let field = payment_id.get_hash_key_for_kv_store();
-                Box::pin(utils::try_redis_get_else_try_database_get(
-                    async {
-                        Box::pin(kv_wrapper::<DieselPaymentIntent, _, _>(
-                            self,
-                            KvOperation::<DieselPaymentIntent>::HGet(&field),
-                            key,
-                        ))
-                        .await?
-                        .try_into_hget()
-                    },
-                    database_call,
-                ))
-                .await
-            }
-        }?;
-
-        PaymentIntent::convert_back(
-            self.get_keymanager_state()
-                .attach_printable("Missing KeyManagerState")?,
-            diesel_payment_intent,
-            merchant_key_store.key.get_inner(),
-            processor_merchant_id.to_owned().into(),
+                },
+            ),
         )
         .await
-        .change_context(StorageError::DecryptionError)
     }
 
     #[cfg(feature = "v2")]
