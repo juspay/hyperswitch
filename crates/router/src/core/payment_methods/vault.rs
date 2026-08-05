@@ -2017,7 +2017,7 @@ pub async fn call_to_vault<V: pm_types::VaultingInterface>(
         Some(additional_headers),
     )
     .await?;
-    let response = services::call_connector_api(state, request, V::get_vaulting_flow_name())
+    let response = services::call_connector_api(state, request, V::get_vaulting_flow_name(), None)
         .await
         .change_context(errors::VaultError::VaultAPIError);
 

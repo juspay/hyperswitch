@@ -259,3 +259,14 @@ pub struct NetworkTokenizationTrackingData {
     /// always be fetched from the locker instead.
     pub card_network: Option<common_enums::CardNetwork>,
 }
+
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
+pub struct NetworkTokenizationTrackingData {
+    pub payment_method_id: common_utils::id_type::GlobalPaymentMethodId,
+    pub merchant_id: common_utils::id_type::MerchantId,
+    /// Profile the payment method was created against. Network tokenization is configured per
+    /// profile, so this is used to look up the profile in the async workflow.
+    pub profile_id: common_utils::id_type::ProfileId,
+    pub customer_id: common_utils::id_type::GlobalCustomerId,
+}

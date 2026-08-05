@@ -2919,11 +2919,11 @@ pub async fn retrieve_payment_method_data_with_permanent_token(
             network_token_requestor_ref_id,
         ) => {
             logger::info!("Fetching network token data from tokenization service");
-            match network_tokenization::get_token_from_tokenization_service(
+            match Box::pin(network_tokenization::get_token_from_tokenization_service(
                 state,
                 network_token_requestor_ref_id,
                 &payment_method_info,
-            )
+            ))
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("failed to fetch network token data from tokenization service")

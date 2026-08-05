@@ -410,7 +410,7 @@ where
     .await?;
 
     let (merchant_connector_account, router_data, tokenization_action) =
-        payments::call_connector_service_prerequisites(
+        Box::pin(payments::call_connector_service_prerequisites(
             state,
             platform,
             connector.clone(),
@@ -421,7 +421,7 @@ where
             should_retry_with_pan,
             routing_decision,
             feature_config,
-        )
+        ))
         .await?;
 
     let connector_customer_map = customer

@@ -117,7 +117,7 @@ impl<O: ClientOperation> TransformedRequest<O> {
         }
 
         // Step 4: Execute request and decode response.
-        let response = call_connector_api(state, http_request, operation)
+        let response = call_connector_api(state, http_request, operation, None)
             .await
             .map_err(|e| {
                 logger::error!(operation, error = ?e, "microservice request failed");

@@ -126,9 +126,10 @@ const PAYMENT_METHOD_MODULAR_COMPAT_PROCESS_TRACKER_ID_MAX_LENGTH: usize = 126;
 const PAYMENT_METHOD_MODULAR_COMPAT_PROCESS_TRACKER_ID_SUFFIX_LENGTH: usize = 8;
 #[cfg(feature = "v2")]
 const PAYMENT_METHOD_REDACTED_FINGERPRINT_ID: &str = "FINGERPRINT_ID_REDACTED";
-#[cfg(feature = "v1")]
+/// `process_tracker.id` is a `varchar(127)`; ids are built to stay within it.
+const NETWORK_TOKENIZATION_PROCESS_TRACKER_ID_MAX_LENGTH: usize = 126;
+const NETWORK_TOKENIZATION_PROCESS_TRACKER_ID_SUFFIX_LENGTH: usize = 8;
 const NETWORK_TOKENIZATION_TASK: &str = "NETWORK_TOKENIZATION";
-#[cfg(feature = "v1")]
 const NETWORK_TOKENIZATION_TAG: &str = "NETWORK_TOKENIZATION";
 
 #[instrument(skip_all)]
@@ -502,6 +503,27 @@ fn generate_task_id_for_payment_method_modular_compat_workflow(
     format!("{prefix}{key_id}_{suffix}")
 }
 
+/// Builds the `process_tracker` id for a `NetworkTokenizationWorkflow` task.
+///
+/// The random suffix keeps the id unique so that a payment method whose earlier task already
+/// reached a terminal state can be scheduled again — finished rows are retained, so a
+/// deterministic id would make every later attempt a silent no-op. The payment method id is
+/// truncated to keep the result within the `varchar(127)` `process_tracker.id` column.
+fn generate_task_id_for_network_tokenization_workflow(
+    payment_method_id: &str,
+    runner: storage::ProcessTrackerRunner,
+    task: &str,
+) -> String {
+    let suffix =
+        common_utils::generate_id_with_len(NETWORK_TOKENIZATION_PROCESS_TRACKER_ID_SUFFIX_LENGTH);
+    let prefix = format!("{runner}_{task}_");
+    let payment_method_id_len = NETWORK_TOKENIZATION_PROCESS_TRACKER_ID_MAX_LENGTH
+        .saturating_sub(prefix.len() + suffix.len() + 1);
+    let payment_method_id =
+        &payment_method_id[..payment_method_id.len().min(payment_method_id_len)];
+    format!("{prefix}{payment_method_id}_{suffix}")
+}
+
 fn payment_method_compat_modifier(payment_method: &domain::PaymentMethod) -> Option<String> {
     payment_method
         .last_modified_by
@@ -725,7 +747,11 @@ pub async fn add_network_tokenization_task(
     let runner = storage::ProcessTrackerRunner::NetworkTokenizationWorkflow;
     let task = NETWORK_TOKENIZATION_TASK;
     let tag = [NETWORK_TOKENIZATION_TAG];
-    let process_tracker_id = format!("{runner}_{task}_{payment_method_id}");
+    // The task id carries a unique suffix so that a payment method whose earlier task already
+    // finished (completed, retries exceeded or skipped) can be scheduled again; runs against an
+    // already-tokenized payment method finish as a no-op in the workflow itself.
+    let process_tracker_id =
+        generate_task_id_for_network_tokenization_workflow(&payment_method_id, runner, task);
 
     let process_tracker_entry = storage::ProcessTrackerNew::new(
         process_tracker_id,
@@ -743,6 +769,7 @@ pub async fn add_network_tokenization_task(
 
     db.insert_process(process_tracker_entry)
         .await
+        .map(|_| ())
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable_lazy(|| {
             format!(
@@ -751,6 +778,105 @@ pub async fn add_network_tokenization_task(
         })?;
 
     Ok(())
+}
+
+#[cfg(feature = "v2")]
+pub async fn add_network_tokenization_task(
+    db: &dyn StorageInterface,
+    tracking_data: storage::NetworkTokenizationTrackingData,
+    application_source: common_enums::ApplicationSource,
+) -> Result<(), ProcessTrackerError> {
+    let payment_method_id = tracking_data.payment_method_id.get_string_repr().to_owned();
+
+    let runner = storage::ProcessTrackerRunner::NetworkTokenizationWorkflow;
+    let task = NETWORK_TOKENIZATION_TASK;
+    let tag = [NETWORK_TOKENIZATION_TAG];
+    // The task id carries a unique suffix so that a payment method whose earlier task already
+    // finished (completed, retries exceeded or skipped) can be scheduled again; runs against an
+    // already-tokenized payment method finish as a no-op in the workflow itself.
+    let process_tracker_id =
+        generate_task_id_for_network_tokenization_workflow(&payment_method_id, runner, task);
+
+    let process_tracker_entry = storage::ProcessTrackerNew::new(
+        process_tracker_id,
+        task,
+        runner,
+        tag,
+        tracking_data,
+        None,
+        common_utils::date_time::now(),
+        common_enums::ApiVersion::V2,
+        application_source,
+    )
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to construct NETWORK_TOKENIZATION process tracker task")?;
+
+    db.insert_process(process_tracker_entry)
+        .await
+        .map(|_| ())
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable_lazy(|| {
+            format!(
+                "Failed while inserting NETWORK_TOKENIZATION task to process_tracker for payment_method_id: {payment_method_id}"
+            )
+        })?;
+
+    Ok(())
+}
+
+/// Schedules the async `NetworkTokenizationWorkflow` task for a payment method that was saved
+/// without a network token.
+///
+/// Scheduling is best effort: the payment method create/update it belongs to has already been
+/// committed by the time this runs, so a failure to enqueue is logged rather than propagated to
+/// the caller.
+#[cfg(feature = "v2")]
+async fn schedule_network_tokenization_task(
+    state: &SessionState,
+    platform: &domain::Platform,
+    profile: &domain::Profile,
+    payment_method_id: &id_type::GlobalPaymentMethodId,
+    customer_id: id_type::GlobalCustomerId,
+) {
+    let tracking_data = storage::NetworkTokenizationTrackingData {
+        payment_method_id: payment_method_id.clone(),
+        merchant_id: platform.get_provider().get_account().get_id().clone(),
+        profile_id: profile.get_id().clone(),
+        customer_id,
+    };
+
+    match add_network_tokenization_task(&*state.store, tracking_data, state.conf.application_source)
+        .await
+    {
+        Ok(()) => logger::info!(
+            payment_method_id=%payment_method_id.get_string_repr(),
+            "Scheduled NetworkTokenizationWorkflow process tracker task"
+        ),
+        Err(err) => logger::error!(
+            payment_method_id=%payment_method_id.get_string_repr(),
+            ?err,
+            "Failed to schedule NetworkTokenizationWorkflow process tracker task"
+        ),
+    }
+}
+
+/// Whether the async `NetworkTokenizationWorkflow` task should be scheduled for a payment method
+/// that is being created or updated.
+///
+/// The network token columns on the payment method are expected to be empty at this point — the
+/// token is generated by the scheduled job, not inline — so the profile-level setting, the
+/// per-request opt-in and the payment method being a card are considered here.
+#[cfg(feature = "v2")]
+fn should_schedule_network_tokenization(
+    profile: &domain::Profile,
+    payment_method_type: common_enums::PaymentMethod,
+    network_tokenization: Option<&common_types::payment_methods::NetworkTokenization>,
+) -> bool {
+    profile.is_network_tokenization_enabled
+        && payment_method_type == common_enums::PaymentMethod::Card
+        && network_tokenization
+            .map(|nt| matches!(nt.enable, common_enums::NetworkTokenizationToggle::Enable))
+            .unwrap_or(false)
 }
 
 #[cfg(feature = "v2")]
@@ -2719,26 +2845,20 @@ impl PaymentMethodResolver {
                     .is_some()
                     || payment_method.network_token_locker_id.is_some()
                     || payment_method.network_token_payment_method_data.is_some();
-                let network_tokenization_resp = if req.network_tokenization.is_some()
-                    && !payment_method_has_network_token_data
-                {
-                    let customer_id = payment_method
-                        .customer_id
-                        .clone()
-                        .get_required_value("GlobalCustomerId")?;
 
-                    network_tokenize_and_vault_the_pmd(
-                        state,
-                        &source_payment_method_data,
-                        platform,
-                        req.network_tokenization.clone(),
-                        profile.is_network_tokenization_enabled,
-                        &customer_id,
-                    )
-                    .await
-                } else {
-                    None
-                };
+                // When the re-added card is not yet network tokenized, defer generation to the
+                // async `NetworkTokenizationWorkflow` process tracker job (scheduled after the
+                // update below) rather than tokenizing inline. The job needs a customer to
+                // tokenize against, and it is not changed by this update, so it is read from the
+                // existing payment method before it is consumed.
+                let network_tokenization_customer_id = (!payment_method_has_network_token_data
+                    && should_schedule_network_tokenization(
+                        profile,
+                        req.payment_method_type,
+                        req.network_tokenization.as_ref(),
+                    ))
+                .then(|| payment_method.customer_id.clone())
+                .flatten();
 
                 let mut update_payment_method_data: DomainPaymentMethodUpdate =
                     (req, source_payment_method_data).into();
@@ -2755,9 +2875,20 @@ impl PaymentMethodResolver {
                     update_payment_method_data,
                     &payment_method_id,
                     Some(payment_method),
-                    network_tokenization_resp,
+                    None,
                 ))
                 .await?;
+
+                if let Some(customer_id) = network_tokenization_customer_id {
+                    schedule_network_tokenization_task(
+                        state,
+                        platform,
+                        profile,
+                        &updated_payment_method.id,
+                        customer_id,
+                    )
+                    .await;
+                }
 
                 Ok((response, updated_payment_method))
             }
@@ -2852,15 +2983,14 @@ async fn execute_payment_method_create(
         )
         .await;
 
-    let network_tokenization_resp = network_tokenize_and_vault_the_pmd(
-        state,
-        &payment_method_data,
-        platform,
-        req.network_tokenization.clone(),
-        profile.is_network_tokenization_enabled,
-        customer_id,
-    )
-    .await;
+    // Network tokenization is generated asynchronously via the `NetworkTokenizationWorkflow`
+    // process tracker job (scheduled after the payment method row is created below), so the
+    // payment method is initially persisted without network token data.
+    let schedule_network_tokenization = should_schedule_network_tokenization(
+        profile,
+        req.payment_method_type,
+        req.network_tokenization.as_ref(),
+    );
 
     let (response, payment_method) = match vaulting_result {
         Ok((
@@ -2880,7 +3010,7 @@ async fn execute_payment_method_create(
                 &payment_method,
                 None,
                 None,
-                network_tokenization_resp.clone(),
+                None,
                 Some(req.payment_method_type),
                 payment_method_subtype,
                 external_vault_source,
@@ -2962,6 +3092,17 @@ async fn execute_payment_method_create(
             Err(e)
         }
     }?;
+
+    if schedule_network_tokenization {
+        schedule_network_tokenization_task(
+            state,
+            platform,
+            profile,
+            &payment_method.id,
+            customer_id.clone(),
+        )
+        .await;
+    }
 
     Ok((response, payment_method))
 }
@@ -3374,6 +3515,11 @@ pub struct BinEnriched<T> {
     pub payment_method_subtype: Option<storage_enums::PaymentMethodType>,
 }
 
+/// Generates a network token for the given card and vaults it.
+///
+/// Errors are returned to the caller so that callers which can act on a failure (such as the
+/// async `NetworkTokenizationWorkflow`, which retries) are able to distinguish a failed
+/// tokenization from one that was never applicable.
 #[cfg(feature = "v2")]
 pub async fn network_tokenize_and_vault_the_pmd(
     state: &SessionState,
@@ -3382,71 +3528,183 @@ pub async fn network_tokenize_and_vault_the_pmd(
     network_tokenization: Option<common_types::payment_methods::NetworkTokenization>,
     network_tokenization_enabled_for_profile: bool,
     customer_id: &id_type::GlobalCustomerId,
-) -> Option<NetworkTokenPaymentMethodDetails> {
-    let network_token_pm_details_result: CustomResult<
-        NetworkTokenPaymentMethodDetails,
-        errors::NetworkTokenizationError,
-    > = async {
-        when(!network_tokenization_enabled_for_profile, || {
-            Err(report!(
-                errors::NetworkTokenizationError::NetworkTokenizationNotEnabledForProfile
-            ))
+) -> CustomResult<NetworkTokenPaymentMethodDetails, errors::NetworkTokenizationError> {
+    when(!network_tokenization_enabled_for_profile, || {
+        Err(report!(
+            errors::NetworkTokenizationError::NetworkTokenizationNotEnabledForProfile
+        ))
+    })?;
+
+    let is_network_tokenization_enabled_for_pm = network_tokenization
+        .as_ref()
+        .map(|nt| matches!(nt.enable, common_enums::NetworkTokenizationToggle::Enable))
+        .unwrap_or(false);
+
+    let card_data = payment_method_data
+        .get_card()
+        .and_then(|card| is_network_tokenization_enabled_for_pm.then_some(card))
+        .ok_or_else(|| {
+            report!(errors::NetworkTokenizationError::NotSupported {
+                message: "Payment method".to_string(),
+            })
         })?;
 
-        let is_network_tokenization_enabled_for_pm = network_tokenization
-            .as_ref()
-            .map(|nt| matches!(nt.enable, common_enums::NetworkTokenizationToggle::Enable))
-            .unwrap_or(false);
-
-        let card_data = payment_method_data
-            .get_card()
-            .and_then(|card| is_network_tokenization_enabled_for_pm.then_some(card))
-            .ok_or_else(|| {
-                report!(errors::NetworkTokenizationError::NotSupported {
-                    message: "Payment method".to_string(),
-                })
-            })?;
-
-        let (resp, network_token_req_ref_id) =
-            network_tokenization::make_card_network_tokenization_request(
-                state,
-                card_data,
-                customer_id,
-            )
+    let (resp, network_token_req_ref_id) =
+        network_tokenization::make_card_network_tokenization_request(state, card_data, customer_id)
             .await?;
 
-        let network_token_vaulting_data = domain::PaymentMethodVaultingData::NetworkToken(resp);
-        let vaulting_resp = vault::add_payment_method_to_vault(
-            state,
-            platform,
-            &network_token_vaulting_data,
-            None,
-            customer_id,
-            Some(pm_types::WriteMode::Insert), // Insert mode for new network tokens
-        )
-        .await
-        .change_context(errors::NetworkTokenizationError::SaveNetworkTokenFailed)
-        .attach_printable("Failed to vault network token")?;
+    let network_token_vaulting_data = domain::PaymentMethodVaultingData::NetworkToken(resp);
+    let vaulting_resp = vault::add_payment_method_to_vault(
+        state,
+        platform,
+        &network_token_vaulting_data,
+        None,
+        customer_id,
+        Some(pm_types::WriteMode::Insert), // Insert mode for new network tokens
+    )
+    .await
+    .change_context(errors::NetworkTokenizationError::SaveNetworkTokenFailed)
+    .attach_printable("Failed to vault network token")?;
 
-        let key_manager_state = &(state).into();
-        let network_token_pmd = core_utils::create_encrypted_data(
-            key_manager_state,
-            platform.get_provider().get_key_store(),
-            network_token_vaulting_data.get_payment_methods_data(),
-            common_utils::type_name!(diesel_models::payment_method::PaymentMethod),
-        )
-        .await
-        .change_context(errors::NetworkTokenizationError::NetworkTokenDetailsEncryptionFailed)
-        .attach_printable("Failed to encrypt PaymentMethodsData")?;
+    let key_manager_state = &(state).into();
+    let network_token_pmd = core_utils::create_encrypted_data(
+        key_manager_state,
+        platform.get_provider().get_key_store(),
+        network_token_vaulting_data.get_payment_methods_data(),
+        common_utils::type_name!(diesel_models::payment_method::PaymentMethod),
+    )
+    .await
+    .change_context(errors::NetworkTokenizationError::NetworkTokenDetailsEncryptionFailed)
+    .attach_printable("Failed to encrypt PaymentMethodsData")?;
 
-        Ok(NetworkTokenPaymentMethodDetails {
-            network_token_requestor_reference_id: network_token_req_ref_id,
-            network_token_locker_id: vaulting_resp.vault_id.get_string_repr().clone(),
-            network_token_pmd,
-        })
-    }
+    Ok(NetworkTokenPaymentMethodDetails {
+        network_token_requestor_reference_id: network_token_req_ref_id,
+        network_token_locker_id: vaulting_resp.vault_id.get_string_repr().clone(),
+        network_token_pmd,
+    })
+}
+
+/// Called from the `NetworkTokenizationWorkflow` process tracker job (v2).
+///
+/// Re-fetches the card from the vault for the given payment method, generates a network token
+/// and persists the network token details on the payment method row. This is the async
+/// counterpart of the synchronous network tokenization performed during payment method create
+/// and update.
+///
+/// A failure is returned as an error so that the workflow can retry it. Payment methods that
+/// network tokenization does not apply to at all are reported as
+/// [`NetworkTokenGenerationOutcome::NotApplicable`], since retrying those cannot succeed.
+#[cfg(feature = "v2")]
+pub async fn generate_network_token_for_payment_method(
+    state: &SessionState,
+    platform: &domain::Platform,
+    profile: &domain::Profile,
+    payment_method: domain::PaymentMethod,
+) -> RouterResult<NetworkTokenGenerationOutcome> {
+    let db = &*state.store;
+
+    let customer_id = payment_method
+        .customer_id
+        .clone()
+        .get_required_value("GlobalCustomerId")?;
+
+    // Re-fetch the card that was vaulted at create/update time.
+    let vault_data = Box::pin(vault::retrieve_payment_method_from_vault(
+        state,
+        platform,
+        profile,
+        &payment_method,
+    ))
+    .await
+    .attach_printable("Failed to retrieve payment method from vault for network tokenization")?
+    .data;
+
+    // The per-payment-method opt-in was recorded when the task was scheduled and is not persisted
+    // on the payment method, so request tokenization with the toggle enabled here. The
+    // profile-level flag is still passed through and re-checked by the callee.
+    let network_tokenization_resp = network_tokenize_and_vault_the_pmd(
+        state,
+        &vault_data,
+        platform,
+        Some(common_types::payment_methods::NetworkTokenization {
+            enable: common_enums::NetworkTokenizationToggle::Enable,
+        }),
+        profile.is_network_tokenization_enabled,
+        &customer_id,
+    )
     .await;
-    network_token_pm_details_result.ok()
+
+    match network_tokenization_resp {
+        Ok(network_token) => {
+            // v2 has no NT-only update variant; `GenericUpdate` is the one that carries the
+            // network token columns. Its changeset skips `None` fields, so only the network token
+            // columns (and last_modified) are written.
+            let pm_update = storage::PaymentMethodUpdate::GenericUpdate {
+                payment_method_data: None,
+                status: None,
+                locker_id: None,
+                payment_method_type_v2: None,
+                payment_method_subtype: None,
+                network_token_requestor_reference_id: Some(
+                    network_token.network_token_requestor_reference_id,
+                ),
+                network_token_locker_id: Some(network_token.network_token_locker_id),
+                network_token_payment_method_data: Some(network_token.network_token_pmd.into()),
+                locker_fingerprint_id: None,
+                connector_mandate_details: Box::new(None),
+                external_vault_source: None,
+                network_transaction_id: None,
+                network_transaction_link_id: None,
+                last_modified_by: platform
+                    .get_initiator()
+                    .and_then(|initiator| initiator.to_created_by())
+                    .map(|last_modified_by| last_modified_by.to_string()),
+            };
+
+            db.update_payment_method(
+                platform.get_provider().get_key_store(),
+                payment_method,
+                pm_update,
+                platform.get_provider().get_account().storage_scheme,
+                None,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to update payment method with network token details")
+            .map(|_| NetworkTokenGenerationOutcome::Generated)
+        }
+
+        // Neither of these can be fixed by running the task again, so report them as a terminal
+        // outcome instead of an error that burns the retry budget.
+        Err(err)
+            if matches!(
+                err.current_context(),
+                errors::NetworkTokenizationError::NotSupported { .. }
+                    | errors::NetworkTokenizationError::NetworkTokenizationNotEnabledForProfile
+            ) =>
+        {
+            logger::warn!(
+                payment_method_id=%payment_method.id.get_string_repr(),
+                ?err,
+                "Network tokenization is not applicable for this payment method, not retrying"
+            );
+            Ok(NetworkTokenGenerationOutcome::NotApplicable)
+        }
+
+        Err(err) => Err(err)
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to generate and vault the network token"),
+    }
+}
+
+/// Terminal outcome of an async network token generation attempt.
+#[cfg(feature = "v2")]
+#[derive(Clone, Copy, Debug)]
+pub enum NetworkTokenGenerationOutcome {
+    /// A network token was generated and persisted on the payment method.
+    Generated,
+    /// Network tokenization does not apply to this payment method; retrying cannot help.
+    NotApplicable,
 }
 
 #[cfg(feature = "v2")]
@@ -6066,6 +6324,10 @@ pub async fn update_payment_method(
         None,
     ))
     .await?;
+
+    // Network tokenization is intentionally not scheduled here: the update request carries no
+    // network tokenization opt-in field, so there is no per-payment-method consent to act on.
+    // Scheduling happens only in the create flow, where the request opts in explicitly.
 
     Ok(services::ApplicationResponse::Json(response))
 }

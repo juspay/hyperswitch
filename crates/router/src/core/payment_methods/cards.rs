@@ -3179,7 +3179,7 @@ where
     let jwekey = state.conf.jwekey.get_inner();
     let response_type_name = type_name!(T);
 
-    let response = services::call_connector_api(state, request, flow_name)
+    let response = services::call_connector_api(state, request, flow_name, None)
         .await
         .change_context(errors::VaultError::ApiError)?;
 

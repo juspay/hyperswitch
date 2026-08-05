@@ -326,17 +326,19 @@ where
                 .get_payment_method_data()
                 .get_card_data()
                 .and_then(|card| card.card_network.clone());
-            // Payment method that was saved without a network token, and therefore still needs
-            // one to be generated asynchronously by the process tracker.
-            let mut payment_method_pending_network_tokenization: Option<String> = None;
 
-            let pm_id = if let Some(existing_pm) = payment_method_info.clone().filter(|_| {
-                matches!(
-                    save_payment_method_data.request.get_payment_method_data(),
-                    domain::PaymentMethodData::MandatePayment
-                        | domain::PaymentMethodData::CardToken(_)
-                )
-            }) {
+            // `payment_method_pending_network_tokenization` carries the id of a payment method
+            // that may still need a network token generated asynchronously by the process
+            // tracker. It is produced alongside `pm_id` by the branches below instead of being
+            // assigned to a mutable variable.
+            let (pm_id, payment_method_pending_network_tokenization) = if let Some(existing_pm) =
+                payment_method_info.clone().filter(|_| {
+                    matches!(
+                        save_payment_method_data.request.get_payment_method_data(),
+                        domain::PaymentMethodData::MandatePayment
+                            | domain::PaymentMethodData::CardToken(_)
+                    )
+                }) {
                 // Recharge of an already-saved payment method where the request
                 // carries no fresh raw card data — either a recurring/MIT charge via
                 // an established connector mandate (PaymentMethodData::MandatePayment)
@@ -359,7 +361,11 @@ where
                     logger::error!("Failed to update last used at: {:?}", e);
                 })
                 .ok();
-                Some(existing_pm.get_id().clone())
+
+                // The existing payment method may still be missing a network token (the workflow
+                // skips it if one is already present), so hand it to the process tracker as well.
+                let existing_pm_id = existing_pm.get_id().clone();
+                (Some(existing_pm_id.clone()), Some(existing_pm_id))
             } else if customer_acceptance.is_some() {
                 let payment_method_data =
                     save_payment_method_data.request.get_payment_method_data();
@@ -1095,24 +1101,14 @@ where
                 // network or a failed tokenization service call. In every such case, defer
                 // generation to the process tracker. The workflow skips payment methods that are
                 // already tokenized, so this is safe for duplicated cards as well.
-                if save_payment_method_data.payment_method == PaymentMethod::Card
-                    && !network_token_generated
-                {
-                    payment_method_pending_network_tokenization =
-                        Some(resp.payment_method_id.clone());
-                }
+                let pending_network_tokenization = (save_payment_method_data.payment_method
+                    == PaymentMethod::Card
+                    && !network_token_generated)
+                    .then(|| resp.payment_method_id.clone());
 
-                Some(resp.payment_method_id)
+                (Some(resp.payment_method_id), pending_network_tokenization)
             } else {
-                // No customer acceptance was provided in this transaction, so no new payment
-                // method is created. But the payment method may already have been saved earlier
-                // (e.g. recurring / MIT flow reusing a stored card). If that saved payment method
-                // still lacks a network token, defer generation to the process tracker.
-                payment_method_pending_network_tokenization = payment_method_info
-                    .as_ref()
-                    .filter(|pm_info| pm_info.network_token_requestor_reference_id.is_none())
-                    .map(|pm_info| pm_info.payment_method_id.clone());
-                None
+                (None, None)
             };
 
             // If network tokenization is enabled for the profile, trigger the process tracker
@@ -1123,7 +1119,7 @@ where
                     payment_method_pending_network_tokenization,
                     customer_id_for_network_tokenization,
                 ) {
-                    payment_methods::add_network_tokenization_task(
+                    let scheduling_result = payment_methods::add_network_tokenization_task(
                         db,
                         types::storage::NetworkTokenizationTrackingData {
                             payment_method_id: pending_pm_id.clone(),
@@ -1137,22 +1133,21 @@ where
                         },
                         state.conf.application_source,
                     )
-                    .await
-                    .map_or_else(
-                        |err| {
-                            logger::error!(
-                                payment_method_id=%pending_pm_id,
-                                ?err,
-                                "Failed to schedule NetworkTokenizationWorkflow process tracker task"
-                            );
-                        },
-                        |()| {
-                            logger::info!(
-                                payment_method_id=%pending_pm_id,
-                                "Scheduled NetworkTokenizationWorkflow process tracker task"
-                            );
-                        },
-                    );
+                    .await;
+
+                    // Scheduling is best effort: the payment method has already been saved, so a
+                    // failure to enqueue is logged rather than failing the payment.
+                    match scheduling_result {
+                        Ok(()) => logger::info!(
+                            payment_method_id=%pending_pm_id,
+                            "Scheduled NetworkTokenizationWorkflow process tracker task"
+                        ),
+                        Err(err) => logger::error!(
+                            payment_method_id=%pending_pm_id,
+                            ?err,
+                            "Failed to schedule NetworkTokenizationWorkflow process tracker task"
+                        ),
+                    }
                 }
             }
             // check if there needs to be a config if yes then remove it to a different place
@@ -1249,7 +1244,7 @@ pub async fn pre_payment_tokenization(
                     network_tokenization_service,
                 ) {
                     (Some(token_ref), Some(network_tokenization_service)) => {
-                        let network_token = record_operation_time(
+                        let network_token = Box::pin(record_operation_time(
                             async {
                                 network_tokenization::get_network_token(
                                     state,
@@ -1261,7 +1256,7 @@ pub async fn pre_payment_tokenization(
                             },
                             &metrics::FETCH_NETWORK_TOKEN_TIME,
                             &[],
-                        )
+                        ))
                         .await;
                         match network_token {
                             Ok(token_response) => {
@@ -1668,7 +1663,7 @@ pub async fn save_network_token_in_locker(
                 // empty CVC. Send no card security code at all in that case, rather than an
                 // empty one.
                 let optional_card_cvc =
-                    Some(card_data.card_cvc.clone()).filter(|cvc| !cvc.peek().is_empty());
+                    (!card_data.card_cvc.peek().is_empty()).then(|| card_data.card_cvc.clone());
                 match network_tokenization::make_card_network_tokenization_request(
                     state,
                     &domain::CardDetail::from(card_data),
