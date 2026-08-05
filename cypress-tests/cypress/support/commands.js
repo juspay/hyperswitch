@@ -32,7 +32,6 @@ import getConnectorDetails, {
   getValueByKey,
   injectHelcimTestCard,
   setNormalizedValue,
-  shouldValidateConnectorMandateId,
 } from "../e2e/configs/Payment/Utils";
 import { execConfig, validateConfig } from "../utils/featureFlags";
 import * as RequestBodyUtils from "../utils/RequestBodyUtils";
@@ -3264,9 +3263,7 @@ Cypress.Commands.add(
                 if (
                   response.body.setup_future_usage === "off_session" &&
                   response.body.status === "succeeded" &&
-                  shouldValidateConnectorMandateId(
-                    globalState.get("connectorId")
-                  )
+                  globalState.get("connectorId") !== "tsys_transit"
                 ) {
                   expect(
                     response.body.connector_mandate_id,
@@ -3341,9 +3338,7 @@ Cypress.Commands.add(
                 if (
                   response.body.setup_future_usage === "off_session" &&
                   response.body.status === "succeeded" &&
-                  shouldValidateConnectorMandateId(
-                    globalState.get("connectorId")
-                  )
+                  globalState.get("connectorId") !== "tsys_transit"
                 ) {
                   expect(
                     response.body.connector_mandate_id,
@@ -4963,9 +4958,8 @@ Cypress.Commands.add(
                   response.body.setup_future_usage === "off_session" &&
                   response.body.mandate_id === null &&
                   response.body.status === "succeeded" &&
-                  shouldValidateConnectorMandateId(
-                    globalState.get("connectorId")
-                  ) &&
+                  globalState.get("connectorId") !== "peachpayments" &&
+                  globalState.get("connectorId") !== "tsys_transit" &&
                   requestBody.mandate_data !== null
                 ) {
                   expect(
@@ -5037,9 +5031,7 @@ Cypress.Commands.add(
                   response.body.setup_future_usage === "off_session" &&
                   response.body.mandate_id === null &&
                   response.body.status === "succeeded" &&
-                  shouldValidateConnectorMandateId(
-                    globalState.get("connectorId")
-                  )
+                  globalState.get("connectorId") !== "tsys_transit"
                 ) {
                   expect(
                     response.body.connector_mandate_id,

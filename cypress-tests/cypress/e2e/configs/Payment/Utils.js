@@ -547,7 +547,6 @@ export const CONNECTOR_LISTS = {
     // Connectors that never return a `connector_mandate_id` on the payments
     // response. Recurring payments for them go through connector agnostic MIT,
     // so the "connector_mandate_id must not be null" assertion is skipped
-    CONNECTOR_MANDATE_ID: ["peachpayments", "tsys_transit"],
     // Add more exclusion lists
     // Note: mitUsingPMId/mitForMandatesCallTest/listMandateCallTest use
     // per-config TRIGGER_SKIP or globalState checks instead of a static
@@ -793,14 +792,6 @@ export const shouldIncludeConnector = (connectorId, list) => {
   if (!Array.isArray(list)) return true;
   return !list.includes(connectorId);
 };
-
-// `connector_mandate_id` is only asserted for connectors that actually return
-// one; see CONNECTOR_LISTS.EXCLUDE.CONNECTOR_MANDATE_ID
-export const shouldValidateConnectorMandateId = (connectorId) =>
-  !shouldExcludeConnector(
-    connectorId,
-    CONNECTOR_LISTS.EXCLUDE.CONNECTOR_MANDATE_ID
-  );
 
 export function setNormalizedValue(
   webhookBody,
