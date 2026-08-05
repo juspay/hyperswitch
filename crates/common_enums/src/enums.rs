@@ -8917,8 +8917,6 @@ pub enum PayoutType {
     BankRedirect,
 }
 
-
-
 /// Type of entity to whom the payout is being carried out to, select from the given list of options
 #[derive(
     Clone,
