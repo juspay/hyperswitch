@@ -179,17 +179,26 @@ pub async fn recovery_incoming_webhook_flow(
         action: RecoveryAction::get_action(event_type, attempt_triggered_by),
     };
 
+    if matches!(
+        recovery_action.action,
+        common_types::payments::RecoveryAction::InvalidAction
+    ) {
+        logger::info!("No recovery action needed for this event type");
+        return Ok(webhooks::WebhookResponseTracker::NoEffect);
+    }
+
     let mca_retry_threshold = billing_connector_account
         .get_retry_threshold()
         .ok_or(report!(
             errors::RevenueRecoveryError::BillingThresholdRetryCountFetchFailed
         ))?;
 
+    // Default to 0 for newly created payment intents that have no feature_metadata yet
     let intent_retry_count = recovery_intent_from_payment_attempt
         .feature_metadata
         .as_ref()
         .and_then(|metadata| metadata.get_retry_count())
-        .ok_or(report!(errors::RevenueRecoveryError::RetryCountFetchFailed))?;
+        .unwrap_or(0);
 
     logger::info!("Intent retry count: {:?}", intent_retry_count);
     recovery_action
@@ -257,11 +266,12 @@ async fn handle_schedule_failed_payment(
     let (recovery_attempt_from_payment_attempt, recovery_intent_from_payment_attempt) =
         payment_attempt_with_recovery_intent;
 
-    // When intent_retry_count is less than or equal to threshold
-    (intent_retry_count <= mca_retry_threshold)
+    // When intent_retry_count is strictly less than threshold, billing connector
+    // hasn't retried enough times yet — let it handle retries and wait.
+    (intent_retry_count < mca_retry_threshold)
         .then(|| {
-            logger::error!(
-                "Payment retry count {} is less than threshold {}",
+            logger::info!(
+                "Payment retry count {} is less than threshold {}, waiting for billing connector",
                 intent_retry_count,
                 mca_retry_threshold
             );
