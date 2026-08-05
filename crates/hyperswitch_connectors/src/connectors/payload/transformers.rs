@@ -1,8 +1,13 @@
 use std::collections::HashMap;
 
-use api_models::webhooks::IncomingWebhookEvent;
+use api_models::{
+    merchant_connector_webhook_management::ScopeIdentifier, webhooks::IncomingWebhookEvent,
+};
 use common_enums::{self as common_enums, enums};
-use common_utils::{ext_traits::ValueExt, types::StringMajorUnit};
+use common_utils::{
+    ext_traits::ValueExt,
+    types::{FloatMajorUnitForConnector, MinorUnit, StringMajorUnit},
+};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     address::AddressDetails,
@@ -12,11 +17,16 @@ use hyperswitch_domain_models::{
         ErrorResponse, RouterData,
     },
     router_flow_types::{
+        merchant_connector_webhook_management::ConnectorWebhookRegister,
         payments::PostCaptureVoid,
         refunds::{Execute, RSync},
     },
-    router_request_types::{PaymentsCancelPostCaptureData, ResponseId},
+    router_request_types::{
+        merchant_connector_webhook_management::ConnectorWebhookRegisterRequest,
+        PaymentsCancelPostCaptureData, ResponseId,
+    },
     router_response_types::{
+        merchant_connector_webhook_management::ConnectorWebhookRegisterResponse,
         ConnectorCustomerResponseData, MandateReference, PaymentsResponseData, RefundsResponseData,
     },
     types::{
@@ -37,7 +47,7 @@ use crate::{
     utils::{
         get_unimplemented_payment_method_error_message, is_manual_capture, AddressDetailsData,
         CardData, CustomerData, PaymentsAuthorizeRequestData, PaymentsSetupMandateRequestData,
-        RouterData as OtherRouterData,
+        RouterData as OtherRouterData, SplitPaymentData,
     },
 };
 
@@ -65,6 +75,29 @@ fn get_filtered_metadata(metadata: Option<&serde_json::Value>) -> Option<serde_j
         }
         _ => None,
     })
+}
+
+fn get_payload_ledger_entries(
+    split: &common_types::payments::PayloadSplitPaymentRequest,
+    currency: enums::Currency,
+) -> Result<Vec<requests::PayloadSplitLedgerEntry>, Error> {
+    split
+        .ledger
+        .iter()
+        .map(|item| {
+            // Payload expects each ledger entry as a negative amount (a debit against the payment);
+            // merchants provide the positive amount routed to the receiver, so it is negated here.
+            let amount = crate::utils::convert_amount(
+                &FloatMajorUnitForConnector,
+                MinorUnit::new(-item.amount.get_amount_as_i64()),
+                currency,
+            )?;
+            Ok(requests::PayloadSplitLedgerEntry {
+                amount,
+                receiver_id: item.receiver_id.clone(),
+            })
+        })
+        .collect()
 }
 
 fn get_description_from_billing_descriptor(
@@ -95,6 +128,7 @@ fn build_payload_payment_request_data(
     metadata: Option<&serde_json::Value>,
     description: Option<String>,
     billing_descriptor: Option<&common_types::payments::BillingDescriptor>,
+    ledger: Option<Vec<requests::PayloadSplitLedgerEntry>>,
 ) -> Result<requests::PayloadPaymentRequestData, Error> {
     let payment_method: Result<requests::PayloadPaymentMethods, Error> = match payment_method_data {
         PaymentMethodData::Card(req_card) => {
@@ -198,6 +232,7 @@ fn build_payload_payment_request_data(
         description,
         descriptor: get_description_from_billing_descriptor(billing_descriptor),
         attrs: get_filtered_metadata(metadata),
+        ledger,
     })
 }
 
@@ -337,6 +372,7 @@ impl TryFrom<&SetupMandateRouterData> for requests::PayloadPaymentRequestData {
                 item.request.metadata.as_ref().map(|m| m.peek()),
                 item.description.clone(),
                 item.request.billing_descriptor.as_ref(),
+                None,
             )
         }
     }
@@ -412,6 +448,13 @@ impl TryFrom<&PayloadRouterData<&PaymentsAuthorizeRouterData>>
         let billing_descriptor = item.router_data.request.billing_descriptor.as_ref();
         let metadata = item.router_data.request.metadata.as_ref();
 
+        let split_ledger = match item.router_data.request.split_payments.as_ref() {
+            Some(common_types::payments::SplitPaymentsRequest::PayloadSplitPayment(split)) => Some(
+                get_payload_ledger_entries(split, item.router_data.request.currency)?,
+            ),
+            _ => None,
+        };
+
         match item.router_data.request.payment_method_data.clone() {
             PaymentMethodData::BankDebit(BankDebitData::AchBankDebit { .. })
             | PaymentMethodData::Card(_) => {
@@ -431,6 +474,7 @@ impl TryFrom<&PayloadRouterData<&PaymentsAuthorizeRouterData>>
                     metadata,
                     description,
                     billing_descriptor,
+                    split_ledger,
                 )?;
 
                 Ok(Self::PaymentRequest(Box::new(payment_request)))
@@ -460,6 +504,7 @@ impl TryFrom<&PayloadRouterData<&PaymentsAuthorizeRouterData>>
                         description,
                         descriptor: get_description_from_billing_descriptor(billing_descriptor),
                         attrs: get_filtered_metadata(metadata),
+                        ledger: split_ledger,
                     },
                 )))
             }
@@ -468,15 +513,24 @@ impl TryFrom<&PayloadRouterData<&PaymentsAuthorizeRouterData>>
     }
 }
 
-impl From<responses::PayloadPaymentStatus> for common_enums::AttemptStatus {
-    fn from(item: responses::PayloadPaymentStatus) -> Self {
-        match item {
-            responses::PayloadPaymentStatus::Authorized => Self::Authorized,
-            responses::PayloadPaymentStatus::Processed => Self::Charged,
-            responses::PayloadPaymentStatus::Processing => Self::Pending,
-            responses::PayloadPaymentStatus::Rejected
-            | responses::PayloadPaymentStatus::Declined => Self::Failure,
-            responses::PayloadPaymentStatus::Voided => Self::Voided,
+fn get_payload_attempt_status(
+    status: responses::PayloadPaymentStatus,
+    prev_status: common_enums::AttemptStatus,
+) -> common_enums::AttemptStatus {
+    match status {
+        responses::PayloadPaymentStatus::Authorized => common_enums::AttemptStatus::Authorized,
+        responses::PayloadPaymentStatus::Processed => common_enums::AttemptStatus::Charged,
+        responses::PayloadPaymentStatus::Processing => common_enums::AttemptStatus::Pending,
+        responses::PayloadPaymentStatus::Rejected | responses::PayloadPaymentStatus::Declined => {
+            common_enums::AttemptStatus::Failure
+        }
+        responses::PayloadPaymentStatus::Voided => common_enums::AttemptStatus::Voided,
+        responses::PayloadPaymentStatus::Unknown => {
+            router_env::logger::warn!(
+                "Payload returned unknown payment status; retaining previous status {:?}",
+                prev_status
+            );
+            prev_status
         }
     }
 }
@@ -485,7 +539,7 @@ impl<F: 'static, T>
     TryFrom<ResponseRouterData<F, responses::PayloadPaymentsResponse, T, PaymentsResponseData>>
     for RouterData<F, T, PaymentsResponseData>
 where
-    T: 'static,
+    T: 'static + SplitPaymentData,
 {
     type Error = Error;
     fn try_from(
@@ -518,7 +572,7 @@ where
                     (true, responses::PayloadPaymentStatus::Authorized) => {
                         enums::AttemptStatus::Pending
                     }
-                    _ => enums::AttemptStatus::from(response.status),
+                    _ => get_payload_attempt_status(response.status, item.data.status),
                 };
 
                 let mandate_reference = is_mandate_payment
@@ -568,6 +622,18 @@ where
                         connector_metadata: None,
                     })
                 } else {
+                    let charges = item.data.request.get_split_payment_data().and_then(|split_payment| {
+                        match split_payment {
+                            common_types::payments::SplitPaymentsRequest::PayloadSplitPayment(
+                                split,
+                            ) => Some(
+                                common_types::payments::ConnectorChargeResponseData::PayloadSplitPayment(
+                                    split,
+                                ),
+                            ),
+                            _ => None,
+                        }
+                    });
                     Ok(PaymentsResponseData::TransactionResponse {
                         resource_id: ResponseId::ConnectorTransactionId(response.transaction_id),
                         redirection_data: Box::new(None),
@@ -578,7 +644,7 @@ where
                         connector_response_reference_id: response.ref_number,
                         incremental_authorization_allowed: None,
                         authentication_data: None,
-                        charges: None,
+                        charges,
                     })
                 };
                 Ok(Self {
@@ -680,6 +746,12 @@ impl
             | responses::PayloadPaymentStatus::Processed => {
                 common_enums::PostCaptureVoidStatus::Failed
             }
+            responses::PayloadPaymentStatus::Unknown => {
+                router_env::logger::warn!(
+                    "Payload returned unknown payment status for post-capture-void; defaulting to pending"
+                );
+                common_enums::PostCaptureVoidStatus::Pending
+            }
         };
 
         let description = post_capture_void_status
@@ -724,12 +796,22 @@ impl<F> TryFrom<&PayloadRouterData<&RefundsRouterData<F>>> for requests::Payload
     }
 }
 
-impl From<responses::RefundStatus> for enums::RefundStatus {
-    fn from(item: responses::RefundStatus) -> Self {
-        match item {
-            responses::RefundStatus::Processed => Self::Success,
-            responses::RefundStatus::Processing => Self::Pending,
-            responses::RefundStatus::Declined | responses::RefundStatus::Rejected => Self::Failure,
+fn get_payload_refund_status(
+    status: responses::RefundStatus,
+    prev_refund_status: enums::RefundStatus,
+) -> enums::RefundStatus {
+    match status {
+        responses::RefundStatus::Processed => enums::RefundStatus::Success,
+        responses::RefundStatus::Processing => enums::RefundStatus::Pending,
+        responses::RefundStatus::Declined | responses::RefundStatus::Rejected => {
+            enums::RefundStatus::Failure
+        }
+        responses::RefundStatus::Unknown => {
+            router_env::logger::warn!(
+                "Payload returned unknown refund status; retaining previous refund status {:?}",
+                prev_refund_status
+            );
+            prev_refund_status
         }
     }
 }
@@ -741,10 +823,12 @@ impl TryFrom<RefundsResponseRouterData<Execute, responses::PayloadRefundResponse
     fn try_from(
         item: RefundsResponseRouterData<Execute, responses::PayloadRefundResponse>,
     ) -> Result<Self, Self::Error> {
+        let refund_status =
+            get_payload_refund_status(item.response.status, item.data.request.refund_status);
         Ok(Self {
             response: Ok(RefundsResponseData {
                 connector_refund_id: item.response.transaction_id.to_string(),
-                refund_status: enums::RefundStatus::from(item.response.status),
+                refund_status,
             }),
             ..item.data
         })
@@ -758,10 +842,12 @@ impl TryFrom<RefundsResponseRouterData<RSync, responses::PayloadRefundResponse>>
     fn try_from(
         item: RefundsResponseRouterData<RSync, responses::PayloadRefundResponse>,
     ) -> Result<Self, Self::Error> {
+        let refund_status =
+            get_payload_refund_status(item.response.status, item.data.request.refund_status);
         Ok(Self {
             response: Ok(RefundsResponseData {
                 connector_refund_id: item.response.transaction_id.to_string(),
-                refund_status: enums::RefundStatus::from(item.response.status),
+                refund_status,
             }),
             ..item.data
         })
@@ -801,6 +887,12 @@ impl From<responses::PayloadWebhooksTrigger> for IncomingWebhookEvent {
             | responses::PayloadWebhooksTrigger::TransactionOperationClear => {
                 Self::EventNotSupported
             }
+            responses::PayloadWebhooksTrigger::Unknown => {
+                router_env::logger::warn!(
+                    "Unknown payload webhook trigger received; acknowledging without processing"
+                );
+                Self::EventNotSupported
+            }
         }
     }
 }
@@ -836,7 +928,8 @@ impl TryFrom<responses::PayloadWebhooksTrigger> for responses::PayloadPaymentSta
             | responses::PayloadWebhooksTrigger::PaymentLinkStatus
             | responses::PayloadWebhooksTrigger::ProcessingStatus
             | responses::PayloadWebhooksTrigger::TransactionOperation
-            | responses::PayloadWebhooksTrigger::TransactionOperationClear => {
+            | responses::PayloadWebhooksTrigger::TransactionOperationClear
+            | responses::PayloadWebhooksTrigger::Unknown => {
                 Err(errors::ConnectorError::WebhookEventTypeNotFound.into())
             }
         }
@@ -866,5 +959,89 @@ impl TryFrom<responses::PayloadWebhookEvent> for responses::PayloadPaymentsRespo
                 response_type: None,
             },
         ))
+    }
+}
+
+impl TryFrom<ScopeIdentifier> for requests::PayloadEventType {
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(item: ScopeIdentifier) -> Result<Self, Self::Error> {
+        match item {
+            ScopeIdentifier::EventType(event_type) => {
+                match event_type {
+                    common_enums::EventType::PaymentProcessing => Ok(Self::Payment),
+                    common_enums::EventType::PaymentAuthorized
+                    | common_enums::EventType::PaymentPartiallyAuthorized => Ok(Self::Authorized),
+                    common_enums::EventType::PaymentSucceeded
+                    | common_enums::EventType::PaymentCaptured => Ok(Self::Processed),
+                    common_enums::EventType::PaymentFailed
+                    | common_enums::EventType::RefundFailed => Ok(Self::Decline),
+                    common_enums::EventType::PaymentCancelled => Ok(Self::Void),
+                    common_enums::EventType::PaymentCancelledPostCapture => Ok(Self::Reversal),
+                    common_enums::EventType::RefundSucceeded => Ok(Self::Refund),
+                    common_enums::EventType::DisputeOpened => Ok(Self::Reject),
+                    common_enums::EventType::DisputeAccepted
+                    | common_enums::EventType::DisputeLost => Ok(Self::Reversal),
+
+                    #[cfg(feature = "payouts")]
+                    common_enums::EventType::PayoutInitiated
+                    | common_enums::EventType::PayoutProcessing => Ok(Self::Credit),
+                    #[cfg(feature = "payouts")]
+                    common_enums::EventType::PayoutSuccess => Ok(Self::Deposit),
+                    #[cfg(feature = "payouts")]
+                    common_enums::EventType::PayoutFailed => Ok(Self::Decline),
+                    #[cfg(feature = "payouts")]
+                    common_enums::EventType::PayoutCancelled => Ok(Self::Void),
+                    #[cfg(feature = "payouts")]
+                    common_enums::EventType::PayoutReversed => Ok(Self::Reversal),
+
+                    _ => Err(error_stack::report!(errors::ConnectorError::NotSupported {
+                        message: "Webhook event type mapping failed".to_string(),
+                        connector: "payload",
+                    })),
+                }
+            }
+            ScopeIdentifier::NotSpecific | ScopeIdentifier::PaymentMethodType(_) => Err(
+                error_stack::report!(errors::ConnectorError::WebhookEventTypeNotFound),
+            ),
+        }
+    }
+}
+
+impl
+    TryFrom<
+        ResponseRouterData<
+            ConnectorWebhookRegister,
+            responses::PayloadWebhookRegisterResponse,
+            ConnectorWebhookRegisterRequest,
+            ConnectorWebhookRegisterResponse,
+        >,
+    >
+    for RouterData<
+        ConnectorWebhookRegister,
+        ConnectorWebhookRegisterRequest,
+        ConnectorWebhookRegisterResponse,
+    >
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<
+            ConnectorWebhookRegister,
+            responses::PayloadWebhookRegisterResponse,
+            ConnectorWebhookRegisterRequest,
+            ConnectorWebhookRegisterResponse,
+        >,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            response: Ok(ConnectorWebhookRegisterResponse {
+                identifier: item.data.request.scope.clone(),
+                connector_webhook_id: Some(item.response.id),
+                status: common_enums::WebhookRegistrationStatus::Success,
+                error_code: None,
+                error_message: None,
+                metadata: None,
+            }),
+            ..item.data
+        })
     }
 }

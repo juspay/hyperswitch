@@ -1042,7 +1042,7 @@ where
                     };
 
                     let (merchant_connector_account, router_data, tokenization_action) =
-                        call_connector_service_prerequisites(
+                        Box::pin(call_connector_service_prerequisites(
                             state,
                             platform,
                             connector.connector_data.clone(),
@@ -1053,7 +1053,7 @@ where
                             false,
                             None,
                             &feature_config,
-                        )
+                        ))
                         .await?;
 
                     let (updated_customer, call_connector_service_response, updated_state) =
@@ -1229,7 +1229,7 @@ where
                     };
 
                     let (merchant_connector_account, router_data, tokenization_action) =
-                        call_connector_service_prerequisites(
+                        Box::pin(call_connector_service_prerequisites(
                             state,
                             platform,
                             connector_data.clone(),
@@ -1240,7 +1240,7 @@ where
                             false,
                             routing_decision,
                             &feature_config,
-                        )
+                        ))
                         .await?;
 
                     let (updated_customer, call_connector_service_response, updated_state) =
@@ -5965,9 +5965,12 @@ where
         if let (Some(domain::PaymentMethodData::Card(card_data)), Some(customer_id)) =
             (payment_method_data, customer_id)
         {
-            let vault_operation =
-                get_vault_operation_for_pre_network_tokenization(state, customer_id, card_data)
-                    .await;
+            let vault_operation = Box::pin(get_vault_operation_for_pre_network_tokenization(
+                state,
+                customer_id,
+                card_data,
+            ))
+            .await;
             match vault_operation {
                 payments::VaultOperation::SaveCardAndNetworkTokenData(
                     card_and_network_token_data,
@@ -7511,33 +7514,11 @@ where
                     "Apple Pay wallet data not found in the payment method data during the Apple Pay decryption flow",
                 )?;
 
-        let apple_pay_data =
-            ApplePayData::token_json(domain::WalletData::ApplePay(apple_pay_wallet_data.clone()))
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("failed to parse apple pay token to json")?
-                .decrypt(
-                    &apple_pay_payment_processing_details.payment_processing_certificate,
-                    &apple_pay_payment_processing_details.payment_processing_certificate_key,
-                )
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("failed to decrypt apple pay token")?;
-
-        let apple_pay_predecrypt_internal = apple_pay_data
-            .parse_value::<hyperswitch_domain_models::router_data::ApplePayPredecryptDataInternal>(
-                "ApplePayPredecryptDataInternal",
-            )
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable(
-                "failed to parse decrypted apple pay response to ApplePayPredecryptData",
-            )?;
-
-        let apple_pay_predecrypt =
-            common_types::payments::ApplePayPredecryptData::try_from(apple_pay_predecrypt_internal)
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable(
-                    "failed to convert ApplePayPredecryptDataInternal to ApplePayPredecryptData",
-                )?;
+        let apple_pay_predecrypt = decrypt_apple_pay_wallet_data(
+            apple_pay_payment_processing_details,
+            apple_pay_wallet_data,
+        )
+        .await?;
 
         Ok(PaymentMethodToken::ApplePayDecrypt(Box::new(
             apple_pay_predecrypt,
@@ -7622,38 +7603,80 @@ where
                     "Google Pay wallet data not found in the payment method data during the Google Pay decryption flow",
                 )?;
 
-        let decryptor = helpers::GooglePayTokenDecryptor::new(
-            google_pay_payment_processing_details
-                .google_pay_root_signing_keys
-                .clone(),
-            google_pay_payment_processing_details
-                .google_pay_recipient_id
-                .clone(),
-            google_pay_payment_processing_details
-                .google_pay_private_key
-                .clone(),
+        let google_pay_data = decrypt_google_pay_wallet_data(
+            google_pay_payment_processing_details,
+            google_pay_wallet_data,
         )
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("failed to create google pay token decryptor")?;
-
-        // should_verify_token is set to false to disable verification of token
-        let google_pay_data_internal = decryptor
-            .decrypt_token(
-                google_pay_wallet_data
-                    .tokenization_data
-                    .get_encrypted_google_pay_token()
-                    .change_context(errors::ApiErrorResponse::InternalServerError)?
-                    .clone(),
-                false,
-            )
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("failed to decrypt google pay token")?;
-        let google_pay_data =
-            common_types::payments::GPayPredecryptData::from(google_pay_data_internal);
+        .await?;
         Ok(PaymentMethodToken::GooglePayDecrypt(Box::new(
             google_pay_data,
         )))
     }
+}
+
+/// Shared by the confirm flow (`WalletFlow::decrypt_wallet_token`) and the eligibility check.
+async fn decrypt_apple_pay_wallet_data(
+    payment_processing_details: &payments_api::PaymentProcessingDetails,
+    apple_pay_wallet_data: &domain::ApplePayWalletData,
+) -> CustomResult<common_types::payments::ApplePayPredecryptData, errors::ApiErrorResponse> {
+    let apple_pay_data =
+        ApplePayData::token_json(domain::WalletData::ApplePay(apple_pay_wallet_data.clone()))
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("failed to parse apple pay token to json")?
+            .decrypt(
+                &payment_processing_details.payment_processing_certificate,
+                &payment_processing_details.payment_processing_certificate_key,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("failed to decrypt apple pay token")?;
+
+    let apple_pay_predecrypt_internal = apple_pay_data
+        .parse_value::<hyperswitch_domain_models::router_data::ApplePayPredecryptDataInternal>(
+            "ApplePayPredecryptDataInternal",
+        )
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable(
+            "failed to parse decrypted apple pay response to ApplePayPredecryptData",
+        )?;
+
+    common_types::payments::ApplePayPredecryptData::try_from(apple_pay_predecrypt_internal)
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable(
+            "failed to convert ApplePayPredecryptDataInternal to ApplePayPredecryptData",
+        )
+}
+
+/// Shared by the confirm flow (`WalletFlow::decrypt_wallet_token`) and the eligibility check.
+async fn decrypt_google_pay_wallet_data(
+    payment_processing_details: &GooglePayPaymentProcessingDetails,
+    google_pay_wallet_data: &domain::GooglePayWalletData,
+) -> CustomResult<common_types::payments::GPayPredecryptData, errors::ApiErrorResponse> {
+    let decryptor = helpers::GooglePayTokenDecryptor::new(
+        payment_processing_details
+            .google_pay_root_signing_keys
+            .clone(),
+        payment_processing_details.google_pay_recipient_id.clone(),
+        payment_processing_details.google_pay_private_key.clone(),
+    )
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("failed to create google pay token decryptor")?;
+
+    // should_verify_token is set to false to disable verification of token
+    let google_pay_data_internal = decryptor
+        .decrypt_token(
+            google_pay_wallet_data
+                .tokenization_data
+                .get_encrypted_google_pay_token()
+                .change_context(errors::ApiErrorResponse::InternalServerError)?
+                .clone(),
+            false,
+        )
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("failed to decrypt google pay token")?;
+    Ok(common_types::payments::GPayPredecryptData::from(
+        google_pay_data_internal,
+    ))
 }
 
 #[derive(Debug, Clone)]
@@ -9130,11 +9153,13 @@ async fn decide_payment_method_tokenize_action(
     payment_intent_data: payments::PaymentIntent,
     pm_parent_token: Option<&str>,
     is_connector_tokenization_enabled: bool,
+    is_network_transaction_id_flow: bool,
 ) -> RouterResult<TokenizationAction> {
     if matches!(
         payment_intent_data.split_payments,
         Some(common_types::payments::SplitPaymentsRequest::StripeSplitPayment(_))
-    ) {
+    ) && !is_network_transaction_id_flow
+    {
         match pm_parent_token {
             None => Ok(TokenizationAction::TokenizeInConnector),
             Some(_) => Ok(TokenizationAction::TokenizeInConnectorAndRouter),
@@ -9280,6 +9305,13 @@ where
                     payment_data.get_payment_attempt().authentication_type,
                 )?;
 
+            let is_network_transaction_id_flow = payment_data
+                .get_mandate_id()
+                .as_ref()
+                .and_then(|inner| inner.mandate_reference_id.as_ref())
+                .map(|mandate_reference| mandate_reference.is_network_mandate_id())
+                .unwrap_or(false);
+
             let payment_method_action = decide_payment_method_tokenize_action(
                 state,
                 &connector,
@@ -9287,6 +9319,7 @@ where
                 payment_data.get_payment_intent().clone(),
                 payment_data.get_token(),
                 is_connector_tokenization_enabled,
+                is_network_transaction_id_flow,
             )
             .await?;
 
@@ -9613,12 +9646,140 @@ where
     pub update_request_fields: Option<PaymentDataUpdateRequestFields>,
 }
 
+/// Decrypts an Apple Pay wallet token for the pre-confirm eligibility check, using the specific
+/// merchant connector account (MCA) that generated the wallet's session token. Fails open
+/// (`Ok(None)`) when the MCA or its decrypt certificates can't be resolved; a genuine decrypt
+/// failure (bad cert/key) still propagates as an `Err`.
+#[cfg(feature = "v1")]
+async fn decrypt_apple_pay_wallet_for_eligibility(
+    state: &SessionState,
+    processor: &domain::Processor,
+    merchant_connector_id: &id_type::MerchantConnectorAccountId,
+    apple_pay_wallet_data: &domain::ApplePayWalletData,
+) -> RouterResult<Option<domain::EligibilityPaymentMethodData>> {
+    let payment_processing_details = state
+        .store
+        .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+            processor.get_account().get_id(),
+            merchant_connector_id,
+            processor.get_key_store(),
+        )
+        .await
+        .inspect_err(|error| {
+            logger::warn!(
+                ?error,
+                merchant_connector_id = merchant_connector_id.get_string_repr(),
+                "failed to fetch the merchant connector account for Apple Pay eligibility decryption"
+            )
+        })
+        .ok()
+        .map(|merchant_connector_account| {
+            helpers::MerchantConnectorAccountType::DbVal(Box::new(merchant_connector_account))
+        })
+        .and_then(|merchant_connector_account| {
+            check_apple_pay_metadata(state, Some(&merchant_connector_account))
+                .and_then(|apple_pay_flow| match apple_pay_flow {
+                    domain::ApplePayFlow::DecryptAtApplication(payment_processing_details) => {
+                        Some(payment_processing_details)
+                    }
+                    domain::ApplePayFlow::SkipDecryption => None,
+                })
+                .or_else(|| {
+                    logger::warn!(
+                        merchant_connector_id = merchant_connector_id.get_string_repr(),
+                        "Apple Pay decrypt-at-application not configured for this connector account; skipping eligibility decryption"
+                    );
+                    None
+                })
+        });
+
+    match payment_processing_details {
+        Some(payment_processing_details) => {
+            let apple_pay_predecrypt =
+                decrypt_apple_pay_wallet_data(&payment_processing_details, apple_pay_wallet_data)
+                    .await?;
+
+            Ok(Some(domain::EligibilityPaymentMethodData::Wallet(
+                domain::WalletData::ApplePay(domain::ApplePayWalletData {
+                    payment_data: common_types::payments::ApplePayPaymentData::Decrypted(
+                        apple_pay_predecrypt,
+                    ),
+                    ..apple_pay_wallet_data.clone()
+                }),
+            )))
+        }
+        None => Ok(None),
+    }
+}
+
+/// Decrypts a Google Pay wallet token for the pre-confirm eligibility check, using the specific
+/// merchant connector account (MCA) that generated the wallet's session token. Fails open
+/// (`Ok(None)`) when the MCA or its decrypt keys can't be resolved; a genuine decrypt failure
+/// (bad key) still propagates as an `Err`.
+#[cfg(feature = "v1")]
+async fn decrypt_google_pay_wallet_for_eligibility(
+    state: &SessionState,
+    processor: &domain::Processor,
+    merchant_connector_id: &id_type::MerchantConnectorAccountId,
+    google_pay_wallet_data: &domain::GooglePayWalletData,
+) -> RouterResult<Option<domain::EligibilityPaymentMethodData>> {
+    let payment_processing_details = state
+        .store
+        .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+            processor.get_account().get_id(),
+            merchant_connector_id,
+            processor.get_key_store(),
+        )
+        .await
+        .inspect_err(|error| {
+            logger::warn!(
+                ?error,
+                merchant_connector_id = merchant_connector_id.get_string_repr(),
+                "failed to fetch the merchant connector account for Google Pay eligibility decryption"
+            )
+        })
+        .ok()
+        .map(|merchant_connector_account| {
+            helpers::MerchantConnectorAccountType::DbVal(Box::new(merchant_connector_account))
+        })
+        .and_then(|merchant_connector_account| {
+            get_google_pay_connector_wallet_details(state, &merchant_connector_account).or_else(
+                || {
+                    logger::warn!(
+                        merchant_connector_id = merchant_connector_id.get_string_repr(),
+                        "Google Pay decrypt keys not configured for this connector account; skipping eligibility decryption"
+                    );
+                    None
+                },
+            )
+        });
+
+    match payment_processing_details {
+        Some(payment_processing_details) => {
+            let google_pay_predecrypt =
+                decrypt_google_pay_wallet_data(&payment_processing_details, google_pay_wallet_data)
+                    .await?;
+
+            Ok(Some(domain::EligibilityPaymentMethodData::Wallet(
+                domain::WalletData::GooglePay(domain::GooglePayWalletData {
+                    tokenization_data: common_types::payments::GpayTokenizationData::Decrypted(
+                        google_pay_predecrypt,
+                    ),
+                    ..google_pay_wallet_data.clone()
+                }),
+            )))
+        }
+        None => Ok(None),
+    }
+}
+
 #[cfg(feature = "v1")]
 #[derive(Clone)]
 pub struct PaymentEligibilityData {
     pub payment_method_data: Option<domain::EligibilityPaymentMethodData>,
     pub payment_intent: storage::PaymentIntent,
     pub browser_info: Option<pii::SecretSerdeValue>,
+    pub merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
 }
 
 #[cfg(feature = "v1")]
@@ -9680,11 +9841,97 @@ impl PaymentEligibilityData {
             .transpose()?
             .map(pii::SecretSerdeValue::new);
 
+        let wallet_payment_method_type = match &payment_method_data {
+            Some(domain::EligibilityPaymentMethodData::Wallet(domain::WalletData::GooglePay(
+                google_pay_data,
+            ))) if google_pay_data
+                .tokenization_data
+                .get_decrypted_google_pay_payment_data_optional()
+                .is_none() =>
+            {
+                Some(storage_enums::PaymentMethodType::GooglePay)
+            }
+            Some(domain::EligibilityPaymentMethodData::Wallet(domain::WalletData::ApplePay(
+                apple_pay_data,
+            ))) if apple_pay_data
+                .payment_data
+                .get_decrypted_apple_pay_payment_data_optional()
+                .is_none() =>
+            {
+                Some(storage_enums::PaymentMethodType::ApplePay)
+            }
+            _ => None,
+        };
+
+        let merchant_connector_id = match wallet_payment_method_type {
+            Some(payment_method_type) => {
+                Self::resolve_wallet_merchant_connector_id_from_pre_routing(
+                    state,
+                    platform,
+                    &payment_intent,
+                    payment_method_type,
+                )
+                .await?
+            }
+            None => None,
+        };
+
         Ok(Self {
             payment_method_data,
             browser_info,
             payment_intent,
+            merchant_connector_id,
         })
+    }
+
+    /// Reads the MCA that will decrypt the wallet token from `pre_routing_results`, written to
+    /// the attempt by `list_payment_methods`. `None` when pre-routing has not run: callers fail
+    /// open rather than block.
+    async fn resolve_wallet_merchant_connector_id_from_pre_routing(
+        state: &SessionState,
+        platform: &domain::Platform,
+        payment_intent: &storage::PaymentIntent,
+        payment_method_type: storage_enums::PaymentMethodType,
+    ) -> CustomResult<Option<id_type::MerchantConnectorAccountId>, errors::ApiErrorResponse> {
+        let payment_attempt = state
+            .store
+            .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
+                &payment_intent.payment_id,
+                &payment_intent.processor_merchant_id,
+                &payment_intent.active_attempt.get_id(),
+                platform.get_processor().get_account().storage_scheme,
+                platform.get_processor().get_key_store(),
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
+            .attach_printable(
+                "Error while fetching the payment attempt to resolve the wallet pre-routing connector",
+            )?;
+
+        Ok(payment_attempt
+            .straight_through_algorithm
+            .and_then(|straight_through_algorithm| {
+                straight_through_algorithm
+                    .parse_value::<storage::PaymentRoutingInfo>("PaymentRoutingInfo")
+                    .inspect_err(|error| {
+                        logger::warn!(
+                            ?error,
+                            "failed to parse straight_through_algorithm as PaymentRoutingInfo for eligibility check"
+                        )
+                    })
+                    .ok()
+            })
+            .and_then(|routing_info| routing_info.pre_routing_results)
+            .and_then(|mut pre_routing_results| pre_routing_results.remove(&payment_method_type))
+            .and_then(|pre_routing_choice| match pre_routing_choice {
+                storage::PreRoutingConnectorChoice::Single(routable_connector) => {
+                    Some(routable_connector)
+                }
+                storage::PreRoutingConnectorChoice::Multiple(routable_connector_list) => {
+                    routable_connector_list.into_iter().next()
+                }
+            })
+            .and_then(|routable_connector| routable_connector.merchant_connector_id))
     }
 
     /// Resolves a `payment_token` to raw card data for blocklist checks: modular
@@ -10802,10 +11049,13 @@ pub async fn get_vault_operation_for_pre_network_tokenization(
     customer_id: id_type::CustomerId,
     card_data: &hyperswitch_domain_models::payment_method_data::Card,
 ) -> payments::VaultOperation {
-    let pre_tokenization_response =
-        tokenization::pre_payment_tokenization(state, customer_id, card_data)
-            .await
-            .ok();
+    let pre_tokenization_response = Box::pin(tokenization::pre_payment_tokenization(
+        state,
+        customer_id,
+        card_data,
+    ))
+    .await
+    .ok();
     match pre_tokenization_response {
         Some((Some(token_response), Some(token_ref))) => {
             let token_data = domain::NetworkTokenData::from(token_response);
@@ -12386,11 +12636,16 @@ where
 {
     let chosen = connectors.apply_filter_for_session_routing();
 
-    let active_mca_ids = routing::get_active_mca_ids(&state, processor.get_key_store())
-        .await
-        .change_context(errors::ApiErrorResponse::GenericNotFoundError {
-            message: "Active mca_ids not found".to_string(),
-        })?;
+    // Degrade to an empty active set on a transient MCA fetch error, with an explicit
+    // log, instead of returning a client-facing error for an infra failure. Note the
+    // empty set filters out every MCA-carrying choice, so a warm-cache request yields no
+    // session tokens and a cold-cache refresh can still hard-error.
+    let active_mca_ids = routing::get_active_mca_ids_for_session(
+        &state,
+        processor.get_key_store(),
+        business_profile.get_id(),
+    )
+    .await;
 
     let session_input = routing::SessionRoutingInput {
         state: &state,
@@ -13451,7 +13706,10 @@ trait EligibilityCheck {
 #[derive(Debug, Clone)]
 pub enum CheckResult {
     Allow,
-    Deny { message: String },
+    Deny {
+        message: String,
+        code: Option<common_enums::BlockReasonCode>,
+    },
 }
 
 #[cfg(feature = "v1")]
@@ -13459,8 +13717,8 @@ impl From<CheckResult> for Option<api_models::payments::SdkNextAction> {
     fn from(result: CheckResult) -> Self {
         match result {
             CheckResult::Allow => None,
-            CheckResult::Deny { message } => Some(api_models::payments::SdkNextAction {
-                next_action: api_models::payments::NextActionCall::Deny { message },
+            CheckResult::Deny { message, code } => Some(api_models::payments::SdkNextAction {
+                next_action: api_models::payments::NextActionCall::Deny { message, code },
                 should_block_confirm: None,
             }),
         }
@@ -13508,15 +13766,57 @@ impl EligibilityCheck for BlockListCheck {
         payment_elgibility_data: &PaymentEligibilityData,
         business_profile: &domain::Profile,
     ) -> CustomResult<CheckResult, errors::ApiErrorResponse> {
-        let dimensions = Dimensions::new()
-            .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
-            .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
+        // Decrypt first so the blocklist runs against the DPAN. On skip (no MCA, keys not
+        // configured) we fall back to the encrypted data, which yields no probes.
+        let decrypted_payment_method_data = match (
+            &payment_elgibility_data.payment_method_data,
+            payment_elgibility_data.merchant_connector_id.as_ref(),
+        ) {
+            (
+                Some(domain::EligibilityPaymentMethodData::Wallet(domain::WalletData::GooglePay(
+                    google_pay_data,
+                ))),
+                Some(merchant_connector_id),
+            ) if google_pay_data
+                .tokenization_data
+                .get_decrypted_google_pay_payment_data_optional()
+                .is_none() =>
+            {
+                decrypt_google_pay_wallet_for_eligibility(
+                    state,
+                    platform.get_processor(),
+                    merchant_connector_id,
+                    google_pay_data,
+                )
+                .await?
+            }
+            (
+                Some(domain::EligibilityPaymentMethodData::Wallet(domain::WalletData::ApplePay(
+                    apple_pay_data,
+                ))),
+                Some(merchant_connector_id),
+            ) if apple_pay_data
+                .payment_data
+                .get_decrypted_apple_pay_payment_data_optional()
+                .is_none() =>
+            {
+                decrypt_apple_pay_wallet_for_eligibility(
+                    state,
+                    platform.get_processor(),
+                    merchant_connector_id,
+                    apple_pay_data,
+                )
+                .await?
+            }
+            _ => None,
+        };
+        let payment_method_data = decrypted_payment_method_data
+            .or_else(|| payment_elgibility_data.payment_method_data.clone());
 
         let block_reason = blocklist_utils::should_payment_be_blocked(
             state,
             platform.get_processor(),
-            &dimensions,
-            &payment_elgibility_data.payment_method_data,
+            &payment_method_data,
             business_profile,
         )
         .await?;
@@ -13525,6 +13825,7 @@ impl EligibilityCheck for BlockListCheck {
                 logger::warn!(block_reason = ?reason, "Payment blocked by blocklist");
                 Ok(CheckResult::Deny {
                     message: reason.error_message(),
+                    code: Some(reason.into()),
                 })
             }
             None => Ok(CheckResult::Allow),
@@ -13583,6 +13884,7 @@ impl EligibilityCheck for CardTestingCheck {
                         errors::ApiErrorResponse::PreconditionFailed { message } => {
                             Ok(CheckResult::Deny {
                                 message: message.to_string(),
+                                code: None,
                             })
                         }
                         // For any other error, propagate it

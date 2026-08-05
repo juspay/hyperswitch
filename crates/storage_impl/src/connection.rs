@@ -7,19 +7,6 @@ pub type PgPool = bb8::Pool<async_bb8_diesel::ConnectionManager<PgConnection>>;
 
 pub type PgPooledConn = async_bb8_diesel::Connection<PgConnection>;
 
-/// Creates a Redis connection pool for the specified Redis settings
-/// # Panics
-///
-/// Panics if failed to create a redis pool
-#[allow(clippy::expect_used)]
-pub async fn redis_connection(
-    redis: &redis_interface::RedisSettings,
-) -> redis_interface::RedisConnectionPool {
-    redis_interface::RedisConnectionPool::new(redis)
-        .await
-        .expect("Failed to create Redis Connection Pool")
-}
-
 pub async fn pg_connection_read<T: crate::DatabaseStore>(
     store: &T,
 ) -> errors::CustomResult<
@@ -41,9 +28,14 @@ pub async fn pg_connection_read<T: crate::DatabaseStore>(
     ))]
     let pool = store.get_master_pool();
 
-    pool.get()
+    #[cfg_attr(not(feature = "deja"), allow(unused_mut))]
+    let mut conn = pool
+        .get()
         .await
-        .change_context(crate::errors::StorageError::DatabaseConnectionError)
+        .change_context(crate::errors::StorageError::DatabaseConnectionError)?;
+    #[cfg(feature = "deja")]
+    crate::utils::deja_route_replay_schema(&mut conn, store).await;
+    Ok(conn)
 }
 
 pub async fn pg_connection_write<T: crate::DatabaseStore>(
@@ -55,7 +47,12 @@ pub async fn pg_connection_write<T: crate::DatabaseStore>(
     // Since all writes should happen to master DB only choose master DB.
     let pool = store.get_master_pool();
 
-    pool.get()
+    #[cfg_attr(not(feature = "deja"), allow(unused_mut))]
+    let mut conn = pool
+        .get()
         .await
-        .change_context(crate::errors::StorageError::DatabaseConnectionError)
+        .change_context(crate::errors::StorageError::DatabaseConnectionError)?;
+    #[cfg(feature = "deja")]
+    crate::utils::deja_route_replay_schema(&mut conn, store).await;
+    Ok(conn)
 }

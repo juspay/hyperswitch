@@ -1619,6 +1619,7 @@ fn get_cards_required_fields() -> HashMap<Connector, RequiredFieldFinal> {
                 vec![],
                 vec![],
                 [
+                    card_basic(),
                     vec![
                         RequiredField::BillingFirstName("first_name", FieldType::UserFullName),
                         RequiredField::BillingLastName("last_name", FieldType::UserFullName),
@@ -1756,6 +1757,24 @@ fn get_cards_required_fields() -> HashMap<Connector, RequiredFieldFinal> {
         ),
         (Connector::Tsys, fields(vec![], card_basic(), vec![])),
         (
+            // TSYS Transit hard-requires billing addressLine1 + zip on every
+            // card authorization (AVS), for both CIT and MIT flows. Surface
+            // them as dynamic required fields so the SDK collects them.
+            Connector::TsysTransit,
+            fields(
+                vec![],
+                vec![],
+                [
+                    card_basic(),
+                    vec![
+                        RequiredField::BillingAddressLine1,
+                        RequiredField::BillingAddressZip,
+                    ],
+                ]
+                .concat(),
+            ),
+        ),
+        (
             Connector::Wellsfargo,
             fields(
                 vec![],
@@ -1831,6 +1850,21 @@ fn get_cards_required_fields() -> HashMap<Connector, RequiredFieldFinal> {
         (
             Connector::Imerchantsolutions,
             fields(vec![], card_basic(), vec![]),
+        ),
+        (
+            Connector::Givepayments,
+            RequiredFieldFinal {
+                mandate: HashMap::new(),
+                non_mandate: HashMap::from([
+                    RequiredField::BillingUserFirstName.to_tuple(),
+                    RequiredField::BillingUserLastName.to_tuple(),
+                    RequiredField::CardNumber.to_tuple(),
+                    RequiredField::CardExpMonth.to_tuple(),
+                    RequiredField::CardExpYear.to_tuple(),
+                    RequiredField::Email.to_tuple(),
+                ]),
+                common: HashMap::new(),
+            },
         ),
     ])
 }
@@ -4233,6 +4267,30 @@ fn test_required_fields_to_json() {
                 }
             }
         }
+        // Verify TSYS Transit surfaces billing addressLine1 + zip (AVS) as
+        // required fields on both credit and debit cards, so the SDK collects
+        // them for CIT and MIT.
+        if let Some(card_method) = default_fields.0.get(&enums::PaymentMethod::Card) {
+            for pmt in [
+                enums::PaymentMethodType::Credit,
+                enums::PaymentMethodType::Debit,
+            ] {
+                let type_fields = card_method
+                    .0
+                    .get(&pmt)
+                    .expect("card payment method type should be present");
+                let tsys_fields = type_fields
+                    .fields
+                    .get(&Connector::TsysTransit)
+                    .expect("tsys_transit required fields should be present");
+                assert!(tsys_fields.common.contains_key("billing.address.line1"));
+                assert!(tsys_fields.common.contains_key("billing.address.zip"));
+                assert!(tsys_fields
+                    .common
+                    .contains_key("payment_method_data.card.card_number"));
+            }
+        }
+
         // print the result of default required fields as json in new file
         serde_json::to_writer_pretty(
             std::fs::File::create("default_required_fields.json").unwrap(),
