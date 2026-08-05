@@ -83,7 +83,11 @@ fn short_revision(sha: &str) -> String {
 fn recording_stamp(unix_secs: u64) -> String {
     let (month, day) = civil_month_day(unix_secs / 86_400);
     let today = unix_secs % 86_400;
-    format!("{month:02}{day:02}{:02}{:02}", today / 3600, (today % 3600) / 60)
+    format!(
+        "{month:02}{day:02}{:02}{:02}",
+        today / 3600,
+        (today % 3600) / 60
+    )
 }
 
 /// Two characters standing for the instance, so two pods that start in the same
