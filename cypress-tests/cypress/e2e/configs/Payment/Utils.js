@@ -65,11 +65,13 @@ import { connectorDetails as payjustnowinstoreConnectorDetails } from "./Payjust
 import { connectorDetails as payloadConnectorDetails } from "./Payload.js";
 import { connectorDetails as paypalConnectorDetails } from "./Paypal.js";
 import { connectorDetails as paysafeConnectorDetails } from "./Paysafe.js";
+import { connectorDetails as paystackConnectorDetails } from "./Paystack.js";
 import { connectorDetails as payuConnectorDetails } from "./Payu.js";
 import { connectorDetails as peachpaymentsConnectorDetails } from "./Peachpayments.js";
 import { connectorDetails as placetopayConnectorDetails } from "./Placetopay.js";
 import { connectorDetails as plaidConnectorDetails } from "./Plaid.js";
 import { connectorDetails as powertranzConnectorDetails } from "./PowerTranz.js";
+import { connectorDetails as prophetpayConnectorDetails } from "./Prophetpay.js";
 import { connectorDetails as rapydConnectorDetails } from "./Rapyd.js";
 import { connectorDetails as redsysConnectorDetails } from "./Redsys.js";
 import { connectorDetails as shift4ConnectorDetails } from "./Shift4.js";
@@ -150,11 +152,13 @@ const connectorDetails = {
   payload: payloadConnectorDetails,
   paypal: paypalConnectorDetails,
   paysafe: paysafeConnectorDetails,
+  paystack: paystackConnectorDetails,
   placetopay: placetopayConnectorDetails,
   plaid: plaidConnectorDetails,
   payu: payuConnectorDetails,
   peachpayments: peachpaymentsConnectorDetails,
   powertranz: powertranzConnectorDetails,
+  prophetpay: prophetpayConnectorDetails,
   rapyd: rapydConnectorDetails,
   redsys: redsysConnectorDetails,
   shift4: shift4ConnectorDetails,
@@ -603,7 +607,6 @@ export const CONNECTOR_LISTS = {
       "payload",
       "paypal",
       "trustpay",
-      "worldpay",
     ],
     REFUNDS_WEBHOOK: [
       "airwallex",
@@ -625,6 +628,7 @@ export const CONNECTOR_LISTS = {
     ], // payload verified as working
     BANK_REDIRECT_BANCONTACT: ["adyen", "stripe"],
     BANK_REDIRECT_MANDATE: ["adyen", "stripe"],
+    CARD_REDIRECT: ["prophetpay"],
     BLUECODE_WALLET: ["calida"],
     ALIPAY_HK_WALLET: [""],
     PAYPAL_WALLET: [
@@ -710,6 +714,7 @@ export const CONNECTOR_LISTS = {
     PAYJUSTNOW: ["payjustnow"],
     PAYJUSTNOWINSTORE: ["payjustnowinstore"],
     AUTH_SERVICE_ELIGIBILITY: ["stripe", "cybersource"],
+    VAULT_TOKENIZATION: ["stripe"],
     STEP_UP_AUTH: ["cybersource"],
     PARTIAL_AUTH: ["nuvei", "checkout", "worldpayvantiv"],
     PAYMENT_RESPONSE_HASH: ["stripe"],

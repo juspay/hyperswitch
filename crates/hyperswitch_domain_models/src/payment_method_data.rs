@@ -383,12 +383,35 @@ pub enum EligibilityPaymentMethodData {
 
 impl EligibilityPaymentMethodData {
     pub fn is_eligible_for_profile_config_blocklist(&self) -> bool {
-        matches!(self, Self::Card(_))
+        matches!(self, Self::Card(_) | Self::Wallet(_))
     }
 
     pub fn get_card_iin(&self) -> Option<String> {
         match self {
             Self::Card(card) => Some(card.card_number.get_card_isin()),
+            _ => None,
+        }
+    }
+
+    /// 8-digit BIN of a wallet's decrypted token. `None` while the token is still encrypted.
+    pub fn get_decrypted_token_extended_bin(&self) -> Option<String> {
+        match self {
+            Self::Wallet(WalletData::GooglePay(google_pay)) => google_pay
+                .tokenization_data
+                .get_decrypted_google_pay_payment_data_optional()
+                .map(|decrypted_data| {
+                    decrypted_data
+                        .application_primary_account_number
+                        .get_extended_card_bin()
+                }),
+            Self::Wallet(WalletData::ApplePay(apple_pay)) => apple_pay
+                .payment_data
+                .get_decrypted_apple_pay_payment_data_optional()
+                .map(|decrypted_data| {
+                    decrypted_data
+                        .application_primary_account_number
+                        .get_extended_card_bin()
+                }),
             _ => None,
         }
     }

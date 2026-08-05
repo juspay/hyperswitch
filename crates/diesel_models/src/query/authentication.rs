@@ -10,7 +10,7 @@ use crate::{
 
 impl AuthenticationNew {
     pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<Authentication> {
-        generics::generic_insert(conn, self).await
+        Box::pin(generics::generic_insert(conn, self)).await
     }
 
     pub async fn generate_drainer_insert_query(
