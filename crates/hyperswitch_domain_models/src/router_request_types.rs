@@ -938,6 +938,7 @@ impl TryFrom<PaymentsAuthorizeData> for PaymentsAuthenticateData {
             authentication_data: None,
             sdk_information: None,
             device_channel: None,
+            webhook_url: data.webhook_url,
         })
     }
 }
@@ -957,6 +958,7 @@ pub struct PaymentsAuthenticateData {
     pub authentication_data: Option<UcsAuthenticationData>,
     pub sdk_information: Option<api_models::payments::SdkInformation>,
     pub device_channel: Option<api_models::payments::DeviceChannel>,
+    pub webhook_url: Option<String>,
 }
 
 impl TryFrom<CompleteAuthorizeData> for PaymentsAuthenticateData {
@@ -977,6 +979,7 @@ impl TryFrom<CompleteAuthorizeData> for PaymentsAuthenticateData {
             authentication_data: data.authentication_data,
             sdk_information: None,
             device_channel: None,
+            webhook_url: None,
         })
     }
 }
@@ -1443,6 +1446,10 @@ pub struct UcsAuthenticationData {
     pub trans_status: Option<common_enums::TransactionStatus>,
     pub transaction_id: Option<String>,
     pub ucaf_collection_indicator: Option<String>,
+    pub challenge_code: Option<String>,
+    pub challenge_cancel: Option<String>,
+    pub challenge_code_reason: Option<String>,
+    pub message_extension: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(Debug, Clone, Serialize)]

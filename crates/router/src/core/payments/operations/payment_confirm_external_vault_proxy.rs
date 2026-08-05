@@ -19,8 +19,8 @@ use crate::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         payment_methods::{transformers as pm_transformers, transformers::PaymentMethodFetchData},
         payments::{
-            helpers, operations, CustomerDetails, OperationSessionSetters, PaymentAddress,
-            PaymentData,
+            helpers, operations, read_external_vault_alias_from_temp_locker, CustomerDetails,
+            OperationSessionSetters, PaymentAddress, PaymentData,
         },
         utils as core_utils,
     },
@@ -37,16 +37,10 @@ use crate::{
 #[derive(Debug, Clone, Copy)]
 pub struct PaymentExternalVaultProxyConfirm;
 
-/// Derives the external vault payment method data for the proxy flow from the confirm request
-/// and the vault tokens fetched from the modular PM service:
-///  - `ProxyCard`: inline vault card data carried directly on the request.
-///  - `VaultCardTokenData`: a saved card referenced by `payment_token`; its vault tokens come
-///    from `payment_method_wrapper.vault_payment_method_token_data`, combined with the CVC /
-///    card holder name supplied on the request.
-///
-/// Shared by `PaymentExternalVaultProxyConfirm::get_trackers` (two-step confirm) and
-/// `PaymentCreate::get_trackers` (single-call create+confirm) so both populate
-/// `PaymentData::external_vault_pmd` identically.
+/// Derives the external vault payment method data for the proxy flow, from either an inline
+/// `ProxyCard` or a saved `VaultCardTokenData` resolved via the modular PM service. Shared by
+/// `PaymentExternalVaultProxyConfirm::get_trackers` and `PaymentCreate::get_trackers` so both
+/// populate `PaymentData::external_vault_pmd` identically.
 pub(crate) fn build_external_vault_payment_method_data(
     request: &PaymentsRequest,
     payment_method_wrapper: Option<
@@ -313,13 +307,11 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, PaymentsRequest>
             payment_method_wrapper.as_ref(),
         )? {
             Some(pmd) => Some(pmd),
-            // A resume confirm (post-authentication, triggered by the redirect/webhook completion
-            // handlers) carries only `payment_token` pointing at the temp-generic alias minted
-            // during pre-authentication — no fresh `payment_method_data` is sent. Resolve the same
-            // alias the AReq step already used instead of requiring the caller to resend it.
+            // A resume confirm carries only `payment_token`, not fresh `payment_method_data` —
+            // resolve the same alias the AReq step already used.
             None => match request.payment_token.as_ref() {
                 Some(payment_token) => Some(
-                    crate::core::payments::read_external_vault_alias_from_temp_locker(
+                    read_external_vault_alias_from_temp_locker(
                         state,
                         payment_token,
                         platform.get_processor().get_key_store(),
@@ -992,14 +984,9 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsRequest, PaymentData<F>>
         Ok(())
     }
 
-    /// Mirrors `payment_confirm.rs`'s override of the same trait method: resolves the
-    /// pre-/post-authentication flow, calls the matching `authentication::perform_*_proxy`
-    /// function, and derives `should_continue_confirm_transaction` from the returned
-    /// `AuthenticationStore` using the identical predicates the non-proxy flow uses
-    /// (`is_separate_authn_required() || is_failed()` for pre-auth;
-    /// `authentication_status != Success` for post-auth). Does not touch `payment_attempt` /
-    /// `payment_intent` itself — `update_trackers` below derives the final status from
-    /// `payment_data.authentication` in one place, the same way `payment_confirm.rs` does.
+    /// Mirrors `payment_confirm.rs`'s override of the same trait method, using the
+    /// `authentication::perform_*_proxy` functions and the identical
+    /// `should_continue_confirm_transaction` predicates the non-proxy flow uses.
     #[cfg(feature = "v1")]
     async fn call_external_three_ds_authentication_if_eligible<'a>(
         &'a self,

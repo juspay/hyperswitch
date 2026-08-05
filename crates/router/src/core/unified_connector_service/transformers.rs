@@ -1232,7 +1232,7 @@ impl
                 .transpose()?,
             connector_feature_data: None,
             capture_method: capture_method.map(|capture_method| capture_method.into()),
-            webhook_url: None,
+            webhook_url: router_data.request.webhook_url.clone(),
             domain_data: None,
         })
     }
@@ -1343,7 +1343,7 @@ impl
                 .transpose()?,
             connector_feature_data: None,
             capture_method: capture_method.map(|capture_method| capture_method.into()),
-            webhook_url: None,
+            webhook_url: router_data.request.webhook_url.clone(),
             domain_data: None,
         })
     }
@@ -3094,12 +3094,6 @@ impl
                 },
                 None => (None, None),
             },
-            // NOTE: the POC surfaced Netcetera acquirer/results-url metadata echoed back via a
-            // `connector_feature_data` field on this response, but that field does not exist on
-            // `PaymentServiceAuthorizeResponse` in the connector-service proto version this repo
-            // is currently pinned to (tag 2026.07.21.0) — it requires a proto bump upstream in
-            // connector-service first. Left as `(None, None)` pending that; not required for the
-            // pre/authenticate/post-authenticate flow itself.
             None => (None, None),
         };
 
@@ -5087,15 +5081,23 @@ impl transformers::ForeignTryFrom<payments_grpc::AuthenticationData>
             acs_transaction_id,
             connector_transaction_id,
             ucaf_collection_indicator,
+            challenge_code,
+            challenge_cancel,
+            challenge_code_reason,
+            message_extension,
             exemption_indicator: _,
             network_params: _,
             created_at: _,
-            challenge_code: _,
-            challenge_cancel: _,
-            challenge_code_reason: _,
-            message_extension: _,
             authentication_type: _,
         } = response;
+        let message_extension = message_extension
+            .map(|value| {
+                serde_json::from_str::<serde_json::Value>(&value)
+                    .change_context(UnifiedConnectorServiceError::ResponseDeserializationFailed)
+                    .attach_printable("Failed to deserialize message_extension as JSON")
+            })
+            .transpose()?
+            .map(Secret::new);
         let trans_status = trans_status
             .map(payments_grpc::TransactionStatus::try_from)
             .transpose()
@@ -5119,6 +5121,10 @@ impl transformers::ForeignTryFrom<payments_grpc::AuthenticationData>
             acs_trans_id: acs_transaction_id,
             transaction_id: connector_transaction_id,
             ucaf_collection_indicator,
+            challenge_code,
+            challenge_cancel,
+            challenge_code_reason,
+            message_extension,
         })
     }
 }

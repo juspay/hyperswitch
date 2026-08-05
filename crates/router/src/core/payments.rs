@@ -5314,16 +5314,19 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
                 ..Default::default()
             };
             let is_setup_mandate = payment_intent.is_setup_mandate();
-            // External vault enablement is configured on the provider's own profile for
-            // platform-connected merchants (see `webhooks/incoming.rs`'s identical resolution
-            // before this same check) — resolve it before probing, else a connected processor's
-            // own profile (which may not carry this config) is checked instead.
-            let provider_business_profile =
-                helpers::resolve_provider_profile(state, &platform, &business_profile).await?;
-            // A merchant with external vault enabled can still accept a plain (non-proxied)
-            // card for an individual payment — probe whether this payment's payment_token
-            // actually resolves to a vault alias before committing to the proxy resume path,
-            // mirroring the same check in `payment_external_authentication`.
+            // External vault enablement lives on the provider's own profile for platform-connected
+            // merchants (see `webhooks/incoming.rs`'s identical resolution).
+            let provider_business_profile = helpers::resolve_provider_profile(
+                state,
+                &platform,
+                &business_profile,
+            )
+            .await
+            .inspect_err(|err| {
+                logger::error!(resolve_provider_profile_error=?err, "Failed to resolve provider profile for external-vault probe");
+            })?;
+            // A plain (non-proxied) card can still arrive even with external vault enabled —
+            // probe whether this payment's payment_token actually resolves to a vault alias.
             let is_external_vault_payment = provider_business_profile
                 .external_vault_details
                 .is_external_vault_enabled()
@@ -5351,12 +5354,8 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
                         "payment_token missing on attempt for external vault 3DS redirect completion",
                     )?;
                 // No `payment_method_data` is sent: `payment_token` alone points at the
-                // temp-generic vault alias minted during pre-authentication, which
-                // `PaymentExternalVaultProxyConfirm::get_trackers` resolves the same way the AReq
-                // step already did (`read_external_vault_alias_from_temp_locker`) — this payment
-                // used the inline `vault_data_card` shape at the original confirm, not a saved
-                // `VaultCardTokenData` card, so there is nothing to fetch from the modular PM
-                // service here.
+                // temp-generic vault alias created during pre-authentication, resolved the same
+                // way the AReq step already did.
                 let external_vault_req = api::PaymentsRequest {
                     payment_id: Some(req.resource_id.clone()),
                     merchant_id: req.merchant_id.clone(),
@@ -12850,11 +12849,9 @@ pub async fn route_connector_v1_for_payouts(
     Ok(ConnectorCallType::Retryable(connector_data))
 }
 
-// The following three helpers have no normal-flow (non-proxy) counterpart: a normal payment's
-// card lives directly in `payment_data.payment_method_data`, but the external-vault-proxy flow
-// only ever holds an `ExternalVaultPaymentMethodData` alias (the real PAN lives in the external
-// vault, e.g. VGS). These mint/read/resolve that alias via the temp locker so it can be carried
-// across the multi-step pre-authentication / authentication / post-authentication round trip.
+// The following three helpers have no normal-flow (non-proxy) counterpart: the external-vault-proxy
+// flow only ever holds an `ExternalVaultPaymentMethodData` alias (the real PAN lives in the
+// external vault, e.g. VGS), so these create/read/resolve that alias via the temp locker instead.
 
 #[cfg(feature = "v1")]
 pub async fn tokenize_external_vault_alias_proxy(
@@ -12888,17 +12885,10 @@ pub async fn tokenize_external_vault_alias_proxy(
     Ok(token)
 }
 
-/// Proxy analogue of `tokenize_in_router_when_confirm_false_or_external_authentication`: when
-/// external 3DS was requested for this payment, mint the vault-alias temp-locker token up front —
-/// before the eligibility/pre-authentication hook runs — the same way classic's version makes
-/// `payment_data.token` available before `get_payment_external_authentication_flow_during_confirm`
-/// even checks it. Proxy's own eligibility check doesn't hard-require a pre-existing token (it
-/// checks `external_vault_pmd` instead, see `get_payment_external_authentication_flow_during_confirm_proxy`),
-/// so this isn't a precondition the way it is for classic — but doing it here, rather than
-/// reactively inside `perform_pre_authentication_proxy` after the UCS call already succeeded,
-/// mirrors classic's structure and keeps `payment_data.token`/`payment_attempt.payment_token`
-/// consistent regardless of what the eligibility check decides. No-ops if a token already exists
-/// (e.g. a saved-card resume) or there's no vault alias to tokenize yet.
+/// Proxy analogue of `tokenize_in_router_when_confirm_false_or_external_authentication`: creates
+/// the vault-alias temp-locker token up front when external 3DS was requested, before the
+/// eligibility/pre-authentication hook runs. No-ops if a token already exists or there's no
+/// vault alias to tokenize yet.
 #[cfg(feature = "v1")]
 pub async fn tokenize_in_router_when_external_authentication_proxy<F, D>(
     state: &SessionState,
@@ -12914,27 +12904,30 @@ where
         .get_payment_intent()
         .request_external_three_ds_authentication
         .unwrap_or(false);
-    if !is_external_authentication_requested || payment_data.get_token().is_some() {
-        return Ok(());
-    }
-    let Some(external_vault_pmd) = payment_data.get_external_vault_pmd().cloned() else {
-        return Ok(());
-    };
-    let payment_method = payment_data
-        .get_payment_attempt()
-        .payment_method
-        .unwrap_or(common_enums::PaymentMethod::Card);
+    let external_vault_pmd = (is_external_authentication_requested
+        && payment_data.get_token().is_none())
+    .then(|| payment_data.get_external_vault_pmd().cloned())
+    .flatten();
 
-    let alias_token = tokenize_external_vault_alias_proxy(
-        state,
-        &external_vault_pmd,
-        payment_method,
-        business_profile,
-        key_store,
-    )
-    .await
-    .attach_printable("Failed to mint external vault alias token ahead of 3DS eligibility check")?;
-    payment_data.set_token(alias_token);
+    if let Some(external_vault_pmd) = external_vault_pmd {
+        let payment_method = payment_data
+            .get_payment_attempt()
+            .payment_method
+            .unwrap_or(common_enums::PaymentMethod::Card);
+
+        let alias_token = tokenize_external_vault_alias_proxy(
+            state,
+            &external_vault_pmd,
+            payment_method,
+            business_profile,
+            key_store,
+        )
+        .await
+        .attach_printable(
+            "Failed to create external vault alias token ahead of 3DS eligibility check",
+        )?;
+        payment_data.set_token(alias_token);
+    }
     Ok(())
 }
 
@@ -12968,12 +12961,9 @@ pub(crate) async fn resolve_external_vault_alias_from_payment_token(
         storage::PaymentTokenData::TemporaryGeneric(generic) => {
             read_external_vault_alias_from_temp_locker(state, &generic.token, key_store).await
         }
-        // A permanent (saved) payment method token has no CVC to recover here — the modular
-        // service never returns one, and the CVC-bearing 3DS AReq/post-authenticate flow always
-        // resolves through a `TemporaryGeneric` alias minted by pre-authentication instead (see
-        // `tokenize_external_vault_alias_proxy`), never a saved-PM token directly. MIT/off-session
-        // repeat charges bypass this resolution entirely via `connector_mandate_id`. So this arm
-        // is not a supported path — fail loudly rather than silently building a cvc-less card.
+        // A permanent (saved) payment method token has no CVC to recover here — the CVC-bearing
+        // 3DS flow always resolves through a `TemporaryGeneric` alias instead. Fail loudly rather
+        // than silently building a cvc-less card.
         storage::PaymentTokenData::Permanent(_) | storage::PaymentTokenData::PermanentCard(_) => {
             Err(errors::ApiErrorResponse::InternalServerError).attach_printable(
                 "external vault alias resolution from a saved payment method token is not supported \
@@ -13149,17 +13139,16 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
         .clone()
         .get_required_value("authentication_connector_details")
         .attach_printable("authentication_connector_details not configured by the merchant")?;
-    // External vault enablement is configured on the provider's own profile for
-    // platform-connected merchants (see `webhooks/incoming.rs`'s identical resolution before
-    // this same check) — resolve it before probing, else a connected processor's own profile
-    // (which may not carry this config) is checked instead.
-    let provider_business_profile =
-        helpers::resolve_provider_profile(&state, &platform, &business_profile).await?;
-    // A merchant with external vault enabled can still accept a plain (non-proxied) card for
-    // an individual payment — the profile flag alone doesn't tell us whether *this* payment's
-    // payment_token actually points at a vault alias. Probe it before committing to the proxy
-    // path, so a plain card falls through to the classic/UAS branches below instead of hard
-    // failing on a temp-locker value that isn't external-vault-shaped.
+    // External vault enablement lives on the provider's own profile for platform-connected
+    // merchants (see `webhooks/incoming.rs`'s identical resolution).
+    let provider_business_profile = helpers::resolve_provider_profile(&state, &platform, &business_profile)
+        .await
+        .inspect_err(|err| {
+            logger::error!(resolve_provider_profile_error=?err, "Failed to resolve provider profile for external-vault probe");
+        })?;
+    // A plain (non-proxied) card can still arrive even with external vault enabled — probe
+    // whether this payment's payment_token actually resolves to a vault alias before committing
+    // to the proxy path.
     let is_external_vault_payment = if provider_business_profile
         .external_vault_details
         .is_external_vault_enabled()
