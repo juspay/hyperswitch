@@ -1812,7 +1812,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AuthResponse"
+                  "$ref": "#/components/schemas/CurrentUserResponse"
                 }
               }
             }
@@ -1987,7 +1987,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GenericObject"
+                  "$ref": "#/components/schemas/RoutingKeysResponse"
                 }
               }
             }
@@ -2319,7 +2319,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
+                  "$ref": "#/components/schemas/DeciderErrorResponse"
                 }
               }
             }
@@ -2348,7 +2348,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/DecideGatewayRequest"
+                "$ref": "#/components/schemas/LegacyDeciderRequest"
               }
             }
           }
@@ -2360,6 +2360,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/DecidedGateway"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeciderErrorResponse"
                 }
               }
             }
@@ -2403,7 +2413,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GenericObject"
+                  "$ref": "#/components/schemas/DiagnosticsResponse"
                 }
               }
             }
@@ -2434,6 +2444,16 @@
         "responses": {
           "200": {
             "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthRespPayload"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Service is not ready - returns `{\"message\": \"Down\"}`.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2582,7 +2602,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
+                  "$ref": "#/components/schemas/ApiErrorResponse"
                 }
               }
             }
@@ -2622,7 +2642,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/RoutingRule"
+                  "$ref": "#/components/schemas/RoutingDictionaryRecord"
                 }
               }
             }
@@ -2699,7 +2719,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/GenericObject"
+                "$ref": "#/components/schemas/HybridRoutingRequest"
               }
             }
           }
@@ -2710,7 +2730,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GenericObject"
+                  "$ref": "#/components/schemas/HybridRoutingResponse"
                 }
               }
             }
@@ -2744,7 +2764,7 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/components/schemas/RoutingRule"
+                    "$ref": "#/components/schemas/JsonifiedRoutingAlgorithm"
                   }
                 }
               }
@@ -2785,17 +2805,11 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/RoutingRule"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "No active rule",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/JsonifiedRoutingAlgorithm"
+                  },
+                  "description": "Active routing algorithms. Empty array when none is active."
                 }
               }
             }
@@ -3046,7 +3060,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/UpdateGatewayScoreRequest"
+                "$ref": "#/components/schemas/LegacyUpdateScoreRequest"
               }
             }
           }
@@ -3915,9 +3929,11 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "integer",
-              "format": "int32",
-              "nullable": true
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "int32"
             }
           },
           {
@@ -3925,8 +3941,10 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "string",
-              "nullable": true
+              "type": [
+                "string",
+                "null"
+              ]
             }
           },
           {
@@ -3934,8 +3952,10 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "string",
-              "nullable": true
+              "type": [
+                "string",
+                "null"
+              ]
             }
           },
           {
@@ -3943,8 +3963,10 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "string",
-              "nullable": true
+              "type": [
+                "string",
+                "null"
+              ]
             }
           }
         ],
@@ -4561,7 +4583,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
+                  "$ref": "#/components/schemas/ApiErrorResponse"
                 }
               }
             }
@@ -4649,7 +4671,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
+                  "$ref": "#/components/schemas/ApiErrorResponse"
                 }
               }
             }
@@ -4707,7 +4729,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
+                  "$ref": "#/components/schemas/ApiErrorResponse"
                 }
               }
             }
@@ -4746,26 +4768,6 @@
       }
     },
     "schemas": {
-      "HealthResponse": {
-        "type": "object",
-        "properties": {
-          "message": {
-            "type": "string",
-            "example": "Health is good"
-          }
-        }
-      },
-      "ErrorResponse": {
-        "type": "object",
-        "properties": {
-          "error": {
-            "type": "string"
-          },
-          "message": {
-            "type": "string"
-          }
-        }
-      },
       "DeleteResponse": {
         "type": "object",
         "properties": {
@@ -4803,27 +4805,35 @@
             "example": "USD"
           },
           "country": {
-            "type": "string",
-            "nullable": true,
+            "type": [
+              "string",
+              "null"
+            ],
             "description": "ISO 3166-1 alpha-2 country code.",
             "example": "US"
           },
           "customerId": {
-            "type": "string",
-            "nullable": true,
+            "type": [
+              "string",
+              "null"
+            ],
             "example": "cust_123"
           },
           "udfs": {
-            "type": "object",
-            "nullable": true,
+            "type": [
+              "object",
+              "null"
+            ],
             "description": "User-defined fields, keyed udf1..udf20.",
             "additionalProperties": {
               "type": "string"
             }
           },
           "preferredGateway": {
-            "type": "string",
-            "nullable": true,
+            "type": [
+              "string",
+              "null"
+            ],
             "description": "Pins routing to a specific gateway when set."
           },
           "paymentType": {
@@ -4848,25 +4858,35 @@
             "example": "ORDER_PAYMENT"
           },
           "metadata": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "internalMetadata": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "isEmi": {
-            "type": "boolean",
-            "nullable": true
+            "type": [
+              "boolean",
+              "null"
+            ]
           },
           "emiBank": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "emiTenure": {
-            "type": "integer",
-            "format": "int32",
-            "nullable": true
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32"
           },
           "paymentMethodType": {
             "type": "string",
@@ -4879,12 +4899,16 @@
             "example": "CREDIT"
           },
           "paymentSource": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "authType": {
-            "type": "string",
-            "nullable": true,
+            "type": [
+              "string",
+              "null"
+            ],
             "enum": [
               "ATMPIN",
               "THREE_DS",
@@ -4901,35 +4925,49 @@
             "example": "THREE_DS"
           },
           "cardIssuerBankName": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "cardIsin": {
-            "type": "string",
-            "nullable": true,
+            "type": [
+              "string",
+              "null"
+            ],
             "example": "411111"
           },
           "cardType": {
-            "type": "string",
-            "nullable": true,
+            "type": [
+              "string",
+              "null"
+            ],
             "description": "e.g. CREDIT, DEBIT, PREPAID, UPI, NB.",
             "example": "CREDIT"
           },
           "cardSwitchProvider": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "cardProgram": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "cardIssuerCountry": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "channel": {
-            "type": "string",
-            "nullable": true,
+            "type": [
+              "string",
+              "null"
+            ],
             "description": "Acceptance channel: ecom / pos / contactless."
           }
         }
@@ -5026,13 +5064,58 @@
             "type": "number"
           },
           "multi_objective_info": {
-            "allOf": [
+            "oneOf": [
               {
                 "$ref": "#/components/schemas/MultiObjectiveInfo"
+              },
+              {
+                "type": "null"
               }
             ],
-            "nullable": true,
             "description": "Populated when the multi-objective post-step ran (multi_objective_routing_enabled feature flag or enableMultiObjective request field, outside hedging). Null otherwise."
+          },
+          "fallback_gateways": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "example": [
+              "adyen"
+            ]
+          },
+          "filter_wise_gateways": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "priority_logic_tag": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "priority_logic_output": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "gateway_mga_id_map": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "is_dynamic_mga_enabled": {
+            "type": "boolean"
+          },
+          "gateway_before_evaluation": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Gateway the SR head selected before the multi-objective / debit-routing post-step replaced it."
           }
         }
       },
@@ -5064,8 +5147,10 @@
             "example": false
           },
           "regulated_name": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "card_type": {
             "type": "string",
@@ -5097,13 +5182,31 @@
           "status": {
             "type": "string",
             "enum": [
-              "CHARGED",
+              "STARTED",
               "AUTHENTICATION_FAILED",
-              "AUTHORIZATION_FAILED",
               "JUSPAY_DECLINED",
-              "FAILURE"
+              "PENDING_VBV",
+              "VBV_SUCCESSFUL",
+              "AUTHORIZED",
+              "AUTHORIZATION_FAILED",
+              "CHARGED",
+              "AUTHORIZING",
+              "COD_INITIATED",
+              "VOIDED",
+              "VOID_INITIATED",
+              "NOP",
+              "CAPTURE_INITIATED",
+              "CAPTURE_FAILED",
+              "VOID_FAILED",
+              "AUTO_REFUNDED",
+              "PARTIAL_CHARGED",
+              "TO_BE_CHARGED",
+              "PENDING",
+              "FAILURE",
+              "DECLINED"
             ],
-            "example": "CHARGED"
+            "example": "CHARGED",
+            "description": "Transaction status. Must be a TxnStatus value - lowercase values such as `success` are rejected with a 400."
           },
           "gatewayReferenceId": {
             "type": "string",
@@ -5112,6 +5215,37 @@
           "enforceDynamicRoutingFailure": {
             "type": "boolean",
             "default": false
+          },
+          "txnLatency": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "gatewayLatency": {
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "format": "double",
+                "example": 120.5
+              }
+            },
+            "description": "Observed gateway latency, in milliseconds."
+          },
+          "errorInfo": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "description": "Gateway error details for the GSM-based scoring filter. When present and the merchant flag is on, user/issuer-originated failures are skipped so the gateway is not penalised."
+          },
+          "isSmartRetry": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "description": "Set by the orchestrator when this call is a smart-retry attempt."
           }
         }
       },
@@ -5129,6 +5263,13 @@
           },
           "payment_id": {
             "type": "string"
+          },
+          "gsm_info": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "description": "GSM lookup result. Present only when `errorInfo` was supplied and a matching rule was found."
           }
         }
       },
@@ -5143,26 +5284,28 @@
             "example": "my_merchant"
           },
           "gateway_success_rate_based_decider_input": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           }
         }
       },
       "MerchantAccount": {
         "type": "object",
         "properties": {
-          "message": {
-            "type": "string"
-          },
           "merchant_id": {
             "type": "string",
-            "example": "my_merchant"
+            "example": "merchant_demo"
           },
           "gateway_success_rate_based_decider_input": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           }
-        }
+        },
+        "description": "Merchant account as returned by `GET /merchant-account/{merchantId}`."
       },
       "DebitRoutingRequest": {
         "type": "object",
@@ -5222,8 +5365,10 @@
             "$ref": "#/components/schemas/RoutingAlgorithm"
           },
           "metadata": {
-            "type": "object",
-            "nullable": true,
+            "type": [
+              "object",
+              "null"
+            ],
             "description": "Arbitrary metadata attached to the rule."
           }
         }
@@ -5285,37 +5430,6 @@
           }
         }
       },
-      "RoutingRule": {
-        "type": "object",
-        "properties": {
-          "rule_id": {
-            "type": "string",
-            "nullable": true,
-            "example": "rule_abc123"
-          },
-          "name": {
-            "type": "string"
-          },
-          "description": {
-            "type": "string"
-          },
-          "created_by": {
-            "type": "string",
-            "example": "test_merchant"
-          },
-          "algorithm_for": {
-            "type": "string"
-          },
-          "algorithm": {
-            "$ref": "#/components/schemas/RoutingAlgorithm"
-          },
-          "metadata": {
-            "type": "object",
-            "nullable": true,
-            "description": "Arbitrary metadata attached to the rule."
-          }
-        }
-      },
       "RuleConfigRequest": {
         "type": "object",
         "required": [
@@ -5368,10 +5482,6 @@
             "type": "object"
           }
         }
-      },
-      "GenericObject": {
-        "type": "object",
-        "additionalProperties": true
       },
       "MessageResponse": {
         "type": "object",
@@ -5456,8 +5566,10 @@
             "example": "merchant_demo"
           },
           "description": {
-            "type": "string",
-            "nullable": true,
+            "type": [
+              "string",
+              "null"
+            ],
             "example": "backend integration key"
           }
         }
@@ -5479,8 +5591,10 @@
             "type": "string"
           },
           "description": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "created_at": {
             "type": "string"
@@ -5500,72 +5614,15 @@
             "type": "string"
           },
           "description": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "is_active": {
             "type": "boolean"
           },
           "created_at": {
-            "type": "string"
-          }
-        }
-      },
-      "AnalyticsQueryParams": {
-        "type": "object",
-        "properties": {
-          "range": {
-            "type": "string",
-            "enum": [
-              "15m",
-              "1h",
-              "12h",
-              "1d",
-              "1w"
-            ]
-          },
-          "start_ms": {
-            "type": "integer",
-            "format": "int64"
-          },
-          "end_ms": {
-            "type": "integer",
-            "format": "int64"
-          },
-          "page": {
-            "type": "integer",
-            "minimum": 1
-          },
-          "page_size": {
-            "type": "integer",
-            "minimum": 1,
-            "maximum": 50
-          },
-          "gateway": {
-            "type": "string"
-          },
-          "payment_id": {
-            "type": "string"
-          },
-          "request_id": {
-            "type": "string"
-          },
-          "route": {
-            "type": "string"
-          },
-          "status": {
-            "type": "string"
-          },
-          "flow_type": {
-            "type": "string"
-          },
-          "routing_approach": {
-            "type": "string"
-          },
-          "exclude_routing_approach": {
-            "type": "string"
-          },
-          "error_code": {
             "type": "string"
           }
         }
@@ -5582,8 +5639,10 @@
             "example": 0.91
           },
           "costBps": {
-            "type": "number",
-            "nullable": true,
+            "type": [
+              "number",
+              "null"
+            ],
             "example": 100.0
           }
         }
@@ -5605,26 +5664,32 @@
             "example": "Promoted 'adyen' over 'stripe' on expected value \u2014 saves 80.00 bps for 3.00pp auth."
           },
           "srHead": {
-            "allOf": [
+            "oneOf": [
               {
                 "$ref": "#/components/schemas/PspSummary"
+              },
+              {
+                "type": "null"
               }
             ],
-            "nullable": true,
             "description": "The PSP the SR scorer would have picked."
           },
           "chosen": {
-            "allOf": [
+            "oneOf": [
               {
                 "$ref": "#/components/schemas/PspSummary"
+              },
+              {
+                "type": "null"
               }
             ],
-            "nullable": true,
             "description": "The PSP the post-step actually chose. Equals srHead when auth won."
           },
           "costSavedBps": {
-            "type": "number",
-            "nullable": true,
+            "type": [
+              "number",
+              "null"
+            ],
             "description": "Fee saved in bps when outcome is COST_WON (srHead.costBps - chosen.costBps).",
             "example": 80.0
           },
@@ -5639,8 +5704,10 @@
             "example": 0.2
           },
           "evGapTop2": {
-            "type": "number",
-            "nullable": true,
+            "type": [
+              "number",
+              "null"
+            ],
             "description": "Expected-value gap between the top-two EV-ranked PSPs, as a fraction of ticket. Null when fewer than two PSPs had cost data.",
             "example": 0.00182
           }
@@ -5706,50 +5773,68 @@
             "type": "string"
           },
           "account": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "has_credentials": {
             "type": "boolean"
           },
           "model_pct_bps": {
-            "type": "number",
-            "format": "double",
-            "nullable": true
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
           },
           "model_fixed": {
-            "type": "number",
-            "format": "double",
-            "nullable": true
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
           },
           "good_gross": {
-            "type": "number",
-            "format": "double",
-            "nullable": true
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
           },
           "override_pct_bps": {
-            "type": "number",
-            "format": "double",
-            "nullable": true
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
           },
           "override_fixed": {
-            "type": "number",
-            "format": "double",
-            "nullable": true
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
           },
           "override_updated_at": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "effective_pct_bps": {
-            "type": "number",
-            "format": "double",
-            "nullable": true
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
           },
           "effective_fixed": {
-            "type": "number",
-            "format": "double",
-            "nullable": true
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
           },
           "source": {
             "type": "string"
@@ -5799,7 +5884,8 @@
         "type": "object",
         "properties": {
           "key": {
-            "type": "string"
+            "type": "string",
+            "description": "Opaque cluster key, used in the override PUT/DELETE path."
           },
           "connector": {
             "type": "string"
@@ -5824,46 +5910,84 @@
           },
           "n": {
             "type": "integer",
-            "format": "int64"
+            "format": "int64",
+            "description": "Transaction count. 0 for an override-only cluster no longer in the top set."
           },
           "gross_sum": {
             "type": "number",
             "format": "double"
           },
           "model_pct_bps": {
-            "type": "number",
-            "format": "double",
-            "nullable": true
-          },
-          "model_fixed": {
-            "type": "number",
-            "format": "double",
-            "nullable": true
-          },
-          "override_pct_bps": {
-            "type": "number",
-            "format": "double",
-            "nullable": true
-          },
-          "override_fixed": {
-            "type": "number",
-            "format": "double",
-            "nullable": true
-          },
-          "override_updated_at": {
-            "type": "string",
-            "nullable": true
-          },
-          "effective_pct_bps": {
-            "type": "number",
+            "type": [
+              "number",
+              "null"
+            ],
             "format": "double"
           },
+          "model_fixed": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "override_pct_bps": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "override_fixed": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "override_updated_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "effective_pct_bps": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "Null when the cluster has no usable rate at all."
+          },
           "effective_fixed": {
-            "type": "number",
+            "type": [
+              "number",
+              "null"
+            ],
             "format": "double"
           },
           "source": {
-            "type": "string"
+            "type": "string",
+            "enum": [
+              "override",
+              "model",
+              "segmented"
+            ]
+          },
+          "verdict": {
+            "type": "string",
+            "description": "`GOOD`, `THIN`, `NON_LINEAR`, or `\"\"` for an override-only cluster. A non-GOOD rate is shown so it can be corrected - it is not what the router trusts."
+          },
+          "card_product": {
+            "type": "string",
+            "description": "Issuer BIN's dominant interchange rate as integer bps (`\"115\"`), or `\"\"` when the report carried no PAN."
+          },
+          "segments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ApiClusterSegment"
+            },
+            "description": "Recovered per-segment rates for a capped/tiered cluster. Empty for an ordinary GOOD cluster."
           }
         }
       },
@@ -5884,16 +6008,29 @@
           "fixed"
         ]
       },
-      "ClusterDims": {
-        "type": "object",
-        "description": "Cluster dimension breakdown (connector, card network, funding, issuer country, currency, IC category).",
-        "additionalProperties": true
-      },
       "ClusterOverride": {
         "type": "object",
         "properties": {
-          "dims": {
-            "$ref": "#/components/schemas/ClusterDims"
+          "connector": {
+            "type": "string"
+          },
+          "card_network": {
+            "type": "string"
+          },
+          "variant": {
+            "type": "string"
+          },
+          "funding": {
+            "type": "string"
+          },
+          "issuer_country": {
+            "type": "string"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "ic_category": {
+            "type": "string"
           },
           "pct_bps": {
             "type": "number",
@@ -5906,7 +6043,8 @@
           "updated_at": {
             "type": "string"
           }
-        }
+        },
+        "description": "Cluster dimensions are flattened into this object alongside the override values."
       },
       "CoverageSummary": {
         "type": "object",
@@ -5918,6 +6056,11 @@
           "good_clusters": {
             "type": "integer",
             "format": "int64"
+          },
+          "tiered_clusters": {
+            "type": "integer",
+            "format": "int64",
+            "description": "One line can't price it, but its recovered amount tiers can."
           },
           "thin_clusters": {
             "type": "integer",
@@ -5935,6 +6078,10 @@
             "type": "integer",
             "format": "int64"
           },
+          "tiered_txns": {
+            "type": "integer",
+            "format": "int64"
+          },
           "thin_txns": {
             "type": "integer",
             "format": "int64"
@@ -5945,13 +6092,23 @@
           },
           "good_txn_pct": {
             "type": "number",
-            "format": "double"
+            "format": "double",
+            "description": "Share of transactions with a trustworthy single-line model."
+          },
+          "priced_txn_pct": {
+            "type": "number",
+            "format": "double",
+            "description": "Share of transactions the router can price: GOOD plus TIERED."
           },
           "total_gross": {
             "type": "number",
             "format": "double"
           },
           "good_gross": {
+            "type": "number",
+            "format": "double"
+          },
+          "tiered_gross": {
             "type": "number",
             "format": "double"
           },
@@ -5967,6 +6124,11 @@
             "type": "number",
             "format": "double"
           },
+          "priced_gross_pct": {
+            "type": "number",
+            "format": "double",
+            "description": "Share of settled volume the router can price. The real coverage headline."
+          },
           "bps_rmse_p50": {
             "type": "number",
             "format": "double"
@@ -5976,7 +6138,9 @@
             "format": "double"
           },
           "report_date": {
-            "type": "string"
+            "type": "string",
+            "example": "2026-04-26",
+            "description": "Snapshot these numbers are from."
           }
         }
       },
@@ -6003,16 +6167,22 @@
             "format": "int64"
           },
           "report_date": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "period_start": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "period_end": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "currency_count": {
             "type": "integer",
@@ -6047,8 +6217,10 @@
             "format": "int64"
           },
           "last_error": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "created_at": {
             "type": "string"
@@ -6118,30 +6290,40 @@
             "type": "string"
           },
           "subtotal_ex_tax": {
-            "type": "number",
-            "format": "double",
-            "nullable": true
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
           },
           "card_volume": {
-            "type": "number",
-            "format": "double",
-            "nullable": true
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
           },
           "txn_count": {
-            "type": "integer",
-            "format": "int64",
-            "nullable": true
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
           },
           "currency": {
             "type": "string"
           },
           "period_start": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "period_end": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "updated_at": {
             "type": "string"
@@ -6149,15 +6331,20 @@
         }
       },
       "AddonDto": {
-        "type": "object",
-        "properties": {
-          "connector": {
-            "type": "string"
+        "allOf": [
+          {
+            "type": "object",
+            "properties": {
+              "connector": {
+                "type": "string"
+              }
+            }
           },
-          "addon": {
+          {
             "$ref": "#/components/schemas/StoredAddon"
           }
-        }
+        ],
+        "description": "A connector's stored invoice add-on. The add-on fields are flattened alongside `connector`."
       },
       "Reconciliation": {
         "type": "object",
@@ -6279,8 +6466,10 @@
             }
           },
           "fields": {
-            "type": "array",
-            "nullable": true,
+            "type": [
+              "array",
+              "null"
+            ],
             "items": {
               "type": "string",
               "enum": [
@@ -6321,8 +6510,10 @@
             "type": "string"
           },
           "subtitle": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           }
         }
       },
@@ -6342,8 +6533,10 @@
         "type": "object",
         "properties": {
           "rule_name": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "count": {
             "type": "integer",
@@ -6358,8 +6551,10 @@
             "type": "string"
           },
           "error_code": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "count": {
             "type": "integer",
@@ -6412,45 +6607,63 @@
         "type": "object",
         "properties": {
           "merchant_id": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "payment_method_type": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "payment_method": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "gateway": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "score_value": {
-            "type": "number",
-            "format": "double",
-            "nullable": true
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
           },
           "sigma_factor": {
-            "type": "number",
-            "format": "double",
-            "nullable": true
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
           },
           "average_latency": {
-            "type": "number",
-            "format": "double",
-            "nullable": true
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
           },
           "tp99_latency": {
-            "type": "number",
-            "format": "double",
-            "nullable": true
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
           },
           "transaction_count": {
-            "type": "integer",
-            "format": "int64",
-            "nullable": true
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
           },
           "last_updated_ms": {
             "type": "integer",
@@ -6466,25 +6679,35 @@
             "format": "int64"
           },
           "merchant_id": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "payment_method_type": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "payment_method": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "gateway": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "score_value": {
-            "type": "number",
-            "format": "double",
-            "nullable": true
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
           }
         }
       },
@@ -6492,16 +6715,22 @@
         "type": "object",
         "properties": {
           "route": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "error_code": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "error_message": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "count": {
             "type": "integer",
@@ -6521,8 +6750,10 @@
             "format": "int64"
           },
           "routing_approach": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "count": {
             "type": "integer",
@@ -6538,8 +6769,10 @@
             "format": "int64"
           },
           "gateway": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "count": {
             "type": "integer",
@@ -6644,52 +6877,76 @@
         "type": "object",
         "properties": {
           "route": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "merchant_id": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "payment_id": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "request_id": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "global_request_id": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "trace_id": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "gateway": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "routing_approach": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "status": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "error_code": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "error_message": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "flow_type": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "created_at_ms": {
             "type": "integer",
@@ -6704,16 +6961,22 @@
             "type": "string"
           },
           "payment_id": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "request_id": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "merchant_id": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "first_seen_ms": {
             "type": "integer",
@@ -6727,16 +6990,22 @@
             "type": "integer"
           },
           "latest_status": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "latest_gateway": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "latest_stage": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "gateways": {
             "type": "array",
@@ -6762,97 +7031,141 @@
             "type": "string"
           },
           "event_stage": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "route": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "merchant_id": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "payment_id": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "request_id": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "global_request_id": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "trace_id": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "payment_method_type": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "payment_method": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "gateway": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "routing_approach": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "rule_name": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "status": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "error_code": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "error_message": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "score_value": {
-            "type": "number",
-            "format": "double",
-            "nullable": true
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
           },
           "sigma_factor": {
-            "type": "number",
-            "format": "double",
-            "nullable": true
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
           },
           "average_latency": {
-            "type": "number",
-            "format": "double",
-            "nullable": true
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
           },
           "tp99_latency": {
-            "type": "number",
-            "format": "double",
-            "nullable": true
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
           },
           "transaction_count": {
-            "type": "integer",
-            "format": "int64",
-            "nullable": true
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
           },
           "details": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "details_json": {
-            "type": "object",
-            "nullable": true
+            "type": [
+              "object",
+              "null"
+            ]
           },
           "created_at_ms": {
             "type": "integer",
@@ -6887,29 +7200,39 @@
             "format": "double"
           },
           "total_cost_saved": {
-            "type": "number",
-            "format": "double",
-            "nullable": true
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
           },
           "avg_latency_ms": {
-            "type": "number",
-            "format": "double",
-            "nullable": true
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
           },
           "avg_chosen_cost_bps": {
-            "type": "number",
-            "format": "double",
-            "nullable": true
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
           },
           "avg_cost_saved_bps": {
-            "type": "number",
-            "format": "double",
-            "nullable": true
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
           },
           "net_ev_bps": {
-            "type": "number",
-            "format": "double",
-            "nullable": true
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
           }
         }
       },
@@ -6923,12 +7246,16 @@
             "type": "string"
           },
           "gateway": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "status": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "created_at_ms": {
             "type": "integer",
@@ -6949,12 +7276,16 @@
             "type": "string"
           },
           "payment_method_type": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "payment_method": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "bucket_ms": {
             "type": "integer",
@@ -6964,59 +7295,83 @@
             "type": "string"
           },
           "previous_gateway": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "score": {
-            "type": "number",
-            "format": "double",
-            "nullable": true
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
           },
           "previous_score": {
-            "type": "number",
-            "format": "double",
-            "nullable": true
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
           },
           "transaction_count": {
-            "type": "integer",
-            "format": "int64",
-            "nullable": true
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
           },
           "bucket_size": {
-            "type": "integer",
-            "format": "int32",
-            "nullable": true
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32"
           },
           "previous_bucket_size": {
-            "type": "integer",
-            "format": "int32",
-            "nullable": true
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32"
           },
           "hedging_percent": {
-            "type": "number",
-            "format": "double",
-            "nullable": true
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
           },
           "previous_hedging_percent": {
-            "type": "number",
-            "format": "double",
-            "nullable": true
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
           },
           "card_network": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "currency": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "country": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "auth_type": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           }
         }
       },
@@ -7155,8 +7510,10 @@
             "type": "string"
           },
           "currency": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "available_currencies": {
             "type": "array",
@@ -7218,36 +7575,52 @@
             "type": "string"
           },
           "payment_id": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "request_id": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "gateway": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "route": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "status": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "flow_type": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "routing_approach": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "error_code": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "page": {
             "type": "integer"
@@ -7298,16 +7671,20 @@
             "format": "double"
           },
           "p_value": {
-            "type": "number",
-            "format": "double",
-            "nullable": true
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
           },
           "confidence_interval": {
-            "type": "array",
+            "type": [
+              "array",
+              "null"
+            ],
             "items": {
               "type": "number"
-            },
-            "nullable": true
+            }
           },
           "verdict": {
             "$ref": "#/components/schemas/ExperimentVerdict"
@@ -7317,9 +7694,11 @@
             "format": "int32"
           },
           "net_delta_bps": {
-            "type": "number",
-            "format": "double",
-            "nullable": true
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
           },
           "evaluation_margin": {
             "type": "number",
@@ -7406,12 +7785,16 @@
             "type": "string"
           },
           "gateway_success_rate_based_decider_input": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "api_key": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           }
         }
       },
@@ -7461,8 +7844,10 @@
             "type": "string"
           },
           "gateway_id": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           }
         }
       },
@@ -7470,8 +7855,10 @@
         "type": "object",
         "properties": {
           "payment_id": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "status": {
             "type": "string"
@@ -7527,16 +7914,20 @@
         "description": "Request body for POST /routing/evaluate (src/euclid/types.rs::RoutingRequest). No camelCase rename \u2014 snake_case field names.",
         "properties": {
           "payment_id": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "created_by": {
             "type": "string",
             "example": "test_merchant"
           },
           "fallback_output": {
-            "type": "array",
-            "nullable": true,
+            "type": [
+              "array",
+              "null"
+            ],
             "items": {
               "$ref": "#/components/schemas/ConnectorInfo"
             },
@@ -7590,11 +7981,671 @@
             "example": "StrongPass#123"
           },
           "merchant_id": {
-            "type": "string",
-            "nullable": true,
+            "type": [
+              "string",
+              "null"
+            ],
             "example": "merchant_demo"
           }
         }
+      },
+      "LegacyDeciderRequest": {
+        "type": "object",
+        "required": [
+          "orderReference",
+          "orderMetadata",
+          "txnDetail",
+          "txnCardInfo",
+          "merchantAccount"
+        ],
+        "properties": {
+          "orderReference": {
+            "type": "object",
+            "additionalProperties": true,
+            "description": "Full internal order object. `merchantId` inside it identifies the merchant. `udfs` is an ARRAY of strings, not an object, and `id` is an integer."
+          },
+          "orderMetadata": {
+            "type": "object",
+            "required": [
+              "partitionKey"
+            ],
+            "properties": {
+              "partitionKey": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Required key. May be null."
+              }
+            },
+            "additionalProperties": true,
+            "description": "Full internal order-metadata object. Required. Note: `partitionKey` must be PRESENT in this object (it may be `null`). It is an `Option` field with a custom `deserialize_with` and no `serde(default)`, so serde requires the key even though the value is nullable."
+          },
+          "txnDetail": {
+            "type": "object",
+            "required": [
+              "partitionKey"
+            ],
+            "properties": {
+              "partitionKey": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Required key. May be null."
+              }
+            },
+            "additionalProperties": true,
+            "description": "Full internal transaction object. Note: `partitionKey` must be PRESENT in this object (it may be `null`). It is an `Option` field with a custom `deserialize_with` and no `serde(default)`, so serde requires the key even though the value is nullable."
+          },
+          "txnCardInfo": {
+            "type": "object",
+            "required": [
+              "partitionKey"
+            ],
+            "properties": {
+              "partitionKey": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Required key. May be null."
+              }
+            },
+            "additionalProperties": true,
+            "description": "Full internal card/payment-method object. Note: `partitionKey` must be PRESENT in this object (it may be `null`). It is an `Option` field with a custom `deserialize_with` and no `serde(default)`, so serde requires the key even though the value is nullable."
+          },
+          "merchantAccount": {
+            "type": "object",
+            "additionalProperties": true,
+            "description": "Full internal merchant account object. `gatewaySuccessRateBasedDeciderInput` is a required string - `null` is rejected."
+          },
+          "txnOfferDetails": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "object",
+              "additionalProperties": true
+            }
+          },
+          "cardToken": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "txnType": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "shouldCreateMandate": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "enforceGatewayList": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "example": [
+              "stripe",
+              "adyen"
+            ]
+          },
+          "priorityLogicOutput": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": true
+          },
+          "priorityLogicScript": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "isEdccApplied": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "shouldConsumeResult": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          }
+        },
+        "description": "Legacy decider payload built from full internal transaction objects. This is NOT the `/decide-gateway` shape - posting that body here is rejected with a 400. `orderMetadata`, `txnDetail` and `txnCardInfo` must each carry a `partitionKey` key (value may be null)."
+      },
+      "LegacyUpdateScoreRequest": {
+        "type": "object",
+        "required": [
+          "txn_detail",
+          "txn_card_info",
+          "log_message"
+        ],
+        "properties": {
+          "txn_detail": {
+            "type": "object",
+            "required": [
+              "partitionKey",
+              "id",
+              "netAmount",
+              "currency"
+            ],
+            "properties": {
+              "partitionKey": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Required key. May be null."
+              },
+              "id": {
+                "type": "string",
+                "example": "1",
+                "description": "Numeric string. Must be present and parse as an integer - the conversion unwraps the parsed value, so a missing or non-numeric id panics the handler instead of returning a 4xx."
+              },
+              "netAmount": {
+                "type": "number",
+                "format": "double",
+                "example": 1000.0
+              },
+              "currency": {
+                "type": "string",
+                "example": "USD"
+              }
+            },
+            "additionalProperties": true,
+            "description": "Full internal transaction object. Note: `partitionKey` must be PRESENT in this object (it may be `null`). It is an `Option` field with a custom `deserialize_with` and no `serde(default)`, so serde requires the key even though the value is nullable."
+          },
+          "txn_card_info": {
+            "type": "object",
+            "required": [
+              "partitionKey",
+              "id"
+            ],
+            "properties": {
+              "partitionKey": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Required key. May be null."
+              },
+              "id": {
+                "type": "string",
+                "example": "1",
+                "description": "Numeric string."
+              },
+              "txnId": {
+                "type": "string"
+              },
+              "txnDetailId": {
+                "type": "string",
+                "example": "1",
+                "description": "Numeric string."
+              }
+            },
+            "additionalProperties": true,
+            "description": "Full internal card/payment-method object. Note: `partitionKey` must be PRESENT in this object (it may be `null`). It is an `Option` field with a custom `deserialize_with` and no `serde(default)`, so serde requires the key even though the value is nullable."
+          },
+          "log_message": {
+            "type": "string",
+            "example": "Transaction completed"
+          },
+          "enforce_dynaic_routing_failure": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "gateway_reference_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "txn_latency": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "gatewayLatency": {
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "format": "double",
+                "example": 120.5
+              }
+            }
+          }
+        },
+        "description": "Legacy score-feedback payload built from full internal transaction objects. This is NOT the `/update-gateway-score` shape. `txn_detail` and `txn_card_info` must each carry a `partitionKey` key (value may be null), and their `id` fields are numeric strings."
+      },
+      "JsonifiedRoutingAlgorithm": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "routing_e641380c-6f24-4405-8454-5ae6cbceb7a0"
+          },
+          "created_by": {
+            "type": "string",
+            "example": "merchant_demo"
+          },
+          "name": {
+            "type": "string",
+            "example": "priority rule"
+          },
+          "description": {
+            "type": "string",
+            "example": "try stripe before adyen"
+          },
+          "algorithm_data": {
+            "type": "object",
+            "additionalProperties": true,
+            "description": "The stored algorithm, tagged by `type` with the variant payload under `data`."
+          },
+          "algorithm_for": {
+            "type": "string",
+            "example": "payment"
+          },
+          "created_at": {
+            "type": "string",
+            "example": "2026-04-26 10:00:00.000000"
+          },
+          "modified_at": {
+            "type": "string",
+            "example": "2026-04-26 10:00:00.000000"
+          }
+        },
+        "description": "Full routing algorithm record as returned by the list endpoints."
+      },
+      "CurrentUserResponse": {
+        "type": "object",
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "example": "user_123"
+          },
+          "email": {
+            "type": "string",
+            "example": "operator@example.com"
+          },
+          "merchant_id": {
+            "type": "string",
+            "example": "merchant_demo"
+          },
+          "role": {
+            "type": "string",
+            "example": "admin"
+          },
+          "email_verified": {
+            "type": "boolean",
+            "example": true
+          },
+          "merchants": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MerchantInfo"
+            }
+          }
+        },
+        "description": "`GET /auth/me` does not return a token."
+      },
+      "RoutingKeyConfig": {
+        "type": "object",
+        "required": [
+          "type"
+        ],
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "integer",
+              "enum",
+              "udf",
+              "str_value",
+              "global_ref"
+            ],
+            "example": "enum"
+          },
+          "values": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "example": "credit, debit, card",
+            "description": "Comma-separated allowed values, for `enum` keys."
+          },
+          "min_value": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "max_value": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64"
+          },
+          "min_length": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "max_length": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "exact_length": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "regex": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "RoutingKeysResponse": {
+        "type": "object",
+        "required": [
+          "keys"
+        ],
+        "properties": {
+          "keys": {
+            "type": "object",
+            "description": "Map of routing-key name to its metadata.",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/RoutingKeyConfig"
+            }
+          }
+        }
+      },
+      "DiagnosticsResponse": {
+        "type": "object",
+        "properties": {
+          "key_custodian_locked": {
+            "type": "boolean",
+            "example": false
+          },
+          "database": {
+            "type": "object",
+            "properties": {
+              "database_connection": {
+                "type": "string",
+                "enum": [
+                  "Working",
+                  "Failing"
+                ],
+                "example": "Working"
+              },
+              "database_read": {
+                "type": "string",
+                "enum": [
+                  "Working",
+                  "Failing"
+                ],
+                "example": "Working"
+              },
+              "database_write": {
+                "type": "string",
+                "enum": [
+                  "Working",
+                  "Failing"
+                ],
+                "example": "Working"
+              },
+              "database_delete": {
+                "type": "string",
+                "enum": [
+                  "Working",
+                  "Failing"
+                ],
+                "example": "Working"
+              }
+            }
+          }
+        }
+      },
+      "HybridRoutingRequest": {
+        "type": "object",
+        "properties": {
+          "static_routing_request": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/RoutingRequest"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "dynamic_routing_request": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/DecideGatewayRequest"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "description": "At least one of `static_routing_request` or `dynamic_routing_request` must be provided."
+      },
+      "HybridRoutingResponse": {
+        "type": "object",
+        "properties": {
+          "static_routing": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": true,
+            "description": "Result of the static rule evaluation."
+          },
+          "dynamic_routing": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": true,
+            "description": "Decision-gateway result, wrapped as `{status, decision, fallback_connectors}`."
+          },
+          "evaluated_connectors": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": true
+            },
+            "description": "Connectors clients should consume. Prefer this over the per-branch outputs."
+          }
+        }
+      },
+      "ApiClusterSegment": {
+        "type": "object",
+        "properties": {
+          "seg_idx": {
+            "type": "integer"
+          },
+          "lo": {
+            "type": "number",
+            "format": "double",
+            "description": "Inclusive lower bound of the amount range this piece prices."
+          },
+          "hi": {
+            "type": "number",
+            "format": "double",
+            "description": "Exclusive upper bound."
+          },
+          "pct_bps": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "fixed": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "bps_rmse": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
+          },
+          "n": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "gross_sum": {
+            "type": "number",
+            "format": "double"
+          },
+          "verdict": {
+            "type": "string",
+            "enum": [
+              "GOOD",
+              "THIN",
+              "NON_LINEAR"
+            ]
+          }
+        }
+      },
+      "RoutingDictionaryRecord": {
+        "type": "object",
+        "properties": {
+          "rule_id": {
+            "type": "string",
+            "example": "routing_e641380c-6f24-4405-8454-5ae6cbceb7a0"
+          },
+          "name": {
+            "type": "string",
+            "example": "priority rule"
+          },
+          "algorithm_for": {
+            "type": "string",
+            "example": "payment"
+          },
+          "created_at": {
+            "type": "string",
+            "example": "2026-04-26 10:00:00.000000"
+          },
+          "modified_at": {
+            "type": "string",
+            "example": "2026-04-26 10:00:00.000000"
+          }
+        },
+        "description": "Summary record returned when a routing rule is created."
+      },
+      "DeciderErrorResponse": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "example": "400"
+          },
+          "error_code": {
+            "type": "string",
+            "example": "DATA_NOT_FOUND"
+          },
+          "error_message": {
+            "type": "string",
+            "example": "merchant iframe preferences not found"
+          },
+          "priority_logic_tag": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "routing_approach": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "filter_wise_gateways": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "error_info": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "example": "MERCHANT_IFRAME_PREFERENCES_NOT_FOUND"
+              },
+              "user_message": {
+                "type": "string"
+              },
+              "developer_message": {
+                "type": "string"
+              }
+            }
+          },
+          "priority_logic_output": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "is_dynamic_mga_enabled": {
+            "type": "boolean"
+          }
+        },
+        "description": "Error envelope returned by the gateway-decision routes."
+      },
+      "ApiErrorResponse": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "example": "TE_04"
+          },
+          "message": {
+            "type": "string",
+            "example": "MerchantId not found"
+          },
+          "data": {
+            "description": "Optional structured detail, usually null."
+          }
+        },
+        "description": "Generic API error envelope: an error code, a human-readable message, and an optional structured payload."
       }
     }
   }
