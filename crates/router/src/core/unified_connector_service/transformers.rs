@@ -4412,6 +4412,8 @@ impl transformers::ForeignTryFrom<common_enums::BankType> for payments_grpc::Ban
         match bank_type {
             common_enums::BankType::Checking => Ok(Self::Checking),
             common_enums::BankType::Savings => Ok(Self::Savings),
+            common_enums::BankType::Salary => Ok(Self::Salary),
+            common_enums::BankType::Payment => Ok(Self::Payment),
         }
     }
 }
@@ -7626,18 +7628,19 @@ impl transformers::ForeignTryFrom<&api_models::payouts::SepaBankTransfer>
             bank_city: item.bank_city.clone(),
             iban: Some(item.iban.clone()),
             bic: item.bic.clone(),
+            account_holder_name: item.account_holder_name.clone(),
         })
     }
 }
 
 #[cfg(feature = "payouts")]
-impl ForeignFrom<&common_enums::PixBankAccountType> for payments_grpc::PixBankAccountType {
-    fn foreign_from(item: &common_enums::PixBankAccountType) -> Self {
+impl ForeignFrom<&common_enums::BankType> for payments_grpc::BankType {
+    fn foreign_from(item: &common_enums::BankType) -> Self {
         match item {
-            common_enums::PixBankAccountType::Checking => Self::Checking,
-            common_enums::PixBankAccountType::Savings => Self::Savings,
-            common_enums::PixBankAccountType::Salary => Self::Salary,
-            common_enums::PixBankAccountType::Payment => Self::Payment,
+            common_enums::BankType::Checking => Self::Checking,
+            common_enums::BankType::Savings => Self::Savings,
+            common_enums::BankType::Salary => Self::Salary,
+            common_enums::BankType::Payment => Self::Payment,
         }
     }
 }
@@ -7656,10 +7659,10 @@ impl transformers::ForeignTryFrom<&api_models::payouts::PixBankTransfer>
             tax_id: item.tax_id.clone(),
             ispb: item.ispb.clone().map(Secret::new),
             bank_code: item.bank_code.clone(),
-            bank_type: item
-                .bank_type
+            bank_account_type: item
+                .bank_account_type
                 .as_ref()
-                .map(|bank_type| payments_grpc::PixBankAccountType::foreign_from(bank_type) as i32),
+                .map(|bank_type| payments_grpc::BankType::foreign_from(bank_type) as i32),
             account_holder_name: item.account_holder_name.clone(),
         })
     }
@@ -7681,10 +7684,10 @@ impl transformers::ForeignTryFrom<&api_models::payouts::PixAccountBankTransfer>
             tax_id: item.tax_id.clone(),
             ispb: item.ispb.clone().map(Secret::new),
             bank_code: item.bank_code.clone(),
-            bank_type: item
-                .bank_type
+            bank_account_type: item
+                .bank_account_type
                 .as_ref()
-                .map(|bank_type| payments_grpc::PixBankAccountType::foreign_from(bank_type) as i32),
+                .map(|bank_type| payments_grpc::BankType::foreign_from(bank_type) as i32),
             account_holder_name: item.account_holder_name.clone(),
         })
     }

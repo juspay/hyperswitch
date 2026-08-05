@@ -877,6 +877,8 @@ impl ForeignTryFrom<payments_grpc::BankType> for common_enums::BankType {
         match bank_type {
             payments_grpc::BankType::Checking => Ok(Self::Checking),
             payments_grpc::BankType::Savings => Ok(Self::Savings),
+            payments_grpc::BankType::Salary => Ok(Self::Salary),
+            payments_grpc::BankType::Payment => Ok(Self::Payment),
             payments_grpc::BankType::Bond
             | payments_grpc::BankType::Transmission
             | payments_grpc::BankType::Current

@@ -230,7 +230,7 @@ pub struct PixBankTransferAdditionalData {
 
     /// Bank account type for PIX payouts
     #[schema(value_type = Option<String>)]
-    pub bank_type: Option<common_enums::PixBankAccountType>,
+    pub bank_account_type: Option<common_enums::BankType>,
 }
 
 /// Masked payout method details for Trustly bank transfer payout method

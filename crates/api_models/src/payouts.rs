@@ -287,7 +287,7 @@ impl TryFrom<Bank> for BankTransfer {
                         tax_id: pix.tax_id,
                         ispb: pix.ispb,
                         bank_code: pix.bank_code,
-                        bank_type: pix.bank_type,
+                        bank_account_type: pix.bank_account_type,
                         account_holder_name: pix.account_holder_name,
                     })),
                     // If pix key is present then it's PixKeyBankTransfer
@@ -330,7 +330,7 @@ impl From<BankTransfer> for Bank {
                 emv: None,
                 ispb: pix.ispb,
                 bank_code: pix.bank_code,
-                bank_type: pix.bank_type,
+                bank_account_type: pix.bank_account_type,
                 account_holder_name: pix.account_holder_name,
             }),
             BankTransfer::Trustly(trustly) => Self::Trustly(TrustlyBankTransfer {
@@ -348,7 +348,7 @@ impl From<BankTransfer> for Bank {
                 emv: Some(pix_emv.emv),
                 ispb: None,
                 bank_code: None,
-                bank_type: None,
+                bank_account_type: None,
                 account_holder_name: None,
             }),
             BankTransfer::PixKey(pix_key) => Self::Pix(PixBankTransfer {
@@ -360,7 +360,7 @@ impl From<BankTransfer> for Bank {
                 emv: None,
                 ispb: None,
                 bank_code: None,
-                bank_type: None,
+                bank_account_type: None,
                 account_holder_name: None,
             }),
             BankTransfer::OpenBanking(open_banking) => Self::OpenBanking(open_banking),
@@ -534,7 +534,7 @@ pub struct PixBankTransfer {
     pub bank_code: Option<String>,
 
     /// Bank account type for PIX payouts.
-    pub bank_type: Option<api_enums::PixBankAccountType>,
+    pub bank_account_type: Option<api_enums::BankType>,
 
     /// Name of the account holder
     #[schema(value_type = Option<String>, example = "John Doe")]
@@ -568,7 +568,7 @@ pub struct PixAccountBankTransfer {
     pub bank_code: Option<String>,
 
     /// Bank account type for PIX payouts.
-    pub bank_type: Option<api_enums::PixBankAccountType>,
+    pub bank_account_type: Option<api_enums::BankType>,
 
     /// Name of the account holder
     #[schema(value_type = Option<String>, example = "John Doe")]
@@ -1348,7 +1348,7 @@ impl From<Bank> for payout_method_utils::BankAdditionalData {
                 emv,
                 ispb,
                 bank_code,
-                bank_type,
+                bank_account_type,
                 account_holder_name: _,
             }) => Self::Pix(Box::new(
                 payout_method_utils::PixBankTransferAdditionalData {
@@ -1360,7 +1360,7 @@ impl From<Bank> for payout_method_utils::BankAdditionalData {
                     emv: emv.map(From::from),
                     ispb,
                     bank_code,
-                    bank_type,
+                    bank_account_type,
                 },
             )),
             Bank::Trustly(TrustlyBankTransfer {
@@ -1448,7 +1448,7 @@ impl From<BankTransfer> for payout_method_utils::BankAdditionalData {
                 tax_id,
                 ispb,
                 bank_code,
-                bank_type,
+                bank_account_type,
                 account_holder_name: _,
             }) => Self::Pix(Box::new(
                 payout_method_utils::PixBankTransferAdditionalData {
@@ -1460,7 +1460,7 @@ impl From<BankTransfer> for payout_method_utils::BankAdditionalData {
                     tax_id: tax_id.map(From::from),
                     ispb,
                     bank_code,
-                    bank_type,
+                    bank_account_type,
                 },
             )),
             BankTransfer::PixKey(PixKeyBankTransfer { pix_key }) => Self::Pix(Box::new(
@@ -1473,7 +1473,7 @@ impl From<BankTransfer> for payout_method_utils::BankAdditionalData {
                     tax_id: None,
                     ispb: None,
                     bank_code: None,
-                    bank_type: None,
+                    bank_account_type: None,
                 },
             )),
             BankTransfer::PixEmv(PixEmvBankTransfer { emv }) => Self::Pix(Box::new(
@@ -1486,7 +1486,7 @@ impl From<BankTransfer> for payout_method_utils::BankAdditionalData {
                     tax_id: None,
                     ispb: None,
                     bank_code: None,
-                    bank_type: None,
+                    bank_account_type: None,
                 },
             )),
 
