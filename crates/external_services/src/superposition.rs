@@ -7,7 +7,7 @@ use std::collections::HashMap;
 
 use api_models::superposition_proxy::{
     AuditLogResponse, ContextResponse, DefaultConfigResponse, DimensionResponse,
-    PaginatedListResponse,
+    PaginatedListResponse, ResolveConfigExplanationResponse, ResolveExplanationEntry,
 };
 pub use aws_smithy_types::DateTime;
 use aws_smithy_types::{Document, Number};
@@ -23,7 +23,10 @@ use superposition_sdk::operation::{
 pub use superposition_sdk::{
     operation::{
         create_context::builders::CreateContextInputBuilder,
+        get_default_config::builders::GetDefaultConfigInputBuilder,
         get_detailed_resolved_config::builders::GetDetailedResolvedConfigInputBuilder,
+        get_dimension::builders::GetDimensionInputBuilder,
+        get_resolved_config_explanation::builders::GetResolvedConfigExplanationInputBuilder,
         list_audit_logs::builders::ListAuditLogsInputBuilder,
         list_contexts::builders::ListContextsInputBuilder,
         list_default_configs::builders::ListDefaultConfigsInputBuilder,
@@ -333,12 +336,9 @@ pub fn default_config_response_to_struct(
     }
 }
 
-/// Convert a Superposition SDK `DimensionResponse` into the typed response struct.
-pub fn dimension_response_to_struct(
-    dim: &superposition_sdk::types::DimensionResponse,
-) -> DimensionResponse {
-    let dep_graph: Map<String, serde_json::Value> = dim
-        .dependency_graph()
+/// Convert a dimension dependency graph into a JSON object value.
+fn dependency_graph_to_value(graph: &HashMap<String, Vec<String>>) -> serde_json::Value {
+    let dep_graph: Map<String, serde_json::Value> = graph
         .iter()
         .map(|(k, v)| {
             (
@@ -351,6 +351,13 @@ pub fn dimension_response_to_struct(
             )
         })
         .collect();
+    serde_json::Value::Object(dep_graph)
+}
+
+/// Convert a Superposition SDK `DimensionResponse` into the typed response struct.
+pub fn dimension_response_to_struct(
+    dim: &superposition_sdk::types::DimensionResponse,
+) -> DimensionResponse {
     DimensionResponse {
         dimension: dim.dimension().to_owned(),
         position: dim.position(),
@@ -362,10 +369,51 @@ pub fn dimension_response_to_struct(
         last_modified_by: dim.last_modified_by().to_owned(),
         created_at: datetime_to_string(dim.created_at()),
         created_by: dim.created_by().to_owned(),
-        dependency_graph: serde_json::Value::Object(dep_graph),
+        dependency_graph: dependency_graph_to_value(dim.dependency_graph()),
         dimension_type: dimension_type_to_value(dim.dimension_type()),
         value_compute_function_name: dim.value_compute_function_name().map(str::to_owned),
         mandatory: dim.mandatory(),
+    }
+}
+
+/// Convert a Superposition SDK `GetDimensionOutput` into the typed response struct.
+pub fn get_dimension_output_to_struct(
+    dim: &superposition_sdk::operation::get_dimension::GetDimensionOutput,
+) -> DimensionResponse {
+    DimensionResponse {
+        dimension: dim.dimension().to_owned(),
+        position: dim.position(),
+        schema: doc_map_to_json(dim.schema()),
+        value_validation_function_name: dim.value_validation_function_name().map(str::to_owned),
+        description: dim.description().to_owned(),
+        change_reason: dim.change_reason().to_owned(),
+        last_modified_at: datetime_to_string(dim.last_modified_at()),
+        last_modified_by: dim.last_modified_by().to_owned(),
+        created_at: datetime_to_string(dim.created_at()),
+        created_by: dim.created_by().to_owned(),
+        dependency_graph: dependency_graph_to_value(dim.dependency_graph()),
+        dimension_type: dimension_type_to_value(dim.dimension_type()),
+        value_compute_function_name: dim.value_compute_function_name().map(str::to_owned),
+        mandatory: dim.mandatory(),
+    }
+}
+
+/// Convert a Superposition SDK `GetDefaultConfigOutput` into the typed response struct.
+pub fn get_default_config_output_to_struct(
+    cfg: &superposition_sdk::operation::get_default_config::GetDefaultConfigOutput,
+) -> DefaultConfigResponse {
+    DefaultConfigResponse {
+        key: cfg.key().to_owned(),
+        value: document_to_value(cfg.value().clone()),
+        schema: doc_map_to_json(cfg.schema()),
+        description: cfg.description().to_owned(),
+        change_reason: cfg.change_reason().to_owned(),
+        value_validation_function_name: cfg.value_validation_function_name().map(str::to_owned),
+        value_compute_function_name: cfg.value_compute_function_name().map(str::to_owned),
+        created_at: datetime_to_string(cfg.created_at()),
+        created_by: cfg.created_by().to_owned(),
+        last_modified_at: datetime_to_string(cfg.last_modified_at()),
+        last_modified_by: cfg.last_modified_by().to_owned(),
     }
 }
 
@@ -436,6 +484,27 @@ pub fn list_audit_logs_to_response(
         total_pages: output.total_pages(),
         total_items: output.total_items(),
         data: output.data().iter().map(audit_log_full_to_struct).collect(),
+    }
+}
+
+/// Convert a Superposition SDK `GetResolvedConfigExplanationOutput` into the typed response.
+pub fn resolve_config_explanation_to_response(
+    output: &superposition_sdk::operation::get_resolved_config_explanation::GetResolvedConfigExplanationOutput,
+) -> ResolveConfigExplanationResponse {
+    let explanation = output.explanation();
+    ResolveConfigExplanationResponse {
+        key: explanation.key().to_owned(),
+        timeline: explanation
+            .timeline()
+            .iter()
+            .map(|item| ResolveExplanationEntry {
+                context_id: item.context_id().to_owned(),
+                condition: doc_map_to_json(item.condition()),
+                override_id: item.override_id().to_owned(),
+                value_before: document_to_value(item.value_before().clone()),
+                value_after: document_to_value(item.value_after().clone()),
+            })
+            .collect(),
     }
 }
 
@@ -1021,13 +1090,23 @@ pub trait Config {
     /// it to `fetch` and to every generic `C: Config` caller (e.g. router's
     /// `fetch_db_config`) without scattering per-call-site where-clauses. All
     /// real Output types (bool/String/i64/u32/f64/serde_json::Value) satisfy it.
-    type Output: Default + Clone + serde::Serialize + serde::de::DeserializeOwned;
+    type Output: Default + Clone + serde::Serialize + serde::de::DeserializeOwned + Send;
 
     /// The type used as the targeting key for experiment traffic splitting
     type TargetingKey: TargetingKey + Send + Sync;
 
     /// Get the Superposition key for this config
     const SUPERPOSITION_KEY: &'static str;
+
+    /// Get the legacy, non-foldered Superposition key for this config.
+    ///
+    /// Superposition represents folders by dot-delimited key prefixes. During a
+    /// folder migration, retrying the portion after the final dot allows a new
+    /// application version to continue reading configs from a workspace that
+    /// has not been migrated yet.
+    fn legacy_superposition_key() -> Option<&'static str> {
+        Self::SUPERPOSITION_KEY.rsplit_once('.').map(|(_, key)| key)
+    }
 
     /// Get the default value for this config
     /// Default implementation uses `Default::default()`, can be overridden for custom defaults
@@ -1046,18 +1125,54 @@ pub trait Config {
     {
         let targeting_key_str = targeting_key.map(|id| id.targeting_key_value().to_owned());
         async move {
-            match superposition_client
+            let primary_result = superposition_client
                 .get_config_value::<Self::Output>(
                     Self::SUPERPOSITION_KEY,
                     context,
                     targeting_key_str.as_ref(),
                 )
-                .await
-            {
+                .await;
+
+            let (resolved_key, result) = match primary_result {
+                Ok(value) => (Self::SUPERPOSITION_KEY, Ok(value)),
+                Err(primary_error) => match Self::legacy_superposition_key() {
+                    Some(legacy_key) => {
+                        match superposition_client
+                            .get_config_value::<Self::Output>(
+                                legacy_key,
+                                context,
+                                targeting_key_str.as_ref(),
+                            )
+                            .await
+                        {
+                            Ok(value) => {
+                                router_env::logger::warn!(
+                                    "Superposition config resolved using legacy key: key='{}', legacy_key='{}'",
+                                    Self::SUPERPOSITION_KEY,
+                                    legacy_key,
+                                );
+                                (legacy_key, Ok(value))
+                            }
+                            Err(legacy_error) => {
+                                router_env::logger::warn!(
+                                    "Superposition legacy config miss: key='{}', legacy_key='{}', error='{:?}'",
+                                    Self::SUPERPOSITION_KEY,
+                                    legacy_key,
+                                    legacy_error,
+                                );
+                                (legacy_key, Err(legacy_error))
+                            }
+                        }
+                    }
+                    None => (Self::SUPERPOSITION_KEY, Err(primary_error)),
+                },
+            };
+
+            match result {
                 Ok(value) => {
                     router_env::logger::info!(
                         "Superposition config hit: key='{}', type='{}'",
-                        Self::SUPERPOSITION_KEY,
+                        resolved_key,
                         std::any::type_name::<Self::Output>()
                     );
                     config_metrics::CONFIG_SUPERPOSITION_FETCH.add(
@@ -1066,14 +1181,14 @@ pub trait Config {
                     );
                     Ok(value)
                 }
-                Err(e) => {
+                Err(error) => {
                     router_env::logger::warn!(
                         "Superposition config miss: key='{}', type='{}', error='{:?}'",
-                        Self::SUPERPOSITION_KEY,
+                        resolved_key,
                         std::any::type_name::<Self::Output>(),
-                        e
+                        error
                     );
-                    Err(e)
+                    Err(error)
                 }
             }
         }

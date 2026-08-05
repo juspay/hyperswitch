@@ -517,6 +517,7 @@ export const CONNECTOR_LISTS = {
       "loonio",
       "mifinity",
       "nexinets",
+      "nexixpay",
       "nmi",
       "noon",
       "novalnet",
@@ -607,7 +608,6 @@ export const CONNECTOR_LISTS = {
       "payload",
       "paypal",
       "trustpay",
-      "worldpay",
     ],
     REFUNDS_WEBHOOK: [
       "airwallex",

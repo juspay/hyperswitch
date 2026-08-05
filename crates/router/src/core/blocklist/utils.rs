@@ -1,7 +1,12 @@
+use std::collections::HashSet;
+
 use api_models::blocklist as api_blocklist;
 use common_enums::{BlockReason, MerchantDecision};
 use common_utils::errors::CustomResult;
-use diesel_models::{business_profile::CardBlockingConfig, configs};
+use diesel_models::{
+    business_profile::{CardBlockingConfig, PaymentMethodBlockingConfig},
+    configs,
+};
 use error_stack::ResultExt;
 use hyperswitch_masking::{PeekInterface, StrongSecret};
 
@@ -377,6 +382,11 @@ pub async fn should_payment_be_blocked(
                 _ => None,
             });
 
+    // Extended bin of the wallet's decrypted token, to check whether or not this payment should be blocked.
+    let decrypted_token_extended_bin = payment_method_data
+        .as_ref()
+        .and_then(|pm_data| pm_data.get_decrypted_token_extended_bin());
+
     //validating the payment method.
     let mut blocklist_futures = Vec::new();
     if let Some(card_number_fingerprint) = card_number_fingerprint.as_ref() {
@@ -402,6 +412,15 @@ pub async fn should_payment_be_blocked(
             db.find_blocklist_entry_by_processor_merchant_id_fingerprint_id(
                 processor_merchant_id,
                 extended_card_bin_fingerprint,
+            ),
+        );
+    }
+
+    if let Some(decrypted_token_extended_bin) = decrypted_token_extended_bin.as_ref() {
+        blocklist_futures.push(
+            db.find_blocklist_entry_by_processor_merchant_id_fingerprint_id(
+                processor_merchant_id,
+                decrypted_token_extended_bin,
             ),
         );
     }
@@ -514,6 +533,37 @@ where
     }
 }
 
+/// Pick the blocking config slot and the BIN that addresses `cards_info` for this payment method.
+fn resolve_blocking_config_and_bin<'a>(
+    blocking_config: &'a PaymentMethodBlockingConfig,
+    payment_method_data: &domain::EligibilityPaymentMethodData,
+) -> Option<(&'a CardBlockingConfig, String)> {
+    match payment_method_data {
+        domain::EligibilityPaymentMethodData::Card(card) => blocking_config
+            .card
+            .as_ref()
+            .map(|card_config| (card_config, card.card_number.get_card_isin())),
+
+        domain::EligibilityPaymentMethodData::Wallet(domain::WalletData::ApplePay(_)) => {
+            blocking_config
+                .wallet
+                .as_ref()
+                .and_then(|wallet_config| wallet_config.apple_pay.as_ref())
+                .zip(payment_method_data.get_decrypted_token_extended_bin())
+        }
+
+        domain::EligibilityPaymentMethodData::Wallet(domain::WalletData::GooglePay(_)) => {
+            blocking_config
+                .wallet
+                .as_ref()
+                .and_then(|wallet_config| wallet_config.google_pay.as_ref())
+                .zip(payment_method_data.get_decrypted_token_extended_bin())
+        }
+
+        _ => None,
+    }
+}
+
 pub async fn should_payment_be_blocked_by_profile_config(
     state: &SessionState,
     payment_method_data: &Option<domain::EligibilityPaymentMethodData>,
@@ -521,21 +571,27 @@ pub async fn should_payment_be_blocked_by_profile_config(
 ) -> CustomResult<Option<BlockReason>, errors::ApiErrorResponse> {
     let mut block_reason: Option<BlockReason> = None;
 
-    let card_config = business_profile
+    let config_and_bin = business_profile
         .payment_method_blocking
         .as_ref()
-        .and_then(|config| config.card.as_ref());
+        .zip(payment_method_data.as_ref())
+        .and_then(|(blocking_config, pmd)| resolve_blocking_config_and_bin(blocking_config, pmd));
 
-    let card_isin = payment_method_data
-        .as_ref()
-        .and_then(|pm_data| match pm_data {
-            domain::EligibilityPaymentMethodData::Card(card) => {
-                Some(card.card_number.get_card_isin())
-            }
-            _ => None,
-        });
+    if let Some((card_config, card_isin)) = config_and_bin {
+        let CardBlockingConfig {
+            issuing_country,
+            card_types,
+            card_subtypes,
+            issuers,
+            block_if_bin_info_unavailable,
+            card_networks,
+            funding_sources,
+            card_segment_types,
+            block_virtual_cards,
+            block_non_reloadable_prepaid_cards,
+            gambling_blocked,
+        } = card_config;
 
-    if let (Some(card_config), Some(card_isin)) = (card_config, card_isin) {
         let card_info = state
             .store
             .get_card_info(&card_isin)
@@ -546,19 +602,19 @@ pub async fn should_payment_be_blocked_by_profile_config(
 
         match card_info {
             None => {
-                if card_config.should_block_if_bin_info_unavailable() {
-                    block_reason = Some(BlockReason::BlockedBin);
+                if *block_if_bin_info_unavailable == Some(true) {
+                    block_reason = Some(BlockReason::BlockedCardInfoUnavailable);
                 }
             }
             Some(info) => {
                 block_reason = CardBlockingConfig::should_block_by_attribute(
-                    &card_config.issuing_country,
+                    issuing_country,
                     info.country_code.as_deref(),
                 )
                 .then_some(BlockReason::BlockedIssuerCountry)
                 .or_else(|| {
                     CardBlockingConfig::should_block_by_attribute(
-                        &card_config.card_types,
+                        card_types,
                         info.card_type.as_deref(),
                     )
                     .then(|| {
@@ -570,18 +626,53 @@ pub async fn should_payment_be_blocked_by_profile_config(
                     .flatten()
                 })
                 .or_else(|| {
+                    funding_sources
+                        .as_ref()
+                        .zip(info.funding_source.as_ref())
+                        .is_some_and(|(blocked_sources, source)| blocked_sources.contains(source))
+                        .then_some(BlockReason::BlockedFundingSource)
+                })
+                .or_else(|| {
+                    card_networks
+                        .as_ref()
+                        .zip(info.card_network.as_ref())
+                        .is_some_and(|(blocked_networks, network)| {
+                            blocked_networks.contains(network)
+                        })
+                        .then_some(BlockReason::BlockedCardNetwork)
+                })
+                .or_else(|| {
                     CardBlockingConfig::should_block_by_attribute(
-                        &card_config.card_subtypes,
+                        card_subtypes,
                         info.card_subtype.as_deref(),
                     )
                     .then_some(BlockReason::BlockedCardSubtype)
+                })
+                .or_else(|| {
+                    CardBlockingConfig::should_block_by_attribute(
+                        card_segment_types,
+                        info.card_segment_type.as_deref(),
+                    )
+                    .then_some(BlockReason::BlockedCardSegmentType)
+                })
+                .or_else(|| {
+                    (*block_virtual_cards == Some(true) && info.virtual_card == Some(true))
+                        .then_some(BlockReason::BlockedVirtualCard)
+                })
+                .or_else(|| {
+                    (*block_non_reloadable_prepaid_cards == Some(true)
+                        && info.prepaid == Some(true)
+                        && info.reloadable_prepaid == Some(false))
+                    .then_some(BlockReason::BlockedNonReloadablePrepaidCard)
+                })
+                .or_else(|| {
+                    (*gambling_blocked == Some(true) && info.gambling_blocked == Some(true))
+                        .then_some(BlockReason::BlockedGamblingCard)
                 });
 
                 // Check card issuer — profile stores IDs, cards_info has name
                 if block_reason.is_none() {
-                    if let (Some(blocked_ids), Some(issuer_name)) =
-                        (&card_config.issuers, &info.card_issuer)
-                    {
+                    if let (Some(blocked_ids), Some(issuer_name)) = (issuers, &info.card_issuer) {
                         let issuer_ids = blocked_ids
                             .iter()
                             .filter_map(|id| {
@@ -597,7 +688,7 @@ pub async fn should_payment_be_blocked_by_profile_config(
                             .unwrap_or_default()
                             .into_iter()
                             .map(|i| i.issuer_name)
-                            .collect::<std::collections::HashSet<_>>();
+                            .collect::<HashSet<_>>();
                         if resolved_names.contains(issuer_name.as_str()) {
                             block_reason = Some(BlockReason::BlockedIssuer);
                         }
@@ -640,4 +731,42 @@ pub async fn generate_payment_fingerprint(
             None
         },
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn block_reasons_have_distinct_error_messages() {
+        let network_message = BlockReason::BlockedCardNetwork.error_message();
+        let funding_source_message = BlockReason::BlockedFundingSource.error_message();
+
+        assert_eq!(
+            network_message,
+            "This card network is not accepted for this transaction, please try a different card"
+        );
+        assert_eq!(
+            funding_source_message,
+            "This card funding source is not accepted for this transaction, please try a different card"
+        );
+
+        let messages = [
+            BlockReason::BlockedBin.error_message(),
+            BlockReason::BlockedCardInfoUnavailable.error_message(),
+            BlockReason::BlockedCardType(common_enums::CardType::Credit).error_message(),
+            network_message,
+            funding_source_message,
+            BlockReason::BlockedCardSubtype.error_message(),
+            BlockReason::BlockedCardSegmentType.error_message(),
+            BlockReason::BlockedVirtualCard.error_message(),
+            BlockReason::BlockedNonReloadablePrepaidCard.error_message(),
+            BlockReason::BlockedGamblingCard.error_message(),
+            BlockReason::BlockedIssuerCountry.error_message(),
+            BlockReason::BlockedIssuer.error_message(),
+        ];
+        let unique_messages = messages.iter().collect::<HashSet<_>>();
+
+        assert_eq!(messages.len(), unique_messages.len());
+    }
 }
