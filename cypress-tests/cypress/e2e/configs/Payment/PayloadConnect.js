@@ -20,6 +20,22 @@ const successfulThreeDSTestCardDetails = {
   ...successfulNo3DSCardDetails,
 };
 
+// Payload Connect Split Payments Configuration
+const payloadSplitPaymentData = {
+  payload_split_payment: {
+    ledger: [
+      {
+        receiver_id: "acct_3eoxafCHioIB3jNMKJev4",
+        amount: 5000,
+      },
+      {
+        receiver_id: "acct_3epxuNyAtNd77zShIaaL1",
+        amount: 1000,
+      },
+    ],
+  },
+};
+
 export const connectorDetails = {
   card_pm: {
     PaymentIntent: {
@@ -27,6 +43,7 @@ export const connectorDetails = {
         currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
+        split_payments: payloadSplitPaymentData,
       },
       Response: {
         status: 200,
@@ -43,6 +60,7 @@ export const connectorDetails = {
         amount: 6000,
         authentication_type: "no_three_ds",
         setup_future_usage: "off_session",
+        split_payments: payloadSplitPaymentData,
       },
       Response: {
         status: 200,
@@ -56,6 +74,7 @@ export const connectorDetails = {
       Request: {
         currency: "USD",
         shipping_cost: 50,
+        split_payments: payloadSplitPaymentData,
       },
       Response: {
         status: 200,
@@ -74,6 +93,7 @@ export const connectorDetails = {
         },
         customer_acceptance: null,
         setup_future_usage: "on_session",
+        split_payments: payloadSplitPaymentData,
       },
       Response: {
         status: 200,
@@ -103,6 +123,7 @@ export const connectorDetails = {
           statement_descriptor_suffix: "Suffix",
           reference: "REF123",
         },
+        split_payments: payloadSplitPaymentData,
       },
       Response: {
         status: 200,
@@ -131,6 +152,7 @@ export const connectorDetails = {
           statement_descriptor_suffix: "Suffix",
           reference: "REF123",
         },
+        split_payments: payloadSplitPaymentData,
       },
       Response: {
         status: 200,
@@ -197,6 +219,7 @@ export const connectorDetails = {
         currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
+        split_payments: payloadSplitPaymentData,
       },
       Response: {
         status: 200,
@@ -222,6 +245,7 @@ export const connectorDetails = {
         currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
+        split_payments: payloadSplitPaymentData,
       },
       Response: {
         status: 200,
@@ -229,6 +253,7 @@ export const connectorDetails = {
           status: "succeeded",
           payment_method: "card",
           attempt_count: 1,
+          split_payments: payloadSplitPaymentData,
         },
       },
     },
@@ -240,6 +265,7 @@ export const connectorDetails = {
         },
         customer_acceptance: null,
         setup_future_usage: "on_session",
+        split_payments: payloadSplitPaymentData,
       },
       Response: {
         status: 200,
@@ -354,6 +380,7 @@ export const connectorDetails = {
         currency: "USD",
         setup_future_usage: "on_session",
         customer_acceptance: customerAcceptance,
+        split_payments: payloadSplitPaymentData,
       },
       Response: {
         status: 200,
@@ -377,6 +404,7 @@ export const connectorDetails = {
         currency: "USD",
         setup_future_usage: "on_session",
         customer_acceptance: customerAcceptance,
+        split_payments: payloadSplitPaymentData,
       },
       Response: {
         status: 200,
@@ -424,6 +452,7 @@ export const connectorDetails = {
         },
         setup_future_usage: "off_session",
         customer_acceptance: customerAcceptance,
+        split_payments: payloadSplitPaymentData,
       },
       Response: {
         status: 200,
@@ -470,6 +499,7 @@ export const connectorDetails = {
         },
         setup_future_usage: "off_session",
         customer_acceptance: customerAcceptance,
+        split_payments: payloadSplitPaymentData,
       },
       Response: {
         status: 200,
@@ -487,6 +517,7 @@ export const connectorDetails = {
       },
       Request: {
         setup_future_usage: "off_session",
+        split_payments: payloadSplitPaymentData,
       },
       Response: {
         status: 200,
@@ -504,6 +535,7 @@ export const connectorDetails = {
       },
       Request: {
         setup_future_usage: "off_session",
+        split_payments: payloadSplitPaymentData,
       },
       Response: {
         status: 200,
@@ -522,6 +554,7 @@ export const connectorDetails = {
       Request: {
         setup_future_usage: "off_session",
         billing: null,
+        split_payments: payloadSplitPaymentData,
       },
       Response: {
         status: 200,
@@ -575,6 +608,13 @@ export const connectorDetails = {
         },
       },
     },
+    // NOTE: split_payments is intentionally omitted from all
+    // Mandate*/MIT* keys below -- payload is excluded from every mandate
+    // spec in this suite (MANDATE_ID_TEST exclusion list, plus
+    // PaymentMethodIdMandateNo3DSAutoCapture's TRIGGER_SKIP cascades a
+    // skip through 20-MandatesUsingPMID.cy.js), so this config is never
+    // actually exercised. Revisit if payload mandate support is ever
+    // un-excluded.
     MandateSingleUseNo3DSManualCapture: {
       Configs: {
         DELAY: {
@@ -714,7 +754,6 @@ export const connectorDetails = {
         },
       },
     },
-
     MITAutoCapture: getCustomExchange({
       Configs: {
         DELAY: {
