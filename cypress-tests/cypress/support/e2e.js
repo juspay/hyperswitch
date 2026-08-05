@@ -18,6 +18,44 @@ Cypress.on("uncaught:exception", (err, runnable) => {
   return false;
 });
 
+// Extra headers attached to every outgoing request — both cy.request calls and
+// browser traffic to the API origin (redirect flows, hosted pages). Used to
+// target a specific deployment behind the load balancer, e.g. a custom
+// sandbox pod:
+//   CYPRESS_EXTRA_HEADERS='{"x-feature":"sandbox-custom"}'
+const EXTRA_HEADERS = (() => {
+  const raw = Cypress.env("EXTRA_HEADERS");
+  if (!raw) return null;
+  let parsed;
+  try {
+    parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
+  } catch (err) {
+    throw new Error(`CYPRESS_EXTRA_HEADERS must be valid JSON: ${err.message}`);
+  }
+  return Object.keys(parsed).length > 0 ? parsed : null;
+})();
+
+if (EXTRA_HEADERS) {
+  Cypress.Commands.overwrite("request", (originalFn, ...args) => {
+    const opts = normalizeRequestArgs(args);
+    opts.headers = { ...(opts.headers || {}), ...EXTRA_HEADERS };
+    return originalFn(opts);
+  });
+
+  // Redirect flows and hosted pages navigate the browser to the API origin;
+  // those requests bypass cy.request, so tag them at the network layer instead.
+  beforeEach(() => {
+    const baseUrl = Cypress.env("BASEURL");
+    if (!baseUrl) return;
+    const apiOrigin = new URL(baseUrl).origin;
+    cy.intercept({ url: `${apiOrigin}/**`, middleware: true }, (req) => {
+      Object.entries(EXTRA_HEADERS).forEach(([name, value]) => {
+        req.headers[name] = value;
+      });
+    });
+  });
+}
+
 // MITM proxy record/replay integration, gated by IS_PROXY_ENABLED. When on,
 // each test notifies the proxy of start/end and tags every cy.request with a
 // deterministic X-Request-ID that the router propagates to connector outbounds
