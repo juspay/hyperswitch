@@ -400,9 +400,7 @@ where
             state,
             processor,
             psp_router_data,
-            unified_connector_service::extract_gateway_system_from_payment_intent(
-                payment_data,
-            ),
+            unified_connector_service::extract_gateway_system_from_payment_intent(payment_data),
             payments_core::CallConnectorAction::Trigger,
             None,
             common_enums::TransactionType::Payment,
@@ -530,16 +528,16 @@ async fn call_ucs_pre_authenticate_proxy(
         }
     };
 
-    let (ucs_authentication_data, ddc_redirection_data) = match pre_authenticate_router_data.response
-    {
-        Ok(core_types::PaymentsResponseData::TransactionResponse {
-            authentication_data,
-            redirection_data,
-            ..
-        }) => (authentication_data.map(|boxed| *boxed), *redirection_data),
-        Ok(_) => (None, None),
-        Err(err) => return Ok(Err(err)),
-    };
+    let (ucs_authentication_data, ddc_redirection_data) =
+        match pre_authenticate_router_data.response {
+            Ok(core_types::PaymentsResponseData::TransactionResponse {
+                authentication_data,
+                redirection_data,
+                ..
+            }) => (authentication_data.map(|boxed| *boxed), *redirection_data),
+            Ok(_) => (None, None),
+            Err(err) => return Ok(Err(err)),
+        };
 
     // UCS has no typed fields for the 3DS Method (DDC) form on `AuthenticationData` — Netcetera's
     // own connector-service integration packs it into `redirection_data` as a `RedirectForm::Form`
@@ -1430,9 +1428,7 @@ async fn call_ucs_authenticate_proxy(
     // profile-acquirer-id-specific bucket first, then the profile's network default.
     let acquirer_metadata = psp_merchant_connector_account
         .get_metadata()
-        .and_then(|metadata| {
-            serde_json::from_value::<AcquirerMetadata>(metadata.expose()).ok()
-        })
+        .and_then(|metadata| serde_json::from_value::<AcquirerMetadata>(metadata.expose()).ok())
         .filter(|metadata| !metadata.is_empty())
         .or_else(|| {
             let card_network = match &external_vault_pmd {
@@ -1448,7 +1444,9 @@ async fn call_ucs_authenticate_proxy(
                         card_network.clone(),
                     )
                 })
-                .or_else(|| business_profile.get_default_acquirer_details_from_network(card_network))?;
+                .or_else(|| {
+                    business_profile.get_default_acquirer_details_from_network(card_network)
+                })?;
             Some(AcquirerMetadata {
                 acquirer_bin: acquirer_config.acquirer_bin,
                 acquirer_merchant_id: acquirer_config.acquirer_assigned_merchant_id,
@@ -1547,9 +1545,7 @@ fn parse_ucs_authenticate_response(
                 ..
             }) => (
                 Some(endpoint.clone()),
-                form_fields
-                    .get(consts::CREQ_CHALLENGE_REQUEST_KEY)
-                    .cloned(),
+                form_fields.get(consts::CREQ_CHALLENGE_REQUEST_KEY).cloned(),
                 form_fields.get("acsSignedContent").cloned(),
                 form_fields.get("acsReferenceNumber").cloned(),
                 form_fields.get("acsTransID").cloned(),
