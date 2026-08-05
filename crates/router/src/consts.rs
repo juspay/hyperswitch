@@ -434,6 +434,10 @@ pub mod superposition {
     /// Trigger fingerprint migration configuration key
     pub const SHOULD_TRIGGER_FINGERPRINT_MIGRATION: &str =
         "vaulting.should_trigger_fingerprint_migration";
+    /// Timeout (in seconds) for fetching a network token from the tokenization service during a
+    /// payment configuration key
+    pub const NETWORK_TOKEN_FETCH_TIMEOUT_IN_SECS: &str =
+        "payments.network_token_fetch_timeout_in_secs";
     /// Perform SDK vaulting action configuration key. Acts as a merchant level override on top of
     /// `should_call_pm_modular_service`: defaults to `true` for all merchants and can be set to
     /// `false` for specific merchants to force the SDK to skip tokenization.
