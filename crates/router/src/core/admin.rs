@@ -1,9 +1,12 @@
 use std::str::FromStr;
 
+#[cfg(feature = "olap")]
+use api_models::organization as org_types;
 use api_models::{
     admin::{self as admin_types},
-    enums as api_enums, organization as org_types, routing as routing_types,
+    enums as api_enums, routing as routing_types,
 };
+#[cfg(feature = "olap")]
 use common_enums::{MerchantAccountType, OrganizationType};
 use common_utils::{
     date_time,
@@ -29,6 +32,10 @@ use {
 };
 
 use super::routing::helpers::redact_cgraph_cache;
+#[cfg(feature = "olap")]
+use crate::db::AccountsStorageInterface;
+#[cfg(feature = "olap")]
+use crate::routes::app::SessionStateInfo;
 #[cfg(any(feature = "v1", feature = "v2"))]
 use crate::types::transformers::ForeignFrom;
 use crate::{
@@ -43,9 +50,9 @@ use crate::{
         pm_auth::helpers::PaymentAuthConnectorDataExt,
         routing, utils as core_utils,
     },
-    db::{AccountsStorageInterface, StorageInterface},
+    db::StorageInterface,
     logger,
-    routes::{app::SessionStateInfo, metrics, SessionState},
+    routes::{metrics, SessionState},
     services::{
         self,
         api::{self as service_api},
@@ -1966,7 +1973,7 @@ trait MerchantConnectorAccountUpdateBridge {
     ) -> RouterResult<domain::MerchantConnectorAccountUpdate>;
 }
 
-#[cfg(all(feature = "v2", feature = "olap"))]
+#[cfg(feature = "v2")]
 #[async_trait::async_trait]
 impl MerchantConnectorAccountUpdateBridge for api_models::admin::MerchantConnectorUpdate {
     async fn get_merchant_connector_account_from_id(
@@ -2122,7 +2129,7 @@ impl MerchantConnectorAccountUpdateBridge for api_models::admin::MerchantConnect
     }
 }
 
-#[cfg(all(feature = "v1", feature = "olap"))]
+#[cfg(feature = "v1")]
 #[async_trait::async_trait]
 impl MerchantConnectorAccountUpdateBridge for api_models::admin::MerchantConnectorUpdate {
     async fn get_merchant_connector_account_from_id(
@@ -2314,7 +2321,7 @@ trait MerchantConnectorAccountCreateBridge {
     ) -> RouterResult<domain::Profile>;
 }
 
-#[cfg(all(feature = "v2", feature = "olap"))]
+#[cfg(feature = "v2")]
 #[async_trait::async_trait]
 impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
     async fn create_domain_model_from_request(
@@ -2500,7 +2507,7 @@ impl PaymentMethodsEnabled<'_> {
     }
 }
 
-#[cfg(all(feature = "v1", feature = "olap"))]
+#[cfg(feature = "v1")]
 #[async_trait::async_trait]
 impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
     async fn create_domain_model_from_request(
