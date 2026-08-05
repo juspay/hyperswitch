@@ -33,9 +33,23 @@ use crate::{
 };
 
 #[cfg(feature = "v1")]
+#[derive(Clone, Debug)]
+struct CustomerIdentifiers {
+    customer_id: id_type::CustomerId,
+    id: Option<id_type::GlobalCustomerId>,
+}
+
+#[cfg(feature = "v1")]
+impl CustomerIdentifiers {
+    fn new(customer_id: id_type::CustomerId, id: Option<id_type::GlobalCustomerId>) -> Self {
+        Self { customer_id, id }
+    }
+}
+
+#[cfg(feature = "v1")]
 #[derive(Clone, Debug, router_derive::ToEncryption)]
 pub struct Customer {
-    pub customer_id: id_type::CustomerId,
+    identifiers: CustomerIdentifiers,
     pub merchant_id: id_type::MerchantId,
     #[encrypt]
     pub name: Option<Encryptable<Secret<String>>>,
@@ -58,7 +72,6 @@ pub struct Customer {
     pub document_details: OptionalEncryptableValue,
     pub created_by: Option<CreatedBy>,
     pub last_modified_by: Option<CreatedBy>,
-    key: Option<String>,
 }
 
 #[cfg(feature = "v2")]
@@ -92,6 +105,54 @@ pub struct Customer {
     pub last_modified_by: Option<CreatedBy>,
 }
 
+/// A customer view containing only fields that do not require key-manager decryption.
+#[cfg(feature = "v2")]
+#[derive(Clone, Debug)]
+pub struct CustomerWithoutEncrypted {
+    pub merchant_id: id_type::MerchantId,
+    pub phone_country_code: Option<String>,
+    pub description: Option<Description>,
+    pub created_at: PrimitiveDateTime,
+    pub metadata: Option<pii::SecretSerdeValue>,
+    pub connector_customer: Option<common_types::customers::ConnectorCustomerMap>,
+    pub modified_at: PrimitiveDateTime,
+    pub default_payment_method_id: Option<id_type::GlobalPaymentMethodId>,
+    pub updated_by: Option<String>,
+    pub merchant_reference_id: Option<id_type::CustomerId>,
+    pub id: id_type::GlobalCustomerId,
+    pub version: common_enums::ApiVersion,
+    pub status: DeleteStatus,
+    pub created_by: Option<CreatedBy>,
+    pub last_modified_by: Option<CreatedBy>,
+}
+
+#[cfg(feature = "v2")]
+impl From<storage_types::Customer> for CustomerWithoutEncrypted {
+    fn from(customer: storage_types::Customer) -> Self {
+        Self {
+            merchant_id: customer.merchant_id,
+            phone_country_code: customer.phone_country_code,
+            description: customer.description,
+            created_at: customer.created_at,
+            metadata: customer.metadata,
+            connector_customer: customer.connector_customer,
+            modified_at: customer.modified_at,
+            default_payment_method_id: customer.default_payment_method_id,
+            updated_by: customer.updated_by,
+            merchant_reference_id: customer.merchant_reference_id,
+            id: customer.id,
+            version: customer.version,
+            status: customer.status,
+            created_by: customer
+                .created_by
+                .and_then(|created_by| created_by.parse::<CreatedBy>().ok()),
+            last_modified_by: customer
+                .last_modified_by
+                .and_then(|last_modified_by| last_modified_by.parse::<CreatedBy>().ok()),
+        }
+    }
+}
+
 impl Customer {
     #[cfg(feature = "v1")]
     #[allow(clippy::too_many_arguments)]
@@ -110,11 +171,11 @@ impl Customer {
         document_details: OptionalEncryptableValue,
         created_by: Option<CreatedBy>,
         last_modified_by: Option<CreatedBy>,
-        key: String,
+        id: id_type::GlobalCustomerId,
     ) -> Self {
         let now = date_time::now();
         Self {
-            customer_id,
+            identifiers: CustomerIdentifiers::new(customer_id, Some(id)),
             merchant_id,
             name,
             email,
@@ -133,14 +194,19 @@ impl Customer {
             document_details,
             created_by,
             last_modified_by,
-            key: Some(key),
         }
     }
 
     /// Get the unique identifier of Customer
     #[cfg(feature = "v1")]
     pub fn get_id(&self) -> &id_type::CustomerId {
-        &self.customer_id
+        &self.identifiers.customer_id
+    }
+
+    /// Get the global identifier of Customer.
+    #[cfg(feature = "v1")]
+    pub fn get_global_id(&self) -> Option<&id_type::GlobalCustomerId> {
+        self.identifiers.id.as_ref()
     }
 
     /// Get the global identifier of Customer
@@ -196,11 +262,6 @@ impl Customer {
             MerchantConnectorAccountTypeDetails::MerchantConnectorDetails(_) => None,
         }
     }
-
-    #[cfg(feature = "v1")]
-    pub fn get_global_customer_id(&self) -> &Option<String> {
-        &self.key
-    }
 }
 
 #[cfg(feature = "v1")]
@@ -210,7 +271,7 @@ impl behaviour::Conversion for Customer {
     type NewDstType = diesel_models::customers::CustomerNew;
     async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
         Ok(diesel_models::customers::Customer {
-            customer_id: self.customer_id.clone(),
+            customer_id: self.identifiers.customer_id.clone(),
             merchant_id: self.merchant_id,
             name: self.name.map(Encryption::from),
             email: self.email.map(Encryption::from),
@@ -231,7 +292,7 @@ impl behaviour::Conversion for Customer {
             last_modified_by: self
                 .last_modified_by
                 .map(|last_modified_by| last_modified_by.to_string()),
-            id: self.key,
+            id: self.identifiers.id,
         })
     }
 
@@ -287,7 +348,7 @@ impl behaviour::Conversion for Customer {
             })?;
 
         Ok(Self {
-            customer_id: item.customer_id,
+            identifiers: CustomerIdentifiers::new(item.customer_id, item.id),
             merchant_id: item.merchant_id,
             name: encryptable_customer.name,
             email: encryptable_customer.email.map(|email| {
@@ -316,15 +377,14 @@ impl behaviour::Conversion for Customer {
             last_modified_by: item
                 .last_modified_by
                 .and_then(|last_modified_by| last_modified_by.parse::<CreatedBy>().ok()),
-            key: item.id,
         })
     }
 
     async fn construct_new(self) -> CustomResult<Self::NewDstType, ValidationError> {
         let now = date_time::now();
         Ok(diesel_models::customers::CustomerNew {
-            id: self.key,
-            customer_id: self.customer_id,
+            id: self.identifiers.id,
+            customer_id: self.identifiers.customer_id,
             merchant_id: self.merchant_id,
             name: self.name.map(Encryption::from),
             email: self.email.map(Encryption::from),
@@ -909,6 +969,7 @@ where
     ) -> CustomResult<Customer, Self::Error>;
 
     #[cfg(feature = "v2")]
+    // TODO: Remove merchant_id from here once `id` is an unique key in DB
     async fn find_customer_by_global_id_merchant_id(
         &self,
         id: &id_type::GlobalCustomerId,
@@ -916,6 +977,15 @@ where
         key_store: &MerchantKeyStore,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Customer, Self::Error>;
+
+    #[cfg(feature = "v2")]
+    // TODO: Remove merchant_id from here once `id` is an unique key in DB
+    async fn find_customer_by_global_id_merchant_id_without_encrypted(
+        &self,
+        id: &id_type::GlobalCustomerId,
+        merchant_id: &id_type::MerchantId,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<CustomerWithoutEncrypted, Self::Error>;
 }
 
 #[cfg(feature = "v1")]

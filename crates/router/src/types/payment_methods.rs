@@ -33,6 +33,13 @@ pub struct VaultFingerprintRequest {
     pub key: hyperswitch_domain_models::vault::V1VaultEntityId,
 }
 
+#[cfg(feature = "v1")]
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct GenericVaultRetrieveRequest {
+    pub entity_id: id_type::CustomerId,
+    pub vault_id: domain::VaultId,
+}
+
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct VaultFingerprintRequestNew {
     pub data: String,
@@ -48,6 +55,15 @@ pub struct VaultFingerprintResponse {
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct AddVaultRequest<D> {
     pub entity_id: hyperswitch_domain_models::vault::V1VaultEntityId,
+    pub vault_id: domain::VaultId,
+    pub data: D,
+    pub ttl: i64,
+}
+
+#[cfg(feature = "v1")]
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct AddCompatVaultRequest<D> {
+    pub entity_id: id_type::CustomerId,
     pub vault_id: domain::VaultId,
     pub data: D,
     pub ttl: i64,
@@ -151,6 +167,31 @@ impl VaultingInterface for VaultDelete {
     }
 }
 
+#[derive(Debug)]
+pub struct EntityCreate;
+
+impl VaultingInterface for EntityCreate {
+    fn get_vaulting_request_url() -> &'static str {
+        consts::LOCKER_ENTITY_CREATE_REQUEST_URL
+    }
+
+    fn get_vaulting_flow_name() -> &'static str {
+        consts::LOCKER_ENTITY_CREATE_FLOW_TYPE
+    }
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct EntityCreateRequest {
+    pub entity_id: id_type::MerchantId,
+}
+
+#[derive(Debug, serde::Deserialize)]
+pub struct EntityCreateResponse {
+    pub entity_id: String,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub created_at: time::PrimitiveDateTime,
+}
+
 #[cfg(feature = "v2")]
 pub struct SavedPMLPaymentsInfo {
     pub payment_intent: storage::PaymentIntent,
@@ -189,6 +230,12 @@ pub struct VaultRetrieveResponse {
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct VaultDeleteRequest {
     pub entity_id: id_type::GlobalCustomerId,
+    pub vault_id: domain::VaultId,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct VaultDeleteRequestNew {
+    pub entity_id: id_type::MerchantId,
     pub vault_id: domain::VaultId,
 }
 

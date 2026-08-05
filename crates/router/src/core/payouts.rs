@@ -788,7 +788,7 @@ pub async fn payouts_fulfill_core(
             payout_data.customer_details.as_ref().map(|customer| {
                 #[cfg(feature = "v1")]
                 {
-                    customer.customer_id.clone()
+                    customer.get_id().clone()
                 }
                 #[cfg(not(feature = "v1"))]
                 {
@@ -1256,7 +1256,7 @@ pub async fn call_connector_payout(
             payout_data.customer_details.as_ref().map(|customer| {
                 #[cfg(feature = "v1")]
                 {
-                    customer.customer_id.clone()
+                    customer.get_id().clone()
                 }
                 #[cfg(not(feature = "v1"))]
                 {
@@ -1428,7 +1428,7 @@ pub async fn create_recipient(
                     {
                         #[cfg(feature = "v1")]
                         {
-                            let customer_id = customer.customer_id.to_owned();
+                            let customer_id = customer.get_id().to_owned();
                             payout_data.customer_details = Some(
                                 db.update_customer_by_customer_id_merchant_id(
                                     customer_id,
@@ -2445,7 +2445,9 @@ pub async fn create_recipient_disburse_account(
                     let pm_update =
                         diesel_models::PaymentMethodUpdate::ConnectorMandateDetailsUpdate {
                             #[cfg(feature = "v1")]
-                            connector_mandate_details: Some(connector_mandate_details_value),
+                            connector_mandate_details: Some(Secret::new(
+                                connector_mandate_details_value,
+                            )),
 
                             #[cfg(feature = "v2")]
                             connector_mandate_details: Some(common_connector_mandate),
@@ -2461,6 +2463,8 @@ pub async fn create_recipient_disburse_account(
                             pm_method,
                             pm_update,
                             platform.get_processor().get_account().storage_scheme,
+                            // Payout payment method writes are outside PM modular card compat.
+                            None,
                         )
                         .await
                         .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
@@ -2468,7 +2472,7 @@ pub async fn create_recipient_disburse_account(
                     );
                 } else {
                     #[cfg(feature = "v1")]
-                    let customer_id = Some(customer_details.customer_id);
+                    let customer_id = Some(customer_details.get_id().clone());
 
                     #[cfg(feature = "v2")]
                     let customer_id = customer_details.merchant_reference_id;
@@ -2973,6 +2977,7 @@ pub async fn response_handler(
         business_country: payout_attempt.business_country,
         business_label: payout_attempt.business_label,
         description: payouts.description.to_owned(),
+        billing_descriptor: payouts.billing_descriptor.to_owned(),
         entity_type: payouts.entity_type.to_owned(),
         recurring: payouts.recurring,
         metadata: payouts.metadata.clone(),
@@ -3042,7 +3047,7 @@ pub async fn payout_create_db_entries(
 ) -> RouterResult<PayoutData> {
     let db = &*state.store;
     let merchant_id = platform.get_processor().get_account().get_id();
-    let customer_id = customer.map(|cust| cust.customer_id.clone());
+    let customer_id = customer.map(|cust| cust.get_id().clone());
 
     // Validate whether profile_id passed in request is valid and is linked to the merchant
     let business_profile =
@@ -3140,6 +3145,7 @@ pub async fn payout_create_db_entries(
         destination_currency: currency,
         source_currency: currency,
         description: req.description.to_owned(),
+        billing_descriptor: req.billing_descriptor.to_owned(),
         recurring: req.recurring.unwrap_or(false),
         auto_fulfill: req.auto_fulfill.unwrap_or(false),
         return_url: req.return_url.to_owned(),
@@ -3433,7 +3439,7 @@ pub async fn make_payout_data(
                 Some(payout_token) => {
                     let customer_id = customer_details
                         .as_ref()
-                        .map(|cd| cd.customer_id.to_owned())
+                        .map(|cd| cd.get_id().to_owned())
                         .get_required_value("customer_id when payout_token is sent")?;
                     helpers::make_payout_method_data(
                         state,
@@ -3483,7 +3489,7 @@ pub async fn make_payout_data(
                     Some(source_bank_data_token) => {
                         let customer_id = customer_details
                             .as_ref()
-                            .map(|cd| cd.customer_id.to_owned())
+                            .map(|cd| cd.get_id().to_owned())
                             .get_required_value("customer_id when payout_token is sent")?;
                         let source_bank_data =
                             helpers::SourceBankDataOperation::get_temp_source_bank_data(

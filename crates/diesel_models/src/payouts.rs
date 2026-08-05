@@ -40,6 +40,7 @@ pub struct Payouts {
     pub organization_id: Option<common_utils::id_type::OrganizationId>,
     pub processor_merchant_id: Option<common_utils::id_type::MerchantId>,
     pub created_by: Option<String>,
+    pub billing_descriptor: Option<common_types::payouts::PayoutsBillingDescriptor>,
 }
 
 #[derive(
@@ -84,6 +85,7 @@ pub struct PayoutsNew {
     pub organization_id: Option<common_utils::id_type::OrganizationId>,
     pub processor_merchant_id: Option<common_utils::id_type::MerchantId>,
     pub created_by: Option<String>,
+    pub billing_descriptor: Option<common_types::payouts::PayoutsBillingDescriptor>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -104,6 +106,7 @@ pub enum PayoutsUpdate {
         payout_type: Option<storage_enums::PayoutType>,
         address_id: Option<String>,
         customer_id: Option<common_utils::id_type::CustomerId>,
+        billing_descriptor: Option<Box<common_types::payouts::PayoutsBillingDescriptor>>,
     },
     PayoutMethodIdUpdate {
         payout_method_id: String,
@@ -124,6 +127,7 @@ pub enum PayoutsUpdate {
 
 #[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay)]
 #[diesel(table_name = payouts)]
+#[router_derive::apply_changeset(target = Payouts)]
 pub struct PayoutsUpdateInternal {
     pub amount: Option<MinorUnit>,
     pub destination_currency: Option<storage_enums::Currency>,
@@ -143,6 +147,7 @@ pub struct PayoutsUpdateInternal {
     pub payout_type: Option<common_enums::PayoutType>,
     pub address_id: Option<String>,
     pub customer_id: Option<common_utils::id_type::CustomerId>,
+    pub billing_descriptor: Option<common_types::payouts::PayoutsBillingDescriptor>,
 }
 
 impl Default for PayoutsUpdateInternal {
@@ -166,6 +171,7 @@ impl Default for PayoutsUpdateInternal {
             payout_type: None,
             address_id: None,
             customer_id: None,
+            billing_descriptor: None,
         }
     }
 }
@@ -189,6 +195,7 @@ impl From<PayoutsUpdate> for PayoutsUpdateInternal {
                 payout_type,
                 address_id,
                 customer_id,
+                billing_descriptor,
             } => Self {
                 amount: Some(amount),
                 destination_currency: Some(destination_currency),
@@ -205,6 +212,7 @@ impl From<PayoutsUpdate> for PayoutsUpdateInternal {
                 payout_type,
                 address_id,
                 customer_id,
+                billing_descriptor: billing_descriptor.map(|descriptor| *descriptor),
                 ..Default::default()
             },
             PayoutsUpdate::PayoutMethodIdUpdate { payout_method_id } => Self {
@@ -233,46 +241,6 @@ impl From<PayoutsUpdate> for PayoutsUpdateInternal {
 
 impl PayoutsUpdate {
     pub fn apply_changeset(self, source: Payouts) -> Payouts {
-        let PayoutsUpdateInternal {
-            amount,
-            destination_currency,
-            source_currency,
-            description,
-            recurring,
-            auto_fulfill,
-            return_url,
-            entity_type,
-            metadata,
-            payout_method_id,
-            profile_id,
-            status,
-            last_modified_at,
-            attempt_count,
-            confirm,
-            payout_type,
-            address_id,
-            customer_id,
-        } = self.into();
-        Payouts {
-            amount: amount.unwrap_or(source.amount),
-            destination_currency: destination_currency.unwrap_or(source.destination_currency),
-            source_currency: source_currency.unwrap_or(source.source_currency),
-            description: description.or(source.description),
-            recurring: recurring.unwrap_or(source.recurring),
-            auto_fulfill: auto_fulfill.unwrap_or(source.auto_fulfill),
-            return_url: return_url.or(source.return_url),
-            entity_type: entity_type.unwrap_or(source.entity_type),
-            metadata: metadata.or(source.metadata),
-            payout_method_id: payout_method_id.or(source.payout_method_id),
-            profile_id: profile_id.unwrap_or(source.profile_id),
-            status: status.unwrap_or(source.status),
-            last_modified_at,
-            attempt_count: attempt_count.unwrap_or(source.attempt_count),
-            confirm: confirm.or(source.confirm),
-            payout_type: payout_type.or(source.payout_type),
-            address_id: address_id.or(source.address_id),
-            customer_id: customer_id.or(source.customer_id),
-            ..source
-        }
+        PayoutsUpdateInternal::from(self).apply_changeset(source)
     }
 }

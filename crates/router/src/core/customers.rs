@@ -47,11 +47,6 @@ use crate::{
 
 pub const REDACTED: &str = "Redacted";
 
-pub fn generate_global_customer_id(cell_id: &str) -> String {
-    let prefix = format!("{}_cus", cell_id);
-    common_utils::generate_time_ordered_id(&prefix)
-}
-
 pub fn is_global_customer_id_format(input: &str) -> bool {
     let mut parts = input.split('_');
     match (parts.next(), parts.next(), parts.next(), parts.next()) {
@@ -283,7 +278,7 @@ impl CustomerCreateBridge for customers::CustomerRequest {
             document_details_encrypted,
             initiator.and_then(|initiator| initiator.to_created_by()),
             initiator.and_then(|initiator| initiator.to_created_by()),
-            generate_global_customer_id(&state.conf.cell_information.id),
+            id_type::GlobalCustomerId::generate(&state.conf.cell_information.id),
         ))
     }
 
@@ -635,6 +630,32 @@ pub async fn retrieve_customer(
     ))
 }
 
+#[cfg(feature = "v2")]
+#[instrument(skip(state))]
+pub async fn retrieve_customer_by_merchant_reference_id(
+    state: SessionState,
+    provider: domain::Provider,
+    merchant_reference_id: id_type::CustomerId,
+) -> errors::CustomerResponse<customers::CustomerResponse> {
+    let db = state.store.as_ref();
+
+    let response = db
+        .find_customer_by_merchant_reference_id_merchant_id(
+            &merchant_reference_id,
+            provider.get_account().get_id(),
+            provider.get_key_store(),
+            provider.get_account().storage_scheme,
+        )
+        .await
+        .switch()?;
+
+    Ok(services::ApplicationResponse::Json(
+        customers::CustomerResponse::try_from(response)
+            .change_context(errors::CustomersErrorResponse::InternalServerError)
+            .attach_printable("Failed to convert domain customer to CustomerResponse")?,
+    ))
+}
+
 #[instrument(skip(state))]
 pub async fn list_customers(
     state: SessionState,
@@ -792,9 +813,11 @@ impl CustomerDeleteBridge for id_type::GlobalCustomerId {
         {
             Ok(customer_payment_methods) => {
                 for pm in customer_payment_methods.into_iter() {
-                    delete_payment_method_by_record(db, state, platform, &profile, pm)
-                        .await
-                        .switch()?;
+                    Box::pin(delete_payment_method_by_record(
+                        db, state, platform, &profile, pm,
+                    ))
+                    .await
+                    .switch()?;
                 }
             }
             Err(error) => {
@@ -1239,7 +1262,7 @@ impl AddressStructForDbUpdate<'_> {
                             .attach_printable(format!(
                             "Failed while updating address: merchant_id: {:?}, customer_id: {:?}",
                             self.merchant_account.get_id(),
-                            self.domain_customer.customer_id
+                            self.domain_customer.get_id()
                         ))?,
                     )
                 }
@@ -1252,7 +1275,7 @@ impl AddressStructForDbUpdate<'_> {
                             self.state,
                             customer_address,
                             self.merchant_account.get_id(),
-                            &self.domain_customer.customer_id,
+                            self.domain_customer.get_id(),
                             self.key_store.key.get_inner().peek(),
                             self.merchant_account.storage_scheme,
                         )
@@ -1423,7 +1446,7 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
 
         let response = db
             .update_customer_by_customer_id_merchant_id(
-                domain_customer.customer_id.to_owned(),
+                domain_customer.get_id().to_owned(),
                 provider.get_account().get_id().to_owned(),
                 domain_customer.to_owned(),
                 storage::CustomerUpdate::Update {

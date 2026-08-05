@@ -1,5 +1,8 @@
 //! Commonly used constants
 
+/// Structured log tag for external service latency events.
+pub const EXTERNAL_CALL_TAG: &str = "ExternalCall";
+
 /// Number of characters in a generated ID
 pub const ID_LENGTH: usize = 20;
 
@@ -45,6 +48,9 @@ pub fn default_payouts_list_limit() -> u32 {
 
 /// surcharge percentage maximum precision length
 pub const SURCHARGE_PERCENTAGE_PRECISION_LENGTH: u8 = 2;
+
+/// discount percentage maximum precision length
+pub const DISCOUNT_PERCENTAGE_PRECISION_LENGTH: u8 = 2;
 
 /// installment interest rate maximum precision length
 pub const INSTALLMENT_INTEREST_RATE_PRECISION_LENGTH: u8 = 2;
@@ -141,8 +147,6 @@ pub const ROLE_ID_ORGANIZATION_ADMIN: &str = "org_admin";
 pub const ROLE_ID_INTERNAL_VIEW_ONLY_USER: &str = "internal_view_only";
 /// Role ID for Internal Admin
 pub const ROLE_ID_INTERNAL_ADMIN: &str = "internal_admin";
-/// Role ID for Internal Demo
-pub const ROLE_ID_INTERNAL_DEMO: &str = "internal_demo";
 
 /// Max length allowed for Description
 pub const MAX_DESCRIPTION_LENGTH: u16 = 255;
@@ -171,6 +175,12 @@ pub const X_FLOW_NAME: &str = "x-flow";
 
 /// Connector name
 pub const X_CONNECTOR_NAME: &str = "x-connector";
+
+/// Payment method
+pub const X_PAYMENT_METHOD: &str = "x-payment-method";
+
+/// Payment method type
+pub const X_PAYMENT_METHOD_TYPE: &str = "x-payment-method-type";
 
 /// Sub-flow name
 pub const X_SUB_FLOW_NAME: &str = "x-sub-flow";
@@ -213,6 +223,12 @@ pub const DEFAULT_CUSTOMER_ID_BLOCKING_THRESHOLD: i32 = 5;
 
 /// Default Card Testing Guard Redis Expiry in seconds
 pub const DEFAULT_CARD_TESTING_GUARD_EXPIRY_IN_SECS: i32 = 3600;
+
+/// Default status of Guest IP Blocking
+pub const DEFAULT_GUEST_IP_BLOCKING_STATUS: bool = false;
+
+/// Default Threshold for Guest IP Blocking
+pub const DEFAULT_GUEST_IP_BLOCKING_THRESHOLD: i32 = 10;
 
 /// SOAP 1.1 Envelope Namespace
 pub const SOAP_ENV_NAMESPACE: &str = "http://schemas.xmlsoap.org/soap/envelope/";

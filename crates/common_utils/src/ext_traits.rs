@@ -563,6 +563,34 @@ pub trait OptionExt<T> {
     fn update_value(&mut self, value: Option<T>);
 }
 
+/// Helper trait for the `apply_changeset` proc-macro.
+///
+/// This trait is an implementation detail and should not be used directly.
+#[doc(hidden)]
+pub trait ApplyOptionField<Target> {
+    /// Apply `self` to the given mutable reference, replacing the value
+    /// only when `self` is `Some`.
+    fn apply(self, target: &mut Target);
+}
+
+#[doc(hidden)]
+impl<T> ApplyOptionField<T> for Option<T> {
+    fn apply(self, target: &mut T) {
+        if let Some(v) = self {
+            *target = v;
+        }
+    }
+}
+
+#[doc(hidden)]
+impl<T> ApplyOptionField<Self> for Option<T> {
+    fn apply(self, target: &mut Self) {
+        if self.is_some() {
+            *target = self;
+        }
+    }
+}
+
 impl<T> OptionExt<T> for Option<T>
 where
     T: std::fmt::Debug,

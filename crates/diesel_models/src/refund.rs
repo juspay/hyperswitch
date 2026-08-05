@@ -71,6 +71,41 @@ pub struct Refund {
     pub created_by: Option<String>,
 }
 
+impl Refund {
+    pub fn construct_lookup_id_processor_merchant_id_connector_refund_id_connector(
+        processor_merchant_id: &id_type::MerchantId,
+        connector_refund_id: &str,
+        connector: &str,
+    ) -> String {
+        format!(
+            "ref_connector_{}_{}_{}",
+            processor_merchant_id.get_string_repr(),
+            connector_refund_id,
+            connector
+        )
+    }
+    pub fn construct_lookup_id_processor_merchant_id_refund_id(
+        processor_merchant_id: &id_type::MerchantId,
+        refund_id: &str,
+    ) -> String {
+        format!(
+            "ref_ref_id_{}_{}",
+            processor_merchant_id.get_string_repr(),
+            refund_id,
+        )
+    }
+    pub fn construct_lookup_id_processor_merchant_id_internal_reference_id(
+        processor_merchant_id: &id_type::MerchantId,
+        internal_reference_id: &str,
+    ) -> String {
+        format!(
+            "ref_inter_ref_{}_{}",
+            processor_merchant_id.get_string_repr(),
+            internal_reference_id,
+        )
+    }
+}
+
 #[cfg(feature = "v2")]
 #[derive(
     Clone,
@@ -312,6 +347,7 @@ pub enum RefundUpdate {
 #[cfg(feature = "v1")]
 #[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay)]
 #[diesel(table_name = refund)]
+#[router_derive::apply_changeset(target = Refund)]
 pub struct RefundUpdateInternal {
     connector_refund_id: Option<ConnectorTransactionId>,
     refund_status: Option<storage_enums::RefundStatus>,
@@ -333,6 +369,7 @@ pub struct RefundUpdateInternal {
 #[cfg(feature = "v2")]
 #[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay)]
 #[diesel(table_name = refund)]
+#[router_derive::apply_changeset(target = Refund)]
 pub struct RefundUpdateInternal {
     connector_refund_id: Option<ConnectorTransactionId>,
     refund_status: Option<storage_enums::RefundStatus>,
@@ -638,78 +675,14 @@ impl From<RefundUpdate> for RefundUpdateInternal {
 #[cfg(feature = "v1")]
 impl RefundUpdate {
     pub fn apply_changeset(self, source: Refund) -> Refund {
-        let RefundUpdateInternal {
-            connector_refund_id,
-            refund_status,
-            sent_to_gateway,
-            refund_error_message,
-            refund_arn,
-            metadata,
-            refund_reason,
-            refund_error_code,
-            updated_by,
-            modified_at: _,
-            processor_refund_data,
-            unified_code,
-            unified_message,
-            issuer_error_code,
-            issuer_error_message,
-        } = self.into();
-        Refund {
-            connector_refund_id: connector_refund_id.or(source.connector_refund_id),
-            refund_status: refund_status.unwrap_or(source.refund_status),
-            sent_to_gateway: sent_to_gateway.unwrap_or(source.sent_to_gateway),
-            refund_error_message: refund_error_message.map_or(source.refund_error_message, |v| v),
-            refund_error_code: refund_error_code.map_or(source.refund_error_code, |v| v),
-            refund_arn: refund_arn.or(source.refund_arn),
-            metadata: metadata.or(source.metadata),
-            refund_reason: refund_reason.or(source.refund_reason),
-            updated_by,
-            modified_at: common_utils::date_time::now(),
-            processor_refund_data: processor_refund_data.or(source.processor_refund_data),
-            unified_code: unified_code.or(source.unified_code),
-            unified_message: unified_message.or(source.unified_message),
-            issuer_error_code: issuer_error_code.or(source.issuer_error_code),
-            issuer_error_message: issuer_error_message.or(source.issuer_error_message),
-            ..source
-        }
+        RefundUpdateInternal::from(self).apply_changeset(source)
     }
 }
 
 #[cfg(feature = "v2")]
 impl RefundUpdate {
     pub fn apply_changeset(self, source: Refund) -> Refund {
-        let RefundUpdateInternal {
-            connector_refund_id,
-            refund_status,
-            sent_to_gateway,
-            refund_error_message,
-            refund_arn,
-            metadata,
-            refund_reason,
-            refund_error_code,
-            updated_by,
-            modified_at: _,
-            processor_refund_data,
-            unified_code,
-            unified_message,
-        } = self.into();
-        Refund {
-            connector_refund_id: connector_refund_id.or(source.connector_refund_id),
-            refund_status: refund_status.unwrap_or(source.refund_status),
-            sent_to_gateway: sent_to_gateway.unwrap_or(source.sent_to_gateway),
-            refund_error_message: refund_error_message.map_or(source.refund_error_message, |v| v),
-            refund_error_code: refund_error_code.map_or(source.refund_error_code, |v| v),
-            refund_arn: refund_arn.or(source.refund_arn),
-            metadata: metadata.or(source.metadata),
-            refund_reason: refund_reason.or(source.refund_reason),
-            updated_by,
-            modified_at: common_utils::date_time::now(),
-            processor_refund_data: processor_refund_data.or(source.processor_refund_data),
-            unified_code: unified_code.or(source.unified_code),
-            unified_message: unified_message.or(source.unified_message),
-            ..source
-        }
+        RefundUpdateInternal::from(self).apply_changeset(source)
     }
 
     pub fn build_error_update_for_unified_error_and_message(

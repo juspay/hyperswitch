@@ -75,7 +75,7 @@ generate_permissions! {
             scopes: [Read],
             entities: [Profile]
         },
-        InternalConnector: {
+        CloneConnector: {
             scopes: [Write],
             entities: [Merchant]
         },
@@ -104,6 +104,10 @@ generate_permissions! {
             entities: [Profile]
         },
         ReconRule: {
+            scopes: [Read, Write],
+            entities: [Profile]
+        },
+        SuperpositionConfig: {
             scopes: [Read, Write],
             entities: [Profile]
         },
@@ -136,13 +140,14 @@ pub fn get_resource_name(resource: Resource, entity_type: EntityType) -> Option<
         (Resource::Account, EntityType::Organization) => Some("Organization Account"),
         (Resource::Account, EntityType::Tenant) => Some("Tenant Account"),
         (Resource::Theme, _) => Some("Themes"),
-        (Resource::InternalConnector, _) => None,
+        (Resource::CloneConnector, _) => None,
         (Resource::ReconIngestion, _) => Some("Recon Ingestion Configs"),
         (Resource::ReconTransformation, _) => Some("Recon Transformation Configs"),
         (Resource::ReconException, _) => Some("Recon Exception Management"),
         (Resource::ReconStagingEntry, _) => Some("Recon Staging Entries"),
         (Resource::ReconTransaction, _) => Some("Recon Transactions"),
         (Resource::ReconRule, _) => Some("Recon Rules"),
+        (Resource::SuperpositionConfig, _) => Some("Superposition Configs"),
     }
 }
 

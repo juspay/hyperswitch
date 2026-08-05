@@ -80,6 +80,11 @@ pub enum OutgoingWebhookEventContent {
         payment_id: Option<common_utils::id_type::PaymentId>,
         content: Value,
     },
+    #[cfg(feature = "v1")]
+    Surcharge {
+        payment_id: common_utils::id_type::PaymentId,
+        attempt_id: String,
+    },
 }
 pub trait OutgoingWebhookEventMetric {
     fn get_outgoing_webhook_event_content(&self) -> Option<OutgoingWebhookEventContent>;

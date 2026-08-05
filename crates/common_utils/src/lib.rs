@@ -29,6 +29,7 @@ pub mod payout_method_utils;
 pub mod pii;
 #[allow(missing_docs)] // Todo: add docs
 pub mod request;
+pub mod request_context;
 #[cfg(feature = "signals")]
 pub mod signals;
 pub mod transformers;
@@ -72,6 +73,11 @@ pub mod date_time {
     }
 
     /// Create a new [`PrimitiveDateTime`] with the current date and time in UTC.
+    #[cfg_attr(feature = "deja", track_caller)]
+    #[cfg_attr(
+        feature = "deja",
+        deja::time(component = "common_utils", operation = "date_time::now", codec = SerdeCodec,)
+    )]
     pub fn now() -> PrimitiveDateTime {
         let utc_date_time = OffsetDateTime::now_utc();
         PrimitiveDateTime::new(utc_date_time.date(), utc_date_time.time())
@@ -83,8 +89,22 @@ pub mod date_time {
     }
 
     /// Return the UNIX timestamp of the current date and time in UTC
+    #[cfg_attr(feature = "deja", track_caller)]
+    #[cfg_attr(
+        feature = "deja",
+        deja::time(
+            component = "common_utils",
+            operation = "date_time::now_unix_timestamp",
+            codec = SerdeCodec,
+        )
+    )]
     pub fn now_unix_timestamp() -> i64 {
         OffsetDateTime::now_utc().unix_timestamp()
+    }
+
+    /// Return the UNIX timestamp in nanoseconds of the current date and time in UTC
+    pub fn now_unix_timestamp_nanos() -> i128 {
+        OffsetDateTime::now_utc().unix_timestamp_nanos()
     }
 
     /// Calculate execution time for a async block in milliseconds
@@ -107,16 +127,36 @@ pub mod date_time {
     }
 
     /// Return the current date and time in UTC with the format [year]-[month]-[day]T[hour]:[minute]:[second].mmmZ Eg: 2023-02-15T13:33:18.898Z
+    #[cfg_attr(feature = "deja", track_caller)]
+    #[cfg_attr(
+        feature = "deja",
+        deja::time(
+            component = "common_utils",
+            operation = "date_time::date_as_yyyymmddthhmmssmmmz",
+        )
+    )]
     pub fn date_as_yyyymmddthhmmssmmmz() -> Result<String, time::error::Format> {
         const ISO_CONFIG: EncodedConfig = Config::DEFAULT
             .set_time_precision(TimePrecision::Second {
                 decimal_digits: NonZeroU8::new(3),
             })
             .encode();
-        now().assume_utc().format(&Iso8601::<ISO_CONFIG>)
+        // Read the clock directly rather than via `now()`: both are instrumented seams, and
+        // nesting them would record a redundant inner event for every outer call.
+        convert_to_pdt(OffsetDateTime::now_utc())
+            .assume_utc()
+            .format(&Iso8601::<ISO_CONFIG>)
     }
 
     /// Return the current date and time in UTC formatted as "ddd, DD MMM YYYY HH:mm:ss GMT".
+    #[cfg_attr(feature = "deja", track_caller)]
+    #[cfg_attr(
+        feature = "deja",
+        deja::time(
+            component = "common_utils",
+            operation = "date_time::now_rfc7231_http_date",
+        )
+    )]
     pub fn now_rfc7231_http_date() -> Result<String, time::error::Format> {
         let now_utc = OffsetDateTime::now_utc();
         // Desired format: ddd, DD MMM YYYY HH:mm:ss GMT
@@ -224,11 +264,17 @@ pub mod date_time {
 
 /// Generate a nanoid with the given prefix and length
 #[inline]
+#[cfg_attr(feature = "deja", track_caller)]
+#[cfg_attr(
+    feature = "deja",
+    deja::id(component = "common_utils", operation = "generate_id", codec = SerdeCodec,)
+)]
 pub fn generate_id(length: usize, prefix: &str) -> String {
     format!("{}_{}", prefix, nanoid::nanoid!(length, &consts::ALPHABETS))
 }
 
 /// Generate a ReferenceId with the default length with the given prefix
+#[cfg_attr(feature = "deja", track_caller)]
 fn generate_ref_id_with_default_length<const MAX_LENGTH: u8, const MIN_LENGTH: u8>(
     prefix: &str,
 ) -> id_type::LengthId<MAX_LENGTH, MIN_LENGTH> {
@@ -236,6 +282,7 @@ fn generate_ref_id_with_default_length<const MAX_LENGTH: u8, const MIN_LENGTH: u
 }
 
 /// Generate a customer id with default length, with prefix as `cus`
+#[cfg_attr(feature = "deja", track_caller)]
 pub fn generate_customer_id_of_default_length() -> id_type::CustomerId {
     use id_type::GenerateId;
 
@@ -243,6 +290,7 @@ pub fn generate_customer_id_of_default_length() -> id_type::CustomerId {
 }
 
 /// Generate a organization id with default length, with prefix as `org`
+#[cfg_attr(feature = "deja", track_caller)]
 pub fn generate_organization_id_of_default_length() -> id_type::OrganizationId {
     use id_type::GenerateId;
 
@@ -250,6 +298,7 @@ pub fn generate_organization_id_of_default_length() -> id_type::OrganizationId {
 }
 
 /// Generate a profile id with default length, with prefix as `pro`
+#[cfg_attr(feature = "deja", track_caller)]
 pub fn generate_profile_id_of_default_length() -> id_type::ProfileId {
     use id_type::GenerateId;
 
@@ -257,12 +306,14 @@ pub fn generate_profile_id_of_default_length() -> id_type::ProfileId {
 }
 
 /// Generate a routing id with default length, with prefix as `routing`
+#[cfg_attr(feature = "deja", track_caller)]
 pub fn generate_routing_id_of_default_length() -> id_type::RoutingId {
     use id_type::GenerateId;
 
     id_type::RoutingId::generate()
 }
 /// Generate a merchant_connector_account id with default length, with prefix as `mca`
+#[cfg_attr(feature = "deja", track_caller)]
 pub fn generate_merchant_connector_account_id_of_default_length(
 ) -> id_type::MerchantConnectorAccountId {
     use id_type::GenerateId;
@@ -271,6 +322,7 @@ pub fn generate_merchant_connector_account_id_of_default_length(
 }
 
 /// Generate a profile_acquirer id with default length, with prefix as `mer_acq`
+#[cfg_attr(feature = "deja", track_caller)]
 pub fn generate_profile_acquirer_id_of_default_length() -> id_type::ProfileAcquirerId {
     use id_type::GenerateId;
 
@@ -279,6 +331,15 @@ pub fn generate_profile_acquirer_id_of_default_length() -> id_type::ProfileAcqui
 
 /// Generate a nanoid with the given prefix and a default length
 #[inline]
+#[cfg_attr(feature = "deja", track_caller)]
+#[cfg_attr(
+    feature = "deja",
+    deja::id(
+        component = "common_utils",
+        operation = "generate_id_with_default_len",
+        codec = SerdeCodec,
+    )
+)]
 pub fn generate_id_with_default_len(prefix: &str) -> String {
     let len: usize = consts::ID_LENGTH;
     format!("{}_{}", prefix, nanoid::nanoid!(len, &consts::ALPHABETS))
@@ -286,18 +347,41 @@ pub fn generate_id_with_default_len(prefix: &str) -> String {
 
 /// Generate a time-ordered (time-sortable) unique identifier using the current time
 #[inline]
+#[cfg_attr(feature = "deja", track_caller)]
+#[cfg_attr(
+    feature = "deja",
+    deja::id(
+        component = "common_utils",
+        operation = "generate_time_ordered_id",
+        codec = SerdeCodec,
+    )
+)]
 pub fn generate_time_ordered_id(prefix: &str) -> String {
     format!("{prefix}_{}", uuid::Uuid::now_v7().as_simple())
 }
 
 /// Generate a time-ordered (time-sortable) unique identifier using the current time without prefix
 #[inline]
+#[cfg_attr(feature = "deja", track_caller)]
+#[cfg_attr(
+    feature = "deja",
+    deja::id(
+        component = "common_utils",
+        operation = "generate_time_ordered_id_without_prefix",
+        codec = SerdeCodec,
+    )
+)]
 pub fn generate_time_ordered_id_without_prefix() -> String {
     uuid::Uuid::now_v7().as_simple().to_string()
 }
 
 /// Generate a nanoid with the specified length
 #[inline]
+#[cfg_attr(feature = "deja", track_caller)]
+#[cfg_attr(
+    feature = "deja",
+    deja::id(component = "common_utils", operation = "generate_id_with_len", codec = SerdeCodec,)
+)]
 pub fn generate_id_with_len(length: usize) -> String {
     nanoid::nanoid!(length, &consts::ALPHABETS)
 }
@@ -362,6 +446,15 @@ pub fn merge_json_values(
     }
 }
 
+pub use ext_traits::ApplyOptionField;
+
+/// Module for tokenization-related functionality
+///
+/// This module provides types and functions for handling tokenized payment data,
+/// including response structures and token generation utilities.
+#[cfg(all(feature = "v2", feature = "tokenization_v2"))]
+pub mod tokenization;
+
 #[cfg(test)]
 mod nanoid_tests {
     use super::*;
@@ -388,10 +481,3 @@ mod nanoid_tests {
         assert!(ref_id.is_ok())
     }
 }
-
-/// Module for tokenization-related functionality
-///
-/// This module provides types and functions for handling tokenized payment data,
-/// including response structures and token generation utilities.
-#[cfg(all(feature = "v2", feature = "tokenization_v2"))]
-pub mod tokenization;
