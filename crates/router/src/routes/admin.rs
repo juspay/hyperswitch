@@ -2,13 +2,13 @@ use actix_web::{web, HttpRequest, HttpResponse};
 use router_env::{instrument, tracing, Flow};
 
 use super::app::AppState;
+#[cfg(all(feature = "olap", feature = "v1"))]
+use crate::core::errors;
 use crate::{
     core::{admin::*, api_locking, merchant_connector_webhook_management::*},
     services::{api, authentication as auth, authorization::permissions::Permission},
     types::api::admin,
 };
-#[cfg(all(feature = "olap", feature = "v1"))]
-use crate::core::errors;
 
 #[cfg(all(feature = "olap", feature = "v1"))]
 #[instrument(skip_all, fields(flow = ?Flow::OrganizationCreate))]

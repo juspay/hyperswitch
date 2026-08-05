@@ -11,6 +11,8 @@ use hyperswitch_domain_models::payments::HeaderPayload;
 use router_env::{instrument, tracing, Flow};
 
 use super::app::AppState;
+#[cfg(all(feature = "olap", feature = "payouts"))]
+use crate::{core::api_locking::GetLockingInput, routes::lock_utils};
 use crate::{
     core::{
         api_locking::{self},
@@ -25,8 +27,6 @@ use crate::{
     },
     types::{api::payouts as payout_types, transformers::ForeignTryFrom},
 };
-#[cfg(all(feature = "olap", feature = "payouts"))]
-use crate::{core::api_locking::GetLockingInput, routes::lock_utils};
 
 /// Payouts - Create
 #[instrument(skip_all, fields(flow = ?Flow::PayoutsCreate))]
