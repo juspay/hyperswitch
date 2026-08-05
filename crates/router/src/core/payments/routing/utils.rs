@@ -207,7 +207,7 @@ where
     let closure = || async {
         let request_start = std::time::Instant::now();
         let response =
-            services::call_connector_api(state, http_request, "Decision Engine API call")
+            services::call_connector_api(state, http_request, "Decision Engine API call", None)
                 .await
                 .change_context(errors::RoutingError::OpenRouterCallFailed)?;
 
