@@ -1033,15 +1033,13 @@ pub async fn retrieve_payment_method_with_token(
             )
             .await?;
 
-            let (vault_account_number, vault_iban, vault_sort_code, vault_account_holder_name) =
-                match bank_redirect_detail {
-                    domain::BankRedirectDetail::OpenBanking {
-                        account_number,
-                        iban,
-                        sort_code,
-                        account_holder_name,
-                    } => (account_number, iban, sort_code, account_holder_name),
-                };
+            let (vault_account_number, vault_iban, vault_sort_code) = match bank_redirect_detail {
+                domain::BankRedirectDetail::OpenBanking {
+                    account_number,
+                    iban,
+                    sort_code,
+                } => (account_number, iban, sort_code),
+            };
 
             let payment_method = payment_method_info
                 .get_required_value("PaymentMethod")
@@ -1083,7 +1081,7 @@ pub async fn retrieve_payment_method_with_token(
                         account_number: vault_account_number,
                         iban: vault_iban,
                         sort_code: vault_sort_code,
-                        account_holder_name: vault_account_holder_name.or(db_account_holder_name),
+                        account_holder_name: db_account_holder_name,
                         additional_details: connector_payment_method_details.map(Secret::new),
                     },
                 )),
@@ -1393,7 +1391,45 @@ pub(crate) async fn get_payment_method_create_request(
                             Ok(default_payment_method_request)
                         }
                     }
-
+                    domain::PaymentMethodData::BankRedirect(BankRedirectData::OpenBanking {
+                        account_number,
+                        iban,
+                        sort_code,
+                        account_holder_name,
+                        additional_details: _,
+                    }) => {
+                        let payment_method_request = payment_methods::PaymentMethodCreate {
+                            payment_method: Some(payment_method),
+                            payment_method_type,
+                            payment_method_issuer: None,
+                            payment_method_issuer_code: None,
+                            #[cfg(feature = "payouts")]
+                            bank_transfer: None,
+                            #[cfg(feature = "payouts")]
+                            bank_transfer_data: None,
+                            #[cfg(feature = "payouts")]
+                            wallet: None,
+                            card: None,
+                            metadata: None,
+                            customer_id: customer_id.clone(),
+                            card_network: None,
+                            client_secret: None,
+                            payment_method_data: Some(
+                                payment_methods::PaymentMethodCreateData::BankRedirect(
+                                    payment_methods::BankRedirectData::OpenBanking {
+                                        account_number: account_number.clone(),
+                                        iban: iban.clone(),
+                                        sort_code: sort_code.clone(),
+                                        account_holder_name: account_holder_name.clone(),
+                                    },
+                                ),
+                            ),
+                            billing: payment_method_billing_address.cloned().map(From::from),
+                            connector_mandate_details: None,
+                            network_transaction_id: None,
+                        };
+                        Ok(payment_method_request)
+                    }
                     _ => Ok(default_payment_method_request),
                 }
             }

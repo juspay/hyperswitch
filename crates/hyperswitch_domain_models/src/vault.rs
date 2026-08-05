@@ -35,7 +35,6 @@ pub struct FingerprintBankRedirectData {
     account_number: Option<hyperswitch_masking::Secret<String>>,
     sort_code: Option<hyperswitch_masking::Secret<String>>,
     iban: Option<hyperswitch_masking::Secret<String>>,
-    account_holder_name: Option<hyperswitch_masking::Secret<String>>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -270,43 +269,19 @@ impl PaymentMethodVaultingData {
                     iban,
                     account_number,
                     sort_code,
-                    account_holder_name,
                 } = bank_redirect.clone();
                 payment_method_data::PaymentMethodsData::BankRedirect(
                     payment_method_data::BankRedirectDetailsPaymentMethod::OpenBanking {
                         masked_iban: iban.map(|iban| {
-                            iban.peek()
-                                .chars()
-                                .rev()
-                                .take(4)
-                                .collect::<String>()
-                                .chars()
-                                .rev()
-                                .collect::<String>()
+                            common_utils::new_type::mask_sensitive_field(iban.peek(), 4)
                         }),
                         masked_account_number: account_number.map(|account_number| {
-                            account_number
-                                .peek()
-                                .chars()
-                                .rev()
-                                .take(4)
-                                .collect::<String>()
-                                .chars()
-                                .rev()
-                                .collect::<String>()
+                            common_utils::new_type::mask_sensitive_field(account_number.peek(), 4)
                         }),
                         masked_sort_code: sort_code.map(|sort_code| {
-                            sort_code
-                                .peek()
-                                .chars()
-                                .rev()
-                                .take(4)
-                                .collect::<String>()
-                                .chars()
-                                .rev()
-                                .collect::<String>()
+                            common_utils::new_type::mask_sensitive_field(sort_code.peek(), 4)
                         }),
-                        account_holder_name,
+                        account_holder_name: None,
                     },
                 )
             }
@@ -357,12 +332,10 @@ impl PaymentMethodVaultingData {
                     iban,
                     account_number,
                     sort_code,
-                    account_holder_name,
                 } => FingerprintData::BankRedirect(FingerprintBankRedirectData {
                     iban: iban.clone(),
                     account_number: account_number.clone(),
                     sort_code: sort_code.clone(),
-                    account_holder_name: account_holder_name.clone(),
                 }),
             },
         }

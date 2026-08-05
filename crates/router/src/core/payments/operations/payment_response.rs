@@ -74,11 +74,11 @@ use crate::{
 #[cfg(feature = "v1")]
 async fn persist_pm_update_from_psync(
     state: SessionState,
-    provider: domain::Provider,
-    initiator: Option<domain::Initiator>,
+    platform: domain::Platform,
     payment_method_id: &str,
     merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     update: &hyperswitch_domain_models::payment_method_data::PaymentMethodData,
+    business_profile: &domain::Profile,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
     match update {
         hyperswitch_domain_models::payment_method_data::PaymentMethodData::BankRedirect(
@@ -86,11 +86,11 @@ async fn persist_pm_update_from_psync(
         ) => {
             payment_methods::cards::create_or_update_bank_redirect_payment_method(
                 state,
-                provider,
-                initiator,
+                platform,
                 payment_method_id,
                 merchant_connector_id,
                 bank_redirect_update.clone(),
+                business_profile.clone(),
             )
             .await
         }
@@ -1087,7 +1087,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
         resp: &types::RouterData<F, types::PaymentsSyncData, types::PaymentsResponseData>,
         platform: &domain::Platform,
         payment_data: &mut PaymentData<F>,
-        _business_profile: &domain::Profile,
+        business_profile: &domain::Profile,
         _dimensions: &DimensionsWithProcessorAndProviderMerchantId,
     ) -> CustomResult<(), errors::ApiErrorResponse>
     where
@@ -1140,11 +1140,11 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
             ) {
                 if let Err(error) = Box::pin(persist_pm_update_from_psync(
                     state.clone(),
-                    platform.get_provider().clone(),
-                    platform.get_initiator().cloned(),
+                    platform.clone(),
                     payment_method_id.as_str(),
                     payment_data.payment_attempt.merchant_connector_id.clone(),
                     pm_update,
+                    business_profile,
                 ))
                 .await
                 {

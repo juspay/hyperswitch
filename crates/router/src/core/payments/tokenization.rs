@@ -89,7 +89,7 @@ pub async fn save_network_token_details_in_nt_mapper(
 }
 
 #[cfg(feature = "v1")]
-async fn save_in_locker(
+pub async fn save_in_locker(
     state: &SessionState,
     platform: &domain::Platform,
     payment_method_request: api::PaymentMethodCreate,

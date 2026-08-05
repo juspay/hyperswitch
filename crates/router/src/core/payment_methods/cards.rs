@@ -68,9 +68,11 @@ use super::surcharge_decision_configs::{
 use super::tokenize::NetworkTokenizationProcess;
 #[cfg(feature = "v1")]
 use crate::core::payment_methods::{
-    add_payment_method_status_update_task, tokenize,
+    add_payment_method_status_update_task, tokenize, get_payment_method_create_request, 
     utils::{get_merchant_pm_filter_graph, make_pm_graph, refresh_pm_filters_cache},
 };
+#[cfg(feature = "v1")]
+use crate::core::payments::tokenization;
 #[cfg(feature = "v1")]
 use crate::routes::app::SessionStateInfo;
 #[cfg(feature = "payouts")]
@@ -3066,14 +3068,17 @@ pub async fn update_customer_payment_method(
 #[cfg(feature = "v1")]
 pub async fn create_or_update_bank_redirect_payment_method(
     state: routes::SessionState,
-    provider: domain::Provider,
-    initiator: Option<domain::Initiator>,
+    platform: domain::Platform,
     payment_method_id: &str,
     merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
     bank_redirect_update: hyperswitch_domain_models::payment_method_data::BankRedirectData,
+    business_profile: Profile,
 ) -> errors::CustomResult<(), errors::ApiErrorResponse> {
     let db = state.store.as_ref();
     let key_manager_state = (&state).into();
+    
+    let provider = platform.get_provider().clone();
+    let initiator = platform.get_initiator().cloned();
 
     let pm = db
         .find_payment_method(
@@ -3084,176 +3089,122 @@ pub async fn create_or_update_bank_redirect_payment_method(
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
 
-    if pm.payment_method != Some(common_enums::PaymentMethod::BankRedirect) {
-        return Err(report!(errors::ApiErrorResponse::InvalidRequestData {
-            message: "Payment method is not a BankRedirect type".to_string(),
-        }));
-    }
+        let payment_method_data =
+            domain::PaymentMethodData::BankRedirect(bank_redirect_update.clone());
 
-    let customer_id = pm
-        .customer_id
-        .clone()
-        .get_required_value("customer_id")
-        .change_context(errors::ApiErrorResponse::InternalServerError)?;
+        match bank_redirect_update {
+            hyperswitch_domain_models::payment_method_data::BankRedirectData::OpenBanking {
+                account_number,
+                iban,
+                sort_code,
+                account_holder_name,
+                additional_details,
+            } => {
+                // Use the standardized helper function to build PaymentMethodCreate request
+                let pm_create_req = get_payment_method_create_request(
+                    Some(&payment_method_data),
+                    pm.payment_method,
+                    pm.payment_method_type,
+                    &pm.customer_id,
+                    None,
+                    None,
+                )
+                .await?;
 
-    let hyperswitch_domain_models::payment_method_data::BankRedirectData::OpenBanking {
-        account_number,
-        iban,
-        sort_code,
-        account_holder_name,
-        additional_details,
-    } = bank_redirect_update
-    else {
-        return Err(report!(errors::ApiErrorResponse::InvalidRequestData {
-            message: "Payment method type is not OpenBanking type".to_string(),
-        }));
-    };
+                // Vault the bank redirect data using save_in_locker (supports external vault routing)
+                let (vault_resp, _dup_check) = tokenization::save_in_locker(
+                    &state,
+                    &platform,
+                    pm_create_req,
+                    None, // card_detail not needed for bank redirect
+                    &business_profile,
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to vault bank redirect data")?;
 
-    let bank_redirect_data = api_models::payment_methods::BankRedirectData::OpenBanking {
-        account_number: account_number.clone(),
-        iban: iban.clone(),
-        sort_code: sort_code.clone(),
-        account_holder_name: account_holder_name.clone(),
-    };
+                let locker_id = vault_resp.payment_method_id.clone();
+                let locker_fingerprint_id = vault_resp.locker_fingerprint_id.clone();
 
-    // Build a minimal PaymentMethodCreate for the locker call
-    let pm_create_req = api::PaymentMethodCreate {
-        payment_method: pm.payment_method,
-        payment_method_type: pm.payment_method_type,
-        payment_method_issuer: pm.payment_method_issuer.clone(),
-        payment_method_issuer_code: pm.payment_method_issuer_code,
-        #[cfg(feature = "payouts")]
-        bank_transfer: None,
-        #[cfg(feature = "payouts")]
-        bank_transfer_data: None,
-        card: None,
-        #[cfg(feature = "payouts")]
-        wallet: None,
-        metadata: None,
-        customer_id: pm.customer_id.clone(),
-        client_secret: pm.client_secret.clone(),
-        payment_method_data: None,
-        card_network: None,
-        billing: None,
-        connector_mandate_details: None,
-        network_transaction_id: None,
-    };
+                let masked_iban =
+                    iban.map(|iban| common_utils::new_type::mask_sensitive_field(iban.peek(), 4));
+                let masked_account_number = account_number.map(|account_number| {
+                    common_utils::new_type::mask_sensitive_field(account_number.peek(), 4)
+                });
+                let masked_sort_code = sort_code.map(|sort_code| {
+                    common_utils::new_type::mask_sensitive_field(sort_code.peek(), 4)
+                });
 
-    let cards = PmCards {
-        state: &state,
-        provider: &provider,
-    };
+                let updated_pmd = domain::PaymentMethodsData::BankRedirect(
+                    domain::BankRedirectDetailsPaymentMethod::OpenBanking {
+                        masked_account_number,
+                        masked_iban,
+                        masked_sort_code,
+                        account_holder_name,
+                    },
+                );
 
-    // Vault the bank redirect data and get locker reference
-    let (vault_resp, _dup_check) = cards
-        .add_bank_redirect_to_locker(
-            pm_create_req,
-            bank_redirect_data,
-            provider.get_key_store(),
-            &customer_id,
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to vault bank redirect data")?;
+                let pm_data_encrypted: crypto::OptionalEncryptableValue = Some(
+                    core_utils::create_encrypted_data(
+                        &key_manager_state,
+                        provider.get_key_store(),
+                        updated_pmd,
+                        type_name!(payment_method::PaymentMethod),
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Unable to encrypt bank redirect payment method data")?,
+                );
 
-    let locker_id = vault_resp.payment_method_id.clone();
-    let locker_fingerprint_id = vault_resp.locker_fingerprint_id.clone();
+                let connector_payment_method_details = merchant_connector_id
+                    .zip(additional_details)
+                    .map(|(mca_id, details)| {
+                        Secret::new(serde_json::json!({
+                            mca_id.get_string_repr(): details.expose()
+                        }))
+                    });
 
-    let masked_iban = iban.map(|iban| {
-        iban.peek()
-            .chars()
-            .rev()
-            .take(4)
-            .collect::<String>()
-            .chars()
-            .rev()
-            .collect::<String>()
-    });
-    let masked_account_number = account_number.map(|account_number| {
-        account_number
-            .peek()
-            .chars()
-            .rev()
-            .take(4)
-            .collect::<String>()
-            .chars()
-            .rev()
-            .collect::<String>()
-    });
-    let masked_sort_code = sort_code.map(|sort_code| {
-        sort_code
-            .peek()
-            .chars()
-            .rev()
-            .take(4)
-            .collect::<String>()
-            .chars()
-            .rev()
-            .collect::<String>()
-    });
+                // Update both the payment_method_data and locker_id in the DB
+                let pm_update = storage::PaymentMethodUpdate::AdditionalDataUpdate {
+                    payment_method_data: pm_data_encrypted.map(Into::into),
+                    locker_id: Some(locker_id),
+                    locker_fingerprint_id,
+                    status: Some(common_enums::PaymentMethodStatus::Active),
+                    payment_method: pm.payment_method,
+                    payment_method_type: pm.payment_method_type,
+                    payment_method_issuer: pm.payment_method_issuer.clone(),
+                    network_token_requestor_reference_id: None,
+                    network_token_locker_id: None,
+                    network_token_payment_method_data: None,
+                    last_modified_by: initiator
+                        .and_then(|initiator| initiator.to_created_by())
+                        .map(|last_modified_by| last_modified_by.to_string()),
+                    metadata: None,
+                    last_used_at: Some(common_utils::date_time::now()),
+                    connector_mandate_details: None,
+                    network_tokenization_data: None,
+                    connector_payment_method_details: Box::new(connector_payment_method_details),
+                };
 
-    let updated_pmd = domain::PaymentMethodsData::BankRedirect(
-        domain::BankRedirectDetailsPaymentMethod::OpenBanking {
-            masked_account_number,
-            masked_iban,
-            masked_sort_code,
-            account_holder_name,
-        },
-    );
+                db.update_payment_method(
+                    provider.get_key_store(),
+                    pm,
+                    pm_update,
+                    provider.get_account().storage_scheme,
+                    None,
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable(
+                    "Failed to update payment method with bank redirect data and locker_id",
+                )?;
 
-    let pm_data_encrypted: crypto::OptionalEncryptableValue = Some(
-        core_utils::create_encrypted_data(
-            &key_manager_state,
-            provider.get_key_store(),
-            updated_pmd,
-            type_name!(payment_method::PaymentMethod),
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Unable to encrypt bank redirect payment method data")?,
-    );
-
-    let connector_payment_method_details = merchant_connector_id
-        .zip(additional_details)
-        .map(|(mca_id, details)| {
-            serde_json::json!({ mca_id.get_string_repr().to_string(): details.expose() })
-        })
-        .map(Secret::new);
-
-    // Update both the payment_method_data and locker_id in the DB
-    let pm_update = storage::PaymentMethodUpdate::AdditionalDataUpdate {
-        payment_method_data: pm_data_encrypted.map(Into::into),
-        locker_id: Some(locker_id),
-        locker_fingerprint_id,
-        status: Some(common_enums::PaymentMethodStatus::Active),
-        payment_method: pm.payment_method,
-        payment_method_type: pm.payment_method_type,
-        payment_method_issuer: pm.payment_method_issuer.clone(),
-        network_token_requestor_reference_id: None,
-        network_token_locker_id: None,
-        network_token_payment_method_data: None,
-        last_modified_by: initiator
-            .and_then(|initiator| initiator.to_created_by())
-            .map(|last_modified_by| last_modified_by.to_string()),
-        metadata: None,
-        last_used_at: Some(common_utils::date_time::now()),
-        connector_mandate_details: None,
-        network_tokenization_data: None,
-        connector_payment_method_details: Box::new(connector_payment_method_details),
-    };
-
-    db.update_payment_method(
-        provider.get_key_store(),
-        pm,
-        pm_update,
-        provider.get_account().storage_scheme,
-        None,
-    )
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Failed to update payment method with bank redirect data and locker_id")?;
-
-    Ok(())
+                Ok(())
+            }
+            _ => Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+                message: "Payment method type is not OpenBanking type".to_string(),
+            })),
+        }
 }
 
 #[cfg(feature = "v1")]
@@ -6906,25 +6857,27 @@ pub async fn get_pm_list_context_for_bank_redirect(
 
     match payment_method_data {
         Some(domain::PaymentMethodsData::BankRedirect(_)) => {
-            if let Some(mcas) = merchant_connector_accounts {
-                if !is_eligible_for_saved_flow(pm, profile_id, mcas, pre_routing_results) {
-                    return Ok(None);
-                }
-            }
-
-            let token_data = PaymentTokenData::BankRedirect(storage::BankRedirectTokenData {
-                payment_method_id: pm.payment_method_id.clone(),
-                locker_id: pm.locker_id.clone(),
+            let is_eligible = merchant_connector_accounts.map_or(true, |mcas| {
+                is_eligible_for_saved_flow(pm, profile_id, mcas, pre_routing_results)
             });
 
-            Ok(Some(PaymentMethodListContext {
-                card_details: None,
-                #[cfg(feature = "payouts")]
-                bank_transfer_details: None,
-                #[cfg(feature = "payouts")]
-                wallet_details: None,
-                hyperswitch_token_data: is_payment_associated.then_some(token_data),
-            }))
+            if is_eligible {
+                let token_data = PaymentTokenData::BankRedirect(storage::BankRedirectTokenData {
+                    payment_method_id: pm.payment_method_id.clone(),
+                    locker_id: pm.locker_id.clone(),
+                });
+
+                Ok(Some(PaymentMethodListContext {
+                    card_details: None,
+                    #[cfg(feature = "payouts")]
+                    bank_transfer_details: None,
+                    #[cfg(feature = "payouts")]
+                    wallet_details: None,
+                    hyperswitch_token_data: is_payment_associated.then_some(token_data),
+                }))
+            } else {
+                Ok(None)
+            }
         }
         Some(_) => Err(errors::ApiErrorResponse::UnprocessableEntity {
             message: "Payment method data is not bank redirect".to_string(),

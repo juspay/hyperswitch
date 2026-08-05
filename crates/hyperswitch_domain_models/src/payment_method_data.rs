@@ -1274,37 +1274,13 @@ impl BankRedirectData {
                 account_holder_name,
                 additional_details: _,
             } => Some(BankRedirectDetailsPaymentMethod::OpenBanking {
-                masked_iban: iban.map(|iban| {
-                    iban.peek()
-                        .chars()
-                        .rev()
-                        .take(4)
-                        .collect::<String>()
-                        .chars()
-                        .rev()
-                        .collect::<String>()
-                }),
+                masked_iban: iban
+                    .map(|iban| common_utils::new_type::mask_sensitive_field(iban.peek(), 4)),
                 masked_account_number: account_number.map(|account_number| {
-                    account_number
-                        .peek()
-                        .chars()
-                        .rev()
-                        .take(4)
-                        .collect::<String>()
-                        .chars()
-                        .rev()
-                        .collect::<String>()
+                    common_utils::new_type::mask_sensitive_field(account_number.peek(), 4)
                 }),
                 masked_sort_code: sort_code.map(|sort_code| {
-                    sort_code
-                        .peek()
-                        .chars()
-                        .rev()
-                        .take(4)
-                        .collect::<String>()
-                        .chars()
-                        .rev()
-                        .collect::<String>()
+                    common_utils::new_type::mask_sensitive_field(sort_code.peek(), 4)
                 }),
                 account_holder_name,
             }),
@@ -1559,24 +1535,14 @@ impl BankDebitData {
                 bank_type,
                 bank_holder_type,
             } => Some(BankDebitDetailsPaymentMethod::AchBankDebit {
-                masked_account_number: account_number
-                    .peek()
-                    .chars()
-                    .rev()
-                    .take(4)
-                    .collect::<String>()
-                    .chars()
-                    .rev()
-                    .collect::<String>(),
-                masked_routing_number: routing_number
-                    .peek()
-                    .chars()
-                    .rev()
-                    .take(4)
-                    .collect::<String>()
-                    .chars()
-                    .rev()
-                    .collect::<String>(),
+                masked_account_number: common_utils::new_type::mask_sensitive_field(
+                    account_number.peek(),
+                    4,
+                ),
+                masked_routing_number: common_utils::new_type::mask_sensitive_field(
+                    routing_number.peek(),
+                    4,
+                ),
                 bank_account_holder_name,
                 bank_name,
                 bank_type,
@@ -1620,29 +1586,17 @@ pub enum BankDebitDetail {
 impl BankDebitDetail {
     pub fn get_masked_account_number(&self) -> String {
         match self {
-            Self::Ach { account_number, .. } => account_number
-                .peek()
-                .chars()
-                .rev()
-                .take(4)
-                .collect::<String>()
-                .chars()
-                .rev()
-                .collect::<String>(),
+            Self::Ach { account_number, .. } => {
+                common_utils::new_type::mask_sensitive_field(account_number.peek(), 4)
+            }
         }
     }
 
     pub fn get_masked_routing_number(&self) -> String {
         match self {
-            Self::Ach { routing_number, .. } => routing_number
-                .peek()
-                .chars()
-                .rev()
-                .take(4)
-                .collect::<String>()
-                .chars()
-                .rev()
-                .collect::<String>(),
+            Self::Ach { routing_number, .. } => {
+                common_utils::new_type::mask_sensitive_field(routing_number.peek(), 4)
+            }
         }
     }
 }
@@ -1787,7 +1741,6 @@ pub enum BankRedirectDetail {
         iban: Option<Secret<String>>,
         account_number: Option<Secret<String>>,
         sort_code: Option<Secret<String>>,
-        account_holder_name: Option<Secret<String>>,
     },
 }
 
@@ -1799,12 +1752,11 @@ impl From<payment_methods::BankRedirectData> for BankRedirectDetail {
                 iban,
                 account_number,
                 sort_code,
-                account_holder_name,
+                account_holder_name: _,
             } => Self::OpenBanking {
                 iban,
                 account_number,
                 sort_code,
-                account_holder_name,
             },
         }
     }
@@ -1817,13 +1769,12 @@ impl From<BankRedirectDetailsPaymentMethod> for BankRedirectDetail {
             BankRedirectDetailsPaymentMethod::OpenBanking {
                 masked_account_number,
                 masked_sort_code,
-                account_holder_name,
+                account_holder_name: _,
                 masked_iban,
             } => Self::OpenBanking {
                 account_number: masked_account_number.map(Secret::new),
                 iban: masked_iban.map(Secret::new),
                 sort_code: masked_sort_code.map(Secret::new),
-                account_holder_name,
             },
         }
     }
