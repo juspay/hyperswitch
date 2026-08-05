@@ -503,7 +503,6 @@ pub struct SepaBankTransfer {
     pub account_holder_name: Option<Secret<String>>,
 }
 
-
 #[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
 pub struct PixBankTransfer {
     /// Bank name

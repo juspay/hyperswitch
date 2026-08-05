@@ -628,9 +628,7 @@ impl TryFrom<&hyperswitch_domain_models::router_data::ConnectorAuthType>
                 certificates: certificate.to_owned(),
                 private_key: private_key.to_owned(),
             }),
-            _ => Err(
-                hyperswitch_interfaces::errors::ConnectorError::FailedToObtainAuthType.into(),
-            ),
+            _ => Err(hyperswitch_interfaces::errors::ConnectorError::FailedToObtainAuthType.into()),
         }
     }
 }
@@ -655,9 +653,11 @@ impl TryFrom<&Option<common_utils::pii::SecretSerdeValue>> for SantanderPayoutMe
         meta_data: &Option<common_utils::pii::SecretSerdeValue>,
     ) -> Result<Self, Self::Error> {
         let metadata = crate::utils::to_connector_meta_from_secret::<Self>(meta_data.clone())
-            .change_context(hyperswitch_interfaces::errors::ConnectorError::InvalidConnectorConfig {
-                config: "metadata",
-            })?;
+            .change_context(
+                hyperswitch_interfaces::errors::ConnectorError::InvalidConnectorConfig {
+                    config: "metadata",
+                },
+            )?;
         Ok(metadata)
     }
 }

@@ -1651,36 +1651,44 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                 }),
                 _ => Err(err("Givepayments requires HeaderKey auth type")),
             },
-            Connector::Santander => match auth {
-                ConnectorAuthType::CertificateAuth {
-                    certificate,
-                    private_key,
-                } => {
-                    let pix_payout = metadata
-                        .and_then(|m| serde_json::from_value::<SantanderPayoutMetadata>(m.clone()).ok())
-                        .and_then(|m| m.pix_payout);
-                    let client_id = pix_payout
-                        .as_ref()
-                        .and_then(|p| p.client_id.clone())
-                        .ok_or_else(|| err("Santander payout requires client_id in pix_payout metadata"))?;
-                    let client_secret = pix_payout
+            Connector::Santander => {
+                match auth {
+                    ConnectorAuthType::CertificateAuth {
+                        certificate,
+                        private_key,
+                    } => {
+                        let pix_payout = metadata
+                            .and_then(|m| {
+                                serde_json::from_value::<SantanderPayoutMetadata>(m.clone()).ok()
+                            })
+                            .and_then(|m| m.pix_payout);
+                        let client_id = pix_payout
+                            .as_ref()
+                            .and_then(|p| p.client_id.clone())
+                            .ok_or_else(|| {
+                                err("Santander payout requires client_id in pix_payout metadata")
+                            })?;
+                        let client_secret = pix_payout
                         .as_ref()
                         .and_then(|p| p.client_secret.clone())
                         .ok_or_else(|| err("Santander payout requires client_secret in pix_payout metadata"))?;
-                    let workspace_id = pix_payout
-                        .as_ref()
-                        .and_then(|p| p.workspace_id.clone())
-                        .ok_or_else(|| err("Santander payout requires workspace_id in pix_payout metadata"))?;
-                    Ok(Self::Santander {
-                        certificates: certificate.clone(),
-                        private_key: private_key.clone(),
-                        client_id,
-                        client_secret,
-                        workspace_id,
-                    })
+                        let workspace_id = pix_payout
+                            .as_ref()
+                            .and_then(|p| p.workspace_id.clone())
+                            .ok_or_else(|| {
+                                err("Santander payout requires workspace_id in pix_payout metadata")
+                            })?;
+                        Ok(Self::Santander {
+                            certificates: certificate.clone(),
+                            private_key: private_key.clone(),
+                            client_id,
+                            client_secret,
+                            workspace_id,
+                        })
+                    }
+                    _ => Err(err("Santander payout requires CertificateAuth auth type")),
                 }
-                _ => Err(err("Santander payout requires CertificateAuth auth type")),
-            },
+            }
             // --- Unsupported connectors ---
             _ => Err(
                 error_stack::report!(errors::ApiErrorResponse::InternalServerError)
