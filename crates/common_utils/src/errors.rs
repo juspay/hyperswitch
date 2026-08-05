@@ -136,7 +136,7 @@ pub enum PercentageError {
     #[error("Failed apply percentage of {percentage} on {amount}")]
     UnableToApplyPercentage {
         /// percentage value
-        percentage: f32,
+        percentage: f64,
         /// amount value
         amount: MinorUnit,
     },

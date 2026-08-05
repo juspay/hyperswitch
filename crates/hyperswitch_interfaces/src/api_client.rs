@@ -4,6 +4,8 @@ use std::{
 };
 
 use common_enums::{ApiClientError, PaymentMethod, PaymentMethodType};
+#[cfg(feature = "ext_services_latency")]
+use common_utils::consts::EXTERNAL_CALL_TAG;
 use common_utils::{
     consts::{
         X_CONNECTOR_NAME, X_FLOW_NAME, X_PAYMENT_METHOD, X_PAYMENT_METHOD_TYPE, X_REQUEST_ID,
@@ -497,10 +499,28 @@ pub async fn call_connector_api(
     let current_time = Instant::now();
     let headers = request.headers.clone();
     let url = request.url.clone();
+    #[cfg(feature = "ext_services_latency")]
+    let method = request.method.to_string();
     let response = state
         .get_api_client()
         .send_request(state, request, None, true)
         .await;
+
+    #[cfg(feature = "ext_services_latency")]
+    if let Ok(resp) = response.as_ref() {
+        let downstream_request_id = resp
+            .headers()
+            .get(X_REQUEST_ID)
+            .and_then(|value| value.to_str().ok());
+        logger::info!(
+            tag = EXTERNAL_CALL_TAG,
+            operation = flow_name,
+            method,
+            status_code = resp.status().as_u16(),
+            latency_ms = current_time.elapsed().as_secs_f64() * 1000.0,
+            downstream_request_id,
+        );
+    }
 
     match response.as_ref() {
         Ok(resp) => {

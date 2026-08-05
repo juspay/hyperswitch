@@ -4,6 +4,7 @@ use hyperswitch_interfaces::secrets_interface::{
     secret_state::{RawSecret, SecretStateContainer, SecuredSecret},
     SecretManagementInterface, SecretsManagementError,
 };
+use hyperswitch_masking::PeekInterface;
 
 use crate::settings::{self, Settings};
 
@@ -630,6 +631,18 @@ pub(crate) async fn fetch_raw_secrets(
         None
     };
 
+    #[allow(clippy::expect_used)]
+    let open_router = {
+        let mut open_router = conf.open_router;
+        if !open_router.admin_secret.peek().is_empty() {
+            open_router.admin_secret = secret_management_client
+                .get_secret(open_router.admin_secret)
+                .await
+                .expect("Failed to decrypt open router admin secret");
+        }
+        open_router
+    };
+
     Settings {
         server: conf.server,
         application_source: conf.application_source,
@@ -734,7 +747,7 @@ pub(crate) async fn fetch_raw_secrets(
         platform: conf.platform,
         l2_l3_data_config: conf.l2_l3_data_config,
         authentication_providers: conf.authentication_providers,
-        open_router: conf.open_router,
+        open_router,
         #[cfg(feature = "v2")]
         revenue_recovery: conf.revenue_recovery,
         merchant_advice_codes: conf.merchant_advice_codes,
