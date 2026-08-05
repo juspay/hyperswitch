@@ -531,6 +531,7 @@ export const CONNECTOR_LISTS = {
       "loonio",
       "mifinity",
       "nexinets",
+      "nexixpay",
       "nmi",
       "noon",
       "novalnet",
