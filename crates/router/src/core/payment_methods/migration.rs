@@ -381,6 +381,8 @@ pub async fn update_payment_method_record(
             payment_method,
             pm_update,
             platform.get_provider().get_account().storage_scheme,
+            // Migration writes are explicit one-off transforms and must not enqueue compat PTs.
+            None,
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)

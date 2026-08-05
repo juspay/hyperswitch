@@ -289,6 +289,8 @@ fn get_stripe_event_type(event_type: api_models::enums::EventType) -> &'static s
         api_models::enums::EventType::DisputeLost => "dispute.lost",
         api_models::enums::EventType::MandateActive => "mandate.active",
         api_models::enums::EventType::MandateRevoked => "mandate.revoked",
+        api_models::enums::EventType::SurchargePaymentSucceeded => "surcharge_payment.succeeded",
+        api_models::enums::EventType::SurchargeRefundSucceeded => "surcharge_refund.succeeded",
 
         // as per this doc https://stripe.com/docs/api/events/types#event_types-payment_intent.amount_capturable_updated
         api_models::enums::EventType::PaymentAuthorized => {
@@ -304,9 +306,6 @@ fn get_stripe_event_type(event_type: api_models::enums::EventType) -> &'static s
         api_models::enums::EventType::PayoutExpired => "payout.failed",
         api_models::enums::EventType::PayoutReversed => "payout.reconciliation_completed",
         api_models::enums::EventType::InvoicePaid => "invoice.paid",
-        // surcharge events
-        api_models::enums::EventType::SurchargePaymentSucceeded => "surcharge_payment.succeeded",
-        api_models::enums::EventType::SurchargeRefundSucceeded => "surcharge_refund.succeeded",
     }
 }
 

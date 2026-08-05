@@ -2463,6 +2463,8 @@ pub async fn create_recipient_disburse_account(
                             pm_method,
                             pm_update,
                             platform.get_processor().get_account().storage_scheme,
+                            // Payout payment method writes are outside PM modular card compat.
+                            None,
                         )
                         .await
                         .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
@@ -2975,6 +2977,7 @@ pub async fn response_handler(
         business_country: payout_attempt.business_country,
         business_label: payout_attempt.business_label,
         description: payouts.description.to_owned(),
+        billing_descriptor: payouts.billing_descriptor.to_owned(),
         entity_type: payouts.entity_type.to_owned(),
         recurring: payouts.recurring,
         metadata: payouts.metadata.clone(),
@@ -3142,6 +3145,7 @@ pub async fn payout_create_db_entries(
         destination_currency: currency,
         source_currency: currency,
         description: req.description.to_owned(),
+        billing_descriptor: req.billing_descriptor.to_owned(),
         recurring: req.recurring.unwrap_or(false),
         auto_fulfill: req.auto_fulfill.unwrap_or(false),
         return_url: req.return_url.to_owned(),

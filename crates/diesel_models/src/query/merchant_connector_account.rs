@@ -170,6 +170,51 @@ impl MerchantConnectorAccount {
         )
         .await
     }
+
+    pub async fn list_merchant_connector_accounts_without_encrypted_including_disabled_by_merchant_id_profile_id(
+        conn: &PgPooledConn,
+        merchant_id: &common_utils::id_type::MerchantId,
+        profile_id: &common_utils::id_type::ProfileId,
+    ) -> StorageResult<Vec<Self>> {
+        generics::generic_filter::<
+            <Self as HasTable>::Table,
+            _,
+            <<Self as HasTable>::Table as Table>::PrimaryKey,
+            _,
+        >(
+            conn,
+            dsl::merchant_id
+                .eq(merchant_id.to_owned())
+                .and(dsl::profile_id.eq(profile_id.to_owned())),
+            None,
+            None,
+            None,
+        )
+        .await
+    }
+
+    pub async fn list_enabled_merchant_connector_accounts_without_encrypted_by_merchant_id_profile_id(
+        conn: &PgPooledConn,
+        merchant_id: &common_utils::id_type::MerchantId,
+        profile_id: &common_utils::id_type::ProfileId,
+    ) -> StorageResult<Vec<Self>> {
+        generics::generic_filter::<
+            <Self as HasTable>::Table,
+            _,
+            <<Self as HasTable>::Table as Table>::PrimaryKey,
+            _,
+        >(
+            conn,
+            dsl::merchant_id
+                .eq(merchant_id.to_owned())
+                .and(dsl::profile_id.eq(profile_id.to_owned()))
+                .and(dsl::disabled.eq(false)),
+            None,
+            None,
+            None,
+        )
+        .await
+    }
 }
 
 #[cfg(feature = "v2")]
@@ -256,6 +301,51 @@ impl MerchantConnectorAccount {
             None,
             None,
             Some(dsl::created_at.asc()),
+        )
+        .await
+    }
+
+    pub async fn list_merchant_connector_accounts_without_encrypted_including_disabled_by_merchant_id_profile_id(
+        conn: &PgPooledConn,
+        merchant_id: &common_utils::id_type::MerchantId,
+        profile_id: &common_utils::id_type::ProfileId,
+    ) -> StorageResult<Vec<Self>> {
+        generics::generic_filter::<
+            <Self as HasTable>::Table,
+            _,
+            <<Self as HasTable>::Table as Table>::PrimaryKey,
+            _,
+        >(
+            conn,
+            dsl::merchant_id
+                .eq(merchant_id.to_owned())
+                .and(dsl::profile_id.eq(profile_id.to_owned())),
+            None,
+            None,
+            None,
+        )
+        .await
+    }
+
+    pub async fn list_enabled_merchant_connector_accounts_without_encrypted_by_merchant_id_profile_id(
+        conn: &PgPooledConn,
+        merchant_id: &common_utils::id_type::MerchantId,
+        profile_id: &common_utils::id_type::ProfileId,
+    ) -> StorageResult<Vec<Self>> {
+        generics::generic_filter::<
+            <Self as HasTable>::Table,
+            _,
+            <<Self as HasTable>::Table as Table>::PrimaryKey,
+            _,
+        >(
+            conn,
+            dsl::merchant_id
+                .eq(merchant_id.to_owned())
+                .and(dsl::profile_id.eq(profile_id.to_owned()))
+                .and(dsl::disabled.eq(false)),
+            None,
+            None,
+            None,
         )
         .await
     }

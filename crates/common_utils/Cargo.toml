@@ -13,6 +13,7 @@ keymanager = ["dep:router_env"]
 keymanager_mtls = ["reqwest/rustls-tls"]
 encryption_service = ["dep:router_env"]
 km_forward_x_request_id = ["dep:router_env", "router_env/actix_web"]
+ext_services_latency = ["dep:router_env"]
 signals = ["dep:signal-hook-tokio", "dep:signal-hook", "dep:tokio", "dep:router_env", "dep:futures"]
 async_ext = ["dep:async-trait", "dep:futures"]
 logs = ["dep:router_env"]
@@ -22,6 +23,7 @@ v1 = []
 v2 = []
 crypto_openssl = ["dep:openssl"]
 tokenization_v2 = []
+deja = ["dep:deja"]
 
 [dependencies]
 async-trait = { version = "0.1.88", optional = true }
@@ -30,6 +32,7 @@ base64-serde = "0.8.0"
 blake3 = { version = "1.8.2", features = ["serde"] }
 bytes = "1.10.1"
 diesel = "2.2.10"
+deja = { git = "https://github.com/juspay/deja", rev = "2c3a795ef4d8d2a5eebc47bbe7134984b75be6b3", optional = true, default-features = false }
 error-stack = "0.4.1"
 futures = { version = "0.3.31", optional = true }
 globset = "0.4.16"

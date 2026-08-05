@@ -834,15 +834,19 @@ pub async fn call_unified_connector_service_authenticate(
                 )
                 .attach_printable("Failed to deserialize UCS response")?;
 
-            let router_data_response = router_data_response.map(|(response, status)| {
-                router_data.status = status;
-                response
-            });
             let router_data_response = match router_data_response {
-                Ok(response) => Ok(transform_response_for_authenticate_flow(
-                    connector, response,
-                )?),
-                Err(err) => Err(err),
+                Ok((response, status)) => {
+                    router_data.status = status;
+                    Ok(transform_response_for_authenticate_flow(
+                        connector, response,
+                    )?)
+                }
+                Err(err) => {
+                    if let Some(attempt_status) = err.attempt_status {
+                        router_data.status = attempt_status;
+                    }
+                    Err(err)
+                }
             };
 
             router_data.response = router_data_response;
@@ -947,10 +951,18 @@ pub async fn call_unified_connector_service_post_authenticate(
                 )
                 .attach_printable("Failed to deserialize UCS response")?;
 
-            let router_data_response = router_data_response.map(|(response, status)| {
-                router_data.status = status;
-                response
-            });
+            let router_data_response = match router_data_response {
+                Ok((response, status)) => {
+                    router_data.status = status;
+                    Ok(response)
+                }
+                Err(err) => {
+                    if let Some(attempt_status) = err.attempt_status {
+                        router_data.status = attempt_status;
+                    }
+                    Err(err)
+                }
+            };
             router_data.response = router_data_response;
             router_data.raw_connector_response = payment_post_authenticate_response
                 .raw_connector_response
