@@ -622,6 +622,7 @@ export const connectorDetails = {
       Request: {
         payment_channel: "telephone_order",
         currency: "USD",
+        setup_future_usage: "off_session",
       },
       Response: {
         status: 200,
@@ -1218,6 +1219,7 @@ export const connectorDetails = {
         },
       },
       Request: {
+        amount: 6000,
         payment_channel: "telephone_order",
         setup_future_usage: "off_session",
         payment_method_data: {
