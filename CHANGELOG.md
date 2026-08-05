@@ -4,6 +4,24 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.07.29.2-hotfix2
+
+### Bug Fixes
+
+- **router:** Handle fallback in dispute connector-dispute-id lookup ([#13542](https://github.com/juspay/hyperswitch/pull/13542)) ([`dcd5f32`](https://github.com/juspay/hyperswitch/commit/dcd5f323f83fa5a4685ea8e87fa98508c5e4e7fc))
+
+### Performance
+
+- **payment-methods:** Optimize for payment method latency ([#13546](https://github.com/juspay/hyperswitch/pull/13546)) ([`575f2e6`](https://github.com/juspay/hyperswitch/commit/575f2e6ffe1a9b512eb658cf62e3d08b9420803d))
+
+### Refactors
+
+- **payment_methods:** Add network tokenization pt job in modular payment method apis ([#13556](https://github.com/juspay/hyperswitch/pull/13556)) ([`57def0e`](https://github.com/juspay/hyperswitch/commit/57def0ec035add27f81001598a456435b2f6de73))
+
+**Full Changelog:** [`2026.07.29.2-hotfix1...2026.07.29.2-hotfix2`](https://github.com/juspay/hyperswitch/compare/2026.07.29.2-hotfix1...2026.07.29.2-hotfix2)
+
+- - -
+
 ## 2026.07.29.2-hotfix1
 
 ### Bug Fixes
