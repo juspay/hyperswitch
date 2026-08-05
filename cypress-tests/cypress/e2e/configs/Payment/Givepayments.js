@@ -9,7 +9,7 @@ const generateGivepaymentsEmail = () =>
 const successfulNo3DSCardDetails = {
   card_number: "4111111111111111",
   card_exp_month: "12",
-  card_exp_year: "29",
+  card_exp_year: "2029",
   card_holder_name: "John Doe",
   card_cvc: "123",
   card_network: "Visa",
@@ -18,7 +18,7 @@ const successfulNo3DSCardDetails = {
 const successfulDebitCardDetails = {
   card_number: "4000056655665556",
   card_exp_month: "12",
-  card_exp_year: "29",
+  card_exp_year: "2029",
   card_holder_name: "John Doe",
   card_cvc: "123",
   card_network: "Visa",
