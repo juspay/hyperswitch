@@ -1177,6 +1177,9 @@ common_utils::create_list_wrapper!(
                 .filter(|mca| mca.connector_type == connector_type)
                 .collect()
         }
+        pub fn get_ids(&self) -> std::collections::HashSet<id_type::MerchantConnectorAccountId> {
+            self.iter().map(|mca| mca.get_id()).collect()
+        }
         pub fn is_merchant_connector_account_id_in_connector_mandate_details(
             &self,
             connector_mandate_details: &CommonMandateReference,
