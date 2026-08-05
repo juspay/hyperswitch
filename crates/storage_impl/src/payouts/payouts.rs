@@ -48,7 +48,7 @@ use crate::{
     errors::{RedisErrorExt, StorageError},
     kv_router_store::KVRouterStore,
     redis::kv_store::{decide_storage_scheme, kv_wrapper, KvOperation, Op, PartitionKey},
-    utils::{self, pg_connection_read, pg_connection_write},
+    utils::{self, pg_connection_read, pg_connection_read_replica, pg_connection_write},
     DataModelExt, DatabaseStore,
 };
 
@@ -789,7 +789,7 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
         status: Option<Vec<storage_enums::PayoutStatus>>,
         payout_type: Option<Vec<storage_enums::PayoutType>>,
     ) -> error_stack::Result<i64, StorageError> {
-        let conn = pg_connection_read(self).await?;
+        let conn = pg_connection_read_replica(self).await?;
         let connector_strings = connector.as_ref().map(|connectors| {
             connectors
                 .iter()

@@ -20,19 +20,22 @@ use crate::{
     kv,
     payment_attempt::{PaymentAttempt, PaymentAttemptNew, PaymentAttemptUpdateInternal},
     query::generics::db_metrics,
-    PgPooledConn, StorageResult,
+    DatabaseConnectionWithContext, StorageResult,
 };
 #[cfg(feature = "v1")]
 use crate::{enums::IntentStatus, payment_attempt::PaymentAttemptUpdate, PaymentIntent};
 
 impl PaymentAttemptNew {
-    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<PaymentAttempt> {
+    pub async fn insert(
+        self,
+        conn: &DatabaseConnectionWithContext<'_>,
+    ) -> StorageResult<PaymentAttempt> {
         Box::pin(generics::generic_insert(conn, self)).await
     }
 
     pub async fn generate_drainer_insert_query(
         self,
-        conn: &mut PgPooledConn,
+        conn: &mut DatabaseConnectionWithContext<'_>,
     ) -> StorageResult<kv::SerializableQuery> {
         kv::generate_insert_query(conn, self).await
     }
@@ -42,7 +45,7 @@ impl PaymentAttempt {
     #[cfg(feature = "v1")]
     pub async fn update_with_attempt_id(
         self,
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         payment_attempt: PaymentAttemptUpdate,
     ) -> StorageResult<Self> {
         match Box::pin(generics::generic_update_with_unique_predicate_get_result::<
@@ -70,7 +73,7 @@ impl PaymentAttempt {
     #[cfg(feature = "v2")]
     pub async fn update_with_attempt_id(
         self,
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         payment_attempt: PaymentAttemptUpdateInternal,
     ) -> StorageResult<Self> {
         match generics::generic_update_with_unique_predicate_get_result::<
@@ -91,7 +94,7 @@ impl PaymentAttempt {
 
     #[cfg(feature = "v1")]
     pub async fn find_optional_by_payment_id_processor_merchant_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         payment_id: &common_utils::id_type::PaymentId,
         processor_merchant_id: &common_utils::id_type::MerchantId,
     ) -> StorageResult<Option<Self>> {
@@ -106,7 +109,7 @@ impl PaymentAttempt {
 
     #[cfg(feature = "v1")]
     pub async fn find_by_connector_transaction_id_payment_id_processor_merchant_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         connector_transaction_id: &common_utils::types::ConnectorTransactionId,
         payment_id: &common_utils::id_type::PaymentId,
         processor_merchant_id: &common_utils::id_type::MerchantId,
@@ -123,7 +126,7 @@ impl PaymentAttempt {
 
     #[cfg(feature = "v1")]
     pub async fn find_last_successful_attempt_by_payment_id_processor_merchant_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         payment_id: &common_utils::id_type::PaymentId,
         processor_merchant_id: &common_utils::id_type::MerchantId,
     ) -> StorageResult<Self> {
@@ -146,7 +149,7 @@ impl PaymentAttempt {
 
     #[cfg(feature = "v1")]
     pub async fn find_last_successful_or_partially_captured_attempt_by_payment_id_processor_merchant_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         payment_id: &common_utils::id_type::PaymentId,
         processor_merchant_id: &common_utils::id_type::MerchantId,
     ) -> StorageResult<Self> {
@@ -173,7 +176,7 @@ impl PaymentAttempt {
 
     #[cfg(feature = "v2")]
     pub async fn find_last_successful_or_partially_captured_attempt_by_payment_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         payment_id: &common_utils::id_type::GlobalPaymentId,
     ) -> StorageResult<Self> {
         // perform ordering on the application level instead of database level
@@ -196,7 +199,7 @@ impl PaymentAttempt {
 
     #[cfg(feature = "v1")]
     pub async fn find_by_processor_merchant_id_connector_txn_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         connector_txn_id: &str,
     ) -> StorageResult<Self> {
@@ -220,7 +223,7 @@ impl PaymentAttempt {
 
     #[cfg(feature = "v2")]
     pub async fn find_by_profile_id_connector_transaction_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         profile_id: &common_utils::id_type::ProfileId,
         connector_txn_id: &str,
     ) -> StorageResult<Self> {
@@ -244,7 +247,7 @@ impl PaymentAttempt {
 
     #[cfg(feature = "v1")]
     pub async fn find_by_processor_merchant_id_attempt_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         attempt_id: &str,
     ) -> StorageResult<Self> {
@@ -259,7 +262,7 @@ impl PaymentAttempt {
 
     #[cfg(feature = "v2")]
     pub async fn find_by_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         id: &common_utils::id_type::GlobalAttemptId,
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
@@ -271,7 +274,7 @@ impl PaymentAttempt {
 
     #[cfg(feature = "v2")]
     pub async fn find_by_payment_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         payment_id: &common_utils::id_type::GlobalPaymentId,
     ) -> StorageResult<Vec<Self>> {
         generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
@@ -286,7 +289,7 @@ impl PaymentAttempt {
 
     #[cfg(feature = "v1")]
     pub async fn find_by_processor_merchant_id_preprocessing_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         preprocessing_id: &str,
     ) -> StorageResult<Self> {
@@ -301,7 +304,7 @@ impl PaymentAttempt {
 
     #[cfg(feature = "v1")]
     pub async fn find_by_payment_id_processor_merchant_id_attempt_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         payment_id: &common_utils::id_type::PaymentId,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         attempt_id: &str,
@@ -319,7 +322,7 @@ impl PaymentAttempt {
 
     #[cfg(feature = "v1")]
     pub async fn find_by_processor_merchant_id_payment_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         payment_id: &common_utils::id_type::PaymentId,
     ) -> StorageResult<Vec<Self>> {
@@ -342,7 +345,7 @@ impl PaymentAttempt {
 
     #[cfg(feature = "v1")]
     pub async fn get_filters_for_payments(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         pi: &[PaymentIntent],
         processor_merchant_id: &common_utils::id_type::MerchantId,
     ) -> StorageResult<(
@@ -442,7 +445,7 @@ impl PaymentAttempt {
     #[cfg(feature = "v2")]
     #[allow(clippy::too_many_arguments)]
     pub async fn get_total_count_of_attempts(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         merchant_id: &common_utils::id_type::MerchantId,
         active_attempt_ids: &[String],
         connector: Option<Vec<String>>,
@@ -502,7 +505,7 @@ impl PaymentAttempt {
     #[cfg(feature = "v1")]
     #[allow(clippy::too_many_arguments)]
     pub async fn get_total_count_of_attempts(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         active_attempt_ids: &[String],
         connector: Option<Vec<String>>,
@@ -568,7 +571,7 @@ impl PaymentAttempt {
 impl PaymentAttemptUpdate {
     pub async fn generate_drainer_update_query(
         self,
-        conn: &mut PgPooledConn,
+        conn: &mut DatabaseConnectionWithContext<'_>,
         source_payment_attempt: &PaymentAttempt,
     ) -> StorageResult<kv::SerializableQuery> {
         kv::generate_update_query_with_predicate::<<PaymentAttempt as HasTable>::Table, _, _>(
@@ -590,7 +593,7 @@ impl PaymentAttemptUpdate {
 impl PaymentAttemptUpdateInternal {
     pub async fn generate_drainer_update_query(
         self,
-        conn: &mut PgPooledConn,
+        conn: &mut DatabaseConnectionWithContext<'_>,
         id: common_utils::id_type::GlobalAttemptId,
     ) -> StorageResult<kv::SerializableQuery> {
         kv::generate_update_query_with_predicate::<<PaymentAttempt as HasTable>::Table, _, _>(

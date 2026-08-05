@@ -3,13 +3,11 @@ use bb8::PooledConnection;
 use common_utils::request_context::RequestContext;
 #[cfg(feature = "deja")]
 use diesel::PgConnection;
-use diesel_models::DatabaseConnectionWithContext;
+pub use diesel_models::DatabaseConnectionWithContext;
 use error_stack::ResultExt;
 use storage_impl::{errors as storage_errors, DatabaseStore};
 
 use crate::errors;
-
-pub type PgPooledConn = diesel_models::PgPooledConn;
 
 // Deja replay (R1): the minimal replay DB routing hook. On a just-leased pg
 // connection during replay, route it to the active correlation's schema so
@@ -37,9 +35,9 @@ async fn deja_route_replay_schema<T: DatabaseStore>(
     }
 }
 
-pub async fn pg_connection_read<T: DatabaseStore + RequestContext>(
-    store: &T,
-) -> errors::CustomResult<DatabaseConnectionWithContext, storage_errors::StorageError> {
+pub async fn pg_connection_read<'a, T: DatabaseStore + RequestContext>(
+    store: &'a T,
+) -> errors::CustomResult<DatabaseConnectionWithContext<'a>, storage_errors::StorageError> {
     // If only OLAP is enabled get replica pool.
     #[cfg(all(feature = "olap", not(feature = "oltp")))]
     let pool = store.get_replica_pool();
@@ -58,7 +56,7 @@ pub async fn pg_connection_read<T: DatabaseStore + RequestContext>(
     #[cfg_attr(not(feature = "deja"), allow(unused_mut))]
     let mut connection = pool
         .pg_pool
-        .get_owned()
+        .get()
         .await
         .change_context(storage_errors::StorageError::DatabaseConnectionError)?;
 
@@ -72,9 +70,9 @@ pub async fn pg_connection_read<T: DatabaseStore + RequestContext>(
     ))
 }
 
-pub async fn pg_accounts_connection_read<T: DatabaseStore + RequestContext>(
-    store: &T,
-) -> errors::CustomResult<DatabaseConnectionWithContext, storage_errors::StorageError> {
+pub async fn pg_accounts_connection_read<'a, T: DatabaseStore + RequestContext>(
+    store: &'a T,
+) -> errors::CustomResult<DatabaseConnectionWithContext<'a>, storage_errors::StorageError> {
     // If only OLAP is enabled get replica pool.
     #[cfg(all(feature = "olap", not(feature = "oltp")))]
     let pool = store.get_accounts_replica_pool();
@@ -93,7 +91,7 @@ pub async fn pg_accounts_connection_read<T: DatabaseStore + RequestContext>(
     #[cfg_attr(not(feature = "deja"), allow(unused_mut))]
     let mut connection = pool
         .pg_pool
-        .get_owned()
+        .get()
         .await
         .change_context(storage_errors::StorageError::DatabaseConnectionError)?;
 
@@ -107,16 +105,16 @@ pub async fn pg_accounts_connection_read<T: DatabaseStore + RequestContext>(
     ))
 }
 
-pub async fn pg_connection_write<T: DatabaseStore + RequestContext>(
-    store: &T,
-) -> errors::CustomResult<DatabaseConnectionWithContext, storage_errors::StorageError> {
+pub async fn pg_connection_write<'a, T: DatabaseStore + RequestContext>(
+    store: &'a T,
+) -> errors::CustomResult<DatabaseConnectionWithContext<'a>, storage_errors::StorageError> {
     // Since all writes should happen to master DB only choose master DB.
     let pool = store.get_master_pool();
 
     #[cfg_attr(not(feature = "deja"), allow(unused_mut))]
     let mut connection = pool
         .pg_pool
-        .get_owned()
+        .get()
         .await
         .change_context(storage_errors::StorageError::DatabaseConnectionError)?;
 
@@ -130,16 +128,16 @@ pub async fn pg_connection_write<T: DatabaseStore + RequestContext>(
     ))
 }
 
-pub async fn pg_accounts_connection_write<T: DatabaseStore + RequestContext>(
-    store: &T,
-) -> errors::CustomResult<DatabaseConnectionWithContext, storage_errors::StorageError> {
+pub async fn pg_accounts_connection_write<'a, T: DatabaseStore + RequestContext>(
+    store: &'a T,
+) -> errors::CustomResult<DatabaseConnectionWithContext<'a>, storage_errors::StorageError> {
     // Since all writes should happen to master DB only choose master DB.
     let pool = store.get_accounts_master_pool();
 
     #[cfg_attr(not(feature = "deja"), allow(unused_mut))]
     let mut connection = pool
         .pg_pool
-        .get_owned()
+        .get()
         .await
         .change_context(storage_errors::StorageError::DatabaseConnectionError)?;
 

@@ -7,7 +7,7 @@ pub use diesel_models::{
 use error_stack::ResultExt;
 
 use crate::{
-    connection::PgPooledConn,
+    connection::DatabaseConnectionWithContext,
     core::errors::{self, CustomResult},
     logger,
 };
@@ -15,7 +15,7 @@ use crate::{
 #[async_trait::async_trait]
 pub trait PaymentLinkDbExt: Sized {
     async fn filter_by_constraints(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         payment_link_list_constraints: api_models::payments::PaymentLinkListConstraints,
     ) -> CustomResult<Vec<Self>, errors::DatabaseError>;
@@ -24,7 +24,7 @@ pub trait PaymentLinkDbExt: Sized {
 #[async_trait::async_trait]
 impl PaymentLinkDbExt for PaymentLink {
     async fn filter_by_constraints(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         payment_link_list_constraints: api_models::payments::PaymentLinkListConstraints,
     ) -> CustomResult<Vec<Self>, errors::DatabaseError> {

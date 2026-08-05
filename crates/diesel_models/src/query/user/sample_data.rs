@@ -14,15 +14,15 @@ use crate::schema_v2::{
     refund::dsl as refund_dsl,
 };
 use crate::{
-    errors, schema::dispute::dsl as dispute_dsl, Dispute, DisputeNew, PaymentAttempt,
-    PaymentIntent, PgPooledConn, Refund, RefundNew, StorageResult,
+    errors, schema::dispute::dsl as dispute_dsl, DatabaseConnectionWithContext, Dispute,
+    DisputeNew, PaymentAttempt, PaymentIntent, Refund, RefundNew, StorageResult,
 };
 #[cfg(feature = "v1")]
 use crate::{user, PaymentIntentNew};
 
 #[cfg(feature = "v1")]
 pub async fn insert_payment_intents(
-    conn: &PgPooledConn,
+    conn: &DatabaseConnectionWithContext<'_>,
     batch: Vec<PaymentIntentNew>,
 ) -> StorageResult<Vec<PaymentIntent>> {
     let query = diesel::insert_into(<PaymentIntent>::table()).values(batch);
@@ -38,7 +38,7 @@ pub async fn insert_payment_intents(
 
 #[cfg(feature = "v1")]
 pub async fn insert_payment_attempts(
-    conn: &PgPooledConn,
+    conn: &DatabaseConnectionWithContext<'_>,
     batch: Vec<user::sample_data::PaymentAttemptBatchNew>,
 ) -> StorageResult<Vec<PaymentAttempt>> {
     let query = diesel::insert_into(<PaymentAttempt>::table()).values(batch);
@@ -53,7 +53,7 @@ pub async fn insert_payment_attempts(
 }
 
 pub async fn insert_refunds(
-    conn: &PgPooledConn,
+    conn: &DatabaseConnectionWithContext<'_>,
     batch: Vec<RefundNew>,
 ) -> StorageResult<Vec<Refund>> {
     let query = diesel::insert_into(<Refund>::table()).values(batch);
@@ -68,7 +68,7 @@ pub async fn insert_refunds(
 }
 
 pub async fn insert_disputes(
-    conn: &PgPooledConn,
+    conn: &DatabaseConnectionWithContext<'_>,
     batch: Vec<DisputeNew>,
 ) -> StorageResult<Vec<Dispute>> {
     let query = diesel::insert_into(<Dispute>::table()).values(batch);
@@ -84,7 +84,7 @@ pub async fn insert_disputes(
 
 #[cfg(feature = "v1")]
 pub async fn delete_payment_intents(
-    conn: &PgPooledConn,
+    conn: &DatabaseConnectionWithContext<'_>,
     merchant_id: &common_utils::id_type::MerchantId,
 ) -> StorageResult<Vec<PaymentIntent>> {
     let query = diesel::delete(<PaymentIntent>::table())
@@ -111,7 +111,7 @@ pub async fn delete_payment_intents(
 
 #[cfg(feature = "v2")]
 pub async fn delete_payment_intents(
-    conn: &PgPooledConn,
+    conn: &DatabaseConnectionWithContext<'_>,
     merchant_id: &common_utils::id_type::MerchantId,
 ) -> StorageResult<Vec<PaymentIntent>> {
     let query = diesel::delete(<PaymentIntent>::table())
@@ -136,7 +136,7 @@ pub async fn delete_payment_intents(
         })
 }
 pub async fn delete_payment_attempts(
-    conn: &PgPooledConn,
+    conn: &DatabaseConnectionWithContext<'_>,
     merchant_id: &common_utils::id_type::MerchantId,
 ) -> StorageResult<Vec<PaymentAttempt>> {
     let query = diesel::delete(<PaymentAttempt>::table())
@@ -162,7 +162,7 @@ pub async fn delete_payment_attempts(
 }
 
 pub async fn delete_refunds(
-    conn: &PgPooledConn,
+    conn: &DatabaseConnectionWithContext<'_>,
     merchant_id: &common_utils::id_type::MerchantId,
 ) -> StorageResult<Vec<Refund>> {
     let query = diesel::delete(<Refund>::table())
@@ -188,7 +188,7 @@ pub async fn delete_refunds(
 }
 
 pub async fn delete_disputes(
-    conn: &PgPooledConn,
+    conn: &DatabaseConnectionWithContext<'_>,
     merchant_id: &common_utils::id_type::MerchantId,
 ) -> StorageResult<Vec<Dispute>> {
     let query = diesel::delete(<Dispute>::table())

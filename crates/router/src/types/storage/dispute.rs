@@ -6,18 +6,18 @@ use diesel_models::{errors, query::generics::db_metrics, schema::dispute::dsl};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::disputes;
 
-use crate::{connection::PgPooledConn, logger};
+use crate::{connection::DatabaseConnectionWithContext, logger};
 
 #[async_trait::async_trait]
 pub trait DisputeDbExt: Sized {
     async fn filter_by_constraints(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         dispute_list_constraints: &disputes::DisputeListConstraints,
     ) -> CustomResult<Vec<Self>, errors::DatabaseError>;
 
     async fn get_dispute_status_with_count(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
         time_range: &common_utils::types::TimeRange,
@@ -27,7 +27,7 @@ pub trait DisputeDbExt: Sized {
 #[async_trait::async_trait]
 impl DisputeDbExt for Dispute {
     async fn filter_by_constraints(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         dispute_list_constraints: &disputes::DisputeListConstraints,
     ) -> CustomResult<Vec<Self>, errors::DatabaseError> {
@@ -118,7 +118,7 @@ impl DisputeDbExt for Dispute {
     }
 
     async fn get_dispute_status_with_count(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
         time_range: &common_utils::types::TimeRange,

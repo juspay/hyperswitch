@@ -729,7 +729,7 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
         let conn = pg_accounts_connection_write(self).await?;
 
         async fn update_call(
-            connection: &diesel_models::PgPooledConn,
+            connection: &diesel_models::DatabaseConnectionWithContext<'_>,
             (merchant_connector_account, mca_update): (
                 domain::MerchantConnectorAccount,
                 storage::MerchantConnectorAccountUpdateInternal,

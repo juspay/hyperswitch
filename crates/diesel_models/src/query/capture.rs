@@ -6,24 +6,27 @@ use crate::{
     capture::{Capture, CaptureNew, CaptureUpdate, CaptureUpdateInternal},
     errors, kv,
     schema::captures::dsl,
-    PgPooledConn, StorageResult,
+    DatabaseConnectionWithContext, StorageResult,
 };
 
 impl CaptureNew {
-    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<Capture> {
+    pub async fn insert(self, conn: &DatabaseConnectionWithContext<'_>) -> StorageResult<Capture> {
         generics::generic_insert(conn, self).await
     }
 
     pub async fn generate_drainer_insert_query(
         self,
-        conn: &mut PgPooledConn,
+        conn: &mut DatabaseConnectionWithContext<'_>,
     ) -> StorageResult<kv::SerializableQuery> {
         kv::generate_insert_query(conn, self).await
     }
 }
 
 impl Capture {
-    pub async fn find_by_capture_id(conn: &PgPooledConn, capture_id: &str) -> StorageResult<Self> {
+    pub async fn find_by_capture_id(
+        conn: &DatabaseConnectionWithContext<'_>,
+        capture_id: &str,
+    ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
             dsl::capture_id.eq(capture_id.to_owned()),
@@ -33,7 +36,7 @@ impl Capture {
 
     pub async fn update_with_capture_id(
         self,
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         capture: CaptureUpdate,
     ) -> StorageResult<Self> {
         match generics::generic_update_with_unique_predicate_get_result::<
@@ -60,7 +63,7 @@ impl Capture {
         merchant_id: &common_utils::id_type::MerchantId,
         payment_id: &common_utils::id_type::PaymentId,
         authorized_attempt_id: &str,
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
     ) -> StorageResult<Vec<Self>> {
         generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
             conn,
@@ -98,7 +101,7 @@ impl ConnectorTransactionIdTrait for Capture {
 impl CaptureUpdate {
     pub async fn generate_drainer_update_query(
         self,
-        conn: &mut PgPooledConn,
+        conn: &mut DatabaseConnectionWithContext<'_>,
         capture_id: String,
     ) -> StorageResult<kv::SerializableQuery> {
         kv::generate_update_query_by_id::<<Capture as HasTable>::Table, _, _>(

@@ -36,10 +36,10 @@ pub async fn diesel_make_pg_pool(
 }
 
 #[allow(clippy::expect_used)]
-pub async fn pg_connection(pool: &PgPool) -> DatabaseConnectionWithContext {
+pub async fn pg_connection<'a>(pool: &'a PgPool) -> DatabaseConnectionWithContext<'a> {
     let connection = pool
         .pg_pool
-        .get_owned()
+        .get()
         .await
         .expect("Couldn't retrieve PostgreSQL connection");
 

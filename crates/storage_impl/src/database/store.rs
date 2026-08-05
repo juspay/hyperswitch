@@ -8,8 +8,8 @@ use common_utils::{
     DbConnectionParams,
 };
 use diesel::PgConnection;
+pub use diesel_models::DatabaseConnectionWithContext;
 use diesel_models::RawPgConnection;
-pub use diesel_models::{DatabaseConnectionWithContext, PgPooledConn};
 use error_stack::ResultExt;
 
 use crate::{

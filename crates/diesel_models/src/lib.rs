@@ -81,21 +81,19 @@ pub type RawPgConnection = async_bb8_diesel::Connection<diesel::PgConnection>;
 /// Every query in this crate is issued through this type, so a query cannot be run without first
 /// stating whether a request context exists for it.
 ///
-/// The lease is `'static` because it is acquired through `bb8::Pool::get_owned`, which keeps the
-/// pool alive through the guard itself. Leasing through `bb8::Pool::get` would instead tie the
-/// guard to the pool borrow, and that lifetime would have to be carried by [`PgPooledConn`] and
-/// therefore by every query signature in this crate.
-pub struct DatabaseConnectionWithContext {
+/// The lease borrows the pool it was acquired from through `bb8::Pool::get`, so this wrapper
+/// cannot outlive that pool. The pool lifetime is carried through query signatures in this crate.
+pub struct DatabaseConnectionWithContext<'pool> {
     connection:
-        bb8::PooledConnection<'static, async_bb8_diesel::ConnectionManager<diesel::PgConnection>>,
+        bb8::PooledConnection<'pool, async_bb8_diesel::ConnectionManager<diesel::PgConnection>>,
     request_id: Option<String>,
     event_emitter: Arc<dyn ExternalServiceEventEmitter>,
 }
 
-impl DatabaseConnectionWithContext {
+impl<'pool> DatabaseConnectionWithContext<'pool> {
     pub fn new(
         connection: bb8::PooledConnection<
-            'static,
+            'pool,
             async_bb8_diesel::ConnectionManager<diesel::PgConnection>,
         >,
         request_id: Option<String>,
@@ -120,9 +118,6 @@ impl DatabaseConnectionWithContext {
         self.event_emitter.as_ref()
     }
 }
-
-// This alias helps reduce the blast radius by avoiding return type changes across query functions.
-pub type PgPooledConn = DatabaseConnectionWithContext;
 
 pub use self::{
     address::*, api_keys::*, callback_mapper::*, capture::*, cards_info::*, configs::*,

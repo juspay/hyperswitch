@@ -25,7 +25,7 @@ use hyperswitch_masking::PeekInterface;
 use hyperswitch_masking::Secret;
 use router_env::logger;
 
-use crate::{errors, query::utils::GetPrimaryKey, PgPooledConn, StorageResult};
+use crate::{errors, query::utils::GetPrimaryKey, DatabaseConnectionWithContext, StorageResult};
 
 pub mod db_metrics {
     use common_utils::external_service::{ExternalServiceCall, ExternalServiceEventEmitter};
@@ -548,7 +548,10 @@ where
 // Public builders (signatures identical to pre-fold — zero call-site changes)
 // ---------------------------------------------------------------------------
 
-pub async fn generic_insert<T, V, R>(conn: &PgPooledConn, values: V) -> StorageResult<R>
+pub async fn generic_insert<T, V, R>(
+    conn: &DatabaseConnectionWithContext<'_>,
+    values: V,
+) -> StorageResult<R>
 where
     T: HasTable<Table = T> + Table + 'static + Debug,
     V: Debug + Insertable<T>,
@@ -583,7 +586,7 @@ where
 }
 
 pub async fn generic_update<T, V, P>(
-    conn: &PgPooledConn,
+    conn: &DatabaseConnectionWithContext<'_>,
     predicate: P,
     values: V,
 ) -> StorageResult<usize>
@@ -623,7 +626,7 @@ where
 }
 
 pub async fn generic_update_with_results<T, V, P, R>(
-    conn: &PgPooledConn,
+    conn: &DatabaseConnectionWithContext<'_>,
     predicate: P,
     values: V,
 ) -> StorageResult<Vec<R>>
@@ -670,7 +673,7 @@ where
 }
 
 pub async fn generic_update_with_unique_predicate_get_result<T, V, P, R>(
-    conn: &PgPooledConn,
+    conn: &DatabaseConnectionWithContext<'_>,
     predicate: P,
     values: V,
 ) -> StorageResult<R>
@@ -706,7 +709,7 @@ where
 }
 
 pub async fn generic_update_by_id<T, V, Pk, R>(
-    conn: &PgPooledConn,
+    conn: &DatabaseConnectionWithContext<'_>,
     id: Pk,
     values: V,
 ) -> StorageResult<R>
@@ -755,7 +758,10 @@ where
     .attach_printable_lazy(|| format!("Error while updating by ID {debug_values}"))
 }
 
-pub async fn generic_delete<T, P>(conn: &PgPooledConn, predicate: P) -> StorageResult<bool>
+pub async fn generic_delete<T, P>(
+    conn: &DatabaseConnectionWithContext<'_>,
+    predicate: P,
+) -> StorageResult<bool>
 where
     T: FilterDsl<P> + HasTable<Table = T> + Table + 'static,
     Filter<T, P>: IntoUpdateTarget,
@@ -786,7 +792,7 @@ where
 }
 
 pub async fn generic_delete_one_with_result<T, P, R>(
-    conn: &PgPooledConn,
+    conn: &DatabaseConnectionWithContext<'_>,
     predicate: P,
 ) -> StorageResult<R>
 where
@@ -819,7 +825,10 @@ where
     .await
 }
 
-async fn generic_find_by_id_core<T, Pk, R>(conn: &PgPooledConn, id: Pk) -> StorageResult<R>
+async fn generic_find_by_id_core<T, Pk, R>(
+    conn: &DatabaseConnectionWithContext<'_>,
+    id: Pk,
+) -> StorageResult<R>
 where
     T: FindDsl<Pk> + HasTable<Table = T> + LimitDsl + Table + 'static,
     Find<T, Pk>: LimitDsl + QueryFragment<Pg> + RunQueryDsl<PgConnection> + Send + 'static,
@@ -849,7 +858,10 @@ where
     .attach_printable_lazy(|| format!("Error finding record by primary key: {id:?}"))
 }
 
-pub async fn generic_find_by_id<T, Pk, R>(conn: &PgPooledConn, id: Pk) -> StorageResult<R>
+pub async fn generic_find_by_id<T, Pk, R>(
+    conn: &DatabaseConnectionWithContext<'_>,
+    id: Pk,
+) -> StorageResult<R>
 where
     T: FindDsl<Pk> + HasTable<Table = T> + LimitDsl + Table + 'static,
     Find<T, Pk>: LimitDsl + QueryFragment<Pg> + RunQueryDsl<PgConnection> + Send + 'static,
@@ -861,7 +873,7 @@ where
 }
 
 pub async fn generic_find_by_id_optional<T, Pk, R>(
-    conn: &PgPooledConn,
+    conn: &DatabaseConnectionWithContext<'_>,
     id: Pk,
 ) -> StorageResult<Option<R>>
 where
@@ -875,7 +887,10 @@ where
     to_optional(generic_find_by_id_core::<T, _, _>(conn, id).await)
 }
 
-async fn generic_find_one_core<T, P, R>(conn: &PgPooledConn, predicate: P) -> StorageResult<R>
+async fn generic_find_one_core<T, P, R>(
+    conn: &DatabaseConnectionWithContext<'_>,
+    predicate: P,
+) -> StorageResult<R>
 where
     T: FilterDsl<P> + HasTable<Table = T> + Table + 'static,
     Filter<T, P>: LoadQuery<'static, PgConnection, R> + QueryFragment<Pg> + Send + 'static,
@@ -902,7 +917,10 @@ where
     .await
 }
 
-pub async fn generic_find_one<T, P, R>(conn: &PgPooledConn, predicate: P) -> StorageResult<R>
+pub async fn generic_find_one<T, P, R>(
+    conn: &DatabaseConnectionWithContext<'_>,
+    predicate: P,
+) -> StorageResult<R>
 where
     T: FilterDsl<P> + HasTable<Table = T> + Table + 'static,
     Filter<T, P>: LoadQuery<'static, PgConnection, R> + QueryFragment<Pg> + Send + 'static,
@@ -912,7 +930,7 @@ where
 }
 
 pub async fn generic_find_one_optional<T, P, R>(
-    conn: &PgPooledConn,
+    conn: &DatabaseConnectionWithContext<'_>,
     predicate: P,
 ) -> StorageResult<Option<R>>
 where
@@ -924,7 +942,7 @@ where
 }
 
 pub(super) async fn generic_filter<T, P, O, R>(
-    conn: &PgPooledConn,
+    conn: &DatabaseConnectionWithContext<'_>,
     predicate: P,
     limit: Option<i64>,
     offset: Option<i64>,
@@ -982,7 +1000,10 @@ where
     .await
 }
 
-pub async fn generic_count<T, P>(conn: &PgPooledConn, predicate: P) -> StorageResult<usize>
+pub async fn generic_count<T, P>(
+    conn: &DatabaseConnectionWithContext<'_>,
+    predicate: P,
+) -> StorageResult<usize>
 where
     T: FilterDsl<P> + HasTable<Table = T> + Table + SelectDsl<count_star> + 'static,
     Filter<T, P>: SelectDsl<count_star>,
