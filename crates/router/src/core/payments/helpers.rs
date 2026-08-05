@@ -535,7 +535,15 @@ pub async fn get_token_pm_type_mandate_details(
                                 None,
                             )
                         } else {
-                            (None, request.payment_method, request.payment_method_type, None, None, None, None)
+                            (
+                                None,
+                                request.payment_method,
+                                request.payment_method_type,
+                                None,
+                                None,
+                                None,
+                                None,
+                            )
                         }
                     }
                     RecurringDetails::MandateId(mandate_id) => {
