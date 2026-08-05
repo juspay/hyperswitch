@@ -11061,6 +11061,182 @@ Cypress.Commands.add(
 );
 
 // ============================================
+// Connector Onboarding Commands
+// ============================================
+
+// Bootstrap: signup a fresh user, terminate 2FA, create a PayPal test connector.
+// Stores userInfoToken, merchantId, profileId, and paypalConnectorId in globalState.
+Cypress.Commands.add("connectorOnboardingBootstrap", (globalState) => {
+  const baseUrl = globalState.get("baseUrl");
+
+  cy.userLogin(globalState)
+    .then(() => cy.terminate2Fa(globalState))
+    .then(() => cy.userInfo(globalState))
+    .then(() => {
+      const merchantId = globalState.get("merchantId");
+      const userInfoToken = globalState.get("userInfoToken");
+
+      cy.request({
+        method: "POST",
+        url: `${baseUrl}/account/${merchantId}/connectors`,
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${userInfoToken}`,
+        },
+        body: {
+          connector_type: "payment_processor",
+          connector_name: "paypal",
+          connector_account_details: {
+            auth_type: "BodyKey",
+            api_key: "test_paypal_key",
+            key1: "test_paypal_secret",
+          },
+          test_mode: true,
+          disabled: false,
+        },
+        failOnStatusCode: false,
+      }).then((connectorResp) => {
+        logRequestId(connectorResp.headers["x-request-id"]);
+        expect(connectorResp.status).to.equal(200);
+        globalState.set(
+          "paypalConnectorId",
+          connectorResp.body.merchant_connector_id
+        );
+      });
+    });
+});
+
+Cypress.Commands.add(
+  "connectorOnboardingActionUrl",
+  (requestBody, data, globalState) => {
+    const baseUrl = globalState.get("baseUrl");
+    const userInfoToken = globalState.get("userInfoToken");
+
+    cy.request({
+      method: "POST",
+      url: `${baseUrl}/connector_onboarding/action_url`,
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${userInfoToken}`,
+      },
+      body: requestBody,
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        const resData = data.Response || {};
+        const expectedStatus = resData.status || 200;
+
+        if (response.status === 200 || response.status === expectedStatus) {
+          if (response.status === 200) {
+            // Response shape: { "paypal": { "action_url": "..." } }
+            expect(response.body).to.have.property("paypal");
+            expect(response.body.paypal).to.have.property("action_url");
+            expect(response.body.paypal.action_url).to.not.be.null;
+          } else {
+            expect(response.body).to.have.property("error");
+            if (resData.body && resData.body.error) {
+              if (resData.body.error.type) {
+                expect(response.body.error).to.have.property(
+                  "type",
+                  resData.body.error.type
+                );
+              }
+              if (resData.body.error.code) {
+                expect(response.body.error).to.have.property(
+                  "code",
+                  resData.body.error.code
+                );
+              }
+            }
+          }
+        } else {
+          defaultErrorHandler(response, resData);
+        }
+      });
+    });
+  }
+);
+
+Cypress.Commands.add(
+  "connectorOnboardingSync",
+  (requestBody, data, globalState) => {
+    const baseUrl = globalState.get("baseUrl");
+    const userInfoToken = globalState.get("userInfoToken");
+
+    cy.request({
+      method: "POST",
+      url: `${baseUrl}/connector_onboarding/sync`,
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${userInfoToken}`,
+      },
+      body: requestBody,
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        const resData = data.Response || {};
+        const expectedStatus = resData.status || 200;
+
+        if (response.status === 200) {
+          expect(response.body).to.have.property("status");
+          expect(response.body).to.have.property("connector_id");
+          expect(["syncing", "completed", "failed"]).to.include(
+            response.body.status
+          );
+        } else if (response.status === expectedStatus) {
+          // Expected error path (e.g. 400 when no PayPal integration exists)
+          expect(response.body).to.have.property("error");
+          expect(response.body.error).to.have.property("type");
+        } else {
+          defaultErrorHandler(response, resData);
+        }
+      });
+    });
+  }
+);
+
+Cypress.Commands.add(
+  "connectorOnboardingResetTrackingId",
+  (requestBody, data, globalState) => {
+    const baseUrl = globalState.get("baseUrl");
+    const userInfoToken = globalState.get("userInfoToken");
+
+    cy.request({
+      method: "POST",
+      url: `${baseUrl}/connector_onboarding/reset_tracking_id`,
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${userInfoToken}`,
+      },
+      body: requestBody,
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        const resData = data.Response || {};
+        const expectedStatus = resData.status || 200;
+
+        if (response.status === expectedStatus) {
+          if (response.status === 200) {
+            // reset_tracking_id returns HTTP 200 with empty body
+            expect(response.body || "").to.be.empty;
+          } else {
+            expect(response.body).to.have.property("error");
+          }
+        } else {
+          defaultErrorHandler(response, resData);
+        }
+      });
+    });
+  }
+);
+
+// ============================================
 // Payout Link Commands
 // ============================================
 
