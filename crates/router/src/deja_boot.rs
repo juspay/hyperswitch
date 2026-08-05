@@ -25,19 +25,102 @@ fn non_empty(value: Option<&str>) -> Option<&str> {
     value.map(str::trim).filter(|value| !value.is_empty())
 }
 
-fn fallback_run_id() -> String {
-    let now_ns = std::time::SystemTime::now()
+/// The id a recording is known by when nothing configured one.
+///
+/// It names the revision that produced the recording, when recording began,
+/// and which instance produced it:
+///
+/// ```text
+/// rec-dcb9f9e-07291352-a3
+/// ```
+///
+/// Those three facts are already on every envelope this recorder emits, but a
+/// name that carries them can be READ and grouped without opening anything —
+/// and the replay that drives this recording embeds the id, so its own name
+/// then states both revisions: the one that recorded and the one under test.
+/// That comparison is the question a regression tool exists to answer, and it
+/// currently takes two lookups.
+///
+/// When the revision is not known, the older form is kept instead. A name is
+/// worse than useless if it claims a provenance it does not have:
+/// `rec-unknown-…` looks informative and is not, whereas a bare timestamp at
+/// least admits it carries nothing. The fallback is announced, because a
+/// recorder that cannot name its own revision is producing recordings nobody
+/// can reason about later, and that is worth noticing at startup rather than
+/// weeks afterwards when the provenance is questioned.
+fn fallback_run_id(settings: &DejaSettings) -> String {
+    let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or(std::time::Duration::ZERO)
-        .as_nanos();
-    format!("run-{now_ns}")
+        .unwrap_or(std::time::Duration::ZERO);
+    match resolved_code_sha(settings) {
+        Some(sha) => format!(
+            "rec-{}-{}-{}",
+            short_revision(&sha),
+            recording_stamp(now.as_secs()),
+            instance_discriminator(&resolved_instance_id(settings)),
+        ),
+        None => {
+            router_env::logger::warn!(
+                "deja: recording without a code revision — its id will carry no provenance. \
+                 Set deja.identity.code_sha, or build with VERGEN_GIT_SHA."
+            );
+            format!("run-{}", now.as_nanos())
+        }
+    }
+}
+
+/// A git sha shortened to the length git itself uses for a short sha.
+fn short_revision(sha: &str) -> String {
+    sha.chars()
+        .filter(char::is_ascii_alphanumeric)
+        .take(7)
+        .collect::<String>()
+        .to_ascii_lowercase()
+}
+
+/// `MMDDhhmm` UTC. Minute resolution: the instance discriminator separates two
+/// recorders that start together, and a single process records once.
+fn recording_stamp(unix_secs: u64) -> String {
+    let (month, day) = civil_month_day(unix_secs / 86_400);
+    let today = unix_secs % 86_400;
+    format!("{month:02}{day:02}{:02}{:02}", today / 3600, (today % 3600) / 60)
+}
+
+/// Two characters standing for the instance, so two pods that start in the same
+/// minute do not share a recording id. The instance itself is on every envelope
+/// as `instance_id`; a name needs only to separate, not to identify.
+fn instance_discriminator(instance_id: &str) -> String {
+    // FNV-1a, so the same pod is always the same two characters.
+    let mut hash: u64 = 0xcbf2_9ce4_8422_2325;
+    for byte in instance_id.as_bytes() {
+        hash ^= u64::from(*byte);
+        hash = hash.wrapping_mul(0x100_0000_01b3);
+    }
+    const ALPHABET: &[u8] = b"0123456789abcdefghijklmnopqrstuvwxyz";
+    let a = ALPHABET[(hash % 36) as usize] as char;
+    let b = ALPHABET[((hash / 36) % 36) as usize] as char;
+    format!("{a}{b}")
+}
+
+/// Days since the epoch to (month, day), civil-from-days. A calendar is needed
+/// in exactly one place, which does not justify a dependency.
+fn civil_month_day(days_since_epoch: u64) -> (u64, u64) {
+    let z = days_since_epoch as i64 + 719_468;
+    let era = z.div_euclid(146_097);
+    let doe = z - era * 146_097;
+    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let d = doy - (153 * mp + 2) / 5 + 1;
+    let m = if mp < 10 { mp + 3 } else { mp - 9 };
+    (m as u64, d as u64)
 }
 
 fn configured_run_id(settings: &DejaSettings) -> String {
     settings
         .effective_run_id()
         .map(str::to_owned)
-        .unwrap_or_else(fallback_run_id)
+        .unwrap_or_else(|| fallback_run_id(settings))
 }
 
 fn configured_value(value: Option<&str>) -> Option<String> {
@@ -67,7 +150,11 @@ fn resolved_code_sha(settings: &DejaSettings) -> Option<String> {
     configured_value(settings.identity.code_sha.as_deref())
         .or_else(|| env_value_named(&settings.identity.git_sha_env))
         .or_else(|| option_env!("VERGEN_GIT_SHA").map(str::to_owned))
-        .or_else(|| Some("unknown".to_owned()))
+    // Deliberately NOT falling back to a placeholder. A literal "unknown"
+    // satisfies the type while destroying the meaning: it cannot be told apart
+    // from a build genuinely named that, and it turns every consumer's "is the
+    // revision known" check into one that always answers yes. Absence is a fact
+    // worth being able to observe.
 }
 
 fn writer_config(settings: &DejaSettings) -> deja::WriterConfig {
