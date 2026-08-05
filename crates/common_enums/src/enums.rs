@@ -1911,6 +1911,7 @@ impl EventClass {
                 EventType::PayoutCancelled,
                 EventType::PayoutExpired,
                 EventType::PayoutReversed,
+                EventType::PayoutNotPermitted,
             ]),
             Self::Subscriptions => HashSet::from([EventType::InvoicePaid]),
         }
@@ -1972,6 +1973,8 @@ pub enum EventType {
     PayoutExpired,
     #[cfg(feature = "payouts")]
     PayoutReversed,
+    #[cfg(feature = "payouts")]
+    PayoutNotPermitted,
     InvoicePaid,
     SurchargePaymentSucceeded,
     SurchargeRefundSucceeded,

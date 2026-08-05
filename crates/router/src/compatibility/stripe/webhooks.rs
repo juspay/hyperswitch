@@ -307,6 +307,9 @@ fn get_stripe_event_type(event_type: api_models::enums::EventType) -> &'static s
         api_models::enums::EventType::PayoutProcessing => "payout.created",
         api_models::enums::EventType::PayoutExpired => "payout.failed",
         api_models::enums::EventType::PayoutReversed => "payout.reconciliation_completed",
+        // Stripe has no distinct "not permitted" payout event; a terminal refusal is
+        // reported to stripe-compat consumers as a failure.
+        api_models::enums::EventType::PayoutNotPermitted => "payout.failed",
         api_models::enums::EventType::InvoicePaid => "invoice.paid",
     }
 }
