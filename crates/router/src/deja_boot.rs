@@ -101,15 +101,31 @@ fn instance_discriminator(instance_id: &str) -> String {
         hash = hash.wrapping_mul(0x100_0000_01b3);
     }
     const ALPHABET: &[u8] = b"0123456789abcdefghijklmnopqrstuvwxyz";
-    let a = ALPHABET[(hash % 36) as usize] as char;
-    let b = ALPHABET[((hash / 36) % 36) as usize] as char;
+    // `n % 36` is always a valid index into a 36-byte alphabet, so the fallback
+    // is unreachable. It is spelled out rather than asserted because a boot-time
+    // naming helper must not be able to panic.
+    let pick = |n: u64| {
+        usize::try_from(n % 36)
+            .ok()
+            .and_then(|i| ALPHABET.get(i))
+            .map_or('0', |byte| char::from(*byte))
+    };
+    let a = pick(hash);
+    let b = pick(hash / 36);
     format!("{a}{b}")
 }
 
 /// Days since the epoch to (month, day), civil-from-days. A calendar is needed
 /// in exactly one place, which does not justify a dependency.
-fn civil_month_day(days_since_epoch: u64) -> (u64, u64) {
-    let z = days_since_epoch as i64 + 719_468;
+fn civil_month_day(days_since_epoch: u64) -> (i64, i64) {
+    // A clock this far ahead cannot occur. A stamp is a name, not a measurement,
+    // so an impossible clock degrades to a valid date instead of panicking.
+    let Some(z) = i64::try_from(days_since_epoch)
+        .ok()
+        .and_then(|days| days.checked_add(719_468))
+    else {
+        return (1, 1);
+    };
     let era = z.div_euclid(146_097);
     let doe = z - era * 146_097;
     let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365;
@@ -117,7 +133,7 @@ fn civil_month_day(days_since_epoch: u64) -> (u64, u64) {
     let mp = (5 * doy + 2) / 153;
     let d = doy - (153 * mp + 2) / 5 + 1;
     let m = if mp < 10 { mp + 3 } else { mp - 9 };
-    (m as u64, d as u64)
+    (m, d)
 }
 
 fn configured_run_id(settings: &DejaSettings) -> String {
