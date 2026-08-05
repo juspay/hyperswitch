@@ -62,8 +62,22 @@ impl router_env::request_id::RequestRecordingSampler for SuperpositionDejaRecord
     ) -> router_env::request_id::RequestRecordingSamplerFuture<'_> {
         // No sampling source to consult: the configured failure default
         // decides, exactly as it does for lookup errors and timeouts below.
+        //
+        // Unlike those two, this arm is a process-lifetime condition rather
+        // than a per-request one, so it warns once instead of per request.
+        // It used to be the only arm that resolved silently, which made a
+        // record-mode process with no sampling source look exactly like one
+        // that was correctly skipping every request.
         let failure_default = !self.fail_closed;
         if !self.superposition_enabled {
+            static NO_SAMPLING_SOURCE: std::sync::Once = std::sync::Once::new();
+            NO_SAMPLING_SOURCE.call_once(|| {
+                router_env::logger::warn!(
+                    failure_default,
+                    "Deja recording sampler has no sampling source (Superposition is not \
+                     configured); every request resolves to the configured failure default"
+                );
+            });
             return Box::pin(async move { failure_default });
         }
 
@@ -197,10 +211,25 @@ pub fn mk_app(
     let deja_recording_sampler: Option<
         std::sync::Arc<dyn router_env::request_id::RequestRecordingSampler>,
     > = matches!(state.conf.deja.mode, settings::DejaMode::Record).then(|| {
+        // `validate()` only checks that the Superposition settings are present
+        // and well-formed — it never reaches the server — so this is a
+        // configuration check, not a reachability one. It still catches the
+        // common case: a record-mode deployment that was never given a
+        // sampling source at all, which would otherwise resolve every request
+        // to the failure default without ever saying so.
+        let superposition_enabled = state.conf.superposition.get_inner().validate().is_ok();
+        if !superposition_enabled {
+            router_env::logger::error!(
+                fail_closed = state.conf.deja.sampler.fail_closed,
+                "Deja is in record mode but Superposition is not configured; the recording \
+                 sampler has no policy to consult and every request will resolve to the \
+                 configured failure default"
+            );
+        }
         let sampler: std::sync::Arc<dyn router_env::request_id::RequestRecordingSampler> =
             std::sync::Arc::new(SuperpositionDejaRecordingSampler {
                 superposition_service: state.superposition_service.clone(),
-                superposition_enabled: state.conf.superposition.get_inner().validate().is_ok(),
+                superposition_enabled,
                 record_key: state
                     .conf
                     .deja
