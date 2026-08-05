@@ -21378,6 +21378,7 @@
           "payout_cancelled",
           "payout_expired",
           "payout_reversed",
+          "payout_not_permitted",
           "invoice_paid",
           "surcharge_payment_succeeded",
           "surcharge_refund_succeeded"
