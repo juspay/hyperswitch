@@ -3458,7 +3458,6 @@ pub enum FundingSource {
     utoipa::ToSchema,
 )]
 #[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "UPPERCASE")]
 pub enum CardSegmentType {
     Business,
     Commercial,
