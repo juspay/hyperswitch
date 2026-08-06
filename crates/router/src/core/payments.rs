@@ -14575,6 +14575,7 @@ pub async fn payments_submit_eligibility(
 /// offer is selected, the payable amount is returned unchanged with an empty
 /// offer list.
 #[cfg(all(feature = "oltp", feature = "v1"))]
+#[allow(clippy::too_many_arguments)]
 async fn resolve_offer_eligibility_details(
     state: &SessionState,
     processor: &domain::Processor,

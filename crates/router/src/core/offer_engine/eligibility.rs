@@ -36,7 +36,7 @@ pub struct OfferEligibilityContext {
 }
 
 impl OfferEligibilityContext {
-    fn into_payment_method_info(&self) -> OfferPaymentMethodInfo {
+    fn to_payment_method_info(&self) -> OfferPaymentMethodInfo {
         OfferPaymentMethodInfo {
             payment_method_reference: self.payment_method_reference.clone(),
             payment_method_type: self.payment_method_type.clone(),
@@ -48,7 +48,7 @@ impl OfferEligibilityContext {
         }
     }
 
-    fn into_order(&self, merchant_id: &str) -> CustomResult<OfferOrder, OfferEngineError> {
+    fn to_order(&self, merchant_id: &str) -> CustomResult<OfferOrder, OfferEngineError> {
         Ok(OfferOrder {
             order_id: self.payment_id.get_string_repr().to_string(),
             merchant_id: merchant_id.to_string(),
@@ -58,7 +58,7 @@ impl OfferEligibilityContext {
         })
     }
 
-    fn into_customer(&self) -> Option<OfferCustomer> {
+    fn to_customer(&self) -> Option<OfferCustomer> {
         self.customer_id.as_ref().map(|id| OfferCustomer {
             id: id.get_string_repr().to_string(),
         })
@@ -71,9 +71,9 @@ pub async fn run_offer_eligibility(
     ctx: OfferEligibilityContext,
 ) -> CustomResult<Option<SelectedOffer>, OfferEngineError> {
     let request = OfferListRequest {
-        order: ctx.into_order(&config.merchant_id)?,
-        payment_method_info: vec![ctx.into_payment_method_info()],
-        customer: ctx.into_customer(),
+        order: ctx.to_order(&config.merchant_id)?,
+        payment_method_info: vec![ctx.to_payment_method_info()],
+        customer: ctx.to_customer(),
     };
 
     let client = OfferEngineClient::new(config, &state.conf.trace_header.header_name);
