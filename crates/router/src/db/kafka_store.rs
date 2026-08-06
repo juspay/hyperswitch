@@ -1,4 +1,4 @@
-use std::{collections::HashSet, sync::Arc};
+use std::collections::HashSet;
 
 use ::payment_methods::state::PaymentMethodsStorageInterface;
 use common_enums::enums::MerchantStorageScheme;
@@ -39,7 +39,7 @@ use hyperswitch_domain_models::{
 #[cfg(not(feature = "payouts"))]
 use hyperswitch_domain_models::{PayoutAttemptInterface, PayoutsInterface};
 use hyperswitch_masking::Secret;
-use redis_interface::{errors::RedisError, RedisConnectionPool, RedisEntryId};
+use redis_interface::{errors::RedisError, RedisEntryId};
 use router_env::{instrument, logger, tracing};
 use scheduler::{
     db::{process_tracker::ProcessTrackerInterface, queue::QueueInterface},
@@ -567,6 +567,22 @@ impl CustomerInterface for KafkaStore {
     ) -> CustomResult<domain::Customer, errors::StorageError> {
         self.diesel_store
             .find_customer_by_global_id_merchant_id(id, merchant_id, key_store, storage_scheme)
+            .await
+    }
+
+    #[cfg(feature = "v2")]
+    async fn find_customer_by_global_id_merchant_id_without_encrypted(
+        &self,
+        id: &id_type::GlobalCustomerId,
+        merchant_id: &id_type::MerchantId,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<domain::CustomerWithoutEncrypted, errors::StorageError> {
+        self.diesel_store
+            .find_customer_by_global_id_merchant_id_without_encrypted(
+                id,
+                merchant_id,
+                storage_scheme,
+            )
             .await
     }
 
@@ -3735,7 +3751,9 @@ impl UserInterface for KafkaStore {
 }
 
 impl RedisConnInterface for KafkaStore {
-    fn get_redis_conn(&self) -> CustomResult<Arc<RedisConnectionPool>, RedisError> {
+    fn get_redis_conn(
+        &self,
+    ) -> CustomResult<redis_interface::RedisConnectionWithContext, RedisError> {
         self.diesel_store.get_redis_conn()
     }
 }
