@@ -21,7 +21,7 @@ password = "{{POSTGRES_PASSWORD}}"
 host = "{{POSTGRES_HOST}}"
 port = {{POSTGRES_PORT}}
 dbname = "{{POSTGRES_DB}}"
-pool_size = 60
+pool_size = 10
 
 [cache]
 tti = 7200

@@ -15,6 +15,20 @@ enabled = true
 payment_duration = 1
 payment_tolerance = 1
 
+# Non-modular card flows use the card vault's legacy API. Modular PM keeps the
+# generic vault configuration from its own override.
+[locker]
+mock_locker = false
+
+[micro_services]
+use_legacy_locker = true
+
+# Use the deployment-owned Superposition endpoint and refresh local overrides
+# quickly enough for merchant setup followed by an immediate smoke/load test.
+[superposition]
+endpoint = "{{SUPERPOSITION_BASE_URL}}"
+polling_interval = 5
+
 [jwekey]
 vault_encryption_key = """
 {{VAULT_PUBLIC_KEY}}

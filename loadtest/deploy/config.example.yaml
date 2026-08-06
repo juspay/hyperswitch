@@ -50,6 +50,9 @@ state_services:
     network: bridge
     ports: [55432:55432]
     health_url: null
+    host: 127.0.0.1
+    port: 55432
+    database: hyperswitch
     env:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
@@ -74,6 +77,14 @@ state_services:
     network: bridge
     ports: [6379:6379]
     health_url: null
+    host: 127.0.0.1
+    port: 6379
+    prefixes:
+      router: router
+      modular-pm: modular-pm
+      vault: vault
+      encryption: encryption
+      superposition: superposition
     env:
     volumes: [hs-loadtest-redis-automation-v1:/data]
     log_dir: redis
@@ -104,7 +115,7 @@ application_services:
     org_id: localorg
     workspace_id: dev
     secret: ""
-    propagation_wait_seconds: 6
+    propagation_wait_seconds: 35
     health_url: http://127.0.0.1:8082/health
     env_file: null
     env:

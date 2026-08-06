@@ -88,6 +88,7 @@ e2e-smoke:
     just smoke non_modular guest
     just smoke non_modular cit_on_session
     just smoke non_modular cit_off_session
+    just smoke non_modular cit_metadata_changed
     just smoke modular guest
     just smoke modular cit_on_session
     just smoke modular cit_off_session

@@ -4,15 +4,14 @@
 const crypto = require("crypto");
 const fs = require("fs");
 const path = require("path");
-const { spawnSync } = require("child_process");
 const { loadYaml, resolveMaybe } = require("../../lib/config");
+const { run, runShell } = require("./process");
 
 const LOADTEST_ROOT = path.resolve(__dirname, "../..");
 const CONFIG_PATH = path.resolve(LOADTEST_ROOT, process.env.CONFIG || "deploy/config.yaml");
 const EXAMPLE_CONFIG_PATH = path.resolve(LOADTEST_ROOT, "deploy/config.example.yaml");
 const DRY_RUN = process.env.DRY_RUN === "1" || process.env.DRY_RUN === "true";
 const FORCE = process.env.FORCE === "1" || process.env.FORCE === "true";
-let PODMAN_ENV_CACHE = null;
 
 function loadConfig() {
   const configPath = fs.existsSync(CONFIG_PATH) ? CONFIG_PATH : EXAMPLE_CONFIG_PATH;
@@ -73,66 +72,6 @@ function arrayValue(value) {
   return Array.isArray(value) ? value : [value];
 }
 
-function run(command, args, options = {}) {
-  const printable = [command, ...args].join(" ");
-  if (DRY_RUN) {
-    console.log(`[dry-run] ${printable}`);
-    return { status: 0, stdout: "", stderr: "" };
-  }
-  const commandEnv = command === "podman" ? podmanEnv() : {};
-  const result = spawnSync(command, args, {
-    cwd: options.cwd || LOADTEST_ROOT,
-    encoding: "utf8",
-    input: options.input,
-    stdio: options.capture || options.input !== undefined ? "pipe" : "inherit",
-    env: { ...process.env, ...commandEnv, ...(options.env || {}) },
-  });
-  if (result.error) throw result.error;
-  if (result.status !== 0 && !options.allowFailure) throw new Error(`Command failed: ${printable}`);
-  return result;
-}
-
-function podmanEnv() {
-  if (process.env.CONTAINERS_CONF) return {};
-  if (PODMAN_ENV_CACHE) return PODMAN_ENV_CACHE;
-
-  const helperDir = process.env.PODMAN_HELPER_BINARIES_DIR || detectPodmanHelperDir();
-  if (!helperDir) {
-    PODMAN_ENV_CACHE = {};
-    return PODMAN_ENV_CACHE;
-  }
-
-  const output = path.join(LOADTEST_ROOT, "deploy/generated/state/containers.conf");
-  const escapedHelperDir = helperDir.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
-  const escapedProfileBin = path.join(process.env.HOME || "", ".nix-profile/bin")
-    .replace(/\\/g, "\\\\")
-    .replace(/"/g, '\\"');
-  fs.mkdirSync(path.dirname(output), { recursive: true });
-  fs.writeFileSync(
-    output,
-    `[engine]\nhelper_binaries_dir=["${escapedHelperDir}","${escapedProfileBin}"]\n`,
-  );
-  PODMAN_ENV_CACHE = { CONTAINERS_CONF: output };
-  return PODMAN_ENV_CACHE;
-}
-
-function detectPodmanHelperDir() {
-  const result = spawnSync("bash", ["-lc", 'readlink -f "$(command -v podman)"'], {
-    encoding: "utf8",
-    stdio: "pipe",
-    env: process.env,
-  });
-  const podmanPath = result.stdout.trim();
-  if (!podmanPath) return null;
-  const candidate = path.resolve(path.dirname(podmanPath), "../libexec/podman");
-  if (fs.existsSync(path.join(candidate, "rootlessport"))) return candidate;
-  return null;
-}
-
-function runShell(command, options = {}) {
-  return run("bash", ["-lc", command], options);
-}
-
 function ensureDir(dir) {
   if (DRY_RUN) {
     console.log(`[dry-run] mkdir -p ${dir}`);
@@ -185,7 +124,14 @@ function repoPath(state, name) {
   return resolveMaybe(state.configDir, source.path);
 }
 
-function tokenMap(state) {
+function requiredConfig(value, key) {
+  if (value === undefined || value === null || value === "") throw new Error(`${key} is required`);
+  return value;
+}
+
+// Deployment YAML is the source of truth. These values only bridge it into
+// generated application TOMLs, container arguments, and migration commands.
+function templateVariables(state) {
   const postgres = state.config.state_services?.postgres || {};
   const redis = state.config.state_services?.redis || {};
   const postgresEnv = postgres.env || {};
@@ -194,40 +140,39 @@ function tokenMap(state) {
   const prefixes = redis.prefixes || {};
   const apps = state.config.application_services || {};
   const root = generatedRoot(state);
-  const hyperswitchRepoPath = repoPath(state, "router") || LOADTEST_ROOT;
+  const hyperswitchRepoPath = requiredConfig(repoPath(state, "router"), "application_services.router.source.path");
   const databaseUrl = (override) => {
     if (override) return override;
-    return `postgres://${postgresEnv.POSTGRES_USER || "postgres"}:${postgresEnv.POSTGRES_PASSWORD || "postgres"}@${postgres.host || "127.0.0.1"}:${postgres.port || "5432"}/${postgres.database || postgresEnv.POSTGRES_DB || "hyperswitch"}`;
+    return `postgres://${requiredConfig(postgresEnv.POSTGRES_USER, "state_services.postgres.env.POSTGRES_USER")}:${requiredConfig(postgresEnv.POSTGRES_PASSWORD, "state_services.postgres.env.POSTGRES_PASSWORD")}@${requiredConfig(postgres.host, "state_services.postgres.host")}:${requiredConfig(postgres.port, "state_services.postgres.port")}/${requiredConfig(postgres.database, "state_services.postgres.database")}`;
   };
-  const tokens = {
-    POSTGRES_HOST: postgres.host || "127.0.0.1",
-    POSTGRES_PORT: postgres.port || "5432",
-    POSTGRES_DB: postgres.database || postgresEnv.POSTGRES_DB || "hyperswitch",
-    POSTGRES_USER: postgresEnv.POSTGRES_USER || "postgres",
-    POSTGRES_PASSWORD: postgresEnv.POSTGRES_PASSWORD || "postgres",
-    POSTGRES_SCHEMA_ROUTER: schemas.router || "public",
-    POSTGRES_SCHEMA_MODULAR_PM: schemas["modular-pm"] || schemas.router || "public",
-    POSTGRES_SCHEMA_VAULT: schemas.vault || "vault",
-    POSTGRES_SCHEMA_ENCRYPTION: schemas.encryption || "encryption",
-    POSTGRES_SCHEMA_SUPERPOSITION: schemas.superposition || "superposition",
+  const variables = {
+    POSTGRES_HOST: requiredConfig(postgres.host, "state_services.postgres.host"),
+    POSTGRES_PORT: requiredConfig(postgres.port, "state_services.postgres.port"),
+    POSTGRES_DB: requiredConfig(postgres.database, "state_services.postgres.database"),
+    POSTGRES_USER: requiredConfig(postgresEnv.POSTGRES_USER, "state_services.postgres.env.POSTGRES_USER"),
+    POSTGRES_PASSWORD: requiredConfig(postgresEnv.POSTGRES_PASSWORD, "state_services.postgres.env.POSTGRES_PASSWORD"),
+    POSTGRES_SCHEMA_ROUTER: requiredConfig(schemas.router, "state_services.postgres.schemas.router"),
+    POSTGRES_SCHEMA_MODULAR_PM: requiredConfig(schemas["modular-pm"], "state_services.postgres.schemas.modular-pm"),
+    POSTGRES_SCHEMA_VAULT: requiredConfig(schemas.vault, "state_services.postgres.schemas.vault"),
+    POSTGRES_SCHEMA_ENCRYPTION: requiredConfig(schemas.encryption, "state_services.postgres.schemas.encryption"),
+    POSTGRES_SCHEMA_SUPERPOSITION: requiredConfig(schemas.superposition, "state_services.postgres.schemas.superposition"),
     ROUTER_DATABASE_URL: databaseUrl(databaseUrls.router),
     MODULAR_PM_DATABASE_URL: databaseUrl(databaseUrls["modular-pm"]),
-    VAULT_DATABASE_URL: databaseUrl(postgres.vault_database_url),
-    ENCRYPTION_DATABASE_URL: databaseUrl(postgres.encryption_database_url),
-    SUPERPOSITION_DATABASE_URL: databaseUrl(postgres.superposition_database_url),
-    REDIS_HOST: redis.host || "127.0.0.1",
-    REDIS_PORT: redis.port || "6379",
-    REDIS_PREFIX_ROUTER: prefixes.router || "router",
-    REDIS_PREFIX_MODULAR_PM: prefixes["modular-pm"] || "modular-pm",
-    REDIS_PREFIX_VAULT: prefixes.vault || "vault",
-    REDIS_PREFIX_ENCRYPTION: prefixes.encryption || "encryption",
-    REDIS_PREFIX_SUPERPOSITION: prefixes.superposition || "superposition",
-    ROUTER_BASE_URL: apps.router?.base_url || "http://127.0.0.1:8080",
-    MODULAR_PM_BASE_URL: apps["modular-pm"]?.base_url || "http://127.0.0.1:8081",
-    VAULT_BASE_URL: apps.vault?.base_url || "http://127.0.0.1:3001",
-    ENCRYPTION_BASE_URL: apps.encryption?.base_url || "http://127.0.0.1:5000",
-    MODULAR_PM_BASE_URL: apps["modular-pm"]?.base_url || "http://127.0.0.1:8081",
-    SUPERPOSITION_BASE_URL: apps.superposition?.base_url || "http://127.0.0.1:8082",
+    VAULT_DATABASE_URL: databaseUrl(databaseUrls.vault),
+    ENCRYPTION_DATABASE_URL: databaseUrl(databaseUrls.encryption),
+    SUPERPOSITION_DATABASE_URL: databaseUrl(databaseUrls.superposition),
+    REDIS_HOST: requiredConfig(redis.host, "state_services.redis.host"),
+    REDIS_PORT: requiredConfig(redis.port, "state_services.redis.port"),
+    REDIS_PREFIX_ROUTER: requiredConfig(prefixes.router, "state_services.redis.prefixes.router"),
+    REDIS_PREFIX_MODULAR_PM: requiredConfig(prefixes["modular-pm"], "state_services.redis.prefixes.modular-pm"),
+    REDIS_PREFIX_VAULT: requiredConfig(prefixes.vault, "state_services.redis.prefixes.vault"),
+    REDIS_PREFIX_ENCRYPTION: requiredConfig(prefixes.encryption, "state_services.redis.prefixes.encryption"),
+    REDIS_PREFIX_SUPERPOSITION: requiredConfig(prefixes.superposition, "state_services.redis.prefixes.superposition"),
+    ROUTER_BASE_URL: requiredConfig(apps.router?.base_url, "application_services.router.base_url"),
+    MODULAR_PM_BASE_URL: requiredConfig(apps["modular-pm"]?.base_url, "application_services.modular-pm.base_url"),
+    VAULT_BASE_URL: requiredConfig(apps.vault?.base_url, "application_services.vault.base_url"),
+    ENCRYPTION_BASE_URL: requiredConfig(apps.encryption?.base_url, "application_services.encryption.base_url"),
+    SUPERPOSITION_BASE_URL: requiredConfig(apps.superposition?.base_url, "application_services.superposition.base_url"),
     GENERATED_ROOT: root,
     HYPERSWITCH_REPO_PATH: hyperswitchRepoPath,
     VAULT_PRIVATE_KEY_PATH: path.join(root, "keys/vault_private_key.pem"),
@@ -237,13 +182,13 @@ function tokenMap(state) {
   };
   for (const [name] of sourceEntries(state.config)) {
     const repo = repoPath(state, name);
-    if (repo) tokens[`REPO_${name.toUpperCase().replace(/[^A-Z0-9]+/g, "_")}`] = repo;
+    if (repo) variables[`REPO_${name.toUpperCase().replace(/[^A-Z0-9]+/g, "_")}`] = repo;
   }
-  return tokens;
+  return variables;
 }
 
-function render(contents, tokens) {
-  return contents.replace(/\{\{([A-Z0-9_]+)\}\}/g, (match, key) => String(tokens[key] ?? match));
+function render(contents, variables) {
+  return contents.replace(/\{\{([A-Z0-9_]+)\}\}/g, (_, key) => String(requiredConfig(variables[key], `template variable ${key}`)));
 }
 
 function serviceRunArgs(state, name, service) {
@@ -262,8 +207,8 @@ function serviceRunArgs(state, name, service) {
   if (service.cpuset !== null && service.cpuset !== undefined && service.cpuset !== "") args.push("--cpuset-cpus", String(service.cpuset));
   if (service.user !== null && service.user !== undefined && service.user !== "") args.push("--user", String(service.user));
   for (const [key, value] of Object.entries(service.env || {})) if (value !== null && value !== undefined) args.push("-e", `${key}=${value}`);
-  if (service.env_file) args.push("--env-file", render(resolveMaybe(state.configDir, service.env_file), tokenMap(state)));
-  for (const volume of arrayValue(service.volumes).filter(Boolean)) args.push("-v", render(String(volume), tokenMap(state)));
+  if (service.env_file) args.push("--env-file", render(resolveMaybe(state.configDir, service.env_file), templateVariables(state)));
+  for (const volume of arrayValue(service.volumes).filter(Boolean)) args.push("-v", render(String(volume), templateVariables(state)));
   if (service.log_mount) {
     const hostLogDir = serviceLogDir(state, name, service);
     ensureDir(hostLogDir);
@@ -271,7 +216,7 @@ function serviceRunArgs(state, name, service) {
   }
   if (service.ports && (service.network || "host") !== "host") for (const port of arrayValue(service.ports)) args.push("-p", String(port));
   args.push(service.image);
-  if (service.command) args.push(...commandParts(render(service.command, tokenMap(state))));
+  if (service.command) args.push(...commandParts(render(service.command, templateVariables(state))));
   return args;
 }
 
@@ -285,16 +230,12 @@ function reposCommand(state) {
       continue;
     }
     preparedPaths.add(target);
-    if (fs.existsSync(target)) {
-      console.log(`${name}: using ${target}`);
-      continue;
-    }
-    ensureDir(path.dirname(target));
-    console.log(`${name}: cloning ${source.git_url} -> ${target}`);
-    const args = ["clone"];
-    if (source.ref) args.push("--branch", String(source.ref));
-    args.push(source.git_url, target);
-    run("git", args);
+    run("bash", [
+      path.join(__dirname, "../scripts/repository.sh"),
+      target,
+      source.git_url,
+      source.ref ? String(source.ref) : "",
+    ]);
   }
 }
 
@@ -318,7 +259,7 @@ function build(state) {
     }
     if (buildConfig.command) {
       console.log(`${name}: ${buildConfig.command}`);
-      runShell(render(buildConfig.command, tokenMap(state)), { cwd: repoPath(state, name) });
+      runShell(render(buildConfig.command, templateVariables(state)), { cwd: repoPath(state, name) });
       continue;
     }
     if (!buildConfig.dockerfile) throw new Error(`${name}: local source requires build.command or build.dockerfile`);
@@ -356,7 +297,7 @@ function generateKeys(state) {
 
 function prepareConfigs(state) {
   const configs = state.config.prepare?.configs || {};
-  const tokens = tokenMap(state);
+  const variables = templateVariables(state);
   for (const [name, item] of Object.entries(configs)) {
     if (!item || item.enabled === false) continue;
     if (!item.output) throw new Error(`prepare.configs.${name}.output is required`);
@@ -364,7 +305,7 @@ function prepareConfigs(state) {
     const inputPath = item.template ? resolveMaybe(state.configDir, item.template) : resolveMaybe(state.configDir, item.source);
     if (!inputPath) throw new Error(`prepare.configs.${name}: template or source is required`);
     if (!fs.existsSync(inputPath)) throw new Error(`prepare.configs.${name}: input not found: ${inputPath}`);
-    writeFileOnce(output, render(fs.readFileSync(inputPath, "utf8"), tokens));
+    writeFileOnce(output, render(fs.readFileSync(inputPath, "utf8"), variables));
   }
 }
 
@@ -390,7 +331,7 @@ function readGeneratedSecret(state, relativePath) {
 
 function generatedSecretTokens(state) {
   return {
-    ...tokenMap(state),
+    ...templateVariables(state),
     VAULT_PRIVATE_KEY: readGeneratedSecret(state, "keys/vault_private_key.pem"),
     VAULT_PUBLIC_KEY: readGeneratedSecret(state, "keys/vault_public_key.pem"),
     TENANT_MASTER_KEY: readGeneratedSecret(state, "keys/tenant_master_key.hex"),
@@ -555,6 +496,27 @@ function prepareRouterVaultKeys(state) {
       "payment_methods_base_url",
       tokens.MODULAR_PM_BASE_URL,
     );
+    if (overrideName === "router") {
+      contents = replaceTomlSectionBoolean(contents, "locker", "mock_locker", booleanValueFor("locker", "mock_locker"));
+      contents = replaceTomlSectionBoolean(
+        contents,
+        "micro_services",
+        "use_legacy_locker",
+        booleanValueFor("micro_services", "use_legacy_locker"),
+      );
+      contents = setTomlSectionString(
+        contents,
+        "superposition",
+        "endpoint",
+        stringValueFor("superposition", "endpoint"),
+      );
+      contents = setTomlSectionNumber(
+        contents,
+        "superposition",
+        "polling_interval",
+        numberValueFor("superposition", "polling_interval"),
+      );
+    }
     if (overrideName === "modular-pm") {
       contents = setTomlSectionNumber(contents, "server", "port", numberValueFor("server", "port"));
     }
@@ -743,9 +705,9 @@ function initState(state) {
     const cwd = repoPath(state, sourceName);
     if (!cwd) throw new Error(`${name}: migration source path missing: ${sourceName}`);
     const env = {};
-    for (const [key, value] of Object.entries(migration.env || {})) env[key] = render(String(value), tokenMap(state));
+    for (const [key, value] of Object.entries(migration.env || {})) env[key] = render(String(value), templateVariables(state));
     console.log(`${name}: ${migration.command}`);
-    runShell(render(migration.command, tokenMap(state)), { cwd, env });
+    runShell(render(migration.command, templateVariables(state)), { cwd, env });
   }
 }
 
@@ -825,6 +787,7 @@ function smoke(state) {
 
 function preflight(state) {
   run("podman", ["--version"], { capture: true });
+  templateVariables(state);
   const cpus = run("nproc", [], { capture: true }).stdout.trim();
   console.log(`Config: ${state.configPath}`);
   console.log(`Logical CPUs visible: ${cpus}`);
@@ -901,9 +864,9 @@ function runHooks(state, section) {
     const cwd = sourceName ? repoPath(state, sourceName) : state.configDir;
     if (!cwd) throw new Error(`${section} ${name}: source path missing: ${sourceName}`);
     const env = {};
-    for (const [key, value] of Object.entries(hook.env || {})) env[key] = render(String(value), tokenMap(state));
+    for (const [key, value] of Object.entries(hook.env || {})) env[key] = render(String(value), templateVariables(state));
     console.log(`${section} ${name}: ${hook.command}`);
-    runShell(render(hook.command, tokenMap(state)), { cwd, env });
+    runShell(render(hook.command, templateVariables(state)), { cwd, env });
   }
 }
 

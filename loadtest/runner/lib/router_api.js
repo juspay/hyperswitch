@@ -15,6 +15,11 @@ const DEFAULT_CARD = Object.freeze({
   card_holder_name: "Load Test",
   card_cvc: "123",
 });
+const DEFAULT_METADATA_UPDATE = Object.freeze({
+  card_exp_month: "11",
+  card_exp_year: "36",
+  card_holder_name: "Updated Load Test",
+});
 const SUCCESS_STATUSES = new Set(["succeeded", "requires_capture", "processing"]);
 let requestTimeoutMs = 30000;
 
@@ -68,15 +73,7 @@ function apiKeyHeaders(apiKey) {
   return { "api-key": apiKey };
 }
 
-function modularHeaders(merchant, clientSecret) {
-  return {
-    Authorization: clientSecret ? `publishable-key=${merchant.publishable_key},client-secret=${clientSecret}` : `api-key=${merchant.merchant_api_key}`,
-    "x-profile-id": merchant.profile_id,
-    "x-feature": "sandbox-pm-loadtest",
-  };
-}
-
-function customerAcceptance() {
+ function customerAcceptance() {
   return {
     acceptance_type: "online",
     accepted_at: new Date().toISOString(),
@@ -167,70 +164,7 @@ async function setupMerchant(state, merchantPath, fresh, data) {
   return merchant;
 }
 
-async function createCustomer(state, merchant, plan, reference) {
-  if (!plan.requiresCustomer) return null;
-  if (plan.usesPmService) {
-    const baseUrl = state.config.services["modular-pm"].replace(/\/$/, "");
-    const body = (await requestJson("POST", `${baseUrl}/v2/customers`, {
-      merchant_reference_id: reference, name: "Loadtest Modular User", phone: "6168205362",
-      email: `${reference}@example.com`, phone_country_code: "+1",
-    }, modularHeaders(merchant))).body;
-    return body.id || body.customer_id;
-  }
-  const baseUrl = state.config.services.router.replace(/\/$/, "");
-  const body = (await requestJson("POST", `${baseUrl}/customers`, {
-    customer_id: reference, name: "Loadtest User", phone: "6168205362",
-    email: `${reference}@example.com`, phone_country_code: "+1",
-  }, apiKeyHeaders(merchant.merchant_api_key))).body;
-  return body.customer_id || body.id;
-}
-
-async function createFixture(state, data, run, merchant, plan, index) {
-  const fixtures = state.config.fixtures || {};
-  const baseUrl = state.config.services.router.replace(/\/$/, "");
-  const modularUrl = state.config.services["modular-pm"].replace(/\/$/, "");
-  const reference = `customer_loadtest_${run.run_id}_${index}`;
-  const customerId = await createCustomer(state, merchant, plan, reference);
-  if (plan.requiresCustomer && !customerId) throw new Error("customer response has no id");
-  let pmSessionId = null;
-  let pmSessionClientSecret = null;
-  if (plan.usesPmService) {
-    const session = (await requestJson("POST", `${modularUrl}/v2/payment-method-sessions`, {
-      ...(customerId ? { customer_id: customerId } : {}),
-      expires_in: Number(fixtures.session_expiry || 900),
-      storage_type: plan.storageType,
-    }, modularHeaders(merchant))).body;
-    pmSessionId = session.id;
-    pmSessionClientSecret = session.client_secret;
-    if (!pmSessionId || !pmSessionClientSecret) throw new Error(`PMS session response is incomplete: ${JSON.stringify(session)}`);
-  }
-  const payment = (await requestJson("POST", `${baseUrl}/payments`, {
-    amount: Number(fixtures.amount || 1000),
-    currency: fixtures.currency || "USD",
-    confirm: false,
-    capture_method: "automatic",
-    profile_id: merchant.profile_id,
-    session_expiry: Number(fixtures.session_expiry || 900),
-    description: `Loadtest automation ${plan.id}`,
-    ...(customerId ? { customer_id: customerId } : {}),
-    ...(plan.setupFutureUsage ? { setup_future_usage: plan.setupFutureUsage } : {}),
-  }, apiKeyHeaders(merchant.merchant_api_key))).body;
-  if (!payment.payment_id) throw new Error(`payment fixture response is incomplete: ${JSON.stringify(payment)}`);
-  return {
-    fixture_id: crypto.randomUUID(),
-    version: 1,
-    run_id: run.run_id,
-    merchant_id: merchant.merchant_id,
-    scenario_id: plan.id,
-    payment_id: payment.payment_id,
-    customer_id: customerId,
-    pm_session_id: pmSessionId,
-    pm_session_client_secret: pmSessionClientSecret,
-    state: "ready",
-  };
-}
-
-function buildPaymentConfirmBody(plan, card, token) {
+ function buildPaymentConfirmBody(plan, card, token) {
   const body = plan.usesPmService
     ? { payment_token: token, payment_method: "card", payment_method_type: "credit" }
     : { payment_method: "card", payment_method_type: "credit", payment_method_data: { card } };
@@ -241,42 +175,7 @@ function buildPaymentConfirmBody(plan, card, token) {
   return body;
 }
 
-async function confirmFixture(state, merchant, fixture, plan) {
-  const card = apiConfig(state).card || DEFAULT_CARD;
-  let token = null;
-  let pmRequestId = null;
-  let pmLatencyMs = null;
-  if (plan.usesPmService) {
-    const started = performance.now();
-    const response = await requestJson("POST", `${state.config.services["modular-pm"].replace(/\/$/, "")}/v2/payment-method-sessions/${fixture.pm_session_id}/confirm`, {
-      payment_method_data: { card }, payment_method_type: "card", payment_method_subtype: "credit",
-    }, modularHeaders(merchant, fixture.pm_session_client_secret));
-    pmLatencyMs = performance.now() - started;
-    pmRequestId = response.requestId;
-    token = response.body.associated_payment_methods?.[0]?.payment_method_token;
-    if (token && typeof token === "object") token = token.data;
-    if (!token) throw new Error(`PMS confirm response has no payment token: ${JSON.stringify(response.body)}`);
-  }
-  const started = performance.now();
-  const payment = await requestJson("POST", `${state.config.services.router.replace(/\/$/, "")}/payments/${fixture.payment_id}/confirm`,
-    buildPaymentConfirmBody(plan, card, token), apiKeyHeaders(merchant.merchant_api_key));
-  const paymentLatencyMs = performance.now() - started;
-  return {
-    fixture_id: fixture.fixture_id,
-    run_id: fixture.run_id,
-    merchant_id: fixture.merchant_id,
-    scenario_id: fixture.scenario_id,
-    payment_id: payment.body.payment_id,
-    status: payment.body.status,
-    pm_session_confirm_request_id: pmRequestId,
-    payment_confirm_request_id: payment.requestId,
-    pm_session_confirm_latency_ms: pmLatencyMs == null ? null : Number(pmLatencyMs.toFixed(2)),
-    payment_confirm_latency_ms: Number(paymentLatencyMs.toFixed(2)),
-    total_latency_ms: Number(((pmLatencyMs || 0) + paymentLatencyMs).toFixed(2)),
-  };
-}
-
-function loadPhases(config) {
+ function loadPhases(config) {
   const start = Number(config.starting_rps || 1);
   const target = Number(config.target_rps || start);
   const step = Number(config.step_rps ?? target);
@@ -296,19 +195,7 @@ function plannedFixtureCount(state) {
   return loadPhases(state.config.load || {}).reduce((sum, phase) => sum + phase.requests, 0);
 }
 
-async function mapLimit(count, limit, worker) {
-  let next = 0;
-  const workers = Array.from({ length: Math.min(Math.max(1, limit), count) }, async () => {
-    while (next < count) {
-      const index = next;
-      next += 1;
-      await worker(index);
-    }
-  });
-  await Promise.all(workers);
-}
-
-async function prepareFixtures(state) {
+ async function prepareFixtures(state) {
   const data = readState(state);
   const plan = buildPlan(state.config.scenario || {});
   const merchant = await setupMerchant(state, plan.merchantPath, Boolean(state.config.fixtures?.fresh_merchant), data);
@@ -335,6 +222,7 @@ async function prepareFixtures(state) {
     count,
     concurrency: Number(state.config.fixtures?.concurrency || 1),
     fixture_config: state.config.fixtures || {},
+    card: apiConfig(state).card || DEFAULT_CARD,
     request_timeout_ms: requestTimeoutMs,
   };
   fs.writeFileSync(inputPath, JSON.stringify(input), { mode: 0o600 });
@@ -372,6 +260,7 @@ async function prepareFixtures(state) {
           customer_id: tags.customer_id || null,
           pm_session_id: tags.pm_session_id || null,
           pm_session_client_secret: tags.pm_session_client_secret || null,
+          saved_payment_method_id: tags.saved_payment_method_id || null,
           state: "ready",
         });
       } else if (point.metric === "loadtest_fixture_failed") {
@@ -418,6 +307,7 @@ async function startRun(state) {
     merchant,
     plan,
     card: apiConfig(state).card || DEFAULT_CARD,
+    metadata_update: apiConfig(state).metadata_update || DEFAULT_METADATA_UPDATE,
     request_timeout_ms: requestTimeoutMs,
     phases,
     fixtures,

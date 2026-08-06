@@ -2,6 +2,7 @@ import exec from "k6/execution";
 import http from "k6/http";
 import { Trend } from "k6/metrics";
 import { SharedArray } from "k6/data";
+import { apiKeyHeaders, modularHeaders } from "./headers.js";
 
 const input = new SharedArray("loadtest input", () => [JSON.parse(open(__ENV.K6_INPUT))])[0];
 const successStatuses = new Set(["succeeded", "requires_capture", "processing"]);
@@ -43,19 +44,14 @@ function requestId(response) {
   return response.headers["X-Request-Id"] || response.headers["x-request-id"] || "";
 }
 
-function modularHeaders(clientSecret) {
+function measuredCard() {
+  if (!input.plan.metadataChanged) return input.card;
   return {
-    Authorization: clientSecret
-      ? `publishable-key=${input.merchant.publishable_key},client-secret=${clientSecret}`
-      : `api-key=${input.merchant.merchant_api_key}`,
-    "x-profile-id": input.merchant.profile_id,
-    "x-feature": "sandbox-pm-loadtest",
-    "content-type": "application/json",
+    ...input.card,
+    card_exp_month: input.metadata_update.card_exp_month,
+    card_exp_year: input.metadata_update.card_exp_year,
+    card_holder_name: input.metadata_update.card_holder_name,
   };
-}
-
-function apiKeyHeaders() {
-  return { "api-key": input.merchant.merchant_api_key, "content-type": "application/json" };
 }
 
 function emitResult(fixture, status, error, pmResponse, paymentResponse, pmMs, paymentMs) {
@@ -95,7 +91,7 @@ export function confirmPayment() {
         payment_method_type: "card",
         payment_method_subtype: "credit",
       }),
-      { ...params, headers: modularHeaders(fixture.pm_session_client_secret), tags: { operation: "pm_session_confirm" } },
+      { ...params, headers: modularHeaders(input, fixture.pm_session_client_secret), tags: { operation: "pm_session_confirm" } },
     );
     pmMs = pmResponse.timings.duration;
     const pmBody = json(pmResponse);
@@ -108,7 +104,7 @@ export function confirmPayment() {
   }
   const body = input.plan.usesPmService
     ? { payment_token: token, payment_method: "card", payment_method_type: "credit" }
-    : { payment_method: "card", payment_method_type: "credit", payment_method_data: { card: input.card } };
+    : { payment_method: "card", payment_method_type: "credit", payment_method_data: { card: measuredCard() } };
   if (input.plan.setupFutureUsage) {
     body.setup_future_usage = input.plan.setupFutureUsage;
     body.customer_acceptance = {
@@ -120,12 +116,13 @@ export function confirmPayment() {
   const paymentResponse = http.post(
     `${input.services.router.replace(/\/$/, "")}/payments/${fixture.payment_id}/confirm`,
     JSON.stringify(body),
-    { ...params, headers: apiKeyHeaders(), tags: { operation: "payment_confirm" } },
+    { ...params, headers: apiKeyHeaders(input), tags: { operation: "payment_confirm" } },
   );
   const paymentMs = paymentResponse.timings.duration;
   const paymentBody = json(paymentResponse);
   const status = paymentBody.status || "failed";
-  const success = paymentResponse.status >= 200 && paymentResponse.status < 300 && successStatuses.has(status);
+  const success = paymentResponse.status >= 200 && paymentResponse.status < 300
+    && successStatuses.has(status);
   emitResult(
     fixture,
     success ? status : "failed",

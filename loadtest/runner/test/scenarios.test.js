@@ -23,6 +23,17 @@ for (const merchantPath of paths) {
 test("invalid scenario selections fail before traffic starts", () => {
   assert.throws(() => buildPlan({ merchant_path: "unknown", name: "guest" }), /Unsupported merchant_path/);
   assert.throws(() => buildPlan({ merchant_path: "modular", name: "unknown" }), /Unsupported scenario/);
+  assert.throws(
+    () => buildPlan({ merchant_path: "modular", name: "cit_metadata_changed" }),
+    /only the non_modular merchant path/,
+  );
+});
+
+test("metadata-change CIT requires a pre-existing saved card", () => {
+  const plan = buildPlan({ merchant_path: "non_modular", name: "cit_metadata_changed" });
+  assert.equal(plan.requiresSavedCard, true);
+  assert.equal(plan.metadataChanged, true);
+  assert.equal(plan.setupFutureUsage, "off_session");
 });
 
 test("one-time confirms do not contain save-card fields", () => {

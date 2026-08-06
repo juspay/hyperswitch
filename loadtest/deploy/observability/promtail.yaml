@@ -17,6 +17,7 @@ scrape_configs:
       - source_labels: [__meta_docker_container_label_io_hyperswitch_loadtest_managed]
         regex: "true"
         action: keep
+      # Preserve the canonical deployment service label for Loki queries.
       - source_labels: [__meta_docker_container_label_io_hyperswitch_loadtest_service]
         target_label: loadtest_service
       - source_labels: [__meta_docker_container_name]

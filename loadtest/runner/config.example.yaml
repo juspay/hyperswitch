@@ -4,7 +4,7 @@ deployment_config: ../deploy/config.yaml
 scenario:
   # merchant_path: non_modular or modular
   merchant_path: modular
-  # name: guest, cit_on_session, or cit_off_session
+  # name: guest, cit_on_session, cit_off_session, or cit_metadata_changed
   name: cit_off_session
 
 load:
@@ -33,6 +33,19 @@ payments_api:
   # Dummy connector configured during merchant preparation.
   connector_name: stripe_test
   request_timeout_ms: 30000
+  # cit_metadata_changed saves this card during fixture preparation, then
+  # synchronously replaces its metadata during the measured confirm.
+  card:
+    card_number: "4242424242424242"
+    card_exp_month: "10"
+    card_exp_year: "35"
+    card_holder_name: "Load Test"
+    card_cvc: "123"
+  # The measured confirm keeps the PAN/CVC and applies these changes.
+  metadata_update:
+    card_exp_month: "11"
+    card_exp_year: "36"
+    card_holder_name: "Updated Load Test"
 
 # Runner-owned merchant, fixture, run, and request-result state.
 state_file: state/loadtest.json

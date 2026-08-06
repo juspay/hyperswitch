@@ -62,7 +62,7 @@ Set `build.force: true` or run `FORCE=1 just deploy-build` to rebuild local imag
 
 - PostgreSQL and Redis are shared; schemas and prefixes isolate service data.
 - Router and modular-pm intentionally share the Hyperswitch schema.
-- Preparation merges `deploy/overrides/*.toml` into generated service TOMLs.
+- Preparation resolves override placeholders from `deploy/config.yaml` and merges the resulting TOMLs.
 - Vault preparation generates one RSA key pair shared with router and modular-pm.
 - `cpuset` pins each container to configured logical CPUs.
 - Structured JSON logs are persisted under `deploy/logs/` and shipped to Loki.

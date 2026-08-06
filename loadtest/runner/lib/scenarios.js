@@ -18,6 +18,13 @@ const SCENARIOS = Object.freeze({
     setupFutureUsage: "off_session",
     storageType: "persistent",
   }),
+  cit_metadata_changed: Object.freeze({
+    requiresCustomer: true,
+    requiresSavedCard: true,
+    metadataChanged: true,
+    setupFutureUsage: "off_session",
+    storageType: "persistent",
+  }),
 });
 
 function buildPlan(config) {
@@ -26,6 +33,9 @@ function buildPlan(config) {
   if (!MERCHANT_PATHS.has(merchantPath)) throw new Error(`Unsupported merchant_path: ${merchantPath}`);
   const scenario = SCENARIOS[scenarioName];
   if (!scenario) throw new Error(`Unsupported scenario: ${scenarioName}`);
+  if (scenario.metadataChanged && merchantPath !== "non_modular") {
+    throw new Error("cit_metadata_changed supports only the non_modular merchant path");
+  }
   return Object.freeze({
     id: `${merchantPath}:${scenarioName}`,
     merchantPath,
