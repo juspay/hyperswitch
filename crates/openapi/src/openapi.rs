@@ -1181,6 +1181,7 @@ Never share your secret api keys. Keep them guarded and secure.
         common_types::payments::PaymentMethodsConfig,
         common_types::payments::TokenSource,
         common_types::payments::NetworkTransactionIdAndDecryptedWalletTokenDetails,
+        common_utils::types::Percentage<{ common_utils::consts::DISCOUNT_PERCENTAGE_PRECISION_LENGTH }>,
     )),
     modifiers(&SecurityAddon)
 )]

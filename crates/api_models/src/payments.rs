@@ -18,7 +18,7 @@ use common_types::{
     customers::DocumentKind, payments as common_payments_types, primitive_wrappers,
 };
 use common_utils::{
-    consts::default_payments_list_limit,
+    consts::{default_payments_list_limit, DISCOUNT_PERCENTAGE_PRECISION_LENGTH},
     crypto,
     errors::ValidationError,
     ext_traits::{ConfigExt, Encode, ValueExt},
@@ -26,7 +26,7 @@ use common_utils::{
     id_type,
     new_type::MaskedBankAccount,
     pii::{self, Email},
-    types::{AmountConvertor, MinorUnit, SemanticVersion, StringMajorUnit},
+    types::{AmountConvertor, MinorUnit, Percentage, SemanticVersion, StringMajorUnit},
 };
 use error_stack::ResultExt;
 
@@ -9559,6 +9559,9 @@ pub struct PaymentsRetrieveRequest {
     pub all_keys_required: Option<bool>,
 }
 
+/// Percentage value used to represent the discount applied on an item.
+pub type DiscountPercentage = Percentage<DISCOUNT_PERCENTAGE_PRECISION_LENGTH>;
+
 #[derive(
     Debug, Default, PartialEq, serde::Deserialize, serde::Serialize, Clone, ToSchema, SmithyModel,
 )]
@@ -9625,10 +9628,20 @@ pub struct OrderDetailsWithAmount {
     #[schema(value_type = Option<i64>)]
     #[smithy(value_type = "Option<i64>")]
     pub total_amount: Option<MinorUnit>, // total_amount,
+    /// Discount name applied to this item.
+    #[smithy(value_type = "Option<String>")]
+    pub discount_name: Option<String>,
     /// Discount amount applied to this item.
     #[schema(value_type = Option<i64>)]
     #[smithy(value_type = "Option<i64>")]
     pub unit_discount_amount: Option<MinorUnit>,
+    /// Discount percentage applied to this item.
+    #[schema(value_type = Option<Percentage<DISCOUNT_PERCENTAGE_PRECISION_LENGTH>>)]
+    #[smithy(value_type = "Option<Percentage<DISCOUNT_PERCENTAGE_PRECISION_LENGTH>>")]
+    pub discount_percentage: Option<DiscountPercentage>,
+    /// Discount type applied to this item.
+    #[smithy(value_type = "Option<String>")]
+    pub discount_type: Option<String>,
 }
 
 impl hyperswitch_masking::SerializableSecret for OrderDetailsWithAmount {}

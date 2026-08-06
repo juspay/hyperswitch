@@ -120,9 +120,12 @@ fn build_ucs_order_details(
                     unit_discount_amount: detail
                         .unit_discount_amount
                         .map(|amount| amount.get_amount_as_i64()),
-                    discount_name: None,
-                    discount_percentage: None,
-                    discount_type: None,
+                    discount_name: detail.discount_name.clone(),
+                    discount_percentage: detail
+                        .discount_percentage
+                        .as_ref()
+                        .map(|value| value.get_percentage()),
+                    discount_type: detail.discount_type.clone(),
                 })
                 .collect()
         })
@@ -6969,6 +6972,7 @@ impl transformers::ForeignTryFrom<payments_grpc::payout_enums::PayoutStatus>
             payments_grpc::payout_enums::PayoutStatus::Reversed => Ok(Self::Reversed),
             payments_grpc::payout_enums::PayoutStatus::Pending => Ok(Self::Pending),
             payments_grpc::payout_enums::PayoutStatus::Ineligible => Ok(Self::Ineligible),
+            // #TODO: map grpc PayoutStatus::NotPermitted -> Self::NotPermitted once UCS version is bumped
             payments_grpc::payout_enums::PayoutStatus::RequiresCreation => {
                 Ok(Self::RequiresCreation)
             }
