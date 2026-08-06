@@ -1911,6 +1911,7 @@ impl EventClass {
                 EventType::PayoutCancelled,
                 EventType::PayoutExpired,
                 EventType::PayoutReversed,
+                EventType::PayoutNotPermitted,
             ]),
             Self::Subscriptions => HashSet::from([EventType::InvoicePaid]),
         }
@@ -1972,6 +1973,8 @@ pub enum EventType {
     PayoutExpired,
     #[cfg(feature = "payouts")]
     PayoutReversed,
+    #[cfg(feature = "payouts")]
+    PayoutNotPermitted,
     InvoicePaid,
     SurchargePaymentSucceeded,
     SurchargeRefundSucceeded,
@@ -8860,7 +8863,15 @@ pub enum PayoutStatus {
     Expired,
     Reversed,
     Pending,
+    /// Non-terminal: the payout method/payee was found ineligible, but the payout
+    /// is not conclusively closed. This status is intentionally NOT terminal and
+    /// emits no outgoing webhook (see `From<PayoutStatus> for Option<EventType>`).
     Ineligible,
+    /// Terminal: the payout was conclusively refused by the processor (e.g. a
+    /// Verification-of-Payee "no match" / "could not verify" result). Unlike
+    /// [`PayoutStatus::Ineligible`], this is a final failure state — it counts as a
+    /// payout failure and triggers a `payout_failed` outgoing webhook to the merchant.
+    NotPermitted,
     #[default]
     RequiresCreation,
     RequiresConfirmation,
@@ -8873,7 +8884,7 @@ impl PayoutStatus {
     pub fn is_payout_failure(&self) -> bool {
         matches!(
             self,
-            Self::Failed | Self::Cancelled | Self::Expired | Self::Ineligible
+            Self::Failed | Self::Cancelled | Self::Expired | Self::Ineligible | Self::NotPermitted
         )
     }
 
@@ -8884,7 +8895,12 @@ impl PayoutStatus {
     pub fn is_terminal_status(&self) -> bool {
         matches!(
             self,
-            Self::Success | Self::Failed | Self::Cancelled | Self::Expired | Self::Reversed
+            Self::Success
+                | Self::Failed
+                | Self::Cancelled
+                | Self::Expired
+                | Self::Reversed
+                | Self::NotPermitted
         )
     }
 }
