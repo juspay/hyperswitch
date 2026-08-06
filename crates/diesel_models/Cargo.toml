@@ -33,7 +33,7 @@ common_types = { version = "0.1.0", path = "../common_types" }
 hyperswitch_masking = "0.0.1"
 router_derive = { version = "0.1.0", path = "../router_derive" }
 router_env = { version = "0.1.0", path = "../router_env", features = ["log_extra_implicit_fields", "log_custom_entries_to_extra"] }
-deja = { git = "https://github.com/juspay/deja", rev = "1e6f1c471f04a460b0eb7140afeef0d7296a02c3", optional = true, default-features = false, features = ["error-stack"] }
+deja = { git = "https://github.com/juspay/deja", rev = "30600597911071544f46f1f216fe0f6755ca5f10", optional = true, default-features = false, features = ["error-stack"] }
 
 [lints]
 workspace = true
