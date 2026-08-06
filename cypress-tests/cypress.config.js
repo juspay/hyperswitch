@@ -35,6 +35,23 @@ export default defineConfig({
             return null;
           }
         },
+        hasAnyCassette: (hash) => {
+          const captureDir =
+            process.env.CYPRESS_CAPTURE_DIR ||
+            `${process.cwd()}/mitm-proxy/captures`;
+          const search = (dir) => {
+            if (!fs.existsSync(dir)) return false;
+            for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+              if (entry.isDirectory()) {
+                if (search(`${dir}/${entry.name}`)) return true;
+              } else if (entry.name.startsWith(`${hash}-`)) {
+                return true;
+              }
+            }
+            return false;
+          };
+          return search(captureDir);
+        },
         cli_log: (message) => {
           // eslint-disable-next-line no-console
           console.log("Logging console message from task");

@@ -25,6 +25,7 @@ Cypress.on("uncaught:exception", (err, runnable) => {
 const IS_PROXY_ENABLED = String(Cypress.env("IS_PROXY_ENABLED")) === "true";
 const PROXY_ADMIN_URL = Cypress.env("PROXY_ADMIN_URL");
 const REDIRECT_PROXY_ADMIN_URL = Cypress.env("REDIRECT_PROXY_ADMIN_URL");
+const SUPERPOSITION_URL = Cypress.env("SUPERPOSITION_URL");
 const PROXY_ADMIN_TIMEOUT_MS = 2000;
 const REQUEST_ID_HEADER = "X-Request-ID";
 const STEP_COUNTER_DIGITS = 3;
@@ -80,12 +81,14 @@ function normalizeRequestArgs(args) {
   return { url: args[0] };
 }
 
-// Proxy-admin calls are control traffic and must not consume a step slot.
-function isProxyAdminUrl(url) {
+// Non-router calls (proxy-admin control traffic, Superposition config) must not
+// consume a step slot — cassette keys are only meaningful for router API calls.
+function isUntaggedUrl(url) {
   if (!url) return false;
   if (PROXY_ADMIN_URL && url.startsWith(PROXY_ADMIN_URL)) return true;
   if (REDIRECT_PROXY_ADMIN_URL && url.startsWith(REDIRECT_PROXY_ADMIN_URL))
     return true;
+  if (SUPERPOSITION_URL && url.startsWith(SUPERPOSITION_URL)) return true;
   return false;
 }
 
@@ -134,6 +137,14 @@ if (IS_PROXY_ENABLED) {
     Cypress.env("currentTestIdHash", testIdHash);
     cy.resetRedirectReadCount(testIdHash);
 
+    if (String(Cypress.env("MOCK_SERVER")) === "true") {
+      cy.task("hasAnyCassette", testIdHash).then((found) => {
+        Cypress.env("currentTestHasCassette", found);
+      });
+    } else {
+      Cypress.env("currentTestHasCassette", true);
+    }
+
     if (PROXY_ADMIN_URL) {
       notifyProxyTestStarted(titlePath, spec, connector);
     }
@@ -159,7 +170,7 @@ if (IS_PROXY_ENABLED) {
   Cypress.Commands.overwrite("request", (originalFn, ...args) => {
     const opts = normalizeRequestArgs(args);
 
-    if (PROXY_ADMIN_URL && isProxyAdminUrl(opts.url)) {
+    if (isUntaggedUrl(opts.url)) {
       return originalFn(opts);
     }
 
