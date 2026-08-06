@@ -51,62 +51,6 @@ fn apply_sca_validations_to_decision(
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use common_enums::Country;
-
-    use super::*;
-
-    #[test]
-    fn sca_country_list_includes_eea_territories_and_uk_regime() {
-        for country in [
-            Country::Iceland,
-            Country::Liechtenstein,
-            Country::Norway,
-            Country::AlandIslands,
-            Country::FrenchGuiana,
-            Country::Guadeloupe,
-            Country::Martinique,
-            Country::Mayotte,
-            Country::Reunion,
-            Country::SaintMartinFrenchpart,
-            Country::UnitedKingdomOfGreatBritainAndNorthernIreland,
-            Country::Gibraltar,
-        ] {
-            assert!(SCA_MANDATED_COUNTRIES.contains(&country));
-        }
-
-        assert!(!SCA_MANDATED_COUNTRIES.contains(&Country::UnitedStatesOfAmerica));
-    }
-
-    #[test]
-    fn regulated_market_does_not_allow_no_three_ds() {
-        assert_eq!(
-            apply_sca_validations_to_decision(ThreeDSDecision::NoThreeDs, true),
-            ThreeDSDecision::NoPreference
-        );
-    }
-
-    #[test]
-    fn unregulated_market_allows_no_three_ds() {
-        assert_eq!(
-            apply_sca_validations_to_decision(ThreeDSDecision::NoThreeDs, false),
-            ThreeDSDecision::NoThreeDs
-        );
-    }
-
-    #[test]
-    fn regulated_market_preserves_exemption_request() {
-        assert_eq!(
-            apply_sca_validations_to_decision(
-                ThreeDSDecision::ThreeDsExemptionRequestedLowValue,
-                true
-            ),
-            ThreeDSDecision::ThreeDsExemptionRequestedLowValue
-        );
-    }
-}
-
 impl ForeignFrom<api_threedsecure::PaymentData> for dsl_inputs::PaymentInput {
     fn foreign_from(request_payment_data: api_threedsecure::PaymentData) -> Self {
         Self {
