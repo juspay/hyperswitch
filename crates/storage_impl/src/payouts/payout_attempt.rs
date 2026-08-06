@@ -97,6 +97,7 @@ impl<T: DatabaseStore> PayoutAttemptInterface for KVRouterStore<T> {
                     additional_source_bank_data: new_payout_attempt
                         .additional_source_bank_data
                         .clone(),
+                    eligibility_reference_id: new_payout_attempt.eligibility_reference_id.clone(),
                 };
 
                 let field = format!("poa_{}", created_attempt.payout_attempt_id);
@@ -698,6 +699,7 @@ impl DataModelExt for PayoutAttempt {
             created_by: self.created_by.map(|created_by| created_by.to_string()),
             source_bank_data_token: self.source_bank_data_token,
             additional_source_bank_data: self.additional_source_bank_data,
+            eligibility_reference_id: self.eligibility_reference_id,
         }
     }
 
@@ -733,6 +735,7 @@ impl DataModelExt for PayoutAttempt {
                 .and_then(|created_by| created_by.parse::<common_utils::types::CreatedBy>().ok()),
             source_bank_data_token: storage_model.source_bank_data_token,
             additional_source_bank_data: storage_model.additional_source_bank_data,
+            eligibility_reference_id: storage_model.eligibility_reference_id,
         }
     }
 }
@@ -769,6 +772,7 @@ impl DataModelExt for PayoutAttemptNew {
             created_by: self.created_by.map(|created_by| created_by.to_string()),
             source_bank_data_token: self.source_bank_data_token,
             additional_source_bank_data: self.additional_source_bank_data,
+            eligibility_reference_id: self.eligibility_reference_id,
         }
     }
 
@@ -804,6 +808,7 @@ impl DataModelExt for PayoutAttemptNew {
                 .and_then(|created_by| created_by.parse::<common_utils::types::CreatedBy>().ok()),
             source_bank_data_token: storage_model.source_bank_data_token,
             additional_source_bank_data: storage_model.additional_source_bank_data,
+            eligibility_reference_id: storage_model.eligibility_reference_id,
         }
     }
 }
@@ -820,6 +825,7 @@ impl DataModelExt for PayoutAttemptUpdate {
                 unified_code,
                 unified_message,
                 payout_connector_metadata,
+                eligibility_reference_id,
             } => DieselPayoutAttemptUpdate::StatusUpdate {
                 connector_payout_id,
                 status,
@@ -829,6 +835,7 @@ impl DataModelExt for PayoutAttemptUpdate {
                 unified_code,
                 unified_message,
                 payout_connector_metadata,
+                eligibility_reference_id,
             },
             Self::PayoutTokenUpdate { payout_token } => {
                 DieselPayoutAttemptUpdate::PayoutTokenUpdate { payout_token }
