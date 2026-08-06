@@ -4012,8 +4012,8 @@
         "tags": [
           "Payment Methods"
         ],
-        "summary": "List payment methods for a Payment (client SDK endpoint)",
-        "description": "Returns a unified response combining merchant-enabled payment methods and\ncustomer saved payment methods, filtered via Euclid constraint graph and\nsession flow routing.\n\nSupported client auth:\n- SDK auth via `Authorization`.\n- Publishable-key auth via `api-key: pk_...` and `client_secret` query param.\n\nMerchant secret-key auth is intentionally not supported for this endpoint.",
+        "summary": "List payment methods for a Payment",
+        "description": "Client SDK endpoint. Returns a unified response combining merchant-enabled\npayment methods and customer saved payment methods, filtered via Euclid\nconstraint graph and session flow routing.\n\nSupported client auth:\n- SDK auth via `Authorization`.\n- Publishable-key auth via `api-key: pk_...` and `client_secret` query param.\n\nMerchant secret-key auth is intentionally not supported for this endpoint.",
         "operationId": "List Payment Methods for a Payment via Client SDK",
         "parameters": [
           {

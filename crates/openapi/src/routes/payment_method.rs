@@ -118,11 +118,11 @@ pub async fn list_customer_payment_method_api() {}
 )]
 pub async fn list_customer_payment_method_api_client() {}
 
-/// List payment methods for a Payment (client SDK endpoint)
+/// List payment methods for a Payment
 ///
-/// Returns a unified response combining merchant-enabled payment methods and
-/// customer saved payment methods, filtered via Euclid constraint graph and
-/// session flow routing.
+/// Client SDK endpoint. Returns a unified response combining merchant-enabled
+/// payment methods and customer saved payment methods, filtered via Euclid
+/// constraint graph and session flow routing.
 ///
 /// Supported client auth:
 /// - SDK auth via `Authorization`.
