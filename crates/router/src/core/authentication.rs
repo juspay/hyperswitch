@@ -1168,6 +1168,7 @@ impl AcquirerMetadata {
 
 /// Drives the live UCS authenticate (AReq) call; response interpretation is
 /// `parse_ucs_authenticate_response`'s job.
+#[cfg(feature = "v1")]
 #[allow(clippy::too_many_arguments)]
 async fn call_ucs_authenticate_proxy(
     state: &SessionState,
@@ -1454,6 +1455,7 @@ async fn call_ucs_authenticate_proxy(
     })
 }
 
+#[cfg(feature = "v1")]
 struct ParsedAuthenticateResponse {
     authenticate_response_data: core_types::authentication::AuthenticationResponseData,
     authentication_type: common_enums::DecoupledAuthenticationType,
@@ -1466,6 +1468,7 @@ struct ParsedAuthenticateResponse {
     acs_signed_content: Option<String>,
 }
 
+#[cfg(feature = "v1")]
 #[derive(serde::Deserialize)]
 struct AppChallengeAcsMetadata {
     acs_signed_content: Option<String>,
@@ -1478,6 +1481,7 @@ struct AppChallengeAcsMetadata {
 /// of the JSON-stuffed `connector_metadata` since UCS has no typed slots for them. A connector-level
 /// error is the caller's responsibility to hard-fail on (mirroring `perform_authentication`'s
 /// `response.response.map_err(...)?`) before ever reaching this function.
+#[cfg(feature = "v1")]
 fn parse_ucs_authenticate_response(
     response: &core_types::PaymentsResponseData,
 ) -> CustomResult<ParsedAuthenticateResponse, ApiErrorResponse> {
@@ -1611,6 +1615,7 @@ fn parse_ucs_authenticate_response(
 
 /// Proxy analogue of `perform_authentication` (the AReq step), called from the
 /// `/payments/{id}/3ds/authentication` handler for external-vault-proxy payments.
+#[cfg(feature = "v1")]
 #[allow(clippy::too_many_arguments)]
 pub async fn perform_authentication_proxy(
     state: &SessionState,
