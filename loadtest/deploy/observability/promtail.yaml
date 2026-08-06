@@ -1,0 +1,27 @@
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://127.0.0.1:3100/loki/api/v1/push
+
+scrape_configs:
+  - job_name: podman
+    docker_sd_configs:
+      - host: unix:///run/podman/podman.sock
+        refresh_interval: 2s
+    relabel_configs:
+      - source_labels: [__meta_docker_container_label_io_hyperswitch_loadtest_managed]
+        regex: "true"
+        action: keep
+      # Preserve the canonical deployment service label for Loki queries.
+      - source_labels: [__meta_docker_container_label_io_hyperswitch_loadtest_service]
+        target_label: loadtest_service
+      - source_labels: [__meta_docker_container_name]
+        regex: "/(.*)"
+        target_label: container
+      - source_labels: [__meta_docker_container_log_stream]
+        target_label: stream

@@ -1,0 +1,40 @@
+[metrics_server]
+host = "0.0.0.0"
+port = 6128
+
+[pool_config]
+pool = 2
+
+[server]
+host = "0.0.0.0"
+port = 5000
+
+[trace_header]
+header_name = "x-request-id"
+id_reuse_strategy = "use_incoming"
+
+[database]
+user = "{{POSTGRES_USER}}"
+password = "{{POSTGRES_PASSWORD}}"
+host = "{{POSTGRES_HOST}}"
+port = {{POSTGRES_PORT}}
+dbname = "{{POSTGRES_DB}}"
+pool_size = 10
+min_idle = 2
+enable_ssl = false
+
+[multitenancy.tenants.public]
+cache_prefix = "{{REDIS_PREFIX_ENCRYPTION}}:public"
+schema = "{{POSTGRES_SCHEMA_ENCRYPTION}}"
+
+[multitenancy.tenants.global]
+cache_prefix = "{{REDIS_PREFIX_ENCRYPTION}}:global"
+schema = "{{POSTGRES_SCHEMA_ENCRYPTION}}"
+
+[log]
+enabled = true
+log_level = "info"
+log_format = "json"
+
+[secrets]
+master_key = "{{TENANT_MASTER_KEY}}"

@@ -1,0 +1,16 @@
+global:
+  scrape_interval: 1s
+  evaluation_interval: 1s
+scrape_configs:
+  - job_name: podman
+    static_configs:
+      - targets: ["127.0.0.1:9882"]
+  - job_name: encryption
+    metrics_path: /metrics
+    fallback_scrape_protocol: PrometheusText0.0.4
+    static_configs:
+      - targets: ["127.0.0.1:6128"]
+  - job_name: vault
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["127.0.0.1:9090"]

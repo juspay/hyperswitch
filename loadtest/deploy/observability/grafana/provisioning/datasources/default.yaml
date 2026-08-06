@@ -1,0 +1,15 @@
+apiVersion: 1
+datasources:
+  - name: Prometheus
+    uid: prometheus
+    type: prometheus
+    access: proxy
+    url: $PROMETHEUS_URL
+    isDefault: true
+    jsonData:
+      timeInterval: 1s
+  - name: Loki
+    uid: loki
+    type: loki
+    access: proxy
+    url: $LOKI_URL
