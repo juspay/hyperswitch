@@ -3,6 +3,7 @@ use std::marker::PhantomData;
 use api_models::{enums::FrmSuggestion, payments::PaymentsRequest};
 use async_trait::async_trait;
 use common_enums;
+use common_utils::ext_traits::ValueExt;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::payment_methods::VaultPaymentMethodData;
 use hyperswitch_masking::{ExposeInterface, Secret};
@@ -740,12 +741,27 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsRequest, PaymentData<F>>
                 )),
             }?;
 
+            // Parse optional proxy_url from vault MCA metadata so the detokenize call
+            // is also routed through the egress proxy (required for self-hosted / non-PCI
+            // deployments that must reach the SaaS vault via Squid).
+            let vault_proxy_url = vault_mca
+                .get_metadata()
+                .and_then(|m| {
+                    m.expose()
+                        .parse_value::<hyperswitch_domain_models::merchant_connector_account::ExternalVaultConnectorMetadata>(
+                            "ExternalVaultConnectorMetadata",
+                        )
+                        .ok()
+                })
+                .and_then(|meta| meta.proxy_url);
+
             let temporary_token = vault_card.card_number.clone().expose();
             let permanent_pm_id = pm_transformers::get_permanent_pm_id_from_temporary_token(
                 state,
                 api_key,
                 vault_profile_id,
                 temporary_token,
+                vault_proxy_url,
             )
             .await?;
             vault_card.card_number = Secret::new(permanent_pm_id);
