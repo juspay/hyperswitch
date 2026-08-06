@@ -392,6 +392,14 @@ impl EligibilityPaymentMethodData {
             _ => None,
         }
     }
+
+    pub fn get_card_data(&self) -> Option<&EligibilityCard> {
+        if let Self::Card(card) = self {
+            Some(card)
+        } else {
+            None
+        }
+    }
 }
 
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize, Default)]

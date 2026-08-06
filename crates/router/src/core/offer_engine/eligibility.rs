@@ -78,5 +78,5 @@ pub async fn run_offer_eligibility(
 
     let client = OfferEngineClient::new(config, &state.conf.trace_header.header_name);
     let response = client.list_offers(state, request).await?;
-    response.select_best_offer(ctx.currency)
+    response.select_best_offer(ctx.order_amount, ctx.currency)
 }

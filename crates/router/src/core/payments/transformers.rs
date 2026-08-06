@@ -4598,12 +4598,15 @@ pub fn construct_connector_invoke_hidden_frame(
 fn applied_offer_response(
     details: Option<common_types::payments::AppliedOfferDetails>,
 ) -> Option<api_models::payments::AppliedOffer> {
-    details.map(|offer| api_models::payments::AppliedOffer {
-        offer_engine_merchant_id: offer.offer_engine_merchant_id,
-        offer_engine_txn_id: offer.offer_engine_txn_id,
-        offer_id: offer.offer_id,
-        offer_amount: offer.offer_amount,
-        currency: offer.currency,
+    details.map(|offer| {
+        let offer = offer.into_inner();
+        api_models::payments::AppliedOffer {
+            offer_engine_merchant_id: offer.offer_engine_merchant_id,
+            offer_engine_txn_id: offer.offer_engine_txn_id,
+            offer_id: offer.offer_id,
+            offer_amount: offer.offer_amount,
+            currency: offer.currency,
+        }
     })
 }
 
@@ -4657,6 +4660,7 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             });
         Self {
             connector_response_metadata: pa.get_connector_response_metadata_from_attempt_metadata(),
+            #[cfg(feature = "v1")]
             applied_offer: applied_offer_response(pa.applied_offer_details.clone()),
             payment_id: pi.payment_id,
             merchant_id: pi.merchant_id,

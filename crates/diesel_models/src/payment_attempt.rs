@@ -169,10 +169,10 @@ pub struct PaymentAttempt {
     pub retry_type: Option<storage_enums::RetryType>,
     pub installment_data: Option<common_types::payments::InstallmentData>,
     pub external_surcharge_details: Option<common_types::payments::ExternalSurchargeDetails>,
-    pub applied_offer_details: Option<common_types::payments::AppliedOfferDetails>,
     pub network_transaction_link_id: Option<String>,
     pub sender_payment_instrument_id: Option<String>,
     pub external_threeds_authentication_type: Option<common_enums::DecoupledAuthenticationType>,
+    pub applied_offer_details: Option<common_types::payments::AppliedOfferDetails>,
     #[diesel(deserialize_as = RequiredFromNullable<storage_enums::PaymentMethod>)]
     pub payment_method_type_v2: storage_enums::PaymentMethod,
     pub connector_payment_id: Option<ConnectorTransactionId>,
@@ -822,7 +822,6 @@ pub enum PaymentAttemptUpdate {
     },
     AppliedOfferUpdate {
         applied_offer_details: common_types::payments::AppliedOfferDetails,
-        net_amount: MinorUnit,
         updated_by: String,
     },
 }
@@ -4515,7 +4514,6 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
             },
             PaymentAttemptUpdate::AppliedOfferUpdate {
                 applied_offer_details,
-                net_amount,
                 updated_by,
             } => Self {
                 status: None,
@@ -4527,7 +4525,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 unified_code: None,
                 unified_message: None,
                 amount: None,
-                net_amount: Some(net_amount),
+                net_amount: None,
                 currency: None,
                 connector_transaction_id: None,
                 amount_to_capture: None,

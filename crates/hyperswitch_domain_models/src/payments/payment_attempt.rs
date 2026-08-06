@@ -996,6 +996,7 @@ impl PaymentAttempt {
             network_transaction_link_id: None,
             authorized_amount: None,
             external_surcharge_details: None,
+            applied_offer_details: None,
         })
     }
 
@@ -1091,6 +1092,7 @@ impl PaymentAttempt {
             network_transaction_link_id: None,
             authorized_amount: None,
             external_surcharge_details: None,
+            applied_offer_details: None,
         })
     }
 
@@ -1193,6 +1195,7 @@ impl PaymentAttempt {
             network_transaction_link_id: None,
             authorized_amount: None,
             external_surcharge_details: None,
+            applied_offer_details: None,
         })
     }
 
@@ -1320,6 +1323,7 @@ impl PaymentAttempt {
             network_transaction_link_id: None,
             authorized_amount: None,
             external_surcharge_details: None,
+            applied_offer_details: None,
         })
     }
 
@@ -2213,7 +2217,6 @@ pub enum PaymentAttemptUpdate {
     },
     AppliedOfferUpdate {
         applied_offer_details: common_types::payments::AppliedOfferDetails,
-        net_amount: MinorUnit,
         updated_by: String,
     },
 }
@@ -2808,11 +2811,9 @@ impl PaymentAttemptUpdate {
             },
             Self::AppliedOfferUpdate {
                 applied_offer_details,
-                net_amount,
                 updated_by,
             } => DieselPaymentAttemptUpdate::AppliedOfferUpdate {
                 applied_offer_details,
-                net_amount,
                 updated_by,
             },
         }
@@ -3110,7 +3111,7 @@ impl behaviour::Conversion for PaymentAttempt {
                     storage_model
                         .applied_offer_details
                         .as_ref()
-                        .map(|d| d.offer_amount),
+                        .map(|applied_offer_details| applied_offer_details.inner().offer_amount),
                 ),
                 currency: storage_model.currency,
                 save_to_locker: storage_model.save_to_locker,
@@ -3383,6 +3384,7 @@ impl behaviour::Conversion for PaymentAttempt {
             network_transaction_link_id,
             authorized_amount,
             external_surcharge_details,
+            applied_offer_details,
         } = self;
 
         let AttemptAmountDetails {
@@ -3495,6 +3497,7 @@ impl behaviour::Conversion for PaymentAttempt {
             retry_type: None,
             installment_data: None,
             external_surcharge_details: None,
+            applied_offer_details,
             sender_payment_instrument_id: None,
         })
     }
@@ -3693,6 +3696,7 @@ impl behaviour::Conversion for PaymentAttempt {
             network_transaction_link_id,
             authorized_amount,
             external_surcharge_details: _,
+            applied_offer_details: _,
         } = self;
 
         let card_network = payment_method_data
@@ -3789,6 +3793,7 @@ impl behaviour::Conversion for PaymentAttempt {
             processor_merchant_id: Some(processor_merchant_id),
             created_by: created_by.map(|created_by| created_by.to_string()),
             external_surcharge_details: None,
+            applied_offer_details: None,
             connector_request_reference_id,
             network_details: None,
             tokenization: None,

@@ -119,8 +119,6 @@ pub struct OfferCombination {
 pub struct OfferCombinationEntry {
     pub offer_id: String,
     pub discount_amount: StringMajorUnit,
-    #[serde(default)]
-    pub merchant_discount_amount: Option<StringMajorUnit>,
 }
 
 /// A per-offer entry in `offers[]`.
@@ -128,8 +126,8 @@ pub struct OfferCombinationEntry {
 pub struct OfferListEntry {
     pub offer_id: String,
     pub status: OfferStatus,
-    #[serde(default)]
-    pub offer_code: Option<String>,
+    // Offer Engine always returns a code (mandatory `Text` in the `/list` response).
+    pub offer_code: String,
     #[serde(default)]
     pub offer_description: Option<OfferDescription>,
 }
@@ -174,8 +172,6 @@ pub struct AppliedOfferEntry {
 #[derive(Debug, Clone, serde::Deserialize)]
 pub struct OfferOrderBreakup {
     pub discount_amount: StringMajorUnit,
-    #[serde(default)]
-    pub merchant_discount_amount: Option<StringMajorUnit>,
 }
 
 // Selection helpers
@@ -186,7 +182,7 @@ pub struct SelectedOffer {
     pub offer_id: String,
     pub offer_amount: common_utils::types::MinorUnit,
     pub currency: common_enums::Currency,
-    pub code: Option<String>,
+    pub code: String,
     pub title: Option<String>,
     pub description: Option<String>,
 }
@@ -196,6 +192,7 @@ impl OfferListResponse {
     /// `ELIGIBLE` offer. Returns `Ok(None)` when there's no supported offer.
     pub fn select_best_offer(
         &self,
+        order_amount: common_utils::types::MinorUnit,
         currency: common_enums::Currency,
     ) -> error_stack::Result<Option<SelectedOffer>, OfferEngineError> {
         let Some(best) = self.best_offer_combinations.first() else {
@@ -220,11 +217,17 @@ impl OfferListResponse {
             return Ok(None);
         }
 
-        let offer_amount = amount::charge_reducing_amount(
-            &combination_offer.discount_amount,
-            combination_offer.merchant_discount_amount.as_ref(),
-            currency,
-        )?;
+        // Offer Engine settles the order at `orderAmount - discountAmount`;
+        // `merchantDiscountAmount` is merchant-funded (display only), so the
+        // customer's charge is reduced by `discountAmount` alone.
+        let offer_amount =
+            amount::from_offer_engine_amount(&combination_offer.discount_amount, currency)?;
+
+        // Net amount after the offer must be positive; otherwise it isn't a
+        // supported offer (same rule enforced at `/apply`).
+        if order_amount <= offer_amount {
+            return Ok(None);
+        }
 
         Ok(Some(SelectedOffer {
             offer_id: combination_offer.offer_id.clone(),
@@ -271,11 +274,9 @@ impl OfferApplyResponse {
             error_stack::report!(OfferEngineError::ApplyRejected)
                 .attach_printable("Offer Engine /apply response is missing order_breakup")
         })?;
-        let offer_amount = amount::charge_reducing_amount(
-            &order_breakup.discount_amount,
-            order_breakup.merchant_discount_amount.as_ref(),
-            currency,
-        )?;
+        // Charge reduction is `discountAmount` only (see `select_best_offer`).
+        let offer_amount =
+            amount::from_offer_engine_amount(&order_breakup.discount_amount, currency)?;
 
         Ok(AppliedOffer {
             offer_id: applied.offer_id.clone(),

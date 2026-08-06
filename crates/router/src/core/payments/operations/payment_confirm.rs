@@ -3070,48 +3070,69 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentDat
     }
 }
 
-/// Apply an Offer Engine offer selected at confirm, before the connector/PSP call.
-///
-/// Explicit opt-in: does nothing when the confirm request carries no offer
-/// selection. Enforces same-attempt idempotency (an attempt is locked to its
-/// applied offer), calls Offer Engine `/apply`, validates quote consistency, then
-/// persists the applied-offer details and offer-adjusted net amount on the
-/// attempt before returning. Fails confirm if a selected offer cannot be applied.
+/// Apply a confirm-time Offer Engine offer before the PSP call. No-op when the
+/// request carries no offer. An attempt is locked to its applied offer: the same
+/// offer re-requested is idempotent, a different one is rejected.
 #[cfg(feature = "v1")]
 async fn apply_offer_engine_offer<F: Clone + Send + Sync>(
     state: &SessionState,
     request: &api::PaymentsRequest,
     processor: &domain::Processor,
-    mut payment_data: PaymentData<F>,
+    payment_data: PaymentData<F>,
 ) -> RouterResult<PaymentData<F>> {
-    let requested_offer_id = request
+    // First launch supports a single offer; reject multiple rather than picking one.
+    let requested_offer_id = match request
         .offer_details
         .as_ref()
-        .and_then(|details| details.offer_quote_ids.first().cloned());
-
-    // Same-attempt idempotency: an attempt already carrying an applied offer is
-    // locked to it. First launch uses `offer_quote_id == offer_id`.
-    if let Some(existing) = payment_data.payment_attempt.applied_offer_details.clone() {
-        match requested_offer_id.as_deref() {
-            Some(id) if id == existing.offer_id => return Ok(payment_data),
-            None => return Ok(payment_data),
-            Some(_) => {
-                return Err(report!(errors::ApiErrorResponse::PreconditionFailed {
-                    message: "A different offer is already applied to this payment attempt"
-                        .to_string(),
-                }));
-            }
+        .map(|details| details.offer_quote_ids.as_slice())
+    {
+        None | Some([]) => None,
+        Some([offer_quote_id]) => Some(offer_quote_id.clone()),
+        Some(_) => {
+            return Err(report!(errors::ApiErrorResponse::PreconditionFailed {
+                message: "Only a single offer can be applied to a payment".to_string(),
+            }))
         }
-    }
-
-    // No offer selection and no existing applied offer -> proceed without offer.
-    let Some(offer_quote_id) = requested_offer_id else {
-        return Ok(payment_data);
     };
 
-    // An offer was selected, so Offer Engine must be available; otherwise fail confirm.
-    // Offer Engine is currently controlled by global Superposition config.
-    let offer_dimensions: dimension_state::DimensionsGlobal = dimension_state::Dimensions::new();
+    let existing_offer_quote_id = payment_data
+        .payment_attempt
+        .applied_offer_details
+        .as_ref()
+        .map(|existing| existing.inner().offer_quote_id.clone());
+
+    match (existing_offer_quote_id, requested_offer_id) {
+        (_, None) => Ok(payment_data),
+        (Some(existing), Some(requested)) if existing == requested => Ok(payment_data),
+        (Some(_), Some(_)) => Err(report!(errors::ApiErrorResponse::PreconditionFailed {
+            message: "A different offer is already applied to this payment attempt".to_string(),
+        })),
+        (None, Some(requested)) => {
+            apply_selected_offer(state, processor, requested, payment_data).await
+        }
+    }
+}
+
+/// Call Offer Engine `/apply` for the selected quote and persist the applied
+/// offer on the attempt before the PSP call.
+#[cfg(feature = "v1")]
+async fn apply_selected_offer<F: Clone + Send + Sync>(
+    state: &SessionState,
+    processor: &domain::Processor,
+    offer_quote_id: String,
+    mut payment_data: PaymentData<F>,
+) -> RouterResult<PaymentData<F>> {
+    // An offer was selected, so Offer Engine must be available. Target config at
+    // merchant/org/profile (same as eligibility) so overrides resolve consistently.
+    let profile_id = payment_data.payment_intent.profile_id.clone().ok_or(report!(
+        errors::ApiErrorResponse::PreconditionFailed {
+            message: "Profile is required to apply an offer".to_string(),
+        }
+    ))?;
+    let offer_dimensions = dimension_state::Dimensions::new()
+        .with_processor_merchant_id(processor.get_processor_merchant_id())
+        .with_organization_id(processor.get_account().get_org_id().clone())
+        .with_profile_id(profile_id);
     let offer_config = offer_engine::resolve_offer_engine_config(state, &offer_dimensions)
         .await
         .ok()
@@ -3123,7 +3144,7 @@ async fn apply_offer_engine_offer<F: Clone + Send + Sync>(
     let processor_merchant_id = processor.get_account().get_id().clone();
     let payment_id = payment_data.payment_attempt.payment_id.clone();
 
-    // Recover the eligibility quote stored in the client session.
+    // Recover the eligibility quote stored at `/eligibility`.
     let quote = payments::client_session::ClientSessionManager::get_offer_quote(
         state,
         &processor_merchant_id,
@@ -3141,26 +3162,36 @@ async fn apply_offer_engine_offer<F: Clone + Send + Sync>(
         }
     ))?;
 
-    let order_amount = payment_data.payment_attempt.net_amount.get_order_amount();
-    let attempt_id = payment_data.payment_attempt.attempt_id.clone();
-    let card_bin = payment_data
+    // Forward the same payment-method attributes eligibility sent, sourced from the
+    // resolved attempt and card data, so `/apply` matches the `/list` quote.
+    let payment_method_type = payment_data
+        .payment_attempt
+        .payment_method
+        .map(|payment_method| payment_method.to_string().to_uppercase())
+        .ok_or(report!(errors::ApiErrorResponse::PreconditionFailed {
+            message: "Payment method is required to apply an offer".to_string(),
+        }))?;
+    let offer_card = payment_data
         .payment_method_data
         .as_ref()
-        .and_then(|pmd| pmd.get_card_iin());
-    let customer_id = payment_data.payment_intent.customer_id.clone();
+        .and_then(|payment_method_data| payment_method_data.get_card_data());
 
     let ctx = offer_engine::apply::OfferApplyContext {
         payment_id,
-        attempt_id: attempt_id.clone(),
-        order_amount,
+        attempt_id: payment_data.payment_attempt.attempt_id.clone(),
+        order_amount: payment_data.payment_attempt.net_amount.get_order_amount(),
         currency,
-        customer_id,
-        payment_method_type: "CARD".to_string(),
-        payment_method: None,
-        card_bin,
-        card_type: None,
-        bank_code: None,
-        card_country: None,
+        customer_id: payment_data.payment_intent.customer_id.clone(),
+        payment_method_type,
+        payment_method: offer_card
+            .and_then(|card| card.card_network.as_ref().map(|network| network.to_string())),
+        card_bin: payment_data
+            .payment_method_data
+            .as_ref()
+            .and_then(|payment_method_data| payment_method_data.get_card_iin()),
+        card_type: offer_card.and_then(|card| card.card_type.clone()),
+        bank_code: offer_card.and_then(|card| card.bank_code.clone()),
+        card_country: offer_card.and_then(|card| card.card_issuing_country.clone()),
     };
 
     let applied = offer_engine::apply::run_offer_apply(
@@ -3178,32 +3209,33 @@ async fn apply_offer_engine_offer<F: Clone + Send + Sync>(
         message: "Offer Engine /apply failed or did not match the eligibility quote".to_string(),
     })?;
 
-    let applied_offer_details = common_types::payments::AppliedOfferDetails {
-        offer_engine_merchant_id: applied.offer_engine_merchant_id,
-        offer_engine_txn_id: applied.offer_engine_txn_id,
-        offer_id: applied.offer_id,
-        offer_amount: applied.offer_amount,
-        currency: applied.currency,
-    };
+    let applied_offer_details = common_types::payments::AppliedOfferDetails::V1(
+        common_types::payments::AppliedOfferDetailsV1 {
+            offer_quote_id,
+            offer_engine_merchant_id: applied.offer_engine_merchant_id,
+            offer_engine_txn_id: applied.offer_engine_txn_id,
+            offer_id: applied.offer_id,
+            offer_amount: applied.offer_amount,
+            currency: applied.currency,
+        },
+    );
 
-    // Update the in-memory attempt so downstream connector data is offer-adjusted.
+    // Offer-adjust the in-memory attempt so downstream PSP data reflects the offer.
     payment_data
         .payment_attempt
         .net_amount
         .set_offer_amount(Some(applied.offer_amount));
     payment_data.payment_attempt.applied_offer_details = Some(applied_offer_details.clone());
 
-    // Persist applied-offer state and offer-adjusted net amount before the PSP call.
-    let net_amount = payment_data.payment_attempt.net_amount.get_total_amount();
+    // Persist only the applied-offer details (like surcharge); `net_amount` is
+    // recomputed on read from the base amount and `applied_offer_details`.
     let storage_scheme = processor.get_account().storage_scheme;
-
     state
         .store
         .update_payment_attempt_with_attempt_id(
             payment_data.payment_attempt.clone(),
             storage::PaymentAttemptUpdate::AppliedOfferUpdate {
                 applied_offer_details,
-                net_amount,
                 updated_by: storage_scheme.to_string(),
             },
             storage_scheme,

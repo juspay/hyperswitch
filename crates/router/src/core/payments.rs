@@ -136,7 +136,7 @@ use crate::{
     consts,
     core::{
         configs::dimension_state::{
-            Dimensions, DimensionsGlobal, DimensionsWithProcessorAndProviderMerchantId,
+            Dimensions, DimensionsWithProcessorAndProviderMerchantId,
             DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
         },
         errors::{self, CustomResult, RouterResponse, RouterResult},
@@ -14205,6 +14205,17 @@ pub async fn payments_submit_eligibility(
         .payment_method_data
         .as_ref()
         .and_then(|pmd| pmd.get_card_iin());
+    // Forward whatever card attributes the request carried; Offer Engine uses
+    // them when present and ignores the rest.
+    let offer_card = payment_eligibility_data
+        .payment_method_data
+        .as_ref()
+        .and_then(|pmd| pmd.get_card_data());
+    let offer_card_network = offer_card
+        .and_then(|card| card.card_network.as_ref().map(|network| network.to_string()));
+    let offer_card_type = offer_card.and_then(|card| card.card_type.clone());
+    let offer_bank_code = offer_card.and_then(|card| card.bank_code.clone());
+    let offer_card_country = offer_card.and_then(|card| card.card_issuing_country.clone());
     let offer_payment_method_type = eligibility_req
         .payment_method_type
         .to_string()
@@ -14235,6 +14246,7 @@ pub async fn payments_submit_eligibility(
     let (amount_details, offer_details) = resolve_offer_eligibility_details(
         &state_for_surcharge,
         platform_for_surcharge.get_processor(),
+        &profile_id,
         &payment_id,
         &sdk_next_action.next_action,
         offer_order_amount,
@@ -14242,6 +14254,10 @@ pub async fn payments_submit_eligibility(
         offer_customer_id.as_ref(),
         offer_payment_method_type,
         offer_card_bin,
+        offer_card_network,
+        offer_card_type,
+        offer_bank_code,
+        offer_card_country,
     )
     .await?;
 
@@ -14268,6 +14284,7 @@ pub async fn payments_submit_eligibility(
 async fn resolve_offer_eligibility_details(
     state: &SessionState,
     processor: &domain::Processor,
+    profile_id: &id_type::ProfileId,
     payment_id: &id_type::PaymentId,
     next_action: &api_models::payments::NextActionCall,
     order_amount: MinorUnit,
@@ -14275,6 +14292,10 @@ async fn resolve_offer_eligibility_details(
     customer_id: Option<&id_type::CustomerId>,
     payment_method_type: String,
     card_bin: Option<String>,
+    card_network: Option<String>,
+    card_type: Option<String>,
+    bank_code: Option<String>,
+    card_country: Option<String>,
 ) -> RouterResult<(
     Option<api_models::payments::EligibilityAmountDetails>,
     Option<api_models::payments::EligibilityOfferDetails>,
@@ -14288,7 +14309,12 @@ async fn resolve_offer_eligibility_details(
     ) {
         None
     } else {
-        let offer_dimensions: DimensionsGlobal = Dimensions::new();
+        // Target config at merchant/org/profile so superposition can override per
+        // dimension; falls back to global when no override is configured.
+        let offer_dimensions = Dimensions::new()
+            .with_processor_merchant_id(processor.get_processor_merchant_id())
+            .with_organization_id(processor.get_account().get_org_id().clone())
+            .with_profile_id(profile_id.clone());
         offer_engine::resolve_offer_engine_config(state, &offer_dimensions)
             .await
             .ok()
@@ -14306,11 +14332,11 @@ async fn resolve_offer_eligibility_details(
                 customer_id: customer_id.cloned(),
                 payment_method_reference: payment_id.get_string_repr().to_string(),
                 payment_method_type,
-                payment_method: None,
+                payment_method: card_network,
                 card_bin,
-                card_type: None,
-                bank_code: None,
-                card_country: None,
+                card_type,
+                bank_code,
+                card_country,
             };
 
             // A `/list` failure while Offer Engine is enabled fails eligibility.
@@ -14334,8 +14360,11 @@ async fn resolve_offer_eligibility_details(
                 // against (keyed by offer id, the first-launch quote id; TTL kept).
                 Some(selected) => {
                     let processor_merchant_id = processor.get_account().get_id().clone();
+                    // Issue a unique quote id; confirm echoes it back to apply this offer.
+                    let offer_quote_id =
+                        common_utils::generate_time_ordered_id("offer_quote");
                     let quotes = HashMap::from([(
-                        selected.offer_id.clone(),
+                        offer_quote_id.clone(),
                         client_session::OfferQuote {
                             offer_id: selected.offer_id.clone(),
                             offer_amount: selected.offer_amount,
@@ -14357,9 +14386,9 @@ async fn resolve_offer_eligibility_details(
                             currency,
                         }),
                         Some(api_models::payments::EligibilityOfferDetails {
-                            uplifted_offer_quote_ids: vec![selected.offer_id.clone()],
+                            uplifted_offer_quote_ids: vec![offer_quote_id.clone()],
                             eligible_offers: vec![api_models::payments::EligibleOffer {
-                                offer_quote_id: selected.offer_id,
+                                offer_quote_id,
                                 offer_amount: selected.offer_amount,
                                 currency: selected.currency,
                                 code: selected.code,

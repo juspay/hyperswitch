@@ -1653,7 +1653,8 @@ pub struct ExternalSurchargeDetails {
 
 impl_to_sql_from_sql_json!(ExternalSurchargeDetails);
 
-/// Applied-offer details from Offer Engine `/apply`, persisted on `payment_attempt` as JSONB.
+/// Applied-offer details from Offer Engine `/apply`, persisted on `payment_attempt`
+/// as JSONB. Versioned (tagged by `version`) for forward-compatible schema evolution.
 #[derive(
     Clone,
     Debug,
@@ -1665,7 +1666,33 @@ impl_to_sql_from_sql_json!(ExternalSurchargeDetails);
     diesel::AsExpression,
 )]
 #[diesel(sql_type = Jsonb)]
-pub struct AppliedOfferDetails {
+#[serde(tag = "version", rename_all = "snake_case")]
+pub enum AppliedOfferDetails {
+    /// Version 1 of the applied-offer details.
+    V1(AppliedOfferDetailsV1),
+}
+
+impl AppliedOfferDetails {
+    /// Borrow the inner current-version details.
+    pub fn inner(&self) -> &AppliedOfferDetailsV1 {
+        match self {
+            Self::V1(details) => details,
+        }
+    }
+
+    /// Consume into the inner current-version details.
+    pub fn into_inner(self) -> AppliedOfferDetailsV1 {
+        match self {
+            Self::V1(details) => details,
+        }
+    }
+}
+
+/// Version 1 of the applied-offer details.
+#[derive(Clone, Debug, serde::Deserialize, Eq, ToSchema, PartialEq, serde::Serialize)]
+pub struct AppliedOfferDetailsV1 {
+    /// Quote id issued at eligibility and echoed back at confirm to apply this offer
+    pub offer_quote_id: String,
     /// Offer Engine merchant id the offer was applied under
     pub offer_engine_merchant_id: String,
     /// Offer Engine transaction id (the Hyperswitch payment attempt id used at `/apply`)

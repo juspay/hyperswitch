@@ -1147,7 +1147,7 @@ impl PaymentUpdate {
             .payment_attempt
             .applied_offer_details
             .as_ref()
-            .map(|applied_offer_details| applied_offer_details.offer_amount);
+            .map(|applied_offer_details| applied_offer_details.inner().offer_amount);
         let network_transaction_id = payment_data.payment_attempt.network_transaction_id.clone();
         let network_transaction_link_id = payment_data
             .payment_attempt

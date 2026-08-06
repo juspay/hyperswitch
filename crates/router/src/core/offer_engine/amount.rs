@@ -48,17 +48,3 @@ pub fn from_offer_engine_amount(
 
     Ok(MinorUnit::new(minor))
 }
-
-/// Charge-reducing amount = `discount_amount + merchant_discount_amount`, in minor units.
-pub fn charge_reducing_amount(
-    discount_amount: &StringMajorUnit,
-    merchant_discount_amount: Option<&StringMajorUnit>,
-    currency: common_enums::Currency,
-) -> error_stack::Result<MinorUnit, OfferEngineError> {
-    let discount = from_offer_engine_amount(discount_amount, currency)?;
-    let merchant_discount = match merchant_discount_amount {
-        Some(value) => from_offer_engine_amount(value, currency)?,
-        None => MinorUnit::new(0),
-    };
-    Ok(discount + merchant_discount)
-}

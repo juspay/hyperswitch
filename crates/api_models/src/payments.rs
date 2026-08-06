@@ -13247,9 +13247,8 @@ pub struct EligibleOffer {
     /// Currency of the offer amount.
     #[schema(value_type = Currency, example = "USD")]
     pub currency: common_enums::Currency,
-    /// Offer code, if provided.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub code: Option<String>,
+    /// Offer code.
+    pub code: String,
     /// Offer title, if provided.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub title: Option<String>,
