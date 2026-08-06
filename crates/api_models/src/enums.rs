@@ -228,6 +228,20 @@ pub enum SurchargeConnectors {
     Interpayments,
 }
 
+impl SurchargeConnectors {
+    pub fn should_notify_connector(&self, primary_event: EventType) -> bool {
+        match primary_event {
+            EventType::PaymentSucceeded => {
+                matches!(self, Self::Interpayments)
+            }
+            EventType::RefundSucceeded => {
+                matches!(self, Self::Interpayments)
+            }
+            _ => false,
+        }
+    }
+}
+
 pub fn convert_surcharge_connector(connector_name: &str) -> Option<SurchargeConnectors> {
     SurchargeConnectors::from_str(connector_name).ok()
 }

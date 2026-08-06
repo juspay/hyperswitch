@@ -115,6 +115,7 @@ pub enum Connector {
     Forte,
     Getnet,
     Gigadat,
+    Givepayments,
     Globalpay,
     Globepay,
     Gocardless,
@@ -190,6 +191,7 @@ pub enum Connector {
     Trustpay,
     Trustpayments,
     Tsys,
+    TsysTransit,
     // UnifiedAuthenticationService,
     Vgs,
     Volt,
@@ -294,7 +296,7 @@ impl Connector {
         matches!(self, Self::Stripe | Self::Checkout | Self::Worldpayvantiv)
     }
     pub fn requires_defend_dispute(self) -> bool {
-        matches!(self, Self::Checkout)
+        matches!(self, Self::Adyen | Self::Checkout)
     }
     pub fn is_separate_authentication_supported(self) -> bool {
         match self {
@@ -411,6 +413,7 @@ impl Connector {
             | Self::Trustpayments
             // | Self::Tokenio
             | Self::Tsys
+            | Self::TsysTransit
             // | Self::UnifiedAuthenticationService
             | Self::Vgs
             | Self::Volt
@@ -443,7 +446,8 @@ impl Connector {
             | Self::Payjustnow
             | Self::Payjustnowinstore
             | Self::Phonepe
-            | Self::Imerchantsolutions => false,
+            | Self::Imerchantsolutions
+            | Self::Givepayments => false,
             Self::Stripe | Self::Checkout | Self::Zift | Self::Nmi | Self::Braintree|
             Self::Cybersource | Self::Archipel | Self::Nuvei | Self::Adyen => true,
         }

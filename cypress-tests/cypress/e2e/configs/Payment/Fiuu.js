@@ -1,10 +1,10 @@
 import {
+  blockedPaymentErrorBodyForBinUnavailable,
+  blockedPaymentErrorBodyForCardSubtype,
+  blockedPaymentErrorBodyForDebitCard,
+  blockedPaymentErrorBodyForIssuingCountry,
   cardRequiredField,
   customerAcceptance,
-  blockedPaymentErrorBodyForIssuingCountry,
-  blockedPaymentErrorBodyForDebitCard,
-  blockedPaymentErrorBodyForCardSubtype,
-  blockedPaymentErrorBodyForBinUnavailable,
 } from "./Commons";
 
 const successfulNo3DSCardDetails = {
@@ -83,6 +83,17 @@ const requiredFields = {
       ],
     },
   ],
+};
+
+const MITErrorResponse = {
+  status: 200,
+  body: {
+    status: "failed",
+    error_code:
+      "Your transaction has been denied due to merchant account issue",
+    error_message:
+      "Your transaction has been denied due to merchant account issue",
+  },
 };
 
 export const connectorDetails = {
@@ -438,16 +449,12 @@ export const connectorDetails = {
         currency: "MYR",
         billing: billingAddress,
       },
-      Response: {
-        status: 200,
-        body: {
-          status: "failed",
-          error_code: "Token not found",
-          error_message: "Token not found",
-        },
-      },
+      Response: MITErrorResponse,
     },
     MITWithoutBillingAddress: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         billing: null,
       },
@@ -461,15 +468,14 @@ export const connectorDetails = {
       },
     },
     MITManualCapture: {
-      Request: {},
-      Response: {
-        status: 200,
-        body: {
-          status: "failed",
-          error_code: "Token not found",
-          error_message: "Token not found",
-        },
+      Configs: {
+        TRIGGER_SKIP: true,
       },
+      Request: {
+        currency: "MYR",
+        billing: billingAddress,
+      },
+      Response: MITErrorResponse,
     },
     PaymentIntentOffSession: {
       Request: {
@@ -602,28 +608,14 @@ export const connectorDetails = {
         setup_future_usage: "off_session",
         billing: billingAddress,
       },
-      Response: {
-        status: 200,
-        body: {
-          status: "failed",
-          error_code: "Token not found",
-          error_message: "Token not found",
-        },
-      },
+      Response: MITErrorResponse,
     },
     SaveCardConfirmManualCaptureOffSession: {
       Request: {
         setup_future_usage: "off_session",
         billing: billingAddress,
       },
-      Response: {
-        status: 200,
-        body: {
-          status: "failed",
-          error_code: "Token not found",
-          error_message: "Token not found",
-        },
-      },
+      Response: MITErrorResponse,
     },
     PaymentMethodIdMandateNo3DSManualCapture: {
       Request: {
@@ -730,14 +722,7 @@ export const connectorDetails = {
         setup_future_usage: "off_session",
         billing: null,
       },
-      Response: {
-        status: 200,
-        body: {
-          status: "failed",
-          error_code: "Token not found",
-          error_message: "Token not found",
-        },
-      },
+      Response: MITErrorResponse,
     },
     ZeroAuthPaymentIntent: {
       Configs: {

@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use cards::CardNumber;
 use common_enums::CardNetwork;
+use common_types::payouts::PayoutsBillingDescriptor;
 #[cfg(feature = "v2")]
 use common_utils::types::BrowserInformation;
 use common_utils::{
@@ -146,6 +147,10 @@ pub struct PayoutCreateRequest {
     /// A description of the payout
     #[schema(example = "It's my first payout request", value_type = Option<String>)]
     pub description: Option<String>,
+
+    /// Billing descriptor information for the payout. The reference is displayed on the beneficiary's bank statement.
+    #[schema(value_type = Option<PayoutsBillingDescriptor>)]
+    pub billing_descriptor: Option<PayoutsBillingDescriptor>,
 
     /// Type of entity to whom the payout is being carried out to, select from the given list of options
     #[schema(value_type = Option<PayoutEntityType>, example = "Individual")]
@@ -558,6 +563,7 @@ pub struct PixEmvBankTransfer {
 #[serde(rename_all = "snake_case")]
 pub enum Wallet {
     ApplePayDecrypt(ApplePayDecrypt),
+    GooglePayDecrypt(GooglePayDecrypt),
     Paypal(Paypal),
     Venmo(Venmo),
 }
@@ -671,6 +677,29 @@ pub struct ApplePayDecrypt {
     /// The dpan number associated with card number
     #[schema(value_type = String, example = "4242424242424242")]
     pub dpan: CardNumber,
+
+    /// The card's expiry month
+    #[schema(value_type = String)]
+    pub expiry_month: Secret<String>,
+
+    /// The card's expiry year
+    #[schema(value_type = String)]
+    pub expiry_year: Secret<String>,
+
+    /// The card holder's name
+    #[schema(value_type = String, example = "John Doe")]
+    pub card_holder_name: Option<Secret<String>>,
+
+    /// The card's network
+    #[schema(value_type = Option<CardNetwork>, example = "Visa")]
+    pub card_network: Option<CardNetwork>,
+}
+
+#[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
+pub struct GooglePayDecrypt {
+    /// The dpan number associated with card number
+    #[schema(value_type = String, example = "4242424242424242")]
+    pub application_primary_account_number: CardNumber,
 
     /// The card's expiry month
     #[schema(value_type = String)]
@@ -806,6 +835,10 @@ pub struct PayoutCreateResponse {
     /// A description of the payout
     #[schema(example = "It's my first payout request", value_type = Option<String>)]
     pub description: Option<String>,
+
+    /// Billing descriptor information for the payout
+    #[schema(value_type = Option<PayoutsBillingDescriptor>)]
+    pub billing_descriptor: Option<PayoutsBillingDescriptor>,
 
     /// Type of entity to whom the payout is being carried out to
     #[schema(value_type = PayoutEntityType, example = "Individual")]
@@ -1469,6 +1502,18 @@ impl From<Wallet> for payout_method_utils::WalletAdditionalData {
                     telephone_number: telephone_number.map(From::from),
                 }))
             }
+            Wallet::GooglePayDecrypt(GooglePayDecrypt {
+                expiry_month,
+                expiry_year,
+                card_holder_name,
+                ..
+            }) => Self::GooglePayDecrypt(Box::new(
+                payout_method_utils::GooglePayDecryptAdditionalData {
+                    card_exp_month: expiry_month,
+                    card_exp_year: expiry_year,
+                    card_holder_name,
+                },
+            )),
             Wallet::ApplePayDecrypt(ApplePayDecrypt {
                 expiry_month,
                 expiry_year,
@@ -1619,6 +1664,7 @@ impl From<&PayoutMethodData> for api_enums::PaymentMethodType {
                 Wallet::ApplePayDecrypt(_) => Self::ApplePay,
                 Wallet::Paypal(_) => Self::Paypal,
                 Wallet::Venmo(_) => Self::Venmo,
+                Wallet::GooglePayDecrypt(_) => Self::GooglePay,
             },
             PayoutMethodData::BankRedirect(bank_redirect) => match bank_redirect {
                 BankRedirect::Interac(_) => Self::Interac,

@@ -1835,6 +1835,57 @@
         ]
       }
     },
+    "/v2/customers/reference/{merchant_reference_id}": {
+      "get": {
+        "tags": [
+          "Customers"
+        ],
+        "summary": "Customers - Retrieve using Merchant Reference ID",
+        "description": "Retrieves a customer's details using the merchant supplied reference ID.",
+        "operationId": "Retrieve a Customer using Merchant Reference ID",
+        "parameters": [
+          {
+            "name": "merchant_reference_id",
+            "in": "path",
+            "description": "The merchant supplied reference identifier for the Customer",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile ID associated to the customer",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "pro_abcdefghijklmnop"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Customer Retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Customer was not found"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
     "/v1/customers/{id}": {
       "get": {
         "tags": [
@@ -8742,6 +8793,17 @@
           {
             "type": "object",
             "required": [
+              "pix_qr"
+            ],
+            "properties": {
+              "pix_qr": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
               "pix_automatico_push"
             ],
             "properties": {
@@ -9142,6 +9204,17 @@
           {
             "type": "object",
             "required": [
+              "pix_qr"
+            ],
+            "properties": {
+              "pix_qr": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
               "pix_automatico_qr"
             ],
             "properties": {
@@ -9505,6 +9578,24 @@
           }
         }
       },
+      "BlockReasonCode": {
+        "type": "string",
+        "description": "A stable, machine-readable identifier for the reason a payment was blocked.",
+        "enum": [
+          "blocked_bin",
+          "blocked_card_info_unavailable",
+          "blocked_card_type",
+          "blocked_card_network",
+          "blocked_funding_source",
+          "blocked_card_subtype",
+          "blocked_card_segment_type",
+          "blocked_virtual_card",
+          "blocked_non_reloadable_prepaid_card",
+          "blocked_gambling_card",
+          "blocked_issuer_country",
+          "blocked_issuer"
+        ]
+      },
       "BlocklistDataKind": {
         "type": "string",
         "enum": [
@@ -9628,6 +9719,46 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/PixKey"
+              }
+            ],
+            "nullable": true
+          },
+          "discount_rules": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SantanderPaymentDiscountRules"
+              }
+            ],
+            "nullable": true
+          },
+          "penalties": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PenaltyRules"
+              }
+            ],
+            "nullable": true
+          },
+          "collection_actions": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CollectionActions"
+              }
+            ],
+            "nullable": true
+          },
+          "payment_constraints": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BoletoPaymentTypeConstraints"
+              }
+            ],
+            "nullable": true
+          },
+          "beneficiary": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BeneficiaryDetails"
               }
             ],
             "nullable": true
@@ -10447,7 +10578,10 @@
           "Star",
           "Pulse",
           "Accel",
-          "Nyce"
+          "Nyce",
+          "Prop",
+          "PrivateLabel",
+          "Dinacard"
         ]
       },
       "CardNetworkTokenizeRequest": {
@@ -10791,6 +10925,21 @@
             "type": "integer",
             "format": "int32",
             "description": "Determines Redis Expiry for Card Testing Guard for profile"
+          },
+          "guest_ip_blocking_status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardTestingGuardStatus"
+              }
+            ],
+            "nullable": true
+          },
+          "guest_ip_blocking_threshold": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Determines the unsuccessful payment threshold for Guest IP Blocking for profile",
+            "default": 10,
+            "nullable": true
           }
         }
       },
@@ -10815,6 +10964,11 @@
           "card_cvc": {
             "type": "string",
             "description": "The CVC number for the card",
+            "nullable": true
+          },
+          "card_cvc_token": {
+            "type": "string",
+            "description": "Token referencing a CVC vaulted in the hyperswitch (self-hosted) vault. Used by the\nself-hosted default-vault repeat-customer flow, where the card is referenced by the\ntop-level `payment_token` and the freshly-tokenized CVC arrives as this token; the server\nresolves it to the raw CVC. Not used by the external vault proxy flow.",
             "nullable": true
           }
         }
@@ -10886,6 +11040,87 @@
           "eci": {
             "type": "string",
             "description": "The ECI(Electronic Commerce Indicator) value for this authentication.",
+            "nullable": true
+          },
+          "network_transaction_id": {
+            "type": "string",
+            "description": "The network transaction ID provided by the card network during a CIT (Customer Initiated Transaction),\nwhen `setup_future_usage` is set to `off_session`.",
+            "nullable": true
+          },
+          "transaction_link_id": {
+            "type": "string",
+            "description": "The Mastercard Transaction Link Identifier (TLID) provided by the card network during a CIT (Customer Initiated Transaction),\nwhen `setup_future_usage` is set to `off_session`.",
+            "nullable": true
+          }
+        }
+      },
+      "CardWithNoCVC": {
+        "type": "object",
+        "required": [
+          "card_number",
+          "card_exp_month",
+          "card_exp_year",
+          "card_holder_name"
+        ],
+        "properties": {
+          "card_number": {
+            "type": "string",
+            "description": "The card number",
+            "example": "4242424242424242"
+          },
+          "card_exp_month": {
+            "type": "string",
+            "description": "The card's expiry month",
+            "example": "24"
+          },
+          "card_exp_year": {
+            "type": "string",
+            "description": "The card's expiry year",
+            "example": "24"
+          },
+          "card_holder_name": {
+            "type": "string",
+            "description": "The card holder's name",
+            "example": "John Test"
+          },
+          "card_issuer": {
+            "type": "string",
+            "description": "The name of the issuer of card",
+            "example": "chase",
+            "nullable": true
+          },
+          "card_network": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardNetwork"
+              }
+            ],
+            "nullable": true
+          },
+          "card_type": {
+            "type": "string",
+            "example": "CREDIT",
+            "nullable": true
+          },
+          "card_issuing_country": {
+            "type": "string",
+            "example": "INDIA",
+            "nullable": true
+          },
+          "card_issuing_country_code": {
+            "type": "string",
+            "example": "IN",
+            "nullable": true
+          },
+          "bank_code": {
+            "type": "string",
+            "example": "JP_AMEX",
+            "nullable": true
+          },
+          "nick_name": {
+            "type": "string",
+            "description": "The card holder's nick name",
+            "example": "John Test",
             "nullable": true
           }
         }
@@ -11231,6 +11466,7 @@
           "forte",
           "getnet",
           "gigadat",
+          "givepayments",
           "globalpay",
           "globepay",
           "gocardless",
@@ -11301,6 +11537,7 @@
           "trustpay",
           "trustpayments",
           "tsys",
+          "tsys_transit",
           "vgs",
           "volt",
           "wellsfargo",
@@ -11351,6 +11588,17 @@
             "properties": {
               "xendit_split_payment": {
                 "$ref": "#/components/schemas/XenditChargeResponseData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "payload_split_payment"
+            ],
+            "properties": {
+              "payload_split_payment": {
+                "$ref": "#/components/schemas/PayloadSplitPaymentRequest"
               }
             }
           }
@@ -11642,6 +11890,64 @@
           }
         },
         "additionalProperties": false
+      },
+      "ConnectorWebhookScope": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "type"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "not_specific"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "value",
+              "type"
+            ],
+            "properties": {
+              "value": {
+                "$ref": "#/components/schemas/PaymentMethodType"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "payment_method_type"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "value",
+              "type"
+            ],
+            "properties": {
+              "value": {
+                "$ref": "#/components/schemas/EventType"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "event_type"
+                ]
+              }
+            }
+          }
+        ],
+        "description": "Scope of a single registered connector webhook.",
+        "discriminator": {
+          "propertyName": "type"
+        }
       },
       "ContractBasedRoutingConfig": {
         "type": "object",
@@ -14158,7 +14464,10 @@
           "payout_cancelled",
           "payout_expired",
           "payout_reversed",
-          "invoice_paid"
+          "payout_not_permitted",
+          "invoice_paid",
+          "surcharge_payment_succeeded",
+          "surcharge_refund_succeeded"
         ]
       },
       "ExemptionIndicator": {
@@ -14323,6 +14632,16 @@
           "error_message": {
             "type": "string",
             "description": "Error Message",
+            "nullable": true
+          },
+          "challenge_cancel_code": {
+            "type": "string",
+            "description": "Challenge Cancel Code",
+            "nullable": true
+          },
+          "trans_status_reason": {
+            "type": "string",
+            "description": "Trans Status Reason Code",
             "nullable": true
           }
         }
@@ -15498,6 +15817,69 @@
           "PREPAID",
           "UNKNOWN"
         ]
+      },
+      "GooglePayDecrypt": {
+        "type": "object",
+        "required": [
+          "application_primary_account_number",
+          "expiry_month",
+          "expiry_year",
+          "card_holder_name"
+        ],
+        "properties": {
+          "application_primary_account_number": {
+            "type": "string",
+            "description": "The dpan number associated with card number",
+            "example": "4242424242424242"
+          },
+          "expiry_month": {
+            "type": "string",
+            "description": "The card's expiry month"
+          },
+          "expiry_year": {
+            "type": "string",
+            "description": "The card's expiry year"
+          },
+          "card_holder_name": {
+            "type": "string",
+            "description": "The card holder's name",
+            "example": "John Doe"
+          },
+          "card_network": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardNetwork"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "GooglePayDecryptAdditionalData": {
+        "type": "object",
+        "description": "Masked payout method details for Google pay decrypt wallet payout method",
+        "required": [
+          "card_exp_month",
+          "card_exp_year",
+          "card_holder_name"
+        ],
+        "properties": {
+          "card_exp_month": {
+            "type": "string",
+            "description": "Card expiry month",
+            "example": "01"
+          },
+          "card_exp_year": {
+            "type": "string",
+            "description": "Card expiry year",
+            "example": "2026"
+          },
+          "card_holder_name": {
+            "type": "string",
+            "description": "Card holder name",
+            "example": "John Doe"
+          }
+        }
       },
       "GooglePayPaymentMethodInfo": {
         "type": "object",
@@ -19056,6 +19438,14 @@
                 "properties": {
                   "message": {
                     "type": "string"
+                  },
+                  "code": {
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/BlockReasonCode"
+                      }
+                    ],
+                    "nullable": true
                   }
                 }
               }
@@ -19724,10 +20114,28 @@
             "description": "Total amount for the item.",
             "nullable": true
           },
+          "discount_name": {
+            "type": "string",
+            "description": "Discount name applied to this item.",
+            "nullable": true
+          },
           "unit_discount_amount": {
             "type": "integer",
             "format": "int64",
             "description": "Discount amount applied to this item.",
+            "nullable": true
+          },
+          "discount_percentage": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Percentage"
+              }
+            ],
+            "nullable": true
+          },
+          "discount_type": {
+            "type": "string",
+            "description": "Discount type applied to this item.",
             "nullable": true
           }
         }
@@ -20364,6 +20772,42 @@
               }
             ],
             "nullable": true
+          }
+        }
+      },
+      "PayloadLedgerItem": {
+        "type": "object",
+        "description": "A single ledger entry distributing payment to one receiver for Payload split payments",
+        "required": [
+          "amount",
+          "receiver_id"
+        ],
+        "properties": {
+          "amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Amount in minor units to be routed to this receiver out of the payment",
+            "example": 995
+          },
+          "receiver_id": {
+            "type": "string",
+            "description": "processing_id of the receiver"
+          }
+        }
+      },
+      "PayloadSplitPaymentRequest": {
+        "type": "object",
+        "description": "Split payment configuration for Payload — distributes a payment across multiple receivers via ledger entries",
+        "required": [
+          "ledger"
+        ],
+        "properties": {
+          "ledger": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PayloadLedgerItem"
+            },
+            "description": "Ledger entries specifying how the payment is distributed across receivers"
           }
         }
       },
@@ -21689,6 +22133,18 @@
           },
           {
             "type": "object",
+            "title": "CardWithNoCVC",
+            "required": [
+              "card_with_no_cvc"
+            ],
+            "properties": {
+              "card_with_no_cvc": {
+                "$ref": "#/components/schemas/CardWithNoCVC"
+              }
+            }
+          },
+          {
+            "type": "object",
             "title": "CardRedirect",
             "required": [
               "card_redirect"
@@ -21883,12 +22339,12 @@
           },
           {
             "type": "object",
-            "title": "ProxyCard",
+            "title": "VaultDataCard",
             "required": [
-              "proxy_card"
+              "vault_data_card"
             ],
             "properties": {
-              "proxy_card": {
+              "vault_data_card": {
                 "$ref": "#/components/schemas/ProxyCardData"
               }
             }
@@ -21901,7 +22357,7 @@
             ],
             "properties": {
               "vault_card_token_data": {
-                "$ref": "#/components/schemas/CardToken"
+                "$ref": "#/components/schemas/VaultCardToken"
               }
             }
           }
@@ -23065,6 +23521,7 @@
           "pix",
           "pix_key",
           "pix_emv",
+          "pix_qr",
           "pix_automatico_qr",
           "pix_automatico_push",
           "pay_safe_card",
@@ -25409,6 +25866,14 @@
             "example": "It's my first payout request",
             "nullable": true
           },
+          "billing_descriptor": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PayoutsBillingDescriptor"
+              }
+            ],
+            "nullable": true
+          },
           "entity_type": {
             "allOf": [
               {
@@ -25648,6 +26113,14 @@
             "type": "string",
             "description": "A description of the payout",
             "example": "It's my first payout request",
+            "nullable": true
+          },
+          "billing_descriptor": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PayoutsBillingDescriptor"
+              }
+            ],
             "nullable": true
           },
           "entity_type": {
@@ -26243,6 +26716,7 @@
           "reversed",
           "pending",
           "ineligible",
+          "not_permitted",
           "requires_creation",
           "requires_confirmation",
           "requires_payout_method_data",
@@ -26259,6 +26733,22 @@
           "wallet",
           "bank_redirect"
         ]
+      },
+      "PayoutsBillingDescriptor": {
+        "type": "object",
+        "description": "Billing descriptor information for a payout.",
+        "properties": {
+          "reference": {
+            "type": "string",
+            "description": "Reference displayed on the beneficiary's bank statement.",
+            "nullable": true
+          },
+          "statement_descriptor": {
+            "type": "string",
+            "description": "Statement descriptor displayed for the payout.",
+            "nullable": true
+          }
+        }
       },
       "Paypal": {
         "type": "object",
@@ -26510,12 +27000,29 @@
           }
         }
       },
+      "PeachpaymentsCardOnFileTransactionType": {
+        "type": "string",
+        "enum": [
+          "one_off",
+          "customer_initiated_transaction",
+          "merchant_initiated_mandate",
+          "merchant_initiated_transaction"
+        ]
+      },
       "PeachpaymentsData": {
         "type": "object",
         "properties": {
           "rrn": {
             "type": "string",
             "description": "A numeric reference number supplied by the system retaining the original source information and used to assist in locating that information or a copy thereof.",
+            "nullable": true
+          },
+          "card_on_file_transaction_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PeachpaymentsCardOnFileTransactionType"
+              }
+            ],
             "nullable": true
           }
         }
@@ -26559,6 +27066,20 @@
               }
             ],
             "nullable": true
+          }
+        }
+      },
+      "Percentage": {
+        "type": "object",
+        "description": "Represents Percentage Value between 0 and 100 both inclusive",
+        "required": [
+          "percentage"
+        ],
+        "properties": {
+          "percentage": {
+            "type": "number",
+            "format": "double",
+            "description": "Percentage value ranging between 0 and 100"
           }
         }
       },
@@ -29410,6 +29931,7 @@
           "forte",
           "getnet",
           "gigadat",
+          "givepayments",
           "globalpay",
           "globepay",
           "gocardless",
@@ -29475,6 +29997,7 @@
           "trustpayments",
           "tokenio",
           "tsys",
+          "tsys_transit",
           "volt",
           "wellsfargo",
           "wise",
@@ -30166,6 +30689,113 @@
           }
         }
       },
+      "Scope": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "type"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "not_specific"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "values"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "payment_method_types"
+                ]
+              },
+              "values": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/PaymentMethodType"
+                },
+                "description": "Scoped by payment method types (e.g., Pix, Boleto)"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "values"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "event_types"
+                ]
+              },
+              "values": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/EventType"
+                },
+                "description": "Scoped by event types (e.g., Payments, Refunds, Disputes)"
+              }
+            }
+          }
+        ],
+        "description": "The scope of webhook registration.\nDetermines which entities the connector should register webhooks for.",
+        "discriminator": {
+          "propertyName": "type"
+        }
+      },
+      "ScopeIdentifier": {
+        "oneOf": [
+          {
+            "type": "string",
+            "enum": [
+              "NotSpecific"
+            ]
+          },
+          {
+            "type": "object",
+            "required": [
+              "PaymentMethodType"
+            ],
+            "properties": {
+              "PaymentMethodType": {
+                "$ref": "#/components/schemas/PaymentMethodType"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "EventType"
+            ],
+            "properties": {
+              "EventType": {
+                "$ref": "#/components/schemas/EventType"
+              }
+            }
+          }
+        ]
+      },
+      "ScopeType": {
+        "type": "string",
+        "description": "Discriminator for the scope type in the response",
+        "enum": [
+          "not_specific",
+          "payment_method_type",
+          "event_type"
+        ]
+      },
       "SdkDisplayMode": {
         "type": "string",
         "description": "Display mode options for controlling how messages are shown.",
@@ -30818,6 +31448,17 @@
                 "$ref": "#/components/schemas/XenditSplitRequest"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "payload_split_payment"
+            ],
+            "properties": {
+              "payload_split_payment": {
+                "$ref": "#/components/schemas/PayloadSplitPaymentRequest"
+              }
+            }
           }
         ],
         "description": "Fee information for Split Payments to be charged on the payment being collected"
@@ -31395,7 +32036,7 @@
         "properties": {
           "percentage": {
             "type": "number",
-            "format": "float"
+            "format": "double"
           }
         }
       },
@@ -32389,6 +33030,25 @@
           "propertyName": "type"
         }
       },
+      "VaultCardToken": {
+        "type": "object",
+        "description": "Card token data carried by the external vault proxy `vault_card_token_data` variant. Its\n`card_cvc` is a vault token detokenized on the wire by the external vault (e.g. VGS). Kept as a\ndistinct type from [`CardToken`] so the self-hosted `card_cvc_token` field does not leak into\nthe proxy contract.",
+        "required": [
+          "card_holder_name"
+        ],
+        "properties": {
+          "card_holder_name": {
+            "type": "string",
+            "description": "The card holder's name",
+            "example": "John Test"
+          },
+          "card_cvc": {
+            "type": "string",
+            "description": "The CVC number for the card (a vault token for the external vault proxy flow)",
+            "nullable": true
+          }
+        }
+      },
       "VaultDetails": {
         "type": "object",
         "description": "Top-level vault details returned in the session-tokens response.\nFor v1: contains both internal vault (SDK authorization) and external vault details.\nFor v2: contains only external vault details.",
@@ -32677,6 +33337,17 @@
           {
             "type": "object",
             "required": [
+              "google_pay_decrypt"
+            ],
+            "properties": {
+              "google_pay_decrypt": {
+                "$ref": "#/components/schemas/GooglePayDecrypt"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
               "paypal"
             ],
             "properties": {
@@ -32702,6 +33373,9 @@
         "oneOf": [
           {
             "$ref": "#/components/schemas/ApplePayDecryptAdditionalData"
+          },
+          {
+            "$ref": "#/components/schemas/GooglePayDecryptAdditionalData"
           },
           {
             "$ref": "#/components/schemas/PaypalAdditionalData"
@@ -33369,6 +34043,59 @@
           }
         },
         "additionalProperties": false
+      },
+      "WebhookRegistrationError": {
+        "type": "object",
+        "description": "Error details for a failed webhook registration.",
+        "required": [
+          "code",
+          "message"
+        ],
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "WebhookRegistrationResult": {
+        "type": "object",
+        "description": "Result of registering a webhook for a single scope identifier.",
+        "required": [
+          "identifier",
+          "status"
+        ],
+        "properties": {
+          "identifier": {
+            "$ref": "#/components/schemas/ScopeIdentifier"
+          },
+          "status": {
+            "$ref": "#/components/schemas/WebhookRegistrationStatus"
+          },
+          "connector_webhook_id": {
+            "type": "string",
+            "description": "The connector-generated webhook ID, if successful.",
+            "nullable": true
+          },
+          "error": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/WebhookRegistrationError"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "WebhookRegistrationStatus": {
+        "type": "string",
+        "description": "The status of webhook registration",
+        "enum": [
+          "Success",
+          "Failure"
+        ]
       },
       "XenditChargeResponseData": {
         "oneOf": [

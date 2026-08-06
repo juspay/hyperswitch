@@ -7,6 +7,7 @@ use api_models::{
         AuthenticationConnectors, BillingConnectors, Connector, PmAuthConnectors,
         SurchargeConnectors, TaxConnectors,
     },
+    merchant_connector_webhook_management::ScopeType,
     payments,
 };
 use serde::{Deserialize, Serialize};
@@ -153,6 +154,7 @@ pub struct ConfigMetadata {
     pub apple_pay: Option<Vec<InputData>>,
     pub paypal_sdk: Option<Vec<InputData>>,
     pub pix_emv: Option<Vec<InputData>>,
+    pub pix_qr: Option<Vec<InputData>>,
     pub pix_automatico_push: Option<Vec<InputData>>,
     pub pix_automatico_qr: Option<Vec<InputData>>,
     pub boleto: Option<Vec<InputData>>,
@@ -202,6 +204,9 @@ pub struct ConfigMetadata {
     pub kid: Option<InputData>,
     pub account_holder_name: Option<InputData>,
     pub private_key: Option<InputData>,
+    pub merchant_street_address: Option<String>,
+    pub customer_service_phone_number: Option<String>,
+    pub merchant_url: Option<String>,
 }
 
 #[serde_with::skip_serializing_none]
@@ -215,11 +220,22 @@ pub struct ConnectorWalletDetailsConfig {
 
 #[serde_with::skip_serializing_none]
 #[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct ConnectorWebhookRegisterDetailsConfig {
+    pub label: String,
+    pub webhook_auto_configuration_supported: bool,
+    pub scope_type: Option<ScopeType>,
+    pub payment_method_types: Option<Vec<String>>,
+    pub event_types: Option<Vec<String>>,
+}
+
+#[serde_with::skip_serializing_none]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct ConnectorTomlConfig {
     pub connector_auth: Option<ConnectorAuthType>,
     pub connector_webhook_details: Option<api_models::admin::MerchantConnectorWebhookDetails>,
     pub metadata: Option<Box<ConfigMetadata>>,
     pub connector_wallets_details: Option<Box<ConnectorWalletDetailsConfig>>,
+    pub connector_webhook_register_details: Option<ConnectorWebhookRegisterDetailsConfig>,
     pub additional_merchant_data: Option<Box<ConfigMerchantAdditionalDetails>>,
     pub credit: Option<Vec<CardProvider>>,
     pub debit: Option<Vec<CardProvider>>,
@@ -310,6 +326,7 @@ pub struct ConnectorConfig {
     pub forte: Option<ConnectorTomlConfig>,
     pub getnet: Option<ConnectorTomlConfig>,
     pub gigadat: Option<ConnectorTomlConfig>,
+    pub givepayments: Option<ConnectorTomlConfig>,
     #[cfg(feature = "payouts")]
     pub gigadat_payout: Option<ConnectorTomlConfig>,
     pub globalpay: Option<ConnectorTomlConfig>,
@@ -392,6 +409,7 @@ pub struct ConnectorConfig {
     pub threedsecureio: Option<ConnectorTomlConfig>,
     pub netcetera: Option<ConnectorTomlConfig>,
     pub tsys: Option<ConnectorTomlConfig>,
+    pub tsys_transit: Option<ConnectorTomlConfig>,
     pub vgs: Option<ConnectorTomlConfig>,
     pub volt: Option<ConnectorTomlConfig>,
     pub wellsfargo: Option<ConnectorTomlConfig>,
@@ -649,6 +667,7 @@ impl ConnectorConfig {
             Connector::Taxjar => Ok(connector_data.taxjar),
             Connector::Interpayments => Ok(connector_data.interpayments),
             Connector::Tsys => Ok(connector_data.tsys),
+            Connector::TsysTransit => Ok(connector_data.tsys_transit),
             Connector::Vgs => Ok(connector_data.vgs),
             Connector::Volt => Ok(connector_data.volt),
             Connector::Wellsfargo => Ok(connector_data.wellsfargo),
@@ -684,6 +703,7 @@ impl ConnectorConfig {
             Connector::Payjustnow => Ok(connector_data.payjustnow),
             Connector::Payjustnowinstore => Ok(connector_data.payjustnowinstore),
             Connector::Imerchantsolutions => Ok(connector_data.imerchantsolutions),
+            Connector::Givepayments => Ok(connector_data.givepayments),
         }
     }
 }

@@ -662,7 +662,7 @@ fn transform_redirection_response_for_authenticate_flow(
 > {
     match (connector, &response_data) {
         (
-            connector_enums::Connector::Cybersource,
+            connector_enums::Connector::Cybersource | connector_enums::Connector::Barclaycard,
             router_response_types::RedirectForm::Form {
                 endpoint,
                 method: _,
@@ -675,12 +675,21 @@ fn transform_redirection_response_for_authenticate_flow(
                 },
             )?;
             let step_up_url = form_fields.get("step_up_url").unwrap_or(endpoint).clone();
-            Ok(
-                router_response_types::RedirectForm::CybersourceConsumerAuth {
-                    access_token,
-                    step_up_url,
-                },
-            )
+            match connector {
+                connector_enums::Connector::Barclaycard => Ok(
+                    router_response_types::RedirectForm::BarclaycardConsumerAuth {
+                        access_token,
+                        step_up_url,
+                    },
+                ),
+                connector_enums::Connector::Cybersource => Ok(
+                    router_response_types::RedirectForm::CybersourceConsumerAuth {
+                        access_token,
+                        step_up_url,
+                    },
+                ),
+                _ => Ok(response_data),
+            }
         }
         _ => Ok(response_data),
     }
@@ -694,7 +703,7 @@ fn transform_response_for_authenticate_flow(
 > {
     match (connector, response_data.clone()) {
         (
-            connector_enums::Connector::Cybersource,
+            connector_enums::Connector::Cybersource | connector_enums::Connector::Barclaycard,
             router_response_types::PaymentsResponseData::TransactionResponse {
                 resource_id,
                 redirection_data,
@@ -777,7 +786,7 @@ pub async fn call_unified_connector_service_authenticate(
 
     let connector_auth_metadata = ucs_core::build_unified_connector_service_auth_metadata(
         merchant_connector_account,
-        processor,
+        processor.get_account().get_id(),
         router_data.connector.clone(),
     )
     .change_context(interface_errors::ConnectorError::RequestEncodingFailed)
@@ -825,15 +834,19 @@ pub async fn call_unified_connector_service_authenticate(
                 )
                 .attach_printable("Failed to deserialize UCS response")?;
 
-            let router_data_response = router_data_response.map(|(response, status)| {
-                router_data.status = status;
-                response
-            });
             let router_data_response = match router_data_response {
-                Ok(response) => Ok(transform_response_for_authenticate_flow(
-                    connector, response,
-                )?),
-                Err(err) => Err(err),
+                Ok((response, status)) => {
+                    router_data.status = status;
+                    Ok(transform_response_for_authenticate_flow(
+                        connector, response,
+                    )?)
+                }
+                Err(err) => {
+                    if let Some(attempt_status) = err.attempt_status {
+                        router_data.status = attempt_status;
+                    }
+                    Err(err)
+                }
             };
 
             router_data.response = router_data_response;
@@ -890,7 +903,7 @@ pub async fn call_unified_connector_service_post_authenticate(
 
     let connector_auth_metadata = ucs_core::build_unified_connector_service_auth_metadata(
         merchant_connector_account,
-        processor,
+        processor.get_account().get_id(),
         router_data.connector.clone(),
     )
     .change_context(interface_errors::ConnectorError::RequestEncodingFailed)
@@ -938,10 +951,18 @@ pub async fn call_unified_connector_service_post_authenticate(
                 )
                 .attach_printable("Failed to deserialize UCS response")?;
 
-            let router_data_response = router_data_response.map(|(response, status)| {
-                router_data.status = status;
-                response
-            });
+            let router_data_response = match router_data_response {
+                Ok((response, status)) => {
+                    router_data.status = status;
+                    Ok(response)
+                }
+                Err(err) => {
+                    if let Some(attempt_status) = err.attempt_status {
+                        router_data.status = attempt_status;
+                    }
+                    Err(err)
+                }
+            };
             router_data.response = router_data_response;
             router_data.raw_connector_response = payment_post_authenticate_response
                 .raw_connector_response
@@ -992,6 +1013,7 @@ impl<F>
             capture_method: item.request.capture_method,
             minor_payment_amount: item.request.minor_amount,
             minor_amount_to_capture: item.request.minor_amount,
+            order_tax_amount: None,
             integrity_object: None,
             split_payments: None,
             webhook_url: None,

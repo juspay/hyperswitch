@@ -2,6 +2,7 @@ use api_models::{enums::FrmSuggestion, payments::PaymentsConfirmIntentRequest};
 use async_trait::async_trait;
 use common_utils::{ext_traits::Encode, fp_utils::when, id_type, types::keymanager::ToEncryptable};
 use error_stack::ResultExt;
+use futures::FutureExt;
 use hyperswitch_domain_models::{mandates, payments::PaymentConfirmData};
 use hyperswitch_interfaces::api::ConnectorSpecifications;
 use hyperswitch_masking::{ExposeOptionInterface, PeekInterface};
@@ -569,6 +570,7 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
                         payment_token,
                         &payment_data.payment_attempt.payment_method_type,
                     )
+                    .boxed()
                     .await
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed to retrieve payment method from vault")?;
@@ -587,6 +589,7 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
                                     &payment_method.get_id().get_string_repr().to_string(),
                                     platform.get_processor().get_key_store(),
                                 )
+                                .boxed()
                                 .await,
                             )
                             .attach_printable("card_cvc not provided")?,
@@ -645,15 +648,15 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
                     storage_type: common_enums::StorageType::Persistent, //since customer acceptance is present, we always store it persistently
                 };
 
-                let (_pm_response, payment_method) =
-                    Box::pin(payment_methods::create_payment_method_core(
-                        state,
-                        &state.get_req_state(),
-                        req,
-                        platform,
-                        business_profile,
-                    ))
-                    .await?;
+                let (_pm_response, payment_method) = payment_methods::create_payment_method_core(
+                    state,
+                    &state.get_req_state(),
+                    req,
+                    platform,
+                    business_profile,
+                )
+                .boxed()
+                .await?;
 
                 // Don't modify payment_method_data in this case, only the payment_method and payment_method_id
                 (Some(payment_method), None)
@@ -703,7 +706,7 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
                 mandates::MandateReferenceId::ConnectorMandateId(_) => true,
                 mandates::MandateReferenceId::NetworkMandateId(_)
                 | mandates::MandateReferenceId::NetworkTokenWithNTI(_)
-                | mandates::MandateReferenceId::CardWithLimitedData => false,
+                | mandates::MandateReferenceId::CardWithLimitedData(_) => false,
             })
             .unwrap_or(false);
 

@@ -726,6 +726,7 @@ impl FinixErrorResponse {
             .unwrap_or(consts::NO_ERROR_MESSAGE.to_string())
     }
 }
+
 impl FinixWebhookBody {
     pub fn get_webhook_object_reference_id(
         &self,
@@ -747,13 +748,19 @@ impl FinixWebhookBody {
                             RefundIdType::ConnectorRefundId(transfer.id.to_string()),
                         ))
                     }
-                    // finix platform fee ignored
-                    Some(FinixPaymentType::FEE) => {
-                        Err(ConnectorError::WebhookEventTypeNotFound.into())
+                    Some(FinixPaymentType::DEBIT) => {
+                        Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+                            PaymentIdType::ConnectorTransactionId(transfer.id.to_string()),
+                        ))
                     }
-                    _ => Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
-                        PaymentIdType::ConnectorTransactionId(transfer.id.to_string()),
-                    )),
+                    Some(FinixPaymentType::DISPUTE)
+                    | Some(FinixPaymentType::ADJUSTMENT)
+                    | Some(FinixPaymentType::FEE)
+                    | Some(FinixPaymentType::CREDIT)
+                    | Some(FinixPaymentType::RESERVE)
+                    | Some(FinixPaymentType::SETTLEMENT)
+                    | Some(FinixPaymentType::UNKNOWN)
+                    | None => Err(ConnectorError::WebhookEventTypeNotFound.into()),
                 }
             }
 
@@ -764,6 +771,7 @@ impl FinixWebhookBody {
                     PaymentIdType::ConnectorTransactionId(dispute.transfer.to_string()),
                 ))
             }
+            FinixEmbedded::Evidences { .. } => Err(ConnectorError::WebhookEventTypeNotFound.into()),
         }
     }
     pub fn get_webhook_event_type(&self) -> CustomResult<IncomingWebhookEvent, ConnectorError> {
@@ -795,22 +803,32 @@ impl FinixWebhookBody {
             FinixEmbedded::Transfers { transfers } => {
                 let transfers = transfers.get_first_event()?;
 
-                if transfers.payment_type == Some(FinixPaymentType::REVERSAL) {
-                    match transfers.state {
+                match transfers.payment_type {
+                    Some(FinixPaymentType::REVERSAL) => match transfers.state {
                         FinixState::SUCCEEDED => Ok(IncomingWebhookEvent::RefundSuccess),
                         FinixState::PENDING => Ok(IncomingWebhookEvent::EventNotSupported),
                         FinixState::FAILED | FinixState::CANCELED | FinixState::UNKNOWN => {
                             Ok(IncomingWebhookEvent::RefundFailure)
                         }
-                    }
-                } else {
-                    match transfers.state {
+                    },
+                    Some(FinixPaymentType::DEBIT) => match transfers.state {
                         FinixState::PENDING => Ok(IncomingWebhookEvent::PaymentIntentProcessing),
                         FinixState::SUCCEEDED => Ok(IncomingWebhookEvent::PaymentIntentSuccess),
-                        FinixState::FAILED | FinixState::CANCELED | FinixState::UNKNOWN => {
+                        FinixState::FAILED | FinixState::CANCELED => {
                             Ok(IncomingWebhookEvent::PaymentIntentFailure)
                         }
-                    }
+
+                        FinixState::UNKNOWN => Ok(IncomingWebhookEvent::EventNotSupported),
+                    },
+
+                    Some(FinixPaymentType::DISPUTE)
+                    | Some(FinixPaymentType::ADJUSTMENT)
+                    | Some(FinixPaymentType::FEE)
+                    | Some(FinixPaymentType::CREDIT)
+                    | Some(FinixPaymentType::RESERVE)
+                    | Some(FinixPaymentType::SETTLEMENT)
+                    | Some(FinixPaymentType::UNKNOWN)
+                    | None => Ok(IncomingWebhookEvent::EventNotSupported),
                 }
             }
             FinixEmbedded::Disputes { disputes } => {
@@ -823,21 +841,28 @@ impl FinixWebhookBody {
                     FinixDisputeState::WON => Ok(IncomingWebhookEvent::DisputeWon),
                 }
             }
+            FinixEmbedded::Evidences { .. } => Ok(IncomingWebhookEvent::EventNotSupported),
         }
     }
 
-    pub fn get_dispute_details(&self) -> CustomResult<DisputePayload, ConnectorError> {
+    pub fn get_dispute_details(
+        &self,
+        payment_currency: Option<enums::Currency>,
+    ) -> CustomResult<DisputePayload, ConnectorError> {
         match &self.webhook_embedded {
             FinixEmbedded::Disputes { disputes } => {
                 let dispute = disputes.get_first_event()?;
+                let currency = payment_currency.ok_or(ConnectorError::MissingRequiredField {
+                    field_name: "currency",
+                })?;
                 let amount = utils::convert_amount(
                     super::Finix::new().amount_converter_webhooks,
                     dispute.amount,
-                    dispute.currency,
+                    currency,
                 )?;
                 Ok(DisputePayload {
                     amount,
-                    currency: dispute.currency,
+                    currency,
                     dispute_stage: DisputeStage::Dispute,
                     connector_status: dispute.state.to_string(),
                     connector_dispute_id: dispute.id,
@@ -848,10 +873,10 @@ impl FinixWebhookBody {
                     updated_at: dispute.updated_at,
                 })
             }
-            FinixEmbedded::Authorizations { .. } | FinixEmbedded::Transfers { .. } => {
-                Err(ConnectorError::ResponseDeserializationFailed)
-                    .attach_printable("Expected Dispute webhooks, but found other webhooks")?
-            }
+            FinixEmbedded::Authorizations { .. }
+            | FinixEmbedded::Transfers { .. }
+            | FinixEmbedded::Evidences { .. } => Err(ConnectorError::ResponseDeserializationFailed)
+                .attach_printable("Expected Dispute webhooks, but found other webhooks")?,
         }
     }
 }

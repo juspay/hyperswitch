@@ -27,6 +27,14 @@ export default defineConfig({
         getGlobalState: () => {
           return globalState || {};
         },
+        readFileOrNull: (filePath) => {
+          if (!fs.existsSync(filePath)) return null;
+          try {
+            return JSON.parse(fs.readFileSync(filePath, "utf8"));
+          } catch {
+            return null;
+          }
+        },
         cli_log: (message) => {
           // eslint-disable-next-line no-console
           console.log("Logging console message from task");

@@ -5,15 +5,570 @@ pub mod types;
 
 use std::collections::HashMap;
 
-use aws_smithy_types::Document;
+use api_models::superposition_proxy::{
+    AuditLogResponse, ContextResponse, DefaultConfigResponse, DimensionResponse,
+    PaginatedListResponse, ResolveConfigExplanationResponse, ResolveExplanationEntry,
+};
+pub use aws_smithy_types::DateTime;
+use aws_smithy_types::{Document, Number};
 use common_utils::{errors::CustomResult, id_type::TargetingKey};
 use error_stack::{report, ResultExt};
 use hyperswitch_masking::ExposeInterface;
 use serde_json::Map;
 use superposition_provider::traits::AllFeatureProvider;
+use superposition_sdk::operation::{
+    list_audit_logs::ListAuditLogsOutput, list_contexts::ListContextsOutput,
+    list_default_configs::ListDefaultConfigsOutput, list_dimensions::ListDimensionsOutput,
+};
+pub use superposition_sdk::{
+    operation::{
+        create_context::builders::CreateContextInputBuilder,
+        get_default_config::builders::GetDefaultConfigInputBuilder,
+        get_detailed_resolved_config::builders::GetDetailedResolvedConfigInputBuilder,
+        get_dimension::builders::GetDimensionInputBuilder,
+        get_resolved_config_explanation::builders::GetResolvedConfigExplanationInputBuilder,
+        list_audit_logs::builders::ListAuditLogsInputBuilder,
+        list_contexts::builders::ListContextsInputBuilder,
+        list_default_configs::builders::ListDefaultConfigsInputBuilder,
+        list_dimensions::builders::ListDimensionsInputBuilder,
+    },
+    types::{AuditAction, ContextFilterSortOn, DimensionMatchStrategy, SortBy},
+};
+pub use superposition_types::api::{
+    config::ContextPayload as ResolveConfigBody, context::PutRequest as ContextPutRequest,
+};
 
 pub use self::types::{ConfigContext, SuperpositionClientConfig, SuperpositionError, ToDocument};
 use crate::config_metrics;
+
+// ── Deja record/replay boundary for Superposition READS ──────────────────────
+// Wraps the read methods so each read is CAPTURED on record and SUBSTITUTED from
+// the tape on replay — no live Superposition service is consulted in replay. The
+// WHOLE `CustomResult<T, SuperpositionError>` round-trips ("recording threw ⇒
+// replay throws"). Identity is rank-2 span-path (no call-site id). A genuine tape
+// MISS returns `Err(SuperpositionError)` (via `dispatch_async_or_miss`) so the
+// caller's `fetch_db_config` ladder degrades to DB/default and replay progresses,
+// instead of the egress fail-stop. Reads are deja's per-request business config;
+// writes are deliberately NOT wrapped (they are leaving the OLTP path).
+#[cfg(feature = "deja")]
+mod deja_boundary {
+    use error_stack::report;
+
+    use super::{ConfigContext, CustomResult, SuperpositionError};
+
+    pub(super) const BOUNDARY: &str = "superposition";
+    pub(super) const COMPONENT: &str = "SuperpositionClient";
+
+    /// Serialize the whole `CustomResult<T, SuperpositionError>` for the tape:
+    /// the `Ok` value losslessly, or the error's current context (which the
+    /// caller's recovery branches on). Report attachments do not round-trip.
+    pub(super) fn capture<T: serde::Serialize>(
+        result: &CustomResult<T, SuperpositionError>,
+    ) -> (serde_json::Value, bool) {
+        match result {
+            Ok(value) => (
+                serde_json::json!({
+                    "result": "Ok",
+                    "value": serde_json::to_value(value).unwrap_or(serde_json::Value::Null),
+                }),
+                false,
+            ),
+            Err(err) => (
+                serde_json::json!({
+                    "result": "Err",
+                    "error": serde_json::to_value(err.current_context())
+                        .unwrap_or(serde_json::Value::Null),
+                }),
+                true,
+            ),
+        }
+    }
+
+    /// Rebuild the typed `CustomResult` from a recorded tape value. A recorded
+    /// `Err` replays as `Err(report!(E))` carrying the SAME typed context.
+    pub(super) fn reconstruct<T: serde::de::DeserializeOwned>(
+        recorded: serde_json::Value,
+    ) -> deja::__private::Reconstructed<CustomResult<T, SuperpositionError>> {
+        use deja::__private::Reconstructed;
+        let Some(object) = recorded.as_object() else {
+            return Reconstructed::Failed;
+        };
+        match object.get("result").and_then(serde_json::Value::as_str) {
+            Some("Ok") => match object
+                .get("value")
+                .cloned()
+                .map(serde_json::from_value::<T>)
+            {
+                Some(Ok(value)) => Reconstructed::Value(Ok(value)),
+                _ => Reconstructed::Failed,
+            },
+            Some("Err") => match object
+                .get("error")
+                .cloned()
+                .map(serde_json::from_value::<SuperpositionError>)
+            {
+                Some(Ok(error)) => Reconstructed::Value(Err(report!(error))),
+                _ => Reconstructed::Failed,
+            },
+            _ => Reconstructed::Failed,
+        }
+    }
+
+    /// Serialize a `ConfigContext` (+ targeting key) into the boundary args image
+    /// used for replay matching. The config key/method go in alongside.
+    pub(super) fn args_image(
+        method: &str,
+        key: Option<&str>,
+        context: Option<&ConfigContext>,
+        targeting_key: Option<&String>,
+    ) -> serde_json::Value {
+        serde_json::json!({
+            "method": method,
+            "key": key,
+            "context": context.map(|c| c.values.clone()),
+            "targeting_key": targeting_key,
+        })
+    }
+
+    /// Run one Superposition read through the deja boundary. `run` performs the
+    /// live read; on a substitute HIT it is skipped (tape value served), on a
+    /// genuine MISS `on_miss` yields a recoverable `Err`.
+    pub(super) async fn read<T, Fut, Run>(
+        operation: &'static str,
+        args: serde_json::Value,
+        caller: &'static core::panic::Location<'static>,
+        run: Run,
+    ) -> CustomResult<T, SuperpositionError>
+    where
+        Run: FnOnce() -> Fut,
+        Fut: core::future::Future<Output = CustomResult<T, SuperpositionError>>,
+        T: serde::Serialize + serde::de::DeserializeOwned,
+    {
+        // Engage only when a deja hook is live (record or replay); else pure
+        // passthrough — no observation, no allocation.
+        if !deja::__private::observation_is_active() {
+            return run().await;
+        }
+
+        let correlation = deja::current_correlation_id();
+        let scope = format!("superposition::{operation}");
+        // Rank-2 span-path identity: NO explicit call-site id (rank-1 needs a
+        // call-site and is banned), so resolution uses the ambient span-path
+        // (rank 2), with the syntactic hash of the scope as the rank-3 fallback.
+        let identity = deja::__private::CallsiteIdentity {
+            version: 1,
+            source: deja::__private::CallsiteSource::SyntacticHash,
+            id: None,
+            scope: Some(scope.clone()),
+            occurrence: deja::__private::next_boundary_occurrence(
+                correlation.as_deref(),
+                deja::__private::CallsiteSource::SyntacticHash,
+                Some(&scope),
+            ),
+            caller_function: Some(operation.to_string()),
+            lexical_path: Some(scope.clone()),
+            syntax_hash: Some(deja::__private::stable_callsite_hash(&scope)),
+            span_path: deja::__private::current_span_path(),
+        };
+
+        let semantics = deja::__private::BoundarySemantics {
+            replay_strategy: deja::ReplayStrategy::Substitute,
+            kind: Some(BOUNDARY.to_string()),
+            declaration: Some(
+                deja::BoundaryDeclaration::default().operation(deja::OperationKind::ExternalCall),
+            ),
+        };
+        let spec = deja::__private::BoundarySpec::with_semantics(
+            BOUNDARY, COMPONENT, operation, semantics,
+        );
+        let observation = deja::__private::CrossingObservation::with_correlation(
+            spec,
+            identity,
+            caller,
+            correlation,
+        );
+
+        deja::__private::dispatch_async_or_miss(
+            observation,
+            move || args,
+            run,
+            reconstruct::<T>,
+            capture::<T>,
+            move || {
+                Err(report!(SuperpositionError::NotFound(format!(
+                    "deja replay: no recorded Superposition value for `{operation}` (novel \
+                     config read); caller falls back to DB/default"
+                ))))
+            },
+        )
+        .await
+    }
+}
+
+/// Convert an `aws_smithy_types::Document` to a `serde_json::Value`.
+pub fn document_to_value(doc: Document) -> serde_json::Value {
+    match doc {
+        Document::Object(obj) => serde_json::Value::Object(
+            obj.into_iter()
+                .map(|(k, v)| (k, document_to_value(v)))
+                .collect(),
+        ),
+        Document::Array(arr) => {
+            serde_json::Value::Array(arr.into_iter().map(document_to_value).collect())
+        }
+        Document::Number(num) => match num {
+            Number::PosInt(v) => serde_json::Value::Number(serde_json::Number::from(v)),
+            Number::NegInt(v) => serde_json::Value::Number(serde_json::Number::from(v)),
+            Number::Float(v) => serde_json::Number::from_f64(v)
+                .map(serde_json::Value::Number)
+                .unwrap_or(serde_json::Value::Null),
+        },
+        Document::String(s) => serde_json::Value::String(s),
+        Document::Bool(b) => serde_json::Value::Bool(b),
+        Document::Null => serde_json::Value::Null,
+    }
+}
+
+/// Convert a `serde_json::Value` to an `aws_smithy_types::Document`.
+pub fn value_to_document(val: serde_json::Value) -> Document {
+    match val {
+        serde_json::Value::Null => Document::Null,
+        serde_json::Value::Bool(b) => Document::Bool(b),
+        serde_json::Value::Number(n) => {
+            if let Some(i) = n.as_u64() {
+                Document::Number(Number::PosInt(i))
+            } else if let Some(i) = n.as_i64() {
+                Document::Number(Number::NegInt(i))
+            } else {
+                Document::Number(Number::Float(n.as_f64().unwrap_or(0.0)))
+            }
+        }
+        serde_json::Value::String(s) => Document::String(s),
+        serde_json::Value::Array(arr) => {
+            Document::Array(arr.into_iter().map(value_to_document).collect())
+        }
+        serde_json::Value::Object(obj) => Document::Object(
+            obj.into_iter()
+                .map(|(k, v)| (k, value_to_document(v)))
+                .collect(),
+        ),
+    }
+}
+
+/// Format a smithy `DateTime` as an RFC3339 string.
+pub fn datetime_to_string(dt: &DateTime) -> String {
+    dt.fmt(aws_smithy_types::date_time::Format::DateTime)
+        .unwrap_or_default()
+}
+
+/// Parse an ISO 8601 datetime string into an `aws_smithy_types::DateTime`.
+pub fn parse_datetime(s: &str) -> Result<DateTime, String> {
+    DateTime::from_str(s, aws_smithy_types::date_time::Format::DateTime).map_err(|e| e.to_string())
+}
+
+/// Convert a `HashMap<String, Document>` to a JSON object value.
+pub fn doc_map_to_json(map: &HashMap<String, Document>) -> serde_json::Value {
+    serde_json::Value::Object(
+        map.iter()
+            .map(|(k, v)| (k.clone(), document_to_value(v.clone())))
+            .collect(),
+    )
+}
+
+/// Serialize a `DimensionType` to its JSON representation.
+pub fn dimension_type_to_value(dt: &superposition_sdk::types::DimensionType) -> serde_json::Value {
+    use superposition_sdk::types::DimensionType;
+    match dt {
+        DimensionType::Regular => serde_json::Value::String("REGULAR".to_string()),
+        DimensionType::LocalCohort(s) => serde_json::json!({ "LOCAL_COHORT": s }),
+        DimensionType::RemoteCohort(s) => serde_json::json!({ "REMOTE_COHORT": s }),
+        _ => serde_json::Value::String("UNKNOWN".to_string()),
+    }
+}
+
+/// Map a Superposition SDK error to a `SuperpositionError` based on HTTP status.
+pub fn map_sdk_error<E: std::fmt::Debug>(
+    err: superposition_sdk::error::SdkError<E>,
+) -> SuperpositionError {
+    let status = err.raw_response().map(|r| r.status().as_u16());
+    match status {
+        Some(404) => SuperpositionError::NotFound(format!("{err:?}")),
+        Some(s) if (400..500).contains(&s) => SuperpositionError::BadRequest(format!("{err:?}")),
+        _ => SuperpositionError::ClientError(format!("{err:?}")),
+    }
+}
+
+/// Convert a Superposition SDK `ContextResponse` into the typed response struct.
+pub fn context_response_to_struct(
+    ctx: &superposition_sdk::types::ContextResponse,
+) -> ContextResponse {
+    ContextResponse {
+        id: ctx.id().to_owned(),
+        value: doc_map_to_json(ctx.value()),
+        r#override: doc_map_to_json(ctx.r#override()),
+        override_id: ctx.override_id().to_owned(),
+        weight: ctx.weight().to_owned(),
+        description: ctx.description().to_owned(),
+        change_reason: ctx.change_reason().to_owned(),
+        created_at: datetime_to_string(ctx.created_at()),
+        created_by: ctx.created_by().to_owned(),
+        last_modified_at: datetime_to_string(ctx.last_modified_at()),
+        last_modified_by: ctx.last_modified_by().to_owned(),
+    }
+}
+
+/// Convert a Superposition SDK `DefaultConfigResponse` into the typed response struct.
+pub fn default_config_response_to_struct(
+    cfg: &superposition_sdk::types::DefaultConfigResponse,
+) -> DefaultConfigResponse {
+    DefaultConfigResponse {
+        key: cfg.key().to_owned(),
+        value: document_to_value(cfg.value().clone()),
+        schema: doc_map_to_json(cfg.schema()),
+        description: cfg.description().to_owned(),
+        change_reason: cfg.change_reason().to_owned(),
+        value_validation_function_name: cfg.value_validation_function_name().map(str::to_owned),
+        value_compute_function_name: cfg.value_compute_function_name().map(str::to_owned),
+        created_at: datetime_to_string(cfg.created_at()),
+        created_by: cfg.created_by().to_owned(),
+        last_modified_at: datetime_to_string(cfg.last_modified_at()),
+        last_modified_by: cfg.last_modified_by().to_owned(),
+    }
+}
+
+/// Convert a dimension dependency graph into a JSON object value.
+fn dependency_graph_to_value(graph: &HashMap<String, Vec<String>>) -> serde_json::Value {
+    let dep_graph: Map<String, serde_json::Value> = graph
+        .iter()
+        .map(|(k, v)| {
+            (
+                k.clone(),
+                serde_json::Value::Array(
+                    v.iter()
+                        .map(|s| serde_json::Value::String(s.clone()))
+                        .collect(),
+                ),
+            )
+        })
+        .collect();
+    serde_json::Value::Object(dep_graph)
+}
+
+/// Convert a Superposition SDK `DimensionResponse` into the typed response struct.
+pub fn dimension_response_to_struct(
+    dim: &superposition_sdk::types::DimensionResponse,
+) -> DimensionResponse {
+    DimensionResponse {
+        dimension: dim.dimension().to_owned(),
+        position: dim.position(),
+        schema: doc_map_to_json(dim.schema()),
+        value_validation_function_name: dim.value_validation_function_name().map(str::to_owned),
+        description: dim.description().to_owned(),
+        change_reason: dim.change_reason().to_owned(),
+        last_modified_at: datetime_to_string(dim.last_modified_at()),
+        last_modified_by: dim.last_modified_by().to_owned(),
+        created_at: datetime_to_string(dim.created_at()),
+        created_by: dim.created_by().to_owned(),
+        dependency_graph: dependency_graph_to_value(dim.dependency_graph()),
+        dimension_type: dimension_type_to_value(dim.dimension_type()),
+        value_compute_function_name: dim.value_compute_function_name().map(str::to_owned),
+        mandatory: dim.mandatory(),
+    }
+}
+
+/// Convert a Superposition SDK `GetDimensionOutput` into the typed response struct.
+pub fn get_dimension_output_to_struct(
+    dim: &superposition_sdk::operation::get_dimension::GetDimensionOutput,
+) -> DimensionResponse {
+    DimensionResponse {
+        dimension: dim.dimension().to_owned(),
+        position: dim.position(),
+        schema: doc_map_to_json(dim.schema()),
+        value_validation_function_name: dim.value_validation_function_name().map(str::to_owned),
+        description: dim.description().to_owned(),
+        change_reason: dim.change_reason().to_owned(),
+        last_modified_at: datetime_to_string(dim.last_modified_at()),
+        last_modified_by: dim.last_modified_by().to_owned(),
+        created_at: datetime_to_string(dim.created_at()),
+        created_by: dim.created_by().to_owned(),
+        dependency_graph: dependency_graph_to_value(dim.dependency_graph()),
+        dimension_type: dimension_type_to_value(dim.dimension_type()),
+        value_compute_function_name: dim.value_compute_function_name().map(str::to_owned),
+        mandatory: dim.mandatory(),
+    }
+}
+
+/// Convert a Superposition SDK `GetDefaultConfigOutput` into the typed response struct.
+pub fn get_default_config_output_to_struct(
+    cfg: &superposition_sdk::operation::get_default_config::GetDefaultConfigOutput,
+) -> DefaultConfigResponse {
+    DefaultConfigResponse {
+        key: cfg.key().to_owned(),
+        value: document_to_value(cfg.value().clone()),
+        schema: doc_map_to_json(cfg.schema()),
+        description: cfg.description().to_owned(),
+        change_reason: cfg.change_reason().to_owned(),
+        value_validation_function_name: cfg.value_validation_function_name().map(str::to_owned),
+        value_compute_function_name: cfg.value_compute_function_name().map(str::to_owned),
+        created_at: datetime_to_string(cfg.created_at()),
+        created_by: cfg.created_by().to_owned(),
+        last_modified_at: datetime_to_string(cfg.last_modified_at()),
+        last_modified_by: cfg.last_modified_by().to_owned(),
+    }
+}
+
+/// Convert a Superposition SDK `AuditLogFull` into the typed response struct.
+pub fn audit_log_full_to_struct(log: &superposition_sdk::types::AuditLogFull) -> AuditLogResponse {
+    AuditLogResponse {
+        id: log.id().to_owned(),
+        table_name: log.table_name().to_owned(),
+        user_name: log.user_name().to_owned(),
+        timestamp: datetime_to_string(log.timestamp()),
+        action: log.action().as_str().to_owned(),
+        original_data: log.original_data().map(|d| document_to_value(d.clone())),
+        new_data: log.new_data().map(|d| document_to_value(d.clone())),
+        query: log.query().to_owned(),
+    }
+}
+
+/// Convert a Superposition SDK `ListContextsOutput` into the paginated response.
+pub fn list_contexts_to_response(
+    output: &ListContextsOutput,
+) -> PaginatedListResponse<ContextResponse> {
+    PaginatedListResponse {
+        total_pages: output.total_pages(),
+        total_items: output.total_items(),
+        data: output
+            .data()
+            .iter()
+            .map(context_response_to_struct)
+            .collect(),
+    }
+}
+
+/// Convert a Superposition SDK `ListDefaultConfigsOutput` into the paginated response.
+pub fn list_default_configs_to_response(
+    output: &ListDefaultConfigsOutput,
+) -> PaginatedListResponse<DefaultConfigResponse> {
+    PaginatedListResponse {
+        total_pages: output.total_pages(),
+        total_items: output.total_items(),
+        data: output
+            .data()
+            .iter()
+            .map(default_config_response_to_struct)
+            .collect(),
+    }
+}
+
+/// Convert a Superposition SDK `ListDimensionsOutput` into the paginated response.
+pub fn list_dimensions_to_response(
+    output: &ListDimensionsOutput,
+) -> PaginatedListResponse<DimensionResponse> {
+    PaginatedListResponse {
+        total_pages: output.total_pages(),
+        total_items: output.total_items(),
+        data: output
+            .data()
+            .iter()
+            .map(dimension_response_to_struct)
+            .collect(),
+    }
+}
+
+/// Convert a Superposition SDK `ListAuditLogsOutput` into the paginated response.
+pub fn list_audit_logs_to_response(
+    output: &ListAuditLogsOutput,
+) -> PaginatedListResponse<AuditLogResponse> {
+    PaginatedListResponse {
+        total_pages: output.total_pages(),
+        total_items: output.total_items(),
+        data: output.data().iter().map(audit_log_full_to_struct).collect(),
+    }
+}
+
+/// Convert a Superposition SDK `GetResolvedConfigExplanationOutput` into the typed response.
+pub fn resolve_config_explanation_to_response(
+    output: &superposition_sdk::operation::get_resolved_config_explanation::GetResolvedConfigExplanationOutput,
+) -> ResolveConfigExplanationResponse {
+    let explanation = output.explanation();
+    ResolveConfigExplanationResponse {
+        key: explanation.key().to_owned(),
+        timeline: explanation
+            .timeline()
+            .iter()
+            .map(|item| ResolveExplanationEntry {
+                context_id: item.context_id().to_owned(),
+                condition: doc_map_to_json(item.condition()),
+                override_id: item.override_id().to_owned(),
+                value_before: document_to_value(item.value_before().clone()),
+                value_after: document_to_value(item.value_after().clone()),
+            })
+            .collect(),
+    }
+}
+
+/// Convert a `ContextPutRequest` into the SDK `ContextPut` type.
+pub fn context_put_from_request(
+    body: &ContextPutRequest,
+) -> CustomResult<superposition_sdk::types::ContextPut, SuperpositionError> {
+    let context_json = serde_json::to_value(&body.context).map_err(|e| {
+        report!(SuperpositionError::ClientError(format!(
+            "Failed to serialize context: {e}"
+        )))
+    })?;
+
+    let override_json = serde_json::to_value(&body.r#override).map_err(|e| {
+        report!(SuperpositionError::ClientError(format!(
+            "Failed to serialize override: {e}"
+        )))
+    })?;
+
+    let mut builder = superposition_sdk::types::ContextPut::builder();
+
+    if let serde_json::Value::Object(ctx_map) = context_json {
+        for (k, v) in ctx_map {
+            builder = builder.context(k, value_to_document(v));
+        }
+    }
+
+    if let serde_json::Value::Object(ovr_map) = override_json {
+        for (k, v) in ovr_map {
+            builder = builder.r#override(k, value_to_document(v));
+        }
+    }
+
+    if let Some(desc) = &body.description {
+        builder = builder.description(String::from(desc));
+    }
+
+    builder = builder.change_reason(String::from(&body.change_reason));
+
+    builder.build().map_err(|e| {
+        report!(SuperpositionError::ClientError(format!(
+            "Failed to build ContextPut: {e:?}"
+        )))
+    })
+}
+
+/// Convert a Superposition SDK `CreateContextOutput` into the shared `ContextResponse` struct.
+pub fn create_context_output_to_struct(
+    out: &superposition_sdk::operation::create_context::CreateContextOutput,
+) -> ContextResponse {
+    ContextResponse {
+        id: out.id().to_owned(),
+        value: doc_map_to_json(out.value()),
+        r#override: doc_map_to_json(out.r#override()),
+        override_id: out.override_id().to_owned(),
+        weight: out.weight().to_owned(),
+        description: out.description().to_owned(),
+        change_reason: out.change_reason().to_owned(),
+        created_at: datetime_to_string(out.created_at()),
+        created_by: out.created_by().to_owned(),
+        last_modified_at: datetime_to_string(out.last_modified_at()),
+        last_modified_by: out.last_modified_by().to_owned(),
+    }
+}
 
 /// Generate a default change reason from the config key
 fn generate_change_reason(key: &str) -> String {
@@ -169,11 +724,22 @@ impl SuperpositionClient {
                     "Configuring Superposition file fallback: path={:?}",
                     backup_path
                 );
-                Some(Box::new(
-                    superposition_provider::data_source::file::FileDataSource::new(
-                        backup_path.clone(),
-                    ),
-                ))
+                match superposition_provider::data_source::file::FileDataSource::new(
+                    backup_path.clone(),
+                ) {
+                    Ok(source) => {
+                        let boxed: Box<
+                            dyn superposition_provider::data_source::SuperpositionDataSource,
+                        > = Box::new(source);
+                        Some(boxed)
+                    }
+                    Err(e) => {
+                        router_env::logger::warn!(
+                            "Failed to create Superposition file fallback source: {e}"
+                        );
+                        None
+                    }
+                }
             }
             None => None,
         };
@@ -267,18 +833,50 @@ impl SuperpositionClient {
     ) -> CustomResult<T, SuperpositionError>
     where
         open_feature::Client: GetValue<T>,
+        // Deja captures the whole `CustomResult<T, _>` at the read boundary; the
+        // GetValue impls (bool/String/i64/u32/f64/Value) all satisfy these.
+        T: serde::Serialize + serde::de::DeserializeOwned,
     {
-        let evaluation_context = self.build_evaluation_context(context, targeting_key);
-        let type_name = std::any::type_name::<T>();
-
-        self.client
-            .get_value(key, &evaluation_context)
+        #[cfg(feature = "deja")]
+        {
+            let args =
+                deja_boundary::args_image("get_config_value", Some(key), context, targeting_key);
+            let key = key.to_owned();
+            let context = context.cloned();
+            let targeting_key = targeting_key.cloned();
+            deja_boundary::read(
+                "get_config_value",
+                args,
+                core::panic::Location::caller(),
+                move || async move {
+                    let evaluation_context =
+                        self.build_evaluation_context(context.as_ref(), targeting_key.as_ref());
+                    let type_name = std::any::type_name::<T>();
+                    self.client
+                        .get_value(&key, &evaluation_context)
+                        .await
+                        .map_err(|e| {
+                            report!(SuperpositionError::ClientError(format!(
+                                "Failed to get {type_name} value for key '{key}': {e:?}"
+                            )))
+                        })
+                },
+            )
             .await
-            .map_err(|e| {
-                report!(SuperpositionError::ClientError(format!(
-                    "Failed to get {type_name} value for key '{key}': {e:?}"
-                )))
-            })
+        }
+        #[cfg(not(feature = "deja"))]
+        {
+            let evaluation_context = self.build_evaluation_context(context, targeting_key);
+            let type_name = std::any::type_name::<T>();
+            self.client
+                .get_value(key, &evaluation_context)
+                .await
+                .map_err(|e| {
+                    report!(SuperpositionError::ClientError(format!(
+                        "Failed to get {type_name} value for key '{key}': {e:?}"
+                    )))
+                })
+        }
     }
 
     /// Resolve full configuration from Superposition
@@ -293,15 +891,43 @@ impl SuperpositionClient {
         context: Option<&ConfigContext>,
         targeting_key: Option<&String>,
     ) -> CustomResult<Map<String, serde_json::Value>, SuperpositionError> {
-        let evaluation_context = self.build_evaluation_context(context, targeting_key);
-        self.provider
-            .resolve_all_features(evaluation_context)
+        #[cfg(feature = "deja")]
+        {
+            let args =
+                deja_boundary::args_image("resolve_full_config", None, context, targeting_key);
+            let context = context.cloned();
+            let targeting_key = targeting_key.cloned();
+            deja_boundary::read(
+                "resolve_full_config",
+                args,
+                core::panic::Location::caller(),
+                move || async move {
+                    let evaluation_context =
+                        self.build_evaluation_context(context.as_ref(), targeting_key.as_ref());
+                    self.provider
+                        .resolve_all_features(evaluation_context)
+                        .await
+                        .map_err(|e| {
+                            report!(SuperpositionError::ProviderError(format!(
+                                "Failed to resolve full config: {e:?}"
+                            )))
+                        })
+                },
+            )
             .await
-            .map_err(|e| {
-                report!(SuperpositionError::ProviderError(format!(
-                    "Failed to resolve full config: {e:?}"
-                )))
-            })
+        }
+        #[cfg(not(feature = "deja"))]
+        {
+            let evaluation_context = self.build_evaluation_context(context, targeting_key);
+            self.provider
+                .resolve_all_features(evaluation_context)
+                .await
+                .map_err(|e| {
+                    report!(SuperpositionError::ProviderError(format!(
+                        "Failed to resolve full config: {e:?}"
+                    )))
+                })
+        }
     }
 
     /// Get cached configuration from Superposition
@@ -317,22 +943,61 @@ impl SuperpositionClient {
         prefix_filter: Option<Vec<String>>,
         dimension_filter: Option<Map<String, serde_json::Value>>,
     ) -> CustomResult<superposition_types::Config, SuperpositionError> {
-        use superposition_provider::data_source::SuperpositionDataSource;
-        let response = self
-            .provider
-            .fetch_filtered_config(dimension_filter, prefix_filter, None)
+        #[cfg(feature = "deja")]
+        {
+            let args = serde_json::json!({
+                "method": "get_cached_config",
+                "prefix_filter": prefix_filter.clone(),
+                "dimension_filter": dimension_filter.clone(),
+            });
+            deja_boundary::read(
+                "get_cached_config",
+                args,
+                core::panic::Location::caller(),
+                move || async move {
+                    use superposition_provider::data_source::SuperpositionDataSource;
+                    let response = self
+                        .provider
+                        .fetch_filtered_config(dimension_filter, prefix_filter, None)
+                        .await
+                        .map_err(|e| {
+                            report!(SuperpositionError::ProviderError(format!(
+                                "Failed to get cached config: {e:?}"
+                            )))
+                        })?;
+                    match response {
+                        superposition_provider::data_source::FetchResponse::Data(data) => {
+                            Ok(data.data)
+                        }
+                        superposition_provider::data_source::FetchResponse::NotModified => {
+                            Err(report!(SuperpositionError::ProviderError(
+                                "Config not modified but no data available".to_string()
+                            )))
+                        }
+                    }
+                },
+            )
             .await
-            .map_err(|e| {
-                report!(SuperpositionError::ProviderError(format!(
-                    "Failed to get cached config: {e:?}"
-                )))
-            })?;
-        match response {
-            superposition_provider::data_source::FetchResponse::Data(data) => Ok(data.config),
-            superposition_provider::data_source::FetchResponse::NotModified => {
-                Err(report!(SuperpositionError::ProviderError(
-                    "Config not modified but no data available".to_string()
-                )))
+        }
+        #[cfg(not(feature = "deja"))]
+        {
+            use superposition_provider::data_source::SuperpositionDataSource;
+            let response = self
+                .provider
+                .fetch_filtered_config(dimension_filter, prefix_filter, None)
+                .await
+                .map_err(|e| {
+                    report!(SuperpositionError::ProviderError(format!(
+                        "Failed to get cached config: {e:?}"
+                    )))
+                })?;
+            match response {
+                superposition_provider::data_source::FetchResponse::Data(data) => Ok(data.data),
+                superposition_provider::data_source::FetchResponse::NotModified => {
+                    Err(report!(SuperpositionError::ProviderError(
+                        "Config not modified but no data available".to_string()
+                    )))
+                }
             }
         }
     }
@@ -396,6 +1061,11 @@ impl SuperpositionClient {
 
         Ok(())
     }
+
+    /// Return a reference to the underlying Superposition SDK client.
+    pub fn superposition_sdk_client(&self) -> &superposition_sdk::Client {
+        &self.sdk_client
+    }
 }
 
 /// Trait for configs that can be written to Superposition.
@@ -412,14 +1082,31 @@ pub trait WritableConfig {
 /// Each config type implements this trait to define how its value should be
 /// retrieved from Superposition.
 pub trait Config {
-    /// The output type of this configuration
-    type Output: Default + Clone;
+    /// The output type of this configuration.
+    ///
+    /// `Serialize + DeserializeOwned` are required because `get_config_value`
+    /// (which `fetch` calls) captures the whole `CustomResult<Output, _>` at the
+    /// deja read boundary. Declaring the bound on the associated type propagates
+    /// it to `fetch` and to every generic `C: Config` caller (e.g. router's
+    /// `fetch_db_config`) without scattering per-call-site where-clauses. All
+    /// real Output types (bool/String/i64/u32/f64/serde_json::Value) satisfy it.
+    type Output: Default + Clone + serde::Serialize + serde::de::DeserializeOwned + Send;
 
     /// The type used as the targeting key for experiment traffic splitting
     type TargetingKey: TargetingKey + Send + Sync;
 
     /// Get the Superposition key for this config
     const SUPERPOSITION_KEY: &'static str;
+
+    /// Get the legacy, non-foldered Superposition key for this config.
+    ///
+    /// Superposition represents folders by dot-delimited key prefixes. During a
+    /// folder migration, retrying the portion after the final dot allows a new
+    /// application version to continue reading configs from a workspace that
+    /// has not been migrated yet.
+    fn legacy_superposition_key() -> Option<&'static str> {
+        Self::SUPERPOSITION_KEY.rsplit_once('.').map(|(_, key)| key)
+    }
 
     /// Get the default value for this config
     /// Default implementation uses `Default::default()`, can be overridden for custom defaults
@@ -438,18 +1125,54 @@ pub trait Config {
     {
         let targeting_key_str = targeting_key.map(|id| id.targeting_key_value().to_owned());
         async move {
-            match superposition_client
+            let primary_result = superposition_client
                 .get_config_value::<Self::Output>(
                     Self::SUPERPOSITION_KEY,
                     context,
                     targeting_key_str.as_ref(),
                 )
-                .await
-            {
+                .await;
+
+            let (resolved_key, result) = match primary_result {
+                Ok(value) => (Self::SUPERPOSITION_KEY, Ok(value)),
+                Err(primary_error) => match Self::legacy_superposition_key() {
+                    Some(legacy_key) => {
+                        match superposition_client
+                            .get_config_value::<Self::Output>(
+                                legacy_key,
+                                context,
+                                targeting_key_str.as_ref(),
+                            )
+                            .await
+                        {
+                            Ok(value) => {
+                                router_env::logger::warn!(
+                                    "Superposition config resolved using legacy key: key='{}', legacy_key='{}'",
+                                    Self::SUPERPOSITION_KEY,
+                                    legacy_key,
+                                );
+                                (legacy_key, Ok(value))
+                            }
+                            Err(legacy_error) => {
+                                router_env::logger::warn!(
+                                    "Superposition legacy config miss: key='{}', legacy_key='{}', error='{:?}'",
+                                    Self::SUPERPOSITION_KEY,
+                                    legacy_key,
+                                    legacy_error,
+                                );
+                                (legacy_key, Err(legacy_error))
+                            }
+                        }
+                    }
+                    None => (Self::SUPERPOSITION_KEY, Err(primary_error)),
+                },
+            };
+
+            match result {
                 Ok(value) => {
                     router_env::logger::info!(
                         "Superposition config hit: key='{}', type='{}'",
-                        Self::SUPERPOSITION_KEY,
+                        resolved_key,
                         std::any::type_name::<Self::Output>()
                     );
                     config_metrics::CONFIG_SUPERPOSITION_FETCH.add(
@@ -458,14 +1181,14 @@ pub trait Config {
                     );
                     Ok(value)
                 }
-                Err(e) => {
+                Err(error) => {
                     router_env::logger::warn!(
                         "Superposition config miss: key='{}', type='{}', error='{:?}'",
-                        Self::SUPERPOSITION_KEY,
+                        resolved_key,
                         std::any::type_name::<Self::Output>(),
-                        e
+                        error
                     );
-                    Err(e)
+                    Err(error)
                 }
             }
         }

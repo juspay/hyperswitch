@@ -483,15 +483,10 @@ pub async fn trigger_refund_to_gateway(
                 refund.refund_id
             )
         })?;
-    utils::trigger_refund_outgoing_webhook(
-        state,
-        platform,
-        &response,
-        payment_attempt.profile_id.clone(),
-    )
-    .await
-    .map_err(|error| logger::warn!(refunds_outgoing_webhook_error=?error))
-    .ok();
+    utils::trigger_refund_outgoing_webhook(state, platform, &response, payment_attempt)
+        .await
+        .map_err(|error| logger::warn!(refunds_outgoing_webhook_error=?error))
+        .ok();
     Ok((response, router_data_res.raw_connector_response))
 }
 
@@ -819,20 +814,14 @@ fn should_call_refund(
     force_sync: bool,
     all_keys_required: bool,
 ) -> bool {
-    // This implies, we cannot perform a refund sync & `the connector_refund_id`
-    // doesn't exist
-    let predicate1 = refund.connector_refund_id.is_some();
-
     // This allows refund sync at connector level if all_keys_required or force_sync is enabled for non terminal refund statuses (i.e. not success or failure)
-    let predicate2 = all_keys_required
+    all_keys_required
         || (force_sync
             && !matches!(
                 refund.refund_status,
                 diesel_models::enums::RefundStatus::Failure
                     | diesel_models::enums::RefundStatus::Success
-            ));
-
-    predicate1 && predicate2
+            ))
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -1116,15 +1105,10 @@ pub async fn sync_refund_with_gateway(
                 refund.refund_id
             )
         })?;
-    utils::trigger_refund_outgoing_webhook(
-        state,
-        platform,
-        &response,
-        payment_attempt.profile_id.clone(),
-    )
-    .await
-    .map_err(|error| logger::warn!(refunds_outgoing_webhook_error=?error))
-    .ok();
+    utils::trigger_refund_outgoing_webhook(state, platform, &response, payment_attempt)
+        .await
+        .map_err(|error| logger::warn!(refunds_outgoing_webhook_error=?error))
+        .ok();
     Ok((response, router_data_res.raw_connector_response))
 }
 

@@ -139,12 +139,12 @@ mod helpers {
     /// Returns the buckets to be used for a f64 histogram
     #[inline(always)]
     pub fn f64_histogram_buckets() -> Vec<f64> {
-        let mut init = 0.01;
-        let mut buckets: [f64; 15] = [0.0; 15];
+        let mut init = 0.000_001;
+        let mut buckets: [f64; 30] = [0.0; 30];
 
         for bucket in &mut buckets {
-            init *= 2.0;
             *bucket = init;
+            init *= 2.0;
         }
 
         Vec::from(buckets)

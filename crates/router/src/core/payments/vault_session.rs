@@ -30,7 +30,7 @@ use hyperswitch_masking::Mask;
 #[cfg(feature = "v2")]
 use crate::core::{
     errors::utils::ConnectorErrorExt,
-    payments::{customers, gateway::context as gateway_context, helpers},
+    payments::{customers, gateway::context as gateway_context},
     utils as core_utils,
 };
 use crate::{
@@ -38,6 +38,7 @@ use crate::{
         errors::{self, RouterResult},
         payments::{
             flows::{ConstructFlowSpecificData, Feature},
+            helpers,
             operations::BoxedOperation,
             OperationSessionGetters, OperationSessionSetters,
         },
@@ -63,6 +64,9 @@ pub async fn populate_vault_session_details<F, RouterDReq, ApiRequest, D>(
     profile: &domain::Profile,
     payment_data: &mut D,
     header_payload: HeaderPayload,
+    // V2 gates on `profile.is_vault_sdk_enabled()`; the modular-service flag is V1-only and ignored
+    // here, but kept in the signature so the shared call site compiles under both feature flags.
+    _is_modular_service_enabled: bool,
 ) -> RouterResult<()>
 where
     F: Send + Clone + Sync,
@@ -76,7 +80,9 @@ where
     dyn api::Connector:
         services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>,
 {
-    let is_external_vault_sdk_enabled = profile.is_vault_sdk_enabled();
+    let external_vault_profile =
+        helpers::resolve_provider_profile(state, platform, profile).await?;
+    let is_external_vault_sdk_enabled = external_vault_profile.is_vault_sdk_enabled();
 
     if is_external_vault_sdk_enabled {
         // Guest flow (no customer) uses volatile storage; a known customer uses persistent.
@@ -101,7 +107,6 @@ where
 #[cfg(feature = "v1")]
 async fn call_internal_pm_session_create_for_vault(
     state: &SessionState,
-    platform: &domain::Platform,
     profile: &domain::Profile,
     customer_id: Option<&id_type::CustomerId>,
 ) -> RouterResult<Option<api::VaultDetails>> {
@@ -110,7 +115,9 @@ async fn call_internal_pm_session_create_for_vault(
         CreatePaymentMethodSession, CreatePaymentMethodSessionV1Request, PaymentMethodClient,
     };
 
-    let processor_merchant_id = platform.get_processor().get_account().get_id();
+    // The merchant that owns the supplied profile; in platform flows this is the platform
+    // (provider) merchant whose profile carries the external vault configuration.
+    let merchant_id = &profile.merchant_id;
     let profile_id = profile.get_id();
     let internal_api_key = &state
         .conf
@@ -124,10 +131,7 @@ async fn call_internal_pm_session_create_for_vault(
     ));
     headers.insert((
         crate::headers::X_MERCHANT_ID.to_string(),
-        processor_merchant_id
-            .get_string_repr()
-            .to_string()
-            .into_masked(),
+        merchant_id.get_string_repr().to_string().into_masked(),
     ));
     headers.insert((
         crate::headers::X_INTERNAL_API_KEY.to_string(),
@@ -197,6 +201,7 @@ pub async fn populate_vault_session_details<F, RouterDReq, ApiRequest, D>(
     profile: &domain::Profile,
     payment_data: &mut D,
     _header_payload: HeaderPayload,
+    is_modular_service_enabled: bool,
 ) -> RouterResult<()>
 where
     F: Send + Clone + Sync,
@@ -207,13 +212,19 @@ where
     dyn api::Connector:
         services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>,
 {
-    let is_external_vault_sdk_enabled = profile.external_vault_details.is_external_vault_enabled();
-
-    if is_external_vault_sdk_enabled {
+    // Always route vault session creation through the modular PM service when the org is eligible
+    // for it (not just when an external vault is configured). When no external vault is set up, the
+    // PM service returns the internal Hyperswitch vault SDK authorization, which is the SaaS default.
+    if is_modular_service_enabled {
+        let external_vault_profile =
+            helpers::resolve_provider_profile(state, platform, profile).await?;
         let customer_id = customer.as_ref().map(|c| c.get_id());
 
+        // Use the resolved external vault profile (the platform merchant's profile in platform
+        // flows) so the PM service operates under the merchant that actually holds the external
+        // vault configuration. For standard merchants this is the payment profile itself.
         let vault_details =
-            call_internal_pm_session_create_for_vault(state, platform, profile, customer_id)
+            call_internal_pm_session_create_for_vault(state, &external_vault_profile, customer_id)
                 .await
                 .unwrap_or_else(|err| {
                     router_env::logger::warn!(
@@ -562,19 +573,20 @@ pub async fn fetch_external_vault_details(
     customer: &Option<domain::Customer>,
     storage_type: common_enums::StorageType,
 ) -> RouterResult<Option<api::VaultSessionDetails>> {
-    let external_vault_source = profile
+    // In platform flows the external vault configuration and its MCA live on the platform
+    // (provider) merchant's profile, not on the payment profile; resolve it first. For standard
+    // merchants this resolves to the supplied profile and the provider is the merchant itself.
+    let external_vault_profile =
+        helpers::resolve_provider_profile(state, platform, profile).await?;
+    let external_vault_source = external_vault_profile
         .external_vault_connector_details
         .as_ref()
         .map(|details| &details.vault_connector_id);
 
     let merchant_connector_account =
         domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(Box::new(
-            helpers::get_merchant_connector_account_v2(
-                state,
-                platform.get_processor(),
-                external_vault_source,
-            )
-            .await?,
+            helpers::get_provider_mca_v2(state, platform.get_provider(), external_vault_source)
+                .await?,
         ));
 
     // Connector-customer creation is optional. For the guest flow (no customer) we skip it

@@ -58,6 +58,9 @@ use crate::{
     types::ResponseRouterData, utils,
 };
 
+const FINIX_REFERRER_SOURCE_HEADER: &str = "X-Finix-Referrer-Source";
+const FINIX_REFERRER_SOURCE_VALUE: &str = "PLUGIN_HYPERSWITCH";
+
 #[derive(Clone)]
 pub struct Finix {
     amount_converter: &'static (dyn AmountConvertor<Output = MinorUnit> + Sync),
@@ -268,10 +271,16 @@ where
         _connectors: &Connectors,
     ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
     {
-        let mut header = vec![(
-            headers::CONTENT_TYPE.to_string(),
-            self.get_content_type().to_string().into(),
-        )];
+        let mut header = vec![
+            (
+                headers::CONTENT_TYPE.to_string(),
+                self.get_content_type().to_string().into(),
+            ),
+            (
+                FINIX_REFERRER_SOURCE_HEADER.to_string(),
+                FINIX_REFERRER_SOURCE_VALUE.to_string().into(),
+            ),
+        ];
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
         header.append(&mut api_key);
         Ok(header)
@@ -1157,7 +1166,7 @@ impl webhooks::IncomingWebhook for Finix {
 
         Ok(format!(
             "{}:{}",
-            &security_header_kvs.timestamp,
+            security_header_kvs.timestamp,
             String::from_utf8_lossy(request.body)
         )
         .into_bytes())
@@ -1180,28 +1189,35 @@ impl webhooks::IncomingWebhook for Finix {
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
         _context: Option<&webhooks::WebhookContext>,
     ) -> CustomResult<IncomingWebhookEvent, errors::ConnectorError> {
-        if is_test_webhook(request) {
-            return Ok(IncomingWebhookEvent::SetupWebhook);
-        }
-        let webhook_body: finix::FinixWebhookBody =
-            request
+        let trimmed_body = std::str::from_utf8(request.body)
+            .map(|string| string.trim())
+            .unwrap_or("");
+        if request.body.is_empty() || trimmed_body == "{}" {
+            Ok(IncomingWebhookEvent::EndpointVerification)
+        } else if is_test_webhook(request) {
+            Ok(IncomingWebhookEvent::SetupWebhook)
+        } else {
+            let webhook_body: finix::FinixWebhookBody = request
                 .body
                 .parse_struct("FinixWebhookBody")
                 .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
 
-        webhook_body.get_webhook_event_type()
+            webhook_body.get_webhook_event_type()
+        }
     }
     fn get_dispute_details(
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
-        _context: Option<&webhooks::WebhookContext>,
+        context: Option<&webhooks::WebhookContext>,
     ) -> CustomResult<DisputePayload, errors::ConnectorError> {
         let webhook_body: finix::FinixWebhookBody =
             request
                 .body
                 .parse_struct("FinixWebhookBody")
                 .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
-        webhook_body.get_dispute_details()
+        let payment_currency =
+            context.and_then(|webhook_context| webhook_context.get_payment_context().currency);
+        webhook_body.get_dispute_details(payment_currency)
     }
     fn get_webhook_resource_object(
         &self,
