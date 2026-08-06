@@ -1698,6 +1698,26 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                             .inspect_err(|err| logger::error!("{:?}", err))
                             .ok()
                             .unwrap_or_default(),
+                        card_bin: payment_data
+                            .payment_method_data
+                            .as_ref()
+                            .and_then(|payment_method_data| payment_method_data.get_card_iin())
+                            .or_else(|| {
+                                additional_card_info
+                                    .as_ref()
+                                    .and_then(|card_info| card_info.card_isin.clone())
+                            }),
+                        extended_card_bin: payment_data
+                            .payment_method_data
+                            .as_ref()
+                            .and_then(|payment_method_data| {
+                                payment_method_data.get_card_extended_bin()
+                            })
+                            .or_else(|| {
+                                additional_card_info
+                                    .as_ref()
+                                    .and_then(|card_info| card_info.card_extended_bin.clone())
+                            }),
                         business_country: payment_data
                             .payment_intent
                             .business_country

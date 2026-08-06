@@ -230,6 +230,22 @@ impl PaymentMethodData {
         }
     }
 
+    /// Extended BIN for any variant that carries the original card number.
+    pub fn get_card_extended_bin(&self) -> Option<String> {
+        match self {
+            Self::Card(card) => Some(card.card_number.get_extended_card_bin()),
+            Self::CardWithOptionalCVC(card) => Some(card.card_number.get_extended_card_bin()),
+            Self::CardWithNetworkTokenDetails(card) => {
+                Some(card.card_details.card_number.get_extended_card_bin())
+            }
+            Self::CardDetailsForNetworkTransactionId(card) => {
+                Some(card.card_number.get_extended_card_bin())
+            }
+            Self::CardWithLimitedDetails(card) => Some(card.card_number.get_extended_card_bin()),
+            _ => None,
+        }
+    }
+
     pub fn apply_additional_payment_data(
         &self,
         additional_payment_data: api_models::payments::AdditionalPaymentData,
