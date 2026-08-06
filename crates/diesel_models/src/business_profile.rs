@@ -18,8 +18,16 @@ use crate::schema_v2::business_profile;
 /// If two adjacent columns have the same type, then the compiler will not throw any error, but the
 /// fields read / written will be interchanged
 #[cfg(feature = "v1")]
-#[derive(Clone, Debug, Identifiable, Queryable, Selectable, router_derive::DebugAsDisplay)]
-#[cfg_attr(feature = "deja", derive(serde::Serialize, serde::Deserialize))]
+#[derive(
+    Clone,
+    Debug,
+    Identifiable,
+    Queryable,
+    Selectable,
+    router_derive::DebugAsDisplay,
+    serde::Serialize,
+    serde::Deserialize,
+)]
 #[diesel(table_name = business_profile, primary_key(profile_id), check_for_backend(diesel::pg::Pg))]
 pub struct Profile {
     pub profile_id: common_utils::id_type::ProfileId,
@@ -233,8 +241,16 @@ pub struct ProfileUpdateInternal {
 /// If two adjacent columns have the same type, then the compiler will not throw any error, but the
 /// fields read / written will be interchanged
 #[cfg(feature = "v2")]
-#[derive(Clone, Debug, Identifiable, Queryable, Selectable, router_derive::DebugAsDisplay)]
-#[cfg_attr(feature = "deja", derive(serde::Serialize, serde::Deserialize))]
+#[derive(
+    Clone,
+    Debug,
+    Identifiable,
+    Queryable,
+    Selectable,
+    router_derive::DebugAsDisplay,
+    serde::Serialize,
+    serde::Deserialize,
+)]
 #[diesel(table_name = business_profile, primary_key(id), check_for_backend(diesel::pg::Pg))]
 pub struct Profile {
     pub merchant_id: common_utils::id_type::MerchantId,
@@ -721,22 +737,29 @@ pub struct WalletBlockingConfig {
 }
 
 impl WalletBlockingConfig {
-    pub fn is_credit_blocked(&self) -> bool {
-        self.card_types
+    /// Per-wallet config only.
+    pub fn is_credit_blocked_for_apple_pay(&self) -> bool {
+        self.apple_pay
             .as_ref()
-            .is_some_and(|types| types.contains(&common_enums::CardType::Credit))
+            .is_some_and(CardBlockingConfig::is_credit_blocked)
     }
 
-    pub fn is_debit_blocked(&self) -> bool {
-        self.card_types
+    pub fn is_credit_blocked_for_google_pay(&self) -> bool {
+        self.google_pay
             .as_ref()
-            .is_some_and(|types| types.contains(&common_enums::CardType::Debit))
+            .is_some_and(CardBlockingConfig::is_credit_blocked)
     }
 }
 
 impl CardBlockingConfig {
     pub fn should_block_if_bin_info_unavailable(&self) -> bool {
         self.block_if_bin_info_unavailable.unwrap_or(false)
+    }
+
+    pub fn is_credit_blocked(&self) -> bool {
+        self.card_types
+            .as_ref()
+            .is_some_and(|card_types| card_types.contains(&common_enums::CardType::Credit))
     }
 
     pub fn should_block_by_attribute<T>(blocked: &Option<HashSet<T>>, value: Option<&str>) -> bool

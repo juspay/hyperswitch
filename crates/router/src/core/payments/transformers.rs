@@ -8035,6 +8035,7 @@ impl ForeignFrom<common_types::three_ds_decision_rule_engine::ThreeDSDecision>
             common_types::three_ds_decision_rule_engine::ThreeDSDecision::NoThreeDs => Self::NoThreeDs,
             common_types::three_ds_decision_rule_engine::ThreeDSDecision::ChallengeRequested
             | common_types::three_ds_decision_rule_engine::ThreeDSDecision::ChallengePreferred
+            | common_types::three_ds_decision_rule_engine::ThreeDSDecision::NoPreference
             | common_types::three_ds_decision_rule_engine::ThreeDSDecision::ThreeDsExemptionRequestedTra
             | common_types::three_ds_decision_rule_engine::ThreeDSDecision::ThreeDsExemptionRequestedLowValue
             | common_types::three_ds_decision_rule_engine::ThreeDSDecision::IssuerThreeDsExemptionRequested => Self::ThreeDs,
@@ -8058,6 +8059,7 @@ impl ForeignFrom<common_types::three_ds_decision_rule_engine::ThreeDSDecision>
             common_types::three_ds_decision_rule_engine::ThreeDSDecision::NoThreeDs
             | common_types::three_ds_decision_rule_engine::ThreeDSDecision::ChallengeRequested
             | common_types::three_ds_decision_rule_engine::ThreeDSDecision::ChallengePreferred
+            | common_types::three_ds_decision_rule_engine::ThreeDSDecision::NoPreference
             | common_types::three_ds_decision_rule_engine::ThreeDSDecision::IssuerThreeDsExemptionRequested => {
                 None
             }
