@@ -1565,6 +1565,300 @@ function bankRedirectRedirection(
     return;
   }
 
+  if (connectorId === "trustly" && paymentMethodType === "trustly") {
+    cy.visit(redirectionUrl.href, {
+      failOnStatusCode: false,
+      timeout: CONSTANTS.TIMEOUT,
+    });
+    cy.get("body", { timeout: CONSTANTS.TIMEOUT }).should("exist");
+
+    cy.log("Handling Trustly sandbox bank redirect");
+    const clickableSelector =
+      'button, a, [role="button"], [role="option"], label, li, [data-testid], [class*="bank"], [class*="Bank"]';
+    const bankSearchSelector =
+      'input[type="search"], input[type="text"], input[role="combobox"], input[placeholder*="Search"], input[placeholder*="search"], input[placeholder*="bank"], input[placeholder*="Bank"], input[name*="search"], input[name*="bank"], input[id*="search"], input[id*="bank"], input[aria-label*="search"], input[aria-label*="bank"]';
+    const clickFirstVisibleByText = (pattern, logMessage) => {
+      cy.get("body", { timeout: CONSTANTS.TIMEOUT }).then(($body) => {
+        const element = $body
+          .find(clickableSelector)
+          .filter((_, el) =>
+            pattern.test(
+              el.innerText || el.value || el.getAttribute("aria-label") || ""
+            )
+          )
+          .filter(":visible")
+          .first();
+
+        if (element.length > 0) {
+          cy.log(logMessage);
+          cy.wrap(element).scrollIntoView().click({ force: true });
+        }
+      });
+    };
+    const clickTextOrClosestClickable = (
+      selector,
+      pattern,
+      logMessage,
+      closestSelector = clickableSelector
+    ) => {
+      cy.contains(selector, pattern, { timeout: CONSTANTS.TIMEOUT })
+        .should("be.visible")
+        .then(($el) => {
+          const clickable = $el.closest(closestSelector);
+          const target = clickable.length > 0 ? clickable : $el;
+
+          cy.log(logMessage);
+          cy.wrap(target)
+            .scrollIntoView()
+            .trigger("mouseover", { force: true })
+            .trigger("mousedown", { force: true })
+            .trigger("mouseup", { force: true })
+            .click({ force: true });
+        });
+    };
+    const clickVisibleAction = (pattern, logMessage) => {
+      cy.contains(
+        'button, a, [role="button"], input[type="submit"], input[type="button"]',
+        pattern,
+        { timeout: CONSTANTS.TIMEOUT }
+      )
+        .should("be.visible")
+        .and(($el) => {
+          expect($el).not.to.have.attr("disabled");
+          expect($el).not.to.have.attr("aria-disabled", "true");
+        })
+        .then(($el) => {
+          cy.log(logMessage);
+          cy.wrap($el)
+            .scrollIntoView()
+            .trigger("mouseover", { force: true })
+            .trigger("mousedown", { force: true })
+            .trigger("mouseup", { force: true })
+            .click({ force: true });
+        });
+    };
+    const selectNordeaBank = () => {
+      cy.get("body", { timeout: CONSTANTS.TIMEOUT }).then(($body) => {
+        const bankSearch = $body
+          .find(bankSearchSelector)
+          .filter(":visible")
+          .first();
+
+        if (bankSearch.length > 0) {
+          cy.wrap(bankSearch)
+            .scrollIntoView()
+            .click({ force: true })
+            .clear({ force: true })
+            .type("Nordea", { force: true });
+        }
+      });
+      clickTextOrClosestClickable(
+        'button, a, [role="button"], [role="option"], [role="listitem"], li, label, div, span',
+        /nordea/i,
+        "Selecting Nordea bank",
+        'button, a, [role="button"], [role="option"], [role="listitem"], li, label, [data-testid], [class*="bank"], [class*="Bank"]'
+      );
+    };
+
+    selectNordeaBank();
+    clickVisibleAction(/continue|next|proceed/i, "Continuing after bank");
+
+    cy.get("body", { timeout: CONSTANTS.TIMEOUT }).then(($body) => {
+      const usernameInput = $body
+        .find(
+          'input[name*="user"], input[id*="user"], input[autocomplete="username"], input[type="text"]'
+        )
+        .filter(":visible")
+        .first();
+
+      if (usernameInput.length > 0) {
+        cy.wrap(usernameInput)
+          .clear({ force: true })
+          .type(`happy_path_${Date.now()}`, { force: true });
+      }
+
+      const passwordInput = $body
+        .find(
+          'input[type="password"], input[name*="password"], input[id*="password"]'
+        )
+        .filter(":visible")
+        .first();
+
+      if (passwordInput.length > 0) {
+        cy.wrap(passwordInput)
+          .clear({ force: true })
+          .type("password123", { force: true });
+      }
+    });
+
+    clickVisibleAction(
+      /continue|next|login|log in|sign in|submit/i,
+      "Submitting Trustly login step"
+    );
+
+    cy.get("body", { timeout: CONSTANTS.TIMEOUT }).then(($body) => {
+      const codeInput = $body
+        .find(
+          'input[type="tel"], input[inputmode="numeric"], input[name*="code"], input[id*="code"], input[name*="otp"], input[id*="otp"], input[name*="tan"], input[id*="tan"], input[type="text"]'
+        )
+        .filter(":visible")
+        .first();
+
+      if (codeInput.length > 0) {
+        cy.wrap(codeInput)
+          .clear({ force: true })
+          .type("1212121212", { force: true });
+      }
+    });
+
+    clickFirstVisibleByText(
+      /continue|next|submit|confirm|approve|authorize/i,
+      "Submitting Trustly verification code"
+    );
+
+    cy.get("body", { timeout: CONSTANTS.TIMEOUT }).then(($body) => {
+      const accountButton = $body
+        .find('button, a, [role="button"], input[type="radio"]')
+        .filter((_, el) =>
+          /checking|savings|account|continue|confirm|approve|pay|authorize/i.test(
+            el.innerText || el.value || el.getAttribute("aria-label") || ""
+          )
+        )
+        .filter(":visible")
+        .first();
+
+      if (accountButton.length > 0) {
+        cy.wrap(accountButton).click({ force: true });
+      }
+    });
+
+    cy.wait(CONSTANTS.WAIT_TIME / 3);
+    verifyUrl = false;
+    cy.then(() => {
+      verifyReturnUrl(redirectionUrl, expectedUrl, verifyUrl);
+    });
+    return;
+  }
+
+  if (connectorId === "truelayer" && paymentMethodType === "open_banking") {
+    cy.visit(redirectionUrl.href, {
+      failOnStatusCode: false,
+      timeout: CONSTANTS.TIMEOUT,
+    });
+    cy.get("body", { timeout: CONSTANTS.TIMEOUT }).should("exist");
+    cy.url({ timeout: CONSTANTS.TIMEOUT }).should(
+      "include",
+      "truelayer-sandbox.com"
+    );
+
+    const actionSelector =
+      'button, a, [role="button"], input[type="submit"], input[type="button"]';
+    const clickAction = (pattern, logMessage) => {
+      cy.contains(actionSelector, pattern, { timeout: CONSTANTS.TIMEOUT })
+        .should("be.visible")
+        .then(($el) => {
+          cy.log(logMessage);
+          cy.wrap($el).scrollIntoView().click({ force: true });
+        });
+    };
+    const clickActionIfPresent = (pattern, logMessage) => {
+      cy.get("body", { timeout: CONSTANTS.TIMEOUT }).then(($body) => {
+        const action = $body
+          .find(actionSelector)
+          .filter((_, el) =>
+            pattern.test(
+              el.innerText || el.value || el.getAttribute("aria-label") || ""
+            )
+          )
+          .filter(":visible")
+          .first();
+
+        if (action.length > 0) {
+          cy.log(logMessage);
+          cy.wrap(action).scrollIntoView().click({ force: true });
+        }
+      });
+    };
+    const editableInputSelector =
+      'input:not([type="hidden"]):not([type="radio"]):not([type="checkbox"]):not([type="submit"]):not([type="button"]):not([disabled])';
+    const fillTrueLayerMockCredentials = () => {
+      cy.get(editableInputSelector, { timeout: CONSTANTS.TIMEOUT })
+        .filter(":visible")
+        .should("have.length.at.least", 2)
+        .then(($inputs) => {
+          const usernameInput = $inputs.eq(0);
+          const pinInputs = $inputs
+            .filter(
+              'input[type="password"], input[inputmode="numeric"], input[type="tel"], input[name*="pin"], input[id*="pin"]'
+            )
+            .not(usernameInput);
+          const fallbackPinInputs = $inputs.not(usernameInput);
+          const pinTargets =
+            pinInputs.length > 0 ? pinInputs : fallbackPinInputs;
+
+          cy.log("Entering TrueLayer mock username");
+          cy.wrap(usernameInput)
+            .scrollIntoView()
+            .clear({ force: true })
+            .type("test_executed", { force: true });
+
+          cy.log("Entering TrueLayer mock PIN");
+          if (pinTargets.length >= 3) {
+            ["2", "3", "4"].forEach((digit, index) => {
+              cy.wrap(pinTargets.eq(index))
+                .scrollIntoView()
+                .clear({ force: true })
+                .type(digit, { force: true });
+            });
+          } else {
+            cy.wrap(pinTargets.eq(0))
+              .scrollIntoView()
+              .clear({ force: true })
+              .type("234", { force: true });
+          }
+        });
+    };
+
+    clickAction(/go to bank/i, "Opening TrueLayer bank page");
+    clickAction(
+      /open mock uk payments\s*-\s*redirect flow on this device/i,
+      "Opening TrueLayer mock UK payments redirect flow"
+    );
+
+    fillTrueLayerMockCredentials();
+    clickAction(
+      /continue|submit|confirm|authorize/i,
+      "Submitting TrueLayer mock flow"
+    );
+    clickAction(/continue/i, "Continuing after TrueLayer mock submit");
+    cy.contains("body", /select account and confirm payment/i, {
+      timeout: CONSTANTS.TIMEOUT,
+    }).should("be.visible");
+    clickAction(
+      /continue|confirm|authorize/i,
+      "Continuing after TrueLayer account selection"
+    );
+    cy.contains(
+      "body",
+      /confirming your payment|in progress|processing your transaction/i,
+      {
+        timeout: 120000,
+      }
+    ).should("be.visible");
+    cy.url({ timeout: 120000 }).should("include", "truelayer-sandbox.com");
+    cy.wait(15000);
+    clickActionIfPresent(
+      /return to testhyperswitch|return/i,
+      "Returning from TrueLayer mock flow"
+    );
+
+    verifyUrl = false;
+    cy.then(() => {
+      verifyReturnUrl(redirectionUrl, expectedUrl, verifyUrl);
+    });
+    return;
+  }
+
   cy.visit(redirectionUrl.href);
   waitForRedirect(redirectionUrl.href); // Wait for the first redirect
 
