@@ -3,11 +3,11 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
 const { parseYaml } = require("../../lib/config");
-const { buildPaymentConfirmBody, loadPhases, selectReadyFixtures } = require("../lib/payments_api");
+const { buildPaymentConfirmBody, loadPhases, selectReadyFixtures } = require("../lib/router_api");
 const { buildPlan } = require("../lib/scenarios");
 
 const paths = ["non_modular", "modular"];
-const scenarios = ["one_time", "cit_on_session", "cit_off_session"];
+const scenarios = ["guest", "cit_on_session", "cit_off_session"];
 
 for (const merchantPath of paths) {
   for (const name of scenarios) {
@@ -15,18 +15,18 @@ for (const merchantPath of paths) {
       const plan = buildPlan({ merchant_path: merchantPath, name });
       assert.equal(plan.id, `${merchantPath}:${name}`);
       assert.equal(plan.usesPmService, merchantPath === "modular");
-      assert.equal(plan.requiresCustomer, name !== "one_time");
+      assert.equal(plan.requiresCustomer, name !== "guest");
     });
   }
 }
 
 test("invalid scenario selections fail before traffic starts", () => {
-  assert.throws(() => buildPlan({ merchant_path: "unknown", name: "one_time" }), /Unsupported merchant_path/);
+  assert.throws(() => buildPlan({ merchant_path: "unknown", name: "guest" }), /Unsupported merchant_path/);
   assert.throws(() => buildPlan({ merchant_path: "modular", name: "unknown" }), /Unsupported scenario/);
 });
 
 test("one-time confirms do not contain save-card fields", () => {
-  const body = buildPaymentConfirmBody(buildPlan({ merchant_path: "non_modular", name: "one_time" }), {}, null);
+  const body = buildPaymentConfirmBody(buildPlan({ merchant_path: "non_modular", name: "guest" }), {}, null);
   assert.equal(body.setup_future_usage, undefined);
   assert.equal(body.customer_acceptance, undefined);
 });

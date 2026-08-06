@@ -1,0 +1,66 @@
+{
+  "annotations": {"list": []},
+  "editable": true,
+  "graphTooltip": 1,
+  "panels": [
+    {
+      "datasource": {"type": "loki", "uid": "loki"},
+      "fieldConfig": {"defaults": {"unit": "reqps"}, "overrides": []},
+      "gridPos": {"h": 9, "w": 24, "x": 0, "y": 0},
+      "id": 1,
+      "options": {"legend": {"displayMode": "table", "placement": "right", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
+      "targets": [
+        {"expr": "sum(rate({loadtest_service=\"router\"} |= \"[HTTP REQUEST - END]\" | json | message=\"[HTTP REQUEST - END]\" | flow=\"PaymentsConfirm\" | __error__=\"\" [30s]))", "legendFormat": "router", "refId": "A"},
+        {"expr": "sum(rate({loadtest_service=\"modular-pm\"} |= \"[HTTP REQUEST - END]\" | json | message=\"[HTTP REQUEST - END]\" | flow=\"PaymentMethodSessionConfirm\" | __error__=\"\" [30s]))", "legendFormat": "modular-pm", "refId": "B"},
+        {"expr": "sum(rate({loadtest_service=\"vault\"} |= \"finished processing request\" [30s]))", "legendFormat": "vault", "refId": "C"},
+        {"expr": "sum(rate({loadtest_service=\"encryption\"} |= \"Finished processing request\" [30s]))", "legendFormat": "encryption", "refId": "D"}
+      ],
+      "title": "Request Rate",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "loki", "uid": "loki"},
+      "fieldConfig": {"defaults": {"unit": "ms"}, "overrides": []},
+      "gridPos": {"h": 10, "w": 16, "x": 0, "y": 9},
+      "id": 2,
+      "options": {"legend": {"displayMode": "table", "placement": "right", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
+      "targets": [
+        {"expr": "quantile_over_time(0.50, {loadtest_service=\"router\"} |= \"[HTTP REQUEST - END]\" | json | message=\"[HTTP REQUEST - END]\" | flow=\"PaymentsConfirm\" | unwrap extra_elapsed_milliseconds | __error__=\"\" [5s]) by (loadtest_service)", "legendFormat": "router p50", "refId": "A"},
+        {"expr": "quantile_over_time(0.75, {loadtest_service=\"router\"} |= \"[HTTP REQUEST - END]\" | json | message=\"[HTTP REQUEST - END]\" | flow=\"PaymentsConfirm\" | unwrap extra_elapsed_milliseconds | __error__=\"\" [5s]) by (loadtest_service)", "legendFormat": "router p75", "refId": "B"},
+        {"expr": "quantile_over_time(0.90, {loadtest_service=\"router\"} |= \"[HTTP REQUEST - END]\" | json | message=\"[HTTP REQUEST - END]\" | flow=\"PaymentsConfirm\" | unwrap extra_elapsed_milliseconds | __error__=\"\" [5s]) by (loadtest_service)", "legendFormat": "router p90", "refId": "C"},
+        {"expr": "quantile_over_time(0.95, {loadtest_service=\"router\"} |= \"[HTTP REQUEST - END]\" | json | message=\"[HTTP REQUEST - END]\" | flow=\"PaymentsConfirm\" | unwrap extra_elapsed_milliseconds | __error__=\"\" [5s]) by (loadtest_service)", "legendFormat": "router p95", "refId": "D"},
+        {"expr": "quantile_over_time(0.50, {loadtest_service=\"modular-pm\"} |= \"[HTTP REQUEST - END]\" | json | message=\"[HTTP REQUEST - END]\" | flow=\"PaymentMethodSessionConfirm\" | unwrap extra_elapsed_milliseconds | __error__=\"\" [5s]) by (loadtest_service)", "legendFormat": "modular-pm p50", "refId": "E"},
+        {"expr": "quantile_over_time(0.75, {loadtest_service=\"modular-pm\"} |= \"[HTTP REQUEST - END]\" | json | message=\"[HTTP REQUEST - END]\" | flow=\"PaymentMethodSessionConfirm\" | unwrap extra_elapsed_milliseconds | __error__=\"\" [5s]) by (loadtest_service)", "legendFormat": "modular-pm p75", "refId": "F"},
+        {"expr": "quantile_over_time(0.90, {loadtest_service=\"modular-pm\"} |= \"[HTTP REQUEST - END]\" | json | message=\"[HTTP REQUEST - END]\" | flow=\"PaymentMethodSessionConfirm\" | unwrap extra_elapsed_milliseconds | __error__=\"\" [5s]) by (loadtest_service)", "legendFormat": "modular-pm p90", "refId": "G"},
+        {"expr": "quantile_over_time(0.95, {loadtest_service=\"modular-pm\"} |= \"[HTTP REQUEST - END]\" | json | message=\"[HTTP REQUEST - END]\" | flow=\"PaymentMethodSessionConfirm\" | unwrap extra_elapsed_milliseconds | __error__=\"\" [5s]) by (loadtest_service)", "legendFormat": "modular-pm p95", "refId": "H"},
+        {"expr": "sum(quantile_over_time(0.50, {loadtest_service=\"router\"} |= \"[HTTP REQUEST - END]\" | json | message=\"[HTTP REQUEST - END]\" | flow=\"PaymentsConfirm\" | merchant_id=~\"merchant_loadtest_modular_.*\" | unwrap extra_elapsed_milliseconds | __error__=\"\" [5s]) by (loadtest_service)) + sum(quantile_over_time(0.50, {loadtest_service=\"modular-pm\"} |= \"[HTTP REQUEST - END]\" | json | message=\"[HTTP REQUEST - END]\" | flow=\"PaymentMethodSessionConfirm\" | unwrap extra_elapsed_milliseconds | __error__=\"\" [5s]) by (loadtest_service))", "legendFormat": "combined p50", "refId": "I"},
+        {"expr": "sum(quantile_over_time(0.75, {loadtest_service=\"router\"} |= \"[HTTP REQUEST - END]\" | json | message=\"[HTTP REQUEST - END]\" | flow=\"PaymentsConfirm\" | merchant_id=~\"merchant_loadtest_modular_.*\" | unwrap extra_elapsed_milliseconds | __error__=\"\" [5s]) by (loadtest_service)) + sum(quantile_over_time(0.75, {loadtest_service=\"modular-pm\"} |= \"[HTTP REQUEST - END]\" | json | message=\"[HTTP REQUEST - END]\" | flow=\"PaymentMethodSessionConfirm\" | unwrap extra_elapsed_milliseconds | __error__=\"\" [5s]) by (loadtest_service))", "legendFormat": "combined p75", "refId": "J"},
+        {"expr": "sum(quantile_over_time(0.90, {loadtest_service=\"router\"} |= \"[HTTP REQUEST - END]\" | json | message=\"[HTTP REQUEST - END]\" | flow=\"PaymentsConfirm\" | merchant_id=~\"merchant_loadtest_modular_.*\" | unwrap extra_elapsed_milliseconds | __error__=\"\" [5s]) by (loadtest_service)) + sum(quantile_over_time(0.90, {loadtest_service=\"modular-pm\"} |= \"[HTTP REQUEST - END]\" | json | message=\"[HTTP REQUEST - END]\" | flow=\"PaymentMethodSessionConfirm\" | unwrap extra_elapsed_milliseconds | __error__=\"\" [5s]) by (loadtest_service))", "legendFormat": "combined p90", "refId": "K"},
+        {"expr": "sum(quantile_over_time(0.95, {loadtest_service=\"router\"} |= \"[HTTP REQUEST - END]\" | json | message=\"[HTTP REQUEST - END]\" | flow=\"PaymentsConfirm\" | merchant_id=~\"merchant_loadtest_modular_.*\" | unwrap extra_elapsed_milliseconds | __error__=\"\" [5s]) by (loadtest_service)) + sum(quantile_over_time(0.95, {loadtest_service=\"modular-pm\"} |= \"[HTTP REQUEST - END]\" | json | message=\"[HTTP REQUEST - END]\" | flow=\"PaymentMethodSessionConfirm\" | unwrap extra_elapsed_milliseconds | __error__=\"\" [5s]) by (loadtest_service))", "legendFormat": "combined p95", "refId": "L"}
+      ],
+      "title": "Server Latency (5s rolling)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"unit": "percentunit", "min": 0}, "overrides": []},
+      "gridPos": {"h": 10, "w": 8, "x": 16, "y": 9},
+      "id": 3,
+      "options": {"legend": {"displayMode": "table", "placement": "right", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
+      "targets": [
+        {"expr": "sum by (service) (label_replace(rate(podman_container_cpu_seconds_total[1m]) * on (id) group_left(name) podman_container_info{name=~\"hs-router(-8080)?\"}, \"service\", \"router\", \"name\", \".*\") or label_replace(rate(podman_container_cpu_seconds_total[1m]) * on (id) group_left(name) podman_container_info{name=~\"hs-modular-pm(-8081)?\"}, \"service\", \"modular-pm\", \"name\", \".*\") or label_replace(rate(podman_container_cpu_seconds_total[1m]) * on (id) group_left(name) podman_container_info{name=~\"hs-(card-vault|vault)\"}, \"service\", \"vault\", \"name\", \".*\") or label_replace(rate(podman_container_cpu_seconds_total[1m]) * on (id) group_left(name) podman_container_info{name=~\"(cripta|hs-encryption)\"}, \"service\", \"encryption\", \"name\", \".*\"))", "legendFormat": "{{service}}", "refId": "A"}
+      ],
+      "title": "Service CPU Usage",
+      "type": "timeseries"
+    }
+  ],
+  "refresh": "5s",
+  "schemaVersion": 42,
+  "tags": ["loadtest", "router"],
+  "templating": {"list": []},
+  "time": {"from": "now-15m", "to": "now"},
+  "timezone": "browser",
+  "title": "Router and modular-pm load test",
+  "uid": "hs-loadtest-router",
+  "version": 1
+}

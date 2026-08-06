@@ -67,7 +67,7 @@ runner-fixtures:
     just runner fixtures
 
 runner-discard:
-    just runner discard
+    just runner discard-fixtures
 
 runner-start:
     just runner start
@@ -85,9 +85,9 @@ e2e-smoke:
     just deploy-down
     just deploy-ready
     just runner-test
-    just smoke non_modular one_time
+    just smoke non_modular guest
     just smoke non_modular cit_on_session
     just smoke non_modular cit_off_session
-    just smoke modular one_time
+    just smoke modular guest
     just smoke modular cit_on_session
     just smoke modular cit_off_session

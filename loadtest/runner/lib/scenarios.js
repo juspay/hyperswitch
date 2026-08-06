@@ -3,7 +3,7 @@
 const MERCHANT_PATHS = new Set(["non_modular", "modular"]);
 
 const SCENARIOS = Object.freeze({
-  one_time: Object.freeze({
+  guest: Object.freeze({
     requiresCustomer: false,
     setupFutureUsage: null,
     storageType: "volatile",

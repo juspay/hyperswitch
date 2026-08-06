@@ -1,10 +1,15 @@
+# Deployment endpoints are read from this file; do not duplicate them here.
 deployment_config: ../deploy/config.yaml
 
 scenario:
+  # merchant_path: non_modular or modular
   merchant_path: modular
+  # name: guest, cit_on_session, or cit_off_session
   name: cit_off_session
 
 load:
+  # A fixed-rate run uses equal starting/target RPS and step_rps: 0.
+  # A ramp holds each rate for hold_seconds and waits idle_seconds between phases.
   starting_rps: 5
   target_rps: 15
   step_rps: 2
@@ -12,16 +17,22 @@ load:
   idle_seconds: 10
 
 fixtures:
+  # auto creates enough fixtures for every request across all load phases.
   count: auto
+  # Fixture concurrency affects preparation only, not measured request RPS.
   concurrency: 20
+  # true creates a new isolated merchant before preparing fixtures.
   fresh_merchant: true
   amount: 1000
   currency: USD
   session_expiry: 900
 
 payments_api:
+  # Local admin credential used only to provision load-test merchants.
   admin_api_key: test_admin
+  # Dummy connector configured during merchant preparation.
   connector_name: stripe_test
   request_timeout_ms: 30000
 
+# Runner-owned merchant, fixture, run, and request-result state.
 state_file: state/loadtest.json

@@ -2,7 +2,7 @@ deployment_config: ../deploy/config.yaml
 
 scenario:
   merchant_path: non_modular
-  name: one_time
+  name: guest
 
 load:
   starting_rps: 1

@@ -1,7 +1,9 @@
 "use strict";
 
 const crypto = require("crypto");
+const { spawnSync } = require("child_process");
 const fs = require("fs");
+const os = require("os");
 const path = require("path");
 const { resolveMaybe } = require("../../lib/config");
 const { buildPlan } = require("./scenarios");
@@ -116,7 +118,7 @@ async function setupMerchant(state, merchantPath, fresh, data) {
   const currentId = data.current_merchants[merchantPath];
   if (!fresh && currentId && data.merchants[currentId]) return data.merchants[currentId];
   const cfg = apiConfig(state);
-  const baseUrl = state.config.services.payments.replace(/\/$/, "");
+  const baseUrl = state.config.services.router.replace(/\/$/, "");
   const adminApiKey = cfg.admin_api_key || "test_admin";
   const suffix = `${Date.now()}_${crypto.randomUUID().slice(0, 8)}`;
   const requestedMerchantId = `merchant_loadtest_${merchantPath}_${suffix}`;
@@ -168,14 +170,14 @@ async function setupMerchant(state, merchantPath, fresh, data) {
 async function createCustomer(state, merchant, plan, reference) {
   if (!plan.requiresCustomer) return null;
   if (plan.usesPmService) {
-    const baseUrl = state.config.services.modular.replace(/\/$/, "");
+    const baseUrl = state.config.services["modular-pm"].replace(/\/$/, "");
     const body = (await requestJson("POST", `${baseUrl}/v2/customers`, {
       merchant_reference_id: reference, name: "Loadtest Modular User", phone: "6168205362",
       email: `${reference}@example.com`, phone_country_code: "+1",
     }, modularHeaders(merchant))).body;
     return body.id || body.customer_id;
   }
-  const baseUrl = state.config.services.payments.replace(/\/$/, "");
+  const baseUrl = state.config.services.router.replace(/\/$/, "");
   const body = (await requestJson("POST", `${baseUrl}/customers`, {
     customer_id: reference, name: "Loadtest User", phone: "6168205362",
     email: `${reference}@example.com`, phone_country_code: "+1",
@@ -185,8 +187,8 @@ async function createCustomer(state, merchant, plan, reference) {
 
 async function createFixture(state, data, run, merchant, plan, index) {
   const fixtures = state.config.fixtures || {};
-  const baseUrl = state.config.services.payments.replace(/\/$/, "");
-  const modularUrl = state.config.services.modular.replace(/\/$/, "");
+  const baseUrl = state.config.services.router.replace(/\/$/, "");
+  const modularUrl = state.config.services["modular-pm"].replace(/\/$/, "");
   const reference = `customer_loadtest_${run.run_id}_${index}`;
   const customerId = await createCustomer(state, merchant, plan, reference);
   if (plan.requiresCustomer && !customerId) throw new Error("customer response has no id");
@@ -246,7 +248,7 @@ async function confirmFixture(state, merchant, fixture, plan) {
   let pmLatencyMs = null;
   if (plan.usesPmService) {
     const started = performance.now();
-    const response = await requestJson("POST", `${state.config.services.modular.replace(/\/$/, "")}/v2/payment-method-sessions/${fixture.pm_session_id}/confirm`, {
+    const response = await requestJson("POST", `${state.config.services["modular-pm"].replace(/\/$/, "")}/v2/payment-method-sessions/${fixture.pm_session_id}/confirm`, {
       payment_method_data: { card }, payment_method_type: "card", payment_method_subtype: "credit",
     }, modularHeaders(merchant, fixture.pm_session_client_secret));
     pmLatencyMs = performance.now() - started;
@@ -256,7 +258,7 @@ async function confirmFixture(state, merchant, fixture, plan) {
     if (!token) throw new Error(`PMS confirm response has no payment token: ${JSON.stringify(response.body)}`);
   }
   const started = performance.now();
-  const payment = await requestJson("POST", `${state.config.services.payments.replace(/\/$/, "")}/payments/${fixture.payment_id}/confirm`,
+  const payment = await requestJson("POST", `${state.config.services.router.replace(/\/$/, "")}/payments/${fixture.payment_id}/confirm`,
     buildPaymentConfirmBody(plan, card, token), apiKeyHeaders(merchant.merchant_api_key));
   const paymentLatencyMs = performance.now() - started;
   return {
@@ -322,10 +324,68 @@ async function prepareFixtures(state) {
   data.active_run_id = runId;
   writeState(state, data);
   const count = plannedFixtureCount(state);
-  const created = new Array(count);
-  await mapLimit(count, Number(state.config.fixtures?.concurrency || 1), async (index) => {
-    created[index] = await createFixture(state, data, run, merchant, plan, index);
-  });
+  const temporaryPrefix = path.join(path.dirname(statePath(state)), `.k6-fixtures-${process.pid}-${runId}`);
+  const inputPath = `${temporaryPrefix}-input.json`;
+  const outputPath = `${temporaryPrefix}-output.json`;
+  const input = {
+    services: state.config.services,
+    merchant,
+    plan,
+    run_id: runId,
+    count,
+    concurrency: Number(state.config.fixtures?.concurrency || 1),
+    fixture_config: state.config.fixtures || {},
+    request_timeout_ms: requestTimeoutMs,
+  };
+  fs.writeFileSync(inputPath, JSON.stringify(input), { mode: 0o600 });
+  let execution;
+  try {
+    execution = spawnSync(process.env.K6_BIN || "k6", [
+      "run",
+      "--out",
+      `json=${outputPath}`,
+      path.resolve(__dirname, "../k6/fixtures.js"),
+    ], {
+      env: { ...process.env, K6_INPUT: inputPath },
+      stdio: "inherit",
+    });
+  } finally {
+    fs.rmSync(inputPath, { force: true });
+  }
+  if (execution.error) throw new Error(`Failed to start k6 fixture preparation: ${execution.error.message}`);
+  const created = [];
+  const failures = [];
+  if (fs.existsSync(outputPath)) {
+    for (const line of fs.readFileSync(outputPath, "utf8").split("\n")) {
+      if (!line) continue;
+      const point = JSON.parse(line);
+      if (point.type !== "Point") continue;
+      const tags = point.data.tags || {};
+      if (point.metric === "loadtest_fixture_created") {
+        created.push({
+          fixture_id: tags.fixture_id,
+          version: 1,
+          run_id: runId,
+          merchant_id: merchant.merchant_id,
+          scenario_id: plan.id,
+          payment_id: tags.payment_id,
+          customer_id: tags.customer_id || null,
+          pm_session_id: tags.pm_session_id || null,
+          pm_session_client_secret: tags.pm_session_client_secret || null,
+          state: "ready",
+        });
+      } else if (point.metric === "loadtest_fixture_failed") {
+        failures.push(tags.error || "unknown fixture error");
+      }
+    }
+    fs.rmSync(outputPath, { force: true });
+  }
+  if (execution.status !== 0 || created.length !== count) {
+    run.state = "failed";
+    writeState(state, data);
+    throw new Error(`k6 fixture preparation created ${created.length}/${count}; ${failures[0] || `k6 exited with status ${execution.status}`}`);
+  }
+  created.sort((left, right) => left.fixture_id.localeCompare(right.fixture_id));
   data.fixtures.push(...created);
   run.state = "ready";
   writeState(state, data);
@@ -334,10 +394,6 @@ async function prepareFixtures(state) {
 
 function selectReadyFixtures(data, runId) {
   return data.fixtures.filter((fixture) => fixture.run_id === runId && fixture.state === "ready");
-}
-
-function delay(milliseconds) {
-  return milliseconds > 0 ? new Promise((resolve) => setTimeout(resolve, milliseconds)) : Promise.resolve();
 }
 
 async function startRun(state) {
@@ -350,43 +406,80 @@ async function startRun(state) {
   if (!merchant) throw new Error(`Merchant missing for active run: ${run.merchant_id}`);
   const fixtures = selectReadyFixtures(data, run.run_id);
   if (!fixtures.length) throw new Error("No ready fixtures for active run");
+  const phases = loadPhases(state.config.load || {});
+  const grafanaUrl = state.config.services.grafana_dashboard || state.config.services.grafana || null;
+  process.stderr.write(`Grafana: ${grafanaUrl || "not configured"}\n`);
+  const temporaryPrefix = path.join(path.dirname(statePath(state)), `.k6-${process.pid}-${run.run_id}`);
+  const inputPath = `${temporaryPrefix}-input.json`;
+  const outputPath = `${temporaryPrefix}-output.json`;
+  const workloadPath = path.resolve(__dirname, "../k6/workload.js");
+  const input = {
+    services: state.config.services,
+    merchant,
+    plan,
+    card: apiConfig(state).card || DEFAULT_CARD,
+    request_timeout_ms: requestTimeoutMs,
+    phases,
+    fixtures,
+  };
+  fs.writeFileSync(inputPath, JSON.stringify(input), { mode: 0o600 });
   run.state = "running";
   writeState(state, data);
-  const inFlight = new Set();
-  let fixtureIndex = 0;
-  const concurrency = Number(state.config.fixtures?.concurrency || 1);
-  const execute = (fixture) => {
-    const task = confirmFixture(state, merchant, fixture, plan)
-      .catch((error) => ({ fixture_id: fixture.fixture_id, run_id: run.run_id, merchant_id: merchant.merchant_id, scenario_id: plan.id, status: "failed", error: error.message }))
-      .then((result) => {
-        fixture.state = SUCCESS_STATUSES.has(result.status) ? "confirmed" : "failed";
-        const stored = { ...result, created_at: new Date().toISOString() };
-        data.results.push(stored);
-        writeState(state, data);
-        return stored;
-      })
-      .finally(() => inFlight.delete(task));
-    inFlight.add(task);
-  };
-  for (const phase of loadPhases(state.config.load || {})) {
-    const phaseStarted = performance.now();
-    for (let index = 0; index < phase.requests && fixtureIndex < fixtures.length; index += 1) {
-      await delay(phaseStarted + (index * 1000) / phase.rps - performance.now());
-      while (inFlight.size >= concurrency) await Promise.race(inFlight);
-      execute(fixtures[fixtureIndex]);
-      fixtureIndex += 1;
-    }
-    await Promise.all(inFlight);
-    if (fixtureIndex >= fixtures.length) break;
-    await delay(phase.idleSeconds * 1000);
+  let execution;
+  try {
+    execution = spawnSync(process.env.K6_BIN || "k6", [
+      "run",
+      "--out",
+      `json=${outputPath}`,
+      workloadPath,
+    ], {
+      env: { ...process.env, K6_INPUT: inputPath },
+      stdio: "inherit",
+    });
+  } finally {
+    fs.rmSync(inputPath, { force: true });
   }
-  await Promise.all(inFlight);
+  if (execution.error) throw new Error(`Failed to start k6: ${execution.error.message}`);
+  const records = [];
+  if (fs.existsSync(outputPath)) {
+    for (const line of fs.readFileSync(outputPath, "utf8").split("\n")) {
+      if (!line) continue;
+      const point = JSON.parse(line);
+      if (point.type !== "Point" || point.metric !== "loadtest_result_ms") continue;
+      const tags = point.data.tags || {};
+      records.push({
+        fixture_id: tags.fixture_id,
+        run_id: run.run_id,
+        merchant_id: merchant.merchant_id,
+        scenario_id: plan.id,
+        payment_id: tags.payment_id || null,
+        status: tags.result_status,
+        error: tags.error || undefined,
+        pm_session_confirm_request_id: tags.pm_request_id || null,
+        payment_confirm_request_id: tags.payment_request_id || null,
+        pm_session_confirm_latency_ms: tags.pm_latency_ms ? Number(tags.pm_latency_ms) : null,
+        payment_confirm_latency_ms: Number(tags.payment_latency_ms || 0),
+        total_latency_ms: Number(point.data.value),
+        created_at: point.data.time || new Date().toISOString(),
+      });
+    }
+    fs.rmSync(outputPath, { force: true });
+  }
+  for (const record of records) {
+    const fixture = fixtures.find((candidate) => candidate.fixture_id === record.fixture_id);
+    if (fixture) fixture.state = SUCCESS_STATUSES.has(record.status) ? "confirmed" : "failed";
+    data.results.push(record);
+  }
   run.state = "completed";
   run.completed_at = new Date().toISOString();
   writeState(state, data);
   const results = data.results.filter((result) => result.run_id === run.run_id);
+  if (execution.status !== 0) {
+    throw new Error(`k6 exited with status ${execution.status}; captured ${records.length} request results`);
+  }
   return {
     run_id: run.run_id,
+    grafana_url: state.config.services.grafana || null,
     attempted: results.length,
     succeeded: results.filter((result) => SUCCESS_STATUSES.has(result.status)).length,
     failed: results.filter((result) => !SUCCESS_STATUSES.has(result.status)).length,

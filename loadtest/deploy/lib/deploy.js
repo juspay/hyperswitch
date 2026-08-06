@@ -18,7 +18,11 @@ function loadConfig() {
   const configPath = fs.existsSync(CONFIG_PATH) ? CONFIG_PATH : EXAMPLE_CONFIG_PATH;
   if (!fs.existsSync(configPath)) throw new Error(`Config file not found: ${CONFIG_PATH}`);
   if (configPath === EXAMPLE_CONFIG_PATH && !process.env.CONFIG) console.log("Using deploy/config.example.yaml because deploy/config.yaml does not exist.");
-  return { config: loadYaml(configPath), configDir: path.dirname(configPath), configPath };
+  const config = loadYaml(configPath);
+  for (const [name, service] of Object.entries(config.application_services || {})) {
+    service.container = `hs-${name}`;
+  }
+  return { config, configDir: path.dirname(configPath), configPath };
 }
 
 function entries(section) {
@@ -46,8 +50,17 @@ function selectedServices(state, names) {
   });
 }
 
-function repos(config) {
-  return Object.entries(config.repositories || {}).filter(([, repo]) => repo && repo.enabled !== false);
+function sourceEntries(config) {
+  return [
+    ...applicationServices(config),
+    ...entries(config.external_dependencies),
+  ].filter(([, item]) => item.source);
+}
+
+function sourceConfig(config, name) {
+  return config.application_services?.[name]?.source
+    || config.external_dependencies?.[name]?.source
+    || null;
 }
 
 function commandParts(command) {
@@ -167,9 +180,9 @@ function serviceLogDir(state, name, service) {
 }
 
 function repoPath(state, name) {
-  const repo = state.config.repositories?.[name];
-  if (!repo || !repo.path) return null;
-  return resolveMaybe(state.configDir, repo.path);
+  const source = sourceConfig(state.config, name);
+  if (!source?.path) return null;
+  return resolveMaybe(state.configDir, source.path);
 }
 
 function tokenMap(state) {
@@ -177,10 +190,11 @@ function tokenMap(state) {
   const redis = state.config.state_services?.redis || {};
   const postgresEnv = postgres.env || {};
   const schemas = postgres.schemas || {};
+  const databaseUrls = postgres.database_urls || {};
   const prefixes = redis.prefixes || {};
   const apps = state.config.application_services || {};
   const root = generatedRoot(state);
-  const hyperswitchRepoPath = repoPath({ config: state.config, configDir: state.configDir }, "hyperswitch") || LOADTEST_ROOT;
+  const hyperswitchRepoPath = repoPath(state, "router") || LOADTEST_ROOT;
   const databaseUrl = (override) => {
     if (override) return override;
     return `postgres://${postgresEnv.POSTGRES_USER || "postgres"}:${postgresEnv.POSTGRES_PASSWORD || "postgres"}@${postgres.host || "127.0.0.1"}:${postgres.port || "5432"}/${postgres.database || postgresEnv.POSTGRES_DB || "hyperswitch"}`;
@@ -191,28 +205,28 @@ function tokenMap(state) {
     POSTGRES_DB: postgres.database || postgresEnv.POSTGRES_DB || "hyperswitch",
     POSTGRES_USER: postgresEnv.POSTGRES_USER || "postgres",
     POSTGRES_PASSWORD: postgresEnv.POSTGRES_PASSWORD || "postgres",
-    POSTGRES_SCHEMA_ROUTER: schemas.router || schemas.payments || "public",
-    POSTGRES_SCHEMA_PAYMENTS: schemas.payments || "router",
-    POSTGRES_SCHEMA_MODULAR: schemas.modular || schemas.payments || "router",
+    POSTGRES_SCHEMA_ROUTER: schemas.router || "public",
+    POSTGRES_SCHEMA_MODULAR_PM: schemas["modular-pm"] || schemas.router || "public",
     POSTGRES_SCHEMA_VAULT: schemas.vault || "vault",
     POSTGRES_SCHEMA_ENCRYPTION: schemas.encryption || "encryption",
     POSTGRES_SCHEMA_SUPERPOSITION: schemas.superposition || "superposition",
-    PAYMENTS_DATABASE_URL: databaseUrl(postgres.payments_database_url),
-    MODULAR_DATABASE_URL: databaseUrl(postgres.modular_database_url),
+    ROUTER_DATABASE_URL: databaseUrl(databaseUrls.router),
+    MODULAR_PM_DATABASE_URL: databaseUrl(databaseUrls["modular-pm"]),
     VAULT_DATABASE_URL: databaseUrl(postgres.vault_database_url),
     ENCRYPTION_DATABASE_URL: databaseUrl(postgres.encryption_database_url),
     SUPERPOSITION_DATABASE_URL: databaseUrl(postgres.superposition_database_url),
     REDIS_HOST: redis.host || "127.0.0.1",
     REDIS_PORT: redis.port || "6379",
-    REDIS_PREFIX_PAYMENTS: prefixes.payments || "router",
-    REDIS_PREFIX_MODULAR: prefixes.modular || "modular",
+    REDIS_PREFIX_ROUTER: prefixes.router || "router",
+    REDIS_PREFIX_MODULAR_PM: prefixes["modular-pm"] || "modular-pm",
     REDIS_PREFIX_VAULT: prefixes.vault || "vault",
     REDIS_PREFIX_ENCRYPTION: prefixes.encryption || "encryption",
     REDIS_PREFIX_SUPERPOSITION: prefixes.superposition || "superposition",
-    PAYMENTS_BASE_URL: apps.payments?.base_url || "http://127.0.0.1:8080",
-    MODULAR_BASE_URL: apps.modular?.base_url || "http://127.0.0.1:8081",
+    ROUTER_BASE_URL: apps.router?.base_url || "http://127.0.0.1:8080",
+    MODULAR_PM_BASE_URL: apps["modular-pm"]?.base_url || "http://127.0.0.1:8081",
     VAULT_BASE_URL: apps.vault?.base_url || "http://127.0.0.1:3001",
     ENCRYPTION_BASE_URL: apps.encryption?.base_url || "http://127.0.0.1:5000",
+    MODULAR_PM_BASE_URL: apps["modular-pm"]?.base_url || "http://127.0.0.1:8081",
     SUPERPOSITION_BASE_URL: apps.superposition?.base_url || "http://127.0.0.1:8082",
     GENERATED_ROOT: root,
     HYPERSWITCH_REPO_PATH: hyperswitchRepoPath,
@@ -221,7 +235,7 @@ function tokenMap(state) {
     TENANT_MASTER_KEY_PATH: path.join(root, "keys/tenant_master_key.hex"),
     DEPLOY_CONFIG_DIR: state.configDir,
   };
-  for (const [name] of repos(state.config)) {
+  for (const [name] of sourceEntries(state.config)) {
     const repo = repoPath(state, name);
     if (repo) tokens[`REPO_${name.toUpperCase().replace(/[^A-Z0-9]+/g, "_")}`] = repo;
   }
@@ -262,53 +276,75 @@ function serviceRunArgs(state, name, service) {
 }
 
 function reposCommand(state) {
-  for (const [name, repo] of repos(state.config)) {
-    const target = resolveMaybe(state.configDir, repo.path);
+  const preparedPaths = new Set();
+  for (const [name, item] of sourceEntries(state.config)) {
+    const source = item.source;
+    const target = resolveMaybe(state.configDir, source.path);
+    if (preparedPaths.has(target)) {
+      console.log(`${name}: using shared repository ${target}`);
+      continue;
+    }
+    preparedPaths.add(target);
     if (fs.existsSync(target)) {
       console.log(`${name}: using ${target}`);
       continue;
     }
-    if (repo.git) {
-      ensureDir(path.dirname(target));
-      console.log(`${name}: cloning ${repo.git} -> ${target}`);
-      const args = ["clone"];
-      if (repo.ref) args.push("--branch", String(repo.ref));
-      args.push(repo.git, target);
-      run("git", args);
-      continue;
-    }
-    if (repo.required !== false) throw new Error(`${name}: repository path missing and git URL not configured: ${target}`);
-    console.log(`${name}: optional repository missing: ${target}`);
+    ensureDir(path.dirname(target));
+    console.log(`${name}: cloning ${source.git_url} -> ${target}`);
+    const args = ["clone"];
+    if (source.ref) args.push("--branch", String(source.ref));
+    args.push(source.git_url, target);
+    run("git", args);
   }
+}
+
+function imageExists(image) {
+  return run("podman", ["image", "exists", image], { capture: true, allowFailure: true }).status === 0;
 }
 
 function build(state) {
   reposCommand(state);
   for (const [name, service] of applicationServices(state.config)) {
-    if (!service.build_enabled) {
-      console.log(`${name}: build disabled`);
+    const source = service.source;
+    if (source.mode === "cloud") {
+      console.log(`${name}: pulling ${service.image}`);
+      run("podman", ["pull", service.image]);
       continue;
     }
-    if (service.build_command) {
-      const cwd = repoPath(state, service.build_repo) || resolveMaybe(state.configDir, service.build_context || "../..");
-      console.log(`${name}: ${service.build_command}`);
-      runShell(render(service.build_command, tokenMap(state)), { cwd });
+    const buildConfig = service.build || {};
+    if (!FORCE && !buildConfig.force && imageExists(service.image)) {
+      console.log(`${name}: using local image ${service.image}`);
       continue;
     }
-    if (!service.dockerfile) throw new Error(`${name}: build_enabled is true but dockerfile/build_command is missing`);
-    run("podman", ["build", "--format", "docker", "-t", service.image, "-f", resolveMaybe(state.configDir, service.dockerfile), resolveMaybe(state.configDir, service.build_context || "../..")]);
+    if (buildConfig.command) {
+      console.log(`${name}: ${buildConfig.command}`);
+      runShell(render(buildConfig.command, tokenMap(state)), { cwd: repoPath(state, name) });
+      continue;
+    }
+    if (!buildConfig.dockerfile) throw new Error(`${name}: local source requires build.command or build.dockerfile`);
+    run("podman", [
+      "build",
+      "--format",
+      "docker",
+      "-t",
+      service.image,
+      "-f",
+      resolveMaybe(state.configDir, buildConfig.dockerfile),
+      resolveMaybe(state.configDir, buildConfig.context || source.path),
+    ]);
   }
 }
 
 function generateKeys(state) {
-  if (state.config.prepare?.generate_keys === false) return;
+  const keyConfig = state.config.prepare?.vault?.keys || {};
+  if (keyConfig.generate === false) return;
   const root = generatedRoot(state);
   const privateKeyPath = path.join(root, "keys/vault_private_key.pem");
   const publicKeyPath = path.join(root, "keys/vault_public_key.pem");
   const masterKeyPath = path.join(root, "keys/tenant_master_key.hex");
   if (FORCE || !fs.existsSync(privateKeyPath) || !fs.existsSync(publicKeyPath)) {
-    const { privateKey, publicKey } = crypto.generateKeyPairSync("rsa", { modulusLength: Number(state.config.prepare?.rsa_bits || 2048) });
-    writeFileOnce(privateKeyPath, privateKey.export({ type: "pkcs1", format: "pem" }), true);
+    const { privateKey, publicKey } = crypto.generateKeyPairSync("rsa", { modulusLength: Number(keyConfig.rsa_bits || 2048) });
+    writeFileOnce(privateKeyPath, privateKey.export({ type: "pkcs8", format: "pem" }), true);
     writeFileOnce(publicKeyPath, publicKey.export({ type: "spki", format: "pem" }), false);
   } else {
     console.log(`secret exists: ${privateKeyPath}`);
@@ -387,7 +423,11 @@ function prepareBuiltinServiceConfigs(state) {
 function replaceMultilineTomlValue(contents, key, value) {
   const escapedKey = key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const replacement = `${key} = """\n${value}\n"""`;
-  return contents.replace(new RegExp(`${escapedKey}\\s*=\\s*"""[\\s\\S]*?"""`), replacement);
+  const pattern = new RegExp(
+    `${escapedKey}\\s*=\\s*(?:"""[\\s\\S]*?"""|"[^"\\n]*")`,
+  );
+  if (!pattern.test(contents)) return contents;
+  return contents.replace(pattern, replacement);
 }
 
 function replaceTomlSectionString(contents, section, key, value) {
@@ -414,43 +454,74 @@ function replaceTomlSectionNumber(contents, section, key, value) {
   return contents.replace(pattern, `$1${value}`);
 }
 
+function setTomlSectionNumber(contents, section, key, value) {
+  const header = `[${section}]`;
+  const sectionStart = contents.indexOf(header);
+  if (sectionStart < 0) throw new Error(`Missing ${section} section in router config`);
+  const nextSection = contents.indexOf("\n[", sectionStart + header.length);
+  const sectionEnd = nextSection < 0 ? contents.length : nextSection;
+  const sectionContents = contents.slice(sectionStart, sectionEnd);
+  const escapedKey = key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const pattern = new RegExp(`(^|\\n)(${escapedKey}\\s*=\\s*)-?[0-9]+(?:\\.[0-9]+)?`);
+  if (pattern.test(sectionContents)) {
+    const updatedSection = sectionContents.replace(pattern, `$1$2${value}`);
+    return `${contents.slice(0, sectionStart)}${updatedSection}${contents.slice(sectionEnd)}`;
+  }
+  const insertAt = sectionStart + header.length;
+  return `${contents.slice(0, insertAt)}\n${key} = ${value}${contents.slice(insertAt)}`;
+}
+
+function setTomlSectionString(contents, section, key, value) {
+  const header = `[${section}]`;
+  const sectionStart = contents.indexOf(header);
+  if (sectionStart < 0) throw new Error(`Missing ${section} section in router config`);
+  const nextSection = contents.indexOf("\n[", sectionStart + header.length);
+  const sectionEnd = nextSection < 0 ? contents.length : nextSection;
+  const sectionContents = contents.slice(sectionStart, sectionEnd);
+  const escapedKey = key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const pattern = new RegExp(`(^|\\n)(${escapedKey}\\s*=\\s*)"[^"]*"`);
+  if (pattern.test(sectionContents)) {
+    const updatedSection = sectionContents.replace(pattern, `$1$2"${value}"`);
+    return `${contents.slice(0, sectionStart)}${updatedSection}${contents.slice(sectionEnd)}`;
+  }
+  const insertAt = sectionStart + header.length;
+  return `${contents.slice(0, insertAt)}\n${key} = "${value}"${contents.slice(insertAt)}`;
+}
+
 function prepareRouterVaultKeys(state) {
   const tokens = generatedSecretTokens(state);
-  const override = render(
-    fs.readFileSync(overridePath(state, "router_jwekey", "overrides/router-jwekey.toml"), "utf8"),
-    tokens,
-  );
-  const valueFor = (key) => {
-    const match = override.match(new RegExp(`${key}\\s*=\\s*"""([\\s\\S]*?)"""`));
-    if (!match) throw new Error(`Missing ${key} in router-jwekey override`);
-    return match[1].trim();
-  };
-  const stringValueFor = (section, key) => {
+  const applyOverride = (file, overrideName, fallback) => {
+    if (!fs.existsSync(file)) return;
+    const override = render(
+      fs.readFileSync(overridePath(state, overrideName, fallback), "utf8"),
+      tokens,
+    );
+    const valueFor = (key) => {
+      const match = override.match(new RegExp(`${key}\\s*=\\s*"""([\\s\\S]*?)"""`));
+      if (!match) throw new Error(`Missing ${key} in ${overrideName} override`);
+      return match[1].trim();
+    };
+    const stringValueFor = (section, key) => {
     const escapedSection = section.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     const escapedKey = key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     const match = override.match(new RegExp(`\\[${escapedSection}\\][\\s\\S]*?\\n${escapedKey}\\s*=\\s*"([^"]+)"`));
-    if (!match) throw new Error(`Missing ${section}.${key} in router override`);
+    if (!match) throw new Error(`Missing ${section}.${key} in ${overrideName} override`);
     return match[1];
-  };
-  const booleanValueFor = (section, key) => {
+    };
+    const booleanValueFor = (section, key) => {
     const escapedSection = section.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     const escapedKey = key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     const match = override.match(new RegExp(`\\[${escapedSection}\\][\\s\\S]*?\\n${escapedKey}\\s*=\\s*(true|false)`));
-    if (!match) throw new Error(`Missing ${section}.${key} in router override`);
+    if (!match) throw new Error(`Missing ${section}.${key} in ${overrideName} override`);
     return match[1];
-  };
-  const numberValueFor = (section, key) => {
+    };
+    const numberValueFor = (section, key) => {
     const escapedSection = section.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     const escapedKey = key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     const match = override.match(new RegExp(`\\[${escapedSection}\\][\\s\\S]*?\\n${escapedKey}\\s*=\\s*(-?[0-9]+(?:\\.[0-9]+)?)`));
-    if (!match) throw new Error(`Missing ${section}.${key} in router override`);
+    if (!match) throw new Error(`Missing ${section}.${key} in ${overrideName} override`);
     return match[1];
-  };
-  for (const file of [
-    path.join(generatedRoot(state), "configs/payments.toml"),
-    path.join(generatedRoot(state), "configs/modular.toml"),
-  ]) {
-    if (!fs.existsSync(file)) continue;
+    };
     let contents = fs.readFileSync(file, "utf8");
     contents = replaceMultilineTomlValue(contents, "vault_encryption_key", valueFor("vault_encryption_key"));
     contents = replaceMultilineTomlValue(contents, "rust_locker_encryption_key", valueFor("rust_locker_encryption_key"));
@@ -461,8 +532,36 @@ function prepareRouterVaultKeys(state) {
     contents = replaceTomlSectionBoolean(contents, "log.telemetry", "metrics_enabled", booleanValueFor("log.telemetry", "metrics_enabled"));
     contents = replaceTomlSectionNumber(contents, "dummy_connector", "payment_duration", numberValueFor("dummy_connector", "payment_duration"));
     contents = replaceTomlSectionNumber(contents, "dummy_connector", "payment_tolerance", numberValueFor("dummy_connector", "payment_tolerance"));
+    contents = setTomlSectionString(contents, "server", "host", stringValueFor("server", "host"));
+    for (const section of ["master_database", "replica_database", "accounts_database", "global_database"]) {
+      contents = setTomlSectionString(contents, section, "username", tokens.POSTGRES_USER);
+      contents = setTomlSectionString(contents, section, "password", tokens.POSTGRES_PASSWORD);
+      contents = setTomlSectionString(contents, section, "host", tokens.POSTGRES_HOST);
+      contents = setTomlSectionNumber(contents, section, "port", tokens.POSTGRES_PORT);
+      contents = setTomlSectionString(contents, section, "dbname", tokens.POSTGRES_DB);
+    }
+    contents = setTomlSectionString(contents, "redis", "host", tokens.REDIS_HOST);
+    contents = setTomlSectionNumber(contents, "redis", "port", tokens.REDIS_PORT);
+    contents = setTomlSectionString(contents, "locker", "host", tokens.VAULT_BASE_URL);
+    contents = replaceTomlSectionBoolean(
+      contents,
+      "internal_merchant_id_profile_id_auth",
+      "enabled",
+      "true",
+    );
+    contents = setTomlSectionString(
+      contents,
+      "micro_services",
+      "payment_methods_base_url",
+      tokens.MODULAR_PM_BASE_URL,
+    );
+    if (overrideName === "modular-pm") {
+      contents = setTomlSectionNumber(contents, "server", "port", numberValueFor("server", "port"));
+    }
     writeGeneratedFile(file, contents, true);
-  }
+  };
+  applyOverride(path.join(generatedRoot(state), "configs/router.toml"), "router", "overrides/router.toml");
+  applyOverride(path.join(generatedRoot(state), "configs/modular-pm.toml"), "modular-pm", "overrides/modular-pm.toml");
 }
 
 function prepare(state) {
@@ -640,8 +739,9 @@ function initState(state) {
       console.log(`${name}: migration command not configured`);
       continue;
     }
-    const cwd = repoPath(state, migration.repo);
-    if (!cwd) throw new Error(`${name}: migration repo path missing: ${migration.repo}`);
+    const sourceName = migration.source || name;
+    const cwd = repoPath(state, sourceName);
+    if (!cwd) throw new Error(`${name}: migration source path missing: ${sourceName}`);
     const env = {};
     for (const [key, value] of Object.entries(migration.env || {})) env[key] = render(String(value), tokenMap(state));
     console.log(`${name}: ${migration.command}`);
@@ -731,12 +831,16 @@ function preflight(state) {
   for (const [name, service] of managedServices(state.config)) {
     if (!service.container) throw new Error(`${name}: container is required`);
     if (!service.image) throw new Error(`${name}: image is required`);
-    if (service.build_enabled && !service.dockerfile && !service.build_command) throw new Error(`${name}: dockerfile or build_command is required when build_enabled=true`);
+    if (state.config.application_services?.[name]) {
+      const source = service.source;
+      if (!source?.path || !source?.git_url) throw new Error(`${name}: source.path and source.git_url are required`);
+      if (!["local", "cloud"].includes(source.mode)) throw new Error(`${name}: source.mode must be local or cloud`);
+    }
     console.log(`${name}: ok`);
   }
-  for (const [name, repo] of repos(state.config)) {
-    const target = repo.path ? resolveMaybe(state.configDir, repo.path) : null;
-    console.log(`repo/${name}: ${target || repo.git || "unconfigured"}`);
+  for (const [name, item] of sourceEntries(state.config)) {
+    const target = resolveMaybe(state.configDir, item.source.path);
+    console.log(`source/${name}: ${item.source.mode || "dependency"} ${target}`);
   }
 }
 
@@ -793,8 +897,9 @@ function ready(state) {
 function runHooks(state, section) {
   for (const [name, hook] of entries(state.config[section])) {
     if (hook.enabled === false || !hook.command) continue;
-    const cwd = hook.repo ? repoPath(state, hook.repo) : state.configDir;
-    if (!cwd) throw new Error(`${section} ${name}: repository path missing: ${hook.repo}`);
+    const sourceName = hook.source;
+    const cwd = sourceName ? repoPath(state, sourceName) : state.configDir;
+    if (!cwd) throw new Error(`${section} ${name}: source path missing: ${sourceName}`);
     const env = {};
     for (const [key, value] of Object.entries(hook.env || {})) env[key] = render(String(value), tokenMap(state));
     console.log(`${section} ${name}: ${hook.command}`);

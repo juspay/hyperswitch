@@ -1,3 +1,6 @@
+[server]
+host = "0.0.0.0"
+
 [log.console]
 enabled = true
 level = "INFO"
