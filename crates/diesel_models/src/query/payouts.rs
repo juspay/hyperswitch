@@ -14,6 +14,15 @@ use crate::{
     PgPooledConn, StorageResult,
 };
 
+diesel::define_sql_function! {
+    #[sql_name = "concat"]
+    fn active_payout_attempt_id(
+        payout_id: diesel::sql_types::VarChar,
+        separator: diesel::sql_types::VarChar,
+        attempt_count: diesel::sql_types::SmallInt,
+    ) -> diesel::sql_types::VarChar;
+}
+
 impl PayoutsNew {
     pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<Payouts> {
         generics::generic_insert(conn, self).await
@@ -112,7 +121,11 @@ impl Payouts {
         payout_type: Option<Vec<enums::PayoutType>>,
     ) -> StorageResult<i64> {
         let mut filter = <Self as HasTable>::table()
-            .inner_join(payout_attempt::table.on(payout_attempt::dsl::payout_id.eq(dsl::payout_id)))
+            .inner_join(
+                payout_attempt::table.on(payout_attempt::dsl::payout_attempt_id.eq(
+                    active_payout_attempt_id(dsl::payout_id, "_", dsl::attempt_count),
+                )),
+            )
             .count()
             .filter(dsl::merchant_id.eq(merchant_id.to_owned()))
             .filter(dsl::payout_id.eq_any(active_payout_ids.to_vec()))

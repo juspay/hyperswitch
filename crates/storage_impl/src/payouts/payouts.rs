@@ -18,6 +18,7 @@ use diesel_models::{
         Payouts as DieselPayouts, PayoutsNew as DieselPayoutsNew,
         PayoutsUpdate as DieselPayoutsUpdate,
     },
+    query::payouts::active_payout_attempt_id,
 };
 #[cfg(all(feature = "olap", feature = "v1"))]
 use diesel_models::{
@@ -598,10 +599,13 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
         let conn = connection::pg_connection_read(self).await?;
         let conn = async_bb8_diesel::Connection::as_async_conn(&conn);
         let mut query = DieselPayouts::table()
-            .inner_join(
-                diesel_models::schema::payout_attempt::table
-                    .on(poa_dsl::payout_id.eq(po_dsl::payout_id)),
-            )
+            .inner_join(diesel_models::schema::payout_attempt::table.on(
+                poa_dsl::payout_attempt_id.eq(active_payout_attempt_id(
+                    po_dsl::payout_id,
+                    "_",
+                    po_dsl::attempt_count,
+                )),
+            ))
             .left_join(
                 diesel_models::schema::customers::table
                     .on(cust_dsl::customer_id.nullable().eq(po_dsl::customer_id)),
@@ -827,10 +831,13 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
         let conn = connection::pg_connection_read(self).await?;
         let conn = async_bb8_diesel::Connection::as_async_conn(&conn);
         let mut query = DieselPayouts::table()
-            .inner_join(
-                diesel_models::schema::payout_attempt::table
-                    .on(poa_dsl::payout_id.eq(po_dsl::payout_id)),
-            )
+            .inner_join(diesel_models::schema::payout_attempt::table.on(
+                poa_dsl::payout_attempt_id.eq(active_payout_attempt_id(
+                    po_dsl::payout_id,
+                    "_",
+                    po_dsl::attempt_count,
+                )),
+            ))
             .left_join(
                 diesel_models::schema::customers::table
                     .on(cust_dsl::customer_id.nullable().eq(po_dsl::customer_id)),

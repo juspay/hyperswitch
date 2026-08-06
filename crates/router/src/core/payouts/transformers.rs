@@ -99,7 +99,7 @@ impl
             payout_link: None,
             unified_code: attempt.unified_code.clone(),
             unified_message: attempt.unified_message.clone(),
-            attempts: Some(vec![attempt]),
+            attempts: None,
             email: customer
                 .as_ref()
                 .and_then(|customer| customer.email.clone()),
