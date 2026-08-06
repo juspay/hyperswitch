@@ -29,6 +29,7 @@ use euclid::{
 use external_services::grpc_client::dynamic_routing as ir_client;
 use hyperswitch_domain_models::business_profile;
 use hyperswitch_interfaces::events::routing_api_logs as routing_events;
+use hyperswitch_masking::{Mask, PeekInterface};
 use router_env::RequestId;
 use serde::{Deserialize, Serialize};
 
@@ -158,6 +159,8 @@ impl DecisionEngineEndpoint {
     }
 }
 
+const DECISION_ENGINE_ADMIN_SECRET_HEADER: &str = "x-admin-secret";
+
 pub async fn build_and_send_decision_engine_http_request<Req, Res, ErrRes>(
     state: &SessionState,
     http_method: services::Method,
@@ -179,6 +182,18 @@ where
     let mut request_builder = services::RequestBuilder::new()
         .method(http_method)
         .url(&url);
+
+    // The Decision Engine authenticates Hyperswitch via a shared admin secret: its admin
+    // endpoints (merchant provisioning, SSO code mint) verify the header in the handler, and
+    // its protected router accepts it as service-to-service auth. Attach it on every call
+    // when configured; an empty secret omits the header.
+    let admin_secret = &state.conf.open_router.admin_secret;
+    if !admin_secret.peek().is_empty() {
+        request_builder = request_builder.headers(vec![(
+            DECISION_ENGINE_ADMIN_SECRET_HEADER.to_string(),
+            admin_secret.clone().into_masked(),
+        )]);
+    }
 
     if let Some(body_content) = request_body {
         let body = common_utils::request::RequestContent::Json(Box::new(body_content));
@@ -207,7 +222,7 @@ where
     let closure = || async {
         let request_start = std::time::Instant::now();
         let response =
-            services::call_connector_api(state, http_request, "Decision Engine API call")
+            services::call_connector_api(state, http_request, "Decision Engine API call", None)
                 .await
                 .change_context(errors::RoutingError::OpenRouterCallFailed)?;
 
@@ -297,9 +312,10 @@ where
             .trigger_event(state, closure)
             .await?
     } else {
-        let resp = closure()
-            .await
-            .change_context(errors::RoutingError::OpenRouterCallFailed)?;
+        // Keep the closure's error context (e.g. `RoutingEventsError` carrying the DE status
+        // code) so callers can react to specific statuses, like the 404-gated merchant
+        // provisioning in the SSO mint flow.
+        let resp = closure().await?;
 
         RoutingEventsResponse::new(None, resp)
     };
