@@ -1,6 +1,5 @@
 use api_models::payments::AccountType;
 use common_utils::types::{FloatMajorUnit, StringMajorUnit};
-use error_stack::ResultExt;
 use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 

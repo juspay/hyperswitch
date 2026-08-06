@@ -233,7 +233,7 @@ pub struct PixBankTransferAdditionalData {
     pub bank_code: Option<String>,
 
     /// Bank account type for PIX payouts
-    #[schema(value_type = Option<String>)]
+    #[schema(value_type = Option<BankType>)]
     pub bank_account_type: Option<common_enums::BankType>,
 }
 

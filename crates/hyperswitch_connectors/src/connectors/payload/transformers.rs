@@ -161,17 +161,11 @@ fn build_payload_payment_request_data(
                 enums::BankHolderType::Business => requests::PayloadAccClass::Business,
                 enums::BankHolderType::Personal => requests::PayloadAccClass::Personal,
             });
-            let account_type =
-                match bank_type.ok_or_else(|| errors::ConnectorError::MissingRequiredField {
+            let account_type = requests::PayloadAccAccountType::try_from(
+                bank_type.ok_or(errors::ConnectorError::MissingRequiredField {
                     field_name: "bank_type",
-                })? {
-                    enums::BankType::Checking => requests::PayloadAccAccountType::Checking,
-                    enums::BankType::Savings => requests::PayloadAccAccountType::Savings,
-                    b_type => Err(errors::ConnectorError::NotSupported {
-                        message: b_type.to_string(),
-                        connector: "payload",
-                    })?,
-                };
+                })?,
+            )?;
             let account_holder = bank_account_holder_name.clone().ok_or_else(|| {
                 errors::ConnectorError::MissingRequiredField {
                     field_name: "bank_account_holder_name",
@@ -239,6 +233,25 @@ fn build_payload_payment_request_data(
 pub struct PayloadRouterData<T> {
     pub amount: StringMajorUnit,
     pub router_data: T,
+}
+
+impl TryFrom<enums::BankType> for requests::PayloadAccAccountType {
+    type Error = errors::ConnectorError;
+
+    fn try_from(bank_type: enums::BankType) -> Result<Self, Self::Error> {
+        match bank_type {
+            enums::BankType::Checking => Ok(Self::Checking),
+            enums::BankType::Savings => Ok(Self::Savings),
+            enums::BankType::Salary => Err(errors::ConnectorError::NotSupported {
+                message: enums::BankType::Salary.to_string(),
+                connector: "payload",
+            }),
+            enums::BankType::Payment => Err(errors::ConnectorError::NotSupported {
+                message: enums::BankType::Payment.to_string(),
+                connector: "payload",
+            }),
+        }
+    }
 }
 
 impl<T> From<(StringMajorUnit, T)> for PayloadRouterData<T> {
@@ -398,17 +411,11 @@ impl TryFrom<&SetupMandateRouterData> for requests::PayloadPaymentMethodRequest 
                 bank_account_holder_name,
                 ..
             }) => {
-                let account_type =
-                    match bank_type.ok_or_else(|| errors::ConnectorError::MissingRequiredField {
+                let account_type = requests::PayloadAccAccountType::try_from(
+                    bank_type.ok_or(errors::ConnectorError::MissingRequiredField {
                         field_name: "bank_type",
-                    })? {
-                        enums::BankType::Checking => requests::PayloadAccAccountType::Checking,
-                        enums::BankType::Savings => requests::PayloadAccAccountType::Savings,
-                        b_type => Err(errors::ConnectorError::NotSupported {
-                            message: b_type.to_string(),
-                            connector: "payload",
-                        })?,
-                    };
+                    })?,
+                )?;
 
                 let account_holder = bank_account_holder_name.clone().ok_or_else(|| {
                     errors::ConnectorError::MissingRequiredField {
