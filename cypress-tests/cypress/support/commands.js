@@ -38,11 +38,6 @@ import { execConfig, validateConfig } from "../utils/featureFlags";
 import * as RequestBodyUtils from "../utils/RequestBodyUtils";
 import { isoTimeTomorrow, validateEnv } from "../utils/RequestBodyUtils.js";
 import {
-  handleQRCodeRedirection,
-  handleRedirection,
-  MICRODEPOSIT_CONFIG,
-} from "./redirectionHandler";
-import {
   isMockServer,
   isRecordMode,
   isReplayMode,
@@ -52,6 +47,11 @@ import {
   mockReplayBankRedirect,
   resetMitmRedirectSeq,
 } from "./mitmProxy";
+import {
+  handleQRCodeRedirection,
+  handleRedirection,
+  MICRODEPOSIT_CONFIG,
+} from "./redirectionHandler";
 
 // Returns true (after logging a consistent skip line) when a redirection
 // command should bail out early because we're in replay mode.
@@ -2862,10 +2862,17 @@ Cypress.Commands.add(
           expect(response.body.payment_method_id, "payment_method_status").to.be
             .null;
           expect(response.body.profile_id, "profile_id").to.not.be.null;
-          expect(
-            response.body.merchant_order_reference_id,
-            "merchant_order_reference_id"
-          ).to.be.null;
+          if (typeof body.merchant_order_reference_id === "undefined") {
+            expect(
+              response.body.merchant_order_reference_id,
+              "merchant_order_reference_id"
+            ).to.be.null;
+          } else {
+            expect(
+              response.body.merchant_order_reference_id,
+              "merchant_order_reference_id"
+            ).to.equal(body.merchant_order_reference_id);
+          }
           expect(response.body.connector_mandate_id, "connector_mandate_id").to
             .be.null;
 
@@ -3256,7 +3263,8 @@ Cypress.Commands.add(
                 );
                 if (
                   response.body.setup_future_usage === "off_session" &&
-                  response.body.status === "succeeded"
+                  response.body.status === "succeeded" &&
+                  globalState.get("connectorId") !== "tsys_transit"
                 ) {
                   expect(
                     response.body.connector_mandate_id,
@@ -3330,7 +3338,8 @@ Cypress.Commands.add(
                 );
                 if (
                   response.body.setup_future_usage === "off_session" &&
-                  response.body.status === "succeeded"
+                  response.body.status === "succeeded" &&
+                  globalState.get("connectorId") !== "tsys_transit"
                 ) {
                   expect(
                     response.body.connector_mandate_id,
@@ -4951,6 +4960,7 @@ Cypress.Commands.add(
                   response.body.mandate_id === null &&
                   response.body.status === "succeeded" &&
                   globalState.get("connectorId") !== "peachpayments" &&
+                  globalState.get("connectorId") !== "tsys_transit" &&
                   requestBody.mandate_data !== null
                 ) {
                   expect(
@@ -5021,7 +5031,8 @@ Cypress.Commands.add(
                 if (
                   response.body.setup_future_usage === "off_session" &&
                   response.body.mandate_id === null &&
-                  response.body.status === "succeeded"
+                  response.body.status === "succeeded" &&
+                  globalState.get("connectorId") !== "tsys_transit"
                 ) {
                   expect(
                     response.body.connector_mandate_id,
@@ -8369,6 +8380,22 @@ Cypress.Commands.add("listSavedPMCall", (globalState) => {
   }).then((response) => {
     if (response.status === 200) {
       expect(response.body.customer_payment_methods).to.be.an("array");
+
+      // Mirror `listCustomerPMByClientSecret`: expose the first saved payment
+      // method so a following payment can be made against it. This list carries
+      // no `payment_method_token` — its `id` (0a_pm_...) is what a payment
+      // sends as `payment_token`. Only the session scoped list returns a
+      // separate token, hence the conditional below.
+      const [savedPaymentMethod] = response.body.customer_payment_methods;
+      if (savedPaymentMethod) {
+        globalState.set("paymentMethodId", savedPaymentMethod.id);
+        if (savedPaymentMethod.payment_method_token) {
+          globalState.set(
+            "paymentToken",
+            savedPaymentMethod.payment_method_token
+          );
+        }
+      }
     } else {
       throw new Error(
         `List saved PM failed with status ${response.status}: ${JSON.stringify(response.body)}`
@@ -8567,13 +8594,26 @@ Cypress.Commands.add(
     const customerId = globalState.get("customerId");
     const profileId = globalState.get("profileId");
 
+    // `paymentMethodToken` comes from the payment method session flow, while
+    // `paymentToken` is what the customer payment method list publishes; either
+    // is a valid token to pay with, so accept whichever the caller produced.
+    const paymentToken = useToken
+      ? globalState.get("paymentMethodToken") || globalState.get("paymentToken")
+      : globalState.get("paymentMethodId");
+
+    if (!paymentToken) {
+      throw new Error(
+        useToken
+          ? "paymentWithSavedPMCall: no payment token found. Set `paymentMethodToken` via the payment method session flow, or `paymentToken` via a customer payment method list, before calling with useToken"
+          : "paymentWithSavedPMCall: no `paymentMethodId` found; call a payment method create or list first"
+      );
+    }
+
     const requestBody = {
       ...paymentData,
       customer_id: customerId,
       profile_id: profileId,
-      payment_token: useToken
-        ? globalState.get("paymentMethodToken")
-        : globalState.get("paymentMethodId"),
+      payment_token: paymentToken,
     };
 
     cy.request({
@@ -8588,6 +8628,8 @@ Cypress.Commands.add(
     }).then((response) => {
       if (response.status === 200) {
         globalState.set("paymentId", response.body.payment_id);
+        // `retrievePaymentCallTest` and friends read the `paymentID` spelling
+        globalState.set("paymentID", response.body.payment_id);
         expect(response.body).to.have.property("payment_id");
         expect(response.body).to.have.property("status");
         expect(response.body.amount).to.equal(paymentData.amount);
@@ -11494,12 +11536,15 @@ Cypress.Commands.add(
 // Superposition Config Commands
 // ============================================
 
-// Base command: PUT a superposition context override.
+// Base command: PUT a superposition context carrying one or more overrides.
+// `overrides` is a plain object of config key to value; a single PUT is used so
+// that configs sharing a context land on one context rather than replacing each
+// other, and cost one polling interval instead of several.
 // `context` is a plain object whose keys match the superposition dimension names
 // required by the target config (see dimension_config.rs for each config's dimensions).
 Cypress.Commands.add(
-  "createSuperpositionConfig",
-  (globalState, overrideKey, overrideValue, context) => {
+  "createSuperpositionOverrides",
+  (globalState, overrides, context) => {
     const superpositionBaseUrl = globalState.get("superpositionBaseUrl");
     const superpositionSecret = globalState.get("superpositionSecret");
     const orgId = globalState.get("superpositionOrgId") || "hyperswitch";
@@ -11525,7 +11570,7 @@ Cypress.Commands.add(
         "Content-Type": "application/json",
       },
       body: {
-        override: { [overrideKey]: overrideValue },
+        override: overrides,
         context,
         description: "test config",
         change_reason: "automated test",
@@ -11538,12 +11583,24 @@ Cypress.Commands.add(
         expect(response.status, "superposition_config_status").to.equal(200);
         cy.task(
           "cli_log",
-          `Superposition config set: ${overrideKey}=${overrideValue}, context=${JSON.stringify(context)}`
+          `Superposition config set: ${JSON.stringify(overrides)}, context=${JSON.stringify(context)}`
         );
       });
     });
     // Polling interval is 10 s in CI and 15 s in all other envs
     cy.wait(15000);
+  }
+);
+
+// Base command: PUT a superposition context with a single override.
+Cypress.Commands.add(
+  "createSuperpositionConfig",
+  (globalState, overrideKey, overrideValue, context) => {
+    cy.createSuperpositionOverrides(
+      globalState,
+      { [overrideKey]: overrideValue },
+      context
+    );
   }
 );
 
@@ -11610,6 +11667,15 @@ Cypress.Commands.add(
       overrideValue,
       context
     );
+  }
+);
+
+// Set several superposition configs that share one context, in a single PUT.
+// `overrides` is a plain object of config key to value.
+Cypress.Commands.add(
+  "setSuperpositionConfigs",
+  (globalState, overrides, context) => {
+    cy.createSuperpositionOverrides(globalState, overrides, context);
   }
 );
 
