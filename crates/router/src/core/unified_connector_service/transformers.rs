@@ -6896,7 +6896,6 @@ impl
             metadata: None,
             connector_feature_data: None,
             test_mode: router_data.test_mode,
-            // Composite-flow correlation token; not propagated by the access-token call.
             merchant_request_id: None,
         })
     }
@@ -7487,8 +7486,7 @@ impl
             merchant_payout_id: router_data.payout_id.clone(),
             connector_payout_id: router_data.request.connector_payout_id.clone(),
             access_token: router_data.access_token.clone().map(|at| at.token),
-            // Debtor account for connectors (e.g. Deutsche Bank) that need it to
-            // perform a status enquiry, rather than smuggling it inside connector_payout_id.
+            // Debtor account for connectors that need it to perform a status enquiry
             source_bank_data: router_data
                 .request
                 .source_bank_data

@@ -1556,21 +1556,35 @@ fn build_grpc_headers_internal(
             })
         };
 
-    let try_append =
-        |metadata: &mut MetadataMap, header: &'static str, key: &str, value: &str| match parse(
-            key, value,
-        ) {
-            Ok(metadata_value) => metadata.append(header, metadata_value),
-            Err(_) => {
+    // Some connectors carry credentials that cannot be HTTP/2 header values
+    // like PEM signing key and certificate bundle, which contain newlines.
+    // Those are already sent in the `x-connector-config` blob, so dropping the
+    // duplicate header is safe. Without that blob there is no fallback, so a value
+    // that fails to parse must stay a hard error.
+    let has_config_fallback = meta.connector_config.is_some();
+
+    let try_append = |metadata: &mut MetadataMap,
+                      header: &'static str,
+                      key: &str,
+                      value: &str|
+     -> Result<(), UnifiedConnectorServiceError> {
+        match parse(key, value) {
+            Ok(metadata_value) => {
+                metadata.append(header, metadata_value);
+                Ok(())
+            }
+            Err(_) if has_config_fallback => {
                 logger::warn!(
                     header = %header,
                     field = %key,
                     "skipping UCS auth header — value is not HTTP/2 header-safe; \
-                     relying on x-connector-config blob if the connector uses it"
+                     credential is carried in the x-connector-config blob"
                 );
-                false
+                Ok(())
             }
-        };
+            Err(error) => Err(error),
+        }
+    };
 
     metadata.append(
         connector_header_key,
@@ -1582,18 +1596,17 @@ fn build_grpc_headers_internal(
     );
 
     if let Some(api_key) = meta.api_key {
-        try_append(
-            &mut metadata,
+        metadata.append(
             consts::UCS_HEADER_API_KEY,
-            "api_key",
-            api_key.peek(),
+            parse("api_key", api_key.peek())?,
         );
     }
     if let Some(key1) = meta.key1 {
-        try_append(&mut metadata, consts::UCS_HEADER_KEY1, "key1", key1.peek());
+        metadata.append(consts::UCS_HEADER_KEY1, parse("key1", key1.peek())?);
     }
+    // `key2` and `api_secret` may hold PEM material, which cannot be an HTTP/2 header value.
     if let Some(key2) = meta.key2 {
-        try_append(&mut metadata, consts::UCS_HEADER_KEY2, "key2", key2.peek());
+        try_append(&mut metadata, consts::UCS_HEADER_KEY2, "key2", key2.peek())?;
     }
     if let Some(api_secret) = meta.api_secret {
         try_append(
@@ -1601,7 +1614,7 @@ fn build_grpc_headers_internal(
             consts::UCS_HEADER_API_SECRET,
             "api_secret",
             api_secret.peek(),
-        );
+        )?;
     }
     if let Some(auth_key_map) = meta.auth_key_map {
         let auth_key_map_str = serde_json::to_string(&auth_key_map).map_err(|error| {
