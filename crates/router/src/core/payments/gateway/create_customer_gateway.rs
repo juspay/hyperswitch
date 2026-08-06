@@ -162,6 +162,7 @@ where
                 let (connector_customer_result, status_code) =
                     handle_unified_connector_service_response_for_create_connector_customer(
                         create_connector_customer_response.clone(),
+                        router_data.status,
                     )
                     .attach_printable("Failed to deserialize UCS response")?;
 
