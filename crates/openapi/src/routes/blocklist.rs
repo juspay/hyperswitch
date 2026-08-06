@@ -47,9 +47,12 @@ pub async fn remove_entry_from_blocklist() {}
     path = "/blocklist",
     params (
         ("data_kind" = BlocklistDataKind, Query, description = "Kind of the fingerprint list requested"),
+        ("limit" = Option<u16>, Query, description = "Maximum number of entries to return (default 10)"),
+        ("offset" = Option<u16>, Query, description = "Zero-based offset for pagination (default 0)"),
+        ("client_secret" = Option<String>, Query, description = "Client secret, required when authenticating with a publishable key"),
     ),
     responses(
-        (status = 200, description = "Blocked Fingerprints", body = BlocklistResponse),
+        (status = 200, description = "Blocked Fingerprints", body = ListBlocklistResponse),
         (status = 400, description = "Invalid Data")
     ),
     tag = "Blocklist",
