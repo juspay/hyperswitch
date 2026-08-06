@@ -126,31 +126,6 @@ pub fn str_value(input: &str) -> ParseResult<&str, ast::ValueType> {
         combinator::map(string_str, ast::ValueType::StrValue),
     )(input)
 }
-
-pub fn str_array_value(input: &str) -> ParseResult<&str, ast::ValueType> {
-    let many_with_comma = multi::many0(sequence::preceded(
-        skip_ws(complete::tag(",")),
-        skip_ws(string_str),
-    ));
-
-    let full_sequence = sequence::pair(skip_ws(string_str), many_with_comma);
-
-    error::context(
-        "str_array_value",
-        combinator::map(
-            sequence::delimited(
-                skip_ws(complete::tag("(")),
-                full_sequence,
-                skip_ws(complete::tag(")")),
-            ),
-            |tup: (String, Vec<String>)| {
-                let mut rest = tup.1;
-                rest.insert(0, tup.0);
-                ast::ValueType::StrValueArray(rest)
-            },
-        ),
-    )(input)
-}
 pub fn enum_value_string(input: &str) -> ParseResult<&str, String> {
     combinator::map(
         sequence::pair(
@@ -280,7 +255,6 @@ pub fn value_type(input: &str) -> ParseResult<&str, ast::ValueType> {
         "value_type",
         branch::alt((
             number_value,
-            str_array_value,
             enum_variant_value,
             enum_variant_array_value,
             number_array_value,
@@ -468,21 +442,4 @@ pub fn program<O: EuclidParsable + 'static>(input: &str) -> ParseResult<&str, as
             },
         ),
     )(input)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn parses_string_array() {
-        let (remaining, value) =
-            str_array_value(r#"("424242", "411111")"#).expect("valid string array");
-
-        assert!(remaining.is_empty());
-        assert_eq!(
-            value,
-            ast::ValueType::StrValueArray(vec!["424242".to_string(), "411111".to_string()])
-        );
-    }
 }

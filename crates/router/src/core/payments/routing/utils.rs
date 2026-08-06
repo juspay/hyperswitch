@@ -1795,7 +1795,6 @@ fn convert_value(v: ast::ValueType) -> RoutingResult<ValueType> {
             value: m.value,
         })),
         StrValue(s) => Ok(ValueType::StrValue(s)),
-        StrValueArray(arr) => Ok(ValueType::StrValueArray(arr)),
 
         NumberArray(arr) => Ok(ValueType::NumberArray(
             arr.into_iter()

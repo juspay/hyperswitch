@@ -131,29 +131,6 @@ macro_rules! lower_str {
     };
 }
 
-macro_rules! lower_str_array {
-    ($key:ident, $value:ident, $validation_closure:expr) => {
-        match $value {
-            ast::ValueType::StrValue(st) => {
-                $validation_closure(&st)?;
-                Ok(vec![dir::DirValue::$key(types::StrValue { value: st })])
-            }
-            ast::ValueType::StrValueArray(sta) => sta
-                .into_iter()
-                .map(|st| {
-                    $validation_closure(&st)?;
-                    Ok(dir::DirValue::$key(types::StrValue { value: st }))
-                })
-                .collect(),
-            _ => Err(AnalysisErrorType::InvalidType {
-                key: dir::DirKeyKind::$key.to_string(),
-                expected: DataType::StrValue,
-                got: $value.get_type(),
-            }),
-        }
-    };
-}
-
 macro_rules! lower_metadata {
     ($key:ident, $value:ident) => {
         match $value {
@@ -237,18 +214,6 @@ fn lower_comparison_inner<O: EuclidDirFilter>(
                 value_type: DataType::Number,
             })?;
         }
-        (
-            ast::ComparisonType::LessThan
-            | ast::ComparisonType::GreaterThan
-            | ast::ComparisonType::GreaterThanEqual
-            | ast::ComparisonType::LessThanEqual,
-            ast::ValueType::StrValueArray(_),
-        ) => {
-            Err(AnalysisErrorType::InvalidComparison {
-                operator: comp.comparison.clone(),
-                value_type: DataType::StrValue,
-            })?;
-        }
 
         _ => {}
     }
@@ -295,7 +260,7 @@ fn lower_comparison_inner<O: EuclidDirFilter>(
                     })
                 }
             };
-            lower_str_array!(CardBin, value, validation_closure)
+            lower_str!(CardBin, value, validation_closure)
         }
         dir::DirKeyKind::ExtendedCardBin => {
             let validation_closure = |st: &String| -> Result<(), AnalysisErrorType> {
@@ -309,7 +274,7 @@ fn lower_comparison_inner<O: EuclidDirFilter>(
                     })
                 }
             };
-            lower_str_array!(ExtendedCardBin, value, validation_closure)
+            lower_str!(ExtendedCardBin, value, validation_closure)
         }
         dir::DirKeyKind::BusinessLabel => lower_str!(BusinessLabel, value),
         dir::DirKeyKind::MetaData => lower_metadata!(MetaData, value),
@@ -406,41 +371,4 @@ pub fn lower_program<O: EuclidDirFilter>(
             .collect::<Result<_, _>>()?,
         metadata: program.metadata,
     })
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn bin_comparison(key: &str, values: Vec<&str>) -> ast::Comparison {
-        ast::Comparison {
-            lhs: key.to_string(),
-            comparison: ast::ComparisonType::Equal,
-            value: ast::ValueType::StrValueArray(
-                values.into_iter().map(ToString::to_string).collect(),
-            ),
-            metadata: Default::default(),
-        }
-    }
-
-    #[test]
-    fn lowers_card_bin_array() {
-        let values = lower_comparison_inner::<types::DummyOutput>(bin_comparison(
-            "card_bin",
-            vec!["424242", "411111"],
-        ))
-        .expect("valid card BIN array");
-
-        assert_eq!(values.len(), 2);
-    }
-
-    #[test]
-    fn validates_each_extended_card_bin_in_array() {
-        let result = lower_comparison_inner::<types::DummyOutput>(bin_comparison(
-            "extended_card_bin",
-            vec!["42424242", "invalid"],
-        ));
-
-        assert!(result.is_err());
-    }
 }

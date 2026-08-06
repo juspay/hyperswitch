@@ -43971,6 +43971,7 @@
           "no_three_ds",
           "challenge_requested",
           "challenge_preferred",
+          "no_preference",
           "three_ds_exemption_requested_tra",
           "three_ds_exemption_requested_low_value",
           "issuer_three_ds_exemption_requested"
@@ -44939,28 +44940,6 @@
               "value": {
                 "type": "string",
                 "description": "Represents a arbitrary String value"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "type",
-              "value"
-            ],
-            "properties": {
-              "type": {
-                "type": "string",
-                "enum": [
-                  "str_value_array"
-                ]
-              },
-              "value": {
-                "type": "array",
-                "items": {
-                  "type": "string"
-                },
-                "description": "Represents an array of arbitrary string values"
               }
             }
           },
