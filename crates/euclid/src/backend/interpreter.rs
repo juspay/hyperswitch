@@ -59,6 +59,14 @@ where
                 (EnumVariant(e), NotEqual, EnumVariantArray(evec)) => {
                     Ok(evec.iter().all(|v| e != v))
                 }
+                (StrValue(s), Equal, StrValue(s2)) => Ok(s == s2),
+                (StrValue(s), NotEqual, StrValue(s2)) => Ok(s != s2),
+                (StrValue(s), Equal, StrValueArray(values)) => {
+                    Ok(values.iter().any(|value| s == value))
+                }
+                (StrValue(s), NotEqual, StrValueArray(values)) => {
+                    Ok(values.iter().all(|value| s != value))
+                }
                 (Number(n1), Equal, Number(n2)) => Ok(n1 == n2),
                 (Number(n1), NotEqual, Number(n2)) => Ok(n1 != n2),
                 (Number(n1), LessThanEqual, Number(n2)) => Ok(n1 <= n2),

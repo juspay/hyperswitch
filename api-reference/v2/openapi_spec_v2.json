@@ -32966,6 +32966,28 @@
               "type": {
                 "type": "string",
                 "enum": [
+                  "str_value_array"
+                ]
+              },
+              "value": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Represents an array of arbitrary string values."
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "value"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
                   "number_array"
                 ]
               },

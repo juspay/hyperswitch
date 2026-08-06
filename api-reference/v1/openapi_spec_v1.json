@@ -28733,6 +28733,16 @@
           "currency": {
             "$ref": "#/components/schemas/Currency"
           },
+          "card_bin": {
+            "type": "string",
+            "description": "The first 6 digits of the card number.",
+            "nullable": true
+          },
+          "extended_card_bin": {
+            "type": "string",
+            "description": "The first 8 digits of the card number.",
+            "nullable": true
+          },
           "business_country": {
             "allOf": [
               {
@@ -44929,6 +44939,28 @@
               "value": {
                 "type": "string",
                 "description": "Represents a arbitrary String value"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "value"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "str_value_array"
+                ]
+              },
+              "value": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Represents an array of arbitrary string values"
               }
             }
           },

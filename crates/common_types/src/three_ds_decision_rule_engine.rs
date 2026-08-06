@@ -65,6 +65,8 @@ impl_to_sql_from_sql_json!(ThreeDSDecisionRule);
 
 impl EuclidDirFilter for ThreeDSDecisionRule {
     const ALLOWED: &'static [DirKeyKind] = &[
+        DirKeyKind::CardBin,
+        DirKeyKind::ExtendedCardBin,
         DirKeyKind::CardNetwork,
         DirKeyKind::PaymentAmount,
         DirKeyKind::PaymentCurrency,

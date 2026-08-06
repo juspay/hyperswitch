@@ -34,6 +34,8 @@ pub enum ValueType {
     MetadataVariant(MetadataValue),
     /// Represents a arbitrary String value
     StrValue(String),
+    /// Represents an array of arbitrary string values.
+    StrValueArray(Vec<String>),
     /// Represents an array of numbers. This is basically used for
     /// "one of the given numbers" operations
     /// eg: payment.method.amount = (1, 2, 3)
@@ -52,6 +54,7 @@ impl ValueType {
         match self {
             Self::Number(_) => DataType::Number,
             Self::StrValue(_) => DataType::StrValue,
+            Self::StrValueArray(_) => DataType::StrValue,
             Self::MetadataVariant(_) => DataType::MetadataValue,
             Self::EnumVariant(_) => DataType::EnumVariant,
             Self::NumberComparisonArray(_) => DataType::Number,

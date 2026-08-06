@@ -2116,6 +2116,8 @@ pub enum ValueType {
     MetadataVariant(MetadataValue),
     /// Represents a arbitrary String value
     StrValue(String),
+    /// Represents an array of arbitrary string values
+    StrValueArray(Vec<String>),
     /// Represents a global reference, which is a reference to a global variable
     GlobalRef(String),
     /// Represents an array of numbers. This is basically used for
