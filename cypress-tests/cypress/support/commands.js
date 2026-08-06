@@ -32,6 +32,7 @@ import getConnectorDetails, {
   getValueByKey,
   injectHelcimTestCard,
   setNormalizedValue,
+  stringifyWithBigInt,
 } from "../e2e/configs/Payment/Utils";
 import { execConfig, validateConfig } from "../utils/featureFlags";
 import * as RequestBodyUtils from "../utils/RequestBodyUtils";
@@ -8143,7 +8144,7 @@ Cypress.Commands.add(
               ([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`
             )
             .join("&")
-        : webhookBody;
+        : stringifyWithBigInt(webhookBody);
 
     const headers = {
       "Content-Type": contentType,
