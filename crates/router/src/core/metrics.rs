@@ -35,6 +35,8 @@ counter_metric!(THREE_DS_EXEMPTION_INCOMING_REQUESTS, GLOBAL_METER); // No. of i
 counter_metric!(THREE_DS_EXEMPTION_ALGORITHM_FOUND, GLOBAL_METER); // No. of requests for which Three DS Exemption algorithm is found in business profile
 counter_metric!(THREE_DS_EXEMPTION_DECISION_COMPUTED, GLOBAL_METER); // No. of requests for which Three DS Exemption decision is computed
 
+counter_metric!(ACCOUNT_UPDATER_EVALUATION_COUNT, GLOBAL_METER); // No. of Account Updater evaluations, by terminal state and detail
+
 counter_metric!(INCOMING_PAYOUT_WEBHOOK_METRIC, GLOBAL_METER); // No. of incoming payout webhooks
 counter_metric!(
     INCOMING_PAYOUT_WEBHOOK_SIGNATURE_FAILURE_METRIC,

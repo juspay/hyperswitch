@@ -82,6 +82,7 @@ use super::{
 use crate::{
     configs::settings,
     core::{
+        account_updater,
         payment_methods::{transformers as pm_transforms, utils as payment_method_utils},
         tokenization as tokenization_core,
     },
@@ -5731,7 +5732,7 @@ pub async fn retrieve_payment_method(
     profile: domain::Profile,
     platform: domain::Platform,
     api_key_type: enums::ApiKeyType,
-    fetch_raw_detail_query_param: bool,
+    request: payment_methods::PaymentMethodRetrieveRequest,
 ) -> RouterResponse<api::PaymentMethodResponse> {
     let db = state.store.as_ref();
 
@@ -5766,11 +5767,23 @@ pub async fn retrieve_payment_method(
         },
     )?;
 
+    if request.force_sync {
+        Box::pin(account_updater::run(
+            &state,
+            &platform,
+            &profile,
+            &payment_method,
+            storage_type,
+            &dimensions.without_provider_merchant_id(),
+        ))
+        .await;
+    }
+
     let raw_payment_method_fetch_access = get_raw_payment_method_data_fetch_access(
         &state,
         &dimensions,
         api_key_type,
-        fetch_raw_detail_query_param,
+        request.fetch_raw_detail,
         payment_method.customer_id.as_ref(),
     )
     .await
@@ -5865,7 +5878,7 @@ pub async fn retrieve_payment_method_olap(
         profile,
         platform,
         enums::ApiKeyType::External,
-        false,
+        payment_methods::PaymentMethodRetrieveRequest::default(),
     ))
     .await?
     .get_json_body()

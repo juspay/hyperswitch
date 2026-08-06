@@ -1847,6 +1847,25 @@ fn get_ucs_client(
         })
 }
 
+pub fn build_unified_connector_service_auth_metadata_without_mca(
+    connector_name: String,
+    auth_type: String,
+    processor_merchant_id: &id_type::MerchantId,
+    connector_config: Option<Secret<String>>,
+) -> ConnectorAuthMetadata {
+    ConnectorAuthMetadata {
+        connector_name,
+        auth_type,
+        api_key: None,
+        key1: None,
+        key2: None,
+        api_secret: None,
+        auth_key_map: None,
+        merchant_id: Secret::new(processor_merchant_id.get_string_repr().to_string()),
+        connector_config,
+    }
+}
+
 pub fn build_unified_connector_service_auth_metadata(
     #[cfg(feature = "v1")] merchant_connector_account: MerchantConnectorAccountType,
     #[cfg(feature = "v2")] merchant_connector_account: MerchantConnectorAccountTypeDetails,

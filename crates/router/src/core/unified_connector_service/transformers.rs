@@ -850,6 +850,7 @@ impl
                 .map(payments_grpc::PaymentMethodType::foreign_try_from)
                 .transpose()?
                 .map(|payment_method_type| payment_method_type.into()),
+            order_details: build_ucs_order_details(router_data.request.order_details.as_deref()),
         })
     }
 }

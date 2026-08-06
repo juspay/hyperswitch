@@ -116,11 +116,14 @@ pub struct PaymentMethodCreate {
 }
 
 #[cfg(feature = "v2")]
-#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+#[derive(Debug, Default, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct PaymentMethodRetrieveRequest {
     #[serde(default)]
     pub fetch_raw_detail: bool,
+    /// Trigger an Account Updater check for the stored payment method.
+    #[serde(default)]
+    pub force_sync: bool,
 }
 
 #[cfg(feature = "v2")]
