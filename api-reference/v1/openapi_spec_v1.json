@@ -28734,6 +28734,16 @@
           "currency": {
             "$ref": "#/components/schemas/Currency"
           },
+          "card_bin": {
+            "type": "string",
+            "description": "The first 6 digits of the card number.",
+            "nullable": true
+          },
+          "extended_card_bin": {
+            "type": "string",
+            "description": "The first 8 digits of the card number.",
+            "nullable": true
+          },
           "business_country": {
             "allOf": [
               {
@@ -43964,6 +43974,7 @@
           "no_three_ds",
           "challenge_requested",
           "challenge_preferred",
+          "no_preference",
           "three_ds_exemption_requested_tra",
           "three_ds_exemption_requested_low_value",
           "issuer_three_ds_exemption_requested"

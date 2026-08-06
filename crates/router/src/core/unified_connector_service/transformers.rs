@@ -850,8 +850,6 @@ impl
                 .map(payments_grpc::PaymentMethodType::foreign_try_from)
                 .transpose()?
                 .map(|payment_method_type| payment_method_type.into()),
-            // New in UCS 2026.08.04.0. Required by connectors that need line items
-            // on order creation (e.g. Airwallex PayLater / Klarna).
             order_details: build_ucs_order_details(router_data.request.order_details.as_deref()),
         })
     }

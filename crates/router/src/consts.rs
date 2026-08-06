@@ -308,8 +308,9 @@ pub const IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID: &str =
 // Default payment method storing TTL in redis in seconds
 pub const DEFAULT_PAYMENT_METHOD_STORE_TTL: i64 = 86400; // 1 day
 
-// List of countries that are part of the PSD2 region
-pub const PSD2_COUNTRIES: [Country; 27] = [
+// Countries and separately encoded territories where PSD2 or the equivalent UK
+// strong customer authentication rules apply.
+pub const SCA_MANDATED_COUNTRIES: [Country; 39] = [
     Country::Austria,
     Country::Belgium,
     Country::Bulgaria,
@@ -337,6 +338,21 @@ pub const PSD2_COUNTRIES: [Country; 27] = [
     Country::Slovenia,
     Country::Spain,
     Country::Sweden,
+    // EEA/EFTA states where PSD2 applies
+    Country::Iceland,
+    Country::Liechtenstein,
+    Country::Norway,
+    // EU territories represented separately by the Country enum
+    Country::AlandIslands,
+    Country::FrenchGuiana,
+    Country::Guadeloupe,
+    Country::Martinique,
+    Country::Mayotte,
+    Country::Reunion,
+    Country::SaintMartinFrenchpart,
+    // Jurisdictions covered by the equivalent UK SCA regime
+    Country::UnitedKingdomOfGreatBritainAndNorthernIreland,
+    Country::Gibraltar,
 ];
 
 // Rollout percentage config prefix
