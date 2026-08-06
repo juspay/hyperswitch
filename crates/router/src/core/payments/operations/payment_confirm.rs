@@ -3144,11 +3144,13 @@ async fn apply_selected_offer<F: Clone + Send + Sync>(
 ) -> RouterResult<PaymentData<F>> {
     // An offer was selected, so Offer Engine must be available. Target config at
     // merchant/org/profile (same as eligibility) so overrides resolve consistently.
-    let profile_id = payment_data.payment_intent.profile_id.clone().ok_or(report!(
-        errors::ApiErrorResponse::PreconditionFailed {
+    let profile_id = payment_data
+        .payment_intent
+        .profile_id
+        .clone()
+        .ok_or(report!(errors::ApiErrorResponse::PreconditionFailed {
             message: "Profile is required to apply an offer".to_string(),
-        }
-    ))?;
+        }))?;
     let offer_dimensions = dimension_state::Dimensions::new()
         .with_processor_merchant_id(processor.get_processor_merchant_id())
         .with_organization_id(processor.get_account().get_org_id().clone())
@@ -3203,8 +3205,11 @@ async fn apply_selected_offer<F: Clone + Send + Sync>(
         currency,
         customer_id: payment_data.payment_intent.customer_id.clone(),
         payment_method_type,
-        payment_method: offer_card
-            .and_then(|card| card.card_network.as_ref().map(|network| network.to_string())),
+        payment_method: offer_card.and_then(|card| {
+            card.card_network
+                .as_ref()
+                .map(|network| network.to_string())
+        }),
         card_bin: payment_data
             .payment_method_data
             .as_ref()

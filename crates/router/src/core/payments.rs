@@ -14502,8 +14502,11 @@ pub async fn payments_submit_eligibility(
         .payment_method_data
         .as_ref()
         .and_then(|pmd| pmd.get_card_data());
-    let offer_card_network = offer_card
-        .and_then(|card| card.card_network.as_ref().map(|network| network.to_string()));
+    let offer_card_network = offer_card.and_then(|card| {
+        card.card_network
+            .as_ref()
+            .map(|network| network.to_string())
+    });
     let offer_card_type = offer_card.and_then(|card| card.card_type.clone());
     let offer_bank_code = offer_card.and_then(|card| card.bank_code.clone());
     let offer_card_country = offer_card.and_then(|card| card.card_issuing_country.clone());
@@ -14652,8 +14655,7 @@ async fn resolve_offer_eligibility_details(
                 Some(selected) => {
                     let processor_merchant_id = processor.get_account().get_id().clone();
                     // Issue a unique quote id; confirm echoes it back to apply this offer.
-                    let offer_quote_id =
-                        common_utils::generate_time_ordered_id("offer_quote");
+                    let offer_quote_id = common_utils::generate_time_ordered_id("offer_quote");
                     let quotes = HashMap::from([(
                         offer_quote_id.clone(),
                         client_session::OfferQuote {
