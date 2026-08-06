@@ -455,6 +455,23 @@ impl DatabaseBackedConfig for ShouldTriggerFingerprintMigration {
 }
 
 config! {
+    superposition_key = NETWORK_TOKEN_FETCH_TIMEOUT_IN_SECS,
+    output = u32,
+    default = 4,
+    requires = dimension_state::DimensionsGlobal,
+    targeting_key = id_type::CustomerId
+}
+
+impl DatabaseBackedConfig for NetworkTokenFetchTimeoutInSecs {
+    const KEY: &'static str = "network_token_fetch_timeout_in_secs";
+
+    // Global config: a single deployment-wide key, not scoped to any merchant.
+    fn db_key(_dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        Some(Self::KEY.to_string())
+    }
+}
+
+config! {
     superposition_key = SHOULD_PERFORM_SDK_VAULTING,
     output = bool,
     default = true,
@@ -772,4 +789,54 @@ impl DatabaseBackedConfig for SaveWalletDecryptedData {
             .get_processor_merchant_id()
             .map(|id| format!("{}_{}", Self::KEY, id.get_string_repr()))
     }
+}
+
+config! {
+    superposition_key = OFFER_ENGINE_ENABLED,
+    output = bool,
+    default = false,
+    requires = dimension_state::DimensionsGlobal,
+    targeting_key = id_type::PaymentId
+}
+
+impl DatabaseBackedConfig for OfferEngineEnabled {
+    const KEY: &'static str = "offer_engine_enabled";
+}
+
+config! {
+    superposition_key = OFFER_ENGINE_CREDENTIAL_SOURCE,
+    output = crate::core::offer_engine::types::OfferEngineCredentialSource,
+    default = crate::core::offer_engine::types::OfferEngineCredentialSource::None,
+    string_enum = true,
+    requires = dimension_state::DimensionsGlobal,
+    targeting_key = id_type::PaymentId
+}
+
+impl DatabaseBackedConfig for OfferEngineCredentialSource {
+    const KEY: &'static str = "offer_engine_credential_source";
+}
+
+config! {
+    superposition_key = ACCOUNT_UPDATER_ENABLED,
+    output = bool,
+    default = false,
+    requires = dimension_state::DimensionsGlobal,
+    targeting_key = id_type::PaymentId
+}
+
+impl DatabaseBackedConfig for AccountUpdaterEnabled {
+    const KEY: &'static str = "account_updater_enabled";
+}
+
+config! {
+    superposition_key = ACCOUNT_UPDATER_CREDENTIAL_SOURCE,
+    output = crate::core::account_updater::types::AccountUpdaterCredentialSource,
+    default = crate::core::account_updater::types::AccountUpdaterCredentialSource::None,
+    string_enum = true,
+    requires = dimension_state::DimensionsGlobal,
+    targeting_key = id_type::PaymentId
+}
+
+impl DatabaseBackedConfig for AccountUpdaterCredentialSource {
+    const KEY: &'static str = "account_updater_credential_source";
 }
