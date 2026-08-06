@@ -23,6 +23,7 @@ This is a comprehensive testing framework built with [Cypress](https://cypress.i
     - [Development Mode (Interactive)](#development-mode-interactive)
     - [CI Mode (Headless)](#ci-mode-headless)
     - [Execute tests against multiple connectors or in parallel](#execute-tests-against-multiple-connectors-or-in-parallel)
+    - [Payment-method based spec selection](#payment-method-based-spec-selection)
 - [Test reports](#test-reports)
 - [Folder structure](#folder-structure)
 - [Adding tests](#adding-tests)
@@ -164,6 +165,40 @@ npm run cypress:routing             # Routing tests
    ```
 
    Optionally, `--parallel <jobs (integer)>` can be passed to run cypress tests in parallel. By default, when `parallel` command is passed, it will be run in batches of `5`.
+
+#### Payment-method based spec selection
+
+`npm run cypress:payments` runs every payment spec by default. Connectors listed
+in `CONNECTOR_PAYMENT_METHODS` (`cypress/utils/specSelection/config.js`) instead
+run the mandatory setup specs (`01-AccountCreate`, `02-CustomerCreate`,
+`03-ConnectorCreate`) plus only the specs matching their payment methods:
+
+```js
+loonio: ["bank_redirect"],   // 4 specs instead of 89
+cryptopay: ["crypto"],
+```
+
+The table is opt-in — **listing a connector only affects that connector**, every
+other connector keeps running the full suite. It currently covers the connectors
+that do not support cards, where the saving is largest.
+
+Valid payment methods are in `PAYMENT_METHODS` in the same file.
+
+To see what would run without executing anything:
+
+```shell
+CYPRESS_CONNECTOR=loonio npm run cypress:specs -- payments --print-specs
+```
+
+Implementation lives in `cypress/utils/specSelection/`:
+
+| File        | Responsibility                                      |
+| ----------- | --------------------------------------------------- |
+| `config.js` | Connector → payment methods, spec → payment methods |
+| `index.js`  | `resolveSpecs({ service, connectorId })`            |
+
+When adding a payment spec, tag it in `config.js`. Untagged specs run for every
+connector, so forgetting to tag one costs time but never coverage.
 
 ## Test reports
 

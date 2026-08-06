@@ -305,6 +305,8 @@ Never share your secret api keys. Keep them guarded and secure.
         common_types::payments::ApplePayPredecryptData,
         common_types::payments::ApplePayCryptogramData,
         common_types::payments::StripeSplitPaymentRequest,
+        common_types::payments::PayloadSplitPaymentRequest,
+        common_types::payments::PayloadLedgerItem,
         common_types::domain::AdyenSplitData,
         common_types::domain::AdyenSplitItem,
         common_types::payments::AcceptanceType,
@@ -1179,6 +1181,7 @@ Never share your secret api keys. Keep them guarded and secure.
         common_types::payments::PaymentMethodsConfig,
         common_types::payments::TokenSource,
         common_types::payments::NetworkTransactionIdAndDecryptedWalletTokenDetails,
+        common_utils::types::Percentage<{ common_utils::consts::DISCOUNT_PERCENTAGE_PRECISION_LENGTH }>,
     )),
     modifiers(&SecurityAddon)
 )]

@@ -46,6 +46,11 @@ encryption_service = [
     "payment_methods/encryption_service",
 ]
 km_forward_x_request_id = ["common_utils/km_forward_x_request_id"]
+# Emits structured latency logs for downstream calls and propagates request IDs for correlation.
+ext_services_latency = [
+    "common_utils/ext_services_latency",
+    "hyperswitch_interfaces/ext_services_latency",
+]
 frm = [
     "api_models/frm",
     "hyperswitch_domain_models/frm",

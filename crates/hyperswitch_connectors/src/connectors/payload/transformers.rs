@@ -4,7 +4,10 @@ use api_models::{
     merchant_connector_webhook_management::ScopeIdentifier, webhooks::IncomingWebhookEvent,
 };
 use common_enums::{self as common_enums, enums};
-use common_utils::{ext_traits::ValueExt, types::StringMajorUnit};
+use common_utils::{
+    ext_traits::ValueExt,
+    types::{FloatMajorUnitForConnector, MinorUnit, StringMajorUnit},
+};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     address::AddressDetails,
@@ -44,7 +47,7 @@ use crate::{
     utils::{
         get_unimplemented_payment_method_error_message, is_manual_capture, AddressDetailsData,
         CardData, CustomerData, PaymentsAuthorizeRequestData, PaymentsSetupMandateRequestData,
-        RouterData as OtherRouterData,
+        RouterData as OtherRouterData, SplitPaymentData,
     },
 };
 
@@ -59,11 +62,21 @@ fn get_processing_account_id_from_metadata(
         .map(|s| Secret::new(s.to_string()))
 }
 
+fn get_processing_method_id_from_metadata(
+    metadata: Option<&serde_json::Value>,
+) -> Option<Secret<String>> {
+    metadata
+        .and_then(|m| m.get("processing_method_id"))
+        .and_then(|v| v.as_str())
+        .map(|s| Secret::new(s.to_string()))
+}
+
 fn get_filtered_metadata(metadata: Option<&serde_json::Value>) -> Option<serde_json::Value> {
     metadata.and_then(|m| match m {
         serde_json::Value::Object(map) => {
             let mut filtered = map.clone();
             filtered.remove("processing_account_id");
+            filtered.remove("processing_method_id");
             if filtered.is_empty() {
                 None
             } else {
@@ -72,6 +85,29 @@ fn get_filtered_metadata(metadata: Option<&serde_json::Value>) -> Option<serde_j
         }
         _ => None,
     })
+}
+
+fn get_payload_ledger_entries(
+    split: &common_types::payments::PayloadSplitPaymentRequest,
+    currency: enums::Currency,
+) -> Result<Vec<requests::PayloadSplitLedgerEntry>, Error> {
+    split
+        .ledger
+        .iter()
+        .map(|item| {
+            // Payload expects each ledger entry as a negative amount (a debit against the payment);
+            // merchants provide the positive amount routed to the receiver, so it is negated here.
+            let amount = crate::utils::convert_amount(
+                &FloatMajorUnitForConnector,
+                MinorUnit::new(-item.amount.get_amount_as_i64()),
+                currency,
+            )?;
+            Ok(requests::PayloadSplitLedgerEntry {
+                amount,
+                receiver_id: item.receiver_id.clone(),
+            })
+        })
+        .collect()
 }
 
 fn get_description_from_billing_descriptor(
@@ -102,6 +138,7 @@ fn build_payload_payment_request_data(
     metadata: Option<&serde_json::Value>,
     description: Option<String>,
     billing_descriptor: Option<&common_types::payments::BillingDescriptor>,
+    ledger: Option<Vec<requests::PayloadSplitLedgerEntry>>,
 ) -> Result<requests::PayloadPaymentRequestData, Error> {
     let payment_method: Result<requests::PayloadPaymentMethods, Error> = match payment_method_data {
         PaymentMethodData::Card(req_card) => {
@@ -198,10 +235,12 @@ fn build_payload_payment_request_data(
         status,
         processing_id: get_processing_account_id_from_metadata(metadata)
             .or(payload_auth.processing_account_id),
+        processing_method_id: get_processing_method_id_from_metadata(metadata),
         customer_id,
         description,
         descriptor: get_description_from_billing_descriptor(billing_descriptor),
         attrs: get_filtered_metadata(metadata),
+        ledger,
     })
 }
 
@@ -341,6 +380,7 @@ impl TryFrom<&SetupMandateRouterData> for requests::PayloadPaymentRequestData {
                 item.request.metadata.as_ref().map(|m| m.peek()),
                 item.description.clone(),
                 item.request.billing_descriptor.as_ref(),
+                None,
             )
         }
     }
@@ -413,6 +453,13 @@ impl TryFrom<&PayloadRouterData<&PaymentsAuthorizeRouterData>>
         let billing_descriptor = item.router_data.request.billing_descriptor.as_ref();
         let metadata = item.router_data.request.metadata.as_ref();
 
+        let split_ledger = match item.router_data.request.split_payments.as_ref() {
+            Some(common_types::payments::SplitPaymentsRequest::PayloadSplitPayment(split)) => Some(
+                get_payload_ledger_entries(split, item.router_data.request.currency)?,
+            ),
+            _ => None,
+        };
+
         match item.router_data.request.payment_method_data.clone() {
             PaymentMethodData::BankDebit(BankDebitData::AchBankDebit { .. })
             | PaymentMethodData::Card(_) => {
@@ -432,6 +479,7 @@ impl TryFrom<&PayloadRouterData<&PaymentsAuthorizeRouterData>>
                     metadata,
                     description,
                     billing_descriptor,
+                    split_ledger,
                 )?;
 
                 Ok(Self::PaymentRequest(Box::new(payment_request)))
@@ -449,6 +497,10 @@ impl TryFrom<&PayloadRouterData<&PaymentsAuthorizeRouterData>>
                     item.router_data.request.metadata.as_ref(),
                 );
 
+                let processing_method_id = get_processing_method_id_from_metadata(
+                    item.router_data.request.metadata.as_ref(),
+                );
+
                 Ok(Self::PayloadMandateRequest(Box::new(
                     requests::PayloadMandateRequestData {
                         amount: item.amount.clone(),
@@ -458,9 +510,11 @@ impl TryFrom<&PayloadRouterData<&PaymentsAuthorizeRouterData>>
                         ),
                         status,
                         processing_id,
+                        processing_method_id,
                         description,
                         descriptor: get_description_from_billing_descriptor(billing_descriptor),
                         attrs: get_filtered_metadata(metadata),
+                        ledger: split_ledger,
                     },
                 )))
             }
@@ -495,7 +549,7 @@ impl<F: 'static, T>
     TryFrom<ResponseRouterData<F, responses::PayloadPaymentsResponse, T, PaymentsResponseData>>
     for RouterData<F, T, PaymentsResponseData>
 where
-    T: 'static,
+    T: 'static + SplitPaymentData,
 {
     type Error = Error;
     fn try_from(
@@ -578,6 +632,18 @@ where
                         connector_metadata: None,
                     })
                 } else {
+                    let charges = item.data.request.get_split_payment_data().and_then(|split_payment| {
+                        match split_payment {
+                            common_types::payments::SplitPaymentsRequest::PayloadSplitPayment(
+                                split,
+                            ) => Some(
+                                common_types::payments::ConnectorChargeResponseData::PayloadSplitPayment(
+                                    split,
+                                ),
+                            ),
+                            _ => None,
+                        }
+                    });
                     Ok(PaymentsResponseData::TransactionResponse {
                         resource_id: ResponseId::ConnectorTransactionId(response.transaction_id),
                         redirection_data: Box::new(None),
@@ -588,7 +654,7 @@ where
                         connector_response_reference_id: response.ref_number,
                         incremental_authorization_allowed: None,
                         authentication_data: None,
-                        charges: None,
+                        charges,
                     })
                 };
                 Ok(Self {
