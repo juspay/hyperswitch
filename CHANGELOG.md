@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.08.06.0
+
+### Features
+
+- **connector:** [payload] add processing_method_id to payment request ([#13522](https://github.com/juspay/hyperswitch/pull/13522)) ([`127928b`](https://github.com/juspay/hyperswitch/commit/127928b1a4b0edede75cea3c7318d997061c6097))
+
+**Full Changelog:** [`2026.08.05.1...2026.08.06.0`](https://github.com/juspay/hyperswitch/compare/2026.08.05.1...2026.08.06.0)
+
+- - -
+
 ## 2026.08.05.1
 
 ### Features
