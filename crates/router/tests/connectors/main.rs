@@ -125,6 +125,7 @@ mod stax;
 mod stripe;
 mod stripebilling;
 mod taxjar;
+mod tdaypay;
 mod tesouro;
 mod tokenex;
 mod tokenio;

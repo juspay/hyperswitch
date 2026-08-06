@@ -546,6 +546,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 stripebilling::transformers::StripebillingAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            api_enums::Connector::Tdaypay => {
+                tdaypay::transformers::TdaypayAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Tesouro => {
                 tesouro::transformers::TesouroAuthType::try_from(self.auth_type)?;
                 Ok(())
