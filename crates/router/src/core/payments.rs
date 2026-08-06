@@ -3305,9 +3305,6 @@ where
 
             (payment_data, connector_http_status_code, external_latency)
         } else {
-            // Authentication requires a challenge or has failed: persist trackers via the confirm
-            // operation's own `update_trackers` (which derives status from `payment_data.authentication`
-            // — see `payment_confirm_external_vault_proxy.rs`) and skip the connector call entirely.
             let (operation, payment_data) = operation
                 .to_update_tracker()?
                 .update_trackers(
@@ -5314,8 +5311,7 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
                 ..Default::default()
             };
             let is_setup_mandate = payment_intent.is_setup_mandate();
-            // External vault enablement lives on the provider's own profile for platform-connected
-            // merchants (see `webhooks/incoming.rs`'s identical resolution).
+
             let provider_business_profile = helpers::resolve_provider_profile(
                 state,
                 &platform,
@@ -5325,8 +5321,7 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
             .inspect_err(|err| {
                 logger::error!(resolve_provider_profile_error=?err, "Failed to resolve provider profile for external-vault probe");
             })?;
-            // A plain (non-proxied) card can still arrive even with external vault enabled —
-            // probe whether this payment's payment_token actually resolves to a vault alias.
+
             let is_external_vault_payment = provider_business_profile
                 .external_vault_details
                 .is_external_vault_enabled()
@@ -5337,15 +5332,13 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
                         platform.get_processor().get_key_store(),
                     )
                     .await
+                    .inspect_err(|err| {
+                        logger::error!(read_external_vault_alias_error=?err, "payment_token did not resolve to an external-vault alias (expected for a non-proxied card; check for a genuine Redis failure otherwise)");
+                    })
                     .is_ok(),
                     None => false,
                 };
             if is_external_vault_payment {
-                // External-vault-proxy payment: resume through the same proxy confirm
-                // operation the normal confirm flow used (`PaymentExternalVaultProxyConfirm`
-                // via `external_vault_proxy_for_payments_core`), instead of `payments_core`'s
-                // `Authorize`/`SetupMandate` — mirrors the webhook auto-resume branch in
-                // `webhooks/incoming.rs`'s `external_authentication_incoming_webhook_flow`.
                 let payment_token = payment_attempt
                     .payment_token
                     .clone()
@@ -5353,9 +5346,7 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
                     .attach_printable(
                         "payment_token missing on attempt for external vault 3DS redirect completion",
                     )?;
-                // No `payment_method_data` is sent: `payment_token` alone points at the
-                // temp-generic vault alias created during pre-authentication, resolved the same
-                // way the AReq step already did.
+
                 let external_vault_req = api::PaymentsRequest {
                     payment_id: Some(req.resource_id.clone()),
                     merchant_id: req.merchant_id.clone(),
@@ -6328,11 +6319,7 @@ where
         execution_path,
         execution_mode,
     };
-    // Update feature metadata to track routing usage for stickiness. Read-only status-check
-    // flows (e.g. PSync) almost never have their own rollout config and default to Shadow
-    // (which resolves to GatewaySystem::Direct); persisting that ambient fallback here would
-    // clobber the sticky decision a concurrently in-flight Authorize/ExternalVaultProxy call
-    // relies on, silently downgrading it to the legacy Direct connector integration.
+
     if core_utils::get_flow_name::<F>().unwrap_or_default() != "PSync" {
         update_gateway_system_in_feature_metadata(
             payment_data,
@@ -12849,10 +12836,6 @@ pub async fn route_connector_v1_for_payouts(
     Ok(ConnectorCallType::Retryable(connector_data))
 }
 
-// The following three helpers have no normal-flow (non-proxy) counterpart: the external-vault-proxy
-// flow only ever holds an `ExternalVaultPaymentMethodData` alias (the real PAN lives in the
-// external vault, e.g. VGS), so these create/read/resolve that alias via the temp locker instead.
-
 #[cfg(feature = "v1")]
 pub async fn tokenize_external_vault_alias_proxy(
     state: &SessionState,
@@ -12887,8 +12870,7 @@ pub async fn tokenize_external_vault_alias_proxy(
 
 /// Proxy analogue of `tokenize_in_router_when_confirm_false_or_external_authentication`: creates
 /// the vault-alias temp-locker token up front when external 3DS was requested, before the
-/// eligibility/pre-authentication hook runs. No-ops if a token already exists or there's no
-/// vault alias to tokenize yet.
+/// eligibility/pre-authentication hook runs.
 #[cfg(feature = "v1")]
 pub async fn tokenize_in_router_when_external_authentication_proxy<F, D>(
     state: &SessionState,
@@ -12904,10 +12886,9 @@ where
         .get_payment_intent()
         .request_external_three_ds_authentication
         .unwrap_or(false);
-    let external_vault_pmd = (is_external_authentication_requested
-        && payment_data.get_token().is_none())
-    .then(|| payment_data.get_external_vault_pmd().cloned())
-    .flatten();
+    let external_vault_pmd = is_external_authentication_requested
+        .then(|| payment_data.get_external_vault_pmd().cloned())
+        .flatten();
 
     if let Some(external_vault_pmd) = external_vault_pmd {
         let payment_method = payment_data
@@ -13139,16 +13120,13 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
         .clone()
         .get_required_value("authentication_connector_details")
         .attach_printable("authentication_connector_details not configured by the merchant")?;
-    // External vault enablement lives on the provider's own profile for platform-connected
-    // merchants (see `webhooks/incoming.rs`'s identical resolution).
+
     let provider_business_profile = helpers::resolve_provider_profile(&state, &platform, &business_profile)
         .await
         .inspect_err(|err| {
             logger::error!(resolve_provider_profile_error=?err, "Failed to resolve provider profile for external-vault probe");
         })?;
-    // A plain (non-proxied) card can still arrive even with external vault enabled — probe
-    // whether this payment's payment_token actually resolves to a vault alias before committing
-    // to the proxy path.
+
     let is_external_vault_payment = if provider_business_profile
         .external_vault_details
         .is_external_vault_enabled()

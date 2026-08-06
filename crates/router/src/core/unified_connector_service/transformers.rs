@@ -1238,6 +1238,15 @@ impl
     }
 }
 
+/// `PaymentMethodAuthenticationServiceAuthenticateRequest.metadata` has no typed proto field for
+/// device_channel/sdk_information, so it's JSON-stuffed as a string — same convention used
+/// elsewhere for UCS proto gaps (e.g. `AcquirerMetadata` in `core/authentication.rs`).
+#[derive(serde::Serialize)]
+struct UcsAuthenticateMetadata {
+    device_channel: Option<api_models::payments::DeviceChannel>,
+    sdk_information: Option<api_models::payments::SdkInformation>,
+}
+
 // External-vault-proxy variant of the Authenticate request builder above: the proxy has no
 // real card in `payment_method_data` (it lives in the external vault), so the payment method
 // is built from the resolved `ExternalVaultPaymentMethodData` alias instead.
@@ -1314,14 +1323,13 @@ impl
             }),
             address: Some(address),
             authentication_data,
-            // The UCS proto has no first-class fields for device_channel/sdk_information, so
-            // they are packed into this generic metadata JSON string instead.
             metadata: Some(
-                serde_json::json!({
-                    "device_channel": router_data.request.device_channel,
-                    "sdk_information": router_data.request.sdk_information,
+                serde_json::to_string(&UcsAuthenticateMetadata {
+                    device_channel: router_data.request.device_channel.clone(),
+                    sdk_information: router_data.request.sdk_information.clone(),
                 })
-                .to_string()
+                .change_context(UnifiedConnectorServiceError::RequestEncodingFailed)
+                .attach_printable("Failed to serialize device_channel/sdk_information metadata")?
                 .into(),
             ),
             return_url: None,

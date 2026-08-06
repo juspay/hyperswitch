@@ -194,10 +194,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, PaymentsRequest>
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
-        // A re-confirm resuming after a successful external 3DS authentication arrives with
-        // `payment_confirm_source` set to `Webhook`/`ExternalAuthenticator` (see
-        // `external_authentication_incoming_webhook_flow` in `webhooks/incoming.rs`), so
-        // `RequiresCustomerAction` must be allowed in that case — mirrors `payment_confirm.rs`.
         if [
             Some(common_enums::PaymentSource::Webhook),
             Some(common_enums::PaymentSource::ExternalAuthenticator),
@@ -346,9 +342,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, PaymentsRequest>
         payment_attempt.payment_method = Some(payment_method);
         payment_attempt.payment_method_type = Some(payment_method_subtype);
 
-        // Needed by the 3DS AReq built later in `authentication::perform_authentication_proxy`
-        // (Netcetera requires `browserInformation` for browser-channel authentications) — mirrors
-        // `payment_confirm.rs`'s handling of the same field.
         payment_attempt.browser_info = request
             .browser_info
             .clone()
@@ -362,9 +355,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, PaymentsRequest>
 
         let payment_method_info = payment_method_wrapper.map(|w| w.payment_method);
 
-        // Persist onto the attempt (mirrors `payment_confirm.rs`) so it survives to the DB row —
-        // without this, the 3DS resume call below has nothing to fall back to, since the resume
-        // request never repeats `customer_acceptance` from the original confirm.
         payment_attempt.customer_acceptance = request
             .customer_acceptance
             .clone()
@@ -375,10 +365,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, PaymentsRequest>
             .map(Secret::new)
             .or(payment_attempt.customer_acceptance);
 
-        // 3DS resume calls (webhook / redirect-completion) rebuild a minimal request that
-        // doesn't repeat `customer_acceptance` from the original confirm — fall back to the
-        // value persisted on the attempt so `create_payment_method` still vaults the card
-        // instead of silently skipping PM creation on resume.
         let customer_acceptance = request.customer_acceptance.clone().or(payment_attempt
             .customer_acceptance
             .clone()
@@ -496,9 +482,6 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, PaymentsRequest>
             .connector_request_reference_id
             .clone();
 
-        // Computed once, here, from `payment_data.authentication` — mirrors
-        // `payment_confirm.rs`'s `status_handler_for_authentication_results` closure. Neither the
-        // attempt update nor the intent update below re-derive this independently.
         let (
             intent_status,
             attempt_status,
@@ -818,20 +801,7 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsRequest, PaymentData<F>>
             router_env::logger::info!("Skipping PM creation: customer_acceptance is None");
             return Ok(());
         }
-        // A repeat payment that reuses a saved card (the `VaultCardTokenData` / `payment_token`
-        // flow) already had its existing payment method resolved into `payment_method_info` during
-        // `get_trackers`. Creating again here would insert a duplicate `payment_methods` record for
-        // the same card on every off-session repeat, so reuse the existing one — just record its id
-        // on the attempt. The PM was fetched from the modular service (already `version: V2`), so the
-        // post-payment update still takes the modular acknowledgement path, not the legacy save path.
-        //
-        // An inline (non-token) card entry's 3DS resume call hits the same situation without going
-        // through that fetch: the PM was already vaulted during the original confirm and its id
-        // persisted on `payment_attempt`, but this invocation's `get_trackers` has nothing to fetch
-        // (the resume request carries no `VaultCardTokenData`), so `payment_method_info` is still
-        // `None` here. Re-fetch by the persisted id in that case instead of falling through to
-        // create a second, duplicate PM — and re-fetching also gives the post-payment
-        // acknowledgement step a `version: V2`-stamped object to see, the same as the create path.
+
         let existing_pm_id = payment_data
             .payment_method_info
             .as_ref()
@@ -984,9 +954,6 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsRequest, PaymentData<F>>
         Ok(())
     }
 
-    /// Mirrors `payment_confirm.rs`'s override of the same trait method, using the
-    /// `authentication::perform_*_proxy` functions and the identical
-    /// `should_continue_confirm_transaction` predicates the non-proxy flow uses.
     #[cfg(feature = "v1")]
     async fn call_external_three_ds_authentication_if_eligible<'a>(
         &'a self,
@@ -1032,10 +999,6 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsRequest, PaymentData<F>>
                             .is_failed()
                     {
                         *should_continue_confirm_transaction = false;
-                        // Same as `payment_confirm.rs`'s non-proxy sibling: while the SDK waits on
-                        // the challenge (or the authentication has already failed), tell it how to
-                        // poll `RetrievePollStatus` — a connector-tuned cadence instead of whatever
-                        // generic default the SDK falls back to without this.
                         let authentication_connector = authentication_store
                             .authentication
                             .authentication_connector

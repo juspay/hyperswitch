@@ -371,6 +371,13 @@ pub const UCS_AUTH_NO_KEY: &str = "no-key";
 /// Form field name for challenge request during creq submission
 pub const CREQ_CHALLENGE_REQUEST_KEY: &str = "creq";
 
+/// `RedirectForm::Form.form_fields` keys UCS's Netcetera integration uses to carry 3DS Method
+/// (DDC) data — there's no typed proto slot for it, so connector-service stuffs it into the same
+/// generic form-fields map used for the challenge (see its `netcetera/transformers.rs`, the
+/// `form_fields.insert("threeDsMethodData"/"threeDsMethodUrl", ...)` call).
+pub const UCS_DDC_METHOD_DATA_KEY: &str = "threeDsMethodData";
+pub const UCS_DDC_METHOD_URL_KEY: &str = "threeDsMethodUrl";
+
 /// Superposition configuration keys
 pub mod superposition {
     /// Offer Engine master gate key: boolean, `false` (default) disables all Offer Engine calls.
