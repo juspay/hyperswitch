@@ -469,6 +469,9 @@ pub struct ChargebeeInvoicePayments {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ChargebeeTransactionData {
+    // Chargebee's own transaction id (`txn_…`). Optional so that a payload without it keeps
+    // deserializing as before rather than being rejected outright.
+    id: Option<String>,
     id_at_gateway: Option<String>,
     status: ChargebeeTranasactionStatus,
     error_code: Option<String>,
@@ -479,17 +482,158 @@ pub struct ChargebeeTransactionData {
     #[serde(default, with = "common_utils::custom_serde::timestamp::option")]
     date: Option<PrimitiveDateTime>,
     payment_method: ChargebeeTransactionPaymentMethod,
-    payment_method_details: String,
+    // Documented by Chargebee as optional, and its contents are a gateway and payment method
+    // specific blob rather than a fixed schema, so it is kept as a raw string and parsed
+    // leniently into `ChargebeePaymentMethodDetails`.
+    payment_method_details: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+// Chargebee's `transaction.payment_method` is not card-only. This models the Chargebee payment
+// methods that have a Hyperswitch equivalent; the remainder Chargebee documents (generic,
+// electronic_payment_standard, kbc_payment_button, naver_pay, grab_pay, pay_co, payme, paypay,
+// paynow, tamara, qpay) have no `PaymentMethodType` to map onto, so they fall through to the
+// `Other` catch-all along with anything Chargebee adds later. `Other` still deserializes, and is
+// then rejected with an explicit unsupported error rather than a body decoding failure.
+#[derive(Serialize, Deserialize, Debug, Clone, Copy)]
 #[serde(rename_all = "snake_case")]
 pub enum ChargebeeTransactionPaymentMethod {
     Card,
+    #[serde(rename = "unionpay")]
+    UnionPay,
+    SouthKoreanCards,
+    PaypalExpressCheckout,
+    AmazonPayments,
+    ApplePay,
+    GooglePay,
+    #[serde(rename = "wechat_pay")]
+    WeChatPay,
+    #[serde(rename = "alipay")]
+    AliPay,
+    #[serde(rename = "alipay_hk")]
+    AliPayHk,
+    Venmo,
+    KakaoPay,
+    RevolutPay,
+    CashAppPay,
+    Twint,
+    GoPay,
+    Gcash,
+    Dana,
+    TouchNGo,
+    Swish,
+    Ideal,
+    Sofort,
+    Bancontact,
+    PayconiqByBancontact,
+    Giropay,
+    Dotpay,
+    OnlineBankingPoland,
+    Trustly,
+    Bizum,
+    NetbankingEmandates,
+    PayByBank,
+    Upi,
+    DirectDebit,
+    PayTo,
+    FasterPayments,
+    SepaInstantTransfer,
+    AutomatedBankTransfer,
+    Pix,
+    Promptpay,
+    Klarna,
+    KlarnaPayNow,
+    AfterPay,
+    Stablecoin,
+    #[serde(other)]
+    Other,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
-pub struct ChargebeePaymentMethodDetails {
+impl ChargebeeTransactionPaymentMethod {
+    /// Sub type to fall back on when the transaction carries no card details.
+    fn payment_method_sub_type(self) -> Option<enums::PaymentMethodType> {
+        match self {
+            Self::PaypalExpressCheckout => Some(enums::PaymentMethodType::Paypal),
+            Self::AmazonPayments => Some(enums::PaymentMethodType::AmazonPay),
+            Self::ApplePay => Some(enums::PaymentMethodType::ApplePay),
+            Self::GooglePay => Some(enums::PaymentMethodType::GooglePay),
+            Self::WeChatPay => Some(enums::PaymentMethodType::WeChatPay),
+            Self::AliPay => Some(enums::PaymentMethodType::AliPay),
+            Self::AliPayHk => Some(enums::PaymentMethodType::AliPayHk),
+            Self::Venmo => Some(enums::PaymentMethodType::Venmo),
+            Self::KakaoPay => Some(enums::PaymentMethodType::KakaoPay),
+            Self::RevolutPay => Some(enums::PaymentMethodType::RevolutPay),
+            Self::CashAppPay => Some(enums::PaymentMethodType::Cashapp),
+            Self::Twint => Some(enums::PaymentMethodType::Twint),
+            Self::GoPay => Some(enums::PaymentMethodType::GoPay),
+            Self::Gcash => Some(enums::PaymentMethodType::Gcash),
+            Self::Dana => Some(enums::PaymentMethodType::Dana),
+            Self::TouchNGo => Some(enums::PaymentMethodType::TouchNGo),
+            Self::Swish => Some(enums::PaymentMethodType::Swish),
+            Self::Ideal => Some(enums::PaymentMethodType::Ideal),
+            Self::Sofort => Some(enums::PaymentMethodType::Sofort),
+            // Payconiq is offered through Bancontact, which is the closest sub type available.
+            Self::Bancontact | Self::PayconiqByBancontact => {
+                Some(enums::PaymentMethodType::BancontactCard)
+            }
+            Self::Giropay => Some(enums::PaymentMethodType::Giropay),
+            Self::Dotpay | Self::OnlineBankingPoland => {
+                Some(enums::PaymentMethodType::OnlineBankingPoland)
+            }
+            Self::Trustly => Some(enums::PaymentMethodType::Trustly),
+            Self::Bizum => Some(enums::PaymentMethodType::Bizum),
+            Self::NetbankingEmandates => Some(enums::PaymentMethodType::LocalBankRedirect),
+            Self::PayByBank => Some(enums::PaymentMethodType::OpenBanking),
+            Self::Upi => Some(enums::PaymentMethodType::UpiCollect),
+            // Chargebee does not say which scheme a `direct_debit` mandate belongs to (ACH, Bacs,
+            // SEPA and BECS all report as `direct_debit`), so this takes the most common one.
+            Self::DirectDebit => Some(enums::PaymentMethodType::Sepa),
+            Self::PayTo => Some(enums::PaymentMethodType::Becs),
+            Self::FasterPayments => Some(enums::PaymentMethodType::Bacs),
+            Self::SepaInstantTransfer => Some(enums::PaymentMethodType::InstantBankTransfer),
+            Self::AutomatedBankTransfer => Some(enums::PaymentMethodType::LocalBankTransfer),
+            Self::Pix => Some(enums::PaymentMethodType::Pix),
+            Self::Promptpay => Some(enums::PaymentMethodType::PromptPay),
+            Self::Klarna | Self::KlarnaPayNow => Some(enums::PaymentMethodType::Klarna),
+            Self::AfterPay => Some(enums::PaymentMethodType::AfterpayClearpay),
+            Self::Stablecoin => Some(enums::PaymentMethodType::CryptoCurrency),
+            // These arrive with card details, so the card funding type determines the sub type.
+            Self::Card | Self::UnionPay | Self::SouthKoreanCards => None,
+            Self::Other => None,
+        }
+    }
+
+    /// Chargebee keys `payment_method_details` by the payment method, so the payload shape
+    /// follows `transaction.payment_method`. Parsing dispatches on that rather than probing the
+    /// blob for a `card` key, which keeps a malformed card payload reporting as a decoding
+    /// failure instead of being silently mistaken for a non-card transaction.
+    fn parse_payment_method_details(
+        self,
+        raw_details: &str,
+    ) -> Result<ChargebeePaymentMethodDetails, error_stack::Report<errors::ConnectorError>> {
+        match self {
+            Self::Card | Self::UnionPay | Self::SouthKoreanCards => {
+                let details: ChargebeeCardPaymentMethodDetails = serde_json::from_str(raw_details)
+                    .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+                Ok(ChargebeePaymentMethodDetails::Card(details.card))
+            }
+            // Non-card methods carry gateway specific fields that revenue recovery does not
+            // consume; their sub type comes from the payment method itself. Add a typed variant
+            // here once a real payload for the method is available.
+            _ => Ok(ChargebeePaymentMethodDetails::NonCard),
+        }
+    }
+}
+
+/// Parsed form of `transaction.payment_method_details`, selected by the transaction's
+/// `payment_method`.
+#[derive(Debug)]
+pub enum ChargebeePaymentMethodDetails {
+    Card(ChargebeeCardDetails),
+    NonCard,
+}
+
+#[derive(Deserialize, Debug)]
+struct ChargebeeCardPaymentMethodDetails {
     card: ChargebeeCardDetails,
 }
 
@@ -523,27 +667,32 @@ pub enum ChargebeeCardBrand {
     Pulse,
     Accel,
     Nyce,
+    // Chargebee also reports `other` and `not_applicable`, and neither maps onto a `CardNetwork`.
+    #[serde(other)]
+    Other,
 }
 
-impl From<ChargebeeCardBrand> for common_enums::CardNetwork {
+impl From<ChargebeeCardBrand> for Option<common_enums::CardNetwork> {
     fn from(brand: ChargebeeCardBrand) -> Self {
-        match brand {
-            ChargebeeCardBrand::Visa => Self::Visa,
-            ChargebeeCardBrand::Mastercard => Self::Mastercard,
-            ChargebeeCardBrand::AmericanExpress => Self::AmericanExpress,
-            ChargebeeCardBrand::Jcb => Self::JCB,
-            ChargebeeCardBrand::DinersClub => Self::DinersClub,
-            ChargebeeCardBrand::Discover => Self::Discover,
-            ChargebeeCardBrand::CartesBancaires => Self::CartesBancaires,
-            ChargebeeCardBrand::UnionPay => Self::UnionPay,
-            ChargebeeCardBrand::Interac => Self::Interac,
-            ChargebeeCardBrand::RuPay => Self::RuPay,
-            ChargebeeCardBrand::Maestro => Self::Maestro,
-            ChargebeeCardBrand::Star => Self::Star,
-            ChargebeeCardBrand::Pulse => Self::Pulse,
-            ChargebeeCardBrand::Accel => Self::Accel,
-            ChargebeeCardBrand::Nyce => Self::Nyce,
-        }
+        use common_enums::CardNetwork;
+        Some(match brand {
+            ChargebeeCardBrand::Visa => CardNetwork::Visa,
+            ChargebeeCardBrand::Mastercard => CardNetwork::Mastercard,
+            ChargebeeCardBrand::AmericanExpress => CardNetwork::AmericanExpress,
+            ChargebeeCardBrand::Jcb => CardNetwork::JCB,
+            ChargebeeCardBrand::DinersClub => CardNetwork::DinersClub,
+            ChargebeeCardBrand::Discover => CardNetwork::Discover,
+            ChargebeeCardBrand::CartesBancaires => CardNetwork::CartesBancaires,
+            ChargebeeCardBrand::UnionPay => CardNetwork::UnionPay,
+            ChargebeeCardBrand::Interac => CardNetwork::Interac,
+            ChargebeeCardBrand::RuPay => CardNetwork::RuPay,
+            ChargebeeCardBrand::Maestro => CardNetwork::Maestro,
+            ChargebeeCardBrand::Star => CardNetwork::Star,
+            ChargebeeCardBrand::Pulse => CardNetwork::Pulse,
+            ChargebeeCardBrand::Accel => CardNetwork::Accel,
+            ChargebeeCardBrand::Nyce => CardNetwork::Nyce,
+            ChargebeeCardBrand::Other => return None,
+        })
     }
 }
 
@@ -552,6 +701,11 @@ impl From<ChargebeeCardBrand> for common_enums::CardNetwork {
 pub enum ChargebeeFundingType {
     Credit,
     Debit,
+    Prepaid,
+    NotKnown,
+    NotApplicable,
+    #[serde(other)]
+    Other,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -594,11 +748,47 @@ pub struct ChargebeePaymentMethod {
     pub gateway: ChargebeeGateway,
 }
 
+// Chargebee gateways that also exist as Hyperswitch connectors, with the Hyperswitch
+// `common_enums::connector_enums::Connector` variant each one corresponds to. Chargebee supports
+// roughly sixty gateways in total; the rest have no Hyperswitch equivalent and fall through to
+// `Other`. Since `reference_id` is parsed by shape rather than by gateway, an unlisted gateway
+// still resolves correctly instead of failing the webhook decode.
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "snake_case")]
 pub enum ChargebeeGateway {
-    Stripe,
-    Braintree,
+    Adyen,                 // Adyen
+    Stripe,                // Stripe
+    Braintree,             // Braintree
+    AuthorizeNet,          // Authorizedotnet
+    Paypal,                // Paypal (PayPal Commerce)
+    PaypalPro,             // Paypal
+    PaypalExpressCheckout, // Paypal
+    PaypalPayflowPro,      // Paypal
+    AmazonPayments,        // Amazonpay
+    Worldpay,              // Worldpay
+    Vantiv,                // Worldpayvantiv
+    Beanstream,            // Bambora (Chargebee still names it Beanstream)
+    Elavon,                // Elavon
+    Nmi,                   // Nmi
+    Gocardless,            // Gocardless
+    Moneris,               // Moneris
+    MonerisUs,             // Moneris
+    Bluesnap,              // Bluesnap
+    Cybersource,           // Cybersource
+    CheckoutCom,           // Checkout
+    IngenicoDirect,        // Worldline (Worldline Online Payments)
+    Mollie,                // Mollie
+    Razorpay,              // Razorpay
+    GlobalPayments,        // Globalpay
+    BankOfAmerica,         // Bankofamerica
+    Ebanx,                 // Ebanx
+    Dlocal,                // Dlocal
+    Nuvei,                 // Nuvei
+    Paystack,              // Paystack
+    JpMorgan,              // Jpmorgan
+    DeutscheBank,          // Deutschebank
+    #[serde(other)]
+    Other,
 }
 
 impl ChargebeeWebhookBody {
@@ -655,25 +845,24 @@ pub struct ChargebeeMandateDetails {
 }
 
 impl ChargebeeCustomer {
-    // the logic to find connector customer id & mandate id is different for different gateways, reference : https://apidocs.chargebee.com/docs/api/customers?prod_cat_ver=2#customer_payment_method_reference_id .
+    // Reference: https://apidocs.chargebee.com/docs/api/customers?prod_cat_ver=2#customer_payment_method_reference_id
+    //
+    // The layout of `reference_id` follows the payment method rather than the gateway. Card
+    // vaults send a composite `<connector_customer_id>/<token>` (Stripe, Braintree), while
+    // PayPal and Amazon billing agreements and GoCardless mandates arrive as a single bare
+    // identifier. Parsing on that shape keeps every gateway working without having to encode
+    // a per-gateway format we cannot verify.
     pub fn find_connector_ids(&self) -> Result<ChargebeeMandateDetails, errors::ConnectorError> {
-        match self.payment_method.gateway {
-            ChargebeeGateway::Stripe | ChargebeeGateway::Braintree => {
-                let mut parts = self.payment_method.reference_id.split('/');
-                let customer_id = parts
-                    .next()
-                    .ok_or(errors::ConnectorError::WebhookBodyDecodingFailed)?
-                    .to_string();
-                let mandate_id = parts
-                    .next_back()
-                    .ok_or(errors::ConnectorError::WebhookBodyDecodingFailed)?
-                    .to_string();
-                Ok(ChargebeeMandateDetails {
-                    customer_id,
-                    mandate_id,
-                })
-            }
-        }
+        let reference_id = self.payment_method.reference_id.as_str();
+        let mut parts = reference_id.split('/');
+        let customer_id = parts.next().unwrap_or(reference_id);
+        // A bare identifier has no trailing segment; it doubles as the customer identifier so
+        // token storage still has a stable key to group retries under.
+        let mandate_id = parts.next_back().unwrap_or(customer_id);
+        Ok(ChargebeeMandateDetails {
+            customer_id: customer_id.to_string(),
+            mandate_id: mandate_id.to_string(),
+        })
     }
 }
 
@@ -687,10 +876,19 @@ impl TryFrom<ChargebeeWebhookBody> for revenue_recovery::RevenueRecoveryAttemptD
             item.content.invoice.id.get_string_repr(),
         )
         .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        // Chargebee only sets `id_at_gateway` when the gateway returned a reference of its own;
+        // external and offline transactions have none. This id is what recovery matches an
+        // incoming webhook against an already recorded attempt on
+        // (`find_attempt_in_attempts_list_using_connector_transaction_id`), so leaving it unset
+        // makes every replay record a duplicate attempt. Chargebee's own transaction id is stable
+        // per transaction, so it stands in as that key. It never leaks back to Chargebee as an
+        // `id_at_gateway`: record back only runs for internally triggered retries, which carry a
+        // real processor id.
         let connector_transaction_id = item
             .content
             .transaction
             .id_at_gateway
+            .or(item.content.transaction.id)
             .map(common_utils::types::ConnectorTransactionId::TxnId);
         let error_code = item.content.transaction.error_code.clone();
         let error_message = item.content.transaction.error_text.clone();
@@ -706,13 +904,36 @@ impl TryFrom<ChargebeeWebhookBody> for revenue_recovery::RevenueRecoveryAttemptD
         let connector_account_reference_id = item.content.transaction.gateway_account_id.clone();
         let transaction_created_at = item.content.transaction.date;
         let status = enums::AttemptStatus::from(item.content.transaction.status);
-        let payment_method_type =
-            enums::PaymentMethod::from(item.content.transaction.payment_method);
-        let payment_method_details: ChargebeePaymentMethodDetails =
-            serde_json::from_str(&item.content.transaction.payment_method_details)
-                .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
-        let payment_method_sub_type =
-            enums::PaymentMethodType::from(payment_method_details.card.funding_type);
+        let chargebee_payment_method = item.content.transaction.payment_method;
+        let payment_method_type = enums::PaymentMethod::try_from(chargebee_payment_method)?;
+        let payment_method_details = item
+            .content
+            .transaction
+            .payment_method_details
+            .as_deref()
+            .map(|raw_details| chargebee_payment_method.parse_payment_method_details(raw_details))
+            .transpose()?;
+        // Card transactions take their sub type from the card funding type; everything else
+        // falls back to the sub type implied by the Chargebee payment method itself.
+        let (payment_method_sub_type, card_info) = match payment_method_details {
+            Some(ChargebeePaymentMethodDetails::Card(card)) => (
+                enums::PaymentMethodType::from(card.funding_type),
+                api_models::payments::AdditionalCardInfo {
+                    card_network: card.brand.into(),
+                    card_isin: Some(card.iin),
+                    ..Default::default()
+                },
+            ),
+            Some(ChargebeePaymentMethodDetails::NonCard) | None => (
+                chargebee_payment_method.payment_method_sub_type().ok_or(
+                    errors::ConnectorError::NotSupported {
+                        message: "payment method in revenue recovery webhook".to_string(),
+                        connector: "chargebee",
+                    },
+                )?,
+                api_models::payments::AdditionalCardInfo::default(),
+            ),
+        };
         // Chargebee retry count will always be less than u16 always. Chargebee can have maximum 12 retry attempts
         #[allow(clippy::as_conversions)]
         let retry_count = item
@@ -752,26 +973,7 @@ impl TryFrom<ChargebeeWebhookBody> for revenue_recovery::RevenueRecoveryAttemptD
             invoice_billing_started_at_time,
             // This field is none because it is specific to stripebilling.
             charge_id: None,
-            // Need to populate these card info field
-            card_info: api_models::payments::AdditionalCardInfo {
-                card_network: Some(payment_method_details.card.brand.into()),
-                card_isin: Some(payment_method_details.card.iin),
-                card_issuer: None,
-                card_type: None,
-                card_issuing_country: None,
-                card_issuing_country_code: None,
-                bank_code: None,
-                last4: None,
-                card_extended_bin: None,
-                card_exp_month: None,
-                card_exp_year: None,
-                card_holder_name: None,
-                payment_checks: None,
-                authentication_data: None,
-                is_regulated: None,
-                signature_network: None,
-                auth_code: None,
-            },
+            card_info,
         })
     }
 }
@@ -789,10 +991,58 @@ impl From<ChargebeeTranasactionStatus> for enums::AttemptStatus {
     }
 }
 
-impl From<ChargebeeTransactionPaymentMethod> for enums::PaymentMethod {
-    fn from(payment_method: ChargebeeTransactionPaymentMethod) -> Self {
+impl TryFrom<ChargebeeTransactionPaymentMethod> for enums::PaymentMethod {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(payment_method: ChargebeeTransactionPaymentMethod) -> Result<Self, Self::Error> {
         match payment_method {
-            ChargebeeTransactionPaymentMethod::Card => Self::Card,
+            ChargebeeTransactionPaymentMethod::Card
+            | ChargebeeTransactionPaymentMethod::UnionPay
+            | ChargebeeTransactionPaymentMethod::SouthKoreanCards => Ok(Self::Card),
+            ChargebeeTransactionPaymentMethod::PaypalExpressCheckout
+            | ChargebeeTransactionPaymentMethod::AmazonPayments
+            | ChargebeeTransactionPaymentMethod::ApplePay
+            | ChargebeeTransactionPaymentMethod::GooglePay
+            | ChargebeeTransactionPaymentMethod::WeChatPay
+            | ChargebeeTransactionPaymentMethod::AliPay
+            | ChargebeeTransactionPaymentMethod::AliPayHk
+            | ChargebeeTransactionPaymentMethod::Venmo
+            | ChargebeeTransactionPaymentMethod::KakaoPay
+            | ChargebeeTransactionPaymentMethod::RevolutPay
+            | ChargebeeTransactionPaymentMethod::CashAppPay
+            | ChargebeeTransactionPaymentMethod::Twint
+            | ChargebeeTransactionPaymentMethod::GoPay
+            | ChargebeeTransactionPaymentMethod::Gcash
+            | ChargebeeTransactionPaymentMethod::Dana
+            | ChargebeeTransactionPaymentMethod::TouchNGo
+            | ChargebeeTransactionPaymentMethod::Swish => Ok(Self::Wallet),
+            ChargebeeTransactionPaymentMethod::DirectDebit
+            | ChargebeeTransactionPaymentMethod::PayTo => Ok(Self::BankDebit),
+            ChargebeeTransactionPaymentMethod::SepaInstantTransfer
+            | ChargebeeTransactionPaymentMethod::AutomatedBankTransfer
+            | ChargebeeTransactionPaymentMethod::FasterPayments
+            | ChargebeeTransactionPaymentMethod::Pix => Ok(Self::BankTransfer),
+            ChargebeeTransactionPaymentMethod::Ideal
+            | ChargebeeTransactionPaymentMethod::Sofort
+            | ChargebeeTransactionPaymentMethod::Bancontact
+            | ChargebeeTransactionPaymentMethod::PayconiqByBancontact
+            | ChargebeeTransactionPaymentMethod::Giropay
+            | ChargebeeTransactionPaymentMethod::Dotpay
+            | ChargebeeTransactionPaymentMethod::OnlineBankingPoland
+            | ChargebeeTransactionPaymentMethod::Trustly
+            | ChargebeeTransactionPaymentMethod::Bizum
+            | ChargebeeTransactionPaymentMethod::NetbankingEmandates => Ok(Self::BankRedirect),
+            ChargebeeTransactionPaymentMethod::PayByBank => Ok(Self::OpenBanking),
+            ChargebeeTransactionPaymentMethod::Upi => Ok(Self::Upi),
+            ChargebeeTransactionPaymentMethod::Promptpay => Ok(Self::RealTimePayment),
+            ChargebeeTransactionPaymentMethod::Stablecoin => Ok(Self::Crypto),
+            ChargebeeTransactionPaymentMethod::Klarna
+            | ChargebeeTransactionPaymentMethod::KlarnaPayNow
+            | ChargebeeTransactionPaymentMethod::AfterPay => Ok(Self::PayLater),
+            ChargebeeTransactionPaymentMethod::Other => Err(errors::ConnectorError::NotSupported {
+                message: "payment method in revenue recovery webhook".to_string(),
+                connector: "chargebee",
+            }
+            .into()),
         }
     }
 }
@@ -802,6 +1052,24 @@ impl From<ChargebeeFundingType> for enums::PaymentMethodType {
         match funding_type {
             ChargebeeFundingType::Credit => Self::Credit,
             ChargebeeFundingType::Debit => Self::Debit,
+            // Chargebee reports `prepaid`, `not_known` and `not_applicable` for cards it cannot
+            // classify. These are still card payments, so they fall back to the generic card sub
+            // type rather than guessing credit or debit.
+            ChargebeeFundingType::Prepaid
+            | ChargebeeFundingType::NotKnown
+            | ChargebeeFundingType::NotApplicable
+            | ChargebeeFundingType::Other => {
+                #[cfg(feature = "v2")]
+                {
+                    Self::Card
+                }
+                // V1 has no generic card subtype. Preserve the historical card fallback without
+                // rejecting the webhook; v2 can represent this accurately as `Card`.
+                #[cfg(feature = "v1")]
+                {
+                    Self::Credit
+                }
+            }
         }
     }
 }
@@ -1560,3 +1828,598 @@ convert_connector_response_to_domain_response!(
         })
     }
 );
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_deserialize_non_card_transaction_payment_method() {
+        let payment_method: ChargebeeTransactionPaymentMethod =
+            serde_json::from_str(r#""paypal_express_checkout""#).unwrap();
+        assert!(matches!(
+            payment_method,
+            ChargebeeTransactionPaymentMethod::PaypalExpressCheckout
+        ));
+        assert_eq!(
+            enums::PaymentMethod::try_from(payment_method).unwrap(),
+            enums::PaymentMethod::Wallet
+        );
+        assert_eq!(
+            payment_method.payment_method_sub_type(),
+            Some(enums::PaymentMethodType::Paypal)
+        );
+    }
+
+    #[test]
+    fn test_unknown_transaction_payment_method_falls_back_to_other() {
+        let payment_method: ChargebeeTransactionPaymentMethod =
+            serde_json::from_str(r#""some_method_chargebee_added_later""#).unwrap();
+        assert!(matches!(
+            payment_method,
+            ChargebeeTransactionPaymentMethod::Other
+        ));
+        assert!(enums::PaymentMethod::try_from(payment_method).is_err());
+    }
+
+    /// A `paypal_express_checkout` transaction must land as Wallet / Paypal with no card details,
+    /// driven through the same conversion the incoming webhook uses.
+    #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+    #[test]
+    fn test_paypal_webhook_maps_to_wallet_paypal() {
+        let body: ChargebeeWebhookBody = serde_json::from_str(
+            r#"{
+                "event_type": "payment_failed",
+                "content": {
+                    "transaction": {
+                        "id_at_gateway": "txn_gw_123",
+                        "status": "failure",
+                        "error_code": "2001",
+                        "error_text": "Insufficient funds",
+                        "gateway_account_id": "gw_acct_123",
+                        "currency_code": "USD",
+                        "amount": 1000,
+                        "date": 1735689600,
+                        "payment_method": "paypal_express_checkout",
+                        "payment_method_details": "{\"paypal_express_checkout\":{\"email\":\"buyer@example.com\"}}"
+                    },
+                    "invoice": {
+                        "id": "inv_123",
+                        "total": 1000,
+                        "currency_code": "USD",
+                        "status": "not_paid",
+                        "linked_payments": [{"txn_status": "failure"}],
+                        "customer_id": "cus_123",
+                        "subscription_id": "sub_123"
+                    },
+                    "customer": {
+                        "payment_method": {
+                            "reference_id": "B-1AB23456CD789012E",
+                            "gateway": "paypal_express_checkout"
+                        }
+                    }
+                }
+            }"#,
+        )
+        .expect("paypal webhook body should deserialize");
+
+        let attempt = revenue_recovery::RevenueRecoveryAttemptData::try_from(body)
+            .expect("paypal webhook should convert to a recovery attempt");
+
+        assert_eq!(attempt.payment_method_type, enums::PaymentMethod::Wallet);
+        assert_eq!(
+            attempt.payment_method_sub_type,
+            enums::PaymentMethodType::Paypal
+        );
+        assert_eq!(attempt.card_info.card_network, None);
+        assert_eq!(attempt.card_info.card_isin, None);
+        assert_eq!(attempt.status, enums::AttemptStatus::Failure);
+        // Bare billing agreement id doubles as the connector customer id and the mandate token.
+        assert_eq!(attempt.connector_customer_id, "B-1AB23456CD789012E");
+        assert_eq!(
+            attempt.processor_payment_method_token,
+            "B-1AB23456CD789012E"
+        );
+    }
+
+    /// External and offline transactions carry no `id_at_gateway`. Recovery dedups incoming
+    /// webhooks against recorded attempts by this id, so it must fall back to Chargebee's own
+    /// transaction id rather than being left unset.
+    #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+    #[test]
+    fn test_missing_id_at_gateway_falls_back_to_chargebee_transaction_id() {
+        let webhook = |transaction_ids: &str| {
+            format!(
+                r#"{{
+                    "event_type": "payment_failed",
+                    "content": {{
+                        "transaction": {{
+                            {transaction_ids}
+                            "status": "failure",
+                            "gateway_account_id": "gw_acct_123",
+                            "currency_code": "USD",
+                            "amount": 1000,
+                            "date": 1735689600,
+                            "payment_method": "card",
+                            "payment_method_details": "{{\"card\":{{\"iin\":\"424242\",\"brand\":\"visa\",\"funding_type\":\"credit\"}}}}"
+                        }},
+                        "invoice": {{
+                            "id": "inv_123",
+                            "total": 1000,
+                            "currency_code": "USD",
+                            "status": "not_paid",
+                            "customer_id": "cus_123",
+                            "subscription_id": "sub_123"
+                        }},
+                        "customer": {{
+                            "payment_method": {{
+                                "reference_id": "cus_gw_1/tok_1",
+                                "gateway": "stripe"
+                            }}
+                        }}
+                    }}
+                }}"#
+            )
+        };
+        let attempt_for = |transaction_ids: &str| {
+            let body: ChargebeeWebhookBody = serde_json::from_str(&webhook(transaction_ids))
+                .expect("webhook body should deserialize");
+            revenue_recovery::RevenueRecoveryAttemptData::try_from(body)
+                .expect("webhook should convert to a recovery attempt")
+        };
+
+        // No `id_at_gateway`: Chargebee's transaction id becomes the dedup key.
+        assert_eq!(
+            attempt_for(r#""id": "txn_16BdDfSlbaZ7Y2fJ","#).connector_transaction_id,
+            Some(common_utils::types::ConnectorTransactionId::TxnId(
+                "txn_16BdDfSlbaZ7Y2fJ".to_string()
+            ))
+        );
+
+        // `id_at_gateway` present: it still wins over Chargebee's own id.
+        assert_eq!(
+            attempt_for(r#""id": "txn_16BdDfSlbaZ7Y2fJ","id_at_gateway": "ch_gw_999","#)
+                .connector_transaction_id,
+            Some(common_utils::types::ConnectorTransactionId::TxnId(
+                "ch_gw_999".to_string()
+            ))
+        );
+
+        // Neither present: unchanged from the previous behaviour.
+        assert_eq!(attempt_for("").connector_transaction_id, None);
+    }
+
+    #[test]
+    fn test_paypal_gateway_reference_id_is_used_verbatim() {
+        let customer: ChargebeeCustomer = serde_json::from_str(
+            r#"{"payment_method":{"reference_id":"B-1AB23456CD789012E","gateway":"paypal_express_checkout"}}"#,
+        )
+        .unwrap();
+        let mandate_details = customer.find_connector_ids().unwrap();
+        assert_eq!(mandate_details.mandate_id, "B-1AB23456CD789012E");
+        assert_eq!(mandate_details.customer_id, "B-1AB23456CD789012E");
+    }
+
+    /// Every Chargebee payment method we model must round-trip to a concrete Hyperswitch
+    /// payment method and sub type. A bad serde rename would silently land in `Other`, so this
+    /// asserts none of them do.
+    #[test]
+    fn test_modelled_payment_methods_map_to_hyperswitch_equivalents() {
+        for raw in [
+            "card",
+            "unionpay",
+            "south_korean_cards",
+            "paypal_express_checkout",
+            "amazon_payments",
+            "apple_pay",
+            "google_pay",
+            "wechat_pay",
+            "alipay",
+            "alipay_hk",
+            "venmo",
+            "kakao_pay",
+            "revolut_pay",
+            "cash_app_pay",
+            "twint",
+            "go_pay",
+            "gcash",
+            "dana",
+            "touch_n_go",
+            "swish",
+            "ideal",
+            "sofort",
+            "bancontact",
+            "payconiq_by_bancontact",
+            "giropay",
+            "dotpay",
+            "online_banking_poland",
+            "trustly",
+            "bizum",
+            "netbanking_emandates",
+            "pay_by_bank",
+            "upi",
+            "direct_debit",
+            "pay_to",
+            "faster_payments",
+            "sepa_instant_transfer",
+            "automated_bank_transfer",
+            "pix",
+            "promptpay",
+            "klarna",
+            "klarna_pay_now",
+            "after_pay",
+            "stablecoin",
+        ] {
+            let parsed: ChargebeeTransactionPaymentMethod =
+                serde_json::from_str(&format!(r#""{raw}""#))
+                    .unwrap_or_else(|error| panic!("payment method {raw} should parse: {error}"));
+            assert!(
+                !matches!(parsed, ChargebeeTransactionPaymentMethod::Other),
+                "payment method {raw} fell through to Other - check its serde rename"
+            );
+            assert!(
+                enums::PaymentMethod::try_from(parsed).is_ok(),
+                "payment method {raw} has no Hyperswitch payment method"
+            );
+            // Card backed methods take their sub type from the card funding type instead.
+            let is_card_backed = matches!(
+                parsed,
+                ChargebeeTransactionPaymentMethod::Card
+                    | ChargebeeTransactionPaymentMethod::UnionPay
+                    | ChargebeeTransactionPaymentMethod::SouthKoreanCards
+            );
+            assert_eq!(
+                parsed.payment_method_sub_type().is_some(),
+                !is_card_backed,
+                "unexpected sub type mapping for {raw}"
+            );
+        }
+    }
+
+    /// Chargebee payment methods with no Hyperswitch equivalent must not decode into a
+    /// concrete variant, and must be rejected explicitly rather than mislabelled.
+    #[test]
+    fn test_unmappable_payment_methods_are_rejected() {
+        for raw in [
+            "generic",
+            "electronic_payment_standard",
+            "kbc_payment_button",
+            "naver_pay",
+            "grab_pay",
+            "pay_co",
+            "payme",
+            "paypay",
+            "paynow",
+            "tamara",
+            "qpay",
+        ] {
+            let parsed: ChargebeeTransactionPaymentMethod =
+                serde_json::from_str(&format!(r#""{raw}""#)).unwrap();
+            assert!(matches!(parsed, ChargebeeTransactionPaymentMethod::Other));
+            assert!(enums::PaymentMethod::try_from(parsed).is_err());
+        }
+    }
+
+    /// Guards the serde renames: a typo would silently fall into `Other` rather than fail.
+    #[test]
+    fn test_common_gateway_strings_deserialize_to_named_variants() {
+        for (raw, expected) in [
+            ("adyen", ChargebeeGateway::Adyen),
+            ("authorize_net", ChargebeeGateway::AuthorizeNet),
+            ("paypal", ChargebeeGateway::Paypal),
+            ("paypal_pro", ChargebeeGateway::PaypalPro),
+            (
+                "paypal_express_checkout",
+                ChargebeeGateway::PaypalExpressCheckout,
+            ),
+            ("paypal_payflow_pro", ChargebeeGateway::PaypalPayflowPro),
+            ("amazon_payments", ChargebeeGateway::AmazonPayments),
+            ("beanstream", ChargebeeGateway::Beanstream),
+            ("moneris_us", ChargebeeGateway::MonerisUs),
+            ("checkout_com", ChargebeeGateway::CheckoutCom),
+            ("ingenico_direct", ChargebeeGateway::IngenicoDirect),
+            ("global_payments", ChargebeeGateway::GlobalPayments),
+            ("bank_of_america", ChargebeeGateway::BankOfAmerica),
+            ("jp_morgan", ChargebeeGateway::JpMorgan),
+            ("deutsche_bank", ChargebeeGateway::DeutscheBank),
+            ("vantiv", ChargebeeGateway::Vantiv),
+        ] {
+            let parsed: ChargebeeGateway = serde_json::from_str(&format!(r#""{raw}""#))
+                .unwrap_or_else(|error| panic!("gateway {raw} should deserialize: {error}"));
+            assert_eq!(
+                std::mem::discriminant(&parsed),
+                std::mem::discriminant(&expected),
+                "gateway {raw} did not map to its named variant"
+            );
+        }
+    }
+
+    #[test]
+    fn test_composite_reference_id_splits_into_customer_and_mandate() {
+        let customer: ChargebeeCustomer = serde_json::from_str(
+            r#"{"payment_method":{"reference_id":"cus_abc123/pm_xyz789","gateway":"stripe"}}"#,
+        )
+        .unwrap();
+        let mandate_details = customer.find_connector_ids().unwrap();
+        assert_eq!(mandate_details.customer_id, "cus_abc123");
+        assert_eq!(mandate_details.mandate_id, "pm_xyz789");
+    }
+
+    #[test]
+    fn test_unknown_gateway_falls_back_to_other_and_still_parses() {
+        let customer: ChargebeeCustomer = serde_json::from_str(
+            r#"{"payment_method":{"reference_id":"cus_abc123/tok_1","gateway":"some_gateway_we_do_not_model"}}"#,
+        )
+        .unwrap();
+        assert!(matches!(
+            customer.payment_method.gateway,
+            ChargebeeGateway::Other
+        ));
+        // Parsing is driven by the reference_id shape, so an unmodelled gateway still resolves.
+        let mandate_details = customer.find_connector_ids().unwrap();
+        assert_eq!(mandate_details.customer_id, "cus_abc123");
+        assert_eq!(mandate_details.mandate_id, "tok_1");
+    }
+
+    /// Chargebee documents `payment_method_details` as optional. A PayPal transaction that omits
+    /// it entirely must still convert rather than fail the whole webhook decode.
+    #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+    #[test]
+    fn test_paypal_webhook_without_payment_method_details() {
+        let body: ChargebeeWebhookBody = serde_json::from_str(
+            r#"{
+                "event_type": "payment_failed",
+                "content": {
+                    "transaction": {
+                        "status": "failure",
+                        "gateway_account_id": "gw_acct_123",
+                        "currency_code": "USD",
+                        "amount": 1000,
+                        "payment_method": "paypal_express_checkout"
+                    },
+                    "invoice": {
+                        "id": "inv_123",
+                        "total": 1000,
+                        "currency_code": "USD",
+                        "customer_id": "cus_123",
+                        "subscription_id": "sub_123"
+                    },
+                    "customer": {
+                        "payment_method": {
+                            "reference_id": "B-1AB23456CD789012E",
+                            "gateway": "paypal_express_checkout"
+                        }
+                    }
+                }
+            }"#,
+        )
+        .expect("body without payment_method_details should deserialize");
+
+        let attempt = revenue_recovery::RevenueRecoveryAttemptData::try_from(body)
+            .expect("missing payment_method_details should not block conversion");
+        assert_eq!(attempt.payment_method_type, enums::PaymentMethod::Wallet);
+        assert_eq!(
+            attempt.payment_method_sub_type,
+            enums::PaymentMethodType::Paypal
+        );
+    }
+
+    /// Non-card methods carry gateway specific blobs that revenue recovery does not consume, so
+    /// their shape must never be treated as card details.
+    #[test]
+    fn test_non_card_payment_method_details_parse_as_non_card() {
+        for raw in [
+            r#"{"direct_debit":{"bank_name":"Test Bank","mandate_id":"MD123"}}"#,
+            r#"{"amazon_payments":{"email":"buyer@example.com"}}"#,
+            r#"{}"#,
+        ] {
+            let details = ChargebeeTransactionPaymentMethod::DirectDebit
+                .parse_payment_method_details(raw)
+                .unwrap_or_else(|error| panic!("{raw} should parse: {error:?}"));
+            assert!(matches!(details, ChargebeePaymentMethodDetails::NonCard));
+        }
+    }
+
+    #[test]
+    fn test_card_payment_method_details_parse_into_card() {
+        let details = ChargebeeTransactionPaymentMethod::Card
+            .parse_payment_method_details(
+                r#"{"card":{"funding_type":"credit","brand":"visa","iin":"424242"}}"#,
+            )
+            .unwrap();
+        let ChargebeePaymentMethodDetails::Card(card) = details else {
+            panic!("card payment method should parse into card details");
+        };
+        assert!(matches!(card.funding_type, ChargebeeFundingType::Credit));
+        assert!(matches!(card.brand, ChargebeeCardBrand::Visa));
+        assert_eq!(card.iin, "424242");
+    }
+
+    /// Real `payment_method_details` captured from a Chargebee card transaction. Chargebee sends
+    /// funding types it cannot classify, and the full card object carries far more fields than
+    /// revenue recovery reads.
+    #[cfg(feature = "v2")]
+    #[test]
+    fn test_real_card_payment_method_details() {
+        let details = ChargebeeTransactionPaymentMethod::Card
+            .parse_payment_method_details(
+                r#"{"card":{"first_name":"fqgq","last_name":"NISHANTH","iin":"411111","last4":"1111","funding_type":"not_applicable","expiry_month":12,"expiry_year":2029,"billing_addr1":"fsef","billing_addr2":"wefwefwef","billing_city":"gfetv","billing_state":"AS","masked_number":"************1111","object":"card","brand":"visa"}}"#,
+            )
+            .expect("real card payment_method_details should parse");
+        let ChargebeePaymentMethodDetails::Card(card) = details else {
+            panic!("card payment method should parse into card details");
+        };
+        assert!(matches!(
+            card.funding_type,
+            ChargebeeFundingType::NotApplicable
+        ));
+        assert_eq!(card.iin, "411111");
+        // An unclassifiable funding type still resolves to a card sub type.
+        assert_eq!(
+            enums::PaymentMethodType::from(card.funding_type),
+            enums::PaymentMethodType::Card
+        );
+    }
+
+    /// Funding types Chargebee cannot classify must resolve to the generic card sub type rather
+    /// than failing to deserialize or being guessed as credit/debit.
+    #[cfg(feature = "v2")]
+    #[test]
+    fn test_unclassified_funding_types_map_to_card() {
+        for raw in ["prepaid", "not_known", "not_applicable", "something_new"] {
+            let funding_type: ChargebeeFundingType = serde_json::from_str(&format!(r#""{raw}""#))
+                .unwrap_or_else(|error| panic!("funding type {raw} should parse: {error}"));
+            assert_eq!(
+                enums::PaymentMethodType::from(funding_type),
+                enums::PaymentMethodType::Card,
+                "funding type {raw} should fall back to the card sub type"
+            );
+        }
+    }
+
+    /// Card brands outside the networks Hyperswitch models must not fail the webhook; they just
+    /// leave the network unset.
+    #[test]
+    fn test_unmodelled_card_brand_yields_no_network() {
+        for raw in ["other", "not_applicable", "some_new_network"] {
+            let brand: ChargebeeCardBrand = serde_json::from_str(&format!(r#""{raw}""#)).unwrap();
+            assert!(matches!(brand, ChargebeeCardBrand::Other));
+            let network: Option<common_enums::CardNetwork> = brand.into();
+            assert!(network.is_none());
+        }
+        let visa: ChargebeeCardBrand = serde_json::from_str(r#""visa""#).unwrap();
+        let network: Option<common_enums::CardNetwork> = visa.into();
+        assert_eq!(network, Some(common_enums::CardNetwork::Visa));
+    }
+
+    /// Dispatching on the payment method means a card transaction whose blob is missing the
+    /// `card` object reports a decoding failure rather than being mistaken for a non-card one.
+    #[test]
+    fn test_card_payment_method_with_malformed_details_is_a_decode_error() {
+        assert!(ChargebeeTransactionPaymentMethod::Card
+            .parse_payment_method_details(r#"{"paypal_express_checkout":{"email":"a@b.com"}}"#)
+            .is_err());
+    }
+
+    /// Real `payment_succeeded` webhook captured from Chargebee for a PayPal subscription.
+    /// Note it carries no `payment_method_details` key at all, and its gateway is `paypal`.
+    #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+    #[test]
+    fn test_real_paypal_webhook_payload() {
+        let body: ChargebeeWebhookBody = serde_json::from_str(
+            r#"{
+              "event_type": "payment_succeeded",
+              "content": {
+                "transaction": {
+                  "id": "txn_16A2kWVQn6Qfn8Sa",
+                  "customer_id": "16A2kWVQn6QbQ8SW",
+                  "subscription_id": "AzqUBWVQn68Iw1fbU",
+                  "gateway_account_id": "gw_AzqDQXVQmH1gfGAg",
+                  "payment_source_id": "pm_16A2kWVQn6RW28Sd",
+                  "payment_method": "paypal_express_checkout",
+                  "gateway": "paypal",
+                  "type": "payment",
+                  "date": 1785352329,
+                  "exchange_rate": 1,
+                  "amount": 12300,
+                  "id_at_gateway": "94G36611VB1615709",
+                  "status": "success",
+                  "updated_at": 1785352332,
+                  "resource_version": 1785352332906,
+                  "deleted": false,
+                  "object": "transaction",
+                  "currency_code": "USD",
+                  "base_currency_code": "USD",
+                  "amount_unused": 0,
+                  "linked_invoices": [
+                    {"invoice_id": "48", "applied_amount": 12300, "invoice_status": "paid"}
+                  ],
+                  "linked_refunds": [],
+                  "initiator_type": "customer",
+                  "three_d_secure": false
+                },
+                "invoice": {
+                  "id": "48",
+                  "customer_id": "16A2kWVQn6QbQ8SW",
+                  "subscription_id": "AzqUBWVQn68Iw1fbU",
+                  "recurring": true,
+                  "status": "paid",
+                  "date": 1785352329,
+                  "total": 12300,
+                  "amount_due": 0,
+                  "amount_paid": 12300,
+                  "object": "invoice",
+                  "first_invoice": true,
+                  "currency_code": "USD",
+                  "base_currency_code": "USD",
+                  "channel": "web",
+                  "tax": 0,
+                  "sub_total": 12300,
+                  "linked_payments": [
+                    {"txn_id": "txn_16A2kWVQn6Qfn8Sa", "txn_status": "success", "txn_amount": 12300}
+                  ],
+                  "billing_address": {
+                    "first_name": "ewfqrf",
+                    "line1": "rgqergerg",
+                    "city": "rbaba",
+                    "state": "Alaska",
+                    "country": "US",
+                    "zip": "BABARGVA",
+                    "object": "billing_address"
+                  }
+                },
+                "customer": {
+                  "id": "16A2kWVQn6QbQ8SW",
+                  "email": "cnb03433@gmail.com",
+                  "auto_collection": "on",
+                  "object": "customer",
+                  "primary_payment_source_id": "pm_16A2kWVQn6RW28Sd",
+                  "payment_method": {
+                    "object": "payment_method",
+                    "type": "paypal_express_checkout",
+                    "reference_id": "B-9LX22177UT804715X",
+                    "gateway": "paypal",
+                    "gateway_account_id": "gw_AzqDQXVQmH1gfGAg",
+                    "status": "valid"
+                  }
+                },
+                "subscription": {
+                  "id": "AzqUBWVQn68Iw1fbU",
+                  "customer_id": "16A2kWVQn6QbQ8SW",
+                  "status": "active",
+                  "current_term_start": 1785352329,
+                  "current_term_end": 1788030729,
+                  "next_billing_at": 1788030729,
+                  "object": "subscription",
+                  "currency_code": "USD"
+                }
+              }
+            }"#,
+        )
+        .expect("real paypal webhook body should deserialize");
+
+        let attempt = revenue_recovery::RevenueRecoveryAttemptData::try_from(body)
+            .expect("real paypal webhook should convert to a recovery attempt");
+
+        assert_eq!(attempt.payment_method_type, enums::PaymentMethod::Wallet);
+        assert_eq!(
+            attempt.payment_method_sub_type,
+            enums::PaymentMethodType::Paypal
+        );
+        assert_eq!(attempt.status, enums::AttemptStatus::Charged);
+        assert_eq!(attempt.amount, MinorUnit::new(12300));
+        assert_eq!(attempt.currency, enums::Currency::USD);
+        // Bare billing agreement id, so it serves as both ids.
+        assert_eq!(attempt.connector_customer_id, "B-9LX22177UT804715X");
+        assert_eq!(
+            attempt.processor_payment_method_token,
+            "B-9LX22177UT804715X"
+        );
+        assert_eq!(
+            attempt.connector_account_reference_id,
+            "gw_AzqDQXVQmH1gfGAg"
+        );
+        assert_eq!(attempt.retry_count, Some(1));
+        assert_eq!(attempt.card_info, Default::default());
+    }
+}
