@@ -2192,6 +2192,9 @@ impl From<PayoutStatus> for Option<EventType> {
             PayoutStatus::Initiated => Some(EventType::PayoutInitiated),
             PayoutStatus::Expired => Some(EventType::PayoutExpired),
             PayoutStatus::Reversed => Some(EventType::PayoutReversed),
+            // Terminal refusal (e.g. VoP no-match) Contrast with `Ineligible` below,
+            // which is non-terminal and intentionally emits no webhook.
+            PayoutStatus::NotPermitted => Some(EventType::PayoutNotPermitted),
             PayoutStatus::Ineligible
             | PayoutStatus::Pending
             | PayoutStatus::RequiresCreation

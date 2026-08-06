@@ -447,6 +447,7 @@ pub async fn payouts_confirm_core(
             storage_enums::PayoutStatus::Failed,
             storage_enums::PayoutStatus::Pending,
             storage_enums::PayoutStatus::Ineligible,
+            storage_enums::PayoutStatus::NotPermitted,
             storage_enums::PayoutStatus::RequiresFulfillment,
             storage_enums::PayoutStatus::RequiresVendorAccountCreation,
         ],
