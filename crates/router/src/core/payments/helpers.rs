@@ -525,7 +525,7 @@ pub async fn get_token_pm_type_mandate_details(
                             (
                                 None,
                                 request.payment_method,
-                                None,
+                                request.payment_method_type,
                                 None,
                                 None,
                                 Some(payments::MandateConnectorDetails {
@@ -535,7 +535,15 @@ pub async fn get_token_pm_type_mandate_details(
                                 None,
                             )
                         } else {
-                            (None, request.payment_method, None, None, None, None, None)
+                            (
+                                None,
+                                request.payment_method,
+                                request.payment_method_type,
+                                None,
+                                None,
+                                None,
+                                None,
+                            )
                         }
                     }
                     RecurringDetails::MandateId(mandate_id) => {
@@ -1783,21 +1791,28 @@ pub fn get_customer_details_from_request_or_pm_table(
                 .and_then(|customer_details| customer_details.document_details.clone())
         }
         Some(api::MandateTransactionType::RecurringMandateTransaction) => {
-            // Extracting customer details from Payment Methods Table in case of MIT
-            payment_method
-                .and_then(|data| data.customer_details.clone())
+            // Prefer request document details; fall back to Payment Methods Table in case of MIT
+            match request
+                .customer
                 .as_ref()
-                .map(|encryptable| {
-                    encryptable
-                        .clone()
-                        .into_inner()
-                        .parse_value::<CustomerDocumentDetails>("CustomerDocumentDetails")
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable(
-                            "Failed to parse CustomerDocumentDetails from Payment Method",
-                        )
-                })
-                .transpose()?
+                .and_then(|customer_details| customer_details.document_details.clone())
+            {
+                Some(document_details) => Some(document_details),
+                None => payment_method
+                    .and_then(|data| data.customer_details.clone())
+                    .as_ref()
+                    .map(|encryptable| {
+                        encryptable
+                            .clone()
+                            .into_inner()
+                            .parse_value::<CustomerDocumentDetails>("CustomerDocumentDetails")
+                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable(
+                                "Failed to parse CustomerDocumentDetails from Payment Method",
+                            )
+                    })
+                    .transpose()?,
+            }
         }
     };
 
