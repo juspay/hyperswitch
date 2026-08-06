@@ -949,9 +949,13 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             update_request_fields: None,
         };
 
-        let payment_data =
-            apply_offer_engine_offer(state, request, platform.get_processor(), payment_data)
-                .await?;
+        let payment_data = Box::pin(apply_offer_engine_offer(
+            state,
+            request,
+            platform.get_processor(),
+            payment_data,
+        ))
+        .await?;
 
         let get_trackers_response = operations::GetTrackerResponse {
             operation: Box::new(self),
@@ -3128,7 +3132,7 @@ async fn apply_offer_engine_offer<F: Clone + Send + Sync>(
             message: "A different offer is already applied to this payment attempt".to_string(),
         })),
         (None, Some(requested)) => {
-            apply_selected_offer(state, processor, requested, payment_data).await
+            Box::pin(apply_selected_offer(state, processor, requested, payment_data)).await
         }
     }
 }
@@ -3219,7 +3223,7 @@ async fn apply_selected_offer<F: Clone + Send + Sync>(
         card_country: offer_card.and_then(|card| card.card_issuing_country.clone()),
     };
 
-    let applied = offer_engine::apply::run_offer_apply(
+    let applied = Box::pin(offer_engine::apply::run_offer_apply(
         state,
         offer_config,
         &offer_engine::apply::OfferQuoteRef {
@@ -3228,7 +3232,7 @@ async fn apply_selected_offer<F: Clone + Send + Sync>(
             currency: quote.currency,
         },
         ctx,
-    )
+    ))
     .await
     .change_context(errors::ApiErrorResponse::PreconditionFailed {
         message: "Offer Engine /apply failed or did not match the eligibility quote".to_string(),
@@ -3255,20 +3259,18 @@ async fn apply_selected_offer<F: Clone + Send + Sync>(
     // Persist only the applied-offer details (like surcharge); `net_amount` is
     // recomputed on read from the base amount and `applied_offer_details`.
     let storage_scheme = processor.get_account().storage_scheme;
-    state
-        .store
-        .update_payment_attempt_with_attempt_id(
-            payment_data.payment_attempt.clone(),
-            storage::PaymentAttemptUpdate::AppliedOfferUpdate {
-                applied_offer_details,
-                updated_by: storage_scheme.to_string(),
-            },
-            storage_scheme,
-            processor.get_key_store(),
-        )
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
-        .attach_printable("Error while persisting applied offer on payment attempt")?;
+    Box::pin(state.store.update_payment_attempt_with_attempt_id(
+        payment_data.payment_attempt.clone(),
+        storage::PaymentAttemptUpdate::AppliedOfferUpdate {
+            applied_offer_details,
+            updated_by: storage_scheme.to_string(),
+        },
+        storage_scheme,
+        processor.get_key_store(),
+    ))
+    .await
+    .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
+    .attach_printable("Error while persisting applied offer on payment attempt")?;
 
     Ok(payment_data)
 }
