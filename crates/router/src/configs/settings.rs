@@ -421,6 +421,12 @@ pub struct OpenRouter {
     /// Browser-facing Decision Engine dashboard base URL, used for the merchant SSO redirect.
     #[serde(default)]
     pub dashboard_url: String,
+    /// Shared secret sent as the `x-admin-secret` header on Decision Engine requests. The DE
+    /// verifies it on admin endpoints (merchant provisioning, SSO code mint) and accepts it as
+    /// service-to-service auth on its protected routes. Decrypted via secrets management when
+    /// enabled; empty disables the header.
+    #[serde(default)]
+    pub admin_secret: Secret<String>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
