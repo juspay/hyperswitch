@@ -850,8 +850,6 @@ impl
                 .map(payments_grpc::PaymentMethodType::foreign_try_from)
                 .transpose()?
                 .map(|payment_method_type| payment_method_type.into()),
-            // New in UCS 2026.08.04.0. Required by connectors that need line items
-            // on order creation (e.g. Airwallex PayLater / Klarna).
             order_details: build_ucs_order_details(router_data.request.order_details.as_deref()),
         })
     }
@@ -7418,9 +7416,6 @@ impl
             merchant_payout_id: router_data.payout_id.clone(),
             connector_payout_id: router_data.request.connector_payout_id.clone(),
             access_token: router_data.access_token.clone().map(|at| at.token),
-            // New in UCS 2026.08.04.0. Left unset so this bump does not change what
-            // is sent on the wire; connectors that need the debtor account on a
-            // status enquiry populate it in their own change.
             source_bank_data: None,
         })
     }
@@ -7773,9 +7768,6 @@ impl transformers::ForeignTryFrom<&api_models::payouts::SepaBankTransfer>
             bank_city: item.bank_city.clone(),
             iban: Some(item.iban.clone()),
             bic: item.bic.clone(),
-            // New in UCS 2026.08.04.0. Left unset so this bump does not change what
-            // is sent on the wire; connectors needing the ISO 20022 debtor name
-            // populate it in their own change.
             account_holder_name: None,
         })
     }
