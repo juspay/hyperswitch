@@ -22,20 +22,21 @@ use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
-        AccessTokenAuth, Authorize, Capture, CreateConnectorCustomer, Evidence, Execute,
+        Accept, AccessTokenAuth, Authorize, Capture, CreateConnectorCustomer, Evidence, Execute,
         IncrementalAuthorization, PSync, PaymentMethodToken, RSync, Retrieve, Session,
         SetupMandate, UpdateMetadata, Upload, Void,
     },
     router_request_types::{
-        AccessTokenRequestData, ConnectorCustomerData, PaymentMethodTokenizationData,
-        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData,
-        PaymentsIncrementalAuthorizationData, PaymentsSessionData, PaymentsSyncData,
-        PaymentsUpdateMetadataData, RefundsData, RetrieveFileRequestData, SetupMandateRequestData,
-        SplitRefundsRequest, SubmitEvidenceRequestData, UploadFileRequestData,
+        AcceptDisputeRequestData, AccessTokenRequestData, ConnectorCustomerData,
+        PaymentMethodTokenizationData, PaymentsAuthorizeData, PaymentsCancelData,
+        PaymentsCaptureData, PaymentsIncrementalAuthorizationData, PaymentsSessionData,
+        PaymentsSyncData, PaymentsUpdateMetadataData, RefundsData, RetrieveFileRequestData,
+        SetupMandateRequestData, SplitRefundsRequest, SubmitEvidenceRequestData,
+        UploadFileRequestData,
     },
     router_response_types::{
-        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
-        RetrieveFileResponse, SubmitEvidenceResponse, SupportedPaymentMethods,
+        AcceptDisputeResponse, ConnectorInfo, PaymentMethodDetails, PaymentsResponseData,
+        RefundsResponseData, RetrieveFileResponse, SubmitEvidenceResponse, SupportedPaymentMethods,
         SupportedPaymentMethodsExt, UploadFileResponse,
     },
     types::{
@@ -58,7 +59,7 @@ use hyperswitch_interfaces::types::{
 use hyperswitch_interfaces::{
     api::{
         self,
-        disputes::SubmitEvidence,
+        disputes::{AcceptDispute, Dispute, SubmitEvidence},
         files::{FilePurpose, FileUpload, RetrieveFile, UploadFile},
         ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorRedirectResponse,
         ConnectorSpecifications, ConnectorValidation, PaymentIncrementalAuthorization,
@@ -69,10 +70,10 @@ use hyperswitch_interfaces::{
     errors::ConnectorError,
     events::connector_api_logs::ConnectorEvent,
     types::{
-        ConnectorCustomerType, IncrementalAuthorizationType, PaymentsAuthorizeType,
-        PaymentsCaptureType, PaymentsSyncType, PaymentsUpdateMetadataType, PaymentsVoidType,
-        RefundExecuteType, RefundSyncType, Response, RetrieveFileType, SubmitEvidenceType,
-        TokenizationType, UploadFileType,
+        AcceptDisputeType, ConnectorCustomerType, IncrementalAuthorizationType,
+        PaymentsAuthorizeType, PaymentsCaptureType, PaymentsSyncType, PaymentsUpdateMetadataType,
+        PaymentsVoidType, RefundExecuteType, RefundSyncType, Response, RetrieveFileType,
+        SubmitEvidenceType, TokenizationType, UploadFileType,
     },
     webhooks::{IncomingWebhook, IncomingWebhookRequestDetails, WebhookContext},
 };
@@ -87,7 +88,8 @@ use crate::{
     connectors::stripe::transformers::get_stripe_compatible_connect_account_header,
     constants::headers::{AUTHORIZATION, CONTENT_TYPE, STRIPE_COMPATIBLE_CONNECT_ACCOUNT},
     types::{
-        ResponseRouterData, RetrieveFileRouterData, SubmitEvidenceRouterData, UploadFileRouterData,
+        AcceptDisputeRouterData, ResponseRouterData, RetrieveFileRouterData,
+        SubmitEvidenceRouterData, UploadFileRouterData,
     },
     utils::{
         self, get_authorise_integrity_object, get_capture_integrity_object,
@@ -2474,6 +2476,86 @@ impl ConnectorIntegration<Retrieve, RetrieveFileRequestData, RetrieveFileRespons
     }
 }
 
+impl Dispute for Stripe {}
+impl AcceptDispute for Stripe {}
+
+impl ConnectorIntegration<Accept, AcceptDisputeRequestData, AcceptDisputeResponse> for Stripe {
+    fn get_headers(
+        &self,
+        req: &AcceptDisputeRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, ConnectorError> {
+        let mut headers = vec![(
+            CONTENT_TYPE.to_string(),
+            AcceptDisputeType::get_content_type(self).to_string().into(),
+        )];
+        headers.append(&mut self.get_auth_header(&req.connector_auth_type)?);
+        Ok(headers)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        "application/x-www-form-urlencoded"
+    }
+
+    fn get_url(
+        &self,
+        req: &AcceptDisputeRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, ConnectorError> {
+        Ok(format!(
+            "{}v1/disputes/{}/close",
+            self.base_url(connectors),
+            req.request.connector_dispute_id
+        ))
+    }
+
+    fn build_request(
+        &self,
+        req: &AcceptDisputeRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, ConnectorError> {
+        Ok(Some(
+            RequestBuilder::new()
+                .method(Method::Post)
+                .url(&AcceptDisputeType::get_url(self, req, connectors)?)
+                .attach_default_headers()
+                .headers(AcceptDisputeType::get_headers(self, req, connectors)?)
+                .build(),
+        ))
+    }
+
+    #[instrument(skip_all)]
+    fn handle_response(
+        &self,
+        data: &AcceptDisputeRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<AcceptDisputeRouterData, ConnectorError> {
+        let response: stripe::DisputeObj = res
+            .response
+            .parse_struct("Stripe DisputeObj")
+            .change_context(ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|event| event.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
+        Ok(AcceptDisputeRouterData {
+            response: Ok(AcceptDisputeResponse {
+                dispute_status: api_models::enums::DisputeStatus::DisputeAccepted,
+                connector_status: Some(response.status),
+            }),
+            ..data.clone()
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, ConnectorError> {
+        SubmitEvidenceType::get_error_response(self, res, event_builder)
+    }
+}
+
 impl SubmitEvidence for Stripe {}
 
 impl ConnectorIntegration<Evidence, SubmitEvidenceRequestData, SubmitEvidenceResponse> for Stripe {
@@ -2873,7 +2955,7 @@ impl IncomingWebhook for Stripe {
                 .unwrap_or(IncomingWebhookEvent::EventNotSupported),
             stripe::WebhookEventType::DisputeClosed => status
                 .map(Into::into)
-                .unwrap_or(IncomingWebhookEvent::DisputeCancelled),
+                .unwrap_or(IncomingWebhookEvent::DisputeAccepted),
             stripe::WebhookEventType::ChargeDisputeFundsWithdrawn => status
                 .map(Into::into)
                 .unwrap_or(IncomingWebhookEvent::DisputeLost),
