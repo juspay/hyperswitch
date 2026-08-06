@@ -18,7 +18,16 @@ use crate::schema_v2::business_profile;
 /// If two adjacent columns have the same type, then the compiler will not throw any error, but the
 /// fields read / written will be interchanged
 #[cfg(feature = "v1")]
-#[derive(Clone, Debug, Identifiable, Queryable, Selectable, router_derive::DebugAsDisplay)]
+#[derive(
+    Clone,
+    Debug,
+    Identifiable,
+    Queryable,
+    Selectable,
+    router_derive::DebugAsDisplay,
+    serde::Serialize,
+    serde::Deserialize,
+)]
 #[diesel(table_name = business_profile, primary_key(profile_id), check_for_backend(diesel::pg::Pg))]
 pub struct Profile {
     pub profile_id: common_utils::id_type::ProfileId,
@@ -235,7 +244,16 @@ pub struct ProfileUpdateInternal {
 /// If two adjacent columns have the same type, then the compiler will not throw any error, but the
 /// fields read / written will be interchanged
 #[cfg(feature = "v2")]
-#[derive(Clone, Debug, Identifiable, Queryable, Selectable, router_derive::DebugAsDisplay)]
+#[derive(
+    Clone,
+    Debug,
+    Identifiable,
+    Queryable,
+    Selectable,
+    router_derive::DebugAsDisplay,
+    serde::Serialize,
+    serde::Deserialize,
+)]
 #[diesel(table_name = business_profile, primary_key(id), check_for_backend(diesel::pg::Pg))]
 pub struct Profile {
     pub merchant_id: common_utils::id_type::MerchantId,
@@ -695,32 +713,56 @@ pub struct CardBlockingConfig {
     /// Whether to block if BIN is provided but no matching record found in cards_info table.
     /// Defaults to false (allow payment if BIN not found in database).
     pub block_if_bin_info_unavailable: Option<bool>,
+    /// Set of card networks to block
+    pub card_networks: Option<HashSet<common_enums::CardNetwork>>,
+    /// Set of card funding sources to block
+    pub funding_sources: Option<HashSet<common_enums::FundingSource>>,
+    /// Set of card segment types to block
+    pub card_segment_types: Option<HashSet<common_enums::CardSegmentType>>,
+    /// Whether virtual cards should be blocked
+    pub block_virtual_cards: Option<bool>,
+    /// Whether non-reloadable prepaid cards should be blocked
+    pub block_non_reloadable_prepaid_cards: Option<bool>,
+    /// Whether cards from BINs marked for gambling should be blocked
+    pub gambling_blocked: Option<bool>,
 }
 
 /// Wallet-specific blocking configuration for Apple Pay and Google Pay
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct WalletBlockingConfig {
-    /// Set of card types to block (e.g., ["Credit", "Debit"])
+    /// Set of card types to block for all wallet payments (e.g., ["Credit", "Debit"]).
+    /// Retained for backwards compatibility with existing configurations.
     pub card_types: Option<HashSet<common_enums::CardType>>,
+    /// Apple Pay-specific blocking configuration
+    pub apple_pay: Option<CardBlockingConfig>,
+    /// Google Pay-specific blocking configuration
+    pub google_pay: Option<CardBlockingConfig>,
 }
 
 impl WalletBlockingConfig {
-    pub fn is_credit_blocked(&self) -> bool {
-        self.card_types
+    /// Per-wallet config only.
+    pub fn is_credit_blocked_for_apple_pay(&self) -> bool {
+        self.apple_pay
             .as_ref()
-            .is_some_and(|types| types.contains(&common_enums::CardType::Credit))
+            .is_some_and(CardBlockingConfig::is_credit_blocked)
     }
 
-    pub fn is_debit_blocked(&self) -> bool {
-        self.card_types
+    pub fn is_credit_blocked_for_google_pay(&self) -> bool {
+        self.google_pay
             .as_ref()
-            .is_some_and(|types| types.contains(&common_enums::CardType::Debit))
+            .is_some_and(CardBlockingConfig::is_credit_blocked)
     }
 }
 
 impl CardBlockingConfig {
     pub fn should_block_if_bin_info_unavailable(&self) -> bool {
         self.block_if_bin_info_unavailable.unwrap_or(false)
+    }
+
+    pub fn is_credit_blocked(&self) -> bool {
+        self.card_types
+            .as_ref()
+            .is_some_and(|card_types| card_types.contains(&common_enums::CardType::Credit))
     }
 
     pub fn should_block_by_attribute<T>(blocked: &Option<HashSet<T>>, value: Option<&str>) -> bool
