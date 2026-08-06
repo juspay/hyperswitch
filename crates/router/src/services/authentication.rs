@@ -245,6 +245,29 @@ impl AuthenticationType {
             | Self::NoAuth => None,
         }
     }
+
+    pub fn get_user_id(&self) -> Option<String> {
+        match self {
+            Self::OrganizationJwt { user_id, .. }
+            | Self::MerchantJwtWithProfileId { user_id, .. }
+            | Self::UserJwt { user_id, .. }
+            | Self::SinglePurposeJwt { user_id, .. }
+            | Self::SinglePurposeOrLoginJwt { user_id, .. } => Some(user_id.clone()),
+            Self::MerchantJwt { user_id, .. } => user_id.clone(),
+            Self::ApiKey { .. }
+            | Self::AdminApiKey
+            | Self::AdminApiAuthWithMerchantId { .. }
+            | Self::BasicAuth { .. }
+            | Self::MerchantId { .. }
+            | Self::PublishableKey { .. }
+            | Self::SdkAuthorization { .. }
+            | Self::WebhookAuth { .. }
+            | Self::InternalMerchantIdProfileId { .. }
+            | Self::EmbeddedJwt { .. }
+            | Self::InternalApiKey
+            | Self::NoAuth => None,
+        }
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, serde::Deserialize, strum::Display)]
