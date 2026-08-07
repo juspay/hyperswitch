@@ -7814,7 +7814,7 @@ impl transformers::ForeignTryFrom<&api_models::payouts::PixBankTransfer>
             bank_account_type: item
                 .bank_account_type
                 .as_ref()
-                .map(|bank_type| payments_grpc::BankType::foreign_from(bank_type) as i32),
+                .map(|bank_type| i32::from(payments_grpc::BankType::foreign_from(bank_type))),
             account_holder_name: item.account_holder_name.clone(),
         })
     }
@@ -7839,7 +7839,7 @@ impl transformers::ForeignTryFrom<&api_models::payouts::PixAccountBankTransfer>
             bank_account_type: item
                 .bank_account_type
                 .as_ref()
-                .map(|bank_type| payments_grpc::BankType::foreign_from(bank_type) as i32),
+                .map(|bank_type| i32::from(payments_grpc::BankType::foreign_from(bank_type))),
             account_holder_name: item.account_holder_name.clone(),
         })
     }
