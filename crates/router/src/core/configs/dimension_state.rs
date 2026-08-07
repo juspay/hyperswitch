@@ -728,9 +728,11 @@ pub type DimensionsGlobal = Dimensions<
     NoProcessorMerchantId,
     NoOrgId,
     NoProfileId,
+    NoTransactionType,
     NoConnector,
     NoPayoutRetryType,
     NoWebhookEvent,
+    NoPaymentMethodType,
 >;
 
 pub type DimensionsWithProviderMerchantId = Dimensions<
@@ -751,9 +753,11 @@ pub type DimensionsWithProviderMerchantIdAndOrgId = Dimensions<
     NoProcessorMerchantId,
     HasOrgId,
     NoProfileId,
+    NoTransactionType,
     NoConnector,
     NoPayoutRetryType,
     NoWebhookEvent,
+    NoPaymentMethodType,
 >;
 
 // Type alias - only processor merchant ID present
