@@ -47,7 +47,6 @@ pub async fn check_eligibility_and_fetch_payment_method(
         .map_err(|_| report!(AccountUpdaterError::CardUnusable))
         .attach_printable("Failed to parse the unvaulted card number")?;
 
-    // From the unvaulted card, while eligibility checked the stored metadata copy.
     let network = card_details
         .card_network
         .ok_or(report!(AccountUpdaterError::CardUnusable))
