@@ -121,6 +121,12 @@ where
                 router_data.connector_http_status_code = Some(status_code);
                 router_data.sender_payment_instrument_id =
                     payment_get_response.sender_payment_instrument_id.clone();
+                router_data.connector_returned_payment_method_details =
+                    unified_connector_service::convert_unified_connector_service_payment_method_to_domain(
+                        payment_get_response
+                            .connector_returned_payment_method_details
+                            .clone(),
+                    );
                 Ok(router_data.clone())
             }
             CallConnectorAction::Trigger => {
@@ -281,6 +287,12 @@ where
                         router_data.connector_http_status_code = Some(status_code);
                         router_data.sender_payment_instrument_id =
                             payment_get_response.sender_payment_instrument_id.clone();
+                        router_data.connector_returned_payment_method_details =
+                            unified_connector_service::convert_unified_connector_service_payment_method_to_domain(
+                                payment_get_response
+                                    .connector_returned_payment_method_details
+                                    .clone(),
+                            );
                         Ok((router_data, (), payment_get_response))
                     },
                 ))

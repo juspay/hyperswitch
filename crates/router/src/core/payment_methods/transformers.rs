@@ -1035,6 +1035,9 @@ impl
                 payment_method_data::PaymentMethodsData::NetworkToken(_) => {
                     todo!()
                 }
+                payment_method_data::PaymentMethodsData::BankRedirect(_) => {
+                    todo!()
+                }
             });
 
         let payment_method_billing = item
@@ -1139,6 +1142,9 @@ impl
                     }
                 }
                 payment_method_data::PaymentMethodsData::NetworkToken(_) => {
+                    todo!()
+                }
+                payment_method_data::PaymentMethodsData::BankRedirect(_) => {
                     todo!()
                 }
             });
@@ -1543,6 +1549,7 @@ impl DomainPaymentMethodWrapper {
             network_tokenization_data: None,
             storage_type: response.storage_type,
             compatibility_updated_at: Some(current_time),
+            connector_payment_method_details: None,
         }))
     }
 
@@ -1666,6 +1673,7 @@ impl DomainPaymentMethodWrapper {
             network_tokenization_data: None,
             storage_type: response.storage_type,
             compatibility_updated_at: Some(current_time),
+            connector_payment_method_details: None,
         }))
     }
 }
@@ -1853,6 +1861,7 @@ impl TryFrom<CreatePaymentMethodResponse> for DomainPaymentMethodWrapper {
             network_tokenization_data: None,
             storage_type: response.storage_type,
             compatibility_updated_at: Some(current_time),
+            connector_payment_method_details: None,
         }))
     }
 }

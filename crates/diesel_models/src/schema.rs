@@ -1486,6 +1486,7 @@ diesel::table! {
         compatibility_updated_at -> Nullable<Timestamp>,
         #[max_length = 64]
         auxiliary_fingerprint_id -> Nullable<Varchar>,
+        connector_payment_method_details -> Nullable<Jsonb>,
     }
 }
 

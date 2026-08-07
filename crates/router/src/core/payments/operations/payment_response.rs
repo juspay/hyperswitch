@@ -71,6 +71,37 @@ use crate::{
     utils,
 };
 
+#[cfg(feature = "v1")]
+async fn persist_pm_update_from_psync(
+    state: SessionState,
+    platform: domain::Platform,
+    payment_method_id: &str,
+    merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
+    update: &hyperswitch_domain_models::payment_method_data::PaymentMethodData,
+    business_profile: &domain::Profile,
+) -> CustomResult<(), errors::ApiErrorResponse> {
+    match update {
+        hyperswitch_domain_models::payment_method_data::PaymentMethodData::BankRedirect(
+            bank_redirect_update,
+        ) => {
+            payment_methods::cards::create_or_update_bank_redirect_payment_method(
+                state,
+                platform,
+                payment_method_id,
+                merchant_connector_id,
+                bank_redirect_update.clone(),
+                business_profile.clone(),
+            )
+            .await
+        }
+        _ => Err(report!(errors::ApiErrorResponse::NotImplemented {
+            message: errors::NotImplementedMessage::Reason(
+                "Payment Method Update is not implemented".to_string(),
+            )
+        })),
+    }
+}
+
 /// This implementation executes the flow only when
 /// 1. Payment was created with supported payment methods
 /// 2. Payment attempt's status was not a terminal failure
@@ -537,7 +568,9 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
                 should_avoid_saving = resp.request.payment_method_type
                     == Some(enums::PaymentMethodType::ApplePay)
                     || resp.request.payment_method_type
-                        == Some(enums::PaymentMethodType::GooglePay);
+                        == Some(enums::PaymentMethodType::GooglePay)
+                    || resp.request.payment_method_type
+                        == Some(enums::PaymentMethodType::OpenBanking);
                 payment_methods::cards::update_last_used_at(
                     payment_method_info,
                     state,
@@ -1056,7 +1089,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
         resp: &types::RouterData<F, types::PaymentsSyncData, types::PaymentsResponseData>,
         platform: &domain::Platform,
         payment_data: &mut PaymentData<F>,
-        _business_profile: &domain::Profile,
+        business_profile: &domain::Profile,
         _dimensions: &DimensionsWithProcessorAndProviderMerchantId,
     ) -> CustomResult<(), errors::ApiErrorResponse>
     where
@@ -1102,6 +1135,30 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
             platform.get_initiator(),
         )
         .await?;
+
+        if resp.status.should_update_payment_method() {
+            if let (Some(payment_method_id), Some(pm_update)) = (
+                payment_data.payment_attempt.payment_method_id.as_deref(),
+                resp.connector_returned_payment_method_details.as_ref(),
+            ) {
+                let _ = Box::pin(persist_pm_update_from_psync(
+                    state.clone(),
+                    platform.clone(),
+                    payment_method_id,
+                    payment_data.payment_attempt.merchant_connector_id.clone(),
+                    pm_update,
+                    business_profile,
+                ))
+                .await
+                .inspect_err(|error| {
+                    logger::error!(
+                        ?error,
+                        payment_method_id,
+                        "Failed to persist payment method details from PSync response"
+                    );
+                });
+            }
+        }
         Ok(())
     }
 

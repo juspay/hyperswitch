@@ -11,7 +11,7 @@
 /// Merchant secret-key auth is not supported for this client endpoint.
 use api_models::payment_methods::{
     ClientPaymentMethodsListResponse, CustomerPaymentMethod, CustomerPaymentMethodDataForClient,
-    CustomerPaymentMethodForClient, PaymentMethodListIntentDataInput,
+    CustomerPaymentMethodForClient, MaskedBankDetails, PaymentMethodListIntentDataInput,
     ResponsePaymentMethodsEnabledForClient,
 };
 use common_utils::{consts, ext_traits::AsyncExt, generate_id, id_type};
@@ -53,11 +53,23 @@ pub trait CustomerPaymentMethodsFetcher: Send + Sync {
     ) -> errors::RouterResult<Vec<CustomerPaymentMethodForClient>>;
 }
 
+fn bank_redirect_data_for_client(
+    payment_method: &common_enums::PaymentMethod,
+    bank: Option<MaskedBankDetails>,
+) -> Option<CustomerPaymentMethodDataForClient> {
+    if *payment_method == common_enums::PaymentMethod::BankRedirect {
+        bank.map(CustomerPaymentMethodDataForClient::BankRedirect)
+    } else {
+        None
+    }
+}
+
 /// Convert a legacy `CustomerPaymentMethod` into the slimmer client-facing type.
 fn to_client_pm(pm: CustomerPaymentMethod) -> CustomerPaymentMethodForClient {
     let payment_method_data = pm
         .card
-        .map(|card| CustomerPaymentMethodDataForClient::Card(Box::new(card)));
+        .map(|card| CustomerPaymentMethodDataForClient::Card(Box::new(card)))
+        .or_else(|| bank_redirect_data_for_client(&pm.payment_method, pm.bank));
 
     CustomerPaymentMethodForClient {
         payment_token: pm.payment_token,
