@@ -1096,13 +1096,6 @@ export const connectorDetails = {
     ConnectorTestingData: {
       Request: {
         currency: "USD",
-        connector_metadata: {
-          adyen: {
-            testing: {
-              holder_name: "Test Holder Name Override",
-            },
-          },
-        },
       },
       Response: {
         status: 200,
@@ -1117,16 +1110,16 @@ export const connectorDetails = {
         payment_method_data: {
           card: {
             card_number: "4111111111111111",
-            card_exp_month: "12",
+            card_exp_month: "03",
             card_exp_year: "2030",
-            card_cvc: "123",
+            card_cvc: "737",
             card_holder_name: "Original Card Holder",
           },
         },
         connector_metadata: {
           adyen: {
             testing: {
-              holder_name: "Test Holder Name Override",
+              holder_name: "CARD_EXPIRED",
             },
           },
         },
