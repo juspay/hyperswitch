@@ -1960,8 +1960,10 @@ pub fn build_unified_connector_service_auth_metadata(
             merchant_id: Secret::new(merchant_id.to_string()),
             connector_config,
         }),
-        _ => Err(UnifiedConnectorServiceError::FailedToObtainAuthType)
-            .attach_printable("Unsupported ConnectorAuthType for header injection"),
+        ConnectorAuthType::TemporaryAuth | ConnectorAuthType::NoKey => {
+            Err(UnifiedConnectorServiceError::FailedToObtainAuthType)
+                .attach_printable("Unsupported ConnectorAuthType for header injection")
+        }
     }
 }
 
