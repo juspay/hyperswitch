@@ -1159,6 +1159,10 @@ impl Routing {
             .app_data(web::Data::new(state.clone()))
             .service(web::resource("/entry").route(web::post().to(routing::routing_entry)))
             .service(
+                web::resource("/decision-engine/{profile_id}/diff-counter")
+                    .route(web::delete().to(routing::reset_decision_engine_diff_counter)),
+            )
+            .service(
                 web::resource("/active").route(web::get().to(|state, req, query_params| {
                     routing::routing_retrieve_linked_config(state, req, query_params, None)
                 })),
