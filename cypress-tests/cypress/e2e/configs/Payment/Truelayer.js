@@ -32,8 +32,9 @@ export const connectorDetails = {
     PaymentIntent: (paymentMethodType) =>
       getCustomExchange({
         Request: {
+          // Truelayer requires GBP for UK open banking payments.
           currency:
-            paymentMethodType === "Truelayer"
+            paymentMethodType === "bank_redirect"
               ? "GBP"
               : getCurrency(paymentMethodType),
           customer_acceptance: null,
@@ -61,7 +62,7 @@ export const connectorDetails = {
             open_banking: {},
           },
         },
-        currency: "GBP",
+        currency: "GBP", // Truelayer requires GBP for UK open banking payments.
         billing: billingAddressGB,
       },
       Response: {
