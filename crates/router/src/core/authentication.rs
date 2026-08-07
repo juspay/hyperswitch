@@ -1576,8 +1576,7 @@ fn parse_ucs_authenticate_response(
         .as_ref()
         .and_then(|data| data.cavv.clone());
 
-    let authentication_type =
-        common_enums::DecoupledAuthenticationType::from(trans_status.clone());
+    let authentication_type = common_enums::DecoupledAuthenticationType::from(trans_status.clone());
 
     let acs_url = acs_url
         .map(|url| url::Url::parse(&url))
