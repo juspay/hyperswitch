@@ -188,6 +188,9 @@ pub enum FrmConnectors {
     Signifyd,
     Riskified,
     Cybersourcedecisionmanager,
+    /// ACI / Peach Payments stand-alone fraud management (redShield).
+    /// Reuses the same `aci` connector credentials and host as the card gateway.
+    Aci,
 }
 
 #[derive(
