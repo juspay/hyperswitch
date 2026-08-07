@@ -81,8 +81,10 @@ import { connectorDetails as staxConnectorDetails } from "./Stax.js";
 import { connectorDetails as stripeConnectorDetails } from "./Stripe.js";
 import { connectorDetails as stripeconnectConnectorDetails } from "./StripeConnect.js";
 import { connectorDetails as tesouroConnectorDetails } from "./Tesouro.js";
+import { connectorDetails as truelayerConnectorDetails } from "./Truelayer.js";
 import { connectorDetails as trustpayConnectorDetails } from "./Trustpay.js";
 import { connectorDetails as trustpaymentsConnectorDetails } from "./TrustPayments.js";
+import { connectorDetails as trustlyConnectorDetails } from "./Trustly.js";
 import { connectorDetails as tsysConnectorDetails } from "./Tsys.js";
 import { connectorDetails as tsysTransitConnectorDetails } from "./TsysTransit.js";
 import { connectorDetails as voltConnectorDetails } from "./Volt.js";
@@ -169,9 +171,11 @@ const connectorDetails = {
   stax: staxConnectorDetails,
   stripe: stripeConnectorDetails,
   stripeconnect: stripeconnectConnectorDetails,
+  truelayer: truelayerConnectorDetails,
   trustpay: trustpayConnectorDetails,
   tesouro: tesouroConnectorDetails,
   trustpayments: trustpaymentsConnectorDetails,
+  trustly: trustlyConnectorDetails,
   tsys: tsysConnectorDetails,
   tsys_transit: tsysTransitConnectorDetails,
   volt: voltConnectorDetails,
@@ -225,6 +229,22 @@ function mergeConnectorDetails(source, fallback) {
 
     // Check if fallback has the same key and properties are missing in source
     if (fallback[key]) {
+      if (source[key]?.Configs?.TRIGGER_SKIP_ALL) {
+        const skipExchange = {
+          Configs: {
+            TRIGGER_SKIP: true,
+          },
+          Request: {},
+          Response: {},
+        };
+
+        merged[key] = Object.keys(fallback[key]).reduce((acc, subKey) => {
+          acc[subKey] = skipExchange;
+          return acc;
+        }, {});
+        continue;
+      }
+
       for (const subKey in fallback[key]) {
         if (!merged[key][subKey]) {
           merged[key][subKey] = fallback[key][subKey];
@@ -570,7 +590,7 @@ export const CONNECTOR_LISTS = {
     DDC_RACE_CONDITION: ["worldpay"],
     CONNECTOR_TESTING_DATA: ["adyen", "airwallex", "braintree", "noon"],
     // ucs connectors
-    UCS_CONNECTORS: ["authorizedotnet"],
+    UCS_CONNECTORS: ["authorizedotnet", "truelayer", "trustly"],
     OVERCAPTURE: ["adyen"],
     IFRAME_REDIRECTION: [
       "adyen",
