@@ -30546,6 +30546,14 @@
         "properties": {
           "end_to_end_id": {
             "type": "string",
+            "example": "E9040088820260710172800044983797",
+            "nullable": true
+          },
+          "paid_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Actual timestamp when the payment was completed, as reported by Santander.",
+            "example": "2025-07-20T14:35:00Z",
             "nullable": true
           }
         },
