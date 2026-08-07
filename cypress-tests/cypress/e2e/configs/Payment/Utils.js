@@ -227,6 +227,22 @@ function mergeConnectorDetails(source, fallback) {
 
     // Check if fallback has the same key and properties are missing in source
     if (fallback[key]) {
+      if (source[key]?.Configs?.TRIGGER_SKIP_ALL) {
+        const skipExchange = {
+          Configs: {
+            TRIGGER_SKIP: true,
+          },
+          Request: {},
+          Response: {},
+        };
+
+        merged[key] = Object.keys(fallback[key]).reduce((acc, subKey) => {
+          acc[subKey] = skipExchange;
+          return acc;
+        }, {});
+        continue;
+      }
+
       for (const subKey in fallback[key]) {
         if (!merged[key][subKey]) {
           merged[key][subKey] = fallback[key][subKey];

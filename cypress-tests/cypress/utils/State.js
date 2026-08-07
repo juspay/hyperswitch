@@ -1,30 +1,77 @@
 class State {
   data = {};
   constructor(data) {
-    this.data = data;
-    this.data["connectorId"] = Cypress.env("CONNECTOR");
+    this.data = data || {};
+    this.data["connectorId"] = this.getEnvOrState("CONNECTOR", "connectorId");
     // Keep original connector when connectorId gets changed (e.g., stripeconnect -> stripe); optional and defaults to connectorId if not explicitly set.
-    this.data["originalConnectorId"] = Cypress.env("CONNECTOR");
-    this.data["baseUrl"] = Cypress.env("BASEURL");
-    this.data["pmServiceUrl"] = Cypress.env("PM_SERVICE_URL");
-    this.data["adminApiKey"] = Cypress.env("ADMINAPIKEY");
-    this.data["email"] = Cypress.env("HS_EMAIL");
-    this.data["password"] = Cypress.env("HS_PASSWORD");
-    this.data["connectorAuthFilePath"] = Cypress.env(
-      "CONNECTOR_AUTH_FILE_PATH"
+    this.data["originalConnectorId"] = this.getEnvOrState(
+      "CONNECTOR",
+      "originalConnectorId"
     );
-    this.data["ucsEnabled"] = Cypress.env("UCS_ENABLED");
-    this.data["proxyHttp"] = Cypress.env("PROXY_HTTP");
-    this.data["proxyHttps"] = Cypress.env("PROXY_HTTPS");
-    this.data["methodFlow"] = Cypress.env("METHOD_FLOW");
-    this.data["validationServiceUrl"] = Cypress.env("VALIDATION_SERVICE_URL");
-    this.data["superpositionBaseUrl"] = Cypress.env("SUPERPOSITION_BASE_URL");
-    this.data["superpositionSecret"] = Cypress.env("SUPERPOSITION_SECRET");
-    this.data["superpositionApiKey"] = Cypress.env("SUPERPOSITION_API_KEY");
-    this.data["superpositionOrgId"] = Cypress.env("SUPERPOSITION_ORG_ID");
-    this.data["superpositionWorkspaceId"] = Cypress.env(
-      "SUPERPOSITION_WORKSPACE_ID"
+    this.data["baseUrl"] = this.getUrlEnvOrState("BASEURL", "baseUrl");
+    this.data["pmServiceUrl"] = this.getUrlEnvOrState(
+      "PM_SERVICE_URL",
+      "pmServiceUrl"
     );
+    this.data["adminApiKey"] = this.getEnvOrState("ADMINAPIKEY", "adminApiKey");
+    this.data["email"] = this.getEnvOrState("HS_EMAIL", "email");
+    this.data["password"] = this.getEnvOrState("HS_PASSWORD", "password");
+    this.data["connectorAuthFilePath"] = this.getEnvOrState(
+      "CONNECTOR_AUTH_FILE_PATH",
+      "connectorAuthFilePath"
+    );
+    this.data["ucsEnabled"] = this.getEnvOrState("UCS_ENABLED", "ucsEnabled");
+    this.data["proxyHttp"] = this.getUrlEnvOrState("PROXY_HTTP", "proxyHttp");
+    this.data["proxyHttps"] = this.getUrlEnvOrState(
+      "PROXY_HTTPS",
+      "proxyHttps"
+    );
+    this.data["methodFlow"] = this.getEnvOrState("METHOD_FLOW", "methodFlow");
+    this.data["validationServiceUrl"] = this.getUrlEnvOrState(
+      "VALIDATION_SERVICE_URL",
+      "validationServiceUrl"
+    );
+    this.data["superpositionBaseUrl"] = this.getUrlEnvOrState(
+      "SUPERPOSITION_BASE_URL",
+      "superpositionBaseUrl"
+    );
+    this.data["superpositionSecret"] = this.getEnvOrState(
+      "SUPERPOSITION_SECRET",
+      "superpositionSecret"
+    );
+    this.data["superpositionApiKey"] = this.getEnvOrState(
+      "SUPERPOSITION_API_KEY",
+      "superpositionApiKey"
+    );
+    this.data["superpositionOrgId"] = this.getEnvOrState(
+      "SUPERPOSITION_ORG_ID",
+      "superpositionOrgId"
+    );
+    this.data["superpositionWorkspaceId"] = this.getEnvOrState(
+      "SUPERPOSITION_WORKSPACE_ID",
+      "superpositionWorkspaceId"
+    );
+  }
+
+  getEnvOrState(envKey, stateKey = envKey) {
+    const envValue = Cypress.env(envKey);
+    return envValue === undefined || envValue === null || envValue === ""
+      ? this.data[stateKey]
+      : envValue;
+  }
+
+  getUrlEnvOrState(envKey, stateKey) {
+    return State.sanitizeUrl(this.getEnvOrState(envKey, stateKey));
+  }
+
+  static sanitizeUrl(url) {
+    if (!url || typeof url !== "string") {
+      return url;
+    }
+
+    const markdownLinkMatch = url.match(/^\[(https?:\/\/[^\]]+)\]/);
+    const normalizedUrl = markdownLinkMatch ? markdownLinkMatch[1] : url;
+    return normalizedUrl.trim().replace(/\/+$/, "");
   }
 
   set(key, val) {
