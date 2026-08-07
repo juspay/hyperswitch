@@ -295,9 +295,10 @@ function normalizeMethodFlow(methodFlow, connector) {
     normalizedFlow = normalizedFlow.slice(connector.length + 1);
   }
 
-  return normalizedFlow
-    .replace(/^bank_redirect_openbanking_/, "bank_redirect_open_banking_")
-    .replace(/^bank_redirect_open_banking_/, "bank_redirect_open_banking_");
+  return normalizedFlow.replace(
+    /^bank_redirect_openbanking_/,
+    "bank_redirect_open_banking_"
+  );
 }
 
 function parseMethodFlows(methodFlowInput, connector) {
@@ -473,6 +474,37 @@ function storeRequestId(xRequestId, globalState) {
   }
 }
 
+function sanitizeValidationServiceUrl(url) {
+  if (!url || typeof url !== "string") {
+    return null;
+  }
+
+  const markdownLinkMatch = url.match(/^\[(https?:\/\/[^\]]+)\]/);
+  const normalizedUrl = (markdownLinkMatch ? markdownLinkMatch[1] : url).trim();
+  return normalizedUrl.replace(/\/+$/, "");
+}
+
+function getValidationServiceUrl(globalState) {
+  const validationServiceUrl = sanitizeValidationServiceUrl(
+    globalState.get("validationServiceUrl") ||
+      Cypress.env("VALIDATION_SERVICE_URL")
+  );
+
+  if (!validationServiceUrl) {
+    return null;
+  }
+
+  if (validationServiceUrl.includes(".svc.cluster.local")) {
+    throw new Error(
+      `CYPRESS_VALIDATION_SERVICE_URL is not reachable from Cypress: ${validationServiceUrl}. Use a local port-forward or an externally reachable validation service URL.`
+    );
+  }
+
+  globalState.set("validationServiceUrl", validationServiceUrl);
+
+  return validationServiceUrl;
+}
+
 // Helper function for validating diff check input
 function validateDiffCheckInput(globalState) {
   if (!globalState || !globalState.get("ucsEnabled")) {
@@ -495,7 +527,16 @@ function validateDiffCheckInput(globalState) {
     return { isValid: false, reason: "No request IDs" };
   }
 
-  return { isValid: true, requestIds: storedRequestIds };
+  const validationServiceUrl = getValidationServiceUrl(globalState);
+  if (!validationServiceUrl) {
+    cy.task(
+      "cli_log",
+      "No CYPRESS_VALIDATION_SERVICE_URL found. Skipping diff check validation."
+    );
+    return { isValid: false, reason: "Missing validationServiceUrl" };
+  }
+
+  return { isValid: true, requestIds: storedRequestIds, validationServiceUrl };
 }
 
 // Helper function for filtering matching validation results
@@ -3240,7 +3281,13 @@ Cypress.Commands.add(
 
     const apiKey = globalState.get("publishableKey");
     const baseUrl = globalState.get("baseUrl");
-    const configInfo = execConfig(validateConfig(configs));
+    const validatedConfigs = validateConfig(configs);
+    if (validatedConfigs?.TRIGGER_SKIP) {
+      cy.task("cli_log", "TRIGGER_SKIP enabled, skipping confirmCallTest");
+      return;
+    }
+
+    const configInfo = execConfig(validatedConfigs);
     const merchantConnectorId = globalState.get(
       `${configInfo.merchantConnectorPrefix}Id`
     );
@@ -3773,7 +3820,16 @@ Cypress.Commands.add(
       Response: resData,
     } = data || {};
 
-    const configInfo = execConfig(validateConfig(configs));
+    const validatedConfigs = validateConfig(configs);
+    if (validatedConfigs?.TRIGGER_SKIP) {
+      cy.task(
+        "cli_log",
+        "TRIGGER_SKIP enabled, skipping confirmPayLaterCallTest"
+      );
+      return;
+    }
+
+    const configInfo = execConfig(validatedConfigs);
     const paymentIntentId = globalState.get("paymentID");
     const profile_id = globalState.get(`${configInfo.profilePrefix}Id`);
     const customer_id = globalState.get("customerId");
@@ -3850,7 +3906,16 @@ Cypress.Commands.add(
       Response: resData,
     } = data || {};
 
-    const configInfo = execConfig(validateConfig(configs));
+    const validatedConfigs = validateConfig(configs);
+    if (validatedConfigs?.TRIGGER_SKIP) {
+      cy.task(
+        "cli_log",
+        "TRIGGER_SKIP enabled, skipping createConfirmPaymentTest"
+      );
+      return;
+    }
+
+    const configInfo = execConfig(validatedConfigs);
     const paymentIntentID = globalState.get("paymentID");
     const profile_id = globalState.get(`${configInfo.profilePrefix}Id`);
     const customer_id = globalState.get("customerId");
@@ -4056,7 +4121,16 @@ Cypress.Commands.add(
       Response: resData,
     } = data || {};
 
-    const configInfo = execConfig(validateConfig(configs));
+    const validatedConfigs = validateConfig(configs);
+    if (validatedConfigs?.TRIGGER_SKIP) {
+      cy.task(
+        "cli_log",
+        "TRIGGER_SKIP enabled, skipping createConfirmPaymentTest"
+      );
+      return;
+    }
+
+    const configInfo = execConfig(validatedConfigs);
     const merchant_connector_id = globalState.get(
       `${configInfo.merchantConnectorPrefix}Id`
     );
@@ -8048,7 +8122,7 @@ Cypress.Commands.add("diffCheckResult", (globalState) => {
   );
 
   // Phase 2: Fetch Validation Results
-  const validationServiceUrl = globalState.get("validationServiceUrl");
+  const validationServiceUrl = validation.validationServiceUrl;
 
   cy.request({
     method: "GET",

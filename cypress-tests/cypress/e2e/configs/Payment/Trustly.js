@@ -23,6 +23,11 @@ const unsupportedBankRedirect = getCustomExchange({
 });
 
 export const connectorDetails = {
+  card_pm: {
+    Configs: {
+      TRIGGER_SKIP_ALL: true,
+    },
+  },
   bank_redirect_pm: {
     PaymentIntent: (paymentMethodType) =>
       getCustomExchange({
@@ -70,6 +75,7 @@ export const connectorDetails = {
       },
       Configs: {
         TRIGGER_SKIP: false,
+        skipPaymentMethodStatusAssertion: true,
       },
     }),
     Eft: unsupportedBankRedirect,

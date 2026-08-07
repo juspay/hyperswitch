@@ -23,6 +23,11 @@ const unsupportedBankRedirect = getCustomExchange({
 });
 
 export const connectorDetails = {
+  card_pm: {
+    Configs: {
+      TRIGGER_SKIP_ALL: true,
+    },
+  },
   bank_redirect_pm: {
     PaymentIntent: (paymentMethodType) =>
       getCustomExchange({
@@ -66,6 +71,9 @@ export const connectorDetails = {
           payment_method_type: "open_banking",
           connector: "truelayer",
         },
+      },
+      Configs: {
+        skipPaymentMethodStatusAssertion: true,
       },
     }),
     OnlineBankingFpx: unsupportedBankRedirect,

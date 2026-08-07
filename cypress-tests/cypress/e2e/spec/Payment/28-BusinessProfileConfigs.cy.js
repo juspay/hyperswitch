@@ -444,6 +444,17 @@ describe("Config Tests", () => {
     let shouldContinue = true;
 
     beforeEach(function () {
+      const connectorId = globalState.get("connectorId");
+      const webhookConfigConnectors =
+        utils.CONNECTOR_LISTS.INCLUDE.WEBHOOK_CONFIG;
+
+      if (
+        Array.isArray(webhookConfigConnectors) &&
+        !webhookConfigConnectors.includes(connectorId)
+      ) {
+        this.skip();
+      }
+
       if (!shouldContinue) {
         this.skip();
       }
