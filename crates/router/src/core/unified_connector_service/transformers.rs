@@ -570,6 +570,8 @@ impl
                         }
                     }),
                 }),
+            // TODO: Populate currency_conversion_data when Dynamic Currency Conversion (DCC) is implemented
+            currency_conversion_data: None,
         })
     }
 }
@@ -805,6 +807,8 @@ impl
             connector_order_id: router_data.request.connector_transaction_id.clone(),
             merchant_request_id: None,
             partner_merchant_identifier_details: None,
+            // TODO: Populate currency_conversion_data when Dynamic Currency Conversion (DCC) is implemented
+            currency_conversion_data: None,
         })
     }
 }
@@ -1661,6 +1665,8 @@ impl
             l2_l3_data: None,
             merchant_request_id: None,
             partner_merchant_identifier_details: None,
+            // TODO: Populate currency_conversion_data when Dynamic Currency Conversion (DCC) is implemented
+            currency_conversion_data: None,
         })
     }
 }
@@ -1856,6 +1862,8 @@ impl
             l2_l3_data,
             merchant_request_id: None,
             partner_merchant_identifier_details: None,
+            // TODO: Populate currency_conversion_data when Dynamic Currency Conversion (DCC) is implemented
+            currency_conversion_data: None,
         })
     }
 }
@@ -2029,6 +2037,8 @@ impl
             l2_l3_data: None,
             merchant_request_id: None,
             partner_merchant_identifier_details: None,
+            // TODO: Populate currency_conversion_data when Dynamic Currency Conversion (DCC) is implemented
+            currency_conversion_data: None,
         })
     }
 }
