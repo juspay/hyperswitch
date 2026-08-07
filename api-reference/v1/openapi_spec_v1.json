@@ -6618,6 +6618,40 @@
             "schema": {
               "$ref": "#/components/schemas/BlocklistDataKind"
             }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Maximum number of entries to return (default 10)",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "nullable": true,
+              "minimum": 0
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "description": "Zero-based offset for pagination (default 0)",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "nullable": true,
+              "minimum": 0
+            }
+          },
+          {
+            "name": "client_secret",
+            "in": "query",
+            "description": "Client secret, required when authenticating with a publishable key",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            }
           }
         ],
         "responses": {
@@ -6626,7 +6660,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BlocklistResponse"
+                  "$ref": "#/components/schemas/ListBlocklistResponse"
                 }
               }
             }
@@ -24656,6 +24690,33 @@
           "client_secret": {
             "type": "string",
             "nullable": true
+          }
+        }
+      },
+      "ListBlocklistResponse": {
+        "type": "object",
+        "required": [
+          "count",
+          "total_count",
+          "data"
+        ],
+        "properties": {
+          "count": {
+            "type": "integer",
+            "description": "The number of blocked entries in the current response",
+            "minimum": 0
+          },
+          "total_count": {
+            "type": "integer",
+            "description": "The total number of blocked entries for the given data_kind",
+            "minimum": 0
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BlocklistResponse"
+            },
+            "description": "The list of blocked payment method entries"
           }
         }
       },

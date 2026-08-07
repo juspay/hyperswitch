@@ -992,6 +992,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::PaymentLinkStatus,
         api_models::blocklist::BlocklistRequest,
         api_models::blocklist::BlocklistResponse,
+        api_models::blocklist::ListBlocklistResponse,
         api_models::blocklist::ToggleBlocklistResponse,
         api_models::blocklist::ListBlocklistQuery,
         api_models::blocklist::BatchBlocklistUploadResponse,
