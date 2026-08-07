@@ -1847,23 +1847,27 @@ fn get_ucs_client(
         })
 }
 
+/// For flows whose credentials come from application config rather than a merchant connector
+/// account.
 pub fn build_unified_connector_service_auth_metadata_without_mca(
-    connector_name: String,
-    auth_type: String,
+    connector: Connector,
+    auth_type: &ConnectorAuthType,
     processor_merchant_id: &id_type::MerchantId,
-    connector_config: Option<Secret<String>>,
-) -> ConnectorAuthMetadata {
-    ConnectorAuthMetadata {
-        connector_name,
+    connector_config: Option<&connector_config::ConnectorSpecificConfig>,
+) -> CustomResult<ConnectorAuthMetadata, UnifiedConnectorServiceError> {
+    let connector_config = connector_config
+        .map(connector_config::serialize_connector_config)
+        .transpose()
+        .change_context(UnifiedConnectorServiceError::FailedToObtainAuthType)
+        .attach_printable("Failed to serialize the connector config")?
+        .map(Secret::new);
+
+    build_connector_auth_metadata(
+        connector.to_string(),
         auth_type,
-        api_key: None,
-        key1: None,
-        key2: None,
-        api_secret: None,
-        auth_key_map: None,
-        merchant_id: Secret::new(processor_merchant_id.get_string_repr().to_string()),
+        processor_merchant_id,
         connector_config,
-    }
+    )
 }
 
 pub fn build_unified_connector_service_auth_metadata(
@@ -1884,7 +1888,6 @@ pub fn build_unified_connector_service_auth_metadata(
         .get_connector_account_details()
         .change_context(UnifiedConnectorServiceError::FailedToObtainAuthType)
         .attach_printable("Failed to obtain ConnectorAuthType")?;
-    let merchant_id = processor_merchant_id.get_string_repr();
     // Extract connector metadata from MCA for connector-specific config
     let merchant_account_metadata = merchant_connector_account.get_metadata();
     let merchant_account_metadata_value = merchant_account_metadata
@@ -1900,7 +1903,24 @@ pub fn build_unified_connector_service_auth_metadata(
     .attach_printable("Failed to build connector config header")?
     .map(Secret::new);
 
-    match &auth_type {
+    build_connector_auth_metadata(
+        connector_name,
+        &auth_type,
+        processor_merchant_id,
+        connector_config,
+    )
+}
+
+/// Maps a [`ConnectorAuthType`] onto the credential fields and `auth_type` marker UCS expects.
+fn build_connector_auth_metadata(
+    connector_name: String,
+    auth_type: &ConnectorAuthType,
+    processor_merchant_id: &id_type::MerchantId,
+    connector_config: Option<Secret<String>>,
+) -> CustomResult<ConnectorAuthMetadata, UnifiedConnectorServiceError> {
+    let merchant_id = processor_merchant_id.get_string_repr();
+
+    match auth_type {
         ConnectorAuthType::SignatureKey {
             api_key,
             key1,

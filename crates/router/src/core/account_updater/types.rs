@@ -1,5 +1,8 @@
-use common_enums::CardNetwork;
+use common_enums::connector_enums::Connector;
+use hyperswitch_domain_models::router_data::ConnectorAuthType;
 use hyperswitch_masking::Secret;
+
+use crate::core::unified_connector_service::connector_config::ConnectorSpecificConfig;
 
 #[derive(
     Debug,
@@ -19,15 +22,31 @@ pub enum AccountUpdaterCredentialSource {
     Application,
 }
 
-#[derive(Debug, Clone, strum::IntoStaticStr)]
-#[strum(serialize_all = "snake_case")]
+#[derive(Debug, Clone)]
 pub enum ResolvedAccountUpdaterConfig {
     Juspay(JuspayCredentials),
 }
 
 impl ResolvedAccountUpdaterConfig {
-    pub fn connector_name(&self) -> &'static str {
-        self.into()
+    /// Credentials come from application config, so the auth type other connectors parse out
+    /// of their merchant connector account is built here instead.
+    pub fn to_connector_auth(&self) -> (Connector, ConnectorAuthType, ConnectorSpecificConfig) {
+        match self {
+            Self::Juspay(juspay) => (
+                Connector::Juspay,
+                ConnectorAuthType::HeaderKey {
+                    api_key: juspay.api_key.clone(),
+                },
+                ConnectorSpecificConfig::Juspay {
+                    api_key: juspay.api_key.clone(),
+                    merchant_id: juspay.merchant_id.clone(),
+                    base_url: juspay.base_url.to_string(),
+                    juspay_encryption_public_key: juspay.euler_encryption_public_key.clone(),
+                    response_decryption_private_key: juspay.au_decryption_pvt_key.clone(),
+                    card_sync_key_id: juspay.card_sync_key_id.clone(),
+                },
+            ),
+        }
     }
 }
 
@@ -41,75 +60,22 @@ pub struct JuspayCredentials {
     pub card_sync_key_id: String,
 }
 
-#[derive(Debug, Clone, Copy, strum::IntoStaticStr)]
-#[strum(serialize_all = "snake_case")]
-pub enum SkipReason {
+#[derive(Debug, thiserror::Error)]
+pub enum AccountUpdaterError {
+    #[error("Account Updater is disabled")]
     GateDisabled,
+    #[error("Account Updater has no credential source configured")]
     CredentialSourceNone,
+    #[error("Payment method is not a card")]
     PaymentMethodNotACard,
+    #[error("Payment method is not active")]
     PaymentMethodNotActive,
+    #[error("Card network is not supported by Account Updater")]
     UnsupportedNetwork,
+    #[error("Stored card cannot be used for Account Updater")]
     CardUnusable,
-}
-
-#[derive(Debug)]
-pub struct EligibleCard {
-    pub network: CardNetwork,
-}
-
-#[derive(Debug, Clone, Copy, strum::IntoStaticStr)]
-#[strum(serialize_all = "snake_case")]
-pub enum AccountUpdaterFailure {
+    #[error("Account Updater refresh call failed")]
     RefreshCallFailed,
-    RefreshTimedOut,
+    #[error("Account Updater refresh returned an error")]
     RefreshReturnedError,
-}
-
-#[derive(Debug, Clone, Copy, strum::IntoStaticStr)]
-#[strum(serialize_all = "snake_case")]
-pub enum RefreshOutcome {
-    AccountUpdated,
-    ExpiryUpdated,
-    NoChange,
-    Closed,
-    NotFound,
-    ContactIssuer,
-    Unspecified,
-}
-
-#[derive(Debug, Clone, Copy)]
-pub enum AccountUpdaterTerminalState {
-    Skipped(SkipReason),
-    Failed(AccountUpdaterFailure),
-    Refreshed(RefreshOutcome),
-}
-
-impl AccountUpdaterTerminalState {
-    pub fn as_labels(&self) -> (&'static str, &'static str) {
-        match self {
-            Self::Skipped(reason) => ("skipped", reason.into()),
-            Self::Failed(failure) => ("failed", failure.into()),
-            Self::Refreshed(outcome) => ("refreshed", outcome.into()),
-        }
-    }
-}
-
-impl From<SkipReason> for AccountUpdaterTerminalState {
-    fn from(reason: SkipReason) -> Self {
-        Self::Skipped(reason)
-    }
-}
-
-impl From<AccountUpdaterFailure> for AccountUpdaterTerminalState {
-    fn from(failure: AccountUpdaterFailure) -> Self {
-        Self::Failed(failure)
-    }
-}
-
-/// Intentionally has no `Debug` impl and no conversion into any response type.
-pub struct SyncCard {
-    pub card_number: unified_connector_service_cards::CardNumber,
-    pub expiry_month: Secret<String>,
-    pub expiry_year: Secret<String>,
-    pub network: CardNetwork,
 }

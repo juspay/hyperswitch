@@ -5768,13 +5768,19 @@ pub async fn retrieve_payment_method(
     )?;
 
     if request.force_sync {
-        Box::pin(account_updater::run(
+        let processor = platform.get_processor();
+        let account_updater_dimensions = dimension_state::Dimensions::new()
+            .with_processor_merchant_id(processor.get_processor_merchant_id())
+            .with_organization_id(processor.get_account().get_org_id().clone())
+            .with_profile_id(profile.get_id().clone());
+
+        Box::pin(account_updater::run_account_updater(
             &state,
             &platform,
             &profile,
             &payment_method,
             storage_type,
-            &dimensions.without_provider_merchant_id(),
+            &account_updater_dimensions,
         ))
         .await;
     }
@@ -5878,7 +5884,10 @@ pub async fn retrieve_payment_method_olap(
         profile,
         platform,
         enums::ApiKeyType::External,
-        payment_methods::PaymentMethodRetrieveRequest::default(),
+        payment_methods::PaymentMethodRetrieveRequest {
+            fetch_raw_detail: false,
+            force_sync: false,
+        },
     ))
     .await?
     .get_json_body()

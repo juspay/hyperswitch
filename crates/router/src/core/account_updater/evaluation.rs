@@ -1,79 +1,68 @@
 use common_enums::StorageType;
-use router_env::{instrument, logger, metric_attributes, tracing};
+use common_utils::errors::CustomResult;
+use router_env::{instrument, logger, tracing};
+use unified_connector_service_client::payments as payments_grpc;
 
 use super::{
     config::resolve_account_updater_config,
-    eligibility::evaluate_eligibility,
-    refresh::refresh_card,
-    types::{AccountUpdaterTerminalState, RefreshOutcome},
-    unvault::fetch_card_for_sync,
+    eligibility::check_eligibility_and_fetch_payment_method,
+    refresh::request_account_updater_refresh,
+    types::{AccountUpdaterError, ResolvedAccountUpdaterConfig},
 };
-use crate::{
-    core::{configs::dimension_state, metrics},
-    routes::SessionState,
-    types::domain,
-};
+use crate::{core::configs::dimension_state, routes::SessionState, types::domain};
 
 #[instrument(skip_all)]
-pub async fn run(
+pub async fn run_account_updater<D>(
     state: &SessionState,
     platform: &domain::Platform,
     profile: &domain::Profile,
     payment_method: &domain::PaymentMethod,
     storage_type: StorageType,
-    dimensions: &dimension_state::DimensionsGlobal,
-) {
-    let terminal_state = evaluate(
-        state,
-        platform,
-        profile,
-        payment_method,
-        storage_type,
-        dimensions,
-    )
-    .await
-    .map_or_else(
-        |terminal_state| terminal_state,
-        AccountUpdaterTerminalState::Refreshed,
-    );
+    dimensions: &D,
+) where
+    D: dimension_state::DimensionsBase,
+{
+    let outcome = match resolve_account_updater_config(state, dimensions).await {
+        Ok(config) => {
+            refresh_stored_payment_method(
+                state,
+                platform,
+                profile,
+                payment_method,
+                storage_type,
+                &config,
+            )
+            .await
+        }
+        Err(error) => Err(error),
+    };
 
-    let (state_label, detail) = terminal_state.as_labels();
-
-    metrics::ACCOUNT_UPDATER_EVALUATION_COUNT.add(
-        1,
-        metric_attributes!(("state", state_label), ("detail", detail)),
-    );
-
-    logger::info!(
-        account_updater_state = state_label,
-        account_updater_detail = detail,
-        "Account Updater evaluation completed"
-    );
+    match outcome {
+        Ok(refresh_outcome) => logger::info!(
+            account_updater_outcome = refresh_outcome.as_str_name(),
+            "Account Updater refresh completed"
+        ),
+        Err(error) => logger::info!(?error, "Account Updater refresh did not complete"),
+    }
 }
 
-async fn evaluate(
+async fn refresh_stored_payment_method(
     state: &SessionState,
     platform: &domain::Platform,
     profile: &domain::Profile,
     payment_method: &domain::PaymentMethod,
     storage_type: StorageType,
-    dimensions: &dimension_state::DimensionsGlobal,
-) -> Result<RefreshOutcome, AccountUpdaterTerminalState> {
-    let config = resolve_account_updater_config(state, dimensions).await?;
-
-    let eligible_card = evaluate_eligibility(payment_method)?;
-
-    let sync_card = fetch_card_for_sync(
+    config: &ResolvedAccountUpdaterConfig,
+) -> CustomResult<payments_grpc::CardRefreshOutcome, AccountUpdaterError> {
+    let refreshable_payment_method = check_eligibility_and_fetch_payment_method(
         state,
         platform,
         profile,
         payment_method,
         storage_type,
-        &eligible_card,
     )
     .await?;
 
-    refresh_card(state, platform, profile, &config, sync_card)
+    request_account_updater_refresh(state, platform, profile, config, refreshable_payment_method)
         .await
-        .map_err(Into::into)
 }

@@ -116,7 +116,7 @@ pub struct PaymentMethodCreate {
 }
 
 #[cfg(feature = "v2")]
-#[derive(Debug, Default, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct PaymentMethodRetrieveRequest {
     #[serde(default)]
