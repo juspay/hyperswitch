@@ -35,6 +35,7 @@ import { connectorDetails as facilitapayConnectorDetails } from "./Facilitapay.j
 import { connectorDetails as finixConnectorDetails } from "./Finix.js";
 import { connectorDetails as fiservConnectorDetails } from "./Fiserv.js";
 import { connectorDetails as fiservemeaConnectorDetails } from "./Fiservemea.js";
+import { connectorDetails as fiservcommercehubConnectorDetails } from "./Fiservcommercehub.js";
 import { connectorDetails as fiuuConnectorDetails } from "./Fiuu.js";
 import { connectorDetails as forteConnectorDetails } from "./Forte.js";
 import { connectorDetails as getnetConnectorDetails } from "./Getnet.js";
@@ -124,6 +125,7 @@ const connectorDetails = {
   facilitapay: facilitapayConnectorDetails,
   fiserv: fiservConnectorDetails,
   fiservemea: fiservemeaConnectorDetails,
+  fiservcommercehub: fiservcommercehubConnectorDetails,
   fiuu: fiuuConnectorDetails,
   finix: finixConnectorDetails,
   forte: forteConnectorDetails,
@@ -511,6 +513,7 @@ export const CONNECTOR_LISTS = {
       "cashtocode",
       "facilitapay",
       "fiserv",
+      "fiservcommercehub",
       "fiuu",
       "forte",
       "globalpay",
@@ -545,6 +548,13 @@ export const CONNECTOR_LISTS = {
       "tsys_transit",
     ],
     SAVE_CARD: ["helcim"],
+    // Connectors whose 3DS support is external-3DS only (client/SDK performs
+    // the challenge and passes pre-authenticated data in) rather than
+    // connector-hosted REDIRECT 3DS, so the redirect-based 3DS specs
+    // (05-ThreeDSAutoCapture, 16-ThreeDSManualCapture) don't apply. Not to
+    // be confused with INCLUDE.EXTERNAL_THREE_DS below, which is the
+    // opt-in list for the SDK-mediated flow itself (44-ExternalThreeDS).
+    REDIRECT_THREE_DS: ["fiservcommercehub"],
     // Connectors that never return a `connector_mandate_id` on the payments
     // response. Recurring payments for them go through connector agnostic MIT,
     // so the "connector_mandate_id must not be null" assertion is skipped
@@ -570,7 +580,7 @@ export const CONNECTOR_LISTS = {
     DDC_RACE_CONDITION: ["worldpay"],
     CONNECTOR_TESTING_DATA: ["adyen", "airwallex", "braintree", "noon"],
     // ucs connectors
-    UCS_CONNECTORS: ["authorizedotnet"],
+    UCS_CONNECTORS: ["authorizedotnet", "fiservcommercehub"],
     OVERCAPTURE: ["adyen"],
     IFRAME_REDIRECTION: [
       "adyen",
