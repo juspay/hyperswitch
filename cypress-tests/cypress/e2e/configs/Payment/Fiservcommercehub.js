@@ -165,7 +165,12 @@ export const connectorDetails = {
     "3DSAutoCapture": {
       // fiservcommercehub doesn't implement 3DS redirection (Authenticate/
       // PreAuthenticate/PostAuthenticate are not_supported; redirection_data
-      // is hardcoded None on Authorize) — skip until that's addressed.
+      // is hardcoded None on Authorize), so a "3DS" test card actually
+      // processes as a normal payment with no challenge — confirmed live.
+      // TRIGGER_SKIP is a no-op here: every spec reading this key (05, 09,
+      // 16) confirms via confirmCallTest, which doesn't honor it — so the
+      // Response below must match reality rather than assume the step
+      // never actually runs.
       Configs: {
         TRIGGER_SKIP: true,
       },
@@ -182,7 +187,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "requires_customer_action",
+          status: "succeeded",
         },
       },
     },
@@ -203,7 +208,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "requires_customer_action",
+          status: "requires_capture",
         },
       },
     },
