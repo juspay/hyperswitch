@@ -17,7 +17,6 @@ use hyperswitch_domain_models::{
     mandates,
     mandates::{ConnectorMandateReferenceId, MandateTransactionType},
     payment_method_data::RecurringDetails as domain_recurring_details,
-    payment_methods::PaymentMethodWithRawData,
     payments::{self as domain_payments, payment_intent::PaymentIntentUpdateFields},
     router_request_types::unified_authentication_service,
 };
@@ -91,9 +90,10 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest, PaymentData<F>>>
     {
         let operations::PaymentMethodFetchData {
-            payment_method_info: prefetched_payment_method_info,
-            payment_method_with_raw_data,
-            token_data: prefetched_token_data,
+            payment_method_info: mut prefetched_payment_method_info,
+            mut payment_method_with_raw_data,
+            token_data: mut prefetched_token_data,
+            modular_payment_method_reference,
         } = payment_method_fetch_data;
         let processor_merchant_id = platform.get_processor().get_account().get_id();
         let storage_scheme = platform.get_processor().get_account().storage_scheme;
@@ -324,6 +324,24 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                             utils::flatten_join_error(config_update_fut)
                         )?;
 
+                    if let Some(payment_method_reference) =
+                        modular_payment_method_reference.as_deref()
+                    {
+                        let modular_payment_method = self
+                            .fetch_payment_method_from_modular_service(
+                                state,
+                                request,
+                                platform,
+                                business_profile.get_id(),
+                                payment_method_reference,
+                            )
+                            .await?;
+                        prefetched_payment_method_info = modular_payment_method.payment_method_info;
+                        payment_method_with_raw_data =
+                            modular_payment_method.payment_method_with_raw_data;
+                        prefetched_token_data = modular_payment_method.token_data;
+                    }
+
                     (
                         payment_attempt,
                         shipping_address,
@@ -347,10 +365,29 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                         utils::flatten_join_error(config_update_fut)
                     )?;
 
+                    if let Some(payment_method_reference) =
+                        modular_payment_method_reference.as_deref()
+                    {
+                        let modular_payment_method = self
+                            .fetch_payment_method_from_modular_service(
+                                state,
+                                request,
+                                platform,
+                                business_profile.get_id(),
+                                payment_method_reference,
+                            )
+                            .await?;
+                        prefetched_payment_method_info = modular_payment_method.payment_method_info;
+                        payment_method_with_raw_data =
+                            modular_payment_method.payment_method_with_raw_data;
+                        prefetched_token_data = modular_payment_method.token_data;
+                    }
+
                     let attempt_type = helpers::get_attempt_type(
                         &payment_intent,
                         &payment_attempt,
                         business_profile.is_manual_retry_enabled,
+                        business_profile.get_order_fulfillment_time(),
                         "confirm",
                     )?;
 
@@ -1297,16 +1334,9 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                 logger::debug!(
                         "Organization is enabled for modular service, fetching payment method from PM Modular Service"
                     );
-                let pm_info = self
-                    .fetch_payment_method_from_modular_service(
-                        state,
-                        req,
-                        platform,
-                        &payment_method_ref_to_use,
-                    )
-                    .await?;
-
-                operations::PaymentMethodFetchData::from_modular(pm_info)
+                operations::PaymentMethodFetchData::from_modular_reference(
+                    payment_method_ref_to_use,
+                )
             } else {
                 operations::PaymentMethodFetchData::default()
             }
@@ -1358,17 +1388,9 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     logger::debug!(
                         "Payment method version is V2, fetching payment method from PM Modular Service"
                     );
-                    let payment_method_id = payment_method.get_id().to_owned();
-                    let pm_info = self
-                        .fetch_payment_method_from_modular_service(
-                            state,
-                            req,
-                            platform,
-                            &payment_method_id,
-                        )
-                        .await?;
-
-                    operations::PaymentMethodFetchData::from_modular(pm_info)
+                    operations::PaymentMethodFetchData::from_modular_reference(
+                        payment_method.get_id().to_owned(),
+                    )
                 }
                 Some(payment_method) => {
                     logger::info!("Organization is not eligible for PM Modular Service, skipping fetch payment method.");
@@ -1378,6 +1400,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     payment_method_info: None,
                     payment_method_with_raw_data: None,
                     token_data,
+                    modular_payment_method_reference: None,
                 },
             }
         };
@@ -2421,18 +2444,9 @@ impl PaymentConfirm {
         state: &SessionState,
         req: &api::PaymentsRequest,
         platform: &domain::Platform,
+        profile_id: &common_utils::id_type::ProfileId,
         payment_method_ref: &str,
-    ) -> RouterResult<PaymentMethodWithRawData> {
-        let profile_id = req
-            .profile_id
-            .clone()
-            .or(platform
-                .get_processor()
-                .get_account()
-                .get_default_profile()
-                .clone())
-            .get_required_value("profile_id")?;
-
+    ) -> RouterResult<operations::PaymentMethodFetchData> {
         let pmd = req
             .payment_method_data
             .clone()
@@ -2449,11 +2463,21 @@ impl PaymentConfirm {
         // token so it is not carried any further.
         if let Some(token) = card_token_data.as_mut() {
             if let Some(card_cvc_token) = token.card_cvc_token.take() {
+                utils::when(
+                    req.retry_action == Some(api_models::enums::RetryAction::ManualRetry),
+                    || {
+                        Err(errors::ApiErrorResponse::PreconditionFailed {
+                            message: "Manual retry is not supported with card_cvc_token"
+                                .to_string(),
+                        })
+                    },
+                )?;
                 let resolved_cvc =
-                    crate::core::payment_methods::vault::retrieve_and_delete_cvc_from_payment_token(
+                    crate::core::payment_methods::vault::retrieve_cvc_from_payment_token(
                         state,
                         card_cvc_token.peek(),
                         platform.get_provider().get_key_store(),
+                        crate::core::payment_methods::vault::CvcReadMode::ReadAndDelete,
                     )
                     .await?;
                 token.card_cvc = Some(resolved_cvc);
@@ -2474,7 +2498,7 @@ impl PaymentConfirm {
         let pm_info = pm_transformers::fetch_payment_method_from_modular_service(
             state,
             platform,
-            &profile_id,
+            profile_id,
             payment_method_ref,
             card_token_data,
             true, // fetch raw card detail from the internal vault
@@ -2494,7 +2518,7 @@ impl PaymentConfirm {
             },
         )?;
 
-        Ok(pm_info)
+        Ok(operations::PaymentMethodFetchData::from_modular(pm_info))
     }
 
     fn get_payment_method_reference(self, req: &api::PaymentsRequest) -> Option<&str> {
