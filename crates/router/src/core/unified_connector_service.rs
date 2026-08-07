@@ -1935,17 +1935,22 @@ pub fn build_unified_connector_service_auth_metadata(
             key1,
             api_secret,
             key2,
-        } => Ok(ConnectorAuthMetadata {
-            connector_name,
-            auth_type: consts::UCS_AUTH_MULTI_KEY.to_string(),
-            api_key: Some(api_key.clone()),
-            key1: Some(key1.clone()),
-            key2: Some(key2.clone()),
-            api_secret: Some(api_secret.clone()),
-            auth_key_map: None,
-            merchant_id: Secret::new(merchant_id.to_string()),
-            connector_config,
-        }),
+        } => {
+            let carries_pem_secrets = Connector::from_str(&connector_name)
+                .is_ok_and(|connector| matches!(connector, Connector::Deutschebank));
+
+            Ok(ConnectorAuthMetadata {
+                connector_name,
+                auth_type: consts::UCS_AUTH_MULTI_KEY.to_string(),
+                api_key: Some(api_key.clone()),
+                key1: Some(key1.clone()),
+                key2: (!carries_pem_secrets).then(|| key2.clone()),
+                api_secret: (!carries_pem_secrets).then(|| api_secret.clone()),
+                auth_key_map: None,
+                merchant_id: Secret::new(merchant_id.to_string()),
+                connector_config,
+            })
+        }
         _ => Err(UnifiedConnectorServiceError::FailedToObtainAuthType)
             .attach_printable("Unsupported ConnectorAuthType for header injection"),
     }
