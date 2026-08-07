@@ -850,6 +850,7 @@ impl
                 .map(payments_grpc::PaymentMethodType::foreign_try_from)
                 .transpose()?
                 .map(|payment_method_type| payment_method_type.into()),
+            order_details: build_ucs_order_details(router_data.request.order_details.as_deref()),
         })
     }
 }
@@ -6972,7 +6973,7 @@ impl transformers::ForeignTryFrom<payments_grpc::payout_enums::PayoutStatus>
             payments_grpc::payout_enums::PayoutStatus::Reversed => Ok(Self::Reversed),
             payments_grpc::payout_enums::PayoutStatus::Pending => Ok(Self::Pending),
             payments_grpc::payout_enums::PayoutStatus::Ineligible => Ok(Self::Ineligible),
-            // #TODO: map grpc PayoutStatus::NotPermitted -> Self::NotPermitted once UCS version is bumped
+            payments_grpc::payout_enums::PayoutStatus::NotPermitted => Ok(Self::NotPermitted),
             payments_grpc::payout_enums::PayoutStatus::RequiresCreation => {
                 Ok(Self::RequiresCreation)
             }
@@ -7415,6 +7416,7 @@ impl
             merchant_payout_id: router_data.payout_id.clone(),
             connector_payout_id: router_data.request.connector_payout_id.clone(),
             access_token: router_data.access_token.clone().map(|at| at.token),
+            source_bank_data: None,
         })
     }
 }
@@ -7766,6 +7768,7 @@ impl transformers::ForeignTryFrom<&api_models::payouts::SepaBankTransfer>
             bank_city: item.bank_city.clone(),
             iban: Some(item.iban.clone()),
             bic: item.bic.clone(),
+            account_holder_name: None,
         })
     }
 }
