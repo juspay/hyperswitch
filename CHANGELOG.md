@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.08.05.1-hotfix1
+
+### Features
+
+- **core/connector:** [SANTANDER] Return `paid_at` date in `connector_response_metadata` from PSync response ([#13589](https://github.com/juspay/hyperswitch/pull/13589)) ([`262a3f9`](https://github.com/juspay/hyperswitch/commit/262a3f941a095ffd4719445858c0c66f08130883))
+
+**Full Changelog:** [`2026.08.05.1...2026.08.05.1-hotfix1`](https://github.com/juspay/hyperswitch/compare/2026.08.05.1...2026.08.05.1-hotfix1)
+
+- - -
+
 ## 2026.08.05.1
 
 ### Features
