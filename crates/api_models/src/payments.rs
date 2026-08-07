@@ -6259,12 +6259,13 @@ pub struct PaymentMethodDataResponseWithBilling {
 
 impl PaymentMethodDataResponseWithBilling {
     pub fn get_card_network(&self) -> Option<common_enums::CardNetwork> {
-        match self {
-            Self {
-                payment_method_data: Some(PaymentMethodDataResponse::Card(card)),
-                ..
-            } => card.card_network.clone(),
-            _ => None,
+        match self.payment_method_data.as_ref() {
+            Some(pm) => match pm {
+                PaymentMethodDataResponse::Card(data) => data.card_network.clone(),
+                PaymentMethodDataResponse::NetworkToken(data) => data.card_network.clone(),
+                _ => None,
+            },
+            None => None,
         }
     }
 }
