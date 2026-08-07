@@ -1847,6 +1847,14 @@ fn get_ucs_client(
         })
 }
 
+fn as_header_value(value: &Secret<String>) -> Option<Secret<String>> {
+    value
+        .peek()
+        .bytes()
+        .all(|byte| matches!(byte, 0x20..=0x7E | b'\t'))
+        .then(|| value.clone())
+}
+
 pub fn build_unified_connector_service_auth_metadata(
     #[cfg(feature = "v1")] merchant_connector_account: MerchantConnectorAccountType,
     #[cfg(feature = "v2")] merchant_connector_account: MerchantConnectorAccountTypeDetails,
@@ -1935,22 +1943,17 @@ pub fn build_unified_connector_service_auth_metadata(
             key1,
             api_secret,
             key2,
-        } => {
-            let carries_pem_secrets = Connector::from_str(&connector_name)
-                .is_ok_and(|connector| matches!(connector, Connector::Deutschebank));
-
-            Ok(ConnectorAuthMetadata {
-                connector_name,
-                auth_type: consts::UCS_AUTH_MULTI_KEY.to_string(),
-                api_key: Some(api_key.clone()),
-                key1: Some(key1.clone()),
-                key2: (!carries_pem_secrets).then(|| key2.clone()),
-                api_secret: (!carries_pem_secrets).then(|| api_secret.clone()),
-                auth_key_map: None,
-                merchant_id: Secret::new(merchant_id.to_string()),
-                connector_config,
-            })
-        }
+        } => Ok(ConnectorAuthMetadata {
+            connector_name,
+            auth_type: consts::UCS_AUTH_MULTI_KEY.to_string(),
+            api_key: as_header_value(api_key),
+            key1: as_header_value(key1),
+            key2: as_header_value(key2),
+            api_secret: as_header_value(api_secret),
+            auth_key_map: None,
+            merchant_id: Secret::new(merchant_id.to_string()),
+            connector_config,
+        }),
         _ => Err(UnifiedConnectorServiceError::FailedToObtainAuthType)
             .attach_printable("Unsupported ConnectorAuthType for header injection"),
     }
