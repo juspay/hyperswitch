@@ -538,6 +538,7 @@ pub struct PixBankTransfer {
     pub bank_code: Option<String>,
 
     /// Bank account type for PIX payouts.
+    #[schema(value_type = Option<BankType>)]
     pub bank_account_type: Option<api_enums::BankType>,
 
     /// Name of the account holder
@@ -572,6 +573,7 @@ pub struct PixAccountBankTransfer {
     pub bank_code: Option<String>,
 
     /// Bank account type for PIX payouts.
+    #[schema(value_type = Option<BankType>)]
     pub bank_account_type: Option<api_enums::BankType>,
 
     /// Name of the account holder

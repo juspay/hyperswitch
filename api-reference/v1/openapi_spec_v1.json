@@ -38350,7 +38350,7 @@
           "bank_account_type": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/api_enums.BankType"
+                "$ref": "#/components/schemas/BankType"
               }
             ],
             "nullable": true
@@ -38615,7 +38615,7 @@
           "bank_account_type": {
             "allOf": [
               {
-                "$ref": "#/components/schemas/api_enums.BankType"
+                "$ref": "#/components/schemas/BankType"
               }
             ],
             "nullable": true
