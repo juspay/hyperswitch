@@ -525,7 +525,7 @@ describe("Bank Redirect tests", () => {
       cy.step("Create Payment Intent", () => {
         const data = getConnectorDetails(getConnectorConfigId())[
           "bank_redirect_pm"
-        ]["PaymentIntent"]("Truelayer");
+        ]["PaymentIntent"]("bank_redirect");
         cy.createPaymentIntentTest(
           fixtures.createPaymentBody,
           data,

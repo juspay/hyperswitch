@@ -62,7 +62,7 @@ export const connectorDetails = {
             },
           },
         },
-        currency: "EUR",
+        currency: "EUR", // Trustly requires EUR for Swedish bank redirect payments.
         billing: billingAddressSE,
       },
       Response: {
@@ -74,7 +74,6 @@ export const connectorDetails = {
         },
       },
       Configs: {
-        TRIGGER_SKIP: false,
         skipPaymentMethodStatusAssertion: true,
       },
     }),
