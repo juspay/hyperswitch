@@ -2160,27 +2160,6 @@ pub async fn create_payout_retrieve(
     connector_data: &api::ConnectorData,
     payout_data: &mut PayoutData,
 ) -> RouterResult<()> {
-    // Fetch source_bank_data if not present — some connectors need the debtor account
-    // on the status enquiry, so it must be populated on the sync path too
-    if payout_data.source_bank_data.is_none() {
-        payout_data.source_bank_data = helpers::SourceBankDataOperation::get_temp_source_bank_data(
-            state,
-            payout_data.payout_attempt.source_bank_data_token.clone(),
-            payout_data.customer_details.as_ref().map(|customer| {
-                #[cfg(feature = "v1")]
-                {
-                    customer.get_id().clone()
-                }
-                #[cfg(not(feature = "v1"))]
-                {
-                    customer.id.clone()
-                }
-            }),
-            platform.get_processor().get_key_store(),
-        )
-        .await?;
-    }
-
     // 1. Form Router data
     let mut router_data =
         core_utils::construct_payout_router_data(state, connector_data, platform, payout_data)
@@ -3544,7 +3523,40 @@ pub async fn make_payout_data(
                     None => (None, None, None),
                 }
             }
-            payouts::PayoutRequest::PayoutRetrieveRequest(_) => (None, None, None),
+            payouts::PayoutRequest::PayoutRetrieveRequest(_) => {
+                let requires_source_bank_data = payout_attempt
+                    .connector
+                    .as_deref()
+                    .and_then(|connector| {
+                        common_enums::connector_enums::Connector::from_str(connector).ok()
+                    })
+                    .is_some_and(|connector| {
+                        connector.requires_source_bank_data_for_sync(payouts.payout_type)
+                    });
+
+                match (
+                    requires_source_bank_data,
+                    payout_attempt.source_bank_data_token.to_owned(),
+                ) {
+                    (true, Some(source_bank_data_token)) => {
+                        let customer_id = customer_details
+                            .as_ref()
+                            .map(|cd| cd.get_id().to_owned())
+                            .get_required_value("customer_id when payout_token is sent")?;
+                        let source_bank_data =
+                            helpers::SourceBankDataOperation::get_temp_source_bank_data(
+                                state,
+                                Some(source_bank_data_token),
+                                Some(customer_id),
+                                platform.get_processor().get_key_store(),
+                            )
+                            .await?;
+
+                        (source_bank_data, None, None)
+                    }
+                    _ => (None, None, None),
+                }
+            }
         };
 
     let dimensions = dimensions.with_profile_id(profile_id.clone());

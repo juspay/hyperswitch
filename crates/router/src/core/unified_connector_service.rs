@@ -1848,10 +1848,8 @@ fn get_ucs_client(
 }
 
 fn as_header_value(value: &Secret<String>) -> Option<Secret<String>> {
-    value
-        .peek()
-        .bytes()
-        .all(|byte| matches!(byte, 0x20..=0x7E | b'\t'))
+    http::HeaderValue::from_str(value.peek())
+        .is_ok()
         .then(|| value.clone())
 }
 

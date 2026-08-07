@@ -246,6 +246,13 @@ impl Connector {
         )
     }
     #[cfg(feature = "payouts")]
+    pub fn requires_source_bank_data_for_sync(self, payout_method: Option<PayoutType>) -> bool {
+        matches!(
+            (self, payout_method),
+            (Self::Deutschebank, Some(PayoutType::Bank))
+        )
+    }
+    #[cfg(feature = "payouts")]
     pub fn is_payout_quote_call_required(self) -> bool {
         matches!(self, Self::Wise | Self::Gigadat)
     }

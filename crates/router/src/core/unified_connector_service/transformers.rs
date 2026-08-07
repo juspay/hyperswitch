@@ -7183,9 +7183,15 @@ impl
             .map(payments_grpc::SourceBankData::foreign_try_from)
             .transpose()?;
 
+        let connector_feature_data = router_data
+            .request
+            .payout_connector_metadata
+            .clone()
+            .map(|metadata| Secret::new(metadata.expose().to_string()));
+
         Ok(Self {
             merchant_payout_id: router_data.payout_id.clone(),
-            connector_feature_data: None,
+            connector_feature_data,
             payout_method_data,
             amount: Some(money),
             connector_payout_id: None,
