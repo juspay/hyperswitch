@@ -178,7 +178,16 @@ pub async fn perform_post_authentication(
         .await?;
 
         let authentication_info =
-            hyperswitch_domain_models::router_request_types::authentication::AuthenticationInfo::default();
+            hyperswitch_domain_models::router_request_types::authentication::AuthenticationInfo {
+                billing_address: None,
+                shipping_address: None,
+                browser_info: None,
+                email: None,
+                device_details: None,
+                merchant_category_code: None,
+                merchant_country_code: None,
+                platform: None,
+            };
 
         utils::update_trackers(
             state,
@@ -289,7 +298,12 @@ pub async fn perform_pre_authentication(
             hyperswitch_domain_models::router_request_types::authentication::AuthenticationInfo {
                 billing_address: billing_address.clone(),
                 shipping_address: shipping_address.clone(),
-                ..Default::default()
+                browser_info: None,
+                email: None,
+                device_details: None,
+                merchant_category_code: None,
+                merchant_country_code: None,
+                platform: None,
             };
 
         let updated_authentication = Box::pin(utils::update_trackers(
@@ -335,7 +349,12 @@ pub async fn perform_pre_authentication(
         hyperswitch_domain_models::router_request_types::authentication::AuthenticationInfo {
             billing_address,
             shipping_address,
-            ..Default::default()
+            browser_info: None,
+            email: None,
+            device_details: None,
+            merchant_category_code: None,
+            merchant_country_code: None,
+            platform: None,
         };
 
     let authentication_update = Box::pin(utils::update_trackers(
@@ -765,7 +784,11 @@ pub async fn perform_pre_authentication_proxy<F: Clone>(
             billing_address: payment_data.address.get_payment_method_billing().cloned(),
             shipping_address: payment_data.address.get_shipping().cloned(),
             browser_info,
-            ..Default::default()
+            email: None,
+            device_details: None,
+            merchant_category_code: None,
+            merchant_country_code: None,
+            platform: None,
         };
 
     let authentication = Box::pin(utils::update_trackers(
@@ -1100,7 +1123,16 @@ pub async fn perform_post_authentication_proxy<F: Clone>(
         post_authenticate_tracker_router_data.response = post_authenticate_response_data;
 
         let authentication_info =
-            hyperswitch_domain_models::router_request_types::authentication::AuthenticationInfo::default();
+            hyperswitch_domain_models::router_request_types::authentication::AuthenticationInfo {
+                billing_address: None,
+                shipping_address: None,
+                browser_info: None,
+                email: None,
+                device_details: None,
+                merchant_category_code: None,
+                merchant_country_code: None,
+                platform: None,
+            };
 
         Box::pin(utils::update_trackers(
             state,
@@ -1136,7 +1168,6 @@ pub async fn perform_post_authentication_proxy<F: Clone>(
 }
 
 #[cfg(feature = "v1")]
-#[allow(clippy::too_many_arguments)]
 struct AuthenticateProxyContext {
     authenticate_router_data: core_types::RouterData<
         api::Authenticate,
@@ -1545,13 +1576,8 @@ fn parse_ucs_authenticate_response(
         .as_ref()
         .and_then(|data| data.cavv.clone());
 
-    let authentication_type = match trans_status {
-        common_enums::TransactionStatus::ChallengeRequired
-        | common_enums::TransactionStatus::ChallengeRequiredDecoupledAuthentication => {
-            common_enums::DecoupledAuthenticationType::Challenge
-        }
-        _ => common_enums::DecoupledAuthenticationType::Frictionless,
-    };
+    let authentication_type =
+        common_enums::DecoupledAuthenticationType::from(trans_status.clone());
 
     let acs_url = acs_url
         .map(|url| url::Url::parse(&url))
@@ -1714,8 +1740,9 @@ pub async fn perform_authentication_proxy(
             device_details: sdk_information
                 .as_ref()
                 .and_then(|sdk_information| sdk_information.device_details.clone()),
+            merchant_category_code: None,
+            merchant_country_code: None,
             platform: Some(device_channel),
-            ..Default::default()
         };
 
     let authentication = Box::pin(utils::update_trackers(

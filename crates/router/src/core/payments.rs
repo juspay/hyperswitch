@@ -3385,8 +3385,15 @@ where
         payment_data.set_merchant_connector_id_in_attempt(merchant_connector_account.get_mca_id());
     }
 
-    // Fetch the external vault MCA from business_profile
-    let external_vault_mca_id = business_profile
+    let provider_business_profile =
+        helpers::resolve_provider_profile(state, platform, business_profile)
+            .await
+            .inspect_err(|err| {
+                logger::error!(resolve_provider_profile_error=?err, "Failed to resolve provider profile for external-vault MCA lookup");
+            })?;
+
+    // Fetch the external vault MCA from the provider's business_profile
+    let external_vault_mca_id = provider_business_profile
         .external_vault_details
         .get_vault_connector_id()
         .ok_or_else(|| {
@@ -3394,24 +3401,20 @@ where
                 .attach_printable("external vault is not enabled for this business profile")
         })?;
 
-    let profile_id = payment_data
-        .get_payment_intent()
-        .profile_id
-        .as_ref()
-        .get_required_value("profile_id")
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("profile_id is not set in payment_intent")?
-        .clone();
-
-    let external_vault_merchant_connector_account = helpers::get_merchant_connector_account(
-        state,
-        platform.get_processor(),
-        None,
-        &profile_id,
-        &connector.connector_name.to_string(),
-        Some(&external_vault_mca_id),
-    )
-    .await?;
+    let external_vault_merchant_connector_account =
+        helpers::MerchantConnectorAccountType::DbVal(Box::new(
+            state
+                .store
+                .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+                    platform.get_provider().get_account().get_id(),
+                    &external_vault_mca_id,
+                    platform.get_provider().get_key_store(),
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                    id: external_vault_mca_id.get_string_repr().to_string(),
+                })?,
+        ));
 
     let router_data = payment_data
         .construct_router_data(
