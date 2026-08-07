@@ -2160,9 +2160,8 @@ pub async fn create_payout_retrieve(
     connector_data: &api::ConnectorData,
     payout_data: &mut PayoutData,
 ) -> RouterResult<()> {
-    // Fetch source_bank_data if not present — some connectors (e.g. Deutsche Bank)
-    // need the debtor account on the status enquiry, so it must be populated on the
-    // sync path too, not just fulfill.
+    // Fetch source_bank_data if not present — some connectors need the debtor account
+    // on the status enquiry, so it must be populated on the sync path too
     if payout_data.source_bank_data.is_none() {
         payout_data.source_bank_data = helpers::SourceBankDataOperation::get_temp_source_bank_data(
             state,
