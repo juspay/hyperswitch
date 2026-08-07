@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use api_models::enums::{AuthenticationType, PaymentMethod};
-use common_enums::enums;
+use common_enums::{connector_enums::Connector, enums};
 use common_utils::{
     ext_traits::OptionExt,
     pii,
@@ -675,7 +675,7 @@ impl<F>
                                     recurring_payment_request: None,
                                 },
                             ),
-                            connector: "payme".to_string(),
+                            connector: Connector::Payme,
                             delayed_session_token: true,
                             sdk_next_action: api_models::payments::SdkNextAction {
                                 next_action: api_models::payments::NextActionCall::Sync,
@@ -804,7 +804,7 @@ impl<F>
                                     recurring_payment_request: None,
                                 },
                             ),
-                            connector: "payme".to_string(),
+                            connector: Connector::Payme,
                             delayed_session_token: true,
                             sdk_next_action: api_models::payments::SdkNextAction {
                                 next_action: api_models::payments::NextActionCall::Sync,
