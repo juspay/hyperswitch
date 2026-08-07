@@ -38,7 +38,7 @@ use router_env::{instrument, logger, tracing};
 use unified_connector_service_cards::CardNumber;
 use unified_connector_service_client::payments::{
     self as payments_grpc, payment_method::PaymentMethod, CardDetails, CardDetailsWithNoCvc,
-    ClassicReward, CryptoCurrency, EVoucher, OpenBanking, PaymentServiceAuthorizeResponse,
+    ClassicReward, CryptoCurrency, EVoucher, PaymentServiceAuthorizeResponse,
 };
 
 use crate::{
@@ -72,15 +72,40 @@ pub mod connector_config;
 pub mod transformers;
 
 fn convert_proto_bank_name(bank_name: i32) -> Option<common_enums::BankNames> {
-    payments_grpc::BankNames::try_from(bank_name)
+    let proto_bank_name = payments_grpc::BankNames::try_from(bank_name)
+        .inspect_err(|error| logger::warn!(?error, bank_name, "Invalid bank name received"))
+        .ok()?;
+
+    let proto_bank_name_str = proto_bank_name.as_str_name();
+
+    common_enums::BankNames::from_str(proto_bank_name_str)
+        .inspect_err(|error| {
+            logger::warn!(
+                ?error,
+                proto_bank_name_str,
+                "Failed to convert the bank name received"
+            )
+        })
         .ok()
-        .and_then(|bank_name| common_enums::BankNames::from_str(bank_name.as_str_name()).ok())
 }
 
 fn convert_proto_country(country: i32) -> Option<common_enums::CountryAlpha2> {
-    payments_grpc::CountryAlpha2::try_from(country)
+    let proto_country = payments_grpc::CountryAlpha2::try_from(country)
+        .inspect_err(|error| logger::warn!(?error, country, "Invalid country received"))
+        .ok()?;
+
+    let proto_country_str = proto_country.as_str_name();
+
+    common_enums::CountryAlpha2::foreign_try_from(proto_country)
+        .inspect_err(|error| {
+            logger::warn!(
+                ?error,
+                country,
+                proto_country = proto_country_str,
+                "Country conversion failed"
+            )
+        })
         .ok()
-        .and_then(|country| common_enums::CountryAlpha2::foreign_try_from(country).ok())
 }
 
 fn convert_proto_bank_type(bank_type: i32) -> Option<common_enums::BankType> {

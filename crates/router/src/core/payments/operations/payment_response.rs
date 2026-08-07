@@ -1138,25 +1138,25 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
 
         if resp.status.should_update_payment_method() {
             if let (Some(payment_method_id), Some(pm_update)) = (
-                payment_data.payment_attempt.payment_method_id.clone(),
+                payment_data.payment_attempt.payment_method_id.as_deref(),
                 resp.connector_returned_payment_method_details.as_ref(),
             ) {
-                if let Err(error) = Box::pin(persist_pm_update_from_psync(
+                let _ = Box::pin(persist_pm_update_from_psync(
                     state.clone(),
                     platform.clone(),
-                    payment_method_id.as_str(),
+                    payment_method_id,
                     payment_data.payment_attempt.merchant_connector_id.clone(),
                     pm_update,
                     business_profile,
                 ))
                 .await
-                {
+                .inspect_err(|error| {
                     logger::error!(
                         ?error,
-                        payment_method_id = %payment_method_id,
+                        payment_method_id,
                         "Failed to persist payment method details from PSync response"
                     );
-                }
+                });
             }
         }
         Ok(())

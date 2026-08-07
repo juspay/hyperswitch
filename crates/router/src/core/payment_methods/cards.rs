@@ -6133,7 +6133,7 @@ pub async fn list_customer_payment_method(
             false,
             platform.get_provider(),
             profile_id.as_ref(),
-            Some(&merchant_connector_accounts),
+            merchant_connector_accounts.as_ref(),
             pre_routing_results.as_ref(),
         )
         .await?;
@@ -6348,10 +6348,10 @@ pub async fn get_pm_list_context(
             bank_redirect_pre_routing,
         )
         .await
-        .unwrap_or_else(|err| {
-            logger::error!(error=?err);
-            None
-        }),
+        .inspect_err(|err| {
+            logger::error!(error = ?err);
+        })
+        .unwrap_or(None),
 
         enums::PaymentMethod::Wallet => {
             #[cfg(feature = "payouts")]
@@ -6547,8 +6547,8 @@ pub fn is_eligible_for_saved_flow(
                         .map(|id| id.get_string_repr().to_owned()),
                 };
 
-                let tops_list = top_mca_id_str.as_deref() == Some(mca_id_str.as_str());
-                if !tops_list {
+                let is_first_in_list = top_mca_id_str.as_deref() == Some(mca_id_str.as_str());
+                if !is_first_in_list {
                     logger::debug!(
                         payment_method_id = %pm.payment_method_id,
                         mca_id = %mca_id_str,
@@ -6556,7 +6556,7 @@ pub fn is_eligible_for_saved_flow(
                         "bank redirect PM's MCA does not top pre_routing_results – skipping"
                     );
                 }
-                return tops_list;
+                return is_first_in_list;
             }
         }
     }
@@ -6868,7 +6868,7 @@ pub async fn get_pm_list_context_for_bank_redirect(
 
     match payment_method_data {
         Some(domain::PaymentMethodsData::BankRedirect(_)) => {
-            let is_eligible = merchant_connector_accounts.map_or(true, |mcas| {
+            let is_eligible = merchant_connector_accounts.map_or(false, |mcas| {
                 is_eligible_for_saved_flow(pm, profile_id, mcas, pre_routing_results)
             });
 
