@@ -1847,6 +1847,12 @@ fn get_ucs_client(
         })
 }
 
+fn as_header_value(value: &Secret<String>) -> Option<Secret<String>> {
+    http::HeaderValue::from_str(value.peek())
+        .is_ok()
+        .then(|| value.clone())
+}
+
 pub fn build_unified_connector_service_auth_metadata(
     #[cfg(feature = "v1")] merchant_connector_account: MerchantConnectorAccountType,
     #[cfg(feature = "v2")] merchant_connector_account: MerchantConnectorAccountTypeDetails,
@@ -1938,10 +1944,10 @@ pub fn build_unified_connector_service_auth_metadata(
         } => Ok(ConnectorAuthMetadata {
             connector_name,
             auth_type: consts::UCS_AUTH_MULTI_KEY.to_string(),
-            api_key: Some(api_key.clone()),
-            key1: Some(key1.clone()),
-            key2: Some(key2.clone()),
-            api_secret: Some(api_secret.clone()),
+            api_key: as_header_value(api_key),
+            key1: as_header_value(key1),
+            key2: as_header_value(key2),
+            api_secret: as_header_value(api_secret),
             auth_key_map: None,
             merchant_id: Secret::new(merchant_id.to_string()),
             connector_config,
@@ -2513,6 +2519,36 @@ impl
     fn foreign_try_from(
         value: (
             payments_grpc::PayoutServiceTransferResponse,
+            common_enums::PayoutStatus,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let (response, prev_status) = value;
+
+        let status_code =
+            transformers::convert_connector_service_status_code(response.status_code)?;
+
+        let router_data_response = Result::<PayoutsResponseData, ErrorResponse>::foreign_try_from(
+            (response.clone(), prev_status),
+        )?;
+
+        Ok(Self {
+            router_data_response,
+            status_code,
+        })
+    }
+}
+
+impl
+    ForeignTryFrom<(
+        payments_grpc::PayoutMethodEligibilityResponse,
+        common_enums::PayoutStatus,
+    )> for crate::types::UcsPayoutEligibilityResponseData
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        value: (
+            payments_grpc::PayoutMethodEligibilityResponse,
             common_enums::PayoutStatus,
         ),
     ) -> Result<Self, Self::Error> {
