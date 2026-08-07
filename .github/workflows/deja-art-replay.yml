@@ -1,0 +1,30 @@
+name: Deja ART Replay
+
+on:
+  # This is a dangerous event trigger as it causes the workflow to run in the
+  # context of the target repository.
+  # Avoid checking out the head of the pull request or building code from the
+  # pull request whenever this trigger is used.
+  # Since this workflow only forwards the event payload to Jenkins and has no
+  # checkout step, this is an acceptable use of this trigger.
+  pull_request_target:
+    types:
+      - labeled
+
+permissions:
+  contents: read
+
+jobs:
+  trigger-replay:
+    name: Trigger Jenkins Deja ART replay
+    if: ${{ github.event.label.name == 'deja-art' }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Forward event to the Jenkins deja/art-replay job
+        run: |
+          curl -fsS --max-time 30 \
+            -H 'Content-Type: application/json' \
+            -H 'x-github-event: pull_request' \
+            --data @"$GITHUB_EVENT_PATH" \
+            "JENKINS_URL"
