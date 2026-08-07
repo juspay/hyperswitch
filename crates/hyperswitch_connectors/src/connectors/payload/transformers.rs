@@ -171,11 +171,11 @@ fn build_payload_payment_request_data(
                 enums::BankHolderType::Business => requests::PayloadAccClass::Business,
                 enums::BankHolderType::Personal => requests::PayloadAccClass::Personal,
             });
-            let account_type = requests::PayloadAccAccountType::try_from(
-                bank_type.ok_or(errors::ConnectorError::MissingRequiredField {
+            let account_type = requests::PayloadAccAccountType::try_from(bank_type.ok_or(
+                errors::ConnectorError::MissingRequiredField {
                     field_name: "bank_type",
-                })?,
-            )?;
+                },
+            )?)?;
             let account_holder = bank_account_holder_name.clone().ok_or_else(|| {
                 errors::ConnectorError::MissingRequiredField {
                     field_name: "bank_account_holder_name",
@@ -420,11 +420,11 @@ impl TryFrom<&SetupMandateRouterData> for requests::PayloadPaymentMethodRequest 
                 bank_account_holder_name,
                 ..
             }) => {
-                let account_type = requests::PayloadAccAccountType::try_from(
-                    bank_type.ok_or(errors::ConnectorError::MissingRequiredField {
+                let account_type = requests::PayloadAccAccountType::try_from(bank_type.ok_or(
+                    errors::ConnectorError::MissingRequiredField {
                         field_name: "bank_type",
-                    })?,
-                )?;
+                    },
+                )?)?;
 
                 let account_holder = bank_account_holder_name.clone().ok_or_else(|| {
                     errors::ConnectorError::MissingRequiredField {
