@@ -16,7 +16,6 @@ schema = { type = "boolean" }
 description = "Whether Deja request recording is enabled for matching request contexts (inert unless deja.sampler.enabled is set)"
 change_reason = "Initial setup"
 
-
 [dimensions.connector]
 position = 1
 schema = { type = "string" }
@@ -289,4 +288,10 @@ frequencies = [[300, 5]]
 value = false
 schema = { type = "boolean" }
 description = "Whether to save wallet decrypted data"
+change_reason = "Initial setup"
+
+[default-configs.pre_frm_failure_mode]
+value = "fail_open"
+schema = { type = "string", enum = ["fail_open", "fail_closed"] }
+description = "Controls whether payment processing continues when an applicable pre-FRM check fails"
 change_reason = "Initial setup"

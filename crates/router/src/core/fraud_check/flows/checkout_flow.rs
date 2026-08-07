@@ -140,6 +140,7 @@ impl ConstructFlowSpecificData<frm_api::Checkout, FraudCheckCheckoutData, FraudC
                 email,
                 phone,
                 phone_country_code,
+                profile_id: self.connector_details.profile_id.clone(),
             },
             response: Ok(FraudCheckResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId("".to_string()),

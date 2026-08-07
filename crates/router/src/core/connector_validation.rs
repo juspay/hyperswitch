@@ -638,6 +638,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 riskified::transformers::RiskifiedAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            api_enums::Connector::SanlamPayshield => {
+                sanlam_payshield::transformers::SanlamPayshieldAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Cybersourcedecisionmanager => {
                 cybersourcedecisionmanager::transformers::CybersourcedecisionmanagerAuthType::try_from(self.auth_type)?;
                 Ok(())

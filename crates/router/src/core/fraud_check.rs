@@ -12,18 +12,19 @@ use router_env::{
 use self::{
     flows::{self as frm_flows, FeatureFrm},
     types::{
-        self as frm_core_types, ConnectorDetailsCore, FrmConfigsObject, FrmData, FrmInfo,
-        PaymentDetails, PaymentToFrmData,
+        self as frm_core_types, ConnectorDetailsCore, FrmConfigsObject, FrmData, FrmEligibility,
+        FrmInfo, PaymentDetails, PaymentToFrmData, PreFrmFailureMode,
     },
 };
 use super::errors::{ConnectorErrorExt, RouterResponse};
 use crate::{
     core::{
+        configs::dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
         errors::{self, RouterResult},
         payments::{self, flows::ConstructFlowSpecificData, operations::BoxedOperation},
     },
     db::StorageInterface,
-    routes::{app::ReqState, SessionState},
+    routes::{app::ReqState, metrics, SessionState},
     services,
     types::{
         self as oss_types,
@@ -148,12 +149,7 @@ pub async fn should_call_frm<F, D>(
     _platform: &domain::Platform,
     _payment_data: &D,
     _state: &SessionState,
-) -> RouterResult<(
-    bool,
-    Option<FrmRoutingAlgorithm>,
-    Option<common_utils::id_type::ProfileId>,
-    Option<FrmConfigsObject>,
-)>
+) -> RouterResult<FrmEligibility>
 where
     F: Send + Clone,
     D: payments::OperationSessionGetters<F> + Send + Sync + Clone,
@@ -168,12 +164,7 @@ pub async fn should_call_frm<F, D>(
     platform: &domain::Platform,
     payment_data: &D,
     state: &SessionState,
-) -> RouterResult<(
-    bool,
-    Option<FrmRoutingAlgorithm>,
-    Option<common_utils::id_type::ProfileId>,
-    Option<FrmConfigsObject>,
-)>
+) -> RouterResult<FrmEligibility>
 where
     F: Send + Clone,
     D: payments::OperationSessionGetters<F> + Send + Sync + Clone,
@@ -356,26 +347,25 @@ where
                                 frm_configs_object,
                                 is_frm_enabled
                             );
-                            Ok((
-                                is_frm_enabled,
-                                Some(frm_routing_algorithm_struct),
-                                Some(profile_id),
-                                Some(frm_configs_object),
-                            ))
+                            Ok(FrmEligibility::Applicable {
+                                frm_routing_algorithm: frm_routing_algorithm_struct,
+                                profile_id,
+                                frm_configs: frm_configs_object,
+                            })
                         }
                         None => {
                             logger::error!("Cannot find frm_configs for FRM provider");
-                            Ok((false, None, None, None))
+                            Ok(FrmEligibility::NotApplicable)
                         }
                     }
                 }
                 None => {
                     logger::error!("Cannot find merchant connector account for FRM provider");
-                    Ok((false, None, None, None))
+                    Ok(FrmEligibility::NotApplicable)
                 }
             }
         }
-        _ => Ok((false, None, None, None)),
+        None => Ok(FrmEligibility::NotApplicable),
     }
 }
 
@@ -495,6 +485,7 @@ pub async fn pre_payment_frm_core<F, Req, D>(
     should_continue_transaction: &mut bool,
     should_continue_capture: &mut bool,
     operation: &BoxedOperation<'_, F, Req, D>,
+    failure_mode: &PreFrmFailureMode,
 ) -> RouterResult<Option<FrmData>>
 where
     F: Send + Clone,
@@ -541,7 +532,13 @@ where
                     .await?;
                 let frm_fraud_check = frm_data_updated.fraud_check.clone();
                 payment_data.set_frm_message(frm_fraud_check.clone());
-                if matches!(frm_fraud_check.frm_status, FraudCheckStatus::Fraud) {
+                if matches!(frm_fraud_check.frm_status, FraudCheckStatus::Fraud)
+                    || (matches!(failure_mode, PreFrmFailureMode::FailClosed)
+                        && matches!(
+                            frm_fraud_check.frm_status,
+                            FraudCheckStatus::TransactionFailure
+                        ))
+                {
                     *should_continue_transaction = false;
                     frm_info.suggested_action = Some(FrmSuggestion::FrmCancelTransaction);
                 }
@@ -568,6 +565,70 @@ where
         };
     }
     Ok(frm_data)
+}
+
+#[allow(clippy::too_many_arguments)]
+async fn decide_and_run_pre_frm<F, Req, D>(
+    operation: &BoxedOperation<'_, F, Req, D>,
+    platform: &domain::Platform,
+    payment_data: &mut D,
+    state: &SessionState,
+    frm_info: &mut Option<FrmInfo<F, D>>,
+    should_continue_transaction: &mut bool,
+    should_continue_capture: &mut bool,
+    failure_mode: &PreFrmFailureMode,
+) -> RouterResult<Option<FrmConfigsObject>>
+where
+    F: Send + Clone,
+    D: payments::OperationSessionGetters<F>
+        + payments::OperationSessionSetters<F>
+        + Send
+        + Sync
+        + Clone,
+{
+    match should_call_frm(platform, payment_data, state).await? {
+        FrmEligibility::Applicable {
+            frm_routing_algorithm,
+            profile_id,
+            frm_configs,
+        } => {
+            let mut updated_frm_info = Box::pin(make_frm_data_and_fraud_check_operation(
+                &*state.store,
+                state,
+                platform,
+                payment_data.to_owned(),
+                frm_routing_algorithm,
+                profile_id,
+                frm_configs.clone(),
+            ))
+            .await?;
+
+            pre_payment_frm_core(
+                state,
+                platform,
+                payment_data,
+                &mut updated_frm_info,
+                frm_configs.clone(),
+                should_continue_transaction,
+                should_continue_capture,
+                operation,
+                failure_mode,
+            )
+            .await?;
+
+            *frm_info = Some(updated_frm_info);
+
+            logger::debug!(
+                "FRM is applicable for this payment, frm_configs: {:?}",
+                frm_configs
+            );
+            Ok(Some(frm_configs))
+        }
+        FrmEligibility::NotApplicable => {
+            logger::debug!("FRM is not applicable for this payment");
+            Ok(None)
+        }
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -661,6 +722,7 @@ pub async fn call_frm_before_connector_call<F, Req, D>(
     frm_info: &mut Option<FrmInfo<F, D>>,
     should_continue_transaction: &mut bool,
     should_continue_capture: &mut bool,
+    dimensions: &DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
 ) -> RouterResult<Option<FrmConfigsObject>>
 where
     F: Send + Clone,
@@ -670,39 +732,57 @@ where
         + Sync
         + Clone,
 {
-    let (is_frm_enabled, frm_routing_algorithm, frm_connector_label, frm_configs) =
-        should_call_frm(platform, payment_data, state).await?;
-    if let Some((frm_routing_algorithm_val, profile_id)) =
-        frm_routing_algorithm.zip(frm_connector_label)
-    {
-        if let Some(frm_configs) = frm_configs.clone() {
-            let mut updated_frm_info = Box::pin(make_frm_data_and_fraud_check_operation(
-                &*state.store,
-                state,
-                platform,
-                payment_data.to_owned(),
-                frm_routing_algorithm_val,
-                profile_id,
-                frm_configs.clone(),
-            ))
-            .await?;
+    let failure_mode = dimensions
+        .get_pre_frm_failure_mode(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            None,
+        )
+        .await;
 
-            if is_frm_enabled {
-                pre_payment_frm_core(
-                    state,
-                    platform,
-                    payment_data,
-                    &mut updated_frm_info,
-                    frm_configs,
-                    should_continue_transaction,
-                    should_continue_capture,
-                    operation,
-                )
-                .await?;
+    let frm_configs = match decide_and_run_pre_frm(
+        operation,
+        platform,
+        payment_data,
+        state,
+        frm_info,
+        should_continue_transaction,
+        should_continue_capture,
+        &failure_mode,
+    )
+    .await
+    {
+        Ok(frm_configs) => Ok(frm_configs),
+        Err(e) => {
+            match failure_mode {
+                PreFrmFailureMode::FailOpen => {
+                    // Log the error
+                    logger::info!(
+                        "FRM actions before connector call failed, continuing due to FailOpen mode: payment_id={:?}, error={:?}",
+                        payment_data.get_payment_intent().payment_id,
+                        e
+                    );
+                    metrics::FRM_FAILURE.add(
+                        1,
+                        router_env::metric_attributes!(
+                            (
+                                "merchant_id",
+                                platform.get_processor().get_account().get_id().clone()
+                            ),
+                            ("error_type", e.current_context().to_string())
+                        ),
+                    );
+                    // Continue with default values
+                    Ok(None)
+                }
+                PreFrmFailureMode::FailClosed => {
+                    logger::info!("FRM actions before connector call failed, propagating error due to FailClosed mode");
+                    Err(e)
+                }
             }
-            *frm_info = Some(updated_frm_info);
         }
-    }
+    }?;
+
     let fraud_capture_method = frm_info.as_ref().and_then(|frm_info| {
         frm_info
             .frm_data
@@ -724,7 +804,6 @@ where
             fraud_capture_method
         );
     };
-    logger::debug!("frm_configs: {:?} {:?}", frm_configs, is_frm_enabled);
     Ok(frm_configs)
 }
 
