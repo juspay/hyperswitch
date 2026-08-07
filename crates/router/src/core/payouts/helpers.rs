@@ -1817,3 +1817,38 @@ pub fn should_continue_payout<F: Clone + 'static>(
 ) -> bool {
     router_data.response.is_ok()
 }
+
+pub fn read_eligibility_reference_id(
+    payout_connector_metadata: Option<&pii::SecretSerdeValue>,
+) -> Option<String> {
+    payout_connector_metadata?
+        .peek()
+        .as_object()?
+        .get(common_utils::consts::PAYOUT_ELIGIBILITY_REFERENCE_ID_KEY)?
+        .as_str()
+        .map(ToOwned::to_owned)
+}
+
+pub fn merge_connector_metadata(
+    merchant_metadata: Option<pii::SecretSerdeValue>,
+    connector_metadata: Option<pii::SecretSerdeValue>,
+) -> Option<pii::SecretSerdeValue> {
+    let Some(connector_details) = connector_metadata
+        .as_ref()
+        .and_then(|metadata| metadata.peek().as_object().cloned())
+        .filter(|details| !details.is_empty())
+    else {
+        return merchant_metadata;
+    };
+
+    let mut merged = merchant_metadata
+        .as_ref()
+        .and_then(|metadata| metadata.peek().as_object().cloned())
+        .unwrap_or_default();
+
+    for (key, value) in connector_details {
+        merged.entry(key).or_insert(value);
+    }
+
+    Some(Secret::new(serde_json::Value::Object(merged)))
+}

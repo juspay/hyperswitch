@@ -12,6 +12,7 @@ use api_models::payments::{
 };
 use common_enums::{AttemptStatus, AuthenticationType, AuthorizationStatus, RefundStatus};
 use common_utils::{
+    consts,
     ext_traits::Encode,
     types::{self, AmountConvertor, MinorUnit, StringMajorUnitForConnector},
 };
@@ -7602,7 +7603,12 @@ impl
         let status = common_enums::PayoutStatus::foreign_try_from(response.payout_status())
             .unwrap_or(prev_status);
 
-        let router_response = if let Some(error_info) = response.error {
+        let is_payee_refusal = response.payout_eligible == Some(false);
+        let connector_error = response.error.clone();
+
+        let router_response = if let Some(error_info) =
+            connector_error.clone().filter(|_| !is_payee_refusal)
+        {
             Err(ErrorResponse {
                 code: error_info
                     .connector_details
@@ -7650,14 +7656,36 @@ impl
                 connector_metadata: None,
             })
         } else {
+            let connector_details = connector_error
+                .as_ref()
+                .and_then(|error_info| error_info.connector_details.as_ref());
+
             Ok(PayoutsResponseData {
                 status: Some(status),
                 connector_payout_id: response.connector_payout_id,
                 payout_eligible: response.payout_eligible,
                 should_add_next_step_to_process_tracker: false,
-                error_code: None,
-                error_message: None,
-                payout_connector_metadata: None,
+                error_code: connector_details.and_then(|details| details.code.clone()),
+                error_message: connector_details.and_then(|details| details.message.clone()),
+                payout_connector_metadata: {
+                    let mut details = response
+                        .connector_metadata
+                        .as_ref()
+                        .and_then(|metadata| {
+                            serde_json::from_str::<serde_json::Value>(metadata.peek()).ok()
+                        })
+                        .and_then(|value| value.as_object().cloned())
+                        .unwrap_or_default();
+
+                    if let Some(reference_id) = response.eligibility_reference_id.clone() {
+                        details.insert(
+                            consts::PAYOUT_ELIGIBILITY_REFERENCE_ID_KEY.to_string(),
+                            serde_json::Value::String(reference_id),
+                        );
+                    }
+
+                    (!details.is_empty()).then(|| Secret::new(serde_json::Value::Object(details)))
+                },
             })
         };
 
