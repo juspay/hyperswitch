@@ -218,7 +218,10 @@ where
         // intent without a customer_id is rejected at payment create/confirm
         // (`validate_customer_id_mandatory_cases`), so a persistent session always has a
         // customer to attach to.
-        let storage_type = match (payment_data.get_payment_intent().setup_future_usage , customer_id) {
+        let storage_type = match (
+            payment_data.get_payment_intent().setup_future_usage,
+            customer_id,
+        ) {
             (Some(_), Some(_)) => common_enums::StorageType::Persistent,
             _ => common_enums::StorageType::Volatile,
         };
