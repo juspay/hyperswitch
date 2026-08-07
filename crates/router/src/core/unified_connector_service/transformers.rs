@@ -7549,12 +7549,16 @@ impl transformers::ForeignTryFrom<&api_models::payouts::PayoutMethodData>
                             .to_string(),
                     ),
                 ))?,
-                api_models::payouts::Bank::OpenBanking(_) => Err(error_stack::Report::new(
-                    UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
-                        "OpenBanking bank transfer not supported for Unified Connector Service"
-                            .to_string(),
-                    ),
-                ))?,
+                api_models::payouts::Bank::OpenBanking(open_banking) => {
+                    payments_grpc::payout_method::PayoutMethodData::OpenBankingUk(
+                        payments_grpc::OpenBankingUkPayout::foreign_try_from(
+                            &api_models::payouts::OpenBankingUk {
+                                account_holder_name: open_banking.account_holder_name.clone(),
+                                iban: open_banking.iban.clone(),
+                            },
+                        )?,
+                    )
+                }
             },
             api_models::payouts::PayoutMethodData::BankTransfer(bank_transfer) => {
                 match bank_transfer {
@@ -7596,13 +7600,15 @@ impl transformers::ForeignTryFrom<&api_models::payouts::PayoutMethodData>
                             payments_grpc::PixEmvBankTransferPayout::foreign_from(pix_emv),
                         )
                     }
-                    api_models::payouts::BankTransfer::OpenBanking(_) => {
-                        Err(error_stack::Report::new(
-                            UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
-                                "OpenBanking bank transfer not supported for Unified Connector Service"
-                                    .to_string(),
-                            ),
-                        ))?
+                    api_models::payouts::BankTransfer::OpenBanking(open_banking) => {
+                        payments_grpc::payout_method::PayoutMethodData::OpenBankingUk(
+                            payments_grpc::OpenBankingUkPayout::foreign_try_from(
+                                &api_models::payouts::OpenBankingUk {
+                                    account_holder_name: open_banking.account_holder_name.clone(),
+                                    iban: open_banking.iban.clone(),
+                                },
+                            )?,
+                        )
                     }
                 }
             }
