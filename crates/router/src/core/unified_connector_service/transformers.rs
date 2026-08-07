@@ -570,6 +570,8 @@ impl
                         }
                     }),
                 }),
+            // TODO: Populate currency_conversion_data when Dynamic Currency Conversion (DCC) is implemented
+            currency_conversion_data: None,
         })
     }
 }
@@ -805,6 +807,8 @@ impl
             connector_order_id: router_data.request.connector_transaction_id.clone(),
             merchant_request_id: None,
             partner_merchant_identifier_details: None,
+            // TODO: Populate currency_conversion_data when Dynamic Currency Conversion (DCC) is implemented
+            currency_conversion_data: None,
         })
     }
 }
@@ -1661,6 +1665,8 @@ impl
             l2_l3_data: None,
             merchant_request_id: None,
             partner_merchant_identifier_details: None,
+            // TODO: Populate currency_conversion_data when Dynamic Currency Conversion (DCC) is implemented
+            currency_conversion_data: None,
         })
     }
 }
@@ -1856,6 +1862,8 @@ impl
             l2_l3_data,
             merchant_request_id: None,
             partner_merchant_identifier_details: None,
+            // TODO: Populate currency_conversion_data when Dynamic Currency Conversion (DCC) is implemented
+            currency_conversion_data: None,
         })
     }
 }
@@ -2029,6 +2037,8 @@ impl
             l2_l3_data: None,
             merchant_request_id: None,
             partner_merchant_identifier_details: None,
+            // TODO: Populate currency_conversion_data when Dynamic Currency Conversion (DCC) is implemented
+            currency_conversion_data: None,
         })
     }
 }
@@ -4511,6 +4521,8 @@ impl transformers::ForeignTryFrom<common_enums::BankType> for payments_grpc::Ban
         match bank_type {
             common_enums::BankType::Checking => Ok(Self::Checking),
             common_enums::BankType::Savings => Ok(Self::Savings),
+            common_enums::BankType::Salary => Ok(Self::Salary),
+            common_enums::BankType::Payment => Ok(Self::Payment),
         }
     }
 }
@@ -7936,6 +7948,18 @@ impl transformers::ForeignTryFrom<&api_models::payouts::SepaBankTransfer>
 }
 
 #[cfg(feature = "payouts")]
+impl ForeignFrom<&common_enums::BankType> for payments_grpc::BankType {
+    fn foreign_from(item: &common_enums::BankType) -> Self {
+        match item {
+            common_enums::BankType::Checking => Self::Checking,
+            common_enums::BankType::Savings => Self::Savings,
+            common_enums::BankType::Salary => Self::Salary,
+            common_enums::BankType::Payment => Self::Payment,
+        }
+    }
+}
+
+#[cfg(feature = "payouts")]
 impl transformers::ForeignTryFrom<&api_models::payouts::PixBankTransfer>
     for payments_grpc::PixBankTransferPayout
 {
@@ -7948,6 +7972,12 @@ impl transformers::ForeignTryFrom<&api_models::payouts::PixBankTransfer>
             bank_account_number: item.bank_account_number.clone(),
             tax_id: item.tax_id.clone(),
             ispb: item.ispb.clone().map(Secret::new),
+            bank_code: item.bank_code.clone(),
+            bank_account_type: item
+                .bank_account_type
+                .as_ref()
+                .map(|bank_type| i32::from(payments_grpc::BankType::foreign_from(bank_type))),
+            account_holder_name: item.account_holder_name.clone(),
         })
     }
 }
@@ -7967,6 +7997,12 @@ impl transformers::ForeignTryFrom<&api_models::payouts::PixAccountBankTransfer>
             bank_account_number: Some(item.bank_account_number.clone()),
             tax_id: item.tax_id.clone(),
             ispb: item.ispb.clone().map(Secret::new),
+            bank_code: item.bank_code.clone(),
+            bank_account_type: item
+                .bank_account_type
+                .as_ref()
+                .map(|bank_type| i32::from(payments_grpc::BankType::foreign_from(bank_type))),
+            account_holder_name: item.account_holder_name.clone(),
         })
     }
 }

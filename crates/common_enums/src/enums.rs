@@ -9768,6 +9768,8 @@ pub enum BankNames {
 pub enum BankType {
     Checking,
     Savings,
+    Salary,
+    Payment,
 }
 #[derive(
     Clone,

@@ -70,6 +70,18 @@ pub struct JpmorganMetadata {
 }
 
 #[derive(Debug, serde::Deserialize)]
+pub struct SantanderPayoutMetadata {
+    pix_payout: Option<SantanderPixPayoutMetadata>,
+}
+
+#[derive(Debug, serde::Deserialize)]
+pub struct SantanderPixPayoutMetadata {
+    client_id: Secret<String>,
+    client_secret: Secret<String>,
+    workspace_id: Secret<String>,
+}
+
+#[derive(Debug, serde::Deserialize)]
 pub struct TruelayerMetadata {
     merchant_account_id: Option<Secret<String>>,
     account_holder_name: Option<Secret<String>>,
@@ -635,6 +647,14 @@ pub enum ConnectorSpecificConfig {
     },
     /// Givepayments connector configuration
     Givepayments { api_key: Secret<String> },
+    /// Santander payout connector configuration
+    Santander {
+        certificates: Secret<String>,
+        private_key: Secret<String>,
+        client_id: Secret<String>,
+        client_secret: Secret<String>,
+        workspace_id: Secret<String>,
+    },
 }
 
 impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
@@ -1654,6 +1674,31 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                     api_key: api_key.clone(),
                 }),
                 _ => Err(err("Givepayments requires HeaderKey auth type")),
+            },
+            Connector::Santander => match auth {
+                ConnectorAuthType::CertificateAuth {
+                    certificate,
+                    private_key,
+                } => {
+                    // When multiple payout methods are added, hold each as an Option here
+                    // and defer per-method credential validation to request time in UCS.
+                    let pix_payout = metadata
+                        .map(|m| {
+                            serde_json::from_value::<SantanderPayoutMetadata>(m.clone())
+                                .map_err(|_| err("Invalid Santander payout metadata format"))
+                        })
+                        .transpose()?
+                        .and_then(|m| m.pix_payout)
+                        .ok_or_else(|| err("Santander payout requires pix_payout metadata"))?;
+                    Ok(Self::Santander {
+                        certificates: certificate.clone(),
+                        private_key: private_key.clone(),
+                        client_id: pix_payout.client_id,
+                        client_secret: pix_payout.client_secret,
+                        workspace_id: pix_payout.workspace_id,
+                    })
+                }
+                _ => Err(err("Santander payout requires CertificateAuth auth type")),
             },
             // --- Unsupported connectors ---
             _ => Err(
