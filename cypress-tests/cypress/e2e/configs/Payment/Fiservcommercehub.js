@@ -662,6 +662,13 @@ export const connectorDetails = {
         },
       },
     },
+    // saveCardConfirmCallTest always confirms with a stored payment_token
+    // (generic vault-token replay) and strips payment_method_data from the
+    // request entirely — so, like the CONNECTOR_AGNOSTIC_NTID flows, this
+    // hits fiservcommercehub's real gap: it relies on its own TransArmor
+    // token for repeat charges, not hyperswitch's generic token replay.
+    // Router rejects it before ever reaching the connector: IR_39 "no
+    // eligible connector found for token-based MIT payment".
     SaveCardConfirmAutoCaptureOffSession: {
       Request: {
         setup_future_usage: "off_session",
@@ -671,9 +678,14 @@ export const connectorDetails = {
         billing: billingAddress,
       },
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "succeeded",
+          error: {
+            type: "invalid_request",
+            message:
+              "No eligible connector was found for the current payment method configuration",
+            code: "IR_39",
+          },
         },
       },
     },
@@ -686,9 +698,14 @@ export const connectorDetails = {
         billing: billingAddress,
       },
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "requires_capture",
+          error: {
+            type: "invalid_request",
+            message:
+              "No eligible connector was found for the current payment method configuration",
+            code: "IR_39",
+          },
         },
       },
     },
@@ -701,10 +718,14 @@ export const connectorDetails = {
         },
       },
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "succeeded",
-          billing: null,
+          error: {
+            type: "invalid_request",
+            message:
+              "No eligible connector was found for the current payment method configuration",
+            code: "IR_39",
+          },
         },
       },
     },
