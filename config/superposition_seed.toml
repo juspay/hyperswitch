@@ -2634,11 +2634,12 @@ pt_mapping_outgoing_connector_webhooks = { value = { default_mapping = { frequen
     ],
 ], start_after = 60 } }, schema = { type = "object" }, description = "Revenue recovery (PCR) payment retry process tracker mapping configuration", change_reason = "Initial setup" }
 "process_tracker.pt_mapping_refund_sync" = { value = { default_mapping = { frequencies = [
-    [
-        300,
-        5,
-    ],
-], start_after = 60 }, max_retries_count = 5 }, schema = { type = "object" }, description = "Refund sync retry process tracker mapping configuration", change_reason = "Initial setup" }
+    [1800, 4],   # 30 min  *  4  =  2 hours
+    [7200, 2],   # 2 hour  *  2  =  4 hours
+    [21600, 3],  # 6 hour  *  3  = 18 hours
+    [43200, 4],  # 12 hour *  4  = 48 hours
+    [86400, 4],  # 24 hour *  4  = 96 hours
+], start_after = 60 }, max_retries_count = 17 }, schema = { type = "object" }, description = "Refund sync retry process tracker mapping configuration", change_reason = "Initial setup" }
 "payments.requires_cvv" = { value = true, schema = { type = "boolean" }, description = "Whether CVV is required for payments", change_reason = "Initial setup" }
 "routing.routing_result_source" = { value = "hyperswitch_routing", schema = { enum = [
     "decision_engine",
