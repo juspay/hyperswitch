@@ -1818,24 +1818,15 @@ pub fn should_continue_payout<F: Clone + 'static>(
     router_data.response.is_ok()
 }
 
-pub fn extract_eligibility_reference_id(
-    payout_connector_metadata: Option<pii::SecretSerdeValue>,
-) -> (Option<String>, Option<pii::SecretSerdeValue>) {
-    let Some(metadata) = payout_connector_metadata else {
-        return (None, None);
-    };
-
-    let Some(mut details) = metadata.peek().as_object().cloned() else {
-        return (None, Some(metadata));
-    };
-
-    let reference_id = details
-        .remove(common_utils::consts::PAYOUT_ELIGIBILITY_REFERENCE_ID_KEY)
-        .and_then(|value| value.as_str().map(ToOwned::to_owned));
-
-    let remaining = (!details.is_empty()).then(|| Secret::new(serde_json::Value::Object(details)));
-
-    (reference_id, remaining)
+pub fn read_eligibility_reference_id(
+    payout_connector_metadata: Option<&pii::SecretSerdeValue>,
+) -> Option<String> {
+    payout_connector_metadata?
+        .peek()
+        .as_object()?
+        .get(common_utils::consts::PAYOUT_ELIGIBILITY_REFERENCE_ID_KEY)?
+        .as_str()
+        .map(ToOwned::to_owned)
 }
 
 pub fn merge_connector_metadata(

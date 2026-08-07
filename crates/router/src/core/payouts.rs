@@ -1737,14 +1737,9 @@ pub async fn check_payout_eligibility(
             let status = payout_response_data
                 .status
                 .unwrap_or(payout_attempt.status.to_owned());
-            // The connector hands the eligibility check's reference id inside the
-            // metadata under a reserved key. Move it into its own column so it stays
-            // queryable for reconciliation, and keep the remainder as the
-            // merchant-facing connector metadata.
-            let (eligibility_reference_id, payout_connector_metadata) =
-                helpers::extract_eligibility_reference_id(
-                    payout_response_data.payout_connector_metadata,
-                );
+            let eligibility_reference_id = helpers::read_eligibility_reference_id(
+                payout_response_data.payout_connector_metadata.as_ref(),
+            );
 
             let updated_payout_attempt = storage::PayoutAttemptUpdate::StatusUpdate {
                 eligibility_reference_id,
@@ -1755,7 +1750,7 @@ pub async fn check_payout_eligibility(
                 is_eligible: payout_response_data.payout_eligible,
                 unified_code: None,
                 unified_message: None,
-                payout_connector_metadata,
+                payout_connector_metadata: payout_response_data.payout_connector_metadata,
             };
             payout_data.payout_attempt = db
                 .update_payout_attempt(
