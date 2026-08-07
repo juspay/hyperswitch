@@ -12,6 +12,18 @@
 # seeded by scripts/seed_superposition.sh) and resolves `deja_record`. `path`
 # must be a registered dimension so the server builds the cohort's dependency
 # graph (path → deja_dimension).
+#
+# When this file is used as the runtime fallback (purpose 2 above) rather than
+# as seed input, `deja_record` resolves to its default of false for EVERY path.
+# The cohort and its override live only in scripts/seed_superposition.sh, so
+# nothing here can classify a path as recordable. A record-mode router that
+# starts while Superposition is unreachable therefore records nothing at all,
+# and it stays that way: the fallback is read once during provider init, and a
+# later refresh failure keeps the last known good config rather than re-reading
+# this file. Fixing that means declaring the cohort here as well, which the
+# seeder cannot currently post — its dimension projection drops the `type`
+# field, and TOML spells the type `"LOCAL_COHORT:path"` where the API wants a
+# tagged object.
 
 [default-configs]
 deja_record = { value = false, schema = { type = "boolean" }, description = "Deja per-request recording decision — default SKIP (false). The deja_dimension cohort override (seeded by scripts/seed_superposition.sh) sets this true for the recordable endpoint bucket; /health and other probe traffic fall through to false.", change_reason = "Deja recording sampler" }

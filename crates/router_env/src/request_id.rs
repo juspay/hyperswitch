@@ -1035,7 +1035,24 @@ where
                 let should_record_http_incoming = if boundary::process_is_record_mode() {
                     let decision = match recording_sampler {
                         Some(sampler) => sampler.should_record(request_facts.clone()).await,
-                        None => true,
+                        // A record-mode process with no sampler attached has no
+                        // policy to consult, so it records nothing. Recording
+                        // every request instead would make an assembly mistake
+                        // indistinguishable from a deliberate record-all, and
+                        // the resulting tape spans traffic no policy selected.
+                        // Warn once: this is a wiring defect, not a per-request
+                        // condition.
+                        None => {
+                            static MISSING_SAMPLER: std::sync::Once = std::sync::Once::new();
+                            MISSING_SAMPLER.call_once(|| {
+                                tracing::warn!(
+                                    "Deja is in record mode but no recording sampler is attached; \
+                                     skipping every request. Expect an empty tape until a sampler \
+                                     is wired into the application builder."
+                                );
+                            });
+                            false
+                        }
                     };
                     deja::set_recording_decision(request_id.to_string(), decision);
                     _decision_guard = Some(RecordingDecisionGuard(request_id.to_string()));
