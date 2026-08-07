@@ -4,6 +4,32 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.08.07.0
+
+### Features
+
+- **analytics:** Add auth_user_id to api_events ([#13462](https://github.com/juspay/hyperswitch/pull/13462)) ([`f7a1099`](https://github.com/juspay/hyperswitch/commit/f7a1099fddae845f05d9305f4ba6ab7e62d12a13))
+- **authentication:** Added cardbin/extended_cardbin routing support for exemption manager ([#13577](https://github.com/juspay/hyperswitch/pull/13577)) ([`fe7ccaa`](https://github.com/juspay/hyperswitch/commit/fe7ccaa8c28e705d2530aa7eb02ba9b643e8a9c2))
+- **connector:** [Stripe] add AcceptDispute flow ([#13545](https://github.com/juspay/hyperswitch/pull/13545)) ([`5d3e395`](https://github.com/juspay/hyperswitch/commit/5d3e3959d185c504e892bc04c43b97b33d7f0dbc))
+- **payouts:** Add terminal NotPermitted payout status ([#13524](https://github.com/juspay/hyperswitch/pull/13524)) ([`cc6cfec`](https://github.com/juspay/hyperswitch/commit/cc6cfec6bb32ea77039d2f7433e8324b2627a2b3))
+
+### Bug Fixes
+
+- **core:** Preserve payment method type and customer documents in MIT flow ([#13568](https://github.com/juspay/hyperswitch/pull/13568)) ([`e28854b`](https://github.com/juspay/hyperswitch/commit/e28854b6be35f4b3356c055dd8941ba3f62e2dbf))
+
+### Testing
+
+- **cypress:** Add card test cases for tsys_transit connector ([#13513](https://github.com/juspay/hyperswitch/pull/13513)) ([`4bcbd4c`](https://github.com/juspay/hyperswitch/commit/4bcbd4cd6a8d6709cda9443f14c364c7f6573a08))
+
+### Miscellaneous Tasks
+
+- **ucs:** Bump to 2026.08.04.0 ([#13566](https://github.com/juspay/hyperswitch/pull/13566)) ([`e531b1f`](https://github.com/juspay/hyperswitch/commit/e531b1f8e4cafe9b547e56bb9ff44303c8123345))
+- Remove hyperswitch AWS setup and cleanup scripts ([#13578](https://github.com/juspay/hyperswitch/pull/13578)) ([`f1d52fd`](https://github.com/juspay/hyperswitch/commit/f1d52fd11a7d04d0df1d7841e463396a551a4f87))
+
+**Full Changelog:** [`2026.08.06.0...2026.08.07.0`](https://github.com/juspay/hyperswitch/compare/2026.08.06.0...2026.08.07.0)
+
+- - -
+
 ## 2026.08.06.0
 
 ### Features

@@ -60,6 +60,7 @@ export const CONNECTOR_PAYMENT_METHODS = Object.freeze({
   truelayer: ["bank_redirect"],
   trustly: ["bank_redirect"],
   volt: ["bank_redirect"],
+  tsys_transit: ["card"],
 });
 
 /**
@@ -171,6 +172,7 @@ const PAYMENT_SPEC_METHODS = Object.freeze({
   "54-RefundType.cy.js": ["card"],
   "55-DynamicFields.cy.js": ["card"],
   "56-VaultTokenizationDisable.cy.js": ["card"],
+  "54-ConnectorAgnosticMandates.cy.js": ["card"],
 });
 
 /**
