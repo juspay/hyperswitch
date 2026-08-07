@@ -2008,6 +2008,8 @@ pub struct NuveiPaymentsResponse {
     pub auth_code: Option<String>,
     // NTID
     pub external_scheme_transaction_id: Option<Secret<String>>,
+    // Mastercard TLID
+    pub transaction_link_id: Option<String>,
     pub session_token: Option<Secret<String>>,
     pub partial_approval: Option<NuveiPartialApproval>,
     //The ID of the transaction in the merchant’s system.
@@ -2049,6 +2051,7 @@ pub struct NuveiTransactionSyncResponse {
     pub payment_option: Option<PaymentOption>,
     pub partial_approval: Option<NuveiTxnPartialApproval>,
     pub transaction_details: Option<NuveiTransactionSyncResponseDetails>,
+    pub transaction_link_id: Option<String>,
     pub client_unique_id: Option<String>,
     // API response status
     pub status: NuveiPaymentStatus,
@@ -2318,7 +2321,10 @@ impl
                     response.transaction_id.clone(),
                     response.order_id.clone(),
                     response.session_token.clone(),
-                    response.external_scheme_transaction_id.clone(),
+                    NuveiNetworkTransactionData {
+                        id: response.external_scheme_transaction_id.clone(),
+                        link_id: response.transaction_link_id.clone(),
+                    },
                     response.payment_option.clone(),
                 )?)
             },
@@ -2426,13 +2432,18 @@ fn process_nuvei_payment_response(
 }
 
 // Helper function to create transaction response
+struct NuveiNetworkTransactionData {
+    id: Option<Secret<String>>,
+    link_id: Option<String>,
+}
+
 fn create_transaction_response(
     redirection_data: Option<RedirectForm>,
     ip_address: Option<String>,
     transaction_id: Option<String>,
     order_id: Option<String>,
     session_token: Option<Secret<String>>,
-    external_scheme_transaction_id: Option<Secret<String>>,
+    network_transaction_data: NuveiNetworkTransactionData,
     payment_option: Option<PaymentOption>,
 ) -> Result<PaymentsResponseData, error_stack::Report<errors::ConnectorError>> {
     Ok(PaymentsResponseData::TransactionResponse {
@@ -2465,8 +2476,8 @@ fn create_transaction_response(
         } else {
             None
         },
-        network_txn_id: get_network_txn_id(external_scheme_transaction_id),
-        network_txn_link_id: None,
+        network_txn_id: get_network_txn_id(network_transaction_data.id),
+        network_txn_link_id: network_transaction_data.link_id,
         connector_response_reference_id: order_id.clone(),
         incremental_authorization_allowed: None,
         authentication_data: None,
@@ -2541,7 +2552,10 @@ impl
                     response.transaction_id.clone(),
                     response.order_id.clone(),
                     response.session_token.clone(),
-                    response.external_scheme_transaction_id.clone(),
+                    NuveiNetworkTransactionData {
+                        id: response.external_scheme_transaction_id.clone(),
+                        link_id: response.transaction_link_id.clone(),
+                    },
                     response.payment_option.clone(),
                 )?)
             },
@@ -2601,7 +2615,10 @@ where
                     response.transaction_id.clone(),
                     response.order_id.clone(),
                     response.session_token.clone(),
-                    response.external_scheme_transaction_id.clone(),
+                    NuveiNetworkTransactionData {
+                        id: response.external_scheme_transaction_id.clone(),
+                        link_id: response.transaction_link_id.clone(),
+                    },
                     response.payment_option.clone(),
                 )?)
             },
@@ -2739,7 +2756,10 @@ where
                         .and_then(|data| data.transaction_id.clone()),
                     None,
                     None,
-                    None,
+                    NuveiNetworkTransactionData {
+                        id: None,
+                        link_id: response.transaction_link_id.clone(),
+                    },
                     response.payment_option.clone(),
                 )?)
             },
@@ -3402,6 +3422,7 @@ pub struct PaymentDmnNotification {
     pub currency: String,
     #[serde(rename = "TransactionID")]
     pub transaction_id: Option<String>,
+    pub transaction_link_id: Option<String>,
     // Status of the Payment
     #[serde(rename = "Status")]
     pub status: Option<DmnStatus>,
@@ -3476,6 +3497,7 @@ impl From<PaymentDmnNotification> for NuveiTransactionSyncResponse {
             merchant_id: notification.merchant_id,
             merchant_site_id: notification.merchant_site_id,
             merchant_advice_code: notification.merchant_advice_code,
+            transaction_link_id: notification.transaction_link_id,
             ..Default::default()
         }
     }
