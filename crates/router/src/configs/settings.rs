@@ -1094,6 +1094,10 @@ pub struct Database {
     pub min_idle_pool_size: u32,
     pub max_lifetime: u64,
     pub idle_timeout: u64,
+    pub keepalives_idle: u64,
+    pub keepalives_interval: u64,
+    pub keepalives_count: u32,
+    pub tcp_user_timeout_ms: u64,
 }
 
 impl From<Database> for storage_impl::config::Database {
@@ -1110,6 +1114,10 @@ impl From<Database> for storage_impl::config::Database {
             min_idle_pool_size: val.min_idle_pool_size,
             max_lifetime: val.max_lifetime,
             idle_timeout: val.idle_timeout,
+            keepalives_idle: val.keepalives_idle,
+            keepalives_interval: val.keepalives_interval,
+            keepalives_count: val.keepalives_count,
+            tcp_user_timeout_ms: val.tcp_user_timeout_ms,
         }
     }
 }
