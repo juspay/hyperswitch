@@ -4,7 +4,7 @@ use std::sync::LazyLock;
 
 use common_enums::{enums, CaptureMethod, PaymentMethod, PaymentMethodType};
 use common_utils::{
-    crypto::{self, GenerateDigest},
+    crypto::{self, VerifySignature},
     errors::CustomResult,
     ext_traits::{ByteSliceExt, BytesExt, ValueExt},
     request::{Method, Request, RequestBuilder, RequestContent},
@@ -527,12 +527,13 @@ impl webhooks::IncomingWebhook for Tdaypay {
         let mut message = request.body.to_vec();
         message.extend_from_slice(merchant_key.as_bytes());
 
-        let digest = crypto::Sha512
-            .generate_digest(&message)
-            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
-        let expected = hex::encode(digest);
+        // Normalize hex casing; compare via monorepo VerifySignature helper
+        // (crypto::Sha512) instead of eq_ignore_ascii_case (timing-unsafe).
+        let received = signature.trim().to_ascii_lowercase();
 
-        Ok(expected.eq_ignore_ascii_case(signature.trim()))
+        crypto::Sha512
+            .verify_signature(&[], received.as_bytes(), &message)
+            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
     }
 
     fn get_webhook_object_reference_id(
