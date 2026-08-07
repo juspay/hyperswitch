@@ -5683,6 +5683,7 @@ impl AttemptType {
             retry_type: Some(enums::RetryType::ManualRetry),
             installment_data: None,
             external_surcharge_details: None,
+            applied_offer_details: None,
             sender_payment_instrument_id: None,
         }
     }
