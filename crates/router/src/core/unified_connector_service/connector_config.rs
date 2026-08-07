@@ -611,12 +611,7 @@ pub enum ConnectorSpecificConfig {
         certificates: Option<Secret<String>>,
         private_key: Option<Secret<String>>,
     },
-    /// Deutsche Bank CSEAL configuration for payouts (UCS-routed).
-    ///
-    /// `client_certificate_bundle` is the mTLS client certificate and its
-    /// private key concatenated into a single PEM blob; prism splits the two
-    /// halves before handing them to rustls. The env-level `server_ca_bundle`
-    /// (UAT private CA) is configured in prism's TOML, not here.
+    /// Deutsche Bank CSEAL configuration
     Deutschebank {
         customer_identifier: Secret<String>,
         key_id: Secret<String>,
@@ -1604,10 +1599,6 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                 }),
                 _ => Err(err("Itaubank requires BodyKey auth type")),
             },
-            // Deutsche Bank CSEAL has five secrets but `MultiAuthKey` only has
-            // four typed slots, so prism's MCA bundles the mTLS certificate and
-            // its private key into a single `key2` field. The split happens
-            // server-side in prism's `DeutschebankAuthType::try_from`.
             Connector::Deutschebank => match auth {
                 ConnectorAuthType::MultiAuthKey {
                     api_key,
