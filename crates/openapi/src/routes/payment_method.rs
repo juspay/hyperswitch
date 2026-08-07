@@ -118,6 +118,43 @@ pub async fn list_customer_payment_method_api() {}
 )]
 pub async fn list_customer_payment_method_api_client() {}
 
+/// List payment methods for a Payment
+///
+/// Client SDK endpoint. Returns a unified response combining merchant-enabled
+/// payment methods and customer saved payment methods, filtered via Euclid
+/// constraint graph and session flow routing.
+///
+/// Supported client auth:
+/// - SDK auth via `Authorization`.
+/// - Publishable-key auth via `api-key: pk_...` and `client_secret` query param.
+///
+/// Merchant secret-key auth is intentionally not supported for this endpoint.
+#[utoipa::path(
+    get,
+    path = "/payments/{payment_id}/client",
+    params (
+        ("payment_id" = String, Path, description = "The identifier for the payment"),
+        ("client_secret" = Option<String>, Query, description = "This is a token which expires after 15 minutes, used from the client to authenticate and create sessions from the SDK"),
+        ("accepted_countries" = Option<Vec<CountryAlpha2>>, Query, description = "The two-letter ISO currency code"),
+        ("accepted_currencies" = Option<Vec<Currency>>, Query, description = "The three-letter ISO currency code"),
+        ("amount" = Option<i64>, Query, description = "The amount accepted for processing by the particular payment method."),
+        ("recurring_enabled" = Option<bool>, Query, description = "Indicates whether the payment method is eligible for recurring payments"),
+        ("installment_payment_enabled" = Option<bool>, Query, description = "Indicates whether the payment method is eligible for installment payments"),
+        ("limit" = Option<i64>, Query, description = "Indicates the limit of last used payment methods"),
+        ("card_networks" = Option<Vec<CardNetwork>>, Query, description = "Indicates whether the payment method is eligible for card netwotks"),
+    ),
+    responses(
+        (status = 200, description = "Payment Methods retrieved", body = ClientPaymentMethodsListResponse),
+        (status = 400, description = "Invalid Data"),
+        (status = 404, description = "Payment Methods does not exist in records")
+    ),
+    tag = "Payment Methods",
+    operation_id = "List Payment Methods for a Payment via Client SDK",
+    security(("publishable_key" = []))
+)]
+#[cfg(feature = "v1")]
+pub async fn list_payment_methods_for_payments_client() {}
+
 /// Payment Method - Retrieve
 ///
 /// Retrieves a payment method of a customer.
