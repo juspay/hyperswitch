@@ -5985,6 +5985,15 @@ key1 = "Wise Account Id"
 merchant_secret="Source verification key"
 
 
+[deutschebank_payout]
+[[deutschebank_payout.bank_transfer]]
+  payment_method_type = "sepa_bank_transfer"
+[deutschebank_payout.connector_auth.MultiAuthKey]
+api_key="Customer Identifier"
+key1="Key ID"
+api_secret="Signing Private Key (PEM)"
+key2="Client Certificate Bundle (PEM cert + key concatenated)"
+
 [itaubank_payout]
 [[itaubank_payout.bank_transfer]]
   payment_method_type = "pix"
@@ -5995,6 +6004,35 @@ merchant_secret="Source verification key"
 [itaubank_payout.connector_auth.BodyKey]
 key1="Client Id"
 api_key="Client Secret"
+
+[santander_payout]
+[[santander_payout.bank_transfer]]
+  payment_method_type = "pix"
+[[santander_payout.bank_transfer]]
+  payment_method_type = "pix_key"
+[[santander_payout.bank_transfer]]
+  payment_method_type = "pix_emv"
+[santander_payout.connector_auth.CertificateAuth]
+certificate="Certificate"
+private_key="Certificate Key"
+[[santander_payout.metadata.pix_payout]]
+name="client_id"
+label="Client Id"
+placeholder="Enter the client id"
+required=true
+type="Text"
+[[santander_payout.metadata.pix_payout]]
+name="client_secret"
+label="Client Secret"
+placeholder="Enter the client secret"
+required=true
+type="Text"
+[[santander_payout.metadata.pix_payout]]
+name="workspace_id"
+label="Workspace Id"
+placeholder="Enter the workspace id"
+required=true
+type="Text"
 
 [threedsecureio]
 [threedsecureio.connector_auth.HeaderKey]
@@ -7913,6 +7951,8 @@ payment_method_type = "skrill"
 payment_method_type = "pay_safe_card"
 [[paysafe.wallet]]
 payment_method_type = "apple_pay"
+[[paysafe.wallet]]
+payment_method_type = "google_pay"
 
 [paysafe.connector_auth.BodyKey]
 api_key = "Username"
@@ -8000,6 +8040,18 @@ label="Decrypt"
 placeholder="Enter decrypt value"
 required=true
 type="Text"
+[[paysafe.metadata.account_id.apple_pay.EUR.encrypt]]
+name="encrypt"
+label="Encrypt"
+placeholder="Enter encrypt value"
+required=true
+type="Text"
+[[paysafe.metadata.account_id.apple_pay.EUR.decrypt]]
+name="decrypt"
+label="Decrypt"
+placeholder="Enter decrypt value"
+required=true
+type="Text"
 
 [[paysafe.metadata.apple_pay]]
 name="certificate"
@@ -8052,6 +8104,76 @@ placeholder="Enter Payment Processing Details At"
 required=true
 type="Radio"
 options=["Connector","Hyperswitch"]
+
+[[paysafe.metadata.google_pay]]
+name="merchant_name"
+label="Google Pay Merchant Name"
+placeholder="Enter Google Pay Merchant Name"
+required=true
+type="Text"
+[[paysafe.metadata.google_pay]]
+name="merchant_id"
+label="Google Pay Merchant Id"
+placeholder="Enter Google Pay Merchant Id"
+required=true
+type="Text"
+[[paysafe.metadata.google_pay]]
+name="gateway_merchant_id"
+label="Google Pay Merchant Key"
+placeholder="Enter Google Pay Merchant Key"
+required=true
+type="Text"
+[[paysafe.metadata.google_pay]]
+name="allowed_auth_methods"
+label="Allowed Auth Methods"
+placeholder="Enter Allowed Auth Methods"
+required=true
+type="MultiSelect"
+options=["PAN_ONLY", "CRYPTOGRAM_3DS"]
+
+[[paysafe.connector_wallets_details.google_pay]]
+name="merchant_name"
+label="Google Pay Merchant Name"
+placeholder="Enter Google Pay Merchant Name"
+required=true
+type="Text"
+[[paysafe.connector_wallets_details.google_pay]]
+name="merchant_id"
+label="Google Pay Merchant Id"
+placeholder="Enter Google Pay Merchant Id"
+required=true
+type="Text"
+[[paysafe.connector_wallets_details.google_pay]]
+name="gateway_merchant_id"
+label="Google Pay Merchant Key"
+placeholder="Enter Google Pay Merchant Key"
+required=true
+type="Text"
+[[paysafe.connector_wallets_details.google_pay]]
+name="public_key"
+label="Google Pay Public Key"
+placeholder="Enter Google Pay Public Key"
+required=true
+type="Text"
+[[paysafe.connector_wallets_details.google_pay]]
+name="private_key"
+label="Google Pay Private Key"
+placeholder="Enter Google Pay Private Key"
+required=true
+type="Text"
+[[paysafe.connector_wallets_details.google_pay]]
+name="recipient_id"
+label="Recipient Id"
+placeholder="Enter Recipient Id"
+required=true
+type="Text"
+[[paysafe.connector_wallets_details.google_pay]]
+name="allowed_auth_methods"
+label="Allowed Auth Methods"
+placeholder="Enter Allowed Auth Methods"
+required=true
+type="MultiSelect"
+options=["PAN_ONLY", "CRYPTOGRAM_3DS"]
 
 [peachpayments]
 [[peachpayments.credit]]

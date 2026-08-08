@@ -4045,7 +4045,6 @@ default_imp_for_accept_dispute!(
     connectors::Signifyd,
     connectors::Stax,
     connectors::Square,
-    connectors::Stripe,
     connectors::Stripebilling,
     connectors::Taxjar,
     connectors::Tesouro,
