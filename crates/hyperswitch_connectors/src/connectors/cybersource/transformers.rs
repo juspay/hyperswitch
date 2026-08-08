@@ -4044,6 +4044,10 @@ impl ForeignTryFrom<&CybersourceConsumerAuthValidateResponse> for UcsAuthenticat
             trans_status: None,
             transaction_id: value.xid.clone(),
             ucaf_collection_indicator: value.ucaf_collection_indicator.clone(),
+            challenge_code: None,
+            challenge_cancel: None,
+            challenge_code_reason: None,
+            message_extension: None,
         })
     }
 }

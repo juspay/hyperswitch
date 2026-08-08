@@ -647,6 +647,8 @@ pub enum ConnectorSpecificConfig {
     },
     /// Givepayments connector configuration
     Givepayments { api_key: Secret<String> },
+    /// Netcetera authentication connector configuration (no connector-specific config needed)
+    Netcetera,
     /// Santander payout connector configuration
     Santander {
         certificates: Secret<String>,
@@ -1675,6 +1677,7 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                 }),
                 _ => Err(err("Givepayments requires HeaderKey auth type")),
             },
+            Connector::Netcetera => Ok(Self::Netcetera),
             Connector::Santander => match auth {
                 ConnectorAuthType::CertificateAuth {
                     certificate,
