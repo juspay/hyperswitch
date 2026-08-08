@@ -454,67 +454,6 @@ where
     }
 }
 
-/// Two-tier cache where redis (L2) holds type `R` — typically the encrypted diesel model — and
-/// the in-memory cache (L1) holds type `T` — typically the decrypted domain model.
-/// `transform_func` converts the redis representation into the in-memory one, so that the
-/// (potentially expensive) decryption is paid once per in-memory population rather than once per
-/// read.
-///
-/// `redis_ttl` is the time to live for the redis entry in seconds; `None` stores it without an
-/// expiry. It is deliberately independent of the in-memory cache's TTL so the two tiers can be
-/// tuned separately — set it longer than the in-memory TTL to let an expired in-memory entry be
-/// refilled from redis instead of the database.
-#[instrument(skip_all)]
-pub async fn get_or_populate_in_memory_with_transform<T, R, F, Fut, TransF, TransFut>(
-    store: &(dyn RedisConnInterface + Send + Sync),
-    key: &str,
-    redis_ttl: Option<i64>,
-    fetch_func: F,
-    transform_func: TransF,
-    cache: &Cache,
-) -> CustomResult<T, StorageError>
-where
-    T: Cacheable + Debug + Clone,
-    R: serde::Serialize + serde::de::DeserializeOwned + Debug + Send,
-    F: FnOnce() -> Fut + Send,
-    Fut: futures::Future<Output = CustomResult<R, StorageError>> + Send,
-    TransF: FnOnce(R) -> TransFut + Send,
-    TransFut: futures::Future<Output = CustomResult<T, StorageError>> + Send,
-{
-    let redis = &store
-        .get_redis_conn()
-        .change_context(StorageError::RedisError(
-            RedisError::RedisConnectionError.into(),
-        ))
-        .attach_printable("Failed to get redis connection")?;
-
-    let cache_val = cache
-        .get_val::<T>(CacheKey {
-            key: key.to_string(),
-            prefix: redis.redis_conn.key_prefix.clone(),
-        })
-        .await;
-    if let Some(val) = cache_val {
-        return Ok(val);
-    }
-
-    let redis_model = get_or_populate_redis(redis, key, redis_ttl, fetch_func).await?;
-
-    let domain_model = transform_func(redis_model).await?;
-
-    cache
-        .push(
-            CacheKey {
-                key: key.to_string(),
-                prefix: redis.redis_conn.key_prefix.clone(),
-            },
-            domain_model.clone(),
-        )
-        .await;
-
-    Ok(domain_model)
-}
-
 #[instrument(skip_all)]
 pub async fn redact_from_redis_and_publish<
     'a,
