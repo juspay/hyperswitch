@@ -197,6 +197,7 @@ Never share your secret api keys. Keep them guarded and secure.
         common_utils::types::StringMinorUnit,
         common_utils::types::TimeRange,
         common_utils::types::BrowserInformation,
+        common_utils::types::Percentage<{ common_utils::consts::DISCOUNT_PERCENTAGE_PRECISION_LENGTH }>,
         common_utils::link_utils::GenericLinkUiConfig,
         common_utils::link_utils::EnabledPaymentMethod,
         common_utils::payout_method_utils::AdditionalPayoutMethodData,

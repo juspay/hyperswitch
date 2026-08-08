@@ -42,6 +42,24 @@ impl Default for ConnectorPTMapping {
     }
 }
 
+impl ConnectorPTMapping {
+    pub fn refund_default() -> Self {
+        Self {
+            default_mapping: RetryMapping {
+                start_after: 60,
+                frequencies: vec![
+                    (1800, 4),  // 30 min * 4  =  2 hours
+                    (7200, 2),  // 2 hour * 2  =  4 hours
+                    (21600, 3), // 6 hour * 3  = 18 hours
+                    (43200, 4), // 12 hour * 4 = 48 hours
+                    (86400, 4), // 24 hour * 4 = 96 hours
+                ],
+            },
+            max_retries_count: 17,
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize)]
 pub struct SubscriptionInvoiceSyncPTMapping {
     pub default_mapping: RetryMapping,
