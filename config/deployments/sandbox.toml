@@ -294,6 +294,8 @@ bank_redirect.bancontact_card.connector_list="adyen,stripe"
 bank_redirect.trustly.connector_list="adyen,aci"
 bank_redirect.open_banking_uk.connector_list="adyen"
 bank_redirect.eps.connector_list="globalpay,nexinets,aci,multisafepay"
+bank_transfer.pix_automatico_push = { connector_list = "santander" }
+bank_transfer.pix_automatico_qr = { connector_list = "santander" }
 
 [mandates.update_mandate_supported]
 card.credit = { connector_list = "cybersource" }            # Update Mandate supported payment method type and connector for card

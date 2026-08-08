@@ -326,6 +326,14 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
         _context: Option<&WebhookContext>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError>;
 
+    /// fn get_mandate_webhook_error_message
+    fn get_mandate_webhook_error_message(
+        &self,
+        _request: &IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+        Ok(None)
+    }
+
     /// fn get_webhook_resource_object
     fn get_webhook_resource_object(
         &self,

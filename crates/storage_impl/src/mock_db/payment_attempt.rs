@@ -158,6 +158,18 @@ impl PaymentAttemptInterface for MockDb {
     }
 
     #[cfg(feature = "v1")]
+    async fn find_payment_attempts_by_processor_merchant_id_payment_method_id(
+        &self,
+        _processor_merchant_id: &common_utils::id_type::MerchantId,
+        _payment_method_id: &str,
+        _storage_scheme: storage_enums::MerchantStorageScheme,
+        _merchant_key_store: &MerchantKeyStore,
+    ) -> CustomResult<Vec<PaymentAttempt>, StorageError> {
+        // [#172]: Implement function for `MockDb`
+        Err(StorageError::MockDbError)?
+    }
+
+    #[cfg(feature = "v1")]
     #[allow(clippy::panic)]
     async fn insert_payment_attempt(
         &self,

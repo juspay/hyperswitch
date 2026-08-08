@@ -689,6 +689,8 @@ wallet.apple_pay = { connector_list = "stripe,adyen,braintree,cybersource,noon,b
 wallet.samsung_pay = { connector_list = "cybersource" }
 wallet.google_pay = { connector_list = "bankofamerica,authorizedotnet,novalnet,worldpayxml,imerchantsolutions,datatrans" }
 bank_redirect.giropay = { connector_list = "globalpay" }
+bank_transfer.pix_automatico_push = { connector_list = "santander" }
+bank_transfer.pix_automatico_qr = { connector_list = "santander" }
 network_token.network_token.connector_list = "peachpayments"
 
 
