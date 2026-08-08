@@ -3411,9 +3411,11 @@ where
                     platform.get_provider().get_key_store(),
                 )
                 .await
-                .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                    id: external_vault_mca_id.get_string_repr().to_string(),
-                })?,
+                .to_not_found_response(
+                    errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                        id: external_vault_mca_id.get_string_repr().to_string(),
+                    },
+                )?,
         ));
 
     let router_data = payment_data
