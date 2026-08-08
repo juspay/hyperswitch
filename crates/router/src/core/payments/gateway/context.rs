@@ -112,6 +112,17 @@ impl GatewayContext for RouterGatewayContext {
     }
 }
 impl RouterGatewayContext {
+    /// Returns a clone of this context with execution_path forced to Direct.
+    /// Used for sub-flows (e.g. access token) that must always use the Direct path
+    /// regardless of the parent flow's execution_path.
+    pub fn clone_with_direct_path(&self) -> Self {
+        Self {
+            execution_path: ExecutionPath::Direct,
+            execution_mode: ExecutionMode::NotApplicable,
+            ..self.clone()
+        }
+    }
+
     /// Get the gateway system (Direct, UnifiedConnectorService, etc.)
     pub fn get_gateway_system(&self) -> GatewaySystem {
         match self.execution_path {
