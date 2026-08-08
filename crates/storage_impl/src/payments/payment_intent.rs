@@ -1,7 +1,7 @@
 #[cfg(feature = "olap")]
 use api_models::payments::{AmountFilter, Order, SortBy, SortOn};
 #[cfg(feature = "olap")]
-use async_bb8_diesel::{AsyncConnection, AsyncRunQueryDsl};
+use async_bb8_diesel::AsyncRunQueryDsl;
 use common_utils::ext_traits::{AsyncExt, Encode};
 #[cfg(feature = "v2")]
 use common_utils::fallback_reverse_lookup_not_found;
@@ -481,10 +481,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
         .await;
 
         let database_call = || async {
-            let conn: bb8::PooledConnection<
-                '_,
-                async_bb8_diesel::ConnectionManager<diesel::PgConnection>,
-            > = pg_connection_read(self).await?;
+            let conn = pg_connection_read(self).await?;
 
             DieselPaymentIntent::find_by_global_id(&conn, id)
                 .await
@@ -928,7 +925,6 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         use futures::{future::try_join_all, FutureExt};
 
         let conn = connection::pg_connection_read(self).await?;
-        let conn = async_bb8_diesel::Connection::as_async_conn(&conn);
 
         //[#350]: Replace this with Boxable Expression and pass it into generic filter
         // when https://github.com/rust-lang/rust/issues/52662 becomes stable
@@ -1015,8 +1011,10 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
             .attach_printable("Missing KeyManagerState")?;
         logger::debug!(query = %diesel::debug_query::<diesel::pg::Pg,_>(&query).to_string());
         db_metrics::track_database_call::<<DieselPaymentIntent as HasTable>::Table, _, _>(
-            query.get_results_async::<DieselPaymentIntent>(conn),
+            conn.request_id(),
+            conn.event_emitter(),
             db_metrics::DatabaseOperation::Filter,
+            query.get_results_async::<DieselPaymentIntent>(conn.raw_connection()),
         )
         .await
         .map(|payment_intents| {
@@ -1066,7 +1064,6 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         time_range: &common_utils::types::TimeRange,
     ) -> error_stack::Result<Vec<(common_enums::IntentStatus, i64)>, StorageError> {
         let conn = connection::pg_connection_read(self).await?;
-        let conn = async_bb8_diesel::Connection::as_async_conn(&conn);
 
         let mut query = <DieselPaymentIntent as HasTable>::table()
             .group_by(pi_dsl::status)
@@ -1088,8 +1085,10 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         logger::debug!(filter = %diesel::debug_query::<diesel::pg::Pg,_>(&query).to_string());
 
         db_metrics::track_database_call::<<DieselPaymentIntent as HasTable>::Table, _, _>(
-            query.get_results_async::<(common_enums::IntentStatus, i64)>(conn),
+            conn.request_id(),
+            conn.event_emitter(),
             db_metrics::DatabaseOperation::Filter,
+            query.get_results_async::<(common_enums::IntentStatus, i64)>(conn.raw_connection()),
         )
         .await
         .map_err(|er| {
@@ -1108,7 +1107,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Vec<(PaymentIntent, PaymentAttempt)>, StorageError> {
         let conn = connection::pg_connection_read(self).await?;
-        let conn = async_bb8_diesel::Connection::as_async_conn(&conn);
+        let conn = conn.raw_connection();
         let mut query = DieselPaymentIntent::table()
             .filter(pi_dsl::processor_merchant_id.eq(processor_merchant_id.to_owned()))
             .inner_join(
@@ -1341,7 +1340,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         use futures::{future::try_join_all, FutureExt};
 
         let conn = connection::pg_connection_read(self).await?;
-        let conn = async_bb8_diesel::Connection::as_async_conn(&conn);
+        let conn = conn.raw_connection();
         let mut query = DieselPaymentIntent::table()
             .filter(pi_dsl::merchant_id.eq(merchant_id.to_owned()))
             .left_join(
@@ -1563,7 +1562,6 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Vec<Option<String>>, StorageError> {
         let conn = connection::pg_connection_read(self).await?;
-        let conn = async_bb8_diesel::Connection::as_async_conn(&conn);
         let mut query = DieselPaymentIntent::table()
             .select(pi_dsl::active_attempt_id)
             .filter(pi_dsl::merchant_id.eq(merchant_id.to_owned()))
@@ -1629,8 +1627,10 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         };
 
         db_metrics::track_database_call::<<DieselPaymentIntent as HasTable>::Table, _, _>(
-            query.get_results_async::<Option<String>>(conn),
+            conn.request_id(),
+            conn.event_emitter(),
             db_metrics::DatabaseOperation::Filter,
+            query.get_results_async::<Option<String>>(conn.raw_connection()),
         )
         .await
         .map_err(|er| {
@@ -1648,7 +1648,6 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         _storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<Vec<String>, StorageError> {
         let conn = connection::pg_connection_read(self).await?;
-        let conn = async_bb8_diesel::Connection::as_async_conn(&conn);
         let mut query = DieselPaymentIntent::table()
             .select(pi_dsl::active_attempt_id)
             .filter(pi_dsl::processor_merchant_id.eq(processor_merchant_id.to_owned()))
@@ -1713,8 +1712,10 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         };
 
         db_metrics::track_database_call::<<DieselPaymentIntent as HasTable>::Table, _, _>(
-            query.get_results_async::<String>(conn),
+            conn.request_id(),
+            conn.event_emitter(),
             db_metrics::DatabaseOperation::Filter,
+            query.get_results_async::<String>(conn.raw_connection()),
         )
         .await
         .map_err(|er| {

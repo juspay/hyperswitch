@@ -8,17 +8,17 @@ use crate::schema_v2::refund::dsl;
 use crate::{
     errors, kv,
     refund::{Refund, RefundNew, RefundUpdate, RefundUpdateInternal},
-    PgPooledConn, StorageResult,
+    DatabaseConnectionWithContext, StorageResult,
 };
 
 impl RefundNew {
-    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<Refund> {
+    pub async fn insert(self, conn: &DatabaseConnectionWithContext<'_>) -> StorageResult<Refund> {
         generics::generic_insert(conn, self).await
     }
 
     pub async fn generate_drainer_insert_query(
         self,
-        conn: &mut PgPooledConn,
+        conn: &mut DatabaseConnectionWithContext<'_>,
     ) -> StorageResult<kv::SerializableQuery> {
         kv::generate_insert_query(conn, self).await
     }
@@ -26,7 +26,11 @@ impl RefundNew {
 
 #[cfg(feature = "v1")]
 impl Refund {
-    pub async fn update(self, conn: &PgPooledConn, refund: RefundUpdate) -> StorageResult<Self> {
+    pub async fn update(
+        self,
+        conn: &DatabaseConnectionWithContext<'_>,
+        refund: RefundUpdate,
+    ) -> StorageResult<Self> {
         let processor_merchant_id = self
             .processor_merchant_id
             .clone()
@@ -56,7 +60,7 @@ impl Refund {
     // Fallback function for stagger release - updates by merchant_id when processor_merchant_id is NULL
     pub async fn update_by_merchant_id(
         self,
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         refund: RefundUpdate,
     ) -> StorageResult<Self> {
         let processor_merchant_id = self
@@ -87,7 +91,7 @@ impl Refund {
 
     // This is required to be changed for KV.
     pub async fn find_by_processor_merchant_id_refund_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         refund_id: &str,
     ) -> StorageResult<Self> {
@@ -102,7 +106,7 @@ impl Refund {
 
     // Fallback function for stagger release - queries by merchant_id when processor_merchant_id is NULL
     pub async fn find_by_merchant_id_refund_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         refund_id: &str,
     ) -> StorageResult<Self> {
@@ -116,7 +120,7 @@ impl Refund {
     }
 
     pub async fn find_by_processor_merchant_id_connector_refund_id_connector(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         connector_refund_id: &str,
         connector: &str,
@@ -133,7 +137,7 @@ impl Refund {
 
     // Fallback function for stagger release - queries by merchant_id when processor_merchant_id is NULL
     pub async fn find_by_merchant_id_connector_refund_id_connector(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         connector_refund_id: &str,
         connector: &str,
@@ -149,7 +153,7 @@ impl Refund {
     }
 
     pub async fn find_by_internal_reference_id_processor_merchant_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         internal_reference_id: &str,
         processor_merchant_id: &common_utils::id_type::MerchantId,
     ) -> StorageResult<Self> {
@@ -164,7 +168,7 @@ impl Refund {
 
     // Fallback function for stagger release - queries by merchant_id when processor_merchant_id is NULL
     pub async fn find_by_internal_reference_id_merchant_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         internal_reference_id: &str,
         processor_merchant_id: &common_utils::id_type::MerchantId,
     ) -> StorageResult<Self> {
@@ -178,7 +182,7 @@ impl Refund {
     }
 
     pub async fn find_by_processor_merchant_id_connector_transaction_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         connector_transaction_id: &str,
     ) -> StorageResult<Vec<Self>> {
@@ -203,7 +207,7 @@ impl Refund {
     }
 
     pub async fn find_by_payment_id_processor_merchant_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         payment_id: &common_utils::id_type::PaymentId,
         processor_merchant_id: &common_utils::id_type::MerchantId,
     ) -> StorageResult<Vec<Self>> {
@@ -241,7 +245,7 @@ impl Refund {
 impl Refund {
     pub async fn update_with_id(
         self,
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         refund: RefundUpdate,
     ) -> StorageResult<Self> {
         match generics::generic_update_by_id::<<Self as HasTable>::Table, _, _, _>(
@@ -260,7 +264,7 @@ impl Refund {
     }
 
     pub async fn find_by_global_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         id: &common_utils::id_type::GlobalRefundId,
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
@@ -271,7 +275,7 @@ impl Refund {
     }
 
     pub async fn find_by_merchant_id_connector_transaction_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         merchant_id: &common_utils::id_type::MerchantId,
         connector_transaction_id: &str,
     ) -> StorageResult<Vec<Self>> {
@@ -297,7 +301,7 @@ impl RefundUpdate {
     #[cfg(feature = "v1")]
     pub async fn generate_drainer_update_query(
         self,
-        conn: &mut PgPooledConn,
+        conn: &mut DatabaseConnectionWithContext<'_>,
         refund_id: String,
         processor_merchant_id: common_utils::id_type::MerchantId,
     ) -> StorageResult<kv::SerializableQuery> {
@@ -314,7 +318,7 @@ impl RefundUpdate {
     #[cfg(feature = "v2")]
     pub async fn generate_drainer_update_query(
         self,
-        conn: &mut PgPooledConn,
+        conn: &mut DatabaseConnectionWithContext<'_>,
         id: common_utils::id_type::GlobalRefundId,
     ) -> StorageResult<kv::SerializableQuery> {
         kv::generate_update_query_by_id::<<Refund as HasTable>::Table, _, _>(
