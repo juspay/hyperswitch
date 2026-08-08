@@ -25,6 +25,13 @@ offer_engine_credential_source = { value = "none", schema = { type = "string", e
     "none",
     "application",
 ] }, description = "Source of Account Updater credentials once account_updater.enabled is true: 'none' skips Account Updater; 'application' uses the static account_updater application config. Future org/merchant/profile sources will extend the enum alongside their credential storage.", change_reason = "Account Updater credential source is a string enum: 'none' disables, 'application' enables; extensible to org/merchant/profile sources" }
+"payments.step_up_enabled" = { value = false, schema = { type = "boolean" }, description = "Whether step-up (3DS) retry is enabled for a merchant and connector", change_reason = "Migrate payment configuration to Superposition" }
+"payments.authentication_service_eligible" = { value = false, schema = { type = "boolean" }, description = "Whether the merchant or organization is eligible for the authentication service", change_reason = "Migrate payment configuration to Superposition" }
+"routing.pre_routing_disabled_pm_pmt" = { value = { skip_rules = [] }, schema = { type = "object" }, description = "Pre-routing disabled payment methods and payment method types per merchant", change_reason = "Migrate routing configuration to Superposition" }
+"payments.blocklist_guard" = { value = false, schema = { type = "boolean" }, description = "Whether blocklist guard is enabled for the merchant", change_reason = "Migrate payment configuration to Superposition" }
+"vaulting.skip_saving_wallet_at_connector" = { value = false, schema = { type = "boolean" }, description = "Whether saving the wallet at the connector should be skipped per merchant and payment method type", change_reason = "Migrate vaulting configuration to Superposition" }
+"payments.connector_api_version" = { value = "", schema = { type = "string" }, description = "Connector-specific API version keyed by the connector dimension", change_reason = "Migrate connector API version configuration to Superposition" }
+"payments.payment_update_enabled_for_client_auth" = { value = false, schema = { type = "boolean" }, description = "Whether payment update through client authentication is enabled for the merchant", change_reason = "Migrate payment configuration to Superposition" }
 client_session_validation_enabled = { value = true, schema = { type = "boolean" } }
 "dynamic_fields.bank_debit.ach_bank_debit.account_number._confirm_request_write_path" = { value = "payment_method_data.bank_debit.ach_bank_debit.account_number", schema = { type = "string" } }
 "dynamic_fields.bank_debit.ach_bank_debit.account_number._default_label_text" = { value = "Account Number", schema = { type = "string" } }
@@ -3341,6 +3348,11 @@ payout_retry_type = { position = 9, schema = { enum = [
 processor_merchant_id = { position = 13, schema = { pattern = ".*", type = "string" }, type = "REGULAR" }
 profile_id = { position = 14, schema = { pattern = ".*", type = "string" }, type = "REGULAR" }
 provider_merchant_id = { position = 12, schema = { pattern = ".*", type = "string" }, type = "REGULAR" }
+transaction_type = { position = 21, schema = { enum = [
+    "payment",
+    "payout",
+    "three_ds_authentication",
+], type = "string" }, type = "REGULAR" }
 variantIds = { position = 0, schema = { pattern = ".*", type = "string" }, type = "REGULAR" }
 
 [[overrides]]

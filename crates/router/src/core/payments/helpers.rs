@@ -8905,32 +8905,9 @@ where
     request.check_integrity(request, connector_transaction_id.to_owned())
 }
 
-pub async fn config_skip_saving_wallet_at_connector(
-    db: &dyn StorageInterface,
-    merchant_id: &id_type::MerchantId,
-) -> CustomResult<Option<Vec<storage_enums::PaymentMethodType>>, errors::ApiErrorResponse> {
-    let config = db
-        .find_config_by_key_unwrap_or(
-            &merchant_id.get_skip_saving_wallet_at_connector_key(),
-            Some("[]".to_string()),
-        )
-        .await;
-    Ok(match config {
-        Ok(conf) => Some(
-            serde_json::from_str::<Vec<storage_enums::PaymentMethodType>>(&conf.config)
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("skip_save_wallet_at_connector config parsing failed")?,
-        ),
-        Err(error) => {
-            logger::error!(?error);
-            None
-        }
-    })
-}
-
 #[cfg(feature = "v1")]
 pub async fn override_setup_future_usage_to_on_session<F, D>(
-    db: &dyn StorageInterface,
+    state: &SessionState,
     payment_data: &mut D,
 ) -> CustomResult<(), errors::ApiErrorResponse>
 where
@@ -8939,23 +8916,28 @@ where
 {
     if payment_data.get_payment_intent().setup_future_usage == Some(enums::FutureUsage::OffSession)
     {
-        let skip_saving_wallet_at_connector_optional = config_skip_saving_wallet_at_connector(
-            db,
-            &payment_data.get_payment_intent().merchant_id,
-        )
-        .await?;
+        if let Some(payment_method_type) =
+            payment_data.get_payment_attempt().get_payment_method_type()
+        {
+            let merchant_id = payment_data.get_payment_intent().merchant_id.clone();
+            let dimensions = dimension_state::Dimensions::new()
+                .with_processor_merchant_id(dimension_state::ProcessorMerchantId::new(merchant_id))
+                .with_payment_method_type(payment_method_type);
 
-        if let Some(skip_saving_wallet_at_connector) = skip_saving_wallet_at_connector_optional {
-            if let Some(payment_method_type) =
-                payment_data.get_payment_attempt().get_payment_method_type()
-            {
-                if skip_saving_wallet_at_connector.contains(&payment_method_type) {
-                    logger::debug!("Override setup_future_usage from off_session to on_session based on the merchant's skip_saving_wallet_at_connector configuration to avoid creating a connector mandate.");
-                    payment_data
-                        .set_setup_future_usage_in_payment_intent(enums::FutureUsage::OnSession);
-                }
+            let skip_saving_wallet_at_connector = dimensions
+                .get_skip_saving_wallet_at_connector(
+                    state.store.as_ref(),
+                    &state.superposition_service,
+                    None,
+                )
+                .await;
+
+            if skip_saving_wallet_at_connector {
+                logger::debug!("Override setup_future_usage from off_session to on_session based on the merchant's skip_saving_wallet_at_connector configuration to avoid creating a connector mandate.");
+                payment_data
+                    .set_setup_future_usage_in_payment_intent(enums::FutureUsage::OnSession);
             }
-        };
+        }
     };
     Ok(())
 }
@@ -9270,50 +9252,24 @@ pub fn validate_platform_request_for_marketplace(
     Ok(())
 }
 
-/// Returns `true` if either the org or merchant config is set to "true"
+/// Returns `true` if the org-level superposition config indicates the merchant
+/// is eligible for the authentication service.
 ///
-/// Priority logic:
-/// 1. If org-level config exists (either "true" or "false"), that decision is final
-///    - Org = "true" → returns true (authentication enabled)
-///    - Org = "false" → returns false (authentication disabled, merchant config ignored)
-/// 2. If org-level config is missing or fails to fetch, fallback to merchant-level config
-///    - Merchant = "true" → returns true
-///    - Merchant = "false" or missing → returns false
-///
-/// This ensures parent (org) rules take precedence over child (merchant) configurations
+/// Resolution order: Superposition → DB (`authentication_service_eligible_{org_id}`) → `true` (default)
 pub async fn is_merchant_eligible_authentication_service(
     processor: &domain::Processor,
     state: &SessionState,
 ) -> RouterResult<bool> {
-    let db = &*state.store;
-    let org_key = processor
-        .get_account()
-        .get_org_id()
-        .get_authentication_service_eligible_key();
-    let org_eligible = db
-        .find_config_by_key(&org_key)
-        .await
-        .inspect_err(|error| {
-            logger::error!(?error, "Failed to fetch `{org_key}` config from DB");
-        })
-        .ok()
-        .map(|c| c.config.to_lowercase() == "true");
+    let dimensions = dimension_state::Dimensions::new()
+        .with_processor_merchant_id(processor.get_processor_merchant_id())
+        .with_organization_id(processor.get_account().get_org_id().clone());
 
-    Ok(org_eligible
-        .async_unwrap_or_else(|| async {
-            let merchant_key = processor
-                .get_account()
-                .get_id()
-                .get_authentication_service_eligible_key();
-            db.find_config_by_key(&merchant_key)
-                .await
-                .inspect_err(|error| {
-                    logger::error!(?error, "Failed to fetch `{merchant_key}` config from DB");
-                })
-                .ok()
-                .map(|c| c.config.to_lowercase() == "true")
-                .unwrap_or(false)
-        })
+    Ok(dimensions
+        .get_authentication_service_eligible(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            None,
+        )
         .await)
 }
 
@@ -9406,17 +9362,17 @@ async fn get_payment_update_enabled_for_client_auth(
     merchant_id: &id_type::MerchantId,
     state: &SessionState,
 ) -> bool {
-    let key = merchant_id.get_payment_update_enabled_for_client_auth_key();
-    let db = &*state.store;
-    let update_enabled = db.find_config_by_key(key.as_str()).await;
+    let dimensions = dimension_state::Dimensions::new().with_processor_merchant_id(
+        dimension_state::ProcessorMerchantId::new(merchant_id.clone()),
+    );
 
-    match update_enabled {
-        Ok(conf) => conf.config.to_lowercase() == "true",
-        Err(error) => {
-            logger::error!(?error);
-            false
-        }
-    }
+    dimensions
+        .get_payment_update_enabled_for_client_auth(
+            state.store.as_ref(),
+            &state.superposition_service,
+            None,
+        )
+        .await
 }
 
 pub async fn allow_payment_update_enabled_for_client_auth(

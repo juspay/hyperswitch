@@ -470,8 +470,23 @@ pub mod superposition {
     pub const THREEDS_ROUTING_REGION_UAS: &str = "routing.threeds_routing_region_uas";
     /// disabled webhook events configuration key per merchant and connector
     pub const INCOMING_WEBHOOK_DISABLED_EVENTS: &str = "webhooks.incoming_webhook_disabled_events";
+    /// Step-up authentication enabled configuration key per merchant and connector
+    pub const STEP_UP_ENABLED: &str = "payments.step_up_enabled";
+    /// Pre-routing disabled payment methods config key
+    pub const PRE_ROUTING_DISABLED_PM_PMT: &str = "routing.pre_routing_disabled_pm_pmt";
+    /// Merchant eligible for authentication service config key
+    pub const AUTHENTICATION_SERVICE_ELIGIBLE: &str = "payments.authentication_service_eligible";
+    /// Blocklist guard enabled configuration key
+    pub const BLOCKLIST_GUARD: &str = "payments.blocklist_guard";
+    /// Skip saving wallet at connector configuration key per merchant and payment method type
+    pub const SKIP_SAVING_WALLET_AT_CONNECTOR: &str = "vaulting.skip_saving_wallet_at_connector";
     /// save wallet decrypted data in locker
     pub const SAVE_WALLET_DECRYPTED_DATA: &str = "vaulting.save_wallet_decrypted_data";
+    /// Connector API version configuration key per connector
+    pub const CONNECTOR_API_VERSION: &str = "payments.connector_api_version";
+    /// Whether payment update via client auth is enabled, per merchant
+    pub const PAYMENT_UPDATE_ENABLED_FOR_CLIENT_AUTH: &str =
+        "payments.payment_update_enabled_for_client_auth";
 }
 
 #[cfg(test)]

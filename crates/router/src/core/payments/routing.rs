@@ -1314,7 +1314,7 @@ where
 
             if connector_call_type.is_none() {
                 crate::core::payments::helpers::override_setup_future_usage_to_on_session(
-                    &*state.store,
+                    state,
                     payment_data,
                 )
                 .await?;
