@@ -227,9 +227,10 @@ export const connectorDetails = {
         body: {
           status: "succeeded",
           payment_method: "card",
-          // shipping_cost (50) is only added to the base amount (6000) at
-          // Confirm, not at intent-creation time — verified live.
-          amount: 6050,
+          // fiservcommercehub doesn't add shipping_cost into the charged
+          // total — it stays informational/metadata only, amount remains
+          // the base 6000 through Confirm — verified live.
+          amount: 6000,
         },
       },
     },
@@ -803,6 +804,286 @@ export const connectorDetails = {
         body: {
           status: "succeeded",
           billing: null,
+        },
+      },
+    },
+  },
+  bank_transfer_pm: {
+    // fiservcommercehub is cards-only — no bank transfer support (Pix, ACH,
+    // Instant Bank Transfer). confirmBankTransferCallTest doesn't honor
+    // TRIGGER_SKIP, so — same as upi_pm below — this asserts the
+    // connector's real, confirmed rejection instead of the generic
+    // Commons.js 501 default: UCS surfaces this as a 400 CE_01 "Payment
+    // failed during authorization with connector. Retry payment."
+    Pix: {
+      Request: {
+        payment_method: "bank_transfer",
+        payment_method_type: "pix",
+        payment_method_data: {
+          bank_transfer: {
+            pix: {},
+          },
+        },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Fransico",
+            state: "California",
+            zip: "94122",
+            country: "BR",
+            first_name: "john",
+            last_name: "doe",
+          },
+        },
+        currency: "BRL",
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message:
+              "Payment failed during authorization with connector. Retry payment",
+            code: "CE_01",
+          },
+        },
+      },
+    },
+    Ach: {
+      Request: {
+        payment_method: "bank_transfer",
+        payment_method_type: "ach",
+        payment_method_data: {
+          bank_transfer: {
+            ach_bank_transfer: {},
+          },
+        },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Fransico",
+            state: "California",
+            zip: "94122",
+            country: "BR",
+            first_name: "john",
+            last_name: "doe",
+          },
+        },
+        currency: "BRL",
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message:
+              "Payment failed during authorization with connector. Retry payment",
+            code: "CE_01",
+          },
+        },
+      },
+    },
+    InstantBankTransferFinland: {
+      Request: {
+        payment_method: "bank_transfer",
+        payment_method_type: "instant_bank_transfer_finland",
+        payment_method_data: {
+          bank_transfer: {
+            instant_bank_transfer_finland: {},
+          },
+        },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Fransico",
+            state: "California",
+            zip: "94122",
+            country: "FI",
+            first_name: "john",
+            last_name: "doe",
+          },
+        },
+        currency: "EUR",
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message:
+              "Payment failed during authorization with connector. Retry payment",
+            code: "CE_01",
+          },
+        },
+      },
+    },
+    InstantBankTransferPoland: {
+      Request: {
+        payment_method: "bank_transfer",
+        payment_method_type: "instant_bank_transfer_poland",
+        payment_method_data: {
+          bank_transfer: {
+            instant_bank_transfer_poland: {},
+          },
+        },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Fransico",
+            state: "California",
+            zip: "94122",
+            country: "PL",
+            first_name: "john",
+            last_name: "doe",
+          },
+        },
+        currency: "PLN",
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message:
+              "Payment failed during authorization with connector. Retry payment",
+            code: "CE_01",
+          },
+        },
+      },
+    },
+  },
+  bank_redirect_pm: {
+    // fiservcommercehub is cards-only — no bank redirect support. Unlike
+    // bank_transfer_pm/upi_pm above, confirmBankRedirectCallTest and
+    // citForMandatesCallTest both honor TRIGGER_SKIP, so these are skipped
+    // outright rather than asserting a real rejection.
+    Blik: { Configs: { TRIGGER_SKIP: true } },
+    Eps: { Configs: { TRIGGER_SKIP: true } },
+    Giropay: { Configs: { TRIGGER_SKIP: true } },
+    Ideal: {
+      Configs: { TRIGGER_SKIP: true },
+      MandateSingleUseAutoCapture: { Configs: { TRIGGER_SKIP: true } },
+    },
+    Sofort: { Configs: { TRIGGER_SKIP: true } },
+    Przelewy24: { Configs: { TRIGGER_SKIP: true } },
+    OpenBankingUk: {
+      Configs: { TRIGGER_SKIP: true },
+      MandateSingleUseAutoCapture: { Configs: { TRIGGER_SKIP: true } },
+    },
+    OnlineBankingFpx: { Configs: { TRIGGER_SKIP: true } },
+    Interac: { Configs: { TRIGGER_SKIP: true } },
+    Trustly: {
+      Configs: { TRIGGER_SKIP: true },
+      MandateSingleUseAutoCapture: { Configs: { TRIGGER_SKIP: true } },
+    },
+    Eft: { Configs: { TRIGGER_SKIP: true } },
+    BancontactCard: {
+      MandateSingleUseAutoCapture: { Configs: { TRIGGER_SKIP: true } },
+    },
+  },
+  upi_pm: {
+    // fiservcommercehub does not support UPI; confirmUpiCall doesn't honor
+    // TRIGGER_SKIP, so this asserts the connector's real, confirmed
+    // rejection instead of the generic Commons.js 501 default: UCS_501
+    // surfaces to the merchant as a 400 CE_01 "Payment failed during
+    // authorization with connector. Retry payment."
+    UpiCollect: {
+      Request: {
+        payment_method: "upi",
+        payment_method_type: "upi_collect",
+        payment_method_data: {
+          upi: {
+            upi_collect: {
+              vpa_id: "successtest@iata",
+            },
+          },
+        },
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message:
+              "Payment failed during authorization with connector. Retry payment",
+            code: "CE_01",
+          },
+        },
+      },
+    },
+    UpiIntent: {
+      Request: {
+        payment_method: "upi",
+        payment_method_type: "upi_intent",
+        payment_method_data: {
+          upi: {
+            upi_intent: {},
+          },
+        },
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message:
+              "Payment failed during authorization with connector. Retry payment",
+            code: "CE_01",
+          },
+        },
+      },
+    },
+  },
+  reward_pm: {
+    // fiservcommercehub does not support reward/cashtocode payment methods;
+    // confirmRewardCallTest doesn't honor TRIGGER_SKIP, so this asserts the
+    // connector's real, confirmed rejection instead of the generic
+    // Commons.js 501 default: UCS_501 surfaces to the merchant as a 400
+    // CE_01 "Payment failed during authorization with connector. Retry
+    // payment."
+    Evoucher: {
+      Request: {
+        payment_method: "reward",
+        payment_method_type: "evoucher",
+        payment_method_data: "reward",
+        billing: billingAddress,
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message:
+              "Payment failed during authorization with connector. Retry payment",
+            code: "CE_01",
+          },
+        },
+      },
+    },
+    Classic: {
+      Request: {
+        payment_method: "reward",
+        payment_method_type: "classic",
+        payment_method_data: "reward",
+        billing: billingAddress,
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message:
+              "Payment failed during authorization with connector. Retry payment",
+            code: "CE_01",
+          },
         },
       },
     },
