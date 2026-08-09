@@ -733,9 +733,18 @@ impl RevenueRecoveryAttempt {
             }
             Ok(_) => Err(errors::RevenueRecoveryError::PaymentAttemptFetchFailed)
                 .attach_printable("Unexpected response from record attempt core"),
-            error @ Err(_) => {
+            Err(error) => {
                 logger::error!(?error);
-                Err(errors::RevenueRecoveryError::PaymentAttemptFetchFailed)
+                // Retrying cannot record another attempt after the invoice reaches a final state.
+                let recovery_error = match error.current_context() {
+                    errors::ApiErrorResponse::PaymentUnexpectedState { current_value, .. } => {
+                        errors::RevenueRecoveryError::PaymentAttemptRecordNotAllowed {
+                            status: current_value.clone(),
+                        }
+                    }
+                    _ => errors::RevenueRecoveryError::PaymentAttemptFetchFailed,
+                };
+                Err(recovery_error)
                     .attach_printable("failed to record attempt in recovery webhook flow")
             }
         }?;
@@ -847,7 +856,9 @@ impl RevenueRecoveryAttempt {
                 connector_account_reference_id.clone(),
             )
             .ok_or(report!(
-                errors::RevenueRecoveryError::PaymentMerchantConnectorAccountNotFound
+                errors::RevenueRecoveryError::PaymentMerchantConnectorAccountNotFound {
+                    id: connector_account_reference_id.clone()
+                }
             ))
             .attach_printable_lazy(|| {
                 format!(
@@ -861,7 +872,13 @@ impl RevenueRecoveryAttempt {
         let db = &*state.store;
         db.find_merchant_connector_account_by_id(&payment_merchant_connector_account_id, key_store)
             .await
-            .change_context(errors::RevenueRecoveryError::PaymentMerchantConnectorAccountNotFound)
+            .change_context(
+                errors::RevenueRecoveryError::PaymentMerchantConnectorAccountNotFound {
+                    id: payment_merchant_connector_account_id
+                        .get_string_repr()
+                        .to_string(),
+                },
+            )
             .attach_printable_lazy(|| {
                 format!(
                     "failed to fetch payment merchant connector account {} mapped to account \
@@ -1237,7 +1254,7 @@ impl BillingConnectorInvoiceSyncResponseData {
             Ok(response) => Ok(response),
             error @ Err(_) => {
                 logger::error!(?error);
-                Err(errors::RevenueRecoveryError::BillingConnectorPaymentsSyncFailed)
+                Err(errors::RevenueRecoveryError::BillingConnectorInvoiceSyncFailed)
                     .attach_printable("Failed while fetching billing connector Invoice details")
             }
         }?;
