@@ -9455,7 +9455,9 @@
         "type": "string",
         "enum": [
           "checking",
-          "savings"
+          "savings",
+          "salary",
+          "payment"
         ]
       },
       "BecsBankDebitAdditionalData": {
@@ -25646,6 +25648,7 @@
           "adyen",
           "adyenplatform",
           "cybersource",
+          "deutschebank",
           "ebanx",
           "gigadat",
           "loonio",
@@ -25660,7 +25663,8 @@
           "worldpay",
           "worldpayxml",
           "envoy",
-          "itaubank"
+          "itaubank",
+          "santander"
         ]
       },
       "PayoutCreatePayoutLinkConfig": {
@@ -27134,6 +27138,26 @@
             "description": "ispb code is a unique identifier assigned by Brazilian Central Bank to identify the financial institution of the recipient's bank account in Pix transactions.",
             "example": "60701190",
             "nullable": true
+          },
+          "bank_code": {
+            "type": "string",
+            "description": "3-digit COMPE/FEBRABAN bank code used to identify the financial institution for routing PIX payouts.",
+            "example": "033",
+            "nullable": true
+          },
+          "bank_account_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BankType"
+              }
+            ],
+            "nullable": true
+          },
+          "account_holder_name": {
+            "type": "string",
+            "description": "Name of the account holder",
+            "example": "John Doe",
+            "nullable": true
           }
         }
       },
@@ -27378,6 +27402,26 @@
             "type": "string",
             "description": "ispb code is a unique identifier assigned by Brazilian Central Bank to identify the financial institution of the recipient's bank account in Pix transactions.",
             "example": "60701190",
+            "nullable": true
+          },
+          "bank_code": {
+            "type": "string",
+            "description": "3-digit COMPE/FEBRABAN bank code used to identify the financial institution for routing PIX payouts.",
+            "example": "033",
+            "nullable": true
+          },
+          "bank_account_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BankType"
+              }
+            ],
+            "nullable": true
+          },
+          "account_holder_name": {
+            "type": "string",
+            "description": "Name of the account holder",
+            "example": "John Doe",
             "nullable": true
           }
         }

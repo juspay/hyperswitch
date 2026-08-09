@@ -6719,21 +6719,22 @@ pub async fn payment_methods_session_create(
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to insert payment methods session in db")?;
 
-    let external_vault_details = payments_core::vault_session::fetch_external_vault_details(
-        &state,
-        &platform,
-        &profile,
-        &customer,
-        payment_method_session_domain_model.storage_type,
-    )
-    .await
-    .unwrap_or_else(|err| {
-        router_env::logger::warn!(
-            ?err,
-            "Failed to fetch external vault details for payment method session"
-        );
-        None
-    });
+    let external_vault_details =
+        Box::pin(payments_core::vault_session::fetch_external_vault_details(
+            &state,
+            &platform,
+            &profile,
+            &customer,
+            payment_method_session_domain_model.storage_type,
+        ))
+        .await
+        .unwrap_or_else(|err| {
+            router_env::logger::warn!(
+                ?err,
+                "Failed to fetch external vault details for payment method session"
+            );
+            None
+        });
 
     let sdk_authorization = Option::<hyperswitch_domain_models::sdk_auth::SdkAuthorization>::from(
         hyperswitch_domain_models::sdk_auth::SdkAuthorizationContext {
