@@ -643,7 +643,8 @@ pub async fn generic_update_by_id<T, V, Pk, R>(
 where
     T: FindDsl<Pk> + HasTable<Table = T> + LimitDsl + Table + 'static,
     V: AsChangeset<Target = <Find<T, Pk> as HasTable>::Table> + Debug,
-    Find<T, Pk>: IntoUpdateTarget + QueryFragment<Pg> + RunQueryDsl<DejaPgConnection> + Send + 'static,
+    Find<T, Pk>:
+        IntoUpdateTarget + QueryFragment<Pg> + RunQueryDsl<DejaPgConnection> + Send + 'static,
     UpdateStatement<
         <Find<T, Pk> as HasTable>::Table,
         <Find<T, Pk> as IntoUpdateTarget>::WhereClause,

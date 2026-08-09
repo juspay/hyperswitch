@@ -11,6 +11,13 @@ use common_utils::{
     ext_traits::{ByteSliceExt, Encode, StringExt},
     fp_utils,
 };
+// Deja: raw redis replies are captured as `deja::value::RedisWireValue` — the
+// one canonical, serde-native wire type. The client conversions live in the
+// deja crate next to the type (feature `redis-rs` on the deja dependency), so
+// capture is `.into()` and replay-back is `.try_into()`, checked by one
+// compiler run instead of two definitions coupled by serde variant names.
+#[cfg(feature = "deja")]
+use deja::value::RedisWireValue;
 use error_stack::{report, ResultExt};
 use redis::{
     streams::StreamReadOptions, AsyncCommands, ExistenceCheck, FromRedisValue, SetExpiry,
@@ -31,14 +38,6 @@ use crate::{
         SetnxReply, StreamEntries, StreamReadResult, StreamTrimConfig,
     },
 };
-
-// Deja: raw redis replies are captured as `deja::value::RedisWireValue` — the
-// one canonical, serde-native wire type. The client conversions live in the
-// deja crate next to the type (feature `redis-rs` on the deja dependency), so
-// capture is `.into()` and replay-back is `.try_into()`, checked by one
-// compiler run instead of two definitions coupled by serde variant names.
-#[cfg(feature = "deja")]
-use deja::value::RedisWireValue;
 
 impl super::RedisConnectionWithContext {
     /// Prefix `key` with the tenant key prefix of the underlying pool.
@@ -283,13 +282,13 @@ impl super::RedisConnectionWithContext {
     {
         #[cfg(feature = "deja")]
         {
-            let raw_value: redis::Value = self
-                .get_key_raw(key)
-                .await?
-                .try_into()
-                .map_err(|err: redis::RedisError| {
-                    report!(err).change_context(errors::RedisError::GetFailed)
-                })?;
+            let raw_value: redis::Value =
+                self.get_key_raw(key)
+                    .await?
+                    .try_into()
+                    .map_err(|err: redis::RedisError| {
+                        report!(err).change_context(errors::RedisError::GetFailed)
+                    })?;
             return V::from_redis_value(raw_value)
                 .map_err(|err| report!(err).change_context(errors::RedisError::GetFailed));
         }

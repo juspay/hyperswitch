@@ -11,6 +11,13 @@ use common_utils::{
     ext_traits::{AsyncExt, ByteSliceExt, Encode, StringExt},
     fp_utils,
 };
+// Deja: raw redis replies are captured as `deja::value::RedisWireValue` — the
+// one canonical, serde-native wire type. The client conversions live in the
+// deja crate next to the type (feature `fred` on the deja dependency), so
+// capture is `.into()` and replay-back is `.try_into()`, checked by one
+// compiler run instead of two definitions coupled by serde variant names.
+#[cfg(feature = "deja")]
+use deja::value::RedisWireValue;
 use error_stack::{report, ResultExt};
 use fred::{
     interfaces::{HashesInterface, KeysInterface, ListInterface, SetsInterface, StreamsInterface},
@@ -30,14 +37,6 @@ use crate::{
         SetnxReply, StreamEntries, StreamReadResult, StreamTrimConfig,
     },
 };
-
-// Deja: raw redis replies are captured as `deja::value::RedisWireValue` — the
-// one canonical, serde-native wire type. The client conversions live in the
-// deja crate next to the type (feature `fred` on the deja dependency), so
-// capture is `.into()` and replay-back is `.try_into()`, checked by one
-// compiler run instead of two definitions coupled by serde variant names.
-#[cfg(feature = "deja")]
-use deja::value::RedisWireValue;
 
 impl super::RedisConnectionWithContext {
     /// Prefix `key` with the tenant key prefix of the underlying pool.
