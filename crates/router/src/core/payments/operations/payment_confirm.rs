@@ -3132,7 +3132,13 @@ async fn apply_offer_engine_offer<F: Clone + Send + Sync>(
             message: "A different offer is already applied to this payment attempt".to_string(),
         })),
         (None, Some(requested)) => {
-            Box::pin(apply_selected_offer(state, processor, requested, payment_data)).await
+            Box::pin(apply_selected_offer(
+                state,
+                processor,
+                requested,
+                payment_data,
+            ))
+            .await
         }
     }
 }
