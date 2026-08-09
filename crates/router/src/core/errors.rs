@@ -483,3 +483,42 @@ pub enum RevenueRecoveryError {
     #[error("Failed to insert the revenue recovery payment method data in redis")]
     RevenueRecoveryRedisInsertFailed,
 }
+
+#[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+impl common_utils::errors::ErrorSwitch<ApiErrorResponse> for RevenueRecoveryError {
+    fn switch(&self) -> ApiErrorResponse {
+        match self {
+            // Source verification failed, the billing connector must not retry with the same
+            // signature.
+            Self::WebhookAuthenticationFailed => ApiErrorResponse::WebhookAuthenticationFailed,
+
+            // The webhook body (or the data synced for it) could not be interpreted. Retrying the
+            // same payload will keep failing, so respond with a 4xx.
+            Self::InvoiceWebhookProcessingFailed
+            | Self::TransactionWebhookProcessingFailed
+            | Self::RevenueRecoveryAttemptDataCreateFailed
+            | Self::CustomerIdNotFound => ApiErrorResponse::WebhookUnprocessableEntity,
+
+            // Configuration/resource is missing for this merchant. Retrying does not help until the
+            // merchant fixes their setup.
+            Self::PaymentMerchantConnectorAccountNotFound
+            | Self::PaymentAttemptIdNotFound
+            | Self::RetryAlgorithmTypeNotFound => ApiErrorResponse::WebhookResourceNotFound,
+
+            // Everything below is an internal/transient failure on our side, so keep returning a
+            // 5xx and let the billing connector retry the webhook.
+            Self::PaymentIntentFetchFailed
+            | Self::PaymentAttemptFetchFailed
+            | Self::PaymentIntentCreateFailed
+            | Self::ScheduleTimeFetchFailed
+            | Self::ProcessTrackerCreationError
+            | Self::ProcessTrackerResponseError
+            | Self::BillingConnectorPaymentsSyncFailed
+            | Self::BillingConnectorInvoiceSyncFailed
+            | Self::RetryCountFetchFailed
+            | Self::BillingThresholdRetryCountFetchFailed
+            | Self::RetryAlgorithmUpdationFailed
+            | Self::RevenueRecoveryRedisInsertFailed => ApiErrorResponse::WebhookProcessingFailure,
+        }
+    }
+}
