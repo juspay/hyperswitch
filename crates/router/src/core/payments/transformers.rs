@@ -4610,6 +4610,7 @@ fn applied_offer_response(
     })
 }
 
+#[cfg(feature = "v1")]
 impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::PaymentsResponse {
     fn foreign_from((pi, pa): (storage::PaymentIntent, storage::PaymentAttempt)) -> Self {
         let connector_transaction_id = pa.get_connector_payment_id().map(ToString::to_string);
@@ -4660,7 +4661,6 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             });
         Self {
             connector_response_metadata: pa.get_connector_response_metadata_from_attempt_metadata(),
-            #[cfg(feature = "v1")]
             applied_offer: applied_offer_response(pa.applied_offer_details.clone()),
             payment_id: pi.payment_id,
             merchant_id: pi.merchant_id,
