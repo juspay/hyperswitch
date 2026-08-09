@@ -7,7 +7,7 @@ use diesel::{
     dsl::{count_star, Find, IsNotNull, Limit},
     helper_types::{Filter, IntoBoxed},
     insertable::CanInsertInSingleQuery,
-    pg::{Pg, PgConnection},
+    pg::Pg,
     query_builder::{
         AsChangeset, AsQuery, DeleteStatement, InsertStatement, IntoUpdateTarget, QueryFragment,
         QueryId, UpdateStatement,
@@ -25,7 +25,7 @@ use hyperswitch_masking::PeekInterface;
 use hyperswitch_masking::Secret;
 use router_env::logger;
 
-use crate::{errors, query::utils::GetPrimaryKey, PgPooledConn, StorageResult};
+use crate::{errors, query::utils::GetPrimaryKey, DejaPgConnection, PgPooledConn, StorageResult};
 
 pub mod db_metrics {
     #[derive(Debug)]
@@ -497,7 +497,7 @@ where
     <T as QuerySource>::FromClause: QueryFragment<Pg> + Debug,
     <V as Insertable<T>>::Values: CanInsertInSingleQuery<Pg> + QueryFragment<Pg> + 'static,
     InsertStatement<T, <V as Insertable<T>>::Values>:
-        AsQuery + LoadQuery<'static, PgConnection, R> + Send,
+        AsQuery + LoadQuery<'static, DejaPgConnection, R> + Send,
     R: Send + 'static + DejaQueryResult,
 {
     let debug_values = format!("{values:?}");
@@ -567,7 +567,7 @@ where
         <Filter<T, P> as HasTable>::Table,
         <Filter<T, P> as IntoUpdateTarget>::WhereClause,
         <V as AsChangeset>::Changeset,
-    >: AsQuery + LoadQuery<'static, PgConnection, R> + QueryFragment<Pg> + Send + Clone,
+    >: AsQuery + LoadQuery<'static, DejaPgConnection, R> + QueryFragment<Pg> + Send + Clone,
     R: Send + 'static + DejaQueryResult,
 
     // For cloning query (UpdateStatement)
@@ -612,7 +612,7 @@ where
         <Filter<T, P> as HasTable>::Table,
         <Filter<T, P> as IntoUpdateTarget>::WhereClause,
         <V as AsChangeset>::Changeset,
-    >: AsQuery + LoadQuery<'static, PgConnection, R> + QueryFragment<Pg> + Send,
+    >: AsQuery + LoadQuery<'static, DejaPgConnection, R> + QueryFragment<Pg> + Send,
     R: Send + 'static + DejaQueryResult,
 
     // For cloning query (UpdateStatement)
@@ -643,14 +643,14 @@ pub async fn generic_update_by_id<T, V, Pk, R>(
 where
     T: FindDsl<Pk> + HasTable<Table = T> + LimitDsl + Table + 'static,
     V: AsChangeset<Target = <Find<T, Pk> as HasTable>::Table> + Debug,
-    Find<T, Pk>: IntoUpdateTarget + QueryFragment<Pg> + RunQueryDsl<PgConnection> + Send + 'static,
+    Find<T, Pk>: IntoUpdateTarget + QueryFragment<Pg> + RunQueryDsl<DejaPgConnection> + Send + 'static,
     UpdateStatement<
         <Find<T, Pk> as HasTable>::Table,
         <Find<T, Pk> as IntoUpdateTarget>::WhereClause,
         <V as AsChangeset>::Changeset,
-    >: AsQuery + LoadQuery<'static, PgConnection, R> + QueryFragment<Pg> + Send + 'static,
+    >: AsQuery + LoadQuery<'static, DejaPgConnection, R> + QueryFragment<Pg> + Send + 'static,
     Find<T, Pk>: LimitDsl,
-    Limit<Find<T, Pk>>: LoadQuery<'static, PgConnection, R>,
+    Limit<Find<T, Pk>>: LoadQuery<'static, DejaPgConnection, R>,
     R: Send + 'static + DejaQueryResult,
     Pk: Clone + Debug,
 
@@ -718,7 +718,7 @@ where
     DeleteStatement<
         <Filter<T, P> as HasTable>::Table,
         <Filter<T, P> as IntoUpdateTarget>::WhereClause,
-    >: AsQuery + LoadQuery<'static, PgConnection, R> + QueryFragment<Pg> + Send + 'static,
+    >: AsQuery + LoadQuery<'static, DejaPgConnection, R> + QueryFragment<Pg> + Send + 'static,
     R: Send + Clone + 'static + DejaQueryResult,
 {
     let query = diesel::delete(<T as HasTable>::table().filter(predicate));
@@ -743,8 +743,8 @@ where
 async fn generic_find_by_id_core<T, Pk, R>(conn: &PgPooledConn, id: Pk) -> StorageResult<R>
 where
     T: FindDsl<Pk> + HasTable<Table = T> + LimitDsl + Table + 'static,
-    Find<T, Pk>: LimitDsl + QueryFragment<Pg> + RunQueryDsl<PgConnection> + Send + 'static,
-    Limit<Find<T, Pk>>: LoadQuery<'static, PgConnection, R>,
+    Find<T, Pk>: LimitDsl + QueryFragment<Pg> + RunQueryDsl<DejaPgConnection> + Send + 'static,
+    Limit<Find<T, Pk>>: LoadQuery<'static, DejaPgConnection, R>,
     Pk: Clone + Debug,
     R: Send + 'static + DejaQueryResult,
 {
@@ -768,8 +768,8 @@ where
 pub async fn generic_find_by_id<T, Pk, R>(conn: &PgPooledConn, id: Pk) -> StorageResult<R>
 where
     T: FindDsl<Pk> + HasTable<Table = T> + LimitDsl + Table + 'static,
-    Find<T, Pk>: LimitDsl + QueryFragment<Pg> + RunQueryDsl<PgConnection> + Send + 'static,
-    Limit<Find<T, Pk>>: LoadQuery<'static, PgConnection, R>,
+    Find<T, Pk>: LimitDsl + QueryFragment<Pg> + RunQueryDsl<DejaPgConnection> + Send + 'static,
+    Limit<Find<T, Pk>>: LoadQuery<'static, DejaPgConnection, R>,
     Pk: Clone + Debug,
     R: Send + 'static + DejaQueryResult,
 {
@@ -783,8 +783,8 @@ pub async fn generic_find_by_id_optional<T, Pk, R>(
 where
     T: FindDsl<Pk> + HasTable<Table = T> + LimitDsl + Table + 'static,
     <T as HasTable>::Table: FindDsl<Pk>,
-    Find<T, Pk>: LimitDsl + QueryFragment<Pg> + RunQueryDsl<PgConnection> + Send + 'static,
-    Limit<Find<T, Pk>>: LoadQuery<'static, PgConnection, R>,
+    Find<T, Pk>: LimitDsl + QueryFragment<Pg> + RunQueryDsl<DejaPgConnection> + Send + 'static,
+    Limit<Find<T, Pk>>: LoadQuery<'static, DejaPgConnection, R>,
     Pk: Clone + Debug,
     R: Send + 'static + DejaQueryResult,
 {
@@ -794,7 +794,7 @@ where
 async fn generic_find_one_core<T, P, R>(conn: &PgPooledConn, predicate: P) -> StorageResult<R>
 where
     T: FilterDsl<P> + HasTable<Table = T> + Table + 'static,
-    Filter<T, P>: LoadQuery<'static, PgConnection, R> + QueryFragment<Pg> + Send + 'static,
+    Filter<T, P>: LoadQuery<'static, DejaPgConnection, R> + QueryFragment<Pg> + Send + 'static,
     R: Send + 'static + DejaQueryResult,
 {
     let query = <T as HasTable>::table().filter(predicate);
@@ -816,7 +816,7 @@ where
 pub async fn generic_find_one<T, P, R>(conn: &PgPooledConn, predicate: P) -> StorageResult<R>
 where
     T: FilterDsl<P> + HasTable<Table = T> + Table + 'static,
-    Filter<T, P>: LoadQuery<'static, PgConnection, R> + QueryFragment<Pg> + Send + 'static,
+    Filter<T, P>: LoadQuery<'static, DejaPgConnection, R> + QueryFragment<Pg> + Send + 'static,
     R: Send + 'static + DejaQueryResult,
 {
     generic_find_one_core::<T, _, _>(conn, predicate).await
@@ -828,7 +828,7 @@ pub async fn generic_find_one_optional<T, P, R>(
 ) -> StorageResult<Option<R>>
 where
     T: FilterDsl<P> + HasTable<Table = T> + Table + 'static,
-    Filter<T, P>: LoadQuery<'static, PgConnection, R> + QueryFragment<Pg> + Send + 'static,
+    Filter<T, P>: LoadQuery<'static, DejaPgConnection, R> + QueryFragment<Pg> + Send + 'static,
     R: Send + 'static + DejaQueryResult,
 {
     to_optional(generic_find_one_core::<T, _, _>(conn, predicate).await)
@@ -848,7 +848,7 @@ where
         + LimitDsl<Output = IntoBoxed<'static, T, Pg>>
         + OffsetDsl<Output = IntoBoxed<'static, T, Pg>>
         + OrderDsl<O, Output = IntoBoxed<'static, T, Pg>>
-        + LoadQuery<'static, PgConnection, R>
+        + LoadQuery<'static, DejaPgConnection, R>
         + QueryFragment<Pg>
         + Send,
     O: Expression,
@@ -893,7 +893,7 @@ where
     T: FilterDsl<P> + HasTable<Table = T> + Table + SelectDsl<count_star> + 'static,
     Filter<T, P>: SelectDsl<count_star>,
     diesel::dsl::Select<Filter<T, P>, count_star>:
-        LoadQuery<'static, PgConnection, i64> + QueryFragment<Pg> + Send + 'static,
+        LoadQuery<'static, DejaPgConnection, i64> + QueryFragment<Pg> + Send + 'static,
 {
     let query = <T as HasTable>::table()
         .filter(predicate)

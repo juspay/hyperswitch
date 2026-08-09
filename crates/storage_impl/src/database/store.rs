@@ -4,7 +4,7 @@ use common_utils::{
     types::{keymanager, TenantConfig},
     DbConnectionParams,
 };
-use diesel::PgConnection;
+use diesel_models::DejaPgConnection;
 use error_stack::ResultExt;
 
 use crate::{
@@ -12,8 +12,8 @@ use crate::{
     errors::{StorageError, StorageResult},
 };
 
-pub type PgPool = bb8::Pool<async_bb8_diesel::ConnectionManager<PgConnection>>;
-pub type PgPooledConn = async_bb8_diesel::Connection<PgConnection>;
+pub type PgPool = bb8::Pool<async_bb8_diesel::ConnectionManager<DejaPgConnection>>;
+pub type PgPooledConn = async_bb8_diesel::Connection<DejaPgConnection>;
 
 #[async_trait::async_trait]
 pub trait DatabaseStore: Clone + Send + Sync {
@@ -164,7 +164,7 @@ pub async fn diesel_make_pg_pool(
     test_transaction: bool,
 ) -> StorageResult<PgPool> {
     let database_url = database.get_database_url(schema);
-    let manager = async_bb8_diesel::ConnectionManager::<PgConnection>::new(database_url);
+    let manager = async_bb8_diesel::ConnectionManager::<DejaPgConnection>::new(database_url);
     let mut pool = bb8::Pool::builder()
         .max_size(database.max_pool_size)
         .min_idle(Some(database.min_idle_pool_size))

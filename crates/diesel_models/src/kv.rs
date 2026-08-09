@@ -96,6 +96,12 @@ impl SerializableQuery {
         let bind_collector = conn
             .run(move |c| {
                 let mut bc = RawBytesBindCollector::<Pg>::new();
+                // Bind collection needs the pg metadata lookup, which lives on
+                // the underlying `PgConnection`; under `deja` the pooled
+                // connection is the `DejaLoadConnection` wrapper, so unwrap it
+                // for the lookup (the wrapper only observes result rows).
+                #[cfg(feature = "deja")]
+                let c = c.inner_mut();
                 query.collect_binds(&mut bc, c, &Pg)?;
                 Ok::<RawBytesBindCollector<Pg>, diesel::result::Error>(bc)
             })
