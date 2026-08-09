@@ -308,8 +308,9 @@ pub const IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID: &str =
 // Default payment method storing TTL in redis in seconds
 pub const DEFAULT_PAYMENT_METHOD_STORE_TTL: i64 = 86400; // 1 day
 
-// List of countries that are part of the PSD2 region
-pub const PSD2_COUNTRIES: [Country; 27] = [
+// Countries and separately encoded territories where PSD2 or the equivalent UK
+// strong customer authentication rules apply.
+pub const SCA_MANDATED_COUNTRIES: [Country; 39] = [
     Country::Austria,
     Country::Belgium,
     Country::Bulgaria,
@@ -337,6 +338,21 @@ pub const PSD2_COUNTRIES: [Country; 27] = [
     Country::Slovenia,
     Country::Spain,
     Country::Sweden,
+    // EEA/EFTA states where PSD2 applies
+    Country::Iceland,
+    Country::Liechtenstein,
+    Country::Norway,
+    // EU territories represented separately by the Country enum
+    Country::AlandIslands,
+    Country::FrenchGuiana,
+    Country::Guadeloupe,
+    Country::Martinique,
+    Country::Mayotte,
+    Country::Reunion,
+    Country::SaintMartinFrenchpart,
+    // Jurisdictions covered by the equivalent UK SCA regime
+    Country::UnitedKingdomOfGreatBritainAndNorthernIreland,
+    Country::Gibraltar,
 ];
 
 // Rollout percentage config prefix
@@ -434,6 +450,10 @@ pub mod superposition {
     /// Trigger fingerprint migration configuration key
     pub const SHOULD_TRIGGER_FINGERPRINT_MIGRATION: &str =
         "vaulting.should_trigger_fingerprint_migration";
+    /// Timeout (in seconds) for fetching a network token from the tokenization service during a
+    /// payment configuration key
+    pub const NETWORK_TOKEN_FETCH_TIMEOUT_IN_SECS: &str =
+        "payments.network_token_fetch_timeout_in_secs";
     /// Perform SDK vaulting action configuration key. Acts as a merchant level override on top of
     /// `should_call_pm_modular_service`: defaults to `true` for all merchants and can be set to
     /// `false` for specific merchants to force the SDK to skip tokenization.
