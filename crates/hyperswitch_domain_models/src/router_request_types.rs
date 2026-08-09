@@ -936,6 +936,9 @@ impl TryFrom<PaymentsAuthorizeData> for PaymentsAuthenticateData {
             // This is hard coded to None to avoid back and forth authentication_data conversion between UcsAuthenticationData and AuthenticationData.
             // This is handled within authentication_step function in authorize_flow.rs
             authentication_data: None,
+            sdk_information: None,
+            device_channel: None,
+            webhook_url: data.webhook_url,
         })
     }
 }
@@ -953,6 +956,9 @@ pub struct PaymentsAuthenticateData {
     pub minor_amount: Option<MinorUnit>,
     pub capture_method: Option<storage_enums::CaptureMethod>,
     pub authentication_data: Option<UcsAuthenticationData>,
+    pub sdk_information: Option<api_models::payments::SdkInformation>,
+    pub device_channel: Option<api_models::payments::DeviceChannel>,
+    pub webhook_url: Option<String>,
 }
 
 impl TryFrom<CompleteAuthorizeData> for PaymentsAuthenticateData {
@@ -971,6 +977,9 @@ impl TryFrom<CompleteAuthorizeData> for PaymentsAuthenticateData {
             redirect_response: data.redirect_response,
             capture_method: data.capture_method,
             authentication_data: data.authentication_data,
+            sdk_information: None,
+            device_channel: None,
+            webhook_url: None,
         })
     }
 }
@@ -1437,6 +1446,10 @@ pub struct UcsAuthenticationData {
     pub trans_status: Option<common_enums::TransactionStatus>,
     pub transaction_id: Option<String>,
     pub ucaf_collection_indicator: Option<String>,
+    pub challenge_code: Option<String>,
+    pub challenge_cancel: Option<String>,
+    pub challenge_code_reason: Option<String>,
+    pub message_extension: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(Debug, Clone, Serialize)]

@@ -489,6 +489,10 @@ impl ForeignTryFrom<(&ThreeDSAuthResult, String)> for UcsAuthenticationData {
             acs_trans_id: None,
             // CRITICAL: Store operationId in transaction_id for Authorize flow
             transaction_id: Some(operation_id),
+            challenge_code: None,
+            challenge_cancel: None,
+            challenge_code_reason: None,
+            message_extension: None,
         })
     }
 }

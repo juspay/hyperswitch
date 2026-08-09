@@ -1847,6 +1847,57 @@ fn get_ucs_client(
         })
 }
 
+// The UCS proto has no first-class fields for Netcetera-style authentication-connector
+// metadata (force_3ds_challenge, results/notification URLs, acquirer details), so these are
+// merged into the authentication-connector MCA's metadata JSON and passed through the generic
+// `connector_feature_data` string field instead.
+#[cfg(feature = "v1")]
+pub fn build_connector_feature_data_from_auth_mca(
+    merchant_connector_account: &MerchantConnectorAccountType,
+    force_3ds_challenge: Option<bool>,
+    results_response_notification_url: Option<String>,
+    notification_url: Option<common_utils::types::Url>,
+    acquirer_metadata: Option<serde_json::Value>,
+) -> CustomResult<Option<Secret<String>>, UnifiedConnectorServiceError> {
+    merchant_connector_account
+        .get_metadata()
+        .map(|metadata| {
+            let mut metadata_value = metadata.expose();
+            if let Some(obj) = metadata_value.as_object_mut() {
+                if let Some(force) = force_3ds_challenge {
+                    obj.insert(
+                        "force_3ds_challenge".to_string(),
+                        serde_json::Value::Bool(force),
+                    );
+                }
+                if let Some(url) = results_response_notification_url {
+                    obj.insert(
+                        "results_response_notification_url".to_string(),
+                        serde_json::Value::String(url),
+                    );
+                }
+                if let Some(url) = notification_url {
+                    obj.insert(
+                        "notification_url".to_string(),
+                        serde_json::Value::String(url.get_string_repr().to_string()),
+                    );
+                }
+                if let Some(serde_json::Value::Object(acquirer)) = acquirer_metadata {
+                    for (key, value) in acquirer {
+                        obj.insert(key, value);
+                    }
+                }
+            }
+            serde_json::to_string(&metadata_value)
+                .change_context(UnifiedConnectorServiceError::RequestEncodingFailed)
+                .attach_printable(
+                    "Failed to serialize authentication connector MCA metadata for connector_feature_data",
+                )
+                .map(Secret::new)
+        })
+        .transpose()
+}
+
 fn as_header_value(value: &Secret<String>) -> Option<Secret<String>> {
     http::HeaderValue::from_str(value.peek())
         .is_ok()
