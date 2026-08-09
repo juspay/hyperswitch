@@ -812,7 +812,16 @@ describe("Corner cases", () => {
   });
 
   context("Duplicate Refund ID", () => {
-    it("Create new payment -> retrieve-payment-call-test -> Create new refund -> Sync refund -> Create a refund with  a duplicate refund ID", () => {
+    it("Create new payment -> retrieve-payment-call-test -> Create new refund -> Sync refund -> Create a refund with  a duplicate refund ID", function () {
+      if (
+        utils.shouldExcludeConnector(
+          globalState.get("connectorId"),
+          utils.CONNECTOR_LISTS.EXCLUDE.SPLIT_PAYMENTS_REFUND
+        )
+      ) {
+        this.skip();
+      }
+
       let shouldContinue = true;
 
       cy.step("Create new payment", () => {
