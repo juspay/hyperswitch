@@ -20,6 +20,21 @@ const successfulThreeDSTestCardDetails = {
   ...successfulNo3DSCardDetails,
 };
 
+const billingDescriptor = {
+  name: "Test Business",
+  city: "San Francisco",
+  phone: "1234567890",
+  statement_descriptor: "Test Descriptor",
+  statement_descriptor_suffix: "Suffix",
+  reference: "REF123",
+};
+
+const threeDSNotSupportedError = {
+  type: "invalid_request",
+  message: "3DS authentication is not supported by Payload",
+  code: "IR_00",
+};
+
 // Payload Connect Split Payments Configuration
 const payloadSplitPaymentData = {
   payload_split_payment: {
@@ -118,14 +133,7 @@ export const connectorDetails = {
       },
       Request: {
         currency: "USD",
-        billing_descriptor: {
-          name: "Test Business",
-          city: "San Francisco",
-          phone: "1234567890",
-          statement_descriptor: "Test Descriptor",
-          statement_descriptor_suffix: "Suffix",
-          reference: "REF123",
-        },
+        billing_descriptor: billingDescriptor,
         split_payments: payloadSplitPaymentData,
       },
       Response: {
@@ -147,14 +155,7 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
-        billing_descriptor: {
-          name: "Test Business",
-          city: "San Francisco",
-          phone: "1234567890",
-          statement_descriptor: "Test Descriptor",
-          statement_descriptor_suffix: "Suffix",
-          reference: "REF123",
-        },
+        billing_descriptor: billingDescriptor,
         split_payments: payloadSplitPaymentData,
       },
       Response: {
@@ -182,11 +183,7 @@ export const connectorDetails = {
       Response: {
         status: 400,
         body: {
-          error: {
-            type: "invalid_request",
-            message: "3DS authentication is not supported by Payload",
-            code: "IR_00",
-          },
+          error: threeDSNotSupportedError,
         },
       },
     },
@@ -206,11 +203,7 @@ export const connectorDetails = {
       Response: {
         status: 400,
         body: {
-          error: {
-            type: "invalid_request",
-            message: "3DS authentication is not supported by Payload",
-            code: "IR_00",
-          },
+          error: threeDSNotSupportedError,
         },
       },
     },
@@ -492,11 +485,7 @@ export const connectorDetails = {
       Response: {
         status: 400,
         body: {
-          error: {
-            type: "invalid_request",
-            message: "3DS authentication is not supported by Payload",
-            code: "IR_00",
-          },
+          error: threeDSNotSupportedError,
         },
       },
     },
