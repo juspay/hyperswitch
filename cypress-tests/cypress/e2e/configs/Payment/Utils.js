@@ -536,6 +536,7 @@ export const CONNECTOR_LISTS = {
       "noon",
       "novalnet",
       "payload",
+      "payloadconnect",
       "paypal",
       "stax",
       "stripeconnect",
@@ -549,6 +550,7 @@ export const CONNECTOR_LISTS = {
       "airwallex",
       "calida",
       "payload",
+      "payloadconnect",
       "gigadat",
       "loonio",
       "redsys",
@@ -556,6 +558,13 @@ export const CONNECTOR_LISTS = {
       "mifinity",
     ],
     SAVE_CARD: ["helcim"],
+    // payloadconnect always splits the full payment amount to receivers via
+    // the ledger, leaving nothing in the merchant's transaction balance for
+    // a standard refund. Payload's connector integration has no split-aware
+    // refund mechanism (crates/hyperswitch_connectors/src/connectors/payload
+    // /transformers.rs builds PayloadRefundRequest from amount +
+    // connector_transaction_id only), so refunds are unsupported here.
+    SPLIT_PAYMENTS_REFUND: ["payloadconnect"],
     // Add more exclusion lists
     // Note: mitUsingPMId/mitForMandatesCallTest/listMandateCallTest use
     // per-config TRIGGER_SKIP or globalState checks instead of a static

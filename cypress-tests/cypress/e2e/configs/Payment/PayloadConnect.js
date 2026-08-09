@@ -162,6 +162,7 @@ export const connectorDetails = {
         body: {
           status: "succeeded",
           amount_received: 6000,
+          split_payments: payloadSplitPaymentData,
         },
       },
     },
@@ -230,6 +231,7 @@ export const connectorDetails = {
           status: "requires_capture", // Manual capture should require explicit capture
           payment_method: "card",
           attempt_count: 1,
+          split_payments: payloadSplitPaymentData,
         },
       },
     },
@@ -276,9 +278,16 @@ export const connectorDetails = {
           status: "succeeded",
           payment_method: "card",
           attempt_count: 1,
+          split_payments: payloadSplitPaymentData,
         },
       },
     },
+    // NOTE: split_payments is intentionally not asserted in Response.body
+    // here -- captureCallTest (commands.js) compares resData.body fields
+    // with plain `.to.equal`, which fails on nested objects even when
+    // their contents match (strict reference equality), unlike
+    // createConfirmPaymentTest which uses `.to.deep.equal`. Whether the
+    // /capture response actually preserves split_payments is unverified.
     Capture: {
       Request: {
         amount_to_capture: 6000,
@@ -389,6 +398,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
+          split_payments: payloadSplitPaymentData,
         },
       },
     },
@@ -413,6 +423,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_capture", // Keep this as requires_capture for manual flows
+          split_payments: payloadSplitPaymentData,
         },
       },
     },
@@ -461,6 +472,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
+          split_payments: payloadSplitPaymentData,
         },
       },
     },
@@ -508,6 +520,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_capture",
+          split_payments: payloadSplitPaymentData,
         },
       },
     },
@@ -526,6 +539,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
+          split_payments: payloadSplitPaymentData,
         },
       },
     },
@@ -544,6 +558,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_capture",
+          split_payments: payloadSplitPaymentData,
         },
       },
     },
@@ -563,6 +578,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
+          split_payments: payloadSplitPaymentData,
         },
       },
     },
@@ -822,6 +838,7 @@ export const connectorDetails = {
           STATUS: true,
           TIMEOUT: DUPLICATION_TIMEOUT,
         },
+        LOCAL_VAULT_REQUIRED: true,
       },
       Request: {
         amount: 6540,
