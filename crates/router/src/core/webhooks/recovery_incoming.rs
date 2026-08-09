@@ -1446,11 +1446,13 @@ impl RecoveryAction {
             | webhooks::IncomingWebhookEvent::PaymentIntentCaptureFailure
             | webhooks::IncomingWebhookEvent::PaymentIntentExpired
             | webhooks::IncomingWebhookEvent::PaymentActionRequired
+            | webhooks::IncomingWebhookEvent::PaymentManualReview
             | webhooks::IncomingWebhookEvent::EventNotSupported
             | webhooks::IncomingWebhookEvent::SourceChargeable
             | webhooks::IncomingWebhookEvent::SourceTransactionCreated
             | webhooks::IncomingWebhookEvent::RefundFailure
             | webhooks::IncomingWebhookEvent::RefundSuccess
+            | webhooks::IncomingWebhookEvent::RefundManualReview
             | webhooks::IncomingWebhookEvent::DisputeOpened
             | webhooks::IncomingWebhookEvent::DisputeExpired
             | webhooks::IncomingWebhookEvent::DisputeAccepted

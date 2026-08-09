@@ -26,11 +26,13 @@ pub enum IncomingWebhookEvent {
     PaymentIntentCaptureFailure,
     PaymentIntentExpired,
     PaymentActionRequired,
+    PaymentManualReview,
     EventNotSupported,
     SourceChargeable,
     SourceTransactionCreated,
     RefundFailure,
     RefundSuccess,
+    RefundManualReview,
     DisputeOpened,
     DisputeExpired,
     DisputeAccepted,
@@ -286,11 +288,12 @@ impl From<IncomingWebhookEvent> for WebhookFlow {
             | IncomingWebhookEvent::PaymentIntentCaptureFailure
             | IncomingWebhookEvent::PaymentIntentExpired
             | IncomingWebhookEvent::PaymentIntentExtendAuthorizationSuccess
-            | IncomingWebhookEvent::PaymentIntentExtendAuthorizationFailure => Self::Payment,
+            | IncomingWebhookEvent::PaymentIntentExtendAuthorizationFailure
+            | IncomingWebhookEvent::PaymentManualReview => Self::Payment,
             IncomingWebhookEvent::EventNotSupported => Self::ReturnResponse,
-            IncomingWebhookEvent::RefundSuccess | IncomingWebhookEvent::RefundFailure => {
-                Self::Refund
-            }
+            IncomingWebhookEvent::RefundSuccess
+            | IncomingWebhookEvent::RefundFailure
+            | IncomingWebhookEvent::RefundManualReview => Self::Refund,
             IncomingWebhookEvent::MandateActive | IncomingWebhookEvent::MandateRevoked => {
                 Self::Mandate
             }
