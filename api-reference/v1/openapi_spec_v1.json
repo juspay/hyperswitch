@@ -31809,6 +31809,14 @@
             "description": "Custom payment link config id set at business profile, send only if business_specific_configs is configured",
             "nullable": true
           },
+          "offer_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OfferSelection"
+              }
+            ],
+            "nullable": true
+          },
           "payment_type": {
             "allOf": [
               {
@@ -32359,6 +32367,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/RequestSurchargeDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "offer_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OfferSelection"
               }
             ],
             "nullable": true
@@ -33074,6 +33090,14 @@
             ],
             "nullable": true
           },
+          "applied_offer": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AppliedOffer"
+              }
+            ],
+            "nullable": true
+          },
           "attempt_count": {
             "type": "integer",
             "format": "int32",
@@ -33559,6 +33583,22 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/SurchargeDetailsResponse"
+              }
+            ],
+            "nullable": true
+          },
+          "amount_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/EligibilityAmountDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "offer_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/EligibilityOfferDetails"
               }
             ],
             "nullable": true
@@ -34122,6 +34162,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/RequestSurchargeDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "offer_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OfferSelection"
               }
             ],
             "nullable": true
@@ -34859,6 +34907,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/RequestSurchargeDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "applied_offer": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AppliedOffer"
               }
             ],
             "nullable": true
@@ -35638,6 +35694,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/RequestSurchargeDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "offer_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OfferSelection"
               }
             ],
             "nullable": true
