@@ -491,6 +491,10 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, PaymentsRequest>
                         .payment_attempt
                         .external_surcharge_details
                         .clone(),
+                    applied_offer_details: payment_data
+                        .payment_attempt
+                        .applied_offer_details
+                        .clone(),
                 },
                 storage_scheme,
                 key_store,

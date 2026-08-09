@@ -2036,6 +2036,7 @@ pub enum PaymentAttemptUpdate {
         is_stored_credential: Option<bool>,
         request_extended_authorization: Option<RequestExtendedAuthorizationBool>,
         external_surcharge_details: Option<common_types::payments::ExternalSurchargeDetails>,
+        applied_offer_details: Option<common_types::payments::AppliedOfferDetails>,
     },
     RejectUpdate {
         status: storage_enums::AttemptStatus,
@@ -2215,10 +2216,6 @@ pub enum PaymentAttemptUpdate {
         external_surcharge_details: common_types::payments::ExternalSurchargeDetails,
         updated_by: String,
     },
-    AppliedOfferUpdate {
-        applied_offer_details: common_types::payments::AppliedOfferDetails,
-        updated_by: String,
-    },
 }
 
 #[cfg(feature = "v1")]
@@ -2372,6 +2369,7 @@ impl PaymentAttemptUpdate {
                 is_stored_credential,
                 request_extended_authorization,
                 external_surcharge_details,
+                applied_offer_details,
             } => DieselPaymentAttemptUpdate::ConfirmUpdate {
                 amount: net_amount.get_order_amount(),
                 currency,
@@ -2423,6 +2421,7 @@ impl PaymentAttemptUpdate {
                 is_stored_credential,
                 request_extended_authorization,
                 external_surcharge_details,
+                applied_offer_details,
             },
             Self::VoidUpdate {
                 status,
@@ -2809,13 +2808,6 @@ impl PaymentAttemptUpdate {
                 external_surcharge_details,
                 updated_by,
             },
-            Self::AppliedOfferUpdate {
-                applied_offer_details,
-                updated_by,
-            } => DieselPaymentAttemptUpdate::AppliedOfferUpdate {
-                applied_offer_details,
-                updated_by,
-            },
         }
     }
 
@@ -2846,8 +2838,7 @@ impl PaymentAttemptUpdate {
             | Self::ManualUpdate { .. }
             | Self::PostSessionTokensUpdate { .. }
             | Self::RecurrenceUpdate { .. }
-            | Self::ExternalSurchargeUpdate { .. }
-            | Self::AppliedOfferUpdate { .. } => None,
+            | Self::ExternalSurchargeUpdate { .. } => None,
         }
     }
 }

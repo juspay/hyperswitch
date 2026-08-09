@@ -2860,6 +2860,10 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                             .payment_attempt
                             .external_surcharge_details
                             .clone(),
+                        applied_offer_details: payment_data
+                            .payment_attempt
+                            .applied_offer_details
+                            .clone(),
                     },
                     storage_scheme,
                     &cloned_key_store,
@@ -3255,28 +3259,14 @@ async fn apply_selected_offer<F: Clone + Send + Sync>(
         },
     );
 
-    // Offer-adjust the in-memory attempt so downstream PSP data reflects the offer.
+    // Offer-adjust the in-memory attempt; the confirm UpdateTracker (`ConfirmUpdate`)
+    // persists both the offer-adjusted net amount and `applied_offer_details`, so no
+    // standalone DB write is needed here (mirrors surcharge).
     payment_data
         .payment_attempt
         .net_amount
         .set_offer_amount(Some(applied.offer_amount));
-    payment_data.payment_attempt.applied_offer_details = Some(applied_offer_details.clone());
-
-    // Persist only the applied-offer details (like surcharge); `net_amount` is
-    // recomputed on read from the base amount and `applied_offer_details`.
-    let storage_scheme = processor.get_account().storage_scheme;
-    Box::pin(state.store.update_payment_attempt_with_attempt_id(
-        payment_data.payment_attempt.clone(),
-        storage::PaymentAttemptUpdate::AppliedOfferUpdate {
-            applied_offer_details,
-            updated_by: storage_scheme.to_string(),
-        },
-        storage_scheme,
-        processor.get_key_store(),
-    ))
-    .await
-    .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
-    .attach_printable("Error while persisting applied offer on payment attempt")?;
+    payment_data.payment_attempt.applied_offer_details = Some(applied_offer_details);
 
     Ok(payment_data)
 }
