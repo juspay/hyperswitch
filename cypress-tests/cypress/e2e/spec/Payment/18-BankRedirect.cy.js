@@ -4,17 +4,6 @@ import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
 
 let globalState;
 
-const getConnectorConfigId = () => {
-  const connectorId =
-    globalState.get("originalConnectorId") || globalState.get("connectorId");
-
-  if (typeof connectorId === "string" && connectorId.startsWith("trustly")) {
-    return "trustly";
-  }
-
-  return connectorId;
-};
-
 describe("Bank Redirect tests", () => {
   before("seed global state", () => {
     cy.task("getGlobalState").then((state) => {
@@ -507,7 +496,7 @@ describe("Bank Redirect tests", () => {
 
   context("Truelayer Create and Confirm flow test", () => {
     before(function () {
-      if (getConnectorConfigId() !== "truelayer") {
+      if (globalState.get("connectorId") !== "truelayer") {
         this.skip();
       }
     });
@@ -523,9 +512,9 @@ describe("Bank Redirect tests", () => {
       });
 
       cy.step("Create Payment Intent", () => {
-        const data = getConnectorDetails(getConnectorConfigId())[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "bank_redirect_pm"
-        ]["PaymentIntent"]("bank_redirect");
+        ]["PaymentIntent"]("Truelayer");
         cy.createPaymentIntentTest(
           fixtures.createPaymentBody,
           data,
@@ -551,7 +540,7 @@ describe("Bank Redirect tests", () => {
           cy.task("cli_log", "Skipping step: Confirm Payment");
           return;
         }
-        const confirmData = getConnectorDetails(getConnectorConfigId())[
+        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
           "bank_redirect_pm"
         ]["Truelayer"];
         cy.confirmBankRedirectCallTest(
@@ -584,7 +573,7 @@ describe("Bank Redirect tests", () => {
           cy.task("cli_log", "Skipping step: Retrieve Payment");
           return;
         }
-        const confirmData = getConnectorDetails(getConnectorConfigId())[
+        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
           "bank_redirect_pm"
         ]["Truelayer"];
         cy.retrievePaymentCallTest({ globalState, data: confirmData });
@@ -741,20 +730,21 @@ describe("Bank Redirect tests", () => {
   });
 
   context("Trustly Create and Confirm flow test", () => {
+    before(function () {
+      if (globalState.get("connectorId") !== "trustly") {
+        this.skip();
+      }
+    });
+
     it("Create Payment Intent -> List Merchant Payment Methods -> Confirm Payment -> Handle Bank Redirect Redirection", () => {
       let shouldContinue = true;
 
       cy.step("Setup UCS rollout config", () => {
-        if (getConnectorConfigId() === "trustly") {
-          cy.createRolloutConfig(
-            globalState,
-            "bank_redirect_trustly_Authorize"
-          );
-        }
+        cy.createRolloutConfig(globalState, "bank_redirect_trustly_Authorize");
       });
 
       cy.step("Create Payment Intent", () => {
-        const data = getConnectorDetails(getConnectorConfigId())[
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "bank_redirect_pm"
         ]["PaymentIntent"]("Trustly");
         cy.createPaymentIntentTest(
@@ -782,7 +772,7 @@ describe("Bank Redirect tests", () => {
           cy.task("cli_log", "Skipping step: Confirm Payment");
           return;
         }
-        const confirmData = getConnectorDetails(getConnectorConfigId())[
+        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
           "bank_redirect_pm"
         ]["Trustly"];
         cy.confirmBankRedirectCallTest(
@@ -791,10 +781,7 @@ describe("Bank Redirect tests", () => {
           true,
           globalState
         );
-        if (
-          !utils.should_continue_further(confirmData) &&
-          getConnectorConfigId() !== "trustly"
-        ) {
+        if (!utils.should_continue_further(confirmData)) {
           shouldContinue = false;
         }
       });

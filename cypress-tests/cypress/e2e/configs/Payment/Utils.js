@@ -229,22 +229,6 @@ function mergeConnectorDetails(source, fallback) {
 
     // Check if fallback has the same key and properties are missing in source
     if (fallback[key]) {
-      if (source[key]?.Configs?.TRIGGER_SKIP_ALL) {
-        const skipExchange = {
-          Configs: {
-            TRIGGER_SKIP: true,
-          },
-          Request: {},
-          Response: {},
-        };
-
-        merged[key] = Object.keys(fallback[key]).reduce((acc, subKey) => {
-          acc[subKey] = skipExchange;
-          return acc;
-        }, {});
-        continue;
-      }
-
       for (const subKey in fallback[key]) {
         if (!merged[key][subKey]) {
           merged[key][subKey] = fallback[key][subKey];
@@ -798,7 +782,6 @@ export const CONNECTOR_LISTS = {
     DELAYED_SESSION_TOKEN: ["trustpay", "payme"],
     OPEN_BANKING_PIS: ["plaid"],
     CLIENT_SESSION_VALIDATION: ["stripe"],
-    WEBHOOK_CONFIG: ["stripe"],
     REQUIRES_CVV: ["bankofamerica"],
     // Add more inclusion lists
   },

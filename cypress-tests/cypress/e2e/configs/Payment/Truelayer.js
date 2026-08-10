@@ -1,4 +1,4 @@
-import { getCurrency, getCustomExchange } from "./Modifiers";
+import { getCustomExchange } from "./Modifiers";
 
 const billingAddressGB = {
   address: {
@@ -23,31 +23,7 @@ const unsupportedBankRedirect = getCustomExchange({
 });
 
 export const connectorDetails = {
-  // Truelayer is a UCS-only bank redirect connector. This prevents Commons
-  // card flows from being inherited when card specs are run directly.
-  card_pm: {
-    Configs: {
-      TRIGGER_SKIP_ALL: true,
-    },
-  },
   bank_redirect_pm: {
-    PaymentIntent: (paymentMethodType) =>
-      getCustomExchange({
-        Request: {
-          // Truelayer requires GBP for UK open banking payments.
-          currency:
-            paymentMethodType === "bank_redirect"
-              ? "GBP"
-              : getCurrency(paymentMethodType),
-          customer_acceptance: null,
-        },
-        Response: {
-          status: 200,
-          body: {
-            status: "requires_payment_method",
-          },
-        },
-      }),
     Blik: unsupportedBankRedirect,
     Eps: unsupportedBankRedirect,
     Giropay: unsupportedBankRedirect,

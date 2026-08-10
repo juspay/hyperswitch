@@ -1,4 +1,4 @@
-import { getCurrency, getCustomExchange } from "./Modifiers";
+import { getCustomExchange } from "./Modifiers";
 
 const billingAddressSE = {
   address: {
@@ -23,25 +23,7 @@ const unsupportedBankRedirect = getCustomExchange({
 });
 
 export const connectorDetails = {
-  card_pm: {
-    Configs: {
-      TRIGGER_SKIP_ALL: true,
-    },
-  },
   bank_redirect_pm: {
-    PaymentIntent: (paymentMethodType) =>
-      getCustomExchange({
-        Request: {
-          currency: getCurrency(paymentMethodType),
-          customer_acceptance: null,
-        },
-        Response: {
-          status: 200,
-          body: {
-            status: "requires_payment_method",
-          },
-        },
-      }),
     Blik: unsupportedBankRedirect,
     Eps: unsupportedBankRedirect,
     Giropay: unsupportedBankRedirect,
