@@ -1423,9 +1423,14 @@ billing_connectors_which_require_payment_sync = "stripebilling, recurly" # List 
 [open_router]
 dynamic_routing_enabled = true                          # Enable or disable Open Router for dynamic routing
 static_routing_enabled = true           # Enable or disable Open Router for static routing
+shadow_routing_enabled = false  # Shadow-evaluate static routing on DE for non-cutover profiles (diff logging + kill switch only); requires static_routing_enabled
 url = "http://localhost:8080"           # Open Router URL
 dashboard_url = "http://localhost:5173" # Decision Engine dashboard (browser) URL for merchant SSO redirect
 admin_secret = ""                       # Shared secret sent as x-admin-secret on Decision Engine admin endpoints; empty disables the header
+
+[open_router.diff_kill_switch]
+enabled = false            # Enable automatic per-profile cutover back to Hyperswitch routing on repeated DE diffs
+diff_count_threshold = 100 # Non-volume routing diffs per profile within the counter window that trip the kill switch
 
 [grpc_client.unified_connector_service]
 base_url = "http://localhost:8000"      # Unified Connector Service Base URL

@@ -91,6 +91,16 @@ pub struct HybridRoutingOutcome {
     pub routing_approach: RoutingApproach,
 }
 
+impl HybridRoutingOutcome {
+    /// Empty outcome (no DE connectors); the caller falls back to the Hyperswitch static result.
+    pub fn empty() -> Self {
+        Self {
+            connectors: Vec::new(),
+            routing_approach: RoutingApproach::Default,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum DecisionEngineEndpoint {
     DecideGateway,
@@ -530,10 +540,7 @@ pub fn normalize_hybrid_routing_response(
         logger::debug!(
             "euclid: hybrid routing response did not include usable evaluated connectors or static output; returning empty connector set"
         );
-        HybridRoutingOutcome {
-            connectors: Vec::new(),
-            routing_approach: RoutingApproach::Default,
-        }
+        HybridRoutingOutcome::empty()
     };
 
     Ok(outcome)
@@ -1034,12 +1041,56 @@ pub async fn list_de_euclid_active_routing_algorithm(
         .collect())
 }
 
+/// Outcome of a DE-vs-HS routing comparison, used to drive the diff kill switch.
+#[derive(Debug, Clone, Copy)]
+pub struct DeComparisonResult {
+    pub is_equal: bool,
+    pub is_equal_length: bool,
+    pub is_volume: bool,
+    pub is_de_result_empty: bool,
+}
+
+/// Classification of a countable DE-vs-HS divergence, also used as the log/metric tag.
+#[derive(Debug, Clone, Copy)]
+enum DeDiffReason {
+    ResultMismatch,
+    LengthMismatch,
+    Unresponsive,
+}
+
+impl DeDiffReason {
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::ResultMismatch => "decision_engine_result_mismatch",
+            Self::LengthMismatch => "decision_engine_length_mismatch",
+            Self::Unresponsive => "decision_engine_unresponsive",
+        }
+    }
+}
+
+impl DeComparisonResult {
+    /// Why this comparison counts toward the kill switch, if it does (empty DE result => `Unresponsive`).
+    fn diff_reason(self) -> Option<DeDiffReason> {
+        if !self.is_equal {
+            Some(DeDiffReason::ResultMismatch)
+        } else if self.is_equal_length {
+            None
+        } else if self.is_de_result_empty {
+            Some(DeDiffReason::Unresponsive)
+        } else {
+            Some(DeDiffReason::LengthMismatch)
+        }
+    }
+}
+
 pub fn compare_and_log_result<T: RoutingEq<T> + Serialize>(
     de_result: Vec<T>,
     result: Vec<T>,
     flow: String,
-) {
-    let is_equal = if de_result.is_empty() && result.is_empty() {
+    is_volume: bool,
+) -> DeComparisonResult {
+    let is_de_result_empty = de_result.is_empty();
+    let is_equal = if is_de_result_empty && result.is_empty() {
         true
     } else {
         de_result
@@ -1054,9 +1105,162 @@ pub fn compare_and_log_result<T: RoutingEq<T> + Serialize>(
         routing_flow=?flow,
         is_equal=?is_equal,
         is_equal_length=?is_equal_in_length,
+        is_volume=?is_volume,
         de_response=?to_json_string(&de_result),
         hs_response=?to_json_string(&result),
         "decision_engine_euclid"
+    );
+
+    DeComparisonResult {
+        is_equal,
+        is_equal_length: is_equal_in_length,
+        is_volume,
+        is_de_result_empty,
+    }
+}
+
+fn de_diff_count_key(profile_id: &id_type::ProfileId) -> String {
+    format!(
+        "routing_decision_engine_{}_diff_count",
+        profile_id.get_string_repr()
+    )
+}
+
+/// Counts a non-volume DE-vs-HS diff and cuts the profile over to Hyperswitch at the threshold.
+pub async fn record_de_diff_and_maybe_trip_kill_switch(
+    state: &SessionState,
+    profile_id: &id_type::ProfileId,
+    comparison: DeComparisonResult,
+) {
+    let config = &state.conf.open_router.diff_kill_switch;
+    let countable_reason = match comparison.diff_reason() {
+        Some(reason) if config.enabled && !comparison.is_volume => Some(reason),
+        _ => None,
+    };
+
+    if let Some(reason) = countable_reason {
+        // Treat a zero threshold as 1 so the one-shot cutover log/metric below still fires.
+        let threshold = config.diff_count_threshold.max(1);
+
+        logger::warn!(
+            routing_flow=?"evaluate_routing",
+            profile_id=?profile_id.get_string_repr(),
+            "{}: counting routing diff towards the kill switch threshold",
+            reason.as_str()
+        );
+
+        metrics::DECISION_ENGINE_ROUTING_DIFF.add(
+            1,
+            router_env::metric_attributes!(
+                ("profile_id", profile_id.get_string_repr().to_string()),
+                ("reason", reason.as_str())
+            ),
+        );
+
+        match state.store.get_redis_conn() {
+            Ok(redis_conn) => {
+                let counter_key = de_diff_count_key(profile_id);
+                let increment_result = redis_conn
+                    .increment_fields_in_hash(&counter_key.as_str().into(), &[("count", 1)])
+                    .await;
+
+                match increment_result.as_ref().map(|counts| counts.first()) {
+                    Ok(Some(count)) => {
+                        let diff_count = u64::try_from(*count).unwrap_or(u64::MAX);
+
+                        // The counter is a lifetime total (no TTL) and is cleared only via the
+                        // diff-counter reset API. HINCRBY is atomic and sequential, so exactly
+                        // one request observes the threshold value; the cutover alarm fires
+                        // once. Enforcement is passive from here — the counter stays at/over
+                        // threshold and get_routing_result_source overlays Hyperswitch routing.
+                        if diff_count == threshold {
+                            alert_cutover(profile_id, diff_count, threshold);
+                        }
+                    }
+                    Ok(None) => {
+                        logger::error!("decision_engine_euclid: empty response while incrementing routing diff counter");
+                    }
+                    Err(err) => {
+                        logger::error!(error=?err, "decision_engine_euclid: failed to increment routing diff counter");
+                    }
+                }
+            }
+            Err(err) => {
+                logger::error!(error=?err, "decision_engine_euclid: unable to get redis connection to record routing diff");
+            }
+        }
+    }
+}
+
+/// One-shot cutover alarm on the threshold-crossing diff (enforcement is the passive overlay in `get_routing_result_source`).
+fn alert_cutover(profile_id: &id_type::ProfileId, diff_count: u64, threshold: u64) {
+    metrics::DECISION_ENGINE_KILL_SWITCH_TRIGGERED.add(
+        1,
+        router_env::metric_attributes!(("profile_id", profile_id.get_string_repr().to_string())),
+    );
+    router_env::logger::error!(
+        routing_flow=?"auto_cutover",
+        profile_id=?profile_id.get_string_repr(),
+        diff_count=?diff_count,
+        threshold=?threshold,
+        "decision_engine_euclid: routing diff threshold breached, cutting profile over to Hyperswitch routing"
+    );
+}
+
+/// Whether the profile's diff counter has reached the threshold; fail-open (disabled switch or any Redis error => false).
+async fn is_de_diff_threshold_exceeded(
+    state: &SessionState,
+    profile_id: &id_type::ProfileId,
+) -> bool {
+    let config = &state.conf.open_router.diff_kill_switch;
+    if config.enabled {
+        match state.store.get_redis_conn() {
+            Ok(redis_conn) => match redis_conn
+                .get_hash_field::<Option<u64>>(
+                    &de_diff_count_key(profile_id).as_str().into(),
+                    "count",
+                )
+                .await
+            {
+                Ok(count) => count.unwrap_or(0) >= config.diff_count_threshold.max(1),
+                Err(err) => {
+                    logger::error!(error=?err, "decision_engine_euclid: kill switch counter lookup failed, using configured routing source");
+                    false
+                }
+            },
+            Err(err) => {
+                logger::error!(error=?err, "decision_engine_euclid: unable to get redis connection for kill switch check");
+                false
+            }
+        }
+    } else {
+        false
+    }
+}
+
+/// Shadow-evaluates the DE rule off the payment path and logs the DE-vs-HS diff (observation-only, never feeds the kill switch).
+pub async fn shadow_decision_engine_routing(
+    state: SessionState,
+    business_profile: domain::Profile,
+    payment_id: String,
+    backend_input: BackendInput,
+    fallback_config: Vec<RoutableConnectorChoice>,
+    hs_connectors: Vec<RoutableConnectorChoice>,
+    is_volume: bool,
+) {
+    let de_result =
+        decision_engine_routing(&state, backend_input, &business_profile, payment_id, fallback_config)
+            .await
+            .map_err(|err| {
+                logger::error!(shadow_decision_engine_error=?err, "decision_engine_euclid: error in shadow evaluation of rule")
+            })
+            .unwrap_or_default();
+
+    compare_and_log_result(
+        de_result,
+        hs_connectors,
+        "evaluate_routing".to_string(),
+        is_volume,
     );
 }
 
@@ -1841,14 +2045,37 @@ pub async fn get_routing_result_source(
     state: &SessionState,
     dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
 ) -> api_routing::RoutingResultSource {
-    // No customer_id and payment_id in call sites so passing Targeting key as None
-    dimensions
+    // No customer_id and payment_id in call sites so passing Targeting key as None.
+    let source = dimensions
         .get_routing_result_source(
             state.store.as_ref(),
             state.superposition_service.as_ref(),
             None,
         )
-        .await
+        .await;
+
+    // Overlay Hyperswitch routing when the diff counter is at/over threshold, without mutating the stored source (covers routing + dashboard, both resolve here).
+    let overlay_hyperswitch = matches!(source, api_routing::RoutingResultSource::DecisionEngine)
+        && match dimensions.get_profile_id() {
+            Some(profile_id) => {
+                let exceeded = is_de_diff_threshold_exceeded(state, profile_id).await;
+                if exceeded {
+                    logger::info!(
+                        routing_flow=?"kill_switch_active",
+                        profile_id=?profile_id.get_string_repr(),
+                        "decision_engine_euclid: diff threshold reached, overlaying Hyperswitch routing result"
+                    );
+                }
+                exceeded
+            }
+            None => false,
+        };
+
+    if overlay_hyperswitch {
+        api_routing::RoutingResultSource::HyperswitchRouting
+    } else {
+        source
+    }
 }
 pub async fn select_routing_result<T>(
     state: &SessionState,
@@ -2219,6 +2446,19 @@ impl RoutingApproach {
             "SR_SELECTION_V3_ROUTING" => Self::Exploitation,
             "SR_V3_HEDGING" => Self::Exploration,
             _ => Self::Default,
+        }
+    }
+
+    /// Only DE static outcomes are diff-comparable; unmapped dynamic approaches land on
+    /// `Default` and must not feed the kill switch.
+    pub fn is_de_static_result(&self) -> bool {
+        match self {
+            Self::StaticRouting => true,
+            Self::Exploitation
+            | Self::Exploration
+            | Self::Elimination
+            | Self::ContractBased
+            | Self::Default => false,
         }
     }
 }

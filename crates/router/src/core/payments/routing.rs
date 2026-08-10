@@ -707,6 +707,8 @@ pub struct RoutingContext {
 
 pub struct RoutingConnectorOutcome {
     pub connectors: Vec<routing_types::RoutableConnectorChoice>,
+    /// Selection involved a volume split (randomized), so a DE-vs-HS diff is expected.
+    pub is_volume_split: bool,
 }
 
 impl RoutingConnectorOutcome {
@@ -743,13 +745,17 @@ impl RoutingConnectorOutcome {
     pub fn empty() -> Self {
         Self {
             connectors: Vec::new(),
+            is_volume_split: false,
         }
     }
 }
 
 impl From<Vec<routing_types::RoutableConnectorChoice>> for RoutingConnectorOutcome {
     fn from(connectors: Vec<routing_types::RoutableConnectorChoice>) -> Self {
-        Self { connectors }
+        Self {
+            connectors,
+            is_volume_split: false,
+        }
     }
 }
 
@@ -807,13 +813,10 @@ impl RoutingStage for StaticRoutingStage {
 
     fn route<'a>(&'a self, input: Self::Input<'a>) -> Self::Fut<'a> {
         Box::pin(async move {
-            let connectors =
-                static_routing_v1(&self.ctx.routing_algorithm, input.backend_input.clone())
-                    .await
-                    .change_context(errors::RoutingError::DslExecutionError)
-                    .attach_printable("euclid: unable to perform static routing locally")?;
-
-            Ok(RoutingConnectorOutcome { connectors })
+            static_routing_v1(&self.ctx.routing_algorithm, input.backend_input.clone())
+                .await
+                .change_context(errors::RoutingError::DslExecutionError)
+                .attach_printable("euclid: unable to perform static routing locally")
         })
     }
 
@@ -832,6 +835,7 @@ pub async fn perform_static_routing_locally(
 ) -> errors::RouterResult<(
     Vec<routing_types::RoutableConnectorChoice>,
     common_enums::RoutingApproach,
+    bool,
 )> {
     let txn_type = routing::transaction_type_from_payments_dsl(payment_dsl_input);
 
@@ -865,7 +869,7 @@ pub async fn perform_static_routing_locally(
         },
     });
 
-    let (static_connectors, static_approach) = static_stage
+    let outcome = static_stage
         .clone()
         .async_and_then(|static_stage| async move {
             static_stage
@@ -878,23 +882,23 @@ pub async fn perform_static_routing_locally(
                     );
                 })
                 .ok()
-                .map(|outcome| RoutingConnectorOutcome {
-                    connectors: outcome.connectors,
-                })
         })
         .await
-        .unwrap_or_else(RoutingConnectorOutcome::empty)
-        .resolve_or_fallback_with_approach(
-            "static-routing",
-            fallback_config,
-            static_stage
-                .as_ref()
-                .map(|s| s.routing_approach())
-                .unwrap_or(common_enums::RoutingApproach::DefaultFallback),
-            common_enums::RoutingApproach::DefaultFallback,
-        );
+        .unwrap_or_else(RoutingConnectorOutcome::empty);
 
-    Ok((static_connectors, static_approach))
+    let is_volume_split = outcome.is_volume_split;
+
+    let (static_connectors, static_approach) = outcome.resolve_or_fallback_with_approach(
+        "static-routing",
+        fallback_config,
+        static_stage
+            .as_ref()
+            .map(|s| s.routing_approach())
+            .unwrap_or(common_enums::RoutingApproach::DefaultFallback),
+        common_enums::RoutingApproach::DefaultFallback,
+    );
+
+    Ok((static_connectors, static_approach, is_volume_split))
 }
 
 pub struct SessionRoutingInput<'a> {
@@ -998,9 +1002,6 @@ impl RoutingStage for SessionRoutingStage {
                                 );
                             })
                             .ok()
-                            .map(|outcome| RoutingConnectorOutcome {
-                                connectors: outcome.connectors,
-                            })
                     })
                     .await
                     .unwrap_or_else(RoutingConnectorOutcome::empty)
@@ -1387,6 +1388,8 @@ pub struct HybridRoutingInput<'a> {
     pub fallback_config: &'a [routing_types::RoutableConnectorChoice],
     pub static_connectors: &'a [routing_types::RoutableConnectorChoice],
     pub static_approach: common_enums::RoutingApproach,
+    /// Whether the HS static selection involved a volume split.
+    pub static_is_volume_split: bool,
 }
 
 #[cfg(feature = "v1")]
@@ -1523,6 +1526,9 @@ impl RoutingStage for HybridRoutingStage {
                 );
                 RoutingConnectorOutcomeWithApproach::empty()
             } else {
+                // An unreachable/erroring DE is treated as an empty (unresponsive) outcome so the
+                // diff is still logged and counted below; the caller falls back to the HS static
+                // result. This keeps unresponsive-DE handling identical to the static path.
                 let hybrid_outcome = utils::decision_engine_hybrid_routing(
                     input.state,
                     input.business_profile,
@@ -1533,15 +1539,34 @@ impl RoutingStage for HybridRoutingStage {
                     },
                     input.static_connectors.to_vec(),
                 )
-                .await?;
+                .await
+                .unwrap_or_else(|error| {
+                    logger::error!(error=?error, "euclid: hybrid DE evaluation failed, treating as unresponsive");
+                    utils::HybridRoutingOutcome::empty()
+                });
 
                 // Keep legacy diff/selection logs for dashboard compatibility.
                 // Routing behavior remains hybrid-first; this is logging-only parity.
-                utils::compare_and_log_result(
+                let comparison = utils::compare_and_log_result(
                     hybrid_outcome.connectors.clone(),
                     input.static_connectors.to_vec(),
                     "evaluate_routing".to_string(),
+                    input.static_is_volume_split,
                 );
+
+                // Dynamic DE selections legitimately reorder connectors; count static
+                // outcomes, plus empty ones so an unresponsive DE feeds the kill switch.
+                if hybrid_outcome.routing_approach.is_de_static_result()
+                    || comparison.is_de_result_empty
+                {
+                    utils::record_de_diff_and_maybe_trip_kill_switch(
+                        input.state,
+                        input.business_profile.get_id(),
+                        comparison,
+                    )
+                    .await;
+                }
+
                 RoutingConnectorOutcomeWithApproach {
                     connectors: hybrid_outcome.connectors,
                     routing_approach: hybrid_outcome.routing_approach.into(),
@@ -1568,6 +1593,7 @@ pub async fn perform_hybrid_routing_if_enabled(
     fallback_config: &[routing_types::RoutableConnectorChoice],
     static_connectors: &[routing_types::RoutableConnectorChoice],
     static_approach: common_enums::RoutingApproach,
+    static_is_volume_split: bool,
 ) -> (
     Vec<routing_types::RoutableConnectorChoice>,
     common_enums::RoutingApproach,
@@ -1581,6 +1607,7 @@ pub async fn perform_hybrid_routing_if_enabled(
         fallback_config,
         static_connectors,
         static_approach: static_approach.clone(),
+        static_is_volume_split,
     };
 
     let is_decision_engine_cutover_enabled = matches!(
@@ -1627,6 +1654,37 @@ pub async fn perform_hybrid_routing_if_enabled(
             routing_source = "hyperswitch_static",
             "decision_engine_euclid: selected routing source after hybrid stage"
         );
+
+        // Shadow mode: diff-check DE against the HS result for non-cutover profiles without
+        // touching the payment path — detached task, HS result serves the payment either way.
+        if state.conf.open_router.static_routing_enabled
+            && state.conf.open_router.shadow_routing_enabled
+        {
+            let payment_id = payment_dsl_input
+                .payment_attempt
+                .payment_id
+                .get_string_repr()
+                .to_string();
+            let shadow_state = state.clone();
+            let shadow_profile = business_profile.clone();
+            let shadow_backend_input = backend_input.clone();
+            let shadow_fallback = fallback_config.to_vec();
+            let shadow_static_connectors = static_connectors.to_vec();
+
+            tokio::spawn(async move {
+                utils::shadow_decision_engine_routing(
+                    shadow_state,
+                    shadow_profile,
+                    payment_id,
+                    shadow_backend_input,
+                    shadow_fallback,
+                    shadow_static_connectors,
+                    static_is_volume_split,
+                )
+                .await;
+            });
+        }
+
         (static_connectors.to_vec(), static_approach)
     }
 }
@@ -1634,18 +1692,35 @@ pub async fn perform_hybrid_routing_if_enabled(
 pub async fn static_routing_v1(
     routing_algorithm: &CachedAlgorithm,
     backend_input: backend::BackendInput,
-) -> RoutingResult<Vec<routing_types::RoutableConnectorChoice>> {
+) -> RoutingResult<RoutingConnectorOutcome> {
     logger::debug!("euclid_routing: performing routing for connector selection");
-    let routable_connectors = match routing_algorithm {
-        CachedAlgorithm::Single(conn) => vec![(**conn).clone()],
-        CachedAlgorithm::Priority(plist) => plist.clone(),
-        CachedAlgorithm::VolumeSplit(splits) => perform_volume_split(splits.to_vec())
-            .change_context(errors::RoutingError::ConnectorSelectionFailed)?,
+    let outcome = match routing_algorithm {
+        CachedAlgorithm::Single(conn) => RoutingConnectorOutcome {
+            connectors: vec![(**conn).clone()],
+            is_volume_split: false,
+        },
+        CachedAlgorithm::Priority(plist) => RoutingConnectorOutcome {
+            connectors: plist.clone(),
+            is_volume_split: false,
+        },
+        CachedAlgorithm::VolumeSplit(splits) => RoutingConnectorOutcome {
+            connectors: perform_volume_split(splits.to_vec())
+                .change_context(errors::RoutingError::ConnectorSelectionFailed)?,
+            is_volume_split: true,
+        },
         CachedAlgorithm::Advanced(interpreter) => {
-            execute_dsl_and_get_connector_v1(backend_input, interpreter)?
+            let dsl_output = execute_dsl_v1(backend_input, interpreter)?;
+            let is_volume_split = matches!(
+                dsl_output,
+                routing_types::StaticRoutingAlgorithm::VolumeSplit(_)
+            );
+            RoutingConnectorOutcome {
+                connectors: dsl_output_to_connectors(dsl_output)?,
+                is_volume_split,
+            }
         }
     };
-    Ok(routable_connectors)
+    Ok(outcome)
 }
 
 pub async fn perform_static_routing_v1(
@@ -1704,12 +1779,6 @@ pub async fn perform_static_routing_v1(
         }
     };
 
-    let backend_input = match transaction_data {
-        routing::TransactionData::Payment(payment_data) => make_dsl_input(payment_data)?,
-        #[cfg(feature = "payouts")]
-        routing::TransactionData::Payout(payout_data) => make_dsl_input_for_payouts(payout_data)?,
-    };
-
     let payment_id = match transaction_data {
         routing::TransactionData::Payment(payment_data) => payment_data
             .payment_attempt
@@ -1725,54 +1794,96 @@ pub async fn perform_static_routing_v1(
             .to_string(),
     };
 
-    // Decision of de-routing is stored
-    let de_evaluated_connector = if !state.conf.open_router.static_routing_enabled {
-        logger::debug!("decision_engine_euclid: decision_engine routing not enabled");
-        Vec::default()
-    } else {
-        utils::decision_engine_routing(
-            state,
-            backend_input.clone(),
-            business_profile,
-            payment_id,
-            fallback_config,
-        )
-        .await
-        .map_err(|e|
-            // errors are ignored as this is just for diff checking as of now (optional flow).
-            logger::error!(decision_engine_euclid_evaluate_error=?e, "decision_engine_euclid: error in evaluation of rule")
-        )
-        .unwrap_or_default()
+    // A routing failure must never fail the payment: any error building the routing input, or
+    // evaluating the active algorithm, falls back to the merchant default connectors.
+    let backend_input = match transaction_data {
+        routing::TransactionData::Payment(payment_data) => make_dsl_input(payment_data),
+        #[cfg(feature = "payouts")]
+        routing::TransactionData::Payout(payout_data) => make_dsl_input_for_payouts(payout_data),
     };
 
-    let (routable_connectors, routing_approach) = match cached_algorithm.as_ref() {
-        CachedAlgorithm::Single(conn) => (
-            vec![(**conn).clone()],
-            Some(common_enums::RoutingApproach::StraightThroughRouting),
-        ),
-        CachedAlgorithm::Priority(plist) => (plist.clone(), None),
-        CachedAlgorithm::VolumeSplit(splits) => (
-            perform_volume_split(splits.to_vec())
-                .change_context(errors::RoutingError::ConnectorSelectionFailed)?,
-            Some(common_enums::RoutingApproach::VolumeBasedRouting),
-        ),
-        CachedAlgorithm::Advanced(interpreter) => (
-            execute_dsl_and_get_connector_v1(backend_input, interpreter)?,
-            Some(common_enums::RoutingApproach::RuleBasedRouting),
-        ),
-    };
+    let (routable_connectors, routing_approach, is_volume_split, de_evaluated_connector) =
+        match backend_input {
+            Err(err) => {
+                logger::error!(error=?err, "euclid_routing: failed to build routing input, falling back to merchant default connectors");
+                (fallback_config.clone(), None, false, Vec::default())
+            }
+            Ok(backend_input) => {
+                // Decision engine evaluation is diagnostic only; errors degrade to an empty result.
+                let de_evaluated_connector = if !state.conf.open_router.static_routing_enabled {
+                    logger::debug!("decision_engine_euclid: decision_engine routing not enabled");
+                    Vec::default()
+                } else {
+                    utils::decision_engine_routing(
+                        state,
+                        backend_input.clone(),
+                        business_profile,
+                        payment_id,
+                        fallback_config.clone(),
+                    )
+                    .await
+                    .map_err(|e| logger::error!(decision_engine_euclid_evaluate_error=?e, "decision_engine_euclid: error in evaluation of rule"))
+                    .unwrap_or_default()
+                };
 
-    // Results are logged for diff(between legacy and decision_engine's euclid) and have parameters as:
-    // is_equal: verifies all output are matching in order,
-    // is_equal_length: matches length of both outputs (useful for verifying volume based routing
-    // results)
-    // de_response: response from the decision_engine's euclid
-    // hs_response: response from legacy_euclid
-    utils::compare_and_log_result(
+                let evaluated = (|| -> RoutingResult<(
+                    Vec<routing_types::RoutableConnectorChoice>,
+                    Option<common_enums::RoutingApproach>,
+                    bool,
+                )> {
+                    Ok(match cached_algorithm.as_ref() {
+                        CachedAlgorithm::Single(conn) => (
+                            vec![(**conn).clone()],
+                            Some(common_enums::RoutingApproach::StraightThroughRouting),
+                            false,
+                        ),
+                        CachedAlgorithm::Priority(plist) => (plist.clone(), None, false),
+                        CachedAlgorithm::VolumeSplit(splits) => (
+                            perform_volume_split(splits.to_vec())
+                                .change_context(errors::RoutingError::ConnectorSelectionFailed)?,
+                            Some(common_enums::RoutingApproach::VolumeBasedRouting),
+                            true,
+                        ),
+                        CachedAlgorithm::Advanced(interpreter) => {
+                            let dsl_output = execute_dsl_v1(backend_input, interpreter)?;
+                            let is_volume_split = matches!(
+                                dsl_output,
+                                routing_types::StaticRoutingAlgorithm::VolumeSplit(_)
+                            );
+                            (
+                                dsl_output_to_connectors(dsl_output)?,
+                                Some(common_enums::RoutingApproach::RuleBasedRouting),
+                                is_volume_split,
+                            )
+                        }
+                    })
+                })();
+
+                let (routable_connectors, routing_approach, is_volume_split) = evaluated
+                    .unwrap_or_else(|err| {
+                        logger::error!(error=?err, "euclid_routing: algorithm evaluation failed, falling back to merchant default connectors");
+                        (fallback_config.clone(), None, false)
+                    });
+
+                (
+                    routable_connectors,
+                    routing_approach,
+                    is_volume_split,
+                    de_evaluated_connector,
+                )
+            }
+        };
+
+    // Diff-logged (is_equal / is_equal_length / is_volume) and fed to the kill switch.
+    let comparison = utils::compare_and_log_result(
         de_evaluated_connector.clone(),
         routable_connectors.clone(),
         "evaluate_routing".to_string(),
+        is_volume_split,
     );
+
+    utils::record_de_diff_and_maybe_trip_kill_switch(state, business_profile.get_id(), comparison)
+        .await;
 
     Ok((
         utils::select_routing_result(
@@ -1893,15 +2004,19 @@ pub fn perform_routing_for_single_straight_through_algorithm(
     })
 }
 
-fn execute_dsl_and_get_connector_v1(
+fn execute_dsl_v1(
     backend_input: dsl_inputs::BackendInput,
     interpreter: &backend::VirInterpreterBackend<ConnectorSelection>,
-) -> RoutingResult<Vec<routing_types::RoutableConnectorChoice>> {
-    let routing_output: routing_types::StaticRoutingAlgorithm = interpreter
+) -> RoutingResult<routing_types::StaticRoutingAlgorithm> {
+    interpreter
         .execute(backend_input)
         .map(|out| out.connector_selection.foreign_into())
-        .change_context(errors::RoutingError::DslExecutionError)?;
+        .change_context(errors::RoutingError::DslExecutionError)
+}
 
+fn dsl_output_to_connectors(
+    routing_output: routing_types::StaticRoutingAlgorithm,
+) -> RoutingResult<Vec<routing_types::RoutableConnectorChoice>> {
     Ok(match routing_output {
         routing_types::StaticRoutingAlgorithm::Priority(plist) => plist,
 
@@ -1911,6 +2026,13 @@ fn execute_dsl_and_get_connector_v1(
         _ => Err(errors::RoutingError::DslIncorrectSelectionAlgorithm)
             .attach_printable("Unsupported algorithm received as a result of static routing")?,
     })
+}
+
+fn execute_dsl_and_get_connector_v1(
+    backend_input: dsl_inputs::BackendInput,
+    interpreter: &backend::VirInterpreterBackend<ConnectorSelection>,
+) -> RoutingResult<Vec<routing_types::RoutableConnectorChoice>> {
+    dsl_output_to_connectors(execute_dsl_v1(backend_input, interpreter)?)
 }
 
 pub async fn refresh_routing_cache_v1(
