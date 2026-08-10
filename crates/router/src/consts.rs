@@ -408,6 +408,8 @@ pub mod superposition {
     pub const REQUIRES_CVV: &str = "payments.requires_cvv";
     /// implicit customer update configuration key
     pub const IMPLICIT_CUSTOMER_UPDATE: &str = "payments.implicit_customer_update";
+    /// Organization-scoped block implicit customer creation configuration key
+    pub const BLOCK_IMPLICIT_CUSTOMER_CREATION: &str = "payments.block_implicit_customer_creation";
     /// Fingerprint secret configuration key retained for migration fallback
     pub const FINGERPRINT_SECRET: &str = "vaulting.fingerprint_secret";
     /// Poll config for external 3DS authentication key

@@ -2170,19 +2170,21 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                     }
                 }
                 None => {
-                    let pm_modular_dimensions = dimensions
+                    let implicit_customer_creation_dimensions = dimensions
                         .without_profile_id()
                         .with_organization_id(provider.get_account().organization_id.clone())
-                        .without_processor_merchant_id();
-                    let should_call_pm_modular_service =
-                        payment_methods::utils::get_should_call_pm_modular_service(
-                            state,
-                            &pm_modular_dimensions,
-                            None,
-                        )
-                        .await;
+                        .without_processor_merchant_id()
+                        .without_provider_merchant_id();
+                    let should_block_implicit_customer_creation =
+                        implicit_customer_creation_dimensions
+                            .get_block_implicit_customer_creation(
+                                state.store.as_ref(),
+                                state.superposition_service.as_ref(),
+                                Some(&customer_id),
+                            )
+                            .await;
 
-                    if should_call_pm_modular_service {
+                    if should_block_implicit_customer_creation {
                         Err(report!(errors::StorageError::ValueNotFound(
                             "customer".to_owned()
                         )))?
