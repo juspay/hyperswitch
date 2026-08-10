@@ -82,6 +82,12 @@ pub struct SantanderPixPayoutMetadata {
 }
 
 #[derive(Debug, serde::Deserialize)]
+pub struct MifinityMetadata {
+    brand_id: Secret<String>,
+    destination_account_number: Secret<String>,
+}
+
+#[derive(Debug, serde::Deserialize)]
 pub struct TruelayerMetadata {
     merchant_account_id: Option<Secret<String>>,
     account_holder_name: Option<Secret<String>>,
@@ -656,6 +662,12 @@ pub enum ConnectorSpecificConfig {
         client_id: Secret<String>,
         client_secret: Secret<String>,
         workspace_id: Secret<String>,
+    },
+    /// Mifinity connector configuration
+    Mifinity {
+        key: Secret<String>,
+        brand_id: Option<Secret<String>>,
+        destination_account_number: Option<Secret<String>>,
     },
 }
 
@@ -1702,6 +1714,25 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                     })
                 }
                 _ => Err(err("Santander payout requires CertificateAuth auth type")),
+            },
+            Connector::Mifinity => match auth {
+                ConnectorAuthType::HeaderKey { api_key } => {
+                    let mifinity_meta = metadata
+                        .map(|m| {
+                            serde_json::from_value::<MifinityMetadata>(m.clone())
+                                .map_err(|_| err("Invalid Mifinity metadata format"))
+                        })
+                        .transpose()?;
+
+                    Ok(Self::Mifinity {
+                        key: api_key.clone(),
+                        brand_id: mifinity_meta.as_ref().map(|m| m.brand_id.clone()),
+                        destination_account_number: mifinity_meta
+                            .as_ref()
+                            .map(|m| m.destination_account_number.clone()),
+                    })
+                }
+                _ => Err(err("Mifinity requires HeaderKey auth type")),
             },
             // --- Unsupported connectors ---
             _ => Err(
