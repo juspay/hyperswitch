@@ -4647,7 +4647,6 @@ impl<F, T> TryFrom<ResponseRouterData<F, StripeTokenResponse, T, PaymentsRespons
         item: ResponseRouterData<F, StripeTokenResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let token = item.response.id.clone().expose();
-
         Ok(Self {
             response: Ok(PaymentsResponseData::TokenizationResponse { token }),
             ..item.data
