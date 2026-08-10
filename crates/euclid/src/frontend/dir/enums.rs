@@ -225,6 +225,7 @@ pub enum BankTransferType {
     Pix,
     PixKey,
     PixEmv,
+    PixQr,
     PixAutomaticoPush,
     PixAutomaticoQr,
     Pse,

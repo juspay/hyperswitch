@@ -161,24 +161,28 @@ impl RedisEntryId {
 // ─── Reply type enums ────────────────────────────────────────────────────────
 
 #[derive(Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "deja", derive(serde::Serialize, serde::Deserialize))]
 pub enum SetnxReply {
     KeySet,
     KeyNotSet, // Existing key
 }
 
 #[derive(Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "deja", derive(serde::Serialize, serde::Deserialize))]
 pub enum HsetnxReply {
     KeySet,
     KeyNotSet, // Existing key
 }
 
 #[derive(Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "deja", derive(serde::Serialize, serde::Deserialize))]
 pub enum MsetnxReply {
     KeysSet,
     KeysNotSet, // At least one existing key
 }
 
 #[derive(Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "deja", derive(serde::Serialize, serde::Deserialize))]
 pub enum DelReply {
     KeyDeleted,
     KeyNotDeleted, // Key not found
@@ -194,9 +198,14 @@ impl DelReply {
     }
 }
 
+/// Reply from SADD command
 #[derive(Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "deja", derive(serde::Serialize, serde::Deserialize))]
 pub enum SaddReply {
-    KeySet,
+    /// Returned when atleast 1 value was inserted to Set
+    /// i64 value represent the total number of values that were inserted.
+    KeySet(i64),
+    /// Returned when no value was inserted to the Set
     KeyNotSet,
 }
 
@@ -351,6 +360,11 @@ impl std::error::Error for StreamTrimThresholdError {}
 pub struct RedisKey(String);
 
 impl RedisKey {
+    #[cfg(feature = "deja")]
+    pub fn as_str(&self) -> &str {
+        self.0.as_str()
+    }
+
     pub fn tenant_aware_key(&self, pool: &crate::RedisConnectionPool) -> String {
         pool.add_prefix(&self.0)
     }

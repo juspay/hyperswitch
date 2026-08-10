@@ -222,6 +222,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCancelRe
             client_session_id: None,
             vault_session_details: None,
             external_vault_pmd: None,
+            update_request_fields: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -264,11 +265,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsCancelReques
                     status: enums::IntentStatus::Cancelled,
                     updated_by: storage_scheme.to_string(),
                     incremental_authorization_allowed: None,
-                    feature_metadata: payment_data
-                        .payment_intent
-                        .feature_metadata
-                        .clone()
-                        .map(hyperswitch_masking::Secret::new),
+                    feature_metadata: payment_data.payment_intent.feature_metadata.clone(),
                 };
                 (Some(payment_intent_update), enums::AttemptStatus::Voided)
             } else {

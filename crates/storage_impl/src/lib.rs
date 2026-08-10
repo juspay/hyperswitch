@@ -1,6 +1,10 @@
 use std::{fmt::Debug, sync::Arc};
 
-use common_utils::types::TenantConfig;
+use common_utils::{
+    external_service::{ExternalServiceEventEmitter, NoOpEventEmitter},
+    request_context::RequestContext,
+    types::TenantConfig,
+};
 use diesel_models as store;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
@@ -22,6 +26,7 @@ pub mod configs;
 pub mod connection;
 pub mod customers;
 pub mod database;
+pub mod dispute;
 pub mod errors;
 pub mod invoice;
 pub mod kv_router_store;
@@ -49,7 +54,7 @@ pub mod tokenization;
 #[cfg(not(feature = "payouts"))]
 use hyperswitch_domain_models::{PayoutAttemptInterface, PayoutsInterface};
 pub use mock_db::MockDb;
-use redis_interface::{errors::RedisError, RedisConnectionPool, SaddReply};
+use redis_interface::{errors::RedisError, RedisConnectionWithContext, SaddReply};
 
 #[cfg(not(feature = "payouts"))]
 pub use crate::database::store::Store;
@@ -63,6 +68,15 @@ pub struct RouterStore<T: DatabaseStore> {
     master_encryption_key: StrongSecret<Vec<u8>>,
     pub request_id: Option<String>,
     key_manager_state: Option<KeyManagerState>,
+}
+
+impl<T: DatabaseStore> RedisConnInterface for RouterStore<T> {
+    fn get_redis_conn(&self) -> error_stack::Result<RedisConnectionWithContext, RedisError> {
+        Ok(RedisConnectionWithContext::new(
+            Arc::clone(&self.cache_store.get_redis_pool()?),
+            self,
+        ))
+    }
 }
 
 impl<T: DatabaseStore> RouterStore<T> {
@@ -116,7 +130,8 @@ where
                 db_conf,
                 tenant_config,
                 encryption_key,
-                Self::cache_store(&cache_conf, cache_error_signal).await?,
+                Self::cache_store(&cache_conf, cache_error_signal, Arc::new(NoOpEventEmitter))
+                    .await?,
                 inmemory_cache_stream,
                 key_manager_state,
             )
@@ -138,11 +153,17 @@ where
     fn get_accounts_replica_pool(&self) -> &PgPool {
         self.db_store.get_accounts_replica_pool()
     }
+
+    /// Request correlation consumed by the deja replay DB routing hook.
+    #[cfg(feature = "deja")]
+    fn get_request_id(&self) -> Option<String> {
+        self.request_id.clone()
+    }
 }
 
-impl<T: DatabaseStore> RedisConnInterface for RouterStore<T> {
-    fn get_redis_conn(&self) -> error_stack::Result<Arc<RedisConnectionPool>, RedisError> {
-        self.cache_store.get_redis_conn()
+impl<T: DatabaseStore> RequestContext for RouterStore<T> {
+    fn request_id(&self) -> Option<&str> {
+        self.request_id.as_deref()
     }
 }
 
@@ -156,15 +177,14 @@ impl<T: DatabaseStore> RouterStore<T> {
         key_manager_state: Option<KeyManagerState>,
     ) -> error_stack::Result<Self, StorageError> {
         let db_store = T::new(db_conf, tenant_config, false, key_manager_state.clone()).await?;
-        let redis_conn = cache_store.redis_conn.clone();
-        let cache_store = Arc::new(RedisStore {
-            redis_conn: Arc::new(RedisConnectionPool::clone(
-                &redis_conn,
-                tenant_config.get_redis_key_prefix(),
-            )),
-        });
+        let cache_store = Arc::new(
+            cache_store
+                .clone()
+                .clone_pool_with_prefix(tenant_config.get_redis_key_prefix()),
+        );
         cache_store
-            .redis_conn
+            .get_redis_pool()
+            .change_context(StorageError::InitializationError)?
             .subscribe(inmemory_cache_stream)
             .await
             .change_context(StorageError::InitializationError)
@@ -182,8 +202,9 @@ impl<T: DatabaseStore> RouterStore<T> {
     pub async fn cache_store(
         cache_conf: &redis_interface::RedisSettings,
         cache_error_signal: tokio::sync::oneshot::Sender<()>,
+        event_emitter: Arc<dyn ExternalServiceEventEmitter>,
     ) -> error_stack::Result<Arc<RedisStore>, StorageError> {
-        let cache_store = RedisStore::new(cache_conf)
+        let cache_store = RedisStore::new(cache_conf, event_emitter)
             .await
             .change_context(StorageError::InitializationError)
             .attach_printable("Failed to create cache store")?;
@@ -195,6 +216,7 @@ impl<T: DatabaseStore> RouterStore<T> {
         &self.master_encryption_key
     }
 
+    // TODO: This needs to be removed after the removal of diesel_models dependency from domain_models is done
     pub async fn call_database<D, R, M>(
         &self,
         key_store: &MerchantKeyStore,
@@ -205,6 +227,34 @@ impl<T: DatabaseStore> RouterStore<T> {
         R: futures::Future<Output = error_stack::Result<M, diesel_models::errors::DatabaseError>>
             + Send,
         M: ReverseConversion<D>,
+    {
+        execute_query
+            .await
+            .map_err(|error| {
+                let new_err = diesel_error_to_data_error(*error.current_context());
+                error.change_context(new_err)
+            })?
+            .convert(
+                self.get_keymanager_state()
+                    .attach_printable("Missing KeyManagerState")?,
+                key_store.key.get_inner(),
+                key_store.merchant_id.clone().into(),
+            )
+            .await
+            .change_context(StorageError::DecryptionError)
+    }
+
+    // Equivalent of call_database but where conversion trait is implemented in storage_impl crate
+    pub async fn call_database_new<D, R, M>(
+        &self,
+        key_store: &MerchantKeyStore,
+        execute_query: R,
+    ) -> error_stack::Result<D, StorageError>
+    where
+        D: Debug + Sync + behaviour::Conversion,
+        R: futures::Future<Output = error_stack::Result<M, diesel_models::errors::DatabaseError>>
+            + Send,
+        M: behaviour::ReverseConversion<D>,
     {
         execute_query
             .await
@@ -253,6 +303,7 @@ impl<T: DatabaseStore> RouterStore<T> {
         }
     }
 
+    // TODO: This needs to be removed after the removal of diesel_models dependency from domain_models is done
     pub async fn find_resources<D, R, M>(
         &self,
         key_store: &MerchantKeyStore,
@@ -264,6 +315,44 @@ impl<T: DatabaseStore> RouterStore<T> {
                 Output = error_stack::Result<Vec<M>, diesel_models::errors::DatabaseError>,
             > + Send,
         M: ReverseConversion<D>,
+    {
+        let resource_futures = execute_query
+            .await
+            .map_err(|error| {
+                let new_err = diesel_error_to_data_error(*error.current_context());
+                error.change_context(new_err)
+            })?
+            .into_iter()
+            .map(|resource| async {
+                resource
+                    .convert(
+                        self.get_keymanager_state()
+                            .attach_printable("Missing KeyManagerState")?,
+                        key_store.key.get_inner(),
+                        key_store.merchant_id.clone().into(),
+                    )
+                    .await
+                    .change_context(StorageError::DecryptionError)
+            })
+            .collect::<Vec<_>>();
+
+        let resources = futures::future::try_join_all(resource_futures).await?;
+
+        Ok(resources)
+    }
+
+    // Equivalent of find_resources but where conversion trait is implemented in storage_impl crate
+    pub async fn find_resources_new<D, R, M>(
+        &self,
+        key_store: &MerchantKeyStore,
+        execute_query: R,
+    ) -> error_stack::Result<Vec<D>, StorageError>
+    where
+        D: Debug + Sync + behaviour::Conversion,
+        R: futures::Future<
+                Output = error_stack::Result<Vec<M>, diesel_models::errors::DatabaseError>,
+            > + Send,
+        M: behaviour::ReverseConversion<D>,
     {
         let resource_futures = execute_query
             .await
@@ -302,7 +391,7 @@ impl<T: DatabaseStore> RouterStore<T> {
     ) -> error_stack::Result<Self, StorageError> {
         // TODO: create an error enum and return proper error here
         let db_store = T::new(db_conf, tenant_config, true, key_manager_state.clone()).await?;
-        let cache_store = RedisStore::new(cache_conf)
+        let cache_store = RedisStore::new_without_event_emitter(cache_conf)
             .await
             .change_context(StorageError::InitializationError)
             .attach_printable("failed to create redis cache")?;
@@ -348,19 +437,38 @@ pub trait UniqueConstraints {
     fn table_name(&self) -> &str;
     async fn check_for_constraints(
         &self,
-        redis_conn: &Arc<RedisConnectionPool>,
+        redis_conn: &RedisConnectionWithContext,
     ) -> CustomResult<(), RedisError> {
         let constraints = self.unique_constraints();
+        let unique_contraint_count = constraints.len();
         let sadd_result = redis_conn
             .sadd(
                 &format!("unique_constraint:{}", self.table_name()).into(),
-                constraints,
+                constraints.clone(),
             )
             .await?;
 
         match sadd_result {
             SaddReply::KeyNotSet => Err(error_stack::report!(RedisError::SetAddMembersFailed)),
-            SaddReply::KeySet => Ok(()),
+            SaddReply::KeySet(set_count) => {
+                if usize::try_from(set_count) == Ok(unique_contraint_count) {
+                    // If all unique constraints were succesfully inserted into the set, then no collision occurred
+                    Ok(())
+                } else {
+                    Err(error_stack::report!(RedisError::SetAddMembersFailed)).attach_printable_lazy(||{
+                        // saturating_sub avoids panic if set_count somehow exceeds unique_contraint_count.
+                        let duplicates_found = unique_contraint_count
+                            .saturating_sub(usize::try_from(set_count).unwrap_or(0));
+                        format!(
+                            "Unique constraint collision in table '{}': tried to insert {} constraint(s), but {} already existed. Attempted constraints: {:?}",
+                            self.table_name(),
+                            unique_contraint_count,
+                            duplicates_found,
+                            constraints
+                        )
+                    })
+                }
+            }
         }
     }
 }
@@ -383,6 +491,18 @@ impl KvSupportedEntity for diesel_models::Capture {
             "pa_{}_capture_{}",
             self.authorized_attempt_id, self.capture_id
         )
+    }
+}
+
+impl KvSupportedEntity for diesel_models::Dispute {
+    fn get_partition_key(&self) -> kv_store::PartitionKey<'_> {
+        kv_store::PartitionKey::MerchantIdPaymentId {
+            merchant_id: &self.merchant_id,
+            payment_id: &self.payment_id,
+        }
+    }
+    fn get_hash_field_key(&self) -> String {
+        format!("dispute_{}", self.dispute_id)
     }
 }
 
@@ -610,5 +730,26 @@ impl UniqueConstraints for diesel_models::tokenization::Tokenization {
 
     fn table_name(&self) -> &str {
         "tokenization"
+    }
+}
+
+impl UniqueConstraints for diesel_models::Dispute {
+    fn unique_constraints(&self) -> Vec<String> {
+        vec![
+            format!(
+                "dispute_{}_{}",
+                self.merchant_id.get_string_repr(),
+                self.dispute_id
+            ),
+            format!(
+                "dispute_{}_{}_{}",
+                self.merchant_id.get_string_repr(),
+                self.payment_id.get_string_repr(),
+                self.connector_dispute_id
+            ),
+        ]
+    }
+    fn table_name(&self) -> &str {
+        "Dispute"
     }
 }

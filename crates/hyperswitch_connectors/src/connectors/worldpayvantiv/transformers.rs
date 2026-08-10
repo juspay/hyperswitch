@@ -1677,13 +1677,9 @@ impl TryFrom<PaymentsCaptureResponseRouterData<CnpOnlineResponse>> for PaymentsC
 }
 
 fn get_vantiv_customer_reference(customer_id: &Option<String>) -> Option<String> {
-    customer_id.clone().and_then(|id| {
-        if id.len() <= worldpayvantiv_constants::CUSTOMER_REFERENCE_MAX_LENGTH {
-            Some(id)
-        } else {
-            None
-        }
-    })
+    customer_id
+        .clone()
+        .filter(|id| id.len() <= worldpayvantiv_constants::CUSTOMER_REFERENCE_MAX_LENGTH)
 }
 
 impl TryFrom<PaymentsCancelResponseRouterData<CnpOnlineResponse>> for PaymentsCancelRouterData {
@@ -2269,7 +2265,7 @@ impl<F>
                 ..item.data
             })},
             (_, _) => {  Err(errors::ConnectorError::UnexpectedResponseError(
-                bytes::Bytes::from("Only one of 'sale_response' or 'authorisation_response' is expected, but both were received".to_string()),           
+                bytes::Bytes::from("Only one of 'sale_response' or 'authorisation_response' is expected, but both were received".to_string()),
              ))?
             },
     }

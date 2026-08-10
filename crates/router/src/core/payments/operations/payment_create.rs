@@ -450,7 +450,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                                                 connector_id.get_connector_mandate_id(),
                                                 connector_id.get_payment_method_id(),
                                                 None,
-                                                None,
+                                                connector_id.get_mandate_metadata(),
                                                 connector_id
                                                     .get_connector_mandate_request_reference_id(),
                                                 None,
@@ -750,6 +750,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             client_session_id,
             vault_session_details: None,
             external_vault_pmd,
+            update_request_fields: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -800,7 +801,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                 )
                 .await?
                 .inspect(|cust| {
-                    payment_data.payment_intent.customer_id = Some(cust.customer_id.clone());
+                    payment_data.payment_intent.customer_id = Some(cust.get_id().clone());
                 });
                 let op: PaymentCreateOperation<'a, F> = Box::new(self);
                 Ok((op, customer))
@@ -1939,7 +1940,7 @@ impl PaymentCreate {
             connector_id: None,
             allowed_payment_method_types,
             connector_metadata,
-            feature_metadata,
+            feature_metadata: feature_metadata.map(Secret::new),
             attempt_count: 1,
             profile_id: Some(profile_id),
             merchant_decision: None,

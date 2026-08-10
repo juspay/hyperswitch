@@ -195,13 +195,12 @@ Hyperswitch is built as a set of modular services and SDKs that work together. T
 
 ### 1. Core backend services
 
-The Rust services that process payments. The app server is the center of gravity; the vault and encryption service handle sensitive-data operations alongside it. [`hyperswitch-prism`](https://github.com/juspay/hyperswitch-prism) is a separate, lighter entry point: a unified connector library that can be used directly against payment processors without running the full switch.
-
-|  | [hyperswitch](https://github.com/juspay/hyperswitch) | [card-vault](https://github.com/juspay/hyperswitch-card-vault) | [encryption-service](https://github.com/juspay/hyperswitch-encryption-service) | [prism](https://github.com/juspay/hyperswitch-prism) |
-| :--- | :---: | :---: | :---: | :---: |
-| **Language** | Rust | Rust | Rust | Rust |
-| **Role** | App server. Routing, retries, vaulting, observability. | PCI-compliant card storage. | Encryption, decryption, KMS. | Unified connector library, 100+ processors. |
-| **Depends on** | card-vault, encryption-service | encryption-service | None | None |
+The Rust services that process payments. The app server is the center of gravity; the vault and encryption service handle sensitive-data operations alongside it. [`hyperswitch-prism`](https://github.com/juspay/hyperswitch-prism) is a separate, lighter entry point: a unified connector library that can be used directly against payment processors without running the full switch. [`decision-engine`](https://github.com/juspay/decision-engine) is another standalone service: a routing control plane that selects the best gateway per transaction and can run independently of any orchestrator.
+|  | [hyperswitch](https://github.com/juspay/hyperswitch) | [card-vault](https://github.com/juspay/hyperswitch-card-vault) | [encryption-service](https://github.com/juspay/hyperswitch-encryption-service) | [prism](https://github.com/juspay/hyperswitch-prism) | [decision-engine](https://github.com/juspay/decision-engine) |
+| :--- | :---: | :---: | :---: | :---: | :---: |
+| **Language** | Rust | Rust | Rust | Rust | Rust |
+| **Role** | App server. Routing, retries, vaulting, observability. | PCI-compliant card storage. | Encryption, decryption, KMS. | Unified connector library, 100+ processors. | Routing control plane. Rule-based and success-rate gateway selection. Standalone, works with any orchestrator. |
+| **Depends on** | card-vault, encryption-service | encryption-service | None | None | None |
 
 ### 2. Dashboard
 

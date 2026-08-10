@@ -423,7 +423,7 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
         let connector_auth_metadata =
             unified_connector_service::build_unified_connector_service_auth_metadata(
                 merchant_connector_account,
-                processor,
+                processor.get_account().get_id(),
                 self.connector.clone(),
             )
             .change_context(ApiErrorResponse::InternalServerError)
@@ -483,10 +483,18 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
                     .change_context(ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed to deserialize UCS response")?;
 
-                let router_data_response = ucs_data.router_data_response.map(|(response, status)| {
-                    router_data.status = status;
-                    response
-                });
+                let router_data_response = match ucs_data.router_data_response {
+                    Ok((response, status)) => {
+                        router_data.status = status;
+                        Ok(response)
+                    }
+                    Err(err) => {
+                        if let Some(attempt_status) = err.attempt_status {
+                            router_data.status = attempt_status;
+                        }
+                        Err(err)
+                    }
+                };
                 router_data.response = router_data_response;
                 router_data.raw_connector_response = payment_authorize_response
                     .raw_connector_response
@@ -529,7 +537,7 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
         let connector_auth_metadata =
             unified_connector_service::build_unified_connector_service_auth_metadata(
                 merchant_connector_account.clone(),
-                processor,
+                processor.get_account().get_id(),
                 self.connector.clone(),
             )
             .change_context(ApiErrorResponse::InternalServerError)
@@ -591,10 +599,18 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
                     .change_context(ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed to deserialize UCS response")?;
 
-                let router_data_response = ucs_data.router_data_response.map(|(response, status)| {
-                    router_data.status = status;
-                    response
-                });
+                let router_data_response = match ucs_data.router_data_response {
+                    Ok((response, status)) => {
+                        router_data.status = status;
+                        Ok(response)
+                    }
+                    Err(err) => {
+                        if let Some(attempt_status) = err.attempt_status {
+                            router_data.status = attempt_status;
+                        }
+                        Err(err)
+                    }
+                };
                 router_data.response = router_data_response;
                 router_data.raw_connector_response = payment_authorize_response
                     .raw_connector_response

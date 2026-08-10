@@ -228,6 +228,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsSessionR
             card_testing_guard_data: None,
             vault_operation: None,
             vault_session_details: None,
+            update_request_fields: None,
             threeds_method_comp_ind: None,
             whole_connector_response: None,
             is_manual_retry_enabled: None,
@@ -271,11 +272,6 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsSessionReque
         let key_store = processor.get_key_store();
 
         let metadata = payment_data.payment_intent.metadata.clone();
-        let feature_metadata = payment_data
-            .payment_intent
-            .feature_metadata
-            .clone()
-            .map(hyperswitch_masking::Secret::new);
         payment_data.payment_intent = match metadata {
             Some(metadata) => state
                 .store
@@ -284,7 +280,6 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsSessionReque
                     storage::PaymentIntentUpdate::MetadataUpdate {
                         metadata: Some(metadata),
                         updated_by: storage_scheme.to_string(),
-                        feature_metadata,
                     },
                     key_store,
                     storage_scheme,
@@ -412,16 +407,6 @@ where
     ) -> RouterResult<api::ConnectorChoice> {
         let db = &state.store;
 
-        let all_connector_accounts = db
-            .find_merchant_connector_account_by_merchant_id_and_disabled_list(
-                processor.get_account().get_id(),
-                false,
-                processor.get_key_store(),
-            )
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Database error when querying for merchant connector accounts")?;
-
         let profile_id = payment_intent
             .profile_id
             .clone()
@@ -429,11 +414,17 @@ where
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("profile_id is not set in payment_intent")?;
 
-        let filtered_connector_accounts = all_connector_accounts
-            .filter_based_on_profile_and_connector_type(
+        let all_connector_accounts = db
+            .list_enabled_merchant_connector_accounts_without_encrypted_by_merchant_id_profile_id(
+                processor.get_account().get_id(),
                 &profile_id,
-                common_enums::ConnectorType::PaymentProcessor,
-            );
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Database error when querying for merchant connector accounts")?;
+
+        let filtered_connector_accounts = all_connector_accounts
+            .filter_by_connector_type(common_enums::ConnectorType::PaymentProcessor);
 
         let requested_payment_method_types = request.wallets.clone();
         let mut connector_and_supporting_payment_method_type = Vec::new();

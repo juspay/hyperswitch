@@ -201,6 +201,7 @@ pub enum AuthenticationType {
         merchant_id: id_type::MerchantId,
         profile_id: id_type::ProfileId,
     },
+    InternalApiKey,
     NoAuth,
 }
 
@@ -235,11 +236,35 @@ impl AuthenticationType {
             | Self::EmbeddedJwt { merchant_id, .. }
             | Self::SdkAuthorization { merchant_id, .. } => Some(merchant_id),
             Self::AdminApiKey
+            | Self::InternalApiKey
             | Self::OrganizationJwt { .. }
             | Self::BasicAuth { .. }
             | Self::UserJwt { .. }
             | Self::SinglePurposeJwt { .. }
             | Self::SinglePurposeOrLoginJwt { .. }
+            | Self::NoAuth => None,
+        }
+    }
+
+    pub fn get_user_id(&self) -> Option<String> {
+        match self {
+            Self::OrganizationJwt { user_id, .. }
+            | Self::MerchantJwtWithProfileId { user_id, .. }
+            | Self::UserJwt { user_id, .. }
+            | Self::SinglePurposeJwt { user_id, .. }
+            | Self::SinglePurposeOrLoginJwt { user_id, .. } => Some(user_id.clone()),
+            Self::MerchantJwt { user_id, .. } => user_id.clone(),
+            Self::ApiKey { .. }
+            | Self::AdminApiKey
+            | Self::AdminApiAuthWithMerchantId { .. }
+            | Self::BasicAuth { .. }
+            | Self::MerchantId { .. }
+            | Self::PublishableKey { .. }
+            | Self::SdkAuthorization { .. }
+            | Self::WebhookAuth { .. }
+            | Self::InternalMerchantIdProfileId { .. }
+            | Self::EmbeddedJwt { .. }
+            | Self::InternalApiKey
             | Self::NoAuth => None,
         }
     }
@@ -2765,6 +2790,47 @@ where
     }
 }
 
+pub struct InternalApiKeyAuth<F>(pub F);
+
+#[async_trait]
+impl<A, F> AuthenticateAndFetch<(), A> for InternalApiKeyAuth<F>
+where
+    A: SessionStateInfo + Sync + Send,
+    F: AuthenticateAndFetch<(), A> + Sync + Send,
+{
+    async fn authenticate_and_fetch(
+        &self,
+        request_headers: &HeaderMap,
+        state: &A,
+    ) -> RouterResult<((), AuthenticationType)> {
+        if !state.conf().internal_merchant_id_profile_id_auth.enabled {
+            return self.0.authenticate_and_fetch(request_headers, state).await;
+        }
+
+        let internal_api_key = HeaderMapStruct::new(request_headers)
+            .get_header_value_by_key(headers::X_INTERNAL_API_KEY)
+            .map(|s| s.to_string());
+
+        match internal_api_key {
+            Some(key) => {
+                if key
+                    == *state
+                        .conf()
+                        .internal_merchant_id_profile_id_auth
+                        .internal_api_key
+                        .peek()
+                {
+                    Ok(((), AuthenticationType::InternalApiKey))
+                } else {
+                    Err(errors::ApiErrorResponse::Unauthorized)
+                        .attach_printable("Internal API key authentication failed")
+                }
+            }
+            None => self.0.authenticate_and_fetch(request_headers, state).await,
+        }
+    }
+}
+
 #[derive(Debug)]
 #[cfg(feature = "v2")]
 pub struct MerchantIdAndProfileIdAuth {
@@ -5213,7 +5279,7 @@ where
             (auth.clone(), Some(payload.user_id.clone())),
             AuthenticationType::MerchantJwt {
                 merchant_id: payload.merchant_id,
-                user_id: None,
+                user_id: Some(payload.user_id),
             },
         ))
     }
@@ -5747,6 +5813,14 @@ impl ClientSecretFetch for api_models::authentication::AuthenticationSyncRequest
 }
 
 impl ClientSecretFetch for api_models::authentication::AuthenticationSessionTokenRequest {
+    fn get_client_secret(&self) -> Option<&String> {
+        self.client_secret
+            .as_ref()
+            .map(|client_secret| client_secret.peek())
+    }
+}
+
+impl ClientSecretFetch for api_models::superposition_sdk_config::SdkConfigRequest {
     fn get_client_secret(&self) -> Option<&String> {
         self.client_secret
             .as_ref()

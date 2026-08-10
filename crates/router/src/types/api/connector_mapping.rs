@@ -286,6 +286,9 @@ impl ConnectorData {
                 enums::Connector::Gigadat => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Gigadat::new())))
                 }
+                enums::Connector::Givepayments => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Givepayments::new())))
+                }
                 enums::Connector::Globalpay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Globalpay::new())))
                 }
@@ -519,6 +522,9 @@ impl ConnectorData {
                     Err(report!(errors::ConnectorError::InvalidConnectorName)
                         .attach_printable(format!("invalid connector name: {connector_name}")))
                     .change_context(errors::ApiErrorResponse::InternalServerError)
+                }
+                enums::Connector::TsysTransit => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::TsysTransit::new())))
                 }
                 enums::Connector::Phonepe => Ok(ConnectorEnum::Old(Box::new(Phonepe::new()))),
                 enums::Connector::Paytm => Ok(ConnectorEnum::Old(Box::new(Paytm::new()))),

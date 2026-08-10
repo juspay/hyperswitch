@@ -295,6 +295,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .get_feature_metadata_as_value()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Error converting feature_metadata to Value")?
+            .map(hyperswitch_masking::Secret::new)
             .or(payment_intent.feature_metadata);
 
         payment_intent.metadata = request.metadata.clone().or(payment_intent.metadata);
@@ -399,6 +400,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             client_session_id: None,
             vault_session_details: None,
             external_vault_pmd: None,
+            update_request_fields: None,
         };
 
         let customer_details = Some(CustomerDetails {
