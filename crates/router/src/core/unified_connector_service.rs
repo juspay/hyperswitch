@@ -32,8 +32,8 @@ use hyperswitch_domain_models::{
     router_request_types::RefundsData,
     router_response_types::{PaymentsResponseData, PayoutsResponseData, RefundsResponseData},
 };
-use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use hyperswitch_interfaces::unified_connector_service::transformers::UcsKillSwitchReason;
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use router_env::{instrument, logger, tracing};
 use unified_connector_service_cards::CardNumber;
 use unified_connector_service_client::payments::{
@@ -3185,7 +3185,9 @@ async fn activate_ucs_kill_switch(
         common_enums::TransactionType::Payment
         | common_enums::TransactionType::ThreeDsAuthentication => {
             if is_refund_flow {
-                vec![format!("{prefix}_{merchant_id}_{connector_name}_{flow_name}")]
+                vec![format!(
+                    "{prefix}_{merchant_id}_{connector_name}_{flow_name}"
+                )]
             } else {
                 match router_data_payment_method {
                     common_enums::PaymentMethod::Wallet
@@ -3202,7 +3204,9 @@ async fn activate_ucs_kill_switch(
                     }
                     _ => {
                         let pm = router_data_payment_method.to_string();
-                        vec![format!("{prefix}_{merchant_id}_{connector_name}_{pm}_{flow_name}")]
+                        vec![format!(
+                            "{prefix}_{merchant_id}_{connector_name}_{pm}_{flow_name}"
+                        )]
                     }
                 }
             }
@@ -3211,7 +3215,9 @@ async fn activate_ucs_kill_switch(
             let pmt = router_data_payment_method_type
                 .map(|p| p.to_string())
                 .unwrap_or_else(|| "unknown".to_string());
-            vec![format!("{prefix}_{merchant_id}_{connector_name}_{pmt}_{flow_name}")]
+            vec![format!(
+                "{prefix}_{merchant_id}_{connector_name}_{pmt}_{flow_name}"
+            )]
         }
     };
 
