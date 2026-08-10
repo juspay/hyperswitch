@@ -125,8 +125,6 @@ const PAYMENT_METHOD_MODULAR_BACKWARD_COMPAT_TASK: &str = "PM_MOD_BACK_COMPAT";
 const PAYMENT_METHOD_MODULAR_BACKWARD_COMPAT_TAG: &str = "PM_MOD_BACK_COMPAT";
 const PAYMENT_METHOD_MODULAR_COMPAT_PROCESS_TRACKER_ID_MAX_LENGTH: usize = 126;
 const PAYMENT_METHOD_MODULAR_COMPAT_PROCESS_TRACKER_ID_SUFFIX_LENGTH: usize = 8;
-#[cfg(feature = "v2")]
-const PAYMENT_METHOD_REDACTED_FINGERPRINT_ID: &str = "FINGERPRINT_ID_REDACTED";
 /// `process_tracker.id` is a `varchar(127)`; ids are built to stay within it.
 const NETWORK_TOKENIZATION_PROCESS_TRACKER_ID_MAX_LENGTH: usize = 126;
 const NETWORK_TOKENIZATION_PROCESS_TRACKER_ID_SUFFIX_LENGTH: usize = 8;
@@ -6513,7 +6511,10 @@ pub async fn delete_payment_method_by_record(
             .get_initiator()
             .and_then(|initiator| initiator.to_created_by())
             .map(|last_modified_by| last_modified_by.to_string()),
-        locker_fingerprint_id: Some(PAYMENT_METHOD_REDACTED_FINGERPRINT_ID.to_string()),
+        // `Some(None)` clears the column to SQL NULL. A sentinel string cannot be used here: an id
+        // may already carry a retired row, and repeating the sentinel would collide under
+        // `UNIQUE (id, locker_fingerprint_id)`.
+        locker_fingerprint_id: Some(None),
     };
 
     db.update_payment_method(
