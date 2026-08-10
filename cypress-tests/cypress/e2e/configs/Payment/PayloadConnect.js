@@ -318,6 +318,12 @@ export const connectorDetails = {
         },
       },
     },
+    // payloadconnect splits the full payment amount to receivers via the
+    // ledger, leaving nothing in the merchant's transaction balance for a
+    // standard refund. Payload's connector integration has no split-aware
+    // refund mechanism (unlike stripeconnect's split_refunds), so every
+    // refund attempt against a split payment fails -- verified live against
+    // the real API: HTTP 200 with a business-level "failed" refund status.
     Refund: {
       Request: {
         amount: 6000,
@@ -325,7 +331,12 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
+          status: "failed",
+          error_code: "InvalidAttributes",
+          error_message:
+            '{"ledger":[{"amount":"Amount is above transaction balance"}]}',
+          unified_code: "UE_9000",
+          unified_message: "Something went wrong",
         },
       },
     },
@@ -336,7 +347,12 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
+          status: "failed",
+          error_code: "InvalidAttributes",
+          error_message:
+            '{"ledger":[{"amount":"Amount is above transaction balance"}]}',
+          unified_code: "UE_9000",
+          unified_message: "Something went wrong",
         },
       },
     },
@@ -347,7 +363,12 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
+          status: "failed",
+          error_code: "InvalidAttributes",
+          error_message:
+            '{"ledger":[{"amount":"Amount is above transaction balance"}]}',
+          unified_code: "UE_9000",
+          unified_message: "Something went wrong",
         },
       },
     },
@@ -358,7 +379,12 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
+          status: "failed",
+          error_code: "InvalidAttributes",
+          error_message:
+            '{"ledger":[{"amount":"Amount is above transaction balance"}]}',
+          unified_code: "UE_9000",
+          unified_message: "Something went wrong",
         },
       },
     },
@@ -366,7 +392,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
+          status: "failed",
         },
       },
     },
