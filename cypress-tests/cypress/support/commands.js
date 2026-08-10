@@ -3473,6 +3473,7 @@ Cypress.Commands.add(
       body: body,
     }).then((response) => {
       logRequestId(response.headers["x-request-id"]);
+      storeRequestId(response.headers["x-request-id"], globalState);
       cy.wrap(response).then(() => {
         if (response.status === 200) {
           expect(response.headers["content-type"]).to.include(

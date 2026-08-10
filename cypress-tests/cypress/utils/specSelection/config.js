@@ -85,7 +85,7 @@ const PAYMENT_SPEC_METHODS = Object.freeze({
   // single-payment-method connectors a run that yields no connector signal.
   "00-CoreFlows.cy.js": ["card"],
   "34-CustomerListTests.cy.js": ["card"],
-  "36-DiffCheckValidation.cy.js": ["card"],
+  "36-DiffCheckValidation.cy.js": ["card", "bank_redirect"],
   "47-DisputeTests.cy.js": ["card"],
   "52-AcquirerConfigs.cy.js": ["card"],
 
