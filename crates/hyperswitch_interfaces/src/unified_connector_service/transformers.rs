@@ -906,6 +906,8 @@ impl ForeignTryFrom<payments_grpc::BankType> for common_enums::BankType {
         match bank_type {
             payments_grpc::BankType::Checking => Ok(Self::Checking),
             payments_grpc::BankType::Savings => Ok(Self::Savings),
+            payments_grpc::BankType::Salary => Ok(Self::Salary),
+            payments_grpc::BankType::Payment => Ok(Self::Payment),
             payments_grpc::BankType::Bond
             | payments_grpc::BankType::Transmission
             | payments_grpc::BankType::Current
@@ -1111,16 +1113,31 @@ impl UnifiedConnectorServiceError {
     /// Converts tonic::Code to HTTP status code.
     pub fn tonic_to_http_status(code: tonic::Code) -> u16 {
         match code {
-            tonic::Code::InvalidArgument | tonic::Code::FailedPrecondition => 400,
+            tonic::Code::Cancelled => 408,
+            tonic::Code::InvalidArgument => 400,
             tonic::Code::Unauthenticated => 401,
             tonic::Code::PermissionDenied => 403,
             tonic::Code::NotFound => 404,
             tonic::Code::AlreadyExists => 409,
+            tonic::Code::ResourceExhausted => 429,
+            tonic::Code::FailedPrecondition => 412,
+            tonic::Code::Aborted => 409,
+            tonic::Code::OutOfRange => 416,
             tonic::Code::Unimplemented => 501,
             tonic::Code::Unavailable => 503,
             tonic::Code::DeadlineExceeded => 504,
             _ => 500,
         }
+    }
+
+    fn tonic_status_is_ucs_server_error(code: tonic::Code) -> bool {
+        matches!(
+            code,
+            tonic::Code::Unknown
+                | tonic::Code::Internal
+                | tonic::Code::Unavailable
+                | tonic::Code::DataLoss
+        )
     }
 
     /// Returns HTTP status code for this error.
@@ -1293,9 +1310,19 @@ impl ErrorSwitch<ApiErrorResponse> for UnifiedConnectorServiceError {
 impl ErrorSwitch<ConnectorError> for UnifiedConnectorServiceError {
     fn switch(&self) -> ConnectorError {
         match self {
-            // UCS validation errors (4xx from tonic) → ProcessingStepFailed with encoded error
-            // body so the upstream handler can return the right HTTP status code.
             Self::TonicStatus { code, message } => {
+                // UCS/Prism server failures must surface as Hyperswitch 5xx errors, not as
+                // payment authorization failures with a nested 5xx payload.
+                if Self::tonic_status_is_ucs_server_error(*code) {
+                    return ConnectorError::ResponseHandlingFailed;
+                }
+
+                if *code == tonic::Code::Unimplemented {
+                    return ConnectorError::NotImplemented(message.clone());
+                }
+
+                // UCS validation/client-class errors keep the encoded payload for callers that
+                // already rely on structured processing-step data.
                 let status_code = Self::tonic_to_http_status(*code);
                 let error_body = serde_json::json!({
                     "code": format!("UCS_{}", status_code),

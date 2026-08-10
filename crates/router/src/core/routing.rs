@@ -283,6 +283,7 @@ pub async fn retrieve_merchant_routing_dictionary(
             de_result.clone(),
             result.clone(),
             "list_routing".to_string(),
+            false,
         );
         result =
             build_list_routing_result(&state, platform, &result, &de_result, profile_ids.clone())
@@ -1493,6 +1494,7 @@ pub async fn retrieve_linked_routing_config(
                 de_records.clone(),
                 hs_records.clone(),
                 "list_active_routing".to_string(),
+                false,
             );
             let dimensions = dimension_state::Dimensions::new()
                 .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
