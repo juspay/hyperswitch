@@ -2488,11 +2488,6 @@ export const connectorDetails = {
           error_code: "payment_method_not_available",
           error_message:
             "WeChatPay is not available in the selected region/currency",
-        },
-      },
-    },
-  },
-  webhook_config: {
     // WebhookConfig: webhook_username and webhook_password are masked
     // placeholders — not real credentials. They are safe to use in any
     // connector config as placeholder webhook auth data.
@@ -2552,5 +2547,15 @@ export const connectorDetails = {
         },
       },
     }),
+  },
+  Dispute: {
+    AcceptDispute: {
+      Response: {
+        status: 200,
+        body: {
+          dispute_status: "dispute_accepted",
+        },
+      },
+    },
   },
 };
