@@ -35,13 +35,16 @@ pub async fn request_account_updater_refresh(
         payment_method: Some(refreshable_payment_method),
     };
 
-    let (connector, auth_type, connector_config) = config.to_connector_auth();
+    let (connector, auth_type, metadata) = config
+        .to_connector_auth()
+        .change_context(AccountUpdaterError::RefreshCallFailed)
+        .attach_printable("Failed to build the Account Updater connector metadata")?;
 
     let connector_auth_metadata = build_unified_connector_service_auth_metadata_without_mca(
         connector,
         &auth_type,
         platform.get_processor().get_account().get_id(),
-        Some(&connector_config),
+        Some(&metadata),
     )
     .change_context(AccountUpdaterError::RefreshCallFailed)
     .attach_printable("Failed to build the Account Updater auth metadata")?;

@@ -1,8 +1,12 @@
 use common_enums::connector_enums::Connector;
+use error_stack::ResultExt;
 use hyperswitch_domain_models::router_data::ConnectorAuthType;
 use hyperswitch_masking::Secret;
 
-use crate::core::unified_connector_service::connector_config::ConnectorSpecificConfig;
+use crate::core::{
+    errors::{self, RouterResult},
+    unified_connector_service::connector_config::JuspayMetadata,
+};
 
 #[derive(
     Debug,
@@ -28,23 +32,30 @@ pub enum ResolvedAccountUpdaterConfig {
 }
 
 impl ResolvedAccountUpdaterConfig {
-    /// Builds the connector, auth type and connector-specific config for UCS.
-    pub fn to_connector_auth(&self) -> (Connector, ConnectorAuthType, ConnectorSpecificConfig) {
+    /// Builds the connector, auth type and metadata UCS resolves the connector config from.
+    pub fn to_connector_auth(
+        &self,
+    ) -> RouterResult<(Connector, ConnectorAuthType, serde_json::Value)> {
         match self {
-            Self::Juspay(juspay) => (
-                Connector::Juspay,
-                ConnectorAuthType::HeaderKey {
-                    api_key: juspay.api_key.clone(),
-                },
-                ConnectorSpecificConfig::Juspay {
-                    api_key: juspay.api_key.clone(),
+            Self::Juspay(juspay) => {
+                let metadata = serde_json::to_value(JuspayMetadata {
                     merchant_id: juspay.merchant_id.clone(),
                     base_url: juspay.base_url.to_string(),
                     juspay_encryption_public_key: juspay.euler_encryption_public_key.clone(),
                     response_decryption_private_key: juspay.au_decryption_pvt_key.clone(),
                     card_sync_key_id: juspay.card_sync_key_id.clone(),
-                },
-            ),
+                })
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to serialize the Juspay Account Updater metadata")?;
+
+                Ok((
+                    Connector::Juspay,
+                    ConnectorAuthType::HeaderKey {
+                        api_key: juspay.api_key.clone(),
+                    },
+                    metadata,
+                ))
+            }
         }
     }
 }

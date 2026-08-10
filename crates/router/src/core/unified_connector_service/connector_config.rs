@@ -177,6 +177,17 @@ pub struct TsysTransitMetadata {
     merchant_url: Option<url::Url>,
 }
 
+/// Juspay Account Updater credentials, carried outside the auth type because they come from
+/// application config rather than a merchant connector account.
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct JuspayMetadata {
+    pub merchant_id: String,
+    pub base_url: String,
+    pub juspay_encryption_public_key: Secret<String>,
+    pub response_decryption_private_key: Secret<String>,
+    pub card_sync_key_id: String,
+}
+
 /// Connector-specific configuration enum for all supported connectors
 #[derive(Debug, Clone, serde::Serialize)]
 pub enum ConnectorSpecificConfig {
@@ -1686,6 +1697,28 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                 }),
                 _ => Err(err("Givepayments requires HeaderKey auth type")),
             },
+            Connector::Juspay => match auth {
+                ConnectorAuthType::HeaderKey { api_key } => {
+                    let juspay_meta = metadata
+                        .map(|meta| {
+                            serde_json::from_value::<JuspayMetadata>(meta.clone())
+                                .map_err(|_| err("Invalid Juspay metadata format"))
+                        })
+                        .transpose()?
+                        .ok_or_else(|| err("Juspay requires metadata"))?;
+
+                    Ok(Self::Juspay {
+                        api_key: api_key.clone(),
+                        merchant_id: juspay_meta.merchant_id,
+                        base_url: juspay_meta.base_url,
+                        juspay_encryption_public_key: juspay_meta.juspay_encryption_public_key,
+                        response_decryption_private_key: juspay_meta
+                            .response_decryption_private_key,
+                        card_sync_key_id: juspay_meta.card_sync_key_id,
+                    })
+                }
+                _ => Err(err("Juspay requires HeaderKey auth type")),
+            },
             Connector::Netcetera => Ok(Self::Netcetera),
             Connector::Santander => match auth {
                 ConnectorAuthType::CertificateAuth {
@@ -1740,19 +1773,16 @@ pub fn build_connector_config_header(
         merchant_account_metadata,
     ))?;
 
-    serialize_connector_config(&config).map(Some)
-}
-
-/// Serializes a [`ConnectorSpecificConfig`] as `{"config": {"ConnectorName": {...}}}`.
-pub fn serialize_connector_config(config: &ConnectorSpecificConfig) -> RouterResult<String> {
-    let config_json = serde_json::to_value(config)
+    let config_json = serde_json::to_value(&config)
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to serialize connector config to JSON value")?;
 
     let mut outer_map = serde_json::Map::new();
     outer_map.insert("config".to_string(), config_json);
 
-    serde_json::to_string(&outer_map)
+    let config_string = serde_json::to_string(&outer_map)
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to serialize ConnectorSpecificConfig")
+        .attach_printable("Failed to serialize ConnectorSpecificConfig")?;
+
+    Ok(Some(config_string))
 }

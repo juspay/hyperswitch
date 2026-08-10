@@ -1852,17 +1852,18 @@ pub fn build_unified_connector_service_auth_metadata_without_mca(
     connector: Connector,
     auth_type: &ConnectorAuthType,
     processor_merchant_id: &id_type::MerchantId,
-    connector_config: Option<&connector_config::ConnectorSpecificConfig>,
+    metadata: Option<&serde_json::Value>,
 ) -> CustomResult<ConnectorAuthMetadata, UnifiedConnectorServiceError> {
-    let connector_config = connector_config
-        .map(connector_config::serialize_connector_config)
-        .transpose()
-        .change_context(UnifiedConnectorServiceError::FailedToObtainAuthType)
-        .attach_printable("Failed to serialize the connector config")?
-        .map(Secret::new);
+    let connector_name = connector.to_string();
+
+    let connector_config =
+        connector_config::build_connector_config_header(&connector_name, auth_type, metadata)
+            .change_context(UnifiedConnectorServiceError::FailedToObtainAuthType)
+            .attach_printable("Failed to build connector config header")?
+            .map(Secret::new);
 
     build_connector_auth_metadata(
-        connector.to_string(),
+        connector_name,
         auth_type,
         processor_merchant_id,
         connector_config,
