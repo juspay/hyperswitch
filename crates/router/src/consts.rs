@@ -439,8 +439,7 @@ pub mod superposition {
         "payments.should_store_eligibility_check_data_for_authentication";
     /// Extended card BIN configuration key
     pub const ENABLE_EXTENDED_CARD_BIN: &str = "payments.enable_extended_card_bin";
-    /// Max auto payout retries configuration key
-    pub const MAX_AUTO_PAYOUT_RETRIES: &str = "payouts.max_auto_payout_retries";
+
     /// GSM payout call configuration key (scoped by merchant, profile, and payout retry type)
     pub const GSM_PAYOUT_CALL: &str = "payouts.gsm_payout_call";
     /// Disable vault tokenization configuration key
@@ -485,6 +484,12 @@ pub mod superposition {
     pub const INCOMING_WEBHOOK_DISABLED_EVENTS: &str = "webhooks.incoming_webhook_disabled_events";
     /// save wallet decrypted data in locker
     pub const SAVE_WALLET_DECRYPTED_DATA: &str = "vaulting.save_wallet_decrypted_data";
+    /// max auto single connector payout retries enabled configuration key
+    pub const MAX_AUTO_SINGLE_CONNECTOR_PAYOUT_RETRIES_ENABLED: &str =
+        "payouts.max_auto_single_connector_payout_retries_enabled";
+    /// max auto multiple connector payout retries enabled configuration key
+    pub const MAX_AUTO_MULTIPLE_CONNECTOR_PAYOUT_RETRIES_ENABLED: &str =
+        "payouts.max_auto_multiple_connector_payout_retries_enabled";
 }
 
 #[cfg(test)]

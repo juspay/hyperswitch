@@ -2552,11 +2552,16 @@ client_session_validation_enabled = { value = true, schema = { type = "boolean" 
 "dynamic_fields.wallet.mifinity.language_preference._validation_regex_pattern" = { value = ".*", schema = { type = "string" } }
 "dynamic_fields.wallet.mifinity.language_preference._validation_rule_type" = { value = "no_validation", schema = { type = "string" } }
 "payments.enable_extended_card_bin" = { value = false, schema = { type = "boolean" }, description = "Whether to use extended card BIN (8-digit) for payment method data", change_reason = "Initial setup" }
+"payments.card_only_mit_supported_connector" = { value = false, schema = { type = "boolean" }, description = "Whether the connector supports card-only merchant-initiated transactions", change_reason = "Initial setup" }
+"payments.network_transaction_id_supported_connector" = { value = false, schema = { type = "boolean" }, description = "Whether the connector supports network transaction IDs", change_reason = "Initial setup" }
+"payments.installment_config_supported" = { value = false, schema = { type = "boolean" }, description = "Whether installment payment configuration is supported", change_reason = "Initial setup" }
 "payouts.gsm_payout_call" = { value = false, schema = { type = "boolean" }, description = "Whether to call GSM for payout retries", change_reason = "Initial setup" }
 "payments.implicit_customer_update" = { value = false, schema = { type = "boolean" }, description = "Whether to implicitly update customer details on payment", change_reason = "Initial setup" }
 "payments.block_implicit_customer_creation" = { value = false, schema = { type = "boolean" }, description = "Whether payments must reject implicit creation of a missing customer for an organization", change_reason = "Decouple implicit customer creation from PM modular eligibility" }
 "webhooks.incoming_webhook_disabled_events" = { value = false, schema = { type = "boolean" }, description = "Whether a specific incoming webhook event is disabled for a given connector", change_reason = "Initial setup" }
-"payouts.max_auto_payout_retries" = { value = 0, schema = { maximum = 4294967295, minimum = 0, type = "integer" }, description = "Maximum auto payout retries, differentiated by payout_retry_type dimension (single_connector or multi_connector)", change_reason = "Initial setup" }
+"webhooks.webhooks" = { value = { outgoing_enabled = true, redis_lock_expiry_seconds = 180 }, schema = { type = "object" }, description = "Outgoing webhook configuration", change_reason = "Initial setup" }
+"payouts.max_auto_single_connector_payout_retries_enabled" = { value = 3, schema = { maximum = 4294967295, minimum = 0, type = "integer" }, description = "Maximum auto payout retries for a single connector", change_reason = "Initial setup" }
+"payouts.max_auto_multiple_connector_payout_retries_enabled" = { value = 2, schema = { maximum = 4294967295, minimum = 0, type = "integer" }, description = "Maximum auto payout retries across multiple connectors", change_reason = "Initial setup" }
 "payouts.payout_tracker_mapping" = { value = { frequencies = [
     [
         300,
@@ -2635,19 +2640,17 @@ pt_mapping_outgoing_connector_webhooks = { value = { default_mapping = { frequen
     ],
 ], start_after = 60 } }, schema = { type = "object" }, description = "Revenue recovery (PCR) payment retry process tracker mapping configuration", change_reason = "Initial setup" }
 "process_tracker.pt_mapping_refund_sync" = { value = { default_mapping = { frequencies = [
-    [1800, 4],   # 30 min  *  4  =  2 hours
-    [7200, 2],   # 2 hour  *  2  =  4 hours
-    [21600, 3],  # 6 hour  *  3  = 18 hours
-    [43200, 4],  # 12 hour *  4  = 48 hours
-    [86400, 4],  # 24 hour *  4  = 96 hours
-], start_after = 60 }, max_retries_count = 17 }, schema = { type = "object" }, description = "Refund sync retry process tracker mapping configuration", change_reason = "Initial setup" }
+    [
+        300,
+        5,
+    ],
+], start_after = 60 }, max_retries_count = 5 }, schema = { type = "object" }, description = "Refund sync retry process tracker mapping configuration", change_reason = "Initial setup" }
 "payments.requires_cvv" = { value = true, schema = { type = "boolean" }, description = "Whether CVV is required for payments", change_reason = "Initial setup" }
 "routing.routing_result_source" = { value = "hyperswitch_routing", schema = { enum = [
     "decision_engine",
     "hyperswitch_routing",
 ], type = "string" }, description = "Source of routing result: decision_engine (external DE) or hyperswitch_routing (inbuilt)", change_reason = "Initial setup" }
 "vaulting.save_wallet_decrypted_data" = { value = false, schema = { type = "boolean" }, description = "Whether to save wallet decrypted data", change_reason = "Initial setup" }
-"vaulting.fingerprint_secret" = { value = "", schema = { type = "string" }, description = "Fingerprint secret used as a migration fallback for merchant accounts", change_reason = "Retain during merchant account migration" }
 "payments.should_call_gsm" = { value = false, schema = { type = "boolean" }, description = "Whether to call GSM (Global Status Mapping) for auto-retries on payment failure", change_reason = "Initial setup" }
 "system.should_call_pm_modular_service" = { value = false, schema = { type = "boolean" }, description = "Whether to call the PM modular service for a provider merchant, with organization fallback", change_reason = "Initial setup" }
 "vaulting.should_disable_vault_tokenization" = { value = false, schema = { type = "boolean" }, description = "Whether to disable vault tokenization for a merchant", change_reason = "Initial setup" }
@@ -2659,12 +2662,15 @@ should_schedule_modular_backward_compat = { value = false, schema = { type = "bo
 "system.should_schedule_modular_forward_compat" = { value = false, schema = { type = "boolean" }, description = "Whether to schedule PM modular forward compatibility PT for a provider merchant, with organization fallback", change_reason = "Initial setup" }
 "payments.should_store_eligibility_check_data_for_authentication" = { value = false, schema = { type = "boolean" }, description = "Whether to store eligibility check data during authentication", change_reason = "Initial setup" }
 "system.should_trigger_backwards_compatibility_inline" = { value = false, schema = { type = "boolean" }, description = "Whether to trigger PM modular backward compatibility inline for a provider merchant, with organization fallback", change_reason = "Initial setup" }
-"vaulting.should_trigger_fingerprint_migration" = { value = false, schema = { type = "boolean" }, description = "Whether to trigger fingerprint and entity_id migration for a merchant", change_reason = "Initial setup" }
-"routing.threeds_routing_region_uas" = { value = "region1", schema = { enum = [
+"vaulting.should_trigger_fingerprint_migration" = { value = true, schema = { type = "boolean" }, description = "Whether to trigger fingerprint and entity_id migration for a merchant", change_reason = "Initial setup" }
+"system.threeds_routing_region_uas" = { value = "region1", schema = { enum = [
     "region1",
     "region2",
 ], type = "string" }, description = "3DS routing region for UAS (Unified Authentication Service) per organization", change_reason = "Initial setup" }
 "vaulting.should_perform_sdk_vaulting" = { value = true, schema = { type = "boolean" }, description = "Org level override on top of should_call_pm_modular_service; when false the SDK skips vaulting", change_reason = "Initial setup" }
+"refunds_and_disputes.refund" = { value = { max_age = 365, max_attempts = 10 }, schema = { type = "object" }, description = "Refund age and attempt limits", change_reason = "Initial setup" }
+"refunds_and_disputes.dispute_supported_connector" = { value = false, schema = { type = "boolean" }, description = "Whether the connector supports disputes", change_reason = "Initial setup" }
+"session_misc.eph_key_validity" = { value = { validity = 1 }, schema = { type = "object" }, description = "Ephemeral key validity configuration", change_reason = "Initial setup" }
 
 
 [dimensions]
