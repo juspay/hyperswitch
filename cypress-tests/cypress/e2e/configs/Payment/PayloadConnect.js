@@ -256,6 +256,16 @@ export const connectorDetails = {
       },
     },
     No3DSFailPayment: {
+      // DELAY is required here (missing on the base Payload.js key too) --
+      // without a cooldown, this reuses the same card+amount as other
+      // No3DS* keys closely enough in a full-suite run to trip Payload's
+      // duplicate-transaction detection.
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: DUPLICATION_TIMEOUT,
+        },
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
