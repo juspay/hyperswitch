@@ -167,13 +167,6 @@ export const connectorDetails = {
       // PreAuthenticate/PostAuthenticate are not_supported; redirection_data
       // is hardcoded None on Authorize), so a "3DS" test card actually
       // processes as a normal payment with no challenge — confirmed live.
-      // TRIGGER_SKIP is a no-op here: every spec reading this key (05, 09,
-      // 16) confirms via confirmCallTest, which doesn't honor it — so the
-      // Response below must match reality rather than assume the step
-      // never actually runs.
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -192,9 +185,6 @@ export const connectorDetails = {
       },
     },
     "3DSManualCapture": {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -649,8 +639,10 @@ export const connectorDetails = {
     // The payment itself does complete as "succeeded" off-session (no
     // redirect data returned), but 24-PaymentMethods.cy.js's "Handle
     // redirection" step still runs unconditionally afterward and hangs
-    // waiting for a redirect that never comes — same REDIRECT_THREE_DS gap
-    // as the on-session 3DS specs, so skip here too.
+    // waiting for a redirect that never comes, since fiservcommercehub
+    // doesn't implement 3DS in any form via UCS — so skip here too.
+    // createConfirmPaymentTest honors TRIGGER_SKIP, unlike confirmCallTest
+    // (see 3DSAutoCapture/3DSManualCapture above).
     SaveCardUse3DSAutoCaptureOffSession: {
       Configs: {
         TRIGGER_SKIP: true,
