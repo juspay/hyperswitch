@@ -2721,10 +2721,10 @@ impl TryFrom<&TokenizationRouterData> for TokenRequest {
                     token_card_cvc: card_details.card_cvc.clone(),
                     billing: billing_address,
                 })
-            },
+            }
             PaymentMethodData::CardDetailsForNetworkTransactionId(card_details) => {
                 StripePaymentMethodData::get_stripe_ntid_card_token_data(&card_details)?
-            },
+            }
             _ => {
                 create_stripe_payment_method(
                     &item.request.payment_method_data,
