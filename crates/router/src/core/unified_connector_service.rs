@@ -1847,8 +1847,7 @@ fn get_ucs_client(
         })
 }
 
-/// For flows whose credentials come from application config rather than a merchant connector
-/// account.
+/// Builds auth metadata for flows whose credentials come from application config.
 pub fn build_unified_connector_service_auth_metadata_without_mca(
     connector: Connector,
     auth_type: &ConnectorAuthType,
@@ -1911,7 +1910,7 @@ pub fn build_unified_connector_service_auth_metadata(
     )
 }
 
-/// Maps a [`ConnectorAuthType`] onto the credential fields and `auth_type` marker UCS expects.
+/// Maps a [`ConnectorAuthType`] onto the credential fields UCS expects.
 fn build_connector_auth_metadata(
     connector_name: String,
     auth_type: &ConnectorAuthType,

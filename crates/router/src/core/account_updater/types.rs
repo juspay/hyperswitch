@@ -28,8 +28,7 @@ pub enum ResolvedAccountUpdaterConfig {
 }
 
 impl ResolvedAccountUpdaterConfig {
-    /// Credentials come from application config, so the auth type other connectors parse out
-    /// of their merchant connector account is built here instead.
+    /// Builds the connector, auth type and connector-specific config for UCS.
     pub fn to_connector_auth(&self) -> (Connector, ConnectorAuthType, ConnectorSpecificConfig) {
         match self {
             Self::Juspay(juspay) => (
@@ -62,10 +61,8 @@ pub struct JuspayCredentials {
 
 #[derive(Debug, thiserror::Error)]
 pub enum AccountUpdaterError {
-    #[error("Account Updater is disabled")]
-    GateDisabled,
-    #[error("Account Updater has no credential source configured")]
-    CredentialSourceNone,
+    #[error("Account Updater application config is missing or invalid")]
+    MissingApplicationConfig,
     #[error("Payment method is not a card")]
     PaymentMethodNotACard,
     #[error("Payment method is not active")]

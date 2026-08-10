@@ -423,7 +423,7 @@ impl UnifiedConnectorServiceClient {
             })
     }
 
-    /// Payment Method Refresh
+    /// Performs Payment Method Refresh
     pub async fn payment_method_refresh(
         &self,
         payment_method_refresh_request: payments_grpc::PaymentMethodServiceRefreshRequest,

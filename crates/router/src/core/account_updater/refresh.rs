@@ -13,7 +13,7 @@ use crate::{
     routes::SessionState, types::domain,
 };
 
-/// Sent as the `grpc-timeout` deadline, so UCS abandons the inquiry rather than us alone.
+/// Per-call `grpc-timeout` deadline for the refresh request.
 const REFRESH_TIMEOUT: Duration = Duration::from_secs(5);
 
 #[instrument(skip_all)]
@@ -28,7 +28,7 @@ pub async fn request_account_updater_refresh(
         .grpc_client
         .unified_connector_service_client
         .as_ref()
-        .ok_or(report!(AccountUpdaterError::RefreshCallFailed))
+        .ok_or_else(|| report!(AccountUpdaterError::RefreshCallFailed))
         .attach_printable("Unified Connector Service client is not configured")?;
 
     let request = payments_grpc::PaymentMethodServiceRefreshRequest {
@@ -92,6 +92,6 @@ fn classify_response(
                     .unwrap_or(payments_grpc::CardRefreshOutcome::Unspecified)
             }
         })
-        .ok_or(report!(AccountUpdaterError::RefreshReturnedError))
+        .ok_or_else(|| report!(AccountUpdaterError::RefreshReturnedError))
         .attach_printable("UCS returned neither a result nor an error")
 }

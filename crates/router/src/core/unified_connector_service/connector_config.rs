@@ -10,11 +10,32 @@ use common_utils::ext_traits::ValueExt;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::router_data::ConnectorAuthType;
 use hyperswitch_masking::{PeekInterface, Secret};
+use serde::Serialize;
 
 use crate::{
     core::errors::{self, RouterResult},
     types::transformers::ForeignTryFrom,
 };
+
+/// Connector-specific configuration wrapper for UCS.
+/// Serializes as: `{"config": {"ConnectorName": {...}}}`
+#[derive(Debug, Serialize)]
+pub struct UcsConnectorConfig {
+    pub config: serde_json::Map<String, serde_json::Value>,
+}
+
+impl UcsConnectorConfig {
+    /// Creates a new UCS connector config with the connector name as the key in PascalCase
+    pub fn new<T: Serialize>(connector: Connector, inner: T) -> RouterResult<Self> {
+        let connector_name = format!("{:?}", connector); // PascalCase: Braintree, Cybersource
+        let inner_json = serde_json::to_value(&inner)
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to serialize connector config inner value")?;
+        let mut config = serde_json::Map::new();
+        config.insert(connector_name, inner_json);
+        Ok(Self { config })
+    }
+}
 
 /// Metadata structures for parsing connector metadata
 #[derive(Debug, serde::Deserialize)]
@@ -607,7 +628,7 @@ pub enum ConnectorSpecificConfig {
     },
     /// Givepayments connector configuration
     Givepayments { api_key: Secret<String> },
-    /// Juspay Account Updater configuration.
+    /// Juspay Account Updater configuration
     Juspay {
         api_key: Secret<String>,
         merchant_id: String,
@@ -1650,8 +1671,7 @@ pub fn build_connector_config_header(
     serialize_connector_config(&config).map(Some)
 }
 
-/// Serializes a [`ConnectorSpecificConfig`] into the `{"config": {"ConnectorName": {...}}}`
-/// envelope UCS expects for the connector config header.
+/// Serializes a [`ConnectorSpecificConfig`] as `{"config": {"ConnectorName": {...}}}`.
 pub fn serialize_connector_config(config: &ConnectorSpecificConfig) -> RouterResult<String> {
     let config_json = serde_json::to_value(config)
         .change_context(errors::ApiErrorResponse::InternalServerError)

@@ -49,7 +49,7 @@ pub async fn check_eligibility_and_fetch_payment_method(
 
     let network = card_details
         .card_network
-        .ok_or(report!(AccountUpdaterError::CardUnusable))
+        .ok_or_else(|| report!(AccountUpdaterError::CardUnusable))
         .attach_printable("Unvaulted card carries no network")?;
 
     Ok(payments_grpc::PaymentMethod {
