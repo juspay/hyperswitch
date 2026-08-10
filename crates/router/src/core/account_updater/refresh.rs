@@ -71,12 +71,6 @@ pub async fn request_account_updater_refresh(
     .attach_printable("Account Updater refresh call to UCS failed")?
     .into_inner();
 
-    classify_response(response)
-}
-
-fn classify_response(
-    response: payments_grpc::PaymentMethodServiceRefreshResponse,
-) -> CustomResult<payments_grpc::CardRefreshOutcome, AccountUpdaterError> {
     if let Some(error) = response.error.as_ref() {
         return Err(
             report!(AccountUpdaterError::RefreshReturnedError).attach_printable(format!(
