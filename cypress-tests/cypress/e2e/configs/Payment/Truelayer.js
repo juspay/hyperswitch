@@ -99,6 +99,7 @@ export const connectorDetails = {
         body: {
           error: {
             type: "invalid_request",
+            // UCS maps missing top-level billing to the shared IR_04 error.
             message: "Missing required param: billing",
             code: "IR_04",
           },
