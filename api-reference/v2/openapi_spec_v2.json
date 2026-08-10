@@ -9455,7 +9455,9 @@
         "type": "string",
         "enum": [
           "checking",
-          "savings"
+          "savings",
+          "salary",
+          "payment"
         ]
       },
       "BecsBankDebitAdditionalData": {
@@ -14464,6 +14466,7 @@
           "payout_cancelled",
           "payout_expired",
           "payout_reversed",
+          "payout_not_permitted",
           "invoice_paid",
           "surcharge_payment_succeeded",
           "surcharge_refund_succeeded"
@@ -20113,10 +20116,28 @@
             "description": "Total amount for the item.",
             "nullable": true
           },
+          "discount_name": {
+            "type": "string",
+            "description": "Discount name applied to this item.",
+            "nullable": true
+          },
           "unit_discount_amount": {
             "type": "integer",
             "format": "int64",
             "description": "Discount amount applied to this item.",
+            "nullable": true
+          },
+          "discount_percentage": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Percentage"
+              }
+            ],
+            "nullable": true
+          },
+          "discount_type": {
+            "type": "string",
+            "description": "Discount type applied to this item.",
             "nullable": true
           }
         }
@@ -25627,6 +25648,7 @@
           "adyen",
           "adyenplatform",
           "cybersource",
+          "deutschebank",
           "ebanx",
           "gigadat",
           "loonio",
@@ -25641,7 +25663,8 @@
           "worldpay",
           "worldpayxml",
           "envoy",
-          "itaubank"
+          "itaubank",
+          "santander"
         ]
       },
       "PayoutCreatePayoutLinkConfig": {
@@ -26697,6 +26720,7 @@
           "reversed",
           "pending",
           "ineligible",
+          "not_permitted",
           "requires_creation",
           "requires_confirmation",
           "requires_payout_method_data",
@@ -27049,6 +27073,20 @@
           }
         }
       },
+      "Percentage": {
+        "type": "object",
+        "description": "Represents Percentage Value between 0 and 100 both inclusive",
+        "required": [
+          "percentage"
+        ],
+        "properties": {
+          "percentage": {
+            "type": "number",
+            "format": "double",
+            "description": "Percentage value ranging between 0 and 100"
+          }
+        }
+      },
       "PhoneDetails": {
         "type": "object",
         "properties": {
@@ -27099,6 +27137,26 @@
             "type": "string",
             "description": "ispb code is a unique identifier assigned by Brazilian Central Bank to identify the financial institution of the recipient's bank account in Pix transactions.",
             "example": "60701190",
+            "nullable": true
+          },
+          "bank_code": {
+            "type": "string",
+            "description": "3-digit COMPE/FEBRABAN bank code used to identify the financial institution for routing PIX payouts.",
+            "example": "033",
+            "nullable": true
+          },
+          "bank_account_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BankType"
+              }
+            ],
+            "nullable": true
+          },
+          "account_holder_name": {
+            "type": "string",
+            "description": "Name of the account holder",
+            "example": "John Doe",
             "nullable": true
           }
         }
@@ -27344,6 +27402,26 @@
             "type": "string",
             "description": "ispb code is a unique identifier assigned by Brazilian Central Bank to identify the financial institution of the recipient's bank account in Pix transactions.",
             "example": "60701190",
+            "nullable": true
+          },
+          "bank_code": {
+            "type": "string",
+            "description": "3-digit COMPE/FEBRABAN bank code used to identify the financial institution for routing PIX payouts.",
+            "example": "033",
+            "nullable": true
+          },
+          "bank_account_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BankType"
+              }
+            ],
+            "nullable": true
+          },
+          "account_holder_name": {
+            "type": "string",
+            "description": "Name of the account holder",
+            "example": "John Doe",
             "nullable": true
           }
         }
@@ -30513,6 +30591,14 @@
         "properties": {
           "end_to_end_id": {
             "type": "string",
+            "example": "E9040088820260710172800044983797",
+            "nullable": true
+          },
+          "paid_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Actual timestamp when the payment was completed, as reported by Santander.",
+            "example": "2025-07-20T14:35:00Z",
             "nullable": true
           }
         },
@@ -32003,7 +32089,7 @@
         "properties": {
           "percentage": {
             "type": "number",
-            "format": "float"
+            "format": "double"
           }
         }
       },
@@ -32085,6 +32171,7 @@
           "no_three_ds",
           "challenge_requested",
           "challenge_preferred",
+          "no_preference",
           "three_ds_exemption_requested_tra",
           "three_ds_exemption_requested_low_value",
           "issuer_three_ds_exemption_requested"

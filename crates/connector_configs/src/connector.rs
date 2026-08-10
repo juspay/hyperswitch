@@ -157,6 +157,7 @@ pub struct ConfigMetadata {
     pub pix_qr: Option<Vec<InputData>>,
     pub pix_automatico_push: Option<Vec<InputData>>,
     pub pix_automatico_qr: Option<Vec<InputData>>,
+    pub pix_payout: Option<Vec<InputData>>,
     pub boleto: Option<Vec<InputData>>,
     pub merchant_id: Option<InputData>,
     pub endpoint_prefix: Option<InputData>,
@@ -204,6 +205,9 @@ pub struct ConfigMetadata {
     pub kid: Option<InputData>,
     pub account_holder_name: Option<InputData>,
     pub private_key: Option<InputData>,
+    pub merchant_street_address: Option<String>,
+    pub customer_service_phone_number: Option<String>,
+    pub merchant_url: Option<String>,
 }
 
 #[serde_with::skip_serializing_none]
@@ -305,6 +309,8 @@ pub struct ConnectorConfig {
     pub cybersourcedecisionmanager: Option<ConnectorTomlConfig>,
     pub datatrans: Option<ConnectorTomlConfig>,
     pub deutschebank: Option<ConnectorTomlConfig>,
+    #[cfg(feature = "payouts")]
+    pub deutschebank_payout: Option<ConnectorTomlConfig>,
     pub digitalvirgo: Option<ConnectorTomlConfig>,
     pub dlocal: Option<ConnectorTomlConfig>,
     pub dwolla: Option<ConnectorTomlConfig>,
@@ -384,6 +390,7 @@ pub struct ConnectorConfig {
     pub redsys: Option<ConnectorTomlConfig>,
     pub revolv3: Option<ConnectorTomlConfig>,
     pub santander: Option<ConnectorTomlConfig>,
+    pub santander_payout: Option<ConnectorTomlConfig>,
     pub shift4: Option<ConnectorTomlConfig>,
     pub sift: Option<ConnectorTomlConfig>,
     pub silverflow: Option<ConnectorTomlConfig>,
@@ -461,6 +468,7 @@ impl ConnectorConfig {
             PayoutConnectors::Adyen => Ok(connector_data.adyen_payout),
             PayoutConnectors::Adyenplatform => Ok(connector_data.adyenplatform_payout),
             PayoutConnectors::Cybersource => Ok(connector_data.cybersource_payout),
+            PayoutConnectors::Deutschebank => Ok(connector_data.deutschebank_payout),
             PayoutConnectors::Ebanx => Ok(connector_data.ebanx_payout),
             PayoutConnectors::Gigadat => Ok(connector_data.gigadat_payout),
             PayoutConnectors::Loonio => Ok(connector_data.loonio_payout),
@@ -476,6 +484,7 @@ impl ConnectorConfig {
             PayoutConnectors::Worldpayxml => Ok(connector_data.worldpayxml_payout),
             PayoutConnectors::Envoy => Ok(connector_data.envoy_payout),
             PayoutConnectors::Itaubank => Ok(connector_data.itaubank_payout),
+            PayoutConnectors::Santander => Ok(connector_data.santander_payout),
         }
     }
 
