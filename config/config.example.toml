@@ -1425,6 +1425,7 @@ dynamic_routing_enabled = true                          # Enable or disable Open
 static_routing_enabled = true           # Enable or disable Open Router for static routing
 url = "http://localhost:8080"           # Open Router URL
 dashboard_url = "http://localhost:5173" # Decision Engine dashboard (browser) URL for merchant SSO redirect
+admin_secret = ""                       # Shared secret sent as x-admin-secret on Decision Engine admin endpoints; empty disables the header
 
 [grpc_client.unified_connector_service]
 base_url = "http://localhost:8000"      # Unified Connector Service Base URL
