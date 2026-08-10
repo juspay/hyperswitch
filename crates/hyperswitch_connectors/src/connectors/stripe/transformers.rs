@@ -2090,13 +2090,13 @@ fn create_stripe_line_items_data(
     l2_l3_data.as_ref().map(|data| {
         let customer_reference = data.get_customer_id().map(|id| id.get_string_repr().to_string());
         let order_reference = data.get_merchant_order_reference_id();
-        
+
         let shipping_from_postal_code = data.get_shipping_origin_zip();
         let shipping_to_postal_code = data.get_shipping_zip();
         let shipping_amount = data.get_shipping_cost();
-        
+
         let discount_amount = data.get_discount_amount();
-        
+
         // Stripe requires tax to be either at order level OR line-item level, not both
         let (line_items, order_tax_amount) = data.get_order_details().map_or((None, data.get_order_tax_amount()), |order_details| {
             if order_details.is_empty() {
@@ -2104,7 +2104,7 @@ fn create_stripe_line_items_data(
             } else {
                 let mut items_map = HashMap::new();
                 let mut has_line_item_tax = false;
-                
+
                 for (index, order_item) in order_details.iter().enumerate() {
                     items_map.insert(
                         format!("amount_details[line_items][{}][product_name]", index),
@@ -2118,14 +2118,14 @@ fn create_stripe_line_items_data(
                         format!("amount_details[line_items][{}][quantity]", index),
                         order_item.quantity.to_string(),
                     );
-                    
+
                     if let Some(ref product_code) = order_item.product_id {
                         items_map.insert(
                             format!("amount_details[line_items][{}][product_code]", index),
                             product_code.clone(),
                         );
                     }
-                    
+
                     // Line-item level tax (mutually exclusive with order-level tax)
                     if let Some(tax_amount) = order_item.total_tax_amount {
                         has_line_item_tax = true;
@@ -2134,14 +2134,14 @@ fn create_stripe_line_items_data(
                             tax_amount.get_amount_as_i64().to_string(),
                         );
                     }
-                    
+
                     if let Some(ref unit_of_measure) = order_item.unit_of_measure {
                         items_map.insert(
                             format!("amount_details[line_items][{}][unit_of_measure]", index),
                             unit_of_measure.clone(),
                         );
                     }
-                    
+
                     // Line-item level discount (mutually exclusive with order-level discount)
                     if let Some(line_discount) = order_item.unit_discount_amount {
                         items_map.insert(
@@ -2149,7 +2149,7 @@ fn create_stripe_line_items_data(
                             line_discount.get_amount_as_i64().to_string(),
                         );
                     }
-                    
+
                     if let Some(ref commodity_code) = order_item.commodity_code {
                         items_map.insert(
                             format!("amount_details[line_items][{}][payment_method_options][card][commodity_code]", index),
@@ -2157,17 +2157,17 @@ fn create_stripe_line_items_data(
                         );
                     }
                 }
-                
+
                 let order_tax = if has_line_item_tax {
                     None
                 } else {
                     data.get_order_tax_amount()
                 };
-                
+
                 (Some(items_map), order_tax)
             }
         });
-        
+
         StripeLineItemsData {
             customer_reference,
             order_reference,
