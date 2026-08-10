@@ -5,7 +5,7 @@ use diesel::{
     associations::HasTable, debug_query, pg::Pg, BoolExpressionMethods, ExpressionMethods, QueryDsl,
 };
 #[cfg(feature = "v2")]
-use diesel::PgSortExpressionMethods;
+use diesel::{PgExpressionMethods, PgSortExpressionMethods};
 use error_stack::ResultExt;
 
 use super::generics;
@@ -347,17 +347,30 @@ impl PaymentMethod {
         .await
     }
 
+    /// Updates the single row the caller loaded.
+    ///
+    /// The id alone no longer identifies one row, so the fingerprint of the loaded record pins the
+    /// update to the row it came from. `IS NOT DISTINCT FROM` rather than `=` so that rows with no
+    /// fingerprint yet — `New`/`AwaitingData`, and retired rows — still match.
     pub async fn update_with_id(
         self,
         conn: &PgPooledConn,
         payment_method: payment_method::PaymentMethodUpdateInternal,
     ) -> StorageResult<Self> {
+        let locker_fingerprint_id = self.locker_fingerprint_id.clone();
+
         match generics::generic_update_with_unique_predicate_get_result::<
             <Self as HasTable>::Table,
             _,
             _,
             _,
-        >(conn, pm_id.eq(self.id.to_owned()), payment_method)
+        >(
+            conn,
+            pm_id
+                .eq(self.id.to_owned())
+                .and(dsl::locker_fingerprint_id.is_not_distinct_from(locker_fingerprint_id)),
+            payment_method,
+        )
         .await
         {
             Err(error) => match error.current_context() {
