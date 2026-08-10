@@ -548,12 +548,14 @@ export const CONNECTOR_LISTS = {
       "tsys_transit",
     ],
     SAVE_CARD: ["helcim"],
-    // Connectors whose 3DS support is external-3DS only (client/SDK performs
-    // the challenge and passes pre-authenticated data in) rather than
-    // connector-hosted REDIRECT 3DS, so the redirect-based 3DS specs
-    // (05-ThreeDSAutoCapture, 16-ThreeDSManualCapture) don't apply. Not to
-    // be confused with INCLUDE.EXTERNAL_THREE_DS below, which is the
-    // opt-in list for the SDK-mediated flow itself (44-ExternalThreeDS).
+    // fiservcommercehub doesn't implement 3DS in any form via UCS today —
+    // not connector-hosted redirect, not SDK-mediated external 3DS. A "3DS"
+    // test card just silently processes as a normal no-3DS payment
+    // (confirmed live), so it's excluded from the redirect-based 3DS specs
+    // (05-ThreeDSAutoCapture, 16-ThreeDSManualCapture) here, and it's
+    // deliberately absent from INCLUDE.EXTERNAL_THREE_DS below too — that's
+    // the opt-in list for connectors that do support the SDK-mediated flow
+    // (44-ExternalThreeDS), which this connector doesn't.
     REDIRECT_THREE_DS: ["fiservcommercehub"],
     // Connectors that never return a `connector_mandate_id` on the payments
     // response. Recurring payments for them go through connector agnostic MIT,

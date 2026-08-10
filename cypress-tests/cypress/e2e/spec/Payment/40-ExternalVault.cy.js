@@ -7,32 +7,6 @@ let globalState;
 
 const VGS_CONNECTOR_NAME = "vgs";
 
-// The external vault proxy flow (VGS) detokenizes the saved card's
-// PAN/expiry on the wire but never carries a cardholder name.
-// fiservcommercehub's RSA card-encryption block requires one with no
-// fallback (unlike most connectors, which just omit it), so every
-// save-card confirm here fails at the connector: assert that real
-// rejection instead of the generic config's "succeeded" expectation.
-function withFiservVaultCardHolderNameError(connectorId, data) {
-  if (connectorId !== "fiservcommercehub") {
-    return data;
-  }
-  return {
-    ...data,
-    Response: {
-      status: 400,
-      body: {
-        error: {
-          type: "invalid_request",
-          message:
-            "Payment failed during authorization with connector. Retry payment",
-          code: "CE_01",
-        },
-      },
-    },
-  };
-}
-
 describe("External Vault (VGS) - Connector Integration Tests", () => {
   before("seed global state", () => {
     cy.task("getGlobalState").then((state) => {
@@ -160,12 +134,9 @@ describe("External Vault (VGS) - Connector Integration Tests", () => {
           const saveCardBody = Cypress._.cloneDeep(
             fixtures.saveCardConfirmBody
           );
-          const saveCardConfirmData = withFiservVaultCardHolderNameError(
-            globalState.get("connectorId"),
-            getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-              "SaveCardUseNo3DSAutoCapture"
-            ]
-          );
+          const saveCardConfirmData = getConnectorDetails(
+            globalState.get("connectorId")
+          )["card_pm"]["SaveCardUseNo3DSAutoCapture"];
           cy.saveCardConfirmCallTest(
             saveCardBody,
             saveCardConfirmData,
@@ -258,12 +229,9 @@ describe("External Vault (VGS) - Connector Integration Tests", () => {
           const saveCardBody = Cypress._.cloneDeep(
             fixtures.saveCardConfirmBody
           );
-          const saveCardConfirmData = withFiservVaultCardHolderNameError(
-            globalState.get("connectorId"),
-            getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-              "SaveCardUseNo3DSManualCapture"
-            ]
-          );
+          const saveCardConfirmData = getConnectorDetails(
+            globalState.get("connectorId")
+          )["card_pm"]["SaveCardUseNo3DSManualCapture"];
           cy.saveCardConfirmCallTest(
             saveCardBody,
             saveCardConfirmData,
@@ -408,12 +376,9 @@ describe("External Vault (VGS) - Connector Integration Tests", () => {
           const saveCardBody = Cypress._.cloneDeep(
             fixtures.saveCardConfirmBody
           );
-          const saveCardConfirmData = withFiservVaultCardHolderNameError(
-            globalState.get("connectorId"),
-            getConnectorDetails(globalState.get("connectorId"))["card_pm"][
-              "SaveCardConfirmAutoCaptureOffSession"
-            ]
-          );
+          const saveCardConfirmData = getConnectorDetails(
+            globalState.get("connectorId")
+          )["card_pm"]["SaveCardConfirmAutoCaptureOffSession"];
           cy.saveCardConfirmCallTest(
             saveCardBody,
             saveCardConfirmData,
