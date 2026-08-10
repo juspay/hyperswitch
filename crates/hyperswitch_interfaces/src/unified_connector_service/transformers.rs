@@ -1381,18 +1381,14 @@ impl UnifiedConnectorServiceError {
             Self::ConnectionError(_) => Some(UcsKillSwitchReason::UcsUnreachable),
 
             // Prism server itself panicked / is overloaded / mid-deploy.
-            Self::TonicStatus { code, .. }
-                if Self::tonic_status_is_ucs_server_error(*code) =>
-            {
+            Self::TonicStatus { code, .. } if Self::tonic_status_is_ucs_server_error(*code) => {
                 Some(UcsKillSwitchReason::UcsServerError)
             }
 
             // Prism reached the connector but the connector endpoint 5xx'd.
             // `status_code == 0` means the stream died before an HTTP status ever
             // materialised — still a connector-side outage.
-            Self::ConnectorError(inner)
-                if inner.status_code >= 500 || inner.status_code ==	0 =>
-            {
+            Self::ConnectorError(inner) if inner.status_code >= 500 || inner.status_code == 0 => {
                 Some(UcsKillSwitchReason::ConnectorServerErrorViaUcs)
             }
 
