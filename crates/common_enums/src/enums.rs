@@ -9472,6 +9472,16 @@ impl TransactionStatus {
     }
 }
 
+impl From<TransactionStatus> for DecoupledAuthenticationType {
+    fn from(trans_status: TransactionStatus) -> Self {
+        match trans_status {
+            TransactionStatus::ChallengeRequired
+            | TransactionStatus::ChallengeRequiredDecoupledAuthentication => Self::Challenge,
+            _ => Self::Frictionless,
+        }
+    }
+}
+
 #[derive(
     Clone,
     Copy,
@@ -9768,6 +9778,8 @@ pub enum BankNames {
 pub enum BankType {
     Checking,
     Savings,
+    Salary,
+    Payment,
 }
 #[derive(
     Clone,
