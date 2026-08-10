@@ -23,6 +23,8 @@ const unsupportedBankRedirect = getCustomExchange({
 });
 
 export const connectorDetails = {
+  // Truelayer is a UCS-only bank redirect connector. This prevents Commons
+  // card flows from being inherited when card specs are run directly.
   card_pm: {
     Configs: {
       TRIGGER_SKIP_ALL: true,
@@ -97,6 +99,7 @@ export const connectorDetails = {
         body: {
           error: {
             type: "invalid_request",
+            message: "Missing required param: billing",
             code: "IR_04",
           },
         },
