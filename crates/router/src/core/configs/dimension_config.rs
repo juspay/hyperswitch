@@ -181,6 +181,24 @@ impl DatabaseBackedConfig for ImplicitCustomerUpdate {
     }
 }
 
+config! {
+    superposition_key = BLOCK_IMPLICIT_CUSTOMER_CREATION,
+    output = bool,
+    default = false,
+    requires = dimension_state::DimensionsWithOrgId,
+    targeting_key = id_type::CustomerId
+}
+
+impl DatabaseBackedConfig for BlockImplicitCustomerCreation {
+    const KEY: &'static str = "block_implicit_customer_creation";
+
+    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        dimensions
+            .get_organization_id()
+            .map(|id| format!("{}_{}", Self::KEY, id.get_string_repr()))
+    }
+}
+
 // Retained temporarily so merchants without a database value can fall back to
 // their existing Superposition fingerprint secret during migration.
 config! {
@@ -455,6 +473,23 @@ impl DatabaseBackedConfig for ShouldTriggerFingerprintMigration {
 }
 
 config! {
+    superposition_key = NETWORK_TOKEN_FETCH_TIMEOUT_IN_SECS,
+    output = u32,
+    default = 4,
+    requires = dimension_state::DimensionsGlobal,
+    targeting_key = id_type::CustomerId
+}
+
+impl DatabaseBackedConfig for NetworkTokenFetchTimeoutInSecs {
+    const KEY: &'static str = "network_token_fetch_timeout_in_secs";
+
+    // Global config: a single deployment-wide key, not scoped to any merchant.
+    fn db_key(_dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        Some(Self::KEY.to_string())
+    }
+}
+
+config! {
     superposition_key = SHOULD_PERFORM_SDK_VAULTING,
     output = bool,
     default = true,
@@ -631,7 +666,7 @@ impl DatabaseBackedConfig for PtMappingPaymentSync {
 config! {
     superposition_key = PT_MAPPING_REFUND_SYNC,
     output = scheduler::types::process_data::ConnectorPTMapping,
-    default = scheduler::types::process_data::ConnectorPTMapping::default(),
+    default = scheduler::types::process_data::ConnectorPTMapping::refund_default(),
     object = true,
     requires = dimension_state::DimensionsWithProcessorMerchantIdAndConnector,
     targeting_key = id_type::PaymentId

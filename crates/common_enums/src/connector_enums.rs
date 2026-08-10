@@ -228,6 +228,7 @@ impl Connector {
                 | (Self::Worldpay, Some(PayoutType::Wallet))
                 | (Self::Worldpayxml, Some(PayoutType::Wallet))
                 | (Self::Itaubank, Some(PayoutType::Bank))
+                | (Self::Deutschebank, Some(PayoutType::Bank))
         )
     }
     #[cfg(feature = "payouts")]
@@ -239,7 +240,17 @@ impl Connector {
     }
     #[cfg(feature = "payouts")]
     pub fn supports_payout_eligibility(self, payout_method: Option<PayoutType>) -> bool {
-        matches!((self, payout_method), (_, Some(PayoutType::Card)))
+        matches!(
+            (self, payout_method),
+            (_, Some(PayoutType::Card)) | (Self::Deutschebank, Some(PayoutType::Bank))
+        )
+    }
+    #[cfg(feature = "payouts")]
+    pub fn requires_source_bank_data_for_sync(self, payout_method: Option<PayoutType>) -> bool {
+        matches!(
+            (self, payout_method),
+            (Self::Deutschebank, Some(PayoutType::Bank))
+        )
     }
     #[cfg(feature = "payouts")]
     pub fn is_payout_quote_call_required(self) -> bool {
@@ -249,7 +260,10 @@ impl Connector {
     pub fn supports_access_token_for_payout(self, payout_method: Option<PayoutType>) -> bool {
         matches!(
             (self, payout_method),
-            (Self::Paypal, _) | (Self::Truelayer, _) | (Self::Itaubank, _)
+            (Self::Paypal, _)
+                | (Self::Truelayer, _)
+                | (Self::Itaubank, _)
+                | (Self::Santander, Some(PayoutType::Bank))
         )
     }
     #[cfg(feature = "payouts")]

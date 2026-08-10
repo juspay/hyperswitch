@@ -62,11 +62,21 @@ fn get_processing_account_id_from_metadata(
         .map(|s| Secret::new(s.to_string()))
 }
 
+fn get_processing_method_id_from_metadata(
+    metadata: Option<&serde_json::Value>,
+) -> Option<Secret<String>> {
+    metadata
+        .and_then(|m| m.get("processing_method_id"))
+        .and_then(|v| v.as_str())
+        .map(|s| Secret::new(s.to_string()))
+}
+
 fn get_filtered_metadata(metadata: Option<&serde_json::Value>) -> Option<serde_json::Value> {
     metadata.and_then(|m| match m {
         serde_json::Value::Object(map) => {
             let mut filtered = map.clone();
             filtered.remove("processing_account_id");
+            filtered.remove("processing_method_id");
             if filtered.is_empty() {
                 None
             } else {
@@ -161,14 +171,11 @@ fn build_payload_payment_request_data(
                 enums::BankHolderType::Business => requests::PayloadAccClass::Business,
                 enums::BankHolderType::Personal => requests::PayloadAccClass::Personal,
             });
-            let account_type = bank_type
-                .map(|b_type| match b_type {
-                    enums::BankType::Checking => requests::PayloadAccAccountType::Checking,
-                    enums::BankType::Savings => requests::PayloadAccAccountType::Savings,
-                })
-                .ok_or_else(|| errors::ConnectorError::MissingRequiredField {
+            let account_type = requests::PayloadAccAccountType::try_from(bank_type.ok_or(
+                errors::ConnectorError::MissingRequiredField {
                     field_name: "bank_type",
-                })?;
+                },
+            )?)?;
             let account_holder = bank_account_holder_name.clone().ok_or_else(|| {
                 errors::ConnectorError::MissingRequiredField {
                     field_name: "bank_account_holder_name",
@@ -225,6 +232,7 @@ fn build_payload_payment_request_data(
         status,
         processing_id: get_processing_account_id_from_metadata(metadata)
             .or(payload_auth.processing_account_id),
+        processing_method_id: get_processing_method_id_from_metadata(metadata),
         customer_id,
         description,
         descriptor: get_description_from_billing_descriptor(billing_descriptor),
@@ -236,6 +244,23 @@ fn build_payload_payment_request_data(
 pub struct PayloadRouterData<T> {
     pub amount: StringMajorUnit,
     pub router_data: T,
+}
+
+impl TryFrom<enums::BankType> for requests::PayloadAccAccountType {
+    type Error = errors::ConnectorError;
+
+    fn try_from(bank_type: enums::BankType) -> Result<Self, Self::Error> {
+        match bank_type {
+            enums::BankType::Checking => Ok(Self::Checking),
+            enums::BankType::Savings => Ok(Self::Savings),
+            b_type @ (enums::BankType::Salary | enums::BankType::Payment) => {
+                Err(errors::ConnectorError::NotSupported {
+                    message: format!("bank_type {b_type} is not supported"),
+                    connector: "payload",
+                })
+            }
+        }
+    }
 }
 
 impl<T> From<(StringMajorUnit, T)> for PayloadRouterData<T> {
@@ -395,14 +420,11 @@ impl TryFrom<&SetupMandateRouterData> for requests::PayloadPaymentMethodRequest 
                 bank_account_holder_name,
                 ..
             }) => {
-                let account_type = bank_type
-                    .map(|b_type| match b_type {
-                        enums::BankType::Checking => requests::PayloadAccAccountType::Checking,
-                        enums::BankType::Savings => requests::PayloadAccAccountType::Savings,
-                    })
-                    .ok_or_else(|| errors::ConnectorError::MissingRequiredField {
+                let account_type = requests::PayloadAccAccountType::try_from(bank_type.ok_or(
+                    errors::ConnectorError::MissingRequiredField {
                         field_name: "bank_type",
-                    })?;
+                    },
+                )?)?;
 
                 let account_holder = bank_account_holder_name.clone().ok_or_else(|| {
                     errors::ConnectorError::MissingRequiredField {
@@ -486,6 +508,10 @@ impl TryFrom<&PayloadRouterData<&PaymentsAuthorizeRouterData>>
                     item.router_data.request.metadata.as_ref(),
                 );
 
+                let processing_method_id = get_processing_method_id_from_metadata(
+                    item.router_data.request.metadata.as_ref(),
+                );
+
                 Ok(Self::PayloadMandateRequest(Box::new(
                     requests::PayloadMandateRequestData {
                         amount: item.amount.clone(),
@@ -495,6 +521,7 @@ impl TryFrom<&PayloadRouterData<&PaymentsAuthorizeRouterData>>
                         ),
                         status,
                         processing_id,
+                        processing_method_id,
                         description,
                         descriptor: get_description_from_billing_descriptor(billing_descriptor),
                         attrs: get_filtered_metadata(metadata),
