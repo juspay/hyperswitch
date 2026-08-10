@@ -37,8 +37,8 @@ use hyperswitch_domain_models::{
     },
     types::{
         ConnectorCustomerRouterData, PaymentsAuthorizeRouterData, PaymentsCancelRouterData,
-        PaymentsUpdateMetadataRouterData, RefundsRouterData, SetupMandateRouterData,
-        TokenizationRouterData,
+        PaymentsPreAuthenticateRouterData, PaymentsUpdateMetadataRouterData, RefundsRouterData,
+        SetupMandateRouterData, TokenizationRouterData,
     },
 };
 use hyperswitch_interfaces::{consts, errors::ConnectorError};
@@ -67,7 +67,7 @@ use crate::{
     },
     utils::{
         get_unimplemented_payment_method_error_message, is_payment_failure, is_refund_failure,
-        PaymentsAuthorizeRequestData, SplitPaymentData,
+        PaymentMethodPredicates, PaymentsAuthorizeRequestData, SplitPaymentData,
     },
 };
 pub mod auth_headers {
@@ -327,6 +327,37 @@ pub struct StripeCardData {
     request_extended_authorization: Option<StripeRequestExtendedAuthorization>,
     #[serde(rename = "payment_method_options[card][request_overcapture]")]
     pub request_overcapture: Option<StripeRequestOvercaptureBool>,
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize)]
+pub struct StripeNtidCardData {
+    #[serde(rename = "type")]
+    pub payment_method_data_type: StripePaymentMethodType,
+    #[serde(rename = "card[number]")]
+    pub payment_method_data_card_number: cards::CardNumber,
+    #[serde(rename = "card[exp_month]")]
+    pub payment_method_data_card_exp_month: Secret<String>,
+    #[serde(rename = "card[exp_year]")]
+    pub payment_method_data_card_exp_year: Secret<String>,
+}
+
+impl StripeNtidCardData {
+    pub fn get_stripe_card_data_from_ntid(
+        card_details_for_network_transaction_id: payment_method_data::CardDetailsForNetworkTransactionId,
+    ) -> Result<Self, error_stack::Report<ConnectorError>> {
+        Ok(StripeNtidCardData {
+            payment_method_data_type: StripePaymentMethodType::Card,
+            payment_method_data_card_number: card_details_for_network_transaction_id
+                .card_number
+                .clone(),
+            payment_method_data_card_exp_month: card_details_for_network_transaction_id
+                .card_exp_month
+                .clone(),
+            payment_method_data_card_exp_year: card_details_for_network_transaction_id
+                .card_exp_year
+                .clone(),
+        })
+    }
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -2037,6 +2068,24 @@ impl
     }
 }
 
+pub fn is_payment_method_tokenize_flow_required(data: &PaymentsAuthorizeRouterData) -> bool {
+    data.request.is_stripe_split_payment() && data.request.payment_method_data.is_card_payment()
+}
+
+fn get_stripe_connect_metadata(
+    item: &PaymentsAuthorizeRouterData,
+) -> Result<Option<NtidTokenizationMetadata>, error_stack::Report<ConnectorError>> {
+    match &item.response {
+        Ok(PaymentsResponseData::TransactionResponse {
+            connector_metadata: Some(connector_metadata),
+            ..
+        }) => serde_json::from_value::<NtidTokenizationMetadata>(connector_metadata.clone())
+            .change_context(ConnectorError::InvalidConnectorConfig { config: "metadata" })
+            .map(Some),
+        _ => Ok(None),
+    }
+}
+
 impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest {
     type Error = error_stack::Report<ConnectorError>;
     fn try_from(data: (&PaymentsAuthorizeRouterData, MinorUnit)) -> Result<Self, Self::Error> {
@@ -2073,18 +2122,18 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
             (None, None, None)
         };
 
-        let payment_method_token = match (
-            item.request.split_payments.as_ref(),
-            item.request.payment_method_data.clone(),
-        ) {
-            (Some(SplitPaymentsRequest::StripeSplitPayment(_)), PaymentMethodData::Card(_)) => {
-                match item.payment_method_token.clone() {
-                    Some(PaymentMethodToken::Token(secret)) => Some(secret),
-                    _ => None,
-                }
-            }
+        let stripe_ntid_raw_card_token = get_stripe_connect_metadata(&item)?
+            .and_then(|metadata| metadata.stripe_ntid_raw_card_token);
 
-            _ => None,
+        let payment_method_token = if is_payment_method_tokenize_flow_required(&item) {
+            match item.payment_method_token.clone() {
+                Some(PaymentMethodToken::Token(secret)) => Some(secret),
+                _ => None,
+            }
+        } else if stripe_ntid_raw_card_token.is_some() {
+            stripe_ntid_raw_card_token.clone()
+        } else {
+            None
         };
 
         let amount = data.1;
@@ -2134,6 +2183,20 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
                 item.request.setup_future_usage,
                 item.request.payment_method_type,
             )?;
+
+            if stripe_ntid_raw_card_token.is_some() {
+                payment_method_options = Some(StripePaymentMethodOptions::Card {
+                    mandate_options: None,
+                    network_transaction_id: None,
+                    mit_exemption: item
+                        .request
+                        .get_network_mandate_id_from_network_transaction_id_flow()
+                        .map(|network_mandate_id| MitExemption {
+                            network_transaction_id: Secret::new(network_mandate_id),
+                        }),
+                })
+            };
+
             (
                 None,
                 None,
@@ -2568,6 +2631,24 @@ impl From<BrowserInformation> for StripeBrowserInformation {
         Self {
             ip_address: item.ip_address.map(|ip| Secret::new(ip.to_string())),
             user_agent: item.user_agent,
+        }
+    }
+}
+
+impl TryFrom<&PaymentsPreAuthenticateRouterData> for StripeNtidCardData {
+    type Error = error_stack::Report<ConnectorError>;
+    fn try_from(item: &PaymentsPreAuthenticateRouterData) -> Result<Self, Self::Error> {
+        match item.request.payment_method_data {
+            PaymentMethodData::CardDetailsForNetworkTransactionId(
+                ref card_details_for_network_transaction_id,
+            ) => StripeNtidCardData::get_stripe_card_data_from_ntid(
+                card_details_for_network_transaction_id.clone(),
+            ),
+            _ => Err(ConnectorError::NotSupported {
+                message: "Pre-Authenticate flow for this payment method".to_string(),
+                connector: "Stripe",
+            }
+            .into()),
         }
     }
 }
@@ -4576,14 +4657,86 @@ impl<F, T> TryFrom<ResponseRouterData<F, ChargesResponse, T, PaymentsResponseDat
     }
 }
 
-impl<F, T> TryFrom<ResponseRouterData<F, StripeTokenResponse, T, PaymentsResponseData>>
-    for RouterData<F, T, PaymentsResponseData>
+#[derive(Debug, Deserialize, Serialize)]
+pub struct NtidTokenizationMetadata {
+    pub stripe_ntid_raw_card_token: Option<Secret<String>>,
+}
+
+impl<T>
+    TryFrom<
+        ResponseRouterData<
+            hyperswitch_domain_models::router_flow_types::unified_authentication_service::PreAuthenticate,
+            StripeTokenResponse,
+            T,
+            PaymentsResponseData,
+        >,
+    >
+    for RouterData<
+        hyperswitch_domain_models::router_flow_types::unified_authentication_service::PreAuthenticate,
+        T,
+        PaymentsResponseData,
+    >
 {
     type Error = error_stack::Report<ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<F, StripeTokenResponse, T, PaymentsResponseData>,
+        item: ResponseRouterData<
+            hyperswitch_domain_models::router_flow_types::unified_authentication_service::PreAuthenticate,
+            StripeTokenResponse,
+            T,
+            PaymentsResponseData,
+        >,
     ) -> Result<Self, Self::Error> {
         let token = item.response.id.clone().expose();
+        let connector_metadata =
+            serde_json::to_value::<NtidTokenizationMetadata>(NtidTokenizationMetadata {
+                stripe_ntid_raw_card_token: Some(Secret::new(token)),
+            })
+            .change_context(ConnectorError::ResponseHandlingFailed)?;
+
+        Ok(Self {
+            response: Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::NoResponseId,
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(None),
+                connector_metadata: Some(connector_metadata),
+                network_txn_id: None,
+                network_txn_link_id: None,
+                connector_response_reference_id: None,
+                incremental_authorization_allowed: None,
+                authentication_data: None,
+                charges: None,
+            }),
+            ..item.data
+        })
+    }
+}
+
+impl<T>
+    TryFrom<
+        ResponseRouterData<
+            hyperswitch_domain_models::router_flow_types::payments::PaymentMethodToken,
+            StripeTokenResponse,
+            T,
+            PaymentsResponseData,
+        >,
+    >
+    for RouterData<
+        hyperswitch_domain_models::router_flow_types::payments::PaymentMethodToken,
+        T,
+        PaymentsResponseData,
+    >
+{
+    type Error = error_stack::Report<ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<
+            hyperswitch_domain_models::router_flow_types::payments::PaymentMethodToken,
+            StripeTokenResponse,
+            T,
+            PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let token = item.response.id.clone().expose();
+
         Ok(Self {
             response: Ok(PaymentsResponseData::TokenizationResponse { token }),
             ..item.data

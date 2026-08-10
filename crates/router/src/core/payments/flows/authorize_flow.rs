@@ -570,6 +570,7 @@ impl Feature<api::Authorize, types::PaymentsAuthorizeData> for types::PaymentsAu
                     _ => false,
                 },
                 api_models::enums::Connector::Shift4 => true,
+                api_models::enums::Connector::Stripe => true,
                 api_models::enums::Connector::Nuvei => true,
                 // Paysafe card + 3DS: PreAuthenticate mints the handle. When Paysafe returns no ACS
                 // redirect (frictionless / no challenge), continue straight to the settle Authorize
