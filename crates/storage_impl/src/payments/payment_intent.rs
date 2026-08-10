@@ -350,7 +350,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PaymentIntent, StorageError> {
         let conn = pg_connection_read(self).await?;
-        self.find_resource_by_id(
+        Box::pin(self.find_resource_by_id(
             merchant_key_store,
             storage_scheme,
             DieselPaymentIntent::find_by_payment_id_processor_merchant_id(
@@ -365,7 +365,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
                     payment_id,
                 },
             ),
-        )
+        ))
         .await
     }
 
