@@ -495,7 +495,7 @@ pub enum MerchantConnectorAccountUpdate {
     ConnectorWalletDetailsUpdate {
         connector_wallets_details: Encryptable<pii::SecretSerdeValue>,
     },
-    ConnectorWebhookRegisterationUpdate {
+    ConnectorWebhookRegistrationUpdate {
         connector_webhook_registration_details: Option<Value>,
         connector_webhook_details: Option<pii::SecretSerdeValue>,
         metadata: Option<pii::SecretSerdeValue>,
@@ -846,7 +846,7 @@ impl From<MerchantConnectorAccountUpdate> for MerchantConnectorAccountUpdateInte
                 additional_merchant_data: None,
                 connector_webhook_registration_details: None,
             },
-            MerchantConnectorAccountUpdate::ConnectorWebhookRegisterationUpdate {
+            MerchantConnectorAccountUpdate::ConnectorWebhookRegistrationUpdate {
                 connector_webhook_registration_details,
                 connector_webhook_details,
                 metadata,

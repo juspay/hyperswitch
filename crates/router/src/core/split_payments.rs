@@ -333,8 +333,8 @@ pub(crate) async fn split_payments_execute_core(
         ))
         .await?;
 
-        // payments_operation_core marks the intent as succeeded when the attempt is succesful
-        // However, for split case, we can't mark the intent as succesful until all the attempts
+        // payments_operation_core marks the intent as succeeded when the attempt is successful
+        // However, for split case, we can't mark the intent as successful until all the attempts
         // have succeeded, so reverting the state of Payment Intent
         if payment_data.payment_intent.is_succeeded() {
             let payment_intent_update =
@@ -425,8 +425,8 @@ pub(crate) async fn split_payments_execute_core(
         ))
         .await?;
 
-        // payments_operation_core marks the intent as succeeded when the attempt is succesful
-        // However, for split case, we can't mark the intent as succesful until all the attempts
+        // payments_operation_core marks the intent as succeeded when the attempt is successful
+        // However, for split case, we can't mark the intent as successful until all the attempts
         // have succeeded, so reverting the state of Payment Intent
         if payment_data.payment_intent.is_succeeded() {
             let payment_intent_update =

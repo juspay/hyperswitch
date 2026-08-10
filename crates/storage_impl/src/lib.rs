@@ -452,7 +452,7 @@ pub trait UniqueConstraints {
             SaddReply::KeyNotSet => Err(error_stack::report!(RedisError::SetAddMembersFailed)),
             SaddReply::KeySet(set_count) => {
                 if usize::try_from(set_count) == Ok(unique_contraint_count) {
-                    // If all unique constraints were succesfully inserted into the set, then no collision occurred
+                    // If all unique constraints were successfully inserted into the set, then no collision occurred
                     Ok(())
                 } else {
                     Err(error_stack::report!(RedisError::SetAddMembersFailed)).attach_printable_lazy(||{

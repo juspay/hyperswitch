@@ -284,7 +284,7 @@ pub fn construct_connector_webhook_registration_details(
             .ok_or(errors::ApiErrorResponse::InternalServerError)?;
 
         // Step 1: Remove stored entries for scopes that failed or are being replaced.
-        // Legacy (event_type based) and unparseable entries are kept unchanged.
+        // Legacy (event_type based) and unparsable entries are kept unchanged.
         if performed_removals {
             let scopes_to_remove = scopes_to_remove.to_vec();
             map.retain(|_, entry_value| {
@@ -354,7 +354,7 @@ pub fn construct_connector_webhook_registration_details(
         .transpose()?;
 
     Ok(
-        domain::MerchantConnectorAccountUpdate::ConnectorWebhookRegisterationUpdate {
+        domain::MerchantConnectorAccountUpdate::ConnectorWebhookRegistrationUpdate {
             connector_webhook_registration_details,
             connector_webhook_details,
             metadata,

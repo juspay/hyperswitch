@@ -485,13 +485,13 @@ pub async fn register_connector_webhook(
 
     let should_update_db = matches!(
         mca_update,
-        MerchantConnectorAccountUpdate::ConnectorWebhookRegisterationUpdate {
+        MerchantConnectorAccountUpdate::ConnectorWebhookRegistrationUpdate {
             connector_webhook_registration_details: Some(_),
             ..
-        } | MerchantConnectorAccountUpdate::ConnectorWebhookRegisterationUpdate {
+        } | MerchantConnectorAccountUpdate::ConnectorWebhookRegistrationUpdate {
             connector_webhook_details: Some(_),
             ..
-        } | MerchantConnectorAccountUpdate::ConnectorWebhookRegisterationUpdate {
+        } | MerchantConnectorAccountUpdate::ConnectorWebhookRegistrationUpdate {
             metadata: Some(_),
             ..
         }

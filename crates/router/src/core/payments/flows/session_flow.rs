@@ -1010,7 +1010,7 @@ fn create_apple_pay_session_response(
     }
 }
 
-/// Whether the SDK should call eligiblity check for this wallet.
+/// Whether the SDK should call eligibility check for this wallet.
 async fn resolve_wallet_eligibility_next_action(
     state: &routes::SessionState,
     router_data: &types::PaymentsSessionRouterData,
