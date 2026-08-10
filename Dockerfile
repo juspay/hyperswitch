@@ -3,6 +3,24 @@ FROM public.ecr.aws/docker/library/rust:trixie as builder
 ARG EXTRA_FEATURES=""
 ARG VERSION_FEATURE_SET="v1"
 
+# Which cargo profile compiles the binaries. The default is the production
+# build and is deliberately the slowest one: `release` carries fat LTO, a
+# single codegen unit and stripped symbols, trading ~an hour of compile time
+# for peak runtime speed. The alternatives exist for development cycles,
+# where compile time is the resource that matters:
+#
+#   release-fast — optimized, but without LTO and with parallel codegen:
+#                  builds in a fraction of the time, runs modestly slower,
+#                  and keeps symbols so backtraces resolve.
+#   dev          — unoptimized: the fastest build and a MUCH slower binary.
+#                  For wiring and smoke work only, never for measurements —
+#                  and note debug frames are deeper, so stack headroom that
+#                  suffices in release may not here.
+#
+# Features are untouched by this choice: every profile builds the same
+# feature set, so a fast build differs in codegen only, not in behavior.
+ARG CARGO_BUILD_PROFILE=release
+
 RUN apt-get update \
     && apt-get install -y libpq-dev libssl-dev pkg-config protobuf-compiler
 
@@ -32,11 +50,22 @@ ENV RUST_BACKTRACE="short"
 
 COPY . .
 RUN cargo build \
-    --release \
+    --profile ${CARGO_BUILD_PROFILE} \
     --no-default-features \
     --features release \
     --features ${VERSION_FEATURE_SET} \
     ${EXTRA_FEATURES}
+
+# Stage the binary at a profile-independent path for the runtime stage.
+# The artifact directory is named after the profile — except `dev`, which
+# cargo places under `target/debug` for historical reasons.
+#
+# BINARY is consumed here and not before the build, so the expensive build
+# layer above stays identical across the router/consumer/producer images and
+# is shared by the layer cache; only this copy step varies per image.
+ARG BINARY=router
+RUN mkdir -p /router/out \
+    && cp "/router/target/$([ "${CARGO_BUILD_PROFILE}" = "dev" ] && echo debug || echo "${CARGO_BUILD_PROFILE}")/${BINARY}" "/router/out/${BINARY}"
 
 
 
@@ -73,7 +102,7 @@ ENV TZ=Etc/UTC \
 
 RUN mkdir -p ${BIN_DIR}
 
-COPY --from=builder /router/target/release/${BINARY} ${BIN_DIR}/${BINARY}
+COPY --from=builder /router/out/${BINARY} ${BIN_DIR}/${BINARY}
 
 # Create the 'app' user and group
 RUN useradd --user-group --system --no-create-home --no-log-init app
