@@ -23,16 +23,15 @@ use hyperswitch_domain_models::{
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
         AccessTokenAuth, Authorize, Capture, CreateConnectorCustomer, Evidence, Execute,
-        IncrementalAuthorization, PSync, PaymentMethodToken, PreAuthenticate, RSync, Retrieve,
-        Session, SetupMandate, UpdateMetadata, Upload, Void,
+        IncrementalAuthorization, PSync, PaymentMethodToken, RSync, Retrieve, Session,
+        SetupMandate, UpdateMetadata, Upload, Void,
     },
     router_request_types::{
         AccessTokenRequestData, ConnectorCustomerData, PaymentMethodTokenizationData,
         PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData,
-        PaymentsIncrementalAuthorizationData, PaymentsPreAuthenticateData, PaymentsSessionData,
-        PaymentsSyncData, PaymentsUpdateMetadataData, RefundsData, RetrieveFileRequestData,
-        SetupMandateRequestData, SplitRefundsRequest, SubmitEvidenceRequestData,
-        UploadFileRequestData,
+        PaymentsIncrementalAuthorizationData, PaymentsSessionData, PaymentsSyncData,
+        PaymentsUpdateMetadataData, RefundsData, RetrieveFileRequestData, SetupMandateRequestData,
+        SplitRefundsRequest, SubmitEvidenceRequestData, UploadFileRequestData,
     },
     router_response_types::{
         ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
@@ -42,8 +41,8 @@ use hyperswitch_domain_models::{
     types::{
         ConnectorCustomerRouterData, PaymentsAuthorizeRouterData, PaymentsCancelRouterData,
         PaymentsCaptureRouterData, PaymentsIncrementalAuthorizationRouterData,
-        PaymentsPreAuthenticateRouterData, PaymentsSyncRouterData,
-        PaymentsUpdateMetadataRouterData, RefundsRouterData, TokenizationRouterData,
+        PaymentsSyncRouterData, PaymentsUpdateMetadataRouterData, RefundsRouterData,
+        TokenizationRouterData,
     },
 };
 #[cfg(feature = "payouts")]
@@ -71,9 +70,9 @@ use hyperswitch_interfaces::{
     events::connector_api_logs::ConnectorEvent,
     types::{
         ConnectorCustomerType, IncrementalAuthorizationType, PaymentsAuthorizeType,
-        PaymentsCaptureType, PaymentsPreAuthenticateType, PaymentsSyncType,
-        PaymentsUpdateMetadataType, PaymentsVoidType, RefundExecuteType, RefundSyncType, Response,
-        RetrieveFileType, SubmitEvidenceType, TokenizationType, UploadFileType,
+        PaymentsCaptureType, PaymentsSyncType, PaymentsUpdateMetadataType, PaymentsVoidType,
+        RefundExecuteType, RefundSyncType, Response, RetrieveFileType, SubmitEvidenceType,
+        TokenizationType, UploadFileType,
     },
     webhooks::{IncomingWebhook, IncomingWebhookRequestDetails, WebhookContext},
 };
@@ -93,7 +92,6 @@ use crate::{
     utils::{
         self, get_authorise_integrity_object, get_capture_integrity_object,
         get_refund_integrity_object, get_sync_integrity_object,
-        PaymentsAuthorizeRequestData as OtherPaymentsAuthorizeRequestData,
         RefundsRequestData as OtherRefundsRequestData,
     },
 };
@@ -254,7 +252,6 @@ impl api::Payment for Stripe {}
 
 impl api::PaymentAuthorize for Stripe {}
 impl api::PaymentUpdateMetadata for Stripe {}
-impl api::PaymentsPreAuthenticate for Stripe {}
 impl api::PaymentSync for Stripe {}
 impl api::PaymentVoid for Stripe {}
 impl api::PaymentCapture for Stripe {}
@@ -2634,114 +2631,6 @@ impl ConnectorIntegration<Evidence, SubmitEvidenceRequestData, SubmitEvidenceRes
     }
 }
 
-/// This flow is introduced to support tokenization for the NTID + raw card flow when the payment is initiated using a PaymentMethod ID.
-/// The existing tokenization flow cannot be used for the NTID + raw card flow because tokenization occurs before the PaymentMethod ID is resolved into the underlying card data.
-impl ConnectorIntegration<PreAuthenticate, PaymentsPreAuthenticateData, PaymentsResponseData>
-    for Stripe
-{
-    fn get_headers(
-        &self,
-        req: &PaymentsPreAuthenticateRouterData,
-        _connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, Maskable<String>)>, ConnectorError> {
-        let mut header = vec![(
-            CONTENT_TYPE.to_string(),
-            PaymentsPreAuthenticateType::get_content_type(self)
-                .to_string()
-                .into(),
-        )];
-
-        if let Some(common_types::payments::SplitPaymentsRequest::StripeSplitPayment(
-            stripe_split_payment,
-        )) = &req.request.split_payments
-        {
-            if stripe_split_payment.charge_type
-                == PaymentChargeType::Stripe(StripeChargeType::Direct)
-            {
-                let mut customer_account_header = vec![(
-                    STRIPE_COMPATIBLE_CONNECT_ACCOUNT.to_string(),
-                    stripe_split_payment
-                        .transfer_account_id
-                        .clone()
-                        .into_masked(),
-                )];
-                header.append(&mut customer_account_header);
-            }
-        }
-
-        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
-        header.append(&mut api_key);
-        Ok(header)
-    }
-
-    fn get_content_type(&self) -> &'static str {
-        self.common_get_content_type()
-    }
-    fn get_url(
-        &self,
-        _req: &PaymentsPreAuthenticateRouterData,
-        connectors: &Connectors,
-    ) -> CustomResult<String, ConnectorError> {
-        let base_url = self.base_url(connectors);
-        Ok(format!("{base_url}v1/payment_methods"))
-    }
-    fn get_request_body(
-        &self,
-        req: &PaymentsPreAuthenticateRouterData,
-        _connectors: &Connectors,
-    ) -> CustomResult<RequestContent, ConnectorError> {
-        let connector_req = stripe::StripeNtidCardData::try_from(req)?;
-        Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
-    }
-    fn build_request(
-        &self,
-        req: &PaymentsPreAuthenticateRouterData,
-        connectors: &Connectors,
-    ) -> CustomResult<Option<Request>, ConnectorError> {
-        let request = RequestBuilder::new()
-            .method(Method::Post)
-            .url(&PaymentsPreAuthenticateType::get_url(
-                self, req, connectors,
-            )?)
-            .attach_default_headers()
-            .headers(PaymentsPreAuthenticateType::get_headers(
-                self, req, connectors,
-            )?)
-            .set_body(self.get_request_body(req, connectors)?)
-            .build();
-
-        Ok(Some(request))
-    }
-
-    fn handle_response(
-        &self,
-        data: &PaymentsPreAuthenticateRouterData,
-        event_builder: Option<&mut ConnectorEvent>,
-        res: Response,
-    ) -> CustomResult<PaymentsPreAuthenticateRouterData, ConnectorError> {
-        let response: stripe::StripeTokenResponse = res
-            .response
-            .parse_struct("Stripe Token Response")
-            .change_context(ConnectorError::ResponseDeserializationFailed)?;
-        event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
-
-        PaymentsPreAuthenticateRouterData::try_from(ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
-    }
-
-    fn get_error_response(
-        &self,
-        res: Response,
-        event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<ErrorResponse, ConnectorError> {
-        self.build_error_response(res, event_builder)
-    }
-}
-
 fn get_signature_elements_from_header(
     headers: &actix_web::http::header::HeaderMap,
 ) -> CustomResult<HashMap<String, Vec<u8>>, ConnectorError> {
@@ -3867,18 +3756,5 @@ impl ConnectorSpecifications for Stripe {
         _payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
     ) -> api::ConnectorCustomerAction {
         api::ConnectorCustomerAction::CallConnectorCustomer
-    }
-
-    fn is_pre_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo) -> bool {
-        match current_flow {
-            api::CurrentFlowInfo::Authorize { request_data, .. } => {
-                request_data.is_stripe_split_payment() && request_data.is_network_transaction_flow()
-            }
-            api::CurrentFlowInfo::CompleteAuthorize { .. }
-            | api::CurrentFlowInfo::SetupMandate { .. }
-            | api::CurrentFlowInfo::Psync { .. }
-            | api::CurrentFlowInfo::UpdatePostConfirm { .. }
-            | api::CurrentFlowInfo::ConnectorWebhookRegister { .. } => false,
-        }
     }
 }

@@ -2839,23 +2839,10 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
 }
 
 pub trait PaymentMethodPredicates {
-    fn is_decrypted_google_pay(&self) -> bool;
     fn is_card_payment(&self) -> bool;
 }
 
 impl PaymentMethodPredicates for PaymentMethodData {
-    fn is_decrypted_google_pay(&self) -> bool {
-        matches!(
-            self,
-            PaymentMethodData::Wallet(payment_method_data::WalletData::GooglePay(
-                payment_method_data::GooglePayWalletData {
-                    tokenization_data: common_types::payments::GpayTokenizationData::Decrypted(_),
-                    ..
-                }
-            ))
-        )
-    }
-
     fn is_card_payment(&self) -> bool {
         matches!(self, PaymentMethodData::Card(_))
     }

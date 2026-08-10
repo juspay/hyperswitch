@@ -2737,6 +2737,7 @@ default_imp_for_pre_authenticate_steps!(
     connectors::Silverflow,
     connectors::Square,
     connectors::Stax,
+    connectors::Stripe,
     connectors::Stripebilling,
     connectors::Taxjar,
     connectors::Tesouro,
