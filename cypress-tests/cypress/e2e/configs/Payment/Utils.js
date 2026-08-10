@@ -84,6 +84,7 @@ import { connectorDetails as tesouroConnectorDetails } from "./Tesouro.js";
 import { connectorDetails as trustpayConnectorDetails } from "./Trustpay.js";
 import { connectorDetails as trustpaymentsConnectorDetails } from "./TrustPayments.js";
 import { connectorDetails as tsysConnectorDetails } from "./Tsys.js";
+import { connectorDetails as tsysTransitConnectorDetails } from "./TsysTransit.js";
 import { connectorDetails as voltConnectorDetails } from "./Volt.js";
 import { connectorDetails as wellsfargoConnectorDetails } from "./WellsFargo.js";
 import { connectorDetails as worldpayConnectorDetails } from "./WorldPay.js";
@@ -172,6 +173,7 @@ const connectorDetails = {
   tesouro: tesouroConnectorDetails,
   trustpayments: trustpaymentsConnectorDetails,
   tsys: tsysConnectorDetails,
+  tsys_transit: tsysTransitConnectorDetails,
   volt: voltConnectorDetails,
   wellsfargo: wellsfargoConnectorDetails,
   worldpay: worldpayConnectorDetails,
@@ -517,6 +519,7 @@ export const CONNECTOR_LISTS = {
       "loonio",
       "mifinity",
       "nexinets",
+      "nexixpay",
       "nmi",
       "noon",
       "novalnet",
@@ -539,8 +542,12 @@ export const CONNECTOR_LISTS = {
       "redsys",
       "worldpayxml",
       "mifinity",
+      "tsys_transit",
     ],
     SAVE_CARD: ["helcim"],
+    // Connectors that never return a `connector_mandate_id` on the payments
+    // response. Recurring payments for them go through connector agnostic MIT,
+    // so the "connector_mandate_id must not be null" assertion is skipped
     // Add more exclusion lists
     // Note: mitUsingPMId/mitForMandatesCallTest/listMandateCallTest use
     // per-config TRIGGER_SKIP or globalState checks instead of a static
@@ -550,6 +557,10 @@ export const CONNECTOR_LISTS = {
   // Inclusion lists (only run for these connectors)
   INCLUDE: {
     MANDATES_USING_NTID_PROXY: ["cybersource", "checkout"],
+    // Card and mandate flows of 54-TsysTransitMandates. The mandates need a
+    // profile with connector agnostic MIT enabled, which keeps them out of the
+    // shared mandate specs, so the whole spec is scoped to this connector
+    CONNECTOR_AGNOSTIC_MANDATES: ["tsys_transit"],
     INCREMENTAL_AUTH: [
       "archipel",
       // "cybersource",    // issues with MULTIPLE_CONNECTORS handling
@@ -607,7 +618,6 @@ export const CONNECTOR_LISTS = {
       "payload",
       "paypal",
       "trustpay",
-      "worldpay",
     ],
     REFUNDS_WEBHOOK: [
       "airwallex",
@@ -825,12 +835,21 @@ function coerceValue(value, type) {
       if (!Number.isFinite(num)) {
         throw new Error(`Cannot coerce "${value}" to number`);
       }
+      if (!Number.isSafeInteger(num)) {
+        return BigInt(value);
+      }
       return num;
     }
 
     default:
       return value;
   }
+}
+
+export function stringifyWithBigInt(obj) {
+  return JSON.stringify(obj, (_, value) =>
+    typeof value === "bigint" ? `__bigint__${value}` : value
+  ).replace(/"__bigint__(\d+)"/g, "$1");
 }
 
 export function stampPaymentMethodType(scenarios, paymentMethodType) {

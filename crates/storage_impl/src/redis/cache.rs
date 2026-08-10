@@ -12,7 +12,7 @@ use common_utils::{
 use dyn_clone::DynClone;
 use error_stack::{Report, ResultExt};
 use moka::future::Cache as MokaCache;
-use redis_interface::{errors::RedisError, RedisConnectionPool, RedisValue};
+use redis_interface::{errors::RedisError, RedisConnectionWithContext, RedisValue};
 use router_env::{
     logger,
     tracing::{self, instrument},
@@ -21,7 +21,7 @@ use router_env::{
 use crate::{
     errors::StorageError,
     metrics,
-    redis::{PubSubInterface, RedisConnInterface},
+    redis::{kv_store::RedisConnInterface, pub_sub::PubSubInterface},
 };
 
 /// Redis channel name used for publishing invalidation messages
@@ -210,6 +210,29 @@ impl From<CacheKey> for String {
     }
 }
 
+/// The physical moka key for a logical [`CacheKey`].
+///
+/// During replay the in-memory cache is a process-global structure shared across correlations, so
+/// its keys are namespaced by correlation id — the same isolation
+/// `RedisConnectionPool::add_prefix` applies to physical redis keys. This keeps a replayed
+/// correlation from observing entries another one populated: the first lookup per correlation
+/// misses and falls through to the redis and database boundaries, which are instrumented and
+/// therefore deterministic.
+///
+/// Deliberately not folded into `From<CacheKey> for String`: that conversion also builds the
+/// recorded args for the `in_memory_get` boundary, which must stay un-namespaced so the args a
+/// replay computes still match the ones the recording captured.
+fn in_memory_cache_key(key: CacheKey) -> String {
+    let physical = String::from(key);
+
+    #[cfg(feature = "deja")]
+    if let Some(correlation_id) = deja::replay_key_namespace() {
+        return format!("{correlation_id}:{physical}");
+    }
+
+    physical
+}
+
 impl Cache {
     /// With given `time_to_live` and `time_to_idle` creates a moka cache.
     ///
@@ -249,11 +272,13 @@ impl Cache {
     }
 
     pub async fn push<T: Cacheable>(&self, key: CacheKey, val: T) {
-        self.inner.insert(key.into(), Arc::new(val)).await;
+        self.inner
+            .insert(in_memory_cache_key(key), Arc::new(val))
+            .await;
     }
 
     pub async fn get_val<T: Clone + Cacheable>(&self, key: CacheKey) -> Option<T> {
-        let val = self.inner.get::<String>(&key.into()).await;
+        let val = self.inner.get::<String>(&in_memory_cache_key(key)).await;
 
         // Add cache hit and cache miss metrics
         if val.is_some() {
@@ -271,11 +296,13 @@ impl Cache {
 
     /// Check if a key exists in cache
     pub async fn exists(&self, key: CacheKey) -> bool {
-        self.inner.contains_key::<String>(&key.into())
+        self.inner.contains_key::<String>(&in_memory_cache_key(key))
     }
 
     pub async fn remove(&self, key: CacheKey) {
-        self.inner.invalidate::<String>(&key.into()).await;
+        self.inner
+            .invalidate::<String>(&in_memory_cache_key(key))
+            .await;
     }
 
     /// Performs any pending maintenance operations needed by the cache.
@@ -304,8 +331,9 @@ impl Cache {
 
 #[instrument(skip_all)]
 pub async fn get_or_populate_redis<T, F, Fut>(
-    redis: &Arc<RedisConnectionPool>,
+    redis: &RedisConnectionWithContext,
     key: impl AsRef<str>,
+    ttl: Option<i64>,
     fun: F,
 ) -> CustomResult<T, StorageError>
 where
@@ -320,10 +348,15 @@ where
         .await;
     let get_data_set_redis = || async {
         let data = fun().await?;
-        redis
-            .serialize_and_set_key(&key.into(), &data)
-            .await
-            .change_context(StorageError::KVError)?;
+        match ttl {
+            Some(ttl) => {
+                redis
+                    .serialize_and_set_key_with_expiry(&key.into(), &data, ttl)
+                    .await
+            }
+            None => redis.serialize_and_set_key(&key.into(), &data).await,
+        }
+        .change_context(StorageError::KVError)?;
         Ok::<_, Report<StorageError>>(data)
     };
     match redis_val {
@@ -389,7 +422,7 @@ where
         .attach_printable("Failed to get redis connection")?;
     let cache_key = CacheKey {
         key: key.to_string(),
-        prefix: redis.key_prefix.clone(),
+        prefix: redis.redis_conn.key_prefix.clone(),
     };
     // Deja L1 seam: the in-memory (moka) lookup is a process-global cache that
     // spans correlations. Instrument the LOOKUP itself (not the surrounding
@@ -407,12 +440,12 @@ where
     if let Some(val) = cache_val {
         Ok(val)
     } else {
-        let val = get_or_populate_redis(redis, key, fun).await?;
+        let val = get_or_populate_redis(redis, key, None, fun).await?;
         cache
             .push(
                 CacheKey {
                     key: key.to_string(),
-                    prefix: redis.key_prefix.clone(),
+                    prefix: redis.redis_conn.key_prefix.clone(),
                 },
                 val.clone(),
             )
@@ -454,9 +487,9 @@ pub async fn redact_from_redis_and_publish<
 
     logger::debug!(redis_deletion_result=?deletion_result);
 
-    let futures = keys.into_iter().map(|key| async {
+    let redis_conn = &redis_conn;
+    let futures = keys.into_iter().map(move |key| async move {
         redis_conn
-            .clone()
             .publish(IMC_INVALIDATION_CHANNEL, key)
             .await
             .change_context(StorageError::KVError)

@@ -33,7 +33,7 @@ pub use hyperswitch_interfaces::{
     },
     types::{ComparisonServiceConfig, Proxy},
 };
-use hyperswitch_masking::{Maskable, Secret};
+use hyperswitch_masking::{Maskable, PeekInterface, Secret};
 pub use payment_methods::configs::{
     settings::{
         BankRedirectConfig, BanksVector, ConnectorBankNames, ConnectorFields,
@@ -194,6 +194,7 @@ pub struct Settings<S: SecretState> {
     #[serde(default)]
     pub enhancement: Option<HashMap<String, String>>,
     pub superposition: SecretStateContainer<SuperpositionClientConfig, S>,
+    pub offer_engine: Option<OfferEngineConfig>,
     pub proxy_status_mapping: ProxyStatusMapping,
     pub trace_header: TraceHeaderConfig,
     pub internal_services: InternalServicesConfig,
@@ -202,6 +203,7 @@ pub struct Settings<S: SecretState> {
     pub comparison_service: Option<ComparisonServiceConfig>,
     pub authentication_service_enabled_connectors: AuthenticationServiceEnabledConnectors,
     pub save_payment_method_on_session: OnSessionConfig,
+    pub account_updater: Option<SecretStateContainer<AccountUpdaterConfig, S>>,
 }
 
 #[cfg(feature = "deja")]
@@ -385,6 +387,22 @@ pub struct OnSessionConfig {
         HashMap<enums::PaymentMethod, HashSet<enums::PaymentMethodType>>,
 }
 
+#[derive(Debug, Deserialize, Clone)]
+#[serde(rename_all = "snake_case")]
+pub enum AccountUpdaterConfig {
+    Juspay(JuspayAccountUpdaterConfig),
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct JuspayAccountUpdaterConfig {
+    pub base_url: url::Url,
+    pub api_key: Secret<String>,
+    pub merchant_id: String,
+    pub euler_encryption_public_key: Secret<String>,
+    pub au_decryption_pvt_key: Secret<String>,
+    pub card_sync_key_id: String,
+}
+
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct DebitRoutingConfig {
     #[serde(deserialize_with = "deserialize_hashmap")]
@@ -403,6 +421,12 @@ pub struct OpenRouter {
     /// Browser-facing Decision Engine dashboard base URL, used for the merchant SSO redirect.
     #[serde(default)]
     pub dashboard_url: String,
+    /// Shared secret sent as the `x-admin-secret` header on Decision Engine requests. The DE
+    /// verifies it on admin endpoints (merchant provisioning, SSO code mint) and accepts it as
+    /// service-to-service auth on its protected routes. Decrypted via secrets management when
+    /// enabled; empty disables the header.
+    #[serde(default)]
+    pub admin_secret: Secret<String>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -645,6 +669,35 @@ pub struct ForexApi {
     pub data_expiration_delay_in_seconds: u32,
     pub redis_lock_timeout_in_seconds: u32,
     pub redis_ttl_in_seconds: u32,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct OfferEngineConfig {
+    pub base_url: url::Url,
+    pub api_key: Secret<String>,
+    pub merchant_id: String,
+}
+
+impl OfferEngineConfig {
+    pub fn validate(&self) -> ApplicationResult<()> {
+        common_utils::fp_utils::when(!self.base_url.path().ends_with('/'), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "offer_engine.base_url must end with a trailing slash".into(),
+            ))
+        })?;
+        common_utils::fp_utils::when(self.api_key.peek().is_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "offer_engine.api_key must not be empty".into(),
+            ))
+        })?;
+        common_utils::fp_utils::when(self.merchant_id.is_empty(), || {
+            Err(error_stack::Report::from(
+                ApplicationError::InvalidConfigurationValueError(
+                    "offer_engine.merchant_id must not be empty".into(),
+                ),
+            ))
+        })
+    }
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -1448,6 +1501,16 @@ impl Settings<SecuredSecret> {
         self.network_tokenization_service
             .as_ref()
             .map(|x| x.get_inner().validate())
+            .transpose()?;
+
+        self.offer_engine
+            .as_ref()
+            .map(|offer_engine| offer_engine.validate())
+            .transpose()?;
+
+        self.account_updater
+            .as_ref()
+            .map(|account_updater| account_updater.get_inner().validate())
             .transpose()?;
 
         self.paze_decrypt_keys

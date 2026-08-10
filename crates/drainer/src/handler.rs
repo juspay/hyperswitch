@@ -129,7 +129,7 @@ impl Handler {
             .stores
             .values()
             .next()
-            .map(|store| store.redis_conn.clone());
+            .map(|store| store.get_redis_conn().redis_conn.clone());
         match redis_conn_clone {
             None => {
                 logger::error!("No redis connection found");
@@ -231,7 +231,7 @@ async fn drainer(
     // parse_stream_entries returns error if no entries is found, handle it
     let entries = utils::parse_stream_entries(
         &stream_read,
-        store.redis_conn.add_prefix(stream_name).as_str(),
+        store.get_redis_conn().add_prefix(stream_name).as_str(),
     )?;
     let read_count = entries.len();
 

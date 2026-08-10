@@ -9454,7 +9454,9 @@
         "type": "string",
         "enum": [
           "checking",
-          "savings"
+          "savings",
+          "salary",
+          "payment"
         ]
       },
       "BecsBankDebitAdditionalData": {
@@ -9576,6 +9578,24 @@
             "nullable": true
           }
         }
+      },
+      "BlockReasonCode": {
+        "type": "string",
+        "description": "A stable, machine-readable identifier for the reason a payment was blocked.",
+        "enum": [
+          "blocked_bin",
+          "blocked_card_info_unavailable",
+          "blocked_card_type",
+          "blocked_card_network",
+          "blocked_funding_source",
+          "blocked_card_subtype",
+          "blocked_card_segment_type",
+          "blocked_virtual_card",
+          "blocked_non_reloadable_prepaid_card",
+          "blocked_gambling_card",
+          "blocked_issuer_country",
+          "blocked_issuer"
+        ]
       },
       "BlocklistDataKind": {
         "type": "string",
@@ -11569,6 +11589,17 @@
             "properties": {
               "xendit_split_payment": {
                 "$ref": "#/components/schemas/XenditChargeResponseData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "payload_split_payment"
+            ],
+            "properties": {
+              "payload_split_payment": {
+                "$ref": "#/components/schemas/PayloadSplitPaymentRequest"
               }
             }
           }
@@ -14434,6 +14465,7 @@
           "payout_cancelled",
           "payout_expired",
           "payout_reversed",
+          "payout_not_permitted",
           "invoice_paid",
           "surcharge_payment_succeeded",
           "surcharge_refund_succeeded"
@@ -19407,6 +19439,14 @@
                 "properties": {
                   "message": {
                     "type": "string"
+                  },
+                  "code": {
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/BlockReasonCode"
+                      }
+                    ],
+                    "nullable": true
                   }
                 }
               }
@@ -20075,10 +20115,28 @@
             "description": "Total amount for the item.",
             "nullable": true
           },
+          "discount_name": {
+            "type": "string",
+            "description": "Discount name applied to this item.",
+            "nullable": true
+          },
           "unit_discount_amount": {
             "type": "integer",
             "format": "int64",
             "description": "Discount amount applied to this item.",
+            "nullable": true
+          },
+          "discount_percentage": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Percentage"
+              }
+            ],
+            "nullable": true
+          },
+          "discount_type": {
+            "type": "string",
+            "description": "Discount type applied to this item.",
             "nullable": true
           }
         }
@@ -20715,6 +20773,42 @@
               }
             ],
             "nullable": true
+          }
+        }
+      },
+      "PayloadLedgerItem": {
+        "type": "object",
+        "description": "A single ledger entry distributing payment to one receiver for Payload split payments",
+        "required": [
+          "amount",
+          "receiver_id"
+        ],
+        "properties": {
+          "amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Amount in minor units to be routed to this receiver out of the payment",
+            "example": 995
+          },
+          "receiver_id": {
+            "type": "string",
+            "description": "processing_id of the receiver"
+          }
+        }
+      },
+      "PayloadSplitPaymentRequest": {
+        "type": "object",
+        "description": "Split payment configuration for Payload — distributes a payment across multiple receivers via ledger entries",
+        "required": [
+          "ledger"
+        ],
+        "properties": {
+          "ledger": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PayloadLedgerItem"
+            },
+            "description": "Ledger entries specifying how the payment is distributed across receivers"
           }
         }
       },
@@ -25553,6 +25647,7 @@
           "adyen",
           "adyenplatform",
           "cybersource",
+          "deutschebank",
           "ebanx",
           "gigadat",
           "loonio",
@@ -25567,7 +25662,8 @@
           "worldpay",
           "worldpayxml",
           "envoy",
-          "itaubank"
+          "itaubank",
+          "santander"
         ]
       },
       "PayoutCreatePayoutLinkConfig": {
@@ -25771,6 +25867,14 @@
             "type": "string",
             "description": "A description of the payout",
             "example": "It's my first payout request",
+            "nullable": true
+          },
+          "billing_descriptor": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PayoutsBillingDescriptor"
+              }
+            ],
             "nullable": true
           },
           "entity_type": {
@@ -26012,6 +26116,14 @@
             "type": "string",
             "description": "A description of the payout",
             "example": "It's my first payout request",
+            "nullable": true
+          },
+          "billing_descriptor": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PayoutsBillingDescriptor"
+              }
+            ],
             "nullable": true
           },
           "entity_type": {
@@ -26607,6 +26719,7 @@
           "reversed",
           "pending",
           "ineligible",
+          "not_permitted",
           "requires_creation",
           "requires_confirmation",
           "requires_payout_method_data",
@@ -26623,6 +26736,22 @@
           "wallet",
           "bank_redirect"
         ]
+      },
+      "PayoutsBillingDescriptor": {
+        "type": "object",
+        "description": "Billing descriptor information for a payout.",
+        "properties": {
+          "reference": {
+            "type": "string",
+            "description": "Reference displayed on the beneficiary's bank statement.",
+            "nullable": true
+          },
+          "statement_descriptor": {
+            "type": "string",
+            "description": "Statement descriptor displayed for the payout.",
+            "nullable": true
+          }
+        }
       },
       "Paypal": {
         "type": "object",
@@ -26943,6 +27072,20 @@
           }
         }
       },
+      "Percentage": {
+        "type": "object",
+        "description": "Represents Percentage Value between 0 and 100 both inclusive",
+        "required": [
+          "percentage"
+        ],
+        "properties": {
+          "percentage": {
+            "type": "number",
+            "format": "double",
+            "description": "Percentage value ranging between 0 and 100"
+          }
+        }
+      },
       "PhoneDetails": {
         "type": "object",
         "properties": {
@@ -26993,6 +27136,26 @@
             "type": "string",
             "description": "ispb code is a unique identifier assigned by Brazilian Central Bank to identify the financial institution of the recipient's bank account in Pix transactions.",
             "example": "60701190",
+            "nullable": true
+          },
+          "bank_code": {
+            "type": "string",
+            "description": "3-digit COMPE/FEBRABAN bank code used to identify the financial institution for routing PIX payouts.",
+            "example": "033",
+            "nullable": true
+          },
+          "bank_account_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BankType"
+              }
+            ],
+            "nullable": true
+          },
+          "account_holder_name": {
+            "type": "string",
+            "description": "Name of the account holder",
+            "example": "John Doe",
             "nullable": true
           }
         }
@@ -27238,6 +27401,26 @@
             "type": "string",
             "description": "ispb code is a unique identifier assigned by Brazilian Central Bank to identify the financial institution of the recipient's bank account in Pix transactions.",
             "example": "60701190",
+            "nullable": true
+          },
+          "bank_code": {
+            "type": "string",
+            "description": "3-digit COMPE/FEBRABAN bank code used to identify the financial institution for routing PIX payouts.",
+            "example": "033",
+            "nullable": true
+          },
+          "bank_account_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BankType"
+              }
+            ],
+            "nullable": true
+          },
+          "account_holder_name": {
+            "type": "string",
+            "description": "Name of the account holder",
+            "example": "John Doe",
             "nullable": true
           }
         }
@@ -30406,6 +30589,14 @@
         "properties": {
           "end_to_end_id": {
             "type": "string",
+            "example": "E9040088820260710172800044983797",
+            "nullable": true
+          },
+          "paid_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Actual timestamp when the payment was completed, as reported by Santander.",
+            "example": "2025-07-20T14:35:00Z",
             "nullable": true
           }
         },
@@ -31308,6 +31499,17 @@
                 "$ref": "#/components/schemas/XenditSplitRequest"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "payload_split_payment"
+            ],
+            "properties": {
+              "payload_split_payment": {
+                "$ref": "#/components/schemas/PayloadSplitPaymentRequest"
+              }
+            }
           }
         ],
         "description": "Fee information for Split Payments to be charged on the payment being collected"
@@ -31885,7 +32087,7 @@
         "properties": {
           "percentage": {
             "type": "number",
-            "format": "float"
+            "format": "double"
           }
         }
       },
@@ -31967,6 +32169,7 @@
           "no_three_ds",
           "challenge_requested",
           "challenge_preferred",
+          "no_preference",
           "three_ds_exemption_requested_tra",
           "three_ds_exemption_requested_low_value",
           "issuer_three_ds_exemption_requested"

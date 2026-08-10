@@ -91,8 +91,14 @@ where
         } else {
             common_enums::StorageType::Volatile
         };
-        let external_vault_details =
-            fetch_external_vault_details(state, platform, profile, customer, storage_type).await?;
+        let external_vault_details = Box::pin(fetch_external_vault_details(
+            state,
+            platform,
+            profile,
+            customer,
+            storage_type,
+        ))
+        .await?;
         let vault_details = external_vault_details.map(|evd| api::VaultDetails {
             internal_vault: None,
             external_vault_details: Some(evd),

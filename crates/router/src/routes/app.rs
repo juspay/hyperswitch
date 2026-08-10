@@ -68,7 +68,7 @@ use super::verification::{apple_pay_merchant_registration, retrieve_apple_pay_ve
 use super::webhooks::*;
 use super::{
     admin, api_keys, cache::*, card_issuer, chat, connector_onboarding, disputes, files, gsm,
-    health::*, oidc, profiles, relay, user, user_role,
+    health::*, offer_engine, oidc, profiles, relay, user, user_role,
 };
 #[cfg(feature = "v1")]
 use super::{
@@ -157,10 +157,10 @@ impl scheduler::SchedulerSessionState for SessionState {
     fn add_request_id(&mut self, request_id: RequestId) {
         self.api_client.add_request_id(request_id.clone());
         self.store.add_request_id(request_id.to_string());
+        self.global_store.add_request_id(request_id.to_string());
         #[cfg(feature = "deja")]
         {
             self.accounts_store.add_request_id(request_id.to_string());
-            self.global_store.add_request_id(request_id.to_string());
         }
         self.request_id.replace(request_id);
     }
@@ -252,10 +252,10 @@ impl SessionStateInfo for SessionState {
     fn add_request_id(&mut self, request_id: RequestId) {
         self.api_client.add_request_id(request_id.clone());
         self.store.add_request_id(request_id.to_string());
+        self.global_store.add_request_id(request_id.to_string());
         #[cfg(feature = "deja")]
         {
             self.accounts_store.add_request_id(request_id.to_string());
-            self.global_store.add_request_id(request_id.to_string());
         }
         self.request_id.replace(request_id);
     }
@@ -478,10 +478,22 @@ impl AppState {
                 .expect("Failed to initialize OpenSearch client.")
                 .map(Arc::new);
 
+            let redis_event_emitter: Arc<
+                dyn common_utils::external_service::ExternalServiceEventEmitter,
+            > = if conf.events.emit_external_service_call_events {
+                Arc::new(event_handler.clone())
+            } else {
+                Arc::new(common_utils::external_service::NoOpEventEmitter)
+            };
             #[allow(clippy::expect_used)]
-            let cache_store = get_cache_store(&conf.clone(), shut_down_signal, testable)
-                .await
-                .expect("Failed to create store");
+            let cache_store = get_cache_store(
+                &conf.clone(),
+                shut_down_signal,
+                redis_event_emitter,
+                testable,
+            )
+            .await
+            .expect("Failed to create store");
             let global_store: Box<dyn GlobalStorageInterface> =
                 Box::pin(Self::get_store_interface(
                     &storage_impl,
@@ -730,6 +742,19 @@ impl Health {
             .app_data(web::Data::new(state))
             .service(web::resource("").route(web::get().to(health)))
             .service(web::resource("/ready").route(web::get().to(deep_health_check)))
+    }
+}
+
+pub struct OfferEngine;
+
+impl OfferEngine {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/offer_engine")
+            .app_data(web::Data::new(state))
+            .service(
+                web::resource("/connectivity")
+                    .route(web::post().to(offer_engine::offer_engine_connectivity_check)),
+            )
     }
 }
 
@@ -3447,12 +3472,24 @@ impl SuperpositionProxy {
                     .route(web::get().to(super::superposition_proxy::list_default_configs)),
             )
             .service(
+                web::resource("/default-config/{key}")
+                    .route(web::get().to(super::superposition_proxy::get_default_config)),
+            )
+            .service(
                 web::resource("/dimension")
                     .route(web::get().to(super::superposition_proxy::list_dimensions)),
             )
             .service(
+                web::resource("/dimension/{dimension_name}")
+                    .route(web::get().to(super::superposition_proxy::get_dimension)),
+            )
+            .service(
                 web::resource("/config/resolve/detailed")
                     .route(web::post().to(super::superposition_proxy::resolve_detailed_config)),
+            )
+            .service(
+                web::resource("/config/resolve/explain/{key}")
+                    .route(web::post().to(super::superposition_proxy::resolve_config_explanation)),
             )
             .service(
                 web::resource("/audit")

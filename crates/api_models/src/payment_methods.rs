@@ -891,6 +891,7 @@ pub struct CardDetail {
     PartialEq,
 )]
 #[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "UPPERCASE")]
 pub enum CardType {
     Credit,
     Debit,
@@ -2388,7 +2389,7 @@ impl From<Surcharge> for SurchargeResponse {
 
 #[derive(Clone, Default, Debug, PartialEq, serde::Serialize, ToSchema)]
 pub struct SurchargePercentage {
-    percentage: f32,
+    percentage: f64,
 }
 
 impl From<Percentage<SURCHARGE_PERCENTAGE_PRECISION_LENGTH>> for SurchargePercentage {
@@ -2982,6 +2983,7 @@ pub struct ResponsePaymentMethodsEnabledForClient {
     pub data: Option<PaymentMethodSubtypeSpecificDataForClient>,
 
     /// Payment experience options for this method (wallets, pay_later, etc.)
+    #[schema(value_type = Option<Vec<PaymentExperience>>)]
     pub payment_experience: Option<Vec<api_enums::PaymentExperience>>,
 
     /// Whether to collect shipping details from the wallet connector (null for non-wallet)
@@ -3007,6 +3009,7 @@ pub struct ResponsePaymentMethodsEnabledForClient {
 pub enum WalletPaymentMethodDataForClient {
     ApplePay(Box<PaymentMethodDataWalletInfo>),
     GooglePay(Box<PaymentMethodDataWalletInfo>),
+    #[schema(value_type = PaypalRedirection)]
     PayPal(Box<payments::PaypalRedirection>),
 }
 
