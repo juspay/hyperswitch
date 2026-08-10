@@ -740,6 +740,7 @@ impl super::behaviour::Conversion for PaymentMethod {
             network_tokenization_data: self.network_tokenization_data.map(|val| val.into()),
             auxiliary_fingerprint_id: self.auxiliary_fingerprint_id,
             compatibility_updated_at: self.compatibility_updated_at,
+            connector_payment_method_details: None,
         })
     }
 

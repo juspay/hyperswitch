@@ -124,6 +124,7 @@ pub struct PaymentMethod {
     pub network_transaction_link_id: Option<Secret<String>>,
     pub compatibility_updated_at: Option<PrimitiveDateTime>,
     pub auxiliary_fingerprint_id: Option<String>,
+    pub connector_payment_method_details: Option<pii::SecretSerdeValue>,
     pub external_vault_token_data: Option<Encryption>,
 }
 
@@ -1380,6 +1381,7 @@ impl From<&PaymentMethodNew> for PaymentMethod {
             customer_details: payment_method_new.customer_details.clone(),
             network_tokenization_data: None,
             compatibility_updated_at: payment_method_new.compatibility_updated_at,
+            connector_payment_method_details: None,
             external_vault_source: payment_method_new.external_vault_source.clone(),
         }
     }

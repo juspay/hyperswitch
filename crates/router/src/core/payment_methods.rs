@@ -6841,13 +6841,13 @@ pub async fn payment_methods_session_create(
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to insert payment methods session in db")?;
 
-    let external_vault_details = payments_core::vault_session::fetch_external_vault_details(
+    let external_vault_details = Box::pin(payments_core::vault_session::fetch_external_vault_details(
         &state,
         &platform,
         &profile,
         &customer,
         payment_method_session_domain_model.storage_type,
-    )
+    ))
     .await
     .unwrap_or_else(|err| {
         router_env::logger::warn!(
