@@ -2844,7 +2844,7 @@ pub trait PaymentMethodPredicates {
 
 impl PaymentMethodPredicates for PaymentMethodData {
     fn is_card_payment(&self) -> bool {
-        matches!(self, PaymentMethodData::Card(_))
+        matches!(self, Self::Card(_))
     }
 }
 

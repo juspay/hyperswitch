@@ -623,15 +623,13 @@ pub enum StripePaymentMethodData {
 impl StripePaymentMethodData {
     fn get_stripe_ntid_card_token_data(
         payment_method_data: &payment_method_data::CardDetailsForNetworkTransactionId,
-    ) -> Result<StripePaymentMethodData, error_stack::Report<ConnectorError>> {
-        Ok(StripePaymentMethodData::NtidCardToken(
-            StripeNtidCardToken {
-                payment_method_type: Some(StripePaymentMethodType::Card),
-                token_card_number: payment_method_data.card_number.clone(),
-                token_card_exp_month: payment_method_data.card_exp_month.clone(),
-                token_card_exp_year: payment_method_data.card_exp_year.clone(),
-            },
-        ))
+    ) -> Result<Self, error_stack::Report<ConnectorError>> {
+        Ok(Self::NtidCardToken(StripeNtidCardToken {
+            payment_method_type: Some(StripePaymentMethodType::Card),
+            token_card_number: payment_method_data.card_number.clone(),
+            token_card_exp_month: payment_method_data.card_exp_month.clone(),
+            token_card_exp_year: payment_method_data.card_exp_year.clone(),
+        }))
     }
 }
 
@@ -2124,7 +2122,7 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
             (None, None, None)
         };
 
-        let payment_method_token = if is_payment_method_tokenize_flow_required(&item) {
+        let payment_method_token = if is_payment_method_tokenize_flow_required(item) {
             match item.payment_method_token.clone() {
                 Some(PaymentMethodToken::Token(secret)) => Some(secret),
                 _ => None,
@@ -2181,7 +2179,7 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
                 item.request.payment_method_type,
             )?;
 
-            if is_tokenized_ntid_flow(&item) {
+            if is_tokenized_ntid_flow(item) {
                 payment_method_options = Some(StripePaymentMethodOptions::Card {
                     mandate_options: None,
                     network_transaction_id: None,
@@ -2723,7 +2721,7 @@ impl TryFrom<&TokenizationRouterData> for TokenRequest {
                 })
             }
             PaymentMethodData::CardDetailsForNetworkTransactionId(card_details) => {
-                StripePaymentMethodData::get_stripe_ntid_card_token_data(&card_details)?
+                StripePaymentMethodData::get_stripe_ntid_card_token_data(card_details)?
             }
             _ => {
                 create_stripe_payment_method(
