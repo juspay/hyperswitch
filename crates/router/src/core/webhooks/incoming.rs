@@ -1992,15 +1992,99 @@ async fn external_authentication_incoming_webhook_flow(
                     )
                     .await
                     .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+                let processor_merchant_id = platform.get_processor().get_account().get_id().clone();
                 let payment_confirm_req = api::PaymentsRequest {
                     payment_id: Some(api_models::payments::PaymentIdType::PaymentIntentId(
                         payment_intent.payment_id.clone(),
                     )),
-                    merchant_id: Some(platform.get_processor().get_account().get_id().clone()),
+                    merchant_id: Some(processor_merchant_id.clone()),
                     ..Default::default()
                 };
                 let is_setup_mandate = payment_intent.is_setup_mandate();
-                let payments_response = if is_setup_mandate {
+                let provider_business_profile = payments::helpers::resolve_provider_profile(
+                    &state,
+                    &platform,
+                    &business_profile,
+                )
+                .await?;
+                let attempt_id = payment_intent.active_attempt.get_id().clone();
+                let payment_attempt = state
+                    .store
+                    .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
+                        &payment_intent.payment_id,
+                        &processor_merchant_id,
+                        &attempt_id,
+                        platform.get_processor().get_account().storage_scheme,
+                        platform.get_processor().get_key_store(),
+                    )
+                    .await
+                    .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+                // A merchant with external vault enabled can still accept a plain (non-proxied)
+                // card for an individual payment — probe whether this payment's payment_token
+                // actually resolves to a vault alias before committing to the proxy resume path.
+                let is_external_vault_payment = provider_business_profile
+                    .external_vault_details
+                    .is_external_vault_enabled()
+                    && match payment_attempt.payment_token.as_ref() {
+                        Some(token) => payments::read_external_vault_alias_from_temp_locker(
+                            &state,
+                            token,
+                            platform.get_processor().get_key_store(),
+                        )
+                        .await
+                        .is_ok(),
+                        None => false,
+                    };
+                let payments_response = if is_external_vault_payment {
+                    // External-vault-proxy payment: resume through the same proxy confirm
+                    // operation the normal confirm flow used (`PaymentExternalVaultProxyConfirm`
+                    // via `external_vault_proxy_for_payments_core`), instead of `payments_core`'s
+                    // `Authorize`/`SetupMandate` — mirrors the two branches below structurally.
+                    let payment_token = payment_attempt
+                        .payment_token
+                        .clone()
+                        .get_required_value("payment_token")
+                        .attach_printable(
+                            "payment_token missing on attempt for external vault 3DS webhook authorize",
+                        )?;
+                    // No `payment_method_data` is sent: `payment_token` alone points at the
+                    // temp-generic vault alias minted during pre-authentication, which
+                    // `PaymentExternalVaultProxyConfirm::get_trackers` resolves the same way the
+                    // AReq step already did (`read_external_vault_alias_from_temp_locker`) — this
+                    // payment used the inline `vault_data_card` shape at the original confirm,
+                    // not a saved `VaultCardTokenData` card, so there is nothing to fetch from
+                    // the modular PM service here.
+                    let external_vault_req = api::PaymentsRequest {
+                        payment_id: Some(api_models::payments::PaymentIdType::PaymentIntentId(
+                            payment_intent.payment_id.clone(),
+                        )),
+                        merchant_id: Some(processor_merchant_id.clone()),
+                        payment_token: Some(payment_token),
+                        payment_method: Some(common_enums::PaymentMethod::Card),
+                        payment_method_type: payment_attempt.payment_method_type,
+                        ..Default::default()
+                    };
+                    Box::pin(payments::external_vault_proxy_for_payments_core::<
+                        api::ExternalVaultProxy,
+                        api::PaymentsResponse,
+                        _,
+                        _,
+                        _,
+                        payments::PaymentData<api::ExternalVaultProxy>,
+                    >(
+                        state.clone(),
+                        req_state,
+                        platform.clone(),
+                        payment_intent.profile_id.clone(),
+                        payments::PaymentExternalVaultProxyConfirm,
+                        external_vault_req,
+                        services::api::AuthFlow::Merchant,
+                        payments::CallConnectorAction::Trigger,
+                        HeaderPayload::with_source(enums::PaymentSource::ExternalAuthenticator),
+                        None,
+                    ))
+                    .await?
+                } else if is_setup_mandate {
                     Box::pin(payments::payments_core::<
                         api::SetupMandate,
                         api::PaymentsResponse,
