@@ -3473,7 +3473,6 @@ Cypress.Commands.add(
       body: body,
     }).then((response) => {
       logRequestId(response.headers["x-request-id"]);
-      storeRequestId(response.headers["x-request-id"], globalState);
       cy.wrap(response).then(() => {
         if (response.status === 200) {
           expect(response.headers["content-type"]).to.include(
@@ -4718,6 +4717,7 @@ Cypress.Commands.add(
       body: requestBody,
     }).then((response) => {
       logRequestId(response.headers["x-request-id"]);
+      storeRequestId(response.headers["x-request-id"], globalState);
 
       cy.wrap(response).then(() => {
         expect(response.headers["content-type"]).to.include("application/json");
@@ -4762,6 +4762,7 @@ Cypress.Commands.add(
       failOnStatusCode: false,
     }).then((response) => {
       logRequestId(response.headers["x-request-id"]);
+      storeRequestId(response.headers["x-request-id"], globalState);
 
       cy.wrap(response).then(() => {
         expect(response.headers["content-type"]).to.include("application/json");
