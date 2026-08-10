@@ -1398,3 +1398,73 @@ impl ErrorSwitch<ConnectorError> for UnifiedConnectorServiceError {
         }
     }
 }
+
+/// Classification of a UCS failure for the primary→shadow kill switch.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum UcsKillSwitchReason {
+    /// Couldn't even reach Prism (gRPC dial/transport failure).
+    UcsUnreachable,
+    /// Prism itself returned a server-class gRPC status (Internal/Unknown/Unavailable/DataLoss).
+    UcsServerError,
+    /// Prism reached the connector but the connector endpoint returned 5xx / timed out.
+    ConnectorServerErrorViaUcs,
+    /// The request/response transformation layer in Prism is malformed for this flow.
+    TransformationBroken,
+}
+
+impl UcsKillSwitchReason {
+    /// Stable label used in metrics and logs.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::UcsUnreachable => "ucs_unreachable",
+            Self::UcsServerError => "ucs_server_error",
+            Self::ConnectorServerErrorViaUcs => "connector_server_error_via_ucs",
+            Self::TransformationBroken => "transformation_broken",
+        }
+    }
+}
+
+impl UnifiedConnectorServiceError {
+    /// Classify whether an error from a **primary**-mode UCS call should trip the
+    /// primary→shadow kill switch.
+    ///
+    /// Returns `Some(reason)` only when the error indicates Prism itself, or the
+    /// transformation layer, is at fault — i.e. the legacy Direct path would very
+    /// likely succeed. Returns `None` for connector 4xx (bad customer/merchant
+    /// data), Prism validation 4xx (bad request payload), `NotImplemented` (config
+    /// mistake), and Hyperswitch-side request-construction errors — none of which
+    /// are fixed by flipping the mode.
+    pub fn ucs_kill_switch_reason(&self) -> Option<UcsKillSwitchReason> {
+        match self {
+            // Can't reach Prism at all — classic "service is down".
+            Self::ConnectionError(_) => Some(UcsKillSwitchReason::UcsUnreachable),
+
+            // Prism server itself panicked / is overloaded / mid-deploy.
+            Self::TonicStatus { code, .. }
+                if Self::tonic_status_is_ucs_server_error(*code) =>
+            {
+                Some(UcsKillSwitchReason::UcsServerError)
+            }
+
+            // Prism reached the connector but the connector endpoint 5xx'd.
+            // `status_code == 0` means the stream died before an HTTP status ever
+            // materialised — still a connector-side outage.
+            Self::ConnectorError(inner)
+                if inner.status_code >= 500 || inner.status_code ==	0 =>
+            {
+                Some(UcsKillSwitchReason::ConnectorServerErrorViaUcs)
+            }
+
+            // Prism transformation layer emitted something we can't decode. Shadow
+            // mode was built exactly to catch this; once it leaks to Primary we
+            // should drain traffic back to Direct while keeping the diff stream alive.
+            Self::ResponseDeserializationFailed | Self::ParsingFailed => {
+                Some(UcsKillSwitchReason::TransformationBroken)
+            }
+
+            // Everything else: connector 4xx, Prism validation 4xx, NotImplemented,
+            // missing-field / auth / header-injection bugs on the Hyperswitch side.
+            _ => None,
+        }
+    }
+}
