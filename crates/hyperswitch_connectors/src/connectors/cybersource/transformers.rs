@@ -4335,7 +4335,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<CybersourcePaymentsResponse>>
         let response =
             get_payment_response((&item.response, status, item.http_code)).map_err(|err| *err);
         let (status, response) = if utils::is_payment_failure(status) {
-            let new_status = enums::AttemptStatus::Authorized;
+            let new_status = item.data.status;
             let new_response = response.map_err(|err| ErrorResponse {
                 attempt_status: Some(new_status),
                 ..err
