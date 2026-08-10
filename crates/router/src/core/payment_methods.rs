@@ -6106,6 +6106,25 @@ impl RawPaymentMethodFetchAccess {
             }
 
             Self::Allowed => {
+                // Externally-vaulted (proxy) cards have no PAN in our own vault to retrieve — the
+                // card lives at the external vault (e.g. VGS) and is never given a `locker_id`, so
+                // a live `retrieve_payment_method_data_from_storage` call always fails with a
+                // missing `connector_vault_id`. Short-circuit the same way `Denied` does and hand
+                // back the stored alias as a `ProxyCard` instead of attempting a vault fetch.
+                let proxy_card_data = payment_method
+                    .external_vault_token_data
+                    .clone()
+                    .map(|enc| enc.into_inner());
+                if let Some(external_vault_token_data) = proxy_card_data {
+                    return Ok(Some(payment_methods::RawPaymentMethodData::ProxyCard(
+                        payment_methods::RawProxyCardDataResponse {
+                            card_number: external_vault_token_data.tokenized_card_number,
+                            card_exp_year: None,
+                            card_exp_month: None,
+                        },
+                    )));
+                }
+
                 let should_skip_vault_fetch = matches!(
                     payment_method.payment_method_type,
                     Some(enums::PaymentMethod::Wallet) | Some(enums::PaymentMethod::BankRedirect)
