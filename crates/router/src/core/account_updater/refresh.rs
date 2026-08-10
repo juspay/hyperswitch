@@ -36,7 +36,7 @@ pub async fn request_account_updater_refresh(
     };
 
     let (connector, auth_type, metadata) = config
-        .to_connector_auth()
+        .build_connector_credentials()
         .change_context(AccountUpdaterError::RefreshCallFailed)
         .attach_printable("Failed to build the Account Updater connector metadata")?;
 

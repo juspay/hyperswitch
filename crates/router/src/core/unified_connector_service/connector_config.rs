@@ -183,8 +183,6 @@ pub struct TsysTransitMetadata {
     merchant_url: Option<url::Url>,
 }
 
-/// Juspay Account Updater credentials, carried outside the auth type because they come from
-/// application config rather than a merchant connector account.
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct JuspayMetadata {
     pub merchant_id: String,

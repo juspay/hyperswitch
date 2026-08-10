@@ -32,8 +32,8 @@ pub enum ResolvedAccountUpdaterConfig {
 }
 
 impl ResolvedAccountUpdaterConfig {
-    /// Builds the connector, auth type and metadata UCS resolves the connector config from.
-    pub fn to_connector_auth(
+    /// Builds the connector, auth type and metadata the connector config is resolved from.
+    pub fn build_connector_credentials(
         &self,
     ) -> RouterResult<(Connector, ConnectorAuthType, serde_json::Value)> {
         match self {
