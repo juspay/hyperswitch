@@ -123,6 +123,39 @@ pub async fn recovery_incoming_webhook_flow(
         billing_connector_invoice_details.as_ref(),
     )?;
 
+    let is_event_recovery_transaction_event = event_type.is_recovery_transaction_event();
+
+    // Parse the transaction and resolve its payment connector *before* touching the database.
+    // An unmapped `connector_account_reference_id` is a merchant configuration gap: rejecting it
+    // here means the webhook is refused without leaving a dangling intent behind, and the billing
+    // connector's own retry replays it once the mapping is fixed.
+    let resolved_transaction_details = match is_event_recovery_transaction_event {
+        true => {
+            let invoice_transaction_details =
+                RevenueRecoveryAttempt::get_recovery_invoice_transaction_details(
+                    connector_enum,
+                    request_details,
+                    billing_connector_payment_details.as_ref(),
+                    &invoice_details.0,
+                )?;
+
+            // Find the payment merchant connector ID at the top level to avoid multiple DB calls.
+            let payment_merchant_connector_account = invoice_transaction_details
+                .find_payment_merchant_connector_account(
+                    &state,
+                    platform.get_processor().get_key_store(),
+                    &billing_connector_account,
+                )
+                .await?;
+
+            Some((
+                invoice_transaction_details,
+                payment_merchant_connector_account,
+            ))
+        }
+        false => None,
+    };
+
     // Fetch the intent using merchant reference id, if not found create new intent.
     let payment_intent = invoice_details
         .get_payment_intent(&state, &req_state, &platform, &business_profile)
@@ -135,20 +168,15 @@ pub async fn recovery_incoming_webhook_flow(
         })
         .await?;
 
-    let is_event_recovery_transaction_event = event_type.is_recovery_transaction_event();
     let (recovery_attempt_from_payment_attempt, recovery_intent_from_payment_attempt) =
         RevenueRecoveryAttempt::get_recovery_payment_attempt(
-            is_event_recovery_transaction_event,
+            resolved_transaction_details,
             &billing_connector_account,
             &state,
-            connector_enum,
             &req_state,
-            billing_connector_payment_details.as_ref(),
-            request_details,
             &platform,
             &business_profile,
             &payment_intent,
-            &invoice_details.0,
         )
         .await?;
 
@@ -816,42 +844,55 @@ impl RevenueRecoveryAttempt {
         state: &SessionState,
         key_store: &domain::MerchantKeyStore,
         billing_connector_account: &domain::MerchantConnectorAccount,
-    ) -> CustomResult<Option<domain::MerchantConnectorAccount>, errors::RevenueRecoveryError> {
+    ) -> CustomResult<domain::MerchantConnectorAccount, errors::RevenueRecoveryError> {
+        let connector_account_reference_id = &self.0.connector_account_reference_id;
+
+        // An unmapped account reference id is a merchant configuration gap, not an absent optional
+        // value. Returning `None` here would record the attempt with no connector, which strands the
+        // intent in `requires_payment_method` because the intent update is skipped downstream.
         let payment_merchant_connector_account_id = billing_connector_account
             .get_payment_merchant_connector_account_id_using_account_reference_id(
-                self.0.connector_account_reference_id.clone(),
-            );
+                connector_account_reference_id.clone(),
+            )
+            .ok_or(report!(
+                errors::RevenueRecoveryError::PaymentMerchantConnectorAccountNotFound
+            ))
+            .attach_printable_lazy(|| {
+                format!(
+                    "no payment merchant connector account is mapped to account reference id \
+                     {connector_account_reference_id} in the feature metadata of billing connector \
+                     account {}",
+                    billing_connector_account.get_id().get_string_repr()
+                )
+            })?;
+
         let db = &*state.store;
-        let payment_merchant_connector_account = payment_merchant_connector_account_id
-            .as_ref()
-            .async_map(|mca_id| async move {
-                db.find_merchant_connector_account_by_id(mca_id, key_store)
-                    .await
-            })
+        db.find_merchant_connector_account_by_id(&payment_merchant_connector_account_id, key_store)
             .await
-            .transpose()
             .change_context(errors::RevenueRecoveryError::PaymentMerchantConnectorAccountNotFound)
-            .attach_printable(
-                "failed to fetch payment merchant connector id using account reference id",
-            )?;
-        Ok(payment_merchant_connector_account)
+            .attach_printable_lazy(|| {
+                format!(
+                    "failed to fetch payment merchant connector account {} mapped to account \
+                     reference id {connector_account_reference_id}",
+                    payment_merchant_connector_account_id.get_string_repr()
+                )
+            })
     }
 
-    #[allow(clippy::too_many_arguments)]
+    /// Records (or fetches) the payment attempt for an already-resolved transaction.
+    ///
+    /// `resolved_transaction_details` is `None` for non-transaction events (e.g. invoice
+    /// generated), which have no attempt to record. When it is `Some`, the payment merchant
+    /// connector account has already been resolved by the caller, so nothing here can fail on a
+    /// missing gateway mapping.
     async fn get_recovery_payment_attempt(
-        is_recovery_transaction_event: bool,
+        resolved_transaction_details: Option<(Self, domain::MerchantConnectorAccount)>,
         billing_connector_account: &domain::MerchantConnectorAccount,
         state: &SessionState,
-        connector_enum: &connector_integration_interface::ConnectorEnum,
         req_state: &ReqState,
-        billing_connector_payment_details: Option<
-            &revenue_recovery_response::BillingConnectorPaymentsSyncResponse,
-        >,
-        request_details: &hyperswitch_interfaces::webhooks::IncomingWebhookRequestDetails<'_>,
         platform: &domain::Platform,
         business_profile: &domain::Profile,
         payment_intent: &revenue_recovery::RecoveryPaymentIntent,
-        invoice_details: &revenue_recovery::RevenueRecoveryInvoiceData,
     ) -> CustomResult<
         (
             Option<revenue_recovery::RecoveryPaymentAttempt>,
@@ -859,24 +900,8 @@ impl RevenueRecoveryAttempt {
         ),
         errors::RevenueRecoveryError,
     > {
-        let payment_attempt_with_recovery_intent = match is_recovery_transaction_event {
-            true => {
-                let invoice_transaction_details = Self::get_recovery_invoice_transaction_details(
-                    connector_enum,
-                    request_details,
-                    billing_connector_payment_details,
-                    invoice_details,
-                )?;
-
-                // Find the payment merchant connector ID at the top level to avoid multiple DB calls.
-                let payment_merchant_connector_account = invoice_transaction_details
-                    .find_payment_merchant_connector_account(
-                        state,
-                        platform.get_processor().get_key_store(),
-                        billing_connector_account,
-                    )
-                    .await?;
-
+        let payment_attempt_with_recovery_intent = match resolved_transaction_details {
+            Some((invoice_transaction_details, payment_merchant_connector_account)) => {
                 let (payment_attempt, updated_payment_intent) = invoice_transaction_details
                     .get_payment_attempt(
                         state,
@@ -896,7 +921,7 @@ impl RevenueRecoveryAttempt {
                                 business_profile,
                                 payment_intent,
                                 &billing_connector_account.get_id(),
-                                payment_merchant_connector_account,
+                                Some(payment_merchant_connector_account),
                             )
                             .await
                     })
@@ -904,7 +929,7 @@ impl RevenueRecoveryAttempt {
                 (Some(payment_attempt), updated_payment_intent)
             }
 
-            false => (None, payment_intent.clone()),
+            None => (None, payment_intent.clone()),
         };
 
         Ok(payment_attempt_with_recovery_intent)
