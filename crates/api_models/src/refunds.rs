@@ -235,6 +235,8 @@ pub struct RefundManualUpdateRequest {
     /// Merchant ID
     #[schema(value_type = String)]
     pub merchant_id: common_utils::id_type::MerchantId,
+    /// A unique identifier for a refund provided by the connector
+    pub connector_refund_id: Option<String>,
     /// The status for refund
     pub status: Option<RefundStatus>,
     /// The code for the error
