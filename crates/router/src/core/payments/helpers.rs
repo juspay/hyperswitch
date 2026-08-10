@@ -2507,7 +2507,7 @@ pub async fn is_ucs_enabled(state: &SessionState, config_key: &str) -> bool {
         .unwrap_or(false)
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RolloutConfig {
     pub rollout_percent: f64,
     pub http_url: Option<String>,
