@@ -561,13 +561,6 @@ export const CONNECTOR_LISTS = {
       "tsys_transit",
     ],
     SAVE_CARD: ["helcim"],
-    // payloadconnect always splits the full payment amount to receivers via
-    // the ledger, leaving nothing in the merchant's transaction balance for
-    // a standard refund. Payload's connector integration has no split-aware
-    // refund mechanism (crates/hyperswitch_connectors/src/connectors/payload
-    // /transformers.rs builds PayloadRefundRequest from amount +
-    // connector_transaction_id only), so refunds are unsupported here.
-    SPLIT_PAYMENTS_REFUND: ["payloadconnect"],
     // Connectors that never return a `connector_mandate_id` on the payments
     // response. Recurring payments for them go through connector agnostic MIT,
     // so the "connector_mandate_id must not be null" assertion is skipped
