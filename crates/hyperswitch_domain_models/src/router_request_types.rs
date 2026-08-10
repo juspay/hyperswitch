@@ -870,7 +870,6 @@ pub struct PaymentsPreAuthenticateData {
     // New amount for amount frame work
     pub minor_amount: MinorUnit,
     pub webhook_url: Option<String>,
-    pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
 }
 
 impl TryFrom<PaymentsAuthorizeData> for PaymentsPreAuthenticateData {
@@ -892,7 +891,6 @@ impl TryFrom<PaymentsAuthorizeData> for PaymentsPreAuthenticateData {
             browser_info: data.browser_info,
             enrolled_for_3ds: data.enrolled_for_3ds,
             webhook_url: data.webhook_url,
-            split_payments: data.split_payments,
         })
     }
 }
@@ -916,7 +914,6 @@ impl TryFrom<SetupMandateRequestData> for PaymentsPreAuthenticateData {
             browser_info: data.browser_info,
             enrolled_for_3ds: data.enrolled_for_3ds,
             webhook_url: data.webhook_url,
-            split_payments: data.split_payments,
         })
     }
 }
