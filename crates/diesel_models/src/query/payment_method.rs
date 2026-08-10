@@ -4,6 +4,8 @@ use diesel::Table;
 use diesel::{
     associations::HasTable, debug_query, pg::Pg, BoolExpressionMethods, ExpressionMethods, QueryDsl,
 };
+#[cfg(feature = "v2")]
+use diesel::PgSortExpressionMethods;
 use error_stack::ResultExt;
 
 use super::generics;
@@ -264,12 +266,30 @@ impl PaymentMethod {
 
 #[cfg(feature = "v2")]
 impl PaymentMethod {
+    /// Resolves an id to the row that currently represents that payment method.
+    ///
+    /// An id can span several rows once a card change has been applied: one active row alongside
+    /// any number of retired ones. The newest row wins; the fingerprint breaks a same-timestamp tie
+    /// toward the live row, since retired rows carry a NULL fingerprint.
     pub async fn find_by_id(
         conn: &PgPooledConn,
         id: &common_utils::id_type::GlobalPaymentMethodId,
     ) -> StorageResult<Self> {
-        generics::generic_find_one::<<Self as HasTable>::Table, _, _>(conn, pm_id.eq(id.to_owned()))
-            .await
+        generics::generic_filter::<<Self as HasTable>::Table, _, _, Self>(
+            conn,
+            pm_id.eq(id.to_owned()),
+            Some(1),
+            None,
+            Some((
+                dsl::created_at.desc(),
+                dsl::locker_fingerprint_id.desc().nulls_last(),
+            )),
+        )
+        .await?
+        .into_iter()
+        .next()
+        .ok_or_else(|| error_stack::report!(errors::DatabaseError::NotFound))
+        .attach_printable("Error finding payment method by id")
     }
 
     pub async fn find_by_global_customer_id_merchant_id_statuses(
