@@ -78,10 +78,10 @@ pub struct PaymentMethod {
     // Do not use this column in v1 business logic.
     pub payment_method_subtype: Option<String>,
     pub network_transaction_link_id: Option<String>,
-    // Connector-specific payment method details returned during a payment.
-    pub connector_payment_method_details: Option<pii::SecretSerdeValue>,
     pub compatibility_updated_at: Option<PrimitiveDateTime>,
     pub auxiliary_fingerprint_id: Option<String>,
+    // Connector-specific payment method details returned during a payment.
+    pub connector_payment_method_details: Option<pii::SecretSerdeValue>,
 }
 
 #[cfg(feature = "v2")]
@@ -189,9 +189,9 @@ pub struct PaymentMethodNew {
     pub network_tokenization_data: Option<Encryption>,
     pub id: Option<String>,
     pub compatibility_updated_at: Option<PrimitiveDateTime>,
+    pub auxiliary_fingerprint_id: Option<String>,
     // Connector-specific payment method details returned during a payment.
     pub connector_payment_method_details: Option<pii::SecretSerdeValue>,
-    pub auxiliary_fingerprint_id: Option<String>,
 }
 
 #[cfg(feature = "v2")]
