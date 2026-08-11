@@ -451,11 +451,8 @@ where
     }
 }
 
-/// Deja boundary for the in-memory (L1) cache lookup. Captures the `Option<T>`
-/// outcome on record and Substitutes it per-correlation on replay: a recorded
-/// `Some(v)` returns the value; a recorded `None` (absence) returns `None`, so
-/// the caller re-runs the redis fallback — the same control flow as record. The
-/// `cache` handle is not serialized (args = cache name + physical key); the
+/// Recorded args for the [`Cache`] boundaries: cache name + un-namespaced
+/// physical key, so the args a replay computes match the recording's.
 #[cfg(feature = "deja")]
 fn deja_in_memory_args(cache_name: &str, key: &CacheKey) -> serde_json::Value {
     serde_json::json!({ "cache": cache_name, "key": String::from(key.clone()) })

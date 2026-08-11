@@ -84,7 +84,17 @@ pub struct EdgeId(usize);
 impl_entity!(EdgeId);
 
 #[derive(
-    Debug, Clone, Copy, serde::Serialize, serde::Deserialize, PartialEq, Eq, Hash, strum::Display, PartialOrd, Ord,
+    Debug,
+    Clone,
+    Copy,
+    serde::Serialize,
+    serde::Deserialize,
+    PartialEq,
+    Eq,
+    Hash,
+    strum::Display,
+    PartialOrd,
+    Ord,
 )]
 pub enum Strength {
     Weak,
@@ -98,7 +108,9 @@ impl Strength {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, strum::Display, serde::Serialize, serde::Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, strum::Display, serde::Serialize, serde::Deserialize,
+)]
 #[serde(rename_all = "snake_case")]
 pub enum Relation {
     Positive,

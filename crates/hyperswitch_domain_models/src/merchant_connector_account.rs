@@ -348,13 +348,13 @@ pub struct PaymentMethodsEnabledForConnector {
 }
 
 #[cfg(feature = "v2")]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct MerchantConnectorAccountFeatureMetadata {
     pub revenue_recovery: Option<RevenueRecoveryMetadata>,
 }
 
 #[cfg(feature = "v2")]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct RevenueRecoveryMetadata {
     pub max_retry_count: u16,
     pub billing_connector_retry_threshold: u16,
@@ -367,7 +367,7 @@ pub struct ExternalVaultConnectorMetadata {
     pub certificate: Secret<String>,
 }
 #[cfg(feature = "v2")]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct AccountReferenceMap {
     pub recovery_to_billing: HashMap<id_type::MerchantConnectorAccountId, String>,
     pub billing_to_recovery: HashMap<String, id_type::MerchantConnectorAccountId>,
