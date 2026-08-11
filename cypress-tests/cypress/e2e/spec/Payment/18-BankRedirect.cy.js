@@ -3,6 +3,10 @@ import State from "../../../utils/State";
 import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
 
 let globalState;
+const UCS_ONLY_BANK_REDIRECT_CONTEXTS = {
+  truelayer: ["Truelayer Create and Confirm flow test"],
+  trustly: ["Trustly Create and Confirm flow test"],
+};
 
 describe("Bank Redirect tests", () => {
   before("seed global state", () => {
@@ -13,6 +17,21 @@ describe("Bank Redirect tests", () => {
 
   afterEach("flush global state", () => {
     cy.task("setGlobalState", globalState.data);
+  });
+
+  beforeEach(function () {
+    const connectorId = globalState.get("connectorId");
+    const supportedContexts = UCS_ONLY_BANK_REDIRECT_CONTEXTS[connectorId];
+    const contextTitle = this.currentTest.parent.title;
+
+    if (
+      supportedContexts &&
+      !supportedContexts.some((contextName) =>
+        contextTitle.includes(contextName)
+      )
+    ) {
+      this.skip();
+    }
   });
 
   context("Blik Create and Confirm flow test", () => {
@@ -740,6 +759,7 @@ describe("Bank Redirect tests", () => {
       let shouldContinue = true;
 
       cy.step("Setup UCS rollout config", () => {
+        // Trustly is UCS-only; this enables the Trustly authorize flow in primary mode.
         cy.createRolloutConfig(globalState, "bank_redirect_trustly_Authorize");
       });
 

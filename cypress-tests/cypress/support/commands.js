@@ -156,6 +156,7 @@ function createIndividualRolloutConfig(
 
   const url = `${baseUrl}/configs/`;
 
+  // Keep non-retryable config failures visible while preserving the Cypress chain.
   const handleConfigCreateFailure = (response) => {
     const errorMsg = response.body?.error?.message || "Unknown error";
     return cy

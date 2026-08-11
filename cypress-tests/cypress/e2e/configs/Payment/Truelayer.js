@@ -16,21 +16,8 @@ const billingAddressGB = {
   },
 };
 
-const unsupportedBankRedirect = getCustomExchange({
-  Configs: {
-    TRIGGER_SKIP: true,
-  },
-});
-
 export const connectorDetails = {
   bank_redirect_pm: {
-    Blik: unsupportedBankRedirect,
-    Eps: unsupportedBankRedirect,
-    Giropay: unsupportedBankRedirect,
-    Ideal: unsupportedBankRedirect,
-    Sofort: unsupportedBankRedirect,
-    Przelewy24: unsupportedBankRedirect,
-    OpenBankingUk: unsupportedBankRedirect,
     Truelayer: getCustomExchange({
       Request: {
         payment_method: "bank_redirect",
@@ -55,11 +42,6 @@ export const connectorDetails = {
         skipPaymentMethodStatusAssertion: true,
       },
     }),
-    OnlineBankingFpx: unsupportedBankRedirect,
-    Interac: unsupportedBankRedirect,
-    Trustly: unsupportedBankRedirect,
-    Eft: unsupportedBankRedirect,
-    BancontactCard: unsupportedBankRedirect,
     TruelayerNoBilling: getCustomExchange({
       Request: {
         payment_method: "bank_redirect",
