@@ -2506,10 +2506,7 @@ pub async fn is_config_flag_enabled(state: &SessionState, config_key: &str) -> b
     db.find_config_by_key_unwrap_or(config_key, Some("false".to_string()))
         .await
         .inspect_err(|error| {
-            logger::error!(
-                ?error,
-                "Failed to fetch `{config_key}` config from DB"
-            );
+            logger::error!(?error, "Failed to fetch `{config_key}` config from DB");
         })
         .ok()
         .and_then(|config| {
