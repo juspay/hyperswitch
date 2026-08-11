@@ -205,9 +205,12 @@ pub struct ConfigMetadata {
     pub kid: Option<InputData>,
     pub account_holder_name: Option<InputData>,
     pub private_key: Option<InputData>,
-    pub merchant_street_address: Option<String>,
-    pub customer_service_phone_number: Option<String>,
-    pub merchant_url: Option<String>,
+    pub merchant_street_address: Option<InputData>,
+    pub customer_service_phone_number: Option<InputData>,
+    pub merchant_url: Option<InputData>,
+    pub client_secret: Option<InputData>,
+    pub client_id: Option<InputData>,
+    pub workspace_id: Option<InputData>,
 }
 
 #[serde_with::skip_serializing_none]
