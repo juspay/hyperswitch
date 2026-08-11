@@ -4,6 +4,25 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.08.11.0
+
+### Features
+
+- **payments:** Add superposition config for blocking implicit customer creation ([#13561](https://github.com/juspay/hyperswitch/pull/13561)) ([`755cf7f`](https://github.com/juspay/hyperswitch/commit/755cf7f91b589e5011cada5d152aa255970a242f))
+- **routing:** Add automatic kill switch for decision engine routing diffs ([#13564](https://github.com/juspay/hyperswitch/pull/13564)) ([`89979d6`](https://github.com/juspay/hyperswitch/commit/89979d622b5586cdbfb203e9eb51afa89991e117))
+- Add support for enabling kv for all merchants in cypress tests ([#12747](https://github.com/juspay/hyperswitch/pull/12747)) ([`005a956`](https://github.com/juspay/hyperswitch/commit/005a95611eedc6bf000b215d0222ed7e61c80b44))
+
+### Bug Fixes
+
+- **connector:** [Stripe] Pass line_items whenever L2L3 config is enabled ([#13604](https://github.com/juspay/hyperswitch/pull/13604)) ([`17f1230`](https://github.com/juspay/hyperswitch/commit/17f1230da05fa16f8ea4d5bd52067cd429576e91))
+- **router:** Add payment advanced list routes ([#13594](https://github.com/juspay/hyperswitch/pull/13594)) ([`2bfa24e`](https://github.com/juspay/hyperswitch/commit/2bfa24e7564459399bfb79f6abaafe0d6eb13acc))
+- **ucs:** Add missing mifinity config for HS<> UCS call ([#13596](https://github.com/juspay/hyperswitch/pull/13596)) ([`c684c18`](https://github.com/juspay/hyperswitch/commit/c684c18cd3dca543d39bf27d63f67cdbbc7f0856))
+- Add Vgs to RoutableConnectors to fix vault processor MCA update ([#13509](https://github.com/juspay/hyperswitch/pull/13509)) ([`6f86ea2`](https://github.com/juspay/hyperswitch/commit/6f86ea2d8302e8b5c90ef26ada797c6e563327e3))
+
+**Full Changelog:** [`2026.08.10.0...2026.08.11.0`](https://github.com/juspay/hyperswitch/compare/2026.08.10.0...2026.08.11.0)
+
+- - -
+
 ## 2026.08.10.0
 
 ### Features
