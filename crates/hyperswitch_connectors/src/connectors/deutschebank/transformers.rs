@@ -69,6 +69,26 @@ impl TryFrom<&ConnectorAuthType> for DeutschebankAuthType {
                 merchant_id: key1.to_owned(),
                 client_key: api_secret.to_owned(),
             }),
+            // MultiAuthKey is the payouts shape: CSEAL credentials are routed
+            // to prism (UCS) rather than used by this struct directly. We
+            // accept it here so MCA creation/validation succeeds for
+            // payout_processor connectors; the actual CSEAL flow runs in prism
+            // and reads the four secrets from `ConnectorAuthMetadata`.
+            //
+            //   api_key   -> customer_identifier
+            //   key1      -> key_id
+            //   api_secret-> signing_private_key (PEM)
+            //   key2      -> client_certificate_bundle (PEM cert + key)
+            ConnectorAuthType::MultiAuthKey {
+                api_key,
+                key1,
+                api_secret,
+                key2: _,
+            } => Ok(Self {
+                client_id: api_key.to_owned(),
+                merchant_id: key1.to_owned(),
+                client_key: api_secret.to_owned(),
+            }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
         }
     }
