@@ -1467,8 +1467,6 @@ impl UnifiedConnectorServiceError {
             Self::NotImplemented(_) => Some(UcsKillSwitchReason::UcsFlowUnsupported),
 
             // UCS-side by construction: `from_grpc_error` extracts connector errors first.
-            // Matched here rather than via `tonic_status_is_ucs_server_error`, which splits these
-            // two ways and needs three, and defaults silently on a new code.
             Self::TonicStatus { code, .. } => match code {
                 // UCS-wide rather than scope-specific. Still worth falling back for: while UCS
                 // is unwell the payment has nowhere else to go and fails outright.
