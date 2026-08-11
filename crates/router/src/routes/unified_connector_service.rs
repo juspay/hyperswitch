@@ -36,16 +36,19 @@ pub async fn reset_kill_switch(
     path: web::Path<(common_utils::id_type::MerchantId, String, String)>,
 ) -> impl Responder {
     let flow = Flow::UnifiedConnectorServiceKillSwitchReset;
-    let (merchant_id, connector_name, flow_name) = path.into_inner();
+    let (merchant_id, connector, flow_name) = path.into_inner();
+    let payload = kill_switch::KillSwitchScopeRequest {
+        merchant_id,
+        connector,
+        flow: flow_name,
+    };
 
     Box::pin(oss_api::server_wrap(
         flow,
         state,
         &req,
-        (merchant_id, connector_name, flow_name),
-        |state, _, (merchant_id, connector_name, flow_name), _| {
-            kill_switch::reset_cut_over(state, merchant_id, connector_name, flow_name)
-        },
+        payload,
+        |state, _, payload, _| kill_switch::reset_cut_over(state, payload),
         &auth::AdminApiAuth,
         api_locking::LockAction::NotApplicable,
     ))

@@ -347,17 +347,38 @@ async fn cut_over(
     }
 }
 
+/// Identifies the scope an admin request targets. Mirrors [`build_scope`]'s inputs so an operator
+/// never has to assemble the key format by hand.
+#[derive(Debug, serde::Serialize)]
+pub struct KillSwitchScopeRequest {
+    pub merchant_id: common_utils::id_type::MerchantId,
+    pub connector: String,
+    pub flow: String,
+}
+
+impl common_utils::events::ApiEventMetric for KillSwitchScopeRequest {}
+
+/// Scopes currently cut over.
+#[derive(Debug, serde::Serialize)]
+pub struct KillSwitchListResponse {
+    pub cut_over_scopes: Vec<String>,
+}
+
+impl common_utils::events::ApiEventMetric for KillSwitchListResponse {}
+
 /// Clears the cutover for a scope, returning it to whatever its rollout config says.
 ///
 /// Kept an explicit operator action rather than an automatic recovery: nothing should silently
 /// put a scope that already burned live traffic back on UCS.
 pub async fn reset_cut_over(
     state: SessionState,
-    merchant_id: common_utils::id_type::MerchantId,
-    connector_name: String,
-    flow_name: String,
+    request: KillSwitchScopeRequest,
 ) -> errors::RouterResponse<()> {
-    let scope = build_scope(merchant_id.get_string_repr(), &connector_name, &flow_name);
+    let scope = build_scope(
+        request.merchant_id.get_string_repr(),
+        &request.connector,
+        &request.flow,
+    );
 
     state
         .store
@@ -382,10 +403,12 @@ pub async fn reset_cut_over(
 /// Without this the switch is unusable at the scale it guards — there are over a thousand
 /// provisioned rollout keys, and an on-call engineer cannot reconstruct which ones are cut over
 /// by grepping logs.
-pub async fn list_cut_over_scopes(state: SessionState) -> errors::RouterResponse<Vec<String>> {
+pub async fn list_cut_over_scopes(
+    state: SessionState,
+) -> errors::RouterResponse<KillSwitchListResponse> {
     let prefix = consts::UCS_KILL_SWITCH_REDIS_PREFIX;
 
-    let keys = state
+    let cut_over_scopes = state
         .store
         .get_redis_conn()
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -395,7 +418,9 @@ pub async fn list_cut_over_scopes(state: SessionState) -> errors::RouterResponse
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to scan UCS kill switch cutovers")?;
 
-    Ok(crate::services::ApplicationResponse::Json(keys))
+    Ok(crate::services::ApplicationResponse::Json(
+        KillSwitchListResponse { cut_over_scopes },
+    ))
 }
 
 #[cfg(test)]

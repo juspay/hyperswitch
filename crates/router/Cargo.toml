@@ -335,6 +335,7 @@ derive_deref = "1.1.1"
 rand = "0.8.5"
 serial_test = "3.2.0"
 time = { version = "0.3.41", features = ["macros"] }
+tonic = "0.14"
 tokio = "1.48.0"
 wiremock = "0.6.3"
 
