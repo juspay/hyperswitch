@@ -3046,11 +3046,11 @@ impl PaymentsSetupMandateRequestData for SetupMandateRequestData {
 
 pub trait PaymentMethodTokenizationRequestData {
     fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
+    fn get_optional_ip_address(&self) -> Option<Secret<String, IpAddress>>;
+    fn get_optional_user_agent(&self) -> Option<String>;
     fn get_router_return_url(&self) -> Result<String, Error>;
     fn is_mandate_payment(&self) -> bool;
     fn is_customer_initiated_mandate_payment(&self) -> bool;
-    fn get_optional_ip_address(&self) -> Option<Secret<String, IpAddress>>;
-    fn get_optional_user_agent(&self) -> Option<String>;
 }
 
 impl PaymentMethodTokenizationRequestData for PaymentMethodTokenizationData {
@@ -3059,6 +3059,20 @@ impl PaymentMethodTokenizationRequestData for PaymentMethodTokenizationData {
             .clone()
             .ok_or_else(missing_field_err("browser_info"))
     }
+
+    fn get_optional_ip_address(&self) -> Option<Secret<String, IpAddress>> {
+        self.browser_info.clone().and_then(|browser_info| {
+            browser_info
+                .ip_address
+                .map(|ip| Secret::new(ip.to_string()))
+        })
+    }
+    fn get_optional_user_agent(&self) -> Option<String> {
+        self.browser_info
+            .as_ref()
+            .and_then(|browser_info| browser_info.user_agent.clone())
+    }
+
     fn get_router_return_url(&self) -> Result<String, Error> {
         self.router_return_url
             .clone()
@@ -3076,18 +3090,6 @@ impl PaymentMethodTokenizationRequestData for PaymentMethodTokenizationData {
     fn is_customer_initiated_mandate_payment(&self) -> bool {
         (self.customer_acceptance.is_some() || self.setup_mandate_details.is_some())
             && self.setup_future_usage == Some(FutureUsage::OffSession)
-    }
-    fn get_optional_ip_address(&self) -> Option<Secret<String, IpAddress>> {
-        self.browser_info.clone().and_then(|browser_info| {
-            browser_info
-                .ip_address
-                .map(|ip| Secret::new(ip.to_string()))
-        })
-    }
-    fn get_optional_user_agent(&self) -> Option<String> {
-        self.browser_info
-            .as_ref()
-            .and_then(|browser_info| browser_info.user_agent.clone())
     }
 }
 
