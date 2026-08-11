@@ -1406,8 +1406,13 @@ pub enum UcsKillSwitchReason {
     UcsUnreachable,
     /// Prism itself returned a server-class gRPC status (Internal/Unknown/Unavailable/DataLoss).
     UcsServerError,
+    /// Prism returned a client-class gRPC rejection (InvalidArgument / FailedPrecondition /
+    /// NotFound / AlreadyExists / PermissionDenied / Unauthenticated).
+    UcsClientError,
     /// Prism reached the connector but the connector endpoint returned 5xx / timed out.
     ConnectorServerErrorViaUcs,
+    /// Prism reached the connector and the connector returned a 4xx rejection.
+    ConnectorClientErrorViaUcs,
     /// The request/response transformation layer in Prism is malformed for this flow.
     TransformationBroken,
 }
@@ -1418,22 +1423,44 @@ impl UcsKillSwitchReason {
         match self {
             Self::UcsUnreachable => "ucs_unreachable",
             Self::UcsServerError => "ucs_server_error",
+            Self::UcsClientError => "ucs_client_error",
             Self::ConnectorServerErrorViaUcs => "connector_server_error_via_ucs",
+            Self::ConnectorClientErrorViaUcs => "connector_client_error_via_ucs",
             Self::TransformationBroken => "transformation_broken",
         }
     }
 }
 
 impl UnifiedConnectorServiceError {
+    /// True for gRPC client-class codes meaning Prism's request validation
+    /// rejected the call (not a server panic).
+    fn tonic_status_is_ucs_client_error(code: tonic::Code) -> bool {
+        matches!(
+            code,
+            tonic::Code::InvalidArgument
+                | tonic::Code::FailedPrecondition
+                | tonic::Code::NotFound
+                | tonic::Code::AlreadyExists
+                | tonic::Code::PermissionDenied
+                | tonic::Code::Unauthenticated
+                | tonic::Code::OutOfRange
+                | tonic::Code::Cancelled
+        )
+    }
+
     /// Classify whether an error from a **primary**-mode UCS call should trip the
     /// primary→shadow kill switch.
     ///
-    /// Returns `Some(reason)` only when the error indicates Prism itself, or the
-    /// transformation layer, is at fault — i.e. the legacy Direct path would very
-    /// likely succeed. Returns `None` for connector 4xx (bad customer/merchant
-    /// data), Prism validation 4xx (bad request payload), `NotImplemented` (config
-    /// mistake), and Hyperswitch-side request-construction errors — none of which
-    /// are fixed by flipping the mode.
+    /// Policy: any 4xx **or** 5xx coming back through the UCS path trips the switch,
+    /// whether the rejection came from Prism itself or from the upstream connector.
+    /// The reasoning is that Primary mode should not be serving *any* non-2xx at
+    /// higher rates than the legacy path — even a "deterministic" 4xx may indicate
+    /// a transformation drift between Hyperswitch and Prism. Flipping to Shadow is
+    /// safe (legacy path continues serving) and preserves the validation diff stream
+    /// so the team can investigate why Primary misbehaved.
+    ///
+    /// `NotImplemented` is still excluded — it's a config error, not a runtime
+    /// incident, and auto-flipping would silently mask a misconfigured rollout row.
     pub fn ucs_kill_switch_reason(&self) -> Option<UcsKillSwitchReason> {
         match self {
             // Can't reach Prism at all — classic "service is down".
@@ -1444,11 +1471,21 @@ impl UnifiedConnectorServiceError {
                 Some(UcsKillSwitchReason::UcsServerError)
             }
 
+            // Prism's request validation rejected the call.
+            Self::TonicStatus { code, .. } if Self::tonic_status_is_ucs_client_error(*code) => {
+                Some(UcsKillSwitchReason::UcsClientError)
+            }
+
             // Prism reached the connector but the connector endpoint 5xx'd.
             // `status_code == 0` means the stream died before an HTTP status ever
             // materialised — still a connector-side outage.
             Self::ConnectorError(inner) if inner.status_code >= 500 || inner.status_code == 0 => {
                 Some(UcsKillSwitchReason::ConnectorServerErrorViaUcs)
+            }
+
+            // Prism reached the connector and the connector returned a 4xx.
+            Self::ConnectorError(inner) if (400..500).contains(&inner.status_code) => {
+                Some(UcsKillSwitchReason::ConnectorClientErrorViaUcs)
             }
 
             // Prism transformation layer emitted something we can't decode. Shadow
@@ -1458,8 +1495,8 @@ impl UnifiedConnectorServiceError {
                 Some(UcsKillSwitchReason::TransformationBroken)
             }
 
-            // Everything else: connector 4xx, Prism validation 4xx, NotImplemented,
-            // missing-field / auth / header-injection bugs on the Hyperswitch side.
+            // NotImplemented / Unimplemented and Hyperswitch-side request-construction
+            // errors don't trip — they aren't affected by which path served the call.
             _ => None,
         }
     }
