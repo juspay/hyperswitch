@@ -401,6 +401,9 @@ pub struct JuspayAccountUpdaterConfig {
     pub euler_encryption_public_key: Secret<String>,
     pub au_decryption_pvt_key: Secret<String>,
     pub card_sync_key_id: String,
+    #[serde(deserialize_with = "deserialize_hashset")]
+    pub supported_card_networks: HashSet<enums::CardNetwork>,
+    pub refresh_timeout_in_secs: u64,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]

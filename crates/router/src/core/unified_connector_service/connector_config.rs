@@ -1712,7 +1712,8 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                     let juspay_meta = metadata
                         .map(|meta| {
                             serde_json::from_value::<JuspayMetadata>(meta.clone())
-                                .map_err(|_| err("Invalid Juspay metadata format"))
+                                .change_context(errors::ApiErrorResponse::InternalServerError)
+                                .attach_printable("Invalid Juspay metadata format")
                         })
                         .transpose()?
                         .ok_or_else(|| err("Juspay requires metadata"))?;

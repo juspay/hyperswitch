@@ -1,4 +1,6 @@
-use common_enums::connector_enums::Connector;
+use std::{collections::HashSet, time::Duration};
+
+use common_enums::{connector_enums::Connector, CardNetwork};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::router_data::ConnectorAuthType;
 use hyperswitch_masking::Secret;
@@ -28,10 +30,22 @@ pub enum AccountUpdaterCredentialSource {
 
 #[derive(Debug, Clone)]
 pub enum ResolvedAccountUpdaterConfig {
-    Juspay(JuspayCredentials),
+    Juspay(JuspayConfig),
 }
 
 impl ResolvedAccountUpdaterConfig {
+    pub fn supported_card_networks(&self) -> &HashSet<CardNetwork> {
+        match self {
+            Self::Juspay(juspay) => &juspay.supported_card_networks,
+        }
+    }
+
+    pub fn refresh_timeout(&self) -> Duration {
+        match self {
+            Self::Juspay(juspay) => juspay.refresh_timeout,
+        }
+    }
+
     /// Builds the connector, auth type and metadata the connector config is resolved from.
     pub fn build_connector_credentials(
         &self,
@@ -61,13 +75,15 @@ impl ResolvedAccountUpdaterConfig {
 }
 
 #[derive(Debug, Clone)]
-pub struct JuspayCredentials {
+pub struct JuspayConfig {
     pub base_url: url::Url,
     pub api_key: Secret<String>,
     pub merchant_id: String,
     pub euler_encryption_public_key: Secret<String>,
     pub au_decryption_pvt_key: Secret<String>,
     pub card_sync_key_id: String,
+    pub supported_card_networks: HashSet<CardNetwork>,
+    pub refresh_timeout: Duration,
 }
 
 #[derive(Debug, thiserror::Error)]
