@@ -381,7 +381,6 @@ pub const UCS_KILL_SWITCH_REDIS_PREFIX: &str = "ucs_kill_switch";
 // than an open-ended regression.
 pub const UCS_KILL_SWITCH_TTL_IN_SECONDS: i64 = 7 * 24 * 60 * 60;
 
-
 /// Header value indicating that signature-key-based authentication is used.
 pub const UCS_AUTH_SIGNATURE_KEY: &str = "signature-key";
 
