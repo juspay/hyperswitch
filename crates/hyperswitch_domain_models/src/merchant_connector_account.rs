@@ -36,7 +36,7 @@ use crate::{
 };
 
 #[cfg(feature = "v1")]
-#[derive(Clone, Debug, router_derive::ToEncryption)]
+#[derive(Clone, Debug, router_derive::ToEncryption, serde::Serialize, serde::Deserialize)]
 pub struct MerchantConnectorAccount {
     pub merchant_id: id_type::MerchantId,
     pub connector_name: String,
@@ -228,7 +228,7 @@ impl MerchantConnectorAccountTypeDetails {
 }
 
 #[cfg(feature = "v2")]
-#[derive(Clone, Debug, router_derive::ToEncryption)]
+#[derive(Clone, Debug, router_derive::ToEncryption, serde::Serialize, serde::Deserialize)]
 pub struct MerchantConnectorAccount {
     pub id: id_type::MerchantConnectorAccountId,
     pub merchant_id: id_type::MerchantId,

@@ -271,13 +271,62 @@ impl Cache {
         }
     }
 
+    /// Populate one entry. Recorded args-only (cache name + logical key):
+    /// the VALUE is observable through the instrumented read; what the event
+    /// buys is population accounting — a candidate that populates a cache the
+    /// baseline never did (or vice versa) becomes a visible call divergence.
+    /// `replay = Execute`: the real (correlation-namespaced) moka insert runs
+    /// on replay; the shadow compare of `()` is trivially inert.
+    #[cfg_attr(
+        feature = "deja",
+        deja::boundary(
+            boundary = "imc",
+            component = "storage_impl::redis::cache",
+            operation = "in_memory_push",
+            replay = Execute,
+            effect = Imc,
+            codec = SerdeCodec,
+            args = deja_in_memory_args(self.name, &key),
+        )
+    )]
     pub async fn push<T: Cacheable>(&self, key: CacheKey, val: T) {
         self.inner
             .insert(in_memory_cache_key(key), Arc::new(val))
             .await;
     }
 
-    pub async fn get_val<T: Clone + Cacheable>(&self, key: CacheKey) -> Option<T> {
+    /// Read one entry. THE deja L1 seam: every read of process-local cache
+    /// state crosses this boundary — instrumented on the METHOD, not on any
+    /// helper above it, so no call path can be blind by construction (the
+    /// `get_or_populate_in_memory_with_transform` variant read the moka
+    /// directly and its L1 hits were invisible: no event on record, a cold
+    /// miss on replay, and an 86-correlation HE_02 wall in the sandbox).
+    /// A recorded `Some(v)` substitutes; a recorded `None` re-triggers the
+    /// caller's (separately instrumented) fallback identically on record and
+    /// replay. NOT fall-through-silent: a novel L1 read on replay is a real
+    /// divergence, and falling through would read the cross-correlation
+    /// moka — fail-stop is correct.
+    ///
+    /// The serde bound is the chokepoint's lint: a type that cannot be
+    /// captured cannot be cached. It is deliberately unconditional — a cache
+    /// value type that only compiles feature-off is a blind read waiting to
+    /// ship.
+    #[cfg_attr(
+        feature = "deja",
+        deja::boundary(
+            boundary = "imc",
+            component = "storage_impl::redis::cache",
+            operation = "in_memory_get",
+            replay = Substitute,
+            effect = Imc,
+            codec = SerdeCodec,
+            args = deja_in_memory_args(self.name, &key),
+        )
+    )]
+    pub async fn get_val<T>(&self, key: CacheKey) -> Option<T>
+    where
+        T: Clone + Cacheable + serde::Serialize + serde::de::DeserializeOwned,
+    {
         let val = self.inner.get::<String>(&in_memory_cache_key(key)).await;
 
         // Add cache hit and cache miss metrics
@@ -294,11 +343,41 @@ impl Cache {
         val
     }
 
-    /// Check if a key exists in cache
+    /// Check if a key exists in cache. Same state channel as [`Self::get_val`]
+    /// — instrumented even though it has no production caller today, so the
+    /// first future caller is covered instead of blind.
+    #[cfg_attr(
+        feature = "deja",
+        deja::boundary(
+            boundary = "imc",
+            component = "storage_impl::redis::cache",
+            operation = "in_memory_exists",
+            replay = Substitute,
+            effect = Imc,
+            codec = SerdeCodec,
+            args = deja_in_memory_args(self.name, &key),
+        )
+    )]
     pub async fn exists(&self, key: CacheKey) -> bool {
         self.inner.contains_key::<String>(&in_memory_cache_key(key))
     }
 
+    /// Invalidate one entry. Args-only, `replay = Execute` — the event is
+    /// the point: a candidate that forgets an invalidation the baseline
+    /// performed (or invalidates something it never did) is a visible call
+    /// divergence instead of a mystery staleness bug.
+    #[cfg_attr(
+        feature = "deja",
+        deja::boundary(
+            boundary = "imc",
+            component = "storage_impl::redis::cache",
+            operation = "in_memory_remove",
+            replay = Execute,
+            effect = Imc,
+            codec = SerdeCodec,
+            args = deja_in_memory_args(self.name, &key),
+        )
+    )]
     pub async fn remove(&self, key: CacheKey) {
         self.inner
             .invalidate::<String>(&in_memory_cache_key(key))
@@ -377,26 +456,6 @@ where
 /// `Some(v)` returns the value; a recorded `None` (absence) returns `None`, so
 /// the caller re-runs the redis fallback — the same control flow as record. The
 /// `cache` handle is not serialized (args = cache name + physical key); the
-/// value round-trips through `SerdeCodec<Option<T>>`. NOT `fall_through_silent`:
-/// a novel L1 read on replay is a real divergence, and falling through would
-/// read the cross-correlation-shared moka — fail-stop is correct.
-#[cfg(feature = "deja")]
-#[deja::boundary(
-    boundary = "imc",
-    component = "storage_impl::redis::cache",
-    operation = "in_memory_get",
-    replay = Substitute,
-    effect = Imc,
-    codec = SerdeCodec,
-    args = deja_in_memory_args(cache.name, &cache_key),
-)]
-async fn deja_in_memory_get<T>(cache: &Cache, cache_key: CacheKey) -> Option<T>
-where
-    T: Clone + Cacheable + serde::Serialize + serde::de::DeserializeOwned,
-{
-    cache.get_val::<T>(cache_key).await
-}
-
 #[cfg(feature = "deja")]
 fn deja_in_memory_args(cache_name: &str, key: &CacheKey) -> serde_json::Value {
     serde_json::json!({ "cache": cache_name, "key": String::from(key.clone()) })
@@ -424,18 +483,8 @@ where
         key: key.to_string(),
         prefix: redis.redis_conn.key_prefix.clone(),
     };
-    // Deja L1 seam: the in-memory (moka) lookup is a process-global cache that
-    // spans correlations. Instrument the LOOKUP itself (not the surrounding
-    // populate) so its `Option` outcome is recorded per-correlation and
-    // Substituted on replay — a recorded `Some(v)` returns the value; a recorded
-    // `None` re-triggers the (separately instrumented) redis fallback below,
-    // identically on record and replay. Because the lookup returns BEFORE redis,
-    // L1 and L2 stay sequential (not nested) → no subsumed/orphan event. Record
-    // stays a pure observer (the real moka runs); replay never reads the shared
-    // moka, so cross-correlation contamination is impossible by construction.
-    #[cfg(feature = "deja")]
-    let cache_val = deja_in_memory_get::<T>(cache, cache_key).await;
-    #[cfg(not(feature = "deja"))]
+    // The L1 lookup is instrumented on `Cache::get_val` itself — the
+    // chokepoint — so this helper needs no deja-specific path at all.
     let cache_val = cache.get_val::<T>(cache_key).await;
     if let Some(val) = cache_val {
         Ok(val)
@@ -474,7 +523,7 @@ pub async fn get_or_populate_in_memory_with_transform<T, R, F, Fut, TransF, Tran
     cache: &Cache,
 ) -> CustomResult<T, StorageError>
 where
-    T: Cacheable + Debug + Clone,
+    T: Cacheable + Debug + Clone + serde::Serialize + serde::de::DeserializeOwned,
     R: serde::Serialize + serde::de::DeserializeOwned + Debug + Send,
     F: FnOnce() -> Fut + Send,
     Fut: futures::Future<Output = CustomResult<R, StorageError>> + Send,
@@ -591,6 +640,30 @@ where
     let data = fun().await?;
     redact_from_redis_and_publish(store, keys).await?;
     Ok(data)
+}
+
+#[cfg(test)]
+mod chokepoint_invariant {
+    /// The moka store may be touched ONLY inside the instrumented `Cache`
+    /// methods — every other path is a blind read of process-local state
+    /// (the class behind the sandbox HE_02 wall). This counts the
+    /// `self.inner` touches in this file: the four boundary methods
+    /// (`push`/`get_val`/`exists`/`remove`), the two private maintenance
+    /// helpers (`run_pending_tasks`/`get_entry_count`), and the constructor.
+    /// Adding an eighth touch means either instrumenting it or routing it
+    /// through an existing boundary — bump this count only with a boundary
+    /// attribute to show for it.
+    #[test]
+    fn moka_is_touched_only_inside_instrumented_methods() {
+        let source = include_str!("cache.rs");
+        // 6 real touches + the 3 mentions inside this very test module.
+        let touches = source.matches("self.inner").count();
+        assert_eq!(
+            touches, 9,
+            "a new `self.inner` touch appeared in cache.rs — instrument it as a deja boundary \
+             (or route it through one) before bumping this count"
+        );
+    }
 }
 
 #[cfg(test)]

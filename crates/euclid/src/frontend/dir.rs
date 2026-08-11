@@ -45,7 +45,7 @@ macro_rules! dirval {
     }};
 }
 
-#[derive(Debug, Clone, Hash, PartialEq, Eq, serde::Serialize)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct DirKey {
     pub kind: DirKeyKind,
     pub value: Option<String>,
@@ -64,6 +64,7 @@ impl DirKey {
     PartialEq,
     Eq,
     serde::Serialize,
+    serde::Deserialize,
     strum::Display,
     strum::EnumIter,
     strum::VariantNames,
@@ -617,7 +618,15 @@ impl DirKeyKind {
 }
 
 #[derive(
-    Debug, Clone, Hash, PartialEq, Eq, serde::Serialize, strum::Display, strum::VariantNames,
+    Debug,
+    Clone,
+    Hash,
+    PartialEq,
+    Eq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    strum::VariantNames,
 )]
 #[serde(tag = "key", content = "value")]
 pub enum DirValue {

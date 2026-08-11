@@ -25,14 +25,29 @@ struct CheckNodeContext<'a, V: ValueNode, C: CheckingContext<Value = V>> {
     domains: Option<&'a [DomainId]>,
 }
 
-#[derive(Debug)]
+/// Serde carries the EVALUATION state of a finished graph — `domain`,
+/// `domain_identifier_map`, `nodes`, `edges` — which is everything
+/// `check_*` reads. The three skipped fields do not round-trip, on purpose:
+/// `value_map` is a construction-time dedup index no runtime path reads,
+/// and `node_info`/`node_metadata` are diagnostics resolved through
+/// `.get(..).flatten()`, so an empty map degrades an error trace's labels
+/// and nothing else. A deserialized graph evaluates identically; it cannot
+/// be handed back to a builder.
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+#[serde(bound(
+    serialize = "V: serde::Serialize, <V as ValueNode>::Key: serde::Serialize",
+    deserialize = "V: serde::de::DeserializeOwned, <V as ValueNode>::Key: serde::de::DeserializeOwned"
+))]
 pub struct ConstraintGraph<V: ValueNode> {
     pub domain: DenseMap<DomainId, DomainInfo>,
     pub domain_identifier_map: FxHashMap<DomainIdentifier, DomainId>,
     pub nodes: DenseMap<NodeId, Node<V>>,
     pub edges: DenseMap<EdgeId, Edge>,
+    #[serde(skip)]
     pub value_map: FxHashMap<NodeValue<V>, NodeId>,
+    #[serde(skip)]
     pub node_info: DenseMap<NodeId, Option<&'static str>>,
+    #[serde(skip)]
     pub node_metadata: DenseMap<NodeId, Option<Arc<dyn Metadata>>>,
 }
 

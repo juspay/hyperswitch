@@ -21,7 +21,7 @@ use router_env::logger;
 
 use crate::{errors::api_error_response, merchant_key_store::MerchantKeyStore, payments};
 #[cfg(feature = "v1")]
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Profile {
     profile_id: common_utils::id_type::ProfileId,
     pub merchant_id: common_utils::id_type::MerchantId,
@@ -90,7 +90,7 @@ pub struct Profile {
 }
 
 #[cfg(feature = "v1")]
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub enum ExternalVaultDetails {
     ExternalVaultEnabled(ExternalVaultConnectorDetails),
     Skip,
@@ -592,7 +592,7 @@ pub enum ProfileUpdate {
 }
 
 #[cfg(feature = "v2")]
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Profile {
     id: common_utils::id_type::ProfileId,
     pub merchant_id: common_utils::id_type::MerchantId,

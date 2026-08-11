@@ -140,6 +140,36 @@ where
 
 /// Generic function to call the Keymanager and parse the response back
 #[instrument(skip_all)]
+/// The ONE seam every keymanager operation crosses — encrypt, decrypt, key
+/// create/rotate, batch variants all funnel through here before
+/// [`send_encryption_request`]'s private reqwest client, which is invisible
+/// to the `http_outgoing` boundary. Uninstrumented, that client made the
+/// keymanager a live external dependency of SEALED replay: the recorder
+/// encrypted through the km service, the replay pod reached the same
+/// in-cluster service (internet egress blocked ≠ cluster-internal blocked),
+/// and every encrypt got a fresh km-side nonce — ciphertext divergences on
+/// every encrypted column, run-0810's entire db value-divergence population.
+/// Substituted, replay returns the recorded bytes verbatim and stops
+/// depending on a live keymanager at all.
+#[cfg_attr(
+    feature = "deja",
+    deja::boundary(
+        boundary = "km",
+        component = "common_utils::keymanager",
+        operation = "call_encryption_service",
+        replay = Substitute,
+        effect = Http,
+        codec = deja::codec::ResultCodec::<R, errors::KeyManagerClientError>,
+        // The transient request types hold raw StrongSecret bytes and are
+        // deliberately non-serde; their own Debug masking applies here. The
+        // RESPONSE — what substitution returns — is captured in full.
+        args = serde_json::json!({
+            "method": method.as_str(),
+            "endpoint": endpoint,
+            "request": format!("{request_body:?}"),
+        }),
+    )
+)]
 pub async fn call_encryption_service<T, R>(
     state: &KeyManagerState,
     method: Method,
@@ -148,7 +178,7 @@ pub async fn call_encryption_service<T, R>(
 ) -> errors::CustomResult<R, errors::KeyManagerClientError>
 where
     T: GetKeymanagerTenant + ConvertRaw + Send + Sync + 'static + Debug,
-    R: serde::de::DeserializeOwned,
+    R: serde::de::DeserializeOwned + serde::Serialize,
 {
     let url = format!("{}/{endpoint}", state.url);
 
