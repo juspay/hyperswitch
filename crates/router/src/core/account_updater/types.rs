@@ -70,7 +70,9 @@ pub struct JuspayCredentials {
     pub card_sync_key_id: String,
 }
 
-#[derive(Debug, thiserror::Error)]
+/// The `serde` names are what the observation event records.
+#[derive(Debug, thiserror::Error, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
 pub enum AccountUpdaterError {
     #[error("Account Updater application config is missing or invalid")]
     MissingApplicationConfig,
