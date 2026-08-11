@@ -75,6 +75,7 @@ where
         let lineage_ids = context.lineage_ids;
         let header_payload = context.header_payload;
         let unified_connector_service_execution_mode = context.execution_mode;
+        let ucs_matched_rollout_key = context.ucs_matched_rollout_key.clone();
         let client = state
             .grpc_client
             .unified_connector_service_client
@@ -135,6 +136,7 @@ where
                 recurring_payment_charge_request,
                 grpc_headers,
                 unified_connector_service_execution_mode,
+                ucs_matched_rollout_key.clone(),
                 |mut router_data, recurring_payment_charge_request, grpc_headers| async move {
                     let response = match Box::pin(client.recurring_payment_charge(
                         recurring_payment_charge_request,
@@ -241,6 +243,7 @@ where
                 granular_authorize_request,
                 grpc_headers,
                 unified_connector_service_execution_mode,
+                ucs_matched_rollout_key.clone(),
                 |mut router_data, granular_authorize_request, grpc_headers| async move {
                     let response = match Box::pin(client.payment_authorize(
                         granular_authorize_request,

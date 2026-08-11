@@ -2544,6 +2544,9 @@ pub struct RolloutExecutionResult {
     pub should_execute: bool,
     pub proxy_override: Option<ProxyOverride>,
     pub execution_mode: ExecutionMode,
+    /// The exact config key that produced this result, if any. Used by the
+    /// primary→shadow kill switch to know which row to flip.
+    pub matched_config_key: Option<String>,
 }
 
 impl Default for RolloutExecutionResult {
@@ -2552,6 +2555,7 @@ impl Default for RolloutExecutionResult {
             should_execute: false,
             proxy_override: None,
             execution_mode: ExecutionMode::NotApplicable,
+            matched_config_key: None,
         }
     }
 }
@@ -2639,6 +2643,7 @@ impl From<RolloutConfig> for RolloutExecutionResult {
                             should_execute: true,
                             proxy_override,
                             execution_mode: config.execution_mode,
+                            matched_config_key: None,
                         }
                     }
                     false => {
@@ -2748,7 +2753,11 @@ pub async fn should_execute_based_on_rollout_with_precedence(
             Some(config) => {
                 logger::info!(config_key = %key, "Rollout config found, using this key");
                 return Ok(serde_json::from_str::<RolloutConfig>(&config.config)
-                    .map(RolloutExecutionResult::from)
+                    .map(|rollout| {
+                        let mut result = RolloutExecutionResult::from(rollout);
+                        result.matched_config_key = Some(key.clone());
+                        result
+                    })
                     .map_err(|err| {
                         logger::error!(
                             error = ?err,

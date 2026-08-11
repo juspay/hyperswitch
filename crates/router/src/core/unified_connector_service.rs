@@ -34,6 +34,7 @@ use hyperswitch_domain_models::{
 };
 use hyperswitch_interfaces::unified_connector_service::transformers::UcsKillSwitchReason;
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use router_env::{instrument, logger, tracing};
 use unified_connector_service_cards::CardNumber;
 use unified_connector_service_client::payments::{
@@ -304,7 +305,7 @@ pub async fn should_call_unified_connector_service<F: Clone, T, R>(
     call_connector_action: CallConnectorAction,
     shadow_ucs_call_connector_action: Option<CallConnectorAction>,
     transaction_type: common_enums::TransactionType,
-) -> RouterResult<(ExecutionPath, SessionState)>
+) -> RouterResult<(ExecutionPath, SessionState, Option<String>)>
 where
     R: Send + Sync + Clone,
 {
@@ -442,7 +443,11 @@ where
         flow_name
     );
 
-    Ok((execution_path, session_state))
+    Ok((
+        execution_path,
+        session_state,
+        rollout_result.matched_config_key,
+    ))
 }
 
 /// Creates a new SessionState with proxy configuration updated from the override
@@ -2889,6 +2894,7 @@ pub async fn ucs_logging_wrapper_granular<T, F, Fut, Req, Resp, GrpcReq, FlowOut
     grpc_request: GrpcReq,
     grpc_header_builder: external_services::grpc_client::GrpcHeadersUcsBuilderFinal,
     execution_mode: ExecutionMode,
+    matched_rollout_key: Option<String>,
     handler: F,
 ) -> CustomResult<(RouterData<T, Req, Resp>, FlowOutput), UnifiedConnectorServiceError>
 where
@@ -2924,8 +2930,6 @@ where
     // Captured before `handler` consumes router_data, in case the kill switch fires.
     let kill_switch_merchant_id = merchant_id.clone();
     let kill_switch_connector_name = connector_name.clone();
-    let kill_switch_payment_method = router_data.payment_method;
-    let kill_switch_payment_method_type = router_data.payment_method_type;
     let grpc_header = grpc_header_builder.build();
     // Log the actual gRPC request with masking
     let grpc_request_body = hyperswitch_masking::masked_serialize(&grpc_request)
@@ -2984,14 +2988,12 @@ where
                 state,
                 &kill_switch_merchant_id,
                 &kill_switch_connector_name,
-                kill_switch_payment_method,
-                kill_switch_payment_method_type,
                 std::any::type_name::<T>()
                     .split("::")
                     .last()
                     .unwrap_or_default(),
-                common_enums::TransactionType::Payment,
                 execution_mode,
+                matched_rollout_key.clone(),
                 error.current_context(),
             )
             .await;
@@ -3034,155 +3036,100 @@ where
     })
 }
 
-/// Persist the primary→shadow kill switch for the most specific merchant-scoped
-/// rollout key that exists for this payment.
+/// Flip the given rollout config row from `Primary` (or `NotApplicable`) to `Shadow`,
+/// forcing `rollout_percent` to `1.0` so every subsequent request takes the Shadow
+/// path until an operator restores Primary after the underlying UCS issue is fixed.
 ///
-/// * Only merchant-scoped keys are candidates — org-level keys are too broad to
-///   auto-flip (a single flaky connector shouldn't drain the whole org).
-/// * Mutates only that row: `execution_mode` flips to `Shadow`, and
-///   `rollout_percent` is forced to `1.0` so **every** subsequent payment on
-///   that connector+flow mirrors while Prism is investigated.
-/// * Cache is invalidated automatically because `update_config_by_key` publishes
-///   a redact event.
-/// * Callers must have already verified the connector is **not** in
-///   `ucs_only_connectors` — those have no legacy path to fall back to.
+/// Callers must have already verified the connector is **not** in
+/// `ucs_only_connectors` and that `winning_key` is connector-scoped.
+#[allow(clippy::too_many_arguments)]
 async fn activate_ucs_kill_switch(
     state: &SessionState,
-    merchant_id: &str,
+    winning_key: &str,
     connector_name: &str,
     flow_name: &str,
-    router_data_payment_method: common_enums::PaymentMethod,
-    router_data_payment_method_type: Option<PaymentMethodType>,
-    transaction_type: common_enums::TransactionType,
     reason: UcsKillSwitchReason,
 ) {
-    // Merchant-scoped keys only; org-level rows belong to human operators.
-    let prefix = consts::UCS_ROLLOUT_PERCENT_CONFIG_PREFIX;
-    let is_refund_flow = matches!(flow_name, "Execute" | "RSync");
-    let candidate_keys: Vec<String> = match transaction_type {
-        common_enums::TransactionType::Payment
-        | common_enums::TransactionType::ThreeDsAuthentication => {
-            if is_refund_flow {
-                vec![format!(
-                    "{prefix}_{merchant_id}_{connector_name}_{flow_name}"
-                )]
-            } else {
-                match router_data_payment_method {
-                    common_enums::PaymentMethod::Wallet
-                    | common_enums::PaymentMethod::BankRedirect
-                    | common_enums::PaymentMethod::Voucher
-                    | common_enums::PaymentMethod::PayLater => {
-                        let pm = router_data_payment_method.to_string();
-                        let pmt = router_data_payment_method_type
-                            .map(|p| p.to_string())
-                            .unwrap_or_else(|| "unknown".to_string());
-                        vec![format!(
-                            "{prefix}_{merchant_id}_{connector_name}_{pm}_{pmt}_{flow_name}"
-                        )]
-                    }
-                    _ => {
-                        let pm = router_data_payment_method.to_string();
-                        vec![format!(
-                            "{prefix}_{merchant_id}_{connector_name}_{pm}_{flow_name}"
-                        )]
-                    }
-                }
-            }
-        }
-        common_enums::TransactionType::Payout => {
-            let pmt = router_data_payment_method_type
-                .map(|p| p.to_string())
-                .unwrap_or_else(|| "unknown".to_string());
-            vec![format!(
-                "{prefix}_{merchant_id}_{connector_name}_{pmt}_{flow_name}"
-            )]
+    let existing = match state.store.find_config_by_key(winning_key).await {
+        Ok(cfg) => cfg,
+        Err(err) => {
+            router_env::logger::error!(
+                key = %winning_key,
+                error = ?err,
+                "UCS kill switch: rollout row disappeared between decision and flip"
+            );
+            return;
         }
     };
 
-    for key in &candidate_keys {
-        let existing = match state.store.find_config_by_key(key).await {
+    let mut parsed: crate::core::payments::helpers::RolloutConfig =
+        match serde_json::from_str(&existing.config) {
             Ok(cfg) => cfg,
-            Err(_) => continue,
-        };
-
-        let mut parsed: crate::core::payments::helpers::RolloutConfig =
-            match serde_json::from_str(&existing.config) {
-                Ok(cfg) => cfg,
-                Err(err) => {
-                    router_env::logger::warn!(
-                        key = %key,
-                        error = ?err,
-                        "UCS kill switch: rollout config did not parse as RolloutConfig; skipping"
-                    );
-                    return;
-                }
-            };
-
-        if parsed.execution_mode == ExecutionMode::Shadow {
-            router_env::logger::debug!(key = %key, "UCS kill switch already active");
-            return;
-        }
-
-        parsed.execution_mode = ExecutionMode::Shadow;
-        parsed.rollout_percent = 1.0;
-
-        let serialized = match serde_json::to_string(&parsed) {
-            Ok(s) => s,
             Err(err) => {
-                router_env::logger::error!(
-                    key = %key,
+                router_env::logger::warn!(
+                    key = %winning_key,
                     error = ?err,
-                    "UCS kill switch: failed to serialize downgraded RolloutConfig"
+                    "UCS kill switch: rollout config did not parse as RolloutConfig; skipping"
                 );
                 return;
             }
         };
 
-        if let Err(err) = state
-            .store
-            .update_config_by_key(
-                key,
-                diesel_models::configs::ConfigUpdate::Update {
-                    config: Some(serialized),
-                },
-            )
-            .await
-        {
+    if parsed.execution_mode == ExecutionMode::Shadow {
+        router_env::logger::debug!(key = %winning_key, "UCS kill switch already active");
+        return;
+    }
+
+    parsed.execution_mode = ExecutionMode::Shadow;
+
+    let serialized = match serde_json::to_string(&parsed) {
+        Ok(s) => s,
+        Err(err) => {
             router_env::logger::error!(
-                key = %key,
+                key = %winning_key,
                 error = ?err,
-                "UCS kill switch: DB update failed; primary→shadow flip NOT persisted"
+                "UCS kill switch: failed to serialize downgraded RolloutConfig"
             );
             return;
         }
+    };
 
-        crate::routes::metrics::UCS_PRIMARY_TO_SHADOW_KILL_SWITCH.add(
-            1,
-            router_env::metric_attributes!(
-                ("connector", connector_name.to_string()),
-                ("flow", flow_name.to_string()),
-                ("error_kind", reason.as_str()),
-            ),
-        );
-
+    if let Err(err) = state
+        .store
+        .update_config_by_key(
+            winning_key,
+            diesel_models::configs::ConfigUpdate::Update {
+                config: Some(serialized),
+            },
+        )
+        .await
+    {
         router_env::logger::error!(
-            event = "ucs_kill_switch_activated",
-            merchant_id = %merchant_id,
-            connector = %connector_name,
-            flow = %flow_name,
-            rollout_key = %key,
-            error_kind = reason.as_str(),
-            "UCS kill switch flipped primary → shadow"
+            key = %winning_key,
+            error = ?err,
+            "UCS kill switch: DB update failed; primary→shadow flip NOT persisted"
         );
         return;
     }
 
+    crate::routes::metrics::UCS_PRIMARY_TO_SHADOW_KILL_SWITCH.add(
+        1,
+        router_env::metric_attributes!(
+            ("connector", connector_name.to_string()),
+            ("flow", flow_name.to_string()),
+            ("error_kind", reason.as_str()),
+        ),
+    );
+
+    // WARN, not ERROR — the system self-healed by reverting to the legacy Direct
+    // path. Log as a warning so on-call can investigate Prism without paging.
     router_env::logger::warn!(
-        merchant_id = %merchant_id,
+        event = "ucs_kill_switch_activated",
         connector = %connector_name,
         flow = %flow_name,
+        rollout_key = %winning_key,
         error_kind = reason.as_str(),
-        "UCS kill switch fired but no merchant-scoped rollout config row exists to downgrade"
+        "UCS kill switch flipped primary → shadow"
     );
 }
 
@@ -3193,11 +3140,9 @@ async fn maybe_activate_ucs_kill_switch(
     state: &SessionState,
     merchant_id: &id_type::MerchantId,
     connector_name: &str,
-    payment_method: common_enums::PaymentMethod,
-    payment_method_type: Option<PaymentMethodType>,
     flow_name: &str,
-    transaction_type: common_enums::TransactionType,
     execution_mode: ExecutionMode,
+    matched_config_key: Option<String>,
     error: &UnifiedConnectorServiceError,
 ) {
     if execution_mode != ExecutionMode::Primary {
@@ -3228,17 +3173,32 @@ async fn maybe_activate_ucs_kill_switch(
         return;
     }
 
-    activate_ucs_kill_switch(
-        state,
-        merchant_id.get_string_repr(),
-        connector_name,
-        flow_name,
-        payment_method,
-        payment_method_type,
-        transaction_type,
-        reason,
-    )
-    .await;
+    let Some(winning_key) = matched_config_key else {
+        router_env::logger::warn!(
+            merchant_id = %merchant_id.get_string_repr(),
+            connector = %connector_name,
+            flow = %flow_name,
+            error_kind = reason.as_str(),
+            "UCS kill switch fired but no matched rollout config key was recorded"
+        );
+        return;
+    };
+
+    // Refuse to flip rows whose key doesn't itself contain the connector name:
+    // org-level and org+merchant-level rows would affect other connectors/merchants.
+    let connector_marker = format!("_{connector_name}_");
+    if !winning_key.contains(&connector_marker) {
+        router_env::logger::warn!(
+            merchant_id = %merchant_id.get_string_repr(),
+            connector = %connector_name,
+            rollout_key = %winning_key,
+            error_kind = reason.as_str(),
+            "UCS kill switch: winning rollout row is not connector-scoped; refusing to auto-flip"
+        );
+        return;
+    }
+
+    activate_ucs_kill_switch(state, &winning_key, connector_name, flow_name, reason).await;
 }
 
 /// UCS wrapper for webhook flows. It centralizes header building and handler
