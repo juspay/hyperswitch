@@ -80,6 +80,10 @@ use super::{configs::*, customers, payments};
 use super::{mandates::*, refunds::*};
 #[cfg(feature = "olap")]
 pub use crate::analytics::opensearch::OpenSearchClient;
+#[cfg(all(feature = "olap", feature = "v1"))]
+use crate::analytics::routes::{
+    get_payment_list_from_opensearch, get_profile_payment_list_from_opensearch,
+};
 #[cfg(feature = "olap")]
 use crate::analytics::AnalyticsProvider;
 #[cfg(feature = "partial-auth")]
@@ -974,6 +978,14 @@ impl Payments {
                     web::resource("/profile/list")
                         .route(web::get().to(payments::profile_payments_list))
                         .route(web::post().to(payments::profile_payments_list_by_filter)),
+                )
+                .service(
+                    web::resource("/advanced/list")
+                        .route(web::post().to(get_payment_list_from_opensearch)),
+                )
+                .service(
+                    web::resource("/profile/advanced/list")
+                        .route(web::post().to(get_profile_payment_list_from_opensearch)),
                 )
                 .service(
                     web::resource("/filter")
