@@ -58,6 +58,9 @@ impl UcsFailureReason {
 ///
 /// Matched exhaustively so a new error variant fails to compile here rather than falling into
 /// a catch-all.
+///
+/// This cannot see a UCS bug that produces a request the connector understands but answers
+/// wrongly, nor one it rejects as a decline. Both look like ordinary connector outcomes.
 pub fn classify_failure(error: &UnifiedConnectorServiceError) -> Option<UcsFailureReason> {
     use UnifiedConnectorServiceError as E;
 
@@ -84,8 +87,13 @@ pub fn classify_failure(error: &UnifiedConnectorServiceError) -> Option<UcsFailu
         // Transport and availability: fleet-wide, so `ucs_enabled` is the lever, not this.
         E::ConnectionError(_) | E::TonicStatus { .. } => None,
 
-        // The connector answered, including timeouts, which carry a synthetic 504. Would fail
-        // the same way on the direct path.
+        // The connector answered, including timeouts, which carry a synthetic 504. Normally this
+        // would fail the same way on the direct path.
+        //
+        // Known gap: a request UCS built wrongly is also rejected by the connector, and arrives
+        // here indistinguishable from a genuine decline. Tripping on it would mean tripping on
+        // every declined card, so this classifies as a connector outcome and such a mapping bug
+        // is left to shadow validation to catch.
         E::ConnectorError(_) => None,
 
         // Per-flow failure markers carrying no further detail. Treated as deterministic.
@@ -124,8 +132,8 @@ pub fn classify_failure(error: &UnifiedConnectorServiceError) -> Option<UcsFailu
 }
 
 /// Redis key holding the trip for a scope.
-fn trip_key(scope: &str) -> String {
-    format!("{}_{scope}", consts::UCS_KILL_SWITCH_REDIS_PREFIX)
+fn trip_key(rollout_scope: &str) -> String {
+    format!("{}_{rollout_scope}", consts::UCS_KILL_SWITCH_REDIS_PREFIX)
 }
 
 /// Whether the kill switch is turned on. Cached config lookup, same as `UCS_ENABLED`.
@@ -138,7 +146,7 @@ async fn is_enabled(state: &SessionState) -> bool {
 /// Fails closed: a redis error routes to the direct integration, since an unnecessary fallback
 /// is harmless and a missed one is not. Only reached once the rollout config resolved to
 /// primary, so shadow traffic never pays for the lookup.
-pub async fn is_tripped(state: &SessionState, scope: &str) -> bool {
+pub async fn is_tripped(state: &SessionState, rollout_scope: &str) -> bool {
     if !is_enabled(state).await {
         return false;
     }
@@ -148,7 +156,7 @@ pub async fn is_tripped(state: &SessionState, scope: &str) -> bool {
         Err(error) => {
             logger::error!(
                 ?error,
-                ucs_kill_switch_scope = %scope,
+                rollout_scope = %rollout_scope,
                 "ucs_kill_switch: no redis connection, routing to the direct integration"
             );
             return true;
@@ -156,12 +164,12 @@ pub async fn is_tripped(state: &SessionState, scope: &str) -> bool {
     };
 
     match redis_conn
-        .exists::<()>(&trip_key(scope).as_str().into())
+        .exists::<()>(&trip_key(rollout_scope).as_str().into())
         .await
     {
         Ok(true) => {
             logger::info!(
-                ucs_kill_switch_scope = %scope,
+                rollout_scope = %rollout_scope,
                 "ucs_kill_switch: scope is tripped, routing to the direct integration"
             );
             true
@@ -170,7 +178,7 @@ pub async fn is_tripped(state: &SessionState, scope: &str) -> bool {
         Err(error) => {
             logger::error!(
                 ?error,
-                ucs_kill_switch_scope = %scope,
+                rollout_scope = %rollout_scope,
                 "ucs_kill_switch: trip lookup failed, routing to the direct integration"
             );
             true
@@ -201,7 +209,7 @@ pub async fn record_failure(
         return;
     };
 
-    let scope = build_merchant_rollout_scope(
+    let rollout_scope = build_merchant_rollout_scope(
         merchant_id,
         connector_name,
         flow_name,
@@ -221,7 +229,7 @@ pub async fn record_failure(
     // Turned off: the metric above still reports what would have been tripped.
     if !is_enabled(state).await {
         logger::warn!(
-            ucs_kill_switch_scope = %scope,
+            rollout_scope = %rollout_scope,
             reason = reason.as_str(),
             ucs_error = %error,
             "ucs_kill_switch: qualifying failure observed but the kill switch is turned off"
@@ -229,14 +237,14 @@ pub async fn record_failure(
         return;
     }
 
-    trip(state, &scope, reason, error).await;
+    trip(state, &rollout_scope, reason, error).await;
 }
 
 /// Writes the trip. `SET NX` makes it exactly-once: concurrent failures all attempt it, one
 /// wins, the rest are a no-op.
 async fn trip(
     state: &SessionState,
-    scope: &str,
+    rollout_scope: &str,
     reason: UcsFailureReason,
     error: &UnifiedConnectorServiceError,
 ) {
@@ -245,7 +253,7 @@ async fn trip(
         Err(error) => {
             logger::error!(
                 ?error,
-                ucs_kill_switch_scope = %scope,
+                rollout_scope = %rollout_scope,
                 "ucs_kill_switch: no redis connection, scope stays on UCS"
             );
             return;
@@ -263,7 +271,7 @@ async fn trip(
 
     match redis_conn
         .set_key_if_not_exists_with_expiry(
-            &trip_key(scope).as_str().into(),
+            &trip_key(rollout_scope).as_str().into(),
             record,
             Some(consts::UCS_KILL_SWITCH_TTL_IN_SECONDS),
         )
@@ -275,7 +283,7 @@ async fn trip(
                 router_env::metric_attributes!(("reason", reason.as_str())),
             );
             logger::error!(
-                ucs_kill_switch_scope = %scope,
+                rollout_scope = %rollout_scope,
                 reason = reason.as_str(),
                 ucs_error = %error,
                 "ucs_kill_switch: tripping the scope back to the direct integration"
@@ -283,14 +291,14 @@ async fn trip(
         }
         Ok(redis_interface::SetnxReply::KeyNotSet) => {
             logger::debug!(
-                ucs_kill_switch_scope = %scope,
+                rollout_scope = %rollout_scope,
                 "ucs_kill_switch: scope is already tripped"
             );
         }
         Err(error) => {
             logger::error!(
                 ?error,
-                ucs_kill_switch_scope = %scope,
+                rollout_scope = %rollout_scope,
                 "ucs_kill_switch: failed to persist the trip, scope stays on UCS"
             );
         }
@@ -307,19 +315,19 @@ impl common_utils::events::ApiEventMetric for KillSwitchListResponse {}
 
 /// Clears the trip, returning the scope to whatever its rollout config says. Explicit
 /// operator action: a tripped scope is never restored automatically.
-pub async fn reset(state: SessionState, scope: String) -> errors::RouterResponse<()> {
+pub async fn reset(state: SessionState, rollout_scope: String) -> errors::RouterResponse<()> {
     state
         .store
         .get_redis_conn()
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to get a redis connection to clear the UCS kill switch")?
-        .delete_key(&trip_key(&scope).as_str().into())
+        .delete_key(&trip_key(&rollout_scope).as_str().into())
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to delete the UCS kill switch trip")?;
 
     logger::info!(
-        ucs_kill_switch_scope = %scope,
+        rollout_scope = %rollout_scope,
         "ucs_kill_switch: trip cleared via api"
     );
 
@@ -371,7 +379,11 @@ mod tests {
     }
 
     /// One merchant and connector, so a case reads as just its payment method and flow.
-    fn scope(payment_method: PaymentMethod, pmt: Option<PaymentMethodType>, flow: &str) -> String {
+    fn rollout_scope(
+        payment_method: PaymentMethod,
+        pmt: Option<PaymentMethodType>,
+        flow: &str,
+    ) -> String {
         build_merchant_rollout_scope("merchant_1", "cybersource", flow, payment_method, pmt)
     }
 
@@ -436,12 +448,12 @@ mod tests {
     fn scope_is_the_rollout_key_without_its_prefix() {
         // A trip must target exactly the rollout key that enabled the traffic.
         assert_eq!(
-            scope(PaymentMethod::Card, None, "Authorize"),
+            rollout_scope(PaymentMethod::Card, None, "Authorize"),
             "merchant_1_cybersource_card_Authorize"
         );
         // Wallets carry a payment method type, exactly as their rollout keys do.
         assert_eq!(
-            scope(
+            rollout_scope(
                 PaymentMethod::Wallet,
                 Some(PaymentMethodType::GooglePay),
                 "Authorize"
@@ -450,7 +462,7 @@ mod tests {
         );
         // Refund keys carry no payment method.
         assert_eq!(
-            scope(PaymentMethod::Card, None, "Execute"),
+            rollout_scope(PaymentMethod::Card, None, "Execute"),
             "merchant_1_cybersource_Execute"
         );
     }
@@ -459,17 +471,17 @@ mod tests {
     fn independently_enabled_keys_trip_independently() {
         // Card and wallet are enabled by separate rollout keys, and wallets fail differently,
         // so a wallet trip must not take card traffic with it.
-        let card = scope(PaymentMethod::Card, None, "Authorize");
+        let card = rollout_scope(PaymentMethod::Card, None, "Authorize");
 
         assert_ne!(
             card,
-            scope(
+            rollout_scope(
                 PaymentMethod::Wallet,
                 Some(PaymentMethodType::GooglePay),
                 "Authorize"
             )
         );
-        assert_ne!(card, scope(PaymentMethod::Card, None, "PSync"));
+        assert_ne!(card, rollout_scope(PaymentMethod::Card, None, "PSync"));
         assert_ne!(
             card,
             build_merchant_rollout_scope(
@@ -494,7 +506,7 @@ mod tests {
 
     #[test]
     fn trip_key_cannot_collide_with_a_rollout_config_key() {
-        let key = trip_key(&scope(PaymentMethod::Card, None, "Authorize"));
+        let key = trip_key(&rollout_scope(PaymentMethod::Card, None, "Authorize"));
 
         assert!(key.starts_with(consts::UCS_KILL_SWITCH_REDIS_PREFIX));
         assert!(!key.starts_with(consts::UCS_ROLLOUT_PERCENT_CONFIG_PREFIX));

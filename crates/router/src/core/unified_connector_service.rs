@@ -417,7 +417,7 @@ where
     if matches!(execution_path, ExecutionPath::UnifiedConnectorService)
         && is_kill_switch_applicable(connector_integration_type, &call_connector_action)
     {
-        let scope = build_merchant_rollout_scope(
+        let rollout_scope = build_merchant_rollout_scope(
             merchant_id,
             connector_name,
             &flow_name,
@@ -425,7 +425,7 @@ where
             router_data.payment_method_type,
         );
 
-        if kill_switch::is_tripped(state, &scope).await {
+        if kill_switch::is_tripped(state, &rollout_scope).await {
             router_env::logger::warn!(
                 merchant_id = %merchant_id,
                 connector = %connector_name,
