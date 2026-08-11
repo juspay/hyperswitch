@@ -417,7 +417,7 @@ where
     if matches!(execution_path, ExecutionPath::UnifiedConnectorService)
         && is_kill_switch_applicable(connector_integration_type, &call_connector_action)
     {
-        let scope = kill_switch::build_scope(
+        let scope = build_merchant_rollout_scope(
             merchant_id,
             connector_name,
             &flow_name,

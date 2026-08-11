@@ -123,26 +123,6 @@ pub fn classify_failure(error: &UnifiedConnectorServiceError) -> Option<UcsFailu
     }
 }
 
-/// Scope a trip covers: the rollout scope of the key that enabled the traffic.
-///
-/// Built by [`build_merchant_rollout_scope`] so the recording site and the enforcement site cannot
-/// derive different keys.
-pub fn build_scope(
-    merchant_id: &str,
-    connector_name: &str,
-    flow_name: &str,
-    payment_method: common_enums::PaymentMethod,
-    payment_method_type: Option<common_enums::PaymentMethodType>,
-) -> String {
-    build_merchant_rollout_scope(
-        merchant_id,
-        connector_name,
-        flow_name,
-        payment_method,
-        payment_method_type,
-    )
-}
-
 /// Redis key holding the trip for a scope.
 fn trip_key(scope: &str) -> String {
     format!("{}_{scope}", consts::UCS_KILL_SWITCH_REDIS_PREFIX)
@@ -212,7 +192,7 @@ pub async fn record_failure(
     execution_mode: ExecutionMode,
     error: &UnifiedConnectorServiceError,
 ) {
-    // Only the path serving merchant traffic can tripped.
+    // Only the path serving merchant traffic can trip.
     if !matches!(execution_mode, ExecutionMode::Primary) {
         return;
     }
@@ -221,7 +201,7 @@ pub async fn record_failure(
         return;
     };
 
-    let scope = build_scope(
+    let scope = build_merchant_rollout_scope(
         merchant_id,
         connector_name,
         flow_name,
@@ -243,6 +223,7 @@ pub async fn record_failure(
         logger::warn!(
             ucs_kill_switch_scope = %scope,
             reason = reason.as_str(),
+            ucs_error = %error,
             "ucs_kill_switch: qualifying failure observed but the kill switch is turned off"
         );
         return;
@@ -297,7 +278,7 @@ async fn trip(
                 ucs_kill_switch_scope = %scope,
                 reason = reason.as_str(),
                 ucs_error = %error,
-                "ucs_kill_switch: cutting the scope over to the direct integration"
+                "ucs_kill_switch: tripping the scope back to the direct integration"
             );
         }
         Ok(redis_interface::SetnxReply::KeyNotSet) => {
@@ -391,7 +372,7 @@ mod tests {
 
     /// One merchant and connector, so a case reads as just its payment method and flow.
     fn scope(payment_method: PaymentMethod, pmt: Option<PaymentMethodType>, flow: &str) -> String {
-        build_scope("merchant_1", "cybersource", flow, payment_method, pmt)
+        build_merchant_rollout_scope("merchant_1", "cybersource", flow, payment_method, pmt)
     }
 
     #[test]
@@ -491,7 +472,7 @@ mod tests {
         assert_ne!(card, scope(PaymentMethod::Card, None, "PSync"));
         assert_ne!(
             card,
-            build_scope(
+            build_merchant_rollout_scope(
                 "merchant_2",
                 "cybersource",
                 "Authorize",
@@ -501,7 +482,7 @@ mod tests {
         );
         assert_ne!(
             card,
-            build_scope(
+            build_merchant_rollout_scope(
                 "merchant_1",
                 "adyen",
                 "Authorize",
