@@ -661,6 +661,10 @@ pub enum Flow {
     RoutingEvaluateRule,
     /// Reset the Decision Engine routing diff kill-switch counter for a profile
     DecisionEngineDiffCounterReset,
+    /// List the scopes the Unified Connector Service kill switch has cut over
+    UnifiedConnectorServiceKillSwitchList,
+    /// Clear a Unified Connector Service kill switch cutover
+    UnifiedConnectorServiceKillSwitchReset,
     /// Relay flow
     Relay,
     /// Relay retrieve flow

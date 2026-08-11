@@ -68,6 +68,7 @@ use crate::{
 };
 
 pub mod connector_config;
+pub mod kill_switch;
 pub mod transformers;
 
 /// Returns Apple Pay data from payment method token when it has decrypt data,
@@ -350,7 +351,7 @@ where
         should_execute_based_on_rollout_with_precedence(state, &rollout_keys).await?;
 
     // Single decision point using pattern matching
-    let (gateway_system, mut execution_path) = if ucs_availability == UcsAvailability::Disabled {
+    let (mut gateway_system, mut execution_path) = if ucs_availability == UcsAvailability::Disabled {
         match call_connector_action {
             CallConnectorAction::UCSConsumeResponse(_) => {
                 Err(errors::ApiErrorResponse::InternalServerError)
@@ -404,6 +405,30 @@ where
             }
         }
     };
+
+    // Kill switch: a scope that already failed deterministically serves from the direct
+    // integration regardless of what its rollout config says.
+    //
+    // Only the primary path is diverted, and it is diverted to shadow rather than to direct — the
+    // merchant is served by the direct integration either way, but shadow keeps mirroring, so a
+    // cut-over scope still produces the comparison signal needed to confirm a fix before it is
+    // reset. Shadow itself falls back to direct below when no proxy override is configured.
+    if matches!(execution_path, ExecutionPath::UnifiedConnectorService)
+        && is_kill_switch_applicable(connector_integration_type, &call_connector_action)
+    {
+        let scope = kill_switch::build_scope(merchant_id, connector_name, &flow_name);
+
+        if kill_switch::is_cut_over(state, &scope).await {
+            router_env::logger::warn!(
+                merchant_id = %merchant_id,
+                connector = %connector_name,
+                flow = %flow_name,
+                "UCS kill switch is cut over for this scope, serving from the direct integration"
+            );
+            gateway_system = GatewaySystem::Direct;
+            execution_path = ExecutionPath::ShadowUnifiedConnectorService;
+        }
+    }
 
     // Handle proxy configuration for Shadow UCS flows
     let session_state = match execution_path {
@@ -465,6 +490,29 @@ fn create_updated_session_state_with_proxy(
     updated_state.conf = std::sync::Arc::new(updated_conf);
 
     updated_state
+}
+
+/// Whether the kill switch may divert this call away from UCS.
+///
+/// Two cases have nothing to fall back to, so diverting them would not protect the merchant — it
+/// would be the outage:
+///
+/// - [`ConnectorIntegrationType::UcsConnector`] connectors are served only by UCS. There are live
+///   merchants on these today, and the direct implementations behind them have never taken
+///   production traffic.
+/// - [`CallConnectorAction::UCSConsumeResponse`] carries a response UCS has already produced;
+///   handing it to any other gateway errors out, as the `UcsAvailability::Disabled` arm shows.
+fn is_kill_switch_applicable(
+    connector_integration_type: ConnectorIntegrationType,
+    call_connector_action: &CallConnectorAction,
+) -> bool {
+    !matches!(
+        connector_integration_type,
+        ConnectorIntegrationType::UcsConnector
+    ) && !matches!(
+        call_connector_action,
+        CallConnectorAction::UCSConsumeResponse(_)
+    )
 }
 
 fn decide_execution_path(
@@ -3093,6 +3141,20 @@ where
                 router_env::metric_attributes!(("connector", connector_name.clone(),)),
             );
 
+            // Every payment and payout gateway funnels through here with the UCS error still
+            // typed, so this is the one place the kill switch has to observe.
+            if let Ok(flow_name) = get_flow_name::<T>() {
+                kill_switch::record_failure(
+                    state,
+                    merchant_id.get_string_repr(),
+                    &connector_name,
+                    &flow_name,
+                    execution_mode,
+                    error.current_context(),
+                )
+                .await;
+            }
+
             let error_body = serde_json::json!({
                 "error": error.to_string(),
                 "error_type": "ucs_call_failed"
@@ -3267,6 +3329,11 @@ pub async fn call_unified_connector_service_for_refund_execute(
 
     let prev_refund_status = router_data.request.refund_status;
 
+    // Captured before `router_data` moves into the wrapper, so the kill switch can build the same
+    // scope the gateway decision built.
+    let merchant_id_for_kill_switch = processor.get_account().get_id().clone();
+    let connector_name_for_kill_switch = router_data.connector.clone();
+
     // Make UCS refund call with logging wrapper
     Box::pin(ucs_logging_wrapper(
         router_data,
@@ -3314,6 +3381,20 @@ pub async fn call_unified_connector_service_for_refund_execute(
                         router_data.connector_http_status_code = Some(status_code);
                         return Ok((router_data, (), payments_grpc::RefundResponse::default()));
                     }
+                    // Refunds use the non-granular wrapper, which surfaces an already-converted
+                    // `ApiErrorResponse`. The typed UCS error is still in hand one line before
+                    // `switch()` discards it, so the kill switch observes it here. Connector
+                    // errors returned as `Ok` above never reach this point.
+                    kill_switch::record_failure(
+                        state,
+                        merchant_id_for_kill_switch.get_string_repr(),
+                        &connector_name_for_kill_switch,
+                        "Execute",
+                        execution_mode,
+                        report.current_context(),
+                    )
+                    .await;
+
                     let api_error = report.current_context().switch();
                     return Err(report
                         .change_context(api_error)
@@ -3403,6 +3484,11 @@ pub async fn call_unified_connector_service_for_refund_sync(
 
     let prev_refund_status = router_data.request.refund_status;
 
+    // Captured before `router_data` moves into the wrapper, so the kill switch can build the same
+    // scope the gateway decision built.
+    let merchant_id_for_kill_switch = processor.get_account().get_id().clone();
+    let connector_name_for_kill_switch = router_data.connector.clone();
+
     // Make UCS refund sync call with logging wrapper
     Box::pin(ucs_logging_wrapper(
         router_data,
@@ -3450,6 +3536,17 @@ pub async fn call_unified_connector_service_for_refund_sync(
                         router_data.connector_http_status_code = Some(status_code);
                         return Ok((router_data, (), payments_grpc::RefundResponse::default()));
                     }
+                    // As in refund execute: the typed UCS error survives only up to `switch()`.
+                    kill_switch::record_failure(
+                        state,
+                        merchant_id_for_kill_switch.get_string_repr(),
+                        &connector_name_for_kill_switch,
+                        "RSync",
+                        execution_mode,
+                        report.current_context(),
+                    )
+                    .await;
+
                     let api_error = report.current_context().switch();
                     return Err(report
                         .change_context(api_error)

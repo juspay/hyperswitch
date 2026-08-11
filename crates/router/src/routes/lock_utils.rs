@@ -119,7 +119,9 @@ impl From<Flow> for ApiIdentifier {
             | Flow::ConfigKeyFetch
             | Flow::ConfigKeyUpdate
             | Flow::ConfigKeyDelete
-            | Flow::CreateConfigKey => Self::Configs,
+            | Flow::CreateConfigKey
+            | Flow::UnifiedConnectorServiceKillSwitchList
+            | Flow::UnifiedConnectorServiceKillSwitchReset => Self::Configs,
             Flow::CustomersCreate
             | Flow::CustomersRetrieve
             | Flow::CustomersRetrieveByReferenceId
