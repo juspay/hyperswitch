@@ -1126,6 +1126,26 @@ fn de_diff_count_key(profile_id: &id_type::ProfileId) -> String {
     )
 }
 
+/// Clears the per-profile routing diff counter, releasing the kill-switch overlay (reset API).
+pub async fn reset_de_diff_counter(
+    state: &SessionState,
+    profile_id: &id_type::ProfileId,
+) -> errors::RouterResult<()> {
+    let redis_conn = state
+        .store
+        .get_redis_conn()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("failed to get redis connection to reset routing diff counter")?;
+
+    redis_conn
+        .delete_key(&de_diff_count_key(profile_id).as_str().into())
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("failed to delete routing diff counter key")?;
+
+    Ok(())
+}
+
 /// Counts a non-volume DE-vs-HS diff and cuts the profile over to Hyperswitch at the threshold.
 pub async fn record_de_diff_and_maybe_trip_kill_switch(
     state: &SessionState,
