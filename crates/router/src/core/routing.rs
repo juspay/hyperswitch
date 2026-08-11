@@ -2531,6 +2531,22 @@ impl RoutableConnectors {
     }
 }
 
+/// Clears the Decision Engine routing diff kill-switch counter for a profile, so the switch can
+/// trip again after the profile is re-enabled for the Decision Engine.
+pub async fn reset_decision_engine_diff_counter(
+    state: SessionState,
+    profile_id: common_utils::id_type::ProfileId,
+) -> RouterResult<service_api::ApplicationResponse<()>> {
+    reset_de_diff_counter(&state, &profile_id).await?;
+
+    router_env::logger::info!(
+        profile_id=?profile_id.get_string_repr(),
+        "decision_engine_euclid: routing diff counter reset via api"
+    );
+
+    Ok(service_api::ApplicationResponse::StatusOk)
+}
+
 pub async fn migrate_rules_for_profile(
     state: SessionState,
     processor: domain::Processor,

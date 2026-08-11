@@ -1748,6 +1748,26 @@ pub async fn migrate_routing_rules_for_profile(
     .await
 }
 
+#[instrument(skip_all, fields(flow = ?Flow::DecisionEngineDiffCounterReset))]
+pub async fn reset_decision_engine_diff_counter(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<common_utils::id_type::ProfileId>,
+) -> impl Responder {
+    let flow = Flow::DecisionEngineDiffCounterReset;
+    let profile_id = path.into_inner();
+    Box::pin(oss_api::server_wrap(
+        flow,
+        state,
+        &req,
+        profile_id.clone(),
+        |state, _, profile_id, _| routing::reset_decision_engine_diff_counter(state, profile_id),
+        &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
 async fn get_merchant_account(
     state: &super::SessionState,
     merchant_id: &common_utils::id_type::MerchantId,
