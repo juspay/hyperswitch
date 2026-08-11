@@ -8125,13 +8125,8 @@ impl transformers::ForeignTryFrom<&api_models::payouts::PayoutMethodData>
                     ),
                 ))?,
                 api_models::payouts::Bank::OpenBanking(open_banking) => {
-                    payments_grpc::payout_method::PayoutMethodData::OpenBankingUk(
-                        payments_grpc::OpenBankingUkPayout::foreign_try_from(
-                            &api_models::payouts::OpenBankingUk {
-                                account_holder_name: open_banking.account_holder_name.clone(),
-                                iban: open_banking.iban.clone(),
-                            },
-                        )?,
+                    payments_grpc::payout_method::PayoutMethodData::OpenBanking(
+                        payments_grpc::OpenBankingPayout::foreign_try_from(open_banking)?,
                     )
                 }
             },
@@ -8176,13 +8171,8 @@ impl transformers::ForeignTryFrom<&api_models::payouts::PayoutMethodData>
                         )
                     }
                     api_models::payouts::BankTransfer::OpenBanking(open_banking) => {
-                        payments_grpc::payout_method::PayoutMethodData::OpenBankingUk(
-                            payments_grpc::OpenBankingUkPayout::foreign_try_from(
-                                &api_models::payouts::OpenBankingUk {
-                                    account_holder_name: open_banking.account_holder_name.clone(),
-                                    iban: open_banking.iban.clone(),
-                                },
-                            )?,
+                        payments_grpc::payout_method::PayoutMethodData::OpenBanking(
+                            payments_grpc::OpenBankingPayout::foreign_try_from(open_banking)?,
                         )
                     }
                 }
@@ -8446,6 +8436,20 @@ impl transformers::ForeignTryFrom<&api_models::payouts::Interac> for payments_gr
     fn foreign_try_from(item: &api_models::payouts::Interac) -> Result<Self, Self::Error> {
         Ok(Self {
             email: Some(Secret::new(item.email.clone().expose().expose())),
+        })
+    }
+}
+
+#[cfg(feature = "payouts")]
+impl transformers::ForeignTryFrom<&api_models::payouts::OpenBanking>
+    for payments_grpc::OpenBankingPayout
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(item: &api_models::payouts::OpenBanking) -> Result<Self, Self::Error> {
+        Ok(Self {
+            account_holder_name: Some(item.account_holder_name.clone()),
+            iban: Some(item.iban.clone()),
         })
     }
 }
