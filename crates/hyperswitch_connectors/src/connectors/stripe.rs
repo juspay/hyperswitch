@@ -498,6 +498,7 @@ impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, Pay
             (
                 Some(common_types::payments::SplitPaymentsRequest::StripeSplitPayment(_)),
                 PaymentMethodData::Card(_)
+                    | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
             )
         ) {
             return Ok(format!(

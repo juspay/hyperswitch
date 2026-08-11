@@ -9318,11 +9318,13 @@ async fn decide_payment_method_tokenize_action(
     if matches!(
         payment_intent_data.split_payments,
         Some(common_types::payments::SplitPaymentsRequest::StripeSplitPayment(_))
-    ) && !is_network_transaction_id_flow
-    {
+    ) {
         match pm_parent_token {
-            None => Ok(TokenizationAction::TokenizeInConnector),
-            Some(_) => Ok(TokenizationAction::TokenizeInConnectorAndRouter),
+            // If the payment method is not stored in the router and this is not a network tokenization flow,
+            // there is no need to resolve the payment method data from the payment method ID.
+            // In this case, only connector-side tokenization is required.
+            None if !is_network_transaction_id_flow => Ok(TokenizationAction::TokenizeInConnector),
+            None | Some(_) => Ok(TokenizationAction::TokenizeInConnectorAndRouter),
         }
     } else {
         match pm_parent_token {
