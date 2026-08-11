@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.08.11.1
+
+### Features
+
+- **routing:** Make DE diff counter a lifetime total and add a reset API ([#13599](https://github.com/juspay/hyperswitch/pull/13599)) ([`eed9cb7`](https://github.com/juspay/hyperswitch/commit/eed9cb7acb263845f215575029309b1428e5de4a))
+
+**Full Changelog:** [`2026.08.11.0...2026.08.11.1`](https://github.com/juspay/hyperswitch/compare/2026.08.11.0...2026.08.11.1)
+
+- - -
+
 ## 2026.08.11.0
 
 ### Features
