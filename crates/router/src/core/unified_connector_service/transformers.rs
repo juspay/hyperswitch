@@ -3948,6 +3948,36 @@ impl ForeignFrom<common_enums::CardNetwork> for payments_grpc::CardNetwork {
     }
 }
 
+impl transformers::ForeignTryFrom<payments_grpc::CardNetwork> for common_enums::CardNetwork {
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(card_network: payments_grpc::CardNetwork) -> Result<Self, Self::Error> {
+        match card_network {
+            payments_grpc::CardNetwork::Visa => Ok(Self::Visa),
+            payments_grpc::CardNetwork::Mastercard => Ok(Self::Mastercard),
+            payments_grpc::CardNetwork::Amex => Ok(Self::AmericanExpress),
+            payments_grpc::CardNetwork::Discover => Ok(Self::Discover),
+            payments_grpc::CardNetwork::Jcb => Ok(Self::JCB),
+            payments_grpc::CardNetwork::Diners => Ok(Self::DinersClub),
+            payments_grpc::CardNetwork::Unionpay => Ok(Self::UnionPay),
+            payments_grpc::CardNetwork::Maestro => Ok(Self::Maestro),
+            payments_grpc::CardNetwork::CartesBancaires => Ok(Self::CartesBancaires),
+            payments_grpc::CardNetwork::Rupay => Ok(Self::RuPay),
+            payments_grpc::CardNetwork::InteracCard => Ok(Self::Interac),
+            payments_grpc::CardNetwork::Star => Ok(Self::Star),
+            payments_grpc::CardNetwork::Pulse => Ok(Self::Pulse),
+            payments_grpc::CardNetwork::Accel => Ok(Self::Accel),
+            payments_grpc::CardNetwork::Nyce => Ok(Self::Nyce),
+            payments_grpc::CardNetwork::Prop => Ok(Self::Prop),
+            payments_grpc::CardNetwork::PrivateLabel => Ok(Self::PrivateLabel),
+            payments_grpc::CardNetwork::Dinacard => Ok(Self::Dinacard),
+            payments_grpc::CardNetwork::Unspecified => {
+                Err(UnifiedConnectorServiceError::ResponseDeserializationFailed)?
+            }
+        }
+    }
+}
+
 impl transformers::ForeignTryFrom<hyperswitch_domain_models::payment_method_data::UpiSource>
     for payments_grpc::UpiSource
 {

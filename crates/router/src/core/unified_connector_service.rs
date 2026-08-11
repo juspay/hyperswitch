@@ -33,6 +33,7 @@ use hyperswitch_domain_models::{
     router_request_types::RefundsData,
     router_response_types::{PaymentsResponseData, PayoutsResponseData, RefundsResponseData},
 };
+use hyperswitch_interfaces::helpers as interface_helpers;
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use router_env::{instrument, logger, tracing};
 use unified_connector_service_cards::CardNumber;
@@ -71,14 +72,14 @@ use crate::{
 pub mod connector_config;
 pub mod transformers;
 
-fn convert_proto_bank_name(bank_name: i32) -> Option<common_enums::BankNames> {
-    let proto_bank_name = payments_grpc::BankNames::try_from(bank_name)
-        .inspect_err(|error| logger::warn!(?error, bank_name, "Invalid bank name received"))
-        .ok()?;
-
+fn convert_proto_bank_name(
+    proto_bank_name: payments_grpc::BankNames,
+) -> Option<common_enums::BankNames> {
     let proto_bank_name_str = proto_bank_name.as_str_name();
 
-    common_enums::BankNames::from_str(proto_bank_name_str)
+    <common_enums::BankNames as interface_helpers::ForeignTryFrom<
+        payments_grpc::BankNames,
+    >>::foreign_try_from(proto_bank_name)
         .inspect_err(|error| {
             logger::warn!(
                 ?error,
@@ -89,18 +90,15 @@ fn convert_proto_bank_name(bank_name: i32) -> Option<common_enums::BankNames> {
         .ok()
 }
 
-fn convert_proto_country(country: i32) -> Option<common_enums::CountryAlpha2> {
-    let proto_country = payments_grpc::CountryAlpha2::try_from(country)
-        .inspect_err(|error| logger::warn!(?error, country, "Invalid country received"))
-        .ok()?;
-
+fn convert_proto_country(
+    proto_country: payments_grpc::CountryAlpha2,
+) -> Option<common_enums::CountryAlpha2> {
     let proto_country_str = proto_country.as_str_name();
 
     common_enums::CountryAlpha2::foreign_try_from(proto_country)
         .inspect_err(|error| {
             logger::warn!(
                 ?error,
-                country,
                 proto_country = proto_country_str,
                 "Country conversion failed"
             )
@@ -108,54 +106,54 @@ fn convert_proto_country(country: i32) -> Option<common_enums::CountryAlpha2> {
         .ok()
 }
 
-fn convert_proto_bank_type(bank_type: i32) -> Option<common_enums::BankType> {
-    match payments_grpc::BankType::try_from(bank_type).ok()? {
-        payments_grpc::BankType::Checking => Some(common_enums::BankType::Checking),
-        payments_grpc::BankType::Savings => Some(common_enums::BankType::Savings),
-        _ => None,
-    }
+fn convert_proto_bank_type(
+    proto_bank_type: payments_grpc::BankType,
+) -> Option<common_enums::BankType> {
+    let proto_bank_type_str = proto_bank_type.as_str_name();
+
+    <common_enums::BankType as interface_helpers::ForeignTryFrom<payments_grpc::BankType>>::foreign_try_from(proto_bank_type)
+        .inspect_err(|error| logger::warn!(?error, proto_bank_type_str, "Bank type conversion failed"))
+        .ok()
 }
 
-fn convert_proto_bank_holder_type(bank_holder_type: i32) -> Option<common_enums::BankHolderType> {
-    match payments_grpc::BankHolderType::try_from(bank_holder_type).ok()? {
-        payments_grpc::BankHolderType::Personal => Some(common_enums::BankHolderType::Personal),
-        payments_grpc::BankHolderType::Business => Some(common_enums::BankHolderType::Business),
-        _ => None,
-    }
+fn convert_proto_bank_holder_type(
+    proto_bank_holder_type: payments_grpc::BankHolderType,
+) -> Option<common_enums::BankHolderType> {
+    let proto_bank_holder_type_str = proto_bank_holder_type.as_str_name();
+
+    <common_enums::BankHolderType as interface_helpers::ForeignTryFrom<
+        payments_grpc::BankHolderType,
+    >>::foreign_try_from(proto_bank_holder_type)
+    .inspect_err(|error| {
+        logger::warn!(
+            ?error,
+            proto_bank_holder_type_str,
+            "Bank holder type conversion failed"
+        )
+    })
+    .ok()
 }
 
-fn convert_proto_card_network(card_network: i32) -> Option<common_enums::CardNetwork> {
-    match payments_grpc::CardNetwork::try_from(card_network).ok()? {
-        payments_grpc::CardNetwork::Visa => Some(common_enums::CardNetwork::Visa),
-        payments_grpc::CardNetwork::Mastercard => Some(common_enums::CardNetwork::Mastercard),
-        payments_grpc::CardNetwork::Amex => Some(common_enums::CardNetwork::AmericanExpress),
-        payments_grpc::CardNetwork::Discover => Some(common_enums::CardNetwork::Discover),
-        payments_grpc::CardNetwork::Jcb => Some(common_enums::CardNetwork::JCB),
-        payments_grpc::CardNetwork::Diners => Some(common_enums::CardNetwork::DinersClub),
-        payments_grpc::CardNetwork::Unionpay => Some(common_enums::CardNetwork::UnionPay),
-        payments_grpc::CardNetwork::Maestro => Some(common_enums::CardNetwork::Maestro),
-        payments_grpc::CardNetwork::CartesBancaires => {
-            Some(common_enums::CardNetwork::CartesBancaires)
-        }
-        payments_grpc::CardNetwork::Rupay => Some(common_enums::CardNetwork::RuPay),
-        payments_grpc::CardNetwork::InteracCard => Some(common_enums::CardNetwork::Interac),
-        payments_grpc::CardNetwork::Star => Some(common_enums::CardNetwork::Star),
-        payments_grpc::CardNetwork::Pulse => Some(common_enums::CardNetwork::Pulse),
-        payments_grpc::CardNetwork::Accel => Some(common_enums::CardNetwork::Accel),
-        payments_grpc::CardNetwork::Nyce => Some(common_enums::CardNetwork::Nyce),
-        _ => None,
-    }
+fn convert_proto_card_network(
+    proto_card_network: payments_grpc::CardNetwork,
+) -> Option<common_enums::CardNetwork> {
+    let proto_card_network_str = proto_card_network.as_str_name();
+
+    common_enums::CardNetwork::foreign_try_from(proto_card_network)
+        .inspect_err(|error| {
+            logger::warn!(
+                ?error,
+                proto_card_network_str,
+                "Card network conversion failed"
+            )
+        })
+        .ok()
 }
 
-fn convert_proto_upi_source(upi_source: i32) -> Option<domain_pm::UpiSource> {
-    match payments_grpc::UpiSource::try_from(upi_source).ok()? {
-        payments_grpc::UpiSource::UpiCc => Some(domain_pm::UpiSource::UpiCc),
-        payments_grpc::UpiSource::UpiCl => Some(domain_pm::UpiSource::UpiCl),
-        payments_grpc::UpiSource::UpiAccount => Some(domain_pm::UpiSource::UpiAccount),
-        payments_grpc::UpiSource::UpiCcCl => Some(domain_pm::UpiSource::UpiCcCl),
-        payments_grpc::UpiSource::UpiPpi => Some(domain_pm::UpiSource::UpiPpi),
-        payments_grpc::UpiSource::UpiVoucher => Some(domain_pm::UpiSource::UpiVoucher),
-    }
+fn convert_proto_upi_source(upi_source: payments_grpc::UpiSource) -> domain_pm::UpiSource {
+    <domain_pm::UpiSource as interface_helpers::ForeignFrom<payments_grpc::UpiSource>>::foreign_from(
+        upi_source,
+    )
 }
 
 pub fn convert_unified_connector_service_payment_method_to_domain(
@@ -171,7 +169,10 @@ pub fn convert_unified_connector_service_payment_method_to_domain(
             card_cvc: card.card_cvc?,
             card_holder_name: card.card_holder_name,
             card_issuer: card.card_issuer,
-            card_network: card.card_network.and_then(convert_proto_card_network),
+            card_network: card
+                .card_network
+                .and_then(|card_network| payments_grpc::CardNetwork::try_from(card_network).ok())
+                .and_then(convert_proto_card_network),
             card_type: card.card_type,
             card_issuing_country: card.card_issuing_country_alpha2,
             card_issuing_country_code: None,
@@ -205,18 +206,27 @@ pub fn convert_unified_connector_service_payment_method_to_domain(
                 vpa_id: upi_collect
                     .vpa_id
                     .map(|vpa_id| Secret::new(vpa_id.expose())),
-                upi_source: upi_collect.upi_source.and_then(convert_proto_upi_source),
+                upi_source: upi_collect
+                    .upi_source
+                    .and_then(|upi_source| payments_grpc::UpiSource::try_from(upi_source).ok())
+                    .map(convert_proto_upi_source),
             }),
         )),
         PaymentMethod::UpiIntent(upi_intent) => Some(domain_pm::PaymentMethodData::Upi(
             domain_pm::UpiData::UpiIntent(domain_pm::UpiIntentData {
                 app_name: upi_intent.app_name,
-                upi_source: upi_intent.upi_source.and_then(convert_proto_upi_source),
+                upi_source: upi_intent
+                    .upi_source
+                    .and_then(|upi_source| payments_grpc::UpiSource::try_from(upi_source).ok())
+                    .map(convert_proto_upi_source),
             }),
         )),
         PaymentMethod::UpiQr(upi_qr) => Some(domain_pm::PaymentMethodData::Upi(
             domain_pm::UpiData::UpiQr(domain_pm::UpiQrData {
-                upi_source: upi_qr.upi_source.and_then(convert_proto_upi_source),
+                upi_source: upi_qr
+                    .upi_source
+                    .and_then(|upi_source| payments_grpc::UpiSource::try_from(upi_source).ok())
+                    .map(convert_proto_upi_source),
             }),
         )),
         PaymentMethod::OpenBankingUk(open_banking_uk) => {
@@ -245,31 +255,49 @@ pub fn convert_unified_connector_service_payment_method_to_domain(
         ),
         PaymentMethod::Ideal(ideal) => Some(domain_pm::PaymentMethodData::BankRedirect(
             domain_pm::BankRedirectData::Ideal {
-                bank_name: ideal.bank_name.and_then(convert_proto_bank_name),
+                bank_name: ideal
+                    .bank_name
+                    .and_then(|bank_name| payments_grpc::BankNames::try_from(bank_name).ok())
+                    .and_then(convert_proto_bank_name),
             },
         )),
         PaymentMethod::Giropay(giropay) => Some(domain_pm::PaymentMethodData::BankRedirect(
             domain_pm::BankRedirectData::Giropay {
                 bank_account_bic: giropay.bank_account_bic,
                 bank_account_iban: giropay.bank_account_iban,
-                country: giropay.country.and_then(convert_proto_country),
+                country: giropay
+                    .country
+                    .and_then(|country| payments_grpc::CountryAlpha2::try_from(country).ok())
+                    .and_then(convert_proto_country),
             },
         )),
         PaymentMethod::Eps(eps) => Some(domain_pm::PaymentMethodData::BankRedirect(
             domain_pm::BankRedirectData::Eps {
-                bank_name: eps.bank_name.and_then(convert_proto_bank_name),
-                country: eps.country.and_then(convert_proto_country),
+                bank_name: eps
+                    .bank_name
+                    .and_then(|bank_name| payments_grpc::BankNames::try_from(bank_name).ok())
+                    .and_then(convert_proto_bank_name),
+                country: eps
+                    .country
+                    .and_then(|country| payments_grpc::CountryAlpha2::try_from(country).ok())
+                    .and_then(convert_proto_country),
             },
         )),
         PaymentMethod::Sofort(sofort) => Some(domain_pm::PaymentMethodData::BankRedirect(
             domain_pm::BankRedirectData::Sofort {
-                country: sofort.country.and_then(convert_proto_country),
+                country: sofort
+                    .country
+                    .and_then(|country| payments_grpc::CountryAlpha2::try_from(country).ok())
+                    .and_then(convert_proto_country),
                 preferred_language: sofort.preferred_language,
             },
         )),
         PaymentMethod::Przelewy24(przelewy24) => Some(domain_pm::PaymentMethodData::BankRedirect(
             domain_pm::BankRedirectData::Przelewy24 {
-                bank_name: przelewy24.bank_name.and_then(convert_proto_bank_name),
+                bank_name: przelewy24
+                    .bank_name
+                    .and_then(|bank_name| payments_grpc::BankNames::try_from(bank_name).ok())
+                    .and_then(convert_proto_bank_name),
             },
         )),
         PaymentMethod::Blik(blik) => Some(domain_pm::PaymentMethodData::BankRedirect(
@@ -279,12 +307,18 @@ pub fn convert_unified_connector_service_payment_method_to_domain(
         )),
         PaymentMethod::Trustly(trustly) => Some(domain_pm::PaymentMethodData::BankRedirect(
             domain_pm::BankRedirectData::Trustly {
-                country: trustly.country.and_then(convert_proto_country),
+                country: trustly
+                    .country
+                    .and_then(|country| payments_grpc::CountryAlpha2::try_from(country).ok())
+                    .and_then(convert_proto_country),
             },
         )),
         PaymentMethod::Interac(interac) => Some(domain_pm::PaymentMethodData::BankRedirect(
             domain_pm::BankRedirectData::Interac {
-                country: interac.country.and_then(convert_proto_country),
+                country: interac
+                    .country
+                    .and_then(|country| payments_grpc::CountryAlpha2::try_from(country).ok())
+                    .and_then(convert_proto_country),
                 email: interac
                     .email
                     .and_then(|email| common_utils::pii::Email::try_from(email.expose()).ok()),
@@ -299,7 +333,9 @@ pub fn convert_unified_connector_service_payment_method_to_domain(
         PaymentMethod::OnlineBankingCzechRepublic(online_banking) => {
             Some(domain_pm::PaymentMethodData::BankRedirect(
                 domain_pm::BankRedirectData::OnlineBankingCzechRepublic {
-                    issuer: convert_proto_bank_name(online_banking.issuer)?,
+                    issuer: payments_grpc::BankNames::try_from(online_banking.issuer)
+                        .ok()
+                        .and_then(convert_proto_bank_name)?,
                 },
             ))
         }
@@ -315,21 +351,27 @@ pub fn convert_unified_connector_service_payment_method_to_domain(
         PaymentMethod::OnlineBankingPoland(online_banking) => {
             Some(domain_pm::PaymentMethodData::BankRedirect(
                 domain_pm::BankRedirectData::OnlineBankingPoland {
-                    issuer: convert_proto_bank_name(online_banking.issuer)?,
+                    issuer: payments_grpc::BankNames::try_from(online_banking.issuer)
+                        .ok()
+                        .and_then(convert_proto_bank_name)?,
                 },
             ))
         }
         PaymentMethod::OnlineBankingSlovakia(online_banking) => {
             Some(domain_pm::PaymentMethodData::BankRedirect(
                 domain_pm::BankRedirectData::OnlineBankingSlovakia {
-                    issuer: convert_proto_bank_name(online_banking.issuer)?,
+                    issuer: payments_grpc::BankNames::try_from(online_banking.issuer)
+                        .ok()
+                        .and_then(convert_proto_bank_name)?,
                 },
             ))
         }
         PaymentMethod::OnlineBankingThailand(online_banking) => {
             Some(domain_pm::PaymentMethodData::BankRedirect(
                 domain_pm::BankRedirectData::OnlineBankingThailand {
-                    issuer: convert_proto_bank_name(online_banking.issuer)?,
+                    issuer: payments_grpc::BankNames::try_from(online_banking.issuer)
+                        .ok()
+                        .and_then(convert_proto_bank_name)?,
                 },
             ))
         }
@@ -353,7 +395,9 @@ pub fn convert_unified_connector_service_payment_method_to_domain(
         PaymentMethod::OnlineBankingFpx(online_banking) => {
             Some(domain_pm::PaymentMethodData::BankRedirect(
                 domain_pm::BankRedirectData::OnlineBankingFpx {
-                    issuer: convert_proto_bank_name(online_banking.issuer)?,
+                    issuer: payments_grpc::BankNames::try_from(online_banking.issuer)
+                        .ok()
+                        .and_then(convert_proto_bank_name)?,
                 },
             ))
         }
@@ -411,6 +455,7 @@ pub fn convert_unified_connector_service_payment_method_to_domain(
                 domain_pm::BankTransferData::IndonesianBankTransfer {
                     bank_name: indonesian_bank_transfer
                         .bank_name
+                        .and_then(|bank_name| payments_grpc::BankNames::try_from(bank_name).ok())
                         .and_then(convert_proto_bank_name),
                 },
             )))
@@ -488,9 +533,15 @@ pub fn convert_unified_connector_service_payment_method_to_domain(
                 account_number: ach.account_number?,
                 routing_number: ach.routing_number?,
                 bank_account_holder_name: ach.bank_account_holder_name,
-                bank_name: convert_proto_bank_name(ach.bank_name),
-                bank_type: convert_proto_bank_type(ach.bank_type),
-                bank_holder_type: convert_proto_bank_holder_type(ach.bank_holder_type),
+                bank_name: payments_grpc::BankNames::try_from(ach.bank_name)
+                    .ok()
+                    .and_then(convert_proto_bank_name),
+                bank_type: payments_grpc::BankType::try_from(ach.bank_type)
+                    .ok()
+                    .and_then(convert_proto_bank_type),
+                bank_holder_type: payments_grpc::BankHolderType::try_from(ach.bank_holder_type)
+                    .ok()
+                    .and_then(convert_proto_bank_holder_type),
             },
         )),
         PaymentMethod::Sepa(sepa) => Some(domain_pm::PaymentMethodData::BankDebit(
@@ -524,8 +575,12 @@ pub fn convert_unified_connector_service_payment_method_to_domain(
                 account_number: eft.account_number?,
                 branch_code: eft.branch_code,
                 bank_account_holder_name: eft.bank_account_holder_name,
-                bank_name: convert_proto_bank_name(eft.bank_name),
-                bank_type: convert_proto_bank_type(eft.bank_type),
+                bank_name: payments_grpc::BankNames::try_from(eft.bank_name)
+                    .ok()
+                    .and_then(convert_proto_bank_name),
+                bank_type: payments_grpc::BankType::try_from(eft.bank_type)
+                    .ok()
+                    .and_then(convert_proto_bank_type),
             },
         )),
         PaymentMethod::Boleto(boleto) => Some(domain_pm::PaymentMethodData::Voucher(

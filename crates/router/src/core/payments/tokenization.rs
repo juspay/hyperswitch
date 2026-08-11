@@ -1039,11 +1039,9 @@ where
                                 create_payment_method_metadata(None, connector_token)?;
 
                             locker_id = resp.payment_method.and_then(|pm| {
-                                if pm == PaymentMethod::Card
-                                    || pm == PaymentMethod::BankDebit
-                                    || (pm == PaymentMethod::Wallet && !check_for_customer_pm)
-                                    || pm == PaymentMethod::BankRedirect
-                                {
+                                if pm.should_persist_locker_id_for_saved_payment_method(
+                                    check_for_customer_pm,
+                                ) {
                                     Some(resp.payment_method_id)
                                 } else {
                                     None
