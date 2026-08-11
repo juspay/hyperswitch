@@ -29,18 +29,13 @@ fn trip_key(rollout_scope: &str) -> String {
     format!("{}_{rollout_scope}", consts::UCS_KILL_SWITCH_REDIS_PREFIX)
 }
 
-/// Whether the kill switch is turned on. Cached config lookup, same as `UCS_ENABLED`.
-async fn is_enabled(state: &SessionState) -> bool {
-    is_ucs_enabled(state, consts::UCS_KILL_SWITCH_ENABLED).await
-}
-
 /// Whether the kill switch has tripped for this scope.
 ///
 /// Fails closed: a redis error routes to the direct integration, since an unnecessary fallback
 /// is harmless and a missed one is not. Only reached once the rollout config resolved to
 /// primary, so shadow traffic never pays for the lookup.
 pub async fn is_tripped(state: &SessionState, rollout_scope: &str) -> bool {
-    if !is_enabled(state).await {
+    if !is_ucs_enabled(state, consts::UCS_KILL_SWITCH_ENABLED).await {
         return false;
     }
 
@@ -120,7 +115,7 @@ pub async fn record_failure(
     );
 
     // Turned off: the metric above still reports what would have been tripped.
-    if !is_enabled(state).await {
+    if !is_ucs_enabled(state, consts::UCS_KILL_SWITCH_ENABLED).await {
         logger::warn!(
             rollout_scope = %rollout_scope,
             reason = reason.as_str(),
@@ -153,21 +148,12 @@ async fn trip(
         }
     };
 
-    // A scope-specific failure waits for a human; an unreachable UCS releases itself once UCS is
-    // back, so a deploy does not leave hundreds of scopes to clear by hand.
-    let ttl_in_seconds = if reason.is_transient() {
-        consts::UCS_KILL_SWITCH_TRANSIENT_TTL_IN_SECONDS
-    } else {
-        consts::UCS_KILL_SWITCH_TTL_IN_SECONDS
-    };
-
     // Carries enough to find the originating request in the logs.
     let record = serde_json::json!({
         "reason": reason.as_str(),
         "error": error.to_string(),
         "request_id": state.request_id.as_ref().map(|id| id.to_string()),
         "tripped_at": common_utils::date_time::now_unix_timestamp(),
-        "releases_after_seconds": ttl_in_seconds,
     })
     .to_string();
 
@@ -175,7 +161,7 @@ async fn trip(
         .set_key_if_not_exists_with_expiry(
             &trip_key(rollout_scope).as_str().into(),
             record,
-            Some(ttl_in_seconds),
+            Some(consts::UCS_KILL_SWITCH_TTL_IN_SECONDS),
         )
         .await
     {
@@ -188,7 +174,6 @@ async fn trip(
                 rollout_scope = %rollout_scope,
                 reason = reason.as_str(),
                 ucs_error = %error,
-                releases_after_seconds = ttl_in_seconds,
                 "ucs_kill_switch: tripping the scope back to the direct integration"
             );
         }
@@ -327,15 +312,13 @@ mod tests {
     }
 
     #[test]
-    fn an_unreachable_ucs_trips_but_releases_itself() {
+    fn an_unreachable_ucs_trips() {
         // While UCS is unreachable the payment has no fallback and fails outright, so serving
-        // from the direct integration is strictly better. It must release itself, though, or a
-        // routine deploy would leave every promoted scope to be cleared by hand.
-        let reason =
-            UnifiedConnectorServiceError::ConnectionError("dial".into()).ucs_kill_switch_reason();
-
-        assert_eq!(reason, Some(UcsKillSwitchReason::UcsUnreachable));
-        assert!(reason.is_some_and(|r| r.is_transient()));
+        // from the direct integration is strictly better.
+        assert_eq!(
+            UnifiedConnectorServiceError::ConnectionError("dial".into()).ucs_kill_switch_reason(),
+            Some(UcsKillSwitchReason::UcsUnreachable)
+        );
     }
 
     #[test]
