@@ -331,8 +331,8 @@ mod tests {
         // While UCS is unreachable the payment has no fallback and fails outright, so serving
         // from the direct integration is strictly better. It must release itself, though, or a
         // routine deploy would leave every promoted scope to be cleared by hand.
-        let reason = UnifiedConnectorServiceError::ConnectionError("dial".into())
-            .ucs_kill_switch_reason();
+        let reason =
+            UnifiedConnectorServiceError::ConnectionError("dial".into()).ucs_kill_switch_reason();
 
         assert_eq!(reason, Some(UcsKillSwitchReason::UcsUnreachable));
         assert!(reason.is_some_and(|r| r.is_transient()));

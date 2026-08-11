@@ -1587,7 +1587,11 @@ mod ucs_kill_switch_reason_tests {
         ] {
             let reason = tonic_status(code).ucs_kill_switch_reason();
 
-            assert_eq!(reason, Some(UcsKillSwitchReason::UcsUnreachable), "{code:?}");
+            assert_eq!(
+                reason,
+                Some(UcsKillSwitchReason::UcsUnreachable),
+                "{code:?}"
+            );
             assert!(reason.is_some_and(|r| r.is_transient()), "{code:?}");
         }
     }
