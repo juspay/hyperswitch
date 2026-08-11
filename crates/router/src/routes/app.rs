@@ -2341,9 +2341,8 @@ impl UnifiedConnectorService {
                     .route(web::get().to(unified_connector_service_routes::list_kill_switch)),
             )
             .service(
-                web::resource("/kill-switch/{merchant_id}/{connector}/{flow}").route(
-                    web::delete().to(unified_connector_service_routes::reset_kill_switch),
-                ),
+                web::resource("/kill-switch/{merchant_id}/{connector}/{flow}")
+                    .route(web::delete().to(unified_connector_service_routes::reset_kill_switch)),
             )
     }
 }

@@ -351,7 +351,8 @@ where
         should_execute_based_on_rollout_with_precedence(state, &rollout_keys).await?;
 
     // Single decision point using pattern matching
-    let (mut gateway_system, mut execution_path) = if ucs_availability == UcsAvailability::Disabled {
+    let (mut gateway_system, mut execution_path) = if ucs_availability == UcsAvailability::Disabled
+    {
         match call_connector_action {
             CallConnectorAction::UCSConsumeResponse(_) => {
                 Err(errors::ApiErrorResponse::InternalServerError)

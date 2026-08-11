@@ -209,7 +209,10 @@ pub async fn is_cut_over(state: &SessionState, scope: &str) -> bool {
         }
     };
 
-    match redis_conn.exists::<()>(&cutover_key(scope).as_str().into()).await {
+    match redis_conn
+        .exists::<()>(&cutover_key(scope).as_str().into())
+        .await
+    {
         Ok(true) => {
             logger::info!(
                 ucs_kill_switch_scope = %scope,
@@ -420,8 +423,10 @@ mod tests {
         // A rolling UCS deploy produces these across every scope at once. Cutting over on them
         // would revert the whole migration and identify nothing.
         assert!(
-            classify_failure(&UnifiedConnectorServiceError::ConnectionError("dial".into()))
-                .is_none()
+            classify_failure(&UnifiedConnectorServiceError::ConnectionError(
+                "dial".into()
+            ))
+            .is_none()
         );
 
         for code in [
@@ -479,7 +484,9 @@ mod tests {
             Some(UcsFailureReason::RequestUnbuildable)
         );
         assert_eq!(
-            classify_failure(&UnifiedConnectorServiceError::NotImplemented("PSync".into())),
+            classify_failure(&UnifiedConnectorServiceError::NotImplemented(
+                "PSync".into()
+            )),
             Some(UcsFailureReason::NotImplemented)
         );
     }
