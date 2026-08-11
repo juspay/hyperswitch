@@ -14,7 +14,7 @@ use crate::{
 pub async fn resolve_account_updater_config<D>(
     state: &SessionState,
     dimensions: &D,
-) -> CustomResult<ResolvedAccountUpdaterConfig, AccountUpdaterError>
+) -> CustomResult<Option<ResolvedAccountUpdaterConfig>, AccountUpdaterError>
 where
     D: dimension_state::DimensionsBase,
 {
@@ -31,7 +31,7 @@ where
         .await;
 
     if !enabled {
-        return Err(report!(AccountUpdaterError::GateDisabled));
+        return Ok(None);
     }
 
     let source = configs::fetch_db_config_for_string_enum::<
@@ -42,11 +42,8 @@ where
     .unwrap_or(AccountUpdaterCredentialSource::None);
 
     match source {
-        AccountUpdaterCredentialSource::None => {
-            Err(report!(AccountUpdaterError::CredentialSourceNone)
-                .attach_printable("Account Updater credential source resolved to 'none'"))
-        }
-        AccountUpdaterCredentialSource::Application => resolve_application_config(state),
+        AccountUpdaterCredentialSource::None => Ok(None),
+        AccountUpdaterCredentialSource::Application => resolve_application_config(state).map(Some),
     }
 }
 
@@ -54,7 +51,7 @@ fn resolve_application_config(
     state: &SessionState,
 ) -> CustomResult<ResolvedAccountUpdaterConfig, AccountUpdaterError> {
     let account_updater = state.conf.account_updater.as_ref().ok_or_else(|| {
-        report!(AccountUpdaterError::CredentialSourceNone).attach_printable(
+        report!(AccountUpdaterError::MissingApplicationConfig).attach_printable(
             "Account Updater credential source is 'application' but the account_updater \
              section is not configured",
         )

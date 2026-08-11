@@ -10,11 +10,32 @@ use common_utils::ext_traits::ValueExt;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::router_data::ConnectorAuthType;
 use hyperswitch_masking::{PeekInterface, Secret};
+use serde::Serialize;
 
 use crate::{
     core::errors::{self, RouterResult},
     types::transformers::ForeignTryFrom,
 };
+
+/// Connector-specific configuration wrapper for UCS.
+/// Serializes as: `{"config": {"ConnectorName": {...}}}`
+#[derive(Debug, Serialize)]
+pub struct UcsConnectorConfig {
+    pub config: serde_json::Map<String, serde_json::Value>,
+}
+
+impl UcsConnectorConfig {
+    /// Creates a new UCS connector config with the connector name as the key in PascalCase
+    pub fn new<T: Serialize>(connector: Connector, inner: T) -> RouterResult<Self> {
+        let connector_name = format!("{:?}", connector); // PascalCase: Braintree, Cybersource
+        let inner_json = serde_json::to_value(&inner)
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to serialize connector config inner value")?;
+        let mut config = serde_json::Map::new();
+        config.insert(connector_name, inner_json);
+        Ok(Self { config })
+    }
+}
 
 /// Metadata structures for parsing connector metadata
 #[derive(Debug, serde::Deserialize)]
@@ -46,6 +67,24 @@ pub struct AdyenMetadata {
 pub struct JpmorganMetadata {
     company_name: Secret<String>,
     product_name: Secret<String>,
+}
+
+#[derive(Debug, serde::Deserialize)]
+pub struct SantanderPayoutMetadata {
+    pix_payout: Option<SantanderPixPayoutMetadata>,
+}
+
+#[derive(Debug, serde::Deserialize)]
+pub struct SantanderPixPayoutMetadata {
+    client_id: Secret<String>,
+    client_secret: Secret<String>,
+    workspace_id: Secret<String>,
+}
+
+#[derive(Debug, serde::Deserialize)]
+pub struct MifinityMetadata {
+    brand_id: Secret<String>,
+    destination_account_number: Secret<String>,
 }
 
 #[derive(Debug, serde::Deserialize)]
@@ -142,6 +181,15 @@ pub struct TsysTransitMetadata {
     merchant_street_address: Option<Secret<String>>,
     customer_service_phone_number: Option<Secret<String>>,
     merchant_url: Option<url::Url>,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct JuspayMetadata {
+    pub merchant_id: String,
+    pub base_url: String,
+    pub juspay_encryption_public_key: Secret<String>,
+    pub response_decryption_private_key: Secret<String>,
+    pub card_sync_key_id: String,
 }
 
 /// Connector-specific configuration enum for all supported connectors
@@ -590,6 +638,13 @@ pub enum ConnectorSpecificConfig {
         certificates: Option<Secret<String>>,
         private_key: Option<Secret<String>>,
     },
+    /// Deutsche Bank CSEAL configuration
+    Deutschebank {
+        customer_identifier: Secret<String>,
+        key_id: Secret<String>,
+        signing_private_key: Secret<String>,
+        client_certificate_bundle: Secret<String>,
+    },
     /// Imerchantsolutions connector configuration
     Imerchantsolutions {
         api_key: Secret<String>,
@@ -607,7 +662,7 @@ pub enum ConnectorSpecificConfig {
     },
     /// Givepayments connector configuration
     Givepayments { api_key: Secret<String> },
-    /// Juspay Account Updater configuration.
+    /// Juspay Account Updater configuration
     Juspay {
         api_key: Secret<String>,
         merchant_id: String,
@@ -615,6 +670,22 @@ pub enum ConnectorSpecificConfig {
         juspay_encryption_public_key: Secret<String>,
         response_decryption_private_key: Secret<String>,
         card_sync_key_id: String,
+    },
+    /// Netcetera authentication connector configuration (no connector-specific config needed)
+    Netcetera,
+    /// Santander payout connector configuration
+    Santander {
+        certificates: Secret<String>,
+        private_key: Secret<String>,
+        client_id: Secret<String>,
+        client_secret: Secret<String>,
+        workspace_id: Secret<String>,
+    },
+    /// Mifinity connector configuration
+    Mifinity {
+        key: Secret<String>,
+        brand_id: Option<Secret<String>>,
+        destination_account_number: Option<Secret<String>>,
     },
 }
 
@@ -1580,6 +1651,23 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                 }),
                 _ => Err(err("Itaubank requires BodyKey auth type")),
             },
+            Connector::Deutschebank => match auth {
+                ConnectorAuthType::MultiAuthKey {
+                    api_key,
+                    key1,
+                    api_secret,
+                    key2,
+                } => Ok(Self::Deutschebank {
+                    customer_identifier: api_key.clone(),
+                    key_id: key1.clone(),
+                    signing_private_key: api_secret.clone(),
+                    client_certificate_bundle: key2.clone(),
+                }),
+                _ => Err(err(
+                    "Deutsche Bank requires MultiAuthKey auth type \
+                     (customer_identifier / key_id / signing_private_key / client_certificate_bundle)",
+                )),
+            },
             Connector::Imerchantsolutions => match auth {
                 ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Imerchantsolutions {
                     api_key: api_key.clone(),
@@ -1619,6 +1707,73 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                 }),
                 _ => Err(err("Givepayments requires HeaderKey auth type")),
             },
+            Connector::Juspay => match auth {
+                ConnectorAuthType::HeaderKey { api_key } => {
+                    let juspay_meta = metadata
+                        .map(|meta| {
+                            serde_json::from_value::<JuspayMetadata>(meta.clone())
+                                .map_err(|_| err("Invalid Juspay metadata format"))
+                        })
+                        .transpose()?
+                        .ok_or_else(|| err("Juspay requires metadata"))?;
+
+                    Ok(Self::Juspay {
+                        api_key: api_key.clone(),
+                        merchant_id: juspay_meta.merchant_id,
+                        base_url: juspay_meta.base_url,
+                        juspay_encryption_public_key: juspay_meta.juspay_encryption_public_key,
+                        response_decryption_private_key: juspay_meta
+                            .response_decryption_private_key,
+                        card_sync_key_id: juspay_meta.card_sync_key_id,
+                    })
+                }
+                _ => Err(err("Juspay requires HeaderKey auth type")),
+            },
+            Connector::Netcetera => Ok(Self::Netcetera),
+            Connector::Santander => match auth {
+                ConnectorAuthType::CertificateAuth {
+                    certificate,
+                    private_key,
+                } => {
+                    // When multiple payout methods are added, hold each as an Option here
+                    // and defer per-method credential validation to request time in UCS.
+                    let pix_payout = metadata
+                        .map(|m| {
+                            serde_json::from_value::<SantanderPayoutMetadata>(m.clone())
+                                .map_err(|_| err("Invalid Santander payout metadata format"))
+                        })
+                        .transpose()?
+                        .and_then(|m| m.pix_payout)
+                        .ok_or_else(|| err("Santander payout requires pix_payout metadata"))?;
+                    Ok(Self::Santander {
+                        certificates: certificate.clone(),
+                        private_key: private_key.clone(),
+                        client_id: pix_payout.client_id,
+                        client_secret: pix_payout.client_secret,
+                        workspace_id: pix_payout.workspace_id,
+                    })
+                }
+                _ => Err(err("Santander payout requires CertificateAuth auth type")),
+            },
+            Connector::Mifinity => match auth {
+                ConnectorAuthType::HeaderKey { api_key } => {
+                    let mifinity_meta = metadata
+                        .map(|m| {
+                            serde_json::from_value::<MifinityMetadata>(m.clone())
+                                .map_err(|_| err("Invalid Mifinity metadata format"))
+                        })
+                        .transpose()?;
+
+                    Ok(Self::Mifinity {
+                        key: api_key.clone(),
+                        brand_id: mifinity_meta.as_ref().map(|m| m.brand_id.clone()),
+                        destination_account_number: mifinity_meta
+                            .as_ref()
+                            .map(|m| m.destination_account_number.clone()),
+                    })
+                }
+                _ => Err(err("Mifinity requires HeaderKey auth type")),
+            },
             // --- Unsupported connectors ---
             _ => Err(
                 error_stack::report!(errors::ApiErrorResponse::InternalServerError)
@@ -1647,20 +1802,16 @@ pub fn build_connector_config_header(
         merchant_account_metadata,
     ))?;
 
-    serialize_connector_config(&config).map(Some)
-}
-
-/// Serializes a [`ConnectorSpecificConfig`] into the `{"config": {"ConnectorName": {...}}}`
-/// envelope UCS expects for the connector config header.
-pub fn serialize_connector_config(config: &ConnectorSpecificConfig) -> RouterResult<String> {
-    let config_json = serde_json::to_value(config)
+    let config_json = serde_json::to_value(&config)
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to serialize connector config to JSON value")?;
 
     let mut outer_map = serde_json::Map::new();
     outer_map.insert("config".to_string(), config_json);
 
-    serde_json::to_string(&outer_map)
+    let config_string = serde_json::to_string(&outer_map)
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to serialize ConnectorSpecificConfig")
+        .attach_printable("Failed to serialize ConnectorSpecificConfig")?;
+
+    Ok(Some(config_string))
 }

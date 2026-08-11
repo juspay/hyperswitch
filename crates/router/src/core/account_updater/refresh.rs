@@ -13,7 +13,7 @@ use crate::{
     routes::SessionState, types::domain,
 };
 
-/// Sent as the `grpc-timeout` deadline, so UCS abandons the inquiry rather than us alone.
+/// Per-call `grpc-timeout` deadline for the refresh request.
 const REFRESH_TIMEOUT: Duration = Duration::from_secs(5);
 
 #[instrument(skip_all)]
@@ -28,20 +28,23 @@ pub async fn request_account_updater_refresh(
         .grpc_client
         .unified_connector_service_client
         .as_ref()
-        .ok_or(report!(AccountUpdaterError::RefreshCallFailed))
+        .ok_or_else(|| report!(AccountUpdaterError::RefreshCallFailed))
         .attach_printable("Unified Connector Service client is not configured")?;
 
     let request = payments_grpc::PaymentMethodServiceRefreshRequest {
         payment_method: Some(refreshable_payment_method),
     };
 
-    let (connector, auth_type, connector_config) = config.to_connector_auth();
+    let (connector, auth_type, metadata) = config
+        .build_connector_credentials()
+        .change_context(AccountUpdaterError::RefreshCallFailed)
+        .attach_printable("Failed to build the Account Updater connector metadata")?;
 
     let connector_auth_metadata = build_unified_connector_service_auth_metadata_without_mca(
         connector,
         &auth_type,
         platform.get_processor().get_account().get_id(),
-        Some(&connector_config),
+        Some(&metadata),
     )
     .change_context(AccountUpdaterError::RefreshCallFailed)
     .attach_printable("Failed to build the Account Updater auth metadata")?;
@@ -68,12 +71,6 @@ pub async fn request_account_updater_refresh(
     .attach_printable("Account Updater refresh call to UCS failed")?
     .into_inner();
 
-    classify_response(response)
-}
-
-fn classify_response(
-    response: payments_grpc::PaymentMethodServiceRefreshResponse,
-) -> CustomResult<payments_grpc::CardRefreshOutcome, AccountUpdaterError> {
     if let Some(error) = response.error.as_ref() {
         return Err(
             report!(AccountUpdaterError::RefreshReturnedError).attach_printable(format!(
@@ -92,6 +89,6 @@ fn classify_response(
                     .unwrap_or(payments_grpc::CardRefreshOutcome::Unspecified)
             }
         })
-        .ok_or(report!(AccountUpdaterError::RefreshReturnedError))
+        .ok_or_else(|| report!(AccountUpdaterError::RefreshReturnedError))
         .attach_printable("UCS returned neither a result nor an error")
 }

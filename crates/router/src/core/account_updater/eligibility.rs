@@ -4,9 +4,7 @@ use api_models::payment_methods::RawPaymentMethodData;
 use common_enums::{CardNetwork, PaymentMethod, PaymentMethodStatus, StorageType};
 use common_utils::errors::CustomResult;
 use error_stack::{report, ResultExt};
-use hyperswitch_domain_models::payment_method_data::{
-    CardDetailsPaymentMethod, PaymentMethodsData,
-};
+use hyperswitch_domain_models::payment_method_data::PaymentMethodsData;
 use router_env::{instrument, tracing};
 use unified_connector_service_cards::CardNumber;
 use unified_connector_service_client::payments as payments_grpc;
@@ -26,7 +24,50 @@ pub async fn check_eligibility_and_fetch_payment_method(
     payment_method: &domain::PaymentMethod,
     storage_type: StorageType,
 ) -> CustomResult<payments_grpc::PaymentMethod, AccountUpdaterError> {
-    check_eligibility(payment_method)?;
+    if payment_method.status != PaymentMethodStatus::Active {
+        return Err(report!(AccountUpdaterError::PaymentMethodNotActive));
+    }
+
+    match payment_method.get_payment_method_type() {
+        Some(PaymentMethod::Card) => {
+            check_stored_card_eligibility_and_fetch_details(
+                state,
+                platform,
+                profile,
+                payment_method,
+                storage_type,
+            )
+            .await
+        }
+        _ => Err(report!(AccountUpdaterError::PaymentMethodNotACard)),
+    }
+}
+
+async fn check_stored_card_eligibility_and_fetch_details(
+    state: &SessionState,
+    platform: &domain::Platform,
+    profile: &domain::Profile,
+    payment_method: &domain::PaymentMethod,
+    storage_type: StorageType,
+) -> CustomResult<payments_grpc::PaymentMethod, AccountUpdaterError> {
+    let card_details = match payment_method
+        .payment_method_data
+        .as_ref()
+        .map(|payment_method_data| payment_method_data.get_inner())
+    {
+        Some(PaymentMethodsData::Card(card_details)) => card_details,
+        _ => {
+            return Err(report!(AccountUpdaterError::PaymentMethodNotACard)
+                .attach_printable("Stored payment method data holds no card details"))
+        }
+    };
+
+    if !matches!(
+        card_details.card_network,
+        Some(CardNetwork::Visa | CardNetwork::Mastercard)
+    ) {
+        return Err(report!(AccountUpdaterError::UnsupportedNetwork));
+    }
 
     let raw_payment_method_data = RawPaymentMethodFetchAccess::Allowed
         .get_raw_payment_method_data(state, platform, profile, payment_method, storage_type)
@@ -34,6 +75,12 @@ pub async fn check_eligibility_and_fetch_payment_method(
         .change_context(AccountUpdaterError::CardUnusable)
         .attach_printable("Account Updater could not unvault the stored card")?;
 
+    build_refreshable_payment_method(raw_payment_method_data)
+}
+
+fn build_refreshable_payment_method(
+    raw_payment_method_data: Option<RawPaymentMethodData>,
+) -> CustomResult<payments_grpc::PaymentMethod, AccountUpdaterError> {
     let card_details = match raw_payment_method_data {
         Some(RawPaymentMethodData::Card(card_details)) => card_details,
         Some(RawPaymentMethodData::CardWithNT(details)) => details.card_details,
@@ -49,7 +96,7 @@ pub async fn check_eligibility_and_fetch_payment_method(
 
     let network = card_details
         .card_network
-        .ok_or(report!(AccountUpdaterError::CardUnusable))
+        .ok_or_else(|| report!(AccountUpdaterError::CardUnusable))
         .attach_printable("Unvaulted card carries no network")?;
 
     Ok(payments_grpc::PaymentMethod {
@@ -68,38 +115,4 @@ pub async fn check_eligibility_and_fetch_payment_method(
             },
         )),
     })
-}
-
-fn check_eligibility(
-    payment_method: &domain::PaymentMethod,
-) -> CustomResult<(), AccountUpdaterError> {
-    if payment_method.status != PaymentMethodStatus::Active {
-        return Err(report!(AccountUpdaterError::PaymentMethodNotActive));
-    }
-
-    match payment_method.get_payment_method_type() {
-        Some(PaymentMethod::Card) => {
-            match payment_method
-                .payment_method_data
-                .as_ref()
-                .map(|payment_method_data| payment_method_data.get_inner())
-            {
-                Some(PaymentMethodsData::Card(card_details)) => {
-                    check_stored_card_eligibility(card_details)
-                }
-                _ => Err(report!(AccountUpdaterError::PaymentMethodNotACard)
-                    .attach_printable("Stored payment method data holds no card details")),
-            }
-        }
-        _ => Err(report!(AccountUpdaterError::PaymentMethodNotACard)),
-    }
-}
-
-fn check_stored_card_eligibility(
-    card_details: &CardDetailsPaymentMethod,
-) -> CustomResult<(), AccountUpdaterError> {
-    match &card_details.card_network {
-        Some(CardNetwork::Visa | CardNetwork::Mastercard) => Ok(()),
-        _ => Err(report!(AccountUpdaterError::UnsupportedNetwork)),
-    }
 }
