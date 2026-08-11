@@ -46,7 +46,7 @@ use crate::{
         errors::{self, RouterResult},
         payments::{
             helpers::{
-                is_googlepay_predecrypted_flow_supported, is_ucs_enabled,
+                is_googlepay_predecrypted_flow_supported, is_config_flag_enabled,
                 should_execute_based_on_rollout, should_execute_based_on_rollout_with_precedence,
                 MerchantConnectorAccountType, ProxyOverride, WebhookRolloutConfig,
                 WebhookRolloutExecutionResult,
@@ -240,7 +240,7 @@ type UnifiedConnectorServiceCreateOrderResult = CustomResult<
 async fn check_ucs_availability(state: &SessionState) -> UcsAvailability {
     let is_client_available = state.grpc_client.unified_connector_service_client.is_some();
 
-    let is_enabled = is_ucs_enabled(state, consts::UCS_ENABLED).await;
+    let is_enabled = is_config_flag_enabled(state, consts::UCS_ENABLED).await;
 
     match (is_client_available, is_enabled) {
         (true, true) => {
@@ -3152,21 +3152,30 @@ where
 
             // Every payment and payout gateway funnels through here with the UCS error still
             // typed, so this is the one place the kill switch has to observe.
-            if let Ok(flow_name) = get_flow_name::<T>() {
-                kill_switch::record_failure(
-                    state,
-                    kill_switch::UcsFailureContext {
-                        merchant_id: merchant_id.get_string_repr(),
-                        connector_name: &connector_name,
-                        flow_name: &flow_name,
-                        payment_id: &payment_id,
-                        payment_method,
-                        payment_method_type,
-                    },
-                    execution_mode,
-                    error.current_context(),
-                )
-                .await;
+            match get_flow_name::<T>() {
+                Ok(flow_name) => {
+                    kill_switch::record_failure(
+                        state,
+                        kill_switch::UcsFailureContext {
+                            merchant_id: merchant_id.get_string_repr(),
+                            connector_name: &connector_name,
+                            flow_name: &flow_name,
+                            payment_id: &payment_id,
+                            payment_method,
+                            payment_method_type,
+                        },
+                        execution_mode,
+                        error.current_context(),
+                    )
+                    .await;
+                }
+                // Never expected, but skipping here would disable the kill switch for this flow
+                // without saying so.
+                Err(flow_name_error) => logger::error!(
+                    ?flow_name_error,
+                    connector = %connector_name,
+                    "ucs_kill_switch: could not resolve the flow name, failure not classified"
+                ),
             }
 
             let error_body = serde_json::json!({

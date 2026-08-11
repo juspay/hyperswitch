@@ -15,7 +15,7 @@ use router_env::logger;
 use crate::{
     consts,
     core::{
-        errors, metrics, payments::helpers::is_ucs_enabled,
+        errors, metrics, payments::helpers::is_config_flag_enabled,
         unified_connector_service::build_merchant_rollout_scope,
     },
     routes::SessionState,
@@ -31,7 +31,7 @@ fn trip_key(rollout_scope: &str) -> String {
 /// Fails closed: a redis error routes to the direct integration. Only reached once the rollout
 /// config resolved to primary, so shadow traffic never pays for the lookup.
 pub async fn is_tripped(state: &SessionState, rollout_scope: &str) -> bool {
-    if !is_ucs_enabled(state, consts::UCS_KILL_SWITCH_ENABLED).await {
+    if !is_config_flag_enabled(state, consts::UCS_KILL_SWITCH_ENABLED).await {
         return false;
     }
 
@@ -119,7 +119,7 @@ pub async fn record_failure(
     );
 
     // Fires on every qualifying failure: calibration feed, not an alert.
-    if !is_ucs_enabled(state, consts::UCS_KILL_SWITCH_ENABLED).await {
+    if !is_config_flag_enabled(state, consts::UCS_KILL_SWITCH_ENABLED).await {
         logger::warn!(
             rollout_scope = %rollout_scope,
             merchant_id = %context.merchant_id,
