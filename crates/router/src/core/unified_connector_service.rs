@@ -326,7 +326,7 @@ where
     // Payments use org-level hierarchy; payouts use a single merchant-level key for now.
     let rollout_keys = match transaction_type {
         common_enums::TransactionType::Payment
-        | common_enums::TransactionType::ThreeDsAuthentication => build_rollout_keys(
+        | common_enums::TransactionType::ThreeDsAuthentication => build_rollout_keys_by_precedence(
             org_id,
             merchant_id,
             connector_name,
@@ -591,11 +591,12 @@ fn decide_execution_path(
     }
 }
 
-/// Merchant-scoped rollout scope: the part of a rollout key below the org level.
+/// The merchant level of a rollout key: merchant, connector, payment method and flow.
 ///
-/// Shared by [`build_rollout_keys`] and the kill switch so a trip always targets exactly the
-/// rollout key that enabled the traffic.
-pub fn build_rollout_scope(
+/// The finest of the four precedence levels, and the only one that varies by connector or
+/// payment method. Shared with the kill switch so a trip targets exactly the key that enabled
+/// the traffic.
+pub fn build_merchant_rollout_scope(
     merchant_id: &str,
     connector_name: &str,
     flow_name: &str,
@@ -639,9 +640,9 @@ pub fn build_rollout_scope(
     }
 }
 
-/// Builds rollout config keys in ascending precedence order (lowest first, highest last).
-/// The caller iterates highest to lowest and uses the first match found.
-fn build_rollout_keys(
+/// Rollout config keys, **lowest precedence first**. The caller reverses this and takes the
+/// first key that exists, so the order is load-bearing.
+fn build_rollout_keys_by_precedence(
     org_id: &str,
     merchant_id: &str,
     connector_name: &str,
@@ -650,7 +651,7 @@ fn build_rollout_keys(
     payment_method_type: Option<PaymentMethodType>,
 ) -> Vec<String> {
     let prefix = consts::UCS_ROLLOUT_PERCENT_CONFIG_PREFIX;
-    let scope = build_rollout_scope(
+    let scope = build_merchant_rollout_scope(
         merchant_id,
         connector_name,
         flow_name,

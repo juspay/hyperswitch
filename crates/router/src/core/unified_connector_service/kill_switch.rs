@@ -17,7 +17,7 @@ use crate::{
     consts,
     core::{
         errors, metrics, payments::helpers::is_ucs_enabled,
-        unified_connector_service::build_rollout_scope,
+        unified_connector_service::build_merchant_rollout_scope,
     },
     routes::SessionState,
 };
@@ -125,7 +125,7 @@ pub fn classify_failure(error: &UnifiedConnectorServiceError) -> Option<UcsFailu
 
 /// Scope a trip covers: the rollout scope of the key that enabled the traffic.
 ///
-/// Built by [`build_rollout_scope`] so the recording site and the enforcement site cannot
+/// Built by [`build_merchant_rollout_scope`] so the recording site and the enforcement site cannot
 /// derive different keys.
 pub fn build_scope(
     merchant_id: &str,
@@ -134,7 +134,7 @@ pub fn build_scope(
     payment_method: common_enums::PaymentMethod,
     payment_method_type: Option<common_enums::PaymentMethodType>,
 ) -> String {
-    build_rollout_scope(
+    build_merchant_rollout_scope(
         merchant_id,
         connector_name,
         flow_name,
