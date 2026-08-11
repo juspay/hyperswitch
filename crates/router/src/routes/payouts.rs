@@ -11,14 +11,15 @@ use hyperswitch_domain_models::payments::HeaderPayload;
 use router_env::{instrument, tracing, Flow};
 
 use super::app::AppState;
+#[cfg(all(feature = "olap", feature = "payouts"))]
+use crate::{core::api_locking::GetLockingInput, routes::lock_utils};
 use crate::{
     core::{
-        api_locking::{self, GetLockingInput},
+        api_locking::{self},
         errors::RouterResult,
         payouts::*,
     },
     logger,
-    routes::lock_utils,
     services::{
         api,
         authentication::{self as auth},

@@ -9,30 +9,9 @@ readme = "README.md"
 license.workspace = true
 
 [features]
-default = ["common_default", "v1", "redis-rs"]
-common_default = [
-    "kv_store",
-    "stripe",
-    "oltp",
-    "olap",
-    "accounts_cache",
-    "dummy_connector",
-    "payouts",
-    "payout_retry",
-    "retry",
-    "frm",
-    "tls",
-    "partial-auth",
-    "km_forward_x_request_id",
-    "external_services/superposition",
-]
-olap = [
-    "hyperswitch_domain_models/olap",
-    "storage_impl/olap",
-    "scheduler/olap",
-    "api_models/olap",
-    "dep:analytics",
-]
+default = ["common_default", "v1", "oltp", "olap", "redis-rs"]
+common_default = ["kv_store", "stripe", "accounts_cache", "dummy_connector", "payouts", "payout_retry", "retry", "frm", "tls", "partial-auth", "km_forward_x_request_id", "external_services/superposition"]
+olap = ["hyperswitch_domain_models/olap", "storage_impl/olap", "scheduler/olap", "api_models/olap", "dep:analytics"]
 tls = ["actix-web/rustls-0_22"]
 email = ["external_services/email", "scheduler/email", "olap"]
 # keymanager_create, keymanager_mtls, encryption_service should not be removed or added to default feature. Once this features were enabled it can't be disabled as these are breaking changes.

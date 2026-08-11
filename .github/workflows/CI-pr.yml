@@ -317,3 +317,47 @@ jobs:
         env:
           RUSTFLAGS: "-A warnings"
         run: cargo check --no-default-features --features "release,v2,fred"
+
+  check-olap-oltp-matrix:
+    name: Check compilation for OLAP-only and OLTP-only builds
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        features:
+          - "v1,olap,redis-rs"
+          - "v1,oltp,redis-rs"
+          - "v2,olap,redis-rs"
+          - "v2,oltp,redis-rs"
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Install mold linker
+        uses: rui314/setup-mold@v1
+        if: ${{ runner.os == 'Linux' }}
+        with:
+          make-default: true
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable 2 weeks ago
+
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install rust cache
+        uses: Swatinem/rust-cache@v2.7.7
+        with:
+          save-if: false
+
+      - name: cargo check -p router (${{ matrix.features }})
+        shell: bash
+        env:
+          RUSTFLAGS: "-A warnings"
+          CARGO_BUILD_JOBS: 3
+        run: cargo check -p router --no-default-features --features "${{ matrix.features }}"
