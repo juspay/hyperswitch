@@ -177,10 +177,48 @@ pub async fn diesel_make_pg_pool(
         pool = pool.connection_customizer(Box::new(TestTransaction));
     }
 
-    pool.build(manager)
+    let pool = pool
+        .build(manager)
         .await
         .change_context(StorageError::InitializationError)
-        .attach_printable("Failed to create PostgreSQL connection pool")
+        .attach_printable("Failed to create PostgreSQL connection pool")?;
+
+    // Tell deja which columns identify a row, by asking this database's own
+    // catalog. Row identity is a fact about the SCHEMA, so the schema is what
+    // answers it — deja carries no table list of its own, and a composite key
+    // arrives as the several columns it actually has. Runs once per process
+    // (idempotent, and only while observation is active); on failure identity
+    // stays unregistered, which makes recorded row keys absent rather than
+    // wrong.
+    #[cfg(feature = "deja")]
+    if !deja::runtime_mode_is_disabled() {
+        use async_bb8_diesel::AsyncConnection;
+        use diesel::RunQueryDsl;
+        if let Ok(mut connection) = pool.get().await {
+            let rows = connection
+                .run(|conn| {
+                    diesel::sql_query(deja::TABLE_IDENTITY_SQL)
+                        .load::<deja::db::TableIdentityRow>(conn)
+                        .map(|rows| {
+                            rows.into_iter()
+                                .map(|row| (row.table_name, row.column_name))
+                                .collect::<Vec<(String, String)>>()
+                        })
+                })
+                .await;
+            match rows {
+                Ok(rows) => deja::db::register_table_identity_rows(rows),
+                Err(error) => {
+                    router_env::logger::warn!(
+                        ?error,
+                        "deja: could not read row identity from the schema; recorded row keys will fall back to query fingerprints"
+                    );
+                }
+            }
+        }
+    }
+
+    Ok(pool)
 }
 
 #[derive(Debug)]
