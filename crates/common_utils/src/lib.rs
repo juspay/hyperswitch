@@ -392,9 +392,30 @@ pub trait DbConnectionParams {
     fn get_host(&self) -> &str;
     fn get_port(&self) -> u16;
     fn get_dbname(&self) -> &str;
+
+    /// Milliseconds of unacknowledged *transmitted* data tolerated before the
+    /// OS forcibly closes a database connection. This bounds how long a
+    /// connection checkout's health-check ping (`bb8`'s `is_valid()`, a
+    /// `SELECT 1`) can hang against a peer that went silent without ever
+    /// sending a TCP RST/FIN -- exactly what Aurora/RDS failover does to
+    /// connections left open against the old writer. Without this, such a
+    /// checkout hangs indefinitely.
+    ///
+    /// Must stay comfortably below the pool's `connection_timeout` (10s by
+    /// default): `connection_timeout` wraps the entire checkout, including
+    /// this ping. If the outer timeout wins that race, the pool's own "mark
+    /// connection invalid" path never runs, and the dead connection is
+    /// returned to the idle queue looking healthy. Measured against a real
+    /// failover with an all-idle pool: at 10_000ms (equal to
+    /// `connection_timeout`) one checkout hard-failed at 10.002s; at
+    /// 5_000ms there were no failures and recovery was faster.
+    fn get_pool_tcp_user_timeout_ms(&self) -> u64 {
+        5_000
+    }
+
     fn get_database_url(&self, schema: &str) -> String {
         format!(
-            "postgres://{}:{}@{}:{}/{}?application_name={}&options=-c%20search_path%3D{}",
+            "postgres://{}:{}@{}:{}/{}?application_name={}&options=-c%20search_path%3D{}&tcp_user_timeout={}",
             self.get_username(),
             self.get_password().peek(),
             self.get_host(),
@@ -402,6 +423,7 @@ pub trait DbConnectionParams {
             self.get_dbname(),
             schema,
             schema,
+            self.get_pool_tcp_user_timeout_ms(),
         )
     }
 }
