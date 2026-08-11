@@ -3242,9 +3242,7 @@ async fn activate_ucs_kill_switch(
         ),
     );
 
-    // WARN, not ERROR — the system self-healed by reverting to the legacy Direct
-    // path. Log as a warning so on-call can investigate Prism without paging.
-    router_env::logger::warn!(
+    router_env::logger::error!(
         event = "ucs_kill_switch_activated",
         connector = %connector_name,
         flow = %flow_name,

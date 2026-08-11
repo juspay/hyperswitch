@@ -72,7 +72,7 @@ where
         let lineage_ids = context.lineage_ids;
         let header_payload = context.header_payload;
         let unified_connector_service_execution_mode = context.execution_mode;
-        let ucs_matched_rollout_key = context.ucs_matched_rollout_key.clone();
+        let ucs_matched_rollout_key = context.ucs_matched_rollout_key;
 
         let client = state
             .grpc_client
@@ -121,7 +121,7 @@ where
             create_session_token_request,
             header_payload,
             unified_connector_service_execution_mode,
-            ucs_matched_rollout_key.clone(),
+            ucs_matched_rollout_key,
             |mut router_data, create_session_token_request, grpc_headers| async move {
                 let response = match client
                     .create_session_token(

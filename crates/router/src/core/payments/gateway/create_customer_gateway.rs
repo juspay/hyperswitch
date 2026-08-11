@@ -74,7 +74,7 @@ where
         let lineage_ids = context.lineage_ids;
         let header_payload = context.header_payload;
         let unified_connector_service_execution_mode = context.execution_mode;
-        let ucs_matched_rollout_key = context.ucs_matched_rollout_key.clone();
+        let ucs_matched_rollout_key = context.ucs_matched_rollout_key;
 
         let client = state
             .grpc_client
