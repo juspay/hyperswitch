@@ -1480,7 +1480,9 @@ impl UnifiedConnectorServiceError {
             | Self::InvalidConnectorName
             | Self::InvalidDataFormat { .. }
             | Self::FailedToObtainAuthType
-            | Self::HeaderInjectionFailed(_) => Some(UcsKillSwitchReason::HyperswitchRequestInvalid),
+            | Self::HeaderInjectionFailed(_) => {
+                Some(UcsKillSwitchReason::HyperswitchRequestInvalid)
+            }
 
             // Raised by Hyperswitch, but it reports a flow UCS cannot serve.
             Self::NotImplemented(_) => Some(UcsKillSwitchReason::UcsFlowUnsupported),
@@ -1609,14 +1611,8 @@ mod ucs_kill_switch_reason_tests {
                 tonic::Code::Unimplemented,
                 UcsKillSwitchReason::UcsFlowUnsupported,
             ),
-            (
-                tonic::Code::Internal,
-                UcsKillSwitchReason::UcsInternalError,
-            ),
-            (
-                tonic::Code::Unknown,
-                UcsKillSwitchReason::UcsInternalError,
-            ),
+            (tonic::Code::Internal, UcsKillSwitchReason::UcsInternalError),
+            (tonic::Code::Unknown, UcsKillSwitchReason::UcsInternalError),
         ];
 
         for (code, expected) in cases {
