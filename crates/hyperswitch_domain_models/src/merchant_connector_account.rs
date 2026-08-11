@@ -41,6 +41,7 @@ pub struct MerchantConnectorAccount {
     pub merchant_id: id_type::MerchantId,
     pub connector_name: String,
     #[encrypt]
+    #[serde(with = "common_utils::crypto::encryptable_exact")]
     pub connector_account_details: Encryptable<Secret<Value>>,
     pub test_mode: Option<bool>,
     pub disabled: Option<bool>,
@@ -61,8 +62,10 @@ pub struct MerchantConnectorAccount {
     pub pm_auth_config: Option<pii::SecretSerdeValue>,
     pub status: enums::ConnectorStatus,
     #[encrypt]
+    #[serde(with = "common_utils::crypto::encryptable_exact::optional")]
     pub connector_wallets_details: Option<Encryptable<Secret<Value>>>,
     #[encrypt]
+    #[serde(with = "common_utils::crypto::encryptable_exact::optional")]
     pub additional_merchant_data: Option<Encryptable<Secret<Value>>>,
     pub version: common_enums::ApiVersion,
     pub connector_webhook_registration_details: Option<Value>,
@@ -234,6 +237,7 @@ pub struct MerchantConnectorAccount {
     pub merchant_id: id_type::MerchantId,
     pub connector_name: common_enums::connector_enums::Connector,
     #[encrypt]
+    #[serde(with = "common_utils::crypto::encryptable_exact")]
     pub connector_account_details: Encryptable<Secret<Value>>,
     pub disabled: Option<bool>,
     pub payment_methods_enabled: Option<Vec<common_types::payment_methods::PaymentMethodsEnabled>>,
@@ -249,8 +253,10 @@ pub struct MerchantConnectorAccount {
     pub pm_auth_config: Option<pii::SecretSerdeValue>,
     pub status: enums::ConnectorStatus,
     #[encrypt]
+    #[serde(with = "common_utils::crypto::encryptable_exact::optional")]
     pub connector_wallets_details: Option<Encryptable<Secret<Value>>>,
     #[encrypt]
+    #[serde(with = "common_utils::crypto::encryptable_exact::optional")]
     pub additional_merchant_data: Option<Encryptable<Secret<Value>>>,
     pub version: common_enums::ApiVersion,
     pub feature_metadata: Option<MerchantConnectorAccountFeatureMetadata>,

@@ -50,6 +50,7 @@ pub struct Profile {
     pub use_billing_as_payment_method_billing: Option<bool>,
     pub collect_shipping_details_from_wallet_connector: Option<bool>,
     pub collect_billing_details_from_wallet_connector: Option<bool>,
+    #[serde(with = "common_utils::crypto::encryptable_exact::optional")]
     pub outgoing_webhook_custom_http_headers: OptionalEncryptableValue,
     pub always_collect_billing_details_from_wallet_connector: Option<bool>,
     pub always_collect_shipping_details_from_wallet_connector: Option<bool>,
@@ -67,6 +68,7 @@ pub struct Profile {
     pub authentication_product_ids:
         Option<common_types::payments::AuthenticationConnectorAccountMap>,
     pub card_testing_guard_config: Option<CardTestingGuardConfig>,
+    #[serde(with = "common_utils::crypto::encryptable_exact::optional")]
     pub card_testing_secret_key: OptionalEncryptableName,
     pub is_clear_pan_retries_enabled: bool,
     pub force_3ds_challenge: bool,
@@ -84,6 +86,7 @@ pub struct Profile {
     pub external_vault_details: ExternalVaultDetails,
     pub billing_processor_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub surcharge_connector_details: Option<SurchargeConnectorDetails>,
+    #[serde(with = "common_utils::crypto::encryptable_exact::optional")]
     pub network_tokenization_credentials: OptionalEncryptableValue,
     pub payment_method_blocking: Option<PaymentMethodBlockingConfig>,
     pub default_fallback_routing: Option<pii::SecretSerdeValue>,
@@ -617,6 +620,7 @@ pub struct Profile {
     pub use_billing_as_payment_method_billing: Option<bool>,
     pub collect_shipping_details_from_wallet_connector: Option<bool>,
     pub collect_billing_details_from_wallet_connector: Option<bool>,
+    #[serde(with = "common_utils::crypto::encryptable_exact::optional")]
     pub outgoing_webhook_custom_http_headers: OptionalEncryptableValue,
     pub always_collect_billing_details_from_wallet_connector: Option<bool>,
     pub always_collect_shipping_details_from_wallet_connector: Option<bool>,
@@ -637,6 +641,7 @@ pub struct Profile {
         Option<common_types::payments::AuthenticationConnectorAccountMap>,
     pub three_ds_decision_manager_config: Option<common_types::payments::DecisionManagerRecord>,
     pub card_testing_guard_config: Option<CardTestingGuardConfig>,
+    #[serde(with = "common_utils::crypto::encryptable_exact::optional")]
     pub card_testing_secret_key: OptionalEncryptableName,
     pub is_clear_pan_retries_enabled: bool,
     pub is_debit_routing_enabled: bool,
