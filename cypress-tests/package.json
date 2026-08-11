@@ -17,6 +17,8 @@
     "cypress:routing": "cypress run --headless --spec 'cypress/e2e/spec/Routing/**/*'",
     "cypress:specs": "node scripts/run-cypress.js",
     "report:generate": "node scripts/report-generator.js",
+    "report:failures": "bash scripts/collect-failures.sh",
+    "report:failures:ci": "bash scripts/collect-failures.sh --out-dir failure-report",
     "report:open": "open dashboard/index.html || start dashboard/index.html || xdg-open dashboard/index.html",
     "dashboard:serve": "node scripts/serve-dashboard.js",
     "mockserver": "npx tsx cypress/e2e/configs/mock-server/mockserver.ts",

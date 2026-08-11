@@ -5,6 +5,7 @@
 reports/
 screenshots/
 videos/
+failure-report/
 
 creds.json
 run_all.sh
