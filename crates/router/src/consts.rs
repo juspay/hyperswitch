@@ -369,11 +369,11 @@ pub const UCS_ENABLED: &str = "ucs_enabled";
 // `UCS_ENABLED`, so the switch can be turned on or off without a redeploy.
 pub const UCS_KILL_SWITCH_ENABLED: &str = "ucs_kill_switch_enabled";
 
-// Prefix of the redis key holding a kill switch cutover. Absent until a scope trips.
+// Prefix of the redis key holding a kill switch trip. Absent until a scope trips.
 pub const UCS_KILL_SWITCH_REDIS_PREFIX: &str = "ucs_kill_switch";
 
-// Lifetime of a cutover, in seconds. Long enough to outlive the UCS migration, because a
-// cutover is meant to be cleared by an operator after investigation, never to lapse on its
+// Lifetime of a trip, in seconds. Long enough to outlive the UCS migration, because a
+// trip is meant to be cleared by an operator after investigation, never to lapse on its
 // own — `redis_interface` has no setter that writes a key without an expiry, so "permanent"
 // has to be spelled as a long TTL.
 pub const UCS_KILL_SWITCH_TTL_IN_SECONDS: i64 = 90 * 24 * 60 * 60;

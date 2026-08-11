@@ -1,11 +1,11 @@
 //! Kill switch that returns a rollout scope to the direct connector integration when a
 //! Unified Connector Service call fails deterministically.
 //!
-//! Cutting over unnecessarily is harmless — the scope is served by the integration it used
+//! Tripping unnecessarily is harmless — the scope is served by the integration it used
 //! before UCS — so ambiguous outcomes resolve towards the direct path.
 //!
-//! The cutover is runtime state and lives in redis; `ucs_rollout_config` rows are never
-//! written to. Keyed on the rollout scope, so a cutover targets exactly the key that enabled
+//! The trip is runtime state and lives in redis; `ucs_rollout_config` rows are never
+//! written to. Keyed on the rollout scope, so a trip targets exactly the key that enabled
 //! the traffic.
 
 use common_enums::ExecutionMode;
@@ -22,7 +22,7 @@ use crate::{
     routes::SessionState,
 };
 
-/// Why a UCS failure counted as a cutover trigger. Doubles as the log and metric tag.
+/// Why a UCS failure counted as a trip trigger. Doubles as the log and metric tag.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum UcsFailureReason {
     /// UCS answered, but the response could not be decoded into the shape Hyperswitch expects.
@@ -49,11 +49,11 @@ impl UcsFailureReason {
     }
 }
 
-/// Decides whether a UCS failure should cut the scope over.
+/// Decides whether a UCS failure should trip the scope.
 ///
 /// Fires on the first qualifying failure, so only failures that will repeat identically
-/// qualify. Transient and availability errors are excluded: they are fleet-wide and would cut
-/// over every scope at once during a rolling deploy. Connector outcomes are excluded: they
+/// qualify. Transient and availability errors are excluded: they are fleet-wide and would trip
+/// every scope at once during a rolling deploy. Connector outcomes are excluded: they
 /// would fail the same way on the direct path.
 ///
 /// Matched exhaustively so a new error variant fails to compile here rather than falling into
@@ -123,7 +123,7 @@ pub fn classify_failure(error: &UnifiedConnectorServiceError) -> Option<UcsFailu
     }
 }
 
-/// Scope a cutover covers: the rollout scope of the key that enabled the traffic.
+/// Scope a trip covers: the rollout scope of the key that enabled the traffic.
 ///
 /// Built by [`build_rollout_scope`] so the recording site and the enforcement site cannot
 /// derive different keys.
@@ -143,8 +143,8 @@ pub fn build_scope(
     )
 }
 
-/// Redis key holding the cutover for a scope.
-fn cutover_key(scope: &str) -> String {
+/// Redis key holding the trip for a scope.
+fn trip_key(scope: &str) -> String {
     format!("{}_{scope}", consts::UCS_KILL_SWITCH_REDIS_PREFIX)
 }
 
@@ -153,12 +153,12 @@ async fn is_enabled(state: &SessionState) -> bool {
     is_ucs_enabled(state, consts::UCS_KILL_SWITCH_ENABLED).await
 }
 
-/// Whether UCS has been cut off for this scope.
+/// Whether the kill switch has tripped for this scope.
 ///
 /// Fails closed: a redis error routes to the direct integration, since an unnecessary fallback
 /// is harmless and a missed one is not. Only reached once the rollout config resolved to
 /// primary, so shadow traffic never pays for the lookup.
-pub async fn is_cut_over(state: &SessionState, scope: &str) -> bool {
+pub async fn is_tripped(state: &SessionState, scope: &str) -> bool {
     if !is_enabled(state).await {
         return false;
     }
@@ -176,13 +176,13 @@ pub async fn is_cut_over(state: &SessionState, scope: &str) -> bool {
     };
 
     match redis_conn
-        .exists::<()>(&cutover_key(scope).as_str().into())
+        .exists::<()>(&trip_key(scope).as_str().into())
         .await
     {
         Ok(true) => {
             logger::info!(
                 ucs_kill_switch_scope = %scope,
-                "ucs_kill_switch: scope is cut over, routing to the direct integration"
+                "ucs_kill_switch: scope is tripped, routing to the direct integration"
             );
             true
         }
@@ -191,7 +191,7 @@ pub async fn is_cut_over(state: &SessionState, scope: &str) -> bool {
             logger::error!(
                 ?error,
                 ucs_kill_switch_scope = %scope,
-                "ucs_kill_switch: cutover lookup failed, routing to the direct integration"
+                "ucs_kill_switch: trip lookup failed, routing to the direct integration"
             );
             true
         }
@@ -212,7 +212,7 @@ pub async fn record_failure(
     execution_mode: ExecutionMode,
     error: &UnifiedConnectorServiceError,
 ) {
-    // Only the path serving merchant traffic can cut over.
+    // Only the path serving merchant traffic can tripped.
     if !matches!(execution_mode, ExecutionMode::Primary) {
         return;
     }
@@ -238,7 +238,7 @@ pub async fn record_failure(
         ),
     );
 
-    // Turned off: the metric above still reports what would have been cut over.
+    // Turned off: the metric above still reports what would have been tripped.
     if !is_enabled(state).await {
         logger::warn!(
             ucs_kill_switch_scope = %scope,
@@ -248,12 +248,12 @@ pub async fn record_failure(
         return;
     }
 
-    cut_over(state, &scope, reason, error).await;
+    trip(state, &scope, reason, error).await;
 }
 
-/// Writes the cutover. `SET NX` makes it exactly-once: concurrent failures all attempt it, one
+/// Writes the trip. `SET NX` makes it exactly-once: concurrent failures all attempt it, one
 /// wins, the rest are a no-op.
-async fn cut_over(
+async fn trip(
     state: &SessionState,
     scope: &str,
     reason: UcsFailureReason,
@@ -276,20 +276,20 @@ async fn cut_over(
         "reason": reason.as_str(),
         "error": error.to_string(),
         "request_id": state.request_id.as_ref().map(|id| id.to_string()),
-        "cut_over_at": common_utils::date_time::now_unix_timestamp(),
+        "tripped_at": common_utils::date_time::now_unix_timestamp(),
     })
     .to_string();
 
     match redis_conn
         .set_key_if_not_exists_with_expiry(
-            &cutover_key(scope).as_str().into(),
+            &trip_key(scope).as_str().into(),
             record,
             Some(consts::UCS_KILL_SWITCH_TTL_IN_SECONDS),
         )
         .await
     {
         Ok(redis_interface::SetnxReply::KeySet) => {
-            metrics::UCS_KILL_SWITCH_CUT_OVER.add(
+            metrics::UCS_KILL_SWITCH_TRIPPED.add(
                 1,
                 router_env::metric_attributes!(("reason", reason.as_str())),
             );
@@ -303,73 +303,76 @@ async fn cut_over(
         Ok(redis_interface::SetnxReply::KeyNotSet) => {
             logger::debug!(
                 ucs_kill_switch_scope = %scope,
-                "ucs_kill_switch: scope is already cut over"
+                "ucs_kill_switch: scope is already tripped"
             );
         }
         Err(error) => {
             logger::error!(
                 ?error,
                 ucs_kill_switch_scope = %scope,
-                "ucs_kill_switch: failed to persist the cutover, scope stays on UCS"
+                "ucs_kill_switch: failed to persist the trip, scope stays on UCS"
             );
         }
     }
 }
 
-/// Scopes currently cut over. A wrapper because `Vec<String>` has no `ApiEventMetric` impl.
+/// Scopes currently tripped. A wrapper because `Vec<String>` has no `ApiEventMetric` impl.
 #[derive(Debug, serde::Serialize)]
 pub struct KillSwitchListResponse {
-    pub cut_over_scopes: Vec<String>,
+    pub tripped_scopes: Vec<String>,
 }
 
 impl common_utils::events::ApiEventMetric for KillSwitchListResponse {}
 
-/// Clears the cutover, returning the scope to whatever its rollout config says. Explicit
-/// operator action: a cut-over scope is never restored automatically.
-pub async fn reset_cut_over(state: SessionState, scope: String) -> errors::RouterResponse<()> {
+/// Clears the trip, returning the scope to whatever its rollout config says. Explicit
+/// operator action: a tripped scope is never restored automatically.
+pub async fn reset(state: SessionState, scope: String) -> errors::RouterResponse<()> {
     state
         .store
         .get_redis_conn()
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to get a redis connection to clear the UCS kill switch")?
-        .delete_key(&cutover_key(&scope).as_str().into())
+        .delete_key(&trip_key(&scope).as_str().into())
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to delete the UCS kill switch cutover")?;
+        .attach_printable("Failed to delete the UCS kill switch trip")?;
 
     logger::info!(
         ucs_kill_switch_scope = %scope,
-        "ucs_kill_switch: cutover cleared via api"
+        "ucs_kill_switch: trip cleared via api"
     );
 
     Ok(crate::services::ApplicationResponse::StatusOk)
 }
 
-/// Lists every scope currently cut over.
-pub async fn list_cut_over_scopes(
+/// Lists every scope currently tripped.
+pub async fn list_tripped_scopes(
     state: SessionState,
 ) -> errors::RouterResponse<KillSwitchListResponse> {
     let prefix = consts::UCS_KILL_SWITCH_REDIS_PREFIX;
 
-    let cut_over_scopes = state
+    let tripped_scopes = state
         .store
         .get_redis_conn()
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to get a redis connection to list UCS kill switch cutovers")?
+        .attach_printable("Failed to get a redis connection to list UCS kill switch trips")?
         .scan(&format!("{prefix}_*").as_str().into(), Some(100), None)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to scan UCS kill switch cutovers")?;
+        .attach_printable("Failed to scan UCS kill switch trips")?;
 
     Ok(crate::services::ApplicationResponse::Json(
-        KillSwitchListResponse { cut_over_scopes },
+        KillSwitchListResponse { tripped_scopes },
     ))
 }
 
 #[cfg(test)]
 mod tests {
+    use common_enums::{PaymentMethod, PaymentMethodType};
+
     use super::*;
 
+    /// A connector's own answer, arriving through UCS.
     fn connector_error(status_code: u16) -> UnifiedConnectorServiceError {
         UnifiedConnectorServiceError::ConnectorError(Box::new(
             hyperswitch_interfaces::unified_connector_service::transformers::ConnectorErrorInner {
@@ -386,129 +389,113 @@ mod tests {
         ))
     }
 
-    #[test]
-    fn transport_failures_do_not_cut_over() {
-        // A rolling UCS deploy produces these across every scope at once. Cutting over on them
-        // would revert the whole migration and identify nothing. `TonicStatus` shares this match
-        // arm, so it is covered by the same guarantee.
-        assert!(
-            classify_failure(&UnifiedConnectorServiceError::ConnectionError(
-                "dial".into()
-            ))
-            .is_none()
-        );
+    /// One merchant and connector, so a case reads as just its payment method and flow.
+    fn scope(payment_method: PaymentMethod, pmt: Option<PaymentMethodType>, flow: &str) -> String {
+        build_scope("merchant_1", "cybersource", flow, payment_method, pmt)
     }
 
     #[test]
-    fn connector_outcomes_do_not_cut_over() {
-        // A decline would decline identically on the direct path.
-        assert!(classify_failure(&connector_error(402)).is_none());
-        // A connector timeout arrives as a ConnectorError carrying the synthetic 504, so it must
-        // not be mistaken for UCS being broken.
-        assert!(classify_failure(&connector_error(504)).is_none());
-        // Nor should a connector's own server error.
-        assert!(classify_failure(&connector_error(500)).is_none());
-    }
-
-    #[test]
-    fn deterministic_failures_cut_over() {
-        // These fail identically on every retry, so the first occurrence is fully informative
-        // and there is nothing a threshold could add.
-        assert_eq!(
-            classify_failure(&UnifiedConnectorServiceError::ResponseDeserializationFailed),
-            Some(UcsFailureReason::ResponseUndecodable)
-        );
-        assert_eq!(
-            classify_failure(&UnifiedConnectorServiceError::ParsingFailed),
-            Some(UcsFailureReason::ResponseUndecodable)
-        );
-        assert_eq!(
-            classify_failure(&UnifiedConnectorServiceError::RequestEncodingFailed),
-            Some(UcsFailureReason::RequestUnbuildable)
-        );
-        assert_eq!(
-            classify_failure(&UnifiedConnectorServiceError::FailedToObtainAuthType),
-            Some(UcsFailureReason::RequestUnbuildable)
-        );
-        assert_eq!(
-            classify_failure(&UnifiedConnectorServiceError::MissingRequiredField {
-                field_name: "payment_method_data"
-            }),
-            Some(UcsFailureReason::RequestUnbuildable)
-        );
-        assert_eq!(
-            classify_failure(&UnifiedConnectorServiceError::NotImplemented(
-                "PSync".into()
-            )),
-            Some(UcsFailureReason::NotImplemented)
-        );
-    }
-
-    #[test]
-    fn scope_matches_the_rollout_key_shape() {
-        // A cutover must target exactly the rollout key that enabled the traffic, so the scope
-        // is the rollout key without its prefix.
-        assert_eq!(
-            build_scope(
-                "merchant_1",
-                "cybersource",
-                "Authorize",
-                common_enums::PaymentMethod::Card,
-                None
+    fn failures_that_would_repeat_trip_the_scope() {
+        let cases = [
+            (
+                UnifiedConnectorServiceError::ResponseDeserializationFailed,
+                UcsFailureReason::ResponseUndecodable,
             ),
+            (
+                UnifiedConnectorServiceError::ParsingFailed,
+                UcsFailureReason::ResponseUndecodable,
+            ),
+            (
+                UnifiedConnectorServiceError::RequestEncodingFailed,
+                UcsFailureReason::RequestUnbuildable,
+            ),
+            (
+                UnifiedConnectorServiceError::FailedToObtainAuthType,
+                UcsFailureReason::RequestUnbuildable,
+            ),
+            (
+                UnifiedConnectorServiceError::MissingRequiredField {
+                    field_name: "payment_method_data",
+                },
+                UcsFailureReason::RequestUnbuildable,
+            ),
+            (
+                UnifiedConnectorServiceError::NotImplemented("PSync".into()),
+                UcsFailureReason::NotImplemented,
+            ),
+        ];
+
+        for (error, expected) in cases {
+            assert_eq!(classify_failure(&error), Some(expected), "{error:?}");
+        }
+    }
+
+    #[test]
+    fn transient_and_connector_failures_never_trip() {
+        let cases = [
+            // Fleet-wide: a rolling UCS deploy produces this across every scope at once, so
+            // tripping on it would revert the whole migration and identify nothing.
+            // `TonicStatus` shares this match arm.
+            UnifiedConnectorServiceError::ConnectionError("dial".into()),
+            // A decline would decline identically on the direct path.
+            connector_error(402),
+            // A connector timeout arrives as a ConnectorError carrying the synthetic 504, so it
+            // must not be mistaken for UCS being broken.
+            connector_error(504),
+            // A connector's own server error is still the connector answering.
+            connector_error(500),
+        ];
+
+        for error in cases {
+            assert!(classify_failure(&error).is_none(), "{error:?}");
+        }
+    }
+
+    #[test]
+    fn scope_is_the_rollout_key_without_its_prefix() {
+        // A trip must target exactly the rollout key that enabled the traffic.
+        assert_eq!(
+            scope(PaymentMethod::Card, None, "Authorize"),
             "merchant_1_cybersource_card_Authorize"
         );
-        // Wallets are discriminated by payment method type, exactly as rollout keys are.
+        // Wallets carry a payment method type, exactly as their rollout keys do.
         assert_eq!(
-            build_scope(
-                "merchant_1",
-                "cybersource",
-                "Authorize",
-                common_enums::PaymentMethod::Wallet,
-                Some(common_enums::PaymentMethodType::GooglePay)
+            scope(
+                PaymentMethod::Wallet,
+                Some(PaymentMethodType::GooglePay),
+                "Authorize"
             ),
             "merchant_1_cybersource_wallet_google_pay_Authorize"
         );
         // Refund keys carry no payment method.
         assert_eq!(
-            build_scope(
-                "merchant_1",
-                "cybersource",
-                "Execute",
-                common_enums::PaymentMethod::Card,
-                None
-            ),
+            scope(PaymentMethod::Card, None, "Execute"),
             "merchant_1_cybersource_Execute"
         );
     }
 
     #[test]
-    fn scope_separates_independently_enabled_keys() {
-        // Card and wallet are enabled by separate rollout keys, so a wallet cutover must not
-        // take card traffic with it.
-        let card = build_scope(
-            "merchant_1",
-            "cybersource",
-            "Authorize",
-            common_enums::PaymentMethod::Card,
-            None,
-        );
-        let wallet = build_scope(
-            "merchant_1",
-            "cybersource",
-            "Authorize",
-            common_enums::PaymentMethod::Wallet,
-            Some(common_enums::PaymentMethodType::GooglePay),
-        );
+    fn independently_enabled_keys_trip_independently() {
+        // Card and wallet are enabled by separate rollout keys, and wallets fail differently,
+        // so a wallet trip must not take card traffic with it.
+        let card = scope(PaymentMethod::Card, None, "Authorize");
 
-        assert_ne!(card, wallet);
+        assert_ne!(
+            card,
+            scope(
+                PaymentMethod::Wallet,
+                Some(PaymentMethodType::GooglePay),
+                "Authorize"
+            )
+        );
+        assert_ne!(card, scope(PaymentMethod::Card, None, "PSync"));
         assert_ne!(
             card,
             build_scope(
                 "merchant_2",
                 "cybersource",
                 "Authorize",
-                common_enums::PaymentMethod::Card,
+                PaymentMethod::Card,
                 None
             )
         );
@@ -518,31 +505,15 @@ mod tests {
                 "merchant_1",
                 "adyen",
                 "Authorize",
-                common_enums::PaymentMethod::Card,
-                None
-            )
-        );
-        assert_ne!(
-            card,
-            build_scope(
-                "merchant_1",
-                "cybersource",
-                "PSync",
-                common_enums::PaymentMethod::Card,
+                PaymentMethod::Card,
                 None
             )
         );
     }
 
     #[test]
-    fn cutover_key_cannot_collide_with_a_rollout_config_key() {
-        let key = cutover_key(&build_scope(
-            "merchant_1",
-            "cybersource",
-            "Authorize",
-            common_enums::PaymentMethod::Card,
-            None,
-        ));
+    fn trip_key_cannot_collide_with_a_rollout_config_key() {
+        let key = trip_key(&scope(PaymentMethod::Card, None, "Authorize"));
 
         assert!(key.starts_with(consts::UCS_KILL_SWITCH_REDIS_PREFIX));
         assert!(!key.starts_with(consts::UCS_ROLLOUT_PERCENT_CONFIG_PREFIX));

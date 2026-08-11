@@ -412,7 +412,7 @@ where
     //
     // Only the primary path is diverted, and it is diverted to shadow rather than to direct — the
     // merchant is served by the direct integration either way, but shadow keeps mirroring, so a
-    // cut-over scope still produces the comparison signal needed to confirm a fix before it is
+    // tripped scope still produces the comparison signal needed to confirm a fix before it is
     // reset. Shadow itself falls back to direct below when no proxy override is configured.
     if matches!(execution_path, ExecutionPath::UnifiedConnectorService)
         && is_kill_switch_applicable(connector_integration_type, &call_connector_action)
@@ -425,12 +425,12 @@ where
             router_data.payment_method_type,
         );
 
-        if kill_switch::is_cut_over(state, &scope).await {
+        if kill_switch::is_tripped(state, &scope).await {
             router_env::logger::warn!(
                 merchant_id = %merchant_id,
                 connector = %connector_name,
                 flow = %flow_name,
-                "UCS kill switch is cut over for this scope, serving from the direct integration"
+                "UCS kill switch is tripped for this scope, serving from the direct integration"
             );
             gateway_system = GatewaySystem::Direct;
             execution_path = ExecutionPath::ShadowUnifiedConnectorService;
@@ -593,7 +593,7 @@ fn decide_execution_path(
 
 /// Merchant-scoped rollout scope: the part of a rollout key below the org level.
 ///
-/// Shared by [`build_rollout_keys`] and the kill switch so a cutover always targets exactly the
+/// Shared by [`build_rollout_keys`] and the kill switch so a trip always targets exactly the
 /// rollout key that enabled the traffic.
 pub fn build_rollout_scope(
     merchant_id: &str,
