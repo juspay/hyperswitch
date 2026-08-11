@@ -18,6 +18,8 @@ const billingAddressGB = {
 
 export const connectorDetails = {
   bank_redirect_pm: {
+    // Required supported-method config for the Truelayer confirm flow. The CI
+    // selection runs only this bank redirect flow for Truelayer.
     Truelayer: getCustomExchange({
       Request: {
         payment_method: "bank_redirect",

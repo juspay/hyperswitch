@@ -18,6 +18,8 @@ const billingAddressSE = {
 
 export const connectorDetails = {
   bank_redirect_pm: {
+    // Required supported-method config for the Trustly confirm flow. The CI
+    // selection runs only this bank redirect flow for Trustly.
     Trustly: getCustomExchange({
       Request: {
         payment_method: "bank_redirect",
