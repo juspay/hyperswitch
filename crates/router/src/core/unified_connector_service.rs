@@ -3155,11 +3155,14 @@ where
             if let Ok(flow_name) = get_flow_name::<T>() {
                 kill_switch::record_failure(
                     state,
-                    merchant_id.get_string_repr(),
-                    &connector_name,
-                    &flow_name,
-                    payment_method,
-                    payment_method_type,
+                    kill_switch::UcsFailureContext {
+                        merchant_id: merchant_id.get_string_repr(),
+                        connector_name: &connector_name,
+                        flow_name: &flow_name,
+                        payment_id: &payment_id,
+                        payment_method,
+                        payment_method_type,
+                    },
                     execution_mode,
                     error.current_context(),
                 )
@@ -3346,6 +3349,7 @@ pub async fn call_unified_connector_service_for_refund_execute(
     let connector_name_for_kill_switch = router_data.connector.clone();
     let payment_method_for_kill_switch = router_data.payment_method;
     let payment_method_type_for_kill_switch = router_data.payment_method_type;
+    let payment_id_for_kill_switch = router_data.payment_id.clone();
 
     // Make UCS refund call with logging wrapper
     Box::pin(ucs_logging_wrapper(
@@ -3400,11 +3404,14 @@ pub async fn call_unified_connector_service_for_refund_execute(
                     // errors returned as `Ok` above never reach this point.
                     kill_switch::record_failure(
                         state,
-                        merchant_id_for_kill_switch.get_string_repr(),
-                        &connector_name_for_kill_switch,
-                        "Execute",
-                        payment_method_for_kill_switch,
-                        payment_method_type_for_kill_switch,
+                        kill_switch::UcsFailureContext {
+                            merchant_id: merchant_id_for_kill_switch.get_string_repr(),
+                            connector_name: &connector_name_for_kill_switch,
+                            flow_name: "Execute",
+                            payment_id: &payment_id_for_kill_switch,
+                            payment_method: payment_method_for_kill_switch,
+                            payment_method_type: payment_method_type_for_kill_switch,
+                        },
                         execution_mode,
                         report.current_context(),
                     )
@@ -3505,6 +3512,7 @@ pub async fn call_unified_connector_service_for_refund_sync(
     let connector_name_for_kill_switch = router_data.connector.clone();
     let payment_method_for_kill_switch = router_data.payment_method;
     let payment_method_type_for_kill_switch = router_data.payment_method_type;
+    let payment_id_for_kill_switch = router_data.payment_id.clone();
 
     // Make UCS refund sync call with logging wrapper
     Box::pin(ucs_logging_wrapper(
@@ -3556,11 +3564,14 @@ pub async fn call_unified_connector_service_for_refund_sync(
                     // As in refund execute: the typed UCS error survives only up to `switch()`.
                     kill_switch::record_failure(
                         state,
-                        merchant_id_for_kill_switch.get_string_repr(),
-                        &connector_name_for_kill_switch,
-                        "RSync",
-                        payment_method_for_kill_switch,
-                        payment_method_type_for_kill_switch,
+                        kill_switch::UcsFailureContext {
+                            merchant_id: merchant_id_for_kill_switch.get_string_repr(),
+                            connector_name: &connector_name_for_kill_switch,
+                            flow_name: "RSync",
+                            payment_id: &payment_id_for_kill_switch,
+                            payment_method: payment_method_for_kill_switch,
+                            payment_method_type: payment_method_type_for_kill_switch,
+                        },
                         execution_mode,
                         report.current_context(),
                     )

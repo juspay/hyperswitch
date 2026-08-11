@@ -56,7 +56,9 @@ pub async fn is_tripped(state: &SessionState, rollout_scope: &str) -> bool {
         .await
     {
         Ok(true) => {
-            logger::info!(
+            // Every request for a tripped scope reaches here, for as long as the trip stands.
+            // The trip itself is already recorded once at error level.
+            logger::debug!(
                 rollout_scope = %rollout_scope,
                 "ucs_kill_switch: scope is tripped, routing to the direct integration"
             );
@@ -74,17 +76,24 @@ pub async fn is_tripped(state: &SessionState, rollout_scope: &str) -> bool {
     }
 }
 
-/// Classifies a UCS failure and cuts the scope over if it qualifies.
+/// What a failing UCS call was for. Carried as a struct because these are six positional
+/// strings otherwise, and transposing two of them would key trips under the wrong scope.
+pub struct UcsFailureContext<'a> {
+    pub merchant_id: &'a str,
+    pub connector_name: &'a str,
+    pub flow_name: &'a str,
+    pub payment_id: &'a str,
+    pub payment_method: common_enums::PaymentMethod,
+    pub payment_method_type: Option<common_enums::PaymentMethodType>,
+}
+
+/// Classifies a UCS failure and trips the scope if it qualifies.
 ///
 /// Never returns an error: this runs on an already-failing path and must not fail the request.
 #[allow(clippy::too_many_arguments)]
 pub async fn record_failure(
     state: &SessionState,
-    merchant_id: &str,
-    connector_name: &str,
-    flow_name: &str,
-    payment_method: common_enums::PaymentMethod,
-    payment_method_type: Option<common_enums::PaymentMethodType>,
+    context: UcsFailureContext<'_>,
     execution_mode: ExecutionMode,
     error: &UnifiedConnectorServiceError,
 ) {
@@ -98,34 +107,39 @@ pub async fn record_failure(
     };
 
     let rollout_scope = build_merchant_rollout_scope(
-        merchant_id,
-        connector_name,
-        flow_name,
-        payment_method,
-        payment_method_type,
+        context.merchant_id,
+        context.connector_name,
+        context.flow_name,
+        context.payment_method,
+        context.payment_method_type,
     );
 
     metrics::UCS_KILL_SWITCH_FAILURE.add(
         1,
         router_env::metric_attributes!(
-            ("connector", connector_name.to_string()),
-            ("flow", flow_name.to_string()),
+            ("connector", context.connector_name.to_string()),
+            ("flow", context.flow_name.to_string()),
             ("reason", reason.as_str())
         ),
     );
 
-    // Turned off: the metric above still reports what would have been tripped.
+    // Fires on every qualifying failure, so it is the calibration feed rather than the alert.
     if !is_ucs_enabled(state, consts::UCS_KILL_SWITCH_ENABLED).await {
         logger::warn!(
             rollout_scope = %rollout_scope,
+            merchant_id = %context.merchant_id,
+            connector = %context.connector_name,
+            flow = %context.flow_name,
+            payment_id = %context.payment_id,
+            request_id = ?state.request_id,
             reason = reason.as_str(),
-            ucs_error = %error,
+            ucs_error = ?error,
             "ucs_kill_switch: qualifying failure observed but the kill switch is turned off"
         );
         return;
     }
 
-    trip(state, &rollout_scope, reason, error).await;
+    trip(state, &rollout_scope, &context, reason, error).await;
 }
 
 /// Writes the trip. `SET NX` makes it exactly-once: concurrent failures all attempt it, one
@@ -133,6 +147,7 @@ pub async fn record_failure(
 async fn trip(
     state: &SessionState,
     rollout_scope: &str,
+    context: &UcsFailureContext<'_>,
     reason: UcsKillSwitchReason,
     error: &UnifiedConnectorServiceError,
 ) {
@@ -170,10 +185,18 @@ async fn trip(
                 1,
                 router_env::metric_attributes!(("reason", reason.as_str())),
             );
+            // Fires once per scope, because SET NX admits one writer. This is the line to
+            // alert on: discrete fields so a query filters by connector without a regex, and a
+            // request id to reach the originating call.
             logger::error!(
                 rollout_scope = %rollout_scope,
+                merchant_id = %context.merchant_id,
+                connector = %context.connector_name,
+                flow = %context.flow_name,
+                payment_id = %context.payment_id,
+                request_id = ?state.request_id,
                 reason = reason.as_str(),
-                ucs_error = %error,
+                ucs_error = ?error,
                 "ucs_kill_switch: tripping the scope back to the direct integration"
             );
         }
