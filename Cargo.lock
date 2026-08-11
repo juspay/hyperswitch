@@ -4760,6 +4760,7 @@ dependencies = [
  "graphviz-rust",
  "rustc-hash 1.1.0",
  "serde",
+ "serde_json",
  "strum 0.25.0",
  "thiserror 1.0.69",
 ]
