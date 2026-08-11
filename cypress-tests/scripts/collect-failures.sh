@@ -11,9 +11,14 @@
 # Meant to run once at the end of a pipeline, after every connector matrix job
 # has dropped its reports into cypress/reports/.
 #
+# The default out-dir is the reports root itself, so both CIs pick the report up
+# with no pipeline change: they already archive cypress-tests/cypress/reports/.
+# Writing two loose files there is safe — this script and report-generator.js
+# both enumerate directories only, so neither mistakes them for a connector.
+#
 # Usage: ./scripts/collect-failures.sh [options]
 #   -r, --reports-dir DIR   mochawesome root            (default: cypress/reports)
-#   -o, --out-dir DIR       output directory            (default: failure-report)
+#   -o, --out-dir DIR       output directory            (default: the reports root)
 #   -c, --connector NAME    only this connector, repeatable
 #   -s, --since TIMESTAMP   ignore runs that ended before this ISO-8601 instant
 #       --latest            keep only the newest run per connector
@@ -30,7 +35,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 REPORTS_DIR="${CYPRESS_REPORTS_DIR:-${ROOT_DIR}/cypress/reports}"
-OUT_DIR="${FAILURE_REPORT_DIR:-${ROOT_DIR}/failure-report}"
+OUT_DIR="${FAILURE_REPORT_DIR:-}"   # empty = default into the reports root, resolved below
 SINCE=""
 DEDUPE="true"
 LATEST_ONLY="false"
@@ -80,6 +85,10 @@ if [ -n "$SINCE" ]; then
 fi
 
 REPORTS_DIR="$(cd "$REPORTS_DIR" && pwd)"
+
+# Resolved here rather than at declaration so that an explicit --reports-dir still
+# lands the report next to the reports it summarises.
+OUT_DIR="${OUT_DIR:-$REPORTS_DIR}"
 mkdir -p "$OUT_DIR"
 OUT_DIR="$(cd "$OUT_DIR" && pwd)"
 
@@ -90,6 +99,12 @@ TMP_DIR="$(mktemp -d "${TMPDIR:-/tmp}/cypress-failures.XXXXXX")"
 trap 'rm -rf "$TMP_DIR"' EXIT
 RUNS_NDJSON="${TMP_DIR}/runs.ndjson"
 : >"$RUNS_NDJSON"
+
+# Build into the temp dir and rename into place at the end. Several connectors can
+# finish at once (Cypress after:run, CI batches running in parallel), and a plain
+# truncating write would let two collectors interleave into the same file.
+JSON_TMP="${TMP_DIR}/connector-failures.json"
+HTML_TMP="${TMP_DIR}/connector-failures.html"
 
 # ---------------------------------------------------------------------------
 # Stage 1 — project each mochawesome file down to a compact run record.
@@ -367,7 +382,7 @@ jq -s \
   --argjson scanned "$total_files" \
   --argjson parsed "$parsed_files" \
   --argjson skippedFiles "$skipped_files" \
-  "$JQ_AGGREGATE" "$RUNS_NDJSON" >"$JSON_OUT"
+  "$JQ_AGGREGATE" "$RUNS_NDJSON" >"$JSON_TMP"
 
 # ---------------------------------------------------------------------------
 # Stage 3 — render the HTML from the JSON we just wrote.
@@ -524,7 +539,7 @@ log "🖨  Rendering HTML…"
 <body>
 HTML_HEAD
 
-  jq -r "$JQ_HTML" "$JSON_OUT"
+  jq -r "$JQ_HTML" "$JSON_TMP"
 
   cat <<'HTML_TAIL'
 <script>
@@ -551,7 +566,13 @@ HTML_HEAD
 </body>
 </html>
 HTML_TAIL
-} >"$HTML_OUT"
+} >"$HTML_TMP"
+
+# Publish both files only once they are complete. mv within the same filesystem is
+# atomic, so a concurrent reader sees either the old report or the new one, never a
+# half-written mix. Falls back to cp when TMPDIR is on a different filesystem.
+mv -f "$JSON_TMP" "$JSON_OUT" 2>/dev/null || cp -f "$JSON_TMP" "$JSON_OUT"
+mv -f "$HTML_TMP" "$HTML_OUT" 2>/dev/null || cp -f "$HTML_TMP" "$HTML_OUT"
 
 # ---------------------------------------------------------------------------
 # Stage 4 — console summary + exit status.
