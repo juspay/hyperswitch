@@ -1414,6 +1414,10 @@ pub enum UcsKillSwitchReason {
     NotImplemented,
     /// UCS failed internally, or gave no detail beyond the flow having failed.
     UcsInternalFailure,
+    /// UCS could not be reached or was unhealthy. Unlike the others this is not specific to the
+    /// scope and is expected to clear on its own, so a kill switch should hold the scope on the
+    /// direct integration only until it does.
+    UcsUnreachable,
 }
 
 impl UcsKillSwitchReason {
@@ -1424,6 +1428,21 @@ impl UcsKillSwitchReason {
             Self::RequestUnbuildable => "request_unbuildable",
             Self::NotImplemented => "not_implemented",
             Self::UcsInternalFailure => "ucs_internal_failure",
+            Self::UcsUnreachable => "ucs_unreachable",
+        }
+    }
+
+    /// Whether the condition is expected to clear without anyone intervening.
+    ///
+    /// A caller should hold a transient reason only long enough for the outage to pass, and a
+    /// non-transient one until a human has looked at it.
+    pub fn is_transient(self) -> bool {
+        match self {
+            Self::UcsUnreachable => true,
+            Self::ResponseUndecodable
+            | Self::RequestUnbuildable
+            | Self::NotImplemented
+            | Self::UcsInternalFailure => false,
         }
     }
 }
@@ -1431,13 +1450,18 @@ impl UcsKillSwitchReason {
 impl UnifiedConnectorServiceError {
     /// Whether this failure should return the rollout scope to the direct connector integration.
     ///
-    /// A kill switch built on this fires on the first qualifying failure, so only failures that
-    /// will repeat identically qualify. Two classes are deliberately excluded:
+    /// A kill switch built on this fires on the first qualifying failure. Failures split into
+    /// two kinds, distinguished by [`UcsKillSwitchReason::is_transient`]:
     ///
-    /// - **Transport and availability.** A rolling UCS deploy produces these across every scope
-    ///   at once, so acting on them would revert an entire migration and identify nothing.
-    /// - **Connector outcomes.** [`Self::ConnectorError`] is the connector answering, including
-    ///   timeouts, which carry a synthetic 504. It would answer the same way on the direct path.
+    /// - **Specific to the scope**, and will repeat identically until someone fixes it.
+    /// - **Transport and availability**, which clears on its own. It still qualifies — while UCS
+    ///   is unreachable there is no fallback and the payment simply fails, so serving from the
+    ///   direct integration is strictly better — but a caller should release it automatically
+    ///   rather than requiring a human to clear every scope after a deploy.
+    ///
+    /// Only [`Self::ConnectorError`] is excluded outright: it is the connector answering,
+    /// including timeouts, which carry a synthetic 504. It would answer the same way on the
+    /// direct path.
     ///
     /// Known gap: a request UCS built wrongly is also rejected *by the connector*, and arrives as
     /// a `ConnectorError` indistinguishable from a decline. Acting on that would mean acting on
@@ -1470,12 +1494,13 @@ impl UnifiedConnectorServiceError {
             // been extracted by `from_grpc_error`, so it is UCS-side by construction. The code
             // still decides: some of it is a broken request, the rest is UCS being unwell.
             Self::TonicStatus { code, .. } => match code {
-                // Fleet-wide. A rolling deploy produces these for every scope at once.
+                // Fleet-wide and self-clearing. Still worth falling back for: while UCS is
+                // unwell the payment has nowhere else to go and fails outright.
                 tonic::Code::Unavailable
                 | tonic::Code::DeadlineExceeded
                 | tonic::Code::ResourceExhausted
                 | tonic::Code::Aborted
-                | tonic::Code::Cancelled => None,
+                | tonic::Code::Cancelled => Some(UcsKillSwitchReason::UcsUnreachable),
 
                 // UCS rejected the request Hyperswitch built. Deterministic for this scope.
                 tonic::Code::InvalidArgument
@@ -1496,8 +1521,8 @@ impl UnifiedConnectorServiceError {
                 | tonic::Code::Ok => Some(UcsKillSwitchReason::UcsInternalFailure),
             },
 
-            // Could not reach UCS at all. Fleet-wide, same as `Unavailable` above.
-            Self::ConnectionError(_) => None,
+            // Could not reach UCS at all. Same treatment as `Unavailable` above.
+            Self::ConnectionError(_) => Some(UcsKillSwitchReason::UcsUnreachable),
 
             // The connector answered. See the known gap in the doc comment above.
             Self::ConnectorError(_) => None,
@@ -1550,9 +1575,9 @@ mod ucs_kill_switch_reason_tests {
     }
 
     #[test]
-    fn fleet_wide_grpc_codes_are_not_kill_switch_worthy() {
-        // A rolling UCS deploy produces these for every scope at once. Acting on them would
-        // revert an entire migration and identify nothing.
+    fn fleet_wide_grpc_codes_are_transient() {
+        // These still qualify — while UCS is unwell the payment has no fallback and fails — but
+        // they clear on their own, so a caller must not require a human to release every scope.
         for code in [
             tonic::Code::Unavailable,
             tonic::Code::DeadlineExceeded,
@@ -1560,10 +1585,24 @@ mod ucs_kill_switch_reason_tests {
             tonic::Code::Aborted,
             tonic::Code::Cancelled,
         ] {
-            assert!(
-                tonic_status(code).ucs_kill_switch_reason().is_none(),
-                "{code:?} must not be kill-switch worthy"
-            );
+            let reason = tonic_status(code).ucs_kill_switch_reason();
+
+            assert_eq!(reason, Some(UcsKillSwitchReason::UcsUnreachable), "{code:?}");
+            assert!(reason.is_some_and(|r| r.is_transient()), "{code:?}");
+        }
+    }
+
+    #[test]
+    fn scope_specific_reasons_are_not_transient() {
+        // These repeat identically until someone fixes them, so releasing them automatically
+        // would put traffic straight back onto a known-broken scope.
+        for reason in [
+            UcsKillSwitchReason::ResponseUndecodable,
+            UcsKillSwitchReason::RequestUnbuildable,
+            UcsKillSwitchReason::NotImplemented,
+            UcsKillSwitchReason::UcsInternalFailure,
+        ] {
+            assert!(!reason.is_transient(), "{reason:?}");
         }
     }
 

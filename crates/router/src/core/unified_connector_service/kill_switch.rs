@@ -153,12 +153,21 @@ async fn trip(
         }
     };
 
+    // A scope-specific failure waits for a human; an unreachable UCS releases itself once UCS is
+    // back, so a deploy does not leave hundreds of scopes to clear by hand.
+    let ttl_in_seconds = if reason.is_transient() {
+        consts::UCS_KILL_SWITCH_TRANSIENT_TTL_IN_SECONDS
+    } else {
+        consts::UCS_KILL_SWITCH_TTL_IN_SECONDS
+    };
+
     // Carries enough to find the originating request in the logs.
     let record = serde_json::json!({
         "reason": reason.as_str(),
         "error": error.to_string(),
         "request_id": state.request_id.as_ref().map(|id| id.to_string()),
         "tripped_at": common_utils::date_time::now_unix_timestamp(),
+        "releases_after_seconds": ttl_in_seconds,
     })
     .to_string();
 
@@ -166,7 +175,7 @@ async fn trip(
         .set_key_if_not_exists_with_expiry(
             &trip_key(rollout_scope).as_str().into(),
             record,
-            Some(consts::UCS_KILL_SWITCH_TTL_IN_SECONDS),
+            Some(ttl_in_seconds),
         )
         .await
     {
@@ -179,6 +188,7 @@ async fn trip(
                 rollout_scope = %rollout_scope,
                 reason = reason.as_str(),
                 ucs_error = %error,
+                releases_after_seconds = ttl_in_seconds,
                 "ucs_kill_switch: tripping the scope back to the direct integration"
             );
         }
@@ -317,11 +327,20 @@ mod tests {
     }
 
     #[test]
-    fn transient_and_connector_failures_never_trip() {
+    fn an_unreachable_ucs_trips_but_releases_itself() {
+        // While UCS is unreachable the payment has no fallback and fails outright, so serving
+        // from the direct integration is strictly better. It must release itself, though, or a
+        // routine deploy would leave every promoted scope to be cleared by hand.
+        let reason = UnifiedConnectorServiceError::ConnectionError("dial".into())
+            .ucs_kill_switch_reason();
+
+        assert_eq!(reason, Some(UcsKillSwitchReason::UcsUnreachable));
+        assert!(reason.is_some_and(|r| r.is_transient()));
+    }
+
+    #[test]
+    fn connector_outcomes_never_trip() {
         let cases = [
-            // Fleet-wide: a rolling UCS deploy produces this across every scope at once, so
-            // tripping on it would revert the whole migration and identify nothing.
-            UnifiedConnectorServiceError::ConnectionError("dial".into()),
             // A decline would decline identically on the direct path.
             connector_error(402),
             // A connector timeout arrives as a ConnectorError carrying the synthetic 504, so it
