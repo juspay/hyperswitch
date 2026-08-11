@@ -901,9 +901,9 @@ pub async fn sync_refund_with_gateway(
         .await?;
 
     router_env::logger::info!(
-        refund_id = refund.refund_id,
+        refund_id = router_data.request.refund_id,
         execution_path = ?execution_path,
-        "Executing refund via {execution_path:?}"
+        "Executing refund sync via {execution_path:?}"
     );
 
     let lineage_ids = LineageIds::new(payment_intent.merchant_id.clone(), profile_id.clone());
