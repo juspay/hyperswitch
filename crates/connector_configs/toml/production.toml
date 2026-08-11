@@ -3749,6 +3749,15 @@ key1 = "Wise Account Id"
 [wise_payout.connector_webhook_details]
 merchant_secret="Source verification key"
 
+[deutschebank_payout]
+[[deutschebank_payout.bank_transfer]]
+  payment_method_type = "sepa_bank_transfer"
+[deutschebank_payout.connector_auth.MultiAuthKey]
+api_key="Customer Identifier"
+key1="Key ID"
+api_secret="Signing Private Key (PEM)"
+key2="Client Certificate Bundle (PEM cert + key concatenated)"
+
 [itaubank_payout]
 [[itaubank_payout.bank_transfer]]
   payment_method_type = "pix"
@@ -3761,6 +3770,35 @@ key1="Client Id"
 api_key="Client Secret"
 api_secret="Certificates"
 key2="Certificate Key"
+
+[santander_payout]
+[[santander_payout.bank_transfer]]
+  payment_method_type = "pix"
+[[santander_payout.bank_transfer]]
+  payment_method_type = "pix_key"
+[[santander_payout.bank_transfer]]
+  payment_method_type = "pix_emv"
+[santander_payout.connector_auth.CertificateAuth]
+certificate="Certificate"
+private_key="Certificate Key"
+[[santander_payout.metadata.pix_payout]]
+name="client_id"
+label="Client Id"
+placeholder="Enter the client id"
+required=true
+type="Text"
+[[santander_payout.metadata.pix_payout]]
+name="client_secret"
+label="Client Secret"
+placeholder="Enter the client secret"
+required=true
+type="Text"
+[[santander_payout.metadata.pix_payout]]
+name="workspace_id"
+label="Workspace Id"
+placeholder="Enter the workspace id"
+required=true
+type="Text"
 
 [paystack]
 [[paystack.bank_redirect]]
