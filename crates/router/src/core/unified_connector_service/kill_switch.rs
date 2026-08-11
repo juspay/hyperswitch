@@ -10,7 +10,9 @@
 
 use common_enums::ExecutionMode;
 use error_stack::ResultExt;
-use hyperswitch_interfaces::unified_connector_service::transformers::UnifiedConnectorServiceError;
+use hyperswitch_interfaces::unified_connector_service::transformers::{
+    UcsKillSwitchReason, UnifiedConnectorServiceError,
+};
 use router_env::logger;
 
 use crate::{
@@ -21,115 +23,6 @@ use crate::{
     },
     routes::SessionState,
 };
-
-/// Why a UCS failure counted as a trip trigger. Doubles as the log and metric tag.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum UcsFailureReason {
-    /// UCS answered, but the response could not be decoded into the shape Hyperswitch expects.
-    ResponseUndecodable,
-    /// The gRPC request could not be built from `RouterData`, or a field Hyperswitch requires was
-    /// absent — the mapping between the two models is wrong for this scope.
-    RequestUnbuildable,
-    /// UCS reported that it does not implement this flow for this connector, so the rollout key
-    /// promoting it to primary is itself wrong.
-    NotImplemented,
-    /// A per-flow failure marker. UCS could not complete the flow and gave no more detail.
-    FlowFailed,
-}
-
-impl UcsFailureReason {
-    /// Stable label used in metrics and logs.
-    pub fn as_str(self) -> &'static str {
-        match self {
-            Self::ResponseUndecodable => "response_undecodable",
-            Self::RequestUnbuildable => "request_unbuildable",
-            Self::NotImplemented => "not_implemented",
-            Self::FlowFailed => "flow_failed",
-        }
-    }
-}
-
-/// Decides whether a UCS failure should trip the scope.
-///
-/// Fires on the first qualifying failure, so only failures that will repeat identically
-/// qualify. Transient and availability errors are excluded: they are fleet-wide and would trip
-/// every scope at once during a rolling deploy. Connector outcomes are excluded: they
-/// would fail the same way on the direct path.
-///
-/// Matched exhaustively so a new error variant fails to compile here rather than falling into
-/// a catch-all.
-///
-/// This cannot see a UCS bug that produces a request the connector understands but answers
-/// wrongly, nor one it rejects as a decline. Both look like ordinary connector outcomes.
-pub fn classify_failure(error: &UnifiedConnectorServiceError) -> Option<UcsFailureReason> {
-    use UnifiedConnectorServiceError as E;
-
-    match error {
-        // The response could not be decoded.
-        E::ResponseDeserializationFailed | E::ParsingFailed => {
-            Some(UcsFailureReason::ResponseUndecodable)
-        }
-
-        // The request could not be built, so the model mapping is wrong for this scope.
-        E::RequestEncodingFailed
-        | E::RequestEncodingFailedWithReason(_)
-        | E::MissingRequiredField { .. }
-        | E::MissingRequiredFields { .. }
-        | E::MissingConnectorName
-        | E::InvalidConnectorName
-        | E::InvalidDataFormat { .. }
-        | E::FailedToObtainAuthType
-        | E::HeaderInjectionFailed(_) => Some(UcsFailureReason::RequestUnbuildable),
-
-        // UCS does not implement this flow for this connector.
-        E::NotImplemented(_) => Some(UcsFailureReason::NotImplemented),
-
-        // Transport and availability: fleet-wide, so `ucs_enabled` is the lever, not this.
-        E::ConnectionError(_) | E::TonicStatus { .. } => None,
-
-        // The connector answered, including timeouts, which carry a synthetic 504. Normally this
-        // would fail the same way on the direct path.
-        //
-        // Known gap: a request UCS built wrongly is also rejected by the connector, and arrives
-        // here indistinguishable from a genuine decline. Tripping on it would mean tripping on
-        // every declined card, so this classifies as a connector outcome and such a mapping bug
-        // is left to shadow validation to catch.
-        E::ConnectorError(_) => None,
-
-        // Per-flow failure markers carrying no further detail. Treated as deterministic.
-        E::WebhookProcessingFailure
-        | E::PaymentCreateOrderFailure
-        | E::PaymentAuthorizeGranularFailure
-        | E::CreateSessionTokenFailure
-        | E::CreateAccessTokenFailure
-        | E::PaymentMethodTokenizeFailure
-        | E::CreateConnectorCustomerFailure
-        | E::PaymentAuthorizeFailure
-        | E::PaymentPreAuthenticateFailure
-        | E::PaymentAuthenticateFailure
-        | E::PaymentPostAuthenticateFailure
-        | E::PaymentGetFailure
-        | E::PaymentCaptureFailure
-        | E::PaymentSetupRecurringFailure
-        | E::RecurringPaymentChargeFailure
-        | E::PaymentRefundFailure
-        | E::RefundSyncFailure
-        | E::IncomingWebhookHandleEventFailure
-        | E::IncomingWebhookParseEventFailure
-        | E::PaymentVoidFailure
-        | E::CreateSdkSessionTokenFailure
-        | E::PaymentIncrementalAuthorizationFailure
-        | E::PayoutCreateFailure
-        | E::PayoutTransferFailure
-        | E::PayoutGetFailure
-        | E::PayoutVoidFailure
-        | E::PayoutStageFailure
-        | E::PayoutCreateRecipientFailure
-        | E::PayoutEnrollDisburseAccountFailure
-        | E::SurchargeCalculateFailure
-        | E::NotifyConnectorFailure => Some(UcsFailureReason::FlowFailed),
-    }
-}
 
 /// Redis key holding the trip for a scope.
 fn trip_key(rollout_scope: &str) -> String {
@@ -205,7 +98,7 @@ pub async fn record_failure(
         return;
     }
 
-    let Some(reason) = classify_failure(error) else {
+    let Some(reason) = error.ucs_kill_switch_reason() else {
         return;
     };
 
@@ -245,7 +138,7 @@ pub async fn record_failure(
 async fn trip(
     state: &SessionState,
     rollout_scope: &str,
-    reason: UcsFailureReason,
+    reason: UcsKillSwitchReason,
     error: &UnifiedConnectorServiceError,
 ) {
     let redis_conn = match state.store.get_redis_conn() {
@@ -392,34 +285,34 @@ mod tests {
         let cases = [
             (
                 UnifiedConnectorServiceError::ResponseDeserializationFailed,
-                UcsFailureReason::ResponseUndecodable,
+                UcsKillSwitchReason::ResponseUndecodable,
             ),
             (
                 UnifiedConnectorServiceError::ParsingFailed,
-                UcsFailureReason::ResponseUndecodable,
+                UcsKillSwitchReason::ResponseUndecodable,
             ),
             (
                 UnifiedConnectorServiceError::RequestEncodingFailed,
-                UcsFailureReason::RequestUnbuildable,
+                UcsKillSwitchReason::RequestUnbuildable,
             ),
             (
                 UnifiedConnectorServiceError::FailedToObtainAuthType,
-                UcsFailureReason::RequestUnbuildable,
+                UcsKillSwitchReason::RequestUnbuildable,
             ),
             (
                 UnifiedConnectorServiceError::MissingRequiredField {
                     field_name: "payment_method_data",
                 },
-                UcsFailureReason::RequestUnbuildable,
+                UcsKillSwitchReason::RequestUnbuildable,
             ),
             (
                 UnifiedConnectorServiceError::NotImplemented("PSync".into()),
-                UcsFailureReason::NotImplemented,
+                UcsKillSwitchReason::NotImplemented,
             ),
         ];
 
         for (error, expected) in cases {
-            assert_eq!(classify_failure(&error), Some(expected), "{error:?}");
+            assert_eq!(error.ucs_kill_switch_reason(), Some(expected), "{error:?}");
         }
     }
 
@@ -428,7 +321,6 @@ mod tests {
         let cases = [
             // Fleet-wide: a rolling UCS deploy produces this across every scope at once, so
             // tripping on it would revert the whole migration and identify nothing.
-            // `TonicStatus` shares this match arm.
             UnifiedConnectorServiceError::ConnectionError("dial".into()),
             // A decline would decline identically on the direct path.
             connector_error(402),
@@ -440,7 +332,7 @@ mod tests {
         ];
 
         for error in cases {
-            assert!(classify_failure(&error).is_none(), "{error:?}");
+            assert!(error.ucs_kill_switch_reason().is_none(), "{error:?}");
         }
     }
 
@@ -515,10 +407,10 @@ mod tests {
     #[test]
     fn failure_reasons_have_distinct_tags() {
         let tags = [
-            UcsFailureReason::ResponseUndecodable.as_str(),
-            UcsFailureReason::RequestUnbuildable.as_str(),
-            UcsFailureReason::NotImplemented.as_str(),
-            UcsFailureReason::FlowFailed.as_str(),
+            UcsKillSwitchReason::ResponseUndecodable.as_str(),
+            UcsKillSwitchReason::RequestUnbuildable.as_str(),
+            UcsKillSwitchReason::NotImplemented.as_str(),
+            UcsKillSwitchReason::FlowFailed.as_str(),
         ];
         let unique: std::collections::HashSet<_> = tags.iter().collect();
 
