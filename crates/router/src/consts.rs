@@ -380,8 +380,19 @@ pub const UCS_AUTH_MULTI_KEY: &str = "multi-auth-key";
 /// Header value indicating that currency-auth-key-based authentication is used.
 pub const UCS_AUTH_CURRENCY_AUTH_KEY: &str = "currency-auth-key";
 
+/// Header value indicating that no credentials are required (e.g. external-3DS
+/// over VGS where mTLS is handled on the outbound proxy route, not by UCS).
+pub const UCS_AUTH_NO_KEY: &str = "no-key";
+
 /// Form field name for challenge request during creq submission
 pub const CREQ_CHALLENGE_REQUEST_KEY: &str = "creq";
+
+/// `RedirectForm::Form.form_fields` keys UCS's Netcetera integration uses to carry 3DS Method
+/// (DDC) data — there's no typed proto slot for it, so connector-service stuffs it into the same
+/// generic form-fields map used for the challenge (see its `netcetera/transformers.rs`, the
+/// `form_fields.insert("threeDsMethodData"/"threeDsMethodUrl", ...)` call).
+pub const UCS_DDC_METHOD_DATA_KEY: &str = "threeDsMethodData";
+pub const UCS_DDC_METHOD_URL_KEY: &str = "threeDsMethodUrl";
 
 /// Superposition configuration keys
 pub mod superposition {
@@ -397,6 +408,8 @@ pub mod superposition {
     pub const REQUIRES_CVV: &str = "payments.requires_cvv";
     /// implicit customer update configuration key
     pub const IMPLICIT_CUSTOMER_UPDATE: &str = "payments.implicit_customer_update";
+    /// Organization-scoped block implicit customer creation configuration key
+    pub const BLOCK_IMPLICIT_CUSTOMER_CREATION: &str = "payments.block_implicit_customer_creation";
     /// Fingerprint secret configuration key retained for migration fallback
     pub const FINGERPRINT_SECRET: &str = "vaulting.fingerprint_secret";
     /// Poll config for external 3DS authentication key
