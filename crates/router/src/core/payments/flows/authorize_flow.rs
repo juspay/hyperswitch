@@ -1318,6 +1318,7 @@ impl<F>
             multiple_capture_data: None,
             connector_meta: types::PaymentsResponseData::get_connector_metadata(&response)
                 .map(|secret| secret.expose()),
+            connector_intent_metadata: item.request.connector_intent_metadata,
             browser_info: None,
             metadata: None,
             capture_method: item.request.capture_method,

@@ -65,6 +65,16 @@ const UPI_WAIT_SCREEN_DISPLAY_DURATION_MINUTES: i64 = 5;
 const UPI_POLL_DELAY_IN_SECS: u16 = 5;
 const UPI_POLL_FREQUENCY: u16 = 60;
 
+fn encode_connector_intent_metadata(
+    connector_intent_metadata: Option<&api_models::payments::ConnectorMetadata>,
+) -> Result<Option<Secret<String>>, error_stack::Report<UnifiedConnectorServiceError>> {
+    connector_intent_metadata
+        .map(serde_json::to_string)
+        .transpose()
+        .change_context(UnifiedConnectorServiceError::RequestEncodingFailed)
+        .map(|data| data.map(Secret::new))
+}
+
 impl ForeignFrom<common_enums::ProductType> for payments_grpc::ProductType {
     fn foreign_from(product_type: common_enums::ProductType) -> Self {
         match product_type {
@@ -429,6 +439,9 @@ impl
             .access_token
             .as_ref()
             .map(ConnectorState::foreign_from);
+        let connector_intent_metadata = encode_connector_intent_metadata(
+            router_data.request.connector_intent_metadata.as_ref(),
+        )?;
         let order_details = build_ucs_order_details(router_data.request.order_details.as_deref());
         let l2_l3_data = build_ucs_l2_l3_data(router_data.l2_l3_data.as_deref());
         Ok(Self {
@@ -540,6 +553,7 @@ impl
                 .transpose()?
                 .map(|payment_channel| payment_channel.into()),
             connector_feature_data: None,
+            connector_intent_metadata,
             locale: router_data.request.locale.clone(),
             continue_redirection_url: router_data.request.complete_authorize_url.clone(),
             redirection_response: None,
@@ -705,6 +719,9 @@ impl
             .access_token
             .as_ref()
             .map(ConnectorState::foreign_from);
+        let connector_intent_metadata = encode_connector_intent_metadata(
+            router_data.request.connector_intent_metadata.as_ref(),
+        )?;
 
         Ok(Self {
             split_payments: None,
@@ -779,6 +796,7 @@ impl
                 .transpose()
                 .change_context(UnifiedConnectorServiceError::RequestEncodingFailed)?
                 .map(|s| s.into()),
+            connector_intent_metadata,
             enable_partial_authorization: None,
             payment_channel: None,
             billing_descriptor: None,
@@ -1774,6 +1792,10 @@ impl transformers::ForeignTryFrom<&RouterData<Capture, PaymentsCaptureData, Paym
             .as_ref()
             .map(ConnectorState::foreign_from);
 
+        let connector_intent_metadata = encode_connector_intent_metadata(
+            router_data.request.connector_intent_metadata.as_ref(),
+        )?;
+
         Ok(Self {
             connector_transaction_id,
             merchant_capture_id: Some(router_data.connector_request_reference_id.clone()),
@@ -1809,6 +1831,7 @@ impl transformers::ForeignTryFrom<&RouterData<Capture, PaymentsCaptureData, Paym
                 .transpose()
                 .change_context(UnifiedConnectorServiceError::RequestEncodingFailed)?
                 .map(|s| s.into()),
+            connector_intent_metadata,
             test_mode: router_data.test_mode,
             merchant_order_id: router_data.request.merchant_order_reference_id.clone(),
             merchant_request_id: None,
@@ -1893,6 +1916,9 @@ impl
             .clone()
             .map(payments_grpc::AuthenticationData::foreign_try_from)
             .transpose()?;
+        let connector_intent_metadata = encode_connector_intent_metadata(
+            router_data.request.connector_intent_metadata.as_ref(),
+        )?;
 
         Ok(Self {
             split_payments: None,
@@ -1962,6 +1988,7 @@ impl
             statement_descriptor_suffix: None,
             order_details: vec![],
             connector_feature_data: None,
+            connector_intent_metadata,
             enable_partial_authorization: None,
             payment_channel: None,
             tokenization_strategy: router_data
@@ -2050,6 +2077,9 @@ impl
             .access_token
             .as_ref()
             .map(ConnectorState::foreign_from);
+        let connector_intent_metadata = encode_connector_intent_metadata(
+            router_data.request.connector_intent_metadata.as_ref(),
+        )?;
         let order_details = build_ucs_order_details(router_data.request.order_details.as_deref());
         let l2_l3_data = build_ucs_l2_l3_data(router_data.l2_l3_data.as_deref());
         Ok(Self {
@@ -2144,6 +2174,7 @@ impl
                 .and_then(|descriptor| descriptor.statement_descriptor_suffix.clone()),
             order_details,
             connector_feature_data: None,
+            connector_intent_metadata,
             enable_partial_authorization: router_data
                 .request
                 .enable_partial_authorization
@@ -2338,6 +2369,7 @@ impl
             statement_descriptor_suffix: router_data.request.statement_descriptor_suffix.clone(),
             order_details: vec![],
             connector_feature_data: None,
+            connector_intent_metadata: None,
             enable_partial_authorization: None,
             payment_channel: None,
             tokenization_strategy: None,
@@ -2819,6 +2851,9 @@ impl
                 .map(payments_grpc::PaymentChannel::foreign_try_from)
                 .transpose()?
                 .map(|payment_channel| payment_channel.into()),
+            connector_intent_metadata: encode_connector_intent_metadata(
+                router_data.request.connector_intent_metadata.as_ref(),
+            )?,
         })
     }
 }

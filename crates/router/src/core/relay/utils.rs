@@ -240,6 +240,7 @@ pub async fn construct_relay_capture_router_data(
                 },
             ),
             connector_meta: None,
+            connector_intent_metadata: None,
             browser_info: None,
             metadata: None,
             capture_method: None,
