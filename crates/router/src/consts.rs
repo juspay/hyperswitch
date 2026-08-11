@@ -372,11 +372,14 @@ pub const UCS_KILL_SWITCH_ENABLED: &str = "ucs_kill_switch_enabled";
 // Prefix of the redis key holding a kill switch trip. Absent until a scope trips.
 pub const UCS_KILL_SWITCH_REDIS_PREFIX: &str = "ucs_kill_switch";
 
-// Lifetime of a trip, in seconds. Long enough to outlive the UCS migration, because a
-// trip is meant to be cleared by an operator after investigation, never to lapse on its
-// own — `redis_interface` has no setter that writes a key without an expiry, so "permanent"
-// has to be spelled as a long TTL.
-pub const UCS_KILL_SWITCH_TTL_IN_SECONDS: i64 = 90 * 24 * 60 * 60;
+// Lifetime of a trip, in seconds. A trip only has to outlive the operator response it triggers:
+// once the rollout config is moved back to shadow, the gateway decision stops consulting the
+// kill switch at all. A week covers a long weekend with margin.
+//
+// Expiry is not a silent restore. If the rollout config is still primary and still broken, the
+// next request fails and trips again, so an expired trip costs one further failed request rather
+// than an open-ended regression.
+pub const UCS_KILL_SWITCH_TTL_IN_SECONDS: i64 = 7 * 24 * 60 * 60;
 
 /// Header value indicating that signature-key-based authentication is used.
 pub const UCS_AUTH_SIGNATURE_KEY: &str = "signature-key";
