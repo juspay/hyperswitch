@@ -1,12 +1,9 @@
-//! Kill switch that returns a rollout scope to the direct connector integration when a
-//! Unified Connector Service call fails deterministically.
+//! Returns a rollout scope to the direct connector integration when a Unified Connector Service
+//! call fails.
 //!
-//! Tripping unnecessarily is harmless — the scope is served by the integration it used
-//! before UCS — so ambiguous outcomes resolve towards the direct path.
-//!
-//! The trip is runtime state and lives in redis; `ucs_rollout_config` rows are never
-//! written to. Keyed on the rollout scope, so a trip targets exactly the key that enabled
-//! the traffic.
+//! Trips live in redis, keyed on the rollout scope; `ucs_rollout_config` rows are never written
+//! to. Ambiguous outcomes resolve towards the direct path, which is what the scope used before
+//! UCS.
 
 use common_enums::ExecutionMode;
 use error_stack::ResultExt;
@@ -31,9 +28,8 @@ fn trip_key(rollout_scope: &str) -> String {
 
 /// Whether the kill switch has tripped for this scope.
 ///
-/// Fails closed: a redis error routes to the direct integration, since an unnecessary fallback
-/// is harmless and a missed one is not. Only reached once the rollout config resolved to
-/// primary, so shadow traffic never pays for the lookup.
+/// Fails closed: a redis error routes to the direct integration. Only reached once the rollout
+/// config resolved to primary, so shadow traffic never pays for the lookup.
 pub async fn is_tripped(state: &SessionState, rollout_scope: &str) -> bool {
     if !is_ucs_enabled(state, consts::UCS_KILL_SWITCH_ENABLED).await {
         return false;
@@ -56,8 +52,7 @@ pub async fn is_tripped(state: &SessionState, rollout_scope: &str) -> bool {
         .await
     {
         Ok(true) => {
-            // Every request for a tripped scope reaches here, for as long as the trip stands.
-            // The trip itself is already recorded once at error level.
+            // Every request for a tripped scope reaches here; the trip is logged once elsewhere.
             logger::debug!(
                 rollout_scope = %rollout_scope,
                 "ucs_kill_switch: scope is tripped, routing to the direct integration"
@@ -76,8 +71,8 @@ pub async fn is_tripped(state: &SessionState, rollout_scope: &str) -> bool {
     }
 }
 
-/// What a failing UCS call was for. Carried as a struct because these are six positional
-/// strings otherwise, and transposing two of them would key trips under the wrong scope.
+/// What a failing UCS call was for. A struct because transposing two of six positional strings
+/// would key trips under the wrong scope.
 pub struct UcsFailureContext<'a> {
     pub merchant_id: &'a str,
     pub connector_name: &'a str,
@@ -89,7 +84,7 @@ pub struct UcsFailureContext<'a> {
 
 /// Classifies a UCS failure and trips the scope if it qualifies.
 ///
-/// Never returns an error: this runs on an already-failing path and must not fail the request.
+/// Never returns an error: it runs on an already-failing path and must not fail the request.
 #[allow(clippy::too_many_arguments)]
 pub async fn record_failure(
     state: &SessionState,
@@ -123,7 +118,7 @@ pub async fn record_failure(
         ),
     );
 
-    // Fires on every qualifying failure, so it is the calibration feed rather than the alert.
+    // Fires on every qualifying failure: calibration feed, not an alert.
     if !is_ucs_enabled(state, consts::UCS_KILL_SWITCH_ENABLED).await {
         logger::warn!(
             rollout_scope = %rollout_scope,
@@ -142,8 +137,7 @@ pub async fn record_failure(
     trip(state, &rollout_scope, &context, reason, error).await;
 }
 
-/// Writes the trip. `SET NX` makes it exactly-once: concurrent failures all attempt it, one
-/// wins, the rest are a no-op.
+/// Writes the trip. `SET NX` makes it exactly-once: one concurrent writer wins, the rest no-op.
 async fn trip(
     state: &SessionState,
     rollout_scope: &str,
@@ -163,7 +157,7 @@ async fn trip(
         }
     };
 
-    // Carries enough to find the originating request in the logs.
+    // Carries enough to find the originating request.
     let record = serde_json::json!({
         "reason": reason.as_str(),
         "error": error.to_string(),
@@ -185,9 +179,7 @@ async fn trip(
                 1,
                 router_env::metric_attributes!(("reason", reason.as_str())),
             );
-            // Fires once per scope, because SET NX admits one writer. This is the line to
-            // alert on: discrete fields so a query filters by connector without a regex, and a
-            // request id to reach the originating call.
+            // Fires once per scope. This is the line to alert on.
             logger::error!(
                 rollout_scope = %rollout_scope,
                 merchant_id = %context.merchant_id,
@@ -224,8 +216,7 @@ pub struct KillSwitchListResponse {
 
 impl common_utils::events::ApiEventMetric for KillSwitchListResponse {}
 
-/// Clears the trip, returning the scope to whatever its rollout config says. Explicit
-/// operator action: a tripped scope is never restored automatically.
+/// Clears the trip, returning the scope to whatever its rollout config says.
 pub async fn reset(state: SessionState, rollout_scope: String) -> errors::RouterResponse<()> {
     state
         .store

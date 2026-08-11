@@ -1439,31 +1439,10 @@ impl UcsKillSwitchReason {
 impl UnifiedConnectorServiceError {
     /// Whether this failure should return the rollout scope to the direct connector integration.
     ///
-    /// A kill switch built on this fires on the first qualifying failure. Everything UCS-side
-    /// qualifies, including transport and availability: while UCS is unreachable there is no
-    /// mid-flight fallback and the payment simply fails, so serving from the direct integration
-    /// is strictly better.
+    /// Everything UCS-side qualifies. Only [`Self::ConnectorError`] does not, since the connector
+    /// would answer the same way on the direct path.
     ///
-    /// The reason is a label, not a lifetime. A gRPC code does not reliably say whether a
-    /// condition will clear — a deadline can just as easily be UCS timing out on one connector
-    /// as UCS being overloaded — so nothing here decides how long a scope stays on the direct
-    /// path. That is an operator's call.
-    ///
-    /// Only [`Self::ConnectorError`] is excluded: it is the connector answering, including
-    /// timeouts, which carry a synthetic 504. It would answer the same way on the direct path.
-    ///
-    /// The gRPC codes are matched here rather than deferred to
-    /// [`Self::tonic_status_is_ucs_server_error`], which draws one line where this needs three:
-    /// that helper groups `Unavailable` with `Internal`, and leaves `DeadlineExceeded`,
-    /// `ResourceExhausted`, `Aborted` and `Cancelled` on the client side by omission. It also
-    /// uses `matches!`, so a new code defaults silently; this match has no catch-all.
-    ///
-    /// Known gap: a request UCS built wrongly is also rejected *by the connector*, and arrives as
-    /// a `ConnectorError` indistinguishable from a decline. Acting on that would mean acting on
-    /// every declined card, so it is left to shadow comparison to catch.
-    ///
-    /// Matched exhaustively so a new variant fails to compile here rather than silently picking a
-    /// side.
+    /// Exhaustive: a new variant must be classified here rather than defaulting.
     pub fn ucs_kill_switch_reason(&self) -> Option<UcsKillSwitchReason> {
         match self {
             // Hyperswitch could not read UCS's answer.
@@ -1487,9 +1466,9 @@ impl UnifiedConnectorServiceError {
             // Raised by Hyperswitch, but it reports a flow UCS cannot serve.
             Self::NotImplemented(_) => Some(UcsKillSwitchReason::UcsFlowUnsupported),
 
-            // A gRPC status only reaches this variant after connector errors and timeouts have
-            // been extracted by `from_grpc_error`, so it is UCS-side by construction. The code
-            // still decides: some of it is a broken request, the rest is UCS being unwell.
+            // UCS-side by construction: `from_grpc_error` extracts connector errors first.
+            // Matched here rather than via `tonic_status_is_ucs_server_error`, which splits these
+            // two ways and needs three, and defaults silently on a new code.
             Self::TonicStatus { code, .. } => match code {
                 // UCS-wide rather than scope-specific. Still worth falling back for: while UCS
                 // is unwell the payment has nowhere else to go and fails outright.
@@ -1521,7 +1500,14 @@ impl UnifiedConnectorServiceError {
             // Could not reach UCS at all. Same treatment as `Unavailable` above.
             Self::ConnectionError(_) => Some(UcsKillSwitchReason::UcsUnreachable),
 
-            // The connector answered. See the known gap in the doc comment above.
+            // No usable status never reaches here: `from_grpc_error` falls through to
+            // `TonicStatus`. A zero means UCS supplied one, which is UCS-side.
+            Self::ConnectorError(inner) if inner.status_code == 0 => {
+                Some(UcsKillSwitchReason::UcsInternalError)
+            }
+
+            // The connector answered, timeouts included. Gap: a request UCS built wrongly is also
+            // rejected by the connector and is indistinguishable from a decline here.
             Self::ConnectorError(_) => None,
 
             // Per-flow failure markers carrying no further detail.
