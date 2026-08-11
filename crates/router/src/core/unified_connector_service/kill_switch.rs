@@ -276,33 +276,33 @@ mod tests {
     }
 
     #[test]
-    fn failures_that_would_repeat_trip_the_scope() {
+    fn failures_are_labelled_by_where_they_originated() {
         let cases = [
             (
                 UnifiedConnectorServiceError::ResponseDeserializationFailed,
-                UcsKillSwitchReason::ResponseUndecodable,
+                UcsKillSwitchReason::HyperswitchResponseUndecodable,
             ),
             (
                 UnifiedConnectorServiceError::ParsingFailed,
-                UcsKillSwitchReason::ResponseUndecodable,
+                UcsKillSwitchReason::HyperswitchResponseUndecodable,
             ),
             (
                 UnifiedConnectorServiceError::RequestEncodingFailed,
-                UcsKillSwitchReason::RequestUnbuildable,
+                UcsKillSwitchReason::HyperswitchRequestInvalid,
             ),
             (
                 UnifiedConnectorServiceError::FailedToObtainAuthType,
-                UcsKillSwitchReason::RequestUnbuildable,
+                UcsKillSwitchReason::HyperswitchRequestInvalid,
             ),
             (
                 UnifiedConnectorServiceError::MissingRequiredField {
                     field_name: "payment_method_data",
                 },
-                UcsKillSwitchReason::RequestUnbuildable,
+                UcsKillSwitchReason::HyperswitchRequestInvalid,
             ),
             (
                 UnifiedConnectorServiceError::NotImplemented("PSync".into()),
-                UcsKillSwitchReason::NotImplemented,
+                UcsKillSwitchReason::UcsFlowUnsupported,
             ),
         ];
 
@@ -409,10 +409,12 @@ mod tests {
     #[test]
     fn failure_reasons_have_distinct_tags() {
         let tags = [
-            UcsKillSwitchReason::ResponseUndecodable.as_str(),
-            UcsKillSwitchReason::RequestUnbuildable.as_str(),
-            UcsKillSwitchReason::NotImplemented.as_str(),
-            UcsKillSwitchReason::FlowFailed.as_str(),
+            UcsKillSwitchReason::HyperswitchResponseUndecodable.as_str(),
+            UcsKillSwitchReason::HyperswitchRequestInvalid.as_str(),
+            UcsKillSwitchReason::UcsRejectedRequest.as_str(),
+            UcsKillSwitchReason::UcsFlowUnsupported.as_str(),
+            UcsKillSwitchReason::UcsInternalError.as_str(),
+            UcsKillSwitchReason::UcsUnreachable.as_str(),
         ];
         let unique: std::collections::HashSet<_> = tags.iter().collect();
 

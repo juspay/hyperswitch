@@ -1401,21 +1401,24 @@ impl ErrorSwitch<ConnectorError> for UnifiedConnectorServiceError {
 
 /// Why a UCS failure should return a rollout scope to the direct connector integration.
 ///
+/// Named by where the failure originated, because that decides who fixes it: a `Hyperswitch`
+/// reason is a bug in this repo's request or response mapping, a `Ucs` reason is not.
+///
 /// Doubles as the metric label, so it is a small fixed set rather than the error itself — the
 /// error carries free-form strings and would be unbounded label cardinality.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum UcsKillSwitchReason {
-    /// UCS answered, but the response could not be decoded into the shape Hyperswitch expects.
-    ResponseUndecodable,
-    /// Hyperswitch could not build a valid request, or UCS rejected the one it built. Either way
-    /// the mapping between the two models is wrong for this scope.
-    RequestUnbuildable,
+    /// Hyperswitch could not build a valid request. UCS was never reached.
+    HyperswitchRequestInvalid,
+    /// Hyperswitch could not decode what UCS returned. The two models disagree.
+    HyperswitchResponseUndecodable,
+    /// UCS rejected the request Hyperswitch sent it.
+    UcsRejectedRequest,
     /// UCS does not implement this flow for this connector.
-    NotImplemented,
-    /// UCS failed internally, or gave no detail beyond the flow having failed.
-    UcsInternalFailure,
-    /// UCS could not be reached or was unhealthy. Not specific to the scope, so a run of these
-    /// across many scopes at once reads as one UCS-wide event rather than many separate faults.
+    UcsFlowUnsupported,
+    /// UCS failed internally, or failed the flow without saying more.
+    UcsInternalError,
+    /// UCS could not be reached, or was too unwell to answer.
     UcsUnreachable,
 }
 
@@ -1423,10 +1426,11 @@ impl UcsKillSwitchReason {
     /// Stable label used in metrics and logs.
     pub fn as_str(self) -> &'static str {
         match self {
-            Self::ResponseUndecodable => "response_undecodable",
-            Self::RequestUnbuildable => "request_unbuildable",
-            Self::NotImplemented => "not_implemented",
-            Self::UcsInternalFailure => "ucs_internal_failure",
+            Self::HyperswitchRequestInvalid => "hyperswitch_request_invalid",
+            Self::HyperswitchResponseUndecodable => "hyperswitch_response_undecodable",
+            Self::UcsRejectedRequest => "ucs_rejected_request",
+            Self::UcsFlowUnsupported => "ucs_flow_unsupported",
+            Self::UcsInternalError => "ucs_internal_error",
             Self::UcsUnreachable => "ucs_unreachable",
         }
     }
@@ -1448,6 +1452,12 @@ impl UnifiedConnectorServiceError {
     /// Only [`Self::ConnectorError`] is excluded: it is the connector answering, including
     /// timeouts, which carry a synthetic 504. It would answer the same way on the direct path.
     ///
+    /// The gRPC codes are matched here rather than deferred to
+    /// [`Self::tonic_status_is_ucs_server_error`], which draws one line where this needs three:
+    /// that helper groups `Unavailable` with `Internal`, and leaves `DeadlineExceeded`,
+    /// `ResourceExhausted`, `Aborted` and `Cancelled` on the client side by omission. It also
+    /// uses `matches!`, so a new code defaults silently; this match has no catch-all.
+    ///
     /// Known gap: a request UCS built wrongly is also rejected *by the connector*, and arrives as
     /// a `ConnectorError` indistinguishable from a decline. Acting on that would mean acting on
     /// every declined card, so it is left to shadow comparison to catch.
@@ -1456,12 +1466,12 @@ impl UnifiedConnectorServiceError {
     /// side.
     pub fn ucs_kill_switch_reason(&self) -> Option<UcsKillSwitchReason> {
         match self {
-            // The response could not be decoded.
+            // Hyperswitch could not read UCS's answer.
             Self::ResponseDeserializationFailed | Self::ParsingFailed => {
-                Some(UcsKillSwitchReason::ResponseUndecodable)
+                Some(UcsKillSwitchReason::HyperswitchResponseUndecodable)
             }
 
-            // The request could not be built, so the model mapping is wrong for this scope.
+            // Hyperswitch could not build the request. UCS was never reached.
             Self::RequestEncodingFailed
             | Self::RequestEncodingFailedWithReason(_)
             | Self::MissingRequiredField { .. }
@@ -1470,10 +1480,10 @@ impl UnifiedConnectorServiceError {
             | Self::InvalidConnectorName
             | Self::InvalidDataFormat { .. }
             | Self::FailedToObtainAuthType
-            | Self::HeaderInjectionFailed(_) => Some(UcsKillSwitchReason::RequestUnbuildable),
+            | Self::HeaderInjectionFailed(_) => Some(UcsKillSwitchReason::HyperswitchRequestInvalid),
 
-            // UCS does not implement this flow for this connector.
-            Self::NotImplemented(_) => Some(UcsKillSwitchReason::NotImplemented),
+            // Raised by Hyperswitch, but it reports a flow UCS cannot serve.
+            Self::NotImplemented(_) => Some(UcsKillSwitchReason::UcsFlowUnsupported),
 
             // A gRPC status only reaches this variant after connector errors and timeouts have
             // been extracted by `from_grpc_error`, so it is UCS-side by construction. The code
@@ -1487,23 +1497,23 @@ impl UnifiedConnectorServiceError {
                 | tonic::Code::Aborted
                 | tonic::Code::Cancelled => Some(UcsKillSwitchReason::UcsUnreachable),
 
-                // UCS rejected the request Hyperswitch built. Deterministic for this scope.
+                // UCS rejected what Hyperswitch sent it.
                 tonic::Code::InvalidArgument
                 | tonic::Code::FailedPrecondition
                 | tonic::Code::OutOfRange
                 | tonic::Code::NotFound
                 | tonic::Code::AlreadyExists
                 | tonic::Code::Unauthenticated
-                | tonic::Code::PermissionDenied => Some(UcsKillSwitchReason::RequestUnbuildable),
+                | tonic::Code::PermissionDenied => Some(UcsKillSwitchReason::UcsRejectedRequest),
 
-                tonic::Code::Unimplemented => Some(UcsKillSwitchReason::NotImplemented),
+                tonic::Code::Unimplemented => Some(UcsKillSwitchReason::UcsFlowUnsupported),
 
                 // UCS itself failed. `Unknown` is included because a rolling deploy surfaces as
                 // `Unavailable`, not `Unknown`, so `Unknown` is more often a server-side panic.
                 tonic::Code::Internal
                 | tonic::Code::DataLoss
                 | tonic::Code::Unknown
-                | tonic::Code::Ok => Some(UcsKillSwitchReason::UcsInternalFailure),
+                | tonic::Code::Ok => Some(UcsKillSwitchReason::UcsInternalError),
             },
 
             // Could not reach UCS at all. Same treatment as `Unavailable` above.
@@ -1543,7 +1553,7 @@ impl UnifiedConnectorServiceError {
             | Self::PayoutCreateRecipientFailure
             | Self::PayoutEnrollDisburseAccountFailure
             | Self::SurchargeCalculateFailure
-            | Self::NotifyConnectorFailure => Some(UcsKillSwitchReason::UcsInternalFailure),
+            | Self::NotifyConnectorFailure => Some(UcsKillSwitchReason::UcsInternalError),
         }
     }
 }
@@ -1585,27 +1595,27 @@ mod ucs_kill_switch_reason_tests {
         let cases = [
             (
                 tonic::Code::InvalidArgument,
-                UcsKillSwitchReason::RequestUnbuildable,
+                UcsKillSwitchReason::UcsRejectedRequest,
             ),
             (
                 tonic::Code::FailedPrecondition,
-                UcsKillSwitchReason::RequestUnbuildable,
+                UcsKillSwitchReason::UcsRejectedRequest,
             ),
             (
                 tonic::Code::Unauthenticated,
-                UcsKillSwitchReason::RequestUnbuildable,
+                UcsKillSwitchReason::UcsRejectedRequest,
             ),
             (
                 tonic::Code::Unimplemented,
-                UcsKillSwitchReason::NotImplemented,
+                UcsKillSwitchReason::UcsFlowUnsupported,
             ),
             (
                 tonic::Code::Internal,
-                UcsKillSwitchReason::UcsInternalFailure,
+                UcsKillSwitchReason::UcsInternalError,
             ),
             (
                 tonic::Code::Unknown,
-                UcsKillSwitchReason::UcsInternalFailure,
+                UcsKillSwitchReason::UcsInternalError,
             ),
         ];
 
