@@ -417,7 +417,13 @@ where
     if matches!(execution_path, ExecutionPath::UnifiedConnectorService)
         && is_kill_switch_applicable(connector_integration_type, &call_connector_action)
     {
-        let scope = kill_switch::build_scope(merchant_id, connector_name, &flow_name);
+        let scope = kill_switch::build_scope(
+            merchant_id,
+            connector_name,
+            &flow_name,
+            router_data.payment_method,
+            router_data.payment_method_type,
+        );
 
         if kill_switch::is_cut_over(state, &scope).await {
             router_env::logger::warn!(
@@ -585,19 +591,56 @@ fn decide_execution_path(
     }
 }
 
-/// Builds rollout config keys in ascending precedence order:
-/// 1. `ucs_rollout_config_<org_id>`                               — org level (lowest)
-/// 2. `ucs_rollout_config_<org_id>_<merchant_id>`                 — org + merchant
-/// 3. `ucs_rollout_config_<org_id>_<merchant_id>_<connector>_...` — org + merchant + connector (highest)
+/// Merchant-scoped rollout scope: the part of a rollout key below the org level.
 ///
-/// The caller tries keys highest → lowest and uses the first match found.
-/// Builds rollout config keys in ascending precedence order (lowest → highest):
-/// 1. `ucs_rollout_config_<org_id>`                                         — org level
-/// 2. `ucs_rollout_config_<org_id>_<merchant_id>`                           — org + merchant
-/// 3. `ucs_rollout_config_<org_id>_<merchant_id>_<connector>_...`           — org + merchant + connector
-/// 4. `ucs_rollout_config_<merchant_id>_<connector>_...`                    — merchant + connector (highest)
-///
-/// The caller iterates highest → lowest and uses the first match found.
+/// Shared by [`build_rollout_keys`] and the kill switch so a cutover always targets exactly the
+/// rollout key that enabled the traffic.
+pub fn build_rollout_scope(
+    merchant_id: &str,
+    connector_name: &str,
+    flow_name: &str,
+    payment_method: common_enums::PaymentMethod,
+    payment_method_type: Option<PaymentMethodType>,
+) -> String {
+    // Refund keys carry no payment method.
+    if matches!(flow_name, "Execute" | "RSync") {
+        return format!("{merchant_id}_{connector_name}_{flow_name}");
+    }
+
+    let payment_method_str = payment_method.to_string();
+
+    match payment_method {
+        // These payment methods are discriminated further by payment method type.
+        common_enums::PaymentMethod::Wallet
+        | common_enums::PaymentMethod::BankRedirect
+        | common_enums::PaymentMethod::Voucher
+        | common_enums::PaymentMethod::PayLater => {
+            let payment_method_type_str = payment_method_type
+                .map(|pmt| pmt.to_string())
+                .unwrap_or_else(|| "unknown".to_string());
+            format!(
+                "{merchant_id}_{connector_name}_{payment_method_str}_{payment_method_type_str}_{flow_name}"
+            )
+        }
+        common_enums::PaymentMethod::Card
+        | common_enums::PaymentMethod::CardRedirect
+        | common_enums::PaymentMethod::Upi
+        | common_enums::PaymentMethod::Crypto
+        | common_enums::PaymentMethod::Reward
+        | common_enums::PaymentMethod::BankDebit
+        | common_enums::PaymentMethod::RealTimePayment
+        | common_enums::PaymentMethod::BankTransfer
+        | common_enums::PaymentMethod::GiftCard
+        | common_enums::PaymentMethod::MobilePayment
+        | common_enums::PaymentMethod::NetworkToken
+        | common_enums::PaymentMethod::OpenBanking => {
+            format!("{merchant_id}_{connector_name}_{payment_method_str}_{flow_name}")
+        }
+    }
+}
+
+/// Builds rollout config keys in ascending precedence order (lowest first, highest last).
+/// The caller iterates highest to lowest and uses the first match found.
 fn build_rollout_keys(
     org_id: &str,
     merchant_id: &str,
@@ -607,57 +650,19 @@ fn build_rollout_keys(
     payment_method_type: Option<PaymentMethodType>,
 ) -> Vec<String> {
     let prefix = consts::UCS_ROLLOUT_PERCENT_CONFIG_PREFIX;
-    let is_refund_flow = matches!(flow_name, "Execute" | "RSync");
+    let scope = build_rollout_scope(
+        merchant_id,
+        connector_name,
+        flow_name,
+        payment_method,
+        payment_method_type,
+    );
 
-    let (merchant_connector_key, org_merchant_connector_key) = if is_refund_flow {
-        // Refund flows: ucs_rollout_config_<merchant_id>_<connector>_<flow>
-        (
-            format!("{prefix}_{merchant_id}_{connector_name}_{flow_name}"),
-            format!("{prefix}_{org_id}_{merchant_id}_{connector_name}_{flow_name}"),
-        )
-    } else {
-        match payment_method {
-            common_enums::PaymentMethod::Wallet
-            | common_enums::PaymentMethod::BankRedirect
-            | common_enums::PaymentMethod::Voucher
-            | common_enums::PaymentMethod::PayLater => {
-                let payment_method_str = payment_method.to_string();
-                let payment_method_type_str = payment_method_type
-                    .map(|pmt| pmt.to_string())
-                    .unwrap_or_else(|| "unknown".to_string());
-                (
-                    format!("{prefix}_{merchant_id}_{connector_name}_{payment_method_str}_{payment_method_type_str}_{flow_name}"),
-                    format!("{prefix}_{org_id}_{merchant_id}_{connector_name}_{payment_method_str}_{payment_method_type_str}_{flow_name}"),
-                )
-            }
-            common_enums::PaymentMethod::Card
-            | common_enums::PaymentMethod::CardRedirect
-            | common_enums::PaymentMethod::Upi
-            | common_enums::PaymentMethod::Crypto
-            | common_enums::PaymentMethod::Reward
-            | common_enums::PaymentMethod::BankDebit
-            | common_enums::PaymentMethod::RealTimePayment
-            | common_enums::PaymentMethod::BankTransfer
-            | common_enums::PaymentMethod::GiftCard
-            | common_enums::PaymentMethod::MobilePayment
-            | common_enums::PaymentMethod::NetworkToken
-            | common_enums::PaymentMethod::OpenBanking => {
-                // For other payment methods, use a generic format without specific payment method type details
-                let payment_method_str = payment_method.to_string();
-                (
-                    format!("{prefix}_{merchant_id}_{connector_name}_{payment_method_str}_{flow_name}"),
-                    format!("{prefix}_{org_id}_{merchant_id}_{connector_name}_{payment_method_str}_{flow_name}"),
-                )
-            }
-        }
-    };
-
-    // Ascending precedence order (lowest first, highest last)
     vec![
         format!("{prefix}_{org_id}"),
         format!("{prefix}_{org_id}_{merchant_id}"),
-        org_merchant_connector_key,
-        merchant_connector_key,
+        format!("{prefix}_{org_id}_{scope}"),
+        format!("{prefix}_{scope}"),
     ]
 }
 
@@ -3091,6 +3096,8 @@ where
     let refund_id = router_data.refund_id.clone();
     let dispute_id = router_data.dispute_id.clone();
     let payout_id = router_data.payout_id.clone();
+    let payment_method = router_data.payment_method;
+    let payment_method_type = router_data.payment_method_type;
     let grpc_header = grpc_header_builder.build();
     // Log the actual gRPC request with masking
     let grpc_request_body = hyperswitch_masking::masked_serialize(&grpc_request)
@@ -3150,6 +3157,8 @@ where
                     merchant_id.get_string_repr(),
                     &connector_name,
                     &flow_name,
+                    payment_method,
+                    payment_method_type,
                     execution_mode,
                     error.current_context(),
                 )
@@ -3334,6 +3343,8 @@ pub async fn call_unified_connector_service_for_refund_execute(
     // scope the gateway decision built.
     let merchant_id_for_kill_switch = processor.get_account().get_id().clone();
     let connector_name_for_kill_switch = router_data.connector.clone();
+    let payment_method_for_kill_switch = router_data.payment_method;
+    let payment_method_type_for_kill_switch = router_data.payment_method_type;
 
     // Make UCS refund call with logging wrapper
     Box::pin(ucs_logging_wrapper(
@@ -3391,6 +3402,8 @@ pub async fn call_unified_connector_service_for_refund_execute(
                         merchant_id_for_kill_switch.get_string_repr(),
                         &connector_name_for_kill_switch,
                         "Execute",
+                        payment_method_for_kill_switch,
+                        payment_method_type_for_kill_switch,
                         execution_mode,
                         report.current_context(),
                     )
@@ -3489,6 +3502,8 @@ pub async fn call_unified_connector_service_for_refund_sync(
     // scope the gateway decision built.
     let merchant_id_for_kill_switch = processor.get_account().get_id().clone();
     let connector_name_for_kill_switch = router_data.connector.clone();
+    let payment_method_for_kill_switch = router_data.payment_method;
+    let payment_method_type_for_kill_switch = router_data.payment_method_type;
 
     // Make UCS refund sync call with logging wrapper
     Box::pin(ucs_logging_wrapper(
@@ -3543,6 +3558,8 @@ pub async fn call_unified_connector_service_for_refund_sync(
                         merchant_id_for_kill_switch.get_string_repr(),
                         &connector_name_for_kill_switch,
                         "RSync",
+                        payment_method_for_kill_switch,
+                        payment_method_type_for_kill_switch,
                         execution_mode,
                         report.current_context(),
                     )

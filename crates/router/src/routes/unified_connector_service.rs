@@ -27,28 +27,22 @@ pub async fn list_kill_switch(state: web::Data<AppState>, req: HttpRequest) -> i
     .await
 }
 
-/// Clears the UCS kill switch cutover for a merchant, connector and flow, returning the scope to
-/// whatever its `ucs_rollout_config` key says.
+/// Clears a UCS kill switch cutover, returning the scope to whatever its rollout config says.
+/// `scope` is a value returned by the list endpoint.
 #[instrument(skip_all, fields(flow = ?Flow::UnifiedConnectorServiceKillSwitchReset))]
 pub async fn reset_kill_switch(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<(common_utils::id_type::MerchantId, String, String)>,
+    path: web::Path<String>,
 ) -> impl Responder {
     let flow = Flow::UnifiedConnectorServiceKillSwitchReset;
-    let (merchant_id, connector, flow_name) = path.into_inner();
-    let payload = kill_switch::KillSwitchScopeRequest {
-        merchant_id,
-        connector,
-        flow: flow_name,
-    };
 
     Box::pin(oss_api::server_wrap(
         flow,
         state,
         &req,
-        payload,
-        |state, _, payload, _| kill_switch::reset_cut_over(state, payload),
+        path.into_inner(),
+        |state, _, scope, _| kill_switch::reset_cut_over(state, scope),
         &auth::AdminApiAuth,
         api_locking::LockAction::NotApplicable,
     ))
