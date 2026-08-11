@@ -3162,20 +3162,19 @@ where
 /// path until an operator restores Primary after the underlying UCS issue is fixed.
 ///
 /// Callers must have already verified the connector is **not** in
-/// `ucs_only_connectors` and that `winning_key` is connector-scoped.
-#[allow(clippy::too_many_arguments)]
+/// `ucs_only_connectors` and that `matched_rollout_key` is connector-scoped.
 async fn activate_ucs_kill_switch(
     state: &SessionState,
-    winning_key: &str,
+    matched_rollout_key: &str,
     connector_name: &str,
     flow_name: &str,
     reason: UcsKillSwitchReason,
 ) {
-    let existing = match state.store.find_config_by_key(winning_key).await {
+    let existing = match state.store.find_config_by_key(matched_rollout_key).await {
         Ok(cfg) => cfg,
         Err(err) => {
             router_env::logger::error!(
-                key = %winning_key,
+                key = %matched_rollout_key,
                 error = ?err,
                 "UCS kill switch: rollout row disappeared between decision and flip"
             );
@@ -3188,7 +3187,7 @@ async fn activate_ucs_kill_switch(
             Ok(cfg) => cfg,
             Err(err) => {
                 router_env::logger::warn!(
-                    key = %winning_key,
+                    key = %matched_rollout_key,
                     error = ?err,
                     "UCS kill switch: rollout config did not parse as RolloutConfig; skipping"
                 );
@@ -3197,7 +3196,7 @@ async fn activate_ucs_kill_switch(
         };
 
     if parsed.execution_mode == ExecutionMode::Shadow {
-        router_env::logger::debug!(key = %winning_key, "UCS kill switch already active");
+        router_env::logger::debug!(key = %matched_rollout_key, "UCS kill switch already active");
         return;
     }
 
@@ -3207,7 +3206,7 @@ async fn activate_ucs_kill_switch(
         Ok(s) => s,
         Err(err) => {
             router_env::logger::error!(
-                key = %winning_key,
+                key = %matched_rollout_key,
                 error = ?err,
                 "UCS kill switch: failed to serialize downgraded RolloutConfig"
             );
@@ -3218,7 +3217,7 @@ async fn activate_ucs_kill_switch(
     if let Err(err) = state
         .store
         .update_config_by_key(
-            winning_key,
+            matched_rollout_key,
             diesel_models::configs::ConfigUpdate::Update {
                 config: Some(serialized),
             },
@@ -3226,7 +3225,7 @@ async fn activate_ucs_kill_switch(
         .await
     {
         router_env::logger::error!(
-            key = %winning_key,
+            key = %matched_rollout_key,
             error = ?err,
             "UCS kill switch: DB update failed; primary→shadow flip NOT persisted"
         );
@@ -3246,7 +3245,7 @@ async fn activate_ucs_kill_switch(
         event = "ucs_kill_switch_activated",
         connector = %connector_name,
         flow = %flow_name,
-        rollout_key = %winning_key,
+        rollout_key = %matched_rollout_key,
         error_kind = reason.as_str(),
         "UCS kill switch flipped primary → shadow"
     );
@@ -3292,7 +3291,7 @@ async fn maybe_activate_ucs_kill_switch(
         return;
     }
 
-    let Some(winning_key) = matched_config_key else {
+    let Some(matched_key) = matched_config_key else {
         router_env::logger::warn!(
             merchant_id = %merchant_id.get_string_repr(),
             connector = %connector_name,
@@ -3306,18 +3305,18 @@ async fn maybe_activate_ucs_kill_switch(
     // Refuse to flip rows whose key doesn't itself contain the connector name:
     // org-level and org+merchant-level rows would affect other connectors/merchants.
     let connector_marker = format!("_{connector_name}_");
-    if !winning_key.contains(&connector_marker) {
+    if !matched_key.contains(&connector_marker) {
         router_env::logger::warn!(
             merchant_id = %merchant_id.get_string_repr(),
             connector = %connector_name,
-            rollout_key = %winning_key,
+            rollout_key = %matched_key,
             error_kind = reason.as_str(),
-            "UCS kill switch: winning rollout row is not connector-scoped; refusing to auto-flip"
+            "UCS kill switch: matched rollout row is not connector-scoped; refusing to auto-flip"
         );
         return;
     }
 
-    activate_ucs_kill_switch(state, &winning_key, connector_name, flow_name, reason).await;
+    activate_ucs_kill_switch(state, &matched_key, connector_name, flow_name, reason).await;
 }
 
 /// UCS wrapper for webhook flows. It centralizes header building and handler

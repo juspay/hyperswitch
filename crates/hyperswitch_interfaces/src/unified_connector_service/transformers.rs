@@ -1404,17 +1404,15 @@ impl ErrorSwitch<ConnectorError> for UnifiedConnectorServiceError {
 pub enum UcsKillSwitchReason {
     /// Couldn't even reach Prism (gRPC dial/transport failure).
     UcsUnreachable,
-    /// Prism itself returned a server-class gRPC status (Internal/Unknown/Unavailable/DataLoss).
-    UcsServerError,
-    /// Prism returned a client-class gRPC rejection (InvalidArgument / FailedPrecondition /
-    /// NotFound / AlreadyExists / PermissionDenied / Unauthenticated).
-    UcsClientError,
-    /// Prism reached the connector but the connector endpoint returned 5xx / timed out.
-    ConnectorServerErrorViaUcs,
-    /// Prism reached the connector and the connector returned a 4xx rejection.
-    ConnectorClientErrorViaUcs,
+    /// Prism itself returned a non-success gRPC status.
+    UcsError,
+    /// Prism reached the connector but the connector endpoint returned a non-2xx.
+    ConnectorErrorViaUcs,
     /// The request/response transformation layer in Prism is malformed for this flow.
     TransformationBroken,
+    /// Catch-all for variants that don't fit anywhere else. Treated as
+    /// kill-switch-eligible by default — fail-safe beats fail-open during a migration.
+    UnknownError,
 }
 
 impl UcsKillSwitchReason {
@@ -1422,82 +1420,43 @@ impl UcsKillSwitchReason {
     pub fn as_str(self) -> &'static str {
         match self {
             Self::UcsUnreachable => "ucs_unreachable",
-            Self::UcsServerError => "ucs_server_error",
-            Self::UcsClientError => "ucs_client_error",
-            Self::ConnectorServerErrorViaUcs => "connector_server_error_via_ucs",
-            Self::ConnectorClientErrorViaUcs => "connector_client_error_via_ucs",
+            Self::UcsError => "ucs_error",
+            Self::ConnectorErrorViaUcs => "connector_error_via_ucs",
             Self::TransformationBroken => "transformation_broken",
+            Self::UnknownError => "unknown_error",
         }
     }
 }
 
 impl UnifiedConnectorServiceError {
-    /// True for gRPC client-class codes meaning Prism's request validation
-    /// rejected the call (not a server panic).
-    fn tonic_status_is_ucs_client_error(code: tonic::Code) -> bool {
-        matches!(
-            code,
-            tonic::Code::InvalidArgument
-                | tonic::Code::FailedPrecondition
-                | tonic::Code::NotFound
-                | tonic::Code::AlreadyExists
-                | tonic::Code::PermissionDenied
-                | tonic::Code::Unauthenticated
-                | tonic::Code::OutOfRange
-                | tonic::Code::Cancelled
-        )
-    }
-
     /// Classify whether an error from a **primary**-mode UCS call should trip the
     /// primary→shadow kill switch.
     ///
-    /// Policy: any 4xx **or** 5xx coming back through the UCS path trips the switch,
-    /// whether the rejection came from Prism itself or from the upstream connector.
-    /// The reasoning is that Primary mode should not be serving *any* non-2xx at
-    /// higher rates than the legacy path — even a "deterministic" 4xx may indicate
-    /// a transformation drift between Hyperswitch and Prism. Flipping to Shadow is
-    /// safe (legacy path continues serving) and preserves the validation diff stream
-    /// so the team can investigate why Primary misbehaved.
-    ///
-    /// `NotImplemented` is still excluded — it's a config error, not a runtime
-    /// incident, and auto-flipping would silently mask a misconfigured rollout row.
+    /// Policy: **every `UnifiedConnectorServiceError` trips the switch.** No
+    /// carve-outs — even variants that look like "config errors" (`NotImplemented`)
+    /// indicate Primary is not serving traffic the way it should be, and the
+    /// legacy Direct path will succeed where Prism failed. Auto-flipping on a
+    /// false positive costs nothing; missing a real failure costs an outage.
     pub fn ucs_kill_switch_reason(&self) -> Option<UcsKillSwitchReason> {
         match self {
-            // Can't reach Prism at all — classic "service is down".
+            // Can't reach Prism at all (gRPC dial, DNS, TLS, LB, pod down).
             Self::ConnectionError(_) => Some(UcsKillSwitchReason::UcsUnreachable),
 
-            // Prism server itself panicked / is overloaded / mid-deploy.
-            Self::TonicStatus { code, .. } if Self::tonic_status_is_ucs_server_error(*code) => {
-                Some(UcsKillSwitchReason::UcsServerError)
-            }
+            // Any Prism-side gRPC status — server-class, client-class, and
+            // `Unimplemented`. All of them mean Prism returned a non-success.
+            Self::TonicStatus { .. } => Some(UcsKillSwitchReason::UcsError),
 
-            // Prism's request validation rejected the call.
-            Self::TonicStatus { code, .. } if Self::tonic_status_is_ucs_client_error(*code) => {
-                Some(UcsKillSwitchReason::UcsClientError)
-            }
+            // Connector returned any non-2xx through Prism.
+            Self::ConnectorError(_) => Some(UcsKillSwitchReason::ConnectorErrorViaUcs),
 
-            // Prism reached the connector but the connector endpoint 5xx'd.
-            // `status_code == 0` means the stream died before an HTTP status ever
-            // materialised — still a connector-side outage.
-            Self::ConnectorError(inner) if inner.status_code >= 500 || inner.status_code == 0 => {
-                Some(UcsKillSwitchReason::ConnectorServerErrorViaUcs)
-            }
-
-            // Prism reached the connector and the connector returned a 4xx.
-            Self::ConnectorError(inner) if (400..500).contains(&inner.status_code) => {
-                Some(UcsKillSwitchReason::ConnectorClientErrorViaUcs)
-            }
-
-            // Prism transformation layer emitted something we can't decode. Shadow
-            // mode was built exactly to catch this; once it leaks to Primary we
-            // should drain traffic back to Direct while keeping the diff stream alive.
+            // Prism's response couldn't be decoded — transformation layer is suspect.
             Self::ResponseDeserializationFailed | Self::ParsingFailed => {
                 Some(UcsKillSwitchReason::TransformationBroken)
             }
 
-            // NotImplemented / Unimplemented and Hyperswitch-side request-construction
-            // errors don't trip — they aren't affected by which path served the call.
-            _ => None,
+            // Everything else — `NotImplemented`, encoding bugs, marker "operation
+            // failed" variants, webhook-path failures. Catch-all flips by design.
+            _ => Some(UcsKillSwitchReason::UnknownError),
         }
     }
 }
