@@ -10,7 +10,6 @@ use crate::{
     core::account_updater::types::AccountUpdaterError, services::kafka::KafkaMessage, types::domain,
 };
 
-/// One row per evaluation. Carries no card-derived value.
 #[derive(Debug, Serialize)]
 pub struct KafkaAccountUpdaterEvent<'a> {
     pub request_id: Option<String>,
@@ -25,7 +24,6 @@ pub struct KafkaAccountUpdaterEvent<'a> {
 }
 
 impl<'a> KafkaAccountUpdaterEvent<'a> {
-    /// Exactly one of `updater_outcome` and `error_category` is set.
     pub fn new(
         request_id: Option<String>,
         merchant_id: &'a id_type::MerchantId,
@@ -65,7 +63,6 @@ fn stored_card_network(payment_method: &domain::PaymentMethod) -> Option<CardNet
 }
 
 impl KafkaMessage for KafkaAccountUpdaterEvent<'_> {
-    /// Keyed on the payment method to keep a card's rows ordered within a partition.
     fn key(&self) -> String {
         self.payment_method_id.get_string_repr().to_owned()
     }

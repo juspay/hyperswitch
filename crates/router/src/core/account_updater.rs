@@ -62,7 +62,6 @@ pub async fn run_account_updater<D>(
         Err(error) => logger::info!(?error, "Account Updater refresh did not complete"),
     }
 
-    // In shadow mode this event is the only record of the evaluation.
     if state.conf.events.emit_account_updater_events {
         let event = account_updater_events::KafkaAccountUpdaterEvent::new(
             state.request_id.as_ref().map(|id| id.to_string()),

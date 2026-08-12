@@ -86,7 +86,6 @@ pub struct JuspayConfig {
     pub refresh_timeout: Duration,
 }
 
-/// The `serde` names are what the observation event records.
 #[derive(Debug, thiserror::Error, serde::Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum AccountUpdaterError {
