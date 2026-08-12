@@ -3375,6 +3375,23 @@ pub async fn call_unified_connector_service_for_refund_execute(
             {
                 Ok(resp) => resp,
                 Err(report) => {
+                    // Recorded before the connector-error branch below returns `Ok`, so a refund
+                    // decline is classified on the same footing as a payment one.
+                    kill_switch::record_failure(
+                        state,
+                        kill_switch::UcsFailureContext {
+                            merchant_id: merchant_id_for_kill_switch.get_string_repr(),
+                            connector_name: &connector_name_for_kill_switch,
+                            flow_name: "Execute",
+                            payment_id: &payment_id_for_kill_switch,
+                            payment_method: payment_method_for_kill_switch,
+                            payment_method_type: payment_method_type_for_kill_switch,
+                        },
+                        execution_mode,
+                        report.current_context(),
+                    )
+                    .await;
+
                     if let UnifiedConnectorServiceError::ConnectorError(inner) =
                         report.current_context()
                     {
@@ -3407,25 +3424,6 @@ pub async fn call_unified_connector_service_for_refund_execute(
                         router_data.connector_http_status_code = Some(status_code);
                         return Ok((router_data, (), payments_grpc::RefundResponse::default()));
                     }
-                    // Refunds use the non-granular wrapper, which surfaces an already-converted
-                    // `ApiErrorResponse`. The typed UCS error is still in hand one line before
-                    // `switch()` discards it, so the kill switch observes it here. Connector
-                    // errors returned as `Ok` above never reach this point.
-                    kill_switch::record_failure(
-                        state,
-                        kill_switch::UcsFailureContext {
-                            merchant_id: merchant_id_for_kill_switch.get_string_repr(),
-                            connector_name: &connector_name_for_kill_switch,
-                            flow_name: "Execute",
-                            payment_id: &payment_id_for_kill_switch,
-                            payment_method: payment_method_for_kill_switch,
-                            payment_method_type: payment_method_type_for_kill_switch,
-                        },
-                        execution_mode,
-                        report.current_context(),
-                    )
-                    .await;
-
                     let api_error = report.current_context().switch();
                     return Err(report
                         .change_context(api_error)
@@ -3538,6 +3536,23 @@ pub async fn call_unified_connector_service_for_refund_sync(
             {
                 Ok(resp) => resp,
                 Err(report) => {
+                    // Recorded before the connector-error branch below returns `Ok`, so a refund
+                    // decline is classified on the same footing as a payment one.
+                    kill_switch::record_failure(
+                        state,
+                        kill_switch::UcsFailureContext {
+                            merchant_id: merchant_id_for_kill_switch.get_string_repr(),
+                            connector_name: &connector_name_for_kill_switch,
+                            flow_name: "RSync",
+                            payment_id: &payment_id_for_kill_switch,
+                            payment_method: payment_method_for_kill_switch,
+                            payment_method_type: payment_method_type_for_kill_switch,
+                        },
+                        execution_mode,
+                        report.current_context(),
+                    )
+                    .await;
+
                     if let UnifiedConnectorServiceError::ConnectorError(inner) =
                         report.current_context()
                     {
@@ -3570,22 +3585,6 @@ pub async fn call_unified_connector_service_for_refund_sync(
                         router_data.connector_http_status_code = Some(status_code);
                         return Ok((router_data, (), payments_grpc::RefundResponse::default()));
                     }
-                    // As in refund execute: the typed UCS error survives only up to `switch()`.
-                    kill_switch::record_failure(
-                        state,
-                        kill_switch::UcsFailureContext {
-                            merchant_id: merchant_id_for_kill_switch.get_string_repr(),
-                            connector_name: &connector_name_for_kill_switch,
-                            flow_name: "RSync",
-                            payment_id: &payment_id_for_kill_switch,
-                            payment_method: payment_method_for_kill_switch,
-                            payment_method_type: payment_method_type_for_kill_switch,
-                        },
-                        execution_mode,
-                        report.current_context(),
-                    )
-                    .await;
-
                     let api_error = report.current_context().switch();
                     return Err(report
                         .change_context(api_error)

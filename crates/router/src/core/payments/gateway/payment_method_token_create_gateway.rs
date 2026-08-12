@@ -122,7 +122,7 @@ where
             payment_method_tokenize_request,
             header_payload,
             unified_connector_service_execution_mode,
-            |mut router_data, payment_method_tokenize_request, grpc_headers| async move {
+            |mut router_data: RouterData<domain::PaymentMethodToken, hyperswitch_domain_models::router_request_types::PaymentMethodTokenizationData, hyperswitch_domain_models::router_response_types::PaymentsResponseData>, payment_method_tokenize_request, grpc_headers| async move {
                 let response = match Box::pin(client.payment_method_tokenize(
                     payment_method_tokenize_request,
                     connector_auth_metadata,

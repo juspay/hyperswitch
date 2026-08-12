@@ -31,6 +31,17 @@ fn trip_key(rollout_scope: &str) -> String {
     format!("{}_{rollout_scope}", consts::UCS_KILL_SWITCH_REDIS_PREFIX)
 }
 
+/// The scope inside a value the list endpoint returned. That endpoint answers with whole redis
+/// keys, tenant prefix included, so an operator can paste one back verbatim; a bare scope is
+/// accepted just as well.
+fn rollout_scope_in(listed_key: &str) -> &str {
+    let prefix = format!("{}_", consts::UCS_KILL_SWITCH_REDIS_PREFIX);
+
+    listed_key
+        .split_once(prefix.as_str())
+        .map_or(listed_key, |(_, rollout_scope)| rollout_scope)
+}
+
 /// Whether the kill switch has tripped for this scope.
 ///
 /// Fails closed: a redis error routes to the direct integration. Only reached once the rollout
@@ -197,7 +208,11 @@ async fn trip(
         Ok(redis_interface::SetnxReply::KeySet) => {
             metrics::UCS_KILL_SWITCH_TRIPPED.add(
                 1,
-                router_env::metric_attributes!(("reason", reason.to_string())),
+                router_env::metric_attributes!(
+                    ("connector", context.connector_name.to_string()),
+                    ("flow", context.flow_name.to_string()),
+                    ("reason", reason.to_string())
+                ),
             );
             // Fires once per scope. This is the line to alert on.
             logger::error!(
@@ -253,14 +268,17 @@ pub struct KillSwitchListResponse {
 
 impl common_utils::events::ApiEventMetric for KillSwitchListResponse {}
 
-/// Clears the trip, returning the scope to whatever its rollout config says.
-pub async fn reset(state: SessionState, rollout_scope: String) -> errors::RouterResponse<()> {
+/// Clears the trip, returning the scope to whatever its rollout config says. Takes either form
+/// the list endpoint hands back.
+pub async fn reset(state: SessionState, listed_key: String) -> errors::RouterResponse<()> {
+    let rollout_scope = rollout_scope_in(&listed_key);
+
     let reply = state
         .store
         .get_redis_conn()
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to get a redis connection to clear the UCS kill switch")?
-        .delete_key(&trip_key(&rollout_scope).as_str().into())
+        .delete_key(&trip_key(rollout_scope).as_str().into())
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to delete the UCS kill switch trip")?;
