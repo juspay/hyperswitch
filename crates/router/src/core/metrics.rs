@@ -94,6 +94,12 @@ counter_metric!(DECISION_ENGINE_REQUESTS, GLOBAL_METER);
 counter_metric!(DECISION_ENGINE_ROUTING_DIFF, GLOBAL_METER);
 counter_metric!(DECISION_ENGINE_KILL_SWITCH_TRIGGERED, GLOBAL_METER);
 
+// Qualifying UCS failures seen by the kill switch, emitted whether or not it is turned on so the
+// classifier can be validated against real traffic before the switch is turned on.
+counter_metric!(UCS_KILL_SWITCH_FAILURE, GLOBAL_METER);
+// Scopes tripped back to the direct integration.
+counter_metric!(UCS_KILL_SWITCH_TRIPPED, GLOBAL_METER);
+
 #[cfg(feature = "partial-auth")]
 counter_metric!(PARTIAL_AUTH_FAILURE, GLOBAL_METER);
 

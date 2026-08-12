@@ -637,6 +637,9 @@ async fn execute_refund_execute_via_direct_with_ucs_shadow(
         Err(e) => Err(format!("{:?}", e)),
     };
     let connector_name = router_data.connector.clone();
+    let merchant_id = router_data.merchant_id.clone();
+    let payment_method = router_data.payment_method;
+    let payment_method_type = router_data.payment_method_type;
 
     tokio::spawn(
         (async move {
@@ -661,6 +664,9 @@ async fn execute_refund_execute_via_direct_with_ucs_shadow(
                     connector_name,
                     direct_for_compare,
                     ucs_for_compare,
+                    Some(&merchant_id),
+                    Some(payment_method),
+                    payment_method_type,
                 ),
             )
             .await;
@@ -1183,6 +1189,9 @@ async fn execute_refund_sync_via_direct_with_ucs_shadow(
         Err(e) => Err(format!("{:?}", e)),
     };
     let connector_name = router_data.connector.clone();
+    let merchant_id = router_data.merchant_id.clone();
+    let payment_method = router_data.payment_method;
+    let payment_method_type = router_data.payment_method_type;
 
     tokio::spawn(
         (async move {
@@ -1207,6 +1216,9 @@ async fn execute_refund_sync_via_direct_with_ucs_shadow(
                     connector_name,
                     direct_for_compare,
                     ucs_for_compare,
+                    Some(&merchant_id),
+                    Some(payment_method),
+                    payment_method_type,
                 ),
             )
             .await;

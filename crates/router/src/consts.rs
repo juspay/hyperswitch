@@ -365,6 +365,19 @@ pub const UCS_ROLLOUT_CONFIG_NOT_CONFIGURED: &str = "not_configured";
 // UCS feature enabled config
 pub const UCS_ENABLED: &str = "ucs_enabled";
 
+// Config key gating the UCS kill switch. Read through the same cached config lookup as
+// `UCS_ENABLED`, so the switch can be turned on or off without a redeploy.
+pub const UCS_KILL_SWITCH_ENABLED: &str = "ucs_kill_switch_enabled";
+
+// Prefix of the redis key holding a kill switch trip. Absent until a scope trips.
+pub const UCS_KILL_SWITCH_REDIS_PREFIX: &str = "ucs_kill_switch";
+
+// Lifetime of a trip, in seconds. A trip is meant to be cleared by an operator, but
+// `redis_interface` has no setter that writes a key without an expiry, so it is spelled as a
+// bound rather than left open. A week outlives a long weekend; a still-broken scope trips again
+// on its next request.
+pub const UCS_KILL_SWITCH_TTL_IN_SECONDS: i64 = 7 * 24 * 60 * 60;
+
 /// Header value indicating that signature-key-based authentication is used.
 pub const UCS_AUTH_SIGNATURE_KEY: &str = "signature-key";
 
