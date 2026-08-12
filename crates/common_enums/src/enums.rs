@@ -2535,6 +2535,8 @@ pub enum PaymentMethodType {
     IndonesianBankTransfer,
     OpenBanking,
     NetworkToken,
+    Payshap,
+    PayshapProxy,
 }
 
 /// Indicates whether a wallet token is decrypted .
@@ -2687,6 +2689,8 @@ impl PaymentMethodType {
             Self::IndonesianBankTransfer => "Indonesian Bank Transfer",
             Self::OpenBanking => "Open Banking",
             Self::NetworkToken => "Network Token",
+            Self::Payshap => "PayShap",
+            Self::PayshapProxy => "PayShap Proxy",
         };
         display_name.to_string()
     }
@@ -10040,6 +10044,7 @@ pub enum BankNames {
     N26,
     NationaleNederlanden,
 }
+
 #[derive(
     Clone,
     Copy,
@@ -11648,4 +11653,28 @@ pub enum BatchBlocklistJobStatus {
     Processing,
     Completed,
     Failed,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    SmithyModel,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+    Default,
+)]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub enum PayshapProxyType {
+    Cellphone,
+    #[default]
+    ShapId,
 }

@@ -85,6 +85,7 @@ gigadat.base_url = "https://interac.express-connect.com/"
 globalpay.base_url = "https://apis.sandbox.globalpay.com/ucp/"
 globepay.base_url = "https://pay.globepay.co/"
 gocardless.base_url = "https://api-sandbox.gocardless.com"
+gotyme_sanlam.base_url = "https://services.multipay-sbx.sanlamonline.co.za/meep-tymebank"
 gpayments.base_url = "https://{{merchant_endpoint_prefix}}-test.api.as1.gpayments.net"
 helcim.base_url = "https://api.helcim.com/"
 hipay.base_url = "https://stage-secure-gateway.hipay-tpp.com/rest/"
@@ -1045,7 +1046,7 @@ connector_list = "juspaythreedsserver, ctp_mastercard, ctp_visa"
 connector_list = "worldpayvantiv"
 
 [grpc_client.unified_connector_service]
-ucs_only_connectors = "imerchantsolutions, paytm, phonepe, hyperpg, revolv3, fiservcommercehub, absa_sanlam, interpayments, payconex, dlocal, barclaycard, jpmorgan, datatrans"    # Comma-separated list of connectors that use UCS only
+ucs_only_connectors = "imerchantsolutions, paytm, phonepe, hyperpg, revolv3, fiservcommercehub, absa_sanlam, gotyme_sanlam, interpayments, payconex, dlocal, barclaycard, jpmorgan, datatrans"    # Comma-separated list of connectors that use UCS only
 ucs_psync_disabled_connectors = "cashtocode, trustly"    # Comma-separated list of connectors to disable UCS PSync call
 
 # Merchant Advice Code Configuration

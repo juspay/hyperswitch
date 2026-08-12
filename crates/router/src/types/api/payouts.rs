@@ -5,7 +5,8 @@ pub use api_models::payouts::{
     PayoutCreateResponse, PayoutEnabledPaymentMethodsInfo, PayoutLinkResponse,
     PayoutListConstraints, PayoutListFilterConstraints, PayoutListFilters, PayoutListFiltersV2,
     PayoutListResponse, PayoutMethodData, PayoutMethodDataResponse, PayoutRequest,
-    PayoutRetrieveBody, PayoutRetrieveRequest, PayoutsManualUpdateRequest, PixAccountBankTransfer,
+    PayoutRetrieveBody, PayoutRetrieveRequest, PayoutsManualUpdateRequest, PayshapBankTransfer,
+    PayshapProxyBankTransfer, PixAccountBankTransfer,
     PixBankTransfer, PixEmvBankTransfer, PixKeyBankTransfer, RequiredFieldsOverrideRequest,
     SepaBankTransfer, TrustlyBankTransfer, TrustlyBankTransferData, Wallet as WalletPayout,
 };

@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use cards::CardNumber;
-use common_enums::CardNetwork;
+use common_enums::{CardNetwork, BankNames};
 #[cfg(feature = "v2")]
 use common_utils::types::BrowserInformation;
 use common_utils::{
@@ -277,6 +277,8 @@ impl TryFrom<Bank> for BankTransfer {
             Bank::Ach(ach) => Ok(Self::Ach(ach)),
             Bank::Bacs(bacs) => Ok(Self::Bacs(bacs)),
             Bank::Sepa(sepa) => Ok(Self::Sepa(sepa)),
+            Bank::Payshap(payshap) => Ok(Self::Payshap(payshap)),
+            Bank::PayshapProxy(payshap_proxy) => Ok(Self::PayshapProxy(payshap_proxy)),
             Bank::Pix(pix) => {
                 match (pix.bank_account_number, pix.pix_key, pix.emv) {
                     // If bank account number is present then it's PixAccountBankTransfer
@@ -352,6 +354,8 @@ impl From<BankTransfer> for Bank {
                 ispb: None,
             }),
             BankTransfer::OpenBanking(open_banking) => Self::OpenBanking(open_banking),
+            BankTransfer::Payshap(payshap) => Self::Payshap(payshap),
+            BankTransfer::PayshapProxy(payshap_proxy) => Self::PayshapProxy(payshap_proxy),
         }
     }
 }
@@ -389,6 +393,8 @@ pub enum Bank {
     Sepa(SepaBankTransfer),
     Pix(PixBankTransfer),
     OpenBanking(OpenBanking),
+    Payshap(PayshapBankTransfer),
+    PayshapProxy(PayshapProxyBankTransfer),
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -402,6 +408,8 @@ pub enum BankTransfer {
     PixEmv(PixEmvBankTransfer),
     Trustly(TrustlyBankTransferData),
     OpenBanking(OpenBanking),
+    Payshap(PayshapBankTransfer),
+    PayshapProxy(PayshapProxyBankTransfer),
 }
 
 #[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -553,6 +561,33 @@ pub struct PixEmvBankTransfer {
     #[schema(value_type = String, example = "00020126580014br.gov.bcb.pix0114000123456785204000053039865802BR5925John Doe6009Sao Paulo61080540900062070503***63041D3D")]
     pub emv: Secret<String>,
 }
+
+#[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
+pub struct PayshapBankTransfer {
+    /// Bank account number is a unique identifier assigned by a bank to a customer.
+    #[schema(value_type = String, example = "1234567890")]
+    pub bank_account_number: Secret<String>,
+
+    /// Bank account holder name. Required for interbank transfers.
+    #[schema(value_type = Option<String>, example = "John Doe")]
+    pub account_holder_name: Option<Secret<String>>,
+
+    /// Bank name. Required for interbank transfers.
+    #[schema(value_type = Option<BankNames>, example = "absa")]
+    pub bank_name: Option<BankNames>,
+}
+
+#[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
+pub struct PayshapProxyBankTransfer {
+    /// Cellphone proxy. Required when proxy_type is cellphone.
+    #[schema(value_type = Option<String>, example = "+27821234567")]
+    pub cellphone: Option<Secret<String>>,
+
+    /// Shap ID proxy. Required when proxy_type is shap_id.
+    #[schema(value_type = Option<String>, example = "21e3123")]
+    pub shap_id: Option<Secret<String>>,
+}
+
 
 #[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
@@ -1343,6 +1378,26 @@ impl From<Bank> for payout_method_utils::BankAdditionalData {
                 account_holder_name,
                 iban,
             })),
+            Bank::Payshap(PayshapBankTransfer {
+                bank_account_number,
+                account_holder_name,
+                bank_name,
+            }) => Self::Payshap(Box::new(
+                payout_method_utils::PayshapBankTransferAdditionalData {
+                    bank_account_number: bank_account_number.into(),
+                    account_holder_name,
+                    bank_name,
+                },
+            )),
+            Bank::PayshapProxy(PayshapProxyBankTransfer {
+                cellphone,
+                shap_id,
+            }) => Self::PayshapProxy(Box::new(
+                payout_method_utils::PayshapProxyBankTransferAdditionalData {
+                    cellphone: cellphone.map(From::from),
+                    shap_id: shap_id.map(From::from),
+                },
+            )),
         }
     }
 }
@@ -1461,6 +1516,26 @@ impl From<BankTransfer> for payout_method_utils::BankAdditionalData {
                 account_holder_name,
                 iban,
             })),
+            BankTransfer::Payshap(PayshapBankTransfer {
+                bank_account_number,
+                account_holder_name,
+                bank_name,
+            }) => Self::Payshap(Box::new(
+                payout_method_utils::PayshapBankTransferAdditionalData {
+                    bank_account_number: bank_account_number.into(),
+                    account_holder_name,
+                    bank_name,
+                },
+            )),
+            BankTransfer::PayshapProxy(PayshapProxyBankTransfer {
+                cellphone,
+                shap_id,
+            }) => Self::PayshapProxy(Box::new(
+                payout_method_utils::PayshapProxyBankTransferAdditionalData {
+                    cellphone: cellphone.map(From::from),
+                    shap_id: shap_id.map(From::from),
+                },
+            )),
         }
     }
 }
@@ -1640,6 +1715,8 @@ impl From<&PayoutMethodData> for api_enums::PaymentMethodType {
                 Bank::Pix(_) => Self::Pix,
                 Bank::Trustly(_) => Self::Trustly,
                 Bank::OpenBanking(_) => Self::OpenBanking,
+                Bank::Payshap(_) => Self::Payshap,
+                Bank::PayshapProxy(_) => Self::PayshapProxy,
             },
             PayoutMethodData::BankTransfer(bank_transfer) => match bank_transfer {
                 BankTransfer::Ach(_) => Self::Ach,
@@ -1650,6 +1727,8 @@ impl From<&PayoutMethodData> for api_enums::PaymentMethodType {
                 BankTransfer::PixEmv(_) => Self::PixEmv,
                 BankTransfer::Trustly(_) => Self::Trustly,
                 BankTransfer::OpenBanking(_) => Self::OpenBanking,
+                BankTransfer::Payshap(_) => Self::Payshap,
+                BankTransfer::PayshapProxy(_) => Self::PayshapProxy,
             },
             PayoutMethodData::Wallet(wallet) => match wallet {
                 Wallet::ApplePayDecrypt(_) => Self::ApplePay,

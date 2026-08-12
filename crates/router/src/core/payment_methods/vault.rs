@@ -1,6 +1,6 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, str::FromStr};
 
-use common_enums::PaymentMethodType;
+use common_enums::{BankNames, PaymentMethodType};
 #[cfg(any(feature = "v1", feature = "v2"))]
 use common_utils::encryption::Encryption;
 use common_utils::{
@@ -721,6 +721,8 @@ pub struct TokenizedBankSensitiveValues {
     pub bank_routing_number: Option<hyperswitch_masking::Secret<String>>,
     pub bic: Option<hyperswitch_masking::Secret<String>>,
     pub bank_sort_code: Option<hyperswitch_masking::Secret<String>>,
+    pub cellphone: Option<hyperswitch_masking::Secret<String>>,
+    pub shap_id: Option<hyperswitch_masking::Secret<String>>,
     pub iban: Option<hyperswitch_masking::Secret<String>>,
     pub pix_key: Option<hyperswitch_masking::Secret<String>>,
     pub emv: Option<hyperswitch_masking::Secret<String>>,
@@ -758,6 +760,8 @@ impl Vaultable for api::BankPayout {
                 bank_number: None,
                 emv: None,
                 account_holder_name: b.account_holder_name.clone(),
+                cellphone: None,
+                shap_id: None,
             },
             Self::Bacs(b) => TokenizedBankSensitiveValues {
                 bank_account_number: Some(b.bank_account_number.to_owned()),
@@ -770,6 +774,8 @@ impl Vaultable for api::BankPayout {
                 bank_number: None,
                 emv: None,
                 account_holder_name: b.account_holder_name.clone(),
+                cellphone: None,
+                shap_id: None,
             },
             Self::Sepa(b) => TokenizedBankSensitiveValues {
                 bank_account_number: None,
@@ -782,6 +788,8 @@ impl Vaultable for api::BankPayout {
                 bank_number: None,
                 emv: None,
                 account_holder_name: b.account_holder_name.clone(),
+                cellphone: None,
+                shap_id: None,
             },
             Self::Pix(bank_details) => TokenizedBankSensitiveValues {
                 bank_account_number: bank_details.bank_account_number.to_owned(),
@@ -794,6 +802,8 @@ impl Vaultable for api::BankPayout {
                 bank_number: None,
                 emv: None,
                 account_holder_name: None,
+                cellphone: None,
+                shap_id: None,
             },
             Self::Trustly(bank_details) => TokenizedBankSensitiveValues {
                 bank_account_number: bank_details.account_number.to_owned(),
@@ -806,6 +816,8 @@ impl Vaultable for api::BankPayout {
                 bank_number: bank_details.bank_number.to_owned(),
                 emv: None,
                 account_holder_name: None,
+                cellphone: None,
+                shap_id: None,
             },
             Self::OpenBanking(open_banking_details) => TokenizedBankSensitiveValues {
                 bank_account_number: None,
@@ -818,6 +830,36 @@ impl Vaultable for api::BankPayout {
                 bank_number: None,
                 emv: None,
                 account_holder_name: Some(open_banking_details.account_holder_name.clone()),
+                cellphone: None,
+                shap_id: None,
+            },
+            Self::Payshap(bank_details) => TokenizedBankSensitiveValues {
+                bank_account_number: Some(bank_details.bank_account_number.clone()),
+                bank_routing_number: None,
+                bic: None,
+                bank_sort_code: None,
+                iban: None,
+                pix_key: None,
+                tax_id: None,
+                bank_number: None,
+                emv: None,
+                account_holder_name: bank_details.account_holder_name.clone(),
+                cellphone: None,
+                shap_id: None,
+            },
+            Self::PayshapProxy(bank_details) => TokenizedBankSensitiveValues {
+                bank_account_number: None,
+                bank_routing_number: None,
+                bic: None,
+                bank_sort_code: None,
+                iban: None,
+                pix_key: None,
+                tax_id: None,
+                bank_number: None,
+                emv: None,
+                account_holder_name: None,
+                cellphone: bank_details.cellphone.clone(),
+                shap_id: bank_details.shap_id.clone(),
             },
         };
 
@@ -878,6 +920,24 @@ impl Vaultable for api::BankPayout {
                 payout_method_type: Some(PaymentMethodType::Trustly),
             },
             Self::OpenBanking(_) => TokenizedBankInsensitiveValues {
+                customer_id,
+                bank_name: None,
+                bank_city: None,
+                bank_branch: None,
+                bank_country_code: None,
+                ispb: None,
+                payout_method_type: Some(PaymentMethodType::OpenBanking),
+            },
+            Self::Payshap(_) => TokenizedBankInsensitiveValues {
+                customer_id,
+                bank_name: None,
+                bank_city: None,
+                bank_branch: None,
+                bank_country_code: None,
+                ispb: None,
+                payout_method_type: Some(PaymentMethodType::OpenBanking),
+            },
+            Self::PayshapProxy(_) => TokenizedBankInsensitiveValues {
                 customer_id,
                 bank_name: None,
                 bank_city: None,
@@ -1010,6 +1070,8 @@ impl Vaultable for api::BankTransferPayout {
                 bank_number: None,
                 emv: None,
                 account_holder_name: b.account_holder_name.clone(),
+                cellphone: None,
+                shap_id: None,
             },
             Self::Bacs(b) => TokenizedBankSensitiveValues {
                 bank_account_number: Some(b.bank_account_number.to_owned()),
@@ -1022,6 +1084,8 @@ impl Vaultable for api::BankTransferPayout {
                 bank_number: None,
                 emv: None,
                 account_holder_name: b.account_holder_name.clone(),
+                cellphone: None,
+                shap_id: None,
             },
             Self::Sepa(b) => TokenizedBankSensitiveValues {
                 bank_account_number: None,
@@ -1034,6 +1098,8 @@ impl Vaultable for api::BankTransferPayout {
                 bank_number: None,
                 emv: None,
                 account_holder_name: b.account_holder_name.clone(),
+                cellphone: None,
+                shap_id: None,
             },
             Self::Pix(bank_details) => TokenizedBankSensitiveValues {
                 bank_account_number: Some(bank_details.bank_account_number.to_owned()),
@@ -1046,6 +1112,8 @@ impl Vaultable for api::BankTransferPayout {
                 bank_number: None,
                 emv: None,
                 account_holder_name: None,
+                cellphone: None,
+                shap_id: None,
             },
             Self::PixKey(pix_key_details) => TokenizedBankSensitiveValues {
                 bank_account_number: None,
@@ -1058,6 +1126,8 @@ impl Vaultable for api::BankTransferPayout {
                 bank_number: None,
                 emv: None,
                 account_holder_name: None,
+                cellphone: None,
+                shap_id: None,
             },
             Self::PixEmv(pix_emv_details) => TokenizedBankSensitiveValues {
                 bank_account_number: None,
@@ -1070,6 +1140,8 @@ impl Vaultable for api::BankTransferPayout {
                 bank_number: None,
                 emv: Some(pix_emv_details.emv.to_owned()),
                 account_holder_name: None,
+                cellphone: None,
+                shap_id: None,
             },
             Self::Trustly(bank_details) => TokenizedBankSensitiveValues {
                 bank_account_number: bank_details.bank_account_number.to_owned(),
@@ -1082,6 +1154,8 @@ impl Vaultable for api::BankTransferPayout {
                 bank_number: bank_details.bank_number.to_owned(),
                 emv: None,
                 account_holder_name: None,
+                cellphone: None,
+                shap_id: None,
             },
             Self::OpenBanking(bank_details) => TokenizedBankSensitiveValues {
                 bank_account_number: None,
@@ -1094,6 +1168,36 @@ impl Vaultable for api::BankTransferPayout {
                 bank_number: None,
                 emv: None,
                 account_holder_name: Some(bank_details.account_holder_name.clone()),
+                cellphone: None,
+                shap_id: None,
+            },
+            Self::Payshap(bank_details) => TokenizedBankSensitiveValues {
+                bank_account_number: Some(bank_details.bank_account_number.clone()),
+                bank_routing_number: None,
+                bic: None,
+                bank_sort_code: None,
+                iban: None,
+                pix_key: None,
+                tax_id: None,
+                bank_number: None,
+                emv: None,
+                account_holder_name: bank_details.account_holder_name.clone(),
+                cellphone: None,
+                shap_id: None,
+            },
+            Self::PayshapProxy(bank_details) => TokenizedBankSensitiveValues {
+                bank_account_number: None,
+                bank_routing_number: None,
+                bic: None,
+                bank_sort_code: None,
+                iban: None,
+                pix_key: None,
+                tax_id: None,
+                bank_number: None,
+                emv: None,
+                account_holder_name: None,
+                cellphone: bank_details.cellphone.clone(),
+                shap_id: bank_details.shap_id.clone(),
             },
         };
 
@@ -1179,6 +1283,27 @@ impl Vaultable for api::BankTransferPayout {
                 bank_country_code: None,
                 ispb: None,
                 payout_method_type: Some(PaymentMethodType::OpenBanking),
+            },
+            Self::Payshap(bank_details) => TokenizedBankInsensitiveValues {
+                customer_id,
+                bank_name: bank_details
+                    .bank_name
+                    .as_ref()
+                    .map(|bank_name| bank_name.to_string()),
+                bank_country_code: None,
+                bank_city: None,
+                bank_branch: None,
+                ispb: None,
+                payout_method_type: Some(PaymentMethodType::Payshap),
+            },
+            Self::PayshapProxy(_) => TokenizedBankInsensitiveValues {
+                customer_id,
+                bank_name: None,
+                bank_country_code: None,
+                bank_city: None,
+                bank_branch: None,
+                ispb: None,
+                payout_method_type: Some(PaymentMethodType::PayshapProxy),
             },
         };
 
@@ -1288,6 +1413,25 @@ impl Vaultable for api::BankTransferPayout {
                     },
                 )?,
             }),
+            Some(PaymentMethodType::Payshap) => Self::Payshap(payouts::PayshapBankTransfer {
+                bank_account_number: bank_sensitive_data.bank_account_number.ok_or(
+                    errors::VaultError::MissingRequiredField {
+                        field_name: "bank_account_number",
+                    },
+                )?,
+                account_holder_name: bank_sensitive_data.account_holder_name,
+                bank_name: bank_insensitive_data
+                    .bank_name
+                    .map(|bank_name| BankNames::from_str(&bank_name))
+                    .transpose()
+                    .change_context(errors::VaultError::ResponseDeserializationFailed)?,
+            }),
+            Some(PaymentMethodType::PayshapProxy) => {
+                Self::PayshapProxy(payouts::PayshapProxyBankTransfer {
+                    cellphone: bank_sensitive_data.cellphone,
+                    shap_id: bank_sensitive_data.shap_id,
+                })
+            }
             _ => Err(errors::VaultError::ResponseDeserializationFailed)?,
         };
 

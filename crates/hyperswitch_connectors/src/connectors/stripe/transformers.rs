@@ -894,6 +894,8 @@ impl TryFrom<enums::PaymentMethodType> for StripePaymentMethodType {
             | enums::PaymentMethodType::PixQr
             | enums::PaymentMethodType::PixAutomaticoPush
             | enums::PaymentMethodType::PixAutomaticoQr
+            | enums::PaymentMethodType::Payshap
+            | enums::PaymentMethodType::PayshapProxy
             | enums::PaymentMethodType::UpiCollect
             | enums::PaymentMethodType::UpiIntent
             | enums::PaymentMethodType::Cashapp
