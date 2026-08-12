@@ -2665,6 +2665,10 @@ should_schedule_modular_backward_compat = { value = false, schema = { type = "bo
     "region2",
 ], type = "string" }, description = "3DS routing region for UAS (Unified Authentication Service) per organization", change_reason = "Initial setup" }
 "vaulting.should_perform_sdk_vaulting" = { value = true, schema = { type = "boolean" }, description = "Org level override on top of should_call_pm_modular_service; when false the SDK skips vaulting", change_reason = "Initial setup" }
+"frm.pre_frm_failure_mode" = { value = "fail_open", schema = { enum = [
+    "fail_open", 
+    "fail_closed"
+], type = "string" }, description = "Controls whether payment processing continues when an applicable pre-FRM check fails", change_reason = "Initial setup" }
 
 
 [dimensions]
