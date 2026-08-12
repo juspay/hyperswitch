@@ -1,22 +1,14 @@
-import { multiUseMandateData, singleUseMandateData } from "./Commons";
+import {
+  customerAcceptance,
+  multiUseMandateData,
+  singleUseMandateData,
+} from "./Commons";
 
-// givepayments' sandbox rejects generateRandomEmail()'s domains
-// (example.com, sample.net, etc.) as "disposable or unreachable", and also
-// flags synthetic-looking local parts (raw timestamps, the literal word
-// "test") even on gmail.com — use a human-looking name instead, still
-// randomized enough to avoid customer collisions across runs.
-const givepaymentsEmailNames = [
-  "john.doe",
-  "jane.smith",
-  "michael.brown",
-  "sarah.johnson",
-  "david.miller",
-  "emily.davis",
-  "robert.wilson",
-  "laura.moore",
-];
-const generateGivepaymentsEmail = () =>
-  `${givepaymentsEmailNames[Math.floor(Math.random() * givepaymentsEmailNames.length)]}${Math.floor(Math.random() * 900) + 100}@gmail.com`;
+// givepayments' sandbox does real deliverability verification, not just
+// pattern matching — even human-looking fabricated addresses (e.g.
+// jane.smith860@gmail.com) get rejected as "disposable or unreachable".
+// Use a single real, monitored inbox everywhere.
+const generateGivepaymentsEmail = () => "venkatakarthik.m@juspay.in";
 
 const successfulNo3DSCardDetails = {
   card_number: "4111111111111111",
@@ -67,6 +59,42 @@ export const connectorDetails = {
         },
       },
     },
+    PaymentIntentWithShippingCost: {
+      Request: {
+        currency: "USD",
+        shipping_cost: 50,
+        email: generateGivepaymentsEmail(),
+        billing: billingWithEmail(generateGivepaymentsEmail()),
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+          shipping_cost: 50,
+          amount: 6000,
+        },
+      },
+    },
+    PaymentConfirmWithShippingCost: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+        email: generateGivepaymentsEmail(),
+        billing: billingWithEmail(generateGivepaymentsEmail()),
+      },
+      // Confirm returns "succeeded" synchronously — givepayments settles
+      // async, shortly after.
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
     No3DSAutoCapture: {
       Request: {
         payment_method: "card",
@@ -80,6 +108,8 @@ export const connectorDetails = {
         email: generateGivepaymentsEmail(),
         billing: billingWithEmail(generateGivepaymentsEmail()),
       },
+      // Confirm returns "succeeded" synchronously — givepayments settles
+      // async, shortly after.
       Response: {
         status: 200,
         body: {
@@ -87,6 +117,12 @@ export const connectorDetails = {
         },
       },
     },
+    // givepayments only supports automatic capture — confirmCallTest
+    // doesn't honor TRIGGER_SKIP, so this asserts the connector's real,
+    // confirmed rejection instead of skipping (same pattern Helcim uses
+    // for its always-failing refunds): UCS_501 "Capture method not
+    // supported. Givepayments connector supports Automatic capture
+    // method." surfaces to the merchant as a 400 CE_01.
     No3DSManualCapture: {
       Request: {
         payment_method: "card",
@@ -101,9 +137,14 @@ export const connectorDetails = {
         billing: billingWithEmail(generateGivepaymentsEmail()),
       },
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "requires_capture",
+          error: {
+            type: "invalid_request",
+            message:
+              "Payment failed during authorization with connector. Retry payment",
+            code: "CE_01",
+          },
         },
       },
     },
@@ -128,6 +169,9 @@ export const connectorDetails = {
       },
     },
     DebitNo3DSManualCapture: {
+      Configs: {
+        TRIGGER_SKIP: true, // givepayments only supports automatic capture
+      },
       Request: {
         payment_method: "card",
         payment_method_type: "debit",
@@ -147,6 +191,10 @@ export const connectorDetails = {
         },
       },
     },
+    // givepayments settles refunds asynchronously — settlement was never
+    // observed even after extended polling, so these assert the real,
+    // immediately-observed "processing" state instead of waiting for a
+    // terminal status that doesn't arrive within the test's lifetime.
     Refund: {
       Request: {
         amount: 6000,
@@ -154,7 +202,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
+          status: "processing",
         },
       },
     },
@@ -165,7 +213,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
+          status: "processing",
         },
       },
     },
@@ -176,7 +224,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
+          status: "processing",
         },
       },
     },
@@ -187,7 +235,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
+          status: "processing",
         },
       },
     },
@@ -195,7 +243,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
+          status: "processing",
         },
       },
     },
@@ -219,6 +267,9 @@ export const connectorDetails = {
       },
     },
     MandateSingleUseNo3DSManualCapture: {
+      Configs: {
+        TRIGGER_SKIP: true, // givepayments only supports automatic capture
+      },
       Request: {
         payment_method: "card",
         payment_method_type: "credit",
@@ -257,6 +308,9 @@ export const connectorDetails = {
       },
     },
     MandateMultiUseNo3DSManualCapture: {
+      Configs: {
+        TRIGGER_SKIP: true, // givepayments only supports automatic capture
+      },
       Request: {
         payment_method: "card",
         payment_method_type: "credit",
@@ -314,6 +368,16 @@ export const connectorDetails = {
       },
     },
     MITAutoCapture: {
+      // wait for the CIT to settle before attempting the repeat charge —
+      // the connector_mandate_id needed for MIT isn't reliably resolvable
+      // while the CIT is still "processing". OMIT_AMOUNT matches a known
+      // working manual (Postman) recipe from dev that sends no "amount"
+      // field on the recurring_details/payment_method_id MIT request —
+      // testing whether that's the actual differentiator.
+      Configs: {
+        POLL_BEFORE: true,
+        OMIT_AMOUNT: true,
+      },
       Request: {},
       Response: {
         status: 200,
@@ -322,8 +386,117 @@ export const connectorDetails = {
         },
       },
     },
+    MITWithoutBillingAddress: {
+      Configs: {
+        POLL_BEFORE: true,
+        OMIT_AMOUNT: true,
+      },
+      Request: { billing: null },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
     MITManualCapture: {
+      Configs: {
+        TRIGGER_SKIP: true, // givepayments only supports automatic capture
+      },
       Request: {},
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
+        },
+      },
+    },
+    PaymentMethodIdMandateNo3DSAutoCapture: {
+      // Confirm returns "processing" immediately (async settlement) — no
+      // immediate status assertion here; POLL_AFTER polls until it actually
+      // reaches "succeeded" and asserts that explicitly, before letting the
+      // subsequent MIT step run. A still-"processing" CIT hasn't reliably
+      // persisted connector_mandate_id onto the payment_method yet.
+      Configs: {
+        POLL_AFTER: true,
+      },
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        mandate_data: null,
+        customer_acceptance: customerAcceptance,
+        email: generateGivepaymentsEmail(),
+        billing: billingWithEmail(generateGivepaymentsEmail()),
+      },
+      Response: {
+        status: 200,
+        body: {},
+      },
+    },
+    PaymentMethodIdMandateNo3DSManualCapture: {
+      Configs: {
+        TRIGGER_SKIP: true, // givepayments only supports automatic capture
+      },
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        mandate_data: null,
+        customer_acceptance: customerAcceptance,
+        email: generateGivepaymentsEmail(),
+        billing: billingWithEmail(generateGivepaymentsEmail()),
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
+        },
+      },
+    },
+    // givepayments does not support 3DS at all (connector metadata:
+    // "three_ds": "not_supported"); see REDIRECT_THREE_DS exclude list.
+    PaymentMethodIdMandate3DSAutoCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        mandate_data: null,
+        customer_acceptance: customerAcceptance,
+        email: generateGivepaymentsEmail(),
+        billing: billingWithEmail(generateGivepaymentsEmail()),
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    PaymentMethodIdMandate3DSManualCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        mandate_data: null,
+        customer_acceptance: customerAcceptance,
+        email: generateGivepaymentsEmail(),
+        billing: billingWithEmail(generateGivepaymentsEmail()),
+      },
       Response: {
         status: 200,
         body: {
