@@ -659,6 +659,8 @@ pub enum Flow {
     VolumeSplitOnRoutingType,
     /// Routing evaluate rule flow
     RoutingEvaluateRule,
+    /// Reset the Decision Engine routing diff kill-switch counter for a profile
+    DecisionEngineDiffCounterReset,
     /// Relay flow
     Relay,
     /// Relay retrieve flow
