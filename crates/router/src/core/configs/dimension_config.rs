@@ -7,7 +7,10 @@ use external_services::superposition;
 use scheduler::consumer::types::process_data::RetryMapping;
 
 use super::{dimension_state, fetch_db_config_for_dimensions, ConfigContext, DatabaseBackedConfig};
-use crate::{consts::superposition as superposition_consts, db::StorageInterface, utils::id_type};
+use crate::{
+    consts::superposition as superposition_consts, core::fraud_check, db::StorageInterface,
+    utils::id_type,
+};
 /// This adds `WritableConfig` trait implementation and `set_<key>()` method.
 ///
 /// # Usage
@@ -816,6 +819,24 @@ impl DatabaseBackedConfig for SaveWalletDecryptedData {
         // Matches the existing key format: "save_wallet_decrypted_data_{merchant_id}"
         dimensions
             .get_processor_merchant_id()
+            .map(|id| format!("{}_{}", Self::KEY, id.get_string_repr()))
+    }
+}
+
+config! {
+    superposition_key = PRE_FRM_FAILURE_MODE,
+    output = fraud_check::types::PreFrmFailureMode,
+    default = fraud_check::types::PreFrmFailureMode::FailOpen,
+    string_enum = true,
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+    targeting_key = id_type::ProfileId
+}
+
+impl DatabaseBackedConfig for PreFrmFailureMode {
+    const KEY: &'static str = "pre_frm_failure_mode";
+    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        dimensions
+            .get_profile_id()
             .map(|id| format!("{}_{}", Self::KEY, id.get_string_repr()))
     }
 }

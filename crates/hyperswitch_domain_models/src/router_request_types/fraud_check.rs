@@ -37,6 +37,8 @@ pub struct FraudCheckCheckoutData {
     pub email: Option<Email>,
     pub phone: Option<Secret<String>>,
     pub phone_country_code: Option<String>,
+    pub profile_id: common_utils::id_type::ProfileId,
+    pub gateway_mca_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
 }
 
 #[derive(Debug, Clone)]

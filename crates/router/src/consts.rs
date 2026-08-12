@@ -438,6 +438,8 @@ pub mod superposition {
     pub const INCOMING_WEBHOOK_DISABLED_EVENTS: &str = "incoming_webhook_disabled_events";
     /// save wallet decrypted data in locker
     pub const SAVE_WALLET_DECRYPTED_DATA: &str = "save_wallet_decrypted_data";
+    /// Pre-FRM failure handling mode
+    pub const PRE_FRM_FAILURE_MODE: &str = "pre_frm_failure_mode";
 }
 
 #[cfg(test)]

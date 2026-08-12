@@ -158,6 +158,11 @@ impl ForeignTryFrom<api_enums::Connector> for euclid::enums::RoutableConnectors 
                     message: "riskified is not a routable connector".to_string(),
                 })?
             }
+            api_enums::Connector::SanlamPayshield => {
+                Err(common_utils::errors::ValidationError::InvalidValue {
+                    message: "sanlam_payshield is not a routable connector".to_string(),
+                })?
+            }
             api_enums::Connector::Square => Self::Square,
             api_enums::Connector::Stax => Self::Stax,
             api_enums::Connector::Stripe => Self::Stripe,
