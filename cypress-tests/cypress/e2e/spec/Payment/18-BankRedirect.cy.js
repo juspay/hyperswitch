@@ -4,13 +4,6 @@ import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
 
 let globalState;
 
-// Spec selection is file-level, so UCS-only bank redirect connectors still
-// need context-level filtering inside this shared bank redirect spec.
-const UCS_ONLY_BANK_REDIRECT_CONTEXTS = {
-  truelayer: ["Truelayer Create and Confirm flow test"],
-  trustly: ["Trustly Create and Confirm flow test"],
-};
-
 describe("Bank Redirect tests", () => {
   before("seed global state", () => {
     cy.task("getGlobalState").then((state) => {
@@ -20,21 +13,6 @@ describe("Bank Redirect tests", () => {
 
   afterEach("flush global state", () => {
     cy.task("setGlobalState", globalState.data);
-  });
-
-  beforeEach(function () {
-    const connectorId = globalState.get("connectorId");
-    const supportedContexts = UCS_ONLY_BANK_REDIRECT_CONTEXTS[connectorId];
-    const contextTitle = this.currentTest.parent.title;
-
-    if (
-      supportedContexts &&
-      !supportedContexts.some((contextName) =>
-        contextTitle.includes(contextName)
-      )
-    ) {
-      this.skip();
-    }
   });
 
   context("Blik Create and Confirm flow test", () => {

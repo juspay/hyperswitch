@@ -444,17 +444,6 @@ describe("Config Tests", () => {
     let shouldContinue = true;
 
     beforeEach(function () {
-      const connectorId = globalState.get("connectorId");
-      const webhookConfigConnectors =
-        utils.CONNECTOR_LISTS.INCLUDE.WEBHOOK_CONFIG;
-
-      if (
-        Array.isArray(webhookConfigConnectors) &&
-        !webhookConfigConnectors.includes(connectorId)
-      ) {
-        this.skip();
-      }
-
       if (!shouldContinue) {
         this.skip();
       }
@@ -499,21 +488,6 @@ describe("Config Tests", () => {
   });
 
   context("Webhook Config Disabled Events — Negative Cases", () => {
-    beforeEach(function () {
-      const connectorId = globalState.get("connectorId");
-      const webhookConfigConnectors =
-        utils.CONNECTOR_LISTS.INCLUDE.WEBHOOK_CONFIG;
-
-      // Skip if connector is NOT in the webhook config list
-      const shouldSkip =
-        Array.isArray(webhookConfigConnectors) &&
-        !webhookConfigConnectors.includes(connectorId);
-
-      if (shouldSkip) {
-        this.skip();
-      }
-    });
-
     it("Create Business Profile with invalid refund_statuses_enabled — expect error", () => {
       const createBody = {
         ...fixtures.businessProfile.bpCreate,
