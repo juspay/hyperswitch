@@ -5,7 +5,9 @@
 //! to. Ambiguous outcomes resolve towards the direct path, which is what the scope used before
 //! UCS.
 
-use common_enums::ExecutionMode;
+use std::str::FromStr;
+
+use common_enums::{connector_enums::Connector, ConnectorIntegrationType, ExecutionMode};
 use error_stack::ResultExt;
 use hyperswitch_interfaces::unified_connector_service::transformers::{
     UcsKillSwitchReason, UnifiedConnectorServiceError,
@@ -15,8 +17,11 @@ use router_env::logger;
 use crate::{
     consts,
     core::{
-        errors, metrics, payments::helpers::is_config_flag_enabled,
-        unified_connector_service::build_merchant_rollout_scope,
+        errors, metrics,
+        payments::helpers::is_config_flag_enabled,
+        unified_connector_service::{
+            build_merchant_rollout_scope, determine_connector_integration_type,
+        },
     },
     routes::SessionState,
 };
@@ -95,6 +100,18 @@ pub async fn record_failure(
     // Only the path serving merchant traffic can trip.
     if !matches!(execution_mode, ExecutionMode::Primary) {
         return;
+    }
+
+    // A UCS-only connector has no direct integration to fall back to, so the gate never diverts
+    // one. Recording it would only add to the metric and the alert log. An unparseable connector
+    // name falls through and records, rather than silently dropping a scope that can trip.
+    if let Ok(connector) = Connector::from_str(context.connector_name) {
+        if matches!(
+            determine_connector_integration_type(state, connector).await,
+            Ok(ConnectorIntegrationType::UcsConnector)
+        ) {
+            return;
+        }
     }
 
     let Some(reason) = error.ucs_kill_switch_reason() else {
