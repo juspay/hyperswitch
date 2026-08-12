@@ -214,7 +214,10 @@ async fn trip(
     })
     .unwrap_or_else(|error| {
         // The trip still has to be written; the list endpoint reports the detail as absent.
-        logger::error!(?error, "ucs_kill_switch: could not serialise the trip record");
+        logger::error!(
+            ?error,
+            "ucs_kill_switch: could not serialise the trip record"
+        );
         String::new()
     });
 
