@@ -2141,6 +2141,7 @@ pub struct CheckoutWebhookData {
     pub currency: String,
     pub processed_on: Option<String>,
     pub approved: Option<bool>,
+    pub auth_code: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -2351,7 +2352,7 @@ impl TryFrom<&webhooks::IncomingWebhookRequestDetails<'_>> for PaymentsResponse 
             }),
             scheme_id: None,
             processing: None,
-            auth_code: None,
+            auth_code: data.auth_code,
         };
 
         Ok(psync_struct)
