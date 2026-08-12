@@ -603,40 +603,40 @@ pub fn build_merchant_rollout_scope(
     payment_method: common_enums::PaymentMethod,
     payment_method_type: Option<PaymentMethodType>,
 ) -> String {
-    // Refund keys carry no payment method.
-    if matches!(flow_name, "Execute" | "RSync") {
-        return format!("{merchant_id}_{connector_name}_{flow_name}");
-    }
-
     let payment_method_str = payment_method.to_string();
 
-    match payment_method {
-        // These payment methods are discriminated further by payment method type.
-        common_enums::PaymentMethod::Wallet
-        | common_enums::PaymentMethod::BankRedirect
-        | common_enums::PaymentMethod::Voucher
-        | common_enums::PaymentMethod::PayLater => {
-            let payment_method_type_str = payment_method_type
-                .map(|pmt| pmt.to_string())
-                .unwrap_or_else(|| "unknown".to_string());
-            format!(
-                "{merchant_id}_{connector_name}_{payment_method_str}_{payment_method_type_str}_{flow_name}"
-            )
-        }
-        common_enums::PaymentMethod::Card
-        | common_enums::PaymentMethod::CardRedirect
-        | common_enums::PaymentMethod::Upi
-        | common_enums::PaymentMethod::Crypto
-        | common_enums::PaymentMethod::Reward
-        | common_enums::PaymentMethod::BankDebit
-        | common_enums::PaymentMethod::RealTimePayment
-        | common_enums::PaymentMethod::BankTransfer
-        | common_enums::PaymentMethod::GiftCard
-        | common_enums::PaymentMethod::MobilePayment
-        | common_enums::PaymentMethod::NetworkToken
-        | common_enums::PaymentMethod::OpenBanking => {
-            format!("{merchant_id}_{connector_name}_{payment_method_str}_{flow_name}")
-        }
+    match flow_name {
+        // Refund keys carry no payment method.
+        "Execute" | "RSync" => format!("{merchant_id}_{connector_name}_{flow_name}"),
+
+        _ => match payment_method {
+            // These payment methods are discriminated further by payment method type.
+            common_enums::PaymentMethod::Wallet
+            | common_enums::PaymentMethod::BankRedirect
+            | common_enums::PaymentMethod::Voucher
+            | common_enums::PaymentMethod::PayLater => {
+                let payment_method_type_str = payment_method_type
+                    .map(|pmt| pmt.to_string())
+                    .unwrap_or_else(|| "unknown".to_string());
+                format!(
+                    "{merchant_id}_{connector_name}_{payment_method_str}_{payment_method_type_str}_{flow_name}"
+                )
+            }
+            common_enums::PaymentMethod::Card
+            | common_enums::PaymentMethod::CardRedirect
+            | common_enums::PaymentMethod::Upi
+            | common_enums::PaymentMethod::Crypto
+            | common_enums::PaymentMethod::Reward
+            | common_enums::PaymentMethod::BankDebit
+            | common_enums::PaymentMethod::RealTimePayment
+            | common_enums::PaymentMethod::BankTransfer
+            | common_enums::PaymentMethod::GiftCard
+            | common_enums::PaymentMethod::MobilePayment
+            | common_enums::PaymentMethod::NetworkToken
+            | common_enums::PaymentMethod::OpenBanking => {
+                format!("{merchant_id}_{connector_name}_{payment_method_str}_{flow_name}")
+            }
+        },
     }
 }
 

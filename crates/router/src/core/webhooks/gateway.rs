@@ -714,7 +714,7 @@ async fn report_shadow_diff(
             config,
             connector_name.to_string(),
             state.get_request_id_str(),
-            merchant_id,
+            merchant_id.as_ref(),
         )
         .await;
     }

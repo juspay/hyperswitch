@@ -36,44 +36,42 @@ fn trip_key(rollout_scope: &str) -> String {
 /// Fails closed: a redis error routes to the direct integration. Only reached once the rollout
 /// config resolved to primary, so shadow traffic never pays for the lookup.
 pub async fn is_tripped(state: &SessionState, rollout_scope: &str) -> bool {
-    if !is_config_flag_enabled(state, consts::UCS_KILL_SWITCH_ENABLED).await {
-        return false;
+    if is_config_flag_enabled(state, consts::UCS_KILL_SWITCH_ENABLED).await {
+        read_trip(state, rollout_scope)
+            .await
+            .unwrap_or_else(|error| {
+                logger::error!(
+                    ?error,
+                    rollout_scope = %rollout_scope,
+                    "ucs_kill_switch: trip unreadable, routing to the direct integration"
+                );
+                true
+            })
+    } else {
+        false
     }
+}
 
-    let redis_conn = match state.store.get_redis_conn() {
-        Ok(conn) => conn,
-        Err(error) => {
-            logger::error!(
-                ?error,
-                rollout_scope = %rollout_scope,
-                "ucs_kill_switch: no redis connection, routing to the direct integration"
-            );
-            return true;
-        }
-    };
-
-    match redis_conn
+/// Reads the trip. Redis failures short-circuit to the caller, which decides the safe answer.
+async fn read_trip(
+    state: &SessionState,
+    rollout_scope: &str,
+) -> error_stack::Result<bool, storage_impl::errors::RedisError> {
+    let tripped = state
+        .store
+        .get_redis_conn()?
         .exists::<()>(&trip_key(rollout_scope).as_str().into())
-        .await
-    {
-        Ok(true) => {
-            // Every request for a tripped scope reaches here; the trip is logged once elsewhere.
-            logger::debug!(
-                rollout_scope = %rollout_scope,
-                "ucs_kill_switch: scope is tripped, routing to the direct integration"
-            );
-            true
-        }
-        Ok(false) => false,
-        Err(error) => {
-            logger::error!(
-                ?error,
-                rollout_scope = %rollout_scope,
-                "ucs_kill_switch: trip lookup failed, routing to the direct integration"
-            );
-            true
-        }
+        .await?;
+
+    if tripped {
+        // Every request for a tripped scope reaches here; the trip is logged once elsewhere.
+        logger::debug!(
+            rollout_scope = %rollout_scope,
+            "ucs_kill_switch: scope is tripped, routing to the direct integration"
+        );
     }
+
+    Ok(tripped)
 }
 
 /// What a failing UCS call was for. A struct because transposing two of six positional strings
@@ -97,61 +95,61 @@ pub async fn record_failure(
     execution_mode: ExecutionMode,
     error: &UnifiedConnectorServiceError,
 ) {
-    // Only the path serving merchant traffic can trip.
-    if !matches!(execution_mode, ExecutionMode::Primary) {
-        return;
-    }
+    // Only the path serving merchant traffic can trip, and only a connector that has a direct
+    // integration to fall back to. `&&` keeps the cheap check first.
+    let scope_can_trip = matches!(execution_mode, ExecutionMode::Primary)
+        && !is_ucs_only_connector(state, context.connector_name).await;
 
-    // A UCS-only connector has no direct integration to fall back to, so the gate never diverts
-    // one. Recording it would only add to the metric and the alert log. An unparseable connector
-    // name falls through and records, rather than silently dropping a scope that can trip.
-    if let Ok(connector) = Connector::from_str(context.connector_name) {
-        if matches!(
-            determine_connector_integration_type(state, connector).await,
-            Ok(ConnectorIntegrationType::UcsConnector)
-        ) {
-            return;
+    if scope_can_trip {
+        if let Some(reason) = error.ucs_kill_switch_reason() {
+            let rollout_scope = build_merchant_rollout_scope(
+                context.merchant_id,
+                context.connector_name,
+                context.flow_name,
+                context.payment_method,
+                context.payment_method_type,
+            );
+
+            metrics::UCS_KILL_SWITCH_FAILURE.add(
+                1,
+                router_env::metric_attributes!(
+                    ("connector", context.connector_name.to_string()),
+                    ("flow", context.flow_name.to_string()),
+                    ("reason", reason.to_string())
+                ),
+            );
+
+            if is_config_flag_enabled(state, consts::UCS_KILL_SWITCH_ENABLED).await {
+                trip(state, &rollout_scope, &context, reason, error).await;
+            } else {
+                // Fires on every qualifying failure: calibration feed, not an alert.
+                logger::warn!(
+                    rollout_scope = %rollout_scope,
+                    merchant_id = %context.merchant_id,
+                    connector = %context.connector_name,
+                    flow = %context.flow_name,
+                    payment_id = %context.payment_id,
+                    request_id = ?state.request_id,
+                    reason = %reason,
+                    ucs_error = ?error,
+                    "ucs_kill_switch: qualifying failure observed but the kill switch is turned off"
+                );
+            }
         }
     }
+}
 
-    let Some(reason) = error.ucs_kill_switch_reason() else {
-        return;
-    };
-
-    let rollout_scope = build_merchant_rollout_scope(
-        context.merchant_id,
-        context.connector_name,
-        context.flow_name,
-        context.payment_method,
-        context.payment_method_type,
-    );
-
-    metrics::UCS_KILL_SWITCH_FAILURE.add(
-        1,
-        router_env::metric_attributes!(
-            ("connector", context.connector_name.to_string()),
-            ("flow", context.flow_name.to_string()),
-            ("reason", reason.to_string())
+/// A UCS-only connector has no direct integration to fall back to, so the gate never diverts one.
+/// An unparseable connector name counts as having one, rather than silently dropping a scope that
+/// can trip.
+async fn is_ucs_only_connector(state: &SessionState, connector_name: &str) -> bool {
+    match Connector::from_str(connector_name) {
+        Ok(connector) => matches!(
+            determine_connector_integration_type(state, connector).await,
+            Ok(ConnectorIntegrationType::UcsConnector)
         ),
-    );
-
-    // Fires on every qualifying failure: calibration feed, not an alert.
-    if !is_config_flag_enabled(state, consts::UCS_KILL_SWITCH_ENABLED).await {
-        logger::warn!(
-            rollout_scope = %rollout_scope,
-            merchant_id = %context.merchant_id,
-            connector = %context.connector_name,
-            flow = %context.flow_name,
-            payment_id = %context.payment_id,
-            request_id = ?state.request_id,
-            reason = %reason,
-            ucs_error = ?error,
-            "ucs_kill_switch: qualifying failure observed but the kill switch is turned off"
-        );
-        return;
+        Err(_) => false,
     }
-
-    trip(state, &rollout_scope, &context, reason, error).await;
 }
 
 /// Writes the trip. `SET NX` makes it exactly-once: one concurrent writer wins, the rest no-op.
@@ -162,18 +160,6 @@ async fn trip(
     reason: UcsKillSwitchReason,
     error: &UnifiedConnectorServiceError,
 ) {
-    let redis_conn = match state.store.get_redis_conn() {
-        Ok(conn) => conn,
-        Err(error) => {
-            logger::error!(
-                ?error,
-                rollout_scope = %rollout_scope,
-                "ucs_kill_switch: no redis connection, scope stays on UCS"
-            );
-            return;
-        }
-    };
-
     // Carries enough to find the originating request.
     let record = serde_json::json!({
         "reason": reason.to_string(),
@@ -183,14 +169,7 @@ async fn trip(
     })
     .to_string();
 
-    match redis_conn
-        .set_key_if_not_exists_with_expiry(
-            &trip_key(rollout_scope).as_str().into(),
-            record,
-            Some(consts::UCS_KILL_SWITCH_TTL_IN_SECONDS),
-        )
-        .await
-    {
+    match write_trip(state, rollout_scope, record).await {
         Ok(redis_interface::SetnxReply::KeySet) => {
             metrics::UCS_KILL_SWITCH_TRIPPED.add(
                 1,
@@ -225,6 +204,23 @@ async fn trip(
     }
 }
 
+/// Writes the trip if no other pod got there first. Redis failures short-circuit to the caller.
+async fn write_trip(
+    state: &SessionState,
+    rollout_scope: &str,
+    record: String,
+) -> error_stack::Result<redis_interface::SetnxReply, storage_impl::errors::RedisError> {
+    state
+        .store
+        .get_redis_conn()?
+        .set_key_if_not_exists_with_expiry(
+            &trip_key(rollout_scope).as_str().into(),
+            record,
+            Some(consts::UCS_KILL_SWITCH_TTL_IN_SECONDS),
+        )
+        .await
+}
+
 /// Scopes currently tripped. A wrapper because `Vec<String>` has no `ApiEventMetric` impl.
 #[derive(Debug, serde::Serialize)]
 pub struct KillSwitchListResponse {
@@ -247,19 +243,19 @@ pub async fn reset(state: SessionState, rollout_scope: String) -> errors::Router
 
     // Redis reports a missing key as a successful delete of nothing. Reporting that as success
     // would tell an operator a scope is back on UCS when a mistyped scope left it tripped.
-    if !reply.is_key_deleted() {
-        return Err(errors::ApiErrorResponse::GenericNotFoundError {
+    if reply.is_key_deleted() {
+        logger::info!(
+            rollout_scope = %rollout_scope,
+            "ucs_kill_switch: trip cleared via api"
+        );
+
+        Ok(crate::services::ApplicationResponse::StatusOk)
+    } else {
+        Err(errors::ApiErrorResponse::GenericNotFoundError {
             message: format!("No UCS kill switch trip found for scope {rollout_scope}"),
         }
-        .into());
+        .into())
     }
-
-    logger::info!(
-        rollout_scope = %rollout_scope,
-        "ucs_kill_switch: trip cleared via api"
-    );
-
-    Ok(crate::services::ApplicationResponse::StatusOk)
 }
 
 /// Lists every scope currently tripped.

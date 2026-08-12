@@ -52,7 +52,7 @@ pub async fn serialize_comparison_results_and_send<S, F, RouterDReq, RouterDResp
         router_data::RouterData<F, RouterDReq, RouterDResp>,
         String,
     >,
-    merchant_id: Option<id_type::MerchantId>,
+    merchant_id: Option<&id_type::MerchantId>,
     payment_method: Option<common_enums::enums::PaymentMethod>,
     payment_method_type: Option<common_enums::enums::PaymentMethodType>,
 ) where
@@ -113,7 +113,7 @@ pub async fn serialize_webhook_outcome_and_send_to_comparison_service<P, S>(
     comparison_service_config: types::ComparisonServiceConfig,
     connector_name: String,
     request_id: Option<String>,
-    merchant_id: Option<id_type::MerchantId>,
+    merchant_id: Option<&id_type::MerchantId>,
 ) where
     P: serde::Serialize + std::fmt::Debug,
     S: serde::Serialize + std::fmt::Debug,
@@ -158,7 +158,7 @@ pub async fn send_comparison_data(
     connector_name: String,
     sub_flow_name: Option<String>,
     request_id: Option<String>,
-    merchant_id: Option<id_type::MerchantId>,
+    merchant_id: Option<&id_type::MerchantId>,
     payment_method: Option<common_enums::enums::PaymentMethod>,
     payment_method_type: Option<common_enums::enums::PaymentMethodType>,
 ) -> common_utils_errors::CustomResult<(), errors::HttpClientError> {
