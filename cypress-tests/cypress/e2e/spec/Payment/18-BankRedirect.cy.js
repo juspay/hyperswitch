@@ -136,11 +136,7 @@ describe("Bank Redirect tests", () => {
   });
 
   context("Giropay Create and Confirm flow test", () => {
-    it("Create Payment Intent -> List Merchant Payment Methods -> Confirm Payment -> Handle Bank Redirect Redirection -> Retrieve Payment", function () {
-      if (globalState.get("connectorId") === "nuvei") {
-        this.skip();
-      }
-
+    it("Create Payment Intent -> List Merchant Payment Methods -> Confirm Payment -> Handle Bank Redirect Redirection -> Retrieve Payment", () => {
       let shouldContinue = true;
 
       cy.step("Create Payment Intent", () => {
