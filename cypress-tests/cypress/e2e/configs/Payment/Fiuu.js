@@ -451,6 +451,31 @@ export const connectorDetails = {
       },
       Response: MITErrorResponse,
     },
+    MITAutoCaptureWithCustomerAcceptance: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        currency: "MYR",
+        billing: billingAddress,
+        customer_acceptance: {
+          acceptance_type: "offline",
+          accepted_at: "1963-05-03T04:07:52.723Z",
+          online: {
+            ip_address: "127.0.0.1",
+            user_agent: "amet irure esse",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_code: "Token not found",
+          error_message: "Token not found",
+        },
+      },
+    },
     MITWithoutBillingAddress: {
       Configs: {
         TRIGGER_SKIP: true,

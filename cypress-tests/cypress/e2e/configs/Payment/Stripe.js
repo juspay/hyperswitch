@@ -658,6 +658,15 @@ export const connectorDetails = {
       },
       ...commonConnectorDetails.card_pm.MITAutoCapture,
     }),
+    MITAutoCaptureWithCustomerAcceptance: getCustomExchange({
+      Configs: {
+        CONNECTOR_CREDENTIAL: {
+          specName: ["connectorAgnosticNTID"],
+          value: "connector_2",
+        },
+      },
+      ...commonConnectorDetails.card_pm.MITAutoCaptureWithCustomerAcceptance,
+    }),
     MITManualCapture: {
       Request: {},
       Response: {
