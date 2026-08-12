@@ -369,13 +369,9 @@ export const connectorDetails = {
     MITAutoCapture: {
       // wait for the CIT to settle before attempting the repeat charge —
       // the connector_mandate_id needed for MIT isn't reliably resolvable
-      // while the CIT is still "processing". OMIT_AMOUNT matches a known
-      // working manual (Postman) recipe from dev that sends no "amount"
-      // field on the recurring_details/payment_method_id MIT request —
-      // testing whether that's the actual differentiator.
+      // while the CIT is still "processing".
       Configs: {
         POLL_BEFORE: true,
-        OMIT_AMOUNT: true,
       },
       Request: {},
       Response: {
@@ -388,7 +384,6 @@ export const connectorDetails = {
     MITWithoutBillingAddress: {
       Configs: {
         POLL_BEFORE: true,
-        OMIT_AMOUNT: true,
       },
       Request: { billing: null },
       Response: {

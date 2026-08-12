@@ -5419,12 +5419,8 @@ Cypress.Commands.add(
       requestBody[key] = reqData[key];
     }
 
-    if (validatedConfigs?.OMIT_AMOUNT) {
-      delete requestBody.amount;
-    } else {
-      requestBody.amount = amount;
-      globalState.set("paymentAmount", requestBody.amount);
-    }
+    requestBody.amount = amount;
+    globalState.set("paymentAmount", requestBody.amount);
     requestBody.capture_method = capture_method;
     requestBody.confirm = confirm;
     requestBody.customer_id = customerId;
