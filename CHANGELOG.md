@@ -4,6 +4,21 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.08.12.0
+
+### Features
+
+- **connector:** [stripe][stripe_connect] pass ip address and user agent in tokenization request ([#13633](https://github.com/juspay/hyperswitch/pull/13633)) ([`689d64b`](https://github.com/juspay/hyperswitch/commit/689d64bb4af52761fdacc2e904026bd7cc6d2706))
+- **connectors:** [stripe_connect] add support for raw card payments ([#13607](https://github.com/juspay/hyperswitch/pull/13607)) ([`6d7723f`](https://github.com/juspay/hyperswitch/commit/6d7723f8e7eae6f59d85044d752bb200afb1678b))
+
+### Bug Fixes
+
+- **modular:** Populate additional payment method data for modular flows ([#13622](https://github.com/juspay/hyperswitch/pull/13622)) ([`199c5b7`](https://github.com/juspay/hyperswitch/commit/199c5b7edd766b39071db5e7675f1861e820d96d))
+
+**Full Changelog:** [`2026.08.11.1...2026.08.12.0`](https://github.com/juspay/hyperswitch/compare/2026.08.11.1...2026.08.12.0)
+
+- - -
+
 ## 2026.08.11.1
 
 ### Features
