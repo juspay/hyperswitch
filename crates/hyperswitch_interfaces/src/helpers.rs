@@ -1,7 +1,8 @@
 use common_utils::{
-    consts::{X_CONNECTOR_NAME, X_SUB_FLOW_NAME},
+    consts::{X_CONNECTOR_NAME, X_PAYMENT_METHOD, X_PAYMENT_METHOD_TYPE, X_SUB_FLOW_NAME},
     errors as common_utils_errors,
     ext_traits::Encode,
+    id_type,
     request,
 };
 use error_stack::ResultExt;
@@ -52,6 +53,9 @@ pub async fn serialize_comparison_results_and_send<S, F, RouterDReq, RouterDResp
         router_data::RouterData<F, RouterDReq, RouterDResp>,
         String,
     >,
+    merchant_id: Option<id_type::MerchantId>,
+    payment_method: Option<common_enums::enums::PaymentMethod>,
+    payment_method_type: Option<common_enums::enums::PaymentMethodType>,
 ) where
     S: api_client::ApiClientWrapper + GetComparisonServiceConfig,
     F: Send + Clone + Sync + 'static,
@@ -94,6 +98,9 @@ pub async fn serialize_comparison_results_and_send<S, F, RouterDReq, RouterDResp
         connector_name,
         sub_flow_name,
         request_id,
+        merchant_id,
+        payment_method,
+        payment_method_type,
     )
     .await
     .inspect_err(|e| logger::warn!("Failed to send comparison data: {:?}", e));
@@ -132,6 +139,9 @@ pub async fn serialize_webhook_outcome_and_send_to_comparison_service<P, S>(
         connector_name,
         Some("webhook".to_string()),
         request_id,
+        None,
+        None,
+        None,
     )
     .await
     {
@@ -147,6 +157,9 @@ pub async fn send_comparison_data(
     connector_name: String,
     sub_flow_name: Option<String>,
     request_id: Option<String>,
+    merchant_id: Option<id_type::MerchantId>,
+    payment_method: Option<common_enums::enums::PaymentMethod>,
+    payment_method_type: Option<common_enums::enums::PaymentMethodType>,
 ) -> common_utils_errors::CustomResult<(), errors::HttpClientError> {
     let mut request = request::RequestBuilder::new()
         .method(request::Method::Post)
@@ -172,6 +185,27 @@ pub async fn send_comparison_data(
         request.add_header(
             consts::X_REQUEST_ID,
             hyperswitch_masking::Maskable::Normal(req_id),
+        );
+    }
+
+    if let Some(merchant_id) = merchant_id {
+        request.add_header(
+            common_utils::consts::X_MERCHANT_ID,
+            hyperswitch_masking::Maskable::Normal(merchant_id.get_string_repr().to_string()),
+        );
+    }
+
+    if let Some(pm) = payment_method {
+        request.add_header(
+            X_PAYMENT_METHOD,
+            hyperswitch_masking::Maskable::Normal(pm.to_string()),
+        );
+    }
+
+    if let Some(pmt) = payment_method_type {
+        request.add_header(
+            X_PAYMENT_METHOD_TYPE,
+            hyperswitch_masking::Maskable::Normal(pmt.to_string()),
         );
     }
 
