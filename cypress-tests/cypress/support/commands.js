@@ -26,6 +26,7 @@
 // Cypress.Commands.overwrite('visit', (originalFn, url, options) => { ... })
 // commands.js or your custom support file
 import getConnectorDetails, {
+  CONNECTOR_LISTS,
   defaultErrorHandler,
   extractIntegerAtEnd,
   getOriginalConnectorName,
@@ -125,11 +126,20 @@ function createIndividualRolloutConfig(
   const rolloutPercent = 1.0;
   const key = `ucs_rollout_config_${merchantId}_${connector}_${methodFlow}`;
 
+  // UCS-only connectors (no working classic direct-integration fallback)
+  // must route "primary" so the classic connector is never invoked; every
+  // other connector keeps mirroring to UCS via "shadow" for comparison.
+  const executionMode = CONNECTOR_LISTS.INCLUDE.UCS_CONNECTORS.includes(
+    connector
+  )
+    ? "primary"
+    : "shadow";
+
   const configValue = {
     rollout_percent: rolloutPercent,
     http_url: httpUrl,
     https_url: httpsUrl,
-    execution_mode: "shadow",
+    execution_mode: executionMode,
   };
   const value = JSON.stringify(configValue);
 
@@ -219,7 +229,9 @@ function createUcsConfigs(globalState, flow, type) {
   const methodFlowInput = flow || globalState.get("methodFlow");
 
   if (!httpUrl || !httpsUrl) {
-    throw new Error("Missing proxyHttp or proxyHttps in globalState");
+    throw new Error(
+      `Missing proxyHttp or proxyHttps in globalState. globalState.proxyHttp=${httpUrl}, globalState.proxyHttps=${httpsUrl}, Cypress.env("PROXY_HTTP")=${Cypress.env("PROXY_HTTP")}, Cypress.env("PROXY_HTTPS")=${Cypress.env("PROXY_HTTPS")}`
+    );
   }
 
   if (!connector || !methodFlowInput) {
@@ -6443,8 +6455,11 @@ Cypress.Commands.add("listCustomerPMCallTest", (globalState, order = 0) => {
           expect(cardInfo.card_holder_name, "card_holder_name").to.not.be.null;
         }
 
+        // allow a small buffer for clock skew between the server and the
+        // test runner — last_used_at can otherwise land at or after the
+        // local Date.now() even though it was genuinely set in the past
         expect(new Date(lastUsedAt).getTime(), "last_used_at").to.be.lessThan(
-          Date.now()
+          Date.now() + 5000
         ).and.to.not.be.null;
 
         // For order > 0, validate payment methods are ordered by last_used_at
@@ -7918,6 +7933,14 @@ Cypress.Commands.add("diffCheckResult", (globalState) => {
 
   // Phase 2: Fetch Validation Results
   const validationServiceUrl = globalState.get("validationServiceUrl");
+
+  if (!validationServiceUrl) {
+    cy.task(
+      "cli_log",
+      "VALIDATION_SERVICE_URL is not set. Skipping diff check validation."
+    );
+    return;
+  }
 
   cy.request({
     method: "GET",

@@ -55,7 +55,15 @@ describe("External Vault (VGS) - Connector Integration Tests", () => {
   context(
     "Save card for NoThreeDS automatic capture payment - Create+Confirm [on_session]",
     () => {
-      it("Create Customer -> Create and Confirm Payment -> Retrieve Payment -> List Customer PMs -> Create Payment Intent -> Save Card Confirm", () => {
+      it("Create Customer -> Create and Confirm Payment -> Retrieve Payment -> List Customer PMs -> Create Payment Intent -> Save Card Confirm", function () {
+        if (
+          utils.shouldExcludeConnector(
+            globalState.get("connectorId"),
+            utils.CONNECTOR_LISTS.EXCLUDE.EXTERNAL_VAULT
+          )
+        ) {
+          this.skip();
+        }
         let shouldContinue = true;
 
         cy.step("Create Customer", () => {
@@ -150,7 +158,15 @@ describe("External Vault (VGS) - Connector Integration Tests", () => {
   context(
     "Save card for NoThreeDS manual capture payment - Create+Confirm [on_session]",
     () => {
-      it("Create Customer -> Create and Confirm Payment -> Retrieve Payment -> List Customer PMs -> Create Payment Intent -> Save Card Confirm -> Retrieve Payment -> Capture -> Retrieve after Capture", () => {
+      it("Create Customer -> Create and Confirm Payment -> Retrieve Payment -> List Customer PMs -> Create Payment Intent -> Save Card Confirm -> Retrieve Payment -> Capture -> Retrieve after Capture", function () {
+        if (
+          utils.shouldExcludeConnector(
+            globalState.get("connectorId"),
+            utils.CONNECTOR_LISTS.EXCLUDE.EXTERNAL_VAULT
+          )
+        ) {
+          this.skip();
+        }
         let shouldContinue = true;
 
         cy.step("Create Customer", () => {
@@ -297,7 +313,15 @@ describe("External Vault (VGS) - Connector Integration Tests", () => {
   context(
     "Save card for NoThreeDS automatic capture payment [off_session]",
     () => {
-      it("Create Customer -> Create and Confirm Payment -> Retrieve Payment -> List Customer PMs -> Create Payment Intent -> Save Card Confirm", () => {
+      it("Create Customer -> Create and Confirm Payment -> Retrieve Payment -> List Customer PMs -> Create Payment Intent -> Save Card Confirm", function () {
+        if (
+          utils.shouldExcludeConnector(
+            globalState.get("connectorId"),
+            utils.CONNECTOR_LISTS.EXCLUDE.EXTERNAL_VAULT
+          )
+        ) {
+          this.skip();
+        }
         let shouldContinue = true;
 
         cy.step("Create Customer", () => {
