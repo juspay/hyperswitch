@@ -550,12 +550,6 @@ export const CONNECTOR_LISTS = {
       "tsys_transit",
     ],
     SAVE_CARD: ["helcim", "givepayments"],
-    // givepayments only supports automatic capture (connector metadata:
-    // "supported_capture_methods": ["automatic"]); TRIGGER_SKIP is set on
-    // the relevant card_pm configs too, but the command 06 uses
-    // (confirmCallTest) doesn't check TRIGGER_SKIP, so a file-level gate
-    // is required for it
-    MANUAL_CAPTURE: ["givepayments"],
     // fiservcommercehub's RSA card-encryption block requires
     // card_holder_name, which the external vault proxy flow (VGS) never
     // supplies (it only vaults PAN/expiry) — and unlike most connectors,

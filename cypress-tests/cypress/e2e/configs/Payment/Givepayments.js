@@ -2,7 +2,6 @@ import {
   customerAcceptance,
   multiUseMandateData,
   singleUseMandateData,
-  standardBillingAddress,
 } from "./Commons";
 
 // givepayments' sandbox does real deliverability verification, not just
@@ -33,6 +32,18 @@ const billingWithEmail = (email) => ({
   },
   email,
 });
+
+// givepayments' real, confirmed rejection for flows it doesn't support at
+// all (manual capture, unsupported payment methods) — a generic UCS_400
+// "Payment failed during authorization with connector. Retry payment".
+const authorizationFailedError = {
+  error: {
+    type: "invalid_request",
+    message:
+      "Payment failed during authorization with connector. Retry payment",
+    code: "CE_01",
+  },
+};
 
 export const connectorDetails = {
   card_pm: {
@@ -84,6 +95,9 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "processing",
+          amount: 6000,
+          shipping_cost: 50,
+          net_amount: 6050,
         },
       },
     },
@@ -106,6 +120,8 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "processing",
+          amount: 6000,
+          net_amount: 6000,
         },
       },
     },
@@ -144,6 +160,8 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "processing",
+          amount: 6000,
+          net_amount: 6000,
         },
       },
     },
@@ -174,14 +192,7 @@ export const connectorDetails = {
       },
       Response: {
         status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            message:
-              "Payment failed during authorization with connector. Retry payment",
-            code: "CE_01",
-          },
-        },
+        body: authorizationFailedError,
       },
     },
     No3DSManualCapture: {
@@ -199,14 +210,7 @@ export const connectorDetails = {
       },
       Response: {
         status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            message:
-              "Payment failed during authorization with connector. Retry payment",
-            code: "CE_01",
-          },
-        },
+        body: authorizationFailedError,
       },
     },
     // givepayments 400s a refund attempted while the payment is still
@@ -225,6 +229,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "pending",
+          amount: 6000,
         },
       },
     },
@@ -239,6 +244,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "pending",
+          amount: 2000,
         },
       },
     },
@@ -253,6 +259,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "pending",
+          amount: 6000,
         },
       },
     },
@@ -267,6 +274,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "pending",
+          amount: 2000,
         },
       },
     },
@@ -297,9 +305,14 @@ export const connectorDetails = {
         email: generateGivepaymentsEmail(),
         billing: billingWithEmail(generateGivepaymentsEmail()),
       },
+      // amount is known upfront regardless of settlement state; status is
+      // deliberately omitted here — it's asserted only after polling (see
+      // POLL_AFTER above), not on this immediate response.
       Response: {
         status: 200,
-        body: {},
+        body: {
+          amount: 6000,
+        },
       },
     },
     MandateSingleUseNo3DSManualCapture: {
@@ -339,9 +352,12 @@ export const connectorDetails = {
         email: generateGivepaymentsEmail(),
         billing: billingWithEmail(generateGivepaymentsEmail()),
       },
+      // see MandateSingleUseNo3DSAutoCapture — status intentionally omitted
       Response: {
         status: 200,
-        body: {},
+        body: {
+          amount: 6000,
+        },
       },
     },
     MandateMultiUseNo3DSManualCapture: {
@@ -378,6 +394,8 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
+          amount: 6000,
+          net_amount: 6000,
         },
       },
     },
@@ -390,6 +408,8 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
+          amount: 6000,
+          net_amount: 6000,
         },
       },
     },
@@ -427,7 +447,9 @@ export const connectorDetails = {
       },
       Response: {
         status: 200,
-        body: {},
+        body: {
+          amount: 6000,
+        },
       },
     },
     PaymentMethodIdMandateNo3DSManualCapture: {
@@ -495,587 +517,6 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_capture",
-        },
-      },
-    },
-  },
-  // givepayments doesn't support any bank redirect method either;
-  // confirmBankRedirectCallTest honors TRIGGER_SKIP, but real evidence is
-  // available (identical 400 CE_01 across every method below), so this
-  // asserts that real rejection instead of skipping — Trustly is excluded
-  // because Commons.js already sets TRIGGER_SKIP: true on it globally.
-  bank_redirect_pm: {
-    Ideal: {
-      Request: {
-        payment_method: "bank_redirect",
-        payment_method_type: "ideal",
-        payment_method_data: {
-          bank_redirect: {
-            ideal: {
-              bank_name: "ing",
-              country: "NL",
-            },
-          },
-        },
-        billing: {
-          address: {
-            line1: "1467",
-            line2: "Harrison Street",
-            line3: "Harrison Street",
-            city: "San Fransico",
-            state: "California",
-            zip: "94122",
-            country: "NL",
-            first_name: "john",
-            last_name: "doe",
-          },
-        },
-      },
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            message:
-              "Payment failed during authorization with connector. Retry payment",
-            code: "CE_01",
-          },
-        },
-      },
-    },
-    OpenBankingUk: {
-      Request: {
-        payment_method: "bank_redirect",
-        payment_method_type: "open_banking_uk",
-        payment_method_data: {
-          bank_redirect: {
-            open_banking_uk: {
-              issuer: "citi",
-              country: "GB",
-            },
-          },
-        },
-        billing: standardBillingAddress,
-      },
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            message:
-              "Payment failed during authorization with connector. Retry payment",
-            code: "CE_01",
-          },
-        },
-      },
-    },
-    OnlineBankingFpx: {
-      Request: {
-        payment_method: "bank_redirect",
-        payment_method_type: "online_banking_fpx",
-        payment_method_data: {
-          bank_redirect: {
-            online_banking_fpx: {
-              issuer: "affin_bank",
-            },
-          },
-        },
-        billing: standardBillingAddress,
-      },
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            message:
-              "Payment failed during authorization with connector. Retry payment",
-            code: "CE_01",
-          },
-        },
-      },
-    },
-    Giropay: {
-      Request: {
-        payment_method: "bank_redirect",
-        payment_method_type: "giropay",
-        payment_method_data: {
-          bank_redirect: {
-            giropay: {
-              bank_name: "",
-              bank_account_bic: "",
-              bank_account_iban: "",
-              preferred_language: "en",
-              country: "DE",
-            },
-          },
-        },
-        billing: {
-          address: {
-            line1: "1467",
-            line2: "Harrison Street",
-            line3: "Harrison Street",
-            city: "San Fransico",
-            state: "California",
-            zip: "94122",
-            country: "DE",
-            first_name: "john",
-            last_name: "doe",
-          },
-        },
-      },
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            message:
-              "Payment failed during authorization with connector. Retry payment",
-            code: "CE_01",
-          },
-        },
-      },
-    },
-    Sofort: {
-      Request: {
-        payment_method: "bank_redirect",
-        payment_method_type: "sofort",
-        payment_method_data: {
-          bank_redirect: {
-            sofort: {
-              country: "DE",
-              preferred_language: "en",
-            },
-          },
-        },
-        billing: {
-          address: {
-            line1: "1467",
-            line2: "Harrison Street",
-            line3: "Harrison Street",
-            city: "San Fransico",
-            state: "California",
-            zip: "94122",
-            country: "DE",
-            first_name: "john",
-            last_name: "doe",
-          },
-        },
-      },
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            message:
-              "Payment failed during authorization with connector. Retry payment",
-            code: "CE_01",
-          },
-        },
-      },
-    },
-    Eps: {
-      Request: {
-        payment_method: "bank_redirect",
-        payment_method_type: "eps",
-        payment_method_data: {
-          bank_redirect: {
-            eps: {
-              bank_name: "ing",
-            },
-          },
-        },
-        billing: {
-          address: {
-            line1: "1467",
-            line2: "Harrison Street",
-            line3: "Harrison Street",
-            city: "San Fransico",
-            state: "California",
-            zip: "94122",
-            country: "AT",
-            first_name: "john",
-            last_name: "doe",
-          },
-        },
-      },
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            message:
-              "Payment failed during authorization with connector. Retry payment",
-            code: "CE_01",
-          },
-        },
-      },
-    },
-    Przelewy24: {
-      Request: {
-        payment_method: "bank_redirect",
-        payment_method_type: "przelewy24",
-        payment_method_data: {
-          bank_redirect: {
-            przelewy24: {
-              bank_name: "citi",
-              billing_details: {
-                email: "guest@juspay.in",
-              },
-            },
-          },
-        },
-      },
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            message:
-              "Payment failed during authorization with connector. Retry payment",
-            code: "CE_01",
-          },
-        },
-      },
-    },
-    Blik: {
-      Request: {
-        payment_method: "bank_redirect",
-        payment_method_type: "blik",
-        payment_method_data: {
-          bank_redirect: {
-            blik: {
-              blik_code: "777987",
-            },
-          },
-        },
-        billing: {
-          address: {
-            line1: "1467",
-            line2: "Harrison Street",
-            line3: "Harrison Street",
-            city: "San Fransico",
-            state: "California",
-            zip: "94122",
-            country: "PL",
-            first_name: "john",
-            last_name: "doe",
-          },
-        },
-      },
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            message:
-              "Payment failed during authorization with connector. Retry payment",
-            code: "CE_01",
-          },
-        },
-      },
-    },
-    Interac: {
-      Request: {
-        payment_method: "bank_redirect",
-        payment_method_type: "interac",
-        payment_method_data: {
-          bank_redirect: {
-            interac: {
-              bank_name: "ing",
-            },
-          },
-        },
-        billing: {
-          ...standardBillingAddress,
-          address: {
-            ...standardBillingAddress.address,
-            country: "CA",
-          },
-        },
-      },
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            message:
-              "Payment failed during authorization with connector. Retry payment",
-            code: "CE_01",
-          },
-        },
-      },
-    },
-    Eft: {
-      Request: {
-        payment_method: "bank_redirect",
-        payment_method_type: "eft",
-        payment_method_data: {
-          bank_redirect: {
-            eft: {
-              provider: "ozow",
-            },
-          },
-        },
-      },
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            message:
-              "Payment failed during authorization with connector. Retry payment",
-            code: "CE_01",
-          },
-        },
-      },
-    },
-  },
-  // givepayments doesn't support UPI; confirmUpiCall doesn't honor
-  // TRIGGER_SKIP, so this asserts the connector's real, confirmed
-  // rejection — a 400 CE_01 "Payment failed during authorization with
-  // connector. Retry payment" — confirmed live for both UPI methods.
-  upi_pm: {
-    UpiCollect: {
-      Request: {
-        payment_method: "upi",
-        payment_method_type: "upi_collect",
-        payment_method_data: {
-          upi: {
-            upi_collect: {
-              vpa_id: "successtest@iata",
-            },
-          },
-        },
-      },
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            message:
-              "Payment failed during authorization with connector. Retry payment",
-            code: "CE_01",
-          },
-        },
-      },
-    },
-    UpiIntent: {
-      Request: {
-        payment_method: "upi",
-        payment_method_type: "upi_intent",
-        payment_method_data: {
-          upi: {
-            upi_intent: {},
-          },
-        },
-      },
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            message:
-              "Payment failed during authorization with connector. Retry payment",
-            code: "CE_01",
-          },
-        },
-      },
-    },
-  },
-  // givepayments doesn't support reward/cashtocode payment methods;
-  // confirmRewardCallTest doesn't honor TRIGGER_SKIP, so this asserts the
-  // connector's real, confirmed rejection — a 400 CE_01 "Payment failed
-  // during authorization with connector. Retry payment" — confirmed live
-  // for both reward methods.
-  reward_pm: {
-    Evoucher: {
-      Request: {
-        payment_method: "reward",
-        payment_method_type: "evoucher",
-        payment_method_data: "reward",
-        billing: standardBillingAddress,
-      },
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            message:
-              "Payment failed during authorization with connector. Retry payment",
-            code: "CE_01",
-          },
-        },
-      },
-    },
-    Classic: {
-      Request: {
-        payment_method: "reward",
-        payment_method_type: "classic",
-        payment_method_data: "reward",
-        billing: standardBillingAddress,
-      },
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            message:
-              "Payment failed during authorization with connector. Retry payment",
-            code: "CE_01",
-          },
-        },
-      },
-    },
-  },
-  // givepayments doesn't support any bank transfer method (connector-service
-  // field_probe: Pix/Ach/InstantBankTransferFinland/InstantBankTransferPoland
-  // are all "not_implemented"); confirmBankTransferCallTest doesn't honor
-  // TRIGGER_SKIP, so these assert the connector's real, confirmed rejection
-  // instead of the generic Commons.js 501 default — a 400 CE_01 "Payment
-  // failed during authorization with connector. Retry payment" — confirmed
-  // live for all four methods.
-  bank_transfer_pm: {
-    Pix: {
-      Request: {
-        payment_method: "bank_transfer",
-        payment_method_type: "pix",
-        payment_method_data: {
-          bank_transfer: {
-            pix: {},
-          },
-        },
-        billing: {
-          address: {
-            line1: "1467",
-            line2: "Harrison Street",
-            line3: "Harrison Street",
-            city: "San Fransico",
-            state: "California",
-            zip: "94122",
-            country: "BR",
-            first_name: "john",
-            last_name: "doe",
-          },
-        },
-        currency: "BRL",
-      },
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            message:
-              "Payment failed during authorization with connector. Retry payment",
-            code: "CE_01",
-          },
-        },
-      },
-    },
-    Ach: {
-      Request: {
-        payment_method: "bank_transfer",
-        payment_method_type: "ach",
-        payment_method_data: {
-          bank_transfer: {
-            ach_bank_transfer: {},
-          },
-        },
-        billing: {
-          address: {
-            line1: "1467",
-            line2: "Harrison Street",
-            line3: "Harrison Street",
-            city: "San Fransico",
-            state: "California",
-            zip: "94122",
-            country: "BR",
-            first_name: "john",
-            last_name: "doe",
-          },
-        },
-        currency: "BRL",
-      },
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            message:
-              "Payment failed during authorization with connector. Retry payment",
-            code: "CE_01",
-          },
-        },
-      },
-    },
-    InstantBankTransferFinland: {
-      Request: {
-        payment_method: "bank_transfer",
-        payment_method_type: "instant_bank_transfer_finland",
-        payment_method_data: {
-          bank_transfer: {
-            instant_bank_transfer_finland: {},
-          },
-        },
-        billing: {
-          address: {
-            line1: "1467",
-            line2: "Harrison Street",
-            line3: "Harrison Street",
-            city: "San Fransico",
-            state: "California",
-            zip: "94122",
-            country: "FI",
-            first_name: "john",
-            last_name: "doe",
-          },
-        },
-        currency: "EUR",
-      },
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            message:
-              "Payment failed during authorization with connector. Retry payment",
-            code: "CE_01",
-          },
-        },
-      },
-    },
-    InstantBankTransferPoland: {
-      Request: {
-        payment_method: "bank_transfer",
-        payment_method_type: "instant_bank_transfer_poland",
-        payment_method_data: {
-          bank_transfer: {
-            instant_bank_transfer_poland: {},
-          },
-        },
-        billing: {
-          address: {
-            line1: "1467",
-            line2: "Harrison Street",
-            line3: "Harrison Street",
-            city: "San Fransico",
-            state: "California",
-            zip: "94122",
-            country: "PL",
-            first_name: "john",
-            last_name: "doe",
-          },
-        },
-        currency: "PLN",
-      },
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            message:
-              "Payment failed during authorization with connector. Retry payment",
-            code: "CE_01",
-          },
         },
       },
     },
