@@ -63,7 +63,7 @@ impl OutgoingWebhookContentStatusExt for api::OutgoingWebhookContent {
                 .map(|statuses| statuses.contains(&response.status))
                 .unwrap_or(Self::DEFAULT_STATUS_ENABLED),
             Self::RefundDetails(response) => {
-                let status: common_enums::RefundStatus = response.status.into();
+                let status = common_enums::RefundStatus::from(response.status);
                 profile
                     .get_configured_refund_webhook_statuses()
                     .map(|statuses| statuses.contains(&status))
