@@ -114,6 +114,7 @@ pub async fn serialize_webhook_outcome_and_send_to_comparison_service<P, S>(
     comparison_service_config: types::ComparisonServiceConfig,
     connector_name: String,
     request_id: Option<String>,
+    merchant_id: Option<id_type::MerchantId>,
 ) where
     P: serde::Serialize + std::fmt::Debug,
     S: serde::Serialize + std::fmt::Debug,
@@ -139,7 +140,7 @@ pub async fn serialize_webhook_outcome_and_send_to_comparison_service<P, S>(
         connector_name,
         Some("webhook".to_string()),
         request_id,
-        None,
+        merchant_id,
         None,
         None,
     )
