@@ -8,6 +8,7 @@ use crate::enums::{
     AttemptStatus, Country, CountryAlpha2, CountryAlpha3, DisputeStatus, EventType, IntentStatus,
     MandateStatus, PaymentMethod, PaymentMethodType, RefundStatus, SubscriptionStatus,
 };
+use crate::InvoiceStatus;
 
 impl Display for NumericCountryCodeParseError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
@@ -2220,6 +2221,12 @@ impl From<DisputeStatus> for EventType {
     }
 }
 
+impl From<DisputeStatus> for Option<EventType> {
+    fn from(value: DisputeStatus) -> Self {
+        Some(value.into())
+    }
+}
+
 impl From<MandateStatus> for Option<EventType> {
     fn from(value: MandateStatus) -> Self {
         match value {
@@ -2235,6 +2242,22 @@ impl From<SubscriptionStatus> for Option<EventType> {
         match value {
             SubscriptionStatus::Active => Some(EventType::InvoicePaid),
             _ => None,
+        }
+    }
+}
+
+impl From<InvoiceStatus> for Option<EventType> {
+    fn from(value: InvoiceStatus) -> Self {
+        match value {
+            InvoiceStatus::InvoicePaid => Some(EventType::InvoicePaid),
+            InvoiceStatus::InvoiceCreated
+            | InvoiceStatus::PaymentPending
+            | InvoiceStatus::PaymentPendingTimeout
+            | InvoiceStatus::PaymentSucceeded
+            | InvoiceStatus::PaymentFailed
+            | InvoiceStatus::PaymentCanceled
+            | InvoiceStatus::ManualReview
+            | InvoiceStatus::Voided => None,
         }
     }
 }

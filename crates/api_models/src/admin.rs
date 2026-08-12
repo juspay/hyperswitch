@@ -893,6 +893,15 @@ pub struct WebhookDetails {
     #[cfg(feature = "payouts")]
     #[schema(value_type = Option<Vec<PayoutStatus>>, example = json!(["success", "failed"]))]
     pub payout_statuses_enabled: Option<Vec<api_enums::PayoutStatus>>,
+
+    /// List of dispute statuses that trigger outgoing webhooks for disputes
+    pub dispute_statuses_enabled: Option<Vec<api_enums::DisputeStatus>>,
+
+    /// List of mandate statuses that trigger outgoing webhooks for mandates
+    pub mandate_statuses_enabled: Option<Vec<api_enums::MandateStatus>>,
+
+    /// List of invoice statuses that trigger outgoing webhooks for subscriptions
+    pub invoice_statuses_enabled: Option<Vec<api_enums::InvoiceStatus>>,
 }
 
 impl WebhookDetails {
@@ -919,15 +928,26 @@ impl WebhookDetails {
             payout_statuses_enabled: other
                 .payout_statuses_enabled
                 .or(self.payout_statuses_enabled),
+            dispute_statuses_enabled: other
+                .dispute_statuses_enabled
+                .or(self.dispute_statuses_enabled),
+            mandate_statuses_enabled: other
+                .mandate_statuses_enabled
+                .or(self.mandate_statuses_enabled),
+            invoice_statuses_enabled: other
+                .invoice_statuses_enabled
+                .or(self.invoice_statuses_enabled),
         }
     }
 
     fn validate_statuses<T>(statuses: &[T], status_type_name: &str) -> Result<(), String>
     where
-        T: strum::IntoEnumIterator + Copy + PartialEq + std::fmt::Debug,
+        T: strum::IntoEnumIterator + Clone + PartialEq + std::fmt::Debug,
         T: Into<Option<api_enums::EventType>>,
     {
-        let valid_statuses: Vec<T> = T::iter().filter(|s| (*s).into().is_some()).collect();
+        let valid_statuses: Vec<T> = T::iter()
+            .filter(|status| status.clone().into().is_some())
+            .collect();
 
         for status in statuses {
             if !valid_statuses.contains(status) {
@@ -953,6 +973,18 @@ impl WebhookDetails {
             if let Some(payout_statuses) = &self.payout_statuses_enabled {
                 Self::validate_statuses(payout_statuses, "payout")?;
             }
+        }
+
+        if let Some(dispute_statuses) = &self.dispute_statuses_enabled {
+            Self::validate_statuses(dispute_statuses, "dispute")?;
+        }
+
+        if let Some(mandate_statuses) = &self.mandate_statuses_enabled {
+            Self::validate_statuses(mandate_statuses, "mandate")?;
+        }
+
+        if let Some(invoice_statuses) = &self.invoice_statuses_enabled {
+            Self::validate_statuses(invoice_statuses, "invoice")?;
         }
 
         Ok(())

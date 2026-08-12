@@ -573,6 +573,9 @@ pub struct WebhookDetails {
     pub payment_statuses_enabled: Option<Vec<common_enums::IntentStatus>>,
     pub refund_statuses_enabled: Option<Vec<common_enums::RefundStatus>>,
     pub payout_statuses_enabled: Option<Vec<common_enums::PayoutStatus>>,
+    pub dispute_statuses_enabled: Option<Vec<common_enums::DisputeStatus>>,
+    pub mandate_statuses_enabled: Option<Vec<common_enums::MandateStatus>>,
+    pub invoice_statuses_enabled: Option<Vec<common_enums::InvoiceStatus>>,
     pub multiple_webhooks_list: Option<Vec<MultipleWebhookDetail>>,
 }
 

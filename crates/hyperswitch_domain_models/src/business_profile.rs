@@ -1140,6 +1140,36 @@ impl Profile {
             .map(|statuses_vec| Cow::Borrowed(statuses_vec.as_slice()))
     }
 
+    pub fn get_configured_dispute_webhook_statuses(
+        &self,
+    ) -> Option<Cow<'_, [common_enums::DisputeStatus]>> {
+        self.webhook_details
+            .as_ref()
+            .and_then(|details| details.dispute_statuses_enabled.as_ref())
+            .filter(|statuses| !statuses.is_empty())
+            .map(|statuses| Cow::Borrowed(statuses.as_slice()))
+    }
+
+    pub fn get_configured_mandate_webhook_statuses(
+        &self,
+    ) -> Option<Cow<'_, [common_enums::MandateStatus]>> {
+        self.webhook_details
+            .as_ref()
+            .and_then(|details| details.mandate_statuses_enabled.as_ref())
+            .filter(|statuses| !statuses.is_empty())
+            .map(|statuses| Cow::Borrowed(statuses.as_slice()))
+    }
+
+    pub fn get_configured_invoice_webhook_statuses(
+        &self,
+    ) -> Option<Cow<'_, [common_enums::InvoiceStatus]>> {
+        self.webhook_details
+            .as_ref()
+            .and_then(|details| details.invoice_statuses_enabled.as_ref())
+            .filter(|statuses| !statuses.is_empty())
+            .map(|statuses| Cow::Borrowed(statuses.as_slice()))
+    }
+
     pub fn get_billing_processor_id(
         &self,
     ) -> CustomResult<

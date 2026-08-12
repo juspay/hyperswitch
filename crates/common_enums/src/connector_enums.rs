@@ -510,6 +510,7 @@ impl Connector {
     serde::Deserialize,
     serde::Serialize,
     strum::Display,
+    strum::EnumIter,
     strum::EnumString,
     ToSchema,
 )]

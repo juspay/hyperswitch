@@ -49,6 +49,51 @@ use crate::{
     workflows::outgoing_webhook_retry,
 };
 
+trait OutgoingWebhookContentStatusExt {
+    fn is_status_enabled(&self, profile: &domain::Profile) -> bool;
+}
+
+impl OutgoingWebhookContentStatusExt for api::OutgoingWebhookContent {
+    fn is_status_enabled(&self, profile: &domain::Profile) -> bool {
+        match self {
+            Self::PaymentDetails(response) => profile
+                .get_configured_payment_webhook_statuses()
+                .map(|statuses| statuses.contains(&response.status))
+                .unwrap_or(true),
+            Self::RefundDetails(response) => {
+                let status: common_enums::RefundStatus = response.status.into();
+                profile
+                    .get_configured_refund_webhook_statuses()
+                    .map(|statuses| statuses.contains(&status))
+                    .unwrap_or(true)
+            }
+            Self::DisputeDetails(response) => profile
+                .get_configured_dispute_webhook_statuses()
+                .map(|statuses| statuses.contains(&response.dispute_status))
+                .unwrap_or(true),
+            Self::MandateDetails(response) => profile
+                .get_configured_mandate_webhook_statuses()
+                .map(|statuses| statuses.contains(&response.status))
+                .unwrap_or(true),
+            #[cfg(feature = "payouts")]
+            Self::PayoutDetails(response) => profile
+                .get_configured_payout_webhook_statuses()
+                .map(|statuses| statuses.contains(&response.status))
+                .unwrap_or(true),
+            Self::SubscriptionDetails(response) => response
+                .invoice
+                .as_ref()
+                .map(|invoice| {
+                    profile
+                        .get_configured_invoice_webhook_statuses()
+                        .map(|statuses| statuses.contains(&invoice.status))
+                        .unwrap_or(true)
+                })
+                .unwrap_or(true),
+        }
+    }
+}
+
 pub(crate) async fn get_webhook_events(
     state: &SessionState,
     platform: domain::Platform,
@@ -172,6 +217,16 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
         );
         return Ok(());
     };
+
+    if !primary_content.is_status_enabled(&provider_profile) {
+        logger::debug!(
+            business_profile_id = ?provider_profile.get_id(),
+            %event_class,
+            %primary_event_type,
+            "Outgoing webhook is disabled for the current resource status"
+        );
+        return Ok(());
+    }
 
     let events_to_trigger = get_webhook_events(
         &state,
