@@ -207,21 +207,13 @@ async fn trip(
         reason,
     } = failure;
 
-    let record = serde_json::to_string(&TripRecord {
+    let record = TripRecord {
         reason: reason.to_string(),
         request_id: state.request_id.as_ref().map(|id| id.to_string()),
         tripped_at: common_utils::date_time::now_unix_timestamp(),
-    })
-    .unwrap_or_else(|error| {
-        // The trip still has to be written; the list endpoint reports the detail as absent.
-        logger::error!(
-            ?error,
-            "ucs_kill_switch: could not serialise the trip record"
-        );
-        String::new()
-    });
+    };
 
-    match write_trip(state, rollout_scope, record).await {
+    match write_trip(state, rollout_scope, &record).await {
         Ok(redis_interface::SetnxReply::KeySet) => {
             metrics::UCS_KILL_SWITCH_TRIPPED.add(
                 1,
@@ -260,12 +252,16 @@ async fn trip(
     }
 }
 
-/// Writes the trip if no other pod got there first. Redis failures short-circuit to the caller.
+/// Writes the trip if no other pod got there first. Serialisation and redis failures alike
+/// short-circuit to the caller, which logs them on one path.
 async fn write_trip(
     state: &SessionState,
     rollout_scope: &str,
-    record: String,
+    record: &TripRecord,
 ) -> error_stack::Result<redis_interface::SetnxReply, storage_impl::errors::RedisError> {
+    let record = serde_json::to_string(record)
+        .change_context(storage_impl::errors::RedisError::JsonSerializationFailed)?;
+
     state
         .store
         .get_redis_conn()?
