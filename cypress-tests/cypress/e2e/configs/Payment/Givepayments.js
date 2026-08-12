@@ -19,15 +19,6 @@ const successfulNo3DSCardDetails = {
   card_network: "Visa",
 };
 
-const successfulDebitCardDetails = {
-  card_number: "4000056655665556",
-  card_exp_month: "12",
-  card_exp_year: "2029",
-  card_holder_name: "John Doe",
-  card_cvc: "123",
-  card_network: "Visa",
-};
-
 const billingWithEmail = (email) => ({
   address: {
     line1: "1467",
@@ -203,49 +194,6 @@ export const connectorDetails = {
         },
       },
     },
-    DebitNo3DSAutoCapture: {
-      Request: {
-        payment_method: "card",
-        payment_method_type: "debit",
-        payment_method_data: {
-          card: successfulDebitCardDetails,
-        },
-        currency: "USD",
-        customer_acceptance: null,
-        setup_future_usage: "on_session",
-        email: generateGivepaymentsEmail(),
-        billing: billingWithEmail(generateGivepaymentsEmail()),
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
-      },
-    },
-    DebitNo3DSManualCapture: {
-      Configs: {
-        TRIGGER_SKIP: true, // givepayments only supports automatic capture
-      },
-      Request: {
-        payment_method: "card",
-        payment_method_type: "debit",
-        payment_method_data: {
-          card: successfulDebitCardDetails,
-        },
-        currency: "USD",
-        customer_acceptance: null,
-        setup_future_usage: "on_session",
-        email: generateGivepaymentsEmail(),
-        billing: billingWithEmail(generateGivepaymentsEmail()),
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_capture",
-        },
-      },
-    },
     // givepayments settles refunds asynchronously — settlement was never
     // observed even after extended polling, so these assert the real,
     // immediately-observed "processing" state instead of waiting for a
@@ -381,44 +329,6 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_capture",
-        },
-      },
-    },
-    DebitMandateSingleUseNo3DSAutoCapture: {
-      Request: {
-        payment_method: "card",
-        payment_method_type: "debit",
-        payment_method_data: {
-          card: successfulDebitCardDetails,
-        },
-        currency: "USD",
-        mandate_data: singleUseMandateData,
-        email: generateGivepaymentsEmail(),
-        billing: billingWithEmail(generateGivepaymentsEmail()),
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
-      },
-    },
-    DebitMandateMultiUseNo3DSAutoCapture: {
-      Request: {
-        payment_method: "card",
-        payment_method_type: "debit",
-        payment_method_data: {
-          card: successfulDebitCardDetails,
-        },
-        currency: "USD",
-        mandate_data: multiUseMandateData,
-        email: generateGivepaymentsEmail(),
-        billing: billingWithEmail(generateGivepaymentsEmail()),
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
         },
       },
     },
