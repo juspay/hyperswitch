@@ -42,6 +42,11 @@ pub struct RouterGatewayContext {
 
     /// Execution path (Direct, UCS, or Shadow)
     pub execution_path: ExecutionPath,
+
+    /// The rollout config key that produced the Primary/Shadow execution-mode
+    /// decision for this request, if any. Captured at routing time so the UCS
+    /// primary→shadow kill switch knows exactly which `configs` row to flip.
+    pub ucs_matched_rollout_key: Option<String>,
 }
 
 impl RouterGatewayContext {
@@ -73,6 +78,7 @@ impl RouterGatewayContext {
             execution_mode,
             execution_path,
             creds_identifier,
+            ucs_matched_rollout_key: None,
         }
     }
     pub fn direct(
@@ -93,6 +99,7 @@ impl RouterGatewayContext {
             execution_mode: ExecutionMode::NotApplicable,
             execution_path: ExecutionPath::Direct,
             creds_identifier,
+            ucs_matched_rollout_key: None,
         }
     }
 }
