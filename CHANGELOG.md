@@ -4,6 +4,21 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.07.29.2-hotfix4
+
+### Features
+
+- **routing:** Add automatic kill switch for decision engine routing diffs ([#13646](https://github.com/juspay/hyperswitch/pull/13646)) ([`53157ff`](https://github.com/juspay/hyperswitch/commit/53157ffcd716343fcd4fbbc022d7e459f8261b36))
+- **ucs:** Add automatic kill switch for deterministic UCS failures ([#13647](https://github.com/juspay/hyperswitch/pull/13647)) ([`44774b9`](https://github.com/juspay/hyperswitch/commit/44774b910b588179882e5275877d073fb66e8451))
+
+### Bug Fixes
+
+- **router:** Add setup future usage check in payment session tokens flow to fetch vault session details ([#13615](https://github.com/juspay/hyperswitch/pull/13615)) ([`0561011`](https://github.com/juspay/hyperswitch/commit/0561011e3fab1f19ce72066b16100937b34acee1))
+
+**Full Changelog:** [`2026.07.29.2-hotfix3...2026.07.29.2-hotfix4`](https://github.com/juspay/hyperswitch/compare/2026.07.29.2-hotfix3...2026.07.29.2-hotfix4)
+
+- - -
+
 ## 2026.07.29.2-hotfix3
 
 ### Features
