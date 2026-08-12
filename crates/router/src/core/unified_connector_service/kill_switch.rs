@@ -120,7 +120,7 @@ pub async fn record_failure(
     }
 }
 
-/// Counts the failure, and trips its scope when the switch is turned on.
+/// Counts the failure, trips its scope when the switch is turned on, and reports what happened.
 async fn record_trippable_failure(
     state: &SessionState,
     failure: &TrippableFailure,
@@ -136,22 +136,29 @@ async fn record_trippable_failure(
         ),
     );
 
-    if is_config_flag_enabled(state, consts::UCS_KILL_SWITCH_ENABLED).await {
-        trip(state, failure, context, error).await;
+    let outcome = if is_config_flag_enabled(state, consts::UCS_KILL_SWITCH_ENABLED).await {
+        trip(state, failure, context).await
     } else {
-        // Fires on every qualifying failure: calibration feed, not an alert.
-        logger::warn!(
-            rollout_scope = %failure.rollout_scope,
-            merchant_id = %context.merchant_id,
-            connector = %context.connector_name,
-            flow = %context.flow_name,
-            payment_id = %context.payment_id,
-            request_id = ?state.request_id,
-            reason = %failure.reason,
-            ucs_error = ?error,
-            "ucs_kill_switch: qualifying failure observed but the kill switch is turned off"
-        );
-    }
+        TripOutcome::SwitchOff
+    };
+
+    // The one line this path emits, carrying every dimension of the decision. Alert on `outcome`
+    // rather than on a message: `tripped` means a scope left UCS, `write_failed` means one should
+    // have and did not. While the switch is off every line reads `switch_off`, which is the feed
+    // for validating the classifier against real traffic before turning it on.
+    logger::warn!(
+        rollout_scope = %failure.rollout_scope,
+        merchant_id = %context.merchant_id,
+        connector = %context.connector_name,
+        flow = %context.flow_name,
+        payment_method = %context.payment_method,
+        payment_id = %context.payment_id,
+        request_id = ?state.request_id,
+        reason = %failure.reason,
+        outcome = %outcome,
+        ucs_error = ?error,
+        "ucs_kill_switch"
+    );
 }
 
 /// What this failure would trip, or `None` when nothing can come of it: shadow traffic, a
@@ -195,13 +202,27 @@ async fn is_ucs_only_connector(state: &SessionState, connector_name: &str) -> bo
     }
 }
 
+/// What came of a trippable failure. Reported as a field on the one line the recording path
+/// emits, so an alert keys on the outcome rather than on several message strings.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, strum::Display)]
+#[strum(serialize_all = "snake_case")]
+enum TripOutcome {
+    /// This pod wrote the trip. The scope now serves from the direct integration.
+    Tripped,
+    /// Another pod wrote it first.
+    AlreadyTripped,
+    /// The failure qualified, but enforcement is turned off.
+    SwitchOff,
+    /// Redis refused the write, so the scope stays on UCS.
+    WriteFailed,
+}
+
 /// Writes the trip. `SET NX` makes it exactly-once: one concurrent writer wins, the rest no-op.
 async fn trip(
     state: &SessionState,
     failure: &TrippableFailure,
     context: &UcsFailureContext<'_>,
-    error: &UnifiedConnectorServiceError,
-) {
+) -> TripOutcome {
     let TrippableFailure {
         rollout_scope,
         reason,
@@ -223,31 +244,20 @@ async fn trip(
                     ("reason", reason.to_string())
                 ),
             );
-            // Fires once per scope. This is the line to alert on.
-            logger::error!(
-                rollout_scope = %rollout_scope,
-                merchant_id = %context.merchant_id,
-                connector = %context.connector_name,
-                flow = %context.flow_name,
-                payment_id = %context.payment_id,
-                request_id = ?state.request_id,
-                reason = %reason,
-                ucs_error = ?error,
-                "ucs_kill_switch: tripping the scope back to the direct integration"
-            );
+
+            TripOutcome::Tripped
         }
-        Ok(redis_interface::SetnxReply::KeyNotSet) => {
-            logger::debug!(
-                rollout_scope = %rollout_scope,
-                "ucs_kill_switch: scope is already tripped"
-            );
-        }
+        Ok(redis_interface::SetnxReply::KeyNotSet) => TripOutcome::AlreadyTripped,
+        // The cause does not belong on the summary line, and it is the one thing an operator
+        // cannot act on without it.
         Err(error) => {
             logger::error!(
                 ?error,
                 rollout_scope = %rollout_scope,
-                "ucs_kill_switch: failed to persist the trip, scope stays on UCS"
+                "ucs_kill_switch: could not persist the trip"
             );
+
+            TripOutcome::WriteFailed
         }
     }
 }
