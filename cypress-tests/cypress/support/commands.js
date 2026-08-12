@@ -7969,6 +7969,14 @@ Cypress.Commands.add("diffCheckResult", (globalState) => {
   // Phase 2: Fetch Validation Results
   const validationServiceUrl = globalState.get("validationServiceUrl");
 
+  if (!validationServiceUrl) {
+    cy.task(
+      "cli_log",
+      "VALIDATION_SERVICE_URL is not set. Skipping diff check validation."
+    );
+    return;
+  }
+
   cy.request({
     method: "GET",
     url: validationServiceUrl,
