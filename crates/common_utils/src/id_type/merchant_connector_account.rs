@@ -31,3 +31,10 @@ impl FromStr for MerchantConnectorAccountId {
         Self::try_from(std::borrow::Cow::Owned(s.to_string())).map_err(|_| std::fmt::Error)
     }
 }
+
+#[cfg(feature = "metrics")]
+impl From<MerchantConnectorAccountId> for router_env::opentelemetry::Value {
+    fn from(val: MerchantConnectorAccountId) -> Self {
+        Self::from(val.0 .0 .0)
+    }
+}

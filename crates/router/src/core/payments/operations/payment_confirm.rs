@@ -83,6 +83,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         request: &api::PaymentsRequest,
         platform: &domain::Platform,
         auth_flow: services::AuthFlow,
+        _flow_kind: operations::PaymentFlowKind,
         header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
         payment_method_fetch_data: operations::PaymentMethodFetchData,
         dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
@@ -492,6 +493,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .get_feature_metadata_as_value()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Error converting feature_metadata to Value")?
+            .map(hyperswitch_masking::Secret::new)
             .or(payment_intent.feature_metadata);
         payment_intent.metadata = request.metadata.clone().or(payment_intent.metadata);
         payment_intent.frm_metadata = request.frm_metadata.clone().or(payment_intent.frm_metadata);
@@ -517,7 +519,12 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .as_ref()
             .and_then(|pmd| pmd.payment_method_data.clone())
             .map(domain::PaymentMethodData::from)
-            .or(payment_method_recurring_details.clone());
+            .or(payment_method_recurring_details.clone())
+            .or_else(|| {
+                payment_method_with_raw_data
+                    .as_ref()
+                    .and_then(|payment_method| payment_method.raw_payment_method_data.clone())
+            });
 
         let store = state.clone().store;
         let superposition_service = state.superposition_service.clone();
@@ -597,7 +604,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             request.mandate_data.clone(),
             request.off_session,
             payment_intent.setup_future_usage,
-            request.customer_acceptance.clone(),
+            customer_acceptance.clone(),
             request.payment_token.clone(),
             payment_attempt.payment_method.or(request.payment_method),
         )
@@ -713,8 +720,16 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         } else {
             None
         };
-        // Only set `payment_attempt.payment_method_data` if `additional_pm_data_from_locker` is not None
-        if let Some(additional_pm_data) = additional_pm_data_from_locker.as_ref() {
+        // Modular payment methods keep raw payment data separate from the domain payment method.
+        // Persist only the derived supplementary data, falling back to the legacy locker metadata.
+        let additional_pm_data_to_persist = if payment_method_with_raw_data.is_some() {
+            additional_pm_data
+                .as_ref()
+                .or(additional_pm_data_from_locker.as_ref())
+        } else {
+            additional_pm_data_from_locker.as_ref()
+        };
+        if let Some(additional_pm_data) = additional_pm_data_to_persist {
             payment_attempt.payment_method_data = Some(
                 Encode::encode_to_value(additional_pm_data)
                     .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -944,6 +959,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             client_session_id: None,
             vault_session_details: None,
             external_vault_pmd: None,
+            update_request_fields: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -975,6 +991,18 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
 
         match payment_method_data {
             Some(api_models::payments::PaymentMethodData::Card(card)) => {
+                payment_data.card_testing_guard_data =
+                    card_testing_guard_utils::validate_card_testing_guard_checks(
+                        state,
+                        request.browser_info.as_ref(),
+                        card.card_number.clone(),
+                        customer_id,
+                        business_profile,
+                    )
+                    .await?;
+                Ok(())
+            }
+            Some(api_models::payments::PaymentMethodData::CardWithNoCVC(card)) => {
                 payment_data.card_testing_guard_data =
                     card_testing_guard_utils::validate_card_testing_guard_checks(
                         state,
@@ -1033,7 +1061,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                         .payment_intent
                         .customer_id
                         .as_ref()
-                        .is_some_and(|existing_id| existing_id != &cust.customer_id)
+                        .is_some_and(|existing_id| existing_id != cust.get_id())
                         .then_some(errors::StorageError::ValueNotFound(
                             "Customer id mismatch between payment intent and request".to_string(),
                         ))
@@ -1088,7 +1116,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
             state
                 .store
                 .update_customer_by_customer_id_merchant_id(
-                    customer.customer_id.to_owned(),
+                    customer.get_id().to_owned(),
                     customer.merchant_id.to_owned(),
                     customer,
                     updated_customer,
@@ -1109,6 +1137,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         req: &api::PaymentsRequest,
         platform: &domain::Platform,
         payment_data: &mut PaymentData<F>,
+        customer: Option<&domain::Customer>,
         business_profile: &domain::Profile,
         feature_config: &core_utils::FeatureConfig,
     ) -> RouterResult<()> {
@@ -1123,6 +1152,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                         .and_then(|pmd| pmd.payment_method_data.as_ref())
                     {
                         Some(api_models::payments::PaymentMethodData::Card(_))
+                        | Some(api_models::payments::PaymentMethodData::CardWithNoCVC(_))
                         | Some(api_models::payments::PaymentMethodData::BankDebit(_))
                         | Some(api_models::payments::PaymentMethodData::Wallet(_))
                         | Some(api_models::payments::PaymentMethodData::BankRedirect(_)) => {
@@ -1137,6 +1167,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                                         == Some(common_enums::FutureUsage::OffSession)
                                 }
                                 Some(api_models::payments::PaymentMethodData::Card(_))
+                                | Some(api_models::payments::PaymentMethodData::CardWithNoCVC(_))
                                 | Some(api_models::payments::PaymentMethodData::BankRedirect(_))
                                 | Some(api_models::payments::PaymentMethodData::BankDebit(_)) => {
                                     true
@@ -1159,6 +1190,10 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                                     .ok_or(errors::ApiErrorResponse::MissingRequiredField {
                                         field_name: "payment_method_data",
                                     })?;
+                                let customer =
+                                    customer.ok_or(errors::ApiErrorResponse::CustomerNotFound)?;
+                                let global_customer_id =
+                                    customer.get_global_id().cloned().get_required_value("id")?;
 
                                 match pm_transformers::create_payment_method_in_modular_service(
                                     state,
@@ -1172,11 +1207,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                                         .address
                                         .get_request_payment_method_billing()
                                         .cloned(),
-                                    payment_data
-                                        .payment_intent
-                                        .customer_id
-                                        .clone()
-                                        .get_required_value("customer_id")?,
+                                    global_customer_id,
                                     business_profile.is_network_tokenization_enabled,
                                 )
                                 .await
@@ -1242,23 +1273,35 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
             if let Some(payment_method_ref) = self.get_payment_method_reference(req) {
                 let payment_method_ref_to_use = match req.payment_token.as_deref() {
                     Some(payment_token) if payment_token == payment_method_ref => {
-                        let token_data = helpers::retrieve_payment_token_data(
+                        // Best-effort: resolve the token to its stored payment_method_id. A
+                        // self-hosted vault token minted by the modular PM service is not present in
+                        // the legacy redis token store (different key), so a miss/error here is not
+                        // fatal — fall back to using the reference as-is and let the modular fetch
+                        // resolve it, instead of failing the payment with "token invalid or expired".
+                        match helpers::retrieve_payment_token_data(
                             state,
                             payment_method_ref.to_string(),
                             req.payment_method,
                         )
-                        .await?;
-
-                        match token_data {
-                            storage::PaymentTokenData::Permanent(card_token_data)
-                            | storage::PaymentTokenData::PermanentCard(card_token_data) => {
-                                card_token_data
-                                    .payment_method_id
-                                    .as_deref()
-                                    .unwrap_or(payment_method_ref)
-                                    .to_owned()
+                        .await
+                        {
+                            Ok(
+                                storage::PaymentTokenData::Permanent(card_token_data)
+                                | storage::PaymentTokenData::PermanentCard(card_token_data),
+                            ) => card_token_data
+                                .payment_method_id
+                                .as_deref()
+                                .unwrap_or(payment_method_ref)
+                                .to_owned(),
+                            Ok(_) => payment_method_ref.to_owned(),
+                            Err(err) => {
+                                logger::warn!(
+                                    ?err,
+                                    payment_method_ref,
+                                    "Failed to fetch payment token from payment server; falling back to PM Modular Service"
+                                );
+                                payment_method_ref.to_owned()
                             }
-                            _ => payment_method_ref.to_owned(),
                         }
                     }
                     _ => payment_method_ref.to_owned(),
@@ -1487,9 +1530,19 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
             }) => {
                 let billing_address = payment_data.address.get_payment_method_billing().cloned();
                 let shipping = payment_data.address.get_shipping().cloned();
+                let browser_info: Option<
+                    hyperswitch_domain_models::router_request_types::BrowserInformation,
+                > = payment_data
+                    .payment_attempt
+                    .browser_info
+                    .clone()
+                    .parse_value("BrowserInfo")
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to parse browser_info")?;
                 let authentication_store = Box::pin(authentication::perform_pre_authentication(
                     state,
                     processor,
+                    payment_data.payment_attempt.merchant_id.clone(),
                     *card,
                     token,
                     business_profile,
@@ -1500,7 +1553,10 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     payment_data.payment_intent.psd2_sca_exemption_type,
                     billing_address,
                     shipping,
+                    browser_info,
                     initiator,
+                    Some(payment_data.payment_intent.amount),
+                    payment_data.payment_intent.currency,
                 ))
                 .await?;
                 if authentication_store
@@ -1655,6 +1711,30 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                             .inspect_err(|err| logger::error!("{:?}", err))
                             .ok()
                             .unwrap_or_default(),
+                        card_bin: payment_data
+                            .payment_method_data
+                            .as_ref()
+                            .and_then(|payment_method_data| payment_method_data.get_card_iin())
+                            .or_else(|| {
+                                additional_card_info
+                                    .as_ref()
+                                    .and_then(|card_info| card_info.card_isin.clone())
+                            }),
+                        extended_card_bin: payment_data
+                            .payment_method_data
+                            .as_ref()
+                            .and_then(|payment_method_data| {
+                                payment_method_data.get_card_extended_bin()
+                            })
+                            .or_else(|| {
+                                additional_card_info
+                                    .as_ref()
+                                    .and_then(|card_info| card_info.card_extended_bin.clone())
+                            }),
+                        business_country: payment_data
+                            .payment_intent
+                            .business_country
+                            .map(common_enums::Country::from_alpha2),
                     },
                     payment_method: Some(
                         api_models::three_ds_decision_rule::PaymentMethodMetaData {
@@ -1697,6 +1777,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                             fraud_rate: acquirer.acquirer_fraud_rate,
                         }
                     }),
+                    metadata: payment_data.payment_intent.metadata.clone(),
                 },
             )
             .await
@@ -2061,12 +2142,12 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
 
                     payment_data.payment_attempt.authentication_id = Some(auth_create_resp.authentication_id.clone());
 
-                    let elig_resp = crate::core::unified_authentication_service::authentication_eligibility_core(
+                    let elig_resp = Box::pin(crate::core::unified_authentication_service::authentication_eligibility_core(
                         state.clone(),
                         platform.clone(),
                         eligibility_req,
                         auth_create_resp.authentication_id.clone(),
-                    ).await?
+                    )).await?
                     .get_json_body()
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed to get json body from authentication eligibility response")?;
@@ -2115,7 +2196,8 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                         payment_data.payment_attempt.profile_id.clone(),
                         payment_data.payment_attempt.organization_id.clone(),
                     )
-                 );
+                 )
+                    .update_storage_scheme(platform.get_processor().get_account().storage_scheme);
 
                 let authentication_store = hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore {
                         cavv: None,
@@ -2182,15 +2264,32 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                         sync_response.clone(),
                         payment_data.payment_attempt.organization_id.clone(),
                     )
-                 );
+                 )
+                    .update_storage_scheme(platform.get_processor().get_account().storage_scheme);
 
-                let cryptogram = sync_response.authentication_details.and_then(|authentication_details| authentication_details.three_ds_data.and_then(|data| data.authentication_cryptogram)).ok_or(errors::ApiErrorResponse::MissingRequiredField{field_name:"authentication_cryptogram"})?;
+                let cavv = if updated_authentication_status
+                    == api_models::enums::AuthenticationStatus::Success
+                {
+                    let cryptogram = sync_response
+                        .authentication_details
+                        .and_then(|authentication_details| authentication_details.three_ds_data)
+                        .and_then(|data| data.authentication_cryptogram)
+                        .ok_or(errors::ApiErrorResponse::MissingRequiredField {
+                            field_name: "authentication_cryptogram",
+                        })?;
+
+                    match cryptogram {
+                        api_models::authentication::Cryptogram::Cavv {
+                            authentication_cryptogram,
+                        } => Some(authentication_cryptogram),
+                    }
+                } else {
+                    None
+                };
 
                 let authentication_store =
                         hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore {
-                            cavv: match cryptogram {
-                                api_models::authentication::Cryptogram::Cavv { authentication_cryptogram } => Some(authentication_cryptogram),
-                            },
+                            cavv,
                             authentication:authentication_domain_model
                         };
 
@@ -2356,6 +2455,23 @@ impl PaymentConfirm {
             Some(domain::PaymentMethodData::CardToken(token)) => Some(token),
             _ => None,
         };
+        // Self-hosted (default) vault repeat-customer flow: the saved card is referenced by the
+        // top-level `payment_token`, while the freshly-tokenized CVC arrives as `card_cvc_token`
+        // (minted by the modular PM service and stored in redis keyed by that token). Resolve it to
+        // the raw CVC here so the modular fetch below receives a usable card. `take()` consumes the
+        // token so it is not carried any further.
+        if let Some(token) = card_token_data.as_mut() {
+            if let Some(card_cvc_token) = token.card_cvc_token.take() {
+                let resolved_cvc =
+                    crate::core::payment_methods::vault::retrieve_and_delete_cvc_from_payment_token(
+                        state,
+                        card_cvc_token.peek(),
+                        platform.get_provider().get_key_store(),
+                    )
+                    .await?;
+                token.card_cvc = Some(resolved_cvc);
+            }
+        }
         if let Some(card_cvc) = req.card_cvc.clone() {
             if let Some(card_token_data) = card_token_data.as_mut() {
                 card_token_data.card_cvc = Some(card_cvc);
@@ -2363,6 +2479,7 @@ impl PaymentConfirm {
                 card_token_data = Some(domain::CardToken {
                     card_holder_name: None,
                     card_cvc: Some(card_cvc),
+                    card_cvc_token: None,
                 });
             }
         }
@@ -2627,9 +2744,9 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
         let m_fingerprint_id = payment_data.payment_attempt.fingerprint_id.clone();
         let m_db = state.clone().store;
         let surcharge_amount = payment_data
-            .surcharge_details
-            .as_ref()
-            .map(|surcharge_details| surcharge_details.surcharge_amount);
+            .payment_attempt
+            .net_amount
+            .get_surcharge_amount();
         let tax_amount = payment_data
             .surcharge_details
             .as_ref()
@@ -2743,6 +2860,10 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                             .request_extended_authorization,
                         tokenization: payment_data.payment_attempt.get_tokenization_strategy(),
                         installment_data,
+                        external_surcharge_details: payment_data
+                            .payment_attempt
+                            .external_surcharge_details
+                            .clone(),
                     },
                     storage_scheme,
                     &cloned_key_store,
@@ -2820,8 +2941,10 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                         description: m_description,
                         statement_descriptor_name: m_statement_descriptor_name,
                         statement_descriptor_suffix: m_statement_descriptor_suffix,
+                        billing_descriptor: payment_data.payment_intent.billing_descriptor.clone(),
                         order_details: m_order_details,
                         metadata: m_metadata,
+                        connector_metadata: payment_data.payment_intent.connector_metadata.clone(),
                         payment_confirm_source: header_payload.payment_confirm_source,
                         updated_by: m_storage_scheme,
                         fingerprint_id: None,
@@ -2840,11 +2963,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                             .is_iframe_redirection_enabled,
                         is_confirm_operation: true, // Indicates that this is a confirm operation
                         payment_channel: payment_data.payment_intent.payment_channel,
-                        feature_metadata: payment_data
-                            .payment_intent
-                            .feature_metadata
-                            .clone()
-                            .map(hyperswitch_masking::Secret::new),
+                        feature_metadata: payment_data.payment_intent.feature_metadata.clone(),
                         tax_status: payment_data.payment_intent.tax_status,
                         discount_amount: payment_data.payment_intent.discount_amount,
                         order_date: payment_data.payment_intent.order_date,

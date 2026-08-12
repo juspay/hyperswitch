@@ -80,6 +80,7 @@ pub enum CaptureUpdate {
 
 #[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
 #[diesel(table_name = captures)]
+#[router_derive::apply_changeset(target = Capture)]
 pub struct CaptureUpdateInternal {
     pub status: Option<storage_enums::CaptureStatus>,
     pub error_message: Option<String>,
@@ -89,33 +90,6 @@ pub struct CaptureUpdateInternal {
     pub connector_capture_id: Option<ConnectorTransactionId>,
     pub connector_response_reference_id: Option<String>,
     pub processor_capture_data: Option<String>,
-}
-
-impl CaptureUpdate {
-    pub fn apply_changeset(self, source: Capture) -> Capture {
-        let CaptureUpdateInternal {
-            status,
-            error_message,
-            error_code,
-            error_reason,
-            modified_at: _,
-            connector_capture_id,
-            connector_response_reference_id,
-            processor_capture_data,
-        } = self.into();
-        Capture {
-            status: status.unwrap_or(source.status),
-            error_message: error_message.or(source.error_message),
-            error_code: error_code.or(source.error_code),
-            error_reason: error_reason.or(source.error_reason),
-            modified_at: common_utils::date_time::now(),
-            connector_capture_id: connector_capture_id.or(source.connector_capture_id),
-            connector_response_reference_id: connector_response_reference_id
-                .or(source.connector_response_reference_id),
-            processor_capture_data: processor_capture_data.or(source.processor_capture_data),
-            ..source
-        }
-    }
 }
 
 impl From<CaptureUpdate> for CaptureUpdateInternal {

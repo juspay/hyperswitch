@@ -816,25 +816,39 @@ pub async fn payments_update(
 
     let locking_action = payload.get_locking_input(flow.clone());
 
+    let header_payload = match HeaderPayload::foreign_try_from(req.headers()) {
+        Ok(headers) => headers,
+        Err(err) => {
+            return api::log_and_return_error_response(err);
+        }
+    };
+
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
         payload,
-        |state, auth: auth::AuthenticationData, mut req, req_state| {
-            if let Some(client_secret) = auth.client_secret {
-                req.client_secret = Some(client_secret);
-            }
-
-            authorize_verify_select::<_>(
-                payments::PaymentUpdate,
+        |state, auth: auth::AuthenticationData, req, req_state| {
+            payments::payments_core::<
+                api_types::UpdatePostConfirm,
+                payment_types::PaymentsResponse,
+                _,
+                _,
+                _,
+                payments::PaymentData<api_types::UpdatePostConfirm>,
+            >(
                 state,
                 req_state,
                 auth.platform,
                 auth.profile.map(|profile| profile.get_id().clone()),
-                HeaderPayload::default(),
+                payments::PaymentUpdate,
                 req,
                 auth_flow,
+                payments::CallConnectorAction::Trigger,
+                None,
+                None,
+                header_payload.clone(),
+                None,
             )
         },
         &*auth_type,
@@ -1721,10 +1735,11 @@ pub async fn payments_cancel(
                             &req,
                             &auth.platform,
                             api::AuthFlow::Merchant,
+                            payments::operations::PaymentFlowKind::Standard,
                             &header_payload,
                             crate::core::payment_methods::transformers::PaymentMethodFetchData::default(),
                             &preliminary_dimensions,
-                            None,
+                            None
                         )
                         .await?;
 
@@ -1777,8 +1792,7 @@ pub async fn payments_cancel(
                         None,
                         None,
                         header_payload.clone(),
-                        Some(payment_pre_fetched_info),
-                    ))
+                        Some(payment_pre_fetched_info),))
                     .await
                 } else {
                     Box::pin(payments::payments_core::<
@@ -1800,8 +1814,7 @@ pub async fn payments_cancel(
                         None,
                         None,
                         header_payload.clone(),
-                        Some(payment_pre_fetched_info),
-                    ))
+                        Some(payment_pre_fetched_info),))
                     .await
                 }
             }
@@ -2579,26 +2592,56 @@ where
                     .unwrap_or(false);
 
                 if should_call_external_vault_proxy {
-                    Box::pin(payments::external_vault_proxy_for_payments_core::<
-                        api_types::ExternalVaultProxy,
-                        payment_types::PaymentsResponse,
-                        _,
-                        _,
-                        _,
-                        payments::PaymentData<api_types::ExternalVaultProxy>,
-                    >(
-                        state,
-                        req_state,
-                        platform,
-                        profile_id,
-                        payments::PaymentExternalVaultProxyConfirm,
-                        req,
-                        auth_flow,
-                        payments::CallConnectorAction::Trigger,
-                        header_payload,
-                        None,
-                    ))
-                    .await
+                    // A single-call create+confirm (the create endpoint with `confirm = true`)
+                    // reaches here before any intent exists, so drive the proxy core with
+                    // `PaymentCreate`: it persists the intent/attempt and swaps to
+                    // `PaymentExternalVaultProxyConfirm` for the downstream connector call. The
+                    // standalone confirm endpoint already has an intent, so it runs the proxy
+                    // confirm operation directly.
+                    let is_payment_create = format!("{operation:?}") == "PaymentCreate";
+                    if is_payment_create {
+                        Box::pin(payments::external_vault_proxy_for_payments_core::<
+                            api_types::ExternalVaultProxy,
+                            payment_types::PaymentsResponse,
+                            _,
+                            _,
+                            _,
+                            payments::PaymentData<api_types::ExternalVaultProxy>,
+                        >(
+                            state,
+                            req_state,
+                            platform,
+                            profile_id,
+                            payments::PaymentCreate,
+                            req,
+                            auth_flow,
+                            payments::CallConnectorAction::Trigger,
+                            header_payload,
+                            None,
+                        ))
+                        .await
+                    } else {
+                        Box::pin(payments::external_vault_proxy_for_payments_core::<
+                            api_types::ExternalVaultProxy,
+                            payment_types::PaymentsResponse,
+                            _,
+                            _,
+                            _,
+                            payments::PaymentData<api_types::ExternalVaultProxy>,
+                        >(
+                            state,
+                            req_state,
+                            platform,
+                            profile_id,
+                            payments::PaymentExternalVaultProxyConfirm,
+                            req,
+                            auth_flow,
+                            payments::CallConnectorAction::Trigger,
+                            header_payload,
+                            None,
+                        ))
+                        .await
+                    }
                 } else {
                     let (payment_data, _req, connector_http_status_code, external_latency) =
                         Box::pin(payments::payments_operation_core::<
@@ -3970,8 +4013,7 @@ pub async fn confirm_intent_with_external_vault_proxy(
                 payment_id,
                 payments::CallConnectorAction::Trigger,
                 header_payload.clone(),
-                None,
-            ))
+                None,))
         },
         auth::api_or_client_auth(
             &auth::V2ApiKeyAuth {

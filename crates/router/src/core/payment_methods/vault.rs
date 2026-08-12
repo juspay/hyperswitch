@@ -1,5 +1,7 @@
+use std::collections::HashMap;
+
 use common_enums::PaymentMethodType;
-#[cfg(feature = "v2")]
+#[cfg(any(feature = "v1", feature = "v2"))]
 use common_utils::encryption::Encryption;
 use common_utils::{
     crypto::{DecodeMessage, EncodeMessage, GcmAes256},
@@ -41,6 +43,10 @@ use crate::{
     },
     utils::{ConnectorResponseExt, StringExt},
 };
+// `pm_cards` and `OptionExt` are imported for v2 via the larger v2-only `use` block below; the v1
+// build needs them for `retrieve_and_delete_cvc_from_payment_token` (self-hosted vault CVC retrieval).
+#[cfg(feature = "v1")]
+use crate::{core::payment_methods::cards as pm_cards, utils::ext_traits::OptionExt};
 #[cfg(feature = "v2")]
 use crate::{
     core::{
@@ -731,6 +737,8 @@ pub struct TokenizedBankInsensitiveValues {
     pub bank_city: Option<String>,
     pub bank_branch: Option<String>,
     pub ispb: Option<String>,
+    pub bank_code: Option<String>,
+    pub bank_account_type: Option<common_enums::BankType>,
     pub payout_method_type: Option<PaymentMethodType>,
 }
 
@@ -787,7 +795,7 @@ impl Vaultable for api::BankPayout {
                 tax_id: bank_details.tax_id.to_owned(),
                 bank_number: None,
                 emv: None,
-                account_holder_name: None,
+                account_holder_name: bank_details.account_holder_name.clone(),
             },
             Self::Trustly(bank_details) => TokenizedBankSensitiveValues {
                 bank_account_number: bank_details.account_number.to_owned(),
@@ -833,6 +841,8 @@ impl Vaultable for api::BankPayout {
                 bank_city: b.bank_city.to_owned(),
                 bank_branch: None,
                 ispb: None,
+                bank_code: None,
+                bank_account_type: None,
                 payout_method_type: Some(PaymentMethodType::Ach),
             },
             Self::Bacs(b) => TokenizedBankInsensitiveValues {
@@ -842,6 +852,8 @@ impl Vaultable for api::BankPayout {
                 bank_city: b.bank_city.to_owned(),
                 bank_branch: None,
                 ispb: None,
+                bank_code: None,
+                bank_account_type: None,
                 payout_method_type: Some(PaymentMethodType::Bacs),
             },
             Self::Sepa(bank_details) => TokenizedBankInsensitiveValues {
@@ -851,6 +863,8 @@ impl Vaultable for api::BankPayout {
                 bank_city: bank_details.bank_city.to_owned(),
                 bank_branch: None,
                 ispb: None,
+                bank_code: None,
+                bank_account_type: None,
                 payout_method_type: Some(PaymentMethodType::Sepa),
             },
             Self::Pix(bank_details) => TokenizedBankInsensitiveValues {
@@ -860,6 +874,8 @@ impl Vaultable for api::BankPayout {
                 bank_city: None,
                 bank_branch: bank_details.bank_branch.to_owned(),
                 ispb: bank_details.ispb.to_owned(),
+                bank_code: bank_details.bank_code.to_owned(),
+                bank_account_type: bank_details.bank_account_type,
                 payout_method_type: Some(PaymentMethodType::Pix),
             },
             Self::Trustly(bank_details) => TokenizedBankInsensitiveValues {
@@ -869,6 +885,8 @@ impl Vaultable for api::BankPayout {
                 bank_branch: None,
                 bank_country_code: Some(bank_details.country_code.to_owned()),
                 ispb: None,
+                bank_code: None,
+                bank_account_type: None,
                 payout_method_type: Some(PaymentMethodType::Trustly),
             },
             Self::OpenBanking(_) => TokenizedBankInsensitiveValues {
@@ -878,6 +896,8 @@ impl Vaultable for api::BankPayout {
                 bank_branch: None,
                 bank_country_code: None,
                 ispb: None,
+                bank_code: None,
+                bank_account_type: None,
                 payout_method_type: Some(PaymentMethodType::OpenBanking),
             },
         };
@@ -972,6 +992,9 @@ impl Vaultable for api::BankPayout {
                     tax_id,
                     emv: bank_sensitive_data.emv,
                     ispb: bank_insensitive_data.ispb,
+                    bank_code: bank_insensitive_data.bank_code,
+                    bank_account_type: bank_insensitive_data.bank_account_type,
+                    account_holder_name: bank_sensitive_data.account_holder_name,
                 })
             }
             _ => Err(errors::VaultError::ResponseDeserializationFailed)?,
@@ -1039,7 +1062,7 @@ impl Vaultable for api::BankTransferPayout {
                 tax_id: bank_details.tax_id.to_owned(),
                 bank_number: None,
                 emv: None,
-                account_holder_name: None,
+                account_holder_name: bank_details.account_holder_name.clone(),
             },
             Self::PixKey(pix_key_details) => TokenizedBankSensitiveValues {
                 bank_account_number: None,
@@ -1109,6 +1132,8 @@ impl Vaultable for api::BankTransferPayout {
                 bank_city: b.bank_city.to_owned(),
                 bank_branch: None,
                 ispb: None,
+                bank_code: None,
+                bank_account_type: None,
                 payout_method_type: Some(PaymentMethodType::Ach),
             },
             Self::Bacs(b) => TokenizedBankInsensitiveValues {
@@ -1118,6 +1143,8 @@ impl Vaultable for api::BankTransferPayout {
                 bank_city: b.bank_city.to_owned(),
                 bank_branch: None,
                 ispb: None,
+                bank_code: None,
+                bank_account_type: None,
                 payout_method_type: Some(PaymentMethodType::Bacs),
             },
             Self::Sepa(bank_details) => TokenizedBankInsensitiveValues {
@@ -1127,6 +1154,8 @@ impl Vaultable for api::BankTransferPayout {
                 bank_city: bank_details.bank_city.to_owned(),
                 bank_branch: None,
                 ispb: None,
+                bank_code: None,
+                bank_account_type: None,
                 payout_method_type: Some(PaymentMethodType::Sepa),
             },
             Self::Pix(bank_details) => TokenizedBankInsensitiveValues {
@@ -1136,6 +1165,8 @@ impl Vaultable for api::BankTransferPayout {
                 bank_city: None,
                 bank_branch: bank_details.bank_branch.to_owned(),
                 ispb: bank_details.ispb.to_owned(),
+                bank_code: bank_details.bank_code.to_owned(),
+                bank_account_type: bank_details.bank_account_type,
                 payout_method_type: Some(PaymentMethodType::Pix),
             },
             Self::PixKey(_) => TokenizedBankInsensitiveValues {
@@ -1145,6 +1176,8 @@ impl Vaultable for api::BankTransferPayout {
                 bank_city: None,
                 bank_branch: None,
                 ispb: None,
+                bank_code: None,
+                bank_account_type: None,
                 payout_method_type: Some(PaymentMethodType::PixKey),
             },
             Self::PixEmv(_) => TokenizedBankInsensitiveValues {
@@ -1154,6 +1187,8 @@ impl Vaultable for api::BankTransferPayout {
                 bank_city: None,
                 bank_branch: None,
                 ispb: None,
+                bank_code: None,
+                bank_account_type: None,
                 payout_method_type: Some(PaymentMethodType::PixEmv),
             },
             Self::Trustly(bank_details) => TokenizedBankInsensitiveValues {
@@ -1163,6 +1198,8 @@ impl Vaultable for api::BankTransferPayout {
                 bank_branch: None,
                 bank_country_code: Some(bank_details.bank_country_code.to_owned()),
                 ispb: None,
+                bank_code: None,
+                bank_account_type: None,
                 payout_method_type: Some(PaymentMethodType::Trustly),
             },
             Self::OpenBanking(_) => TokenizedBankInsensitiveValues {
@@ -1172,6 +1209,8 @@ impl Vaultable for api::BankTransferPayout {
                 bank_branch: None,
                 bank_country_code: None,
                 ispb: None,
+                bank_code: None,
+                bank_account_type: None,
                 payout_method_type: Some(PaymentMethodType::OpenBanking),
             },
         };
@@ -1259,6 +1298,9 @@ impl Vaultable for api::BankTransferPayout {
                 bank_name: bank_insensitive_data.bank_name,
                 tax_id: bank_sensitive_data.tax_id,
                 ispb: bank_insensitive_data.ispb,
+                bank_code: bank_insensitive_data.bank_code,
+                bank_account_type: bank_insensitive_data.bank_account_type,
+                account_holder_name: bank_sensitive_data.account_holder_name,
             }),
             Some(PaymentMethodType::PixKey) => Self::PixKey(payouts::PixKeyBankTransfer {
                 pix_key: bank_sensitive_data.pix_key.ok_or(
@@ -1938,6 +1980,7 @@ async fn create_vault_request<R: pm_types::VaultingInterface>(
     payload: Vec<u8>,
     tenant_id: id_type::TenantId,
     write_mode: Option<pm_types::VaultQueryParam>,
+    additional_headers: Option<HashMap<String, String>>,
 ) -> CustomResult<request::Request, errors::VaultError> {
     let private_key = jwekey.vault_private_key.peek().as_bytes();
 
@@ -1969,6 +2012,12 @@ async fn create_vault_request<R: pm_types::VaultingInterface>(
         headers::X_TENANT_ID,
         tenant_id.get_string_repr().to_owned().into(),
     );
+
+    if let Some(additional_headers) = additional_headers {
+        for (header_name, header_value) in additional_headers {
+            request.add_header(&header_name, header_value.into());
+        }
+    }
     request.set_body(request::RequestContent::Json(Box::new(jwe_payload)));
     Ok(request)
 }
@@ -1978,9 +2027,22 @@ pub async fn call_to_vault<V: pm_types::VaultingInterface>(
     state: &routes::SessionState,
     payload: Vec<u8>,
     query_params: Option<pm_types::VaultQueryParam>,
+    additional_headers: Option<HashMap<String, String>>,
 ) -> CustomResult<String, errors::VaultError> {
     let locker = &state.conf.locker;
     let jwekey = state.conf.jwekey.get_inner();
+    let additional_headers = if cfg!(feature = "ext_services_latency") {
+        let mut additional_headers = additional_headers.unwrap_or_default();
+        if let Some(request_id) = state.request_id.as_ref() {
+            additional_headers.insert(
+                common_utils::consts::X_REQUEST_ID.to_string(),
+                request_id.to_string(),
+            );
+        }
+        additional_headers
+    } else {
+        additional_headers.unwrap_or_default()
+    };
 
     let request = create_vault_request::<V>(
         jwekey,
@@ -1988,9 +2050,10 @@ pub async fn call_to_vault<V: pm_types::VaultingInterface>(
         payload,
         state.tenant.tenant_id.to_owned(),
         query_params,
+        Some(additional_headers),
     )
     .await?;
-    let response = services::call_connector_api(state, request, V::get_vaulting_flow_name())
+    let response = services::call_connector_api(state, request, V::get_vaulting_flow_name(), None)
         .await
         .change_context(errors::VaultError::VaultAPIError);
 
@@ -2009,6 +2072,27 @@ pub async fn call_to_vault<V: pm_types::VaultingInterface>(
     .attach_printable("Error getting decrypted vault response payload")?;
 
     Ok(decrypted_payload)
+}
+
+pub async fn create_entity_in_locker(
+    state: &routes::SessionState,
+    entity_id: &id_type::MerchantId,
+) -> CustomResult<pm_types::EntityCreateResponse, errors::VaultError> {
+    let payload = pm_types::EntityCreateRequest {
+        entity_id: entity_id.clone(),
+    }
+    .encode_to_vec()
+    .change_context(errors::VaultError::RequestEncodingFailed)?;
+
+    let response = call_to_vault::<pm_types::EntityCreate>(state, payload, None, None)
+        .await
+        .change_context(errors::VaultError::VaultAPIError)
+        .attach_printable("Call to vault failed while creating locker entity")?;
+
+    response
+        .parse_struct("EntityCreateResponse")
+        .change_context(errors::VaultError::ResponseDeserializationFailed)
+        .attach_printable("Failed to parse EntityCreateResponse")
 }
 
 #[cfg(feature = "v2")]
@@ -2049,7 +2133,7 @@ async fn get_fingerprint_id_from_vault<D: serde::Serialize>(
         .change_context(errors::VaultError::RequestEncodingFailed)
         .attach_printable("Failed to encode VaultFingerprintRequestNew")?;
 
-    let resp = call_to_vault::<pm_types::GetVaultFingerprint>(state, payload, None)
+    let resp = call_to_vault::<pm_types::GetVaultFingerprint>(state, payload, None, None)
         .await
         .change_context(errors::VaultError::VaultAPIError)
         .attach_printable("Call to vault failed")?;
@@ -2086,11 +2170,12 @@ pub async fn add_payment_method_to_vault(
         customer_id,
         pmd.clone(),
         state.conf.locker.ttl_for_storage_in_secs,
+        existing_vault_id,
     )?;
 
     let query_params = write_mode.map(pm_types::VaultQueryParam::from);
 
-    let resp = call_to_vault::<pm_types::AddVault>(state, payload, query_params)
+    let resp = call_to_vault::<pm_types::AddVault>(state, payload, query_params, None)
         .await
         .change_context(errors::VaultError::VaultAPIError)
         .attach_printable("Call to vault failed")?;
@@ -2135,7 +2220,7 @@ pub async fn retrieve_value_from_vault(
         .change_context(errors::VaultError::RequestEncodingFailed)
         .attach_printable("Failed to encode VaultRetrieveRequest")?;
 
-    let resp = call_to_vault::<pm_types::VaultRetrieve>(state, payload, None)
+    let resp = call_to_vault::<pm_types::VaultRetrieve>(state, payload, None, None)
         .await
         .change_context(errors::VaultError::VaultAPIError)
         .attach_printable("Call to vault failed")?;
@@ -2199,6 +2284,14 @@ pub async fn retrieve_payment_method_from_vault_external(
     )
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to get the connector data")?;
+
+    access_token::create_access_token(
+        state,
+        &connector_data,
+        merchant_account.get_id(),
+        &mut old_router_data,
+    )
+    .await?;
 
     let connector_integration: services::BoxedVaultConnectorIntegrationInterface<
         ExternalVaultRetrieveFlow,
@@ -2297,11 +2390,16 @@ pub async fn retrieve_payment_method_from_vault_using_payment_token(
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
-    let vault_data = retrieve_payment_method_from_vault(state, platform, profile, &payment_method)
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to retrieve payment method from vault")?
-        .data;
+    let vault_data = Box::pin(retrieve_payment_method_from_vault(
+        state,
+        platform,
+        profile,
+        &payment_method,
+    ))
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to retrieve payment method from vault")?
+    .data;
 
     Ok((payment_method, vault_data))
 }
@@ -2315,7 +2413,7 @@ pub struct TemporaryVaultCvc {
 #[instrument(skip_all)]
 pub async fn insert_cvc_using_payment_token(
     state: &routes::SessionState,
-    payment_method_id: &id_type::GlobalPaymentMethodId,
+    token: &str,
     card_cvc: hyperswitch_masking::Secret<String>,
     fulfillment_time: i64,
     key_store: &domain::MerchantKeyStore,
@@ -2326,10 +2424,7 @@ pub async fn insert_cvc_using_payment_token(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to get redis connection")?;
 
-    let key = format!(
-        "pm_token_{}_hyperswitch_cvc",
-        payment_method_id.get_string_repr()
-    );
+    let key = format!("pm_token_{token}_hyperswitch_cvc");
 
     let payload_to_be_encrypted = TemporaryVaultCvc { card_cvc };
 
@@ -2364,7 +2459,7 @@ pub async fn insert_cvc_using_payment_token(
     Ok(card_token_cvc_storage)
 }
 
-#[cfg(feature = "v2")]
+#[cfg(any(feature = "v1", feature = "v2"))]
 #[instrument(skip_all)]
 pub async fn retrieve_and_delete_cvc_from_payment_token(
     state: &routes::SessionState,
@@ -2398,7 +2493,7 @@ pub async fn retrieve_and_delete_cvc_from_payment_token(
     );
 
     // delete key after retrieving the cvc
-    redis_conn.delete_key(&key.into()).await.map_err(|err| {
+    let _ = redis_conn.delete_key(&key.into()).await.map_err(|err| {
         logger::error!("Failed to delete token from redis: {:?}", err);
     });
 
@@ -2469,7 +2564,10 @@ pub async fn retrieve_payment_method_data_from_storage(
 ) -> RouterResult<pm_types::VaultRetrieveResponse> {
     let mut payment_method_data = match storage_type {
         enums::StorageType::Persistent => {
-            retrieve_payment_method_from_vault(state, platform, profile, pm).await?
+            Box::pin(retrieve_payment_method_from_vault(
+                state, platform, profile, pm,
+            ))
+            .await?
         }
         enums::StorageType::Volatile => {
             retrieve_volatile_payment_method_from_redis(
@@ -2557,7 +2655,9 @@ pub async fn retrieve_payment_method_from_vault(
     profile: &domain::Profile,
     pm: &domain::PaymentMethod,
 ) -> RouterResult<pm_types::VaultRetrieveResponse> {
-    let is_external_vault_enabled = profile.is_external_vault_enabled();
+    let external_vault_profile =
+        payments_core::helpers::resolve_provider_profile(state, platform, profile).await?;
+    let is_external_vault_enabled = external_vault_profile.is_external_vault_enabled();
 
     match is_external_vault_enabled {
         true => {
@@ -2565,9 +2665,9 @@ pub async fn retrieve_payment_method_from_vault(
 
             let merchant_connector_account =
                 domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(Box::new(
-                    payments_core::helpers::get_merchant_connector_account_v2(
+                    payments_core::helpers::get_provider_mca_v2(
                         state,
-                        platform.get_processor(),
+                        platform.get_provider(),
                         external_vault_source,
                     )
                     .await
@@ -2730,7 +2830,9 @@ pub async fn delete_payment_method_data_from_vault(
     profile: &domain::Profile,
     pm: &domain::PaymentMethod,
 ) -> RouterResult<pm_types::VaultDeleteResponse> {
-    let is_external_vault_enabled = profile.is_external_vault_enabled();
+    let external_vault_profile =
+        payments_core::helpers::resolve_provider_profile(state, platform, profile).await?;
+    let is_external_vault_enabled = external_vault_profile.is_external_vault_enabled();
 
     let vault_id = pm
         .locker_id
@@ -2748,9 +2850,9 @@ pub async fn delete_payment_method_data_from_vault(
 
             let merchant_connector_account =
                 domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(Box::new(
-                    payments_core::helpers::get_merchant_connector_account_v2(
+                    payments_core::helpers::get_provider_mca_v2(
                         state,
-                        platform.get_processor(),
+                        platform.get_provider(),
                         external_vault_source,
                     )
                     .await
@@ -2972,7 +3074,7 @@ pub async fn get_delete_tokenize_schedule_time(
             process_data::PaymentMethodsPTMapping::default()
         }
     };
-    let time_delta = process_tracker_utils::get_pm_schedule_time(mapping, pm, retry_count + 1);
+    let time_delta = process_tracker_utils::get_pm_schedule_time(mapping, pm, retry_count);
 
     process_tracker_utils::get_time_from_delta(time_delta)
 }
@@ -2982,7 +3084,7 @@ pub async fn retry_delete_tokenize(
     pm: enums::PaymentMethod,
     pt: storage::ProcessTracker,
 ) -> Result<(), errors::ProcessTrackerError> {
-    let schedule_time = get_delete_tokenize_schedule_time(db, pm, pt.retry_count).await;
+    let schedule_time = get_delete_tokenize_schedule_time(db, pm, pt.retry_count + 1).await;
 
     match schedule_time {
         Some(s_time) => {

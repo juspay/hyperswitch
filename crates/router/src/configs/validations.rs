@@ -196,20 +196,6 @@ impl super::settings::GenericLinkEnvConfig {
     }
 }
 
-#[cfg(feature = "v2")]
-impl super::settings::CellInformation {
-    pub fn validate(&self) -> Result<(), ApplicationError> {
-        use common_utils::{fp_utils::when, id_type};
-
-        when(self == &Self::default(), || {
-            Err(ApplicationError::InvalidConfigurationValueError(
-                "CellId cannot be set to a default".into(),
-            ))
-        })
-    }
-}
-
-#[cfg(feature = "v1")]
 impl super::settings::CellInformation {
     pub fn validate(&self) -> Result<(), ApplicationError> {
         use common_utils::fp_utils::when;
@@ -357,5 +343,74 @@ impl super::settings::ChatSettings {
                 "hyperswitch ai host must be set if chat is enabled".into(),
             ))
         })
+    }
+}
+
+impl super::settings::SageSettings {
+    pub fn validate(&self) -> Result<(), ApplicationError> {
+        use common_utils::fp_utils::when;
+
+        when(self.enabled && self.base_url.trim().is_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "sage.base_url must be set if sage.enabled is true".into(),
+            ))
+        })?;
+        when(self.enabled && self.mint_path.trim().is_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "sage.mint_path must be set if sage.enabled is true".into(),
+            ))
+        })?;
+        when(
+            self.enabled && self.infra_key.peek().trim().is_empty(),
+            || {
+                Err(ApplicationError::InvalidConfigurationValueError(
+                    "sage.infra_key must be set if sage.enabled is true".into(),
+                ))
+            },
+        )
+    }
+}
+
+impl super::settings::AccountUpdaterConfig {
+    pub fn validate(&self) -> Result<(), ApplicationError> {
+        match self {
+            Self::Juspay(juspay) => juspay.validate(),
+        }
+    }
+}
+
+impl super::settings::JuspayAccountUpdaterConfig {
+    pub fn validate(&self) -> Result<(), ApplicationError> {
+        use common_utils::fp_utils::when;
+
+        when(!self.base_url.path().ends_with('/'), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "account_updater.juspay.base_url must end with a trailing slash".into(),
+            ))
+        })?;
+
+        let required = [
+            ("api_key", self.api_key.peek().as_str()),
+            ("merchant_id", self.merchant_id.as_str()),
+            (
+                "euler_encryption_public_key",
+                self.euler_encryption_public_key.peek().as_str(),
+            ),
+            (
+                "au_decryption_pvt_key",
+                self.au_decryption_pvt_key.peek().as_str(),
+            ),
+            ("card_sync_key_id", self.card_sync_key_id.as_str()),
+        ];
+
+        for (field, value) in required {
+            when(value.trim().is_empty(), || {
+                Err(ApplicationError::InvalidConfigurationValueError(format!(
+                    "account_updater.juspay.{field} must not be empty"
+                )))
+            })?;
+        }
+
+        Ok(())
     }
 }

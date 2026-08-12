@@ -1,7 +1,11 @@
 pub(super) mod customer;
+#[cfg(feature = "v2")]
 pub(super) mod payment;
+#[cfg(feature = "v2")]
 pub(super) mod payment_methods;
+#[cfg(feature = "v2")]
 pub(super) mod refunds;
+#[cfg(feature = "v2")]
 pub(super) mod token;
 
 use diesel::{backend::Backend, deserialize::FromSql, serialize::ToSql, sql_types};
@@ -23,12 +27,19 @@ pub(crate) struct GlobalId(LengthId<MAX_GLOBAL_ID_LENGTH, MIN_GLOBAL_ID_LENGTH>)
 /// Entities that can be identified by a global id
 pub(crate) enum GlobalEntity {
     Customer,
+    #[cfg(feature = "v2")]
     Payment,
+    #[cfg(feature = "v2")]
     Attempt,
+    #[cfg(feature = "v2")]
     AttemptGroup,
+    #[cfg(feature = "v2")]
     PaymentMethod,
+    #[cfg(feature = "v2")]
     Refund,
+    #[cfg(feature = "v2")]
     PaymentMethodSession,
+    #[cfg(feature = "v2")]
     Token,
 }
 
@@ -36,12 +47,19 @@ impl GlobalEntity {
     fn prefix(self) -> &'static str {
         match self {
             Self::Customer => "cus",
+            #[cfg(feature = "v2")]
             Self::Payment => "pay",
+            #[cfg(feature = "v2")]
             Self::PaymentMethod => "pm",
+            #[cfg(feature = "v2")]
             Self::Attempt => "att",
+            #[cfg(feature = "v2")]
             Self::AttemptGroup => "atg",
+            #[cfg(feature = "v2")]
             Self::Refund => "ref",
+            #[cfg(feature = "v2")]
             Self::PaymentMethodSession => "pms",
+            #[cfg(feature = "v2")]
             Self::Token => "tok",
         }
     }

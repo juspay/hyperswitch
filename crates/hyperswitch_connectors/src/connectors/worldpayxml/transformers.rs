@@ -51,7 +51,7 @@ use crate::{
     utils::{
         self as connector_utils, AddressDetailsData, BrowserInformationData, CardData,
         ForeignTryFrom, PaymentsAuthorizeRequestData, PaymentsCompleteAuthorizeRequestData,
-        PaymentsSyncRequestData, RouterData as _,
+        PaymentsSyncRequestData, PhoneDetailsData, RouterData as _,
     },
 };
 
@@ -216,7 +216,7 @@ struct OrderStatus {
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct Token {
-    authenticated_shopper_i_d: String,
+    authenticated_shopper_i_d: Option<String>,
     token_details: TokenDetails,
 }
 
@@ -224,7 +224,7 @@ struct Token {
 #[serde(rename_all = "camelCase")]
 struct TokenDetails {
     #[serde(rename = "@tokenEvent")]
-    token_event: String,
+    token_event: Option<String>,
     payment_token_i_d: Secret<String>,
 }
 
@@ -248,8 +248,8 @@ struct ThreeDSChallengeDetails {
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Payment {
-    payment_method: String,
-    amount: WorldpayXmlAmount,
+    payment_method: Option<String>,
+    amount: Option<WorldpayXmlAmount>,
     pub last_event: LastEvent,
     #[serde(rename = "AuthorisationId")]
     authorisation_id: Option<AuthorisationId>,
@@ -291,20 +291,20 @@ struct ReturnCode {
 #[derive(Debug, Deserialize, Serialize)]
 struct ResultCode {
     #[serde(rename = "@description")]
-    description: String,
+    description: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
 struct Balance {
     #[serde(rename = "@accountType")]
-    account_type: String,
-    amount: WorldpayXmlAmount,
+    account_type: Option<String>,
+    amount: Option<WorldpayXmlAmount>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct PaymentMethodDetail {
-    card: CardResponse,
+    card: Option<CardResponse>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -313,14 +313,14 @@ struct CardResponse {
     #[serde(rename = "@number")]
     number: Option<Secret<String>>,
     #[serde(rename = "@type")]
-    card_type: String,
+    card_type: Option<String>,
     expiry_date: Option<ExpiryDate>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
 struct AuthorisationId {
     #[serde(rename = "@id")]
-    id: Secret<String>,
+    id: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone, Copy, Deserialize, Serialize)]
@@ -347,6 +347,8 @@ pub enum LastEvent {
     PushRequested,
     PushRefused,
     SettledByMerchant,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -374,14 +376,14 @@ struct Order {
     shipping_address: Option<WorldpayxmlPayinAddress>,
     #[serde(skip_serializing_if = "Option::is_none")]
     billing_address: Option<WorldpayxmlPayinAddress>,
-    #[serde(skip_serializing_if = "Option::is_none", rename = "additional3DSData")]
-    additional_threeds_data: Option<AdditionalThreeDSData>,
     #[serde(skip_serializing_if = "Option::is_none", rename = "info3DSecure")]
     info_threed_secure: Option<Info3DSecure>,
     #[serde(skip_serializing_if = "Option::is_none")]
     session: Option<CompleteAuthSession>,
     #[serde(skip_serializing_if = "Option::is_none")]
     create_token: Option<CreateToken>,
+    #[serde(skip_serializing_if = "Option::is_none", rename = "additional3DSData")]
+    additional_threeds_data: Option<AdditionalThreeDSData>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -461,6 +463,8 @@ struct WorldpayxmlAddressData {
     #[serde(skip_serializing_if = "Option::is_none")]
     state: Option<Secret<String>>,
     country_code: common_enums::CountryAlpha2,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    telephone_number: Option<Secret<String>>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -510,9 +514,9 @@ struct PaymentDetails {
     #[serde(flatten)]
     payment_method: PaymentMethod,
     #[serde(skip_serializing_if = "Option::is_none")]
-    session: Option<Session>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     stored_credentials: Option<StoredCredentials>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    session: Option<Session>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -572,7 +576,7 @@ enum PaymentMethod {
     CardSSL(CardSSL),
 
     #[serde(rename = "FF_DISBURSE-SSL")]
-    FastAccessSSL(FastAccessData),
+    FastAccessSSL(Box<FastAccessData>),
 
     #[serde(rename = "PAYWITHGOOGLE-SSL")]
     PayWithGoogleSSL(GooglePayData),
@@ -777,7 +781,10 @@ impl TryFrom<(&Card, Option<enums::CaptureMethod>, Option<Session>)> for Payment
                         year: card_data.get_expiry_year_4_digit(),
                     },
                 },
-                card_holder_name: card_data.card_holder_name.to_owned(),
+                card_holder_name: card_data
+                    .card_holder_name
+                    .as_ref()
+                    .map(|name| normalize_cardholder_name(name.clone())),
                 cvc: Some(card_data.card_cvc.to_owned()),
             }),
             session,
@@ -1132,6 +1139,13 @@ impl
     }
 }
 
+// Mastercard requires the cardholder name to contain only English (ASCII)
+// characters and to match the name exactly as printed on the card. Accented
+// characters are transliterated to their closest ASCII equivalent.
+fn normalize_cardholder_name(name: Secret<String>) -> Secret<String> {
+    Secret::new(unidecode::unidecode(&name.expose()))
+}
+
 fn get_address_details(data: &Address) -> Option<WorldpayxmlPayinAddress> {
     let address1_option = data
         .address
@@ -1149,6 +1163,12 @@ fn get_address_details(data: &Address) -> Option<WorldpayxmlPayinAddress> {
         .address
         .as_ref()
         .and_then(|address| address.get_optional_city());
+    let telephone_number = data.phone.as_ref().and_then(|phone| {
+        phone
+            .get_number_with_country_code()
+            .or_else(|_| phone.get_number())
+            .ok()
+    });
 
     if let (Some(address1), Some(postal_code), Some(country_code), Some(city), Some(address_data)) = (
         address1_option,
@@ -1168,6 +1188,7 @@ fn get_address_details(data: &Address) -> Option<WorldpayxmlPayinAddress> {
                 city,
                 state: address_data.get_optional_state(),
                 country_code,
+                telephone_number,
             },
         })
     } else {
@@ -1645,6 +1666,14 @@ fn get_attempt_status(
             Ok(common_enums::AttemptStatus::Charged)
         }
         LastEvent::SentForAuthorisation => Ok(common_enums::AttemptStatus::Authorizing),
+        LastEvent::Unknown => {
+            let status = previous_status.copied().unwrap_or_default();
+            router_env::logger::warn!(
+                "Unknown worldpayxml connector status received; retaining previous status {:?}",
+                status
+            );
+            Ok(status)
+        }
         _ => Err(errors::ConnectorError::UnexpectedResponseError(
             bytes::Bytes::from("Invalid LastEvent".to_string()),
         )),
@@ -1653,6 +1682,7 @@ fn get_attempt_status(
 
 fn get_attempt_status_for_setup_mandate(
     last_event: LastEvent,
+    previous_status: Option<&common_enums::AttemptStatus>,
 ) -> Result<common_enums::AttemptStatus, errors::ConnectorError> {
     match last_event {
         LastEvent::Refused => Ok(common_enums::AttemptStatus::Failure),
@@ -1662,13 +1692,24 @@ fn get_attempt_status_for_setup_mandate(
         | LastEvent::Settled
         | LastEvent::SettledByMerchant => Ok(common_enums::AttemptStatus::Charged),
         LastEvent::SentForAuthorisation => Ok(common_enums::AttemptStatus::Authorizing),
+        LastEvent::Unknown => {
+            let status = previous_status.copied().unwrap_or_default();
+            router_env::logger::warn!(
+                "Unknown worldpayxml connector status received; retaining previous status {:?}",
+                status
+            );
+            Ok(status)
+        }
         _ => Err(errors::ConnectorError::UnexpectedResponseError(
             bytes::Bytes::from("Invalid LastEvent".to_string()),
         )),
     }
 }
 
-fn get_refund_status(last_event: LastEvent) -> Result<enums::RefundStatus, errors::ConnectorError> {
+fn get_refund_status(
+    last_event: LastEvent,
+    previous_status: enums::RefundStatus,
+) -> Result<enums::RefundStatus, errors::ConnectorError> {
     match last_event {
         LastEvent::Refunded | LastEvent::RefundedByMerchant => Ok(enums::RefundStatus::Success),
         LastEvent::SentForRefund | LastEvent::RefundRequested | LastEvent::SentForFastRefund => {
@@ -1676,6 +1717,13 @@ fn get_refund_status(last_event: LastEvent) -> Result<enums::RefundStatus, error
         }
         LastEvent::RefundFailed => Ok(enums::RefundStatus::Failure),
         LastEvent::Captured | LastEvent::Settled => Ok(enums::RefundStatus::Pending),
+        LastEvent::Unknown => {
+            router_env::logger::warn!(
+                "Unknown worldpayxml connector status received for refund; retaining previous status {:?}",
+                previous_status
+            );
+            Ok(previous_status)
+        }
         _ => Err(errors::ConnectorError::UnexpectedResponseError(
             bytes::Bytes::from("Invalid LastEvent".to_string()),
         )),
@@ -2390,7 +2438,10 @@ impl<F>
             validate_order_status(&order_status)?;
 
             if let Some(payment_data) = order_status.payment {
-                let status = get_attempt_status_for_setup_mandate(payment_data.last_event)?;
+                let status = get_attempt_status_for_setup_mandate(
+                    payment_data.last_event,
+                    Some(&item.data.status),
+                )?;
                 let response = process_payment_response(
                     status,
                     &payment_data,
@@ -2778,7 +2829,10 @@ impl TryFrom<RefundsResponseRouterData<RSync, WorldpayxmlSyncResponse>>
                     validate_order_status(&order_status)?;
 
                     if let Some(payment_data) = order_status.payment {
-                        let status = get_refund_status(payment_data.last_event)?;
+                        let status = get_refund_status(
+                            payment_data.last_event,
+                            item.data.request.refund_status,
+                        )?;
                         let response = if connector_utils::is_refund_failure(status) {
                             let error_code = payment_data
                                 .return_code
@@ -2844,7 +2898,8 @@ impl TryFrom<RefundsResponseRouterData<RSync, WorldpayxmlSyncResponse>>
                 }
             }
             WorldpayxmlSyncResponse::Webhook(data) => {
-                let status = get_refund_status(data.payment_status)?;
+                let status =
+                    get_refund_status(data.payment_status, item.data.request.refund_status)?;
                 let response = if connector_utils::is_refund_failure(status) {
                     let error_code = data.return_code;
                     let error_message = data.return_message;
@@ -3052,13 +3107,13 @@ impl TryFrom<&WorldpayxmlRouterData<&PayoutsRouterData<PoFulfill>>> for PaymentS
 
         let payment_details = PaymentDetails {
             action: None,
-            payment_method: PaymentMethod::FastAccessSSL(FastAccessData {
+            payment_method: PaymentMethod::FastAccessSSL(Box::new(FastAccessData {
                 recipient: Recipient {
                     payment_instrument,
                     address,
                 },
                 purpose_of_payment: purpose_of_payment_code,
-            }),
+            })),
             session: None,
             stored_credentials: None,
         };

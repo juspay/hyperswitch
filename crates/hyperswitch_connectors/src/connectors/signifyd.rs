@@ -136,7 +136,7 @@ impl ConnectorCommon for Signifyd {
             .change_context(ConnectorError::FailedToObtainAuthType)?;
         let auth_api_key = format!(
             "Basic {}",
-            consts::BASE64_ENGINE.encode(auth.api_key.peek())
+            consts::BASE64_ENGINE.encode(format!("{}:", auth.api_key.peek()))
         );
 
         Ok(vec![(

@@ -2,6 +2,7 @@ import { execConfig, validateConfig } from "../../../utils/featureFlags.js";
 
 import { updateDefaultStatusCode } from "./Modifiers.js";
 
+import { connectorDetails as signifydConnectorDetails } from "../FRM/Signifyd.js";
 import { connectorDetails as aciConnectorDetails } from "./Aci.js";
 import { connectorDetails as adyenConnectorDetails } from "./Adyen.js";
 import { connectorDetails as affirmConnectorDetails } from "./Affirm.js";
@@ -13,8 +14,8 @@ import { connectorDetails as bamboraConnectorDetails } from "./Bambora.js";
 import { connectorDetails as bamboraapacConnectorDetails } from "./Bamboraapac.js";
 import { connectorDetails as bankOfAmericaConnectorDetails } from "./BankOfAmerica.js";
 import { connectorDetails as barclaycardConnectorDetails } from "./Barclaycard.js";
-import { connectorDetails as bitpayConnectorDetails } from "./Bitpay.js";
 import { connectorDetails as billwerkConnectorDetails } from "./Billwerk.js";
+import { connectorDetails as bitpayConnectorDetails } from "./Bitpay.js";
 import { connectorDetails as bluesnapConnectorDetails } from "./Bluesnap.js";
 import { connectorDetails as braintreeConnectorDetails } from "./Braintree.js";
 import { connectorDetails as calidaConnectorDetails } from "./Calida.js";
@@ -22,6 +23,7 @@ import { connectorDetails as cashtocodeConnectorDetails } from "./Cashtocode.js"
 import { connectorDetails as celeroConnectorDetails } from "./Celero.js";
 import { connectorDetails as checkbookConnectorDetails } from "./Checkbook.js";
 import { connectorDetails as checkoutConnectorDetails } from "./Checkout.js";
+import { connectorDetails as coingateConnectorDetails } from "./Coingate.js";
 import { connectorDetails as commonConnectorDetails } from "./Commons.js";
 import { connectorDetails as cryptopayConnectorDetails } from "./Cryptopay.js";
 import { connectorDetails as cybersourceConnectorDetails } from "./Cybersource.js";
@@ -33,17 +35,22 @@ import { connectorDetails as facilitapayConnectorDetails } from "./Facilitapay.j
 import { connectorDetails as finixConnectorDetails } from "./Finix.js";
 import { connectorDetails as fiservConnectorDetails } from "./Fiserv.js";
 import { connectorDetails as fiservemeaConnectorDetails } from "./Fiservemea.js";
+import { connectorDetails as fiservcommercehubConnectorDetails } from "./Fiservcommercehub.js";
 import { connectorDetails as fiuuConnectorDetails } from "./Fiuu.js";
 import { connectorDetails as forteConnectorDetails } from "./Forte.js";
 import { connectorDetails as getnetConnectorDetails } from "./Getnet.js";
 import { connectorDetails as gigadatConnectorDetails } from "./Gigadat.js";
 import { connectorDetails as globalpayConnectorDetails } from "./Globalpay.js";
+import { connectorDetails as globepayConnectorDetails } from "./Globepay.js";
+import { connectorDetails as helcimConnectorDetails } from "./Helcim.js";
 import { connectorDetails as hipayConnectorDetails } from "./Hipay.js";
 import { connectorDetails as iatapayConnectorDetails } from "./Iatapay.js";
+import { connectorDetails as inespayConnectorDetails } from "./Inespay.js";
 import { connectorDetails as itaubankConnectorDetails } from "./ItauBank.js";
 import { connectorDetails as jpmorganConnectorDetails } from "./Jpmorgan.js";
 import { connectorDetails as klarnaConnectorDetails } from "./Klarna.js";
 import { connectorDetails as loonioConnectorDetails } from "./Loonio.js";
+import { connectorDetails as mifinityConnectorDetails } from "./Mifinity.js";
 import { connectorDetails as mollieConnectorDetails } from "./Mollie.js";
 import { connectorDetails as monerisConnectorDetails } from "./Moneris.js";
 import { connectorDetails as multisafepayConnectorDetails } from "./Multisafepay.js";
@@ -54,12 +61,18 @@ import { connectorDetails as noonConnectorDetails } from "./Noon.js";
 import { connectorDetails as novalnetConnectorDetails } from "./Novalnet.js";
 import { connectorDetails as nuveiConnectorDetails } from "./Nuvei.js";
 import { connectorDetails as payboxConnectorDetails } from "./Paybox.js";
+import { connectorDetails as payjustnowConnectorDetails } from "./Payjustnow.js";
+import { connectorDetails as payjustnowinstoreConnectorDetails } from "./Payjustnowinstore.js";
 import { connectorDetails as payloadConnectorDetails } from "./Payload.js";
 import { connectorDetails as paypalConnectorDetails } from "./Paypal.js";
 import { connectorDetails as paysafeConnectorDetails } from "./Paysafe.js";
+import { connectorDetails as paystackConnectorDetails } from "./Paystack.js";
 import { connectorDetails as payuConnectorDetails } from "./Payu.js";
 import { connectorDetails as peachpaymentsConnectorDetails } from "./Peachpayments.js";
+import { connectorDetails as placetopayConnectorDetails } from "./Placetopay.js";
+import { connectorDetails as plaidConnectorDetails } from "./Plaid.js";
 import { connectorDetails as powertranzConnectorDetails } from "./PowerTranz.js";
+import { connectorDetails as prophetpayConnectorDetails } from "./Prophetpay.js";
 import { connectorDetails as rapydConnectorDetails } from "./Rapyd.js";
 import { connectorDetails as redsysConnectorDetails } from "./Redsys.js";
 import { connectorDetails as shift4ConnectorDetails } from "./Shift4.js";
@@ -72,6 +85,7 @@ import { connectorDetails as tesouroConnectorDetails } from "./Tesouro.js";
 import { connectorDetails as trustpayConnectorDetails } from "./Trustpay.js";
 import { connectorDetails as trustpaymentsConnectorDetails } from "./TrustPayments.js";
 import { connectorDetails as tsysConnectorDetails } from "./Tsys.js";
+import { connectorDetails as tsysTransitConnectorDetails } from "./TsysTransit.js";
 import { connectorDetails as voltConnectorDetails } from "./Volt.js";
 import { connectorDetails as wellsfargoConnectorDetails } from "./WellsFargo.js";
 import { connectorDetails as worldpayConnectorDetails } from "./WorldPay.js";
@@ -79,7 +93,6 @@ import { connectorDetails as worldpayvantivConnectorDetails } from "./Worldpayva
 import { connectorDetails as worldpayxmlConnectorDetails } from "./Worldpayxml.js";
 import { connectorDetails as xenditConnectorDetails } from "./Xendit.js";
 import { connectorDetails as ziftConnectorDetails } from "./Zift.js";
-import { connectorDetails as mifinityConnectorDetails } from "./Mifinity.js";
 const connectorDetails = {
   aci: aciConnectorDetails,
   adyen: adyenConnectorDetails,
@@ -102,6 +115,7 @@ const connectorDetails = {
   checkout: checkoutConnectorDetails,
   checkbook: checkbookConnectorDetails,
   commons: commonConnectorDetails,
+  coingate: coingateConnectorDetails,
   cryptopay: cryptopayConnectorDetails,
   cybersource: cybersourceConnectorDetails,
   dlocal: dlocalConnectorDetails,
@@ -111,14 +125,18 @@ const connectorDetails = {
   facilitapay: facilitapayConnectorDetails,
   fiserv: fiservConnectorDetails,
   fiservemea: fiservemeaConnectorDetails,
+  fiservcommercehub: fiservcommercehubConnectorDetails,
   fiuu: fiuuConnectorDetails,
   finix: finixConnectorDetails,
   forte: forteConnectorDetails,
   getnet: getnetConnectorDetails,
   gigadat: gigadatConnectorDetails,
   globalpay: globalpayConnectorDetails,
+  globepay: globepayConnectorDetails,
+  helcim: helcimConnectorDetails,
   hipay: hipayConnectorDetails,
   iatapay: iatapayConnectorDetails,
+  inespay: inespayConnectorDetails,
   itaubank: itaubankConnectorDetails,
   jpmorgan: jpmorganConnectorDetails,
   klarna: klarnaConnectorDetails,
@@ -132,15 +150,22 @@ const connectorDetails = {
   novalnet: novalnetConnectorDetails,
   nuvei: nuveiConnectorDetails,
   paybox: payboxConnectorDetails,
+  payjustnow: payjustnowConnectorDetails,
+  payjustnowinstore: payjustnowinstoreConnectorDetails,
   payload: payloadConnectorDetails,
   paypal: paypalConnectorDetails,
   paysafe: paysafeConnectorDetails,
+  paystack: paystackConnectorDetails,
+  placetopay: placetopayConnectorDetails,
+  plaid: plaidConnectorDetails,
   payu: payuConnectorDetails,
   peachpayments: peachpaymentsConnectorDetails,
   powertranz: powertranzConnectorDetails,
+  prophetpay: prophetpayConnectorDetails,
   rapyd: rapydConnectorDetails,
   redsys: redsysConnectorDetails,
   shift4: shift4ConnectorDetails,
+  signifyd: signifydConnectorDetails,
   silverflow: silverflowConnectorDetails,
   square: squareConnectorDetails,
   stax: staxConnectorDetails,
@@ -150,6 +175,7 @@ const connectorDetails = {
   tesouro: tesouroConnectorDetails,
   trustpayments: trustpaymentsConnectorDetails,
   tsys: tsysConnectorDetails,
+  tsys_transit: tsysTransitConnectorDetails,
   volt: voltConnectorDetails,
   wellsfargo: wellsfargoConnectorDetails,
   worldpay: worldpayConnectorDetails,
@@ -224,6 +250,7 @@ export function handleMultipleConnectors(keys) {
     MULTIPLE_CONNECTORS: {
       status: true,
       count: keys.length,
+      connectorCredentials: keys,
     },
   };
 }
@@ -266,6 +293,9 @@ export function getValueByKey(jsonObject, key, keyNumber = 0) {
 }
 
 export const should_continue_further = (data) => {
+  if (!data) {
+    return false;
+  }
   const resData = data.Response || {};
   const configData = validateConfig(data.Configs) || {};
 
@@ -397,6 +427,49 @@ export function createMerchantConnectorAccount(
   }
 }
 
+export function createBusinessProfilesAndMerchantConnectorAccounts(
+  paymentType,
+  createMerchantConnectorAccountBody,
+  createBusinessProfileBody,
+  globalState,
+  paymentMethodsEnabled
+) {
+  const connectorCount = globalState.get("MULTIPLE_CONNECTORS")?.count || 0;
+
+  if (connectorCount <= 1) {
+    cy.task(
+      "cli_log",
+      "Skipping multiple connector account setup; no multiple connector credentials configured."
+    );
+    return;
+  }
+
+  for (
+    let connectorIndex = 2;
+    connectorIndex <= connectorCount;
+    connectorIndex++
+  ) {
+    const multipleConnector = {
+      nextConnector: true,
+      value: `connector_${connectorIndex}`,
+    };
+
+    createBusinessProfile(
+      structuredClone(createBusinessProfileBody),
+      globalState,
+      multipleConnector
+    );
+
+    createMerchantConnectorAccount(
+      paymentType,
+      structuredClone(createMerchantConnectorAccountBody),
+      globalState,
+      paymentMethodsEnabled,
+      multipleConnector
+    );
+  }
+}
+
 export function updateBusinessProfile(
   updateBusinessProfileBody,
   is_connector_agnostic_enabled,
@@ -431,22 +504,26 @@ export const CONNECTOR_LISTS = {
   // Exclusion lists (skip these connectors)
   EXCLUDE: {
     CONNECTOR_AGNOSTIC_NTID: [
-      "authorizedotnet",
       "bamboraapac",
       "bankofamerica",
       "billwerk",
       "bluesnap",
       "braintree",
+      "calida",
       "cashtocode",
       "facilitapay",
       "fiserv",
+      "fiservcommercehub",
       "fiuu",
       "forte",
       "globalpay",
       "gigadat",
       "jpmorgan",
       "loonio",
+      "mifinity",
       "nexinets",
+      "nexixpay",
+      "nmi",
       "noon",
       "novalnet",
       "payload",
@@ -459,13 +536,44 @@ export const CONNECTOR_LISTS = {
       "mollie",
       "zift",
     ],
-    MANDATE_ID_TEST: ["airwallex", "payload", "gigadat", "loonio", "redsys"],
+    MANDATE_ID_TEST: [
+      "airwallex",
+      "calida",
+      "payload",
+      "gigadat",
+      "loonio",
+      "redsys",
+      "worldpayxml",
+      "mifinity",
+      "tsys_transit",
+    ],
+    SAVE_CARD: ["helcim"],
+    // fiservcommercehub's RSA card-encryption block requires
+    // card_holder_name, which the external vault proxy flow (VGS) never
+    // supplies (it only vaults PAN/expiry) — and unlike most connectors,
+    // fiservcommercehub has no fallback (e.g. billing name) for a missing
+    // one. The resulting rejection is intermittent rather than
+    // deterministic (the same confirm sometimes succeeds), so it can't be
+    // asserted as an expected error either — skip these save-card-confirm
+    // tests in 40-ExternalVault.cy.js until the connector-service side
+    // adds a fallback.
+    EXTERNAL_VAULT: ["fiservcommercehub"],
+    // Connectors that never return a `connector_mandate_id` on the payments
+    // response. Recurring payments for them go through connector agnostic MIT,
+    // so the "connector_mandate_id must not be null" assertion is skipped
     // Add more exclusion lists
+    // Note: mitUsingPMId/mitForMandatesCallTest/listMandateCallTest use
+    // per-config TRIGGER_SKIP or globalState checks instead of a static
+    // list here.
   },
 
   // Inclusion lists (only run for these connectors)
   INCLUDE: {
     MANDATES_USING_NTID_PROXY: ["cybersource", "checkout"],
+    // Card and mandate flows of 54-TsysTransitMandates. The mandates need a
+    // profile with connector agnostic MIT enabled, which keeps them out of the
+    // shared mandate specs, so the whole spec is scoped to this connector
+    CONNECTOR_AGNOSTIC_MANDATES: ["tsys_transit"],
     INCREMENTAL_AUTH: [
       "archipel",
       // "cybersource",    // issues with MULTIPLE_CONNECTORS handling
@@ -475,7 +583,7 @@ export const CONNECTOR_LISTS = {
     DDC_RACE_CONDITION: ["worldpay"],
     CONNECTOR_TESTING_DATA: ["adyen", "airwallex", "braintree", "noon"],
     // ucs connectors
-    UCS_CONNECTORS: ["authorizedotnet"],
+    UCS_CONNECTORS: ["authorizedotnet", "fiservcommercehub"],
     OVERCAPTURE: ["adyen"],
     IFRAME_REDIRECTION: [
       "adyen",
@@ -523,7 +631,6 @@ export const CONNECTOR_LISTS = {
       "payload",
       "paypal",
       "trustpay",
-      "worldpay",
     ],
     REFUNDS_WEBHOOK: [
       "airwallex",
@@ -534,9 +641,18 @@ export const CONNECTOR_LISTS = {
       "paypal",
       "stripe",
     ],
-    BANK_DEBIT: ["adyen", "novalnet", "payload", "wellsfargo", "stax"], // payload verified as working
+    BANK_DEBIT: [
+      "adyen",
+      "inespay",
+      "novalnet",
+      "payload",
+      "stax",
+      "stripe",
+      "wellsfargo",
+    ], // payload verified as working
     BANK_REDIRECT_BANCONTACT: ["adyen", "stripe"],
-    BANK_REDIRECT_MANDATE: ["adyen"],
+    BANK_REDIRECT_MANDATE: ["adyen", "stripe"],
+    CARD_REDIRECT: ["prophetpay"],
     BLUECODE_WALLET: ["calida"],
     ALIPAY_HK_WALLET: [""],
     PAYPAL_WALLET: [
@@ -547,12 +663,12 @@ export const CONNECTOR_LISTS = {
       "paypal",
     ],
     MIFINITY_WALLET: ["mifinity"],
-    ALIPAY_WALLET: ["multisafepay"],
-    WECHATPAY_WALLET: ["multisafepay"],
+    ALIPAY_WALLET: ["globepay", "stripe", "multisafepay"],
+    WECHATPAY_WALLET: ["globepay", "stripe", "multisafepay"],
     MBWAY_WALLET: ["multisafepay"],
     SKRILL_WALLET: ["paysafe"],
     PAYSAFECARD_GIFT_CARD: ["paysafe"],
-    PAYPAL_MANDATE: ["globalpay", "paypal"],
+    PAYPAL_MANDATE: ["globalpay", "novalnet", "paypal"],
     PAYPAL_WALLET_MANDATE: ["adyen"],
     KAKAO_PAY_WALLET_MANDATE: ["adyen"],
     GCASH_WALLET_MANDATE: ["adyen"],
@@ -567,6 +683,7 @@ export const CONNECTOR_LISTS = {
       "nuvei",
       "trustpay",
       "finix",
+      "payload",
     ],
     BILLING_DESCRIPTOR_INVALID_PHONE: ["nuvei"],
     FEATURE_METADATA: ["bankofamerica"],
@@ -594,10 +711,16 @@ export const CONNECTOR_LISTS = {
     EXTERNAL_THREE_DS: ["stripe", "finix"],
     PARTNER_MERCHANT_IDENTIFIER: ["adyen", "checkout"],
     AFFIRM_PAY_LATER: ["affirm"],
+    AFTERPAY_CLEARPAY: ["adyen", "stripe"],
+    ALMA: ["adyen"],
+    WALLEY: ["adyen"],
     EXTEND_AUTHORIZATION: ["adyen", "paypal"],
     GIFT_CARD: ["adyen"],
     VOUCHER: ["adyen", "dlocal"],
     RELAY_OPERATIONS: ["bankofamerica"],
+    AMAZONPAY_WALLET: ["stripe"],
+    CASHAPP_WALLET: ["stripe"],
+    REVOLUTPAY_WALLET: ["stripe"],
     PAY_LATER: [
       "klarna",
       "adyen",
@@ -606,11 +729,18 @@ export const CONNECTOR_LISTS = {
       "airwallex",
       "mollie",
       "affirm",
+      "payjustnow",
+      "payjustnowinstore",
     ],
+    PAY_LATER_KLARNA_MANDATE: ["adyen"],
     AFFIRM: ["stripe"],
+    ATOME: ["adyen"],
+    PAYJUSTNOW: ["payjustnow"],
+    PAYJUSTNOWINSTORE: ["payjustnowinstore"],
     AUTH_SERVICE_ELIGIBILITY: ["stripe", "cybersource"],
+    VAULT_TOKENIZATION: ["stripe"],
     STEP_UP_AUTH: ["cybersource"],
-    PARTIAL_AUTH: ["nuvei", "checkout", "worldpay", "worldpayvantiv"],
+    PARTIAL_AUTH: ["nuvei", "checkout", "worldpayvantiv"],
     PAYMENT_RESPONSE_HASH: ["stripe"],
     MULTIPLE_CAPTURE: ["adyen", "checkout"],
     USE_BILLING_AS_PAYMENT_METHOD_BILLING: ["bankofamerica"],
@@ -633,6 +763,7 @@ export const CONNECTOR_LISTS = {
     REFUND_MANUAL_UPDATE: ["bankofamerica", "cybersource"],
     REFUND_TYPE: ["stripe", "adyen", "checkout"],
     MANUAL_PAYMENT_UPDATE: ["stripe"],
+    CRYPTO_PAYMENT: ["bitpay", "coingate", "cryptopay"],
     STEP_UP_RETRY: [
       "cybersource",
       "checkout",
@@ -655,7 +786,13 @@ export const CONNECTOR_LISTS = {
       "worldpayvantiv",
     ],
     POLL_CONFIG: ["stripe"],
+    FRM: ["stripe"],
+    PAYOUT_PRIORITY: ["adyenplatform"],
+    DELAYED_SESSION_TOKEN: ["trustpay", "payme"],
+    OPEN_BANKING_PIS: ["plaid"],
     CLIENT_SESSION_VALIDATION: ["stripe"],
+    WEBHOOK_CONFIG: ["stripe"],
+    REQUIRES_CVV: ["bankofamerica"],
     // Add more inclusion lists
   },
 };
@@ -711,10 +848,73 @@ function coerceValue(value, type) {
       if (!Number.isFinite(num)) {
         throw new Error(`Cannot coerce "${value}" to number`);
       }
+      if (!Number.isSafeInteger(num)) {
+        return BigInt(value);
+      }
       return num;
     }
 
     default:
       return value;
   }
+}
+
+export function stringifyWithBigInt(obj) {
+  return JSON.stringify(obj, (_, value) =>
+    typeof value === "bigint" ? `__bigint__${value}` : value
+  ).replace(/"__bigint__(\d+)"/g, "$1");
+}
+
+export function stampPaymentMethodType(scenarios, paymentMethodType) {
+  const cloned = JSON.parse(JSON.stringify(scenarios));
+  for (const scenario of Object.values(cloned)) {
+    if (scenario.Request && typeof scenario.Request === "object") {
+      scenario.Request.payment_method_type = paymentMethodType;
+    }
+  }
+  return cloned;
+}
+
+// Rotate cards to avoid Helcim's duplicate-decline window.
+// Helcim has strict idempotency rules which include identifying card number,
+// cardholder name, etc. If they are found in any retry within 5 minutes of a
+// previous transaction it will be marked as a duplicate. Therefore we rotate
+// the cards and try to deny retries.
+const helcimTestCards = [
+  "4111111111111111",
+  "4000000000000002",
+  "4242424242424242",
+  "4012888888881881",
+  "4000056655665556",
+  "4532015112830366",
+  "4000000000000127",
+  "4000000000000119",
+  "4111111111111129",
+  "4111111111111137",
+  "4111111111111145",
+  "4111111111111152",
+  "4000000000000259",
+  "4000000000003238",
+  "5555555555554444",
+  "5105105105105100",
+  "5200828282828210",
+  "5100000000000008",
+  "4111111111111160",
+  "4000000000000340",
+];
+
+export function injectHelcimTestCard(body, globalState) {
+  if (globalState.get("connectorId") !== "helcim") return;
+  if (!body.payment_method_data?.card) return;
+
+  const testOffset = globalState.get("helcimCardIndex") ?? 0;
+  const timeOffset = Math.floor(Date.now() / 1000) % helcimTestCards.length;
+  const idx = (timeOffset + testOffset) % helcimTestCards.length;
+  globalState.set("helcimCardIndex", testOffset + 1);
+
+  const ts = Date.now();
+  const rnd = Math.floor(Math.random() * 100000);
+  const uniqueSuffix = `${ts.toString(36)}_${rnd}`;
+  body.payment_method_data.card.card_number = helcimTestCards[idx];
+  body.payment_method_data.card.card_holder_name = `HelcimTest ${uniqueSuffix}`;
 }

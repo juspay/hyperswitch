@@ -8,7 +8,7 @@ use time::PrimitiveDateTime;
 use utoipa::ToSchema;
 
 use super::enums::{Currency, DisputeStage, DisputeStatus};
-use crate::{admin::MerchantConnectorInfo, files};
+use crate::{admin::MerchantConnectorInfo, files::FileMetadataResponse};
 
 #[derive(Clone, Debug, Serialize, ToSchema)]
 pub struct DisputeResponse {
@@ -105,7 +105,7 @@ pub struct DisputeResponsePaymentsRetrieve {
     pub created_at: PrimitiveDateTime,
 }
 
-#[derive(Debug, Serialize, Deserialize, strum::Display, Clone)]
+#[derive(Debug, Serialize, Deserialize, strum::Display, Clone, ToSchema)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum EvidenceType {
@@ -126,7 +126,7 @@ pub struct DisputeEvidenceBlock {
     /// Evidence type
     pub evidence_type: EvidenceType,
     /// File metadata
-    pub file_metadata_response: files::FileMetadataResponse,
+    pub file_metadata_response: FileMetadataResponse,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -250,7 +250,7 @@ pub struct DisputeRetrieveRequest {
     pub force_sync: Option<bool>,
 }
 
-#[derive(Clone, Debug, serde::Serialize)]
+#[derive(Clone, Debug, serde::Serialize, ToSchema)]
 pub struct DisputesAggregateResponse {
     /// Different status of disputes with their count
     pub status_with_count: HashMap<DisputeStatus, i64>,

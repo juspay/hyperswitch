@@ -202,4 +202,106 @@ export const connectorDetails = {
       },
     }),
   },
+  payout_link_pm: {
+    PayoutLinkBase: getCustomExchange({
+      Request: {
+        payout_link: true,
+        currency: "USD",
+        amount: 100,
+        description: "Test Payout Link",
+        payout_link_config: {
+          test_mode: true,
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payout_method_data",
+        },
+      },
+    }),
+    PayoutLinkBankTransfer: getCustomExchange({
+      Request: {
+        payout_link: true,
+        currency: "EUR",
+        amount: 100,
+        description: "Test Payout Link Bank Transfer",
+        payout_link_config: {
+          test_mode: true,
+          enabled_payment_methods: [
+            {
+              payment_method: "bank_transfer",
+              payment_method_types: ["sepa_bank_transfer"],
+            },
+          ],
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payout_method_data",
+          payout_type: "bank",
+        },
+      },
+    }),
+    PayoutLinkValidationError: getCustomExchange({
+      Request: {
+        payout_link: true,
+        currency: "USD",
+        amount: 100,
+        description: "Test missing customer_id",
+        customer_id: null,
+        payout_link_config: {
+          test_mode: true,
+        },
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            code: "IR_04",
+            message:
+              "Missing required param: customer or customer_id when payout_link is true",
+          },
+        },
+      },
+    }),
+    PayoutLinkConfirmConflict: getCustomExchange({
+      Request: {
+        payout_link: true,
+        confirm: true,
+        currency: "USD",
+        amount: 100,
+        description: "Test confirm + payout_link conflict",
+        payout_link_config: {
+          test_mode: true,
+        },
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message: "cannot confirm a payout while creating a payout link",
+            code: "IR_06",
+          },
+        },
+      },
+    }),
+    PayoutLinkWithoutLink: getCustomExchange({
+      Request: {
+        payout_link: false,
+        currency: "USD",
+        amount: 100,
+        description: "Test without payout link",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payout_method_data",
+        },
+      },
+    }),
+  },
 };

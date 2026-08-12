@@ -14,6 +14,7 @@ v2 = ["api_models/v2", "common_utils/v2", "hyperswitch_domain_models/v2"]
 payouts = ["hyperswitch_domain_models/payouts"]
 frm = ["hyperswitch_domain_models/frm"]
 revenue_recovery = []
+ext_services_latency = []
 
 [dependencies]
 actix-web = "4.11.0"
@@ -21,6 +22,7 @@ async-trait = "0.1.88"
 bytes = "1.10.1"
 dyn-clone = "1.0.19"
 error-stack = "0.4.1"
+futures = "0.3.31"
 http = "0.2.12"
 mime = "0.3.17"
 prost = "0.14"
@@ -33,7 +35,7 @@ time = "0.3.41"
 tonic = "0.14"
 url = { version = "2.5.4", features = ["serde"] }
 
-unified-connector-service-client = { git = "https://github.com/juspay/connector-service", rev = "90e3cb93d978ac399d0fa41ab54954e3ede7a767", package = "rust-grpc-client" }
+unified-connector-service-client = { git = "https://github.com/juspay/connector-service", tag = "2026.08.07.1", package = "rust-grpc-client" }
 tokio = { version = "1.45.1", features = ["macros", "rt-multi-thread"] }
 
 # First party crates

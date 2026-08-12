@@ -34,12 +34,11 @@ use crate::types::transformers::ForeignFrom;
 use crate::{
     consts,
     core::{
-        configs::dimension_state,
         connector_validation::ConnectorAuthTypeAndMetadataValidation,
         disputes,
         encryption::transfer_encryption_key,
         errors::{self, RouterResponse, RouterResult, StorageErrorExt},
-        payment_methods::{cards, transformers},
+        payment_methods::{cards, transformers, vault},
         payments::helpers::{self},
         pm_auth::helpers::PaymentAuthConnectorDataExt,
         routing, utils as core_utils,
@@ -65,28 +64,24 @@ use crate::{
     utils,
 };
 
+// deja: the publishable key embeds a random UUIDv4 and is persisted on the
+// merchant row + returned in the response, so it must replay to the recorded
+// string for byte-exact self-replay.
 #[inline]
+#[cfg_attr(
+    feature = "deja",
+    deja::id(
+        component = "router::admin",
+        operation = "create_merchant_publishable_key",
+        codec = SerdeCodec,
+    )
+)]
 pub fn create_merchant_publishable_key() -> String {
     format!(
         "pk_{}_{}",
         router_env::env::prefix_for_env(),
         Uuid::new_v4().simple()
     )
-}
-
-/// Insert merchant configs using Superposition for fingerprint_secret
-pub async fn insert_merchant_configs_with_superposition(
-    state: &SessionState,
-    dimensions: &dimension_state::DimensionsWithProcessorMerchantId,
-) -> RouterResult<()> {
-    let fingerprint_secret = utils::generate_id(consts::FINGERPRINT_SECRET_LENGTH, "fs");
-
-    dimensions
-        .set_fingerprint_secret(state.superposition_service.as_ref(), &fingerprint_secret)
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to create fingerprint_secret in Superposition")?;
-    Ok(())
 }
 
 #[cfg(feature = "olap")]
@@ -329,6 +324,14 @@ pub async fn create_merchant_account(
 
     let key_manager_state: &KeyManagerState = &(&state).into();
     let merchant_id = req.get_merchant_reference_id();
+
+    if state.conf.locker.locker_enabled && state.conf.locker.create_entity_on_merchant_create {
+        vault::create_entity_in_locker(&state, &merchant_id)
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to create entity in locker for merchant")?;
+    }
+
     let identifier = km_types::Identifier::Merchant(merchant_id.clone());
     keymanager::transfer_key_to_key_manager(
         key_manager_state,
@@ -397,16 +400,7 @@ pub async fn create_merchant_account(
         None,
     );
 
-    let dimensions = dimension_state::Dimensions::new()
-        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id());
-
     add_publishable_key_to_decision_service(&state, &platform);
-
-    Box::pin(insert_merchant_configs_with_superposition(
-        &state,
-        &dimensions,
-    ))
-    .await?;
 
     Ok(service_api::ApplicationResponse::Json(
         api::MerchantAccountResponse::foreign_try_from(merchant_account)
@@ -645,6 +639,10 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
                     product_type: self.product_type,
                     merchant_account_type,
                     network_tokenization_credentials,
+                    fingerprint_secret: Some(Secret::new(utils::generate_id(
+                        consts::FINGERPRINT_SECRET_LENGTH,
+                        "fs",
+                    ))),
                 },
             )
         }
@@ -653,9 +651,14 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
 
         let mut domain_merchant_account = domain::MerchantAccount::from(merchant_account);
 
-        CreateProfile::new(self.primary_business_details.clone())
-            .create_profiles(state, &mut domain_merchant_account, &key_store)
-            .await?;
+        Box::pin(
+            CreateProfile::new(self.primary_business_details.clone()).create_profiles(
+                state,
+                &mut domain_merchant_account,
+                &key_store,
+            ),
+        )
+        .await?;
 
         Ok(domain_merchant_account)
     }
@@ -776,12 +779,12 @@ impl CreateProfile {
             Self::CreateFromPrimaryBusinessDetails {
                 primary_business_details,
             } => {
-                let business_profiles = Self::create_profiles_for_each_business_details(
+                let business_profiles = Box::pin(Self::create_profiles_for_each_business_details(
                     state,
                     merchant_account.clone(),
                     primary_business_details,
                     key_store,
-                )
+                ))
                 .await?;
 
                 // Update the default business profile in merchant account
@@ -792,9 +795,12 @@ impl CreateProfile {
                 }
             }
             Self::CreateDefaultProfile => {
-                let business_profile = self
-                    .create_default_business_profile(state, merchant_account.clone(), key_store)
-                    .await?;
+                let business_profile = Box::pin(self.create_default_business_profile(
+                    state,
+                    merchant_account.clone(),
+                    key_store,
+                ))
+                .await?;
 
                 merchant_account.default_profile = Some(business_profile.get_id().to_owned());
             }
@@ -941,6 +947,10 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
                     version: common_types::consts::API_VERSION,
                     product_type: self.product_type,
                     merchant_account_type,
+                    fingerprint_secret: Some(Secret::new(utils::generate_id(
+                        consts::FINGERPRINT_SECRET_LENGTH,
+                        "fs",
+                    ))),
                 }),
             )
         }
@@ -1188,13 +1198,13 @@ impl MerchantAccountUpdateBridge for api::MerchantAccountUpdate {
         self.primary_business_details
             .clone()
             .async_map(|primary_business_details| async {
-                let _ = create_profile_from_business_labels(
+                let _ = Box::pin(create_profile_from_business_labels(
                     state,
                     db,
                     key_store,
                     merchant_id,
                     primary_business_details,
-                )
+                ))
                 .await;
             })
             .await;
@@ -1552,7 +1562,6 @@ struct PMAuthConfigValidation<'a> {
     db: &'a dyn StorageInterface,
     merchant_id: &'a id_type::MerchantId,
     profile_id: &'a id_type::ProfileId,
-    key_store: &'a domain::MerchantKeyStore,
 }
 
 impl PMAuthConfigValidation<'_> {
@@ -1565,32 +1574,25 @@ impl PMAuthConfigValidation<'_> {
         })
         .attach_printable("Failed to deserialize Payment Method Auth config")?;
 
+        // Fetching disabled MCAs too: PM auth config may reference MCAs that are
+        // temporarily disabled — validation checks existence, not activity.
         let all_mcas = self
             .db
-            .find_merchant_connector_account_by_merchant_id_and_disabled_list(
+            .list_merchant_connector_accounts_without_encrypted_including_disabled_by_merchant_id_profile_id(
                 self.merchant_id,
-                true,
-                self.key_store,
+                self.profile_id,
             )
             .await
             .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
                 id: self.merchant_id.get_string_repr().to_owned(),
             })?;
         for conn_choice in config.enabled_payment_methods {
-            let pm_auth_mca = all_mcas
+            all_mcas
                 .iter()
                 .find(|mca| mca.get_id() == conn_choice.mca_id)
                 .ok_or(errors::ApiErrorResponse::GenericNotFoundError {
                     message: "payment method auth connector account not found".to_string(),
                 })?;
-
-            if &pm_auth_mca.profile_id != self.profile_id {
-                return Err(errors::ApiErrorResponse::GenericNotFoundError {
-                    message: "payment method auth profile_id differs from connector profile_id"
-                        .to_string(),
-                }
-                .into());
-            }
         }
 
         Ok(services::ApplicationResponse::StatusOk)
@@ -2025,7 +2027,6 @@ impl MerchantConnectorAccountUpdateBridge for api_models::admin::MerchantConnect
             db: state.store.as_ref(),
             merchant_id: platform.get_processor().get_account().get_id(),
             profile_id: &mca.profile_id.clone(),
-            key_store: platform.get_processor().get_key_store(),
         };
 
         pm_auth_config_validation.validate_pm_auth_config().await?;
@@ -2718,6 +2719,28 @@ pub async fn create_connector(
         },
     )?;
 
+    fp_utils::when(
+        processor.get_account().merchant_account_type == MerchantAccountType::Connected
+            && api_models::enums::VaultConnectors::try_from(req.connector_name).is_ok(),
+        || {
+            Err(errors::ApiErrorResponse::InvalidRequestData {
+                message:
+                    "Vault connectors can only be configured by platform or standard merchants, not connected merchants"
+                        .to_string(),
+            })
+        },
+    )?;
+
+    fp_utils::when(
+        processor.get_account().merchant_account_type == MerchantAccountType::Platform
+            && api_models::enums::VaultConnectors::try_from(req.connector_name).is_err(),
+        || {
+            Err(errors::ApiErrorResponse::InvalidRequestData {
+                message: "Platform merchants can only configure vault connectors".to_string(),
+            })
+        },
+    )?;
+
     let connector_metadata = ConnectorMetadata {
         connector_metadata: &req.metadata,
     };
@@ -2758,7 +2781,6 @@ pub async fn create_connector(
         db: store,
         merchant_id,
         profile_id: business_profile.get_id(),
-        key_store: processor.get_key_store(),
     };
     pm_auth_config_validation.validate_pm_auth_config().await?;
 
@@ -2868,13 +2890,11 @@ async fn validate_pm_auth(
             })
             .attach_printable("Failed to deserialize Payment Method Auth config")?;
 
+    // Fetching disabled MCAs too: PM auth config may reference MCAs that are
+    // temporarily disabled — validation checks existence, not activity.
     let all_mcas = state
         .store
-        .find_merchant_connector_account_by_merchant_id_and_disabled_list(
-            merchant_id,
-            true,
-            platform.get_processor().get_key_store(),
-        )
+        .list_merchant_connector_accounts_without_encrypted_including_disabled_by_merchant_id_profile_id(merchant_id, profile_id)
         .await
         .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
             id: platform
@@ -2886,20 +2906,12 @@ async fn validate_pm_auth(
         })?;
 
     for conn_choice in config.enabled_payment_methods {
-        let pm_auth_mca = all_mcas
+        all_mcas
             .iter()
             .find(|mca| mca.get_id() == conn_choice.mca_id)
             .ok_or(errors::ApiErrorResponse::GenericNotFoundError {
                 message: "payment method auth connector account not found".to_string(),
             })?;
-
-        if &pm_auth_mca.profile_id != profile_id {
-            return Err(errors::ApiErrorResponse::GenericNotFoundError {
-                message: "payment method auth profile_id differs from connector profile_id"
-                    .to_string(),
-            }
-            .into());
-        }
     }
 
     Ok(services::ApplicationResponse::StatusOk)
@@ -2993,10 +3005,9 @@ pub async fn list_payment_connectors(
     let store = state.store.as_ref();
 
     let merchant_connector_accounts = store
-        .find_merchant_connector_account_by_merchant_id_and_disabled_list(
+        .find_merchant_connector_account_without_encrypted_by_merchant_id_and_disabled_list(
             processor.get_account().get_id(),
             true,
-            processor.get_key_store(),
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?;
@@ -3860,13 +3871,67 @@ impl ProfileCreateBridge for api::ProfileCreate {
     }
 }
 
-#[cfg(feature = "olap")]
+#[cfg(all(feature = "olap", feature = "v1"))]
+/// External vault can only be configured on the provider merchant in the Platform setup. Connected
+/// merchants share the platform's vault pool and must not configure their own external vault.
+fn validate_external_vault_config_for_merchant_account_type(
+    merchant_account_type: MerchantAccountType,
+    is_external_vault_enabled: Option<common_enums::ExternalVaultEnabled>,
+    has_external_vault_connector_details: bool,
+) -> RouterResult<()> {
+    let is_external_vault_being_configured = matches!(
+        is_external_vault_enabled,
+        Some(common_enums::ExternalVaultEnabled::Enable)
+    ) || has_external_vault_connector_details;
+    fp_utils::when(
+        is_external_vault_being_configured
+            && merchant_account_type == MerchantAccountType::Connected,
+        || {
+            Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+                message:
+                    "External vault can only be configured for platform merchant, not for connected merchants"
+                        .to_string(),
+            }))
+        },
+    )
+}
+
+#[cfg(all(feature = "olap", feature = "v2"))]
+/// External vault can only be configured on the provider merchant in the Platform setup. Connected
+/// merchants share the platform's vault pool and must not configure their own external vault.
+fn validate_external_vault_config_for_merchant_account_type(
+    merchant_account_type: MerchantAccountType,
+    is_external_vault_enabled: Option<bool>,
+    has_external_vault_connector_details: bool,
+) -> RouterResult<()> {
+    let is_external_vault_being_configured =
+        is_external_vault_enabled == Some(true) || has_external_vault_connector_details;
+    fp_utils::when(
+        is_external_vault_being_configured
+            && merchant_account_type == MerchantAccountType::Connected,
+        || {
+            Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+                message:
+                    "External vault can only be configured for platform merchant, not for connected merchants"
+                        .to_string(),
+            }))
+        },
+    )
+}
+
 pub async fn create_profile(
     state: SessionState,
     request: api::ProfileCreate,
     processor: domain::Processor,
 ) -> RouterResponse<api_models::admin::ProfileResponse> {
     let db = state.store.as_ref();
+
+    validate_external_vault_config_for_merchant_account_type(
+        processor.get_account().merchant_account_type,
+        request.is_external_vault_enabled,
+        request.external_vault_connector_details.is_some(),
+    )?;
+
     #[cfg(feature = "v1")]
     let business_profile = request
         .create_domain_model_from_request(&state, &processor)
@@ -4395,6 +4460,17 @@ pub async fn update_profile(
     request: api::ProfileUpdate,
 ) -> RouterResponse<api::ProfileResponse> {
     let db = state.store.as_ref();
+
+    let merchant_account = db
+        .find_merchant_account_by_merchant_id(&merchant_id, &key_store)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
+    validate_external_vault_config_for_merchant_account_type(
+        merchant_account.merchant_account_type,
+        request.is_external_vault_enabled,
+        request.external_vault_connector_details.is_some(),
+    )?;
+
     let business_profile = db
         .find_business_profile_by_merchant_id_profile_id(&key_store, &merchant_id, profile_id)
         .await

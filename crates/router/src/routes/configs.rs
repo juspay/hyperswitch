@@ -48,7 +48,7 @@ pub async fn config_key_retrieve(
         &req,
         &key,
         |state, _, key, _| configs::read_config(state, key),
-        &ADMIN_API_AUTH,
+        &auth::InternalApiKeyAuth(ADMIN_API_AUTH),
         api_locking::LockAction::NotApplicable,
     )
     .await
