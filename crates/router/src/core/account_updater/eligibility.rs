@@ -1,15 +1,15 @@
 use std::str::FromStr;
 
 use api_models::payment_methods::RawPaymentMethodData;
-use common_enums::{CardNetwork, PaymentMethod, PaymentMethodStatus, StorageType};
-use common_utils::errors::CustomResult;
+use common_enums::{PaymentMethod, PaymentMethodStatus, StorageType};
+use common_utils::{errors::CustomResult, fp_utils::when};
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::payment_method_data::PaymentMethodsData;
 use router_env::{instrument, tracing};
 use unified_connector_service_cards::CardNumber;
 use unified_connector_service_client::payments as payments_grpc;
 
-use super::types::AccountUpdaterError;
+use super::types::{AccountUpdaterError, ResolvedAccountUpdaterConfig};
 use crate::{
     core::payment_methods::RawPaymentMethodFetchAccess,
     routes::SessionState,
@@ -23,10 +23,11 @@ pub async fn check_eligibility_and_fetch_payment_method(
     profile: &domain::Profile,
     payment_method: &domain::PaymentMethod,
     storage_type: StorageType,
+    config: &ResolvedAccountUpdaterConfig,
 ) -> CustomResult<payments_grpc::PaymentMethod, AccountUpdaterError> {
-    if payment_method.status != PaymentMethodStatus::Active {
-        return Err(report!(AccountUpdaterError::PaymentMethodNotActive));
-    }
+    when(payment_method.status != PaymentMethodStatus::Active, || {
+        Err(report!(AccountUpdaterError::PaymentMethodNotActive))
+    })?;
 
     match payment_method.get_payment_method_type() {
         Some(PaymentMethod::Card) => {
@@ -36,6 +37,7 @@ pub async fn check_eligibility_and_fetch_payment_method(
                 profile,
                 payment_method,
                 storage_type,
+                config,
             )
             .await
         }
@@ -49,25 +51,25 @@ async fn check_stored_card_eligibility_and_fetch_details(
     profile: &domain::Profile,
     payment_method: &domain::PaymentMethod,
     storage_type: StorageType,
+    config: &ResolvedAccountUpdaterConfig,
 ) -> CustomResult<payments_grpc::PaymentMethod, AccountUpdaterError> {
-    let card_details = match payment_method
+    let card_details = payment_method
         .payment_method_data
         .as_ref()
         .map(|payment_method_data| payment_method_data.get_inner())
-    {
-        Some(PaymentMethodsData::Card(card_details)) => card_details,
-        _ => {
-            return Err(report!(AccountUpdaterError::PaymentMethodNotACard)
-                .attach_printable("Stored payment method data holds no card details"))
-        }
-    };
+        .and_then(|payment_method_data| match payment_method_data {
+            PaymentMethodsData::Card(card_details) => Some(card_details),
+            _ => None,
+        })
+        .ok_or_else(|| report!(AccountUpdaterError::PaymentMethodNotACard))
+        .attach_printable("Stored payment method data holds no card details")?;
 
-    if !matches!(
-        card_details.card_network,
-        Some(CardNetwork::Visa | CardNetwork::Mastercard)
-    ) {
-        return Err(report!(AccountUpdaterError::UnsupportedNetwork));
-    }
+    card_details
+        .card_network
+        .as_ref()
+        .filter(|card_network| config.supported_card_networks().contains(*card_network))
+        .ok_or_else(|| report!(AccountUpdaterError::UnsupportedNetwork))
+        .attach_printable("Stored card network is not configured for Account Updater")?;
 
     let raw_payment_method_data = RawPaymentMethodFetchAccess::Allowed
         .get_raw_payment_method_data(state, platform, profile, payment_method, storage_type)
@@ -82,16 +84,17 @@ fn build_refreshable_payment_method(
     raw_payment_method_data: Option<RawPaymentMethodData>,
 ) -> CustomResult<payments_grpc::PaymentMethod, AccountUpdaterError> {
     let card_details = match raw_payment_method_data {
-        Some(RawPaymentMethodData::Card(card_details)) => card_details,
-        Some(RawPaymentMethodData::CardWithNT(details)) => details.card_details,
+        Some(RawPaymentMethodData::Card(card_details)) => Some(card_details),
+        Some(RawPaymentMethodData::CardWithNT(details)) => Some(details.card_details),
         Some(RawPaymentMethodData::BankDebit(_) | RawPaymentMethodData::ProxyCard(_)) | None => {
-            return Err(report!(AccountUpdaterError::CardUnusable)
-                .attach_printable("Unvaulted payment method data holds no card"))
+            None
         }
-    };
+    }
+    .ok_or_else(|| report!(AccountUpdaterError::CardUnusable))
+    .attach_printable("Unvaulted payment method data holds no card")?;
 
     let card_number = CardNumber::from_str(&card_details.card_number.get_card_no())
-        .map_err(|_| report!(AccountUpdaterError::CardUnusable))
+        .change_context(AccountUpdaterError::CardUnusable)
         .attach_printable("Failed to parse the unvaulted card number")?;
 
     let network = card_details

@@ -91,6 +91,7 @@ async fn refresh_stored_payment_method(
         profile,
         payment_method,
         storage_type,
+        config,
     )
     .await?;
 

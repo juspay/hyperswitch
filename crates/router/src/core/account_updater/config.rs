@@ -1,9 +1,10 @@
+use std::time::Duration;
+
 use common_utils::errors::CustomResult;
 use error_stack::report;
 
 use super::types::{
-    AccountUpdaterCredentialSource, AccountUpdaterError, JuspayCredentials,
-    ResolvedAccountUpdaterConfig,
+    AccountUpdaterCredentialSource, AccountUpdaterError, JuspayConfig, ResolvedAccountUpdaterConfig,
 };
 use crate::{
     configs::settings,
@@ -59,13 +60,15 @@ fn resolve_application_config(
 
     match account_updater.get_inner() {
         settings::AccountUpdaterConfig::Juspay(juspay) => {
-            Ok(ResolvedAccountUpdaterConfig::Juspay(JuspayCredentials {
+            Ok(ResolvedAccountUpdaterConfig::Juspay(JuspayConfig {
                 base_url: juspay.base_url.clone(),
                 api_key: juspay.api_key.clone(),
                 merchant_id: juspay.merchant_id.clone(),
                 euler_encryption_public_key: juspay.euler_encryption_public_key.clone(),
                 au_decryption_pvt_key: juspay.au_decryption_pvt_key.clone(),
                 card_sync_key_id: juspay.card_sync_key_id.clone(),
+                supported_card_networks: juspay.supported_card_networks.clone(),
+                refresh_timeout: Duration::from_secs(juspay.refresh_timeout_in_secs),
             }))
         }
     }
