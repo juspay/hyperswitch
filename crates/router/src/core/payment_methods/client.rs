@@ -57,7 +57,7 @@ fn bank_redirect_data_for_client(
     payment_method: common_enums::PaymentMethod,
     bank: Option<MaskedBankDetails>,
 ) -> Option<CustomerPaymentMethodDataForClient> {
-    if *payment_method == common_enums::PaymentMethod::BankRedirect {
+    if payment_method == common_enums::PaymentMethod::BankRedirect {
         bank.map(CustomerPaymentMethodDataForClient::BankRedirect)
     } else {
         None
