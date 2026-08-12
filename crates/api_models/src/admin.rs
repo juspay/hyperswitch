@@ -942,20 +942,19 @@ impl WebhookDetails {
 
     fn validate_statuses<T>(statuses: &[T], status_type_name: &str) -> Result<(), String>
     where
-        T: strum::IntoEnumIterator + PartialEq + std::fmt::Debug,
+        T: strum::IntoEnumIterator + Copy + PartialEq + std::fmt::Debug,
         T: Into<Option<api_enums::EventType>>,
     {
-        statuses
-            .iter()
-            .find(|status| {
-                !T::iter()
-                    .any(|valid_status| valid_status.eq(*status) && valid_status.into().is_some())
-            })
-            .map_or(Ok(()), |status| {
-                Err(format!(
+        let valid_statuses: Vec<T> = T::iter().filter(|s| (*s).into().is_some()).collect();
+
+        for status in statuses {
+            if !valid_statuses.contains(status) {
+                return Err(format!(
                     "Invalid {status_type_name} webhook status provided: {status:?}"
-                ))
-            })
+                ));
+            }
+        }
+        Ok(())
     }
 
     pub fn validate(&self) -> Result<(), String> {

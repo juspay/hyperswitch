@@ -505,6 +505,7 @@ impl Connector {
 #[derive(
     Debug,
     Clone,
+    Copy,
     PartialEq,
     Eq,
     serde::Deserialize,
