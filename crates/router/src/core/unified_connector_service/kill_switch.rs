@@ -31,15 +31,17 @@ fn trip_key(rollout_scope: &str) -> String {
     format!("{}_{rollout_scope}", consts::UCS_KILL_SWITCH_REDIS_PREFIX)
 }
 
-/// The scope inside a value the list endpoint returned. That endpoint answers with whole redis
-/// keys, tenant prefix included, so an operator can paste one back verbatim; a bare scope is
-/// accepted just as well.
-fn rollout_scope_in(listed_key: &str) -> &str {
+/// The rollout scope inside a redis key, or the input unchanged when it is already a scope.
+///
+/// `scan` hands back whole keys with the tenant prefix in front, and an operator may paste one of
+/// those into the reset endpoint, so both callers need the scope back out.
+fn rollout_scope_in(key_or_scope: &str) -> &str {
     let prefix = format!("{}_", consts::UCS_KILL_SWITCH_REDIS_PREFIX);
 
-    listed_key
-        .split_once(prefix.as_str())
-        .map_or(listed_key, |(_, rollout_scope)| rollout_scope)
+    match key_or_scope.split_once(prefix.as_str()) {
+        Some((_, rollout_scope)) => rollout_scope,
+        None => key_or_scope,
+    }
 }
 
 /// Whether the kill switch has tripped for this scope.
@@ -114,31 +116,41 @@ pub async fn record_failure(
     error: &UnifiedConnectorServiceError,
 ) {
     if let Some(failure) = trippable_failure(state, &context, execution_mode, error).await {
-        metrics::UCS_KILL_SWITCH_FAILURE.add(
-            1,
-            router_env::metric_attributes!(
-                ("connector", context.connector_name.to_string()),
-                ("flow", context.flow_name.to_string()),
-                ("reason", failure.reason.to_string())
-            ),
-        );
+        record_trippable_failure(state, &failure, &context, error).await;
+    }
+}
 
-        if is_config_flag_enabled(state, consts::UCS_KILL_SWITCH_ENABLED).await {
-            trip(state, &failure, &context, error).await;
-        } else {
-            // Fires on every qualifying failure: calibration feed, not an alert.
-            logger::warn!(
-                rollout_scope = %failure.rollout_scope,
-                merchant_id = %context.merchant_id,
-                connector = %context.connector_name,
-                flow = %context.flow_name,
-                payment_id = %context.payment_id,
-                request_id = ?state.request_id,
-                reason = %failure.reason,
-                ucs_error = ?error,
-                "ucs_kill_switch: qualifying failure observed but the kill switch is turned off"
-            );
-        }
+/// Counts the failure, and trips its scope when the switch is turned on.
+async fn record_trippable_failure(
+    state: &SessionState,
+    failure: &TrippableFailure,
+    context: &UcsFailureContext<'_>,
+    error: &UnifiedConnectorServiceError,
+) {
+    metrics::UCS_KILL_SWITCH_FAILURE.add(
+        1,
+        router_env::metric_attributes!(
+            ("connector", context.connector_name.to_string()),
+            ("flow", context.flow_name.to_string()),
+            ("reason", failure.reason.to_string())
+        ),
+    );
+
+    if is_config_flag_enabled(state, consts::UCS_KILL_SWITCH_ENABLED).await {
+        trip(state, failure, context, error).await;
+    } else {
+        // Fires on every qualifying failure: calibration feed, not an alert.
+        logger::warn!(
+            rollout_scope = %failure.rollout_scope,
+            merchant_id = %context.merchant_id,
+            connector = %context.connector_name,
+            flow = %context.flow_name,
+            payment_id = %context.payment_id,
+            request_id = ?state.request_id,
+            reason = %failure.reason,
+            ucs_error = ?error,
+            "ucs_kill_switch: qualifying failure observed but the kill switch is turned off"
+        );
     }
 }
 
@@ -195,15 +207,16 @@ async fn trip(
         reason,
     } = failure;
 
-    // Enough to find the originating request. The error itself stays out: it is unbounded and
-    // unmasked connector text, and the alert log below already carries it against the same
-    // request id.
-    let record = serde_json::json!({
-        "reason": reason.to_string(),
-        "request_id": state.request_id.as_ref().map(|id| id.to_string()),
-        "tripped_at": common_utils::date_time::now_unix_timestamp(),
+    let record = serde_json::to_string(&TripRecord {
+        reason: reason.to_string(),
+        request_id: state.request_id.as_ref().map(|id| id.to_string()),
+        tripped_at: common_utils::date_time::now_unix_timestamp(),
     })
-    .to_string();
+    .unwrap_or_else(|error| {
+        // The trip still has to be written; the list endpoint reports the detail as absent.
+        logger::error!(?error, "ucs_kill_switch: could not serialise the trip record");
+        String::new()
+    });
 
     match write_trip(state, rollout_scope, record).await {
         Ok(redis_interface::SetnxReply::KeySet) => {
@@ -261,10 +274,28 @@ async fn write_trip(
         .await
 }
 
-/// Scopes currently tripped. A wrapper because `Vec<String>` has no `ApiEventMetric` impl.
+/// What was written when a scope tripped. Enough to find the originating request; the error
+/// itself stays out, being unbounded and unmasked connector text that the alert log already
+/// carries against the same request id.
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct TripRecord {
+    pub reason: String,
+    pub request_id: Option<String>,
+    pub tripped_at: i64,
+}
+
+/// A tripped scope. `trip` is absent when the trip expired between the scan and the read, or
+/// when its record predates this shape.
+#[derive(Debug, serde::Serialize)]
+pub struct TrippedScope {
+    pub rollout_scope: String,
+    pub trip: Option<TripRecord>,
+}
+
+/// Scopes currently tripped. A wrapper because `Vec<_>` has no `ApiEventMetric` impl.
 #[derive(Debug, serde::Serialize)]
 pub struct KillSwitchListResponse {
-    pub tripped_scopes: Vec<String>,
+    pub tripped_scopes: Vec<TrippedScope>,
 }
 
 impl common_utils::events::ApiEventMetric for KillSwitchListResponse {}
@@ -305,21 +336,51 @@ pub async fn reset(state: SessionState, listed_key: String) -> errors::RouterRes
     }
 }
 
-/// Lists every scope currently tripped.
+/// Lists every scope currently tripped, with why and which request tripped it. Reads the trip
+/// records so an on-call engineer has that without redis or log access.
 pub async fn list_tripped_scopes(
     state: SessionState,
 ) -> errors::RouterResponse<KillSwitchListResponse> {
     let prefix = consts::UCS_KILL_SWITCH_REDIS_PREFIX;
 
-    let tripped_scopes = state
+    let redis_conn = state
         .store
         .get_redis_conn()
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to get a redis connection to list UCS kill switch trips")?
+        .attach_printable("Failed to get a redis connection to list UCS kill switch trips")?;
+
+    // `scan` answers with whole redis keys, tenant prefix included, while the read below applies
+    // that prefix itself. Going back to the scope keeps the key built in one place.
+    let rollout_scopes = redis_conn
         .scan(&format!("{prefix}_*").as_str().into(), Some(100), None)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to scan UCS kill switch trips")?;
+        .attach_printable("Failed to scan UCS kill switch trips")?
+        .iter()
+        .map(|listed_key| rollout_scope_in(listed_key).to_string())
+        .collect::<Vec<_>>();
+
+    let keys = rollout_scopes
+        .iter()
+        .map(|rollout_scope| trip_key(rollout_scope).as_str().into())
+        .collect::<Vec<redis_interface::RedisKey>>();
+
+    let records = redis_conn
+        .get_multiple_keys::<String>(&keys)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to read UCS kill switch trips")?;
+
+    let tripped_scopes = rollout_scopes
+        .into_iter()
+        .zip(records)
+        .map(|(rollout_scope, record)| TrippedScope {
+            rollout_scope,
+            // A trip can expire between the scan and the read, and a record written by an older
+            // build may not parse. Neither is worth failing the listing for.
+            trip: record.and_then(|record| serde_json::from_str::<TripRecord>(&record).ok()),
+        })
+        .collect();
 
     Ok(crate::services::ApplicationResponse::Json(
         KillSwitchListResponse { tripped_scopes },
