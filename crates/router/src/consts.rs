@@ -306,8 +306,9 @@ pub const IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID: &str =
 // Default payment method storing TTL in redis in seconds
 pub const DEFAULT_PAYMENT_METHOD_STORE_TTL: i64 = 86400; // 1 day
 
-// List of countries that are part of the PSD2 region
-pub const PSD2_COUNTRIES: [Country; 27] = [
+// Countries and separately encoded territories where PSD2 or the equivalent UK
+// strong customer authentication rules apply.
+pub const SCA_MANDATED_COUNTRIES: [Country; 39] = [
     Country::Austria,
     Country::Belgium,
     Country::Bulgaria,
@@ -335,6 +336,21 @@ pub const PSD2_COUNTRIES: [Country; 27] = [
     Country::Slovenia,
     Country::Spain,
     Country::Sweden,
+    // EEA/EFTA states where PSD2 applies
+    Country::Iceland,
+    Country::Liechtenstein,
+    Country::Norway,
+    // EU territories represented separately by the Country enum
+    Country::AlandIslands,
+    Country::FrenchGuiana,
+    Country::Guadeloupe,
+    Country::Martinique,
+    Country::Mayotte,
+    Country::Reunion,
+    Country::SaintMartinFrenchpart,
+    // Jurisdictions covered by the equivalent UK SCA regime
+    Country::UnitedKingdomOfGreatBritainAndNorthernIreland,
+    Country::Gibraltar,
 ];
 
 // Rollout percentage config prefix
@@ -362,8 +378,19 @@ pub const UCS_AUTH_MULTI_KEY: &str = "multi-auth-key";
 /// Header value indicating that currency-auth-key-based authentication is used.
 pub const UCS_AUTH_CURRENCY_AUTH_KEY: &str = "currency-auth-key";
 
+/// Header value indicating that no credentials are required (e.g. external-3DS
+/// over VGS where mTLS is handled on the outbound proxy route, not by UCS).
+pub const UCS_AUTH_NO_KEY: &str = "no-key";
+
 /// Form field name for challenge request during creq submission
 pub const CREQ_CHALLENGE_REQUEST_KEY: &str = "creq";
+
+/// `RedirectForm::Form.form_fields` keys UCS's Netcetera integration uses to carry 3DS Method
+/// (DDC) data — there's no typed proto slot for it, so connector-service stuffs it into the same
+/// generic form-fields map used for the challenge (see its `netcetera/transformers.rs`, the
+/// `form_fields.insert("threeDsMethodData"/"threeDsMethodUrl", ...)` call).
+pub const UCS_DDC_METHOD_DATA_KEY: &str = "threeDsMethodData";
+pub const UCS_DDC_METHOD_URL_KEY: &str = "threeDsMethodUrl";
 
 /// Superposition configuration keys
 pub mod superposition {

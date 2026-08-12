@@ -4,6 +4,24 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.07.29.2-hotfix3
+
+### Features
+
+- **authentication:** Added cardbin/extended_cardbin routing support for exemption manager ([#13618](https://github.com/juspay/hyperswitch/pull/13618)) ([`a3c5600`](https://github.com/juspay/hyperswitch/commit/a3c560054503efe752b49c26f4b841f3b3b115e5))
+- **connector:** [stripe][stripe_connect] pass ip address and user agent in tokenization request ([#13637](https://github.com/juspay/hyperswitch/pull/13637)) ([`237c42d`](https://github.com/juspay/hyperswitch/commit/237c42d372c27f2e1969a00be424ae1392c5cef5))
+- **connectors:** [stripe_connect] add support for raw card payments ([#13636](https://github.com/juspay/hyperswitch/pull/13636)) ([`d0d9d9f`](https://github.com/juspay/hyperswitch/commit/d0d9d9f533ea79306675e42f260e7c197abeb1eb))
+- **external-3ds-vgs:** Netcetera external 3DS authentication over VGS external vault (v1) ([#13608](https://github.com/juspay/hyperswitch/pull/13608)) ([`b21ca18`](https://github.com/juspay/hyperswitch/commit/b21ca18129927f95d4754ef80096f1803f847ad5))
+
+### Bug Fixes
+
+- **connector:** [Stripe] Pass line_items whenever L2L3 config is enabled ([#13632](https://github.com/juspay/hyperswitch/pull/13632)) ([`7a6f605`](https://github.com/juspay/hyperswitch/commit/7a6f6055f457d0d723508924eee2a030533c7b83))
+- Add Vgs to RoutableConnectors to fix vault processor MCA update ([#13609](https://github.com/juspay/hyperswitch/pull/13609)) ([`51afe4e`](https://github.com/juspay/hyperswitch/commit/51afe4e522a2ff11de6ce21f592efbb1ee150bbb))
+
+**Full Changelog:** [`2026.07.29.2-hotfix2...2026.07.29.2-hotfix3`](https://github.com/juspay/hyperswitch/compare/2026.07.29.2-hotfix2...2026.07.29.2-hotfix3)
+
+- - -
+
 ## 2026.07.29.2-hotfix2
 
 ### Bug Fixes
