@@ -160,7 +160,7 @@ pub async fn payment_link_create(
     {
         return api::log_and_return_error_response(err.into());
     };
-    
+
     if let Some(api_enums::CaptureMethod::Scheduled) = payload.capture_method {
         return http_not_implemented();
     };

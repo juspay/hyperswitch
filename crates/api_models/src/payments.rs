@@ -1820,7 +1820,6 @@ impl PaymentsRequest {
         Ok(())
     }
 
-    
     pub fn for_payment_link(self) -> Self {
         Self {
             amount: self.amount,
