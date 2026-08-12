@@ -2,7 +2,6 @@ use std::collections::HashSet;
 
 use api_models::webhooks::IncomingWebhookEvent;
 use common_enums;
-use common_utils::errors::CustomResult;
 use external_services::superposition;
 use scheduler::consumer::types::process_data::RetryMapping;
 
@@ -226,6 +225,26 @@ impl DatabaseBackedConfig for ImplicitCustomerUpdate {
 }
 
 config! {
+    superposition_key = BLOCK_IMPLICIT_CUSTOMER_CREATION,
+    output = bool,
+    default = false,
+    requires = dimension_state::DimensionsWithOrgId,
+    targeting_key = id_type::CustomerId
+}
+
+impl DatabaseBackedConfig for BlockImplicitCustomerCreation {
+    const KEY: &'static str = "block_implicit_customer_creation";
+
+    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        dimensions
+            .get_organization_id()
+            .map(|id| format!("{}_{}", Self::KEY, id.get_string_repr()))
+    }
+}
+
+// Retained temporarily so merchants without a database value can fall back to
+// their existing Superposition fingerprint secret during migration.
+config! {
     superposition_key = FINGERPRINT_SECRET,
     output = String,
     default = String::new(),
@@ -332,13 +351,6 @@ impl DatabaseBackedConfig for EnableExtendedCardBin {
     }
 }
 
-// Write support for FingerprintSecret
-writable_config! {
-    superposition_key = FINGERPRINT_SECRET,
-    input = String,
-    requires = dimension_state::DimensionsWithProcessorMerchantId
-}
-
 config! {
     superposition_key = GSM_PAYOUT_CALL,
     output = bool,
@@ -417,7 +429,7 @@ config! {
     superposition_key = SHOULD_CALL_PM_MODULAR_SERVICE,
     output = bool,
     default = false,
-    requires = dimension_state::DimensionsWithOrgId,
+    requires = dimension_state::DimensionsWithProviderMerchantIdAndOrgId,
     targeting_key = id_type::CustomerId
 }
 
@@ -435,7 +447,7 @@ config! {
     superposition_key = SHOULD_SCHEDULE_MODULAR_FORWARD_COMPAT,
     output = bool,
     default = false,
-    requires = dimension_state::DimensionsWithProviderMerchantId,
+    requires = dimension_state::DimensionsWithProviderMerchantIdAndOrgId,
     targeting_key = id_type::CustomerId
 }
 
@@ -453,7 +465,7 @@ config! {
     superposition_key = SHOULD_SCHEDULE_MODULAR_BACKWARD_COMPAT,
     output = bool,
     default = false,
-    requires = dimension_state::DimensionsWithProviderMerchantId,
+    requires = dimension_state::DimensionsWithProviderMerchantIdAndOrgId,
     targeting_key = id_type::CustomerId
 }
 
@@ -471,7 +483,7 @@ config! {
     superposition_key = SHOULD_TRIGGER_BACKWARDS_COMPATIBILITY_INLINE,
     output = bool,
     default = false,
-    requires = dimension_state::DimensionsWithProviderMerchantId,
+    requires = dimension_state::DimensionsWithProviderMerchantIdAndOrgId,
     targeting_key = id_type::CustomerId
 }
 
@@ -500,6 +512,23 @@ impl DatabaseBackedConfig for ShouldTriggerFingerprintMigration {
         dimensions
             .get_provider_merchant_id()
             .map(|id| format!("{}_{}", Self::KEY, id.get_string_repr()))
+    }
+}
+
+config! {
+    superposition_key = NETWORK_TOKEN_FETCH_TIMEOUT_IN_SECS,
+    output = u32,
+    default = 4,
+    requires = dimension_state::DimensionsGlobal,
+    targeting_key = id_type::CustomerId
+}
+
+impl DatabaseBackedConfig for NetworkTokenFetchTimeoutInSecs {
+    const KEY: &'static str = "network_token_fetch_timeout_in_secs";
+
+    // Global config: a single deployment-wide key, not scoped to any merchant.
+    fn db_key(_dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        Some(Self::KEY.to_string())
     }
 }
 
@@ -680,7 +709,7 @@ impl DatabaseBackedConfig for PtMappingPaymentSync {
 config! {
     superposition_key = PT_MAPPING_REFUND_SYNC,
     output = scheduler::types::process_data::ConnectorPTMapping,
-    default = scheduler::types::process_data::ConnectorPTMapping::default(),
+    default = scheduler::types::process_data::ConnectorPTMapping::refund_default(),
     object = true,
     requires = dimension_state::DimensionsWithProcessorMerchantIdAndConnector,
     targeting_key = id_type::PaymentId
@@ -821,6 +850,56 @@ impl DatabaseBackedConfig for SaveWalletDecryptedData {
             .get_processor_merchant_id()
             .map(|id| format!("{}_{}", Self::KEY, id.get_string_repr()))
     }
+}
+
+config! {
+    superposition_key = OFFER_ENGINE_ENABLED,
+    output = bool,
+    default = false,
+    requires = dimension_state::DimensionsGlobal,
+    targeting_key = id_type::PaymentId
+}
+
+impl DatabaseBackedConfig for OfferEngineEnabled {
+    const KEY: &'static str = "offer_engine_enabled";
+}
+
+config! {
+    superposition_key = OFFER_ENGINE_CREDENTIAL_SOURCE,
+    output = crate::core::offer_engine::types::OfferEngineCredentialSource,
+    default = crate::core::offer_engine::types::OfferEngineCredentialSource::None,
+    string_enum = true,
+    requires = dimension_state::DimensionsGlobal,
+    targeting_key = id_type::PaymentId
+}
+
+impl DatabaseBackedConfig for OfferEngineCredentialSource {
+    const KEY: &'static str = "offer_engine_credential_source";
+}
+
+config! {
+    superposition_key = ACCOUNT_UPDATER_ENABLED,
+    output = bool,
+    default = false,
+    requires = dimension_state::DimensionsGlobal,
+    targeting_key = id_type::PaymentId
+}
+
+impl DatabaseBackedConfig for AccountUpdaterEnabled {
+    const KEY: &'static str = "account_updater_enabled";
+}
+
+config! {
+    superposition_key = ACCOUNT_UPDATER_CREDENTIAL_SOURCE,
+    output = crate::core::account_updater::types::AccountUpdaterCredentialSource,
+    default = crate::core::account_updater::types::AccountUpdaterCredentialSource::None,
+    string_enum = true,
+    requires = dimension_state::DimensionsGlobal,
+    targeting_key = id_type::PaymentId
+}
+
+impl DatabaseBackedConfig for AccountUpdaterCredentialSource {
+    const KEY: &'static str = "account_updater_credential_source";
 }
 
 config! {

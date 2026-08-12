@@ -1,0 +1,96 @@
+---
+title: "Analytics"
+description: "Routing metrics, score snapshots, and operational summaries"
+---
+
+## What It Shows
+
+Analytics is the operator-facing view for understanding how routing is behaving in practice.
+
+The page is split into these sections:
+
+- Overview
+- Gateway Scoring
+- Decisions
+- Routing Stats
+- Logs / Summaries
+
+For single-payment inspection, use the separate Payment Audit surface documented in [`payment-audit`](/decision-engine-api-reference/payment-audit).
+
+## Data Sources
+
+The current implementation uses these sources:
+
+- Redis for live SR and latency snapshots
+- Prometheus for live counters and error-rate tiles
+- ClickHouse as the analytics event store and analytics query backend
+
+## Scope
+
+Analytics is always merchant-scoped by the authenticated identity:
+
+- Bearer JWT requests derive the merchant from the token claims
+- API-key requests derive the merchant from the key binding
+
+There is no all-merchants analytics mode. The analytics routes no longer accept `scope` or
+`merchant_id` query params, and changing the merchant selector in the top bar does not widen the
+backend query scope.
+
+Connector success-rate history is sourced from stored `score_snapshot` analytics events, not directly from Redis. Redis remains the live source for current score state. The connector SR chart can be narrowed by:
+
+- `payment_method_type`
+- `payment_method`
+- connector
+
+## Generating Demo Traffic
+
+To populate Analytics and Decision Audit with real traffic, use the routing traffic generator.
+
+Generate traffic for `merchant_space`:
+
+```bash
+bash scripts/generate-routing-traffic.sh
+```
+
+What the script does:
+
+- creates or reuses `merchant_space`
+- enables success-rate routing for that merchant through the real `/rule/create` or `/rule/update` flow
+- sends `100` real `POST /decide-gateway` requests with mixed payment-method combinations
+- follows each decision with `POST /update-gateway-score` using a mix of successful and failed outcomes
+- creates and activates a priority-based routing rule through `/routing/create` and `/routing/activate`
+- sends rule-based `POST /routing/evaluate` traffic so the rule-evaluation analytics path is populated
+
+Useful overrides:
+
+```bash
+MERCHANT_ID=merchant_space TOTAL_PAYMENTS=100 bash scripts/generate-routing-traffic.sh
+RULE_EVALUATIONS=40 bash scripts/generate-routing-traffic.sh
+CONNECTORS_CSV=stripe,adyen,checkout,paypal bash scripts/generate-routing-traffic.sh
+```
+
+After the script finishes, sign in as `merchant_space` and open `/dashboard/analytics` or
+`/dashboard/audit`. Analytics reads will resolve the merchant from your authenticated session.
+
+## ClickHouse Setup
+
+ClickHouse is part of the standard local runtime stacks. To bring up only ClickHouse and its schema init job:
+
+```bash
+COMPOSE_PROFILES= docker compose --profile analytics-clickhouse up -d
+```
+
+## Related Files
+
+- `website/src/components/pages/AnalyticsPage.tsx`
+- `website/src/components/layout/Sidebar.tsx`
+- `src/routes/analytics.rs`
+- `src/analytics/`
+- `clickhouse/scripts/`
+- `src/metrics.rs`
+
+## Related Docs
+
+- [Payment Audit](/decision-engine-api-reference/payment-audit) — single-payment timeline lookups.
+- [ClickHouse Analytics](/decision-engine-api-reference/clickhouse-analytics) — the underlying ingestion pipeline and schema.
+- [Dashboard](/decision-engine-api-reference/dashboard-guide) — where these views are surfaced.

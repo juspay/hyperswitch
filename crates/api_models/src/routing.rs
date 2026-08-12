@@ -2153,3 +2153,42 @@ pub enum ComparisonType {
     GreaterThan,
     GreaterThanEqual,
 }
+
+/// Which Decision Engine routing page a cut-over profile's dashboard card should deep-link to.
+#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum DecisionEngineRoutingTarget {
+    Volume,
+    Rule,
+    MultiObjective,
+    Debit,
+}
+
+impl DecisionEngineRoutingTarget {
+    const VOLUME_PATH: &'static str = "routing/volume";
+    const RULE_PATH: &'static str = "routing/rules";
+    const MULTI_OBJECTIVE_PATH: &'static str = "routing/sr";
+    const DEBIT_PATH: &'static str = "routing/debit";
+
+    pub fn dashboard_path(self) -> &'static str {
+        match self {
+            Self::Volume => Self::VOLUME_PATH,
+            Self::Rule => Self::RULE_PATH,
+            Self::MultiObjective => Self::MULTI_OBJECTIVE_PATH,
+            Self::Debit => Self::DEBIT_PATH,
+        }
+    }
+}
+
+/// Routing entry query params; `target` selects the DE page to deep-link for a cut-over profile.
+#[derive(Debug, Clone, serde::Deserialize)]
+pub struct RoutingEntryRequest {
+    pub target: Option<DecisionEngineRoutingTarget>,
+}
+
+/// Routing entry response: `is_cutover` for the source, `redirect_url` for a per-`target` DE deep-link.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct RoutingEntryResponse {
+    pub is_cutover: bool,
+    pub redirect_url: Option<String>,
+}

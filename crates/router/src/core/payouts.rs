@@ -447,6 +447,7 @@ pub async fn payouts_confirm_core(
             storage_enums::PayoutStatus::Failed,
             storage_enums::PayoutStatus::Pending,
             storage_enums::PayoutStatus::Ineligible,
+            storage_enums::PayoutStatus::NotPermitted,
             storage_enums::PayoutStatus::RequiresFulfillment,
             storage_enums::PayoutStatus::RequiresVendorAccountCreation,
         ],
@@ -1271,6 +1272,7 @@ pub async fn call_connector_payout(
     Box::pin(complete_payout_eligibility(
         state,
         platform,
+        header_payload.clone(),
         connector_data,
         payout_data,
     ))
@@ -1641,6 +1643,7 @@ pub async fn create_recipient(
 pub async fn complete_payout_eligibility(
     state: &SessionState,
     platform: &domain::Platform,
+    header_payload: HeaderPayload,
     connector_data: &api::ConnectorData,
     payout_data: &mut PayoutData,
 ) -> RouterResult<()> {
@@ -1655,6 +1658,7 @@ pub async fn complete_payout_eligibility(
         Box::pin(check_payout_eligibility(
             state,
             platform,
+            header_payload,
             connector_data,
             payout_data,
         ))
@@ -1680,6 +1684,7 @@ pub async fn complete_payout_eligibility(
 pub async fn check_payout_eligibility(
     state: &SessionState,
     platform: &domain::Platform,
+    header_payload: HeaderPayload,
     connector_data: &api::ConnectorData,
     payout_data: &mut PayoutData,
 ) -> RouterResult<()> {
@@ -1688,21 +1693,34 @@ pub async fn check_payout_eligibility(
         core_utils::construct_payout_router_data(state, connector_data, platform, payout_data)
             .await?;
 
-    // 2. Fetch connector integration details
+    // 2. Decide UCS vs Direct execution path for this flow.
+    let (gateway_context, updated_state) = decide_unified_connector_service_payout(
+        state,
+        platform,
+        header_payload,
+        &router_data,
+        connector_data,
+        payout_data,
+    )
+    .await?;
+
+    // 3. Fetch connector integration details
     let connector_integration: services::BoxedPayoutConnectorIntegrationInterface<
         api::PoEligibility,
         types::PayoutsData,
         types::PayoutsResponseData,
     > = connector_data.connector.get_connector_integration();
 
-    // 3. Call connector service
-    let router_data_resp = services::execute_connector_processing_step(
-        state,
+    // 4. Dispatch through the gateway (UCS for connectors that route there,
+    //    Direct connector integration otherwise).
+    let router_data_resp = payout_gateway::execute_payout_gateway(
+        &updated_state,
         connector_integration,
         &router_data,
         payments::CallConnectorAction::Trigger,
         None,
         None,
+        gateway_context.clone(),
     )
     .await
     .to_payout_failed_response()?;
@@ -2977,6 +2995,7 @@ pub async fn response_handler(
         business_country: payout_attempt.business_country,
         business_label: payout_attempt.business_label,
         description: payouts.description.to_owned(),
+        billing_descriptor: payouts.billing_descriptor.to_owned(),
         entity_type: payouts.entity_type.to_owned(),
         recurring: payouts.recurring,
         metadata: payouts.metadata.clone(),
@@ -3144,6 +3163,7 @@ pub async fn payout_create_db_entries(
         destination_currency: currency,
         source_currency: currency,
         description: req.description.to_owned(),
+        billing_descriptor: req.billing_descriptor.to_owned(),
         recurring: req.recurring.unwrap_or(false),
         auto_fulfill: req.auto_fulfill.unwrap_or(false),
         return_url: req.return_url.to_owned(),
@@ -3503,7 +3523,40 @@ pub async fn make_payout_data(
                     None => (None, None, None),
                 }
             }
-            payouts::PayoutRequest::PayoutRetrieveRequest(_) => (None, None, None),
+            payouts::PayoutRequest::PayoutRetrieveRequest(_) => {
+                let requires_source_bank_data = payout_attempt
+                    .connector
+                    .as_deref()
+                    .and_then(|connector| {
+                        common_enums::connector_enums::Connector::from_str(connector).ok()
+                    })
+                    .is_some_and(|connector| {
+                        connector.requires_source_bank_data_for_sync(payouts.payout_type)
+                    });
+
+                match (
+                    requires_source_bank_data,
+                    payout_attempt.source_bank_data_token.to_owned(),
+                ) {
+                    (true, Some(source_bank_data_token)) => {
+                        let customer_id = customer_details
+                            .as_ref()
+                            .map(|cd| cd.get_id().to_owned())
+                            .get_required_value("customer_id when payout_token is sent")?;
+                        let source_bank_data =
+                            helpers::SourceBankDataOperation::get_temp_source_bank_data(
+                                state,
+                                Some(source_bank_data_token),
+                                Some(customer_id),
+                                platform.get_processor().get_key_store(),
+                            )
+                            .await?;
+
+                        (source_bank_data, None, None)
+                    }
+                    _ => (None, None, None),
+                }
+            }
         };
 
     let dimensions = dimensions.with_profile_id(profile_id.clone());

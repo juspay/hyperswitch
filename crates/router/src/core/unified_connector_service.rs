@@ -36,8 +36,8 @@ use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use router_env::{instrument, logger, tracing};
 use unified_connector_service_cards::CardNumber;
 use unified_connector_service_client::payments::{
-    self as payments_grpc, payment_method::PaymentMethod, CardDetails, ClassicReward,
-    CryptoCurrency, EVoucher, OpenBanking, PaymentServiceAuthorizeResponse,
+    self as payments_grpc, payment_method::PaymentMethod, CardDetails, CardDetailsWithNoCvc,
+    ClassicReward, CryptoCurrency, EVoucher, OpenBanking, PaymentServiceAuthorizeResponse,
 };
 
 use crate::{
@@ -46,9 +46,10 @@ use crate::{
         errors::{self, RouterResult},
         payments::{
             helpers::{
-                is_ucs_enabled, should_execute_based_on_rollout,
-                should_execute_based_on_rollout_with_precedence, MerchantConnectorAccountType,
-                ProxyOverride, WebhookRolloutConfig, WebhookRolloutExecutionResult,
+                is_googlepay_predecrypted_flow_supported, is_ucs_enabled,
+                should_execute_based_on_rollout, should_execute_based_on_rollout_with_precedence,
+                MerchantConnectorAccountType, ProxyOverride, WebhookRolloutConfig,
+                WebhookRolloutExecutionResult,
             },
             OperationSessionGetters, OperationSessionSetters,
         },
@@ -87,12 +88,14 @@ fn get_apple_pay_payment_data(
     }
 }
 
-/// Returns Google Pay tokenization data from payment method token when it has decrypt data,
-/// otherwise returns the original tokenization data.
 fn get_google_pay_tokenization_data(
     tokenization_data: &common_types::payments::GpayTokenizationData,
     payment_method_token: Option<&PaymentMethodToken>,
+    connector_meta_data: Option<&common_utils::pii::SecretSerdeValue>,
 ) -> common_types::payments::GpayTokenizationData {
+    if !is_googlepay_predecrypted_flow_supported(connector_meta_data.cloned()) {
+        return tokenization_data.clone();
+    }
     match (tokenization_data, payment_method_token) {
         (
             common_types::payments::GpayTokenizationData::Encrypted(_),
@@ -755,62 +758,120 @@ pub async fn should_call_unified_connector_service_for_webhooks(
     Ok((execution_path, rollout_result.webhook_flows))
 }
 
+/// On a redirect-complete callback the inbound request carries only redirect params, so
+/// `payment_method_data` is `None`. UCS still requires `payment_method` on the authorize call,
+/// so rebuild a minimal one from the attempt's payment method type.
+pub fn reconstruct_payment_method_data_for_redirect_completion(
+    payment_method_type: Option<PaymentMethodType>,
+    email: Option<common_utils::pii::Email>,
+) -> Option<hyperswitch_domain_models::payment_method_data::PaymentMethodData> {
+    match payment_method_type {
+        Some(PaymentMethodType::Paypal) => Some(
+            hyperswitch_domain_models::payment_method_data::PaymentMethodData::Wallet(
+                hyperswitch_domain_models::payment_method_data::WalletData::PaypalRedirect(
+                    hyperswitch_domain_models::payment_method_data::PaypalRedirection { email },
+                ),
+            ),
+        ),
+        _ => None,
+    }
+}
+
 pub fn build_unified_connector_service_payment_method(
     payment_method_data: hyperswitch_domain_models::payment_method_data::PaymentMethodData,
     payment_method_type: Option<PaymentMethodType>,
     payment_method_token: Option<&PaymentMethodToken>,
+    connector_meta_data: Option<&common_utils::pii::SecretSerdeValue>,
 ) -> CustomResult<payments_grpc::PaymentMethod, UnifiedConnectorServiceError> {
+    // A connector tokenization token settles for any payment method, including wallets.
+    if let Some(PaymentMethodToken::Token(token)) = payment_method_token {
+        return Ok(payments_grpc::PaymentMethod {
+            payment_method: Some(PaymentMethod::Token(
+                payments_grpc::TokenPaymentMethodType {
+                    token: Some(token.clone()),
+                },
+            )),
+        });
+    }
     match payment_method_data {
         hyperswitch_domain_models::payment_method_data::PaymentMethodData::Card(card) => {
-            match payment_method_token {
-                Some(PaymentMethodToken::Token(token)) => {
-                    let token_payment_method = payments_grpc::TokenPaymentMethodType {
-                        token: Some(token.clone()),
-                    };
-                    Ok(payments_grpc::PaymentMethod {
-                        payment_method: Some(PaymentMethod::Token(token_payment_method)),
-                    })
-                }
-                _ => {
-                    let card_exp_month = card
-                        .get_card_expiry_month_2_digit()
-                        .attach_printable("Failed to extract 2-digit expiry month from card")
-                        .change_context(UnifiedConnectorServiceError::InvalidDataFormat {
-                            field_name: "card_exp_month",
-                        })?
-                        .peek()
-                        .to_string();
+            let card_exp_month = card
+                .get_card_expiry_month_2_digit()
+                .attach_printable("Failed to extract 2-digit expiry month from card")
+                .change_context(UnifiedConnectorServiceError::InvalidDataFormat {
+                    field_name: "card_exp_month",
+                })?
+                .peek()
+                .to_string();
 
-                    let card_network = card
-                        .card_network
-                        .clone()
-                        .map(payments_grpc::CardNetwork::foreign_from);
+            let card_network = card
+                .card_network
+                .clone()
+                .map(payments_grpc::CardNetwork::foreign_from);
 
-                    let card_details = CardDetails {
-                        card_number: Some(
-                            CardNumber::from_str(&card.card_number.get_card_no()).change_context(
-                                UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
-                                    "Failed to parse card number".to_string(),
-                                ),
-                            )?,
+            let card_details = CardDetails {
+                card_number: Some(
+                    CardNumber::from_str(&card.card_number.get_card_no()).change_context(
+                        UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
+                            "Failed to parse card number".to_string(),
                         ),
-                        card_exp_month: Some(card_exp_month.into()),
-                        card_exp_year: Some(card.card_exp_year.expose().into()),
-                        card_cvc: Some(card.card_cvc.expose().into()),
-                        card_holder_name: card.card_holder_name.map(|name| name.expose().into()),
-                        card_issuer: card.card_issuer.clone(),
-                        card_network: card_network.map(|card_network| card_network.into()),
-                        card_type: card.card_type.clone(),
-                        bank_code: card.bank_code.clone(),
-                        nick_name: card.nick_name.map(|n| n.expose()),
-                        card_issuing_country_alpha2: card.card_issuing_country.clone(),
-                    };
+                    )?,
+                ),
+                card_exp_month: Some(card_exp_month.into()),
+                card_exp_year: Some(card.card_exp_year.expose().into()),
+                card_cvc: Some(card.card_cvc.expose().into()),
+                card_holder_name: card.card_holder_name.map(|name| name.expose().into()),
+                card_issuer: card.card_issuer.clone(),
+                card_network: card_network.map(|card_network| card_network.into()),
+                card_type: card.card_type.clone(),
+                bank_code: card.bank_code.clone(),
+                nick_name: card.nick_name.map(|n| n.expose()),
+                card_issuing_country_alpha2: card.card_issuing_country.clone(),
+            };
 
-                    Ok(payments_grpc::PaymentMethod {
-                        payment_method: Some(PaymentMethod::Card(card_details)),
-                    })
-                }
-            }
+            Ok(payments_grpc::PaymentMethod {
+                payment_method: Some(PaymentMethod::Card(card_details)),
+            })
+        }
+        hyperswitch_domain_models::payment_method_data::PaymentMethodData::CardWithOptionalCVC(
+            card,
+        ) => {
+            let card_exp_month = card
+                .get_card_expiry_month_2_digit()
+                .attach_printable("Failed to extract 2-digit expiry month from card")
+                .change_context(UnifiedConnectorServiceError::InvalidDataFormat {
+                    field_name: "card_exp_month",
+                })?
+                .peek()
+                .to_string();
+
+            let card_network = card
+                .card_network
+                .clone()
+                .map(payments_grpc::CardNetwork::foreign_from);
+
+            let card_details = CardDetailsWithNoCvc {
+                card_number: Some(
+                    CardNumber::from_str(&card.card_number.get_card_no()).change_context(
+                        UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
+                            "Failed to parse card number".to_string(),
+                        ),
+                    )?,
+                ),
+                card_exp_month: Some(card_exp_month.into()),
+                card_exp_year: Some(card.card_exp_year.expose().into()),
+                card_holder_name: card.card_holder_name.map(|name| name.expose().into()),
+                card_issuer: card.card_issuer.clone(),
+                card_network: card_network.map(|card_network| card_network.into()),
+                card_type: card.card_type.clone(),
+                bank_code: card.bank_code.clone(),
+                nick_name: card.nick_name.map(|n| n.expose()),
+                card_issuing_country_alpha2: card.card_issuing_country.clone(),
+            };
+
+            Ok(payments_grpc::PaymentMethod {
+                payment_method: Some(PaymentMethod::CardWithNoCvc(card_details)),
+            })
         }
         hyperswitch_domain_models::payment_method_data::PaymentMethodData::CardRedirect(
             card_redirect_data,
@@ -1336,6 +1397,7 @@ pub fn build_unified_connector_service_payment_method(
                     let google_pay_tokenization_data = get_google_pay_tokenization_data(
                         &google_pay_wallet_data.tokenization_data,
                         payment_method_token,
+                        connector_meta_data,
                     );
 
                     let tokenization_data =
@@ -1785,6 +1847,63 @@ fn get_ucs_client(
         })
 }
 
+// The UCS proto has no first-class fields for Netcetera-style authentication-connector
+// metadata (force_3ds_challenge, results/notification URLs, acquirer details), so these are
+// merged into the authentication-connector MCA's metadata JSON and passed through the generic
+// `connector_feature_data` string field instead.
+#[cfg(feature = "v1")]
+pub fn build_connector_feature_data_from_auth_mca(
+    merchant_connector_account: &MerchantConnectorAccountType,
+    force_3ds_challenge: Option<bool>,
+    results_response_notification_url: Option<String>,
+    notification_url: Option<common_utils::types::Url>,
+    acquirer_metadata: Option<serde_json::Value>,
+) -> CustomResult<Option<Secret<String>>, UnifiedConnectorServiceError> {
+    merchant_connector_account
+        .get_metadata()
+        .map(|metadata| {
+            let mut metadata_value = metadata.expose();
+            if let Some(obj) = metadata_value.as_object_mut() {
+                if let Some(force) = force_3ds_challenge {
+                    obj.insert(
+                        "force_3ds_challenge".to_string(),
+                        serde_json::Value::Bool(force),
+                    );
+                }
+                if let Some(url) = results_response_notification_url {
+                    obj.insert(
+                        "results_response_notification_url".to_string(),
+                        serde_json::Value::String(url),
+                    );
+                }
+                if let Some(url) = notification_url {
+                    obj.insert(
+                        "notification_url".to_string(),
+                        serde_json::Value::String(url.get_string_repr().to_string()),
+                    );
+                }
+                if let Some(serde_json::Value::Object(acquirer)) = acquirer_metadata {
+                    for (key, value) in acquirer {
+                        obj.insert(key, value);
+                    }
+                }
+            }
+            serde_json::to_string(&metadata_value)
+                .change_context(UnifiedConnectorServiceError::RequestEncodingFailed)
+                .attach_printable(
+                    "Failed to serialize authentication connector MCA metadata for connector_feature_data",
+                )
+                .map(Secret::new)
+        })
+        .transpose()
+}
+
+fn as_header_value(value: &Secret<String>) -> Option<Secret<String>> {
+    http::HeaderValue::from_str(value.peek())
+        .is_ok()
+        .then(|| value.clone())
+}
+
 pub fn build_unified_connector_service_auth_metadata(
     #[cfg(feature = "v1")] merchant_connector_account: MerchantConnectorAccountType,
     #[cfg(feature = "v2")] merchant_connector_account: MerchantConnectorAccountTypeDetails,
@@ -1876,16 +1995,32 @@ pub fn build_unified_connector_service_auth_metadata(
         } => Ok(ConnectorAuthMetadata {
             connector_name,
             auth_type: consts::UCS_AUTH_MULTI_KEY.to_string(),
-            api_key: Some(api_key.clone()),
-            key1: Some(key1.clone()),
-            key2: Some(key2.clone()),
-            api_secret: Some(api_secret.clone()),
+            api_key: as_header_value(api_key),
+            key1: as_header_value(key1),
+            key2: as_header_value(key2),
+            api_secret: as_header_value(api_secret),
             auth_key_map: None,
             merchant_id: Secret::new(merchant_id.to_string()),
             connector_config,
         }),
-        _ => Err(UnifiedConnectorServiceError::FailedToObtainAuthType)
-            .attach_printable("Unsupported ConnectorAuthType for header injection"),
+        ConnectorAuthType::CertificateAuth {
+            certificate,
+            private_key,
+        } => Ok(ConnectorAuthMetadata {
+            connector_name,
+            auth_type: consts::UCS_AUTH_MULTI_KEY.to_string(),
+            api_key: Some(certificate.clone()),
+            key1: Some(private_key.clone()),
+            key2: None,
+            api_secret: None,
+            auth_key_map: None,
+            merchant_id: Secret::new(merchant_id.to_string()),
+            connector_config,
+        }),
+        ConnectorAuthType::TemporaryAuth | ConnectorAuthType::NoKey => {
+            Err(UnifiedConnectorServiceError::FailedToObtainAuthType)
+                .attach_printable("Unsupported ConnectorAuthType for header injection")
+        }
     }
 }
 
@@ -2451,6 +2586,36 @@ impl
     fn foreign_try_from(
         value: (
             payments_grpc::PayoutServiceTransferResponse,
+            common_enums::PayoutStatus,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let (response, prev_status) = value;
+
+        let status_code =
+            transformers::convert_connector_service_status_code(response.status_code)?;
+
+        let router_data_response = Result::<PayoutsResponseData, ErrorResponse>::foreign_try_from(
+            (response.clone(), prev_status),
+        )?;
+
+        Ok(Self {
+            router_data_response,
+            status_code,
+        })
+    }
+}
+
+impl
+    ForeignTryFrom<(
+        payments_grpc::PayoutMethodEligibilityResponse,
+        common_enums::PayoutStatus,
+    )> for crate::types::UcsPayoutEligibilityResponseData
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        value: (
+            payments_grpc::PayoutMethodEligibilityResponse,
             common_enums::PayoutStatus,
         ),
     ) -> Result<Self, Self::Error> {

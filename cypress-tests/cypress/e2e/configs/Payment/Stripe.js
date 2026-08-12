@@ -2060,6 +2060,43 @@ export const connectorDetails = {
       },
     }),
   },
+  vault_tokenization: {
+    // The should_disable_vault_tokenization flag is toggled via
+    // cy.setConfigs() in the spec's before hook — it is NOT part of the
+    // payment request body. Both disabled (flag=true) and enabled
+    // (flag=false) states produce the same API-observable outcome
+    // (status=succeeded, authentication_type=three_ds), so both test
+    // cases share a single exchange definition.
+    VaultTokenization: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: { card: externalThreeDSCardDetails },
+        currency: "USD",
+        amount: 6500,
+        authentication_type: "three_ds",
+        request_external_three_ds_authentication: true,
+        three_ds_data: {
+          authentication_cryptogram: {
+            cavv: {
+              authentication_cryptogram: "3q2+78r+ur7erb7vyv66vv////8=",
+            },
+          },
+          ds_trans_id: "c4e59ceb-a382-4d6a-bc87-385d591fa09d",
+          version: "2.1.0",
+          eci: "05",
+          transaction_status: "Y",
+          exemption_indicator: "low_value",
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          authentication_type: "three_ds",
+        },
+      },
+    }),
+  },
   pm_list: {
     PmListResponse: {
       PmListNull: {
@@ -2454,5 +2491,66 @@ export const connectorDetails = {
         },
       },
     },
+  },
+  webhook_config: {
+    // WebhookConfig: webhook_username and webhook_password are masked
+    // placeholders — not real credentials. They are safe to use in any
+    // connector config as placeholder webhook auth data.
+    Create: getCustomExchange({
+      Request: {
+        webhook_details: {
+          webhook_version: "2024.01",
+          webhook_username: "<WEBHOOK_USERNAME>",
+          webhook_password: "<WEBHOOK_PASSWORD>",
+          webhook_url: "https://example.com/webhook",
+          payment_created_enabled: true,
+          payment_succeeded_enabled: true,
+          payment_failed_enabled: false,
+          refund_created_enabled: true,
+          refund_succeeded_enabled: true,
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          webhook_details: {
+            payment_failed_enabled: false,
+            payment_succeeded_enabled: true,
+            payment_created_enabled: true,
+            refund_created_enabled: true,
+            refund_succeeded_enabled: true,
+          },
+        },
+      },
+    }),
+    Update: getCustomExchange({
+      Request: {
+        webhook_details: {
+          webhook_version: "2024.01",
+          webhook_username: "<WEBHOOK_USERNAME_UPDATED>",
+          webhook_password: "<WEBHOOK_PASSWORD_UPDATED>",
+          webhook_url: "https://example.com/webhook_updated",
+          payment_created_enabled: true,
+          payment_succeeded_enabled: true,
+          payment_failed_enabled: true,
+          refund_created_enabled: true,
+          refund_succeeded_enabled: true,
+          dispute_created_enabled: true,
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          webhook_details: {
+            payment_failed_enabled: true,
+            payment_succeeded_enabled: true,
+            payment_created_enabled: true,
+            refund_created_enabled: true,
+            refund_succeeded_enabled: true,
+            dispute_created_enabled: true,
+          },
+        },
+      },
+    }),
   },
 };

@@ -126,6 +126,11 @@ const PAYMENT_METHOD_MODULAR_COMPAT_PROCESS_TRACKER_ID_MAX_LENGTH: usize = 126;
 const PAYMENT_METHOD_MODULAR_COMPAT_PROCESS_TRACKER_ID_SUFFIX_LENGTH: usize = 8;
 #[cfg(feature = "v2")]
 const PAYMENT_METHOD_REDACTED_FINGERPRINT_ID: &str = "FINGERPRINT_ID_REDACTED";
+/// `process_tracker.id` is a `varchar(127)`; ids are built to stay within it.
+const NETWORK_TOKENIZATION_PROCESS_TRACKER_ID_MAX_LENGTH: usize = 126;
+const NETWORK_TOKENIZATION_PROCESS_TRACKER_ID_SUFFIX_LENGTH: usize = 8;
+const NETWORK_TOKENIZATION_TASK: &str = "NETWORK_TOKENIZATION";
+const NETWORK_TOKENIZATION_TAG: &str = "NETWORK_TOKENIZATION";
 
 #[instrument(skip_all)]
 pub async fn retrieve_payment_method_core(
@@ -149,6 +154,9 @@ pub async fn retrieve_payment_method_core(
             )
             .await?;
             Ok((pm_opt.to_owned(), payment_token))
+        }
+        pm_opt @ Some(domain::PaymentMethodData::CardWithOptionalCVC(_)) => {
+            Ok((pm_opt.to_owned(), None))
         }
         pm_opt @ Some(pm @ domain::PaymentMethodData::BankDebit(_)) => {
             let payment_token = payment_helpers::store_payment_method_data_in_vault(
@@ -495,6 +503,27 @@ fn generate_task_id_for_payment_method_modular_compat_workflow(
     format!("{prefix}{key_id}_{suffix}")
 }
 
+/// Builds the `process_tracker` id for a `NetworkTokenizationWorkflow` task.
+///
+/// The random suffix keeps the id unique so that a payment method whose earlier task already
+/// reached a terminal state can be scheduled again — finished rows are retained, so a
+/// deterministic id would make every later attempt a silent no-op. The payment method id is
+/// truncated to keep the result within the `varchar(127)` `process_tracker.id` column.
+fn generate_task_id_for_network_tokenization_workflow(
+    payment_method_id: &str,
+    runner: storage::ProcessTrackerRunner,
+    task: &str,
+) -> String {
+    let suffix =
+        common_utils::generate_id_with_len(NETWORK_TOKENIZATION_PROCESS_TRACKER_ID_SUFFIX_LENGTH);
+    let prefix = format!("{runner}_{task}_");
+    let payment_method_id_len = NETWORK_TOKENIZATION_PROCESS_TRACKER_ID_MAX_LENGTH
+        .saturating_sub(prefix.len() + suffix.len() + 1);
+    let payment_method_id =
+        &payment_method_id[..payment_method_id.len().min(payment_method_id_len)];
+    format!("{prefix}{payment_method_id}_{suffix}")
+}
+
 fn payment_method_compat_modifier(payment_method: &domain::PaymentMethod) -> Option<String> {
     payment_method
         .last_modified_by
@@ -507,22 +536,27 @@ fn payment_method_compat_modifier(payment_method: &domain::PaymentMethod) -> Opt
 pub async fn payment_method_modular_forward_compat_action(
     state: &SessionState,
     merchant_id: &id_type::MerchantId,
+    organization_id: &id_type::OrganizationId,
     customer_id: Option<&id_type::CustomerId>,
 ) -> Option<domain::PaymentMethodCompatAction> {
     let dimensions = dimension_state::Dimensions::new()
-        .with_provider_merchant_id(ProviderMerchantId::new(merchant_id.clone()));
+        .with_provider_merchant_id(ProviderMerchantId::new(merchant_id.clone()))
+        .with_organization_id(organization_id.clone());
     let should_schedule_modular_forward_compat =
         utils::get_should_schedule_modular_forward_compat(state, &dimensions, customer_id).await;
 
+    let organization_id = organization_id.clone();
     should_schedule_modular_forward_compat.then(|| {
         let state = state.clone();
         domain::PaymentMethodCompatAction::new(move |payment_method| {
             let state = state.clone();
+            let organization_id = organization_id.clone();
             Box::pin(async move {
                 let res = add_payment_method_modular_forward_compat_task(
                     &*state.store,
                     payment_method,
                     &payment_method.merchant_id,
+                    organization_id,
                     state.conf.application_source,
                     payment_method_compat_modifier(payment_method),
                 )
@@ -544,14 +578,18 @@ pub async fn payment_method_modular_forward_compat_action(
 #[cfg(feature = "v2")]
 pub fn payment_method_modular_backward_compat_action(
     state: &SessionState,
+    organization_id: &id_type::OrganizationId,
 ) -> domain::PaymentMethodCompatAction {
     let state = state.clone();
+    let organization_id = organization_id.clone();
     domain::PaymentMethodCompatAction::new(move |payment_method| {
         let state = state.clone();
+        let organization_id = organization_id.clone();
         Box::pin(async move {
             backward_compat::trigger_payment_method_modular_backward_compat(
                 &state,
                 payment_method,
+                &organization_id,
                 payment_method_compat_modifier(payment_method),
             )
             .await;
@@ -563,18 +601,24 @@ pub fn payment_method_modular_backward_compat_action(
 pub async fn payment_method_modular_compat_action(
     state: &SessionState,
     merchant_id: &id_type::MerchantId,
+    organization_id: &id_type::OrganizationId,
     customer_id: Option<&id_type::CustomerId>,
 ) -> Option<domain::PaymentMethodCompatAction> {
-    payment_method_modular_forward_compat_action(state, merchant_id, customer_id).await
+    payment_method_modular_forward_compat_action(state, merchant_id, organization_id, customer_id)
+        .await
 }
 
 #[cfg(feature = "v2")]
 pub async fn payment_method_modular_compat_action(
     state: &SessionState,
     _merchant_id: &id_type::MerchantId,
+    organization_id: &id_type::OrganizationId,
     _customer_id: Option<&id_type::GlobalCustomerId>,
 ) -> Option<domain::PaymentMethodCompatAction> {
-    Some(payment_method_modular_backward_compat_action(state))
+    Some(payment_method_modular_backward_compat_action(
+        state,
+        organization_id,
+    ))
 }
 
 #[cfg(feature = "v1")]
@@ -643,12 +687,14 @@ pub async fn add_payment_method_modular_forward_compat_task(
     db: &dyn StorageInterface,
     payment_method: &domain::PaymentMethod,
     merchant_id: &id_type::MerchantId,
+    organization_id: id_type::OrganizationId,
     application_source: common_enums::ApplicationSource,
     last_modified_by: Option<String>,
 ) -> Result<(), ProcessTrackerError> {
     let tracking_data = storage::PaymentMethodModularCompatTrackingData {
         payment_method_id: payment_method.payment_method_id.clone(),
         merchant_id: merchant_id.to_owned(),
+        organization_id,
         last_modified_by,
     };
 
@@ -690,11 +736,155 @@ pub async fn add_payment_method_modular_forward_compat_task(
     Ok(())
 }
 
+#[cfg(feature = "v1")]
+pub async fn add_network_tokenization_task(
+    db: &dyn StorageInterface,
+    tracking_data: storage::NetworkTokenizationTrackingData,
+    application_source: common_enums::ApplicationSource,
+) -> Result<(), ProcessTrackerError> {
+    let payment_method_id = tracking_data.payment_method_id.clone();
+
+    let runner = storage::ProcessTrackerRunner::NetworkTokenizationWorkflow;
+    let task = NETWORK_TOKENIZATION_TASK;
+    let tag = [NETWORK_TOKENIZATION_TAG];
+    // The task id carries a unique suffix so that a payment method whose earlier task already
+    // finished (completed, retries exceeded or skipped) can be scheduled again; runs against an
+    // already-tokenized payment method finish as a no-op in the workflow itself.
+    let process_tracker_id =
+        generate_task_id_for_network_tokenization_workflow(&payment_method_id, runner, task);
+
+    let process_tracker_entry = storage::ProcessTrackerNew::new(
+        process_tracker_id,
+        task,
+        runner,
+        tag,
+        tracking_data,
+        None,
+        common_utils::date_time::now(),
+        common_enums::ApiVersion::V1,
+        application_source,
+    )
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to construct NETWORK_TOKENIZATION process tracker task")?;
+
+    db.insert_process(process_tracker_entry)
+        .await
+        .map(|_| ())
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable_lazy(|| {
+            format!(
+                "Failed while inserting NETWORK_TOKENIZATION task to process_tracker for payment_method_id: {payment_method_id}"
+            )
+        })?;
+
+    Ok(())
+}
+
+#[cfg(feature = "v2")]
+pub async fn add_network_tokenization_task(
+    db: &dyn StorageInterface,
+    tracking_data: storage::NetworkTokenizationTrackingData,
+    application_source: common_enums::ApplicationSource,
+) -> Result<(), ProcessTrackerError> {
+    let payment_method_id = tracking_data.payment_method_id.get_string_repr().to_owned();
+
+    let runner = storage::ProcessTrackerRunner::NetworkTokenizationWorkflow;
+    let task = NETWORK_TOKENIZATION_TASK;
+    let tag = [NETWORK_TOKENIZATION_TAG];
+    // The task id carries a unique suffix so that a payment method whose earlier task already
+    // finished (completed, retries exceeded or skipped) can be scheduled again; runs against an
+    // already-tokenized payment method finish as a no-op in the workflow itself.
+    let process_tracker_id =
+        generate_task_id_for_network_tokenization_workflow(&payment_method_id, runner, task);
+
+    let process_tracker_entry = storage::ProcessTrackerNew::new(
+        process_tracker_id,
+        task,
+        runner,
+        tag,
+        tracking_data,
+        None,
+        common_utils::date_time::now(),
+        common_enums::ApiVersion::V2,
+        application_source,
+    )
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to construct NETWORK_TOKENIZATION process tracker task")?;
+
+    db.insert_process(process_tracker_entry)
+        .await
+        .map(|_| ())
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable_lazy(|| {
+            format!(
+                "Failed while inserting NETWORK_TOKENIZATION task to process_tracker for payment_method_id: {payment_method_id}"
+            )
+        })?;
+
+    Ok(())
+}
+
+/// Schedules the async `NetworkTokenizationWorkflow` task for a payment method that was saved
+/// without a network token.
+///
+/// Scheduling is best effort: the payment method create/update it belongs to has already been
+/// committed by the time this runs, so a failure to enqueue is logged rather than propagated to
+/// the caller.
+#[cfg(feature = "v2")]
+async fn schedule_network_tokenization_task(
+    state: &SessionState,
+    platform: &domain::Platform,
+    profile: &domain::Profile,
+    payment_method_id: &id_type::GlobalPaymentMethodId,
+    customer_id: id_type::GlobalCustomerId,
+) {
+    let tracking_data = storage::NetworkTokenizationTrackingData {
+        payment_method_id: payment_method_id.clone(),
+        merchant_id: platform.get_provider().get_account().get_id().clone(),
+        profile_id: profile.get_id().clone(),
+        customer_id,
+    };
+
+    match add_network_tokenization_task(&*state.store, tracking_data, state.conf.application_source)
+        .await
+    {
+        Ok(()) => logger::info!(
+            payment_method_id=%payment_method_id.get_string_repr(),
+            "Scheduled NetworkTokenizationWorkflow process tracker task"
+        ),
+        Err(err) => logger::error!(
+            payment_method_id=%payment_method_id.get_string_repr(),
+            ?err,
+            "Failed to schedule NetworkTokenizationWorkflow process tracker task"
+        ),
+    }
+}
+
+/// Whether the async `NetworkTokenizationWorkflow` task should be scheduled for a payment method
+/// that is being created or updated.
+///
+/// The network token columns on the payment method are expected to be empty at this point — the
+/// token is generated by the scheduled job, not inline — so the profile-level setting, the
+/// per-request opt-in and the payment method being a card are considered here.
+#[cfg(feature = "v2")]
+fn should_schedule_network_tokenization(
+    profile: &domain::Profile,
+    payment_method_type: common_enums::PaymentMethod,
+    network_tokenization: Option<&common_types::payment_methods::NetworkTokenization>,
+) -> bool {
+    profile.is_network_tokenization_enabled
+        && payment_method_type == common_enums::PaymentMethod::Card
+        && network_tokenization
+            .map(|nt| matches!(nt.enable, common_enums::NetworkTokenizationToggle::Enable))
+            .unwrap_or(false)
+}
+
 #[cfg(feature = "v2")]
 pub async fn add_payment_method_modular_backward_compat_task(
     db: &dyn StorageInterface,
     payment_method: &domain::PaymentMethod,
     merchant_id: &id_type::MerchantId,
+    organization_id: id_type::OrganizationId,
     application_source: common_enums::ApplicationSource,
     last_modified_by: Option<String>,
 ) -> Result<(), ProcessTrackerError> {
@@ -703,6 +893,7 @@ pub async fn add_payment_method_modular_backward_compat_task(
     let tracking_data = storage::PaymentMethodModularCompatTrackingData {
         payment_method_id: payment_method_id.clone(),
         merchant_id: merchant_id.to_owned(),
+        organization_id,
         last_modified_by,
     };
 
@@ -1201,6 +1392,52 @@ pub(crate) async fn get_payment_method_create_request(
                         };
                         Ok(payment_method_request)
                     }
+                    domain::PaymentMethodData::CardWithOptionalCVC(card) => {
+                        let card_network = get_card_network_with_us_local_debit_network_override(
+                            card.card_network.clone(),
+                            card.co_badged_card_data.as_ref(),
+                        );
+
+                        let card_detail = payment_methods::CardDetail {
+                            card_number: card.card_number.clone(),
+                            card_exp_month: card.card_exp_month.clone(),
+                            card_exp_year: card.card_exp_year.clone(),
+                            card_holder_name: billing_name,
+                            nick_name: card.nick_name.clone(),
+                            card_issuing_country: card.card_issuing_country.clone(),
+                            card_issuing_country_code: card.card_issuing_country_code.clone(),
+                            card_network: card_network.clone(),
+                            card_issuer: card.card_issuer.clone(),
+                            card_type: card.card_type.clone(),
+                            card_cvc: None, // DO NOT POPULATE CVC FOR ADDITIONAL PAYMENT METHOD DATA
+                        };
+                        let payment_method_request = payment_methods::PaymentMethodCreate {
+                            payment_method: Some(payment_method),
+                            payment_method_type,
+                            payment_method_issuer: card.card_issuer.clone(),
+                            payment_method_issuer_code: None,
+                            #[cfg(feature = "payouts")]
+                            bank_transfer: None,
+                            #[cfg(feature = "payouts")]
+                            bank_transfer_data: None,
+                            #[cfg(feature = "payouts")]
+                            wallet: None,
+                            card: Some(card_detail),
+                            metadata: None,
+                            customer_id: customer_id.clone(),
+                            card_network: card_network
+                                .clone()
+                                .as_ref()
+                                .map(|card_network| card_network.to_string()),
+                            client_secret: None,
+                            payment_method_data: None,
+                            //TODO: why are we using api model in router internally
+                            billing: payment_method_billing_address.cloned().map(From::from),
+                            connector_mandate_details: None,
+                            network_transaction_id: None,
+                        };
+                        Ok(payment_method_request)
+                    }
                     domain::PaymentMethodData::BankDebit(BankDebitData::AchBankDebit {
                         account_number,
                         routing_number,
@@ -1445,10 +1682,9 @@ pub async fn create_persistent_payment_method_core(
         .get_required_value("customer_id")?;
     let key_manager_state = &(state).into();
 
-    db.find_customer_by_global_id_merchant_id(
+    db.find_customer_by_global_id_merchant_id_without_encrypted(
         &customer_id,
         platform.get_provider().get_account().get_id(),
-        platform.get_provider().get_key_store(),
         platform.get_provider().get_account().storage_scheme,
     )
     .await
@@ -1555,10 +1791,9 @@ pub async fn create_volatile_payment_method_core(
     let key_manager_state = &(state).into();
 
     if let Some(ref customer_id) = customer_id {
-        db.find_customer_by_global_id_merchant_id(
+        db.find_customer_by_global_id_merchant_id_without_encrypted(
             customer_id,
             platform.get_provider().get_account().get_id(),
-            platform.get_provider().get_key_store(),
             platform.get_provider().get_account().storage_scheme,
         )
         .await
@@ -1839,17 +2074,35 @@ impl LockerOperations for GenericLocker {
     async fn delete_payment_method_from_locker(
         &self,
         state: &SessionState,
-        _platform: &domain::Platform,
+        platform: &domain::Platform,
         vault_id: domain::VaultId,
         customer_id: &id_type::GlobalCustomerId,
     ) -> CustomResult<pm_types::VaultDeleteResponse, errors::VaultError> {
-        let payload = pm_types::VaultDeleteRequest {
-            entity_id: customer_id.to_owned(),
-            vault_id,
-        }
-        .encode_to_vec()
-        .change_context(errors::VaultError::RequestEncodingFailed)
-        .attach_printable("Failed to encode VaultDeleteRequest")?;
+        let should_trigger_fingerprint_migration =
+            payment_method_utils::get_should_trigger_fingerprint_migration(
+                state,
+                None,
+                platform.get_provider().get_provider_merchant_id(),
+            )
+            .await;
+
+        let payload = if should_trigger_fingerprint_migration {
+            pm_types::VaultDeleteRequestNew {
+                entity_id: platform.get_provider().get_account().get_id().clone(),
+                vault_id,
+            }
+            .encode_to_vec()
+            .change_context(errors::VaultError::RequestEncodingFailed)
+            .attach_printable("Failed to encode VaultDeleteRequestNew")?
+        } else {
+            pm_types::VaultDeleteRequest {
+                entity_id: customer_id.to_owned(),
+                vault_id,
+            }
+            .encode_to_vec()
+            .change_context(errors::VaultError::RequestEncodingFailed)
+            .attach_printable("Failed to encode VaultDeleteRequest")?
+        };
 
         let resp = vault::call_to_vault::<pm_types::VaultDelete>(state, payload, None, None)
             .await
@@ -1874,14 +2127,22 @@ impl LockerOperations for GenericLocker {
     ) -> RouterResult<PaymentMethodResolver> {
         let db = &*state.store;
 
-        let fingerprint_id = vault::get_fingerprint_id_for_payment_method(
-            state,
-            &payment_method_data,
-            customer_id.get_string_repr().to_owned(),
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to get fingerprint_id from vault using generic strategy")?;
+        let (fingerprint_id_result, auxiliary_fingerprint_id_result) = tokio::join!(
+            vault::get_fingerprint_id_for_payment_method(
+                state,
+                &payment_method_data,
+                customer_id.get_string_repr().to_owned(),
+            ),
+            vault::get_auxiliary_fingerprint_id_for_payment_method(
+                state,
+                &payment_method_data,
+                customer_id.get_string_repr().to_owned(),
+            ),
+        );
+
+        let fingerprint_id = fingerprint_id_result
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to get fingerprint_id from vault using generic strategy")?;
 
         match db
             .find_payment_method_by_fingerprint_id(
@@ -1933,13 +2194,7 @@ impl LockerOperations for GenericLocker {
 
                 logger::debug!("Payment method not found, falling back to creation");
 
-                let auxiliary_fingerprint_id =
-                    vault::get_auxiliary_fingerprint_id_for_payment_method(
-                        state,
-                        &payment_method_data,
-                        customer_id.get_string_repr().to_owned(),
-                    )
-                    .await
+                let auxiliary_fingerprint_id = auxiliary_fingerprint_id_result
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable(
                         "Failed to get auxiliary fingerprint_id from vault using generic strategy",
@@ -2466,6 +2721,7 @@ pub async fn create_payment_method_bank_redirect_core(
                 payment_method_id,
                 None,
                 merchant_id,
+                &platform.get_provider().get_account().organization_id,
                 platform.get_provider().get_key_store(),
                 platform.get_provider().get_account().storage_scheme,
                 req.payment_method_type,
@@ -2589,26 +2845,20 @@ impl PaymentMethodResolver {
                     .is_some()
                     || payment_method.network_token_locker_id.is_some()
                     || payment_method.network_token_payment_method_data.is_some();
-                let network_tokenization_resp = if req.network_tokenization.is_some()
-                    && !payment_method_has_network_token_data
-                {
-                    let customer_id = payment_method
-                        .customer_id
-                        .clone()
-                        .get_required_value("GlobalCustomerId")?;
 
-                    network_tokenize_and_vault_the_pmd(
-                        state,
-                        &source_payment_method_data,
-                        platform,
-                        req.network_tokenization.clone(),
-                        profile.is_network_tokenization_enabled,
-                        &customer_id,
-                    )
-                    .await
-                } else {
-                    None
-                };
+                // When the re-added card is not yet network tokenized, defer generation to the
+                // async `NetworkTokenizationWorkflow` process tracker job (scheduled after the
+                // update below) rather than tokenizing inline. The job needs a customer to
+                // tokenize against, and it is not changed by this update, so it is read from the
+                // existing payment method before it is consumed.
+                let network_tokenization_customer_id = (!payment_method_has_network_token_data
+                    && should_schedule_network_tokenization(
+                        profile,
+                        req.payment_method_type,
+                        req.network_tokenization.as_ref(),
+                    ))
+                .then(|| payment_method.customer_id.clone())
+                .flatten();
 
                 let mut update_payment_method_data: DomainPaymentMethodUpdate =
                     (req, source_payment_method_data).into();
@@ -2625,9 +2875,20 @@ impl PaymentMethodResolver {
                     update_payment_method_data,
                     &payment_method_id,
                     Some(payment_method),
-                    network_tokenization_resp,
+                    None,
                 ))
                 .await?;
+
+                if let Some(customer_id) = network_tokenization_customer_id {
+                    schedule_network_tokenization_task(
+                        state,
+                        platform,
+                        profile,
+                        &updated_payment_method.id,
+                        customer_id,
+                    )
+                    .await;
+                }
 
                 Ok((response, updated_payment_method))
             }
@@ -2650,6 +2911,7 @@ impl PaymentMethodResolver {
                     customer_id,
                     payment_method_id,
                     merchant_id,
+                    &platform.get_provider().get_account().organization_id,
                     platform.get_provider().get_key_store(),
                     platform.get_provider().get_account().storage_scheme,
                     billing_address.clone(),
@@ -2721,15 +2983,14 @@ async fn execute_payment_method_create(
         )
         .await;
 
-    let network_tokenization_resp = network_tokenize_and_vault_the_pmd(
-        state,
-        &payment_method_data,
-        platform,
-        req.network_tokenization.clone(),
-        profile.is_network_tokenization_enabled,
-        customer_id,
-    )
-    .await;
+    // Network tokenization is generated asynchronously via the `NetworkTokenizationWorkflow`
+    // process tracker job (scheduled after the payment method row is created below), so the
+    // payment method is initially persisted without network token data.
+    let schedule_network_tokenization = should_schedule_network_tokenization(
+        profile,
+        req.payment_method_type,
+        req.network_tokenization.as_ref(),
+    );
 
     let (response, payment_method) = match vaulting_result {
         Ok((
@@ -2749,7 +3010,7 @@ async fn execute_payment_method_create(
                 &payment_method,
                 None,
                 None,
-                network_tokenization_resp.clone(),
+                None,
                 Some(req.payment_method_type),
                 payment_method_subtype,
                 external_vault_source,
@@ -2765,7 +3026,10 @@ async fn execute_payment_method_create(
                     payment_method,
                     pm_update,
                     platform.get_provider().get_account().storage_scheme,
-                    Some(payment_method_modular_backward_compat_action(state)),
+                    Some(payment_method_modular_backward_compat_action(
+                        state,
+                        &platform.get_provider().get_account().organization_id,
+                    )),
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -2828,6 +3092,17 @@ async fn execute_payment_method_create(
             Err(e)
         }
     }?;
+
+    if schedule_network_tokenization {
+        schedule_network_tokenization_task(
+            state,
+            platform,
+            profile,
+            &payment_method.id,
+            customer_id.clone(),
+        )
+        .await;
+    }
 
     Ok((response, payment_method))
 }
@@ -3048,7 +3323,10 @@ pub async fn create_payment_method_wallet_core(
                 existing_pm,
                 pm_update,
                 platform.get_provider().get_account().storage_scheme,
-                Some(payment_method_modular_backward_compat_action(state)),
+                Some(payment_method_modular_backward_compat_action(
+                    state,
+                    &platform.get_provider().get_account().organization_id,
+                )),
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -3061,6 +3339,7 @@ pub async fn create_payment_method_wallet_core(
                 payment_method_id,
                 None,
                 merchant_id,
+                &platform.get_provider().get_account().organization_id,
                 platform.get_provider().get_key_store(),
                 platform.get_provider().get_account().storage_scheme,
                 req.payment_method_type,
@@ -3193,6 +3472,7 @@ pub async fn create_payment_method_proxy_card_core(
         payment_method_id,
         external_vault_source,
         merchant_id,
+        &platform.get_provider().get_account().organization_id,
         platform.get_provider().get_key_store(),
         platform.get_provider().get_account().storage_scheme,
         req.payment_method_type,
@@ -3235,6 +3515,11 @@ pub struct BinEnriched<T> {
     pub payment_method_subtype: Option<storage_enums::PaymentMethodType>,
 }
 
+/// Generates a network token for the given card and vaults it.
+///
+/// Errors are returned to the caller so that callers which can act on a failure (such as the
+/// async `NetworkTokenizationWorkflow`, which retries) are able to distinguish a failed
+/// tokenization from one that was never applicable.
 #[cfg(feature = "v2")]
 pub async fn network_tokenize_and_vault_the_pmd(
     state: &SessionState,
@@ -3243,71 +3528,183 @@ pub async fn network_tokenize_and_vault_the_pmd(
     network_tokenization: Option<common_types::payment_methods::NetworkTokenization>,
     network_tokenization_enabled_for_profile: bool,
     customer_id: &id_type::GlobalCustomerId,
-) -> Option<NetworkTokenPaymentMethodDetails> {
-    let network_token_pm_details_result: CustomResult<
-        NetworkTokenPaymentMethodDetails,
-        errors::NetworkTokenizationError,
-    > = async {
-        when(!network_tokenization_enabled_for_profile, || {
-            Err(report!(
-                errors::NetworkTokenizationError::NetworkTokenizationNotEnabledForProfile
-            ))
+) -> CustomResult<NetworkTokenPaymentMethodDetails, errors::NetworkTokenizationError> {
+    when(!network_tokenization_enabled_for_profile, || {
+        Err(report!(
+            errors::NetworkTokenizationError::NetworkTokenizationNotEnabledForProfile
+        ))
+    })?;
+
+    let is_network_tokenization_enabled_for_pm = network_tokenization
+        .as_ref()
+        .map(|nt| matches!(nt.enable, common_enums::NetworkTokenizationToggle::Enable))
+        .unwrap_or(false);
+
+    let card_data = payment_method_data
+        .get_card()
+        .and_then(|card| is_network_tokenization_enabled_for_pm.then_some(card))
+        .ok_or_else(|| {
+            report!(errors::NetworkTokenizationError::NotSupported {
+                message: "Payment method".to_string(),
+            })
         })?;
 
-        let is_network_tokenization_enabled_for_pm = network_tokenization
-            .as_ref()
-            .map(|nt| matches!(nt.enable, common_enums::NetworkTokenizationToggle::Enable))
-            .unwrap_or(false);
-
-        let card_data = payment_method_data
-            .get_card()
-            .and_then(|card| is_network_tokenization_enabled_for_pm.then_some(card))
-            .ok_or_else(|| {
-                report!(errors::NetworkTokenizationError::NotSupported {
-                    message: "Payment method".to_string(),
-                })
-            })?;
-
-        let (resp, network_token_req_ref_id) =
-            network_tokenization::make_card_network_tokenization_request(
-                state,
-                card_data,
-                customer_id,
-            )
+    let (resp, network_token_req_ref_id) =
+        network_tokenization::make_card_network_tokenization_request(state, card_data, customer_id)
             .await?;
 
-        let network_token_vaulting_data = domain::PaymentMethodVaultingData::NetworkToken(resp);
-        let vaulting_resp = vault::add_payment_method_to_vault(
-            state,
-            platform,
-            &network_token_vaulting_data,
-            None,
-            customer_id,
-            Some(pm_types::WriteMode::Insert), // Insert mode for new network tokens
-        )
-        .await
-        .change_context(errors::NetworkTokenizationError::SaveNetworkTokenFailed)
-        .attach_printable("Failed to vault network token")?;
+    let network_token_vaulting_data = domain::PaymentMethodVaultingData::NetworkToken(resp);
+    let vaulting_resp = vault::add_payment_method_to_vault(
+        state,
+        platform,
+        &network_token_vaulting_data,
+        None,
+        customer_id,
+        Some(pm_types::WriteMode::Insert), // Insert mode for new network tokens
+    )
+    .await
+    .change_context(errors::NetworkTokenizationError::SaveNetworkTokenFailed)
+    .attach_printable("Failed to vault network token")?;
 
-        let key_manager_state = &(state).into();
-        let network_token_pmd = core_utils::create_encrypted_data(
-            key_manager_state,
-            platform.get_provider().get_key_store(),
-            network_token_vaulting_data.get_payment_methods_data(),
-            common_utils::type_name!(diesel_models::payment_method::PaymentMethod),
-        )
-        .await
-        .change_context(errors::NetworkTokenizationError::NetworkTokenDetailsEncryptionFailed)
-        .attach_printable("Failed to encrypt PaymentMethodsData")?;
+    let key_manager_state = &(state).into();
+    let network_token_pmd = core_utils::create_encrypted_data(
+        key_manager_state,
+        platform.get_provider().get_key_store(),
+        network_token_vaulting_data.get_payment_methods_data(),
+        common_utils::type_name!(diesel_models::payment_method::PaymentMethod),
+    )
+    .await
+    .change_context(errors::NetworkTokenizationError::NetworkTokenDetailsEncryptionFailed)
+    .attach_printable("Failed to encrypt PaymentMethodsData")?;
 
-        Ok(NetworkTokenPaymentMethodDetails {
-            network_token_requestor_reference_id: network_token_req_ref_id,
-            network_token_locker_id: vaulting_resp.vault_id.get_string_repr().clone(),
-            network_token_pmd,
-        })
-    }
+    Ok(NetworkTokenPaymentMethodDetails {
+        network_token_requestor_reference_id: network_token_req_ref_id,
+        network_token_locker_id: vaulting_resp.vault_id.get_string_repr().clone(),
+        network_token_pmd,
+    })
+}
+
+/// Called from the `NetworkTokenizationWorkflow` process tracker job (v2).
+///
+/// Re-fetches the card from the vault for the given payment method, generates a network token
+/// and persists the network token details on the payment method row. This is the async
+/// counterpart of the synchronous network tokenization performed during payment method create
+/// and update.
+///
+/// A failure is returned as an error so that the workflow can retry it. Payment methods that
+/// network tokenization does not apply to at all are reported as
+/// [`NetworkTokenGenerationOutcome::NotApplicable`], since retrying those cannot succeed.
+#[cfg(feature = "v2")]
+pub async fn generate_network_token_for_payment_method(
+    state: &SessionState,
+    platform: &domain::Platform,
+    profile: &domain::Profile,
+    payment_method: domain::PaymentMethod,
+) -> RouterResult<NetworkTokenGenerationOutcome> {
+    let db = &*state.store;
+
+    let customer_id = payment_method
+        .customer_id
+        .clone()
+        .get_required_value("GlobalCustomerId")?;
+
+    // Re-fetch the card that was vaulted at create/update time.
+    let vault_data = Box::pin(vault::retrieve_payment_method_from_vault(
+        state,
+        platform,
+        profile,
+        &payment_method,
+    ))
+    .await
+    .attach_printable("Failed to retrieve payment method from vault for network tokenization")?
+    .data;
+
+    // The per-payment-method opt-in was recorded when the task was scheduled and is not persisted
+    // on the payment method, so request tokenization with the toggle enabled here. The
+    // profile-level flag is still passed through and re-checked by the callee.
+    let network_tokenization_resp = network_tokenize_and_vault_the_pmd(
+        state,
+        &vault_data,
+        platform,
+        Some(common_types::payment_methods::NetworkTokenization {
+            enable: common_enums::NetworkTokenizationToggle::Enable,
+        }),
+        profile.is_network_tokenization_enabled,
+        &customer_id,
+    )
     .await;
-    network_token_pm_details_result.ok()
+
+    match network_tokenization_resp {
+        Ok(network_token) => {
+            // v2 has no NT-only update variant; `GenericUpdate` is the one that carries the
+            // network token columns. Its changeset skips `None` fields, so only the network token
+            // columns (and last_modified) are written.
+            let pm_update = storage::PaymentMethodUpdate::GenericUpdate {
+                payment_method_data: None,
+                status: None,
+                locker_id: None,
+                payment_method_type_v2: None,
+                payment_method_subtype: None,
+                network_token_requestor_reference_id: Some(
+                    network_token.network_token_requestor_reference_id,
+                ),
+                network_token_locker_id: Some(network_token.network_token_locker_id),
+                network_token_payment_method_data: Some(network_token.network_token_pmd.into()),
+                locker_fingerprint_id: None,
+                connector_mandate_details: Box::new(None),
+                external_vault_source: None,
+                network_transaction_id: None,
+                network_transaction_link_id: None,
+                last_modified_by: platform
+                    .get_initiator()
+                    .and_then(|initiator| initiator.to_created_by())
+                    .map(|last_modified_by| last_modified_by.to_string()),
+            };
+
+            db.update_payment_method(
+                platform.get_provider().get_key_store(),
+                payment_method,
+                pm_update,
+                platform.get_provider().get_account().storage_scheme,
+                None,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to update payment method with network token details")
+            .map(|_| NetworkTokenGenerationOutcome::Generated)
+        }
+
+        // Neither of these can be fixed by running the task again, so report them as a terminal
+        // outcome instead of an error that burns the retry budget.
+        Err(err)
+            if matches!(
+                err.current_context(),
+                errors::NetworkTokenizationError::NotSupported { .. }
+                    | errors::NetworkTokenizationError::NetworkTokenizationNotEnabledForProfile
+            ) =>
+        {
+            logger::warn!(
+                payment_method_id=%payment_method.id.get_string_repr(),
+                ?err,
+                "Network tokenization is not applicable for this payment method, not retrying"
+            );
+            Ok(NetworkTokenGenerationOutcome::NotApplicable)
+        }
+
+        Err(err) => Err(err)
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to generate and vault the network token"),
+    }
+}
+
+/// Terminal outcome of an async network token generation attempt.
+#[cfg(feature = "v2")]
+#[derive(Clone, Copy, Debug)]
+pub enum NetworkTokenGenerationOutcome {
+    /// A network token was generated and persisted on the payment method.
+    Generated,
+    /// Network tokenization does not apply to this payment method; retrying cannot help.
+    NotApplicable,
 }
 
 #[cfg(feature = "v2")]
@@ -3610,10 +4007,9 @@ pub async fn payment_method_intent_create(
     let customer_id = req.customer_id.to_owned();
     let key_manager_state = &(state).into();
 
-    db.find_customer_by_global_id_merchant_id(
+    db.find_customer_by_global_id_merchant_id_without_encrypted(
         &customer_id,
         provider.get_account().get_id(),
-        provider.get_key_store(),
         provider.get_account().storage_scheme,
     )
     .await
@@ -3653,6 +4049,7 @@ pub async fn payment_method_intent_create(
         &customer_id,
         payment_method_id,
         merchant_id,
+        &provider.get_account().organization_id,
         provider.get_key_store(),
         provider.get_account().storage_scheme,
         payment_method_billing_address,
@@ -4044,6 +4441,7 @@ pub async fn create_payment_method_for_intent(
     customer_id: &id_type::GlobalCustomerId,
     payment_method_id: id_type::GlobalPaymentMethodId,
     merchant_id: &id_type::MerchantId,
+    organization_id: &id_type::OrganizationId,
     key_store: &domain::MerchantKeyStore,
     storage_scheme: enums::MerchantStorageScheme,
     payment_method_billing_address: Option<
@@ -4096,7 +4494,10 @@ pub async fn create_payment_method_for_intent(
                 compatibility_updated_at: None,
             },
             storage_scheme,
-            Some(payment_method_modular_backward_compat_action(state)),
+            Some(payment_method_modular_backward_compat_action(
+                state,
+                organization_id,
+            )),
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -4197,6 +4598,7 @@ pub async fn create_payment_method_for_confirm(
     payment_method_id: id_type::GlobalPaymentMethodId,
     external_vault_source: Option<id_type::MerchantConnectorAccountId>,
     merchant_id: &id_type::MerchantId,
+    organization_id: &id_type::OrganizationId,
     key_store: &domain::MerchantKeyStore,
     storage_scheme: enums::MerchantStorageScheme,
     payment_method_type: storage_enums::PaymentMethod,
@@ -4255,7 +4657,10 @@ pub async fn create_payment_method_for_confirm(
                 compatibility_updated_at: None,
             },
             storage_scheme,
-            Some(payment_method_modular_backward_compat_action(state)),
+            Some(payment_method_modular_backward_compat_action(
+                state,
+                organization_id,
+            )),
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -5175,10 +5580,9 @@ pub async fn list_payment_methods_core(
         .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
 
     let customer = db
-        .find_customer_by_global_id_merchant_id(
+        .find_customer_by_global_id_merchant_id_without_encrypted(
             customer_id,
             provider.get_account().get_id(),
-            provider.get_key_store(),
             provider.get_account().storage_scheme,
         )
         .await
@@ -5233,10 +5637,9 @@ pub async fn list_customer_payment_methods_core(
         .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
 
     let customer = db
-        .find_customer_by_global_id_merchant_id(
+        .find_customer_by_global_id_merchant_id_without_encrypted(
             customer_id,
             provider.get_account().get_id(),
-            provider.get_key_store(),
             provider.get_account().storage_scheme,
         )
         .await
@@ -5703,6 +6106,25 @@ impl RawPaymentMethodFetchAccess {
             }
 
             Self::Allowed => {
+                // Externally-vaulted (proxy) cards have no PAN in our own vault to retrieve — the
+                // card lives at the external vault (e.g. VGS) and is never given a `locker_id`, so
+                // a live `retrieve_payment_method_data_from_storage` call always fails with a
+                // missing `connector_vault_id`. Short-circuit the same way `Denied` does and hand
+                // back the stored alias as a `ProxyCard` instead of attempting a vault fetch.
+                let proxy_card_data = payment_method
+                    .external_vault_token_data
+                    .clone()
+                    .map(|enc| enc.into_inner());
+                if let Some(external_vault_token_data) = proxy_card_data {
+                    return Ok(Some(payment_methods::RawPaymentMethodData::ProxyCard(
+                        payment_methods::RawProxyCardDataResponse {
+                            card_number: external_vault_token_data.tokenized_card_number,
+                            card_exp_year: None,
+                            card_exp_month: None,
+                        },
+                    )));
+                }
+
                 let should_skip_vault_fetch = matches!(
                     payment_method.payment_method_type,
                     Some(enums::PaymentMethod::Wallet) | Some(enums::PaymentMethod::BankRedirect)
@@ -5922,6 +6344,10 @@ pub async fn update_payment_method(
     ))
     .await?;
 
+    // Network tokenization is intentionally not scheduled here: the update request carries no
+    // network tokenization opt-in field, so there is no per-payment-method consent to act on.
+    // Scheduling happens only in the create flow, where the request opts in explicitly.
+
     Ok(services::ApplicationResponse::Json(response))
 }
 
@@ -6039,11 +6465,15 @@ pub async fn delete_payment_method_core(
         || Err(errors::ApiErrorResponse::PaymentMethodNotFound),
     )?;
 
+    when(
+        payment_method.status == enums::PaymentMethodStatus::Redacted,
+        || Err(errors::ApiErrorResponse::PaymentMethodRedacted),
+    )?;
+
     let _customer = db
-        .find_customer_by_global_id_merchant_id(
+        .find_customer_by_global_id_merchant_id_without_encrypted(
             customer_id,
             platform.get_provider().get_account().get_id(),
-            platform.get_provider().get_key_store(),
             platform.get_provider().get_account().storage_scheme,
         )
         .await
@@ -6308,21 +6738,22 @@ pub async fn payment_methods_session_create(
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to insert payment methods session in db")?;
 
-    let external_vault_details = payments_core::vault_session::fetch_external_vault_details(
-        &state,
-        &platform,
-        &profile,
-        &customer,
-        payment_method_session_domain_model.storage_type,
-    )
-    .await
-    .unwrap_or_else(|err| {
-        router_env::logger::warn!(
-            ?err,
-            "Failed to fetch external vault details for payment method session"
-        );
-        None
-    });
+    let external_vault_details =
+        Box::pin(payments_core::vault_session::fetch_external_vault_details(
+            &state,
+            &platform,
+            &profile,
+            &customer,
+            payment_method_session_domain_model.storage_type,
+        ))
+        .await
+        .unwrap_or_else(|err| {
+            router_env::logger::warn!(
+                ?err,
+                "Failed to fetch external vault details for payment method session"
+            );
+            None
+        });
 
     let sdk_authorization = Option::<hyperswitch_domain_models::sdk_auth::SdkAuthorization>::from(
         hyperswitch_domain_models::sdk_auth::SdkAuthorizationContext {
@@ -6876,7 +7307,15 @@ pub async fn payment_methods_session_confirm(
         })
         .or_else(|| payment_method_session_billing.clone());
 
-    let storage_type = payment_method_session.storage_type;
+    // The session's storage_type carries the merchant's intent (persistent when
+    // setup_future_usage and a customer are present at session create). The customer's
+    // acceptance at confirm makes the save final: without it the payment method is
+    // created as volatile even when the session asked for persistent storage.
+    let storage_type = if request.customer_acceptance.is_some() {
+        payment_method_session.storage_type
+    } else {
+        common_enums::StorageType::Volatile
+    };
 
     let create_payment_method_request = get_payment_method_create_request(
         request
@@ -7436,7 +7875,10 @@ impl<'a> pm_types::PaymentMethodUpdateHandler<'a> {
                 self.payment_method.clone(),
                 pm_update,
                 self.platform.get_provider().get_account().storage_scheme,
-                Some(payment_method_modular_backward_compat_action(self.state)),
+                Some(payment_method_modular_backward_compat_action(
+                    self.state,
+                    &self.platform.get_provider().get_account().organization_id,
+                )),
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)

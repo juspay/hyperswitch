@@ -402,3 +402,6 @@ key1 = "Merchant Id"
 [payconex]
 api_key = "API Key"
 key1 = "Account Id"
+
+[givepayments]
+api_key = "API Key"

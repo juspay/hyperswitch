@@ -167,6 +167,7 @@ impl PaymentMethodsController for PmCards<'_> {
         let compat_action = super::payment_method_modular_forward_compat_action(
             self.state,
             merchant_id,
+            &self.provider.get_account().organization_id,
             Some(customer_id),
         )
         .await;
@@ -474,6 +475,7 @@ impl PaymentMethodsController for PmCards<'_> {
                 let compat_action = super::payment_method_modular_forward_compat_action(
                     self.state,
                     &existing_pm.merchant_id,
+                    &self.provider.get_account().organization_id,
                     existing_pm.customer_id.as_ref(),
                 )
                 .await;
@@ -1914,6 +1916,7 @@ impl PaymentMethodsController for PmCards<'_> {
                         let compat_action = super::payment_method_modular_forward_compat_action(
                             self.state,
                             &existing_pm.merchant_id,
+                            &self.provider.get_account().organization_id,
                             existing_pm.customer_id.as_ref(),
                         )
                         .await;
@@ -2428,6 +2431,7 @@ pub async fn add_payment_method_data(
                         let compat_action = super::payment_method_modular_forward_compat_action(
                             &state,
                             &payment_method.merchant_id,
+                            &provider.get_account().organization_id,
                             payment_method.customer_id.as_ref(),
                         )
                         .await;
@@ -2522,6 +2526,7 @@ pub async fn add_payment_method_data(
                         let compat_action = super::payment_method_modular_forward_compat_action(
                             &state,
                             &payment_method.merchant_id,
+                            &provider.get_account().organization_id,
                             payment_method.customer_id.as_ref(),
                         )
                         .await;
@@ -2807,6 +2812,7 @@ pub async fn update_customer_payment_method(
             let compat_action = super::payment_method_modular_forward_compat_action(
                 &state,
                 &pm.merchant_id,
+                &provider.get_account().organization_id,
                 pm.customer_id.as_ref(),
             )
             .await;
@@ -2895,6 +2901,7 @@ pub async fn update_customer_payment_method(
         let compat_action = super::payment_method_modular_forward_compat_action(
             &state,
             &pm.merchant_id,
+            &provider.get_account().organization_id,
             pm.customer_id.as_ref(),
         )
         .await;
@@ -3172,7 +3179,7 @@ where
     let jwekey = state.conf.jwekey.get_inner();
     let response_type_name = type_name!(T);
 
-    let response = services::call_connector_api(state, request, flow_name)
+    let response = services::call_connector_api(state, request, flow_name, None)
         .await
         .change_context(errors::VaultError::ApiError)?;
 
@@ -3306,8 +3313,10 @@ pub async fn update_payment_method_and_last_used(
 }
 
 #[cfg(feature = "v2")]
+#[allow(clippy::too_many_arguments)]
 pub async fn update_payment_method_connector_mandate_details(
     state: &routes::SessionState,
+    organization_id: &id_type::OrganizationId,
     key_store: &domain::MerchantKeyStore,
     db: &dyn db::StorageInterface,
     pm: domain::PaymentMethod,
@@ -3327,7 +3336,10 @@ pub async fn update_payment_method_connector_mandate_details(
         pm,
         pm_update,
         storage_scheme,
-        Some(super::payment_method_modular_backward_compat_action(state)),
+        Some(super::payment_method_modular_backward_compat_action(
+            state,
+            organization_id,
+        )),
     )
     .await
     .change_context(errors::VaultError::UpdateInPaymentMethodTableFailed)?;
@@ -3982,16 +3994,16 @@ pub async fn build_merchant_enabled_pms_context(
     let db = &*state.store;
     let pm_config_mapping = &state.conf.pm_filters;
 
-    // --- Load all MCAs and filter by profile + connector type ---
+    // --- Load all MCAs and filter by connector type ---
+    let profile_id = business_profile.get_id().clone();
+
     let all_mcas = db
-        .find_merchant_connector_account_without_encrypted_by_merchant_id_and_disabled_list(
+        .list_enabled_merchant_connector_accounts_without_encrypted_by_merchant_id_profile_id(
             platform.get_processor().get_account().get_id(),
-            false,
+            &profile_id,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
-
-    let profile_id = business_profile.get_id().clone();
 
     let dimensions = dimension_state::Dimensions::new()
         .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
@@ -4000,7 +4012,7 @@ pub async fn build_merchant_enabled_pms_context(
 
     let filtered_mcas = all_mcas
         .clone()
-        .filter_based_on_profile_and_connector_type(&profile_id, ConnectorType::PaymentProcessor);
+        .filter_by_connector_type(ConnectorType::PaymentProcessor);
 
     logger::debug!(mca_before_filtering=?filtered_mcas);
 
@@ -5781,21 +5793,29 @@ pub async fn list_customer_payment_method(
         .and_then(|business_profile| business_profile.is_connector_agnostic_mit_enabled)
         .unwrap_or(false);
 
-    let merchant_connector_accounts = state
-        .store
-        .find_merchant_connector_account_without_encrypted_by_merchant_id_and_disabled_list(
-            platform.get_processor().get_account().get_id(),
-            true,
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-            id: platform
-                .get_processor()
-                .get_account()
-                .get_id()
-                .get_string_repr()
-                .to_owned(),
-        })?;
+    // The MCA list is used to evaluate if the payment method has connector_mandate_details for any active MCA
+    let merchant_connector_accounts = match business_profile.as_ref() {
+        Some(business_profile) => Some(
+            state
+                .store
+                .list_enabled_merchant_connector_accounts_without_encrypted_by_merchant_id_profile_id(
+                    platform.get_processor().get_account().get_id(),
+                    business_profile.get_id(),
+                )
+                .await
+                .change_context(
+                    errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                        id: platform
+                            .get_processor()
+                            .get_account()
+                            .get_id()
+                            .get_string_repr()
+                            .to_owned(),
+                    },
+                )?,
+        ),
+        None => None,
+    };
 
     for pm in resp.into_iter() {
         let parent_payment_method_token = generate_id(consts::ID_LENGTH, "token");
@@ -5845,11 +5865,10 @@ pub async fn list_customer_payment_method(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to deserialize to Payment Mandate Reference ")?;
         let mca_enabled = get_mca_status(
-            profile_id.clone(),
             is_connector_agnostic_mit_enabled,
             Some(connector_mandate_details),
             pm.network_transaction_id.as_ref(),
-            &merchant_connector_accounts,
+            merchant_connector_accounts.as_ref(),
         )
         .await?;
 
@@ -6128,20 +6147,17 @@ pub async fn perform_surcharge_ops(
 
 #[cfg(feature = "v1")]
 pub async fn get_mca_status(
-    profile_id: Option<id_type::ProfileId>,
-
     is_connector_agnostic_mit_enabled: bool,
     connector_mandate_details: Option<CommonMandateReference>,
     network_transaction_id: Option<&String>,
-    merchant_connector_accounts: &domain::MerchantConnectorAccountsWithoutEncrypted,
+    merchant_connector_accounts: Option<&domain::MerchantConnectorAccountsWithoutEncrypted>,
 ) -> errors::RouterResult<bool> {
     let agnostic_mit = is_connector_agnostic_mit_enabled && network_transaction_id.is_some();
 
     let mandate_match = connector_mandate_details.is_some_and(|details| {
-        merchant_connector_accounts.is_merchant_connector_account_id_in_connector_mandate_details(
-            profile_id.as_ref(),
-            &details,
-        )
+        merchant_connector_accounts.is_some_and(|mcas| {
+            mcas.is_merchant_connector_account_id_in_connector_mandate_details(&details)
+        })
     });
 
     Ok(agnostic_mit || mandate_match)
@@ -6152,23 +6168,20 @@ pub async fn get_mca_status(
 pub async fn get_mca_status(
     state: &routes::SessionState,
     key_store: &domain::MerchantKeyStore,
-    profile_id: Option<id_type::ProfileId>,
     merchant_id: &id_type::MerchantId,
     is_connector_agnostic_mit_enabled: bool,
     connector_mandate_details: Option<&CommonMandateReference>,
     network_transaction_id: Option<&String>,
-    merchant_connector_accounts: &domain::MerchantConnectorAccounts,
+    merchant_connector_accounts: Option<&domain::MerchantConnectorAccounts>,
 ) -> bool {
     if is_connector_agnostic_mit_enabled && network_transaction_id.is_some() {
         return true;
     }
-    match connector_mandate_details {
-        Some(connector_mandate_details) => merchant_connector_accounts
-            .is_merchant_connector_account_id_in_connector_mandate_details(
-                profile_id.as_ref(),
-                connector_mandate_details,
-            ),
-        None => false,
+    match (connector_mandate_details, merchant_connector_accounts) {
+        (Some(details), Some(mcas)) => {
+            mcas.is_merchant_connector_account_id_in_connector_mandate_details(details)
+        }
+        _ => false,
     }
 }
 
