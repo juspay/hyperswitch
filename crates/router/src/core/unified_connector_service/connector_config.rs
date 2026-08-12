@@ -77,6 +77,22 @@ pub struct SantanderPayoutMetadata {
 }
 
 #[derive(Debug, serde::Deserialize)]
+#[serde(untagged)]
+enum SantanderPayoutMetadataCompat {
+    Flat(SantanderPayoutMetadata),
+    Nested { pix_payout: SantanderPayoutMetadata },
+}
+
+impl SantanderPayoutMetadataCompat {
+    fn into_inner(self) -> SantanderPayoutMetadata {
+        match self {
+            Self::Flat(m) => m,
+            Self::Nested { pix_payout } => pix_payout,
+        }
+    }
+}
+
+#[derive(Debug, serde::Deserialize)]
 pub struct MifinityMetadata {
     brand_id: Secret<String>,
     destination_account_number: Secret<String>,
@@ -1692,11 +1708,12 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                 } => {
                     let meta_data = metadata
                         .map(|m| {
-                            serde_json::from_value::<SantanderPayoutMetadata>(m.clone())
+                            serde_json::from_value::<SantanderPayoutMetadataCompat>(m.clone())
                                 .map_err(|_| err("Invalid Santander payout metadata format"))
                         })
                         .transpose()?
-                        .ok_or_else(|| err("Santander payout requires metadata"))?;
+                        .ok_or_else(|| err("Santander payout requires metadata"))?
+                        .into_inner();
                     Ok(Self::Santander {
                         certificates: certificate.clone(),
                         private_key: private_key.clone(),
