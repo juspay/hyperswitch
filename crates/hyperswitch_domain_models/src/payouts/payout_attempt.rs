@@ -112,6 +112,7 @@ pub struct PayoutAttempt {
     pub created_by: Option<types::CreatedBy>,
     pub source_bank_data_token: Option<String>,
     pub additional_source_bank_data: Option<payout_method_utils::BankAdditionalData>,
+    pub connector_request_reference_id: Option<String>,
 }
 
 impl PayoutAttempt {
@@ -167,6 +168,7 @@ pub struct PayoutAttemptNew {
     pub created_by: Option<types::CreatedBy>,
     pub source_bank_data_token: Option<String>,
     pub additional_source_bank_data: Option<payout_method_utils::BankAdditionalData>,
+    pub connector_request_reference_id: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -195,6 +197,7 @@ pub enum PayoutAttemptUpdate {
         connector: String,
         routing_info: Option<serde_json::Value>,
         merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
+        connector_request_reference_id: String,
     },
     AdditionalPayoutDataUpdate {
         additional_payout_method_data: Option<payout_method_utils::AdditionalPayoutMethodData>,
@@ -226,6 +229,7 @@ pub struct PayoutAttemptUpdateInternal {
     pub address_id: Option<String>,
     pub customer_id: Option<id_type::CustomerId>,
     pub merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
+    pub connector_request_reference_id: Option<String>,
     pub unified_code: Option<UnifiedCode>,
     pub unified_message: Option<UnifiedMessage>,
     pub additional_payout_method_data: Option<payout_method_utils::AdditionalPayoutMethodData>,
@@ -277,10 +281,12 @@ impl From<PayoutAttemptUpdate> for PayoutAttemptUpdateInternal {
                 connector,
                 routing_info,
                 merchant_connector_id,
+                connector_request_reference_id,
             } => Self {
                 connector: Some(connector),
                 routing_info,
                 merchant_connector_id,
+                connector_request_reference_id: Some(connector_request_reference_id),
                 ..Default::default()
             },
             PayoutAttemptUpdate::AdditionalPayoutDataUpdate {
