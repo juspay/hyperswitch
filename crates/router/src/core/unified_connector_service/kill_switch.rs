@@ -37,16 +37,18 @@ fn trip_key(rollout_scope: &str) -> String {
 /// config resolved to primary, so shadow traffic never pays for the lookup.
 pub async fn is_tripped(state: &SessionState, rollout_scope: &str) -> bool {
     if is_config_flag_enabled(state, consts::UCS_KILL_SWITCH_ENABLED).await {
-        read_trip(state, rollout_scope)
-            .await
-            .unwrap_or_else(|error| {
+        match read_trip(state, rollout_scope).await {
+            Ok(tripped) => tripped,
+            // Fails closed: the scope goes to the direct integration when redis cannot answer.
+            Err(error) => {
                 logger::error!(
                     ?error,
                     rollout_scope = %rollout_scope,
                     "ucs_kill_switch: trip unreadable, routing to the direct integration"
                 );
                 true
-            })
+            }
+        }
     } else {
         false
     }
@@ -85,58 +87,76 @@ pub struct UcsFailureContext<'a> {
     pub payment_method_type: Option<common_enums::PaymentMethodType>,
 }
 
-/// Classifies a UCS failure and trips the scope if it qualifies.
+/// A failure that qualifies to trip, and the scope it would trip.
+struct TrippableFailure {
+    rollout_scope: String,
+    reason: UcsKillSwitchReason,
+}
+
+/// Records a qualifying UCS failure, and trips its scope when the switch is turned on.
 ///
 /// Never returns an error: it runs on an already-failing path and must not fail the request.
-#[allow(clippy::too_many_arguments)]
 pub async fn record_failure(
     state: &SessionState,
     context: UcsFailureContext<'_>,
     execution_mode: ExecutionMode,
     error: &UnifiedConnectorServiceError,
 ) {
+    if let Some(failure) = trippable_failure(state, &context, execution_mode, error).await {
+        metrics::UCS_KILL_SWITCH_FAILURE.add(
+            1,
+            router_env::metric_attributes!(
+                ("connector", context.connector_name.to_string()),
+                ("flow", context.flow_name.to_string()),
+                ("reason", failure.reason.to_string())
+            ),
+        );
+
+        if is_config_flag_enabled(state, consts::UCS_KILL_SWITCH_ENABLED).await {
+            trip(state, &failure, &context, error).await;
+        } else {
+            // Fires on every qualifying failure: calibration feed, not an alert.
+            logger::warn!(
+                rollout_scope = %failure.rollout_scope,
+                merchant_id = %context.merchant_id,
+                connector = %context.connector_name,
+                flow = %context.flow_name,
+                payment_id = %context.payment_id,
+                request_id = ?state.request_id,
+                reason = %failure.reason,
+                ucs_error = ?error,
+                "ucs_kill_switch: qualifying failure observed but the kill switch is turned off"
+            );
+        }
+    }
+}
+
+/// What this failure would trip, or `None` when nothing can come of it: shadow traffic, a
+/// UCS-only connector the gate never diverts, or a failure the classifier does not qualify.
+async fn trippable_failure(
+    state: &SessionState,
+    context: &UcsFailureContext<'_>,
+    execution_mode: ExecutionMode,
+    error: &UnifiedConnectorServiceError,
+) -> Option<TrippableFailure> {
     // Only the path serving merchant traffic can trip, and only a connector that has a direct
     // integration to fall back to. `&&` keeps the cheap check first.
     let scope_can_trip = matches!(execution_mode, ExecutionMode::Primary)
         && !is_ucs_only_connector(state, context.connector_name).await;
 
-    if scope_can_trip {
-        if let Some(reason) = error.ucs_kill_switch_reason() {
-            let rollout_scope = build_merchant_rollout_scope(
+    scope_can_trip
+        .then(|| error.ucs_kill_switch_reason())
+        .flatten()
+        .map(|reason| TrippableFailure {
+            rollout_scope: build_merchant_rollout_scope(
                 context.merchant_id,
                 context.connector_name,
                 context.flow_name,
                 context.payment_method,
                 context.payment_method_type,
-            );
-
-            metrics::UCS_KILL_SWITCH_FAILURE.add(
-                1,
-                router_env::metric_attributes!(
-                    ("connector", context.connector_name.to_string()),
-                    ("flow", context.flow_name.to_string()),
-                    ("reason", reason.to_string())
-                ),
-            );
-
-            if is_config_flag_enabled(state, consts::UCS_KILL_SWITCH_ENABLED).await {
-                trip(state, &rollout_scope, &context, reason, error).await;
-            } else {
-                // Fires on every qualifying failure: calibration feed, not an alert.
-                logger::warn!(
-                    rollout_scope = %rollout_scope,
-                    merchant_id = %context.merchant_id,
-                    connector = %context.connector_name,
-                    flow = %context.flow_name,
-                    payment_id = %context.payment_id,
-                    request_id = ?state.request_id,
-                    reason = %reason,
-                    ucs_error = ?error,
-                    "ucs_kill_switch: qualifying failure observed but the kill switch is turned off"
-                );
-            }
-        }
-    }
+            ),
+            reason,
+        })
 }
 
 /// A UCS-only connector has no direct integration to fall back to, so the gate never diverts one.
@@ -155,11 +175,15 @@ async fn is_ucs_only_connector(state: &SessionState, connector_name: &str) -> bo
 /// Writes the trip. `SET NX` makes it exactly-once: one concurrent writer wins, the rest no-op.
 async fn trip(
     state: &SessionState,
-    rollout_scope: &str,
+    failure: &TrippableFailure,
     context: &UcsFailureContext<'_>,
-    reason: UcsKillSwitchReason,
     error: &UnifiedConnectorServiceError,
 ) {
+    let TrippableFailure {
+        rollout_scope,
+        reason,
+    } = failure;
+
     // Carries enough to find the originating request.
     let record = serde_json::json!({
         "reason": reason.to_string(),
