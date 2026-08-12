@@ -46713,25 +46713,36 @@
           "dispute_statuses_enabled": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/api_enums.DisputeStatus"
+              "$ref": "#/components/schemas/DisputeStatus"
             },
             "description": "List of dispute statuses that trigger outgoing webhooks for disputes",
+            "example": [
+              "dispute_opened",
+              "dispute_won"
+            ],
             "nullable": true
           },
           "mandate_statuses_enabled": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/api_enums.MandateStatus"
+              "$ref": "#/components/schemas/MandateStatus"
             },
             "description": "List of mandate statuses that trigger outgoing webhooks for mandates",
+            "example": [
+              "active",
+              "inactive"
+            ],
             "nullable": true
           },
           "invoice_statuses_enabled": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/api_enums.InvoiceStatus"
+              "$ref": "#/components/schemas/InvoiceStatus"
             },
             "description": "List of invoice statuses that trigger outgoing webhooks for subscriptions",
+            "example": [
+              "invoice_paid"
+            ],
             "nullable": true
           }
         },

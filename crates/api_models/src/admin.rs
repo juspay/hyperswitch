@@ -895,12 +895,15 @@ pub struct WebhookDetails {
     pub payout_statuses_enabled: Option<Vec<api_enums::PayoutStatus>>,
 
     /// List of dispute statuses that trigger outgoing webhooks for disputes
+    #[schema(value_type = Option<Vec<DisputeStatus>>, example = json!(["dispute_opened", "dispute_won"]))]
     pub dispute_statuses_enabled: Option<Vec<api_enums::DisputeStatus>>,
 
     /// List of mandate statuses that trigger outgoing webhooks for mandates
+    #[schema(value_type = Option<Vec<MandateStatus>>, example = json!(["active", "inactive"]))]
     pub mandate_statuses_enabled: Option<Vec<api_enums::MandateStatus>>,
 
     /// List of invoice statuses that trigger outgoing webhooks for subscriptions
+    #[schema(value_type = Option<Vec<InvoiceStatus>>, example = json!(["invoice_paid"]))]
     pub invoice_statuses_enabled: Option<Vec<api_enums::InvoiceStatus>>,
 }
 
