@@ -41,7 +41,7 @@ use crate::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         mandate::helpers as m_helpers,
         metrics,
-        payment_methods::transformers as pm_transformers,
+        payment_methods::{transformers as pm_transformers, vault},
         payments::{
             self, helpers, operations, populate_installment_details, CustomerDetails,
             OperationSessionGetters, OperationSessionSetters, PaymentAddress, PaymentData,
@@ -2452,14 +2452,13 @@ impl PaymentConfirm {
                         })
                     },
                 )?;
-                let resolved_cvc =
-                    crate::core::payment_methods::vault::retrieve_cvc_from_payment_token(
-                        state,
-                        card_cvc_token.peek(),
-                        platform.get_provider().get_key_store(),
-                        crate::core::payment_methods::vault::CvcReadMode::ReadAndDelete,
-                    )
-                    .await?;
+                let resolved_cvc = vault::retrieve_cvc_from_payment_token(
+                    state,
+                    card_cvc_token.peek(),
+                    platform.get_provider().get_key_store(),
+                    vault::CvcReadMode::ReadAndDelete,
+                )
+                .await?;
                 token.card_cvc = Some(resolved_cvc);
             }
         }

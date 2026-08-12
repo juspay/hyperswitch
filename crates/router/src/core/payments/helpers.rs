@@ -5562,6 +5562,26 @@ impl AttemptType {
     ) -> PaymentAttempt {
         let created_at @ modified_at @ last_synced = common_utils::date_time::now();
         let is_token_based_retry = request.payment_token.is_some();
+        let (payment_method, browser_info, payment_method_type, setup_future_usage_applied) =
+            if is_token_based_retry {
+                (
+                    request
+                        .payment_method
+                        .or(old_payment_attempt.payment_method),
+                    request
+                        .browser_info
+                        .clone()
+                        .or(old_payment_attempt.browser_info),
+                    request
+                        .payment_method_type
+                        .or(old_payment_attempt.payment_method_type),
+                    request
+                        .setup_future_usage
+                        .or(old_payment_attempt.setup_future_usage_applied),
+                )
+            } else {
+                (None, None, None, None)
+            };
 
         PaymentAttempt {
             attempt_id: old_payment_attempt
@@ -5589,13 +5609,7 @@ impl AttemptType {
             error_message: None,
             offer_amount: old_payment_attempt.offer_amount,
             payment_method_id: None,
-            payment_method: if is_token_based_retry {
-                request
-                    .payment_method
-                    .or(old_payment_attempt.payment_method)
-            } else {
-                None
-            },
+            payment_method,
             capture_method: old_payment_attempt.capture_method,
             capture_on: old_payment_attempt.capture_on,
             confirm: old_payment_attempt.confirm,
@@ -5610,27 +5624,14 @@ impl AttemptType {
             // Since mandate_id is a contract between merchant and customer to debit customers amount adding it to newly created attempt
             mandate_id: old_payment_attempt.mandate_id,
 
-            // Same retry requests can override reusable fields from the previous attempt.
-            browser_info: if is_token_based_retry {
-                request
-                    .browser_info
-                    .clone()
-                    .or(old_payment_attempt.browser_info)
-            } else {
-                None
-            },
+            // Token-based retries can override reusable fields from the previous attempt.
+            browser_info,
 
             error_code: None,
             payment_token: None,
             connector_metadata: None,
             payment_experience: None,
-            payment_method_type: if is_token_based_retry {
-                request
-                    .payment_method_type
-                    .or(old_payment_attempt.payment_method_type)
-            } else {
-                None
-            },
+            payment_method_type,
             payment_method_data: None,
 
             // In case it is passed in create and not in confirm,
@@ -5673,13 +5674,7 @@ impl AttemptType {
             card_discovery: None,
             processor_merchant_id: old_payment_attempt.processor_merchant_id,
             created_by: old_payment_attempt.created_by,
-            setup_future_usage_applied: if is_token_based_retry {
-                request
-                    .setup_future_usage
-                    .or(old_payment_attempt.setup_future_usage_applied)
-            } else {
-                None
-            },
+            setup_future_usage_applied,
             routing_approach: old_payment_attempt.routing_approach,
             connector_request_reference_id: None,
             network_transaction_id: None,
