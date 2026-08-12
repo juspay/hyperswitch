@@ -4082,16 +4082,17 @@ pub async fn decide_unified_connector_service_payout<F: Clone>(
     // Extract previous gateway from payment data
     let previous_gateway = extract_gateway_system_from_payouts(payout_data);
 
-    let (execution_path, updated_state) = should_call_unified_connector_service(
-        state,
-        platform.get_processor(),
-        router_data,
-        previous_gateway,
-        common_enums::enums::CallConnectorAction::Trigger,
-        None,
-        common_enums::TransactionType::Payout,
-    )
-    .await?;
+    let (execution_path, updated_state, matched_rollout_key) =
+        should_call_unified_connector_service(
+            state,
+            platform.get_processor(),
+            router_data,
+            previous_gateway,
+            common_enums::enums::CallConnectorAction::Trigger,
+            None,
+            common_enums::TransactionType::Payout,
+        )
+        .await?;
 
     let lineage_ids = grpc_client::LineageIds::new(
         payout_data.payouts.merchant_id.clone(),
@@ -4138,6 +4139,7 @@ pub async fn decide_unified_connector_service_payout<F: Clone>(
         merchant_connector_account,
         execution_path,
         execution_mode,
+        ucs_matched_rollout_key: matched_rollout_key,
     };
     // Update feature metadata to track Direct routing usage for stickiness
     update_gateway_system_in_payout_metadata(payout_data, gateway_context.get_gateway_system())?;
