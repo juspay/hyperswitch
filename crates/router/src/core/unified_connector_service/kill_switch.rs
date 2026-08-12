@@ -131,7 +131,7 @@ pub async fn record_failure(
         router_env::metric_attributes!(
             ("connector", context.connector_name.to_string()),
             ("flow", context.flow_name.to_string()),
-            ("reason", reason.as_str())
+            ("reason", reason.to_string())
         ),
     );
 
@@ -144,7 +144,7 @@ pub async fn record_failure(
             flow = %context.flow_name,
             payment_id = %context.payment_id,
             request_id = ?state.request_id,
-            reason = reason.as_str(),
+            reason = %reason,
             ucs_error = ?error,
             "ucs_kill_switch: qualifying failure observed but the kill switch is turned off"
         );
@@ -176,7 +176,7 @@ async fn trip(
 
     // Carries enough to find the originating request.
     let record = serde_json::json!({
-        "reason": reason.as_str(),
+        "reason": reason.to_string(),
         "error": error.to_string(),
         "request_id": state.request_id.as_ref().map(|id| id.to_string()),
         "tripped_at": common_utils::date_time::now_unix_timestamp(),
@@ -194,7 +194,7 @@ async fn trip(
         Ok(redis_interface::SetnxReply::KeySet) => {
             metrics::UCS_KILL_SWITCH_TRIPPED.add(
                 1,
-                router_env::metric_attributes!(("reason", reason.as_str())),
+                router_env::metric_attributes!(("reason", reason.to_string())),
             );
             // Fires once per scope. This is the line to alert on.
             logger::error!(
@@ -204,7 +204,7 @@ async fn trip(
                 flow = %context.flow_name,
                 payment_id = %context.payment_id,
                 request_id = ?state.request_id,
-                reason = reason.as_str(),
+                reason = %reason,
                 ucs_error = ?error,
                 "ucs_kill_switch: tripping the scope back to the direct integration"
             );
@@ -451,13 +451,13 @@ mod tests {
     #[test]
     fn failure_reasons_have_distinct_tags() {
         let tags = [
-            UcsKillSwitchReason::HyperswitchResponseUndecodable.as_str(),
-            UcsKillSwitchReason::HyperswitchRequestInvalid.as_str(),
-            UcsKillSwitchReason::UcsRejectedRequest.as_str(),
-            UcsKillSwitchReason::UcsFlowUnsupported.as_str(),
-            UcsKillSwitchReason::UcsInternalError.as_str(),
-            UcsKillSwitchReason::UcsUnreachable.as_str(),
-            UcsKillSwitchReason::ConnectorOutcome.as_str(),
+            UcsKillSwitchReason::HyperswitchResponseUndecodable.to_string(),
+            UcsKillSwitchReason::HyperswitchRequestInvalid.to_string(),
+            UcsKillSwitchReason::UcsRejectedRequest.to_string(),
+            UcsKillSwitchReason::UcsFlowUnsupported.to_string(),
+            UcsKillSwitchReason::UcsInternalError.to_string(),
+            UcsKillSwitchReason::UcsUnreachable.to_string(),
+            UcsKillSwitchReason::ConnectorOutcome.to_string(),
         ];
         let unique: std::collections::HashSet<_> = tags.iter().collect();
 

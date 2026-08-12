@@ -1406,7 +1406,8 @@ impl ErrorSwitch<ConnectorError> for UnifiedConnectorServiceError {
 ///
 /// Doubles as the metric label, so it is a small fixed set rather than the error itself — the
 /// error carries free-form strings and would be unbounded label cardinality.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, strum::Display)]
+#[strum(serialize_all = "snake_case")]
 pub enum UcsKillSwitchReason {
     /// Hyperswitch could not build a valid request. UCS was never reached.
     HyperswitchRequestInvalid,
@@ -1424,21 +1425,6 @@ pub enum UcsKillSwitchReason {
     /// wrongly — indistinguishable at this layer, so we trip conservatively because falling back
     /// to the battle-tested direct path is always safe.
     ConnectorOutcome,
-}
-
-impl UcsKillSwitchReason {
-    /// Stable label used in metrics and logs.
-    pub fn as_str(self) -> &'static str {
-        match self {
-            Self::HyperswitchRequestInvalid => "hyperswitch_request_invalid",
-            Self::HyperswitchResponseUndecodable => "hyperswitch_response_undecodable",
-            Self::UcsRejectedRequest => "ucs_rejected_request",
-            Self::UcsFlowUnsupported => "ucs_flow_unsupported",
-            Self::UcsInternalError => "ucs_internal_error",
-            Self::UcsUnreachable => "ucs_unreachable",
-            Self::ConnectorOutcome => "connector_outcome",
-        }
-    }
 }
 
 impl UnifiedConnectorServiceError {
