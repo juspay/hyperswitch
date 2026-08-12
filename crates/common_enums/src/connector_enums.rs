@@ -508,6 +508,7 @@ impl Connector {
     Copy,
     PartialEq,
     Eq,
+    Hash,
     serde::Deserialize,
     serde::Serialize,
     strum::Display,

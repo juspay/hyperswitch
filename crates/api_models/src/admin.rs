@@ -883,28 +883,28 @@ pub struct WebhookDetails {
 
     /// List of payment statuses that triggers a webhook for payment intents
     #[schema(value_type = Vec<IntentStatus>, example = json!(["succeeded", "failed", "partially_captured", "requires_merchant_action"]))]
-    pub payment_statuses_enabled: Option<Vec<api_enums::IntentStatus>>,
+    pub payment_statuses_enabled: Option<HashSet<api_enums::IntentStatus>>,
 
     /// List of refund statuses that triggers a webhook for refunds
-    #[schema(value_type = Vec<IntentStatus>, example = json!(["success", "failure"]))]
-    pub refund_statuses_enabled: Option<Vec<api_enums::RefundStatus>>,
+    #[schema(value_type = Vec<RefundStatus>, example = json!(["success", "failure"]))]
+    pub refund_statuses_enabled: Option<HashSet<api_enums::RefundStatus>>,
 
     /// List of payout statuses that triggers a webhook for payouts
     #[cfg(feature = "payouts")]
     #[schema(value_type = Option<Vec<PayoutStatus>>, example = json!(["success", "failed"]))]
-    pub payout_statuses_enabled: Option<Vec<api_enums::PayoutStatus>>,
+    pub payout_statuses_enabled: Option<HashSet<api_enums::PayoutStatus>>,
 
     /// List of dispute statuses that trigger outgoing webhooks for disputes
     #[schema(value_type = Option<Vec<DisputeStatus>>, example = json!(["dispute_opened", "dispute_won"]))]
-    pub dispute_statuses_enabled: Option<Vec<api_enums::DisputeStatus>>,
+    pub dispute_statuses_enabled: Option<HashSet<api_enums::DisputeStatus>>,
 
     /// List of mandate statuses that trigger outgoing webhooks for mandates
     #[schema(value_type = Option<Vec<MandateStatus>>, example = json!(["active", "inactive"]))]
-    pub mandate_statuses_enabled: Option<Vec<api_enums::MandateStatus>>,
+    pub mandate_statuses_enabled: Option<HashSet<api_enums::MandateStatus>>,
 
     /// List of invoice statuses that trigger outgoing webhooks for subscriptions
     #[schema(value_type = Option<Vec<InvoiceStatus>>, example = json!(["invoice_paid"]))]
-    pub invoice_statuses_enabled: Option<Vec<api_enums::InvoiceStatus>>,
+    pub invoice_statuses_enabled: Option<HashSet<api_enums::InvoiceStatus>>,
 }
 
 impl WebhookDetails {
@@ -943,21 +943,21 @@ impl WebhookDetails {
         }
     }
 
-    fn validate_statuses<T>(statuses: &[T], status_type_name: &str) -> Result<(), String>
+    fn validate_statuses<T>(statuses: &HashSet<T>, status_type_name: &str) -> Result<(), String>
     where
-        T: strum::IntoEnumIterator + Copy + PartialEq + std::fmt::Debug,
+        T: strum::IntoEnumIterator + Copy + Eq + std::hash::Hash + std::fmt::Debug,
         T: Into<Option<api_enums::EventType>>,
     {
-        let valid_statuses: Vec<T> = T::iter().filter(|s| (*s).into().is_some()).collect();
+        let valid_statuses: HashSet<T> = T::iter().filter(|s| (*s).into().is_some()).collect();
 
-        for status in statuses {
-            if !valid_statuses.contains(status) {
-                return Err(format!(
+        statuses
+            .iter()
+            .find(|status| !valid_statuses.contains(status))
+            .map_or(Ok(()), |status| {
+                Err(format!(
                     "Invalid {status_type_name} webhook status provided: {status:?}"
-                ));
-            }
-        }
-        Ok(())
+                ))
+            })
     }
 
     pub fn validate(&self) -> Result<(), String> {

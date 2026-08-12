@@ -3292,6 +3292,7 @@ pub enum FrmTransactionType {
     Copy,
     Debug,
     Eq,
+    Hash,
     PartialEq,
     Default,
     serde::Deserialize,
