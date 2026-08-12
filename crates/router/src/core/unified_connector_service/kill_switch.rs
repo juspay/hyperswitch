@@ -195,10 +195,11 @@ async fn trip(
         reason,
     } = failure;
 
-    // Carries enough to find the originating request.
+    // Enough to find the originating request. The error itself stays out: it is unbounded and
+    // unmasked connector text, and the alert log below already carries it against the same
+    // request id.
     let record = serde_json::json!({
         "reason": reason.to_string(),
-        "error": error.to_string(),
         "request_id": state.request_id.as_ref().map(|id| id.to_string()),
         "tripped_at": common_utils::date_time::now_unix_timestamp(),
     })
