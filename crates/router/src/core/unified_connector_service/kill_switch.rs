@@ -218,7 +218,7 @@ impl common_utils::events::ApiEventMetric for KillSwitchListResponse {}
 
 /// Clears the trip, returning the scope to whatever its rollout config says.
 pub async fn reset(state: SessionState, rollout_scope: String) -> errors::RouterResponse<()> {
-    state
+    let reply = state
         .store
         .get_redis_conn()
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -227,6 +227,15 @@ pub async fn reset(state: SessionState, rollout_scope: String) -> errors::Router
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to delete the UCS kill switch trip")?;
+
+    // Redis reports a missing key as a successful delete of nothing. Reporting that as success
+    // would tell an operator a scope is back on UCS when a mistyped scope left it tripped.
+    if !reply.is_key_deleted() {
+        return Err(errors::ApiErrorResponse::GenericNotFoundError {
+            message: format!("No UCS kill switch trip found for scope {rollout_scope}"),
+        }
+        .into());
+    }
 
     logger::info!(
         rollout_scope = %rollout_scope,

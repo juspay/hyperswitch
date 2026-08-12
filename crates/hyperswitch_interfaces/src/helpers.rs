@@ -2,8 +2,7 @@ use common_utils::{
     consts::{X_CONNECTOR_NAME, X_PAYMENT_METHOD, X_PAYMENT_METHOD_TYPE, X_SUB_FLOW_NAME},
     errors as common_utils_errors,
     ext_traits::Encode,
-    id_type,
-    request,
+    id_type, request,
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::router_data;
