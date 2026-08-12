@@ -52,7 +52,7 @@ use crate::{
     constants::headers::STRIPE_COMPATIBLE_CONNECT_ACCOUNT,
     utils::{
         convert_uppercase, deserialize_zero_minor_amount_as_none, ApplePay,
-        RouterData as OtherRouterData,
+        PaymentMethodTokenizationRequestData, RouterData as OtherRouterData,
     },
 };
 
@@ -67,7 +67,7 @@ use crate::{
     },
     utils::{
         get_unimplemented_payment_method_error_message, is_payment_failure, is_refund_failure,
-        PaymentsAuthorizeRequestData, SplitPaymentData,
+        PaymentMethodPredicates, PaymentsAuthorizeRequestData, SplitPaymentData,
     },
 };
 pub mod auth_headers {
@@ -448,6 +448,10 @@ pub struct StripePayLaterData {
 pub struct TokenRequest {
     #[serde(flatten)]
     pub token_data: StripePaymentMethodData,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ip: Option<Secret<String, pii::IpAddress>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub user_agent: Option<String>,
 }
 
 #[derive(Debug, Eq, PartialEq, Deserialize, Serialize)]
@@ -658,12 +662,26 @@ pub struct MultibancoCreditTransferSourceRequest {
 #[serde(untagged)]
 pub enum StripePaymentMethodData {
     CardToken(StripeCardToken),
+    NtidCardToken(StripeNtidCardToken),
     Card(StripeCardData),
     PayLater(StripePayLaterData),
     Wallet(StripeWallet),
     BankRedirect(StripeBankRedirectData),
     BankDebit(StripeBankDebitData),
     BankTransfer(StripeBankTransferData),
+}
+
+impl StripePaymentMethodData {
+    fn get_stripe_ntid_card_token_data(
+        payment_method_data: &payment_method_data::CardDetailsForNetworkTransactionId,
+    ) -> Result<Self, error_stack::Report<ConnectorError>> {
+        Ok(Self::NtidCardToken(StripeNtidCardToken {
+            payment_method_type: Some(StripePaymentMethodType::Card),
+            token_card_number: payment_method_data.card_number.clone(),
+            token_card_exp_month: payment_method_data.card_exp_month.clone(),
+            token_card_exp_year: payment_method_data.card_exp_year.clone(),
+        }))
+    }
 }
 
 #[derive(Debug, Clone, Default, Eq, PartialEq, Serialize)]
@@ -683,6 +701,19 @@ pub struct StripeBillingAddressCardToken {
     #[serde(rename = "billing_details[address][city]")]
     pub city: Option<String>,
 }
+
+#[derive(Debug, Eq, PartialEq, Serialize)]
+pub struct StripeNtidCardToken {
+    #[serde(rename = "type")]
+    pub payment_method_type: Option<StripePaymentMethodType>,
+    #[serde(rename = "card[number]")]
+    pub token_card_number: cards::CardNumber,
+    #[serde(rename = "card[exp_month]")]
+    pub token_card_exp_month: Secret<String>,
+    #[serde(rename = "card[exp_year]")]
+    pub token_card_exp_year: Secret<String>,
+}
+
 // Struct to call the Stripe tokens API to create a PSP token for the card details provided
 #[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct StripeCardToken {
@@ -2181,6 +2212,28 @@ fn create_stripe_line_items_data(
     })
 }
 
+pub fn is_payment_method_tokenize_flow_required(data: &PaymentsAuthorizeRouterData) -> bool {
+    data.request.is_stripe_split_payment()
+        && (data.request.payment_method_data.is_card_payment()
+            || data
+                .request
+                .mandate_id
+                .as_ref()
+                .map(|mandate_id| mandate_id.is_network_transaction_id_flow())
+                .unwrap_or(false))
+}
+
+fn is_tokenized_ntid_flow(item: &PaymentsAuthorizeRouterData) -> bool {
+    item.payment_method_token.is_some()
+        && item.request.is_stripe_split_payment()
+        && item
+            .request
+            .mandate_id
+            .as_ref()
+            .map(|mandate_id| mandate_id.is_network_transaction_id_flow())
+            .unwrap_or(false)
+}
+
 impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest {
     type Error = error_stack::Report<ConnectorError>;
     fn try_from(data: (&PaymentsAuthorizeRouterData, MinorUnit)) -> Result<Self, Self::Error> {
@@ -2217,18 +2270,13 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
             (None, None, None)
         };
 
-        let payment_method_token = match (
-            item.request.split_payments.as_ref(),
-            item.request.payment_method_data.clone(),
-        ) {
-            (Some(SplitPaymentsRequest::StripeSplitPayment(_)), PaymentMethodData::Card(_)) => {
-                match item.payment_method_token.clone() {
-                    Some(PaymentMethodToken::Token(secret)) => Some(secret),
-                    _ => None,
-                }
+        let payment_method_token = if is_payment_method_tokenize_flow_required(item) {
+            match item.payment_method_token.clone() {
+                Some(PaymentMethodToken::Token(secret)) => Some(secret),
+                _ => None,
             }
-
-            _ => None,
+        } else {
+            None
         };
 
         let amount = data.1;
@@ -2278,6 +2326,20 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
                 item.request.setup_future_usage,
                 item.request.payment_method_type,
             )?;
+
+            if is_tokenized_ntid_flow(item) {
+                payment_method_options = Some(StripePaymentMethodOptions::Card {
+                    mandate_options: None,
+                    network_transaction_id: None,
+                    mit_exemption: item
+                        .request
+                        .get_network_mandate_id_from_network_transaction_id_flow()
+                        .map(|network_mandate_id| MitExemption {
+                            network_transaction_id: Secret::new(network_mandate_id),
+                        }),
+                })
+            };
+
             (
                 None,
                 None,
@@ -2807,6 +2869,9 @@ impl TryFrom<&TokenizationRouterData> for TokenRequest {
                     billing: billing_address,
                 })
             }
+            PaymentMethodData::CardDetailsForNetworkTransactionId(card_details) => {
+                StripePaymentMethodData::get_stripe_ntid_card_token_data(card_details)?
+            }
             _ => {
                 create_stripe_payment_method(
                     &item.request.payment_method_data,
@@ -2827,6 +2892,8 @@ impl TryFrom<&TokenizationRouterData> for TokenRequest {
 
         Ok(Self {
             token_data: request_payment_data,
+            ip: item.request.get_optional_ip_address(),
+            user_agent: item.request.get_optional_user_agent(),
         })
     }
 }

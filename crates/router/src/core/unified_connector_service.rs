@@ -32,6 +32,7 @@ use hyperswitch_domain_models::{
     router_request_types::RefundsData,
     router_response_types::{PaymentsResponseData, PayoutsResponseData, RefundsResponseData},
 };
+use hyperswitch_interfaces::unified_connector_service::transformers::UcsKillSwitchReason;
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use router_env::{instrument, logger, tracing};
 use unified_connector_service_cards::CardNumber;
@@ -303,7 +304,7 @@ pub async fn should_call_unified_connector_service<F: Clone, T, R>(
     call_connector_action: CallConnectorAction,
     shadow_ucs_call_connector_action: Option<CallConnectorAction>,
     transaction_type: common_enums::TransactionType,
-) -> RouterResult<(ExecutionPath, SessionState)>
+) -> RouterResult<(ExecutionPath, SessionState, Option<String>)>
 where
     R: Send + Sync + Clone,
 {
@@ -441,7 +442,11 @@ where
         flow_name
     );
 
-    Ok((execution_path, session_state))
+    Ok((
+        execution_path,
+        session_state,
+        rollout_result.matched_config_key,
+    ))
 }
 
 /// Creates a new SessionState with proxy configuration updated from the override
@@ -3010,6 +3015,7 @@ pub async fn ucs_logging_wrapper_granular<T, F, Fut, Req, Resp, GrpcReq, FlowOut
     grpc_request: GrpcReq,
     grpc_header_builder: external_services::grpc_client::GrpcHeadersUcsBuilderFinal,
     execution_mode: ExecutionMode,
+    matched_rollout_key: Option<String>,
     handler: F,
 ) -> CustomResult<(RouterData<T, Req, Resp>, FlowOutput), UnifiedConnectorServiceError>
 where
@@ -3042,6 +3048,9 @@ where
     let refund_id = router_data.refund_id.clone();
     let dispute_id = router_data.dispute_id.clone();
     let payout_id = router_data.payout_id.clone();
+    // Captured before `handler` consumes router_data, in case the kill switch fires.
+    let kill_switch_merchant_id = merchant_id.clone();
+    let kill_switch_connector_name = connector_name.clone();
     let grpc_header = grpc_header_builder.build();
     // Log the actual gRPC request with masking
     let grpc_request_body = hyperswitch_masking::masked_serialize(&grpc_request)
@@ -3093,6 +3102,23 @@ where
                 router_env::metric_attributes!(("connector", connector_name.clone(),)),
             );
 
+            // Trip the primary→shadow kill switch if this is a Prism-side or
+            // transformation-layer failure on the Primary path. Errors are logged
+            // inside; a failed flip never affects the in-flight payment.
+            maybe_activate_ucs_kill_switch(
+                state,
+                &kill_switch_merchant_id,
+                &kill_switch_connector_name,
+                std::any::type_name::<T>()
+                    .split("::")
+                    .last()
+                    .unwrap_or_default(),
+                execution_mode,
+                matched_rollout_key.clone(),
+                error.current_context(),
+            )
+            .await;
+
             let error_body = serde_json::json!({
                 "error": error.to_string(),
                 "error_type": "ucs_call_failed"
@@ -3129,6 +3155,168 @@ where
             Some(router_data.0.external_latency.unwrap_or(0) + external_latency);
         router_data
     })
+}
+
+/// Flip the given rollout config row from `Primary` (or `NotApplicable`) to `Shadow`,
+/// forcing `rollout_percent` to `1.0` so every subsequent request takes the Shadow
+/// path until an operator restores Primary after the underlying UCS issue is fixed.
+///
+/// Callers must have already verified the connector is **not** in
+/// `ucs_only_connectors` and that `matched_rollout_key` is connector-scoped.
+async fn activate_ucs_kill_switch(
+    state: &SessionState,
+    matched_rollout_key: &str,
+    connector_name: &str,
+    flow_name: &str,
+    reason: UcsKillSwitchReason,
+) {
+    let existing = match state.store.find_config_by_key(matched_rollout_key).await {
+        Ok(cfg) => cfg,
+        Err(err) => {
+            router_env::logger::error!(
+                key = %matched_rollout_key,
+                error = ?err,
+                "UCS kill switch: rollout row disappeared between decision and flip"
+            );
+            return;
+        }
+    };
+
+    let mut parsed: crate::core::payments::helpers::RolloutConfig =
+        match serde_json::from_str(&existing.config) {
+            Ok(cfg) => cfg,
+            Err(err) => {
+                router_env::logger::warn!(
+                    key = %matched_rollout_key,
+                    error = ?err,
+                    "UCS kill switch: rollout config did not parse as RolloutConfig; skipping"
+                );
+                return;
+            }
+        };
+
+    if parsed.execution_mode == ExecutionMode::Shadow {
+        router_env::logger::debug!(key = %matched_rollout_key, "UCS kill switch already active");
+        return;
+    }
+
+    parsed.execution_mode = ExecutionMode::Shadow;
+
+    let serialized = match serde_json::to_string(&parsed) {
+        Ok(s) => s,
+        Err(err) => {
+            router_env::logger::error!(
+                key = %matched_rollout_key,
+                error = ?err,
+                "UCS kill switch: failed to serialize downgraded RolloutConfig"
+            );
+            return;
+        }
+    };
+
+    if let Err(err) = state
+        .store
+        .update_config_by_key(
+            matched_rollout_key,
+            diesel_models::configs::ConfigUpdate::Update {
+                config: Some(serialized),
+            },
+        )
+        .await
+    {
+        router_env::logger::error!(
+            key = %matched_rollout_key,
+            error = ?err,
+            "UCS kill switch: DB update failed; primary→shadow flip NOT persisted"
+        );
+        return;
+    }
+
+    crate::routes::metrics::UCS_PRIMARY_TO_SHADOW_KILL_SWITCH.add(
+        1,
+        router_env::metric_attributes!(
+            ("connector", connector_name.to_string()),
+            ("flow", flow_name.to_string()),
+            ("error_kind", reason.as_str()),
+        ),
+    );
+
+    router_env::logger::error!(
+        event = "ucs_kill_switch_activated",
+        connector = %connector_name,
+        flow = %flow_name,
+        rollout_key = %matched_rollout_key,
+        error_kind = reason.as_str(),
+        "UCS kill switch flipped primary → shadow"
+    );
+}
+
+/// Entry point invoked from the UCS error path. Skips ucs_only connectors.
+/// Only invoked in `ExecutionMode::Primary` — shadow/direct paths never reach here.
+#[allow(clippy::too_many_arguments)]
+async fn maybe_activate_ucs_kill_switch(
+    state: &SessionState,
+    merchant_id: &id_type::MerchantId,
+    connector_name: &str,
+    flow_name: &str,
+    execution_mode: ExecutionMode,
+    matched_config_key: Option<String>,
+    error: &UnifiedConnectorServiceError,
+) {
+    if execution_mode != ExecutionMode::Primary {
+        return;
+    }
+
+    let Some(reason) = error.ucs_kill_switch_reason() else {
+        return;
+    };
+
+    let is_ucs_only = state
+        .conf
+        .grpc_client
+        .unified_connector_service
+        .as_ref()
+        .and_then(|ucs_config| {
+            Connector::from_str(connector_name)
+                .ok()
+                .map(|c| ucs_config.ucs_only_connectors.contains(&c))
+        })
+        .unwrap_or(false);
+
+    if is_ucs_only {
+        router_env::logger::debug!(
+            connector = %connector_name,
+            "UCS kill switch fired but connector is ucs_only; skipping mode flip"
+        );
+        return;
+    }
+
+    let Some(matched_key) = matched_config_key else {
+        router_env::logger::warn!(
+            merchant_id = %merchant_id.get_string_repr(),
+            connector = %connector_name,
+            flow = %flow_name,
+            error_kind = reason.as_str(),
+            "UCS kill switch fired but no matched rollout config key was recorded"
+        );
+        return;
+    };
+
+    // Refuse to flip rows whose key doesn't itself contain the connector name:
+    // org-level and org+merchant-level rows would affect other connectors/merchants.
+    let connector_marker = format!("_{connector_name}_");
+    if !matched_key.contains(&connector_marker) {
+        router_env::logger::warn!(
+            merchant_id = %merchant_id.get_string_repr(),
+            connector = %connector_name,
+            rollout_key = %matched_key,
+            error_kind = reason.as_str(),
+            "UCS kill switch: matched rollout row is not connector-scoped; refusing to auto-flip"
+        );
+        return;
+    }
+
+    activate_ucs_kill_switch(state, &matched_key, connector_name, flow_name, reason).await;
 }
 
 /// UCS wrapper for webhook flows. It centralizes header building and handler
