@@ -117,6 +117,61 @@ export const connectorDetails = {
         },
       },
     },
+    // givepayments doesn't implement 3DS at all (connector-service
+    // field_probe: authenticate/pre_authenticate/post_authenticate are all
+    // "not_supported", redirection_data is hardcoded None on every
+    // Authorize response), so a "3DS" card just processes as a normal
+    // frictionless payment with no challenge — confirmed live via the
+    // off-session 3DS save-card flow, which returns "succeeded" directly
+    // rather than requires_customer_action or an error.
+    "3DSAutoCapture": {
+      Request: {
+        payment_method: "card",
+        payment_method_type: "credit",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+        email: generateGivepaymentsEmail(),
+        billing: billingWithEmail(generateGivepaymentsEmail()),
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    // manual capture is rejected regardless of 3DS (see No3DSManualCapture)
+    // — this hits the same capture_method restriction, not a 3DS-specific
+    // rejection.
+    "3DSManualCapture": {
+      Request: {
+        payment_method: "card",
+        payment_method_type: "credit",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+        email: generateGivepaymentsEmail(),
+        billing: billingWithEmail(generateGivepaymentsEmail()),
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message:
+              "Payment failed during authorization with connector. Retry payment",
+            code: "CE_01",
+          },
+        },
+      },
+    },
     // givepayments only supports automatic capture — confirmCallTest
     // doesn't honor TRIGGER_SKIP, so this asserts the connector's real,
     // confirmed rejection instead of skipping (same pattern Helcim uses

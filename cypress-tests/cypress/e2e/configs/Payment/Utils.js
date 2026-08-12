@@ -547,14 +547,11 @@ export const CONNECTOR_LISTS = {
       "tsys_transit",
     ],
     SAVE_CARD: ["helcim", "givepayments"],
-    // givepayments does not support 3DS at all (connector metadata:
-    // "three_ds": "not_supported" for both credit and debit)
-    REDIRECT_THREE_DS: ["givepayments"],
     // givepayments only supports automatic capture (connector metadata:
     // "supported_capture_methods": ["automatic"]); TRIGGER_SKIP is set on
-    // the relevant card_pm configs too, but the commands 06/16 use
-    // (confirmCallTest/createConfirmPaymentTest/captureCallTest) don't
-    // check TRIGGER_SKIP, so a file-level gate is required for them
+    // the relevant card_pm configs too, but the command 06 uses
+    // (confirmCallTest) doesn't check TRIGGER_SKIP, so a file-level gate
+    // is required for it
     MANUAL_CAPTURE: ["givepayments"],
     // Connectors that never return a `connector_mandate_id` on the payments
     // response. Recurring payments for them go through connector agnostic MIT,
