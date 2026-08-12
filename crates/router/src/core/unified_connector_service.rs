@@ -425,7 +425,7 @@ where
             router_data.payment_method_type,
         );
 
-        if kill_switch::is_tripped(state, &rollout_scope).await {
+        if Box::pin(kill_switch::is_tripped(state, &rollout_scope)).await {
             router_env::logger::warn!(
                 merchant_id = %merchant_id,
                 connector = %connector_name,
