@@ -3470,16 +3470,17 @@ where
 {
     let previous_gateway = extract_gateway_system_from_payment_intent(payment_data);
 
-    let (execution_path, updated_state, matched_rollout_config_key) = should_call_unified_connector_service(
-        state,
-        platform.get_processor(),
-        &router_data,
-        previous_gateway,
-        call_connector_action.clone(),
-        None,
-        common_enums::TransactionType::Payment,
-    )
-    .await?;
+    let (execution_path, updated_state, matched_rollout_config_key) =
+        should_call_unified_connector_service(
+            state,
+            platform.get_processor(),
+            &router_data,
+            previous_gateway,
+            call_connector_action.clone(),
+            None,
+            common_enums::TransactionType::Payment,
+        )
+        .await?;
 
     let lineage_ids = grpc_client::LineageIds::new(
         business_profile.merchant_id.clone(),
@@ -6298,16 +6299,17 @@ where
     // Extract previous gateway from payment data
     let previous_gateway = extract_gateway_system_from_payment_intent(payment_data);
 
-    let (execution_path, updated_state, matched_rollout_config_key) = should_call_unified_connector_service(
-        state,
-        processor,
-        &router_data,
-        previous_gateway,
-        call_connector_action.clone(),
-        shadow_ucs_call_connector_action.clone(),
-        common_enums::TransactionType::Payment,
-    )
-    .await?;
+    let (execution_path, updated_state, matched_rollout_config_key) =
+        should_call_unified_connector_service(
+            state,
+            processor,
+            &router_data,
+            previous_gateway,
+            call_connector_action.clone(),
+            shadow_ucs_call_connector_action.clone(),
+            common_enums::TransactionType::Payment,
+        )
+        .await?;
 
     let lineage_ids = grpc_client::LineageIds::new(
         business_profile.merchant_id.clone(),
@@ -6889,16 +6891,17 @@ where
     let previous_gateway = extract_gateway_system_from_payment_intent(payment_data);
 
     // do order creation
-    let (execution_path, updated_state, matched_rollout_config_key) = should_call_unified_connector_service(
-        state,
-        platform.get_processor(),
-        &router_data,
-        previous_gateway,
-        call_connector_action.clone(),
-        None,
-        common_enums::TransactionType::Payment,
-    )
-    .await?;
+    let (execution_path, updated_state, matched_rollout_config_key) =
+        should_call_unified_connector_service(
+            state,
+            platform.get_processor(),
+            &router_data,
+            previous_gateway,
+            call_connector_action.clone(),
+            None,
+            common_enums::TransactionType::Payment,
+        )
+        .await?;
 
     let lineage_ids = grpc_client::LineageIds::new(
         business_profile.merchant_id.clone(),
@@ -7022,16 +7025,17 @@ where
         // Extract previous gateway from payment data
         let previous_gateway = extract_gateway_system_from_payment_intent(payment_data);
 
-        let (execution_path, updated_state, matched_rollout_config_key) = should_call_unified_connector_service(
-            state,
-            processor,
-            &router_data,
-            previous_gateway,
-            call_connector_action.clone(),
-            None,
-            common_enums::TransactionType::Payment,
-        )
-        .await?;
+        let (execution_path, updated_state, matched_rollout_config_key) =
+            should_call_unified_connector_service(
+                state,
+                processor,
+                &router_data,
+                previous_gateway,
+                call_connector_action.clone(),
+                None,
+                common_enums::TransactionType::Payment,
+            )
+            .await?;
         let lineage_ids = grpc_client::LineageIds::new(
             business_profile.merchant_id.clone(),
             business_profile.get_id().clone(),
@@ -7219,16 +7223,17 @@ where
         )
         .await?;
 
-    let (execution_path, updated_state, matched_rollout_config_key) = should_call_unified_connector_service(
-        state,
-        platform.get_processor(),
-        &router_data,
-        None,
-        call_connector_action.clone(),
-        None,
-        common_enums::TransactionType::Payment,
-    )
-    .await?;
+    let (execution_path, updated_state, matched_rollout_config_key) =
+        should_call_unified_connector_service(
+            state,
+            platform.get_processor(),
+            &router_data,
+            None,
+            call_connector_action.clone(),
+            None,
+            common_enums::TransactionType::Payment,
+        )
+        .await?;
 
     let lineage_ids = grpc_client::LineageIds::new(
         business_profile.merchant_id.clone(),
@@ -8279,16 +8284,17 @@ where
     dyn api::Connector:
         services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>,
 {
-    let (execution_path, updated_state, matched_rollout_config_key) = should_call_unified_connector_service(
-        state,
-        processor,
-        &router_data,
-        None, // No previous gateway information required for session flow
-        call_connector_action.clone(),
-        None,
-        common_enums::TransactionType::Payment,
-    )
-    .await?;
+    let (execution_path, updated_state, matched_rollout_config_key) =
+        should_call_unified_connector_service(
+            state,
+            processor,
+            &router_data,
+            None, // No previous gateway information required for session flow
+            call_connector_action.clone(),
+            None,
+            common_enums::TransactionType::Payment,
+        )
+        .await?;
 
     let lineage_ids = grpc_client::LineageIds::new(
         business_profile.merchant_id.clone(),

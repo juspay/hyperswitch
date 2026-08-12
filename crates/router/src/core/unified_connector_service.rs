@@ -408,13 +408,12 @@ where
 
     // Check UCS kill switch: if error count exceeds threshold, force Direct path.
     // Only applies when execution path is UCS Primary and connector has a direct fallback.
-    let is_kill_switch_applicable = matches!(
-        execution_path,
-        ExecutionPath::UnifiedConnectorService
-    ) && matches!(
-        connector_integration_type,
-        ConnectorIntegrationType::DirectandUCSConnector
-    );
+    let is_kill_switch_applicable =
+        matches!(execution_path, ExecutionPath::UnifiedConnectorService)
+            && matches!(
+                connector_integration_type,
+                ConnectorIntegrationType::DirectandUCSConnector
+            );
 
     if is_kill_switch_applicable {
         let force_direct = kill_switch::should_force_direct_path(
@@ -470,7 +469,11 @@ where
         flow_name
     );
 
-    Ok((execution_path, session_state, rollout_result.matched_config_key))
+    Ok((
+        execution_path,
+        session_state,
+        rollout_result.matched_config_key,
+    ))
 }
 
 /// Creates a new SessionState with proxy configuration updated from the override
@@ -2993,11 +2996,7 @@ where
             );
 
             // Record error for UCS kill switch evaluation
-            kill_switch::record_ucs_error(
-                state,
-                matched_rollout_config_key.as_deref(),
-            )
-            .await;
+            kill_switch::record_ucs_error(state, matched_rollout_config_key.as_deref()).await;
 
             let error_body = serde_json::json!({
                 "error": error.to_string(),
@@ -3132,11 +3131,7 @@ where
             );
 
             // Record error for UCS kill switch evaluation
-            kill_switch::record_ucs_error(
-                state,
-                matched_rollout_config_key.as_deref(),
-            )
-            .await;
+            kill_switch::record_ucs_error(state, matched_rollout_config_key.as_deref()).await;
 
             let error_body = serde_json::json!({
                 "error": error.to_string(),

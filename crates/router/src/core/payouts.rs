@@ -4082,16 +4082,17 @@ pub async fn decide_unified_connector_service_payout<F: Clone>(
     // Extract previous gateway from payment data
     let previous_gateway = extract_gateway_system_from_payouts(payout_data);
 
-    let (execution_path, updated_state, matched_rollout_config_key) = should_call_unified_connector_service(
-        state,
-        platform.get_processor(),
-        router_data,
-        previous_gateway,
-        common_enums::enums::CallConnectorAction::Trigger,
-        None,
-        common_enums::TransactionType::Payout,
-    )
-    .await?;
+    let (execution_path, updated_state, matched_rollout_config_key) =
+        should_call_unified_connector_service(
+            state,
+            platform.get_processor(),
+            router_data,
+            previous_gateway,
+            common_enums::enums::CallConnectorAction::Trigger,
+            None,
+            common_enums::TransactionType::Payout,
+        )
+        .await?;
 
     let lineage_ids = grpc_client::LineageIds::new(
         payout_data.payouts.merchant_id.clone(),

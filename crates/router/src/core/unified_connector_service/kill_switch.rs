@@ -10,10 +10,7 @@ async fn get_kill_switch_threshold(state: &SessionState) -> u64 {
     let db = state.store.as_ref();
 
     let config_result = db
-        .find_config_by_key_unwrap_or(
-            consts::UCS_KILL_SWITCH_THRESHOLD,
-            Some("0".to_string()),
-        )
+        .find_config_by_key_unwrap_or(consts::UCS_KILL_SWITCH_THRESHOLD, Some("0".to_string()))
         .await;
 
     let config = match config_result {
@@ -93,10 +90,7 @@ async fn get_error_count(state: &SessionState, redis_key: &str) -> u64 {
     };
 
     let count_result = redis_conn
-        .increment_fields_in_hash(
-            &redis_key.into(),
-            &[("count".to_string(), 0i64)],
-        )
+        .increment_fields_in_hash(&redis_key.into(), &[("count".to_string(), 0i64)])
         .await;
 
     let count = match count_result {
@@ -133,10 +127,7 @@ async fn increment_error_count(state: &SessionState, redis_key: &str) -> u64 {
     };
 
     let increment_result = redis_conn
-        .increment_fields_in_hash(
-            &redis_key.into(),
-            &[("count".to_string(), 1i64)],
-        )
+        .increment_fields_in_hash(&redis_key.into(), &[("count".to_string(), 1i64)])
         .await;
 
     let new_count = match increment_result {
@@ -176,10 +167,7 @@ async fn increment_error_count(state: &SessionState, redis_key: &str) -> u64 {
 ///
 /// Uses the matched rollout config key as scope, derives the Redis key, increments the count,
 /// and emits a metric.
-pub async fn record_ucs_error(
-    state: &SessionState,
-    matched_config_key: Option<&str>,
-) {
+pub async fn record_ucs_error(state: &SessionState, matched_config_key: Option<&str>) {
     let config_key = match matched_config_key {
         Some(key) => key,
         None => {
@@ -198,9 +186,7 @@ pub async fn record_ucs_error(
 
     metrics::UCS_KILL_SWITCH_ERROR_RECORDED.add(
         1,
-        router_env::metric_attributes!(
-            ("matched_config_key", config_key.to_string()),
-        ),
+        router_env::metric_attributes!(("matched_config_key", config_key.to_string()),),
     );
 }
 
@@ -251,9 +237,7 @@ pub async fn should_force_direct_path(
     if is_active {
         metrics::UCS_KILL_SWITCH_ACTIVATED.add(
             1,
-            router_env::metric_attributes!(
-                ("matched_config_key", config_key.to_string()),
-            ),
+            router_env::metric_attributes!(("matched_config_key", config_key.to_string()),),
         );
     }
 
