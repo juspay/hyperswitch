@@ -488,6 +488,22 @@ describe("Config Tests", () => {
   });
 
   context("Webhook Config Disabled Events — Negative Cases", () => {
+    beforeEach(function () {
+      const connectorId = globalState.get("connectorId");
+      const webhookConfigConnectors =
+        utils.CONNECTOR_LISTS.INCLUDE.WEBHOOK_CONFIG;
+
+      // These negative cases validate webhook config fields only for connectors
+      // that opt into the webhook config suite.
+      const shouldSkip =
+        Array.isArray(webhookConfigConnectors) &&
+        !webhookConfigConnectors.includes(connectorId);
+
+      if (shouldSkip) {
+        this.skip();
+      }
+    });
+
     it("Create Business Profile with invalid refund_statuses_enabled — expect error", () => {
       const createBody = {
         ...fixtures.businessProfile.bpCreate,
