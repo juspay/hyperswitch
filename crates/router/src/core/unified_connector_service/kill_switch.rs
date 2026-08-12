@@ -293,21 +293,16 @@ pub struct TripRecord {
     pub tripped_at: i64,
 }
 
-/// A tripped scope. `trip` is absent when the trip expired between the scan and the read, or
-/// when its record predates this shape.
+/// Whether a scope is tripped, and what tripped it. `trip` is absent when the scope is not
+/// tripped, or when its record predates this shape.
 #[derive(Debug, serde::Serialize)]
-pub struct TrippedScope {
+pub struct KillSwitchStatusResponse {
     pub rollout_scope: String,
+    pub tripped: bool,
     pub trip: Option<TripRecord>,
 }
 
-/// Scopes currently tripped. A wrapper because `Vec<_>` has no `ApiEventMetric` impl.
-#[derive(Debug, serde::Serialize)]
-pub struct KillSwitchListResponse {
-    pub tripped_scopes: Vec<TrippedScope>,
-}
-
-impl common_utils::events::ApiEventMetric for KillSwitchListResponse {}
+impl common_utils::events::ApiEventMetric for KillSwitchStatusResponse {}
 
 /// Clears the trip, returning the scope to whatever its rollout config says. Takes either form
 /// the list endpoint hands back.
@@ -345,54 +340,31 @@ pub async fn reset(state: SessionState, listed_key: String) -> errors::RouterRes
     }
 }
 
-/// Lists every scope currently tripped, with why and which request tripped it. Reads the trip
-/// records so an on-call engineer has that without redis or log access.
-pub async fn list_tripped_scopes(
+/// Whether this scope is tripped, and what tripped it. Reads the trip record so an on-call
+/// engineer has that without redis or log access. One key, so no keyspace walk.
+pub async fn trip_status(
     state: SessionState,
-) -> errors::RouterResponse<KillSwitchListResponse> {
-    let prefix = consts::UCS_KILL_SWITCH_REDIS_PREFIX;
+    key_or_scope: String,
+) -> errors::RouterResponse<KillSwitchStatusResponse> {
+    let rollout_scope = rollout_scope_in(&key_or_scope);
 
-    let redis_conn = state
+    let record = state
         .store
         .get_redis_conn()
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to get a redis connection to list UCS kill switch trips")?;
-
-    // `scan` answers with whole redis keys, tenant prefix included, while the read below applies
-    // that prefix itself. Going back to the scope keeps the key built in one place.
-    let rollout_scopes = redis_conn
-        .scan(&format!("{prefix}_*").as_str().into(), Some(100), None)
+        .attach_printable("Failed to get a redis connection to read the UCS kill switch trip")?
+        .get_key::<Option<String>>(&trip_key(rollout_scope).as_str().into())
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to scan UCS kill switch trips")?
-        .iter()
-        .map(|listed_key| rollout_scope_in(listed_key).to_string())
-        .collect::<Vec<_>>();
-
-    let keys = rollout_scopes
-        .iter()
-        .map(|rollout_scope| trip_key(rollout_scope).as_str().into())
-        .collect::<Vec<redis_interface::RedisKey>>();
-
-    let records = redis_conn
-        .get_multiple_keys::<String>(&keys)
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to read UCS kill switch trips")?;
-
-    let tripped_scopes = rollout_scopes
-        .into_iter()
-        .zip(records)
-        .map(|(rollout_scope, record)| TrippedScope {
-            rollout_scope,
-            // A trip can expire between the scan and the read, and a record written by an older
-            // build may not parse. Neither is worth failing the listing for.
-            trip: record.and_then(|record| serde_json::from_str::<TripRecord>(&record).ok()),
-        })
-        .collect();
+        .attach_printable("Failed to read the UCS kill switch trip")?;
 
     Ok(crate::services::ApplicationResponse::Json(
-        KillSwitchListResponse { tripped_scopes },
+        KillSwitchStatusResponse {
+            rollout_scope: rollout_scope.to_string(),
+            tripped: record.is_some(),
+            // A record written by an older build may not parse; the scope is still tripped.
+            trip: record.and_then(|record| serde_json::from_str::<TripRecord>(&record).ok()),
+        },
     ))
 }
 

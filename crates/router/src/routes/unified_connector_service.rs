@@ -7,20 +7,23 @@ use crate::{
     services::{api as oss_api, authentication as auth},
 };
 
-/// Lists the scopes the UCS kill switch has currently tripped.
+/// Reports whether the UCS kill switch has tripped a scope, and what tripped it.
 ///
-/// With over a thousand rollout keys provisioned, an on-call engineer cannot reconstruct this
-/// from logs, so the switch is not operable without it.
-#[instrument(skip_all, fields(flow = ?Flow::UnifiedConnectorServiceKillSwitchList))]
-pub async fn list_kill_switch(state: web::Data<AppState>, req: HttpRequest) -> impl Responder {
-    let flow = Flow::UnifiedConnectorServiceKillSwitchList;
+/// `scope` is the `rollout_scope` the trip logs, or the whole redis key.
+#[instrument(skip_all, fields(flow = ?Flow::UnifiedConnectorServiceKillSwitchStatus))]
+pub async fn kill_switch_status(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<String>,
+) -> impl Responder {
+    let flow = Flow::UnifiedConnectorServiceKillSwitchStatus;
 
     Box::pin(oss_api::server_wrap(
         flow,
         state,
         &req,
-        (),
-        |state, _, (), _| kill_switch::list_tripped_scopes(state),
+        path.into_inner(),
+        |state, _, scope, _| kill_switch::trip_status(state, scope),
         &auth::AdminApiAuth,
         api_locking::LockAction::NotApplicable,
     ))
@@ -28,7 +31,7 @@ pub async fn list_kill_switch(state: web::Data<AppState>, req: HttpRequest) -> i
 }
 
 /// Clears a UCS kill switch trip, returning the scope to whatever its rollout config says.
-/// `scope` is a value returned by the list endpoint.
+/// Takes the same `scope` as the status endpoint.
 #[instrument(skip_all, fields(flow = ?Flow::UnifiedConnectorServiceKillSwitchReset))]
 pub async fn reset_kill_switch(
     state: web::Data<AppState>,

@@ -2337,11 +2337,8 @@ impl UnifiedConnectorService {
         web::scope("/unified-connector-service")
             .app_data(web::Data::new(state))
             .service(
-                web::resource("/kill-switch")
-                    .route(web::get().to(unified_connector_service_routes::list_kill_switch)),
-            )
-            .service(
                 web::resource("/kill-switch/{scope}")
+                    .route(web::get().to(unified_connector_service_routes::kill_switch_status))
                     .route(web::delete().to(unified_connector_service_routes::reset_kill_switch)),
             )
     }
