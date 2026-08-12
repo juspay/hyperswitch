@@ -1657,6 +1657,7 @@ pub async fn refund_manual_update(
         .await
         .to_not_found_response(errors::ApiErrorResponse::RefundNotFound)?;
     let refund_update = diesel_refund::RefundUpdate::ManualUpdate {
+        connector_refund_id: req.connector_refund_id.map(ConnectorTransactionId::from),
         refund_status: req.status.map(common_enums::RefundStatus::from),
         refund_error_message: req.error_message.map(|msg| match msg {
             api_enums::SetOrUnset::Set(value) => Some(value),
