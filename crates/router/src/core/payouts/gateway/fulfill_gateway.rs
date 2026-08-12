@@ -111,6 +111,7 @@ where
                 granular_payout_transfer_request,
                 grpc_headers,
                 unified_connector_service_execution_mode,
+                None,
                 |mut router_data, granular_payout_transfer_request, grpc_headers| async move {
                     let response = Box::pin(client.payout_transfer(
                         granular_payout_transfer_request,

@@ -1,5 +1,5 @@
 use common_utils::{
-    consts::{X_CONNECTOR_NAME, X_SUB_FLOW_NAME},
+    consts::{X_CONNECTOR_NAME, X_PAYMENT_METHOD, X_PAYMENT_METHOD_TYPE, X_SUB_FLOW_NAME},
     errors as common_utils_errors,
     ext_traits::Encode,
     request,
@@ -62,6 +62,21 @@ pub async fn serialize_comparison_results_and_send<S, F, RouterDReq, RouterDResp
         return;
     };
 
+    // Capture before the router data is consumed by `to_value`. Either side works
+    // as the source of truth since both ran the same payment — pick whichever is
+    // available so the headers still go out even if one side errored upstream.
+    let (payment_method, payment_method_type) = {
+        let from_result =
+            |res: &Result<router_data::RouterData<F, RouterDReq, RouterDResp>, String>| {
+                res.as_ref()
+                    .ok()
+                    .map(|rd| (rd.payment_method.to_string(), rd.payment_method_type))
+            };
+        from_result(&hyperswitch_result)
+            .or_else(|| from_result(&unified_connector_service_result))
+            .unwrap_or_else(|| (String::new(), None))
+    };
+
     let to_value = |res: Result<router_data::RouterData<F, RouterDReq, RouterDResp>, String>,
                     side: &str| {
         match res {
@@ -94,6 +109,12 @@ pub async fn serialize_comparison_results_and_send<S, F, RouterDReq, RouterDResp
         connector_name,
         sub_flow_name,
         request_id,
+        if payment_method.is_empty() {
+            None
+        } else {
+            Some(payment_method)
+        },
+        payment_method_type.map(|pmt| pmt.to_string()),
     )
     .await
     .inspect_err(|e| logger::warn!("Failed to send comparison data: {:?}", e));
@@ -132,6 +153,8 @@ pub async fn serialize_webhook_outcome_and_send_to_comparison_service<P, S>(
         connector_name,
         Some("webhook".to_string()),
         request_id,
+        None, // payment_method not derivable from a generic webhook payload
+        None, // payment_method_type same
     )
     .await
     {
@@ -140,6 +163,7 @@ pub async fn serialize_webhook_outcome_and_send_to_comparison_service<P, S>(
 }
 
 /// Sends router data comparison to external service
+#[allow(clippy::too_many_arguments)]
 pub async fn send_comparison_data(
     state: &dyn api_client::ApiClientWrapper,
     comparison_data: ComparisonData,
@@ -147,6 +171,8 @@ pub async fn send_comparison_data(
     connector_name: String,
     sub_flow_name: Option<String>,
     request_id: Option<String>,
+    payment_method: Option<String>,
+    payment_method_type: Option<String>,
 ) -> common_utils_errors::CustomResult<(), errors::HttpClientError> {
     let mut request = request::RequestBuilder::new()
         .method(request::Method::Post)
@@ -165,6 +191,17 @@ pub async fn send_comparison_data(
         request.add_header(
             X_SUB_FLOW_NAME,
             hyperswitch_masking::Maskable::Normal(sub_flow_name),
+        );
+    }
+
+    if let Some(pm) = payment_method.filter(|pm| !pm.is_empty()) {
+        request.add_header(X_PAYMENT_METHOD, hyperswitch_masking::Maskable::Normal(pm));
+    }
+
+    if let Some(pmt) = payment_method_type.filter(|pmt| !pmt.is_empty()) {
+        request.add_header(
+            X_PAYMENT_METHOD_TYPE,
+            hyperswitch_masking::Maskable::Normal(pmt),
         );
     }
 
