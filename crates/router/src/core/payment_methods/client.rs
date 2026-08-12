@@ -54,7 +54,7 @@ pub trait CustomerPaymentMethodsFetcher: Send + Sync {
 }
 
 fn bank_redirect_data_for_client(
-    payment_method: &common_enums::PaymentMethod,
+    payment_method: common_enums::PaymentMethod,
     bank: Option<MaskedBankDetails>,
 ) -> Option<CustomerPaymentMethodDataForClient> {
     if *payment_method == common_enums::PaymentMethod::BankRedirect {
@@ -69,7 +69,7 @@ fn to_client_pm(pm: CustomerPaymentMethod) -> CustomerPaymentMethodForClient {
     let payment_method_data = pm
         .card
         .map(|card| CustomerPaymentMethodDataForClient::Card(Box::new(card)))
-        .or_else(|| bank_redirect_data_for_client(&pm.payment_method, pm.bank));
+        .or_else(|| bank_redirect_data_for_client(pm.payment_method, pm.bank));
 
     CustomerPaymentMethodForClient {
         payment_token: pm.payment_token,

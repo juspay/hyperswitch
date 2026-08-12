@@ -3067,34 +3067,20 @@ pub async fn update_customer_payment_method(
     }
 }
 
-/// Creates a new payment method entry (or updates existing) with bank redirect details,
-/// and vaults the bank redirect data in the locker.
-///
-/// This is distinct from `update_customer_payment_method` which only handles DB updates.
-/// This function additionally vaults in the locker and sets `locker_id` on the PM.
+/// Prepares a payment method update with bank redirect details after vaulting the
+/// bank redirect data in the locker.
 #[cfg(feature = "v1")]
-pub async fn create_or_update_bank_redirect_payment_method(
-    state: routes::SessionState,
-    platform: domain::Platform,
-    payment_method_id: &str,
+pub async fn prepare_bank_redirect_payment_method_update(
+    state: &routes::SessionState,
+    platform: &domain::Platform,
+    pm: &domain::PaymentMethod,
     merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
     bank_redirect_update: hyperswitch_domain_models::payment_method_data::BankRedirectData,
-    business_profile: Profile,
-) -> errors::CustomResult<(), errors::ApiErrorResponse> {
-    let db = state.store.as_ref();
-    let key_manager_state = (&state).into();
-
-    let provider = platform.get_provider().clone();
+    business_profile: &Profile,
+) -> errors::CustomResult<storage::PaymentMethodUpdate, errors::ApiErrorResponse> {
+    let key_manager_state = state.into();
+    let provider = platform.get_provider();
     let initiator = platform.get_initiator().cloned();
-
-    let pm = db
-        .find_payment_method(
-            provider.get_key_store(),
-            payment_method_id,
-            provider.get_account().storage_scheme,
-        )
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
 
     let payment_method_data = domain::PaymentMethodData::BankRedirect(bank_redirect_update.clone());
 
@@ -3119,11 +3105,11 @@ pub async fn create_or_update_bank_redirect_payment_method(
 
             // Vault the bank redirect data using save_in_locker (supports external vault routing)
             let (vault_resp, _dup_check) = tokenization::save_in_locker(
-                &state,
-                &platform,
+                state,
+                platform,
                 pm_create_req,
                 None, // card_detail not needed for bank redirect
-                &business_profile,
+                business_profile,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -3169,8 +3155,7 @@ pub async fn create_or_update_bank_redirect_payment_method(
                     }))
                 });
 
-            // Update both the payment_method_data and locker_id in the DB
-            let pm_update = storage::PaymentMethodUpdate::AdditionalDataUpdate {
+            Ok(storage::PaymentMethodUpdate::AdditionalDataUpdate {
                 payment_method_data: pm_data_encrypted.map(Into::into),
                 locker_id: Some(locker_id),
                 locker_fingerprint_id,
@@ -3189,22 +3174,7 @@ pub async fn create_or_update_bank_redirect_payment_method(
                 connector_mandate_details: None,
                 network_tokenization_data: None,
                 connector_payment_method_details: Box::new(connector_payment_method_details),
-            };
-
-            db.update_payment_method(
-                provider.get_key_store(),
-                pm,
-                pm_update,
-                provider.get_account().storage_scheme,
-                None,
-            )
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable(
-                "Failed to update payment method with bank redirect data and locker_id",
-            )?;
-
-            Ok(())
+            })
         }
         _ => Err(report!(errors::ApiErrorResponse::InvalidRequestData {
             message: "Payment method type is not OpenBanking type".to_string(),
@@ -6868,7 +6838,7 @@ pub async fn get_pm_list_context_for_bank_redirect(
 
     match payment_method_data {
         Some(domain::PaymentMethodsData::BankRedirect(_)) => {
-            let is_eligible = merchant_connector_accounts.map_or(false, |mcas| {
+            let is_eligible = merchant_connector_accounts.is_some_and(|mcas| {
                 is_eligible_for_saved_flow(pm, profile_id, mcas, pre_routing_results)
             });
 
