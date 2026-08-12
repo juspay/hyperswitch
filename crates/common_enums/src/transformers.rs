@@ -2226,7 +2226,7 @@ impl From<DisputeStatus> for EventType {
 
 impl From<DisputeStatus> for Option<EventType> {
     fn from(value: DisputeStatus) -> Self {
-        Some(value.into())
+        Some(EventType::from(value))
     }
 }
 
