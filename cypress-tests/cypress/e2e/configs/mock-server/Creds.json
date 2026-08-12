@@ -19,5 +19,13 @@
       "api_key": "affirm-testkey123",
       "key1": "affirm-testsecret456"
     }
+  },
+   "fiuu": {
+    "connector_account_details": {
+      "auth_type": "SignatureKey",
+      "api_key": "6be7a17bb606b6f22f3cf7570a24b16e",
+      "key1": "SB_zurichgdpp",
+      "api_secret": "17302d33c670499330b8a28ccef77eb1"
+    }
   }
 }

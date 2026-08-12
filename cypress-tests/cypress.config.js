@@ -10,7 +10,7 @@ let globalState;
 const connectorId = process.env.CYPRESS_CONNECTOR || "service";
 const screenshotsFolderName = `screenshots/${connectorId}`;
 const reportName = process.env.REPORT_NAME || `${connectorId}_report`;
-const retries = process.env.CYPRESS_MOCK_SERVER === "true" ? 0 : 2;
+const retries = 0;
 
 // Get timeout multiplier from shared utility
 const timeoutMultiplier = getTimeoutMultiplier();

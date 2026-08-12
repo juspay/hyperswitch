@@ -2976,17 +2976,11 @@ function threeDsRedirection(
           break;
 
         case "fiuu":
-          cy.get('form[id="cc_form"]', { timeout: constants.TIMEOUT })
+          cy.get('form[id="otpForm"]', { timeout: constants.TIMEOUT })
             .should("exist")
             .then(() => {
-              cy.get('button.pay-btn[name="pay"]').click();
-              cy.get("div.otp")
-                .invoke("text")
-                .then((otpText) => {
-                  const otp = otpText.match(/\d+/)[0];
-                  cy.get("input#otp-input").should("not.be.disabled").type(otp);
-                  cy.get("button.pay-btn").click();
-                });
+              cy.get("input#otpInput").should("not.be.disabled").type("123456");
+              cy.get('button[type="submit"].cil-btn.pay-btn').click();
             });
           break;
         case "redsys":

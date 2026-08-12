@@ -144,8 +144,10 @@ where
         .collect();
     router_env::logger::info!("Keys in response for type {}\n{:?}", type_name::<T>(), keys);
 
-    let response: T = serde_json::from_value(Value::Object(json)).map_err(|e| {
+    let response: T = serde_json::from_value(Value::Object(json.clone())).map_err(|e| {
         router_env::logger::error!("Error in Deserializing Response Data: {:?}", e);
+        router_env::logger::error!("Raw Fiuu response string: {}", response_str);
+        router_env::logger::error!("Parsed Fiuu response JSON: {:?}", json);
         errors::ConnectorError::ResponseDeserializationFailed
     })?;
 
@@ -373,6 +375,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsAuthorizeRouterData, errors::ConnectorError> {
+        router_env::logger::info!("Fiuu raw authorize response: {}", String::from_utf8_lossy(&res.response));
         let response: fiuu::FiuuPaymentsResponse = res
             .response
             .parse_struct("Fiuu FiuuPaymentsResponse")
