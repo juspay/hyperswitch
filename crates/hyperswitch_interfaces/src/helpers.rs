@@ -150,6 +150,7 @@ pub async fn serialize_webhook_outcome_and_send_to_comparison_service<P, S>(
 }
 
 /// Sends router data comparison to external service
+#[allow(clippy::too_many_arguments)]
 pub async fn send_comparison_data(
     state: &dyn api_client::ApiClientWrapper,
     comparison_data: ComparisonData,
