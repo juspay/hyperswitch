@@ -1420,6 +1420,10 @@ pub enum UcsKillSwitchReason {
     UcsInternalError,
     /// UCS could not be reached, or was too unwell to answer.
     UcsUnreachable,
+    /// The connector rejected the request. May be a legitimate decline or a request UCS built
+    /// wrongly — indistinguishable at this layer, so we trip conservatively because falling back
+    /// to the battle-tested direct path is always safe.
+    ConnectorOutcome,
 }
 
 impl UcsKillSwitchReason {
@@ -1432,6 +1436,7 @@ impl UcsKillSwitchReason {
             Self::UcsFlowUnsupported => "ucs_flow_unsupported",
             Self::UcsInternalError => "ucs_internal_error",
             Self::UcsUnreachable => "ucs_unreachable",
+            Self::ConnectorOutcome => "connector_outcome",
         }
     }
 }
@@ -1439,8 +1444,9 @@ impl UcsKillSwitchReason {
 impl UnifiedConnectorServiceError {
     /// Whether this failure should return the rollout scope to the direct connector integration.
     ///
-    /// Everything UCS-side qualifies. Only [`Self::ConnectorError`] does not, since the connector
-    /// would answer the same way on the direct path.
+    /// Every error qualifies, including [`Self::ConnectorError`]. A connector rejection may be a
+    /// legitimate decline or a request UCS built wrongly — since the two are indistinguishable,
+    /// we trip conservatively: falling back to the battle-tested direct path is always safe.
     ///
     /// Exhaustive: a new variant must be classified here rather than defaulting.
     pub fn ucs_kill_switch_reason(&self) -> Option<UcsKillSwitchReason> {
@@ -1504,9 +1510,11 @@ impl UnifiedConnectorServiceError {
                 Some(UcsKillSwitchReason::UcsInternalError)
             }
 
-            // The connector answered, timeouts included. Gap: a request UCS built wrongly is also
-            // rejected by the connector and is indistinguishable from a decline here.
-            Self::ConnectorError(_) => None,
+            // The connector answered. This may be a legitimate decline or a request UCS built
+            // wrongly — indistinguishable here. We trip conservatively: a false bypass to the
+            // direct path is safe (it served merchants for years), while a missed trip leaves
+            // merchants on a potentially broken UCS path.
+            Self::ConnectorError(_) => Some(UcsKillSwitchReason::ConnectorOutcome),
 
             // Per-flow failure markers carrying no further detail.
             Self::WebhookProcessingFailure

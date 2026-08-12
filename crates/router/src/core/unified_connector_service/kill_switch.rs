@@ -336,19 +336,21 @@ mod tests {
     }
 
     #[test]
-    fn connector_outcomes_never_trip() {
+    fn connector_outcomes_trip_conservatively() {
+        // A false bypass to the direct path is safe — it served merchants for years.
+        // A missed trip leaves merchants on a potentially broken UCS path.
         let cases = [
-            // A decline would decline identically on the direct path.
             connector_error(402),
-            // A connector timeout arrives as a ConnectorError carrying the synthetic 504, so it
-            // must not be mistaken for UCS being broken.
             connector_error(504),
-            // A connector's own server error is still the connector answering.
             connector_error(500),
         ];
 
         for error in cases {
-            assert!(error.ucs_kill_switch_reason().is_none(), "{error:?}");
+            assert_eq!(
+                error.ucs_kill_switch_reason(),
+                Some(UcsKillSwitchReason::ConnectorOutcome),
+                "{error:?}"
+            );
         }
     }
 
@@ -429,6 +431,7 @@ mod tests {
             UcsKillSwitchReason::UcsFlowUnsupported.as_str(),
             UcsKillSwitchReason::UcsInternalError.as_str(),
             UcsKillSwitchReason::UcsUnreachable.as_str(),
+            UcsKillSwitchReason::ConnectorOutcome.as_str(),
         ];
         let unique: std::collections::HashSet<_> = tags.iter().collect();
 
