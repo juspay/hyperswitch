@@ -1732,7 +1732,7 @@ function bankRedirectRedirection(
       }
     });
 
-    cy.wait(CONSTANTS.WAIT_TIME / 3);
+    cy.wait(30000);
     verifyUrl = false;
     cy.then(() => {
       verifyReturnUrl(redirectionUrl, expectedUrl, verifyUrl);
