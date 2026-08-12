@@ -2664,6 +2664,7 @@ where
                             header_payload.clone(),
                             &dimensions,
                             None,
+                            true,
                         ))
                         .await?;
 
@@ -2709,6 +2710,7 @@ where
                                     header_payload.clone(),
                                     &dimensions,
                                     None,
+                                    false,
                                 ))
                                 .await?;
                             let total_ext_latency = match (external_latency, ext_latency) {
