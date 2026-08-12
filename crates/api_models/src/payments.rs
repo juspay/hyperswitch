@@ -9248,7 +9248,10 @@ pub enum SortOn {
     /// Sort by the created_at field
     #[default]
     Created,
-    /// Sort by the modified_at field
+    /// Sort by the modified_at field.
+    ///
+    /// This now sorts by `created_at` for pagination stability — `modified_at`
+    /// changes on every update, causing rows to shift between pages.
     Modified,
 }
 

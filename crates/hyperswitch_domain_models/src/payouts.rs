@@ -70,7 +70,7 @@ impl From<common_utils::types::TimeRange> for PayoutFetchConstraints {
             ending_before_id: None,
             entity_type: None,
             merchant_order_reference_id: None,
-            limit: None,
+            limit: Some(consts::PAYOUTS_LIST_MAX_LIMIT_GET),
         }))
     }
 }

@@ -46,6 +46,16 @@ pub fn default_payouts_list_limit() -> u32 {
     10
 }
 
+/// Default limit for refunds list API
+pub const REFUNDS_LIST_DEFAULT_LIMIT: u32 = 10;
+/// Maximum limit for refunds list API
+pub const REFUNDS_LIST_MAX_LIMIT: u32 = 100;
+
+/// Default limit for disputes list API
+pub const DISPUTES_LIST_DEFAULT_LIMIT: u32 = 10;
+/// Maximum limit for disputes list API
+pub const DISPUTES_LIST_MAX_LIMIT: u32 = 100;
+
 /// surcharge percentage maximum precision length
 pub const SURCHARGE_PERCENTAGE_PRECISION_LENGTH: u8 = 2;
 

@@ -1968,7 +1968,7 @@ impl From<common_utils::types::TimeRange> for PaymentIntentFetchConstraints {
             customer_id: None,
             starting_after_id: None,
             ending_before_id: None,
-            limit: None,
+            limit: Some(PAYMENTS_LIST_MAX_LIMIT_V1),
             order: Default::default(),
             card_network: None,
             card_discovery: None,
