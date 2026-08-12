@@ -3,6 +3,9 @@ import State from "../../../utils/State";
 import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
 
 let globalState;
+
+// Spec selection is file-level, so UCS-only bank redirect connectors still
+// need context-level filtering inside this shared bank redirect spec.
 const UCS_ONLY_BANK_REDIRECT_CONTEXTS = {
   truelayer: ["Truelayer Create and Confirm flow test"],
   trustly: ["Trustly Create and Confirm flow test"],
