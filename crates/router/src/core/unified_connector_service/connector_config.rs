@@ -71,14 +71,25 @@ pub struct JpmorganMetadata {
 
 #[derive(Debug, serde::Deserialize)]
 pub struct SantanderPayoutMetadata {
-    pix_payout: Option<SantanderPixPayoutMetadata>,
-}
-
-#[derive(Debug, serde::Deserialize)]
-pub struct SantanderPixPayoutMetadata {
     client_id: Secret<String>,
     client_secret: Secret<String>,
     workspace_id: Secret<String>,
+}
+
+#[derive(Debug, serde::Deserialize)]
+#[serde(untagged)]
+enum SantanderPayoutMetadataCompat {
+    Flat(SantanderPayoutMetadata),
+    Nested { pix_payout: SantanderPayoutMetadata },
+}
+
+impl SantanderPayoutMetadataCompat {
+    fn into_inner(self) -> SantanderPayoutMetadata {
+        match self {
+            Self::Flat(m) => m,
+            Self::Nested { pix_payout } => pix_payout,
+        }
+    }
 }
 
 #[derive(Debug, serde::Deserialize)]
@@ -1695,22 +1706,20 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                     certificate,
                     private_key,
                 } => {
-                    // When multiple payout methods are added, hold each as an Option here
-                    // and defer per-method credential validation to request time in UCS.
-                    let pix_payout = metadata
+                    let meta_data = metadata
                         .map(|m| {
-                            serde_json::from_value::<SantanderPayoutMetadata>(m.clone())
+                            serde_json::from_value::<SantanderPayoutMetadataCompat>(m.clone())
                                 .map_err(|_| err("Invalid Santander payout metadata format"))
                         })
                         .transpose()?
-                        .and_then(|m| m.pix_payout)
-                        .ok_or_else(|| err("Santander payout requires pix_payout metadata"))?;
+                        .ok_or_else(|| err("Santander payout requires metadata"))?
+                        .into_inner();
                     Ok(Self::Santander {
                         certificates: certificate.clone(),
                         private_key: private_key.clone(),
-                        client_id: pix_payout.client_id,
-                        client_secret: pix_payout.client_secret,
-                        workspace_id: pix_payout.workspace_id,
+                        client_id: meta_data.client_id,
+                        client_secret: meta_data.client_secret,
+                        workspace_id: meta_data.workspace_id,
                     })
                 }
                 _ => Err(err("Santander payout requires CertificateAuth auth type")),

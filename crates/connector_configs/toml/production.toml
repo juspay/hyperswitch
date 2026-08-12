@@ -3781,19 +3781,19 @@ key2="Certificate Key"
 [santander_payout.connector_auth.CertificateAuth]
 certificate="Certificate"
 private_key="Certificate Key"
-[[santander_payout.metadata.pix_payout]]
+[santander_payout.metadata.client_id]
 name="client_id"
 label="Client Id"
 placeholder="Enter the client id"
 required=true
 type="Text"
-[[santander_payout.metadata.pix_payout]]
+[santander_payout.metadata.client_secret]
 name="client_secret"
 label="Client Secret"
 placeholder="Enter the client secret"
 required=true
 type="Text"
-[[santander_payout.metadata.pix_payout]]
+[santander_payout.metadata.workspace_id]
 name="workspace_id"
 label="Workspace Id"
 placeholder="Enter the workspace id"
