@@ -73,6 +73,7 @@ where
         let lineage_ids = context.lineage_ids;
         let header_payload = context.header_payload;
         let unified_connector_service_execution_mode = context.execution_mode;
+        let matched_rollout_config_key = context.matched_rollout_config_key;
         let client = state
             .grpc_client
             .unified_connector_service_client
@@ -122,6 +123,7 @@ where
             payment_void_request,
             header_payload,
             unified_connector_service_execution_mode,
+            matched_rollout_config_key,
             |mut router_data, payment_void_request, grpc_headers| async move {
                 let response = match client
                     .payment_void(payment_void_request, connector_auth_metadata, grpc_headers)

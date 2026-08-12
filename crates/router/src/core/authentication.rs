@@ -399,7 +399,7 @@ async fn resolve_proxy_ucs_gateway_and_vault_mca<PayF: Clone, RdF: Clone, T, R>(
 where
     R: Send + Sync + Clone,
 {
-    let (execution_path, updated_state) =
+    let (execution_path, updated_state, _matched_rollout_config_key) =
         unified_connector_service::should_call_unified_connector_service(
             state,
             processor,
@@ -513,6 +513,7 @@ async fn call_ucs_pre_authenticate_proxy(
             processor,
             connector_enum,
             execution_mode,
+            None,
         ),
     )
     .await;
@@ -970,6 +971,7 @@ async fn call_ucs_post_authenticate_proxy<F: Clone>(
             external_vault_merchant_connector_account,
             processor,
             execution_mode,
+            None,
         ),
     )
     .await;
@@ -1379,7 +1381,7 @@ async fn call_ucs_authenticate_proxy(
             )
         });
 
-    let (execution_path, updated_state) =
+    let (execution_path, updated_state, _matched_rollout_config_key) =
         unified_connector_service::should_call_unified_connector_service(
             state,
             processor,
@@ -1462,6 +1464,7 @@ async fn call_ucs_authenticate_proxy(
             external_vault_merchant_connector_account,
             processor,
             execution_mode,
+            None,
             Some(
                 payment_intent
                     .force_3ds_challenge

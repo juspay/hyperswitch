@@ -407,6 +407,7 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
         external_vault_merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
         processor: &domain::Processor,
         unified_connector_service_execution_mode: enums::ExecutionMode,
+        matched_rollout_config_key: Option<String>,
     ) -> RouterResult<()> {
         let client = state
             .grpc_client
@@ -462,6 +463,7 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
             payment_authorize_request.clone(),
             headers_builder,
             unified_connector_service_execution_mode,
+            matched_rollout_config_key.clone(),
             |mut router_data, payment_authorize_request, grpc_headers| async move {
                 let response = Box::pin(client
                     .payment_authorize(
@@ -521,6 +523,7 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
         external_vault_merchant_connector_account: &'a helpers::MerchantConnectorAccountType,
         processor: &domain::Processor,
         unified_connector_service_execution_mode: enums::ExecutionMode,
+        matched_rollout_config_key: Option<String>,
     ) -> RouterResult<()> {
         let client = state
             .grpc_client
@@ -578,6 +581,7 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
             payment_authorize_request.clone(),
             headers_builder,
             unified_connector_service_execution_mode,
+            matched_rollout_config_key.clone(),
             |mut router_data, payment_authorize_request, grpc_headers| async move {
                 let response = Box::pin(client
                     .payment_authorize(

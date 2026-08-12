@@ -67,6 +67,7 @@ where
         let lineage_ids = context.lineage_ids;
         let header_payload = context.header_payload;
         let unified_connector_service_execution_mode = context.execution_mode;
+        let matched_rollout_config_key = context.matched_rollout_config_key;
         let connector_enum =
             common_enums::connector_enums::Connector::from_str(&router_data.connector)
                 .change_context(ConnectorError::InvalidConnectorName)
@@ -80,6 +81,7 @@ where
             processor,
             connector_enum,
             unified_connector_service_execution_mode,
+            matched_rollout_config_key,
         )
         .await
     }

@@ -68,6 +68,7 @@ use crate::{
 };
 
 pub mod connector_config;
+pub mod kill_switch;
 pub mod transformers;
 
 /// Returns Apple Pay data from payment method token when it has decrypt data,
@@ -303,7 +304,7 @@ pub async fn should_call_unified_connector_service<F: Clone, T, R>(
     call_connector_action: CallConnectorAction,
     shadow_ucs_call_connector_action: Option<CallConnectorAction>,
     transaction_type: common_enums::TransactionType,
-) -> RouterResult<(ExecutionPath, SessionState)>
+) -> RouterResult<(ExecutionPath, SessionState, Option<String>)>
 where
     R: Send + Sync + Clone,
 {
@@ -405,6 +406,34 @@ where
         }
     };
 
+    // Check UCS kill switch: if error count exceeds threshold, force Direct path.
+    // Only applies when execution path is UCS Primary and connector has a direct fallback.
+    let is_kill_switch_applicable = matches!(
+        execution_path,
+        ExecutionPath::UnifiedConnectorService
+    ) && matches!(
+        connector_integration_type,
+        ConnectorIntegrationType::DirectandUCSConnector
+    );
+
+    if is_kill_switch_applicable {
+        let force_direct = kill_switch::should_force_direct_path(
+            state,
+            rollout_result.matched_config_key.as_deref(),
+        )
+        .await;
+        if force_direct {
+            router_env::logger::warn!(
+                merchant_id = %merchant_id,
+                connector = %connector_name,
+                flow = %flow_name,
+                matched_config_key = ?rollout_result.matched_config_key,
+                "UCS kill switch activated, forcing Direct path"
+            );
+            execution_path = ExecutionPath::Direct;
+        }
+    }
+
     // Handle proxy configuration for Shadow UCS flows
     let session_state = match execution_path {
         ExecutionPath::ShadowUnifiedConnectorService => {
@@ -441,7 +470,7 @@ where
         flow_name
     );
 
-    Ok((execution_path, session_state))
+    Ok((execution_path, session_state, rollout_result.matched_config_key))
 }
 
 /// Creates a new SessionState with proxy configuration updated from the override
@@ -2883,6 +2912,7 @@ pub async fn ucs_logging_wrapper<T, F, Fut, Req, Resp, GrpcReq, GrpcResp, FlowOu
     grpc_request: GrpcReq,
     grpc_header_builder: external_services::grpc_client::GrpcHeadersUcsBuilderFinal,
     execution_mode: ExecutionMode,
+    matched_rollout_config_key: Option<String>,
     handler: F,
 ) -> RouterResult<(RouterData<T, Req, Resp>, FlowOutput)>
 where
@@ -2962,6 +2992,13 @@ where
                 router_env::metric_attributes!(("connector", connector_name.clone(),)),
             );
 
+            // Record error for UCS kill switch evaluation
+            kill_switch::record_ucs_error(
+                state,
+                matched_rollout_config_key.as_deref(),
+            )
+            .await;
+
             let error_body = serde_json::json!({
                 "error": error.to_string(),
                 "error_type": "ucs_call_failed"
@@ -3010,6 +3047,7 @@ pub async fn ucs_logging_wrapper_granular<T, F, Fut, Req, Resp, GrpcReq, FlowOut
     grpc_request: GrpcReq,
     grpc_header_builder: external_services::grpc_client::GrpcHeadersUcsBuilderFinal,
     execution_mode: ExecutionMode,
+    matched_rollout_config_key: Option<String>,
     handler: F,
 ) -> CustomResult<(RouterData<T, Req, Resp>, FlowOutput), UnifiedConnectorServiceError>
 where
@@ -3092,6 +3130,13 @@ where
                 1,
                 router_env::metric_attributes!(("connector", connector_name.clone(),)),
             );
+
+            // Record error for UCS kill switch evaluation
+            kill_switch::record_ucs_error(
+                state,
+                matched_rollout_config_key.as_deref(),
+            )
+            .await;
 
             let error_body = serde_json::json!({
                 "error": error.to_string(),
@@ -3274,6 +3319,7 @@ pub async fn call_unified_connector_service_for_refund_execute(
         ucs_refund_request,
         grpc_header_builder,
         execution_mode,
+        None,
         |mut router_data, grpc_request, grpc_headers| async move {
             // Call UCS payment_refund method
             let response = match ucs_client
@@ -3410,6 +3456,7 @@ pub async fn call_unified_connector_service_for_refund_sync(
         ucs_refund_sync_request,
         grpc_header_builder,
         execution_mode,
+        None,
         |mut router_data, grpc_request, grpc_headers| async move {
             // Call UCS refund_sync method
             let response = match ucs_client

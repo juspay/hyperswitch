@@ -63,6 +63,7 @@ where
         let lineage_ids = context.lineage_ids;
         let header_payload = context.header_payload;
         let unified_connector_service_execution_mode = context.execution_mode;
+        let matched_rollout_config_key = context.matched_rollout_config_key;
         complete_authorize_flow::call_unified_connector_service_post_authenticate(
             router_data,
             state,
@@ -71,6 +72,7 @@ where
             merchant_connector_account,
             processor,
             unified_connector_service_execution_mode,
+            matched_rollout_config_key,
         )
         .await
     }

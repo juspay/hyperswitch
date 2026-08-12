@@ -112,3 +112,6 @@ counter_metric!(SDK_AUTH_SESSION_VALIDATED_TOTAL, GLOBAL_METER); // No. of SDK a
 counter_metric!(SDK_AUTH_INVALID_SESSION_TOTAL, GLOBAL_METER); // No. of SDK auth requests with invalid session_id - tracked per merchant_id
 
 counter_metric!(FINGERPRINT_SECRET_SUPERPOSITION_FETCH_COUNT, GLOBAL_METER); // No. of fingerprint secret fetches from Superposition during migration fallback
+
+counter_metric!(UCS_KILL_SWITCH_ERROR_RECORDED, GLOBAL_METER); // No. of UCS errors recorded for kill switch evaluation
+counter_metric!(UCS_KILL_SWITCH_ACTIVATED, GLOBAL_METER); // No. of times UCS kill switch forced traffic to Direct path

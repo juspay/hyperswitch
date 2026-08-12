@@ -26,6 +26,9 @@ pub struct RouterGatewayContext {
     pub execution_path: ExecutionPath,
     /// Execution mode (Primary or Shadow)
     pub execution_mode: ExecutionMode,
+    /// The rollout config key matched during UCS execution path resolution.
+    /// Used by the UCS kill switch to scope error counting.
+    pub matched_rollout_config_key: Option<String>,
 }
 impl RouterGatewayContext {
     /// Get the gateway system (Direct, UnifiedConnectorService, etc.)

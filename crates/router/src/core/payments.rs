@@ -3470,7 +3470,7 @@ where
 {
     let previous_gateway = extract_gateway_system_from_payment_intent(payment_data);
 
-    let (execution_path, updated_state) = should_call_unified_connector_service(
+    let (execution_path, updated_state, matched_rollout_config_key) = should_call_unified_connector_service(
         state,
         platform.get_processor(),
         &router_data,
@@ -3527,6 +3527,7 @@ where
                     &external_vault_merchant_connector_account,
                     platform.get_processor(),
                     execution_mode,
+                    matched_rollout_config_key.clone(),
                 )
                 .await?;
             router_data
@@ -3549,6 +3550,7 @@ where
                         merchant_connector_account: merchant_connector_account.clone(),
                         execution_path,
                         execution_mode,
+                        matched_rollout_config_key: matched_rollout_config_key.clone(),
                     },
                 )
                 .await?;
@@ -3567,6 +3569,7 @@ where
                 merchant_connector_account: merchant_connector_account.clone(),
                 execution_path,
                 execution_mode,
+                matched_rollout_config_key,
             };
 
             let (connector_request, should_continue) = if should_continue_further {
@@ -6295,7 +6298,7 @@ where
     // Extract previous gateway from payment data
     let previous_gateway = extract_gateway_system_from_payment_intent(payment_data);
 
-    let (execution_path, updated_state) = should_call_unified_connector_service(
+    let (execution_path, updated_state, matched_rollout_config_key) = should_call_unified_connector_service(
         state,
         processor,
         &router_data,
@@ -6326,6 +6329,7 @@ where
         merchant_connector_account: merchant_connector_account.clone(),
         execution_path,
         execution_mode,
+        matched_rollout_config_key,
     };
 
     if core_utils::get_flow_name::<F>().unwrap_or_default() != "PSync" {
@@ -6885,7 +6889,7 @@ where
     let previous_gateway = extract_gateway_system_from_payment_intent(payment_data);
 
     // do order creation
-    let (execution_path, updated_state) = should_call_unified_connector_service(
+    let (execution_path, updated_state, matched_rollout_config_key) = should_call_unified_connector_service(
         state,
         platform.get_processor(),
         &router_data,
@@ -6916,6 +6920,7 @@ where
         merchant_connector_account: merchant_connector_account_type_details.clone(),
         execution_path,
         execution_mode,
+        matched_rollout_config_key,
     };
 
     let should_continue = match router_data
@@ -7017,7 +7022,7 @@ where
         // Extract previous gateway from payment data
         let previous_gateway = extract_gateway_system_from_payment_intent(payment_data);
 
-        let (execution_path, updated_state) = should_call_unified_connector_service(
+        let (execution_path, updated_state, matched_rollout_config_key) = should_call_unified_connector_service(
             state,
             processor,
             &router_data,
@@ -7047,6 +7052,7 @@ where
             merchant_connector_account: merchant_connector_account_type_details.clone(),
             execution_path,
             execution_mode,
+            matched_rollout_config_key,
         };
         let call_connector_service_response = call_connector_service(
             &updated_state,
@@ -7131,6 +7137,7 @@ where
                 external_vault_merchant_connector_account_type_details.clone(),
                 processor,
                 ExecutionMode::Primary, //UCS is called in primary mode
+                None,
             )
             .await?;
 
@@ -7212,7 +7219,7 @@ where
         )
         .await?;
 
-    let (execution_path, updated_state) = should_call_unified_connector_service(
+    let (execution_path, updated_state, matched_rollout_config_key) = should_call_unified_connector_service(
         state,
         platform.get_processor(),
         &router_data,
@@ -7243,6 +7250,7 @@ where
         merchant_connector_account: merchant_connector_account.clone(),
         execution_path,
         execution_mode,
+        matched_rollout_config_key,
     };
 
     // Update feature metadata to track Direct routing usage for stickiness
@@ -8271,7 +8279,7 @@ where
     dyn api::Connector:
         services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>,
 {
-    let (execution_path, updated_state) = should_call_unified_connector_service(
+    let (execution_path, updated_state, matched_rollout_config_key) = should_call_unified_connector_service(
         state,
         processor,
         &router_data,
@@ -8302,6 +8310,7 @@ where
         merchant_connector_account: merchant_connector_account.clone(),
         execution_path,
         execution_mode,
+        matched_rollout_config_key,
     };
 
     router_data

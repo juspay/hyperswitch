@@ -323,6 +323,7 @@ pub trait Feature<F, T> {
         _external_vault_merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
         _processor: &domain::Processor,
         _unified_connector_service_execution_mode: common_enums::ExecutionMode,
+        _matched_rollout_config_key: Option<String>,
     ) -> RouterResult<()>
     where
         F: Clone,
@@ -342,6 +343,7 @@ pub trait Feature<F, T> {
         _external_vault_merchant_connector_account: &'a helpers::MerchantConnectorAccountType,
         _processor: &domain::Processor,
         _unified_connector_service_execution_mode: common_enums::ExecutionMode,
+        _matched_rollout_config_key: Option<String>,
     ) -> RouterResult<()>
     where
         F: Clone,

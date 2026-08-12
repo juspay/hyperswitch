@@ -42,6 +42,10 @@ pub struct RouterGatewayContext {
 
     /// Execution path (Direct, UCS, or Shadow)
     pub execution_path: ExecutionPath,
+
+    /// The rollout config key matched during UCS execution path resolution.
+    /// Used by the UCS kill switch to scope error counting.
+    pub matched_rollout_config_key: Option<String>,
 }
 
 impl RouterGatewayContext {
@@ -73,6 +77,7 @@ impl RouterGatewayContext {
             execution_mode,
             execution_path,
             creds_identifier,
+            matched_rollout_config_key: None,
         }
     }
     pub fn direct(
@@ -93,6 +98,7 @@ impl RouterGatewayContext {
             execution_mode: ExecutionMode::NotApplicable,
             execution_path: ExecutionPath::Direct,
             creds_identifier,
+            matched_rollout_config_key: None,
         }
     }
 }

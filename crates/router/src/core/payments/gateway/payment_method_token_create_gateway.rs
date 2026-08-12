@@ -76,6 +76,7 @@ where
         let lineage_ids = context.lineage_ids;
         let header_payload = context.header_payload;
         let unified_connector_service_execution_mode = context.execution_mode;
+        let matched_rollout_config_key = context.matched_rollout_config_key;
         let client = state
             .grpc_client
             .unified_connector_service_client
@@ -122,6 +123,7 @@ where
             payment_method_tokenize_request,
             header_payload,
             unified_connector_service_execution_mode,
+            matched_rollout_config_key,
             |mut router_data, payment_method_tokenize_request, grpc_headers| async move {
                 let response = match Box::pin(client.payment_method_tokenize(
                     payment_method_tokenize_request,

@@ -365,6 +365,21 @@ pub const UCS_ROLLOUT_CONFIG_NOT_CONFIGURED: &str = "not_configured";
 // UCS feature enabled config
 pub const UCS_ENABLED: &str = "ucs_enabled";
 
+/// Redis key prefix for UCS kill switch error counts.
+/// Full key: `ucs_kill_switch_{rollout_config_key}`
+pub const UCS_KILL_SWITCH_REDIS_PREFIX: &str = "ucs_kill_switch";
+
+/// DB config key for the global UCS kill switch error threshold.
+/// Value is parsed as u64; default is 0 (a single error triggers the kill switch).
+pub const UCS_KILL_SWITCH_THRESHOLD: &str = "ucs_kill_switch_threshold";
+
+/// DB config key prefix to disable the kill switch for a specific rollout scope.
+/// Full key: `ucs_kill_switch_disabled_{rollout_config_key}`
+pub const UCS_KILL_SWITCH_DISABLED_PREFIX: &str = "ucs_kill_switch_disabled";
+
+/// TTL for the UCS kill switch error count Redis key, in seconds (1 day).
+pub const UCS_KILL_SWITCH_TTL_IN_SECS: u64 = 86400;
+
 /// Header value indicating that signature-key-based authentication is used.
 pub const UCS_AUTH_SIGNATURE_KEY: &str = "signature-key";
 

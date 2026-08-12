@@ -1589,6 +1589,7 @@ pub async fn call_unified_connector_service_pre_authenticate(
     processor: &domain::Processor,
     connector: enums::connector_enums::Connector,
     unified_connector_service_execution_mode: enums::ExecutionMode,
+    matched_rollout_config_key: Option<String>,
 ) -> errors::CustomResult<
     (
         types::RouterData<
@@ -1647,6 +1648,7 @@ pub async fn call_unified_connector_service_pre_authenticate(
         payment_pre_authenticate_request,
         headers_builder,
         unified_connector_service_execution_mode,
+        matched_rollout_config_key,
         |mut router_data, payment_pre_authenticate_request, grpc_headers| async move {
             let response = client
                 .payment_pre_authenticate(
@@ -1717,6 +1719,7 @@ pub async fn call_unified_connector_service_pre_authenticate_proxy(
     processor: &domain::Processor,
     connector: enums::connector_enums::Connector,
     unified_connector_service_execution_mode: enums::ExecutionMode,
+    matched_rollout_config_key: Option<String>,
 ) -> errors::CustomResult<
     types::RouterData<
         api::PreAuthenticate,
@@ -1793,6 +1796,7 @@ pub async fn call_unified_connector_service_pre_authenticate_proxy(
             payment_pre_authenticate_request,
             headers_builder,
             unified_connector_service_execution_mode,
+            matched_rollout_config_key,
             |mut router_data, payment_pre_authenticate_request, grpc_headers| async move {
                 let response = Box::pin(client.payment_pre_authenticate(
                     payment_pre_authenticate_request,

@@ -221,7 +221,7 @@ pub async fn trigger_refund_to_gateway(
     )
     .await?;
 
-    let (execution_path, updated_state) =
+    let (execution_path, updated_state, matched_rollout_config_key) =
         unified_connector_service::should_call_unified_connector_service(
             state,
             platform.get_processor(),
@@ -256,6 +256,7 @@ pub async fn trigger_refund_to_gateway(
         merchant_connector_account: merchant_connector_account.clone(),
         execution_path,
         execution_mode,
+        matched_rollout_config_key,
     };
 
     // Add access token for both UCS and direct connector paths
@@ -887,7 +888,7 @@ pub async fn sync_refund_with_gateway(
     // Access token available or not needed - proceed with execution
 
     // Check which gateway system to use for refund sync
-    let (execution_path, updated_state) =
+    let (execution_path, updated_state, matched_rollout_config_key) =
         unified_connector_service::should_call_unified_connector_service(
             state,
             platform.get_processor(),
@@ -922,6 +923,7 @@ pub async fn sync_refund_with_gateway(
         merchant_connector_account: merchant_connector_account.clone(),
         execution_path,
         execution_mode,
+        matched_rollout_config_key,
     };
 
     // Add access token for both UCS and direct connector paths
