@@ -26,10 +26,6 @@ pub struct RouterGatewayContext {
     pub execution_path: ExecutionPath,
     /// Execution mode (Primary or Shadow)
     pub execution_mode: ExecutionMode,
-    /// The rollout config key that produced the Primary/Shadow execution-mode
-    /// decision for this request, if any. Captured at routing time so the UCS
-    /// primary→shadow kill switch knows exactly which `configs` row to flip.
-    pub ucs_matched_rollout_key: Option<String>,
 }
 impl RouterGatewayContext {
     /// Get the gateway system (Direct, UnifiedConnectorService, etc.)

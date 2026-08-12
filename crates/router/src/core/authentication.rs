@@ -399,7 +399,7 @@ async fn resolve_proxy_ucs_gateway_and_vault_mca<PayF: Clone, RdF: Clone, T, R>(
 where
     R: Send + Sync + Clone,
 {
-    let (execution_path, updated_state, _matched_rollout_key) =
+    let (execution_path, updated_state) =
         unified_connector_service::should_call_unified_connector_service(
             state,
             processor,
@@ -1379,7 +1379,7 @@ async fn call_ucs_authenticate_proxy(
             )
         });
 
-    let (execution_path, updated_state, _matched_rollout_key) =
+    let (execution_path, updated_state) =
         unified_connector_service::should_call_unified_connector_service(
             state,
             processor,
