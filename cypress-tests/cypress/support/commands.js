@@ -664,6 +664,48 @@ Cypress.Commands.add(
         globalState.set(publishableKeyStateKey, response.body.publishable_key);
         globalState.set("merchantDetails", response.body.merchant_details);
         globalState.set("organizationId", response.body.organization_id);
+
+        if (globalState.get("kvEnabled")) {
+          cy.merchantKvEnableCallTest(
+            { merchant_id: merchantId, kv_enabled: true },
+            globalState
+          );
+        }
+      });
+    });
+  }
+);
+
+Cypress.Commands.add(
+  "merchantKvEnableCallTest",
+  (merchantKvEnableBody, globalState, options = {}) => {
+    const { expectedStatus = 200, expectedErrorCode = null } = options;
+
+    const merchant_id = globalState.get("merchantId");
+
+    cy.request({
+      method: "POST",
+      url: `${globalState.get("baseUrl")}/accounts/${merchant_id}/kv`,
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        "api-key": globalState.get("adminApiKey"),
+      },
+      body: merchantKvEnableBody,
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        expect(response.status).to.equal(expectedStatus);
+
+        if (expectedStatus !== 200) {
+          if (expectedErrorCode) {
+            expect(response.body).to.have.property("error");
+            expect(response.body.error.code).to.equal(expectedErrorCode);
+          }
+          return;
+        }
       });
     });
   }
@@ -6489,8 +6531,11 @@ Cypress.Commands.add("listCustomerPMCallTest", (globalState, order = 0) => {
           expect(cardInfo.card_holder_name, "card_holder_name").to.not.be.null;
         }
 
+        // allow a small buffer for clock skew between the server and the
+        // test runner — last_used_at can otherwise land at or after the
+        // local Date.now() even though it was genuinely set in the past
         expect(new Date(lastUsedAt).getTime(), "last_used_at").to.be.lessThan(
-          Date.now()
+          Date.now() + 5000
         ).and.to.not.be.null;
 
         // For order > 0, validate payment methods are ordered by last_used_at

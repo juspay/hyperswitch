@@ -7307,7 +7307,15 @@ pub async fn payment_methods_session_confirm(
         })
         .or_else(|| payment_method_session_billing.clone());
 
-    let storage_type = payment_method_session.storage_type;
+    // The session's storage_type carries the merchant's intent (persistent when
+    // setup_future_usage and a customer are present at session create). The customer's
+    // acceptance at confirm makes the save final: without it the payment method is
+    // created as volatile even when the session asked for persistent storage.
+    let storage_type = if request.customer_acceptance.is_some() {
+        payment_method_session.storage_type
+    } else {
+        common_enums::StorageType::Volatile
+    };
 
     let create_payment_method_request = get_payment_method_create_request(
         request
