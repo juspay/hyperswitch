@@ -12970,14 +12970,15 @@ pub async fn static_dynamic_routing_v1_for_payments(
     backend_input: euclid::backend::BackendInput,
     fallback_config: Vec<api_models::routing::RoutableConnectorChoice>,
 ) -> RouterResult<routing::RoutingConnectorOutcomeWithApproachAndEligibility> {
-    let (static_connectors, static_approach) = routing::perform_static_routing_locally(
-        state,
-        business_profile,
-        &payment_dsl_input,
-        &backend_input,
-        &fallback_config,
-    )
-    .await?;
+    let (static_connectors, static_approach, static_is_volume_split) =
+        routing::perform_static_routing_locally(
+            state,
+            business_profile,
+            &payment_dsl_input,
+            &backend_input,
+            &fallback_config,
+        )
+        .await?;
 
     let (connectors, routing_approach) = routing::perform_hybrid_routing_if_enabled(
         state,
@@ -12988,6 +12989,7 @@ pub async fn static_dynamic_routing_v1_for_payments(
         &fallback_config,
         &static_connectors,
         static_approach,
+        static_is_volume_split,
     )
     .await;
 
