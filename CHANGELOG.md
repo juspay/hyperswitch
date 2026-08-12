@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.08.10.0-hotfix1
+
+### Features
+
+- **routing:** Add automatic kill switch for decision engine routing diffs ([#13663](https://github.com/juspay/hyperswitch/pull/13663)) ([`bb02cc5`](https://github.com/juspay/hyperswitch/commit/bb02cc514f75ffff1c602ae8850618b40f210088))
+
+**Full Changelog:** [`2026.08.10.0...2026.08.10.0-hotfix1`](https://github.com/juspay/hyperswitch/compare/2026.08.10.0...2026.08.10.0-hotfix1)
+
+- - -
+
 ## 2026.08.10.0
 
 ### Features
