@@ -50,7 +50,7 @@ export const blockedPaymentErrorBodyForBinUnavailable = {
     error: {
       type: "blocked",
       message:
-        "We're unable to accept this card, please try another card or a different payment method",
+        "We couldn't verify this card's information, please try a different card",
       code: "HE_03",
       reason: "Blocked",
     },
