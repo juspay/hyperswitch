@@ -46690,7 +46690,7 @@
           "refund_statuses_enabled": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/IntentStatus"
+              "$ref": "#/components/schemas/RefundStatus"
             },
             "description": "List of refund statuses that triggers a webhook for refunds",
             "example": [
