@@ -906,6 +906,8 @@ impl ForeignTryFrom<payments_grpc::BankType> for common_enums::BankType {
         match bank_type {
             payments_grpc::BankType::Checking => Ok(Self::Checking),
             payments_grpc::BankType::Savings => Ok(Self::Savings),
+            payments_grpc::BankType::Salary => Ok(Self::Salary),
+            payments_grpc::BankType::Payment => Ok(Self::Payment),
             payments_grpc::BankType::Bond
             | payments_grpc::BankType::Transmission
             | payments_grpc::BankType::Current
@@ -1111,16 +1113,31 @@ impl UnifiedConnectorServiceError {
     /// Converts tonic::Code to HTTP status code.
     pub fn tonic_to_http_status(code: tonic::Code) -> u16 {
         match code {
-            tonic::Code::InvalidArgument | tonic::Code::FailedPrecondition => 400,
+            tonic::Code::Cancelled => 408,
+            tonic::Code::InvalidArgument => 400,
             tonic::Code::Unauthenticated => 401,
             tonic::Code::PermissionDenied => 403,
             tonic::Code::NotFound => 404,
             tonic::Code::AlreadyExists => 409,
+            tonic::Code::ResourceExhausted => 429,
+            tonic::Code::FailedPrecondition => 412,
+            tonic::Code::Aborted => 409,
+            tonic::Code::OutOfRange => 416,
             tonic::Code::Unimplemented => 501,
             tonic::Code::Unavailable => 503,
             tonic::Code::DeadlineExceeded => 504,
             _ => 500,
         }
+    }
+
+    fn tonic_status_is_ucs_server_error(code: tonic::Code) -> bool {
+        matches!(
+            code,
+            tonic::Code::Unknown
+                | tonic::Code::Internal
+                | tonic::Code::Unavailable
+                | tonic::Code::DataLoss
+        )
     }
 
     /// Returns HTTP status code for this error.
@@ -1293,9 +1310,19 @@ impl ErrorSwitch<ApiErrorResponse> for UnifiedConnectorServiceError {
 impl ErrorSwitch<ConnectorError> for UnifiedConnectorServiceError {
     fn switch(&self) -> ConnectorError {
         match self {
-            // UCS validation errors (4xx from tonic) → ProcessingStepFailed with encoded error
-            // body so the upstream handler can return the right HTTP status code.
             Self::TonicStatus { code, message } => {
+                // UCS/Prism server failures must surface as Hyperswitch 5xx errors, not as
+                // payment authorization failures with a nested 5xx payload.
+                if Self::tonic_status_is_ucs_server_error(*code) {
+                    return ConnectorError::ResponseHandlingFailed;
+                }
+
+                if *code == tonic::Code::Unimplemented {
+                    return ConnectorError::NotImplemented(message.clone());
+                }
+
+                // UCS validation/client-class errors keep the encoded payload for callers that
+                // already rely on structured processing-step data.
                 let status_code = Self::tonic_to_http_status(*code);
                 let error_body = serde_json::json!({
                     "code": format!("UCS_{}", status_code),
@@ -1368,6 +1395,68 @@ impl ErrorSwitch<ConnectorError> for UnifiedConnectorServiceError {
             | Self::SurchargeCalculateFailure
             | Self::PayoutEnrollDisburseAccountFailure
             | Self::NotifyConnectorFailure => ConnectorError::ResponseHandlingFailed,
+        }
+    }
+}
+
+/// Classification of a UCS failure for the primary→shadow kill switch.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum UcsKillSwitchReason {
+    /// Couldn't even reach Prism (gRPC dial/transport failure).
+    UcsUnreachable,
+    /// Prism itself returned a non-success gRPC status.
+    UcsError,
+    /// Prism reached the connector but the connector endpoint returned a non-2xx.
+    ConnectorErrorViaUcs,
+    /// The request/response transformation layer in Prism is malformed for this flow.
+    TransformationBroken,
+    /// Catch-all for variants that don't fit anywhere else. Treated as
+    /// kill-switch-eligible by default — fail-safe beats fail-open during a migration.
+    UnknownError,
+}
+
+impl UcsKillSwitchReason {
+    /// Stable label used in metrics and logs.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::UcsUnreachable => "ucs_unreachable",
+            Self::UcsError => "ucs_error",
+            Self::ConnectorErrorViaUcs => "connector_error_via_ucs",
+            Self::TransformationBroken => "transformation_broken",
+            Self::UnknownError => "unknown_error",
+        }
+    }
+}
+
+impl UnifiedConnectorServiceError {
+    /// Classify whether an error from a **primary**-mode UCS call should trip the
+    /// primary→shadow kill switch.
+    ///
+    /// Policy: **every `UnifiedConnectorServiceError` trips the switch.** No
+    /// carve-outs — even variants that look like "config errors" (`NotImplemented`)
+    /// indicate Primary is not serving traffic the way it should be, and the
+    /// legacy Direct path will succeed where Prism failed. Auto-flipping on a
+    /// false positive costs nothing; missing a real failure costs an outage.
+    pub fn ucs_kill_switch_reason(&self) -> Option<UcsKillSwitchReason> {
+        match self {
+            // Can't reach Prism at all (gRPC dial, DNS, TLS, LB, pod down).
+            Self::ConnectionError(_) => Some(UcsKillSwitchReason::UcsUnreachable),
+
+            // Any Prism-side gRPC status — server-class, client-class, and
+            // `Unimplemented`. All of them mean Prism returned a non-success.
+            Self::TonicStatus { .. } => Some(UcsKillSwitchReason::UcsError),
+
+            // Connector returned any non-2xx through Prism.
+            Self::ConnectorError(_) => Some(UcsKillSwitchReason::ConnectorErrorViaUcs),
+
+            // Prism's response couldn't be decoded — transformation layer is suspect.
+            Self::ResponseDeserializationFailed | Self::ParsingFailed => {
+                Some(UcsKillSwitchReason::TransformationBroken)
+            }
+
+            // Everything else — `NotImplemented`, encoding bugs, marker "operation
+            // failed" variants, webhook-path failures. Catch-all flips by design.
+            _ => Some(UcsKillSwitchReason::UnknownError),
         }
     }
 }

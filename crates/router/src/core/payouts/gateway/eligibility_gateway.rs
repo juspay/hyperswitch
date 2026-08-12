@@ -20,7 +20,7 @@ use crate::{
 };
 
 // =============================================================================
-// PayoutGateway Implementation for domain::PoQuote
+// PayoutGateway Implementation for domain::PoEligibility
 // =============================================================================
 
 #[async_trait]
@@ -32,7 +32,7 @@ impl<RCD>
         types::PayoutsData,
         types::PayoutsResponseData,
         RouterGatewayContext,
-    > for domain::PoQuote
+    > for domain::PoEligibility
 where
     RCD: Clone
         + Send
@@ -63,6 +63,7 @@ where
         let lineage_ids = context.lineage_ids;
         let header_payload = context.header_payload;
         let unified_connector_service_execution_mode = context.execution_mode;
+        let ucs_matched_rollout_key = context.ucs_matched_rollout_key;
         let client = state
             .grpc_client
             .unified_connector_service_client
@@ -98,34 +99,34 @@ where
             .resource_id(resource_id)
             .lineage_ids(lineage_ids);
 
-        logger::debug!("Granular Gateway: Payout quote flow");
-        let granular_payout_stage_request =
-            payments_grpc::PayoutServiceStageRequest::foreign_try_from(router_data)
+        logger::debug!("Granular Gateway: Payout eligibility flow");
+        let granular_payout_eligibility_request =
+            payments_grpc::PayoutMethodEligibilityRequest::foreign_try_from(router_data)
                 .change_context(ConnectorError::RequestEncodingFailed)
-                .attach_printable("Failed to construct Payout Stage Request")?;
+                .attach_printable("Failed to construct Payout Eligibility Request")?;
 
         let updated_router_data =
             Box::pin(unified_connector_service::ucs_logging_wrapper_granular(
                 router_data.clone(),
                 state,
-                granular_payout_stage_request,
+                granular_payout_eligibility_request,
                 grpc_headers,
                 unified_connector_service_execution_mode,
-                None,
-                |mut router_data, granular_payout_stage_request, grpc_headers| async move {
-                    let response = Box::pin(client.payout_stage(
-                        granular_payout_stage_request,
+                ucs_matched_rollout_key,
+                |mut router_data, granular_payout_eligibility_request, grpc_headers| async move {
+                    let response = Box::pin(client.payout_eligibility(
+                        granular_payout_eligibility_request,
                         connector_auth_metadata,
                         grpc_headers,
                     ))
                     .await
-                    .attach_printable("Failed to stage payout")?;
+                    .attach_printable("Failed to check payout eligibility")?;
 
-                    let payout_stage_response = response.into_inner();
+                    let payout_eligibility_response = response.into_inner();
 
-                    let ucs_data = types::UcsPayoutStageResponseData::foreign_try_from((
-                        payout_stage_response.clone(),
-                        common_enums::PayoutStatus::Pending,
+                    let ucs_data = types::UcsPayoutEligibilityResponseData::foreign_try_from((
+                        payout_eligibility_response.clone(),
+                        common_enums::PayoutStatus::RequiresCreation,
                     ))
                     .attach_printable("Failed to deserialize UCS response")?;
 
@@ -136,7 +137,7 @@ where
 
                     router_data.connector_http_status_code = Some(ucs_data.status_code);
 
-                    Ok((router_data, (), payout_stage_response))
+                    Ok((router_data, (), payout_eligibility_response))
                 },
             ))
             .await
@@ -154,7 +155,7 @@ impl<RCD>
         types::PayoutsData,
         types::PayoutsResponseData,
         RouterGatewayContext,
-    > for domain::PoQuote
+    > for domain::PoEligibility
 where
     RCD: Clone
         + Send

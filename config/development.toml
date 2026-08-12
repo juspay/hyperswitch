@@ -1559,9 +1559,14 @@ connector_list = "juspaythreedsserver, ctp_mastercard, ctp_visa"
 [open_router]
 dynamic_routing_enabled = false
 static_routing_enabled = false
+shadow_routing_enabled = false
 url = "http://localhost:8080"
 dashboard_url = "http://localhost:5173"
 admin_secret = ""
+
+[open_router.diff_kill_switch]
+enabled = false
+diff_count_threshold = 100
 
 [l2_l3_data_config]
 enabled = "true"
