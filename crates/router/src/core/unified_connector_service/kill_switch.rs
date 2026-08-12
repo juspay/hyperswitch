@@ -241,20 +241,24 @@ pub async fn reset(state: SessionState, rollout_scope: String) -> errors::Router
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to delete the UCS kill switch trip")?;
 
-    // Redis reports a missing key as a successful delete of nothing. Reporting that as success
-    // would tell an operator a scope is back on UCS when a mistyped scope left it tripped.
-    if reply.is_key_deleted() {
-        logger::info!(
-            rollout_scope = %rollout_scope,
-            "ucs_kill_switch: trip cleared via api"
-        );
+    match reply {
+        redis_interface::DelReply::KeyDeleted => {
+            logger::info!(
+                rollout_scope = %rollout_scope,
+                "ucs_kill_switch: trip cleared via api"
+            );
 
-        Ok(crate::services::ApplicationResponse::StatusOk)
-    } else {
-        Err(errors::ApiErrorResponse::GenericNotFoundError {
-            message: format!("No UCS kill switch trip found for scope {rollout_scope}"),
+            Ok(crate::services::ApplicationResponse::StatusOk)
         }
-        .into())
+        // Redis reports a missing key as a successful delete of nothing. Reporting that as
+        // success would tell an operator a scope is back on UCS when a mistyped scope left it
+        // tripped.
+        redis_interface::DelReply::KeyNotDeleted => {
+            Err(errors::ApiErrorResponse::GenericNotFoundError {
+                message: format!("No UCS kill switch trip found for scope {rollout_scope}"),
+            }
+            .into())
+        }
     }
 }
 

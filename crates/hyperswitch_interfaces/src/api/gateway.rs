@@ -445,7 +445,7 @@ where
                         connector_name,
                         direct_for_compare,
                         ucs_for_compare,
-                        Some(merchant_id),
+                        Some(&merchant_id),
                         Some(payment_method),
                         payment_method_type,
                     )
@@ -585,7 +585,7 @@ where
                         connector_name,
                         direct_for_compare,
                         ucs_for_compare,
-                        Some(merchant_id),
+                        Some(&merchant_id),
                         Some(payment_method),
                         payment_method_type,
                     )
