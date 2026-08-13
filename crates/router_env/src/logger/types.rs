@@ -50,8 +50,7 @@ pub enum Tag {
 }
 
 /// API Flow
-#[derive(Debug, Display, Clone, PartialEq, Eq, strum::IntoStaticStr)]
-#[strum(serialize_all = "snake_case")]
+#[derive(Debug, Display, Clone, PartialEq, Eq)]
 pub enum Flow {
     /// Health check
     HealthCheck,

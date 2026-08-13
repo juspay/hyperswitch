@@ -3,7 +3,7 @@ pub mod request;
 
 use std::time::Duration;
 
-use router_env::{counter_metric, global_meter, histogram_metric_f64, metric_attributes, Flow};
+use router_env::{counter_metric, global_meter, histogram_metric_f64, metric_attributes};
 
 global_meter!(GLOBAL_METER, "ROUTER_API");
 
@@ -14,13 +14,6 @@ counter_metric!(KV_MISS, GLOBAL_METER); // No. of KV misses
 counter_metric!(REQUESTS_RECEIVED, GLOBAL_METER);
 histogram_metric_f64!(REQUEST_TIME, GLOBAL_METER);
 
-counter_metric!(
-    PAYMENT_OPERATION_COUNT,
-    GLOBAL_METER,
-    name: "payment.operation.count",
-    description: "Number of payment domain operation attempts",
-    unit: "{operation}",
-);
 histogram_metric_f64!(
     PAYMENT_OPERATION_DURATION,
     GLOBAL_METER,
@@ -42,10 +35,6 @@ histogram_metric_f64!(
     description: "Duration of completed legacy vault call attempts",
     unit: "s",
 );
-
-pub fn payments_confirm_flow_name() -> &'static str {
-    Flow::PaymentsConfirm.into()
-}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, strum::IntoStaticStr)]
 #[strum(serialize_all = "snake_case")]
@@ -84,12 +73,10 @@ pub fn record_payment_confirm<T, E>(
     let merchant_mode: &'static str = context.merchant_mode.into();
     let attributes = metric_attributes!(
         ("operation", "confirm"),
-        ("flow", payments_confirm_flow_name()),
         ("merchant_mode", merchant_mode),
         ("outcome", outcome),
     );
 
-    PAYMENT_OPERATION_COUNT.add(1, attributes);
     PAYMENT_OPERATION_DURATION.record(duration.as_secs_f64(), attributes);
 }
 
@@ -106,7 +93,6 @@ pub fn record_microservice_call<T, E>(
         metric_attributes!(
             ("service", service),
             ("operation", operation),
-            ("flow", payments_confirm_flow_name()),
             ("merchant_mode", merchant_mode),
             (
                 "outcome",
@@ -127,7 +113,6 @@ pub fn record_vault_call(
         duration.as_secs_f64(),
         metric_attributes!(
             ("operation", operation),
-            ("flow", payments_confirm_flow_name()),
             ("merchant_mode", merchant_mode),
             ("outcome", if succeeded { "success" } else { "failure" }),
         ),

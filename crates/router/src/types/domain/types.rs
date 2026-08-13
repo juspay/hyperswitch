@@ -6,7 +6,7 @@ use hyperswitch_interfaces::configs;
 use payment_methods::state as pm_state;
 
 use crate::{
-    routes::{app, metrics::payments_confirm_flow_name},
+    routes::app,
     types::{api as api_types, ForeignFrom},
 };
 
@@ -58,10 +58,7 @@ impl From<&app::SessionState> for KeyManagerState {
             use_legacy_key_store_decryption: conf.use_legacy_key_store_decryption,
             metrics_context: state.payment_metrics_context.map(|context| {
                 let merchant_mode: &'static str = context.merchant_mode.into();
-                KeyManagerMetricsContext {
-                    flow: payments_confirm_flow_name(),
-                    merchant_mode,
-                }
+                KeyManagerMetricsContext { merchant_mode }
             }),
         }
     }

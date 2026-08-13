@@ -38,7 +38,6 @@ macro_rules! impl_get_tenant_for_request {
 
 #[derive(Debug, Clone)]
 pub struct KeyManagerMetricsContext {
-    pub flow: &'static str,
     pub merchant_mode: &'static str,
 }
 

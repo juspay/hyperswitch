@@ -77,7 +77,7 @@ use super::{
     apple_pay_certificates_migration, blocklist, payment_link, subscription, webhook_events,
 };
 #[cfg(any(feature = "olap", feature = "oltp"))]
-use super::{configs::*, customers, payments};
+use super::{configs::*, customers, metrics::PaymentMetricsContext, payments};
 #[cfg(all(any(feature = "olap", feature = "oltp"), feature = "v1"))]
 use super::{mandates::*, refunds::*};
 #[cfg(feature = "olap")]
@@ -150,7 +150,7 @@ pub struct SessionState {
     pub enhancement: Option<HashMap<String, String>>,
     pub superposition_service: Arc<SuperpositionClient>,
     /// Bounded request context used to correlate v1 payment I/O metrics.
-    pub payment_metrics_context: Option<super::metrics::PaymentMetricsContext>,
+    pub payment_metrics_context: Option<PaymentMetricsContext>,
 }
 impl scheduler::SchedulerSessionState for SessionState {
     fn get_db(&self) -> Box<dyn SchedulerInterface> {

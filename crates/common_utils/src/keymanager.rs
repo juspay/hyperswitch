@@ -129,7 +129,6 @@ where
             elapsed.as_secs_f64(),
             metric_attributes!(
                 ("operation", encryption_service_operation(endpoint)),
-                ("flow", context.flow),
                 ("merchant_mode", context.merchant_mode),
                 ("outcome", outcome),
             ),
