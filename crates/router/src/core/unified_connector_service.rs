@@ -3073,6 +3073,7 @@ where
     Resp: std::fmt::Debug + Clone + Send + Sync + 'static,
     GrpcReq: serde::Serialize,
     GrpcResp: serde::Serialize,
+    FlowOutput: Default,
     F: FnOnce(
             RouterData<T, Req, Resp>,
             GrpcReq,
@@ -3099,6 +3100,9 @@ where
     let payout_id = router_data.payout_id.clone();
     let payment_method = router_data.payment_method;
     let payment_method_type = router_data.payment_method_type;
+    // Kept so a `ConnectorError` can be turned back into an `Ok` router data here, in the one
+    // place that does this conversion, instead of every handler closure doing it themselves.
+    let router_data_for_connector_error = router_data.clone();
     let grpc_header = grpc_header_builder.build();
     // Log the actual gRPC request with masking
     let grpc_request_body = hyperswitch_masking::masked_serialize(&grpc_request)
@@ -3182,11 +3186,32 @@ where
                 "error": error.to_string(),
                 "error_type": "ucs_call_failed"
             });
-            (
-                error.current_context().http_status(),
-                Some(error_body),
-                Err(error),
-            )
+
+            // A `ConnectorError` is the connector answering with a 4xx/5xx through UCS, not UCS
+            // itself failing. Direct connector integrations surface that as `Ok(RouterData)`
+            // carrying `response: Err(ErrorResponse)`, not as a request-level `Err` — so this
+            // matches that shape here, in the one place that does this conversion, rather than
+            // in each handler closure. Handlers used to build this recovery value themselves,
+            // which meant the kill switch's `Err` arm above was unreachable for the one error
+            // variant it exists to catch, and the event this function logs carried a masked
+            // *empty* gRPC response instead of the connector's actual error.
+            if let UnifiedConnectorServiceError::ConnectorError(inner) = error.current_context() {
+                let mut recovered_router_data = router_data_for_connector_error;
+                recovered_router_data.response = Err(inner.as_ref().into());
+                recovered_router_data.connector_http_status_code = Some(inner.status_code);
+
+                (
+                    inner.status_code,
+                    Some(error_body),
+                    Ok((recovered_router_data, FlowOutput::default())),
+                )
+            } else {
+                (
+                    error.current_context().http_status(),
+                    Some(error_body),
+                    Err(error),
+                )
+            }
         }
     };
 
