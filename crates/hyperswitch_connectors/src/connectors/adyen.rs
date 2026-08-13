@@ -2718,7 +2718,7 @@ impl
         let merchant_id = auth.merchant_account.expose();
         let webhook_id = &req.request.connector_webhook_id;
         Ok(format!(
-            "{endpoint}/v3/merchants/{merchant_id}/webhooks/{webhook_id}/generateHmac",
+            "{endpoint}v3/merchants/{merchant_id}/webhooks/{webhook_id}/generateHmac",
         ))
     }
 
