@@ -9,7 +9,6 @@ use hyperswitch_interfaces::{
     api::gateway as payment_gateway,
     connector_integration_interface::{BoxedConnectorIntegrationInterface, RouterDataConversion},
     errors::ConnectorError,
-    unified_connector_service::transformers::UnifiedConnectorServiceError,
 };
 use unified_connector_service_client::payments as payments_grpc;
 
@@ -124,25 +123,10 @@ where
                 .await
                 {
                     Ok(response) => response,
+                    // Connector errors (4xx/5xx from the connector via UCS) are converted back
+                    // into `Ok(RouterData)` carrying `response: Err(ErrorResponse)` by the
+                    // wrapper, not here — see `ucs_logging_wrapper_granular`.
                     Err(report) => {
-                        if let UnifiedConnectorServiceError::ConnectorError(inner) =
-                            report.current_context()
-                        {
-                            logger::debug!(
-                                "Connector error via UCS for setup mandate (connector {}, status {}): {} - {}",
-                                inner.connector,
-                                inner.status_code,
-                                inner.code,
-                                inner.message
-                            );
-                            router_data.response = Err(inner.as_ref().into());
-                            router_data.connector_http_status_code = Some(inner.status_code);
-                            return Ok((
-                                router_data,
-                                (),
-                                payments_grpc::PaymentServiceSetupRecurringResponse::default(),
-                            ));
-                        }
                         return Err(report.attach_printable("Failed to setup recurring payment"));
                     }
                 };
