@@ -1660,6 +1660,8 @@ pub async fn perform_hybrid_routing_if_enabled(
         if state.conf.open_router.static_routing_enabled
             && state.conf.open_router.shadow_routing_enabled
         {
+            use router_env::tracing::Instrument;
+
             let payment_id = payment_dsl_input
                 .payment_attempt
                 .payment_id
@@ -1670,19 +1672,28 @@ pub async fn perform_hybrid_routing_if_enabled(
             let shadow_backend_input = backend_input.clone();
             let shadow_fallback = fallback_config.to_vec();
             let shadow_static_connectors = static_connectors.to_vec();
-
-            tokio::spawn(async move {
-                utils::shadow_decision_engine_routing(
-                    shadow_state,
-                    shadow_profile,
-                    payment_id,
-                    shadow_backend_input,
-                    shadow_fallback,
-                    shadow_static_connectors,
-                    static_is_volume_split,
-                )
-                .await;
-            });
+            let shadow_span = router_env::tracing::info_span!(
+                "shadow_decision_engine_routing",
+                de_shadow = true,
+                profile_id = %business_profile.get_id().get_string_repr(),
+                merchant_id = %business_profile.merchant_id.get_string_repr(),
+                payment_id = %payment_id,
+            );
+            tokio::spawn(
+                async move {
+                    utils::shadow_decision_engine_routing(
+                        shadow_state,
+                        shadow_profile,
+                        payment_id,
+                        shadow_backend_input,
+                        shadow_fallback,
+                        shadow_static_connectors,
+                        static_is_volume_split,
+                    )
+                    .await;
+                }
+                .instrument(shadow_span),
+            );
         }
 
         (static_connectors.to_vec(), static_approach)
