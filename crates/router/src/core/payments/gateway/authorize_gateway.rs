@@ -148,7 +148,9 @@ where
                         // back into `Ok(RouterData)` carrying `response: Err(ErrorResponse)` by
                         // the wrapper, not here — see `ucs_logging_wrapper_granular`.
                         Err(report) => {
-                            return Err(report.attach_printable("Failed to charge recurring payment"));
+                            return Err(
+                                report.attach_printable("Failed to charge recurring payment")
+                            );
                         }
                     };
 
