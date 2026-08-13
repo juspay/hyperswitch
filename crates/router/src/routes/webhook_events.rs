@@ -45,16 +45,12 @@ pub async fn list_initial_webhook_delivery_attempts(
                 request_internal.constraints,
             )
         },
-        auth::auth_type(
-            &auth::AdminApiAuth,
-            &auth::JWTAuthMerchantFromRoute {
-                merchant_id,
-                required_permission: Permission::MerchantWebhookEventRead,
-                allow_connected: true,
-                allow_platform: true,
-            },
-            req.headers(),
-        ),
+        &auth::JWTAuthMerchantFromRoute {
+            merchant_id,
+            required_permission: Permission::MerchantWebhookEventRead,
+            allow_connected: true,
+            allow_platform: true,
+        },
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -144,16 +140,12 @@ pub async fn list_webhook_delivery_attempts(
                 request_internal.initial_attempt_id,
             )
         },
-        auth::auth_type(
-            &auth::AdminApiAuth,
-            &auth::JWTAuthMerchantFromRoute {
-                merchant_id,
-                required_permission: Permission::MerchantWebhookEventRead,
-                allow_connected: true,
-                allow_platform: true,
-            },
-            req.headers(),
-        ),
+        &auth::JWTAuthMerchantFromRoute {
+            merchant_id,
+            required_permission: Permission::MerchantWebhookEventRead,
+            allow_connected: true,
+            allow_platform: true,
+        },
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -186,16 +178,12 @@ pub async fn retry_webhook_delivery_attempt(
                 request_internal.event_id,
             )
         },
-        auth::auth_type(
-            &auth::AdminApiAuth,
-            &auth::JWTAuthMerchantFromRoute {
-                merchant_id,
-                required_permission: Permission::MerchantWebhookEventWrite,
-                allow_connected: true,
-                allow_platform: true,
-            },
-            req.headers(),
-        ),
+        &auth::JWTAuthMerchantFromRoute {
+            merchant_id,
+            required_permission: Permission::MerchantWebhookEventWrite,
+            allow_connected: true,
+            allow_platform: true,
+        },
         api_locking::LockAction::NotApplicable,
     ))
     .await
