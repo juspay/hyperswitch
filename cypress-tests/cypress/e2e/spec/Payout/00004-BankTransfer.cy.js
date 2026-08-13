@@ -305,7 +305,7 @@ describe("[Payout] [Bank Transfer - Open Banking]", () => {
     context(
       "[Payout] [Bank transfer - Open Banking] Invalid Billing Descriptor",
       () => {
-        let shouldContinue = true;
+        const shouldContinue = true;
 
         beforeEach(function () {
           if (!shouldContinue) {
