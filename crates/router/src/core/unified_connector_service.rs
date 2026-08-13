@@ -22,6 +22,7 @@ use external_services::grpc_client::{
     LineageIds,
 };
 use hyperswitch_connectors::utils::CardData;
+use hyperswitch_interfaces::unified_connector_service::transformers::ConnectorErrorInner;
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccountTypeDetails;
 use hyperswitch_domain_models::{
@@ -2998,6 +2999,31 @@ where
                 .connector_http_status_code
                 .unwrap_or(200);
 
+            // Connector errors arrive as Ok(router_data) with response = Err(ErrorResponse).
+            // The handler converted the UCS ConnectorError into an ErrorResponse,
+            // so we reconstruct it here for the kill switch to observe.
+            match (&updated_router_data.response, get_flow_name::<T>()) {
+                (Err(error_response), Ok(flow_name)) => {
+                    kill_switch::record_failure(
+                        state,
+                        kill_switch::UcsFailureContext {
+                            merchant_id: merchant_id.get_string_repr(),
+                            connector_name: &connector_name,
+                            flow_name: &flow_name,
+                            payment_id: &payment_id,
+                            payment_method: updated_router_data.payment_method,
+                            payment_method_type: updated_router_data.payment_method_type,
+                        },
+                        execution_mode,
+                        &UnifiedConnectorServiceError::ConnectorError(Box::new(
+                            ConnectorErrorInner::from(error_response),
+                        )),
+                    )
+                    .await;
+                }
+                _ => {}
+            }
+
             // Log the actual gRPC response with masking
             let grpc_response_body = hyperswitch_masking::masked_serialize(&grpc_response)
                 .unwrap_or_else(
@@ -3130,6 +3156,31 @@ where
             let status = updated_router_data
                 .connector_http_status_code
                 .unwrap_or(200);
+
+            // Connector errors arrive as Ok(router_data) with response = Err(ErrorResponse).
+            // The gateway handler converted the UCS ConnectorError into an ErrorResponse,
+            // so we reconstruct it here for the kill switch to observe.
+            match (&updated_router_data.response, get_flow_name::<T>()) {
+                (Err(error_response), Ok(flow_name)) => {
+                    kill_switch::record_failure(
+                        state,
+                        kill_switch::UcsFailureContext {
+                            merchant_id: merchant_id.get_string_repr(),
+                            connector_name: &connector_name,
+                            flow_name: &flow_name,
+                            payment_id: &payment_id,
+                            payment_method,
+                            payment_method_type,
+                        },
+                        execution_mode,
+                        &UnifiedConnectorServiceError::ConnectorError(Box::new(
+                            ConnectorErrorInner::from(error_response),
+                        )),
+                    )
+                    .await;
+                }
+                _ => {}
+            }
 
             // Log the actual gRPC response
             let grpc_response_body = hyperswitch_masking::masked_serialize(&grpc_response)
