@@ -816,6 +816,7 @@ pub mod encryptable_exact {
         }
     }
 
+    /// Serialize both halves — the decrypted value AND the ciphertext.
     pub fn serialize<T, S>(value: &Encryptable<T>, serializer: S) -> Result<S::Ok, S::Error>
     where
         T: Clone + Serialize,
@@ -824,6 +825,7 @@ pub mod encryptable_exact {
         Halves::of(value).serialize(serializer)
     }
 
+    /// Rebuild from both halves, so the ciphertext survives the round trip.
     pub fn deserialize<'de, T, D>(deserializer: D) -> Result<Encryptable<T>, D::Error>
     where
         T: Clone + serde::de::DeserializeOwned,
@@ -838,6 +840,7 @@ pub mod encryptable_exact {
 
         use super::{Encryptable, Halves};
 
+        /// Serialize both halves of an optional value.
         pub fn serialize<T, S>(
             value: &Option<Encryptable<T>>,
             serializer: S,
@@ -849,6 +852,7 @@ pub mod encryptable_exact {
             value.as_ref().map(Halves::of).serialize(serializer)
         }
 
+        /// Rebuild an optional value from both halves.
         pub fn deserialize<'de, T, D>(deserializer: D) -> Result<Option<Encryptable<T>>, D::Error>
         where
             T: Clone + serde::de::DeserializeOwned,

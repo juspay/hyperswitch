@@ -1080,7 +1080,44 @@ where
                     recorded.map_body(|_head, body| EitherBody::left(body))
                 } else {
                     // Correlation rides the ingress root span via DejaCorrelationLayer.
-                    let response_result = service.call(request).await;
+                    //
+                    // A replayed request is wrapped so that a `Substitute`
+                    // boundary's fail-stop cannot take the connection down with
+                    // it. The fail-stop itself is correct and stays a panic: a
+                    // Substitute miss must neither run the real boundary (that
+                    // would do live I/O during a replay) nor serve a stale
+                    // recorded value (that would lie to every downstream
+                    // boundary consuming it). What was wrong is where it landed.
+                    //
+                    // deja's model assumed the host isolated a per-request
+                    // panic. It does not — there is no `catch_unwind` anywhere
+                    // in actix-web 4.11, actix-http 3.11 or actix-server 2.6 —
+                    // so the unwind escaped the handler, killed the connection
+                    // task, and no response was ever written. On run-0812 that
+                    // is precisely what 8 of 73 correlations looked like from
+                    // outside: `server closed the connection without writing a
+                    // response (0 bytes read)`. The fail-stop was working and
+                    // its reason died with the connection.
+                    //
+                    // Containing it here turns that into a 5xx whose body
+                    // carries the fail-stop message, so the run scores a NAMED
+                    // divergence instead of an anonymous transport fault. Only
+                    // deja's own fail-stop is caught (it is recognised by
+                    // `FAIL_STOP_SENTINEL`); any other panic is re-raised with
+                    // its payload intact, and outside replay the wrapper is a
+                    // pure passthrough.
+                    //
+                    // It does NOT let the correlation continue past the miss —
+                    // resuming would require fabricating a value, which is the
+                    // lie the fail-stop exists to prevent. The remaining calls
+                    // of a stopped request stay omitted, by design.
+                    let response_result =
+                        match deja::catch_fail_stop_async(service.call(request)).await {
+                            Ok(result) => result,
+                            Err(fail_stop) => Err(actix_web::error::ErrorInternalServerError(
+                                fail_stop.into_message(),
+                            )),
+                        };
                     let response = response_result?;
                     response.map_body(|_head, body| {
                         EitherBody::right(boundary::RecordingBody::passthrough(body))

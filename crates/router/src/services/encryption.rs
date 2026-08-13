@@ -32,6 +32,63 @@ pub enum EncryptionAlgorithm {
     A256GCM,
 }
 
+/// deja: the JWE is the single source of non-determinism in every request body
+/// built from it. josekit generates the content-encryption key AND the AEAD IV
+/// inside `jwe::serialize_compact` (`jwe_context.rs:207` and `:231`), and only
+/// the CEK is reachable — `JweEncrypter::compute_content_encryption_key` is a
+/// public hook, while the IV is an unconditional `util::random_bytes` call with
+/// no parameter and no hook. So the nonce-level trick that keeps real AES
+/// running for `GcmAes256` (`common_utils::crypto::NonceSequence::new`) cannot
+/// work here; the reproducible unit has to be the whole JWE.
+///
+/// Recording the returned compact JWE and replaying it makes every downstream
+/// request body byte-identical, which is what the lookup needs: `args_hash` is
+/// part of the lookup key at EVERY rank, so a body that differs by one random
+/// byte misses at every rank. On run-0812 that miss hit `/cards/add`, and
+/// because `http_outgoing` is a Substitute boundary the miss fail-stopped and
+/// panicked the worker — 8 correlations dead and 178 of 182 omitted calls
+/// cascading from them.
+///
+/// Instrumented HERE, at the one function all six call sites share (the v1 and
+/// v2 vault bodies, confirm-time card data, and three network-tokenization
+/// paths), rather than at those call sites — the same chokepoint argument that
+/// put the in-memory cache seam on `Cache::get_val`.
+///
+/// The input is stable across a replay: `jws_sign_payload` signs with
+/// `jws::RS256`, which is RSASSA-PKCS1-v1_5 and therefore deterministic, so the
+/// payload reaching this function is byte-identical to the recording's.
+///
+/// `public_key` is deliberately NOT part of the identity. It is deployment
+/// configuration, and including it would reintroduce a miss on exactly the
+/// environments whose keys differ from the recorder's — the failure this
+/// instrumentation exists to remove.
+///
+/// The cost, stated: real RSA/AES no longer runs on replay for these calls, so a
+/// candidate that broke its JWE construction is not caught at this boundary.
+#[cfg_attr(
+    feature = "deja",
+    deja::id(
+        component = "router::services::encryption",
+        operation = "encrypt_jwe",
+        codec = ResultOkCodec,
+        // The payload is a DIGEST, never the bytes. What arrives here is a JWS
+        // compact serialization — signed, not encrypted — so its middle segment
+        // is base64 of the cleartext card object. Recording it verbatim would put
+        // PAN/CVV on a tape that ships to Kafka and S3 and is read by replay
+        // tooling, which is why every value of this kind in this codebase lives
+        // behind `Secret`/`StrongSecret`. A digest preserves everything the
+        // lookup needs — two different payloads address two different recorded
+        // values — and carries none of the secret. It is also what belongs in an
+        // args hash regardless: the alternative renders several kilobytes as a
+        // JSON array of integers on every call.
+        args = serde_json::json!({
+            "algorithm": algorithm.as_ref(),
+            "key_id": key_id,
+            "payload_blake3": blake3::hash(payload).to_hex().as_str(),
+            "payload_len": payload.len(),
+        }),
+    )
+)]
 pub async fn encrypt_jwe(
     payload: &[u8],
     public_key: impl AsRef<[u8]>,

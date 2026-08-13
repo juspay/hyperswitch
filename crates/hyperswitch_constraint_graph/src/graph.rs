@@ -77,7 +77,7 @@ impl<V: ValueNode> From<ConstraintGraphWire<V>> for ConstraintGraph<V> {
             .nodes
             .iter()
             .filter_map(|(node_id, node)| match &node.node_type {
-                crate::types::NodeType::Value(value) => Some((value.clone(), node_id)),
+                NodeType::Value(value) => Some((value.clone(), node_id)),
                 _ => None,
             })
             .collect();

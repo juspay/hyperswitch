@@ -160,13 +160,28 @@ where
         replay = Substitute,
         effect = Http,
         codec = deja::codec::ResultCodec::<R, errors::KeyManagerClientError>,
-        // The transient request types hold raw StrongSecret bytes and are
-        // deliberately non-serde; their own Debug masking applies here. The
-        // RESPONSE — what substitution returns — is captured in full.
+        // Identity is the REQUEST BODY, read through `ConvertRaw::wire_image`.
+        //
+        // This used to be `format!("{request_body:?}")`, and that made masking
+        // load-bearing for capture identity. `EncryptDataRequest`'s data is a
+        // `DecryptedData(StrongSecret<Vec<u8>>)` whose `Debug` prints `***`, and
+        // `Identifier::Merchant(m_1)` is the same for every column of a
+        // merchant. So encrypting a customer's name, email and phone in one flow
+        // emitted three `km` crossings with byte-identical args and therefore one
+        // `args_hash`. Replay could then separate them only by call order, and
+        // any reordering — a `futures::join`, a candidate that encrypts lazily —
+        // substitutes another field's ciphertext, which is persisted and later
+        // decrypts to the wrong plaintext. The decrypt direction had the same
+        // collision with no divergence signal at all: a run that passes and is
+        // wrong.
+        //
+        // Masking is a DISPLAY concern. A capture that inherits it captures the
+        // mask, not the value, and the tape is already sensitive infrastructure
+        // handled as such — so the boundary records what actually crosses it.
         args = serde_json::json!({
             "method": method.as_str(),
             "endpoint": endpoint,
-            "request": format!("{request_body:?}"),
+            "request": request_body.wire_image(),
         }),
     )
 )]
@@ -258,6 +273,42 @@ pub trait ConvertRaw {
     type Output: serde::Serialize;
     /// Function to convert the raw data to the required format for encryption service request
     fn convert_raw(self) -> Result<Self::Output, errors::KeyManagerClientError>;
+    /// The JSON body this request becomes on the wire, read WITHOUT consuming it.
+    ///
+    /// `convert_raw` takes `self`, so anything that must observe a request and
+    /// still let it be sent — the keymanager boundary capture, which runs before
+    /// the call — cannot ask it what is being sent. This is the by-reference
+    /// answer to the same question, and it is what gives a keymanager crossing
+    /// an identity that distinguishes one encrypted column from another.
+    ///
+    /// The two must not drift, so each implementation derives both from ONE
+    /// mapping: the blanket impl below is `Serialize` on either side, and each
+    /// transient impl builds its wire request through a single `to_wire`.
+    fn wire_image(&self) -> serde_json::Value;
+}
+
+/// `to_value` at a capture site. A serialization failure NAMES itself instead of
+/// collapsing to a value every other failure would share — which is the same
+/// anonymous-collision defect that made a masked `Debug` unusable as identity.
+fn capture_json<T: serde::Serialize + ?Sized>(value: &T) -> serde_json::Value {
+    serde_json::to_value(value).unwrap_or_else(|error| {
+        serde_json::json!({
+            "capture_failed": error.to_string(),
+            "type": std::any::type_name::<T>(),
+        })
+    })
+}
+
+/// The text form keymanager expects for an already-encrypted payload: the bytes
+/// as UTF-8 when they are text, otherwise `{version}:{base64}`.
+fn encrypted_payload_text(bytes: &[u8]) -> String {
+    match std::str::from_utf8(bytes) {
+        Ok(text) => text.to_owned(),
+        Err(_) => format!(
+            "{DEFAULT_ENCRYPTION_VERSION}:{}",
+            BASE64_ENGINE.encode(bytes)
+        ),
+    }
 }
 
 impl<T: serde::Serialize> ConvertRaw for T {
@@ -265,46 +316,63 @@ impl<T: serde::Serialize> ConvertRaw for T {
     fn convert_raw(self) -> Result<Self::Output, errors::KeyManagerClientError> {
         Ok(self)
     }
+    fn wire_image(&self) -> serde_json::Value {
+        capture_json(self)
+    }
+}
+
+impl TransientDecryptDataRequest {
+    /// The wire request this transient form becomes.
+    ///
+    /// By reference so `convert_raw` and `wire_image` share one definition. It
+    /// costs a clone of the identifier and the payload on the send path; a
+    /// keymanager call is an HTTP round trip, so that is far below noise, and it
+    /// buys the guarantee that what the tape records is what was sent.
+    fn to_wire(&self) -> DecryptDataRequest {
+        DecryptDataRequest {
+            identifier: self.identifier.clone(),
+            data: StrongSecret::new(encrypted_payload_text(self.data.peek())),
+        }
+    }
 }
 
 impl ConvertRaw for TransientDecryptDataRequest {
     type Output = DecryptDataRequest;
     fn convert_raw(self) -> Result<Self::Output, errors::KeyManagerClientError> {
-        let data = match String::from_utf8(self.data.peek().clone()) {
-            Ok(data) => data,
-            Err(_) => {
-                let data = BASE64_ENGINE.encode(self.data.peek().clone());
-                format!("{DEFAULT_ENCRYPTION_VERSION}:{data}")
-            }
-        };
-        Ok(DecryptDataRequest {
-            identifier: self.identifier,
-            data: StrongSecret::new(data),
-        })
+        Ok(self.to_wire())
+    }
+    fn wire_image(&self) -> serde_json::Value {
+        capture_json(&self.to_wire())
+    }
+}
+
+impl TransientBatchDecryptDataRequest {
+    /// The wire request this transient form becomes. See
+    /// [`TransientDecryptDataRequest::to_wire`].
+    fn to_wire(&self) -> BatchDecryptDataRequest {
+        BatchDecryptDataRequest {
+            identifier: self.identifier.clone(),
+            data: self
+                .data
+                .iter()
+                .map(|(key, value)| {
+                    (
+                        key.to_owned(),
+                        StrongSecret::new(encrypted_payload_text(value.peek())),
+                    )
+                })
+                .collect(),
+        }
     }
 }
 
 impl ConvertRaw for TransientBatchDecryptDataRequest {
     type Output = BatchDecryptDataRequest;
     fn convert_raw(self) -> Result<Self::Output, errors::KeyManagerClientError> {
-        let data = self
-            .data
-            .iter()
-            .map(|(k, v)| {
-                let value = match String::from_utf8(v.peek().clone()) {
-                    Ok(data) => data,
-                    Err(_) => {
-                        let data = BASE64_ENGINE.encode(v.peek().clone());
-                        format!("{DEFAULT_ENCRYPTION_VERSION}:{data}")
-                    }
-                };
-                (k.to_owned(), StrongSecret::new(value))
-            })
-            .collect();
-        Ok(BatchDecryptDataRequest {
-            data,
-            identifier: self.identifier,
-        })
+        Ok(self.to_wire())
+    }
+    fn wire_image(&self) -> serde_json::Value {
+        capture_json(&self.to_wire())
     }
 }
 

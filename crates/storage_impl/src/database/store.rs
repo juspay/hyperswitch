@@ -194,7 +194,7 @@ pub async fn diesel_make_pg_pool(
     if !deja::runtime_mode_is_disabled() {
         use async_bb8_diesel::AsyncConnection;
         use diesel::RunQueryDsl;
-        if let Ok(mut connection) = pool.get().await {
+        if let Ok(connection) = pool.get().await {
             let rows = connection
                 .run(|conn| {
                     diesel::sql_query(deja::TABLE_IDENTITY_SQL)
