@@ -56,5 +56,13 @@ export const connectorDetails = {
         },
       },
     },
+    InteracRetrieve: {
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
+        },
+      },
+    },
   },
 };

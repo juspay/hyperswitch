@@ -634,10 +634,135 @@ describe("Bank Redirect tests", () => {
           cy.task("cli_log", "Skipping step: Retrieve Payment");
           return;
         }
-        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+        const bankRedirectDetails = getConnectorDetails(
+          globalState.get("connectorId")
+        )["bank_redirect_pm"];
+        const retrieveData = bankRedirectDetails["InteracRetrieve"];
+        const confirmData = bankRedirectDetails["Interac"];
+        const data = retrieveData || confirmData;
+        const expectedIntentStatus = retrieveData?.Response?.body?.status;
+        cy.retrievePaymentCallTest({
+          globalState,
+          data,
+          expectedIntentStatus,
+        });
+      });
+    });
+  });
+
+  context("Interac refund integrity flow test", () => {
+    it("Create Payment Intent -> Confirm Payment -> Handle Bank Redirect Redirection -> Retrieve Payment -> Refund Payment -> Sync Refund Payment", () => {
+      let shouldContinue = true;
+      const bankRedirectDetails = getConnectorDetails(
+        globalState.get("connectorId")
+      )["bank_redirect_pm"];
+      const refundData = bankRedirectDetails["InteracRefund"];
+
+      if (!refundData) {
+        cy.task(
+          "cli_log",
+          "Skipping Interac refund integrity flow: connector has no InteracRefund config"
+        );
+        return;
+      }
+
+      cy.step("Create Payment Intent", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
           "bank_redirect_pm"
-        ]["Interac"];
-        cy.retrievePaymentCallTest({ globalState, data: confirmData });
+        ]["PaymentIntent"]("Interac");
+        cy.createPaymentIntentTest(
+          fixtures.createPaymentBody,
+          data,
+          "three_ds",
+          "automatic",
+          globalState
+        );
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("List Merchant Payment Methods", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: List Merchant Payment Methods");
+          return;
+        }
+        cy.paymentMethodsCallTest(globalState);
+      });
+
+      cy.step("Confirm Payment", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Confirm Payment");
+          return;
+        }
+        const confirmData = bankRedirectDetails["Interac"];
+        cy.confirmBankRedirectCallTest(
+          fixtures.confirmBody,
+          confirmData,
+          true,
+          globalState
+        );
+        if (!utils.should_continue_further(confirmData)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("Handle Bank Redirect Redirection", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Handle Bank Redirect Redirection");
+          return;
+        }
+        const expected_redirection = fixtures.confirmBody["return_url"];
+        const payment_method_type = globalState.get("paymentMethodType");
+        cy.handleBankRedirectRedirection(
+          globalState,
+          payment_method_type,
+          expected_redirection
+        );
+      });
+
+      cy.step("Retrieve Payment", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Retrieve Payment");
+          return;
+        }
+        const retrieveData =
+          bankRedirectDetails["InteracRetrieve"] ||
+          bankRedirectDetails["Interac"];
+        const expectedIntentStatus =
+          bankRedirectDetails["InteracRetrieve"]?.Response?.body?.status;
+        cy.retrievePaymentCallTest({
+          globalState,
+          data: retrieveData,
+          expectedIntentStatus,
+        });
+      });
+
+      cy.step("Refund Payment", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Refund Payment");
+          return;
+        }
+        cy.refundCallTest(fixtures.refundBody, refundData, globalState);
+        if (!utils.should_continue_further(refundData)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("Sync Refund Payment", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Sync Refund Payment");
+          return;
+        }
+        const syncRefundData = bankRedirectDetails["InteracRefundSync"];
+        if (!syncRefundData) {
+          cy.task(
+            "cli_log",
+            "Skipping step: Sync Refund Payment - connector has no InteracRefundSync config"
+          );
+          return;
+        }
+        cy.syncRefundCallTest(syncRefundData, globalState);
       });
     });
   });

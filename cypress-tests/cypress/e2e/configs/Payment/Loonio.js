@@ -56,5 +56,32 @@ export const connectorDetails = {
         },
       },
     },
+    InteracRetrieve: {
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    InteracRefund: {
+      Request: {
+        amount: 100,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    InteracRefundSync: {
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
   },
 };
