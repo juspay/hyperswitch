@@ -666,6 +666,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 payconex::transformers::PayconexAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            api_enums::Connector::Citigate => {
+                citigate::transformers::CitigateAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Finix => {
                 finix::transformers::FinixAuthType::try_from(self.auth_type)?;
                 Ok(())

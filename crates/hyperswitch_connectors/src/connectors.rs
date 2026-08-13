@@ -25,6 +25,7 @@ pub mod celero;
 pub mod chargebee;
 pub mod checkbook;
 pub mod checkout;
+pub mod citigate;
 pub mod coinbase;
 pub mod coingate;
 pub mod cryptopay;
@@ -158,8 +159,8 @@ pub use self::{
     bankofamerica::Bankofamerica, barclaycard::Barclaycard, billwerk::Billwerk, bitpay::Bitpay,
     blackhawknetwork::Blackhawknetwork, bluesnap::Bluesnap, boku::Boku, braintree::Braintree,
     breadpay::Breadpay, calida::Calida, cashtocode::Cashtocode, celero::Celero,
-    chargebee::Chargebee, checkbook::Checkbook, checkout::Checkout, coinbase::Coinbase,
-    coingate::Coingate, cryptopay::Cryptopay, ctp_mastercard::CtpMastercard,
+    chargebee::Chargebee, checkbook::Checkbook, checkout::Checkout, citigate::Citigate,
+    coinbase::Coinbase, coingate::Coingate, cryptopay::Cryptopay, ctp_mastercard::CtpMastercard,
     custombilling::Custombilling, cybersource::Cybersource,
     cybersourcedecisionmanager::Cybersourcedecisionmanager, datatrans::Datatrans,
     deutschebank::Deutschebank, digitalvirgo::Digitalvirgo, dlocal::Dlocal, dwolla::Dwolla,
