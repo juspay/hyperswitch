@@ -2988,8 +2988,9 @@ where
     );
 
     // Execute UCS function and measure timing
+    // Box::pin the handler to reduce the monomorphized future size and prevent stack overflow
     let start_time = Instant::now();
-    let result = handler(router_data, grpc_request, grpc_header).await;
+    let result = Box::pin(handler(router_data, grpc_request, grpc_header)).await;
     let external_latency = start_time.elapsed().as_millis();
 
     // Create and emit connector event after UCS call
@@ -3145,8 +3146,9 @@ where
     );
 
     // Execute UCS function and measure timing
+    // Box::pin the handler to reduce the monomorphized future size and prevent stack overflow
     let start_time = Instant::now();
-    let result = handler(router_data, grpc_request, grpc_header).await;
+    let result = Box::pin(handler(router_data, grpc_request, grpc_header)).await;
     let external_latency = start_time.elapsed().as_millis();
 
     // Create and emit connector event after UCS call
