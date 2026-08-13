@@ -5617,31 +5617,6 @@ pub async fn list_customer_payment_methods_core(
     customer_id: &id_type::GlobalCustomerId,
     include_new: bool,
 ) -> RouterResult<Vec<payment_methods::CustomerPaymentMethodResponseItem>> {
-    let result = common_utils::metrics::utils::record_operation_time(
-        list_customer_payment_methods_core_inner(state, provider, customer_id, include_new),
-        &metrics::PAYMENT_METHOD_OPERATION_DURATION,
-        router_env::metric_attributes!(("operation", "list")),
-    )
-    .await;
-
-    metrics::PAYMENT_METHOD_OPS_COUNT.add(
-        1,
-        router_env::metric_attributes!(
-            ("operation", "list"),
-            ("outcome", if result.is_ok() { "success" } else { "error" })
-        ),
-    );
-
-    result
-}
-
-#[cfg(all(feature = "v2", feature = "oltp"))]
-async fn list_customer_payment_methods_core_inner(
-    state: &SessionState,
-    provider: &domain::Provider,
-    customer_id: &id_type::GlobalCustomerId,
-    include_new: bool,
-) -> RouterResult<Vec<payment_methods::CustomerPaymentMethodResponseItem>> {
     let db = &*state.store;
     let statuses = if include_new {
         vec![
