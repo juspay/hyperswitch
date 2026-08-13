@@ -48,6 +48,7 @@ pub trait CustomerPaymentMethodsFetcher: Send + Sync {
         state: &routes::SessionState,
         platform: &domain::Platform,
         payment_intent: Option<&storage::PaymentIntent>,
+        payment_attempt: Option<&storage::PaymentAttempt>,
         customer: &domain::Customer,
         dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> errors::RouterResult<Vec<CustomerPaymentMethodForClient>>;
@@ -94,6 +95,7 @@ impl CustomerPaymentMethodsFetcher for DbCustomerPaymentMethodsFetcher {
         state: &routes::SessionState,
         platform: &domain::Platform,
         payment_intent: Option<&storage::PaymentIntent>,
+        payment_attempt: Option<&storage::PaymentAttempt>,
         customer: &domain::Customer,
         dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> errors::RouterResult<Vec<CustomerPaymentMethodForClient>> {
@@ -101,6 +103,7 @@ impl CustomerPaymentMethodsFetcher for DbCustomerPaymentMethodsFetcher {
             state,
             platform.clone(),
             payment_intent.cloned(),
+            payment_attempt.cloned(),
             customer.get_id(),
             None, // limit
             dimensions,
@@ -180,6 +183,7 @@ impl CustomerPaymentMethodsFetcher for ModularCustomerPaymentMethodsFetcher {
         state: &routes::SessionState,
         platform: &domain::Platform,
         _payment_intent: Option<&storage::PaymentIntent>,
+        _payment_attempt: Option<&storage::PaymentAttempt>,
         customer: &domain::Customer,
         dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> errors::RouterResult<Vec<CustomerPaymentMethodForClient>> {
@@ -527,6 +531,7 @@ async fn fetch_customer_payment_methods(
                     state,
                     platform,
                     Some(&payment_intent_context.payment_intent),
+                    Some(&payment_intent_context.payment_attempt),
                     customer,
                     &dimensions,
                 )
@@ -538,6 +543,7 @@ async fn fetch_customer_payment_methods(
                         state,
                         platform,
                         Some(&payment_intent_context.payment_intent),
+                        Some(&payment_intent_context.payment_attempt),
                         customer,
                         &dimensions,
                     )

@@ -5878,6 +5878,7 @@ pub async fn do_list_customer_pm_fetch_customer_if_not_passed(
             &state,
             platform.clone(),
             None,
+            None,
             customer_id,
             limit,
             &dimensions,
@@ -5889,6 +5890,24 @@ pub async fn do_list_customer_pm_fetch_customer_if_not_passed(
             helpers::verify_payment_intent_time_and_client_secret(&state, &platform, cloned_secret)
                 .await?;
 
+        let payment_attempt = payment_intent
+            .as_ref()
+            .async_map(|payment_intent| async {
+                state
+                    .store
+                    .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
+                        &payment_intent.payment_id,
+                        &payment_intent.processor_merchant_id,
+                        &payment_intent.active_attempt.get_id(),
+                        platform.get_processor().get_account().storage_scheme,
+                        platform.get_processor().get_key_store(),
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::PaymentNotFound)
+            })
+            .await
+            .transpose()?;
+
         match payment_intent
             .as_ref()
             .and_then(|intent| intent.customer_id.to_owned())
@@ -5898,6 +5917,7 @@ pub async fn do_list_customer_pm_fetch_customer_if_not_passed(
                     &state,
                     platform,
                     payment_intent,
+                    payment_attempt,
                     &customer_id,
                     limit,
                     &dimensions,
@@ -5963,6 +5983,7 @@ pub async fn list_customer_payment_method(
     state: &routes::SessionState,
     platform: domain::Platform,
     payment_intent: Option<storage::PaymentIntent>,
+    payment_attempt: Option<storage::PaymentAttempt>,
     customer_id: &id_type::CustomerId,
     limit: Option<i64>,
     dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
@@ -6058,33 +6079,14 @@ pub async fn list_customer_payment_method(
         None => None,
     };
 
-    // Fetch the payment attempt to extract pre_routing_results used for bank redirect MCA validation
-    let pre_routing_results = {
-        let payment_attempt = payment_intent
-            .as_ref()
-            .async_map(|pi| async {
-                db.find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
-                    &pi.payment_id,
-                    &pi.processor_merchant_id,
-                    &pi.active_attempt.get_id(),
-                    platform.get_processor().get_account().storage_scheme,
-                    platform.get_processor().get_key_store(),
-                )
-                .await
-                .change_context(errors::ApiErrorResponse::PaymentNotFound)
-            })
-            .await
-            .transpose()?;
-
-        payment_attempt
-            .as_ref()
-            .and_then(|pa| pa.straight_through_algorithm.clone())
-            .and_then(|val| {
-                val.parse_value::<storage::PaymentRoutingInfo>("PaymentRoutingInfo")
-                    .ok()
-            })
-            .and_then(|routing_info| routing_info.pre_routing_results)
-    };
+    let pre_routing_results = payment_attempt
+        .as_ref()
+        .and_then(|pa| pa.straight_through_algorithm.clone())
+        .and_then(|val| {
+            val.parse_value::<storage::PaymentRoutingInfo>("PaymentRoutingInfo")
+                .ok()
+        })
+        .and_then(|routing_info| routing_info.pre_routing_results);
 
     for pm in resp.into_iter() {
         let parent_payment_method_token = generate_id(consts::ID_LENGTH, "token");
@@ -6242,6 +6244,7 @@ pub async fn list_customer_payment_method(
 
     Box::pin(perform_surcharge_ops(
         payment_intent,
+        payment_attempt,
         state,
         platform,
         business_profile,
@@ -6388,28 +6391,12 @@ pub async fn get_pm_list_context(
 #[cfg(feature = "v1")]
 async fn perform_surcharge_ops(
     payment_intent: Option<storage::PaymentIntent>,
+    payment_attempt: Option<storage::PaymentAttempt>,
     state: &routes::SessionState,
     platform: domain::Platform,
     business_profile: Option<Profile>,
     response: &mut api::CustomerPaymentMethodsListResponse,
 ) -> Result<(), error_stack::Report<errors::ApiErrorResponse>> {
-    let payment_attempt = payment_intent
-        .as_ref()
-        .async_map(|payment_intent| async {
-            state
-                .store
-                .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
-                    payment_intent.get_id(),
-                    platform.get_processor().get_account().get_id(),
-                    &payment_intent.active_attempt.get_id(),
-                    platform.get_processor().get_account().storage_scheme,
-                    platform.get_processor().get_key_store(),
-                )
-                .await
-                .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
-        })
-        .await
-        .transpose()?;
     if let Some((payment_attempt, payment_intent, business_profile)) = payment_attempt
         .zip(payment_intent)
         .zip(business_profile)
