@@ -28,7 +28,7 @@ impl MandateDbExt for Mandate {
         let mut filter = diesel_models::list::into_boxed_list(
             <Self as HasTable>::table()
                 .filter(dsl::merchant_id.eq(merchant_id.to_owned()))
-                .order(dsl::created_at.desc())
+                .order(dsl::created_at.desc()),
         );
 
         if let Some(created_time) = mandate_list_constraints.created_time {
