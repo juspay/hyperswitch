@@ -127,10 +127,6 @@ pub async fn payments_create(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, req_state| {
-            let metrics_flow = req
-                .confirm
-                .is_some_and(|confirm| confirm)
-                .then_some(super::metrics::PaymentMetricsFlow::PaymentsConfirm);
             authorize_verify_select::<_>(
                 payments::PaymentCreate,
                 state,
@@ -140,7 +136,6 @@ pub async fn payments_create(
                 header_payload.clone(),
                 req,
                 api::AuthFlow::Client,
-                metrics_flow,
             )
         },
         auth_type,
@@ -1092,7 +1087,6 @@ pub async fn payments_confirm(
                 header_payload.clone(),
                 req,
                 auth_flow,
-                Some(super::metrics::PaymentMetricsFlow::PaymentsConfirm),
             )
         },
         &*auth_type,
@@ -2514,7 +2508,6 @@ async fn authorize_verify_select<Op>(
     header_payload: HeaderPayload,
     req: api_models::payments::PaymentsRequest,
     auth_flow: api::AuthFlow,
-    metrics_flow: Option<super::metrics::PaymentMetricsFlow>,
 ) -> errors::RouterResponse<api_models::payments::PaymentsResponse>
 where
     Op: Sync
@@ -2537,6 +2530,8 @@ where
     // Thus the flow can be generated just before calling the connector instead of explicitly passing it here.
 
     let metrics_start = std::time::Instant::now();
+    let is_confirm_flow =
+        req.confirm.is_some_and(|confirm| confirm) || format!("{operation:?}") == "PaymentConfirm";
     let should_call_proxy_for_payments_core =
         helpers::should_call_proxy_for_payments_core(req.clone());
 
@@ -2552,17 +2547,9 @@ where
             )
         });
 
-    let confirm_path = if should_call_proxy_for_payments_core {
-        super::metrics::ConfirmPath::NetworkTransactionProxy
-    } else if should_call_external_vault_proxy {
-        super::metrics::ConfirmPath::ExternalVaultProxy
-    } else {
-        super::metrics::ConfirmPath::Standard
-    };
-
     let mut state = state;
     let metrics_context =
-        if metrics_flow.is_some() {
+        if is_confirm_flow {
             let dimensions = dimension_state::Dimensions::new()
                 .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
                 .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
@@ -2572,7 +2559,6 @@ where
                 super::metrics::MerchantMode::from_modular_enabled(
                     feature_config.is_payment_method_modular_allowed,
                 ),
-                confirm_path,
             );
             state.payment_metrics_context = Some(context);
             state.store.set_key_manager_state(

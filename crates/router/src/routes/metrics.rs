@@ -3,7 +3,7 @@ pub mod request;
 
 use std::time::Duration;
 
-use router_env::{counter_metric, global_meter, histogram_metric_f64, metric_attributes};
+use router_env::{counter_metric, global_meter, histogram_metric_f64, metric_attributes, Flow};
 
 global_meter!(GLOBAL_METER, "ROUTER_API");
 
@@ -43,17 +43,8 @@ histogram_metric_f64!(
     unit: "s",
 );
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum PaymentMetricsFlow {
-    PaymentsConfirm,
-}
-
-impl PaymentMetricsFlow {
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Self::PaymentsConfirm => "payments_confirm",
-        }
-    }
+pub fn payments_confirm_flow_name() -> &'static str {
+    Flow::PaymentsConfirm.into()
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -80,36 +71,13 @@ impl MerchantMode {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum ConfirmPath {
-    Standard,
-    NetworkTransactionProxy,
-    ExternalVaultProxy,
-}
-
-impl ConfirmPath {
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Self::Standard => "standard",
-            Self::NetworkTransactionProxy => "network_transaction_proxy",
-            Self::ExternalVaultProxy => "external_vault_proxy",
-        }
-    }
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct PaymentMetricsContext {
-    pub flow: PaymentMetricsFlow,
     pub merchant_mode: MerchantMode,
-    pub confirm_path: ConfirmPath,
 }
 
 impl PaymentMetricsContext {
-    pub const fn payments_confirm(merchant_mode: MerchantMode, confirm_path: ConfirmPath) -> Self {
-        Self {
-            flow: PaymentMetricsFlow::PaymentsConfirm,
-            merchant_mode,
-            confirm_path,
-        }
+    pub const fn payments_confirm(merchant_mode: MerchantMode) -> Self {
+        Self { merchant_mode }
     }
 }
 
@@ -121,9 +89,8 @@ pub fn record_payment_confirm<T, E>(
     let outcome = if result.is_ok() { "success" } else { "failure" };
     let attributes = metric_attributes!(
         ("operation", "confirm"),
-        ("flow", context.flow.as_str()),
+        ("flow", payments_confirm_flow_name()),
         ("merchant_mode", context.merchant_mode.as_str()),
-        ("confirm_path", context.confirm_path.as_str()),
         ("outcome", outcome),
     );
 
@@ -143,7 +110,7 @@ pub fn record_microservice_call<T, E>(
         metric_attributes!(
             ("service", service),
             ("operation", operation),
-            ("flow", context.flow.as_str()),
+            ("flow", payments_confirm_flow_name()),
             ("merchant_mode", context.merchant_mode.as_str()),
             (
                 "outcome",
@@ -163,7 +130,7 @@ pub fn record_vault_call(
         duration.as_secs_f64(),
         metric_attributes!(
             ("operation", operation),
-            ("flow", context.flow.as_str()),
+            ("flow", payments_confirm_flow_name()),
             ("merchant_mode", context.merchant_mode.as_str()),
             ("outcome", if succeeded { "success" } else { "failure" }),
         ),
@@ -172,7 +139,7 @@ pub fn record_vault_call(
 
 #[cfg(test)]
 mod payment_metrics_tests {
-    use super::{ConfirmPath, MerchantMode, PaymentMetricsContext, PaymentMetricsFlow};
+    use super::{payments_confirm_flow_name, MerchantMode, PaymentMetricsContext};
 
     #[test]
     fn merchant_mode_labels_are_stable() {
@@ -185,20 +152,10 @@ mod payment_metrics_tests {
 
     #[test]
     fn confirm_context_uses_bounded_dashboard_labels() {
-        let context = PaymentMetricsContext::payments_confirm(
-            MerchantMode::Modular,
-            ConfirmPath::ExternalVaultProxy,
-        );
+        let context = PaymentMetricsContext::payments_confirm(MerchantMode::Modular);
 
-        assert_eq!(context.flow, PaymentMetricsFlow::PaymentsConfirm);
-        assert_eq!(context.flow.as_str(), "payments_confirm");
+        assert_eq!(payments_confirm_flow_name(), "payments_confirm");
         assert_eq!(context.merchant_mode.as_str(), "modular");
-        assert_eq!(context.confirm_path.as_str(), "external_vault_proxy");
-        assert_eq!(ConfirmPath::Standard.as_str(), "standard");
-        assert_eq!(
-            ConfirmPath::NetworkTransactionProxy.as_str(),
-            "network_transaction_proxy"
-        );
     }
 }
 

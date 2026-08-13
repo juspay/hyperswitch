@@ -11,7 +11,7 @@ macro_rules! global_meter {
     };
     ($meter:ident, $name:literal) => {
         static $meter: ::std::sync::LazyLock<$crate::opentelemetry::metrics::Meter> =
-            ::std::sync::LazyLock::new(|| $crate::opentelemetry::global::meter(stringify!($name)));
+            ::std::sync::LazyLock::new(|| $crate::opentelemetry::global::meter($name));
     };
 }
 

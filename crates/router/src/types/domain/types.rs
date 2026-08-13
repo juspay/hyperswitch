@@ -58,7 +58,7 @@ impl From<&app::SessionState> for KeyManagerState {
             use_legacy_key_store_decryption: conf.use_legacy_key_store_decryption,
             metrics_context: state.payment_metrics_context.map(|context| {
                 common_utils::types::keymanager::KeyManagerMetricsContext {
-                    flow: context.flow.as_str(),
+                    flow: crate::routes::metrics::payments_confirm_flow_name(),
                     merchant_mode: context.merchant_mode.as_str(),
                 }
             }),
