@@ -1818,13 +1818,13 @@ pub fn should_continue_payout<F: Clone + 'static>(
     router_data.response.is_ok()
 }
 
-pub fn read_eligibility_reference_id(
+pub fn read_connector_eligibility_reference_id(
     payout_connector_metadata: Option<&pii::SecretSerdeValue>,
 ) -> Option<String> {
     payout_connector_metadata?
         .peek()
         .as_object()?
-        .get(common_utils::consts::PAYOUT_ELIGIBILITY_REFERENCE_ID_KEY)?
+        .get(common_utils::consts::PAYOUT_CONNECTOR_ELIGIBILITY_REFERENCE_ID_KEY)?
         .as_str()
         .map(ToOwned::to_owned)
 }
@@ -1841,10 +1841,16 @@ pub fn merge_connector_metadata(
         return merchant_metadata;
     };
 
-    let mut merged = merchant_metadata
+    // Merchant metadata is jsonb, so it need not be an object. Only an object can be merged
+    // into; anything else (string, array, number) is returned untouched rather than being
+    // silently replaced by connector metadata.
+    let Some(mut merged) = merchant_metadata
         .as_ref()
         .and_then(|metadata| metadata.peek().as_object().cloned())
-        .unwrap_or_default();
+    else {
+        return merchant_metadata
+            .or_else(|| Some(Secret::new(serde_json::Value::Object(connector_details))));
+    };
 
     for (key, value) in connector_details {
         merged.entry(key).or_insert(value);

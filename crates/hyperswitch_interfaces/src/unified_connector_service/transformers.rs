@@ -910,6 +910,13 @@ impl ForeignTryFrom<payments_grpc::BankType> for common_enums::BankType {
             | payments_grpc::BankType::Transmission
             | payments_grpc::BankType::Current
             | payments_grpc::BankType::SubscriptionShare
+            // #TODO: `Salary` and `Payment` are new UCS proto variants with no
+            // `common_enums::BankType` counterpart, so they are rejected here to keep the
+            // match exhaustive. If the Deutsche Bank CSEAL payout flow needs either value on
+            // `SepaBankTransferPayout.bank_account_type`, add real variants (+ DB enum
+            // migration) instead of erroring.
+            | payments_grpc::BankType::Salary
+            | payments_grpc::BankType::Payment
             | payments_grpc::BankType::Unspecified => Err(error_stack::Report::new(
                 UnifiedConnectorServiceError::ResponseDeserializationFailed,
             )
@@ -1015,6 +1022,15 @@ impl ForeignTryFrom<payments_grpc::RedirectForm> for RedirectForm {
             Some(payments_grpc::redirect_form::FormType::HostedIframe(_)) => Err(
                 UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
                     "Hosted iframe form type is not implemented".to_string(),
+                )
+                .into(),
+            ),
+            // #TODO: new UCS proto variant carrying a standalone script snippet (e.g. device
+            // data collection). `RedirectForm` has no equivalent, so reject it for now rather
+            // than dropping it silently.
+            Some(payments_grpc::redirect_form::FormType::Script(_)) => Err(
+                UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
+                    "Script form type is not implemented".to_string(),
                 )
                 .into(),
             ),

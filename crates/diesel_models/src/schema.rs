@@ -1541,7 +1541,7 @@ diesel::table! {
         source_bank_data_token -> Nullable<Varchar>,
         additional_source_bank_data -> Nullable<Jsonb>,
         #[max_length = 128]
-        eligibility_reference_id -> Nullable<Varchar>,
+        connector_eligibility_reference_id -> Nullable<Varchar>,
     }
 }
 

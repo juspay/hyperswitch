@@ -127,6 +127,9 @@ fn build_ucs_order_details(
                         .as_ref()
                         .map(|value| value.get_percentage()),
                     discount_type: detail.discount_type.clone(),
+                    // #TODO: new UCS proto field; `OrderDetailsWithAmount` has no
+                    // `product_link` counterpart yet, so nothing to forward.
+                    product_link: None,
                 })
                 .collect()
         })
@@ -433,6 +436,9 @@ impl
         let order_details = build_ucs_order_details(router_data.request.order_details.as_deref());
         let l2_l3_data = build_ucs_l2_l3_data(router_data.l2_l3_data.as_deref());
         Ok(Self {
+            // Remove together with the [patch] block in the workspace Cargo.toml.
+            // TEMPORARY: field exists only in local prism, not in the pinned tag.
+            currency_conversion_data: None,
             split_payments: router_data
                 .request
                 .split_payments
@@ -706,6 +712,9 @@ impl
             .map(ConnectorState::foreign_from);
 
         Ok(Self {
+            // Remove together with the [patch] block in the workspace Cargo.toml.
+            // TEMPORARY: field exists only in local prism, not in the pinned tag.
+            currency_conversion_data: None,
             split_payments: None,
             domain_data: None,
             mit_category: None,
@@ -1581,6 +1590,9 @@ impl
             .transpose()?;
 
         Ok(Self {
+            // Remove together with the [patch] block in the workspace Cargo.toml.
+            // TEMPORARY: field exists only in local prism, not in the pinned tag.
+            currency_conversion_data: None,
             split_payments: None,
             domain_data: None,
             mit_category: None,
@@ -1737,6 +1749,9 @@ impl
         let order_details = build_ucs_order_details(router_data.request.order_details.as_deref());
         let l2_l3_data = build_ucs_l2_l3_data(router_data.l2_l3_data.as_deref());
         Ok(Self {
+            // Remove together with the [patch] block in the workspace Cargo.toml.
+            // TEMPORARY: field exists only in local prism, not in the pinned tag.
+            currency_conversion_data: None,
             split_payments: router_data
                 .request
                 .split_payments
@@ -1922,6 +1937,9 @@ impl
             .transpose()?;
 
         Ok(Self {
+            // Remove together with the [patch] block in the workspace Cargo.toml.
+            // TEMPORARY: field exists only in local prism, not in the pinned tag.
+            currency_conversion_data: None,
             split_payments: router_data
                 .request
                 .split_payments
@@ -7260,6 +7278,10 @@ impl
             customer: Some(customer),
             access_token: router_data.access_token.clone().map(|at| at.token),
             connector_payout_id: router_data.request.connector_payout_id.clone(),
+            connector_eligibility_reference_id: router_data
+                .request
+                .connector_eligibility_reference_id
+                .clone(),
             payout_method_data,
             connector_quote_id: router_data.quote_id.clone(),
             priority: router_data
@@ -7677,9 +7699,11 @@ impl
                         .and_then(|value| value.as_object().cloned())
                         .unwrap_or_default();
 
-                    if let Some(reference_id) = response.eligibility_reference_id.clone() {
+                    if let Some(reference_id) =
+                        response.connector_eligibility_reference_id.clone()
+                    {
                         details.insert(
-                            consts::PAYOUT_ELIGIBILITY_REFERENCE_ID_KEY.to_string(),
+                            consts::PAYOUT_CONNECTOR_ELIGIBILITY_REFERENCE_ID_KEY.to_string(),
                             serde_json::Value::String(reference_id),
                         );
                     }
@@ -7970,6 +7994,12 @@ impl transformers::ForeignTryFrom<&api_models::payouts::PixBankTransfer>
             bank_account_number: item.bank_account_number.clone(),
             tax_id: item.tax_id.clone(),
             ispb: item.ispb.clone().map(Secret::new),
+            // #TODO: new UCS proto fields with no counterpart on
+            // `api_models::payouts::PixBankTransfer`; wire these up when the API model gains
+            // them.
+            bank_code: None,
+            bank_account_type: None,
+            account_holder_name: None,
         })
     }
 }
@@ -7989,6 +8019,12 @@ impl transformers::ForeignTryFrom<&api_models::payouts::PixAccountBankTransfer>
             bank_account_number: Some(item.bank_account_number.clone()),
             tax_id: item.tax_id.clone(),
             ispb: item.ispb.clone().map(Secret::new),
+            // #TODO: new UCS proto fields with no counterpart on
+            // `api_models::payouts::PixAccountBankTransfer`; wire these up when the API model
+            // gains them.
+            bank_code: None,
+            bank_account_type: None,
+            account_holder_name: None,
         })
     }
 }
