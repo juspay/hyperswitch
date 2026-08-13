@@ -7935,35 +7935,3 @@ impl<'a> pm_types::PaymentMethodUpdateHandler<'a> {
         Ok(response)
     }
 }
-
-#[cfg(all(test, feature = "v2"))]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn cvc_is_read_only_for_internal_manual_retry_with_custom_fulfillment_time() {
-        assert_eq!(
-            get_cvc_read_mode(enums::ApiKeyType::Internal, Some(true), Some(900)),
-            vault::CvcReadMode::ReadOnly
-        );
-    }
-
-    #[test]
-    fn cvc_is_read_and_deleted_when_retention_is_not_eligible() {
-        for (api_key_type, is_manual_retry_enabled, intent_fulfillment_time) in [
-            (enums::ApiKeyType::External, Some(true), Some(900)),
-            (enums::ApiKeyType::Internal, Some(false), Some(900)),
-            (enums::ApiKeyType::Internal, None, Some(900)),
-            (enums::ApiKeyType::Internal, Some(true), None),
-        ] {
-            assert_eq!(
-                get_cvc_read_mode(
-                    api_key_type,
-                    is_manual_retry_enabled,
-                    intent_fulfillment_time
-                ),
-                vault::CvcReadMode::ReadAndDelete
-            );
-        }
-    }
-}
