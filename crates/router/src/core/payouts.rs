@@ -2174,27 +2174,6 @@ pub async fn create_payout_retrieve(
     connector_data: &api::ConnectorData,
     payout_data: &mut PayoutData,
 ) -> RouterResult<()> {
-    // Fetch source_bank_data if not present — some connectors need the debtor account
-    // on the status enquiry, so it must be populated on the sync path too
-    if payout_data.source_bank_data.is_none() {
-        payout_data.source_bank_data = helpers::SourceBankDataOperation::get_temp_source_bank_data(
-            state,
-            payout_data.payout_attempt.source_bank_data_token.clone(),
-            payout_data.customer_details.as_ref().map(|customer| {
-                #[cfg(feature = "v1")]
-                {
-                    customer.get_id().clone()
-                }
-                #[cfg(not(feature = "v1"))]
-                {
-                    customer.id.clone()
-                }
-            }),
-            platform.get_processor().get_key_store(),
-        )
-        .await?;
-    }
-
     // 1. Form Router data
     let mut router_data =
         core_utils::construct_payout_router_data(state, connector_data, platform, payout_data)
