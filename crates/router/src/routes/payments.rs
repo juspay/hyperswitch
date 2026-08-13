@@ -149,7 +149,7 @@ pub async fn payments_create(
                 } else {
                     None
                 };
-                let result = authorize_verify_select::<_>(
+                let result = Box::pin(authorize_verify_select::<_>(
                     payments::PaymentCreate,
                     state,
                     req_state,
@@ -158,7 +158,7 @@ pub async fn payments_create(
                     header_payload,
                     req,
                     api::AuthFlow::Client,
-                )
+                ))
                 .await;
 
                 if let (Some(start), Some(context)) = (metrics_start, metrics_context) {
@@ -1114,7 +1114,7 @@ pub async fn payments_confirm(
                     req.client_secret = Some(client_secret);
                 }
 
-                let result = authorize_verify_select::<_>(
+                let result = Box::pin(authorize_verify_select::<_>(
                     payments::PaymentConfirm,
                     state,
                     req_state,
@@ -1123,7 +1123,7 @@ pub async fn payments_confirm(
                     header_payload,
                     req,
                     auth_flow,
-                )
+                ))
                 .await;
 
                 record_payment_confirm(&result, metrics_start.elapsed(), metrics_context);
