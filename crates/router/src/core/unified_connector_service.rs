@@ -22,7 +22,6 @@ use external_services::grpc_client::{
     LineageIds,
 };
 use hyperswitch_connectors::utils::CardData;
-use hyperswitch_interfaces::unified_connector_service::transformers::ConnectorErrorInner;
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccountTypeDetails;
 use hyperswitch_domain_models::{
@@ -33,6 +32,7 @@ use hyperswitch_domain_models::{
     router_request_types::RefundsData,
     router_response_types::{PaymentsResponseData, PayoutsResponseData, RefundsResponseData},
 };
+use hyperswitch_interfaces::unified_connector_service::transformers::ConnectorErrorInner;
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use router_env::{instrument, logger, tracing};
 use unified_connector_service_cards::CardNumber;
