@@ -167,13 +167,16 @@ pub async fn create_payment_method_api(
         &req,
         json_payload.into_inner(),
         |state, auth: auth::AuthenticationData, req, req_state| async move {
-            Box::pin(payment_methods_routes::create_payment_method(
-                &state,
-                &req_state,
-                req,
-                &auth.platform,
-                &auth.profile,
-            ))
+            record_payment_method_metrics(
+                "create",
+                Box::pin(payment_methods_routes::create_payment_method(
+                    &state,
+                    &req_state,
+                    req,
+                    &auth.platform,
+                    &auth.profile,
+                )),
+            )
             .await
         },
         &*auth_type,
@@ -304,12 +307,15 @@ pub async fn payment_method_update_api(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            payment_methods_routes::update_payment_method(
-                state,
-                auth.platform,
-                auth.profile,
-                req,
-                &payment_method_id,
+            record_payment_method_metrics(
+                "update",
+                payment_methods_routes::update_payment_method(
+                    state,
+                    auth.platform,
+                    auth.profile,
+                    req,
+                    &payment_method_id,
+                ),
             )
         },
         &*auth_type,
@@ -352,13 +358,16 @@ pub async fn payment_method_retrieve_api(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, pm, _| {
-            payment_methods_routes::retrieve_payment_method(
-                state,
-                pm,
-                auth.profile,
-                auth.platform,
-                api_key_type,
-                query_payload.fetch_raw_detail,
+            record_payment_method_metrics(
+                "retrieve",
+                payment_methods_routes::retrieve_payment_method(
+                    state,
+                    pm,
+                    auth.profile,
+                    auth.platform,
+                    api_key_type,
+                    query_payload.fetch_raw_detail,
+                ),
             )
         },
         &*auth_type,
@@ -400,7 +409,15 @@ pub async fn payment_method_delete_api(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, pm, _| {
-            payment_methods_routes::delete_payment_method(state, pm, auth.platform, auth.profile)
+            record_payment_method_metrics(
+                "delete",
+                payment_methods_routes::delete_payment_method(
+                    state,
+                    pm,
+                    auth.platform,
+                    auth.profile,
+                ),
+            )
         },
         &*auth_type,
         api_locking::LockAction::NotApplicable,
@@ -970,11 +987,14 @@ pub async fn list_customer_payment_method_api(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, payload, _| {
-            payment_methods_routes::list_saved_payment_methods_for_customer(
-                state,
-                auth.platform.get_provider().clone(),
-                customer_id.clone(),
-                payload.include_new.unwrap_or(false),
+            record_payment_method_metrics(
+                "list_saved_payment_methods",
+                payment_methods_routes::list_saved_payment_methods_for_customer(
+                    state,
+                    auth.platform.get_provider().clone(),
+                    customer_id.clone(),
+                    payload.include_new.unwrap_or(false),
+                ),
             )
         },
         &*auth_type,
@@ -2159,10 +2179,13 @@ pub async fn payment_method_get_token_details_api(
             let temporary_token = temporary_token.clone();
             async move {
                 let platform: domain::Platform = auth.platform;
-                payment_methods_routes::payment_method_get_token_details_core(
-                    state,
-                    platform.get_provider().clone(),
-                    temporary_token,
+                record_payment_method_metrics(
+                    "get_token_details",
+                    payment_methods_routes::payment_method_get_token_details_core(
+                        state,
+                        platform.get_provider().clone(),
+                        temporary_token,
+                    ),
                 )
                 .await
             }

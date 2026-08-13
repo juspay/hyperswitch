@@ -1652,45 +1652,15 @@ pub async fn create_payment_method_core(
     platform: &domain::Platform,
     profile: &domain::Profile,
 ) -> RouterResult<(api::PaymentMethodResponse, domain::PaymentMethod)> {
-    let result = common_utils::metrics::utils::record_operation_time(
-        async {
-            match req.storage_type {
-                common_enums::StorageType::Volatile => {
-                    create_volatile_payment_method_core(
-                        state,
-                        _request_state,
-                        req,
-                        platform,
-                        profile,
-                    )
-                    .await
-                }
-                common_enums::StorageType::Persistent => {
-                    create_persistent_payment_method_core(
-                        state,
-                        _request_state,
-                        req,
-                        platform,
-                        profile,
-                    )
-                    .await
-                }
-            }
-        },
-        &metrics::PAYMENT_METHOD_OPERATION_DURATION,
-        router_env::metric_attributes!(("operation", "create")),
-    )
-    .await;
-
-    metrics::PAYMENT_METHOD_OPS_COUNT.add(
-        1,
-        router_env::metric_attributes!(
-            ("operation", "create"),
-            ("outcome", if result.is_ok() { "success" } else { "error" })
-        ),
-    );
-
-    result
+    match req.storage_type {
+        common_enums::StorageType::Volatile => {
+            create_volatile_payment_method_core(state, _request_state, req, platform, profile).await
+        }
+        common_enums::StorageType::Persistent => {
+            create_persistent_payment_method_core(state, _request_state, req, platform, profile)
+                .await
+        }
+    }
 }
 
 #[cfg(feature = "v2")]
@@ -5587,31 +5557,6 @@ pub async fn list_payment_methods_core(
     customer_id: &id_type::GlobalCustomerId,
     include_new: bool,
 ) -> RouterResult<payment_methods::CustomerPaymentMethodsListResponse> {
-    let result = common_utils::metrics::utils::record_operation_time(
-        list_payment_methods_core_inner(state, provider, customer_id, include_new),
-        &metrics::PAYMENT_METHOD_OPERATION_DURATION,
-        router_env::metric_attributes!(("operation", "list_saved_payment_methods")),
-    )
-    .await;
-
-    metrics::PAYMENT_METHOD_OPS_COUNT.add(
-        1,
-        router_env::metric_attributes!(
-            ("operation", "list_saved_payment_methods"),
-            ("outcome", if result.is_ok() { "success" } else { "error" })
-        ),
-    );
-
-    result
-}
-
-#[cfg(all(feature = "v2", feature = "olap"))]
-async fn list_payment_methods_core_inner(
-    state: &SessionState,
-    provider: &domain::Provider,
-    customer_id: &id_type::GlobalCustomerId,
-    include_new: bool,
-) -> RouterResult<payment_methods::CustomerPaymentMethodsListResponse> {
     let db = &*state.store;
 
     let statuses = if include_new {
@@ -5806,41 +5751,6 @@ pub async fn get_total_payment_method_count_core(
 #[cfg(feature = "v2")]
 #[instrument(skip_all)]
 pub async fn retrieve_payment_method(
-    state: SessionState,
-    pm: api::PaymentMethodId,
-    profile: domain::Profile,
-    platform: domain::Platform,
-    api_key_type: enums::ApiKeyType,
-    fetch_raw_detail_query_param: bool,
-) -> RouterResponse<api::PaymentMethodResponse> {
-    let result = common_utils::metrics::utils::record_operation_time(
-        retrieve_payment_method_inner(
-            state,
-            pm,
-            profile,
-            platform,
-            api_key_type,
-            fetch_raw_detail_query_param,
-        ),
-        &metrics::PAYMENT_METHOD_OPERATION_DURATION,
-        router_env::metric_attributes!(("operation", "retrieve")),
-    )
-    .await;
-
-    metrics::PAYMENT_METHOD_OPS_COUNT.add(
-        1,
-        router_env::metric_attributes!(
-            ("operation", "retrieve"),
-            ("outcome", if result.is_ok() { "success" } else { "error" })
-        ),
-    );
-
-    result
-}
-
-#[cfg(feature = "v2")]
-#[instrument(skip_all)]
-async fn retrieve_payment_method_inner(
     state: SessionState,
     pm: api::PaymentMethodId,
     profile: domain::Profile,
@@ -6446,33 +6356,6 @@ pub async fn update_payment_method(
     req: api::PaymentMethodUpdate,
     payment_method_id: &id_type::GlobalPaymentMethodId,
 ) -> RouterResponse<api::PaymentMethodResponse> {
-    let result = common_utils::metrics::utils::record_operation_time(
-        update_payment_method_inner(state, platform, profile, req, payment_method_id),
-        &metrics::PAYMENT_METHOD_OPERATION_DURATION,
-        router_env::metric_attributes!(("operation", "update")),
-    )
-    .await;
-
-    metrics::PAYMENT_METHOD_OPS_COUNT.add(
-        1,
-        router_env::metric_attributes!(
-            ("operation", "update"),
-            ("outcome", if result.is_ok() { "success" } else { "error" })
-        ),
-    );
-
-    result
-}
-
-#[cfg(feature = "v2")]
-#[instrument(skip_all)]
-async fn update_payment_method_inner(
-    state: SessionState,
-    platform: domain::Platform,
-    profile: domain::Profile,
-    req: api::PaymentMethodUpdate,
-    payment_method_id: &id_type::GlobalPaymentMethodId,
-) -> RouterResponse<api::PaymentMethodResponse> {
     let update_request = DomainPaymentMethodUpdate::from(req);
 
     let (response, _updated_payment_method) = Box::pin(update_payment_method_core(
@@ -6582,32 +6465,6 @@ pub async fn delete_payment_method(
 #[cfg(feature = "v2")]
 #[instrument(skip_all)]
 pub async fn delete_payment_method_core(
-    state: &SessionState,
-    pm_id: id_type::GlobalPaymentMethodId,
-    platform: &domain::Platform,
-    profile: &domain::Profile,
-) -> RouterResult<api::PaymentMethodDeleteResponse> {
-    let result = common_utils::metrics::utils::record_operation_time(
-        delete_payment_method_core_inner(state, pm_id, platform, profile),
-        &metrics::PAYMENT_METHOD_OPERATION_DURATION,
-        router_env::metric_attributes!(("operation", "delete")),
-    )
-    .await;
-
-    metrics::PAYMENT_METHOD_OPS_COUNT.add(
-        1,
-        router_env::metric_attributes!(
-            ("operation", "delete"),
-            ("outcome", if result.is_ok() { "success" } else { "error" })
-        ),
-    );
-
-    result
-}
-
-#[cfg(feature = "v2")]
-#[instrument(skip_all)]
-async fn delete_payment_method_core_inner(
     state: &SessionState,
     pm_id: id_type::GlobalPaymentMethodId,
     platform: &domain::Platform,
@@ -7799,30 +7656,6 @@ pub async fn check_network_token_status(
 
 #[cfg(feature = "v2")]
 pub async fn payment_method_get_token_details_core(
-    state: SessionState,
-    provider: domain::Provider,
-    temporary_token: String,
-) -> RouterResponse<payment_methods::PaymentMethodGetTokenDetailsResponse> {
-    let result = common_utils::metrics::utils::record_operation_time(
-        payment_method_get_token_details_core_inner(state, provider, temporary_token),
-        &metrics::PAYMENT_METHOD_OPERATION_DURATION,
-        router_env::metric_attributes!(("operation", "get_token_details")),
-    )
-    .await;
-
-    metrics::PAYMENT_METHOD_OPS_COUNT.add(
-        1,
-        router_env::metric_attributes!(
-            ("operation", "get_token_details"),
-            ("outcome", if result.is_ok() { "success" } else { "error" })
-        ),
-    );
-
-    result
-}
-
-#[cfg(feature = "v2")]
-async fn payment_method_get_token_details_core_inner(
     state: SessionState,
     provider: domain::Provider,
     temporary_token: String,
