@@ -2122,6 +2122,7 @@ mod tests {
             processor_merchant_id: merchant_id,
             initiator: None,
             sdk_authorization: None,
+            applied_offer: None,
             connector: None,
             customer: None,
             disputes: None,
