@@ -124,7 +124,7 @@ where
 
                     let ucs_data = types::UcsPayoutEligibilityResponseData::foreign_try_from((
                         payout_eligibility_response.clone(),
-                        common_enums::PayoutStatus::RequiresFulfillment,
+                        common_enums::PayoutStatus::RequiresCreation,
                     ))
                     .attach_printable("Failed to deserialize UCS response")?;
 

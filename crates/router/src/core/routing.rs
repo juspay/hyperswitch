@@ -283,6 +283,7 @@ pub async fn retrieve_merchant_routing_dictionary(
             de_result.clone(),
             result.clone(),
             "list_routing".to_string(),
+            false,
         );
         result =
             build_list_routing_result(&state, platform, &result, &de_result, profile_ids.clone())
@@ -1493,6 +1494,7 @@ pub async fn retrieve_linked_routing_config(
                 de_records.clone(),
                 hs_records.clone(),
                 "list_active_routing".to_string(),
+                false,
             );
             let dimensions = dimension_state::Dimensions::new()
                 .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
@@ -2527,6 +2529,22 @@ impl RoutableConnectors {
 
         Ok(connector_data)
     }
+}
+
+/// Clears the Decision Engine routing diff kill-switch counter for a profile, so the switch can
+/// trip again after the profile is re-enabled for the Decision Engine.
+pub async fn reset_decision_engine_diff_counter(
+    state: SessionState,
+    profile_id: common_utils::id_type::ProfileId,
+) -> RouterResult<service_api::ApplicationResponse<()>> {
+    reset_de_diff_counter(&state, &profile_id).await?;
+
+    router_env::logger::info!(
+        profile_id=?profile_id.get_string_repr(),
+        "decision_engine_euclid: routing diff counter reset via api"
+    );
+
+    Ok(service_api::ApplicationResponse::StatusOk)
 }
 
 pub async fn migrate_rules_for_profile(
