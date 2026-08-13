@@ -1025,6 +1025,7 @@ impl Payments {
         {
             route = route
                 .service(web::resource("").route(web::post().to(payments::payments_create)))
+                .service(web::resource("/payment_link").route(web::post().to(payments::payment_link_create)))
                 .service(
                     web::resource("/session_tokens")
                         .route(web::post().to(payments::payments_connector_session)),

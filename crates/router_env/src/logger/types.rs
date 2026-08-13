@@ -396,6 +396,8 @@ pub enum Flow {
     PaymentLinkList,
     /// Payment Link Status
     PaymentLinkStatus,
+    /// Payment Link Create flow
+    PaymentLinkCreate,
     /// Create a profile
     ProfileCreate,
     /// Update a profile
