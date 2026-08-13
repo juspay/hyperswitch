@@ -21,10 +21,9 @@ use hyperswitch_domain_models::{
 pub use migrate::modular_migrate_payment_methods;
 use router_env::{instrument, logger, tracing, Flow};
 
-use super::{
-    app::{AppState, SessionState},
-    metrics,
-};
+use super::app::{AppState, SessionState};
+#[cfg(feature = "v2")]
+use super::metrics;
 #[cfg(feature = "v1")]
 use crate::core::utils::validate_legacy_endpoint_access;
 #[cfg(all(feature = "v1", any(feature = "olap", feature = "oltp")))]

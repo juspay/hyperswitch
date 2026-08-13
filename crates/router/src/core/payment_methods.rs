@@ -86,7 +86,7 @@ use crate::{
         tokenization as tokenization_core,
     },
     headers,
-    routes::{self, metrics, payment_methods as pm_routes},
+    routes::{self, payment_methods as pm_routes},
     services::encryption,
     types::{
         api::{PaymentMethodCreateExt, PaymentMethodSessionExt},
@@ -113,6 +113,8 @@ use crate::{
         storage::{self, enums as storage_enums},
     },
 };
+#[cfg(feature = "v2")]
+use crate::routes::metrics;
 
 const PAYMENT_METHOD_STATUS_UPDATE_TASK: &str = "PAYMENT_METHOD_STATUS_UPDATE";
 const PAYMENT_METHOD_STATUS_TAG: &str = "PAYMENT_METHOD_STATUS";
