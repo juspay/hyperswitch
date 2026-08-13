@@ -341,6 +341,16 @@ impl IncomingWebhook for ConnectorEnum {
         }
     }
 
+    fn get_mandate_webhook_error_message(
+        &self,
+        request: &IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+        match self {
+            Self::Old(connector) => connector.get_mandate_webhook_error_message(request),
+            Self::New(connector) => connector.get_mandate_webhook_error_message(request),
+        }
+    }
+
     fn get_webhook_resource_object(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,

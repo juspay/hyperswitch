@@ -1,0 +1,2 @@
+# CREATE/DROP INDEX CONCURRENTLY cannot run inside Diesel's transaction wrapper.
+run_in_transaction = false
