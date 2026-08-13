@@ -211,7 +211,6 @@ where
     }
 
     let http_request = request_builder.build();
-    logger::info!(?http_request, decision_engine_request_path = %path, "decision_engine: Constructed Decision Engine API request details ({})", context_message);
     let should_parse_response = events_wrapper
         .as_ref()
         .map(|wrapper| wrapper.parse_response)
@@ -252,11 +251,6 @@ where
 
         match response {
             Ok(resp) => {
-                logger::debug!(
-                    "decision_engine: Received response from Decision Engine API ({:?})",
-                    String::from_utf8_lossy(&resp.response) // For logging
-                );
-
                 let resp = should_parse_response
                     .then(|| {
                         if std::any::TypeId::of::<Res>() == std::any::TypeId::of::<String>()
@@ -358,15 +352,14 @@ impl DecisionEngineApiHandler for EuclidApiClient {
         )
         .await?;
 
-        let parsed_response =
-            event_response
-                .response
-                .as_ref()
-                .ok_or(errors::RoutingError::OpenRouterError(
-                    "Response from decision engine API is empty".to_string(),
-                ))?;
+        // Reject an empty DE response even though the parsed value itself is unused here.
+        event_response
+            .response
+            .as_ref()
+            .ok_or(errors::RoutingError::OpenRouterError(
+                "Response from decision engine API is empty".to_string(),
+            ))?;
 
-        logger::debug!(parsed_response = ?parsed_response, response_type = %std::any::type_name::<Res>(), euclid_request_path = %path, "decision_engine_euclid: Successfully parsed response from Euclid API");
         Ok(event_response)
     }
 }
@@ -679,7 +672,6 @@ pub async fn perform_decision_euclid_routing(
     routing_event.set_routable_connectors(euclid_response.evaluated_output.clone());
     state.event_handler.log_event(&routing_event);
 
-    logger::debug!(decision_engine_euclid_response=?euclid_response,"decision_engine_euclid");
     logger::debug!(decision_engine_euclid_selected_connector=?euclid_response.evaluated_output,"decision_engine_euclid");
     Ok(euclid_response)
 }

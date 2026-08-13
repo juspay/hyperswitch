@@ -1672,9 +1672,6 @@ pub async fn perform_hybrid_routing_if_enabled(
             let shadow_backend_input = backend_input.clone();
             let shadow_fallback = fallback_config.to_vec();
             let shadow_static_connectors = static_connectors.to_vec();
-
-            // The detached task loses the request span, so carry the identifiers explicitly —
-            // every log inside (comparison + DE errors) stays attributable per profile/payment.
             let shadow_span = router_env::tracing::info_span!(
                 "shadow_decision_engine_routing",
                 de_shadow = true,
