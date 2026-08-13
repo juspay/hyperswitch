@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.08.12.0-hotfix2
+
+### Bug Fixes
+
+- **routing:** Make shadow DE logs attributable, is_equal truthful, and DE timeout effective ([#13696](https://github.com/juspay/hyperswitch/pull/13696)) ([`2134fbc`](https://github.com/juspay/hyperswitch/commit/2134fbc99cb08f269b3f56e88b5e5ad562ba93f9))
+
+**Full Changelog:** [`2026.08.12.0-hotfix1...2026.08.12.0-hotfix2`](https://github.com/juspay/hyperswitch/compare/2026.08.12.0-hotfix1...2026.08.12.0-hotfix2)
+
+- - -
+
 ## 2026.08.12.0-hotfix1
 
 ### Bug Fixes
