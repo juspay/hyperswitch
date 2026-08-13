@@ -282,7 +282,7 @@ impl TryFrom<&SetupMandateRouterData> for CybersourceZeroMandateRequest {
                             number: ccard.card_number,
                             expiration_month: ccard.card_exp_month,
                             expiration_year: ccard.card_exp_year,
-                            security_code: Some(ccard.card_cvc),
+                            security_code: get_optional_security_code(ccard.card_cvc),
                             card_type,
                             type_selection_indicator: Some("1".to_owned()),
                         },
@@ -761,11 +761,21 @@ pub struct Card {
     number: cards::CardNumber,
     expiration_month: Secret<String>,
     expiration_year: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     security_code: Option<Secret<String>>,
     #[serde(rename = "type")]
     card_type: Option<String>,
     type_selection_indicator: Option<String>,
 }
+
+fn get_optional_security_code(card_cvc: Secret<String>) -> Option<Secret<String>> {
+    if card_cvc.peek().is_empty() {
+        None
+    } else {
+        Some(card_cvc)
+    }
+}
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct OrderInformationWithBill {
@@ -1603,7 +1613,7 @@ impl
         {
             None
         } else {
-            Some(ccard.card_cvc)
+            get_optional_security_code(ccard.card_cvc)
         };
 
         let payment_information = PaymentInformation::Cards(Box::new(CardPaymentInformation {
@@ -2081,7 +2091,7 @@ impl
                 number: ccard.card_number,
                 expiration_month: ccard.card_exp_month,
                 expiration_year: ccard.card_exp_year,
-                security_code: Some(ccard.card_cvc),
+                security_code: get_optional_security_code(ccard.card_cvc),
                 card_type,
                 type_selection_indicator: Some("1".to_owned()),
             },
@@ -2822,7 +2832,7 @@ impl TryFrom<&CybersourceRouterData<&PaymentsAuthorizeRouterData>> for Cybersour
                             number: ccard.card_number,
                             expiration_month: ccard.card_exp_month,
                             expiration_year: ccard.card_exp_year,
-                            security_code: Some(ccard.card_cvc),
+                            security_code: get_optional_security_code(ccard.card_cvc),
                             card_type,
                             type_selection_indicator: Some("1".to_owned()),
                         },
@@ -2891,7 +2901,7 @@ impl TryFrom<&CybersourceRouterData<&PaymentsPreAuthenticateRouterData>>
                             number: ccard.card_number,
                             expiration_month: ccard.card_exp_month,
                             expiration_year: ccard.card_exp_year,
-                            security_code: Some(ccard.card_cvc),
+                            security_code: get_optional_security_code(ccard.card_cvc),
                             card_type,
                             type_selection_indicator: Some("1".to_owned()),
                         },
@@ -3608,7 +3618,7 @@ impl TryFrom<&CybersourceRouterData<&PaymentsPreProcessingRouterData>>
                             number: ccard.card_number,
                             expiration_month: ccard.card_exp_month,
                             expiration_year: ccard.card_exp_year,
-                            security_code: Some(ccard.card_cvc),
+                            security_code: get_optional_security_code(ccard.card_cvc),
                             card_type,
                             type_selection_indicator: Some("1".to_owned()),
                         },
@@ -3754,7 +3764,7 @@ impl TryFrom<&CybersourceRouterData<&PaymentsAuthenticateRouterData>>
                             number: ccard.card_number,
                             expiration_month: ccard.card_exp_month,
                             expiration_year: ccard.card_exp_year,
-                            security_code: Some(ccard.card_cvc),
+                            security_code: get_optional_security_code(ccard.card_cvc),
                             card_type,
                             type_selection_indicator: Some("1".to_owned()),
                         },
@@ -3880,7 +3890,7 @@ impl TryFrom<&CybersourceRouterData<&PaymentsPostAuthenticateRouterData>>
                             number: ccard.card_number,
                             expiration_month: ccard.card_exp_month,
                             expiration_year: ccard.card_exp_year,
-                            security_code: Some(ccard.card_cvc),
+                            security_code: get_optional_security_code(ccard.card_cvc),
                             card_type,
                             type_selection_indicator: Some("1".to_owned()),
                         },
@@ -5441,20 +5451,21 @@ pub fn get_error_response(
 ) -> ErrorResponse {
     let avs_message = risk_information
         .clone()
-        .map(|client_risk_information| {
-            client_risk_information.rules.map(|rules| {
-                rules
+        .and_then(|client_risk_information| {
+            client_risk_information.rules.and_then(|rules| {
+                let message = rules
                     .iter()
-                    .map(|risk_info| {
-                        risk_info.name.clone().map_or("".to_string(), |name| {
-                            format!(" , {}", name.clone().expose())
-                        })
+                    .filter_map(|risk_info| {
+                        risk_info
+                            .name
+                            .as_ref()
+                            .map(|name| format!(" , {}", name.peek()))
                     })
                     .collect::<Vec<String>>()
-                    .join("")
+                    .join("");
+                (!message.is_empty()).then_some(message)
             })
-        })
-        .unwrap_or(Some("".to_string()));
+        });
 
     let detailed_error_info = error_data.as_ref().and_then(|error_data| {
         error_data.details.as_ref().map(|details| {
