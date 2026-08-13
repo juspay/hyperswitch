@@ -79,6 +79,8 @@ use super::{
     pm_auth,
 };
 #[cfg(feature = "v2")]
+use crate::routes::metrics;
+#[cfg(feature = "v2")]
 use crate::{
     configs::settings,
     core::{
@@ -113,8 +115,6 @@ use crate::{
         storage::{self, enums as storage_enums},
     },
 };
-#[cfg(feature = "v2")]
-use crate::routes::metrics;
 
 const PAYMENT_METHOD_STATUS_UPDATE_TASK: &str = "PAYMENT_METHOD_STATUS_UPDATE";
 const PAYMENT_METHOD_STATUS_TAG: &str = "PAYMENT_METHOD_STATUS";
