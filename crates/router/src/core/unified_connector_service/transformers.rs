@@ -8853,3 +8853,40 @@ impl transformers::ForeignTryFrom<payments_grpc::NotifyConnectorResponse>
         })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use common_enums::connector_enums::Connector;
+
+    use super::*;
+
+    /// Connectors that serve an Apple Pay session through UCS, paired with the exact string
+    /// UCS puts in `ApplepayClientAuthenticationResponse.connector`. Both come from
+    /// juspay/connector-service: `BRAINTREE_CONNECTOR_NAME` in
+    /// `connectors/braintree/transformers.rs` and the literal in
+    /// `connectors/trustpay/transformers.rs`.
+    const UCS_APPLE_PAY_SESSION_CONNECTORS: [(&str, Connector); 2] = [
+        ("braintree", Connector::Braintree),
+        ("trustpay", Connector::Trustpay),
+    ];
+
+    /// `SessionToken::foreign_try_from` parses the connector UCS reports rather than passing
+    /// the string through untouched. `Connector::from_str` is snake_case and case-sensitive,
+    /// so every connector that serves an Apple Pay session over UCS has to survive that parse
+    /// — otherwise a session call that used to succeed now fails with `ParsingFailed`.
+    #[test]
+    fn ucs_apple_pay_session_connectors_parse_into_connector_enum() {
+        for (ucs_name, expected) in UCS_APPLE_PAY_SESSION_CONNECTORS {
+            assert_eq!(
+                Connector::from_str(ucs_name).ok(),
+                Some(expected),
+                "UCS reports `{ucs_name}` for Apple Pay sessions, and hyperswitch cannot parse it"
+            );
+            assert_eq!(
+                expected.to_string(),
+                ucs_name,
+                "UCS sends `{ucs_name}`, but hyperswitch spells this connector `{expected}`"
+            );
+        }
+    }
+}

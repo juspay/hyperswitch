@@ -527,3 +527,42 @@ pub enum InvoiceStatus {
     ManualReview,
     Voided,
 }
+
+#[cfg(test)]
+mod tests {
+    use strum::IntoEnumIterator;
+
+    use super::*;
+
+    /// `ApplepaySessionTokenResponse.connector` used to be a `String` filled in with
+    /// `Connector::to_string()`, and is now the `Connector` enum itself. What serde writes
+    /// therefore has to match that `Display` output exactly — same spelling, same case — or
+    /// the connector every SDK reads out of the Apple Pay session token response changes.
+    ///
+    /// The two are configured independently (`strum(serialize_all)` against
+    /// `serde(rename_all)`, plus a `strum(serialize)`/`serde(rename)` pair on each renamed
+    /// variant), so nothing keeps them in step on its own. This walks every variant and
+    /// checks they still agree, and that the shared spelling is snake_case.
+    #[test]
+    fn connector_serializes_exactly_as_it_displays() {
+        for connector in Connector::iter() {
+            let displayed = connector.to_string();
+
+            assert_eq!(
+                serde_json::to_value(connector).ok(),
+                Some(serde_json::Value::String(displayed.clone())),
+                "{connector:?} displays as `{displayed}` but serde writes something else"
+            );
+
+            assert!(
+                !displayed.is_empty()
+                    && displayed.chars().all(|character| {
+                        character.is_ascii_lowercase()
+                            || character.is_ascii_digit()
+                            || character == '_'
+                    }),
+                "{connector:?} is written as `{displayed}`, which is not snake_case"
+            );
+        }
+    }
+}
