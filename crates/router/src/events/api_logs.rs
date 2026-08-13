@@ -69,10 +69,23 @@ impl ApiEvent {
         http_method: &http::Method,
         infra_components: Option<serde_json::Value>,
     ) -> Self {
+        // Internal-api-key auth means this call came from another Hyperswitch service (e.g.
+        // the pay server calling the modular payment methods service), not from a merchant.
+        // Suffix the flow tag so service-to-service traffic is distinguishable in analytics
+        // from direct API traffic on the same routes.
+        let mut api_flow = api_flow.to_string();
+        if matches!(
+            auth_type,
+            AuthenticationType::InternalApiKey
+                | AuthenticationType::InternalMerchantIdProfileId { .. }
+        ) {
+            api_flow.push_str("_microservice");
+        }
+
         Self {
             tenant_id,
             merchant_id,
-            api_flow: api_flow.to_string(),
+            api_flow,
             created_at_timestamp: OffsetDateTime::now_utc().unix_timestamp_nanos() / 1_000_000,
             request_id: request_id.to_string(),
             latency,
