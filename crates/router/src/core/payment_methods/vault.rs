@@ -2075,7 +2075,8 @@ pub async fn call_to_vault<V: pm_types::VaultingInterface>(
     .await
     .change_context(errors::VaultError::VaultAPIError)
     .inspect_err(|_| {
-        metrics::VAULT_CALL_FAILURES.add(1, router_env::metric_attributes!(("operation", flow_name)));
+        metrics::VAULT_CALL_FAILURES
+            .add(1, router_env::metric_attributes!(("operation", flow_name)));
     });
 
     let jwe_body: services::JweBody = response
