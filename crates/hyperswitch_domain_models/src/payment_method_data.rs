@@ -409,6 +409,14 @@ impl EligibilityPaymentMethodData {
         }
     }
 
+    pub fn get_card_data(&self) -> Option<&EligibilityCard> {
+        if let Self::Card(card) = self {
+            Some(card)
+        } else {
+            None
+        }
+    }
+
     /// 8-digit BIN of a wallet's decrypted token. `None` while the token is still encrypted.
     pub fn get_decrypted_token_extended_bin(&self) -> Option<String> {
         match self {

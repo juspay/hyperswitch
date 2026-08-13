@@ -11008,6 +11008,39 @@
           }
         }
       },
+      "AppliedOffer": {
+        "type": "object",
+        "description": "Normalized applied-offer details exposed in payment responses.",
+        "required": [
+          "offer_engine_merchant_id",
+          "offer_engine_txn_id",
+          "offer_id",
+          "offer_amount",
+          "currency"
+        ],
+        "properties": {
+          "offer_engine_merchant_id": {
+            "type": "string",
+            "description": "Offer Engine merchant id the offer was applied under."
+          },
+          "offer_engine_txn_id": {
+            "type": "string",
+            "description": "Offer Engine transaction id (the payment attempt id used at `/apply`)."
+          },
+          "offer_id": {
+            "type": "string",
+            "description": "Offer Engine offer id that was applied."
+          },
+          "offer_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Charge-reducing offer amount, in minor units."
+          },
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
+          }
+        }
+      },
       "AttemptStatus": {
         "type": "string",
         "description": "The status of the attempt",
@@ -20961,6 +20994,30 @@
           }
         ]
       },
+      "EligibilityAmountDetails": {
+        "type": "object",
+        "description": "Payable amount details returned during eligibility, before and after the\nOffer Engine discount.",
+        "required": [
+          "total_amount",
+          "net_amount",
+          "currency"
+        ],
+        "properties": {
+          "total_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Payable amount before the Offer Engine discount, in minor units."
+          },
+          "net_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Payable amount after the uplifted offer discount, in minor units."
+          },
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
+          }
+        }
+      },
       "EligibilityCard": {
         "type": "object",
         "description": "Card data for eligibility check — only card_number is required, no CVV needed",
@@ -21036,6 +21093,26 @@
             "description": "The card holder's nick name",
             "example": "John Test",
             "nullable": true
+          }
+        }
+      },
+      "EligibilityOfferDetails": {
+        "type": "object",
+        "description": "Offer Engine eligibility details returned to the client.",
+        "properties": {
+          "uplifted_offer_quote_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Quote ids of the uplifted (selected) offers. First launch selects one."
+          },
+          "eligible_offers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EligibleOffer"
+            },
+            "description": "All eligible offers returned to the client."
           }
         }
       },
@@ -21290,6 +21367,44 @@
             }
           }
         ]
+      },
+      "EligibleOffer": {
+        "type": "object",
+        "description": "A single eligible offer returned to the client during eligibility.",
+        "required": [
+          "offer_quote_id",
+          "offer_amount",
+          "currency",
+          "code"
+        ],
+        "properties": {
+          "offer_quote_id": {
+            "type": "string",
+            "description": "Quote id the client sends back in confirm to apply this offer."
+          },
+          "offer_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Charge-reducing offer amount, in minor units."
+          },
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
+          },
+          "code": {
+            "type": "string",
+            "description": "Offer code."
+          },
+          "title": {
+            "type": "string",
+            "description": "Offer title, if provided.",
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "description": "Offer description, if provided.",
+            "nullable": true
+          }
+        }
       },
       "EliminationAnalyserConfig": {
         "type": "object",
@@ -27751,6 +27866,22 @@
           }
         }
       },
+      "OfferSelection": {
+        "type": "object",
+        "description": "Offer selection sent in a confirm request to apply an offer.",
+        "required": [
+          "offer_quote_ids"
+        ],
+        "properties": {
+          "offer_quote_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Quote ids of the offers to apply. First launch applies a single offer."
+          }
+        }
+      },
       "OnlineMandate": {
         "type": "object",
         "description": "Details of online mandate",
@@ -32163,6 +32294,14 @@
             "description": "Custom payment link config id set at business profile, send only if business_specific_configs is configured",
             "nullable": true
           },
+          "offer_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OfferSelection"
+              }
+            ],
+            "nullable": true
+          },
           "payment_type": {
             "allOf": [
               {
@@ -32713,6 +32852,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/RequestSurchargeDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "offer_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OfferSelection"
               }
             ],
             "nullable": true
@@ -33428,6 +33575,14 @@
             ],
             "nullable": true
           },
+          "applied_offer": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AppliedOffer"
+              }
+            ],
+            "nullable": true
+          },
           "attempt_count": {
             "type": "integer",
             "format": "int32",
@@ -33913,6 +34068,22 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/SurchargeDetailsResponse"
+              }
+            ],
+            "nullable": true
+          },
+          "amount_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/EligibilityAmountDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "offer_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/EligibilityOfferDetails"
               }
             ],
             "nullable": true
@@ -34476,6 +34647,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/RequestSurchargeDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "offer_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OfferSelection"
               }
             ],
             "nullable": true
@@ -35213,6 +35392,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/RequestSurchargeDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "applied_offer": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AppliedOffer"
               }
             ],
             "nullable": true
@@ -35992,6 +36179,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/RequestSurchargeDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "offer_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OfferSelection"
               }
             ],
             "nullable": true

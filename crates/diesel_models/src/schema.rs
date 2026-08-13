@@ -1251,6 +1251,7 @@ diesel::table! {
         sender_payment_instrument_id -> Nullable<Varchar>,
         #[max_length = 64]
         external_threeds_authentication_type -> Nullable<Varchar>,
+        applied_offer_details -> Nullable<Jsonb>,
     }
 }
 

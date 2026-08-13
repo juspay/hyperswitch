@@ -826,6 +826,8 @@ pub struct PaymentAttempt {
     pub authorized_amount: Option<MinorUnit>,
     /// External surcharge details from InterPayments
     pub external_surcharge_details: Option<common_types::payments::ExternalSurchargeDetails>,
+    /// Normalized applied-offer details from Offer Engine
+    pub applied_offer_details: Option<common_types::payments::AppliedOfferDetails>,
 }
 
 impl PaymentAttempt {
@@ -994,6 +996,7 @@ impl PaymentAttempt {
             network_transaction_link_id: None,
             authorized_amount: None,
             external_surcharge_details: None,
+            applied_offer_details: None,
         })
     }
 
@@ -1089,6 +1092,7 @@ impl PaymentAttempt {
             network_transaction_link_id: None,
             authorized_amount: None,
             external_surcharge_details: None,
+            applied_offer_details: None,
         })
     }
 
@@ -1191,6 +1195,7 @@ impl PaymentAttempt {
             network_transaction_link_id: None,
             authorized_amount: None,
             external_surcharge_details: None,
+            applied_offer_details: None,
         })
     }
 
@@ -1318,6 +1323,7 @@ impl PaymentAttempt {
             network_transaction_link_id: None,
             authorized_amount: None,
             external_surcharge_details: None,
+            applied_offer_details: None,
         })
     }
 
@@ -1438,6 +1444,8 @@ pub struct PaymentAttempt {
     pub installment_data: Option<common_types::payments::InstallmentData>,
     /// External surcharge details from InterPayments (stored as JSONB)
     pub external_surcharge_details: Option<common_types::payments::ExternalSurchargeDetails>,
+    /// Normalized applied-offer details from Offer Engine
+    pub applied_offer_details: Option<common_types::payments::AppliedOfferDetails>,
     /// Sender payment instrument ID
     pub sender_payment_instrument_id: Option<String>,
 }
@@ -1457,6 +1465,8 @@ pub struct NetAmount {
     tax_on_surcharge: Option<MinorUnit>,
     /// Installment interest amount for installment payments
     installment_interest: Option<MinorUnit>,
+    /// Offer Engine charge-reducing discount amount, subtracted from the total
+    offer_amount: Option<MinorUnit>,
 }
 
 #[cfg(feature = "v1")]
@@ -1468,6 +1478,7 @@ impl NetAmount {
         surcharge_amount: Option<MinorUnit>,
         tax_on_surcharge: Option<MinorUnit>,
         installment_interest: Option<MinorUnit>,
+        offer_amount: Option<MinorUnit>,
     ) -> Self {
         Self {
             order_amount,
@@ -1476,6 +1487,7 @@ impl NetAmount {
             surcharge_amount,
             tax_on_surcharge,
             installment_interest,
+            offer_amount,
         }
     }
 
@@ -1503,6 +1515,14 @@ impl NetAmount {
         self.installment_interest
     }
 
+    pub fn get_offer_amount(&self) -> Option<MinorUnit> {
+        self.offer_amount
+    }
+
+    pub fn set_offer_amount(&mut self, offer_amount: Option<MinorUnit>) {
+        self.offer_amount = offer_amount;
+    }
+
     pub fn get_total_surcharge_amount(&self) -> Option<MinorUnit> {
         self.surcharge_amount
             .map(|surcharge_amount| surcharge_amount + self.tax_on_surcharge.unwrap_or_default())
@@ -1515,6 +1535,7 @@ impl NetAmount {
             + self.surcharge_amount.unwrap_or_default()
             + self.tax_on_surcharge.unwrap_or_default()
             + self.installment_interest.unwrap_or_default()
+            - self.offer_amount.unwrap_or_default()
     }
 
     pub fn get_additional_amount(&self) -> MinorUnit {
@@ -1564,6 +1585,7 @@ impl NetAmount {
             surcharge_amount,
             tax_on_surcharge,
             installment_interest: None,
+            offer_amount: None,
         }
     }
 
@@ -1600,6 +1622,8 @@ impl NetAmount {
                 });
             let installment_interest = payment_attempt
                 .and_then(|payment_attempt| payment_attempt.net_amount.get_installment_interest());
+            let offer_amount = payment_attempt
+                .and_then(|payment_attempt| payment_attempt.net_amount.get_offer_amount());
             Self {
                 order_amount,
                 shipping_cost,
@@ -1607,6 +1631,7 @@ impl NetAmount {
                 surcharge_amount,
                 tax_on_surcharge,
                 installment_interest,
+                offer_amount,
             }
         })
     }
@@ -2011,6 +2036,7 @@ pub enum PaymentAttemptUpdate {
         is_stored_credential: Option<bool>,
         request_extended_authorization: Option<RequestExtendedAuthorizationBool>,
         external_surcharge_details: Option<common_types::payments::ExternalSurchargeDetails>,
+        applied_offer_details: Option<common_types::payments::AppliedOfferDetails>,
     },
     RejectUpdate {
         status: storage_enums::AttemptStatus,
@@ -2343,6 +2369,7 @@ impl PaymentAttemptUpdate {
                 is_stored_credential,
                 request_extended_authorization,
                 external_surcharge_details,
+                applied_offer_details,
             } => DieselPaymentAttemptUpdate::ConfirmUpdate {
                 amount: net_amount.get_order_amount(),
                 currency,
@@ -2394,6 +2421,7 @@ impl PaymentAttemptUpdate {
                 is_stored_credential,
                 request_extended_authorization,
                 external_surcharge_details,
+                applied_offer_details,
             },
             Self::VoidUpdate {
                 status,
@@ -3019,6 +3047,7 @@ impl behaviour::Conversion for PaymentAttempt {
             encrypted_payment_method_data: self.encrypted_payment_method_data.map(Encryption::from),
             retry_type: self.retry_type,
             external_surcharge_details: self.external_surcharge_details,
+            applied_offer_details: self.applied_offer_details,
             sender_payment_instrument_id: self.sender_payment_instrument_id,
         })
     }
@@ -3070,6 +3099,10 @@ impl behaviour::Conversion for PaymentAttempt {
                         .installment_data
                         .as_ref()
                         .and_then(|d| d.installment_interest),
+                    storage_model
+                        .applied_offer_details
+                        .as_ref()
+                        .map(|applied_offer_details| applied_offer_details.inner().offer_amount),
                 ),
                 currency: storage_model.currency,
                 save_to_locker: storage_model.save_to_locker,
@@ -3157,6 +3190,7 @@ impl behaviour::Conversion for PaymentAttempt {
                 retry_type: storage_model.retry_type,
                 installment_data: storage_model.installment_data,
                 external_surcharge_details: storage_model.external_surcharge_details,
+                applied_offer_details: storage_model.applied_offer_details,
                 sender_payment_instrument_id: storage_model.sender_payment_instrument_id,
             })
         }
@@ -3261,6 +3295,7 @@ impl behaviour::Conversion for PaymentAttempt {
             retry_type: self.retry_type,
             installment_data: self.installment_data,
             external_surcharge_details: self.external_surcharge_details,
+            applied_offer_details: self.applied_offer_details,
             sender_payment_instrument_id: self.sender_payment_instrument_id,
         })
     }
@@ -3340,6 +3375,7 @@ impl behaviour::Conversion for PaymentAttempt {
             network_transaction_link_id,
             authorized_amount,
             external_surcharge_details,
+            applied_offer_details,
         } = self;
 
         let AttemptAmountDetails {
@@ -3452,6 +3488,7 @@ impl behaviour::Conversion for PaymentAttempt {
             retry_type: None,
             installment_data: None,
             external_surcharge_details: None,
+            applied_offer_details,
             sender_payment_instrument_id: None,
         })
     }
@@ -3569,6 +3606,7 @@ impl behaviour::Conversion for PaymentAttempt {
                 authentication_applied: storage_model.authentication_applied,
                 external_reference_id: storage_model.external_reference_id,
                 external_surcharge_details: storage_model.external_surcharge_details,
+                applied_offer_details: storage_model.applied_offer_details,
                 connector: storage_model.connector,
                 payment_method_billing_address,
                 connector_token_details: storage_model.connector_token_details,
@@ -3649,6 +3687,7 @@ impl behaviour::Conversion for PaymentAttempt {
             network_transaction_link_id,
             authorized_amount,
             external_surcharge_details: _,
+            applied_offer_details: _,
         } = self;
 
         let card_network = payment_method_data
@@ -3745,6 +3784,7 @@ impl behaviour::Conversion for PaymentAttempt {
             processor_merchant_id: Some(processor_merchant_id),
             created_by: created_by.map(|created_by| created_by.to_string()),
             external_surcharge_details: None,
+            applied_offer_details: None,
             connector_request_reference_id,
             network_details: None,
             tokenization: None,
