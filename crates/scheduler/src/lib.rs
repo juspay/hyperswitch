@@ -11,3 +11,6 @@ pub mod settings;
 pub mod utils;
 
 pub use self::{consumer::types, flow::*, scheduler::*};
+
+#[cfg(test)]
+mod test;
