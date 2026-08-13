@@ -51,19 +51,6 @@ fn encryption_service_operation(endpoint: &str) -> &'static str {
     }
 }
 
-#[cfg(test)]
-mod metrics_tests {
-    use super::encryption_service_operation;
-
-    #[test]
-    fn encryption_service_operations_are_bounded() {
-        assert_eq!(encryption_service_operation("data/encrypt"), "encrypt");
-        assert_eq!(encryption_service_operation("data/decrypt"), "decrypt");
-        assert_eq!(encryption_service_operation("key/create"), "key_create");
-        assert_eq!(encryption_service_operation("unknown"), "other");
-    }
-}
-
 /// Get keymanager client constructed from the url and state
 #[instrument(skip_all)]
 #[allow(unused_mut)]

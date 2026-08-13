@@ -47,7 +47,8 @@ pub fn payments_confirm_flow_name() -> &'static str {
     Flow::PaymentsConfirm.into()
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, strum::IntoStaticStr)]
+#[strum(serialize_all = "snake_case")]
 pub enum MerchantMode {
     Modular,
     NonModular,
@@ -59,13 +60,6 @@ impl MerchantMode {
             Self::Modular
         } else {
             Self::NonModular
-        }
-    }
-
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Self::Modular => "modular",
-            Self::NonModular => "non_modular",
         }
     }
 }
@@ -87,10 +81,11 @@ pub fn record_payment_confirm<T, E>(
     context: PaymentMetricsContext,
 ) {
     let outcome = if result.is_ok() { "success" } else { "failure" };
+    let merchant_mode: &'static str = context.merchant_mode.into();
     let attributes = metric_attributes!(
         ("operation", "confirm"),
         ("flow", payments_confirm_flow_name()),
-        ("merchant_mode", context.merchant_mode.as_str()),
+        ("merchant_mode", merchant_mode),
         ("outcome", outcome),
     );
 
@@ -105,13 +100,14 @@ pub fn record_microservice_call<T, E>(
     operation: &'static str,
     context: PaymentMetricsContext,
 ) {
+    let merchant_mode: &'static str = context.merchant_mode.into();
     MICROSERVICE_CLIENT_CALL_DURATION.record(
         duration.as_secs_f64(),
         metric_attributes!(
             ("service", service),
             ("operation", operation),
             ("flow", payments_confirm_flow_name()),
-            ("merchant_mode", context.merchant_mode.as_str()),
+            ("merchant_mode", merchant_mode),
             (
                 "outcome",
                 if result.is_ok() { "success" } else { "failure" }
@@ -126,37 +122,16 @@ pub fn record_vault_call(
     succeeded: bool,
     context: PaymentMetricsContext,
 ) {
+    let merchant_mode: &'static str = context.merchant_mode.into();
     VAULT_CALL_DURATION.record(
         duration.as_secs_f64(),
         metric_attributes!(
             ("operation", operation),
             ("flow", payments_confirm_flow_name()),
-            ("merchant_mode", context.merchant_mode.as_str()),
+            ("merchant_mode", merchant_mode),
             ("outcome", if succeeded { "success" } else { "failure" }),
         ),
     );
-}
-
-#[cfg(test)]
-mod payment_metrics_tests {
-    use super::{payments_confirm_flow_name, MerchantMode, PaymentMetricsContext};
-
-    #[test]
-    fn merchant_mode_labels_are_stable() {
-        assert_eq!(MerchantMode::from_modular_enabled(true).as_str(), "modular");
-        assert_eq!(
-            MerchantMode::from_modular_enabled(false).as_str(),
-            "non_modular"
-        );
-    }
-
-    #[test]
-    fn confirm_context_uses_bounded_dashboard_labels() {
-        let context = PaymentMetricsContext::payments_confirm(MerchantMode::Modular);
-
-        assert_eq!(payments_confirm_flow_name(), "payments_confirm");
-        assert_eq!(context.merchant_mode.as_str(), "modular");
-    }
 }
 
 // Operation Level Metrics

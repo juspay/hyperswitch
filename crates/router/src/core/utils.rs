@@ -62,7 +62,7 @@ use crate::{
         payments::PaymentData,
     },
     db::StorageInterface,
-    routes::SessionState,
+    routes::{metrics::MerchantMode, SessionState},
     types::{
         self, api, domain,
         storage::{self, enums},
@@ -101,7 +101,7 @@ pub async fn get_feature_config(
         return FeatureConfig {
             is_payment_method_modular_allowed: matches!(
                 context.merchant_mode,
-                crate::routes::metrics::MerchantMode::Modular
+                MerchantMode::Modular
             ),
         };
     }

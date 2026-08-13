@@ -1,4 +1,4 @@
-use common_utils::types::keymanager::KeyManagerState;
+use common_utils::types::keymanager::{KeyManagerMetricsContext, KeyManagerState};
 pub use hyperswitch_domain_models::type_encryption::{
     crypto_operation, AsyncLift, CryptoOperation, Lift, OptionalEncryptableJsonType,
 };
@@ -6,7 +6,7 @@ use hyperswitch_interfaces::configs;
 use payment_methods::state as pm_state;
 
 use crate::{
-    routes::app,
+    routes::{app, metrics::payments_confirm_flow_name},
     types::{api as api_types, ForeignFrom},
 };
 
@@ -57,9 +57,10 @@ impl From<&app::SessionState> for KeyManagerState {
             infra_values: app::AppState::process_env_mappings(state.conf.infra_values.clone()),
             use_legacy_key_store_decryption: conf.use_legacy_key_store_decryption,
             metrics_context: state.payment_metrics_context.map(|context| {
-                common_utils::types::keymanager::KeyManagerMetricsContext {
-                    flow: crate::routes::metrics::payments_confirm_flow_name(),
-                    merchant_mode: context.merchant_mode.as_str(),
+                let merchant_mode: &'static str = context.merchant_mode.into();
+                KeyManagerMetricsContext {
+                    flow: payments_confirm_flow_name(),
+                    merchant_mode,
                 }
             }),
         }
