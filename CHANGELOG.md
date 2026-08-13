@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.07.29.2-hotfix6
+
+### Features
+
+- **payment_methods:** Add metrics for modular payment method service ([#13705](https://github.com/juspay/hyperswitch/pull/13705)) ([`25ba942`](https://github.com/juspay/hyperswitch/commit/25ba942682799c12b08d7b9ad9d36064a869da70))
+
+**Full Changelog:** [`2026.07.29.2-hotfix5...2026.07.29.2-hotfix6`](https://github.com/juspay/hyperswitch/compare/2026.07.29.2-hotfix5...2026.07.29.2-hotfix6)
+
+- - -
+
 ## 2026.07.29.2-hotfix5
 
 ### Bug Fixes
