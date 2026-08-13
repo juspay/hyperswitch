@@ -730,12 +730,6 @@ describe("Bank Redirect tests", () => {
   });
 
   context("Trustly Create and Confirm flow test", () => {
-    before(function () {
-      if (globalState.get("connectorId") !== "trustly") {
-        this.skip();
-      }
-    });
-
     it("Create Payment Intent -> List Merchant Payment Methods -> Confirm Payment -> Handle Bank Redirect Redirection", () => {
       let shouldContinue = true;
 

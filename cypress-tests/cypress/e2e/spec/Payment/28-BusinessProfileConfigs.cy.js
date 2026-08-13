@@ -493,8 +493,7 @@ describe("Config Tests", () => {
       const webhookConfigConnectors =
         utils.CONNECTOR_LISTS.INCLUDE.WEBHOOK_CONFIG;
 
-      // These negative cases validate webhook config fields only for connectors
-      // that opt into the webhook config suite.
+      // Skip if connector is NOT in the webhook config list
       const shouldSkip =
         Array.isArray(webhookConfigConnectors) &&
         !webhookConfigConnectors.includes(connectorId);

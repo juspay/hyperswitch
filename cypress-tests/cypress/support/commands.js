@@ -73,6 +73,8 @@ function getOriginalConnectorId(globalState) {
 function getConnectorIdForRedirect(globalState) {
   const connectorId = getOriginalConnectorId(globalState);
 
+  // Trustly auth/config entries can be variant-specific, but UCS rollout keys
+  // are stored under the base connector name.
   if (typeof connectorId === "string" && connectorId.startsWith("trustly")) {
     return "trustly";
   }
@@ -135,12 +137,6 @@ function createIndividualRolloutConfig(
   // Set rollout_percent to 1.0 to ensure flows go through
   const rolloutPercent = 1.0;
   const key = `ucs_rollout_config_${merchantId}_${connector}_${methodFlow}`;
-  const executionMode = CONNECTOR_LISTS.INCLUDE.UCS_CONNECTORS.includes(
-    connector
-  )
-    ? "primary"
-    : "shadow";
-
   // UCS-only connectors (no working classic direct-integration fallback)
   // must route "primary" so the classic connector is never invoked; every
   // other connector keeps mirroring to UCS via "shadow" for comparison.
@@ -186,6 +182,8 @@ function createIndividualRolloutConfig(
       });
   };
 
+  // setConfigs only logs the response; this helper returns the result object
+  // consumed by createUcsConfigs' success/failure aggregation.
   const createConfig = () => {
     const requestBody = {
       key: key,
