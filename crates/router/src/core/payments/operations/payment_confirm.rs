@@ -556,7 +556,12 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .as_ref()
             .and_then(|pmd| pmd.payment_method_data.clone())
             .map(domain::PaymentMethodData::from)
-            .or(payment_method_recurring_details.clone());
+            .or(payment_method_recurring_details.clone())
+            .or_else(|| {
+                payment_method_with_raw_data
+                    .as_ref()
+                    .and_then(|payment_method| payment_method.raw_payment_method_data.clone())
+            });
 
         let store = state.clone().store;
         let superposition_service = state.superposition_service.clone();
@@ -752,8 +757,16 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         } else {
             None
         };
-        // Only set `payment_attempt.payment_method_data` if `additional_pm_data_from_locker` is not None
-        if let Some(additional_pm_data) = additional_pm_data_from_locker.as_ref() {
+        // Modular payment methods keep raw payment data separate from the domain payment method.
+        // Persist only the derived supplementary data, falling back to the legacy locker metadata.
+        let additional_pm_data_to_persist = if payment_method_with_raw_data.is_some() {
+            additional_pm_data
+                .as_ref()
+                .or(additional_pm_data_from_locker.as_ref())
+        } else {
+            additional_pm_data_from_locker.as_ref()
+        };
+        if let Some(additional_pm_data) = additional_pm_data_to_persist {
             payment_attempt.payment_method_data = Some(
                 Encode::encode_to_value(additional_pm_data)
                     .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -1721,6 +1734,26 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                             .inspect_err(|err| logger::error!("{:?}", err))
                             .ok()
                             .unwrap_or_default(),
+                        card_bin: payment_data
+                            .payment_method_data
+                            .as_ref()
+                            .and_then(|payment_method_data| payment_method_data.get_card_iin())
+                            .or_else(|| {
+                                additional_card_info
+                                    .as_ref()
+                                    .and_then(|card_info| card_info.card_isin.clone())
+                            }),
+                        extended_card_bin: payment_data
+                            .payment_method_data
+                            .as_ref()
+                            .and_then(|payment_method_data| {
+                                payment_method_data.get_card_extended_bin()
+                            })
+                            .or_else(|| {
+                                additional_card_info
+                                    .as_ref()
+                                    .and_then(|card_info| card_info.card_extended_bin.clone())
+                            }),
                         business_country: payment_data
                             .payment_intent
                             .business_country
