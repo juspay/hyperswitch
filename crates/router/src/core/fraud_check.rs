@@ -745,7 +745,7 @@ where
         )
         .await;
 
-    let frm_configs = match decide_and_run_pre_frm(
+    let frm_configs = match Box::pin(decide_and_run_pre_frm(
         operation,
         platform,
         payment_data,
@@ -754,7 +754,7 @@ where
         should_continue_transaction,
         should_continue_capture,
         &failure_mode,
-    )
+    ))
     .await
     {
         Ok(frm_configs) => Ok(frm_configs),

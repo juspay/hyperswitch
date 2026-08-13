@@ -197,7 +197,7 @@ pub struct SanlamPayshieldErrorResponse {
     pub error_code: Option<i64>,
     pub error_message: Option<String>,
     #[serde(default)]
-    pub inner_errors: Vec<SanlamPayshieldErrorResponse>,
+    pub inner_errors: Vec<Self>,
     pub message: Option<String>,
 }
 
