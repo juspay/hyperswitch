@@ -101,9 +101,9 @@ impl CustomerPaymentMethodsFetcher for DbCustomerPaymentMethodsFetcher {
     ) -> errors::RouterResult<Vec<CustomerPaymentMethodForClient>> {
         let customer_payment_methods_response = Box::pin(cards::list_customer_payment_method(
             state,
-            platform.clone(),
-            payment_intent.cloned(),
-            payment_attempt.cloned(),
+            platform,
+            payment_intent,
+            payment_attempt,
             customer.get_id(),
             None, // limit
             dimensions,

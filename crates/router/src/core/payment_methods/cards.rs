@@ -5876,7 +5876,7 @@ pub async fn do_list_customer_pm_fetch_customer_if_not_passed(
     if let Some(customer_id) = customer_id {
         Box::pin(list_customer_payment_method(
             &state,
-            platform.clone(),
+            &platform,
             None,
             None,
             customer_id,
@@ -5915,9 +5915,9 @@ pub async fn do_list_customer_pm_fetch_customer_if_not_passed(
             Some(customer_id) => {
                 Box::pin(list_customer_payment_method(
                     &state,
-                    platform,
-                    payment_intent,
-                    payment_attempt,
+                    &platform,
+                    payment_intent.as_ref(),
+                    payment_attempt.as_ref(),
                     &customer_id,
                     limit,
                     &dimensions,
@@ -5981,9 +5981,9 @@ fn filter_latest_wallet_methods(
 #[cfg(feature = "v1")]
 pub async fn list_customer_payment_method(
     state: &routes::SessionState,
-    platform: domain::Platform,
-    payment_intent: Option<storage::PaymentIntent>,
-    payment_attempt: Option<storage::PaymentAttempt>,
+    platform: &domain::Platform,
+    payment_intent: Option<&storage::PaymentIntent>,
+    payment_attempt: Option<&storage::PaymentAttempt>,
     customer_id: &id_type::CustomerId,
     limit: Option<i64>,
     dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
@@ -6390,10 +6390,10 @@ pub async fn get_pm_list_context(
 
 #[cfg(feature = "v1")]
 async fn perform_surcharge_ops(
-    payment_intent: Option<storage::PaymentIntent>,
-    payment_attempt: Option<storage::PaymentAttempt>,
+    payment_intent: Option<&storage::PaymentIntent>,
+    payment_attempt: Option<&storage::PaymentAttempt>,
     state: &routes::SessionState,
-    platform: domain::Platform,
+    platform: &domain::Platform,
     business_profile: Option<Profile>,
     response: &mut api::CustomerPaymentMethodsListResponse,
 ) -> Result<(), error_stack::Report<errors::ApiErrorResponse>> {
@@ -6404,10 +6404,10 @@ async fn perform_surcharge_ops(
     {
         call_surcharge_decision_management_for_saved_card(
             state,
-            &platform,
+            platform,
             &business_profile,
-            &payment_attempt,
-            payment_intent,
+            payment_attempt,
+            payment_intent.clone(),
             response,
         )
         .await?;
