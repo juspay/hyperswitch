@@ -46,7 +46,7 @@ use crate::{
         errors::{self, RouterResult},
         payments::{
             helpers::{
-                is_googlepay_predecrypted_flow_supported, is_ucs_enabled,
+                is_config_flag_enabled, is_googlepay_predecrypted_flow_supported,
                 should_execute_based_on_rollout, should_execute_based_on_rollout_with_precedence,
                 MerchantConnectorAccountType, ProxyOverride, WebhookRolloutConfig,
                 WebhookRolloutExecutionResult,
@@ -68,6 +68,7 @@ use crate::{
 };
 
 pub mod connector_config;
+pub mod kill_switch;
 pub mod transformers;
 
 /// Returns Apple Pay data from payment method token when it has decrypt data,
@@ -239,7 +240,7 @@ type UnifiedConnectorServiceCreateOrderResult = CustomResult<
 async fn check_ucs_availability(state: &SessionState) -> UcsAvailability {
     let is_client_available = state.grpc_client.unified_connector_service_client.is_some();
 
-    let is_enabled = is_ucs_enabled(state, consts::UCS_ENABLED).await;
+    let is_enabled = is_config_flag_enabled(state, consts::UCS_ENABLED).await;
 
     match (is_client_available, is_enabled) {
         (true, true) => {
@@ -325,7 +326,7 @@ where
     // Payments use org-level hierarchy; payouts use a single merchant-level key for now.
     let rollout_keys = match transaction_type {
         common_enums::TransactionType::Payment
-        | common_enums::TransactionType::ThreeDsAuthentication => build_rollout_keys(
+        | common_enums::TransactionType::ThreeDsAuthentication => build_rollout_keys_by_precedence(
             org_id,
             merchant_id,
             connector_name,
@@ -350,7 +351,8 @@ where
         should_execute_based_on_rollout_with_precedence(state, &rollout_keys).await?;
 
     // Single decision point using pattern matching
-    let (gateway_system, mut execution_path) = if ucs_availability == UcsAvailability::Disabled {
+    let (mut gateway_system, mut execution_path) = if ucs_availability == UcsAvailability::Disabled
+    {
         match call_connector_action {
             CallConnectorAction::UCSConsumeResponse(_) => {
                 Err(errors::ApiErrorResponse::InternalServerError)
@@ -404,6 +406,36 @@ where
             }
         }
     };
+
+    // Kill switch: a scope that already failed deterministically serves from the direct
+    // integration regardless of what its rollout config says.
+    //
+    // Only the primary path is diverted, and it is diverted to shadow rather than to direct — the
+    // merchant is served by the direct integration either way, but shadow keeps mirroring, so a
+    // tripped scope still produces the comparison signal needed to confirm a fix before it is
+    // reset. Shadow itself falls back to direct below when no proxy override is configured.
+    if matches!(execution_path, ExecutionPath::UnifiedConnectorService)
+        && is_kill_switch_applicable(connector_integration_type, &call_connector_action)
+    {
+        let rollout_scope = build_merchant_rollout_scope(
+            merchant_id,
+            connector_name,
+            &flow_name,
+            router_data.payment_method,
+            router_data.payment_method_type,
+        );
+
+        if Box::pin(kill_switch::is_tripped(state, &rollout_scope)).await {
+            router_env::logger::warn!(
+                merchant_id = %merchant_id,
+                connector = %connector_name,
+                flow = %flow_name,
+                "UCS kill switch is tripped for this scope, serving from the direct integration"
+            );
+            gateway_system = GatewaySystem::Direct;
+            execution_path = ExecutionPath::ShadowUnifiedConnectorService;
+        }
+    }
 
     // Handle proxy configuration for Shadow UCS flows
     let session_state = match execution_path {
@@ -465,6 +497,29 @@ fn create_updated_session_state_with_proxy(
     updated_state.conf = std::sync::Arc::new(updated_conf);
 
     updated_state
+}
+
+/// Whether the kill switch may divert this call away from UCS.
+///
+/// Two cases have nothing to fall back to, so diverting them would not protect the merchant — it
+/// would be the outage:
+///
+/// - [`ConnectorIntegrationType::UcsConnector`] connectors are served only by UCS. There are live
+///   merchants on these today, and the direct implementations behind them have never taken
+///   production traffic.
+/// - [`CallConnectorAction::UCSConsumeResponse`] carries a response UCS has already produced;
+///   handing it to any other gateway errors out, as the `UcsAvailability::Disabled` arm shows.
+fn is_kill_switch_applicable(
+    connector_integration_type: ConnectorIntegrationType,
+    call_connector_action: &CallConnectorAction,
+) -> bool {
+    !matches!(
+        connector_integration_type,
+        ConnectorIntegrationType::UcsConnector
+    ) && !matches!(
+        call_connector_action,
+        CallConnectorAction::UCSConsumeResponse(_)
+    )
 }
 
 fn decide_execution_path(
@@ -536,49 +591,35 @@ fn decide_execution_path(
     }
 }
 
-/// Builds rollout config keys in ascending precedence order:
-/// 1. `ucs_rollout_config_<org_id>`                               — org level (lowest)
-/// 2. `ucs_rollout_config_<org_id>_<merchant_id>`                 — org + merchant
-/// 3. `ucs_rollout_config_<org_id>_<merchant_id>_<connector>_...` — org + merchant + connector (highest)
+/// The merchant level of a rollout key: merchant, connector, payment method and flow.
 ///
-/// The caller tries keys highest → lowest and uses the first match found.
-/// Builds rollout config keys in ascending precedence order (lowest → highest):
-/// 1. `ucs_rollout_config_<org_id>`                                         — org level
-/// 2. `ucs_rollout_config_<org_id>_<merchant_id>`                           — org + merchant
-/// 3. `ucs_rollout_config_<org_id>_<merchant_id>_<connector>_...`           — org + merchant + connector
-/// 4. `ucs_rollout_config_<merchant_id>_<connector>_...`                    — merchant + connector (highest)
-///
-/// The caller iterates highest → lowest and uses the first match found.
-fn build_rollout_keys(
-    org_id: &str,
+/// The finest of the four precedence levels, and the only one that varies by connector or
+/// payment method. Shared with the kill switch so a trip targets exactly the key that enabled
+/// the traffic.
+pub fn build_merchant_rollout_scope(
     merchant_id: &str,
     connector_name: &str,
     flow_name: &str,
     payment_method: common_enums::PaymentMethod,
     payment_method_type: Option<PaymentMethodType>,
-) -> Vec<String> {
-    let prefix = consts::UCS_ROLLOUT_PERCENT_CONFIG_PREFIX;
-    let is_refund_flow = matches!(flow_name, "Execute" | "RSync");
+) -> String {
+    let payment_method_str = payment_method.to_string();
 
-    let (merchant_connector_key, org_merchant_connector_key) = if is_refund_flow {
-        // Refund flows: ucs_rollout_config_<merchant_id>_<connector>_<flow>
-        (
-            format!("{prefix}_{merchant_id}_{connector_name}_{flow_name}"),
-            format!("{prefix}_{org_id}_{merchant_id}_{connector_name}_{flow_name}"),
-        )
-    } else {
-        match payment_method {
+    match flow_name {
+        // Refund keys carry no payment method.
+        "Execute" | "RSync" => format!("{merchant_id}_{connector_name}_{flow_name}"),
+
+        _ => match payment_method {
+            // These payment methods are discriminated further by payment method type.
             common_enums::PaymentMethod::Wallet
             | common_enums::PaymentMethod::BankRedirect
             | common_enums::PaymentMethod::Voucher
             | common_enums::PaymentMethod::PayLater => {
-                let payment_method_str = payment_method.to_string();
                 let payment_method_type_str = payment_method_type
                     .map(|pmt| pmt.to_string())
                     .unwrap_or_else(|| "unknown".to_string());
-                (
-                    format!("{prefix}_{merchant_id}_{connector_name}_{payment_method_str}_{payment_method_type_str}_{flow_name}"),
-                    format!("{prefix}_{org_id}_{merchant_id}_{connector_name}_{payment_method_str}_{payment_method_type_str}_{flow_name}"),
+                format!(
+                    "{merchant_id}_{connector_name}_{payment_method_str}_{payment_method_type_str}_{flow_name}"
                 )
             }
             common_enums::PaymentMethod::Card
@@ -593,22 +634,36 @@ fn build_rollout_keys(
             | common_enums::PaymentMethod::MobilePayment
             | common_enums::PaymentMethod::NetworkToken
             | common_enums::PaymentMethod::OpenBanking => {
-                // For other payment methods, use a generic format without specific payment method type details
-                let payment_method_str = payment_method.to_string();
-                (
-                    format!("{prefix}_{merchant_id}_{connector_name}_{payment_method_str}_{flow_name}"),
-                    format!("{prefix}_{org_id}_{merchant_id}_{connector_name}_{payment_method_str}_{flow_name}"),
-                )
+                format!("{merchant_id}_{connector_name}_{payment_method_str}_{flow_name}")
             }
-        }
-    };
+        },
+    }
+}
 
-    // Ascending precedence order (lowest first, highest last)
+/// Rollout config keys, **lowest precedence first**. The caller reverses this and takes the
+/// first key that exists, so the order is load-bearing.
+fn build_rollout_keys_by_precedence(
+    org_id: &str,
+    merchant_id: &str,
+    connector_name: &str,
+    flow_name: &str,
+    payment_method: common_enums::PaymentMethod,
+    payment_method_type: Option<PaymentMethodType>,
+) -> Vec<String> {
+    let prefix = consts::UCS_ROLLOUT_PERCENT_CONFIG_PREFIX;
+    let scope = build_merchant_rollout_scope(
+        merchant_id,
+        connector_name,
+        flow_name,
+        payment_method,
+        payment_method_type,
+    );
+
     vec![
         format!("{prefix}_{org_id}"),
         format!("{prefix}_{org_id}_{merchant_id}"),
-        org_merchant_connector_key,
-        merchant_connector_key,
+        format!("{prefix}_{org_id}_{scope}"),
+        format!("{prefix}_{scope}"),
     ]
 }
 
@@ -3042,6 +3097,8 @@ where
     let refund_id = router_data.refund_id.clone();
     let dispute_id = router_data.dispute_id.clone();
     let payout_id = router_data.payout_id.clone();
+    let payment_method = router_data.payment_method;
+    let payment_method_type = router_data.payment_method_type;
     let grpc_header = grpc_header_builder.build();
     // Log the actual gRPC request with masking
     let grpc_request_body = hyperswitch_masking::masked_serialize(&grpc_request)
@@ -3092,6 +3149,34 @@ where
                 1,
                 router_env::metric_attributes!(("connector", connector_name.clone(),)),
             );
+
+            // Every payment and payout gateway funnels through here with the UCS error still
+            // typed, so this is the one place the kill switch has to observe.
+            match get_flow_name::<T>() {
+                Ok(flow_name) => {
+                    kill_switch::record_failure(
+                        state,
+                        kill_switch::UcsFailureContext {
+                            merchant_id: merchant_id.get_string_repr(),
+                            connector_name: &connector_name,
+                            flow_name: &flow_name,
+                            payment_id: &payment_id,
+                            payment_method,
+                            payment_method_type,
+                        },
+                        execution_mode,
+                        error.current_context(),
+                    )
+                    .await;
+                }
+                // Never expected, but skipping here would disable the kill switch for this flow
+                // without saying so.
+                Err(flow_name_error) => logger::error!(
+                    ?flow_name_error,
+                    connector = %connector_name,
+                    "ucs_kill_switch: could not resolve the flow name, failure not classified"
+                ),
+            }
 
             let error_body = serde_json::json!({
                 "error": error.to_string(),
@@ -3267,6 +3352,14 @@ pub async fn call_unified_connector_service_for_refund_execute(
 
     let prev_refund_status = router_data.request.refund_status;
 
+    // Captured before `router_data` moves into the wrapper, so the kill switch can build the same
+    // scope the gateway decision built.
+    let merchant_id_for_kill_switch = processor.get_account().get_id().clone();
+    let connector_name_for_kill_switch = router_data.connector.clone();
+    let payment_method_for_kill_switch = router_data.payment_method;
+    let payment_method_type_for_kill_switch = router_data.payment_method_type;
+    let payment_id_for_kill_switch = router_data.payment_id.clone();
+
     // Make UCS refund call with logging wrapper
     Box::pin(ucs_logging_wrapper(
         router_data,
@@ -3282,6 +3375,23 @@ pub async fn call_unified_connector_service_for_refund_execute(
             {
                 Ok(resp) => resp,
                 Err(report) => {
+                    // Recorded before the connector-error branch below returns `Ok`, so a refund
+                    // decline is classified on the same footing as a payment one.
+                    kill_switch::record_failure(
+                        state,
+                        kill_switch::UcsFailureContext {
+                            merchant_id: merchant_id_for_kill_switch.get_string_repr(),
+                            connector_name: &connector_name_for_kill_switch,
+                            flow_name: "Execute",
+                            payment_id: &payment_id_for_kill_switch,
+                            payment_method: payment_method_for_kill_switch,
+                            payment_method_type: payment_method_type_for_kill_switch,
+                        },
+                        execution_mode,
+                        report.current_context(),
+                    )
+                    .await;
+
                     if let UnifiedConnectorServiceError::ConnectorError(inner) =
                         report.current_context()
                     {
@@ -3403,6 +3513,14 @@ pub async fn call_unified_connector_service_for_refund_sync(
 
     let prev_refund_status = router_data.request.refund_status;
 
+    // Captured before `router_data` moves into the wrapper, so the kill switch can build the same
+    // scope the gateway decision built.
+    let merchant_id_for_kill_switch = processor.get_account().get_id().clone();
+    let connector_name_for_kill_switch = router_data.connector.clone();
+    let payment_method_for_kill_switch = router_data.payment_method;
+    let payment_method_type_for_kill_switch = router_data.payment_method_type;
+    let payment_id_for_kill_switch = router_data.payment_id.clone();
+
     // Make UCS refund sync call with logging wrapper
     Box::pin(ucs_logging_wrapper(
         router_data,
@@ -3418,6 +3536,23 @@ pub async fn call_unified_connector_service_for_refund_sync(
             {
                 Ok(resp) => resp,
                 Err(report) => {
+                    // Recorded before the connector-error branch below returns `Ok`, so a refund
+                    // decline is classified on the same footing as a payment one.
+                    kill_switch::record_failure(
+                        state,
+                        kill_switch::UcsFailureContext {
+                            merchant_id: merchant_id_for_kill_switch.get_string_repr(),
+                            connector_name: &connector_name_for_kill_switch,
+                            flow_name: "RSync",
+                            payment_id: &payment_id_for_kill_switch,
+                            payment_method: payment_method_for_kill_switch,
+                            payment_method_type: payment_method_type_for_kill_switch,
+                        },
+                        execution_mode,
+                        report.current_context(),
+                    )
+                    .await;
+
                     if let UnifiedConnectorServiceError::ConnectorError(inner) =
                         report.current_context()
                     {
