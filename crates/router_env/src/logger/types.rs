@@ -56,6 +56,8 @@ pub enum Flow {
     HealthCheck,
     /// Deep health Check
     DeepHealthCheck,
+    /// Offer Engine connectivity check (dev/admin only)
+    OfferEngineConnectivityCheck,
     /// OIDC Discovery endpoint
     OidcDiscovery,
     /// OIDC JWKS endpoint
@@ -275,6 +277,8 @@ pub enum Flow {
     RoutingUnlinkConfig,
     /// Routing retrieve config
     RoutingRetrieveConfig,
+    /// Decision engine merchant SSO redirect
+    DecisionEngineSsoRedirect,
     /// Routing retrieve active config
     RoutingRetrieveActiveConfig,
     /// Routing retrieve default config
@@ -655,6 +659,12 @@ pub enum Flow {
     VolumeSplitOnRoutingType,
     /// Routing evaluate rule flow
     RoutingEvaluateRule,
+    /// Reset the Decision Engine routing diff kill-switch counter for a profile
+    DecisionEngineDiffCounterReset,
+    /// Report whether the Unified Connector Service kill switch has tripped a scope
+    UnifiedConnectorServiceKillSwitchStatus,
+    /// Clear a Unified Connector Service kill switch cutover
+    UnifiedConnectorServiceKillSwitchReset,
     /// Relay flow
     Relay,
     /// Relay retrieve flow
@@ -765,10 +775,16 @@ pub enum Flow {
     SuperpositionListDefaultConfigs,
     /// Superposition Proxy Get Dimensions List flow
     SuperpositionListDimensions,
+    /// Superposition Proxy Get Dimension flow
+    SuperpositionGetDimension,
+    /// Superposition Proxy Get Default Config flow
+    SuperpositionGetDefaultConfig,
     /// Superposition Proxy Create Context flow
     SuperpositionCreateContext,
     /// Superposition Proxy Resolve Detailed Config flow
     SuperpositionResolveDetailedConfig,
+    /// Superposition Proxy Resolve Config Explanation flow
+    SuperpositionResolveConfigExplanation,
     /// Superposition Proxy List Audit Logs flow
     SuperpositionListAuditLogs,
     // Get user details internal

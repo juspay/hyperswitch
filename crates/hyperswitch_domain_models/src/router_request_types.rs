@@ -21,6 +21,7 @@ use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 
+use self::merchant_connector_webhook_management::ConnectorWebhookRegisterRequest;
 use super::payment_method_data::PaymentMethodData;
 use crate::{
     address,
@@ -69,6 +70,10 @@ pub enum CurrentFlowInfo {
         /// The payment update post confirm request data
         request_data: Box<PaymentsUpdatePostConfirmData>,
     },
+    ConnectorWebhookRegister {
+        /// The payment setup mandate request data
+        request_data: Box<ConnectorWebhookRegisterRequest>,
+    },
 }
 
 impl CurrentFlowInfo {
@@ -79,6 +84,7 @@ impl CurrentFlowInfo {
             Self::SetupMandate { .. } => None,
             Self::Psync { request_data } => request_data.feature_metadata.clone(),
             Self::UpdatePostConfirm { request_data } => request_data.feature_metadata.clone(),
+            Self::ConnectorWebhookRegister { .. } => None,
         }
     }
 }
@@ -930,6 +936,9 @@ impl TryFrom<PaymentsAuthorizeData> for PaymentsAuthenticateData {
             // This is hard coded to None to avoid back and forth authentication_data conversion between UcsAuthenticationData and AuthenticationData.
             // This is handled within authentication_step function in authorize_flow.rs
             authentication_data: None,
+            sdk_information: None,
+            device_channel: None,
+            webhook_url: data.webhook_url,
         })
     }
 }
@@ -947,6 +956,9 @@ pub struct PaymentsAuthenticateData {
     pub minor_amount: Option<MinorUnit>,
     pub capture_method: Option<storage_enums::CaptureMethod>,
     pub authentication_data: Option<UcsAuthenticationData>,
+    pub sdk_information: Option<api_models::payments::SdkInformation>,
+    pub device_channel: Option<api_models::payments::DeviceChannel>,
+    pub webhook_url: Option<String>,
 }
 
 impl TryFrom<CompleteAuthorizeData> for PaymentsAuthenticateData {
@@ -965,6 +977,9 @@ impl TryFrom<CompleteAuthorizeData> for PaymentsAuthenticateData {
             redirect_response: data.redirect_response,
             capture_method: data.capture_method,
             authentication_data: data.authentication_data,
+            sdk_information: None,
+            device_channel: None,
+            webhook_url: None,
         })
     }
 }
@@ -1431,6 +1446,10 @@ pub struct UcsAuthenticationData {
     pub trans_status: Option<common_enums::TransactionStatus>,
     pub transaction_id: Option<String>,
     pub ucaf_collection_indicator: Option<String>,
+    pub challenge_code: Option<String>,
+    pub challenge_cancel: Option<String>,
+    pub challenge_code_reason: Option<String>,
+    pub message_extension: Option<pii::SecretSerdeValue>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -1749,6 +1768,7 @@ pub struct PayoutsData {
     pub payout_connector_metadata: Option<pii::SecretSerdeValue>,
     pub additional_payout_method_data: Option<payout_method_utils::AdditionalPayoutMethodData>,
     pub source_bank_data: Option<api_models::payouts::BankTransfer>,
+    pub billing_descriptor: Option<common_types::payouts::PayoutsBillingDescriptor>,
 }
 
 #[derive(Debug, Default, Clone, Serialize)]

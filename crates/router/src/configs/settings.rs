@@ -33,7 +33,7 @@ pub use hyperswitch_interfaces::{
     },
     types::{ComparisonServiceConfig, Proxy},
 };
-use hyperswitch_masking::{Maskable, Secret};
+use hyperswitch_masking::{Maskable, PeekInterface, Secret};
 pub use payment_methods::configs::{
     settings::{
         BankRedirectConfig, BanksVector, ConnectorBankNames, ConnectorFields,
@@ -85,6 +85,10 @@ pub struct Settings<S: SecretState> {
     pub chat: SecretStateContainer<ChatSettings, S>,
     pub sage: SecretStateContainer<SageSettings, S>,
     pub master_database: SecretStateContainer<Database, S>,
+    /// Falls back to `master_database` when not configured.
+    pub accounts_database: Option<SecretStateContainer<Database, S>>,
+    /// Falls back to `master_database` when not configured.
+    pub global_database: Option<SecretStateContainer<Database, S>>,
     #[cfg(feature = "olap")]
     pub replica_database: SecretStateContainer<Database, S>,
     pub redis: RedisSettings,
@@ -190,6 +194,7 @@ pub struct Settings<S: SecretState> {
     #[serde(default)]
     pub enhancement: Option<HashMap<String, String>>,
     pub superposition: SecretStateContainer<SuperpositionClientConfig, S>,
+    pub offer_engine: Option<OfferEngineConfig>,
     pub proxy_status_mapping: ProxyStatusMapping,
     pub trace_header: TraceHeaderConfig,
     pub internal_services: InternalServicesConfig,
@@ -198,6 +203,7 @@ pub struct Settings<S: SecretState> {
     pub comparison_service: Option<ComparisonServiceConfig>,
     pub authentication_service_enabled_connectors: AuthenticationServiceEnabledConnectors,
     pub save_payment_method_on_session: OnSessionConfig,
+    pub account_updater: Option<SecretStateContainer<AccountUpdaterConfig, S>>,
 }
 
 #[cfg(feature = "deja")]
@@ -249,17 +255,9 @@ impl DejaSettings {
 #[derive(Debug, Deserialize, Clone, Default)]
 #[serde(default)]
 pub struct DejaRecordingSettings {
-    pub graph: DejaGraphMode,
+    // Execution-graph capture is coupled to the runtime mode (the graph layer
+    // rides the installed Record/Replay hook), so there is no `graph` dial here.
     pub kafka: DejaRecordingKafkaSettings,
-}
-
-#[cfg(feature = "deja")]
-#[derive(Debug, Deserialize, Clone, Copy, PartialEq, Eq, Default)]
-#[serde(rename_all = "snake_case")]
-pub enum DejaGraphMode {
-    #[default]
-    Disabled,
-    Enabled,
 }
 
 #[cfg(feature = "deja")]
@@ -313,11 +311,13 @@ pub struct DejaReplaySettings {
     pub observed_sink: Option<String>,
 }
 
+/// Per-request recording-sampler settings. The sampler is active exactly when
+/// `deja.mode = "record"` — there is no separate on/off switch; `fail_closed`
+/// governs what happens when the sampling source cannot answer.
 #[cfg(feature = "deja")]
 #[derive(Debug, Deserialize, Clone)]
 #[serde(default)]
 pub struct DejaSamplerSettings {
-    pub enabled: bool,
     pub record_key: Option<String>,
     pub timeout_ms: u64,
     pub fail_closed: bool,
@@ -327,7 +327,6 @@ pub struct DejaSamplerSettings {
 impl Default for DejaSamplerSettings {
     fn default() -> Self {
         Self {
-            enabled: false,
             record_key: None,
             timeout_ms: 25,
             fail_closed: true,
@@ -388,6 +387,22 @@ pub struct OnSessionConfig {
         HashMap<enums::PaymentMethod, HashSet<enums::PaymentMethodType>>,
 }
 
+#[derive(Debug, Deserialize, Clone)]
+#[serde(rename_all = "snake_case")]
+pub enum AccountUpdaterConfig {
+    Juspay(JuspayAccountUpdaterConfig),
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct JuspayAccountUpdaterConfig {
+    pub base_url: url::Url,
+    pub api_key: Secret<String>,
+    pub merchant_id: String,
+    pub euler_encryption_public_key: Secret<String>,
+    pub au_decryption_pvt_key: Secret<String>,
+    pub card_sync_key_id: String,
+}
+
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct DebitRoutingConfig {
     #[serde(deserialize_with = "deserialize_hashmap")]
@@ -402,7 +417,41 @@ pub struct DebitRoutingConfig {
 pub struct OpenRouter {
     pub dynamic_routing_enabled: bool,
     pub static_routing_enabled: bool,
+    /// Shadow-evaluate static routing on the Decision Engine for profiles that are NOT cut
+    /// over, logging DE-vs-HS diffs and feeding the diff kill switch while the Hyperswitch
+    /// result keeps serving traffic. Requires `static_routing_enabled`.
+    #[serde(default)]
+    pub shadow_routing_enabled: bool,
+    #[serde(default)]
+    pub diff_kill_switch: DecisionEngineDiffKillSwitch,
     pub url: String,
+    /// Browser-facing Decision Engine dashboard base URL, used for the merchant SSO redirect.
+    #[serde(default)]
+    pub dashboard_url: String,
+    /// Shared secret sent as the `x-admin-secret` header on Decision Engine requests. The DE
+    /// verifies it on admin endpoints (merchant provisioning, SSO code mint) and accepts it as
+    /// service-to-service auth on its protected routes. Decrypted via secrets management when
+    /// enabled; empty disables the header.
+    #[serde(default)]
+    pub admin_secret: Secret<String>,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+#[serde(default)]
+pub struct DecisionEngineDiffKillSwitch {
+    pub enabled: bool,
+    /// Lifetime non-volume diff count per profile that trips the cutover back to Hyperswitch
+    /// routing. The counter does not expire; clear it via the diff-counter reset API.
+    pub diff_count_threshold: u64,
+}
+
+impl Default for DecisionEngineDiffKillSwitch {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            diff_count_threshold: 100,
+        }
+    }
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -465,6 +514,10 @@ pub struct DecisionConfig {
     pub base_url: String,
 }
 
+type StorageInterfaceMap = HashMap<id_type::TenantId, Box<dyn app::StorageInterface>>;
+type AccountsStorageInterfaceMap =
+    HashMap<id_type::TenantId, Box<dyn app::AccountsStorageInterface>>;
+
 #[derive(Debug, Clone, Default)]
 pub struct TenantConfig(pub HashMap<id_type::TenantId, Tenant>);
 
@@ -472,68 +525,47 @@ impl TenantConfig {
     /// # Panics
     ///
     /// Panics if Failed to create event handler
-    pub async fn get_store_interface_map(
+    pub async fn get_store_interface_maps(
         &self,
         storage_impl: &app::StorageImpl,
         conf: &configs::Settings,
         cache_store: Arc<storage_impl::redis::RedisStore>,
         testable: bool,
-    ) -> HashMap<id_type::TenantId, Box<dyn app::StorageInterface>> {
+    ) -> (StorageInterfaceMap, AccountsStorageInterfaceMap) {
         #[allow(clippy::expect_used)]
         let event_handler = conf
             .events
             .get_event_handler()
             .await
             .expect("Failed to create event handler");
-        futures::future::join_all(self.0.iter().map(|(tenant_name, tenant)| async {
-            let store = Box::pin(AppState::get_store_interface(
-                storage_impl,
-                &event_handler,
-                conf,
-                tenant,
-                cache_store.clone(),
-                testable,
-            ))
-            .await
-            .get_storage_interface();
-            (tenant_name.clone(), store)
-        }))
-        .await
-        .into_iter()
-        .collect()
-    }
-    /// # Panics
-    ///
-    /// Panics if Failed to create event handler
-    pub async fn get_accounts_store_interface_map(
-        &self,
-        storage_impl: &app::StorageImpl,
-        conf: &configs::Settings,
-        cache_store: Arc<storage_impl::redis::RedisStore>,
-        testable: bool,
-    ) -> HashMap<id_type::TenantId, Box<dyn app::AccountsStorageInterface>> {
-        #[allow(clippy::expect_used)]
-        let event_handler = conf
-            .events
-            .get_event_handler()
-            .await
-            .expect("Failed to create event handler");
-        futures::future::join_all(self.0.iter().map(|(tenant_name, tenant)| async {
-            let store = Box::pin(AppState::get_store_interface(
-                storage_impl,
-                &event_handler,
-                conf,
-                tenant,
-                cache_store.clone(),
-                testable,
-            ))
-            .await
-            .get_accounts_storage_interface();
-            (tenant_name.clone(), store)
-        }))
-        .await
-        .into_iter()
-        .collect()
+        let tenant_stores =
+            futures::future::join_all(self.0.iter().map(|(tenant_name, tenant)| async {
+                let store = Box::pin(AppState::get_store_interface(
+                    storage_impl,
+                    &event_handler,
+                    conf,
+                    tenant,
+                    conf.master_database.clone().into_inner(),
+                    conf.accounts_database_config(),
+                    cache_store.clone(),
+                    testable,
+                ))
+                .await;
+                (tenant_name.clone(), store)
+            }))
+            .await;
+
+        let stores = tenant_stores
+            .iter()
+            .map(|(tenant_name, store)| (tenant_name.clone(), store.get_storage_interface()))
+            .collect();
+        let accounts_store = tenant_stores
+            .iter()
+            .map(|(tenant_name, store)| {
+                (tenant_name.clone(), store.get_accounts_storage_interface())
+            })
+            .collect();
+        (stores, accounts_store)
     }
     #[cfg(feature = "olap")]
     pub async fn get_pools_map(
@@ -662,6 +694,35 @@ pub struct ForexApi {
     pub data_expiration_delay_in_seconds: u32,
     pub redis_lock_timeout_in_seconds: u32,
     pub redis_ttl_in_seconds: u32,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct OfferEngineConfig {
+    pub base_url: url::Url,
+    pub api_key: Secret<String>,
+    pub merchant_id: String,
+}
+
+impl OfferEngineConfig {
+    pub fn validate(&self) -> ApplicationResult<()> {
+        common_utils::fp_utils::when(!self.base_url.path().ends_with('/'), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "offer_engine.base_url must end with a trailing slash".into(),
+            ))
+        })?;
+        common_utils::fp_utils::when(self.api_key.peek().is_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "offer_engine.api_key must not be empty".into(),
+            ))
+        })?;
+        common_utils::fp_utils::when(self.merchant_id.is_empty(), || {
+            Err(error_stack::Report::from(
+                ApplicationError::InvalidConfigurationValueError(
+                    "offer_engine.merchant_id must not be empty".into(),
+                ),
+            ))
+        })
+    }
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -986,6 +1047,7 @@ pub struct Locker {
     pub locker_enabled: bool,
     pub ttl_for_storage_in_secs: i64,
     pub decryption_scheme: DecryptionScheme,
+    pub create_entity_on_merchant_create: bool,
 }
 
 impl Locker {
@@ -1387,6 +1449,12 @@ impl Settings<SecuredSecret> {
     pub fn validate(&self) -> ApplicationResult<()> {
         self.server.validate()?;
         self.master_database.get_inner().validate()?;
+        if let Some(accounts_database) = &self.accounts_database {
+            accounts_database.get_inner().validate()?;
+        }
+        if let Some(global_database) = &self.global_database {
+            global_database.get_inner().validate()?;
+        }
         #[cfg(feature = "olap")]
         self.replica_database.get_inner().validate()?;
 
@@ -1460,6 +1528,16 @@ impl Settings<SecuredSecret> {
             .map(|x| x.get_inner().validate())
             .transpose()?;
 
+        self.offer_engine
+            .as_ref()
+            .map(|offer_engine| offer_engine.validate())
+            .transpose()?;
+
+        self.account_updater
+            .as_ref()
+            .map(|account_updater| account_updater.get_inner().validate())
+            .transpose()?;
+
         self.paze_decrypt_keys
             .as_ref()
             .map(|x| x.get_inner().validate())
@@ -1512,6 +1590,24 @@ impl Settings<RawSecret> {
     #[cfg(not(feature = "kv_store"))]
     pub fn is_kv_soft_kill_mode(&self) -> bool {
         false
+    }
+
+    /// Returns the accounts database config, falling back to `master_database` if
+    /// `accounts_database` is not configured.
+    pub fn accounts_database_config(&self) -> Database {
+        self.accounts_database
+            .clone()
+            .map(SecretStateContainer::into_inner)
+            .unwrap_or_else(|| self.master_database.clone().into_inner())
+    }
+
+    /// Returns the global database config, falling back to `master_database` if
+    /// `global_database` is not configured.
+    pub fn global_database_config(&self) -> Database {
+        self.global_database
+            .clone()
+            .map(SecretStateContainer::into_inner)
+            .unwrap_or_else(|| self.master_database.clone().into_inner())
     }
 }
 

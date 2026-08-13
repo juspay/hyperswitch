@@ -203,6 +203,8 @@ pub enum ApiErrorResponse {
     MandateActive,
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_11", message = "Customer has already been redacted")]
     CustomerRedacted,
+    #[error(error_type = ErrorType::InvalidRequestError, code = "IR_11", message = "Payment method has already been redacted")]
+    PaymentMethodRedacted,
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_12", message = "Reached maximum refund attempts")]
     MaximumRefundCount,
     #[error(error_type = ErrorType::InvalidRequestError, code = "IR_13", message = "The refund amount exceeds the amount captured")]
@@ -594,6 +596,9 @@ impl ErrorSwitch<api_models::errors::types::ApiErrorResponse> for ApiErrorRespon
             }
             Self::CustomerRedacted => {
                 AER::BadRequest(ApiError::new("IR", 11, "Customer has already been redacted", None))
+            }
+            Self::PaymentMethodRedacted => {
+                AER::BadRequest(ApiError::new("IR", 11, "Payment method has already been redacted", None))
             }
             Self::MaximumRefundCount => AER::BadRequest(ApiError::new("IR", 12, "Reached maximum refund attempts", None)),
             Self::RefundAmountExceedsPaymentAmount => {
