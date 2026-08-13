@@ -176,7 +176,7 @@ pub async fn build_and_send_decision_engine_http_request<Req, Res, ErrRes>(
     http_method: services::Method,
     path: &str,
     request_body: Option<Req>,
-    _timeout: Option<u64>,
+    timeout: Option<u64>,
     context_message: &str,
     events_wrapper: Option<RoutingEventsWrapper<Req>>,
 ) -> RoutingResult<RoutingEventsResponse<Res>>
@@ -232,7 +232,7 @@ where
     let closure = || async {
         let request_start = std::time::Instant::now();
         let response =
-            services::call_connector_api(state, http_request, "Decision Engine API call", None)
+            services::call_connector_api(state, http_request, "Decision Engine API call", timeout)
                 .await
                 .change_context(errors::RoutingError::OpenRouterCallFailed)?;
 
