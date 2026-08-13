@@ -90,10 +90,10 @@ export function createFixture() {
   const fixtureId = `fixture_${String(index).padStart(8, "0")}_${input.run_id}`;
   const reference = `customer_loadtest_${input.run_id}_${index}`;
   const routerUrl = input.services.router.replace(/\/$/, "");
-  const modularUrl = input.services["modular-pm"].replace(/\/$/, "");
+  const modularUrl = input.services["modular-pm"]?.replace(/\/$/, "");
   let customerId = null;
   if (input.plan.requiresCustomer) {
-    const response = post(`${modularUrl}/v2/customers`, {
+    const response = post(`${modularUrl}/customers`, {
       merchant_reference_id: reference,
       name: "Loadtest User",
       phone: "6168205362",
@@ -110,7 +110,7 @@ export function createFixture() {
   let pmSessionId = null;
   let pmSessionClientSecret = null;
   if (input.plan.usesPmService) {
-    const response = post(`${modularUrl}/v2/payment-method-sessions`, {
+    const response = post(`${modularUrl}/payment-method-sessions`, {
       ...(customerId ? { customer_id: customerId } : {}),
       expires_in: Number(input.fixture_config.session_expiry || 900),
       storage_type: input.plan.storageType,

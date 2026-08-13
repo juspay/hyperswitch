@@ -1,6 +1,15 @@
 # Deployment endpoints are read from this file; do not duplicate them here.
 deployment_config: ../deploy/config.yaml
 
+environment:
+  mode: local
+
+merchant:
+  mode: create
+
+superposition:
+  mode: manage
+
 scenario:
   # merchant_path: non_modular or modular
   merchant_path: modular
@@ -21,6 +30,8 @@ fixtures:
   count: auto
   # Fixture concurrency affects preparation only, not measured request RPS.
   concurrency: 20
+  # Minimum delay after fixtures are ready and before measured traffic begins.
+  wait_before_start_seconds: 0
   # true creates a new isolated merchant before preparing fixtures.
   fresh_merchant: true
   amount: 1000
@@ -29,6 +40,7 @@ fixtures:
 
 payments_api:
   # Local admin credential used only to provision load-test merchants.
+  # Use admin_api_key_env instead when the credential should come from an environment variable.
   admin_api_key: test_admin
   # Dummy connector configured during merchant preparation.
   connector_name: stripe_test

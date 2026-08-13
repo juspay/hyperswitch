@@ -3,9 +3,10 @@
 const crypto = require("crypto");
 const { spawnSync } = require("child_process");
 const fs = require("fs");
-const os = require("os");
 const path = require("path");
 const { resolveMaybe } = require("../../lib/config");
+const { resolveConfiguredValue } = require("./config");
+const { latencySummary, phaseLatencySummary } = require("./results");
 const { buildPlan } = require("./scenarios");
 
 const DEFAULT_CARD = Object.freeze({
@@ -69,8 +70,12 @@ async function requestJson(method, url, body, headers = {}, allowedStatuses = []
   return { body: payload, requestId: response.headers.get("x-request-id"), status: response.status };
 }
 
-function apiKeyHeaders(apiKey) {
-  return { "api-key": apiKey };
+function targetHeaders(state, name, headers = {}) {
+  return { ...(state.config.target_headers?.[name] || {}), ...headers };
+}
+
+function apiKeyHeaders(state, apiKey) {
+  return targetHeaders(state, "router", { "api-key": apiKey });
 }
 
  function customerAcceptance() {
@@ -88,13 +93,13 @@ async function ensureSuperpositionResource(baseUrl, resource, name, body, header
 
 async function configureModularRouting(state, merchant, enabled) {
   if (!merchant.organization_id) throw new Error("merchant setup did not return organization_id");
-  const services = state.config.services;
-  const baseUrl = services.superposition.replace(/\/$/, "");
-  const headers = {
-    "x-org-id": services.superposition_org_id || "localorg",
-    "x-workspace": services.superposition_workspace_id || "dev",
-    ...(services.superposition_secret ? { "X-Superposition-Secret": services.superposition_secret } : {}),
-  };
+  const target = state.config.targets.superposition;
+  const baseUrl = target.base_url.replace(/\/$/, "");
+  const headers = targetHeaders(state, "superposition", {
+    "x-org-id": target.org_id || "localorg",
+    "x-workspace": target.workspace_id || "dev",
+    ...(target.secret ? { "X-Superposition-Secret": target.secret } : {}),
+  });
   await ensureSuperpositionResource(baseUrl, "dimension", "organization_id", {
     dimension: "organization_id", position: 1, schema: { type: "string" }, value_validation_function_name: null,
     description: "Hyperswitch organization identifier", change_reason: "Initialize local loadtest workspace", value_compute_function_name: null,
@@ -107,16 +112,26 @@ async function configureModularRouting(state, merchant, enabled) {
     override: { should_call_pm_modular_service: enabled }, context: { organization_id: merchant.organization_id },
     description: `Loadtest automation: ${enabled ? "modular" : "non-modular"} payments`, change_reason: "local loadtest automation",
   }, headers);
-  const waitSeconds = Number(services.superposition_propagation_wait_seconds ?? 6);
+  const waitSeconds = Number(target.propagation_wait_seconds ?? 6);
   if (waitSeconds > 0) await new Promise((resolve) => setTimeout(resolve, waitSeconds * 1000));
 }
 
 async function setupMerchant(state, merchantPath, fresh, data) {
+  const superpositionMode = state.config.superposition.mode;
+  if (state.config.merchant.mode === "existing") {
+    const merchant = { ...state.config.resolved_merchant, merchant_path: merchantPath };
+    data.merchants[merchant.merchant_id] = merchant;
+    data.current_merchants[merchantPath] = merchant.merchant_id;
+    if (superpositionMode === "manage") {
+      await configureModularRouting(state, merchant, merchantPath === "modular");
+    }
+    return merchant;
+  }
   const currentId = data.current_merchants[merchantPath];
   if (!fresh && currentId && data.merchants[currentId]) return data.merchants[currentId];
   const cfg = apiConfig(state);
   const baseUrl = state.config.services.router.replace(/\/$/, "");
-  const adminApiKey = cfg.admin_api_key || "test_admin";
+  const adminApiKey = resolveConfiguredValue(cfg, "admin_api_key") || "test_admin";
   const suffix = `${Date.now()}_${crypto.randomUUID().slice(0, 8)}`;
   const requestedMerchantId = `merchant_loadtest_${merchantPath}_${suffix}`;
   const account = (await requestJson("POST", `${baseUrl}/accounts`, {
@@ -124,12 +139,12 @@ async function setupMerchant(state, merchantPath, fresh, data) {
     merchant_name: "Loadtest Automation",
     return_url: "https://example.com/return",
     metadata: { source: "loadtest-automation", merchant_path: merchantPath },
-  }, apiKeyHeaders(adminApiKey))).body;
+  }, apiKeyHeaders(state, adminApiKey))).body;
   const merchantId = account.merchant_id || requestedMerchantId;
   const apiKey = (await requestJson("POST", `${baseUrl}/api_keys/${merchantId}`, {
     name: `loadtest-${merchantPath}-${suffix}`, description: "Generated for local loadtest automation", expiration: "never",
-  }, apiKeyHeaders(adminApiKey))).body.api_key;
-  const profileLookup = (await requestJson("GET", `${baseUrl}/account/${merchantId}/business_profile`, undefined, apiKeyHeaders(apiKey))).body;
+  }, apiKeyHeaders(state, adminApiKey))).body.api_key;
+  const profileLookup = (await requestJson("GET", `${baseUrl}/account/${merchantId}/business_profile`, undefined, apiKeyHeaders(state, apiKey))).body;
   const profiles = Array.isArray(profileLookup) ? profileLookup : [profileLookup];
   const profile = profiles.find((item) => item.profile_name === "default") || profiles[0];
   if (!profile?.profile_id) throw new Error(`default profile lookup failed: ${JSON.stringify(profileLookup)}`);
@@ -148,7 +163,7 @@ async function setupMerchant(state, merchantPath, fresh, data) {
         maximum_amount: 99999999, recurring_enabled: true, installment_payment_enabled: false,
       }],
     }],
-  }, apiKeyHeaders(apiKey))).body;
+  }, apiKeyHeaders(state, apiKey))).body;
   const merchant = {
     merchant_id: merchantId,
     merchant_path: merchantPath,
@@ -160,7 +175,9 @@ async function setupMerchant(state, merchantPath, fresh, data) {
   };
   data.merchants[merchantId] = merchant;
   data.current_merchants[merchantPath] = merchantId;
-  await configureModularRouting(state, merchant, merchantPath === "modular");
+  if (superpositionMode === "manage") {
+    await configureModularRouting(state, merchant, merchantPath === "modular");
+  }
   return merchant;
 }
 
@@ -195,6 +212,14 @@ function plannedFixtureCount(state) {
   return loadPhases(state.config.load || {}).reduce((sum, phase) => sum + phase.requests, 0);
 }
 
+function remainingFixtureWaitSeconds(run, fixtures) {
+  const configuredWait = Number(fixtures?.wait_before_start_seconds || 0);
+  if (configuredWait <= 0) return 0;
+  const readyAt = Date.parse(run.fixtures_ready_at || run.created_at || "");
+  if (!Number.isFinite(readyAt)) return configuredWait;
+  return Math.max(0, configuredWait - (Date.now() - readyAt) / 1000);
+}
+
  async function prepareFixtures(state) {
   const data = readState(state);
   const plan = buildPlan(state.config.scenario || {});
@@ -216,6 +241,7 @@ function plannedFixtureCount(state) {
   const outputPath = `${temporaryPrefix}-output.json`;
   const input = {
     services: state.config.services,
+    target_headers: state.config.target_headers,
     merchant,
     plan,
     run_id: runId,
@@ -277,6 +303,7 @@ function plannedFixtureCount(state) {
   created.sort((left, right) => left.fixture_id.localeCompare(right.fixture_id));
   data.fixtures.push(...created);
   run.state = "ready";
+  run.fixtures_ready_at = new Date().toISOString();
   writeState(state, data);
   return { run_id: runId, created: count, merchant_path: plan.merchantPath, scenario: plan.scenarioName };
 }
@@ -295,6 +322,11 @@ async function startRun(state) {
   if (!merchant) throw new Error(`Merchant missing for active run: ${run.merchant_id}`);
   const fixtures = selectReadyFixtures(data, run.run_id);
   if (!fixtures.length) throw new Error("No ready fixtures for active run");
+  const remainingWaitSeconds = remainingFixtureWaitSeconds(run, state.config.fixtures);
+  if (remainingWaitSeconds > 0) {
+    process.stderr.write(`Waiting ${Math.ceil(remainingWaitSeconds)}s for fixtures to settle before measured load\n`);
+    await new Promise((resolve) => setTimeout(resolve, remainingWaitSeconds * 1000));
+  }
   const phases = loadPhases(state.config.load || {});
   const grafanaUrl = state.config.services.grafana_dashboard || state.config.services.grafana || null;
   process.stderr.write(`Grafana: ${grafanaUrl || "not configured"}\n`);
@@ -304,6 +336,7 @@ async function startRun(state) {
   const workloadPath = path.resolve(__dirname, "../k6/workload.js");
   const input = {
     services: state.config.services,
+    target_headers: state.config.target_headers,
     merchant,
     plan,
     card: apiConfig(state).card || DEFAULT_CARD,
@@ -337,6 +370,8 @@ async function startRun(state) {
       const point = JSON.parse(line);
       if (point.type !== "Point" || point.metric !== "loadtest_result_ms") continue;
       const tags = point.data.tags || {};
+      const phase = tags.rps_phase || tags.phase || tags.scenario || null;
+      const phaseRpsMatch = String(phase || "").match(/^phase_\d+_(\d+(?:\.\d+)?)_rps$/);
       records.push({
         fixture_id: tags.fixture_id,
         run_id: run.run_id,
@@ -349,6 +384,14 @@ async function startRun(state) {
         payment_confirm_request_id: tags.payment_request_id || null,
         pm_session_confirm_latency_ms: tags.pm_latency_ms ? Number(tags.pm_latency_ms) : null,
         payment_confirm_latency_ms: Number(tags.payment_latency_ms || 0),
+        hyperswitch_internal_latency_ms: tags.hyperswitch_internal_latency_ms
+          ? Number(tags.hyperswitch_internal_latency_ms)
+          : null,
+        combined_internal_latency_ms: tags.combined_internal_latency_ms
+          ? Number(tags.combined_internal_latency_ms)
+          : null,
+        phase,
+        phase_rps: tags.phase_rps ? Number(tags.phase_rps) : phaseRpsMatch ? Number(phaseRpsMatch[1]) : null,
         total_latency_ms: Number(point.data.value),
         created_at: point.data.time || new Date().toISOString(),
       });
@@ -373,6 +416,11 @@ async function startRun(state) {
     attempted: results.length,
     succeeded: results.filter((result) => SUCCESS_STATUSES.has(result.status)).length,
     failed: results.filter((result) => !SUCCESS_STATUSES.has(result.status)).length,
+    fixture_wait_seconds: Math.ceil(remainingWaitSeconds),
+    latency: {
+      aggregate: latencySummary(results),
+      by_phase: phaseLatencySummary(results),
+    },
     results,
   };
 }
@@ -380,8 +428,18 @@ async function startRun(state) {
 async function smoke(state, args) {
   const merchantPath = args[0] || "non_modular";
   const scenarioName = args[1] || "cit_off_session";
+  if (
+    state.config.environment_mode === "cloud"
+    && (merchantPath !== state.config.scenario.merchant_path || scenarioName !== state.config.scenario.name)
+  ) {
+    throw new Error("Cloud smoke arguments must match the scenario configured in the runner config");
+  }
   state.config.scenario = { merchant_path: merchantPath, name: scenarioName };
-  state.config.fixtures = { ...(state.config.fixtures || {}), count: 1, concurrency: 1, fresh_merchant: true };
+  // Smoke confirms routing and a single end-to-end flow; it is not a measured
+  // load run, so do not apply the fixture settling delay configured for start.
+  state.config.fixtures = {
+    ...(state.config.fixtures || {}), count: 1, concurrency: 1, fresh_merchant: true, wait_before_start_seconds: 0,
+  };
   state.config.load = { starting_rps: 1, target_rps: 1, step_rps: 0, hold_seconds: 1, idle_seconds: 0 };
   const prepared = await prepareFixtures(state);
   const completed = await startRun(state);
@@ -393,7 +451,30 @@ async function run(action, state, args = []) {
   requestTimeoutMs = Number(apiConfig(state).request_timeout_ms || 30000);
   if (action === "preflight") {
     const plan = buildPlan(state.config.scenario || {});
-    return { config: state.configPath, deployment_config: state.deploymentPath, scenario_id: plan.id, services: state.config.services, state_file: statePath(state) };
+    const probes = {};
+    if (state.config.environment_mode === "cloud" && state.config.preflight?.probe_targets !== false) {
+      for (const name of state.config.required_targets) {
+        const target = state.config.targets[name];
+        const response = await requestJson("GET", target.health_url, undefined, targetHeaders(state, name));
+        probes[name] = { health_url: target.health_url, status: response.status, request_id: response.requestId };
+      }
+    }
+    const targets = Object.fromEntries(state.config.required_targets.map((name) => [name, {
+      base_url: state.config.targets[name].base_url,
+      health_url: state.config.targets[name].health_url || null,
+      header_names: Object.keys(state.config.target_headers[name] || {}),
+    }]));
+    return {
+      config: state.configPath,
+      deployment_config: state.deploymentPath,
+      environment_mode: state.config.environment_mode,
+      scenario_id: plan.id,
+      merchant_mode: state.config.merchant.mode,
+      superposition_mode: state.config.superposition.mode,
+      targets,
+      probes,
+      state_file: statePath(state),
+    };
   }
   if (action === "fixtures") return prepareFixtures(state);
   if (action === "start") return startRun(state);
@@ -409,13 +490,23 @@ async function run(action, state, args = []) {
   if (action === "status") {
     const data = readState(state);
     const run = data.runs[data.active_run_id] || null;
+    const results = run ? data.results.filter((result) => result.run_id === run.run_id) : [];
     return {
       active_run: run,
       fixtures: run ? data.fixtures.filter((fixture) => fixture.run_id === run.run_id).reduce((counts, fixture) => ({ ...counts, [fixture.state]: (counts[fixture.state] || 0) + 1 }), {}) : {},
-      recent_results: run ? data.results.filter((result) => result.run_id === run.run_id).slice(-10) : [],
+      latency: run ? { aggregate: latencySummary(results), by_phase: phaseLatencySummary(results) } : null,
+      recent_results: results.slice(-10),
     };
   }
   throw new Error(`Unsupported runner action: ${action}`);
 }
 
-module.exports = { buildPaymentConfirmBody, loadPhases, plannedFixtureCount, run, selectReadyFixtures };
+module.exports = {
+  buildPaymentConfirmBody,
+  loadPhases,
+  plannedFixtureCount,
+  remainingFixtureWaitSeconds,
+  run,
+  selectReadyFixtures,
+  setupMerchant,
+};

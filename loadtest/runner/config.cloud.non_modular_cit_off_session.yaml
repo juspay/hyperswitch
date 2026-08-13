@@ -1,0 +1,66 @@
+# Machine-local configuration for non-modular CIT off-session sandbox smoke/load tests.
+environment:
+  mode: cloud
+
+preflight:
+  probe_targets: true
+
+targets:
+  router:
+    base_url: https://sandbox.hyperswitch.io
+    health_url: /v2/health
+    headers:
+      x-feature: sandbox-custom-c3
+      x-hs-latency: "true"
+  modular_pm:
+    # CIT fixture setup creates its customer through PM Modular. The measured
+    # confirmation remains non-modular and is sent only to Router.
+    base_url: https://sandbox.hyperswitch.io
+    api_prefix: /v1
+    health_url: /v2/health
+    headers:
+      x-feature: sandbox-pm-loadtest
+
+merchant:
+  mode: existing
+  merchant_id: "merchant_1784819090"
+  api_key: "snd_p2mH7jFULyQ9SOjIkq0nVKHTyPGR6Wt8HaHsiyzgyof5cE2GiYGhRp8NuMiRsLln"
+  publishable_key: "pk_snd_c586739d366747b2acd31cd62c9ab744"
+  profile_id: "pro_SxtzpqsjQWbY49JJLn1b"
+
+superposition:
+  mode: preconfigured
+
+scenario:
+  merchant_path: non_modular
+  name: cit_off_session
+
+load:
+  starting_rps: 5
+  target_rps: 5
+  step_rps: 0
+  hold_seconds: 120
+  idle_seconds: 20
+
+fixtures:
+  count: auto
+  concurrency: 5
+  amount: 1000
+  currency: USD
+  session_expiry: 900
+  wait_before_start_seconds: 120
+
+payments_api:
+  connector_name: stripe_test
+  request_timeout_ms: 30000
+  card:
+    card_number: "4242424242424242"
+    card_exp_month: "10"
+    card_exp_year: "35"
+    card_holder_name: "Load Test"
+    card_cvc: "123"
+
+observability:
+  grafana_url: https://grafana.example.com
+
+state_file: state/cloud-loadtest-non-modular-cit-off-session.json

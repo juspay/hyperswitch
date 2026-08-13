@@ -1,10 +1,10 @@
 # Payment load-test automation
 
-Local automation for non-modular and payment-method-modular payment-confirm load tests. It manages repositories, images, generated TOMLs, PostgreSQL, Redis, migrations, application containers, observability, merchants, fixtures, and k6 traffic.
+Automation for non-modular and payment-method-modular payment-confirm load tests. It manages a complete local environment and can run merchant, fixture, and k6 workflows against an already provisioned cloud load-test slice.
 
 Use the recipes in `loadtest/Justfile`; do not invoke the implementation scripts directly.
 
-## Prerequisites
+## Local prerequisites
 
 - `just`, Node.js, k6, Git, and curl
 - Podman with Compose support
@@ -36,14 +36,14 @@ just deploy-down
 
 ## Configuration
 
-There are two configuration files:
+Local runs use two configuration files:
 
 | File | Owns |
 | --- | --- |
 | `deploy/config.yaml` | Repositories, images, builds, endpoints, CPU affinity, state services, generated TOMLs, migrations, and observability. |
 | `runner/config.yaml` | Merchant path, payment scenario, load shape, fixture policy, and local setup credentials. |
 
-The runner reads service endpoints from deployment configuration. Do not duplicate endpoints in runner configuration.
+In local mode, the runner reads service endpoints from deployment configuration. Do not duplicate endpoints in runner configuration. Cloud runner-only mode defines remote targets directly and does not require deployment configuration.
 
 Canonical application names are `router`, `modular-pm`, `vault`, `encryption`, and `superposition`. They are used for configuration keys, container labels, Loki labels, commands, and Grafana legends. Application container names are derived as `hs-<service>`.
 
@@ -57,6 +57,8 @@ Every application declares `source.path` and `source.git_url`. Missing repositor
 | `cloud` | Pull the configured image; retain the repository for preparation and migrations. |
 
 Set `build.force: true` or run `FORCE=1 just deploy-build` to rebuild local images.
+
+These source modes belong to the local Podman deployer. `source.mode: cloud` does not target a remote environment; remote execution uses the runner's `environment.mode: cloud` configuration.
 
 ### Preparation and state
 
@@ -107,7 +109,7 @@ just runner-discard      # discard unused active fixtures
 | `non_modular` | Payment create, then payment confirm. |
 | `modular` | PM session create, payment create, PM session confirm, then payment confirm using its token. |
 
-For modular runs, combined latency is PM-session-confirm latency plus payment-confirm latency.
+For modular cloud runs, combined latency is PM-session-confirm latency plus the Router `x-hs-latency` value (Router latency excluding connector time).
 
 ### Scenarios
 
@@ -116,6 +118,7 @@ For modular runs, combined latency is PM-session-confirm latency plus payment-co
 | `guest` | No customer and no saved card; modular PM session uses volatile storage. |
 | `cit_on_session` | Customer-initiated save-card flow with `setup_future_usage: on_session`. |
 | `cit_off_session` | Customer-initiated save-card flow with `setup_future_usage: off_session`. |
+| `cit_metadata_changed` | Non-modular CIT flow that saves a card during fixture setup and changes its metadata during measured confirm. |
 
 Select a flow in `runner/config.yaml`:
 
@@ -160,6 +163,59 @@ Grafana defaults to `http://127.0.0.1:3002`. The provisioned dashboard contains 
 - CPU cores consumed by each application service.
 
 Promtail discovers managed containers through canonical Podman labels. Restart observability after editing provisioned dashboards.
+
+## Cloud runner
+
+Cloud mode targets an environment that has already been provisioned and wired by the infrastructure repository. It does not deploy Kubernetes releases, create databases, or configure Router, PM Modular, locker, or encryption application TOMLs.
+
+The runner host needs `just`, Node.js, k6, and network access to every configured target. Local Podman, Nix, PostgreSQL, Redis, and CPU-affinity configuration are not required.
+
+Create the machine-local configuration:
+
+```bash
+cp runner/config.cloud.example.yaml runner/config.cloud.yaml
+export LOADTEST_MERCHANT_ID=merchant_...
+export LOADTEST_MERCHANT_API_KEY=...
+export LOADTEST_PUBLISHABLE_KEY=pk_...
+export LOADTEST_PROFILE_ID=profile_...
+export LOADTEST_ORGANIZATION_ID=org_...
+```
+
+Each target has an independent base URL, API prefix, health URL, and header map. This allows a shared ingress to route Router and PM Modular with different `x-feature` values. Target headers are applied to administrative setup, fixtures, and measured k6 traffic.
+
+The default cloud example uses an existing merchant and preconfigured Superposition context, so preflight and test execution do not mutate administrative or runtime configuration. `merchant.mode: create` is available when explicitly configured with `payments_api.admin_api_key` or `admin_api_key_env`. `superposition.mode` supports `manage`, `preconfigured`, and `disabled`.
+
+Run preflight before any traffic. It validates the configuration and probes every required target using that target's headers:
+
+```bash
+CONFIG=runner/config.cloud.yaml just runner preflight
+```
+
+Run one smoke iteration matching the scenario in the cloud config, then verify its request IDs in the intended custom service logs:
+
+```bash
+CONFIG=runner/config.cloud.yaml just runner smoke modular cit_off_session
+```
+
+After proving Router, database, PM Modular, locker, and encryption isolation:
+
+```bash
+CONFIG=runner/config.cloud.yaml just runner fixtures
+CONFIG=runner/config.cloud.yaml just runner start
+CONFIG=runner/config.cloud.yaml just runner status
+```
+
+`fixtures.wait_before_start_seconds` sets a minimum settling period after fixture preparation. `runner start` waits only for the remaining time, so a manual delay between `fixtures` and `start` is counted toward it.
+
+Cloud Router targets request `x-hs-latency: true`. Runner results report `hyperswitch_internal_excluding_connector`, the Router response-header latency excluding connector time; `payment_confirm` remains the client-observed k6 duration. `combined` adds the internal Router latency to PM-session-confirm latency.
+
+`runner status` reports aggregate latency and a latency breakdown for each configured RPS phase, including the first and last measured request timestamps for that phase.
+
+Non-modular customer scenarios still use the PM customer API during fixture preparation, so they require a PM target even though measured payment-confirm traffic is non-modular. A non-modular guest scenario requires only Router.
+
+The runner uses the PM API prefix configured under `targets.modular_pm.api_prefix`. The current sandbox load-test ingress exposes the runner's modular flows under `/v1`; keep cloud configurations on `/v1` unless the deployed ingress explicitly exposes another version.
+
+Cloud infrastructure remains responsible for provisioning the custom instances, routing `x-feature` traffic, assigning the custom database, and wiring downstream endpoints through application TOML or Helm configuration.
 
 ## Adding a flow
 
