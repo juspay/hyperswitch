@@ -1811,7 +1811,7 @@ pub async fn payment_methods_session_update(
         |state, auth: auth::AuthenticationData, req, _| {
             let value = payment_method_session_id.clone();
             async move {
-                record_payment_method_session_metrics(
+                Box::pin(record_payment_method_session_metrics(
                     "session_update",
                     payment_methods_routes::payment_methods_session_update(
                         state,
@@ -1819,7 +1819,7 @@ pub async fn payment_methods_session_update(
                         value.clone(),
                         req,
                     ),
-                )
+                ))
                 .await
             }
         },
@@ -2178,14 +2178,14 @@ pub async fn payment_method_get_token_details_api(
             let temporary_token = temporary_token.clone();
             async move {
                 let platform: domain::Platform = auth.platform;
-                record_payment_method_metrics(
+                Box::pin(record_payment_method_metrics(
                     "get_token_details",
                     payment_methods_routes::payment_method_get_token_details_core(
                         state,
                         platform.get_provider().clone(),
                         temporary_token,
                     ),
-                )
+                ))
                 .await
             }
         },
