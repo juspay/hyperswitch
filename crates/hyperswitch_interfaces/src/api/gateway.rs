@@ -410,6 +410,9 @@ where
             let return_raw_connector_response_clone = return_raw_connector_response;
             let context_clone = context;
             let connector_name = router_data.connector.clone();
+            let merchant_id = router_data.merchant_id.clone();
+            let payment_method = router_data.payment_method;
+            let payment_method_type = router_data.payment_method_type;
             tokio::spawn(
                 async move {
                     let gateway: Box<
@@ -442,6 +445,9 @@ where
                         connector_name,
                         direct_for_compare,
                         ucs_for_compare,
+                        Some(&merchant_id),
+                        Some(payment_method),
+                        payment_method_type,
                     )
                     .await;
                 }
@@ -544,6 +550,9 @@ where
             let return_raw_connector_response_clone = return_raw_connector_response;
             let context_clone = context;
             let connector_name = router_data.connector.clone();
+            let merchant_id = router_data.merchant_id.clone();
+            let payment_method = router_data.payment_method;
+            let payment_method_type = router_data.payment_method_type;
             tokio::spawn(
                 async move {
                     let gateway: Box<
@@ -576,6 +585,9 @@ where
                         connector_name,
                         direct_for_compare,
                         ucs_for_compare,
+                        Some(&merchant_id),
+                        Some(payment_method),
+                        payment_method_type,
                     )
                     .await;
                 }

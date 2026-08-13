@@ -26,12 +26,14 @@
 // Cypress.Commands.overwrite('visit', (originalFn, url, options) => { ... })
 // commands.js or your custom support file
 import getConnectorDetails, {
+  CONNECTOR_LISTS,
   defaultErrorHandler,
   extractIntegerAtEnd,
   getOriginalConnectorName,
   getValueByKey,
   injectHelcimTestCard,
   setNormalizedValue,
+  shouldIncludeConnector,
   stringifyWithBigInt,
 } from "../e2e/configs/Payment/Utils";
 import { execConfig, validateConfig } from "../utils/featureFlags";
@@ -69,16 +71,31 @@ function getOriginalConnectorId(globalState) {
   );
 }
 
-function isStripeConnect(globalState) {
+// True for test-only connector IDs (stripeconnect, payloadconnect, ...)
+// that alias a real backend connector under a different merchant-connector
+// -account configuration -- see getOriginalConnectorName.
+function isAliasedConnector(globalState) {
   const connectorId = getOriginalConnectorId(globalState);
   return (
     typeof connectorId === "string" &&
-    connectorId.toLowerCase() === "stripeconnect"
+    getOriginalConnectorName(connectorId.toLowerCase()) !==
+      connectorId.toLowerCase()
+  );
+}
+
+function supportsSplitPayments(globalState) {
+  const connectorId = getOriginalConnectorId(globalState);
+  return (
+    typeof connectorId === "string" &&
+    !shouldIncludeConnector(
+      connectorId.toLowerCase(),
+      CONNECTOR_LISTS.INCLUDE.SPLIT_PAYMENTS
+    )
   );
 }
 
 function updateConnectorState(globalState, responseConnector) {
-  if (isStripeConnect(globalState)) {
+  if (isAliasedConnector(globalState)) {
     const originalConnectorId = getOriginalConnectorId(globalState);
     globalState.set("connectorId", originalConnectorId);
     return;
@@ -125,11 +142,20 @@ function createIndividualRolloutConfig(
   const rolloutPercent = 1.0;
   const key = `ucs_rollout_config_${merchantId}_${connector}_${methodFlow}`;
 
+  // UCS-only connectors (no working classic direct-integration fallback)
+  // must route "primary" so the classic connector is never invoked; every
+  // other connector keeps mirroring to UCS via "shadow" for comparison.
+  const executionMode = CONNECTOR_LISTS.INCLUDE.UCS_CONNECTORS.includes(
+    connector
+  )
+    ? "primary"
+    : "shadow";
+
   const configValue = {
     rollout_percent: rolloutPercent,
     http_url: httpUrl,
     https_url: httpsUrl,
-    execution_mode: "shadow",
+    execution_mode: executionMode,
   };
   const value = JSON.stringify(configValue);
 
@@ -219,7 +245,9 @@ function createUcsConfigs(globalState, flow, type) {
   const methodFlowInput = flow || globalState.get("methodFlow");
 
   if (!httpUrl || !httpsUrl) {
-    throw new Error("Missing proxyHttp or proxyHttps in globalState");
+    throw new Error(
+      `Missing proxyHttp or proxyHttps in globalState. globalState.proxyHttp=${httpUrl}, globalState.proxyHttps=${httpsUrl}, Cypress.env("PROXY_HTTP")=${Cypress.env("PROXY_HTTP")}, Cypress.env("PROXY_HTTPS")=${Cypress.env("PROXY_HTTPS")}`
+    );
   }
 
   if (!connector || !methodFlowInput) {
@@ -652,6 +680,48 @@ Cypress.Commands.add(
         globalState.set(publishableKeyStateKey, response.body.publishable_key);
         globalState.set("merchantDetails", response.body.merchant_details);
         globalState.set("organizationId", response.body.organization_id);
+
+        if (globalState.get("kvEnabled")) {
+          cy.merchantKvEnableCallTest(
+            { merchant_id: merchantId, kv_enabled: true },
+            globalState
+          );
+        }
+      });
+    });
+  }
+);
+
+Cypress.Commands.add(
+  "merchantKvEnableCallTest",
+  (merchantKvEnableBody, globalState, options = {}) => {
+    const { expectedStatus = 200, expectedErrorCode = null } = options;
+
+    const merchant_id = globalState.get("merchantId");
+
+    cy.request({
+      method: "POST",
+      url: `${globalState.get("baseUrl")}/accounts/${merchant_id}/kv`,
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        "api-key": globalState.get("adminApiKey"),
+      },
+      body: merchantKvEnableBody,
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        expect(response.status).to.equal(expectedStatus);
+
+        if (expectedStatus !== 200) {
+          if (expectedErrorCode) {
+            expect(response.body).to.have.property("error");
+            expect(response.body.error.code).to.equal(expectedErrorCode);
+          }
+          return;
+        }
       });
     });
   }
@@ -3109,7 +3179,7 @@ Cypress.Commands.add(
       delete confirmBody.setup_future_usage;
     }
 
-    if (reqData?.split_payments && isStripeConnect(globalState)) {
+    if (reqData?.split_payments && supportsSplitPayments(globalState)) {
       confirmBody.split_payments = reqData.split_payments;
     }
 
@@ -3911,7 +3981,7 @@ Cypress.Commands.add(
       }
     }
 
-    if (reqData?.split_payments && isStripeConnect(globalState)) {
+    if (reqData?.split_payments && supportsSplitPayments(globalState)) {
       createConfirmPaymentBody.split_payments = reqData.split_payments;
     }
 
@@ -4826,7 +4896,7 @@ Cypress.Commands.add(
 
     // Include split_payments only for stripeconnect connector
     // This handles Stripe Connect flows where split_payments is defined in the connector config
-    if (reqData?.split_payments && isStripeConnect(globalState)) {
+    if (reqData?.split_payments && supportsSplitPayments(globalState)) {
       requestBody.split_payments = reqData.split_payments;
     }
 
@@ -5099,7 +5169,7 @@ Cypress.Commands.add(
 
     // Include split_payments only for stripeconnect connector
     // This handles Stripe Connect flows where split_payments is defined in the connector config
-    if (reqData?.split_payments && isStripeConnect(globalState)) {
+    if (reqData?.split_payments && supportsSplitPayments(globalState)) {
       requestBody.split_payments = reqData.split_payments;
     }
 
@@ -6401,8 +6471,11 @@ Cypress.Commands.add("listCustomerPMCallTest", (globalState, order = 0) => {
           expect(cardInfo.card_holder_name, "card_holder_name").to.not.be.null;
         }
 
+        // allow a small buffer for clock skew between the server and the
+        // test runner — last_used_at can otherwise land at or after the
+        // local Date.now() even though it was genuinely set in the past
         expect(new Date(lastUsedAt).getTime(), "last_used_at").to.be.lessThan(
-          Date.now()
+          Date.now() + 5000
         ).and.to.not.be.null;
 
         // For order > 0, validate payment methods are ordered by last_used_at
@@ -7876,6 +7949,14 @@ Cypress.Commands.add("diffCheckResult", (globalState) => {
 
   // Phase 2: Fetch Validation Results
   const validationServiceUrl = globalState.get("validationServiceUrl");
+
+  if (!validationServiceUrl) {
+    cy.task(
+      "cli_log",
+      "VALIDATION_SERVICE_URL is not set. Skipping diff check validation."
+    );
+    return;
+  }
 
   cy.request({
     method: "GET",

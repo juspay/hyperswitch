@@ -62,6 +62,8 @@ use super::refunds;
 use super::routing;
 #[cfg(all(feature = "oltp", feature = "v2"))]
 use super::tokenization as tokenization_routes;
+#[cfg(feature = "olap")]
+use super::unified_connector_service as unified_connector_service_routes;
 #[cfg(all(feature = "olap", any(feature = "v1", feature = "v2")))]
 use super::verification::{apple_pay_merchant_registration, retrieve_apple_pay_verified_domains};
 #[cfg(feature = "oltp")]
@@ -80,6 +82,10 @@ use super::{configs::*, customers, payments};
 use super::{mandates::*, refunds::*};
 #[cfg(feature = "olap")]
 pub use crate::analytics::opensearch::OpenSearchClient;
+#[cfg(all(feature = "olap", feature = "v1"))]
+use crate::analytics::routes::{
+    get_payment_list_from_opensearch, get_profile_payment_list_from_opensearch,
+};
 #[cfg(feature = "olap")]
 use crate::analytics::AnalyticsProvider;
 #[cfg(feature = "partial-auth")]
@@ -976,6 +982,14 @@ impl Payments {
                         .route(web::post().to(payments::profile_payments_list_by_filter)),
                 )
                 .service(
+                    web::resource("/advanced/list")
+                        .route(web::post().to(get_payment_list_from_opensearch)),
+                )
+                .service(
+                    web::resource("/profile/advanced/list")
+                        .route(web::post().to(get_profile_payment_list_from_opensearch)),
+                )
+                .service(
                     web::resource("/filter")
                         .route(web::post().to(payments::get_filters_for_payments)),
                 )
@@ -1158,6 +1172,10 @@ impl Routing {
         let mut route = web::scope("/routing")
             .app_data(web::Data::new(state.clone()))
             .service(web::resource("/entry").route(web::post().to(routing::routing_entry)))
+            .service(
+                web::resource("/decision-engine/{profile_id}/diff-counter")
+                    .route(web::delete().to(routing::reset_decision_engine_diff_counter)),
+            )
             .service(
                 web::resource("/active").route(web::get().to(|state, req, query_params| {
                     routing::routing_retrieve_linked_config(state, req, query_params, None)
@@ -2307,6 +2325,21 @@ impl Configs {
                     .route(web::get().to(config_key_retrieve))
                     .route(web::post().to(config_key_update))
                     .route(web::delete().to(config_key_delete)),
+            )
+    }
+}
+
+pub struct UnifiedConnectorService;
+
+#[cfg(feature = "olap")]
+impl UnifiedConnectorService {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/unified-connector-service")
+            .app_data(web::Data::new(state))
+            .service(
+                web::resource("/kill-switch/{scope}")
+                    .route(web::get().to(unified_connector_service_routes::kill_switch_status))
+                    .route(web::delete().to(unified_connector_service_routes::reset_kill_switch)),
             )
     }
 }
