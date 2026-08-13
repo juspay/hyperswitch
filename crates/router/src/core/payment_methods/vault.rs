@@ -2022,6 +2022,19 @@ async fn create_vault_request<R: pm_types::VaultingInterface>(
     Ok(request)
 }
 
+/// Maps a vault flow name (`V::get_vaulting_flow_name()`) to its dedicated latency histogram.
+/// Falls back to `VAULT_ADD_TIME` for flows without a dedicated histogram (e.g. entity creation).
+fn vault_operation_latency_metric(
+    flow_name: &str,
+) -> &'static router_env::opentelemetry::metrics::Histogram<f64> {
+    match flow_name {
+        consts::V2_VAULT_RETRIEVE_FLOW_TYPE => &metrics::VAULT_GET_TIME,
+        consts::V2_VAULT_DELETE_FLOW_TYPE => &metrics::VAULT_DELETE_TIME,
+        consts::V2_VAULT_GET_FINGERPRINT_FLOW_TYPE => &metrics::VAULT_FINGERPRINT_TIME,
+        _ => &metrics::VAULT_ADD_TIME,
+    }
+}
+
 #[instrument(skip_all)]
 pub async fn call_to_vault<V: pm_types::VaultingInterface>(
     state: &routes::SessionState,
@@ -2053,9 +2066,18 @@ pub async fn call_to_vault<V: pm_types::VaultingInterface>(
         Some(additional_headers),
     )
     .await?;
-    let response = services::call_connector_api(state, request, V::get_vaulting_flow_name(), None)
-        .await
-        .change_context(errors::VaultError::VaultAPIError);
+    let flow_name = V::get_vaulting_flow_name();
+    let response = common_utils::metrics::utils::record_operation_time(
+        services::call_connector_api(state, request, flow_name, None),
+        vault_operation_latency_metric(flow_name),
+        router_env::metric_attributes!(("operation", flow_name)),
+    )
+    .await
+    .change_context(errors::VaultError::VaultAPIError)
+    .inspect_err(|_| {
+        metrics::VAULT_CALL_FAILURES
+            .add(1, router_env::metric_attributes!(("operation", flow_name)));
+    });
 
     let jwe_body: services::JweBody = response
         .get_response_inner("JweBody")

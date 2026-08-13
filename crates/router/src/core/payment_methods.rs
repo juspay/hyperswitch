@@ -79,6 +79,8 @@ use super::{
     pm_auth,
 };
 #[cfg(feature = "v2")]
+use crate::routes::metrics;
+#[cfg(feature = "v2")]
 use crate::{
     configs::settings,
     core::{
@@ -6676,11 +6678,14 @@ pub async fn payment_methods_session_create(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Unable to generate GlobalPaymentMethodSessionId")?;
 
-    let encrypted_data = request
-        .encrypt_data(key_manager_state, platform.get_provider().get_key_store())
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to encrypt payment methods session data")?;
+    let encrypted_data = common_utils::metrics::utils::record_operation_time(
+        request.encrypt_data(key_manager_state, platform.get_provider().get_key_store()),
+        &metrics::PAYMENT_METHOD_CRYPTO_DURATION,
+        router_env::metric_attributes!(("operation", "encrypt")),
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to encrypt payment methods session data")?;
 
     let billing = encrypted_data
         .billing
@@ -6804,11 +6809,14 @@ pub async fn payment_methods_session_update(
         })
         .attach_printable("Failed to retrieve payment methods session from db")?;
 
-    let encrypted_data = request
-        .encrypt_data(key_manager_state, provider.get_key_store())
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to encrypt payment methods session data")?;
+    let encrypted_data = common_utils::metrics::utils::record_operation_time(
+        request.encrypt_data(key_manager_state, provider.get_key_store()),
+        &metrics::PAYMENT_METHOD_CRYPTO_DURATION,
+        router_env::metric_attributes!(("operation", "encrypt")),
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to encrypt payment methods session data")?;
 
     let billing = encrypted_data
         .billing
