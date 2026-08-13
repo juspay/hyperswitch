@@ -85,7 +85,7 @@ impl RefundDbExt for Refund {
                 .or(dsl::processor_merchant_id
                     .is_null()
                     .and(dsl::merchant_id.eq(processor_merchant_id.to_owned()))),
-            order = (dsl::created_at.desc(), dsl::refund_id.desc())
+            order = dsl::created_at.desc()
         );
         let mut search_by_pay_or_ref_id = false;
 
@@ -179,7 +179,7 @@ impl RefundDbExt for Refund {
         let mut filter = diesel_models::boxed_list_query!(
             Refund,
             scope = dsl::merchant_id.eq(merchant_id.to_owned()),
-            order = (dsl::created_at.desc(), dsl::id.desc())
+            order = dsl::created_at.desc()
         );
 
         if let Some(payment_id) = &refund_list_details.payment_id {

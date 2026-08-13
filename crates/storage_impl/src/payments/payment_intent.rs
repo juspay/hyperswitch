@@ -935,7 +935,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         let mut query = diesel_models::boxed_list_query!(
             DieselPaymentIntent,
             scope = pi_dsl::processor_merchant_id.eq(processor_merchant_id.to_owned()),
-            order = (pi_dsl::created_at.desc(), pi_dsl::payment_id.desc())
+            order = pi_dsl::created_at.desc()
         );
 
         match filters {
@@ -1133,28 +1133,28 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                     Order {
                         on: SortOn::Amount,
                         by: SortBy::Asc,
-                    } => query.order((pi_dsl::amount.asc(), pi_dsl::payment_id.asc())),
+                    } => query.order(pi_dsl::amount.asc()),
                     Order {
                         on: SortOn::Amount,
                         by: SortBy::Desc,
-                    } => query.order((pi_dsl::amount.desc(), pi_dsl::payment_id.desc())),
+                    } => query.order(pi_dsl::amount.desc()),
                     // SortOn::Modified maps to created_at for pagination stability.
                     Order {
                         on: SortOn::Created | SortOn::Modified,
                         by: SortBy::Asc,
-                    } => query.order((pi_dsl::created_at.asc(), pi_dsl::payment_id.asc())),
+                    } => query.order(pi_dsl::created_at.asc()),
                     Order {
                         on: SortOn::Created | SortOn::Modified,
                         by: SortBy::Desc,
-                    } => query.order((pi_dsl::created_at.desc(), pi_dsl::payment_id.desc())),
+                    } => query.order(pi_dsl::created_at.desc()),
                     Order {
                         on: SortOn::AttemptCount,
                         by: SortBy::Asc,
-                    } => query.order((pi_dsl::attempt_count.asc(), pi_dsl::payment_id.asc())),
+                    } => query.order(pi_dsl::attempt_count.asc()),
                     Order {
                         on: SortOn::AttemptCount,
                         by: SortBy::Desc,
-                    } => query.order((pi_dsl::attempt_count.desc(), pi_dsl::payment_id.desc())),
+                    } => query.order(pi_dsl::attempt_count.desc()),
                 };
 
                 if let Some(customer_id) = &params.customer_id {
@@ -1359,28 +1359,28 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                     Order {
                         on: SortOn::Amount,
                         by: SortBy::Asc,
-                    } => query.order((pi_dsl::amount.asc(), pi_dsl::id.asc())),
+                    } => query.order(pi_dsl::amount.asc()),
                     Order {
                         on: SortOn::Amount,
                         by: SortBy::Desc,
-                    } => query.order((pi_dsl::amount.desc(), pi_dsl::id.desc())),
+                    } => query.order(pi_dsl::amount.desc()),
                     // SortOn::Modified maps to created_at for pagination stability.
                     Order {
                         on: SortOn::Created | SortOn::Modified,
                         by: SortBy::Asc,
-                    } => query.order((pi_dsl::created_at.asc(), pi_dsl::id.asc())),
+                    } => query.order(pi_dsl::created_at.asc()),
                     Order {
                         on: SortOn::Created | SortOn::Modified,
                         by: SortBy::Desc,
-                    } => query.order((pi_dsl::created_at.desc(), pi_dsl::id.desc())),
+                    } => query.order(pi_dsl::created_at.desc()),
                     Order {
                         on: SortOn::AttemptCount,
                         by: SortBy::Asc,
-                    } => query.order((pi_dsl::attempt_count.asc(), pi_dsl::id.asc())),
+                    } => query.order(pi_dsl::attempt_count.asc()),
                     Order {
                         on: SortOn::AttemptCount,
                         by: SortBy::Desc,
-                    } => query.order((pi_dsl::attempt_count.desc(), pi_dsl::id.desc())),
+                    } => query.order(pi_dsl::attempt_count.desc()),
                 };
 
                 if let Some(customer_id) = &params.customer_id {
@@ -1565,7 +1565,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
             DieselPaymentIntent::table()
                 .select(pi_dsl::active_attempt_id)
                 .filter(pi_dsl::merchant_id.eq(merchant_id.to_owned()))
-                .order((pi_dsl::created_at.desc(), pi_dsl::id.desc()))
+                .order(pi_dsl::created_at.desc())
         );
 
         query = match constraints {
@@ -1651,7 +1651,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
             DieselPaymentIntent::table()
                 .select(pi_dsl::active_attempt_id)
                 .filter(pi_dsl::processor_merchant_id.eq(processor_merchant_id.to_owned()))
-                .order((pi_dsl::created_at.desc(), pi_dsl::payment_id.desc()))
+                .order(pi_dsl::created_at.desc())
         );
 
         query = match constraints {

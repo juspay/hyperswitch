@@ -29,8 +29,7 @@ where
 /// Build the base of a list query: filter by merchant scope, apply the
 /// caller-chosen order expression, and box the query.
 ///
-/// The `order` expression should include a tiebreak column (the table's
-/// primary key) for stable pagination, e.g. `(dsl::created_at.desc(), dsl::refund_id.desc())`.
+/// The `order` expression is applied verbatim, e.g. `dsl::created_at.desc()`.
 #[macro_export]
 macro_rules! boxed_list_query {
     (

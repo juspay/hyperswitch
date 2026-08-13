@@ -38,7 +38,7 @@ impl DisputeDbExt for Dispute {
                 .or(dsl::processor_merchant_id
                     .is_null()
                     .and(dsl::merchant_id.eq(processor_merchant_id.to_owned()))),
-            order = (dsl::created_at.desc(), dsl::dispute_id.desc())
+            order = dsl::created_at.desc()
         );
 
         let mut search_by_payment_or_dispute_id = false;
