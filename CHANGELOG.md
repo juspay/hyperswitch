@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.07.29.2-hotfix5
+
+### Bug Fixes
+
+- **ucs:** Suppress X-Connector-Config header for Netcetera ([#13672](https://github.com/juspay/hyperswitch/pull/13672)) ([`f3b2b90`](https://github.com/juspay/hyperswitch/commit/f3b2b90b74ab4b46628f27399d104a86b60a5161))
+
+**Full Changelog:** [`2026.07.29.2-hotfix4...2026.07.29.2-hotfix5`](https://github.com/juspay/hyperswitch/compare/2026.07.29.2-hotfix4...2026.07.29.2-hotfix5)
+
+- - -
+
 ## 2026.07.29.2-hotfix4
 
 ### Features
