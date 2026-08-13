@@ -598,6 +598,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, PaymentsRequest>
                                 .payment_attempt
                                 .net_amount
                                 .get_installment_interest(),
+                            payment_data.payment_attempt.net_amount.get_offer_amount(),
                         ),
                     connector_mandate_detail: payment_data
                         .payment_attempt
@@ -620,6 +621,10 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, PaymentsRequest>
                     external_surcharge_details: payment_data
                         .payment_attempt
                         .external_surcharge_details
+                        .clone(),
+                    applied_offer_details: payment_data
+                        .payment_attempt
+                        .applied_offer_details
                         .clone(),
                 },
                 storage_scheme,
