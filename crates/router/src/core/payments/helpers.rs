@@ -2501,15 +2501,12 @@ pub fn decide_payment_method_retrieval_action(
     }
 }
 
-pub async fn is_ucs_enabled(state: &SessionState, config_key: &str) -> bool {
+pub async fn is_config_flag_enabled(state: &SessionState, config_key: &str) -> bool {
     let db = state.store.as_ref();
     db.find_config_by_key_unwrap_or(config_key, Some("false".to_string()))
         .await
         .inspect_err(|error| {
-            logger::error!(
-                ?error,
-                "Failed to fetch `{config_key}` UCS enabled config from DB"
-            );
+            logger::error!(?error, "Failed to fetch `{config_key}` config from DB");
         })
         .ok()
         .and_then(|config| {
@@ -2517,14 +2514,14 @@ pub async fn is_ucs_enabled(state: &SessionState, config_key: &str) -> bool {
                 .config
                 .parse::<bool>()
                 .inspect_err(|error| {
-                    logger::error!(?error, "Failed to parse `{config_key}` UCS enabled config");
+                    logger::error!(?error, "Failed to parse `{config_key}` config");
                 })
                 .ok()
         })
         .unwrap_or(false)
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct RolloutConfig {
     pub rollout_percent: f64,
     pub http_url: Option<String>,
@@ -2561,9 +2558,6 @@ pub struct RolloutExecutionResult {
     pub should_execute: bool,
     pub proxy_override: Option<ProxyOverride>,
     pub execution_mode: ExecutionMode,
-    /// The exact config key that produced this result, if any. Used by the
-    /// primary→shadow kill switch to know which row to flip.
-    pub matched_config_key: Option<String>,
 }
 
 impl Default for RolloutExecutionResult {
@@ -2572,7 +2566,6 @@ impl Default for RolloutExecutionResult {
             should_execute: false,
             proxy_override: None,
             execution_mode: ExecutionMode::NotApplicable,
-            matched_config_key: None,
         }
     }
 }
@@ -2660,7 +2653,6 @@ impl From<RolloutConfig> for RolloutExecutionResult {
                             should_execute: true,
                             proxy_override,
                             execution_mode: config.execution_mode,
-                            matched_config_key: None,
                         }
                     }
                     false => {
@@ -2770,11 +2762,7 @@ pub async fn should_execute_based_on_rollout_with_precedence(
             Some(config) => {
                 logger::info!(config_key = %key, "Rollout config found, using this key");
                 return Ok(serde_json::from_str::<RolloutConfig>(&config.config)
-                    .map(|rollout| {
-                        let mut result = RolloutExecutionResult::from(rollout);
-                        result.matched_config_key = Some(key.clone());
-                        result
-                    })
+                    .map(RolloutExecutionResult::from)
                     .map_err(|err| {
                         logger::error!(
                             error = ?err,
