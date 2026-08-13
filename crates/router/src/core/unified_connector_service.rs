@@ -3102,7 +3102,7 @@ where
     let payment_method_type = router_data.payment_method_type;
     // Kept so a `ConnectorError` can be turned back into an `Ok` router data here, in the one
     // place that does this conversion, instead of every handler closure doing it themselves.
-    let router_data_for_connector_error = router_data.clone();
+    let recovery_router_data = router_data.clone();
     let grpc_header = grpc_header_builder.build();
     // Log the actual gRPC request with masking
     let grpc_request_body = hyperswitch_masking::masked_serialize(&grpc_request)
@@ -3196,14 +3196,14 @@ where
             // variant it exists to catch, and the event this function logs carried a masked
             // *empty* gRPC response instead of the connector's actual error.
             if let UnifiedConnectorServiceError::ConnectorError(inner) = error.current_context() {
-                let mut recovered_router_data = router_data_for_connector_error;
-                recovered_router_data.response = Err(inner.as_ref().into());
-                recovered_router_data.connector_http_status_code = Some(inner.status_code);
+                let mut recovery_router_data = recovery_router_data;
+                recovery_router_data.response = Err(inner.as_ref().into());
+                recovery_router_data.connector_http_status_code = Some(inner.status_code);
 
                 (
                     inner.status_code,
                     Some(error_body),
-                    Ok((recovered_router_data, FlowOutput::default())),
+                    Ok((recovery_router_data, FlowOutput::default())),
                 )
             } else {
                 (
