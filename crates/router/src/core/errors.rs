@@ -456,8 +456,10 @@ pub enum RevenueRecoveryError {
     PaymentIntentCreateFailed,
     #[error("Source verification failed for billing connector")]
     WebhookAuthenticationFailed,
-    #[error("Payment merchant connector account not found using account reference id")]
-    PaymentMerchantConnectorAccountNotFound,
+    #[error("Payment merchant connector account {id} not found using account reference id")]
+    PaymentMerchantConnectorAccountNotFound { id: String },
+    #[error("Payment attempt cannot be recorded while the invoice is in {status} state")]
+    PaymentAttemptRecordNotAllowed { status: String },
     #[error("Failed to fetch primitive date_time")]
     ScheduleTimeFetchFailed,
     #[error("Failed to create process tracker")]
@@ -499,11 +501,37 @@ impl common_utils::errors::ErrorSwitch<ApiErrorResponse> for RevenueRecoveryErro
             | Self::RevenueRecoveryAttemptDataCreateFailed
             | Self::CustomerIdNotFound => ApiErrorResponse::WebhookUnprocessableEntity,
 
+            // The account reference id on the webhook maps to no gateway, or the gateway it maps to
+            // is gone. Naming the id is what makes this actionable for the merchant.
+            Self::PaymentMerchantConnectorAccountNotFound { id } => {
+                ApiErrorResponse::MerchantConnectorAccountNotFound { id: id.clone() }
+            }
+
+            // The invoice has already reached a state that accepts no further attempts, typically
+            // because it was recovered before this webhook arrived. Replaying the webhook cannot
+            // change that, so the billing connector must stop retrying it.
+            Self::PaymentAttemptRecordNotAllowed { status } => {
+                ApiErrorResponse::PreconditionFailed {
+                    message: format!(
+                        "payment attempt cannot be recorded because the invoice is already in \
+                         {status} state"
+                    ),
+                }
+            }
+
+            // Revenue recovery is not configured on the billing connector account at all, so there
+            // is no threshold to compare against.
+            Self::BillingThresholdRetryCountFetchFailed => {
+                ApiErrorResponse::InvalidConnectorConfiguration {
+                    config: "revenue_recovery.billing_connector_retry_threshold".to_string(),
+                }
+            }
+
             // Configuration/resource is missing for this merchant. Retrying does not help until the
             // merchant fixes their setup.
-            Self::PaymentMerchantConnectorAccountNotFound
-            | Self::PaymentAttemptIdNotFound
-            | Self::RetryAlgorithmTypeNotFound => ApiErrorResponse::WebhookResourceNotFound,
+            Self::PaymentAttemptIdNotFound | Self::RetryAlgorithmTypeNotFound => {
+                ApiErrorResponse::WebhookResourceNotFound
+            }
 
             // Everything below is an internal/transient failure on our side, so keep returning a
             // 5xx and let the billing connector retry the webhook.
@@ -516,7 +544,6 @@ impl common_utils::errors::ErrorSwitch<ApiErrorResponse> for RevenueRecoveryErro
             | Self::BillingConnectorPaymentsSyncFailed
             | Self::BillingConnectorInvoiceSyncFailed
             | Self::RetryCountFetchFailed
-            | Self::BillingThresholdRetryCountFetchFailed
             | Self::RetryAlgorithmUpdationFailed
             | Self::RevenueRecoveryRedisInsertFailed => ApiErrorResponse::WebhookProcessingFailure,
         }
