@@ -78,7 +78,6 @@ where
         let lineage_ids = context.lineage_ids;
         let header_payload = context.header_payload;
         let unified_connector_service_execution_mode = context.execution_mode;
-        let ucs_matched_rollout_key = context.ucs_matched_rollout_key;
         let client = state
             .grpc_client
             .unified_connector_service_client
@@ -129,7 +128,6 @@ where
                 incremental_authorization_request,
                 header_payload,
                 unified_connector_service_execution_mode,
-                ucs_matched_rollout_key,
                 |mut router_data, incremental_authorization_request, grpc_headers| async move {
                     let response = match Box::pin(client.payment_incremental_authorization(
                         incremental_authorization_request,

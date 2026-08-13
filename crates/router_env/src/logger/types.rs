@@ -395,6 +395,8 @@ pub enum Flow {
     PaymentLinkList,
     /// Payment Link Status
     PaymentLinkStatus,
+    /// Payment Link Create flow
+    PaymentLinkCreate,
     /// Create a profile
     ProfileCreate,
     /// Update a profile
@@ -661,6 +663,10 @@ pub enum Flow {
     RoutingEvaluateRule,
     /// Reset the Decision Engine routing diff kill-switch counter for a profile
     DecisionEngineDiffCounterReset,
+    /// Report whether the Unified Connector Service kill switch has tripped a scope
+    UnifiedConnectorServiceKillSwitchStatus,
+    /// Clear a Unified Connector Service kill switch cutover
+    UnifiedConnectorServiceKillSwitchReset,
     /// Relay flow
     Relay,
     /// Relay retrieve flow
