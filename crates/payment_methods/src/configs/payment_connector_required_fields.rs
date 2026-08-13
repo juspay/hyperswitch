@@ -1852,6 +1852,21 @@ fn get_cards_required_fields() -> HashMap<Connector, RequiredFieldFinal> {
             fields(vec![], card_basic(), vec![]),
         ),
         (
+            Connector::Ilixium,
+            fields(
+                vec![],
+                vec![
+                    RequiredField::CardNumber,
+                    RequiredField::CardExpMonth,
+                    RequiredField::CardExpYear,
+                    RequiredField::CardCvc,
+                    RequiredField::Email,
+                    RequiredField::BillingAddressCountries(vec!["ALL"]),
+                ],
+                vec![],
+            ),
+        ),
+        (
             Connector::Givepayments,
             RequiredFieldFinal {
                 mandate: HashMap::new(),
