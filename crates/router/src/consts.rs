@@ -308,8 +308,9 @@ pub const IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID: &str =
 // Default payment method storing TTL in redis in seconds
 pub const DEFAULT_PAYMENT_METHOD_STORE_TTL: i64 = 86400; // 1 day
 
-// List of countries that are part of the PSD2 region
-pub const PSD2_COUNTRIES: [Country; 27] = [
+// Countries and separately encoded territories where PSD2 or the equivalent UK
+// strong customer authentication rules apply.
+pub const SCA_MANDATED_COUNTRIES: [Country; 39] = [
     Country::Austria,
     Country::Belgium,
     Country::Bulgaria,
@@ -337,6 +338,21 @@ pub const PSD2_COUNTRIES: [Country; 27] = [
     Country::Slovenia,
     Country::Spain,
     Country::Sweden,
+    // EEA/EFTA states where PSD2 applies
+    Country::Iceland,
+    Country::Liechtenstein,
+    Country::Norway,
+    // EU territories represented separately by the Country enum
+    Country::AlandIslands,
+    Country::FrenchGuiana,
+    Country::Guadeloupe,
+    Country::Martinique,
+    Country::Mayotte,
+    Country::Reunion,
+    Country::SaintMartinFrenchpart,
+    // Jurisdictions covered by the equivalent UK SCA regime
+    Country::UnitedKingdomOfGreatBritainAndNorthernIreland,
+    Country::Gibraltar,
 ];
 
 // Rollout percentage config prefix
@@ -348,6 +364,19 @@ pub const UCS_ROLLOUT_CONFIG_NOT_CONFIGURED: &str = "not_configured";
 
 // UCS feature enabled config
 pub const UCS_ENABLED: &str = "ucs_enabled";
+
+// Config key gating the UCS kill switch. Read through the same cached config lookup as
+// `UCS_ENABLED`, so the switch can be turned on or off without a redeploy.
+pub const UCS_KILL_SWITCH_ENABLED: &str = "ucs_kill_switch_enabled";
+
+// Prefix of the redis key holding a kill switch trip. Absent until a scope trips.
+pub const UCS_KILL_SWITCH_REDIS_PREFIX: &str = "ucs_kill_switch";
+
+// Lifetime of a trip, in seconds. A trip is meant to be cleared by an operator, but
+// `redis_interface` has no setter that writes a key without an expiry, so it is spelled as a
+// bound rather than left open. A week outlives a long weekend; a still-broken scope trips again
+// on its next request.
+pub const UCS_KILL_SWITCH_TTL_IN_SECONDS: i64 = 7 * 24 * 60 * 60;
 
 /// Header value indicating that signature-key-based authentication is used.
 pub const UCS_AUTH_SIGNATURE_KEY: &str = "signature-key";
@@ -364,8 +393,19 @@ pub const UCS_AUTH_MULTI_KEY: &str = "multi-auth-key";
 /// Header value indicating that currency-auth-key-based authentication is used.
 pub const UCS_AUTH_CURRENCY_AUTH_KEY: &str = "currency-auth-key";
 
+/// Header value indicating that no credentials are required (e.g. external-3DS
+/// over VGS where mTLS is handled on the outbound proxy route, not by UCS).
+pub const UCS_AUTH_NO_KEY: &str = "no-key";
+
 /// Form field name for challenge request during creq submission
 pub const CREQ_CHALLENGE_REQUEST_KEY: &str = "creq";
+
+/// `RedirectForm::Form.form_fields` keys UCS's Netcetera integration uses to carry 3DS Method
+/// (DDC) data — there's no typed proto slot for it, so connector-service stuffs it into the same
+/// generic form-fields map used for the challenge (see its `netcetera/transformers.rs`, the
+/// `form_fields.insert("threeDsMethodData"/"threeDsMethodUrl", ...)` call).
+pub const UCS_DDC_METHOD_DATA_KEY: &str = "threeDsMethodData";
+pub const UCS_DDC_METHOD_URL_KEY: &str = "threeDsMethodUrl";
 
 /// Superposition configuration keys
 pub mod superposition {
@@ -381,6 +421,8 @@ pub mod superposition {
     pub const REQUIRES_CVV: &str = "payments.requires_cvv";
     /// implicit customer update configuration key
     pub const IMPLICIT_CUSTOMER_UPDATE: &str = "payments.implicit_customer_update";
+    /// Organization-scoped block implicit customer creation configuration key
+    pub const BLOCK_IMPLICIT_CUSTOMER_CREATION: &str = "payments.block_implicit_customer_creation";
     /// Fingerprint secret configuration key retained for migration fallback
     pub const FINGERPRINT_SECRET: &str = "vaulting.fingerprint_secret";
     /// Poll config for external 3DS authentication key
@@ -434,6 +476,10 @@ pub mod superposition {
     /// Trigger fingerprint migration configuration key
     pub const SHOULD_TRIGGER_FINGERPRINT_MIGRATION: &str =
         "vaulting.should_trigger_fingerprint_migration";
+    /// Timeout (in seconds) for fetching a network token from the tokenization service during a
+    /// payment configuration key
+    pub const NETWORK_TOKEN_FETCH_TIMEOUT_IN_SECS: &str =
+        "payments.network_token_fetch_timeout_in_secs";
     /// Perform SDK vaulting action configuration key. Acts as a merchant level override on top of
     /// `should_call_pm_modular_service`: defaults to `true` for all merchants and can be set to
     /// `false` for specific merchants to force the SDK to skip tokenization.
