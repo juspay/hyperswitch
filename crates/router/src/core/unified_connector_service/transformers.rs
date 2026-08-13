@@ -127,8 +127,7 @@ fn build_ucs_order_details(
                         .as_ref()
                         .map(|value| value.get_percentage()),
                     discount_type: detail.discount_type.clone(),
-                    // #TODO: new UCS proto field; `OrderDetailsWithAmount` has no
-                    // `product_link` counterpart yet, so nothing to forward.
+                    // TODO: Populate product_link when the API model gains the field
                     product_link: None,
                 })
                 .collect()

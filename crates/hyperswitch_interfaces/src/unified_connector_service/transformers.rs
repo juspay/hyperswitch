@@ -1020,9 +1020,6 @@ impl ForeignTryFrom<payments_grpc::RedirectForm> for RedirectForm {
                 )
                 .into(),
             ),
-            // #TODO: new UCS proto variant carrying a standalone script snippet (e.g. device
-            // data collection). `RedirectForm` has no equivalent, so reject it for now rather
-            // than dropping it silently.
             Some(payments_grpc::redirect_form::FormType::Script(_)) => Err(
                 UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
                     "Script form type is not implemented".to_string(),

@@ -262,7 +262,6 @@ pub async fn modify_trackers(
     );
 
     let payout_attempt_req = storage::PayoutAttemptNew {
-        // A retry is a fresh attempt; the previous eligibility check does not carry over.
         connector_eligibility_reference_id: None,
         payout_attempt_id: payout_attempt_id.to_string(),
         payout_id: payout_id.to_owned(),

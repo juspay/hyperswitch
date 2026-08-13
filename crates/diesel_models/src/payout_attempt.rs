@@ -43,7 +43,6 @@ pub struct PayoutAttempt {
     pub created_by: Option<String>,
     pub source_bank_data_token: Option<String>,
     pub additional_source_bank_data: Option<payout_method_utils::BankAdditionalData>,
-    /// Connector's reference for the eligibility check (e.g. Deutsche Bank VoP id).
     pub connector_eligibility_reference_id: Option<String>,
 }
 
@@ -90,7 +89,6 @@ pub struct PayoutAttemptNew {
     pub created_by: Option<String>,
     pub source_bank_data_token: Option<String>,
     pub additional_source_bank_data: Option<payout_method_utils::BankAdditionalData>,
-    /// Connector's reference for the eligibility check (e.g. Deutsche Bank VoP id).
     pub connector_eligibility_reference_id: Option<String>,
 }
 
@@ -161,7 +159,6 @@ pub struct PayoutAttemptUpdateInternal {
     pub payout_connector_metadata: Option<pii::SecretSerdeValue>,
     pub source_bank_data_token: Option<String>,
     pub additional_source_bank_data: Option<payout_method_utils::BankAdditionalData>,
-    /// Connector's reference for the eligibility check (e.g. Deutsche Bank VoP id).
     pub connector_eligibility_reference_id: Option<String>,
 }
 
