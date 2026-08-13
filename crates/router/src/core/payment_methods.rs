@@ -5838,10 +5838,8 @@ pub async fn retrieve_payment_method(
     };
 
     if account_updater_access {
-        let processor = platform.get_processor();
-        let account_updater_dimensions = dimension_state::Dimensions::new()
-            .with_processor_merchant_id(processor.get_processor_merchant_id())
-            .with_organization_id(processor.get_account().get_org_id().clone())
+        let account_updater_dimensions = dimensions
+            .with_organization_id(platform.get_provider().get_account().get_org_id().clone())
             .with_profile_id(profile.get_id().clone());
 
         Box::pin(account_updater::run_account_updater(
