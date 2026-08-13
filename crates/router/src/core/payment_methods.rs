@@ -4480,54 +4480,6 @@ pub async fn create_payment_method_for_intent(
     initiator: Option<&domain::Initiator>,
     auxiliary_fingerprint_id: Option<String>,
 ) -> CustomResult<domain::PaymentMethod, errors::ApiErrorResponse> {
-    let result = common_utils::metrics::utils::record_operation_time(
-        create_payment_method_for_intent_inner(
-            state,
-            metadata,
-            customer_id,
-            payment_method_id,
-            merchant_id,
-            organization_id,
-            key_store,
-            storage_scheme,
-            payment_method_billing_address,
-            initiator,
-            auxiliary_fingerprint_id,
-        ),
-        &metrics::PAYMENT_METHOD_OPERATION_DURATION,
-        router_env::metric_attributes!(("operation", "create_for_intent")),
-    )
-    .await;
-
-    metrics::PAYMENT_METHOD_OPS_COUNT.add(
-        1,
-        router_env::metric_attributes!(
-            ("operation", "create_for_intent"),
-            ("outcome", if result.is_ok() { "success" } else { "error" })
-        ),
-    );
-
-    result
-}
-
-#[cfg(feature = "v2")]
-#[instrument(skip_all)]
-#[allow(clippy::too_many_arguments)]
-async fn create_payment_method_for_intent_inner(
-    state: &SessionState,
-    metadata: Option<common_utils::pii::SecretSerdeValue>,
-    customer_id: &id_type::GlobalCustomerId,
-    payment_method_id: id_type::GlobalPaymentMethodId,
-    merchant_id: &id_type::MerchantId,
-    organization_id: &id_type::OrganizationId,
-    key_store: &domain::MerchantKeyStore,
-    storage_scheme: enums::MerchantStorageScheme,
-    payment_method_billing_address: Option<
-        Encryptable<hyperswitch_domain_models::address::Address>,
-    >,
-    initiator: Option<&domain::Initiator>,
-    auxiliary_fingerprint_id: Option<String>,
-) -> CustomResult<domain::PaymentMethod, errors::ApiErrorResponse> {
     use josekit::jwe::zip::deflate::DeflateJweCompression::Def;
 
     let db = &*state.store;
@@ -4671,68 +4623,6 @@ pub async fn construct_payment_method_object(
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
 pub async fn create_payment_method_for_confirm(
-    state: &SessionState,
-    customer_id: &id_type::GlobalCustomerId,
-    payment_method_id: id_type::GlobalPaymentMethodId,
-    external_vault_source: Option<id_type::MerchantConnectorAccountId>,
-    merchant_id: &id_type::MerchantId,
-    organization_id: &id_type::OrganizationId,
-    key_store: &domain::MerchantKeyStore,
-    storage_scheme: enums::MerchantStorageScheme,
-    payment_method_type: storage_enums::PaymentMethod,
-    payment_method_subtype: Option<storage_enums::PaymentMethodType>,
-    encrypted_payment_method_billing_address: Option<
-        Encryptable<hyperswitch_domain_models::address::Address>,
-    >,
-    encrypted_payment_method_data: Option<
-        Encryptable<domain::payment_method_data::PaymentMethodsData>,
-    >,
-    encrypted_external_vault_token_data: Option<
-        Encryptable<payment_methods::ExternalVaultTokenData>,
-    >,
-    vault_type: Option<common_enums::VaultType>,
-    initiator: Option<&domain::Initiator>,
-    status: enums::PaymentMethodStatus,
-) -> CustomResult<domain::PaymentMethod, errors::ApiErrorResponse> {
-    let result = common_utils::metrics::utils::record_operation_time(
-        create_payment_method_for_confirm_inner(
-            state,
-            customer_id,
-            payment_method_id,
-            external_vault_source,
-            merchant_id,
-            organization_id,
-            key_store,
-            storage_scheme,
-            payment_method_type,
-            payment_method_subtype,
-            encrypted_payment_method_billing_address,
-            encrypted_payment_method_data,
-            encrypted_external_vault_token_data,
-            vault_type,
-            initiator,
-            status,
-        ),
-        &metrics::PAYMENT_METHOD_OPERATION_DURATION,
-        router_env::metric_attributes!(("operation", "create_for_confirm")),
-    )
-    .await;
-
-    metrics::PAYMENT_METHOD_OPS_COUNT.add(
-        1,
-        router_env::metric_attributes!(
-            ("operation", "create_for_confirm"),
-            ("outcome", if result.is_ok() { "success" } else { "error" })
-        ),
-    );
-
-    result
-}
-
-#[cfg(feature = "v2")]
-#[instrument(skip_all)]
-#[allow(clippy::too_many_arguments)]
-async fn create_payment_method_for_confirm_inner(
     state: &SessionState,
     customer_id: &id_type::GlobalCustomerId,
     payment_method_id: id_type::GlobalPaymentMethodId,
