@@ -2033,44 +2033,49 @@ pub fn build_unified_connector_service_auth_metadata(
             merchant_id: Secret::new(merchant_id.to_string()),
             connector_config,
         }),
-        // Netcetera is UCS's one authentication-only, no-key connector: its mTLS cert is
-        // presented on the VGS outbound route, not via UCS auth headers, and connector-service
-        // explicitly opts it out of the CertificateAuth->ConnectorSpecificConfig conversion
-        // (see `ConnectorEnum::Netcetera => Err(...)` in connector-service's router_data.rs),
-        // routing it via the `x-auth: no-key` shortcut instead. Sending it as multi-auth-key
-        // makes UCS fail with "Failed to convert legacy auth for connector: netcetera".
-        ConnectorAuthType::CertificateAuth { .. } if connector_name == "netcetera" => {
-            Ok(ConnectorAuthMetadata {
-                connector_name,
-                auth_type: consts::UCS_AUTH_NO_KEY.to_string(),
-                api_key: None,
-                key1: None,
-                key2: None,
-                api_secret: None,
-                auth_key_map: None,
-                merchant_id: Secret::new(merchant_id.to_string()),
-                connector_config: None,
-            })
-        }
         ConnectorAuthType::CertificateAuth {
             certificate,
             private_key,
-        } => Ok(ConnectorAuthMetadata {
-            connector_name,
-            auth_type: consts::UCS_AUTH_MULTI_KEY.to_string(),
-            api_key: Some(certificate.clone()),
-            key1: Some(private_key.clone()),
-            // UCS's "multi-auth-key" header parsing unconditionally requires x-key2 and
-            // x-api-secret to be present. Connectors reaching this arm only supply
-            // certificate/private_key, so duplicate private_key here purely to satisfy
-            // UCS's presence check; the connector implementation itself never reads
-            // key2/api_secret.
-            key2: Some(private_key.clone()),
-            api_secret: Some(private_key.clone()),
-            auth_key_map: None,
-            merchant_id: Secret::new(merchant_id.to_string()),
-            connector_config,
-        }),
+        } => {
+            if connector_name == "netcetera" {
+                // Netcetera is UCS's one authentication-only, no-key connector: its mTLS cert
+                // is presented on the VGS outbound route, not via UCS auth headers, and
+                // connector-service explicitly opts it out of the
+                // CertificateAuth->ConnectorSpecificConfig conversion (see
+                // `ConnectorEnum::Netcetera => Err(...)` in connector-service's
+                // router_data.rs), routing it via the `x-auth: no-key` shortcut instead.
+                // Sending it as multi-auth-key makes UCS fail with "Failed to convert legacy
+                // auth for connector: netcetera".
+                Ok(ConnectorAuthMetadata {
+                    connector_name,
+                    auth_type: consts::UCS_AUTH_NO_KEY.to_string(),
+                    api_key: None,
+                    key1: None,
+                    key2: None,
+                    api_secret: None,
+                    auth_key_map: None,
+                    merchant_id: Secret::new(merchant_id.to_string()),
+                    connector_config: None,
+                })
+            } else {
+                Ok(ConnectorAuthMetadata {
+                    connector_name,
+                    auth_type: consts::UCS_AUTH_MULTI_KEY.to_string(),
+                    api_key: Some(certificate.clone()),
+                    key1: Some(private_key.clone()),
+                    // UCS's "multi-auth-key" header parsing unconditionally requires x-key2
+                    // and x-api-secret to be present. Connectors reaching this branch only
+                    // supply certificate/private_key, so duplicate private_key here purely
+                    // to satisfy UCS's presence check; the connector implementation itself
+                    // never reads key2/api_secret.
+                    key2: Some(private_key.clone()),
+                    api_secret: Some(private_key.clone()),
+                    auth_key_map: None,
+                    merchant_id: Secret::new(merchant_id.to_string()),
+                    connector_config,
+                })
+            }
+        }
         _ => Err(UnifiedConnectorServiceError::FailedToObtainAuthType)
             .attach_printable("Unsupported ConnectorAuthType for header injection"),
     }
