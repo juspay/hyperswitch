@@ -1819,6 +1819,32 @@ impl PaymentsRequest {
         }
         Ok(())
     }
+
+    pub fn for_payment_link(self) -> Self {
+        Self {
+            amount: self.amount,
+            currency: self.currency,
+            return_url: self.return_url,
+            payment_id: self.payment_id,
+            authentication_type: self.authentication_type,
+            billing: self.billing,
+            customer: self.customer,
+            description: self.description,
+            setup_future_usage: self.setup_future_usage,
+            order_details: self.order_details,
+            metadata: self.metadata,
+            payment_link_config_id: self.payment_link_config_id,
+            profile_id: self.profile_id,
+            routing: self.routing,
+            session_expiry: self.session_expiry,
+            merchant_order_reference_id: self.merchant_order_reference_id,
+            allowed_payment_method_types: self.allowed_payment_method_types,
+            capture_method: self.capture_method,
+            payment_link: Some(true),
+            confirm: Some(false),
+            ..Default::default()
+        }
+    }
 }
 
 #[cfg(feature = "v1")]
