@@ -86,7 +86,7 @@ use crate::{
         tokenization as tokenization_core,
     },
     headers,
-    routes::{self, payment_methods as pm_routes},
+    routes::{self, metrics, payment_methods as pm_routes},
     services::encryption,
     types::{
         api::{PaymentMethodCreateExt, PaymentMethodSessionExt},
@@ -128,6 +128,63 @@ const PAYMENT_METHOD_MODULAR_COMPAT_PROCESS_TRACKER_ID_SUFFIX_LENGTH: usize = 8;
 const PAYMENT_METHOD_REDACTED_FINGERPRINT_ID: &str = "FINGERPRINT_ID_REDACTED";
 /// `process_tracker.id` is a `varchar(127)`; ids are built to stay within it.
 const NETWORK_TOKENIZATION_PROCESS_TRACKER_ID_MAX_LENGTH: usize = 126;
+
+#[cfg(feature = "v2")]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum PaymentMethodSessionConfirmFastPathOutcome {
+    Selected,
+    RetrieveFlagDisabled,
+    Ineligible,
+    Disabled,
+}
+
+#[cfg(feature = "v2")]
+impl PaymentMethodSessionConfirmFastPathOutcome {
+    const fn resolve(
+        confirm_flag_enabled: bool,
+        retrieve_flag_enabled: bool,
+        eligible: bool,
+    ) -> Self {
+        if !confirm_flag_enabled {
+            Self::Disabled
+        } else if !retrieve_flag_enabled {
+            Self::RetrieveFlagDisabled
+        } else if !eligible {
+            Self::Ineligible
+        } else {
+            Self::Selected
+        }
+    }
+
+    const fn is_selected(self) -> bool {
+        matches!(self, Self::Selected)
+    }
+
+    const fn as_str(self) -> &'static str {
+        match self {
+            Self::Selected => "selected",
+            Self::RetrieveFlagDisabled => "retrieve_flag_disabled",
+            Self::Ineligible => "ineligible",
+            Self::Disabled => "disabled",
+        }
+    }
+}
+
+#[cfg(all(test, feature = "v2"))]
+mod payment_method_session_confirm_fast_path_tests {
+    use super::PaymentMethodSessionConfirmFastPathOutcome as Outcome;
+
+    #[test]
+    fn fast_path_requires_both_flags_and_eligibility() {
+        assert_eq!(Outcome::resolve(false, false, true), Outcome::Disabled);
+        assert_eq!(
+            Outcome::resolve(true, false, true),
+            Outcome::RetrieveFlagDisabled
+        );
+        assert_eq!(Outcome::resolve(true, true, false), Outcome::Ineligible);
+        assert_eq!(Outcome::resolve(true, true, true), Outcome::Selected);
+    }
+}
 const NETWORK_TOKENIZATION_PROCESS_TRACKER_ID_SUFFIX_LENGTH: usize = 8;
 const NETWORK_TOKENIZATION_TASK: &str = "NETWORK_TOKENIZATION";
 const NETWORK_TOKENIZATION_TAG: &str = "NETWORK_TOKENIZATION";
@@ -5776,6 +5833,14 @@ pub async fn retrieve_payment_method(
     .await
     .attach_printable("Failed to get raw payment method fetch access")?;
 
+    let should_use_redis_for_payment_method_retrieve = dimensions
+        .get_should_use_redis_for_payment_method_retrieve(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            payment_method.customer_id.as_ref(),
+        )
+        .await;
+
     let single_use_token_in_cache = get_single_use_token_from_store(
         &state.clone(),
         domain::SingleUseTokenKey::store_key(&payment_method.id.clone()),
@@ -5799,6 +5864,7 @@ pub async fn retrieve_payment_method(
             &profile,
             &payment_method,
             storage_type,
+            should_use_redis_for_payment_method_retrieve,
         ))
         .await
         .attach_printable("Failed to get raw payment method data")?;
@@ -5810,6 +5876,7 @@ pub async fn retrieve_payment_method(
             &profile,
             &payment_method,
             storage_type,
+            should_use_redis_for_payment_method_retrieve,
         ))
         .await
         .inspect_err(|err| {
@@ -5953,7 +6020,9 @@ pub async fn fetch_payment_method_with_fallback(
     .attach_printable("Failed to get volatile payment method record");
 
     match volatile_payment_method {
-        Ok(payment_method) => Ok((common_enums::StorageType::Volatile, payment_method)),
+        // Redis is the record source, not the persistence contract. A persistent session token
+        // can temporarily resolve to a Redis-backed record while durable persistence completes.
+        Ok(payment_method) => Ok((storage_type, payment_method)),
         Err(err) => {
             logger::warn!("Volatile payment method not found, falling back to persistent storage",);
 
@@ -6080,6 +6149,7 @@ impl RawPaymentMethodFetchAccess {
         profile: &domain::Profile,
         payment_method: &domain::PaymentMethod,
         storage_type: common_enums::StorageType,
+        should_use_redis_for_payment_method_retrieve: bool,
     ) -> RouterResult<Option<payment_methods::RawPaymentMethodData>> {
         match self {
             Self::Denied => {
@@ -6140,6 +6210,7 @@ impl RawPaymentMethodFetchAccess {
                         profile,
                         payment_method,
                         storage_type,
+                        should_use_redis_for_payment_method_retrieve,
                     ))
                     .await
                     .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -6167,6 +6238,7 @@ impl RawPaymentMethodFetchAccess {
         profile: &domain::Profile,
         payment_method: &domain::PaymentMethod,
         storage_type: common_enums::StorageType,
+        should_use_redis_for_payment_method_retrieve: bool,
     ) -> RouterResult<payment_methods::CardDetail> {
         match self {
             Self::Denied => Err(report!(errors::ApiErrorResponse::AccessForbidden {
@@ -6202,6 +6274,7 @@ impl RawPaymentMethodFetchAccess {
                         profile,
                         &network_token_payment_method,
                         storage_type,
+                        should_use_redis_for_payment_method_retrieve,
                     ))
                     .await
                     .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -7332,14 +7405,84 @@ pub async fn payment_methods_session_confirm(
     )
     .attach_printable("Failed to create payment method request")?;
 
-    let (payment_method_response, payment_method) = Box::pin(create_payment_method_core(
-        &state,
-        &req_state,
-        create_payment_method_request.clone(),
-        &platform,
-        &profile,
-    ))
-    .await?;
+    let dimensions = dimension_state::Dimensions::new()
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
+
+    let should_use_redis_for_payment_method_session_confirm = dimensions
+        .get_should_use_redis_for_payment_method_session_confirm(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            payment_method_session.customer_id.as_ref(),
+        )
+        .await;
+
+    // Avoid a second configuration lookup on the overwhelmingly common flag-disabled path.
+    let should_use_redis_for_payment_method_retrieve =
+        if should_use_redis_for_payment_method_session_confirm {
+            dimensions
+                .get_should_use_redis_for_payment_method_retrieve(
+                    state.store.as_ref(),
+                    state.superposition_service.as_ref(),
+                    payment_method_session.customer_id.as_ref(),
+                )
+                .await
+        } else {
+            false
+        };
+
+    let is_redis_fast_path_eligible = matches!(storage_type, common_enums::StorageType::Persistent)
+        && matches!(
+            request.payment_method_type,
+            common_enums::PaymentMethod::Card
+        )
+        && matches!(
+            &create_payment_method_request.payment_method_data,
+            api::PaymentMethodCreateData::Card(_)
+        )
+        && payment_method_session.customer_id.is_some()
+        && !state.conf.micro_services.use_legacy_locker;
+
+    // The confirm fast path is safe only when retrieve is also Redis-first. Otherwise the
+    // returned token could be consumed before the background task has written the card to Vault.
+    let fast_path_outcome = PaymentMethodSessionConfirmFastPathOutcome::resolve(
+        should_use_redis_for_payment_method_session_confirm,
+        should_use_redis_for_payment_method_retrieve,
+        is_redis_fast_path_eligible,
+    );
+    let use_redis_fast_path = fast_path_outcome.is_selected();
+    metrics::PAYMENT_METHOD_SESSION_CONFIRM_FAST_PATH.add(
+        1,
+        router_env::metric_attributes!(("outcome", fast_path_outcome.as_str())),
+    );
+
+    let (mut payment_method_response, payment_method) = if use_redis_fast_path {
+        // Reuse the existing encrypted Redis representation. The public/token persistence
+        // contract remains Persistent; Volatile here selects only the synchronous storage path.
+        let mut redis_payment_method_request = create_payment_method_request.clone();
+        redis_payment_method_request.storage_type = common_enums::StorageType::Volatile;
+
+        Box::pin(create_payment_method_core(
+            &state,
+            &req_state,
+            redis_payment_method_request,
+            &platform,
+            &profile,
+        ))
+        .await?
+    } else {
+        Box::pin(create_payment_method_core(
+            &state,
+            &req_state,
+            create_payment_method_request.clone(),
+            &platform,
+            &profile,
+        ))
+        .await?
+    };
+
+    if use_redis_fast_path {
+        payment_method_response.storage_type = common_enums::StorageType::Persistent;
+    }
 
     let parent_payment_method_token = generate_id(consts::ID_LENGTH, "token");
 
@@ -7379,6 +7522,56 @@ pub async fn payment_methods_session_confirm(
             message: "payment methods session does not exist or has expired".to_string(),
         })
         .attach_printable("Failed to update payment methods session from db")?;
+
+    if use_redis_fast_path {
+        let background_state = state.clone();
+        let background_req_state = req_state.clone();
+        let background_platform = platform.clone();
+        let background_profile = profile.clone();
+        let background_payment_method_request = create_payment_method_request;
+        let background_payment_method_session_id = payment_method_session_id.clone();
+
+        metrics::PAYMENT_METHOD_SESSION_CONFIRM_BACKGROUND_PERSISTENCE
+            .add(1, router_env::metric_attributes!(("outcome", "started")));
+
+        tokio::spawn(async move {
+            let persistence_result = Box::pin(create_payment_method_core(
+                &background_state,
+                &background_req_state,
+                background_payment_method_request,
+                &background_platform,
+                &background_profile,
+            ))
+            .await;
+
+            let outcome = if persistence_result.is_ok() {
+                "succeeded"
+            } else {
+                "failed"
+            };
+            metrics::PAYMENT_METHOD_SESSION_CONFIRM_BACKGROUND_PERSISTENCE
+                .add(1, router_env::metric_attributes!(("outcome", outcome)));
+
+            match persistence_result {
+                Ok((_, persisted_payment_method)) => {
+                    logger::info!(
+                        payment_method_session_id =
+                            background_payment_method_session_id.get_string_repr(),
+                        payment_method_id = persisted_payment_method.id.get_string_repr(),
+                        "Completed background persistence for payment method session confirm"
+                    );
+                }
+                Err(error) => {
+                    logger::error!(
+                        payment_method_session_id =
+                            background_payment_method_session_id.get_string_repr(),
+                        ?error,
+                        "Failed background persistence for payment method session confirm"
+                    );
+                }
+            }
+        });
+    }
 
     let payments_response: Option<api_models::payments::PaymentsResponse> = None;
 

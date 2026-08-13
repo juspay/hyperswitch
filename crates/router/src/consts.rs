@@ -462,6 +462,12 @@ pub mod superposition {
     /// Return raw payment method details configuration key
     pub const SHOULD_RETURN_RAW_PAYMENT_METHOD_DETAILS: &str =
         "payments.should_return_raw_payment_method_details";
+    /// Use Redis as the first read source for payment method retrieve configuration key
+    pub const SHOULD_USE_REDIS_FOR_PAYMENT_METHOD_RETRIEVE: &str =
+        "payments.should_use_redis_for_payment_method_retrieve";
+    /// Use Redis as the synchronous fast path for payment method session confirm configuration key
+    pub const SHOULD_USE_REDIS_FOR_PAYMENT_METHOD_SESSION_CONFIRM: &str =
+        "payments.should_use_redis_for_payment_method_session_confirm";
     /// Call PM modular service configuration key
     pub const SHOULD_CALL_PM_MODULAR_SERVICE: &str = "system.should_call_pm_modular_service";
     /// Schedule PM modular forward compatibility PT configuration key

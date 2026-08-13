@@ -382,6 +382,46 @@ impl DatabaseBackedConfig for ShouldReturnRawPaymentMethodDetails {
     }
 }
 
+#[cfg(feature = "v2")]
+config! {
+    superposition_key = SHOULD_USE_REDIS_FOR_PAYMENT_METHOD_RETRIEVE,
+    output = bool,
+    default = false,
+    requires = dimension_state::DimensionsWithProviderMerchantId,
+    targeting_key = id_type::GlobalCustomerId
+}
+
+#[cfg(feature = "v2")]
+impl DatabaseBackedConfig for ShouldUseRedisForPaymentMethodRetrieve {
+    const KEY: &'static str = "should_use_redis_for_payment_method_retrieve";
+
+    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        dimensions
+            .get_provider_merchant_id()
+            .map(|id| format!("{}_{}", Self::KEY, id.get_string_repr()))
+    }
+}
+
+#[cfg(feature = "v2")]
+config! {
+    superposition_key = SHOULD_USE_REDIS_FOR_PAYMENT_METHOD_SESSION_CONFIRM,
+    output = bool,
+    default = false,
+    requires = dimension_state::DimensionsWithProviderMerchantId,
+    targeting_key = id_type::GlobalCustomerId
+}
+
+#[cfg(feature = "v2")]
+impl DatabaseBackedConfig for ShouldUseRedisForPaymentMethodSessionConfirm {
+    const KEY: &'static str = "should_use_redis_for_payment_method_session_confirm";
+
+    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        dimensions
+            .get_provider_merchant_id()
+            .map(|id| format!("{}_{}", Self::KEY, id.get_string_repr()))
+    }
+}
+
 config! {
     superposition_key = SHOULD_CALL_PM_MODULAR_SERVICE,
     output = bool,

@@ -2561,21 +2561,49 @@ pub async fn retrieve_payment_method_data_from_storage(
     profile: &domain::Profile,
     pm: &domain::PaymentMethod,
     storage_type: enums::StorageType,
+    should_use_redis_for_payment_method_retrieve: bool,
 ) -> RouterResult<pm_types::VaultRetrieveResponse> {
     let mut payment_method_data = match storage_type {
         enums::StorageType::Persistent => {
-            Box::pin(retrieve_payment_method_from_vault(
-                state, platform, profile, pm,
-            ))
-            .await?
+            if should_use_redis_for_payment_method_retrieve {
+                match retrieve_payment_method_from_redis(
+                    state,
+                    platform.get_provider().get_key_store(),
+                    pm,
+                )
+                .await
+                {
+                    Ok(payment_method_data) => {
+                        metrics::PAYMENT_METHOD_RETRIEVE_CACHE_HIT.add(1, &[]);
+                        logger::debug!(
+                            payment_method_id = %pm.id.get_string_repr(),
+                            "Payment method data cache hit"
+                        );
+                        payment_method_data
+                    }
+                    Err(error) => {
+                        metrics::PAYMENT_METHOD_RETRIEVE_CACHE_MISS.add(1, &[]);
+                        logger::debug!(
+                            ?error,
+                            payment_method_id = %pm.id.get_string_repr(),
+                            "Payment method data cache miss; falling back to Vault"
+                        );
+                        Box::pin(retrieve_payment_method_from_vault(
+                            state, platform, profile, pm,
+                        ))
+                        .await?
+                    }
+                }
+            } else {
+                Box::pin(retrieve_payment_method_from_vault(
+                    state, platform, profile, pm,
+                ))
+                .await?
+            }
         }
         enums::StorageType::Volatile => {
-            retrieve_volatile_payment_method_from_redis(
-                state,
-                platform.get_provider().get_key_store(),
-                pm,
-            )
-            .await?
+            retrieve_payment_method_from_redis(state, platform.get_provider().get_key_store(), pm)
+                .await?
         }
     };
 
@@ -2600,7 +2628,7 @@ pub async fn retrieve_payment_method_data_from_storage(
 }
 
 #[cfg(feature = "v2")]
-pub async fn retrieve_volatile_payment_method_from_redis(
+pub async fn retrieve_payment_method_from_redis(
     state: &routes::SessionState,
     key_store: &domain::MerchantKeyStore,
     pm: &domain::PaymentMethod,
