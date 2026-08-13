@@ -276,6 +276,16 @@ pub async fn refund_reverse_core(
             )
         })?;
 
+    if let Some(error) = reverse_response.error {
+        return Err(report!(errors::ApiErrorResponse::ExternalConnectorError {
+            code: error.code,
+            message: error.message,
+            connector: connector_id,
+            status_code: error.status_code,
+            reason: error.reason,
+        }));
+    }
+
     Ok(services::ApplicationResponse::Json(
         (response, raw_connector_response).foreign_into(),
     ))

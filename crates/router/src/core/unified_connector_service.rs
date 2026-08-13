@@ -75,6 +75,7 @@ pub struct RefundReverseUcsResponse {
     pub raw_connector_response: Option<Secret<String>>,
     pub connector_refund_id: String,
     pub status: common_enums::RefundStatus,
+    pub error: Option<ErrorResponse>,
 }
 
 /// Returns Apple Pay data from payment method token when it has decrypt data,
@@ -3541,6 +3542,57 @@ pub async fn call_unified_connector_service_for_refund_void_post_refund(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("UCS refund reverse execution failed")?
         .into_inner();
+    let status_code =
+        transformers::convert_connector_service_status_code(grpc_response.status_code)
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to transform UCS refund reverse status code")?;
+    let error = grpc_response
+        .error
+        .as_ref()
+        .map(|error_info| {
+            let connector_details = error_info
+                .connector_details
+                .as_ref()
+                .ok_or(UnifiedConnectorServiceError::ResponseDeserializationFailed)?;
+
+            Ok::<_, error_stack::Report<UnifiedConnectorServiceError>>(ErrorResponse {
+                code: connector_details
+                    .code
+                    .clone()
+                    .ok_or(UnifiedConnectorServiceError::ResponseDeserializationFailed)?,
+                message: connector_details
+                    .message
+                    .clone()
+                    .ok_or(UnifiedConnectorServiceError::ResponseDeserializationFailed)?,
+                reason: connector_details.reason.clone(),
+                status_code,
+                attempt_status: None,
+                connector_transaction_id: connector_details.connector_transaction_id.clone(),
+                connector_response_reference_id: None,
+                network_decline_code: error_info.issuer_details.as_ref().and_then(|details| {
+                    details
+                        .network_details
+                        .as_ref()
+                        .and_then(|network| network.decline_code.clone())
+                }),
+                network_advice_code: error_info.issuer_details.as_ref().and_then(|details| {
+                    details
+                        .network_details
+                        .as_ref()
+                        .and_then(|network| network.advice_code.clone())
+                }),
+                network_error_message: error_info.issuer_details.as_ref().and_then(|details| {
+                    details
+                        .network_details
+                        .as_ref()
+                        .and_then(|network| network.error_message.clone())
+                }),
+                connector_metadata: None,
+            })
+        })
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to transform UCS refund reverse connector error")?;
     let status = common_enums::RefundStatus::foreign_try_from((
         grpc_response.status(),
         common_enums::RefundStatus::Success,
@@ -3553,6 +3605,7 @@ pub async fn call_unified_connector_service_for_refund_void_post_refund(
         raw_connector_response: grpc_response.raw_connector_response,
         connector_refund_id: grpc_response.connector_refund_id,
         status,
+        error,
     })
 }
 
