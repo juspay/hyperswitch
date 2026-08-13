@@ -37,6 +37,12 @@ macro_rules! impl_get_tenant_for_request {
 }
 
 #[derive(Debug, Clone)]
+pub struct KeyManagerMetricsContext {
+    pub flow: &'static str,
+    pub merchant_mode: &'static str,
+}
+
+#[derive(Debug, Clone)]
 pub struct KeyManagerState {
     pub tenant_id: id_type::TenantId,
     pub global_tenant_id: id_type::TenantId,
@@ -51,6 +57,7 @@ pub struct KeyManagerState {
     pub cert: Secret<String>,
     pub infra_values: Option<serde_json::Value>,
     pub use_legacy_key_store_decryption: bool,
+    pub metrics_context: Option<KeyManagerMetricsContext>,
 }
 
 impl KeyManagerState {
@@ -70,6 +77,7 @@ impl KeyManagerState {
             cert: Default::default(),
             infra_values: Default::default(),
             use_legacy_key_store_decryption: false,
+            metrics_context: None,
         }
     }
 

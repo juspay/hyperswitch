@@ -97,6 +97,15 @@ pub async fn get_feature_config(
     platform: &domain::Platform,
     dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
 ) -> FeatureConfig {
+    if let Some(context) = state.payment_metrics_context {
+        return FeatureConfig {
+            is_payment_method_modular_allowed: matches!(
+                context.merchant_mode,
+                crate::routes::metrics::MerchantMode::Modular
+            ),
+        };
+    }
+
     let dimensions = dimensions
         .with_organization_id(
             platform

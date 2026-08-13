@@ -31,6 +31,7 @@ impl ForeignFrom<(&app::AppState, configs::Tenant)> for KeyManagerState {
             ca: conf.ca.clone(),
             infra_values: app::AppState::process_env_mappings(app_state.conf.infra_values.clone()),
             use_legacy_key_store_decryption: conf.use_legacy_key_store_decryption,
+            metrics_context: None,
         }
     }
 }
@@ -55,6 +56,12 @@ impl From<&app::SessionState> for KeyManagerState {
             ca: conf.ca.clone(),
             infra_values: app::AppState::process_env_mappings(state.conf.infra_values.clone()),
             use_legacy_key_store_decryption: conf.use_legacy_key_store_decryption,
+            metrics_context: state.payment_metrics_context.map(|context| {
+                common_utils::types::keymanager::KeyManagerMetricsContext {
+                    flow: context.flow.as_str(),
+                    merchant_mode: context.merchant_mode.as_str(),
+                }
+            }),
         }
     }
 }

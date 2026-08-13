@@ -127,6 +127,10 @@ pub async fn payments_create(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, req_state| {
+            let metrics_flow = req
+                .confirm
+                .is_some_and(|confirm| confirm)
+                .then_some(super::metrics::PaymentMetricsFlow::PaymentsConfirm);
             authorize_verify_select::<_>(
                 payments::PaymentCreate,
                 state,
@@ -136,6 +140,7 @@ pub async fn payments_create(
                 header_payload.clone(),
                 req,
                 api::AuthFlow::Client,
+                metrics_flow,
             )
         },
         auth_type,
@@ -1087,6 +1092,7 @@ pub async fn payments_confirm(
                 header_payload.clone(),
                 req,
                 auth_flow,
+                Some(super::metrics::PaymentMetricsFlow::PaymentsConfirm),
             )
         },
         &*auth_type,
@@ -2508,6 +2514,7 @@ async fn authorize_verify_select<Op>(
     header_payload: HeaderPayload,
     req: api_models::payments::PaymentsRequest,
     auth_flow: api::AuthFlow,
+    metrics_flow: Option<super::metrics::PaymentMetricsFlow>,
 ) -> errors::RouterResponse<api_models::payments::PaymentsResponse>
 where
     Op: Sync
@@ -2529,9 +2536,54 @@ where
     // the operation are flow agnostic, and the flow is only required in the post_update_tracker
     // Thus the flow can be generated just before calling the connector instead of explicitly passing it here.
 
+    let metrics_start = std::time::Instant::now();
     let should_call_proxy_for_payments_core =
         helpers::should_call_proxy_for_payments_core(req.clone());
 
+    let should_call_external_vault_proxy = req
+        .payment_method_data
+        .as_ref()
+        .and_then(|pmd| pmd.payment_method_data.as_ref())
+        .is_some_and(|data| {
+            matches!(
+                data,
+                api_models::payments::PaymentMethodData::ProxyCard(_)
+                    | api_models::payments::PaymentMethodData::VaultCardTokenData(_)
+            )
+        });
+
+    let confirm_path = if should_call_proxy_for_payments_core {
+        super::metrics::ConfirmPath::NetworkTransactionProxy
+    } else if should_call_external_vault_proxy {
+        super::metrics::ConfirmPath::ExternalVaultProxy
+    } else {
+        super::metrics::ConfirmPath::Standard
+    };
+
+    let mut state = state;
+    let metrics_context =
+        if metrics_flow.is_some() {
+            let dimensions = dimension_state::Dimensions::new()
+                .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+                .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
+            let feature_config =
+                crate::core::utils::get_feature_config(&state, &platform, &dimensions).await;
+            let context = super::metrics::PaymentMetricsContext::payments_confirm(
+                super::metrics::MerchantMode::from_modular_enabled(
+                    feature_config.is_payment_method_modular_allowed,
+                ),
+                confirm_path,
+            );
+            state.payment_metrics_context = Some(context);
+            state.store.set_key_manager_state(
+                common_utils::types::keymanager::KeyManagerState::from(&state),
+            );
+            Some(context)
+        } else {
+            None
+        };
+
+    let result = async {
     if should_call_proxy_for_payments_core {
         // no list of eligible connectors will be passed in the confirm call
         logger::debug!("Authorize call for NTI and Card Details flow");
@@ -2578,19 +2630,6 @@ where
                 //     `payment_token`; its vault tokens are retrieved from the modular PM service.
                 // In both cases the confirm request itself is used to call the proxy core
                 // directly — no conversion to a dedicated proxy request.
-                let should_call_external_vault_proxy = req
-                    .payment_method_data
-                    .as_ref()
-                    .and_then(|pmd| pmd.payment_method_data.as_ref())
-                    .map(|data| {
-                        matches!(
-                            data,
-                            api_models::payments::PaymentMethodData::ProxyCard(_)
-                                | api_models::payments::PaymentMethodData::VaultCardTokenData(_)
-                        )
-                    })
-                    .unwrap_or(false);
-
                 if should_call_external_vault_proxy {
                     // A single-call create+confirm (the create endpoint with `confirm = true`)
                     // reaches here before any intent exists, so drive the proxy core with
@@ -2769,6 +2808,14 @@ where
             }
         }
     }
+    }
+    .await;
+
+    if let Some(context) = metrics_context {
+        super::metrics::record_payment_confirm(&result, metrics_start.elapsed(), context);
+    }
+
+    result
 }
 
 #[cfg(feature = "v1")]
