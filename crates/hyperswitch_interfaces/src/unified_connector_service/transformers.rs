@@ -279,8 +279,6 @@ impl From<&ConnectorErrorInner> for ErrorResponse {
     }
 }
 
-
-
 impl ForeignTryFrom<payments_grpc::PaymentChargeType> for common_enums::PaymentChargeType {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 

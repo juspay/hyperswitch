@@ -3025,9 +3025,7 @@ where
             // Check if this is a connector error (4xx/5xx from connector via UCS).
             // Convert it to Ok(router_data) with response = Err(ErrorResponse) so the
             // caller sees a proper error response instead of a raw UCS error.
-            if let UnifiedConnectorServiceError::ConnectorError(inner) =
-                error.current_context()
-            {
+            if let UnifiedConnectorServiceError::ConnectorError(inner) = error.current_context() {
                 // Fire kill switch for connector errors
                 if let Ok(flow_name) = get_flow_name::<T>() {
                     kill_switch::record_failure(
