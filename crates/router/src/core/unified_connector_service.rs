@@ -3002,26 +3002,25 @@ where
             // Connector errors arrive as Ok(router_data) with response = Err(ErrorResponse).
             // The handler converted the UCS ConnectorError into an ErrorResponse,
             // so we reconstruct it here for the kill switch to observe.
-            match (&updated_router_data.response, get_flow_name::<T>()) {
-                (Err(error_response), Ok(flow_name)) => {
-                    kill_switch::record_failure(
-                        state,
-                        kill_switch::UcsFailureContext {
-                            merchant_id: merchant_id.get_string_repr(),
-                            connector_name: &connector_name,
-                            flow_name: &flow_name,
-                            payment_id: &payment_id,
-                            payment_method: updated_router_data.payment_method,
-                            payment_method_type: updated_router_data.payment_method_type,
-                        },
-                        execution_mode,
-                        &UnifiedConnectorServiceError::ConnectorError(Box::new(
-                            ConnectorErrorInner::from(error_response),
-                        )),
-                    )
-                    .await;
-                }
-                _ => {}
+            if let (Err(error_response), Ok(flow_name)) =
+                (&updated_router_data.response, get_flow_name::<T>())
+            {
+                kill_switch::record_failure(
+                    state,
+                    kill_switch::UcsFailureContext {
+                        merchant_id: merchant_id.get_string_repr(),
+                        connector_name: &connector_name,
+                        flow_name: &flow_name,
+                        payment_id: &payment_id,
+                        payment_method: updated_router_data.payment_method,
+                        payment_method_type: updated_router_data.payment_method_type,
+                    },
+                    execution_mode,
+                    &UnifiedConnectorServiceError::ConnectorError(Box::new(
+                        ConnectorErrorInner::from(error_response),
+                    )),
+                )
+                .await;
             }
 
             // Log the actual gRPC response with masking
@@ -3160,26 +3159,25 @@ where
             // Connector errors arrive as Ok(router_data) with response = Err(ErrorResponse).
             // The gateway handler converted the UCS ConnectorError into an ErrorResponse,
             // so we reconstruct it here for the kill switch to observe.
-            match (&updated_router_data.response, get_flow_name::<T>()) {
-                (Err(error_response), Ok(flow_name)) => {
-                    kill_switch::record_failure(
-                        state,
-                        kill_switch::UcsFailureContext {
-                            merchant_id: merchant_id.get_string_repr(),
-                            connector_name: &connector_name,
-                            flow_name: &flow_name,
-                            payment_id: &payment_id,
-                            payment_method,
-                            payment_method_type,
-                        },
-                        execution_mode,
-                        &UnifiedConnectorServiceError::ConnectorError(Box::new(
-                            ConnectorErrorInner::from(error_response),
-                        )),
-                    )
-                    .await;
-                }
-                _ => {}
+            if let (Err(error_response), Ok(flow_name)) =
+                (&updated_router_data.response, get_flow_name::<T>())
+            {
+                kill_switch::record_failure(
+                    state,
+                    kill_switch::UcsFailureContext {
+                        merchant_id: merchant_id.get_string_repr(),
+                        connector_name: &connector_name,
+                        flow_name: &flow_name,
+                        payment_id: &payment_id,
+                        payment_method,
+                        payment_method_type,
+                    },
+                    execution_mode,
+                    &UnifiedConnectorServiceError::ConnectorError(Box::new(
+                        ConnectorErrorInner::from(error_response),
+                    )),
+                )
+                .await;
             }
 
             // Log the actual gRPC response
