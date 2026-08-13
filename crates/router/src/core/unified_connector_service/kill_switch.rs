@@ -1,9 +1,9 @@
-//! Returns a rollout scope to the direct connector integration when a Unified Connector Service
-//! call fails.
+//! Returns a rollout scope to the shadow connector integration when a Unified Connector Service
+//! call fails more than a configurable threshold number of times.
 //!
-//! Trips live in redis, keyed on the rollout scope; `ucs_rollout_config` rows are never written
-//! to. Ambiguous outcomes resolve towards the direct path, which is what the scope used before
-//! UCS.
+//! Failures are counted in Redis via HINCRBY on a hash key scoped to the rollout scope. The read
+//! path (`is_kill_switched`) compares the counter against the threshold from the RolloutConfig.
+//! When the counter exceeds the threshold, the scope falls back to shadow mode.
 
 use std::str::FromStr;
 
@@ -26,8 +26,11 @@ use crate::{
     routes::SessionState,
 };
 
-/// Redis key holding the trip for a scope.
-fn trip_key(rollout_scope: &str) -> String {
+/// Hash field name for the failure counter.
+const COUNTER_FIELD: &str = "counter";
+
+/// Redis key holding the failure counter for a scope.
+fn counter_key(rollout_scope: &str) -> String {
     format!("{}_{rollout_scope}", consts::UCS_KILL_SWITCH_REDIS_PREFIX)
 }
 
@@ -44,49 +47,70 @@ fn rollout_scope_in(key_or_scope: &str) -> &str {
     }
 }
 
-/// Whether the kill switch has tripped for this scope.
+/// Whether the kill switch should divert this scope to shadow mode.
 ///
-/// Fails closed: a redis error routes to the direct integration. Only reached once the rollout
-/// config resolved to primary, so shadow traffic never pays for the lookup.
-pub async fn is_tripped(state: &SessionState, rollout_scope: &str) -> bool {
-    if is_config_flag_enabled(state, consts::UCS_KILL_SWITCH_ENABLED).await {
-        match read_trip(state, rollout_scope).await {
-            Ok(tripped) => tripped,
-            // Fails closed: the scope goes to the direct integration when redis cannot answer.
+/// Checks: global `UCS_KILL_SWITCH_ENABLED` flag AND per-scope `kill_switch_enabled` from
+/// RolloutConfig must both be true. Then reads the failure counter from Redis and compares against
+/// the threshold.
+///
+/// Fails closed: a Redis error routes to shadow (the safe path).
+pub async fn is_kill_switched(
+    state: &SessionState,
+    rollout_scope: &str,
+    kill_switch_enabled: bool,
+    kill_switch_threshold: u64,
+) -> bool {
+    let global_enabled = is_config_flag_enabled(state, consts::UCS_KILL_SWITCH_ENABLED).await;
+
+    if kill_switch_enabled && global_enabled {
+        match read_counter(state, rollout_scope).await {
+            Ok(count) => {
+                let exceeded = count > kill_switch_threshold;
+                if exceeded {
+                    logger::debug!(
+                        rollout_scope = %rollout_scope,
+                        count = count,
+                        threshold = kill_switch_threshold,
+                        "ucs_kill_switch: counter exceeds threshold, routing to shadow"
+                    );
+                }
+                exceeded
+            }
+            // Fails closed: the scope goes to shadow when Redis cannot answer.
             Err(error) => {
                 logger::error!(
                     ?error,
                     rollout_scope = %rollout_scope,
-                    "ucs_kill_switch: trip unreadable, routing to the direct integration"
+                    "ucs_kill_switch: counter unreadable, routing to shadow"
                 );
                 true
             }
         }
     } else {
+        logger::debug!(
+            rollout_scope = %rollout_scope,
+            kill_switch_enabled = kill_switch_enabled,
+            global_enabled = global_enabled,
+            "ucs_kill_switch: kill switch is disabled"
+        );
         false
     }
 }
 
-/// Reads the trip. Redis failures short-circuit to the caller, which decides the safe answer.
-async fn read_trip(
+/// Reads the failure counter from the hash. Returns 0 if the key or field does not exist.
+async fn read_counter(
     state: &SessionState,
     rollout_scope: &str,
-) -> error_stack::Result<bool, storage_impl::errors::RedisError> {
-    let tripped = state
+) -> error_stack::Result<u64, storage_impl::errors::RedisError> {
+    let key: redis_interface::RedisKey = counter_key(rollout_scope).as_str().into();
+    let count: u64 = state
         .store
         .get_redis_conn()?
-        .exists::<()>(&trip_key(rollout_scope).as_str().into())
-        .await?;
+        .get_hash_field(&key, COUNTER_FIELD)
+        .await
+        .unwrap_or(0);
 
-    if tripped {
-        // Every request for a tripped scope reaches here; the trip is logged once elsewhere.
-        logger::debug!(
-            rollout_scope = %rollout_scope,
-            "ucs_kill_switch: scope is tripped, routing to the direct integration"
-        );
-    }
-
-    Ok(tripped)
+    Ok(count)
 }
 
 /// What a failing UCS call was for. A struct because transposing two of six positional strings
@@ -100,13 +124,13 @@ pub struct UcsFailureContext<'a> {
     pub payment_method_type: Option<common_enums::PaymentMethodType>,
 }
 
-/// A failure that qualifies to trip, and the scope it would trip.
+/// A failure that qualifies to increment the counter, and the scope it targets.
 struct TrippableFailure {
     rollout_scope: String,
     reason: UcsKillSwitchReason,
 }
 
-/// Records a qualifying UCS failure, and trips its scope when the switch is turned on.
+/// Records a qualifying UCS failure by incrementing its scope's counter.
 ///
 /// Never returns an error: it runs on an already-failing path and must not fail the request.
 pub async fn record_failure(
@@ -120,7 +144,7 @@ pub async fn record_failure(
     }
 }
 
-/// Counts the failure, trips its scope when the switch is turned on, and reports what happened.
+/// Increments the counter and logs the failure.
 async fn record_trippable_failure(
     state: &SessionState,
     failure: &TrippableFailure,
@@ -137,15 +161,11 @@ async fn record_trippable_failure(
     );
 
     let outcome = if is_config_flag_enabled(state, consts::UCS_KILL_SWITCH_ENABLED).await {
-        trip(state, failure, context).await
+        increment_counter(state, failure, context).await
     } else {
-        TripOutcome::SwitchOff
+        IncrementOutcome::SwitchOff
     };
 
-    // The one line this path emits, carrying every dimension of the decision. Alert on `outcome`
-    // rather than on a message: `tripped` means a scope left UCS, `write_failed` means one should
-    // have and did not. While the switch is off every line reads `switch_off`, which is the feed
-    // for validating the classifier against real traffic before turning it on.
     logger::warn!(
         rollout_scope = %failure.rollout_scope,
         merchant_id = %context.merchant_id,
@@ -202,110 +222,94 @@ async fn is_ucs_only_connector(state: &SessionState, connector_name: &str) -> bo
     }
 }
 
-/// What came of a trippable failure. Reported as a field on the one line the recording path
-/// emits, so an alert keys on the outcome rather than on several message strings.
+/// What came of a counter increment.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, strum::Display)]
 #[strum(serialize_all = "snake_case")]
-enum TripOutcome {
-    /// This pod wrote the trip. The scope now serves from the direct integration.
-    Tripped,
-    /// Another pod wrote it first.
-    AlreadyTripped,
+enum IncrementOutcome {
+    /// Counter was incremented successfully.
+    Incremented,
     /// The failure qualified, but enforcement is turned off.
     SwitchOff,
-    /// Redis refused the write, so the scope stays on UCS.
+    /// Redis refused the write.
     WriteFailed,
 }
 
-/// Writes the trip. `SET NX` makes it exactly-once: one concurrent writer wins, the rest no-op.
-async fn trip(
+/// Increments the failure counter and refreshes its TTL.
+async fn increment_counter(
     state: &SessionState,
     failure: &TrippableFailure,
     context: &UcsFailureContext<'_>,
-) -> TripOutcome {
-    let TrippableFailure {
-        rollout_scope,
-        reason,
-    } = failure;
-
-    let record = TripRecord {
-        reason: reason.to_string(),
-        request_id: state.request_id.as_ref().map(|id| id.to_string()),
-        tripped_at: common_utils::date_time::now_unix_timestamp(),
-    };
-
-    match write_trip(state, rollout_scope, &record).await {
-        Ok(redis_interface::SetnxReply::KeySet) => {
+) -> IncrementOutcome {
+    match write_counter(state, &failure.rollout_scope).await {
+        Ok(counts) => {
             metrics::UCS_KILL_SWITCH_TRIPPED.add(
                 1,
                 router_env::metric_attributes!(
                     ("connector", context.connector_name.to_string()),
                     ("flow", context.flow_name.to_string()),
-                    ("reason", reason.to_string())
+                    ("reason", failure.reason.to_string())
                 ),
             );
 
-            TripOutcome::Tripped
+            logger::info!(
+                rollout_scope = %failure.rollout_scope,
+                count = ?counts,
+                "ucs_kill_switch: counter incremented"
+            );
+
+            IncrementOutcome::Incremented
         }
-        Ok(redis_interface::SetnxReply::KeyNotSet) => TripOutcome::AlreadyTripped,
-        // The cause does not belong on the summary line, and it is the one thing an operator
-        // cannot act on without it.
         Err(error) => {
             logger::error!(
                 ?error,
-                rollout_scope = %rollout_scope,
-                "ucs_kill_switch: could not persist the trip"
+                rollout_scope = %failure.rollout_scope,
+                "ucs_kill_switch: could not increment counter"
             );
 
-            TripOutcome::WriteFailed
+            IncrementOutcome::WriteFailed
         }
     }
 }
 
-/// Writes the trip if no other pod got there first. Serialisation and redis failures alike
-/// short-circuit to the caller, which logs them on one path.
-async fn write_trip(
+/// Increments the failure counter (HINCRBY) and refreshes its TTL (EXPIRE).
+/// Two separate Redis calls — not atomic, but harmless: worst case the TTL refresh
+/// fails and the counter expires on its previous TTL.
+async fn write_counter(
     state: &SessionState,
     rollout_scope: &str,
-    record: &TripRecord,
-) -> error_stack::Result<redis_interface::SetnxReply, storage_impl::errors::RedisError> {
-    let record = serde_json::to_string(record)
-        .change_context(storage_impl::errors::RedisError::JsonSerializationFailed)?;
+) -> error_stack::Result<Vec<usize>, storage_impl::errors::RedisError> {
+    let conn = state.store.get_redis_conn()?;
+    let key: redis_interface::RedisKey = counter_key(rollout_scope).as_str().into();
 
-    state
-        .store
-        .get_redis_conn()?
-        .set_key_if_not_exists_with_expiry(
-            &trip_key(rollout_scope).as_str().into(),
-            record,
-            Some(consts::UCS_KILL_SWITCH_TTL_IN_SECONDS),
-        )
+    let result = conn
+        .increment_fields_in_hash(&key, &[(COUNTER_FIELD, 1)])
+        .await?;
+
+    conn.set_expiry(&key, consts::UCS_KILL_SWITCH_TTL_IN_SECONDS)
         .await
+        .inspect_err(|error| {
+            logger::warn!(
+                ?error,
+                rollout_scope = %rollout_scope,
+                "ucs_kill_switch: failed to refresh counter TTL"
+            );
+        })
+        .ok();
+
+    Ok(result)
 }
 
-/// What was written when a scope tripped. Enough to find the originating request; the error
-/// itself stays out, being unbounded and unmasked connector text that the alert log already
-/// carries against the same request id.
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
-pub struct TripRecord {
-    pub reason: String,
-    pub request_id: Option<String>,
-    pub tripped_at: i64,
-}
-
-/// Whether a scope is tripped, and what tripped it. `trip` is absent when the scope is not
-/// tripped, or when its record predates this shape.
+/// Whether this scope has a counter, its current value, and whether it exceeds the threshold.
 #[derive(Debug, serde::Serialize)]
 pub struct KillSwitchStatusResponse {
     pub rollout_scope: String,
+    pub counter: u64,
     pub tripped: bool,
-    pub trip: Option<TripRecord>,
 }
 
 impl common_utils::events::ApiEventMetric for KillSwitchStatusResponse {}
 
-/// Clears the trip, returning the scope to whatever its rollout config says. Takes either form
-/// the list endpoint hands back.
+/// Clears the counter, returning the scope to whatever its rollout config says.
 pub async fn reset(state: SessionState, listed_key: String) -> errors::RouterResponse<()> {
     let rollout_scope = rollout_scope_in(&listed_key);
 
@@ -314,56 +318,51 @@ pub async fn reset(state: SessionState, listed_key: String) -> errors::RouterRes
         .get_redis_conn()
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to get a redis connection to clear the UCS kill switch")?
-        .delete_key(&trip_key(rollout_scope).as_str().into())
+        .delete_key(&counter_key(rollout_scope).as_str().into())
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to delete the UCS kill switch trip")?;
+        .attach_printable("Failed to delete the UCS kill switch counter")?;
 
     match reply {
         redis_interface::DelReply::KeyDeleted => {
             logger::info!(
                 rollout_scope = %rollout_scope,
-                "ucs_kill_switch: trip cleared via api"
+                "ucs_kill_switch: counter cleared via api"
             );
 
             Ok(crate::services::ApplicationResponse::StatusOk)
         }
-        // Redis reports a missing key as a successful delete of nothing. Reporting that as
-        // success would tell an operator a scope is back on UCS when a mistyped scope left it
-        // tripped.
         redis_interface::DelReply::KeyNotDeleted => {
             Err(errors::ApiErrorResponse::GenericNotFoundError {
-                message: format!("No UCS kill switch trip found for scope {rollout_scope}"),
+                message: format!("No UCS kill switch counter found for scope {rollout_scope}"),
             }
             .into())
         }
     }
 }
 
-/// Whether this scope is tripped, and what tripped it. Reads the trip record so an on-call
-/// engineer has that without redis or log access. One key, so no keyspace walk.
+/// Reads the counter so an on-call engineer can inspect it without Redis or log access.
 pub async fn trip_status(
     state: SessionState,
     key_or_scope: String,
 ) -> errors::RouterResponse<KillSwitchStatusResponse> {
     let rollout_scope = rollout_scope_in(&key_or_scope);
+    let key: redis_interface::RedisKey = counter_key(rollout_scope).as_str().into();
 
-    let record = state
+    let counter_value: u64 = state
         .store
         .get_redis_conn()
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to get a redis connection to read the UCS kill switch trip")?
-        .get_key::<Option<String>>(&trip_key(rollout_scope).as_str().into())
+        .attach_printable("Failed to get a redis connection to read the UCS kill switch counter")?
+        .get_hash_field(&key, COUNTER_FIELD)
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to read the UCS kill switch trip")?;
+        .unwrap_or(0);
 
     Ok(crate::services::ApplicationResponse::Json(
         KillSwitchStatusResponse {
             rollout_scope: rollout_scope.to_string(),
-            tripped: record.is_some(),
-            // A record written by an older build may not parse; the scope is still tripped.
-            trip: record.and_then(|record| serde_json::from_str::<TripRecord>(&record).ok()),
+            counter: counter_value,
+            tripped: counter_value > 0,
         },
     ))
 }
@@ -438,8 +437,6 @@ mod tests {
 
     #[test]
     fn an_unreachable_ucs_trips() {
-        // While UCS is unreachable the payment has no fallback and fails outright, so serving
-        // from the direct integration is strictly better.
         assert_eq!(
             UnifiedConnectorServiceError::ConnectionError("dial".into()).ucs_kill_switch_reason(),
             Some(UcsKillSwitchReason::UcsUnreachable)
@@ -448,8 +445,6 @@ mod tests {
 
     #[test]
     fn connector_outcomes_trip_conservatively() {
-        // A false bypass to the direct path is safe — it served merchants for years.
-        // A missed trip leaves merchants on a potentially broken UCS path.
         let cases = [
             connector_error(402),
             connector_error(504),
@@ -467,12 +462,10 @@ mod tests {
 
     #[test]
     fn scope_is_the_rollout_key_without_its_prefix() {
-        // A trip must target exactly the rollout key that enabled the traffic.
         assert_eq!(
             rollout_scope(PaymentMethod::Card, None, "Authorize"),
             "merchant_1_cybersource_card_Authorize"
         );
-        // Wallets carry a payment method type, exactly as their rollout keys do.
         assert_eq!(
             rollout_scope(
                 PaymentMethod::Wallet,
@@ -481,7 +474,6 @@ mod tests {
             ),
             "merchant_1_cybersource_wallet_google_pay_Authorize"
         );
-        // Refund keys carry no payment method.
         assert_eq!(
             rollout_scope(PaymentMethod::Card, None, "Execute"),
             "merchant_1_cybersource_Execute"
@@ -490,8 +482,6 @@ mod tests {
 
     #[test]
     fn independently_enabled_keys_trip_independently() {
-        // Card and wallet are enabled by separate rollout keys, and wallets fail differently,
-        // so a wallet trip must not take card traffic with it.
         let card = rollout_scope(PaymentMethod::Card, None, "Authorize");
 
         assert_ne!(
@@ -526,8 +516,8 @@ mod tests {
     }
 
     #[test]
-    fn trip_key_cannot_collide_with_a_rollout_config_key() {
-        let key = trip_key(&rollout_scope(PaymentMethod::Card, None, "Authorize"));
+    fn counter_key_cannot_collide_with_a_rollout_config_key() {
+        let key = counter_key(&rollout_scope(PaymentMethod::Card, None, "Authorize"));
 
         assert!(key.starts_with(consts::UCS_KILL_SWITCH_REDIS_PREFIX));
         assert!(!key.starts_with(consts::UCS_ROLLOUT_PERCENT_CONFIG_PREFIX));

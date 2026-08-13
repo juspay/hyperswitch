@@ -407,8 +407,8 @@ where
         }
     };
 
-    // Kill switch: a scope that already failed deterministically serves from the direct
-    // integration regardless of what its rollout config says.
+    // Kill switch: a scope whose failure counter exceeds the configured threshold serves from
+    // the direct integration regardless of what its rollout config says.
     //
     // Only the primary path is diverted, and it is diverted to shadow rather than to direct — the
     // merchant is served by the direct integration either way, but shadow keeps mirroring, so a
@@ -425,12 +425,19 @@ where
             router_data.payment_method_type,
         );
 
-        if Box::pin(kill_switch::is_tripped(state, &rollout_scope)).await {
+        if Box::pin(kill_switch::is_kill_switched(
+            state,
+            &rollout_scope,
+            rollout_result.kill_switch_enabled,
+            rollout_result.kill_switch_threshold,
+        ))
+        .await
+        {
             router_env::logger::warn!(
                 merchant_id = %merchant_id,
                 connector = %connector_name,
                 flow = %flow_name,
-                "UCS kill switch is tripped for this scope, serving from the direct integration"
+                "UCS kill switch counter exceeds threshold for this scope, routing to shadow"
             );
             gateway_system = GatewaySystem::Direct;
             execution_path = ExecutionPath::ShadowUnifiedConnectorService;
