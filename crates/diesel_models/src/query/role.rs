@@ -122,7 +122,7 @@ impl Role {
     ) -> StorageResult<Vec<Self>> {
         let mut query = crate::list::into_boxed_list(
             <Self as HasTable>::table()
-                .filter(dsl::tenant_id.eq(tenant_id).and(dsl::org_id.eq(org_id)))
+                .filter(dsl::tenant_id.eq(tenant_id).and(dsl::org_id.eq(org_id))),
         );
 
         if let Some(merchant_id) = merchant_id {

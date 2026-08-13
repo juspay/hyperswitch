@@ -9,7 +9,7 @@ use diesel_models::schema_v2::refund::dsl;
 use diesel_models::{
     enums::{Currency, RefundStatus},
     errors,
-    list::{PageSize, PageOffset},
+    list::{PageOffset, PageSize},
     query::generics::db_metrics,
     refund::Refund,
 };
@@ -314,15 +314,13 @@ impl RefundDbExt for Refund {
         refund_list_details: &refunds::RefundListConstraints,
     ) -> CustomResult<i64, errors::DatabaseError> {
         let mut filter = diesel_models::list::into_boxed_list(
-            <Self as HasTable>::table()
-                .count()
-                .filter(
-                    dsl::processor_merchant_id
-                        .eq(processor_merchant_id.to_owned())
-                        .or(dsl::processor_merchant_id
-                            .is_null()
-                            .and(dsl::merchant_id.eq(processor_merchant_id.to_owned()))),
-                )
+            <Self as HasTable>::table().count().filter(
+                dsl::processor_merchant_id
+                    .eq(processor_merchant_id.to_owned())
+                    .or(dsl::processor_merchant_id
+                        .is_null()
+                        .and(dsl::merchant_id.eq(processor_merchant_id.to_owned()))),
+            ),
         );
 
         let mut search_by_pay_or_ref_id = false;
@@ -412,7 +410,7 @@ impl RefundDbExt for Refund {
         let mut filter = diesel_models::list::into_boxed_list(
             <Self as HasTable>::table()
                 .count()
-                .filter(dsl::merchant_id.eq(merchant_id.to_owned()))
+                .filter(dsl::merchant_id.eq(merchant_id.to_owned())),
         );
 
         if let Some(payment_id) = &refund_list_details.payment_id {
@@ -489,7 +487,7 @@ impl RefundDbExt for Refund {
                         .or(dsl::processor_merchant_id
                             .is_null()
                             .and(dsl::merchant_id.eq(processor_merchant_id.to_owned()))),
-                )
+                ),
         );
 
         if let Some(profile_id) = profile_id_list {

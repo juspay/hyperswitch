@@ -2,7 +2,6 @@
 //! `boxed_list_query!` macro.
 
 pub use common_utils::types::list::{PageOffset, PageSize, SortDirection};
-
 use diesel::query_dsl::methods::{BoxedDsl, LimitDsl, OffsetDsl};
 
 /// Apply page size and offset to any boxed list query.
@@ -40,7 +39,7 @@ macro_rules! boxed_list_query {
         $crate::list::into_boxed_list(
             <$table as diesel::associations::HasTable>::table()
                 .filter($scope)
-                .order($order)
+                .order($order),
         )
     }};
 }

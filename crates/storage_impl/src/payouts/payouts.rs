@@ -618,7 +618,7 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
                         .on(add_dsl::address_id.nullable().eq(po_dsl::address_id)),
                 )
                 .filter(po_dsl::merchant_id.eq(merchant_id.to_owned()))
-                .order(po_dsl::created_at.desc())
+                .order(po_dsl::created_at.desc()),
         );
 
         query = match filters {
@@ -847,7 +847,7 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
                 .select(po_dsl::payout_id)
                 .filter(cust_dsl::merchant_id.eq(merchant_id.to_owned()))
                 .filter(po_dsl::merchant_id.eq(merchant_id.to_owned()))
-                .order(po_dsl::created_at.desc())
+                .order(po_dsl::created_at.desc()),
         );
 
         query = match constraints {
@@ -933,7 +933,7 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
             <DieselPayouts as HasTable>::table()
                 .group_by(po_dsl::status)
                 .select((po_dsl::status, diesel::dsl::count_star()))
-                .filter(po_dsl::merchant_id.eq(merchant_id.to_owned()))
+                .filter(po_dsl::merchant_id.eq(merchant_id.to_owned())),
         );
 
         if let Some(profile_id) = profile_id_list {

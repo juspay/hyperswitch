@@ -131,7 +131,7 @@ impl DisputeDbExt for Dispute {
                         .or(dsl::processor_merchant_id
                             .is_null()
                             .and(dsl::merchant_id.eq(processor_merchant_id.to_owned()))),
-                )
+                ),
         );
 
         if let Some(profile_id) = profile_id_list {

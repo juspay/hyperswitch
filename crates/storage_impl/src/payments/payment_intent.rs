@@ -1077,7 +1077,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
             <DieselPaymentIntent as HasTable>::table()
                 .group_by(pi_dsl::status)
                 .select((pi_dsl::status, diesel::dsl::count_star()))
-                .filter(pi_dsl::processor_merchant_id.eq(processor_merchant_id.to_owned()))
+                .filter(pi_dsl::processor_merchant_id.eq(processor_merchant_id.to_owned())),
         );
 
         if let Some(profile_id) = profile_id_list {
@@ -1119,9 +1119,10 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
             DieselPaymentIntent::table()
                 .filter(pi_dsl::processor_merchant_id.eq(processor_merchant_id.to_owned()))
                 .inner_join(
-                    payment_attempt_schema::table.on(pa_dsl::attempt_id.eq(pi_dsl::active_attempt_id)),
+                    payment_attempt_schema::table
+                        .on(pa_dsl::attempt_id.eq(pi_dsl::active_attempt_id)),
                 )
-                .filter(pa_dsl::processor_merchant_id.eq(processor_merchant_id.to_owned()))
+                .filter(pa_dsl::processor_merchant_id.eq(processor_merchant_id.to_owned())),
         );
 
         query = match constraints {
@@ -1350,7 +1351,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                 .left_join(
                     payment_attempt_schema::table
                         .on(pi_dsl::active_attempt_id.eq(pa_dsl::id.nullable())),
-                )
+                ),
         );
 
         query = match constraints {
@@ -1565,7 +1566,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
             DieselPaymentIntent::table()
                 .select(pi_dsl::active_attempt_id)
                 .filter(pi_dsl::merchant_id.eq(merchant_id.to_owned()))
-                .order(pi_dsl::created_at.desc())
+                .order(pi_dsl::created_at.desc()),
         );
 
         query = match constraints {
@@ -1651,7 +1652,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
             DieselPaymentIntent::table()
                 .select(pi_dsl::active_attempt_id)
                 .filter(pi_dsl::processor_merchant_id.eq(processor_merchant_id.to_owned()))
-                .order(pi_dsl::created_at.desc())
+                .order(pi_dsl::created_at.desc()),
         );
 
         query = match constraints {

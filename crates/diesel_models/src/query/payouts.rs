@@ -113,10 +113,12 @@ impl Payouts {
     ) -> StorageResult<i64> {
         let mut filter = crate::list::into_boxed_list(
             <Self as HasTable>::table()
-                .inner_join(payout_attempt::table.on(payout_attempt::dsl::payout_id.eq(dsl::payout_id)))
+                .inner_join(
+                    payout_attempt::table.on(payout_attempt::dsl::payout_id.eq(dsl::payout_id)),
+                )
                 .count()
                 .filter(dsl::merchant_id.eq(merchant_id.to_owned()))
-                .filter(dsl::payout_id.eq_any(active_payout_ids.to_vec()))
+                .filter(dsl::payout_id.eq_any(active_payout_ids.to_vec())),
         );
 
         if let Some(connector) = connector {

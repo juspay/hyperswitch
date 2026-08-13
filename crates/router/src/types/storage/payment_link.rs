@@ -37,7 +37,7 @@ impl PaymentLinkDbExt for PaymentLink {
                             .is_null()
                             .and(dsl::merchant_id.eq(processor_merchant_id.to_owned()))),
                 )
-                .order(dsl::created_at.desc())
+                .order(dsl::created_at.desc()),
         );
 
         if let Some(created_time) = payment_link_list_constraints.created {

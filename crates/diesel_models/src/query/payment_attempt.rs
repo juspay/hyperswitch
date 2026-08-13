@@ -456,7 +456,7 @@ impl PaymentAttempt {
             <Self as HasTable>::table()
                 .count()
                 .filter(dsl::merchant_id.eq(merchant_id.to_owned()))
-                .filter(dsl::id.eq_any(active_attempt_ids.to_owned()))
+                .filter(dsl::id.eq_any(active_attempt_ids.to_owned())),
         );
 
         if let Some(connectors) = connector {
@@ -516,7 +516,7 @@ impl PaymentAttempt {
             <Self as HasTable>::table()
                 .count()
                 .filter(dsl::processor_merchant_id.eq(processor_merchant_id.to_owned()))
-                .filter(dsl::attempt_id.eq_any(active_attempt_ids.to_owned()))
+                .filter(dsl::attempt_id.eq_any(active_attempt_ids.to_owned())),
         );
 
         if let Some(connector) = connector {

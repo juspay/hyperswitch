@@ -266,7 +266,7 @@ impl UserRole {
     ) -> StorageResult<Vec<Self>> {
         let mut query = crate::list::into_boxed_list(
             <Self as HasTable>::table()
-                .filter(dsl::user_id.eq(user_id).and(dsl::tenant_id.eq(tenant_id)))
+                .filter(dsl::user_id.eq(user_id).and(dsl::tenant_id.eq(tenant_id))),
         );
 
         if let Some(org_id) = org_id {
@@ -329,7 +329,7 @@ impl UserRole {
     ) -> StorageResult<Vec<Self>> {
         let mut query = crate::list::into_boxed_list(
             <Self as HasTable>::table()
-                .filter(dsl::org_id.eq(org_id).and(dsl::tenant_id.eq(tenant_id)))
+                .filter(dsl::org_id.eq(org_id).and(dsl::tenant_id.eq(tenant_id))),
         );
 
         if let Some(user_id) = user_id {
@@ -380,8 +380,7 @@ impl UserRole {
         limit: Option<u32>,
     ) -> StorageResult<Vec<Self>> {
         let mut query = crate::list::into_boxed_list(
-            <Self as HasTable>::table()
-                .filter(dsl::user_id.eq(user_id))
+            <Self as HasTable>::table().filter(dsl::user_id.eq(user_id)),
         );
         if let Some(limit) = limit {
             query = query.limit(limit.into());
