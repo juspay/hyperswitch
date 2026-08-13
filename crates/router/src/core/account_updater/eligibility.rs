@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
-use api_models::payment_methods::RawPaymentMethodData;
-use common_enums::{PaymentMethod, PaymentMethodStatus, StorageType};
+use api_models::payment_methods::{CardDetail, RawPaymentMethodData};
+use common_enums::{PaymentMethod, PaymentMethodStatus};
 use common_utils::{errors::CustomResult, fp_utils::when};
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::payment_method_data::PaymentMethodsData;
@@ -10,19 +10,12 @@ use unified_connector_service_cards::CardNumber;
 use unified_connector_service_client::payments as payments_grpc;
 
 use super::types::{AccountUpdaterError, ResolvedAccountUpdaterConfig};
-use crate::{
-    core::payment_methods::RawPaymentMethodFetchAccess,
-    routes::SessionState,
-    types::{domain, transformers::ForeignFrom},
-};
+use crate::types::{domain, transformers::ForeignFrom};
 
 #[instrument(skip_all)]
-pub async fn check_eligibility_and_fetch_payment_method(
-    state: &SessionState,
-    platform: &domain::Platform,
-    profile: &domain::Profile,
+pub fn check_eligibility_and_build_payment_method(
     payment_method: &domain::PaymentMethod,
-    storage_type: StorageType,
+    raw_payment_method_data: Option<&RawPaymentMethodData>,
     config: &ResolvedAccountUpdaterConfig,
 ) -> CustomResult<payments_grpc::PaymentMethod, AccountUpdaterError> {
     when(payment_method.status != PaymentMethodStatus::Active, || {
@@ -30,27 +23,18 @@ pub async fn check_eligibility_and_fetch_payment_method(
     })?;
 
     match payment_method.get_payment_method_type() {
-        Some(PaymentMethod::Card) => {
-            check_stored_card_eligibility_and_fetch_details(
-                state,
-                platform,
-                profile,
-                payment_method,
-                storage_type,
-                config,
-            )
-            .await
-        }
+        Some(PaymentMethod::Card) => check_stored_card_eligibility_and_build_payment_method(
+            payment_method,
+            raw_payment_method_data,
+            config,
+        ),
         _ => Err(report!(AccountUpdaterError::PaymentMethodNotACard)),
     }
 }
 
-async fn check_stored_card_eligibility_and_fetch_details(
-    state: &SessionState,
-    platform: &domain::Platform,
-    profile: &domain::Profile,
+fn check_stored_card_eligibility_and_build_payment_method(
     payment_method: &domain::PaymentMethod,
-    storage_type: StorageType,
+    raw_payment_method_data: Option<&RawPaymentMethodData>,
     config: &ResolvedAccountUpdaterConfig,
 ) -> CustomResult<payments_grpc::PaymentMethod, AccountUpdaterError> {
     let card_details = payment_method
@@ -71,21 +55,15 @@ async fn check_stored_card_eligibility_and_fetch_details(
         .ok_or_else(|| report!(AccountUpdaterError::UnsupportedNetwork))
         .attach_printable("Stored card network is not configured for Account Updater")?;
 
-    let raw_payment_method_data = RawPaymentMethodFetchAccess::Allowed
-        .get_raw_payment_method_data(state, platform, profile, payment_method, storage_type)
-        .await
-        .change_context(AccountUpdaterError::CardUnusable)
-        .attach_printable("Account Updater could not unvault the stored card")?;
-
     build_refreshable_payment_method(raw_payment_method_data)
 }
 
 fn build_refreshable_payment_method(
-    raw_payment_method_data: Option<RawPaymentMethodData>,
+    raw_payment_method_data: Option<&RawPaymentMethodData>,
 ) -> CustomResult<payments_grpc::PaymentMethod, AccountUpdaterError> {
-    let card_details = match raw_payment_method_data {
+    let card_details: &CardDetail = match raw_payment_method_data {
         Some(RawPaymentMethodData::Card(card_details)) => Some(card_details),
-        Some(RawPaymentMethodData::CardWithNT(details)) => Some(details.card_details),
+        Some(RawPaymentMethodData::CardWithNT(details)) => Some(&details.card_details),
         Some(RawPaymentMethodData::BankDebit(_) | RawPaymentMethodData::ProxyCard(_)) | None => {
             None
         }
@@ -99,6 +77,7 @@ fn build_refreshable_payment_method(
 
     let network = card_details
         .card_network
+        .clone()
         .ok_or_else(|| report!(AccountUpdaterError::CardUnusable))
         .attach_printable("Unvaulted card carries no network")?;
 
@@ -106,8 +85,8 @@ fn build_refreshable_payment_method(
         payment_method: Some(payments_grpc::payment_method::PaymentMethod::CardWithNoCvc(
             payments_grpc::CardDetailsWithNoCvc {
                 card_number: Some(card_number),
-                card_exp_month: Some(card_details.card_exp_month),
-                card_exp_year: Some(card_details.card_exp_year),
+                card_exp_month: Some(card_details.card_exp_month.clone()),
+                card_exp_year: Some(card_details.card_exp_year.clone()),
                 card_network: Some(i32::from(payments_grpc::CardNetwork::foreign_from(network))),
                 card_holder_name: None,
                 card_issuer: None,
