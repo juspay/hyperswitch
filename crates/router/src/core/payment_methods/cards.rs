@@ -3072,7 +3072,7 @@ pub async fn decode_and_decrypt_locker_data(
             Identifier::Merchant(key_store.merchant_id.clone()),
             key,
         ),
-        &metrics::PAYMENT_METHOD_ENCRYPTION_DURATION,
+        &metrics::PAYMENT_METHOD_CRYPTO_DURATION,
         router_env::metric_attributes!(("operation", "decrypt")),
     )
     .await
@@ -6207,7 +6207,7 @@ where
             identifier,
             key,
         ),
-        &metrics::PAYMENT_METHOD_ENCRYPTION_DURATION,
+        &metrics::PAYMENT_METHOD_CRYPTO_DURATION,
         router_env::metric_attributes!(("operation", "decrypt")),
     )
     .await

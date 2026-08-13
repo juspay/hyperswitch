@@ -178,4 +178,4 @@ histogram_metric_f64!(VAULT_FINGERPRINT_TIME, GLOBAL_METER);
 counter_metric!(VAULT_CALL_FAILURES, GLOBAL_METER);
 
 // Encryption/keymanager latency for payment_methods operations
-histogram_metric_f64!(PAYMENT_METHOD_ENCRYPTION_DURATION, GLOBAL_METER);
+histogram_metric_f64!(PAYMENT_METHOD_CRYPTO_DURATION, GLOBAL_METER);

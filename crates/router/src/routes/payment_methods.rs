@@ -77,6 +77,33 @@ async fn record_payment_method_session_metrics<T, E>(
     result
 }
 
+/// Records `PAYMENT_METHOD_OPERATION_DURATION`/`PAYMENT_METHOD_OPS_COUNT` around a top-level
+/// `payment_methods` core call, tagged by `operation` and success/error `outcome`. Use this for
+/// route handlers whose core call is a trait method (e.g. `PaymentMethodsController`) that can't
+/// be wrapped at its definition the way the plain core functions in `core/payment_methods.rs` are.
+#[cfg(feature = "v2")]
+async fn record_payment_method_metrics<T, E>(
+    operation: &'static str,
+    fut: impl std::future::Future<Output = Result<T, E>>,
+) -> Result<T, E> {
+    let result = common_utils::metrics::utils::record_operation_time(
+        fut,
+        &metrics::PAYMENT_METHOD_OPERATION_DURATION,
+        router_env::metric_attributes!(("operation", operation)),
+    )
+    .await;
+
+    metrics::PAYMENT_METHOD_OPS_COUNT.add(
+        1,
+        router_env::metric_attributes!(
+            ("operation", operation),
+            ("outcome", if result.is_ok() { "success" } else { "error" })
+        ),
+    );
+
+    result
+}
+
 #[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsCreate))]
 pub async fn create_payment_method_api(
@@ -1408,15 +1435,18 @@ pub async fn default_payment_method_set_api(
                 default_payment_method.payment_method_id.clone(),
             );
             async move {
-                cards::PmCards {
-                    state: &state,
-                    provider: auth.platform.get_provider(),
-                }
-                .set_default_payment_method(
-                    auth.platform.get_provider().get_account().get_id(),
-                    &customer_id,
-                    &payment_method_id,
-                    auth.platform.get_initiator(),
+                record_payment_method_metrics(
+                    "set_default",
+                    cards::PmCards {
+                        state: &state,
+                        provider: auth.platform.get_provider(),
+                    }
+                    .set_default_payment_method(
+                        auth.platform.get_provider().get_account().get_id(),
+                        &customer_id,
+                        &payment_method_id,
+                        auth.platform.get_initiator(),
+                    ),
                 )
                 .await
             }
