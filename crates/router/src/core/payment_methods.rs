@@ -2785,7 +2785,7 @@ impl PaymentMethodResolver {
                             state,
                             existing_pm.id.get_string_repr(),
                             cvc,
-                            get_cvc_ttl(profile),
+                            profile.get_order_fulfillment_time_or_default(),
                             platform.get_provider().get_key_store(),
                         )
                         .await?,
@@ -3044,7 +3044,7 @@ async fn execute_payment_method_create(
                         state,
                         payment_method.id.get_string_repr(),
                         cvc,
-                        get_cvc_ttl(profile),
+                        profile.get_order_fulfillment_time_or_default(),
                         platform.get_provider().get_key_store(),
                     )
                 })
@@ -3217,7 +3217,7 @@ pub async fn create_generic_volatile_payment_method(
                         state,
                         domain_payment_method.id.get_string_repr(),
                         cvc,
-                        get_cvc_ttl(profile),
+                        profile.get_order_fulfillment_time_or_default(),
                         platform.get_provider().get_key_store(),
                     )
                 })
@@ -6073,13 +6073,6 @@ pub enum RawPaymentMethodFetchAccess {
 }
 
 #[cfg(feature = "v2")]
-fn get_cvc_ttl(profile: &domain::Profile) -> i64 {
-    profile
-        .get_order_fulfillment_time()
-        .unwrap_or(common_utils::consts::DEFAULT_INTENT_FULFILLMENT_TIME)
-}
-
-#[cfg(feature = "v2")]
 fn get_cvc_read_mode(
     api_key_type: enums::ApiKeyType,
     is_manual_retry_enabled: Option<bool>,
@@ -7056,7 +7049,7 @@ pub async fn payment_methods_session_update_payment_method(
                 &parent_payment_method_token,
                 card_cvc,
                 card_holder_name,
-                get_cvc_ttl(&profile),
+                profile.get_order_fulfillment_time_or_default(),
                 platform.get_provider().get_key_store(),
             )
             .await?;
@@ -7119,7 +7112,7 @@ pub async fn payment_methods_session_update_payment_method(
                     &pm_token,
                     card_cvc,
                     card_holder_name,
-                    get_cvc_ttl(&profile),
+                    profile.get_order_fulfillment_time_or_default(),
                     platform.get_provider().get_key_store(),
                 )
                 .await?;
@@ -7354,7 +7347,11 @@ pub async fn payment_methods_session_confirm(
     // insert the token data into redis
     if let Some(token_data) = token_data {
         pm_routes::ParentPaymentMethodToken::create_key_for_token(&parent_payment_method_token)
-            .insert(get_cvc_ttl(&profile), token_data, &state)
+            .insert(
+                profile.get_order_fulfillment_time_or_default(),
+                token_data,
+                &state,
+            )
             .await?;
     };
 
@@ -7755,7 +7752,7 @@ impl<'a> pm_types::PaymentMethodUpdateHandler<'a> {
                     self.state,
                     self.payment_method.get_id().get_string_repr(),
                     cvc,
-                    get_cvc_ttl(self.profile),
+                    self.profile.get_order_fulfillment_time_or_default(),
                     self.platform.get_provider().get_key_store(),
                 )
             })

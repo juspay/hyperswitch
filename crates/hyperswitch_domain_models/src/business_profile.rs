@@ -939,6 +939,12 @@ impl Profile {
         self.order_fulfillment_time
     }
 
+    #[cfg(feature = "v2")]
+    pub fn get_order_fulfillment_time_or_default(&self) -> i64 {
+        self.get_order_fulfillment_time()
+            .unwrap_or(common_utils::consts::DEFAULT_INTENT_FULFILLMENT_TIME)
+    }
+
     pub fn get_webhook_url_from_profile(&self) -> CustomResult<String, ValidationError> {
         self.webhook_details
             .clone()
