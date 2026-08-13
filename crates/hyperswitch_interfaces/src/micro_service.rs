@@ -57,4 +57,8 @@ pub trait MicroserviceClient {
     fn parent_headers(&self) -> &Headers;
     /// Trace identifier configuration.
     fn trace(&self) -> &RequestIdentifier;
+    /// Logical service name, stamped on the API event emitted for each call.
+    fn service_name(&self) -> &'static str {
+        "microservice"
+    }
 }

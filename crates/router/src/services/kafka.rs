@@ -166,6 +166,11 @@ pub struct KafkaSettings {
     routing_logs_topic: String,
     revenue_recovery_topic: String,
     external_service_call_topic: String,
+    microservice_logs_topic: String,
+}
+
+fn default_microservice_logs_topic() -> String {
+    "hyperswitch-microservice-api-log-events".to_string()
 }
 
 /// Base rdkafka client configuration for this deployment's Kafka cluster.
@@ -322,6 +327,7 @@ pub struct KafkaProducer {
     routing_logs_topic: String,
     revenue_recovery_topic: String,
     external_service_call_topic: String,
+    microservice_logs_topic: String,
 }
 
 struct RdKafkaProducer(ThreadedProducer<DefaultProducerContext>);
@@ -372,6 +378,7 @@ impl KafkaProducer {
             routing_logs_topic: conf.routing_logs_topic.clone(),
             revenue_recovery_topic: conf.revenue_recovery_topic.clone(),
             external_service_call_topic: conf.external_service_call_topic.clone(),
+            microservice_logs_topic: conf.microservice_logs_topic.clone(),
         })
     }
 
@@ -712,6 +719,7 @@ impl KafkaProducer {
             EventType::RoutingApiLogs => &self.routing_logs_topic,
             EventType::RevenueRecovery => &self.revenue_recovery_topic,
             EventType::ExternalServiceCall => &self.external_service_call_topic,
+            EventType::MicroserviceApiLogs => &self.microservice_logs_topic,
         }
     }
 }
