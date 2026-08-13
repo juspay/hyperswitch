@@ -1138,7 +1138,6 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                         on: SortOn::Amount,
                         by: SortBy::Desc,
                     } => query.order(pi_dsl::amount.desc()),
-                    // SortOn::Modified maps to created_at for pagination stability.
                     Order {
                         on: SortOn::Created | SortOn::Modified,
                         by: SortBy::Asc,
@@ -1364,7 +1363,6 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                         on: SortOn::Amount,
                         by: SortBy::Desc,
                     } => query.order(pi_dsl::amount.desc()),
-                    // SortOn::Modified maps to created_at for pagination stability.
                     Order {
                         on: SortOn::Created | SortOn::Modified,
                         by: SortBy::Asc,
