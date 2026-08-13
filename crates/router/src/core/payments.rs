@@ -1549,9 +1549,19 @@ where
                 .ok()
             })
             .and_then(|connector_data| {
+                let setup_future_usage = {
+                    #[cfg(feature = "v1")]
+                    {
+                        payment_data.get_payment_intent().setup_future_usage
+                    }
+                    #[cfg(feature = "v2")]
+                    {
+                        Some(payment_data.get_payment_intent().setup_future_usage)
+                    }
+                };
                 connector_data
                     .connector
-                    .is_payment_recurrence_operation_needed(payment_data.get_payment_intent())
+                    .is_payment_recurrence_operation_needed(setup_future_usage)
             })
             .unwrap_or(false);
 

@@ -546,7 +546,7 @@ pub trait ConnectorSpecifications {
     /// Validate if another operation is required
     fn is_payment_recurrence_operation_needed(
         &self,
-        _payment_intent: &hyperswitch_domain_models::payments::PaymentIntent,
+        _setup_future_usage: Option<common_enums::FutureUsage>,
     ) -> Option<bool> {
         Some(false)
     }
