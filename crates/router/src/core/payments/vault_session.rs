@@ -160,7 +160,13 @@ async fn call_internal_pm_session_create_for_vault(
     let response = CreatePaymentMethodSession::call(state, &client, request)
         .await
         .map_err(|err| {
-            router_env::logger::error!(?err, "Internal PM session create for vault failed");
+            router_env::logger::error!(
+                ?err,
+                merchant_id=%merchant_id.get_string_repr(),
+                profile_id=%profile_id.get_string_repr(),
+                ?storage_type,
+                "Internal PM session create for vault failed"
+            );
             errors::ApiErrorResponse::InternalServerError
         })
         .attach_printable("Failed to create PM session via internal service for vault details")?;
@@ -178,10 +184,22 @@ async fn call_internal_pm_session_create_for_vault(
     // Only return Some if at least one of the two parts is present.
     if internal_vault.is_none() && external_vault_details.is_none() {
         router_env::logger::warn!(
+            merchant_id=%merchant_id.get_string_repr(),
+            profile_id=%profile_id.get_string_repr(),
+            ?storage_type,
             "Internal PM session create returned neither sdk_authorization nor external_vault_details"
         );
         return Ok(None);
     }
+
+    router_env::logger::info!(
+        merchant_id=%merchant_id.get_string_repr(),
+        profile_id=%profile_id.get_string_repr(),
+        ?storage_type,
+        has_internal_vault=internal_vault.is_some(),
+        has_external_vault_details=external_vault_details.is_some(),
+        "Internal PM session create for vault succeeded"
+    );
 
     Ok(Some(api::VaultDetails {
         internal_vault,
@@ -231,6 +249,12 @@ where
             (Some(_), Some(_)) => common_enums::StorageType::Persistent,
             _ => common_enums::StorageType::Volatile,
         };
+        router_env::logger::info!(
+            ?storage_type,
+            setup_future_usage=?payment_data.get_payment_intent().setup_future_usage,
+            has_customer=customer_id.is_some(),
+            "Resolved storage type for PM vault session create"
+        );
 
         // Use the resolved external vault profile (the platform merchant's profile in platform
         // flows) so the PM service operates under the merchant that actually holds the external
@@ -243,14 +267,21 @@ where
         )
         .await
         .unwrap_or_else(|err| {
+            // Non-fatal by design: the payment continues without vault session details, which
+            // means the SDK gets no vault session — this warn is the only trace of that.
             router_env::logger::warn!(
                 ?err,
-                "Failed to fetch vault details via internal PM session service"
+                profile_id=%external_vault_profile.get_id().get_string_repr(),
+                "Failed to fetch vault details via internal PM session service; continuing without vault session"
             );
             None
         });
 
         payment_data.set_vault_session_details(vault_details);
+    } else {
+        router_env::logger::debug!(
+            "PM modular service disabled for this organization; skipping vault session creation"
+        );
     }
     Ok(())
 }
