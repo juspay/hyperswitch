@@ -21,7 +21,10 @@ use hyperswitch_domain_models::{
 pub use migrate::modular_migrate_payment_methods;
 use router_env::{instrument, logger, tracing, Flow};
 
-use super::app::{AppState, SessionState};
+use super::{
+    app::{AppState, SessionState},
+    metrics,
+};
 #[cfg(feature = "v1")]
 use crate::core::utils::validate_legacy_endpoint_access;
 #[cfg(all(feature = "v1", any(feature = "olap", feature = "oltp")))]
@@ -42,6 +45,37 @@ use crate::{
         storage::payment_method::PaymentTokenData,
     },
 };
+
+/// Records `PAYMENT_METHOD_SESSION_OPERATION_DURATION`/`PAYMENT_METHOD_SESSION_OPS_COUNT` around a
+/// `payment_method_session` core call, tagged by `operation` and success/error `outcome`. Also bumps
+/// `SUCCESSFUL_PAYMENT_METHOD_SESSION_CONFIRM` on a successful `session_confirm` call, since that flow
+/// is the closest equivalent to a completed payment for this service.
+#[cfg(feature = "v2")]
+async fn record_payment_method_session_metrics<T, E>(
+    operation: &'static str,
+    fut: impl std::future::Future<Output = Result<T, E>>,
+) -> Result<T, E> {
+    let result = common_utils::metrics::utils::record_operation_time(
+        fut,
+        &metrics::PAYMENT_METHOD_SESSION_OPERATION_DURATION,
+        router_env::metric_attributes!(("operation", operation)),
+    )
+    .await;
+
+    metrics::PAYMENT_METHOD_SESSION_OPS_COUNT.add(
+        1,
+        router_env::metric_attributes!(
+            ("operation", operation),
+            ("outcome", if result.is_ok() { "success" } else { "error" })
+        ),
+    );
+
+    if operation == "session_confirm" && result.is_ok() {
+        metrics::SUCCESSFUL_PAYMENT_METHOD_SESSION_CONFIRM.add(1, &[]);
+    }
+
+    result
+}
 
 #[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsCreate))]
@@ -1692,12 +1726,15 @@ pub async fn payment_methods_session_create(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, request, _| async move {
-            Box::pin(payment_methods_routes::payment_methods_session_create(
-                state,
-                auth.platform,
-                auth.profile,
-                request,
-            ))
+            record_payment_method_session_metrics(
+                "session_create",
+                Box::pin(payment_methods_routes::payment_methods_session_create(
+                    state,
+                    auth.platform,
+                    auth.profile,
+                    request,
+                )),
+            )
             .await
         },
         &*auth_type,
@@ -1725,11 +1762,14 @@ pub async fn payment_methods_session_update(
         |state, auth: auth::AuthenticationData, req, _| {
             let value = payment_method_session_id.clone();
             async move {
-                payment_methods_routes::payment_methods_session_update(
-                    state,
-                    auth.platform.get_provider().clone(),
-                    value.clone(),
-                    req,
+                record_payment_method_session_metrics(
+                    "session_update",
+                    payment_methods_routes::payment_methods_session_update(
+                        state,
+                        auth.platform.get_provider().clone(),
+                        value.clone(),
+                        req,
+                    ),
                 )
                 .await
             }
@@ -1759,10 +1799,13 @@ pub async fn payment_methods_session_retrieve(
         &req,
         payment_method_session_id.clone(),
         |state, auth: auth::AuthenticationData, payment_method_session_id, _| async move {
-            payment_methods_routes::payment_methods_session_retrieve(
-                state,
-                auth.platform.get_provider().clone(),
-                payment_method_session_id,
+            record_payment_method_session_metrics(
+                "session_retrieve",
+                payment_methods_routes::payment_methods_session_retrieve(
+                    state,
+                    auth.platform.get_provider().clone(),
+                    payment_method_session_id,
+                ),
             )
             .await
         },
@@ -1806,11 +1849,14 @@ pub async fn payment_method_session_list_payment_methods(
         &req,
         payment_method_session_id.clone(),
         |state, auth: auth::AuthenticationData, payment_method_session_id, _| {
-            payment_methods_routes::list_payment_methods_for_session(
-                state,
-                auth.platform,
-                auth.profile,
-                payment_method_session_id,
+            record_payment_method_session_metrics(
+                "session_list_payment_methods",
+                payment_methods_routes::list_payment_methods_for_session(
+                    state,
+                    auth.platform,
+                    auth.profile,
+                    payment_method_session_id,
+                ),
             )
         },
         auth::sdk_or_client_auth(
@@ -1875,13 +1921,16 @@ pub async fn payment_method_session_confirm(
         &req,
         request,
         |state, auth: auth::AuthenticationData, request, req_state| {
-            payment_methods_routes::payment_methods_session_confirm(
-                state,
-                req_state,
-                auth.platform,
-                auth.profile,
-                request.payment_method_session_id,
-                request.request,
+            record_payment_method_session_metrics(
+                "session_confirm",
+                payment_methods_routes::payment_methods_session_confirm(
+                    state,
+                    req_state,
+                    auth.platform,
+                    auth.profile,
+                    request.payment_method_session_id,
+                    request.request,
+                ),
             )
         },
         auth::sdk_or_client_auth(
@@ -1929,12 +1978,15 @@ pub async fn payment_method_session_update_saved_payment_method(
         &req,
         request,
         |state, auth: auth::AuthenticationData, request, _| {
-            payment_methods_routes::payment_methods_session_update_payment_method(
-                state,
-                auth.platform,
-                auth.profile,
-                request.payment_method_session_id,
-                request.request,
+            record_payment_method_session_metrics(
+                "session_update_saved_pm",
+                payment_methods_routes::payment_methods_session_update_payment_method(
+                    state,
+                    auth.platform,
+                    auth.profile,
+                    request.payment_method_session_id,
+                    request.request,
+                ),
             )
         },
         auth::sdk_or_client_auth(
@@ -1982,12 +2034,15 @@ pub async fn payment_method_session_delete_saved_payment_method(
         &req,
         request,
         |state, auth: auth::AuthenticationData, request, _| {
-            payment_methods_routes::payment_methods_session_delete_payment_method(
-                state,
-                auth.platform,
-                auth.profile,
-                request.request.payment_method_token,
-                request.payment_method_session_id,
+            record_payment_method_session_metrics(
+                "session_delete_saved_pm",
+                payment_methods_routes::payment_methods_session_delete_payment_method(
+                    state,
+                    auth.platform,
+                    auth.profile,
+                    request.request.payment_method_token,
+                    request.payment_method_session_id,
+                ),
             )
         },
         auth::sdk_or_client_auth(
