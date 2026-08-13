@@ -2562,7 +2562,7 @@ pub async fn retrieve_payment_method_data_from_storage(
     pm: &domain::PaymentMethod,
     storage_type: enums::StorageType,
 ) -> RouterResult<pm_types::VaultRetrieveResponse> {
-    let mut payment_method_data = match storage_type {
+    let payment_method_data = match storage_type {
         enums::StorageType::Persistent => {
             Box::pin(retrieve_payment_method_from_vault(
                 state, platform, profile, pm,
@@ -2578,23 +2578,6 @@ pub async fn retrieve_payment_method_data_from_storage(
             .await?
         }
     };
-
-    let card_cvc = retrieve_and_delete_cvc_from_payment_token(
-        state,
-        &pm.id.get_string_repr().to_string(),
-        platform.get_provider().get_key_store(),
-    )
-    .await
-    .inspect_err(|err| {
-        logger::warn!(
-            "Failed to retrieve CVC for payment method {}",
-            pm.id.get_string_repr()
-        );
-    });
-
-    if let Ok(card_cvc) = card_cvc {
-        payment_method_data.data.set_card_cvc(card_cvc);
-    }
 
     Ok(payment_method_data)
 }

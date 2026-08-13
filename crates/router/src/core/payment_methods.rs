@@ -5765,24 +5765,6 @@ pub async fn retrieve_payment_method(
         },
     )?;
 
-    if request.force_sync {
-        let processor = platform.get_processor();
-        let account_updater_dimensions = dimension_state::Dimensions::new()
-            .with_processor_merchant_id(processor.get_processor_merchant_id())
-            .with_organization_id(processor.get_account().get_org_id().clone())
-            .with_profile_id(profile.get_id().clone());
-
-        Box::pin(account_updater::run_account_updater(
-            &state,
-            &platform,
-            &profile,
-            &payment_method,
-            storage_type,
-            &account_updater_dimensions,
-        ))
-        .await;
-    }
-
     let raw_payment_method_fetch_access = get_raw_payment_method_data_fetch_access(
         &state,
         &dimensions,
@@ -5809,16 +5791,22 @@ pub async fn retrieve_payment_method(
     .attach_printable("Failed to retrieve cvc from redis")
     .ok();
 
-    let raw_payment_method_data =
-        Box::pin(raw_payment_method_fetch_access.get_raw_payment_method_data(
-            &state,
-            &platform,
-            &profile,
-            &payment_method,
-            storage_type,
-        ))
-        .await
-        .attach_printable("Failed to get raw payment method data")?;
+    let account_updater_access = get_account_updater_access(api_key_type, request.force_sync);
+
+    let unvault_access = match account_updater_access {
+        true => RawPaymentMethodFetchAccess::Allowed,
+        false => raw_payment_method_fetch_access,
+    };
+
+    let mut raw_payment_method_data = Box::pin(unvault_access.get_raw_payment_method_data(
+        &state,
+        &platform,
+        &profile,
+        &payment_method,
+        storage_type,
+    ))
+    .await
+    .attach_printable("Failed to get raw payment method data")?;
 
     let raw_network_token_details =
         Box::pin(raw_payment_method_fetch_access.get_raw_network_token_data(
@@ -5834,7 +5822,7 @@ pub async fn retrieve_payment_method(
         })
         .ok();
 
-    let raw_payment_method_data = match (raw_payment_method_data, raw_network_token_details) {
+    raw_payment_method_data = match (raw_payment_method_data, raw_network_token_details) {
         (
             Some(payment_methods::RawPaymentMethodData::Card(card_details)),
             Some(network_token_details),
@@ -5846,6 +5834,68 @@ pub async fn retrieve_payment_method(
         )),
         (raw_payment_method_data, _) => raw_payment_method_data,
     };
+
+    if account_updater_access {
+        let processor = platform.get_processor();
+        let account_updater_dimensions = dimension_state::Dimensions::new()
+            .with_processor_merchant_id(processor.get_processor_merchant_id())
+            .with_organization_id(processor.get_account().get_org_id().clone())
+            .with_profile_id(profile.get_id().clone());
+
+        Box::pin(account_updater::run_account_updater(
+            &state,
+            &platform,
+            &profile,
+            &payment_method,
+            raw_payment_method_data.as_ref(),
+            &account_updater_dimensions,
+        ))
+        .await;
+    }
+
+    match raw_payment_method_fetch_access {
+        RawPaymentMethodFetchAccess::Allowed => {
+            let card_details = match &mut raw_payment_method_data {
+                Some(payment_methods::RawPaymentMethodData::Card(card_details)) => {
+                    Some(card_details)
+                }
+                Some(payment_methods::RawPaymentMethodData::CardWithNT(details)) => {
+                    Some(&mut details.card_details)
+                }
+                Some(
+                    payment_methods::RawPaymentMethodData::BankDebit(_)
+                    | payment_methods::RawPaymentMethodData::ProxyCard(_),
+                )
+                | None => None,
+            };
+
+            if let Some(card_details) = card_details {
+                card_details.card_cvc = vault::retrieve_and_delete_cvc_from_payment_token(
+                    &state,
+                    &payment_method.id.get_string_repr().to_string(),
+                    platform.get_provider().get_key_store(),
+                )
+                .await
+                .inspect_err(|err| {
+                    logger::warn!(?err, "Failed to retrieve cvc from redis");
+                })
+                .ok();
+            }
+        }
+        RawPaymentMethodFetchAccess::Denied => {
+            raw_payment_method_data = Box::pin(
+                RawPaymentMethodFetchAccess::Denied.get_raw_payment_method_data(
+                    &state,
+                    &platform,
+                    &profile,
+                    &payment_method,
+                    storage_type,
+                ),
+            )
+            .await
+            .attach_printable("Failed to get raw payment method data")?;
+        }
+    }
 
     let billing = payment_method
         .payment_method_billing_address
@@ -6298,6 +6348,14 @@ pub async fn get_raw_payment_method_data_fetch_access(
                 false => Ok(RawPaymentMethodFetchAccess::Denied),
             }
         }
+    }
+}
+
+#[cfg(feature = "v2")]
+pub fn get_account_updater_access(api_key_type: enums::ApiKeyType, force_sync: bool) -> bool {
+    match api_key_type {
+        enums::ApiKeyType::Internal => force_sync,
+        enums::ApiKeyType::External => false,
     }
 }
 

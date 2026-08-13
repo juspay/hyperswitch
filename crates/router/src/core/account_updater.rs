@@ -3,14 +3,14 @@ mod eligibility;
 mod refresh;
 pub mod types;
 
-use common_enums::StorageType;
+use api_models::payment_methods::RawPaymentMethodData;
 use common_utils::errors::CustomResult;
 use router_env::{instrument, logger, tracing};
 use unified_connector_service_client::payments as payments_grpc;
 
 use self::{
     config::resolve_account_updater_config,
-    eligibility::check_eligibility_and_fetch_payment_method,
+    eligibility::check_eligibility_and_build_payment_method,
     refresh::request_account_updater_refresh,
     types::{AccountUpdaterError, ResolvedAccountUpdaterConfig},
 };
@@ -22,7 +22,7 @@ pub async fn run_account_updater<D>(
     platform: &domain::Platform,
     profile: &domain::Profile,
     payment_method: &domain::PaymentMethod,
-    storage_type: StorageType,
+    raw_payment_method_data: Option<&RawPaymentMethodData>,
     dimensions: &D,
 ) where
     D: dimension_state::DimensionsBase,
@@ -44,7 +44,7 @@ pub async fn run_account_updater<D>(
         platform,
         profile,
         payment_method,
-        storage_type,
+        raw_payment_method_data,
         &config,
     )
     .await;
@@ -54,7 +54,7 @@ pub async fn run_account_updater<D>(
             account_updater_outcome = refresh_outcome.as_str_name(),
             "Account Updater refresh completed"
         ),
-        Err(error) => logger::info!(?error, "Account Updater refresh did not complete"),
+        Err(error) => logger::warn!(?error, "Account Updater refresh did not complete"),
     }
 }
 
@@ -63,17 +63,14 @@ async fn refresh_stored_payment_method(
     platform: &domain::Platform,
     profile: &domain::Profile,
     payment_method: &domain::PaymentMethod,
-    storage_type: StorageType,
+    raw_payment_method_data: Option<&RawPaymentMethodData>,
     config: &ResolvedAccountUpdaterConfig,
 ) -> CustomResult<payments_grpc::CardRefreshOutcome, AccountUpdaterError> {
-    let refreshable_payment_method = check_eligibility_and_fetch_payment_method(
-        state,
-        platform,
-        profile,
+    let refreshable_payment_method = check_eligibility_and_build_payment_method(
         payment_method,
-        storage_type,
-    )
-    .await?;
+        raw_payment_method_data,
+        config,
+    )?;
 
     request_account_updater_refresh(state, platform, profile, config, refreshable_payment_method)
         .await

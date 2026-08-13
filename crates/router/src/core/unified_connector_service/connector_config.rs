@@ -1712,20 +1712,13 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                     let juspay_meta = metadata
                         .map(|meta| {
                             serde_json::from_value::<JuspayMetadata>(meta.clone())
-                                .map_err(|_| err("Invalid Juspay metadata format"))
+                                .change_context(errors::ApiErrorResponse::InternalServerError)
+                                .attach_printable("Invalid Juspay metadata format")
                         })
                         .transpose()?
                         .ok_or_else(|| err("Juspay requires metadata"))?;
 
-                    Ok(Self::Juspay {
-                        api_key: api_key.clone(),
-                        merchant_id: juspay_meta.merchant_id,
-                        base_url: juspay_meta.base_url,
-                        juspay_encryption_public_key: juspay_meta.juspay_encryption_public_key,
-                        response_decryption_private_key: juspay_meta
-                            .response_decryption_private_key,
-                        card_sync_key_id: juspay_meta.card_sync_key_id,
-                    })
+                    Ok(Self::from((api_key.clone(), juspay_meta)))
                 }
                 _ => Err(err("Juspay requires HeaderKey auth type")),
             },
@@ -1782,6 +1775,19 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                         connector
                     )),
             ),
+        }
+    }
+}
+
+impl From<(Secret<String>, JuspayMetadata)> for ConnectorSpecificConfig {
+    fn from((api_key, metadata): (Secret<String>, JuspayMetadata)) -> Self {
+        Self::Juspay {
+            api_key,
+            merchant_id: metadata.merchant_id,
+            base_url: metadata.base_url,
+            juspay_encryption_public_key: metadata.juspay_encryption_public_key,
+            response_decryption_private_key: metadata.response_decryption_private_key,
+            card_sync_key_id: metadata.card_sync_key_id,
         }
     }
 }

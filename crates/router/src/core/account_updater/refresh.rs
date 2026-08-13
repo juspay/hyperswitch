@@ -1,5 +1,3 @@
-use std::time::Duration;
-
 use common_enums::ExecutionMode;
 use common_utils::errors::CustomResult;
 use error_stack::{report, ResultExt};
@@ -12,9 +10,6 @@ use crate::{
     core::unified_connector_service::build_unified_connector_service_auth_metadata_without_mca,
     routes::SessionState, types::domain,
 };
-
-/// Per-call `grpc-timeout` deadline for the refresh request.
-const REFRESH_TIMEOUT: Duration = Duration::from_secs(5);
 
 #[instrument(skip_all)]
 pub async fn request_account_updater_refresh(
@@ -64,7 +59,7 @@ pub async fn request_account_updater_refresh(
         request,
         connector_auth_metadata,
         grpc_headers,
-        REFRESH_TIMEOUT,
+        config.refresh_timeout(),
     ))
     .await
     .change_context(AccountUpdaterError::RefreshCallFailed)
