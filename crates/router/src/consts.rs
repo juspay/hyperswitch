@@ -486,7 +486,7 @@ pub mod superposition {
     /// save wallet decrypted data in locker
     pub const SAVE_WALLET_DECRYPTED_DATA: &str = "vaulting.save_wallet_decrypted_data";
     /// Pre-FRM failure handling mode
-    pub const PRE_FRM_FAILURE_MODE: &str = "pre_frm_failure_mode";
+    pub const PRE_FRM_FAILURE_MODE: &str = "frm.pre_frm_failure_mode";
 }
 
 #[cfg(test)]

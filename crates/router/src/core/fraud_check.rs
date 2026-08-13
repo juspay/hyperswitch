@@ -624,8 +624,9 @@ where
             *frm_info = Some(updated_frm_info);
 
             logger::debug!(
-                "FRM is applicable for this payment, frm_configs: {:?}",
-                frm_configs
+                "FRM is applicable for this payment, frm_configs: {:?}, pre_frm_failure_mode: {:?}",
+                frm_configs,
+                failure_mode
             );
             Ok(Some(frm_configs))
         }
