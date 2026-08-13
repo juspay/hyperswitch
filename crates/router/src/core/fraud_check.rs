@@ -764,8 +764,7 @@ where
                 PreFrmFailureMode::FailOpen => {
                     // Log the error
                     logger::info!(
-                        "FRM actions before connector call failed, continuing due to FailOpen mode: payment_id={:?}, error={:?}",
-                        payment_data.get_payment_intent().payment_id,
+                        "FRM actions before connector call failed, continuing due to FailOpen mode. Error: {:?}",
                         e
                     );
                     metrics::FRM_FAILURE.add(
