@@ -405,3 +405,7 @@ key1 = "Account Id"
 
 [givepayments]
 api_key = "API Key"
+
+[tdaypay]
+api_key="Merchant Key"
+key1="Merchant ID"

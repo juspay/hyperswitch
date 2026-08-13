@@ -73,6 +73,7 @@ impl ForeignTryFrom<api_enums::Connector> for euclid::enums::RoutableConnectors 
             api_enums::Connector::Getnet => Self::Getnet,
             api_enums::Connector::Gigadat => Self::Gigadat,
             api_enums::Connector::Givepayments => Self::Givepayments,
+            api_enums::Connector::Tdaypay => Self::Tdaypay,
             api_enums::Connector::Globalpay => Self::Globalpay,
             api_enums::Connector::Globepay => Self::Globepay,
             api_enums::Connector::Gocardless => Self::Gocardless,

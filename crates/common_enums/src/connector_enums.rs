@@ -180,6 +180,7 @@ pub enum Connector {
     Stripe,
     Stripebilling,
     Taxjar,
+    Tdaypay,
     Threedsecureio,
     // Tokenio,
     //Thunes,
@@ -461,6 +462,7 @@ impl Connector {
             | Self::Payjustnowinstore
             | Self::Phonepe
             | Self::Imerchantsolutions
+            | Self::Tdaypay
             | Self::Givepayments => false,
             Self::Stripe | Self::Checkout | Self::Zift | Self::Nmi | Self::Braintree|
             Self::Cybersource | Self::Archipel | Self::Nuvei | Self::Adyen => true,
