@@ -251,10 +251,10 @@ where
                                 Some(MinorUnit::new(captured_amount));
                         }
                         if return_raw_connector_response.unwrap_or(false) {
-                            router_data.raw_connector_response = payment_get_response
-                                .raw_connector_response
-                                .clone()
-                                .map(|raw_connector_response| raw_connector_response.expose().into());
+                            router_data.raw_connector_response =
+                                payment_get_response.raw_connector_response.clone().map(
+                                    |raw_connector_response| raw_connector_response.expose().into(),
+                                );
                         }
                         router_data.connector_http_status_code = Some(status_code);
                         router_data.sender_payment_instrument_id =
