@@ -279,21 +279,7 @@ impl From<&ConnectorErrorInner> for ErrorResponse {
     }
 }
 
-impl From<&ErrorResponse> for ConnectorErrorInner {
-    fn from(error: &ErrorResponse) -> Self {
-        Self {
-            code: error.code.clone(),
-            message: error.message.clone(),
-            status_code: error.status_code,
-            reason: error.reason.clone(),
-            connector: String::new(),
-            connector_transaction_id: error.connector_transaction_id.clone(),
-            network_decline_code: error.network_decline_code.clone(),
-            network_advice_code: error.network_advice_code.clone(),
-            network_error_message: error.network_error_message.clone(),
-        }
-    }
-}
+
 
 impl ForeignTryFrom<payments_grpc::PaymentChargeType> for common_enums::PaymentChargeType {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
