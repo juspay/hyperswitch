@@ -194,7 +194,7 @@ pub struct Settings<S: SecretState> {
     #[serde(default)]
     pub enhancement: Option<HashMap<String, String>>,
     pub superposition: SecretStateContainer<SuperpositionClientConfig, S>,
-    pub offer_engine: Option<OfferEngineConfig>,
+    pub offer_engine: Option<SecretStateContainer<OfferEngineConfig, S>>,
     pub proxy_status_mapping: ProxyStatusMapping,
     pub trace_header: TraceHeaderConfig,
     pub internal_services: InternalServicesConfig,
@@ -1530,7 +1530,7 @@ impl Settings<SecuredSecret> {
 
         self.offer_engine
             .as_ref()
-            .map(|offer_engine| offer_engine.validate())
+            .map(|offer_engine| offer_engine.get_inner().validate())
             .transpose()?;
 
         self.account_updater
