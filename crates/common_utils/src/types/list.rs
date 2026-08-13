@@ -11,6 +11,7 @@ impl PageSize {
         Self(i64::from(value))
     }
 
+    /// The clamped limit as `i64`, ready for Diesel's `.limit()`.
     pub fn as_i64(self) -> i64 {
         self.0
     }
@@ -28,6 +29,7 @@ impl PageOffset {
         Self(i64::from(requested.unwrap_or(0).min(Self::MAX)))
     }
 
+    /// The capped offset as `i64`, ready for Diesel's `.offset()`.
     pub fn as_i64(self) -> i64 {
         self.0
     }
@@ -37,6 +39,8 @@ impl PageOffset {
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum SortDirection {
     #[default]
+    /// Newest-first (descending).
     Desc,
+    /// Oldest-first (ascending).
     Asc,
 }
