@@ -4,6 +4,39 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.08.13.0
+
+### Features
+
+- **ManualUpdate:** [refunds] add support for connector refund id update ([#13606](https://github.com/juspay/hyperswitch/pull/13606)) ([`b301983`](https://github.com/juspay/hyperswitch/commit/b301983d7095da205e6f41c81258413849765697))
+- **ucs:**
+  - Auto primary→shadow kill switch on prism/transformation failures ([#13616](https://github.com/juspay/hyperswitch/pull/13616)) ([`99885bc`](https://github.com/juspay/hyperswitch/commit/99885bcda34d693646bf5c8731d2392e468f63a8))
+  - Add automatic kill switch for deterministic UCS failures ([#13639](https://github.com/juspay/hyperswitch/pull/13639)) ([`9cb2e6e`](https://github.com/juspay/hyperswitch/commit/9cb2e6e83e7955e1112cb9e437fb6893cd9d0382))
+
+### Bug Fixes
+
+- **router:** Add setup future usage check in payment session tokens flow to fetch vault session details ([#13590](https://github.com/juspay/hyperswitch/pull/13590)) ([`c7009fd`](https://github.com/juspay/hyperswitch/commit/c7009fd34ec266162571eb92566894297318ca3e))
+- **santander:** Render santander payout metadata fields correctly in dashboard ([#13648](https://github.com/juspay/hyperswitch/pull/13648)) ([`f805d5b`](https://github.com/juspay/hyperswitch/commit/f805d5b4945492c040ba40c999b9b3e6ef24786a))
+
+### Performance
+
+- **migrations:** Add partial created_at indexes on events table ([#13587](https://github.com/juspay/hyperswitch/pull/13587)) ([`be3634b`](https://github.com/juspay/hyperswitch/commit/be3634b523564205fe92b17639fcbb588915f6dc))
+
+### Testing
+
+- **cypress:**
+  - Add coverage for fiservcommercehub (UCS-only) ([#13549](https://github.com/juspay/hyperswitch/pull/13549)) ([`984b61e`](https://github.com/juspay/hyperswitch/commit/984b61e95257b17c0018bf9f6eb7fe7e248a52dd))
+  - Add split payments coverage for payload connector ([#13518](https://github.com/juspay/hyperswitch/pull/13518)) ([`ef54e9e`](https://github.com/juspay/hyperswitch/commit/ef54e9e6ec132f4f6e5c3394460b473990b1f7a9))
+  - Add PMID mandate flow with customer_acceptance and list PM steps ([#13475](https://github.com/juspay/hyperswitch/pull/13475)) ([`0fd5e80`](https://github.com/juspay/hyperswitch/commit/0fd5e80f4c26d37c3515017eec9e2903695e506f))
+
+### Revert
+
+- "feat(ucs): auto primary→shadow kill switch on prism/transformation failures" ([#13644](https://github.com/juspay/hyperswitch/pull/13644)) ([`dac4cdb`](https://github.com/juspay/hyperswitch/commit/dac4cdbd659bf1e027c66ccad956c94df78eb369))
+
+**Full Changelog:** [`2026.08.12.0...2026.08.13.0`](https://github.com/juspay/hyperswitch/compare/2026.08.12.0...2026.08.13.0)
+
+- - -
+
 ## 2026.08.12.0
 
 ### Features
