@@ -415,3 +415,110 @@ pub async fn transfer_key_to_key_manager(
             .change_context(errors::KeyManagerError::KeyTransferFailed)
     }
 }
+
+/// What a keymanager crossing is ADDRESSED by.
+///
+/// Replay finds a recorded call by its args, so the capture has to be injective
+/// over what distinguishes one call from another. For this boundary the only
+/// thing that does is the value being encrypted or decrypted: the identifier is
+/// one merchant's for every column it owns, and the method and endpoint are the
+/// same for all of them.
+#[cfg(test)]
+mod capture_identity {
+    use hyperswitch_masking::Secret;
+
+    use super::*;
+    use crate::{
+        id_type::MerchantId,
+        types::keymanager::{EncryptDataRequest, Identifier, TransientDecryptDataRequest},
+    };
+
+    /// One merchant, reused — the collision under test is BETWEEN that
+    /// merchant's own columns, so holding the identifier fixed is the point
+    /// rather than an incidental simplification.
+    fn merchant() -> Identifier {
+        Identifier::Merchant(MerchantId::get_irrelevant_merchant_id())
+    }
+
+    fn encrypt(plaintext: &str) -> EncryptDataRequest {
+        EncryptDataRequest::from((Secret::<String>::new(plaintext.to_owned()), merchant()))
+    }
+
+    fn decrypt(ciphertext: &[u8]) -> TransientDecryptDataRequest {
+        TransientDecryptDataRequest {
+            identifier: merchant(),
+            data: StrongSecret::new(ciphertext.to_vec()),
+        }
+    }
+
+    /// The bug, as one assertion. A customer's name, email and phone encrypt
+    /// under one merchant in a single flow; if the three share an address then
+    /// replay separates them only by call order, and any reordering hands a
+    /// column another column's ciphertext.
+    #[test]
+    fn one_merchants_columns_get_distinct_addresses() {
+        let name = encrypt("Ada Lovelace").wire_image();
+        let email = encrypt("ada@example.com").wire_image();
+        let phone = encrypt("+15551234567").wire_image();
+
+        assert_ne!(name, email);
+        assert_ne!(email, phone);
+        assert_ne!(name, phone);
+    }
+
+    /// The other half of an address, and it is not implied by the first: an
+    /// identity that discriminated by being unstable would pass the test above
+    /// and miss at every lookup on replay.
+    #[test]
+    fn the_same_column_gets_the_same_address_twice() {
+        assert_eq!(
+            encrypt("Ada Lovelace").wire_image(),
+            encrypt("Ada Lovelace").wire_image()
+        );
+    }
+
+    /// Decrypt is the direction with no divergence signal at all — every call
+    /// resolves and every comparison matches — so a collision there is invisible
+    /// rather than merely unreported.
+    #[test]
+    fn one_merchants_ciphertexts_get_distinct_addresses() {
+        let first = decrypt(b"v1:Zmlyc3Q=").wire_image();
+        let second = decrypt(b"v1:c2Vjb25k").wire_image();
+
+        assert_ne!(first, second);
+        assert_eq!(first, decrypt(b"v1:Zmlyc3Q=").wire_image());
+    }
+
+    /// Why `Debug` cannot be the address, kept as an executable statement rather
+    /// than a comment: these two requests carry different plaintexts and render
+    /// identically, because `DecryptedData`'s `Debug` masks and the identifier is
+    /// shared. Capturing that string is how three columns became one `args_hash`.
+    ///
+    /// If this ever fails, `Debug` stopped masking — which is a secrets-in-logs
+    /// defect, and worth failing over on its own.
+    #[test]
+    fn the_masked_debug_this_replaced_cannot_tell_them_apart() {
+        assert_eq!(
+            format!("{:?}", encrypt("Ada Lovelace")),
+            format!("{:?}", encrypt("ada@example.com")),
+        );
+    }
+
+    /// The producer/consumer contract of the seam itself. `wire_image` and
+    /// `convert_raw` are two renderings of one request, and nothing about the
+    /// types stops them drifting; if they do, the tape addresses a call that was
+    /// never sent and every lookup for it misses. Each transient impl routes both
+    /// through one `to_wire` so that they cannot, and this is what says so.
+    #[test]
+    fn the_address_is_what_the_wire_actually_carries() {
+        let captured = decrypt(b"v1:Zmlyc3Q=").wire_image();
+        let sent = serde_json::to_value(
+            decrypt(b"v1:Zmlyc3Q=")
+                .convert_raw()
+                .expect("the transient decrypt request converts"),
+        )
+        .expect("the wire request serializes");
+
+        assert_eq!(captured, sent);
+    }
+}

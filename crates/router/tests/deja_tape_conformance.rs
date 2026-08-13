@@ -43,8 +43,10 @@
 #![cfg(feature = "deja")]
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::print_stdout)]
 
-use std::collections::BTreeMap;
-use std::sync::Arc;
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    sync::Arc,
+};
 
 use serde_json::Value;
 
@@ -111,7 +113,9 @@ fn probe<T: serde::de::DeserializeOwned + serde::Serialize>(value: &Value) -> Co
                 let mut cursor = root;
                 for step in path.split('.') {
                     let (name, index) = match step.split_once('[') {
-                        Some((name, rest)) => (name, rest.trim_end_matches(']').parse::<usize>().ok()),
+                        Some((name, rest)) => {
+                            (name, rest.trim_end_matches(']').parse::<usize>().ok())
+                        }
                         None => (step, None),
                     };
                     if !name.is_empty() && name != "(root)" {
@@ -530,6 +534,15 @@ struct Recorded {
     operation: Option<String>,
     cache: Option<String>,
     type_name: Option<String>,
+    /// What replay ADDRESSES this crossing by. Kept whole rather than reduced to
+    /// a hash: the gate below needs to print a colliding address to be
+    /// actionable, and re-deriving the equivalence class here rather than
+    /// trusting a recorded `args_hash` keeps the check independent of the
+    /// recorder that produced it.
+    args: Option<Value>,
+    /// The recorded result, still in its codec envelope — what replay would hand
+    /// back, before this harness unwraps it for reconstruction.
+    result: Option<Value>,
     /// The value replay would hand back, unwrapped from its codec envelope.
     value: Option<Value>,
     is_error: bool,
@@ -586,6 +599,8 @@ impl Recorded {
             operation,
             cache,
             type_name,
+            args: field("args").cloned(),
+            result: result.cloned(),
             value,
             is_error,
         })
@@ -737,5 +752,345 @@ fn every_recorded_value_reconstructs() {
         "substitutable value(s) with no registered probe: {:?} — register them in \
          probe_by_type_name/probe_by_cache_name so they are guarded rather than assumed",
         unregistered.keys().collect::<Vec<_>>()
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Every recorded address must identify ONE call.
+//
+// Capture identity is an address: replay finds a recorded call by its args, so
+// the capture has to be injective over whatever distinguishes one call from
+// another and invariant over everything else. Those two obligations fail in
+// opposite directions, and — this is the whole reason for the gate below — they
+// are not equally visible.
+//
+// Too FINE and the lookup misses. That is loud: the boundary fail-stops, the
+// worker dies mid-request, and run-0812 counted a hundred and seventy-eight
+// omissions cascading from eight of them. Nobody can overlook it.
+//
+// Too COARSE and two crossings share one address. That is silent, and worse
+// than silent — it FLATTERS. Both crossings "match", so a degraded address
+// makes a run's numbers go UP. The keymanager boundary reported 720 matched and
+// zero value divergences while it was capturing `format!("{request_body:?}")`
+// of a masked secret: `DecryptedData`'s `Debug` prints a mask and
+// `Identifier::Merchant` is one merchant's every column, so a customer's name,
+// email and phone emitted three crossings with byte-identical args. Everything
+// matched trivially. Nothing in the system reported a number that got worse as
+// the address got worse.
+//
+// This is that missing number. It is deliberately boundary-agnostic and knows
+// nothing about types: it would have found the keymanager collision without
+// anyone suspecting the keymanager, which is the only property that helps
+// against the NEXT capture that quietly stops discriminating.
+// ---------------------------------------------------------------------------
+
+/// Object key order is not part of a value's identity, and whether it is even
+/// stable depends on a serde feature. Compare on a form where it cannot matter.
+fn canonical(value: &Value) -> String {
+    match value {
+        Value::Object(map) => {
+            let sorted: BTreeMap<&String, String> = map
+                .iter()
+                .map(|(key, item)| (key, canonical(item)))
+                .collect();
+            let body: Vec<String> = sorted
+                .into_iter()
+                .map(|(key, item)| format!("{key:?}:{item}"))
+                .collect();
+            format!("{{{}}}", body.join(","))
+        }
+        Value::Array(items) => {
+            let body: Vec<String> = items.iter().map(canonical).collect();
+            format!("[{}]", body.join(","))
+        }
+        scalar => scalar.to_string(),
+    }
+}
+
+/// Long values are evidence, not payload — enough to identify which call this
+/// is and no more. Keeps a colliding address printable without dumping a
+/// recorded body into the report.
+fn abbreviated(text: &str) -> String {
+    const LIMIT: usize = 160;
+    match text.char_indices().nth(LIMIT) {
+        Some((cut, _)) => format!("{}… ({} bytes)", &text[..cut], text.len()),
+        None => text.to_owned(),
+    }
+}
+
+/// What replay has to find a recorded crossing by.
+#[derive(PartialEq, Eq, PartialOrd, Ord)]
+struct Address {
+    boundary: String,
+    operation: String,
+    args: String,
+}
+
+/// One address that more than one distinct recorded answer sits behind.
+struct Ambiguous {
+    boundary: String,
+    operation: String,
+    args: String,
+    crossings: usize,
+    distinct_results: usize,
+    sample: (String, String),
+}
+
+#[derive(Default)]
+struct Tally {
+    addresses: usize,
+    ambiguous: usize,
+    /// Crossings sitting under an ambiguous address. Replay cannot be
+    /// separating these by identity, so it is separating them by call order.
+    resting_on_order: usize,
+}
+
+#[derive(Default)]
+struct AddressAudit {
+    per_boundary: BTreeMap<String, Tally>,
+    ambiguous: Vec<Ambiguous>,
+    crossings: usize,
+}
+
+/// Group a recording's crossings by address and find the addresses that do not
+/// identify one call.
+///
+/// An address whose crossings AGREE on their result is not reported, and that
+/// exemption is what keeps this from being a noise machine: repeated identical
+/// reads are ordinary, and substituting either recording of them is correct.
+/// Only disagreement proves the address is not doing its job.
+fn audit_addresses(text: &str) -> AddressAudit {
+    let mut groups: BTreeMap<Address, Vec<String>> = BTreeMap::new();
+    let mut crossings = 0usize;
+
+    for line in text.lines().filter(|line| !line.trim().is_empty()) {
+        let Some(record) = Recorded::parse(line) else {
+            continue;
+        };
+        crossings += 1;
+        let address = Address {
+            boundary: record.boundary.clone(),
+            operation: record.operation.clone().unwrap_or_default(),
+            args: record.args.as_ref().map_or_else(
+                // A crossing with no args at all is addressed by nothing but its
+                // boundary, which is the most collision-prone shape there is.
+                // Give it one shared bucket rather than silently dropping it.
+                || "<no args>".to_owned(),
+                canonical,
+            ),
+        };
+        let result = record
+            .result
+            .as_ref()
+            .map_or_else(|| "<no result>".to_owned(), canonical);
+        groups.entry(address).or_default().push(result);
+    }
+
+    let mut audit = AddressAudit {
+        crossings,
+        ..Default::default()
+    };
+
+    for (address, results) in groups {
+        let tally = audit
+            .per_boundary
+            .entry(address.boundary.clone())
+            .or_default();
+        tally.addresses += 1;
+
+        let distinct: BTreeSet<&String> = results.iter().collect();
+        if distinct.len() > 1 {
+            tally.ambiguous += 1;
+            tally.resting_on_order += results.len();
+
+            let mut sample = distinct.iter();
+            let first = sample
+                .next()
+                .map(|item| abbreviated(item))
+                .unwrap_or_default();
+            let second = sample
+                .next()
+                .map(|item| abbreviated(item))
+                .unwrap_or_default();
+            audit.ambiguous.push(Ambiguous {
+                boundary: address.boundary,
+                operation: address.operation,
+                args: abbreviated(&address.args),
+                crossings: results.len(),
+                distinct_results: distinct.len(),
+                sample: (first, second),
+            });
+        }
+    }
+
+    audit
+}
+
+/// Boundaries whose crossings are addressed by ORDER on purpose, because there
+/// is nothing else to address them by: a clock read and an identifier draw take
+/// no arguments, so every one of them shares an address and returns something
+/// different. That is the design of the deterministic-live tier, not a capture
+/// defect, and replay hands their recordings back in sequence.
+///
+/// This list is UNCALIBRATED. It was written without a recording on hand, so it
+/// exempts `id` wholesale even though that boundary now also carries
+/// `encrypt_jwe` — a crossing that genuinely is addressed by its payload and
+/// should not be forgiven. The first run against a real tape should narrow this
+/// to the generator operations by name. Until then the report prints what it is
+/// forgiving, so the exemption is visible rather than assumed.
+const ORDER_RESOLVED: &[&str] = &["time", "id"];
+
+#[test]
+#[ignore = "needs a real recording: set DEJA_TAPE to a tape or call-ledger path"]
+fn every_recorded_address_identifies_one_call() {
+    let path = std::env::var("DEJA_TAPE").expect(
+        "set DEJA_TAPE to a recording (events.jsonl) or a run's call_ledger artifact — \
+         address quality is a property of real captured traffic",
+    );
+    let text = std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("read {path}: {e}"));
+    let audit = audit_addresses(&text);
+
+    println!("\n=== {path} ===");
+    println!("crossings: {}", audit.crossings);
+    println!("\n  addresses  ambiguous  resting-on-order  boundary");
+    for (boundary, tally) in &audit.per_boundary {
+        let exempt = if ORDER_RESOLVED.contains(&boundary.as_str()) {
+            "  (order-resolved by design)"
+        } else {
+            ""
+        };
+        println!(
+            "  {:9}  {:9}  {:16}  {boundary}{exempt}",
+            tally.addresses, tally.ambiguous, tally.resting_on_order
+        );
+    }
+
+    let (exempt, reportable): (Vec<&Ambiguous>, Vec<&Ambiguous>) = audit
+        .ambiguous
+        .iter()
+        .partition(|item| ORDER_RESOLVED.contains(&item.boundary.as_str()));
+
+    if !exempt.is_empty() {
+        println!(
+            "\nforgiven — addressed by order on purpose ({} address(es)):",
+            exempt.len()
+        );
+        for item in &exempt {
+            println!(
+                "  {} [{}] — {} crossings, {} distinct results",
+                item.boundary, item.operation, item.crossings, item.distinct_results
+            );
+        }
+    }
+
+    if !reportable.is_empty() {
+        println!("\nADDRESSES THAT DO NOT IDENTIFY A CALL:");
+        for item in &reportable {
+            println!(
+                "  {} [{}]\n      args:    {}\n      {} crossings, {} distinct results\n      \
+                 one:     {}\n      another: {}",
+                item.boundary,
+                item.operation,
+                item.args,
+                item.crossings,
+                item.distinct_results,
+                item.sample.0,
+                item.sample.1,
+            );
+        }
+    }
+
+    assert!(
+        audit.crossings > 0,
+        "no crossing in {path} parsed — the file was read but nothing was addressed, so this run \
+         proves nothing"
+    );
+    assert!(
+        reportable.is_empty(),
+        "{} address(es) carry more than one distinct recorded result, over {} crossing(s). Replay \
+         cannot be separating those by identity — it is separating them by CALL ORDER, which is \
+         exactly what a candidate build is free to change, and when it does the boundary \
+         substitutes another call's answer with no divergence to show for it. Widen the `args` at \
+         the boundary until the address distinguishes them, or name the boundary in \
+         ORDER_RESOLVED if order genuinely is its identity. First: {} [{}]",
+        reportable.len(),
+        reportable.iter().map(|item| item.crossings).sum::<usize>(),
+        reportable
+            .first()
+            .map(|item| item.boundary.as_str())
+            .unwrap_or_default(),
+        reportable
+            .first()
+            .map(|item| item.operation.as_str())
+            .unwrap_or_default(),
+    );
+}
+
+/// The gate's own gate.
+///
+/// `every_recorded_address_identifies_one_call` is `#[ignore]`d and needs a
+/// recording, so nothing would otherwise execute the detector — and an
+/// unexercised gate is how the reconstruction check above spent its first life
+/// asserting the wrong property. These lines are the keymanager bug in
+/// miniature, plus the two shapes that must NOT fire.
+#[test]
+fn the_address_audit_separates_a_collision_from_a_repeat() {
+    let masked = r#"{"data":"***"}"#;
+    let tape = format!(
+        r#"
+{{"boundary":"km","method_name":"call_encryption_service","args":{{"request":{masked}}},"result":{{"value":"ciphertext-of-name"}}}}
+{{"boundary":"km","method_name":"call_encryption_service","args":{{"request":{masked}}},"result":{{"value":"ciphertext-of-email"}}}}
+{{"boundary":"imc","method_name":"get","args":{{"key":"cfg"}},"result":{{"value":"same"}}}}
+{{"boundary":"imc","method_name":"get","args":{{"key":"cfg"}},"result":{{"value":"same"}}}}
+{{"boundary":"redis","method_name":"get","args":{{"key":"a"}},"result":{{"value":1}}}}
+{{"boundary":"redis","method_name":"get","args":{{"key":"b"}},"result":{{"value":2}}}}
+{{"boundary":"time","method_name":"now","args":{{}},"result":{{"value":"t1"}}}}
+{{"boundary":"time","method_name":"now","args":{{}},"result":{{"value":"t2"}}}}
+"#
+    );
+
+    let audit = audit_addresses(&tape);
+    assert_eq!(audit.crossings, 8);
+
+    // The masked capture: one address, two different ciphertexts behind it.
+    let km: Vec<&Ambiguous> = audit
+        .ambiguous
+        .iter()
+        .filter(|item| item.boundary == "km")
+        .collect();
+    assert_eq!(km.len(), 1, "the collided keymanager address must be found");
+    let collision = km.first().expect("one collided address, just asserted");
+    assert_eq!(collision.crossings, 2);
+    assert_eq!(collision.distinct_results, 2);
+
+    // A repeated identical read shares an address and AGREES. Substituting
+    // either recording of it is correct, so it must not be reported.
+    assert!(
+        !audit.ambiguous.iter().any(|item| item.boundary == "imc"),
+        "an address whose crossings agree is not ambiguous — reporting it would make this gate \
+         fire on every repeated read"
+    );
+    let imc = audit
+        .per_boundary
+        .get("imc")
+        .expect("the imc crossings were audited");
+    assert_eq!(imc.addresses, 1);
+
+    // Distinct args are distinct addresses, disagreeing results and all.
+    assert!(!audit.ambiguous.iter().any(|item| item.boundary == "redis"));
+    let redis = audit
+        .per_boundary
+        .get("redis")
+        .expect("the redis crossings were audited");
+    assert_eq!(redis.addresses, 2);
+
+    // A clock read collides by design, and is reported but forgiven.
+    assert!(audit.ambiguous.iter().any(|item| item.boundary == "time"));
+    assert!(ORDER_RESOLVED.contains(&"time"));
+
+    // Key order in the captured args is not part of the address.
+    assert_eq!(
+        canonical(&serde_json::json!({"a": 1, "b": [2, {"d": 4, "c": 3}]})),
+        canonical(&serde_json::json!({"b": [2, {"c": 3, "d": 4}], "a": 1})),
     );
 }
