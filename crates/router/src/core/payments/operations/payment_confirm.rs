@@ -41,7 +41,7 @@ use crate::{
         configs::dimension_state,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         mandate::helpers as m_helpers,
-        metrics,
+        metrics, offer_engine,
         payment_methods::transformers as pm_transformers,
         payments::{
             self, helpers, operations, populate_installment_details, CustomerDetails,
@@ -961,6 +961,14 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             external_vault_pmd: None,
             update_request_fields: None,
         };
+
+        let payment_data = Box::pin(apply_offer_engine_offer(
+            state,
+            request,
+            platform.get_processor(),
+            payment_data,
+        ))
+        .await?;
 
         let get_trackers_response = operations::GetTrackerResponse {
             operation: Box::new(self),
@@ -2837,6 +2845,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                                     .payment_attempt
                                     .net_amount
                                     .get_installment_interest(),
+                                payment_data.payment_attempt.net_amount.get_offer_amount(),
                             ),
 
                         connector_mandate_detail: payment_data
@@ -2863,6 +2872,10 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                         external_surcharge_details: payment_data
                             .payment_attempt
                             .external_surcharge_details
+                            .clone(),
+                        applied_offer_details: payment_data
+                            .payment_attempt
+                            .applied_offer_details
                             .clone(),
                     },
                     storage_scheme,
@@ -3096,4 +3109,177 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentDat
             },
         ))
     }
+}
+
+/// Apply a confirm-time Offer Engine offer before the PSP call. No-op when the
+/// request carries no offer. An attempt is locked to its applied offer: the same
+/// offer re-requested is idempotent, a different one is rejected.
+#[cfg(feature = "v1")]
+async fn apply_offer_engine_offer<F: Clone + Send + Sync>(
+    state: &SessionState,
+    request: &api::PaymentsRequest,
+    processor: &domain::Processor,
+    payment_data: PaymentData<F>,
+) -> RouterResult<PaymentData<F>> {
+    // First launch supports a single offer; reject multiple rather than picking one.
+    let requested_offer_id = match request
+        .offer_details
+        .as_ref()
+        .map(|details| details.offer_quote_ids.as_slice())
+    {
+        None | Some([]) => None,
+        Some([offer_quote_id]) => Some(offer_quote_id.clone()),
+        Some(_) => {
+            return Err(report!(errors::ApiErrorResponse::PreconditionFailed {
+                message: "Only a single offer can be applied to a payment".to_string(),
+            }))
+        }
+    };
+
+    let existing_offer_quote_id = payment_data
+        .payment_attempt
+        .applied_offer_details
+        .as_ref()
+        .map(|existing| existing.inner().offer_quote_id.clone());
+
+    match (existing_offer_quote_id, requested_offer_id) {
+        (_, None) => Ok(payment_data),
+        (Some(existing), Some(requested)) if existing == requested => Ok(payment_data),
+        (Some(_), Some(_)) => Err(report!(errors::ApiErrorResponse::PreconditionFailed {
+            message: "A different offer is already applied to this payment attempt".to_string(),
+        })),
+        (None, Some(requested)) => {
+            Box::pin(apply_selected_offer(
+                state,
+                processor,
+                requested,
+                payment_data,
+            ))
+            .await
+        }
+    }
+}
+
+/// Call Offer Engine `/apply` for the selected quote and persist the applied
+/// offer on the attempt before the PSP call.
+#[cfg(feature = "v1")]
+async fn apply_selected_offer<F: Clone + Send + Sync>(
+    state: &SessionState,
+    processor: &domain::Processor,
+    offer_quote_id: String,
+    mut payment_data: PaymentData<F>,
+) -> RouterResult<PaymentData<F>> {
+    // An offer was selected, so Offer Engine must be available. Target config at
+    // merchant/org/profile (same as eligibility) so overrides resolve consistently.
+    let profile_id = payment_data
+        .payment_intent
+        .profile_id
+        .clone()
+        .ok_or(report!(errors::ApiErrorResponse::PreconditionFailed {
+            message: "Profile is required to apply an offer".to_string(),
+        }))?;
+    let offer_dimensions = dimension_state::Dimensions::new()
+        .with_processor_merchant_id(processor.get_processor_merchant_id())
+        .with_organization_id(processor.get_account().get_org_id().clone())
+        .with_profile_id(profile_id);
+    let offer_config = offer_engine::resolve_offer_engine_config(state, &offer_dimensions)
+        .await
+        .ok()
+        .flatten()
+        .ok_or(report!(errors::ApiErrorResponse::PreconditionFailed {
+            message: "Offer Engine is not available for this offer selection".to_string(),
+        }))?;
+
+    let processor_merchant_id = processor.get_account().get_id().clone();
+    let payment_id = payment_data.payment_attempt.payment_id.clone();
+
+    // Recover the eligibility quote stored at `/eligibility`.
+    let quote = payments::client_session::ClientSessionManager::get_offer_quote(
+        state,
+        &processor_merchant_id,
+        &payment_id,
+        &offer_quote_id,
+    )
+    .await?
+    .ok_or(report!(errors::ApiErrorResponse::PreconditionFailed {
+        message: "Offer quote not found or expired".to_string(),
+    }))?;
+
+    let currency = payment_data.payment_attempt.currency.ok_or(report!(
+        errors::ApiErrorResponse::PreconditionFailed {
+            message: "Payment currency is required to apply an offer".to_string(),
+        }
+    ))?;
+
+    // Forward the same payment-method attributes eligibility sent, sourced from the
+    // resolved attempt and card data, so `/apply` matches the `/list` quote.
+    let payment_method_type = payment_data
+        .payment_attempt
+        .payment_method
+        .map(|payment_method| payment_method.to_string().to_uppercase())
+        .ok_or(report!(errors::ApiErrorResponse::PreconditionFailed {
+            message: "Payment method is required to apply an offer".to_string(),
+        }))?;
+    let offer_card = payment_data
+        .payment_method_data
+        .as_ref()
+        .and_then(|payment_method_data| payment_method_data.get_card_data());
+
+    let ctx = offer_engine::apply::OfferApplyContext {
+        payment_id,
+        attempt_id: payment_data.payment_attempt.attempt_id.clone(),
+        order_amount: payment_data.payment_attempt.net_amount.get_order_amount(),
+        currency,
+        customer_id: payment_data.payment_intent.customer_id.clone(),
+        payment_method_type,
+        payment_method: offer_card.and_then(|card| {
+            card.card_network
+                .as_ref()
+                .map(|network| network.to_string())
+        }),
+        card_bin: payment_data
+            .payment_method_data
+            .as_ref()
+            .and_then(|payment_method_data| payment_method_data.get_card_iin()),
+        card_type: offer_card.and_then(|card| card.card_type.clone()),
+        bank_code: offer_card.and_then(|card| card.bank_code.clone()),
+        card_country: offer_card.and_then(|card| card.card_issuing_country.clone()),
+    };
+
+    let applied = Box::pin(offer_engine::apply::run_offer_apply(
+        state,
+        offer_config,
+        &offer_engine::apply::OfferQuoteRef {
+            offer_id: quote.offer_id,
+            offer_amount: quote.offer_amount,
+            currency: quote.currency,
+        },
+        ctx,
+    ))
+    .await
+    .change_context(errors::ApiErrorResponse::PreconditionFailed {
+        message: "Offer Engine /apply failed or did not match the eligibility quote".to_string(),
+    })?;
+
+    let applied_offer_details = common_types::payments::AppliedOfferDetails::V1(
+        common_types::payments::AppliedOfferDetailsV1 {
+            offer_quote_id,
+            offer_engine_merchant_id: applied.offer_engine_merchant_id,
+            offer_engine_txn_id: applied.offer_engine_txn_id,
+            offer_id: applied.offer_id,
+            offer_amount: applied.offer_amount,
+            currency: applied.currency,
+        },
+    );
+
+    // Offer-adjust the in-memory attempt; the confirm UpdateTracker (`ConfirmUpdate`)
+    // persists both the offer-adjusted net amount and `applied_offer_details`, so no
+    // standalone DB write is needed here (mirrors surcharge).
+    payment_data
+        .payment_attempt
+        .net_amount
+        .set_offer_amount(Some(applied.offer_amount));
+    payment_data.payment_attempt.applied_offer_details = Some(applied_offer_details);
+
+    Ok(payment_data)
 }
