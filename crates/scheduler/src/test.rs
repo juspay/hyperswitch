@@ -19,7 +19,9 @@
 //!
 //! Run with: cargo test -p scheduler
 
-use redis_interface::{RedisConnectionPool, RedisConnectionWithContext, RedisEntryId, RedisSettings};
+use redis_interface::{
+    RedisConnectionPool, RedisConnectionWithContext, RedisEntryId, RedisSettings,
+};
 use uuid::Uuid;
 
 use crate::utils::get_batches;
