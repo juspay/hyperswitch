@@ -97,7 +97,9 @@ impl<T: DatabaseStore> PayoutAttemptInterface for KVRouterStore<T> {
                     additional_source_bank_data: new_payout_attempt
                         .additional_source_bank_data
                         .clone(),
-                    connector_eligibility_reference_id: new_payout_attempt.connector_eligibility_reference_id.clone(),
+                    connector_eligibility_reference_id: new_payout_attempt
+                        .connector_eligibility_reference_id
+                        .clone(),
                 };
 
                 let field = format!("poa_{}", created_attempt.payout_attempt_id);

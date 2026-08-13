@@ -8025,8 +8025,7 @@ impl
                         .and_then(|value| value.as_object().cloned())
                         .unwrap_or_default();
 
-                    if let Some(reference_id) =
-                        response.connector_eligibility_reference_id.clone()
+                    if let Some(reference_id) = response.connector_eligibility_reference_id.clone()
                     {
                         details.insert(
                             consts::PAYOUT_CONNECTOR_ELIGIBILITY_REFERENCE_ID_KEY.to_string(),

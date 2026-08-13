@@ -1737,9 +1737,10 @@ pub async fn check_payout_eligibility(
             let status = payout_response_data
                 .status
                 .unwrap_or(payout_attempt.status.to_owned());
-            let connector_eligibility_reference_id = helpers::read_connector_eligibility_reference_id(
-                payout_response_data.payout_connector_metadata.as_ref(),
-            );
+            let connector_eligibility_reference_id =
+                helpers::read_connector_eligibility_reference_id(
+                    payout_response_data.payout_connector_metadata.as_ref(),
+                );
 
             let updated_payout_attempt = storage::PayoutAttemptUpdate::StatusUpdate {
                 connector_eligibility_reference_id,
