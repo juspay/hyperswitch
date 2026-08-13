@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.08.12.0-hotfix1
+
+### Bug Fixes
+
+- **santander:** Render santander payout metadata fields correctly in dashboard ([#13691](https://github.com/juspay/hyperswitch/pull/13691)) ([`8e80c30`](https://github.com/juspay/hyperswitch/commit/8e80c30bd62a1b9a390aebab46d75e1a863b88c5))
+
+**Full Changelog:** [`2026.08.12.0...2026.08.12.0-hotfix1`](https://github.com/juspay/hyperswitch/compare/2026.08.12.0...2026.08.12.0-hotfix1)
+
+- - -
+
 ## 2026.08.12.0
 
 ### Features
