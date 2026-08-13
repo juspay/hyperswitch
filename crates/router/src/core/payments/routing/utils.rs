@@ -1071,14 +1071,14 @@ impl DeDiffReason {
 impl DeComparisonResult {
     /// Why this comparison counts toward the kill switch, if it does (empty DE result => `Unresponsive`).
     fn diff_reason(self) -> Option<DeDiffReason> {
-        if !self.is_equal {
-            Some(DeDiffReason::ResultMismatch)
-        } else if self.is_equal_length {
+        if self.is_equal {
             None
         } else if self.is_de_result_empty {
             Some(DeDiffReason::Unresponsive)
-        } else {
+        } else if !self.is_equal_length {
             Some(DeDiffReason::LengthMismatch)
+        } else {
+            Some(DeDiffReason::ResultMismatch)
         }
     }
 }
@@ -1090,22 +1090,21 @@ pub fn compare_and_log_result<T: RoutingEq<T> + Serialize>(
     is_volume: bool,
 ) -> DeComparisonResult {
     let is_de_result_empty = de_result.is_empty();
-    let is_equal = if is_de_result_empty && result.is_empty() {
-        true
-    } else {
-        de_result
+    let is_equal_in_length = de_result.len() == result.len();
+    // Equal means identical: same length AND same elements in order — an empty or
+    // prefix-only DE result is not equal (zip alone would be vacuously true).
+    let is_equal = is_equal_in_length
+        && de_result
             .iter()
             .zip(result.iter())
-            .all(|(a, b)| T::is_equal(a, b))
-    };
-
-    let is_equal_in_length = de_result.len() == result.len();
+            .all(|(a, b)| T::is_equal(a, b));
 
     router_env::logger::debug!(
         routing_flow=?flow,
         is_equal=?is_equal,
         is_equal_length=?is_equal_in_length,
         is_volume=?is_volume,
+        is_de_result_empty=?is_de_result_empty,
         de_response=?to_json_string(&de_result),
         hs_response=?to_json_string(&result),
         "decision_engine_euclid"
