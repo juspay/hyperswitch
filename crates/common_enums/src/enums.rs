@@ -248,6 +248,17 @@ impl AttemptStatus {
         matches!(self, Self::Charged | Self::PartialCharged)
     }
 
+    pub fn is_authorization_success(self) -> bool {
+        matches!(
+            self,
+            Self::Authorized
+                | Self::PartiallyAuthorized
+                | Self::Charged
+                | Self::PartialCharged
+                | Self::PartialChargedAndChargeable
+        )
+    }
+
     pub fn should_update_payment_method(self) -> bool {
         match self {
             Self::Charged

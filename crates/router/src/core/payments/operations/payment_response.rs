@@ -3160,22 +3160,15 @@ async fn delete_cvc_after_success(
         })
         .map(|payment_method| payment_method.get_id());
 
-    match attempt_status {
-        enums::AttemptStatus::Authorized
-        | enums::AttemptStatus::PartiallyAuthorized
-        | enums::AttemptStatus::Charged
-        | enums::AttemptStatus::PartialCharged
-        | enums::AttemptStatus::PartialChargedAndChargeable => {
-            if let Some(payment_method_id) = card_payment_method_id {
-                payment_methods::vault::delete_cvc_from_payment_token(state, payment_method_id)
-                    .await
-                    .inspect_err(|error| {
-                        logger::error!(?error, "Failed to delete retained CVC after authorization");
-                    })
-                    .ok();
-            }
+    if attempt_status.is_authorization_success() {
+        if let Some(payment_method_id) = card_payment_method_id {
+            payment_methods::vault::delete_cvc_from_payment_token(state, payment_method_id)
+                .await
+                .inspect_err(|error| {
+                    logger::error!(?error, "Failed to delete retained CVC after authorization");
+                })
+                .ok();
         }
-        _ => {}
     }
 }
 
