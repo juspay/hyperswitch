@@ -90,10 +90,10 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest, PaymentData<F>>>
     {
         let operations::PaymentMethodFetchData {
-            payment_method_info: mut prefetched_payment_method_info,
-            mut payment_method_with_raw_data,
-            token_data: mut prefetched_token_data,
-            modular_payment_method_reference,
+            payment_intent: prefetched_payment_intent,
+            payment_method_info: prefetched_payment_method_info,
+            payment_method_with_raw_data,
+            token_data: prefetched_token_data,
         } = payment_method_fetch_data;
         let processor_merchant_id = platform.get_processor().get_account().get_id();
         let storage_scheme = platform.get_processor().get_account().storage_scheme;
@@ -108,15 +108,18 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         let m_merchant_id = processor_merchant_id.clone();
 
         // Parallel calls - level 0
-        let mut payment_intent = store
-            .find_payment_intent_by_payment_id_processor_merchant_id(
-                &payment_id,
-                &m_merchant_id,
-                platform.get_processor().get_key_store(),
-                storage_scheme,
-            )
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+        let mut payment_intent = match prefetched_payment_intent {
+            Some(payment_intent) => payment_intent,
+            None => store
+                .find_payment_intent_by_payment_id_processor_merchant_id(
+                    &payment_id,
+                    &m_merchant_id,
+                    platform.get_processor().get_key_store(),
+                    storage_scheme,
+                )
+                .await
+                .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?,
+        };
 
         // TODO (#7195): Add platform merchant account validation once client_secret auth is solved
 
@@ -324,24 +327,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                             utils::flatten_join_error(config_update_fut)
                         )?;
 
-                    if let Some(payment_method_reference) =
-                        modular_payment_method_reference.as_deref()
-                    {
-                        let modular_payment_method = self
-                            .fetch_payment_method_from_modular_service(
-                                state,
-                                request,
-                                platform,
-                                business_profile.get_id(),
-                                payment_method_reference,
-                            )
-                            .await?;
-                        prefetched_payment_method_info = modular_payment_method.payment_method_info;
-                        payment_method_with_raw_data =
-                            modular_payment_method.payment_method_with_raw_data;
-                        prefetched_token_data = modular_payment_method.token_data;
-                    }
-
                     (
                         payment_attempt,
                         shipping_address,
@@ -364,24 +349,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                         utils::flatten_join_error(business_profile_fut),
                         utils::flatten_join_error(config_update_fut)
                     )?;
-
-                    if let Some(payment_method_reference) =
-                        modular_payment_method_reference.as_deref()
-                    {
-                        let modular_payment_method = self
-                            .fetch_payment_method_from_modular_service(
-                                state,
-                                request,
-                                platform,
-                                business_profile.get_id(),
-                                payment_method_reference,
-                            )
-                            .await?;
-                        prefetched_payment_method_info = modular_payment_method.payment_method_info;
-                        payment_method_with_raw_data =
-                            modular_payment_method.payment_method_with_raw_data;
-                        prefetched_token_data = modular_payment_method.token_data;
-                    }
 
                     let attempt_type = helpers::get_attempt_type(
                         &payment_intent,
@@ -1303,7 +1270,30 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         platform: &domain::Platform,
         feature_config: &core_utils::FeatureConfig,
     ) -> RouterResult<operations::PaymentMethodFetchData> {
-        let payment_method_fetch_data = if feature_config.is_payment_method_modular_allowed {
+        let payment_id = req
+            .payment_id
+            .as_ref()
+            .get_required_value("payment_id")?
+            .get_payment_intent_id()
+            .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
+        let payment_intent = state
+            .store
+            .find_payment_intent_by_payment_id_processor_merchant_id(
+                &payment_id,
+                platform.get_processor().get_account().get_id(),
+                platform.get_processor().get_key_store(),
+                platform.get_processor().get_account().storage_scheme,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+        let profile_id = payment_intent
+            .profile_id
+            .as_ref()
+            .get_required_value("profile_id")
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("'profile_id' not set in payment intent")?;
+
+        let mut payment_method_fetch_data = if feature_config.is_payment_method_modular_allowed {
             utils::when(
                 req.off_session == Some(true) && req.recurring_details.is_none(),
                 || {
@@ -1355,9 +1345,14 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                 logger::debug!(
                         "Organization is enabled for modular service, fetching payment method from PM Modular Service"
                     );
-                operations::PaymentMethodFetchData::from_modular_reference(
-                    payment_method_ref_to_use,
+                self.fetch_payment_method_from_modular_service(
+                    state,
+                    req,
+                    platform,
+                    profile_id,
+                    &payment_method_ref_to_use,
                 )
+                .await?
             } else {
                 operations::PaymentMethodFetchData::default()
             }
@@ -1409,22 +1404,29 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     logger::debug!(
                         "Payment method version is V2, fetching payment method from PM Modular Service"
                     );
-                    operations::PaymentMethodFetchData::from_modular_reference(
-                        payment_method.get_id().to_owned(),
+                    self.fetch_payment_method_from_modular_service(
+                        state,
+                        req,
+                        platform,
+                        profile_id,
+                        payment_method.get_id(),
                     )
+                    .await?
                 }
                 Some(payment_method) => {
                     logger::info!("Organization is not eligible for PM Modular Service, skipping fetch payment method.");
                     operations::PaymentMethodFetchData::from_legacy(payment_method, token_data)
                 }
                 None => operations::PaymentMethodFetchData {
+                    payment_intent: None,
                     payment_method_info: None,
                     payment_method_with_raw_data: None,
                     token_data,
-                    modular_payment_method_reference: None,
                 },
             }
         };
+
+        payment_method_fetch_data.payment_intent = Some(payment_intent);
 
         Ok(payment_method_fetch_data)
     }

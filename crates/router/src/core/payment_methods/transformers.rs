@@ -65,20 +65,20 @@ use crate::{consts, types::payment_methods as pm_types};
 #[cfg(feature = "v1")]
 #[derive(Default)]
 pub struct PaymentMethodFetchData {
+    pub payment_intent: Option<storage::PaymentIntent>,
     pub payment_method_info: Option<domain::PaymentMethod>,
     pub payment_method_with_raw_data: Option<PaymentMethodWithRawData>,
     pub token_data: Option<storage::PaymentTokenData>,
-    pub modular_payment_method_reference: Option<String>,
 }
 
 #[cfg(feature = "v1")]
 impl PaymentMethodFetchData {
     pub fn from_modular(payment_method_with_raw_data: PaymentMethodWithRawData) -> Self {
         Self {
+            payment_intent: None,
             payment_method_info: Some(payment_method_with_raw_data.payment_method.clone()),
             payment_method_with_raw_data: Some(payment_method_with_raw_data),
             token_data: None,
-            modular_payment_method_reference: None,
         }
     }
 
@@ -87,17 +87,10 @@ impl PaymentMethodFetchData {
         token_data: Option<storage::PaymentTokenData>,
     ) -> Self {
         Self {
+            payment_intent: None,
             payment_method_info: Some(payment_method_info),
             payment_method_with_raw_data: None,
             token_data,
-            modular_payment_method_reference: None,
-        }
-    }
-
-    pub fn from_modular_reference(payment_method_reference: String) -> Self {
-        Self {
-            modular_payment_method_reference: Some(payment_method_reference),
-            ..Default::default()
         }
     }
 }
