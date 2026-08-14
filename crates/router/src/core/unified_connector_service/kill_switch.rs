@@ -174,7 +174,7 @@ async fn record_trippable_failure(
         reason = %failure.reason,
         outcome = %outcome,
         ucs_error = ?error,
-        "ucs_kill_switch"
+        "UCS_KILL_SWITCH_COUNTER_INCREMENTED"
     );
 }
 
