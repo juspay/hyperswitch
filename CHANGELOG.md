@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.07.29.2-hotfix7
+
+### Refactors
+
+- **router:** Scope event apis to jwt auth and profile, and read listings from the replica ([#13720](https://github.com/juspay/hyperswitch/pull/13720)) ([`a19fdbb`](https://github.com/juspay/hyperswitch/commit/a19fdbb62333372a86423f2011877837a016d001))
+
+**Full Changelog:** [`2026.07.29.2-hotfix6...2026.07.29.2-hotfix7`](https://github.com/juspay/hyperswitch/compare/2026.07.29.2-hotfix6...2026.07.29.2-hotfix7)
+
+- - -
+
 ## 2026.07.29.2-hotfix6
 
 ### Features
