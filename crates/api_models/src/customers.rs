@@ -488,15 +488,18 @@ pub struct CustomerListResponse {
     pub total_count: usize,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, ToSchema, PartialEq)]
+#[derive(Debug, Clone, Deserialize, Serialize, ToSchema, PartialEq, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct CustomerDocumentDetails {
     /// The customer's document type
     #[schema(value_type = DocumentKind, example = "cpf")]
+    #[smithy(value_type = "DocumentKind")]
     pub document_type: DocumentKind,
     /// The customer's document number
     /// Length of the document number depends upon the document_type.
     /// For CPF/CNPJ it is typically 11/14 digits long
     #[schema(max_length = 255, value_type = String, example = "12345678911")]
+    #[smithy(value_type = "Secret<String>")]
     pub document_number: Secret<String>,
 }
 
