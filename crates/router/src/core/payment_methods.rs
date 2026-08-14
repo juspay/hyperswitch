@@ -126,6 +126,12 @@ const PAYMENT_METHOD_MODULAR_COMPAT_PROCESS_TRACKER_ID_MAX_LENGTH: usize = 126;
 const PAYMENT_METHOD_MODULAR_COMPAT_PROCESS_TRACKER_ID_SUFFIX_LENGTH: usize = 8;
 #[cfg(feature = "v2")]
 const PAYMENT_METHOD_REDACTED_FINGERPRINT_ID: &str = "FINGERPRINT_ID_REDACTED";
+#[cfg(feature = "v2")]
+const PAYMENT_METHOD_SESSION_CONFIRM_PERSISTENCE_TASK: &str = "PM_SESSION_CONFIRM_PERSISTENCE";
+#[cfg(feature = "v2")]
+const PAYMENT_METHOD_SESSION_CONFIRM_PERSISTENCE_TAG: &str = "PM_SESSION_CONFIRM_PERSISTENCE";
+#[cfg(feature = "v2")]
+const PAYMENT_METHOD_SESSION_CONFIRM_PERSISTENCE_ID_MAX_LENGTH: usize = 126;
 /// `process_tracker.id` is a `varchar(127)`; ids are built to stay within it.
 const NETWORK_TOKENIZATION_PROCESS_TRACKER_ID_MAX_LENGTH: usize = 126;
 
@@ -172,7 +178,10 @@ impl PaymentMethodSessionConfirmFastPathOutcome {
 
 #[cfg(all(test, feature = "v2"))]
 mod payment_method_session_confirm_fast_path_tests {
-    use super::PaymentMethodSessionConfirmFastPathOutcome as Outcome;
+    use super::{
+        generate_task_id_for_payment_method_session_confirm_persistence,
+        PaymentMethodSessionConfirmFastPathOutcome as Outcome,
+    };
 
     #[test]
     fn fast_path_requires_both_flags_and_eligibility() {
@@ -183,6 +192,19 @@ mod payment_method_session_confirm_fast_path_tests {
         );
         assert_eq!(Outcome::resolve(true, true, false), Outcome::Ineligible);
         assert_eq!(Outcome::resolve(true, true, true), Outcome::Selected);
+    }
+
+    #[test]
+    fn persistence_task_id_is_stable_and_fits_the_database_column() {
+        let payment_method_id =
+            common_utils::id_type::GlobalPaymentMethodId::new_unchecked("1".repeat(200));
+        let first =
+            generate_task_id_for_payment_method_session_confirm_persistence(&payment_method_id);
+        let second =
+            generate_task_id_for_payment_method_session_confirm_persistence(&payment_method_id);
+
+        assert_eq!(first, second);
+        assert!(first.len() <= 126);
     }
 }
 const NETWORK_TOKENIZATION_PROCESS_TRACKER_ID_SUFFIX_LENGTH: usize = 8;
@@ -581,6 +603,23 @@ fn generate_task_id_for_network_tokenization_workflow(
     format!("{prefix}{payment_method_id}_{suffix}")
 }
 
+#[cfg(feature = "v2")]
+fn generate_task_id_for_payment_method_session_confirm_persistence(
+    payment_method_id: &id_type::GlobalPaymentMethodId,
+) -> String {
+    let prefix = format!(
+        "{}_{}_",
+        storage::ProcessTrackerRunner::PaymentMethodSessionConfirmPersistenceWorkflow,
+        PAYMENT_METHOD_SESSION_CONFIRM_PERSISTENCE_TASK,
+    );
+    let payment_method_id = payment_method_id.get_string_repr();
+    let payment_method_id_length =
+        PAYMENT_METHOD_SESSION_CONFIRM_PERSISTENCE_ID_MAX_LENGTH.saturating_sub(prefix.len());
+    let payment_method_id =
+        &payment_method_id[..payment_method_id.len().min(payment_method_id_length)];
+    format!("{prefix}{payment_method_id}")
+}
+
 fn payment_method_compat_modifier(payment_method: &domain::PaymentMethod) -> Option<String> {
     payment_method
         .last_modified_by
@@ -833,6 +872,55 @@ pub async fn add_network_tokenization_task(
                 "Failed while inserting NETWORK_TOKENIZATION task to process_tracker for payment_method_id: {payment_method_id}"
             )
         })?;
+
+    Ok(())
+}
+
+#[cfg(feature = "v2")]
+pub async fn add_payment_method_session_confirm_persistence_task(
+    db: &dyn StorageInterface,
+    tracking_data: storage::PaymentMethodSessionConfirmPersistenceTrackingData,
+    application_source: common_enums::ApplicationSource,
+) -> Result<(), ProcessTrackerError> {
+    let process_tracker_id = generate_task_id_for_payment_method_session_confirm_persistence(
+        &tracking_data.payment_method_id,
+    );
+    let payment_method_id = tracking_data.payment_method_id.clone();
+    let process_tracker_entry = storage::ProcessTrackerNew::new(
+        process_tracker_id,
+        PAYMENT_METHOD_SESSION_CONFIRM_PERSISTENCE_TASK,
+        storage::ProcessTrackerRunner::PaymentMethodSessionConfirmPersistenceWorkflow,
+        [PAYMENT_METHOD_SESSION_CONFIRM_PERSISTENCE_TAG],
+        tracking_data,
+        None,
+        common_utils::date_time::now(),
+        common_enums::ApiVersion::V2,
+        application_source,
+    )
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable(
+        "Failed to construct payment method session confirm persistence process tracker task",
+    )?;
+
+    match db.insert_process(process_tracker_entry).await {
+        Ok(_) => {}
+        // Session-confirm retries reuse the same PM id and deterministic task id. An existing
+        // durable task therefore means the required persistence work is already scheduled.
+        Err(error) if error.current_context().is_db_unique_violation() => {
+            logger::info!(
+                payment_method_id = %payment_method_id.get_string_repr(),
+                "Payment method session confirm persistence task already exists"
+            );
+        }
+        Err(error) => {
+            Err(error)
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable(format!(
+                    "Failed to schedule payment method session confirm persistence for payment method {}",
+                    payment_method_id.get_string_repr()
+                ))?;
+        }
+    }
 
     Ok(())
 }
@@ -1784,6 +1872,7 @@ pub async fn create_persistent_payment_method_core(
                 &customer_id,
                 payment_method_id,
                 payment_method_billing_address,
+                None,
             ))
             .await
         }
@@ -2284,20 +2373,28 @@ impl LockerOperations for GenericLocker {
         payment_method_data: &domain::PaymentMethodVaultingData,
         fingerprint_id_from_vault: Option<String>,
         customer_id: &id_type::GlobalCustomerId,
-        _card_reference: Option<String>,
+        card_reference: Option<String>,
     ) -> RouterResult<(
         pm_types::AddVaultResponse,
         Option<id_type::MerchantConnectorAccountId>,
     )> {
+        // A caller-supplied vault id belongs to a durable workflow. It may retry after Vault
+        // accepted the write but before Postgres was updated, so use an idempotent write mode.
+        let write_mode = if card_reference.is_some() {
+            pm_types::WriteMode::Upsert
+        } else {
+            pm_types::WriteMode::Insert
+        };
+
         vault_payment_method(
             state,
             payment_method_data,
             platform,
             profile,
-            None,
+            card_reference.map(domain::VaultId::generate),
             fingerprint_id_from_vault,
             customer_id,
-            Some(pm_types::WriteMode::Insert), // Insert mode for new payment methods
+            Some(write_mode),
         )
         .await
     }
@@ -2703,6 +2800,7 @@ async fn create_or_fetch_payment_method_core(
     customer_id: &id_type::GlobalCustomerId,
     payment_method_id: id_type::GlobalPaymentMethodId,
     billing_address: Option<Encryptable<hyperswitch_domain_models::address::Address>>,
+    requested_vault_id: Option<domain::VaultId>,
 ) -> RouterResult<(api::PaymentMethodResponse, domain::PaymentMethod)> {
     let bin_enriched_payment_method_data =
         domain::PaymentMethodVaultingData::try_from(req.payment_method_data.clone())?
@@ -2715,8 +2813,17 @@ async fn create_or_fetch_payment_method_core(
 
     let payment_method_data = bin_enriched_payment_method_data.data;
 
-    let resolver =
+    let mut resolver =
         payment_method_resolver(state, platform, customer_id, &req, payment_method_data).await?;
+    if let (
+        Some(requested_vault_id),
+        PaymentMethodResolution::Create {
+            locker_resolver, ..
+        },
+    ) = (requested_vault_id, &mut resolver.0)
+    {
+        locker_resolver.card_reference = Some(requested_vault_id.get_string_repr().to_owned());
+    }
 
     Box::pin(resolver.execute(
         state,
@@ -2730,6 +2837,125 @@ async fn create_or_fetch_payment_method_core(
         billing_address,
     ))
     .await
+}
+
+/// Persists the Redis-backed payment method produced by the payment-method-session confirm fast
+/// path. The process-tracker job calls this with the same payment method id returned synchronously,
+/// so retries cannot create a second identity for the same fast-path operation.
+#[cfg(feature = "v2")]
+pub(crate) async fn persist_payment_method_session_confirm_fast_path(
+    state: &SessionState,
+    platform: &domain::Platform,
+    profile: &domain::Profile,
+    tracking_data: &storage::PaymentMethodSessionConfirmPersistenceTrackingData,
+) -> RouterResult<id_type::GlobalPaymentMethodId> {
+    let db = &*state.store;
+    let key_store = platform.get_provider().get_key_store();
+    let storage_scheme = platform.get_provider().get_account().storage_scheme;
+
+    match db
+        .find_payment_method(key_store, &tracking_data.payment_method_id, storage_scheme)
+        .await
+    {
+        Ok(payment_method)
+            if payment_method.locker_id.is_some()
+                && matches!(
+                    payment_method.status,
+                    enums::PaymentMethodStatus::New | enums::PaymentMethodStatus::Active
+                ) =>
+        {
+            return Ok(payment_method.id);
+        }
+        Ok(payment_method)
+            if payment_method.status == enums::PaymentMethodStatus::AwaitingData
+                && payment_method.locker_id.is_none() =>
+        {
+            // A previous worker may have stopped after reserving the canonical DB id but before
+            // vaulting. Mark it update-eligible so the existing resolver can safely resume.
+            db.update_payment_method(
+                key_store,
+                payment_method,
+                storage::PaymentMethodUpdate::StatusUpdate {
+                    status: Some(enums::PaymentMethodStatus::Inactive),
+                    last_modified_by: None,
+                },
+                storage_scheme,
+                None,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to make interrupted fast-path payment method resumable")?;
+        }
+        Ok(_) => {}
+        Err(error) if error.current_context().is_db_not_found() => {}
+        Err(error) => {
+            return Err(error
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to inspect fast-path payment method persistence state"));
+        }
+    }
+
+    let volatile_payment_method = fetch_volatile_payment_method_record(
+        state,
+        key_store,
+        tracking_data.payment_method_id.get_string_repr(),
+    )
+    .await
+    .attach_printable("Failed to fetch Redis-backed payment method for persistence")?;
+
+    let customer_id = volatile_payment_method
+        .customer_id
+        .clone()
+        .get_required_value("customer_id")?;
+    when(customer_id != tracking_data.customer_id, || {
+        Err(report!(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Fast-path payment method customer does not match tracking data"))
+    })?;
+
+    let payment_method_type = volatile_payment_method
+        .payment_method_type
+        .get_required_value("payment_method_type")?;
+    let vault_data =
+        vault::retrieve_payment_method_from_redis(state, key_store, &volatile_payment_method)
+            .await?
+            .data;
+    let card = match vault_data {
+        domain::PaymentMethodVaultingData::Card(mut card) => {
+            // CVC has its own short-lived Redis entry and must never be copied into durable work.
+            card.card_cvc = None;
+            card
+        }
+        _ => {
+            return Err(report!(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Fast-path persistence currently supports card data only"));
+        }
+    };
+
+    let request = api::PaymentMethodCreate {
+        payment_method_type,
+        payment_method_subtype: volatile_payment_method.payment_method_subtype,
+        metadata: None,
+        customer_id: Some(customer_id.clone()),
+        payment_method_data: api::PaymentMethodCreateData::Card(card),
+        billing: None,
+        network_tokenization: tracking_data.network_tokenization.clone(),
+        storage_type: common_enums::StorageType::Persistent,
+    };
+
+    let (_, persisted_payment_method) = Box::pin(create_or_fetch_payment_method_core(
+        state,
+        request,
+        platform,
+        profile,
+        platform.get_provider().get_account().get_id(),
+        &customer_id,
+        tracking_data.payment_method_id.clone(),
+        volatile_payment_method.payment_method_billing_address,
+        volatile_payment_method.locker_id,
+    ))
+    .await?;
+
+    Ok(persisted_payment_method.id)
 }
 
 #[cfg(feature = "v2")]
@@ -3243,49 +3469,59 @@ pub async fn create_generic_volatile_payment_method(
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to get redis connection")?;
 
-            logger::info!("Storing payment method id in redis");
-
-            redis_connection
-                .serialize_and_set_key_with_expiry(
-                    &payment_method.get_id().get_string_repr().to_string().into(),
-                    payment_method.clone(),
-                    consts::DEFAULT_PAYMENT_METHOD_STORE_TTL,
-                )
-                .await
-                .map_err(Into::<errors::StorageError>::into)
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to insert payment method id in redis")?;
-
-            let domain_payment_method = domain::PaymentMethod::convert_back(
-                keymanager_state,
-                payment_method,
-                merchant_key_store.key.get_inner(),
-                merchant_key_store.merchant_id.clone().into(),
-            )
-            .await
-            .change_context(errors::StorageError::DecryptionError)
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("failed to convert payment method")?;
-
             let intent_fulfillment_time = common_utils::consts::DEFAULT_INTENT_FULFILLMENT_TIME;
-
             let card_cvc = req
                 .payment_method_data
                 .get_card()
                 .and_then(|card| card.card_cvc.clone());
+            let payment_method_id = payment_method.get_id().clone();
+            let redis_payment_method = payment_method.clone();
 
-            let cvc_expiry_details = card_cvc
-                .async_map(|cvc| {
-                    vault::insert_cvc_using_payment_token(
-                        state,
-                        domain_payment_method.id.get_string_repr(),
-                        cvc,
-                        intent_fulfillment_time,
-                        platform.get_provider().get_key_store(),
+            // Once the vault payload is available these operations are independent: publish the
+            // Redis PM record, materialize the response model, and store the short-lived CVC. Keep
+            // them on one critical-path stage instead of paying for each serially.
+            let insert_payment_method = async {
+                logger::info!("Storing payment method id in redis");
+                redis_connection
+                    .serialize_and_set_key_with_expiry(
+                        &payment_method_id.get_string_repr().to_string().into(),
+                        redis_payment_method,
+                        consts::DEFAULT_PAYMENT_METHOD_STORE_TTL,
                     )
-                })
+                    .await
+                    .map_err(Into::<errors::StorageError>::into)
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to insert payment method id in redis")
+            };
+            let convert_payment_method = async {
+                domain::PaymentMethod::convert_back(
+                    keymanager_state,
+                    payment_method,
+                    merchant_key_store.key.get_inner(),
+                    merchant_key_store.merchant_id.clone().into(),
+                )
                 .await
-                .transpose()?;
+                .change_context(errors::StorageError::DecryptionError)
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("failed to convert payment method")
+            };
+            let insert_cvc = async {
+                card_cvc
+                    .async_map(|cvc| {
+                        vault::insert_cvc_using_payment_token(
+                            state,
+                            payment_method_id.get_string_repr(),
+                            cvc,
+                            intent_fulfillment_time,
+                            platform.get_provider().get_key_store(),
+                        )
+                    })
+                    .await
+                    .transpose()
+            };
+
+            let (_, domain_payment_method, cvc_expiry_details) =
+                tokio::try_join!(insert_payment_method, convert_payment_method, insert_cvc)?;
 
             let resp = pm_transforms::generate_payment_method_response(
                 &domain_payment_method,
@@ -6046,7 +6282,7 @@ pub async fn fetch_payment_method_with_fallback(
 }
 
 #[cfg(feature = "v2")]
-async fn fetch_volatile_payment_method_record(
+pub(crate) async fn fetch_volatile_payment_method_record(
     state: &SessionState,
     key_store: &domain::MerchantKeyStore,
     pm_id: &str,
@@ -7492,26 +7728,51 @@ pub async fn payment_methods_session_confirm(
         create_payment_method_request.storage_type,
     )?;
 
-    // insert the token data into redis
-    if let Some(token_data) = token_data {
-        let intent_fulfillment_time = common_utils::consts::DEFAULT_INTENT_FULFILLMENT_TIME;
-        pm_routes::ParentPaymentMethodToken::create_key_for_token(&parent_payment_method_token)
-            .insert(intent_fulfillment_time, token_data, &state)
-            .await?;
-    };
-
     let associated_pm_data = payment_method_response.payment_method_data.clone();
 
     let associated_payment_methods = common_types::payment_methods::AssociatedPaymentMethods {
-        payment_method_token: common_types::payment_methods::AssociatedPaymentMethodTokenType::PaymentMethodSessionToken(parent_payment_method_token),
+        payment_method_token: common_types::payment_methods::AssociatedPaymentMethodTokenType::PaymentMethodSessionToken(parent_payment_method_token.clone()),
     };
 
     let update_payment_method_session = hyperswitch_domain_models::payment_methods::PaymentMethodsSessionUpdateEnum::UpdateAssociatedPaymentMethods {
         associated_payment_methods:  Some(vec![associated_payment_methods])
     };
 
-    let payment_method_session = db
-        .update_payment_method_session(
+    let persistence_tracking_data = if use_redis_fast_path {
+        Some(
+            storage::PaymentMethodSessionConfirmPersistenceTrackingData {
+                payment_method_session_id: payment_method_session_id.clone(),
+                payment_method_id: payment_method.id.clone(),
+                provider_merchant_id: platform.get_provider().get_account().get_id().clone(),
+                processor_merchant_id: platform.get_processor().get_account().get_id().clone(),
+                profile_id: profile.get_id().clone(),
+                customer_id: payment_method
+                    .customer_id
+                    .clone()
+                    .get_required_value("customer_id")?,
+                network_tokenization: create_payment_method_request.network_tokenization,
+            },
+        )
+    } else {
+        None
+    };
+
+    // These writes are independent. Running them together hides the durable process-tracker insert
+    // under work that already existed on the response path.
+    let insert_token = async {
+        if let Some(token_data) = token_data {
+            pm_routes::ParentPaymentMethodToken::create_key_for_token(&parent_payment_method_token)
+                .insert(
+                    common_utils::consts::DEFAULT_INTENT_FULFILLMENT_TIME,
+                    token_data,
+                    &state,
+                )
+                .await?;
+        }
+        Ok::<(), error_stack::Report<errors::ApiErrorResponse>>(())
+    };
+    let update_session = async {
+        db.update_payment_method_session(
             platform.get_provider().get_key_store(),
             &payment_method_session_id,
             update_payment_method_session,
@@ -7521,57 +7782,28 @@ pub async fn payment_methods_session_confirm(
         .to_not_found_response(errors::ApiErrorResponse::GenericNotFoundError {
             message: "payment methods session does not exist or has expired".to_string(),
         })
-        .attach_printable("Failed to update payment methods session from db")?;
-
-    if use_redis_fast_path {
-        let background_state = state.clone();
-        let background_req_state = req_state.clone();
-        let background_platform = platform.clone();
-        let background_profile = profile.clone();
-        let background_payment_method_request = create_payment_method_request;
-        let background_payment_method_session_id = payment_method_session_id.clone();
-
-        metrics::PAYMENT_METHOD_SESSION_CONFIRM_BACKGROUND_PERSISTENCE
-            .add(1, router_env::metric_attributes!(("outcome", "started")));
-
-        tokio::spawn(async move {
-            let persistence_result = Box::pin(create_payment_method_core(
-                &background_state,
-                &background_req_state,
-                background_payment_method_request,
-                &background_platform,
-                &background_profile,
-            ))
-            .await;
-
-            let outcome = if persistence_result.is_ok() {
-                "succeeded"
-            } else {
-                "failed"
-            };
+        .attach_printable("Failed to update payment methods session from db")
+    };
+    let schedule_persistence = async {
+        if let Some(tracking_data) = persistence_tracking_data {
+            add_payment_method_session_confirm_persistence_task(
+                &*state.store,
+                tracking_data,
+                state.conf.application_source,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable(
+                "Failed to durably schedule payment method session confirm persistence",
+            )?;
             metrics::PAYMENT_METHOD_SESSION_CONFIRM_BACKGROUND_PERSISTENCE
-                .add(1, router_env::metric_attributes!(("outcome", outcome)));
+                .add(1, router_env::metric_attributes!(("outcome", "scheduled")));
+        }
+        Ok::<(), error_stack::Report<errors::ApiErrorResponse>>(())
+    };
 
-            match persistence_result {
-                Ok((_, persisted_payment_method)) => {
-                    logger::info!(
-                        payment_method_session_id =
-                            background_payment_method_session_id.get_string_repr(),
-                        payment_method_id = persisted_payment_method.id.get_string_repr(),
-                        "Completed background persistence for payment method session confirm"
-                    );
-                }
-                Err(error) => {
-                    logger::error!(
-                        payment_method_session_id =
-                            background_payment_method_session_id.get_string_repr(),
-                        ?error,
-                        "Failed background persistence for payment method session confirm"
-                    );
-                }
-            }
-        });
-    }
+    let (_, payment_method_session, _) =
+        tokio::try_join!(insert_token, update_session, schedule_persistence)?;
 
     let payments_response: Option<api_models::payments::PaymentsResponse> = None;
 

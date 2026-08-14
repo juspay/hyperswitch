@@ -239,6 +239,18 @@ pub struct PaymentMethodModularCompatTrackingData {
     pub last_modified_by: Option<String>,
 }
 
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
+pub struct PaymentMethodSessionConfirmPersistenceTrackingData {
+    pub payment_method_session_id: common_utils::id_type::GlobalPaymentMethodSessionId,
+    pub payment_method_id: common_utils::id_type::GlobalPaymentMethodId,
+    pub provider_merchant_id: common_utils::id_type::MerchantId,
+    pub processor_merchant_id: common_utils::id_type::MerchantId,
+    pub profile_id: common_utils::id_type::ProfileId,
+    pub customer_id: common_utils::id_type::GlobalCustomerId,
+    pub network_tokenization: Option<common_types::payment_methods::NetworkTokenization>,
+}
+
 #[cfg(feature = "v1")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
 pub struct NetworkTokenizationTrackingData {

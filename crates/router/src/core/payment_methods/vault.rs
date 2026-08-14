@@ -2588,10 +2588,17 @@ pub async fn retrieve_payment_method_data_from_storage(
                             payment_method_id = %pm.id.get_string_repr(),
                             "Payment method data cache miss; falling back to Vault"
                         );
-                        Box::pin(retrieve_payment_method_from_vault(
+                        let payment_method_data = Box::pin(retrieve_payment_method_from_vault(
                             state, platform, profile, pm,
                         ))
-                        .await?
+                        .await?;
+                        schedule_payment_method_cache_write(
+                            state,
+                            platform.get_provider().get_key_store(),
+                            pm,
+                            payment_method_data.data.clone(),
+                        );
+                        payment_method_data
                     }
                 }
             } else {
@@ -2673,6 +2680,74 @@ pub async fn retrieve_payment_method_from_redis(
             message: "Token is invalid or expired".into(),
         }),
     }
+}
+
+#[cfg(feature = "v2")]
+fn schedule_payment_method_cache_write(
+    state: &routes::SessionState,
+    key_store: &domain::MerchantKeyStore,
+    payment_method: &domain::PaymentMethod,
+    payment_method_data: domain::PaymentMethodVaultingData,
+) {
+    let Some(vault_id) = payment_method.locker_id.clone() else {
+        return;
+    };
+    let state = state.clone();
+    let key_store = key_store.clone();
+
+    tokio::spawn(async move {
+        let result =
+            cache_payment_method_data(&state, &key_store, &vault_id, payment_method_data).await;
+        let outcome = if result.is_ok() {
+            "succeeded"
+        } else {
+            "failed"
+        };
+        metrics::PAYMENT_METHOD_RETRIEVE_CACHE_WARM
+            .add(1, router_env::metric_attributes!(("outcome", outcome)));
+        if let Err(error) = result {
+            logger::warn!(
+                ?error,
+                vault_id = %vault_id.get_string_repr(),
+                "Failed to warm payment method retrieve cache"
+            );
+        }
+    });
+}
+
+#[cfg(feature = "v2")]
+async fn cache_payment_method_data(
+    state: &routes::SessionState,
+    key_store: &domain::MerchantKeyStore,
+    vault_id: &domain::VaultId,
+    payment_method_data: domain::PaymentMethodVaultingData,
+) -> RouterResult<()> {
+    let encrypted_payload: Encryption = create_encrypted_data(
+        &state.into(),
+        key_store,
+        payment_method_data,
+        common_utils::type_name!(diesel_models::payment_method::PaymentMethod),
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to encrypt payment method retrieve cache payload")?
+    .into();
+    let redis_connection = state
+        .store
+        .get_redis_conn()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to get Redis connection for PM cache warm")?;
+    redis_connection
+        .serialize_and_set_key_with_expiry(
+            &vault_id.get_string_repr().into(),
+            encrypted_payload,
+            consts::DEFAULT_PAYMENT_METHOD_STORE_TTL,
+        )
+        .await
+        .map_err(Into::<errors::StorageError>::into)
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to write payment method retrieve cache")?;
+    Ok(())
 }
 
 #[cfg(feature = "v2")]

@@ -372,6 +372,21 @@ impl ProcessTrackerWorkflows<routes::SessionState> for WorkflowRunner {
                 storage::ProcessTrackerRunner::PaymentMethodModularBackwardCompatWorkflow => Ok(Box::new(
                     workflows::payment_method_modular_backward_compat::PaymentMethodModularBackwardCompatWorkflow,
                 )),
+                storage::ProcessTrackerRunner::PaymentMethodSessionConfirmPersistenceWorkflow => {
+                    #[cfg(feature = "v2")]
+                    {
+                        Ok(Box::new(
+                            workflows::payment_method_session_confirm_persistence::PaymentMethodSessionConfirmPersistenceWorkflow,
+                        ))
+                    }
+                    #[cfg(not(feature = "v2"))]
+                    {
+                        Err(error_stack::report!(ProcessTrackerError::UnexpectedFlow))
+                            .attach_printable(
+                                "Cannot run payment method session confirm persistence when v2 is disabled",
+                            )
+                    }
+                }
                 storage::ProcessTrackerRunner::PassiveRecoveryWorkflow => {
                     Ok(Box::new(workflows::revenue_recovery::ExecutePcrWorkflow))
                 }

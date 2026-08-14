@@ -10688,6 +10688,7 @@ pub enum ProcessTrackerRunner {
     PaymentMethodStatusUpdateWorkflow,
     PaymentMethodModularForwardCompatWorkflow,
     PaymentMethodModularBackwardCompatWorkflow,
+    PaymentMethodSessionConfirmPersistenceWorkflow,
     PassiveRecoveryWorkflow,
     ProcessDisputeWorkflow,
     DisputeListWorkflow,
