@@ -2425,11 +2425,13 @@ impl FutureUsage {
     strum::Display,
     strum::EnumString,
     ToSchema,
+    SmithyModel,
 )]
 #[cfg_attr(
     feature = "diesel",
     router_derive::diesel_enum(storage_type = "db_enum")
 )]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
 pub enum PaymentMethodIssuerCode {
@@ -3684,8 +3686,10 @@ pub enum PanOrToken {
     strum::EnumString,
     utoipa::ToSchema,
     Copy,
+    SmithyModel,
 )]
 #[cfg_attr(feature = "diesel", router_derive::diesel_enum(storage_type = "text"))]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 #[serde(rename_all = "UPPERCASE")]
 #[strum(serialize_all = "UPPERCASE")]
 pub enum FundingSource {
@@ -3713,7 +3717,9 @@ pub enum FundingSource {
     strum::EnumIter,
     strum::EnumString,
     utoipa::ToSchema,
+    SmithyModel,
 )]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 #[serde(rename_all = "snake_case")]
 pub enum CardSegmentType {
     Business,
