@@ -374,6 +374,7 @@ async fn payments_create_core() {
 
     let expected_response = api::PaymentsResponse {
         payment_id,
+        applied_offer: None,
         status: api_enums::IntentStatus::Succeeded,
         amount: MinorUnit::new(6540),
         amount_capturable: MinorUnit::new(0),
@@ -681,6 +682,7 @@ async fn payments_create_core_adyen_no_redirect() {
     let expected_response = services::ApplicationResponse::JsonWithHeaders((
         api::PaymentsResponse {
             payment_id: payment_id.clone(),
+            applied_offer: None,
             status: api_enums::IntentStatus::Processing,
             amount: MinorUnit::new(6540),
             amount_capturable: MinorUnit::new(0),

@@ -197,6 +197,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::RecoveryPaymentsCreate
             | Flow::PaymentsSubmitCheckEligibility
             | Flow::PaymentsSubmitEligibility
+            // PaymentLinkCreate creates a payment intent, so it uses the Payments lock namespace
+            | Flow::PaymentLinkCreate
             | Flow::PaymentsCancelPostCaptureSync => Self::Payments,
             Flow::PayoutsCreate
             | Flow::PayoutsRetrieve

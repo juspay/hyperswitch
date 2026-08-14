@@ -203,23 +203,12 @@ impl SessionState {
             ExecutionMode::Shadow => Some("shadow"),
             ExecutionMode::NotApplicable => None,
         };
-        let config_override = match unified_connector_service_execution_mode {
-            ExecutionMode::Shadow => Some(
-                serde_json::json!({
-                    "events": {
-                        "enabled": false
-                    }
-                })
-                .to_string(),
-            ),
-            _ => None,
-        };
         GrpcHeadersUcs::builder()
             .tenant_id(tenant_id)
             .request_id(request_id)
             .shadow_mode(shadow_mode)
             .proxy_name(proxy_name)
-            .config_override(config_override)
+            .config_override(None)
     }
     #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
     pub fn get_recovery_grpc_headers(&self) -> GrpcRecoveryHeaders {
@@ -1021,6 +1010,7 @@ impl Payments {
         {
             route = route
                 .service(web::resource("").route(web::post().to(payments::payments_create)))
+                .service(web::resource("/payment_link").route(web::post().to(payments::payment_link_create)))
                 .service(
                     web::resource("/session_tokens")
                         .route(web::post().to(payments::payments_connector_session)),

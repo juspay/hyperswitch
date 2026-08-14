@@ -611,9 +611,8 @@ impl<T: DatabaseStore> PaymentMethodInterface for RouterStore<T> {
             .change_context(errors::StorageError::DecryptionError)?;
 
         let conn = pg_connection_write(self).await?;
-        let payment_method: DomainPaymentMethod = self
-            .call_database_new(key_store, payment_method_new.insert(&conn))
-            .await?;
+        let payment_method: DomainPaymentMethod =
+            Box::pin(self.call_database_new(key_store, payment_method_new.insert(&conn))).await?;
 
         if let Some(compat_action) = compat_action {
             compat_action.execute(&payment_method).await;
@@ -637,12 +636,11 @@ impl<T: DatabaseStore> PaymentMethodInterface for RouterStore<T> {
             .change_context(errors::StorageError::DecryptionError)?;
 
         let conn = pg_connection_write(self).await?;
-        let payment_method: DomainPaymentMethod = self
-            .call_database_new(
-                key_store,
-                payment_method.update_with_payment_method_id(&conn, payment_method_update.into()),
-            )
-            .await?;
+        let payment_method: DomainPaymentMethod = Box::pin(self.call_database_new(
+            key_store,
+            payment_method.update_with_payment_method_id(&conn, payment_method_update.into()),
+        ))
+        .await?;
 
         if let Some(compat_action) = compat_action {
             compat_action.execute(&payment_method).await;
@@ -665,12 +663,11 @@ impl<T: DatabaseStore> PaymentMethodInterface for RouterStore<T> {
             .await
             .change_context(errors::StorageError::DecryptionError)?;
         let conn = pg_connection_write(self).await?;
-        let payment_method: DomainPaymentMethod = self
-            .call_database_new(
-                key_store,
-                payment_method.update_with_id(&conn, payment_method_update.into()),
-            )
-            .await?;
+        let payment_method: DomainPaymentMethod = Box::pin(self.call_database_new(
+            key_store,
+            payment_method.update_with_id(&conn, payment_method_update.into()),
+        ))
+        .await?;
 
         if let Some(compat_action) = compat_action {
             compat_action.execute(&payment_method).await;
@@ -851,10 +848,10 @@ impl<T: DatabaseStore> PaymentMethodInterface for RouterStore<T> {
                 .and_then(|initiator| initiator.to_created_by())
                 .map(|last_modified_by| last_modified_by.to_string()),
         };
-        self.call_database_new(
+        Box::pin(self.call_database_new(
             key_store,
             payment_method.update_with_id(&conn, payment_method_update.into()),
-        )
+        ))
         .await
     }
 

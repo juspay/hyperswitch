@@ -824,6 +824,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     retry_type: payment_attempt.retry_type,
                     installment_data: payment_attempt.installment_data.clone(),
                     external_surcharge_details: payment_attempt.external_surcharge_details.clone(),
+                    applied_offer_details: payment_attempt.applied_offer_details.clone(),
                     sender_payment_instrument_id: payment_attempt
                         .sender_payment_instrument_id
                         .clone(),
@@ -2180,6 +2181,7 @@ impl Conversion for PaymentAttempt {
             network_transaction_link_id,
             authorized_amount,
             external_surcharge_details,
+            applied_offer_details,
         } = self;
 
         let net_amount = amount_details.get_net_amount();
@@ -2290,6 +2292,7 @@ impl Conversion for PaymentAttempt {
             retry_type: None,
             installment_data: None,
             external_surcharge_details: None,
+            applied_offer_details,
             sender_payment_instrument_id: None,
         })
     }
@@ -2422,6 +2425,7 @@ impl Conversion for PaymentAttempt {
                 external_threeds_authentication_type: storage_model
                     .external_threeds_authentication_type,
                 external_surcharge_details: storage_model.external_surcharge_details,
+                applied_offer_details: storage_model.applied_offer_details,
             })
         }
         .await
@@ -2487,6 +2491,7 @@ impl Conversion for PaymentAttempt {
             network_transaction_link_id,
             authorized_amount,
             external_surcharge_details: _,
+            applied_offer_details: _,
         } = self;
 
         let card_network = payment_method_data
@@ -2593,6 +2598,7 @@ impl Conversion for PaymentAttempt {
             error_details: None,
             retry_type: None,
             external_surcharge_details: None,
+            applied_offer_details: None,
         })
     }
 }
