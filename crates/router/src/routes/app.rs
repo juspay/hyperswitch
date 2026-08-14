@@ -62,6 +62,8 @@ use super::refunds;
 use super::routing;
 #[cfg(all(feature = "oltp", feature = "v2"))]
 use super::tokenization as tokenization_routes;
+#[cfg(feature = "olap")]
+use super::unified_connector_service as unified_connector_service_routes;
 #[cfg(all(feature = "olap", any(feature = "v1", feature = "v2")))]
 use super::verification::{apple_pay_merchant_registration, retrieve_apple_pay_verified_domains};
 #[cfg(feature = "oltp")]
@@ -201,23 +203,12 @@ impl SessionState {
             ExecutionMode::Shadow => Some("shadow"),
             ExecutionMode::NotApplicable => None,
         };
-        let config_override = match unified_connector_service_execution_mode {
-            ExecutionMode::Shadow => Some(
-                serde_json::json!({
-                    "events": {
-                        "enabled": false
-                    }
-                })
-                .to_string(),
-            ),
-            _ => None,
-        };
         GrpcHeadersUcs::builder()
             .tenant_id(tenant_id)
             .request_id(request_id)
             .shadow_mode(shadow_mode)
             .proxy_name(proxy_name)
-            .config_override(config_override)
+            .config_override(None)
     }
     #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
     pub fn get_recovery_grpc_headers(&self) -> GrpcRecoveryHeaders {
@@ -1019,6 +1010,7 @@ impl Payments {
         {
             route = route
                 .service(web::resource("").route(web::post().to(payments::payments_create)))
+                .service(web::resource("/payment_link").route(web::post().to(payments::payment_link_create)))
                 .service(
                     web::resource("/session_tokens")
                         .route(web::post().to(payments::payments_connector_session)),
@@ -1170,6 +1162,10 @@ impl Routing {
         let mut route = web::scope("/routing")
             .app_data(web::Data::new(state.clone()))
             .service(web::resource("/entry").route(web::post().to(routing::routing_entry)))
+            .service(
+                web::resource("/decision-engine/{profile_id}/diff-counter")
+                    .route(web::delete().to(routing::reset_decision_engine_diff_counter)),
+            )
             .service(
                 web::resource("/active").route(web::get().to(|state, req, query_params| {
                     routing::routing_retrieve_linked_config(state, req, query_params, None)
@@ -2320,6 +2316,21 @@ impl Configs {
                     .route(web::get().to(config_key_retrieve))
                     .route(web::post().to(config_key_update))
                     .route(web::delete().to(config_key_delete)),
+            )
+    }
+}
+
+pub struct UnifiedConnectorService;
+
+#[cfg(feature = "olap")]
+impl UnifiedConnectorService {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/unified-connector-service")
+            .app_data(web::Data::new(state))
+            .service(
+                web::resource("/kill-switch/{scope}")
+                    .route(web::get().to(unified_connector_service_routes::kill_switch_status))
+                    .route(web::delete().to(unified_connector_service_routes::reset_kill_switch)),
             )
     }
 }

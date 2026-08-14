@@ -980,6 +980,9 @@ async fn execute_refund_execute_via_direct_with_ucs_shadow(
         Err(e) => Err(format!("{:?}", e)),
     };
     let connector_name = router_data.connector.clone();
+    let merchant_id = router_data.merchant_id.clone();
+    let payment_method = router_data.payment_method;
+    let payment_method_type = router_data.payment_method_type;
 
     tokio::spawn(
         (async move {
@@ -1004,6 +1007,9 @@ async fn execute_refund_execute_via_direct_with_ucs_shadow(
                     connector_name,
                     direct_for_compare,
                     ucs_for_compare,
+                    Some(&merchant_id),
+                    Some(payment_method),
+                    payment_method_type,
                 ),
             )
             .await;
@@ -1526,6 +1532,9 @@ async fn execute_refund_sync_via_direct_with_ucs_shadow(
         Err(e) => Err(format!("{:?}", e)),
     };
     let connector_name = router_data.connector.clone();
+    let merchant_id = router_data.merchant_id.clone();
+    let payment_method = router_data.payment_method;
+    let payment_method_type = router_data.payment_method_type;
 
     tokio::spawn(
         (async move {
@@ -1550,6 +1559,9 @@ async fn execute_refund_sync_via_direct_with_ucs_shadow(
                     connector_name,
                     direct_for_compare,
                     ucs_for_compare,
+                    Some(&merchant_id),
+                    Some(payment_method),
+                    payment_method_type,
                 ),
             )
             .await;
@@ -2000,6 +2012,7 @@ pub async fn refund_manual_update(
         .await
         .to_not_found_response(errors::ApiErrorResponse::RefundNotFound)?;
     let refund_update = diesel_refund::RefundUpdate::ManualUpdate {
+        connector_refund_id: req.connector_refund_id.map(ConnectorTransactionId::from),
         refund_status: req.status.map(common_enums::RefundStatus::from),
         refund_error_message: req.error_message.map(|msg| match msg {
             api_enums::SetOrUnset::Set(value) => Some(value),
