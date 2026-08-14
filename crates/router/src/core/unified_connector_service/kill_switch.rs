@@ -18,7 +18,6 @@ use crate::{
     consts,
     core::{
         errors, metrics,
-        payments::helpers::is_config_flag_enabled,
         unified_connector_service::{
             build_merchant_rollout_scope, determine_connector_integration_type,
         },
@@ -49,9 +48,8 @@ fn rollout_scope_in(key_or_scope: &str) -> &str {
 
 /// Whether the kill switch should divert this scope to shadow mode.
 ///
-/// Checks: global `UCS_KILL_SWITCH_ENABLED` flag AND per-scope `kill_switch_enabled` from
-/// RolloutConfig must both be true. Then reads the failure counter from Redis and compares against
-/// the threshold.
+/// Checks: per-scope `kill_switch_enabled` from RolloutConfig must be true. Then reads the
+/// failure counter from Redis and compares against the threshold.
 ///
 /// Fails closed: a Redis error routes to shadow (the safe path).
 pub async fn is_kill_switched(
@@ -60,9 +58,7 @@ pub async fn is_kill_switched(
     kill_switch_enabled: bool,
     kill_switch_threshold: u64,
 ) -> bool {
-    let global_enabled = is_config_flag_enabled(state, consts::UCS_KILL_SWITCH_ENABLED).await;
-
-    if kill_switch_enabled && global_enabled {
+    if kill_switch_enabled {
         match read_counter(state, rollout_scope).await {
             Ok(count) => {
                 let exceeded = count > kill_switch_threshold;
@@ -90,8 +86,7 @@ pub async fn is_kill_switched(
         logger::debug!(
             rollout_scope = %rollout_scope,
             kill_switch_enabled = kill_switch_enabled,
-            global_enabled = global_enabled,
-            "ucs_kill_switch: kill switch is disabled"
+            "ucs_kill_switch: kill switch is disabled for this scope"
         );
         false
     }
@@ -160,11 +155,7 @@ async fn record_trippable_failure(
         ),
     );
 
-    let outcome = if is_config_flag_enabled(state, consts::UCS_KILL_SWITCH_ENABLED).await {
-        increment_counter(state, failure, context).await
-    } else {
-        IncrementOutcome::SwitchOff
-    };
+    let outcome = increment_counter(state, failure, context).await;
 
     logger::warn!(
         rollout_scope = %failure.rollout_scope,
@@ -228,8 +219,6 @@ async fn is_ucs_only_connector(state: &SessionState, connector_name: &str) -> bo
 enum IncrementOutcome {
     /// Counter was incremented successfully.
     Incremented,
-    /// The failure qualified, but enforcement is turned off.
-    SwitchOff,
     /// Redis refused the write.
     WriteFailed,
 }

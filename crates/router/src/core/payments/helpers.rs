@@ -2534,7 +2534,7 @@ pub struct RolloutConfig {
 }
 
 fn default_kill_switch_enabled() -> bool {
-    true
+    false
 }
 
 #[serde_as]
@@ -2554,7 +2554,7 @@ impl Default for RolloutConfig {
             http_url: None,
             https_url: None,
             execution_mode: ExecutionMode::NotApplicable,
-            kill_switch_enabled: true,
+            kill_switch_enabled: false,
             kill_switch_threshold: 0,
         }
     }
@@ -2578,7 +2578,7 @@ impl Default for RolloutExecutionResult {
             should_execute: false,
             proxy_override: None,
             execution_mode: ExecutionMode::NotApplicable,
-            kill_switch_enabled: true,
+            kill_switch_enabled: false,
             kill_switch_threshold: 0,
         }
     }
