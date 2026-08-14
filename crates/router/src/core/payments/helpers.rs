@@ -2529,7 +2529,6 @@ pub struct RolloutConfig {
     pub execution_mode: ExecutionMode,
     #[serde(default = "default_kill_switch_enabled")]
     pub kill_switch_enabled: bool,
-    #[serde(default)]
     pub kill_switch_threshold: u64,
 }
 

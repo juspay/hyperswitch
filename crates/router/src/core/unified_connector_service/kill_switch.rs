@@ -28,6 +28,11 @@ use crate::{
 /// Hash field name for the failure counter.
 const COUNTER_FIELD: &str = "counter";
 
+/// Whether the counter has reached or exceeded the threshold.
+fn exceeds_threshold(count: u64, threshold: u64) -> bool {
+    count >= threshold
+}
+
 /// Redis key holding the failure counter for a scope.
 fn counter_key(rollout_scope: &str) -> String {
     format!("{}_{rollout_scope}", consts::UCS_KILL_SWITCH_REDIS_PREFIX)
@@ -61,7 +66,7 @@ pub async fn is_kill_switched(
     if kill_switch_enabled {
         match read_counter(state, rollout_scope).await {
             Ok(count) => {
-                let exceeded = count >= kill_switch_threshold;
+                let exceeded = exceeds_threshold(count, kill_switch_threshold);
                 if exceeded {
                     logger::debug!(
                         rollout_scope = %rollout_scope,
@@ -93,6 +98,7 @@ pub async fn is_kill_switched(
 }
 
 /// Reads the failure counter from the hash. Returns 0 if the key or field does not exist.
+/// Redis connection or read errors are propagated so the caller can fail closed.
 async fn read_counter(
     state: &SessionState,
     rollout_scope: &str,
@@ -101,8 +107,8 @@ async fn read_counter(
     let count: u64 = state
         .store
         .get_redis_conn()?
-        .get_hash_field(&key, COUNTER_FIELD)
-        .await
+        .get_hash_field::<Option<u64>>(&key, COUNTER_FIELD)
+        .await?
         .unwrap_or(0);
 
     Ok(count)
@@ -383,7 +389,7 @@ pub async fn trip_status(
         .map(|rc| rc.kill_switch_threshold);
 
     let tripped = match threshold {
-        Some(t) => counter_value > t,
+        Some(t) => exceeds_threshold(counter_value, t),
         None => counter_value > 0,
     };
 
