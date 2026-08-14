@@ -828,13 +828,14 @@ impl ConnectorSpecifications for ConnectorEnum {
     fn is_payment_recurrence_operation_needed(
         &self,
         setup_future_usage: Option<common_enums::FutureUsage>,
+        current_flow: Option<CurrentFlowInfo>,
     ) -> Option<bool> {
         match self {
             Self::Old(connector) => {
-                connector.is_payment_recurrence_operation_needed(setup_future_usage)
+                connector.is_payment_recurrence_operation_needed(setup_future_usage, current_flow)
             }
             Self::New(connector) => {
-                connector.is_payment_recurrence_operation_needed(setup_future_usage)
+                connector.is_payment_recurrence_operation_needed(setup_future_usage, current_flow)
             }
         }
     }

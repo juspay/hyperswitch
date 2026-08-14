@@ -2146,8 +2146,12 @@ impl ConnectorSpecifications for Santander {
     fn is_payment_recurrence_operation_needed(
         &self,
         setup_future_usage: Option<common_enums::FutureUsage>,
+        current_flow: Option<CurrentFlowInfo>,
     ) -> Option<bool> {
-        Some(setup_future_usage == Some(common_enums::FutureUsage::OffSession))
+        Some(
+            setup_future_usage == Some(common_enums::FutureUsage::OffSession)
+                && matches!(current_flow, Some(CurrentFlowInfo::Authorize { .. }) | None),
+        )
     }
 
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {

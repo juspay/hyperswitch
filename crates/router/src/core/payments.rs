@@ -660,7 +660,6 @@ pub async fn payments_operation_core<'a, F, Req, Op, FData, D>(
     header_payload: HeaderPayload,
     dimensions: &DimensionsWithProcessorAndProviderMerchantId,
     payment_pre_fetched_info: Option<operations::PaymentPreFetchedInformation>,
-    delay_webhook_for_recurring_payment: bool,
 ) -> RouterResult<(D, Req, Option<u16>, Option<u128>)>
 where
     F: Send + Clone + Sync + Debug + 'static,
@@ -861,6 +860,7 @@ where
 
     let mut connector_http_status_code = None;
     let mut external_latency = None;
+    let mut current_flow_info_for_recurrence_webhook = None;
     if let Some(connector_details) = connector {
         // Fetch and check FRM configs
         #[cfg(feature = "frm")]
@@ -1119,6 +1119,7 @@ where
 
                     connector_http_status_code = router_data.connector_http_status_code;
                     external_latency = router_data.external_latency;
+                    current_flow_info_for_recurrence_webhook = router_data.current_flow_info();
                     //add connector http status code metrics
                     add_connector_http_status_code_metrics(connector_http_status_code);
 
@@ -1344,6 +1345,7 @@ where
                     let operation = Box::new(PaymentResponse);
                     connector_http_status_code = router_data.connector_http_status_code;
                     external_latency = router_data.external_latency;
+                    current_flow_info_for_recurrence_webhook = router_data.current_flow_info();
                     //add connector http status code metrics
                     add_connector_http_status_code_metrics(connector_http_status_code);
 
@@ -1536,7 +1538,8 @@ where
         )
         .await?;
 
-    let should_delay_webhook_for_recurring_payment = delay_webhook_for_recurring_payment
+    let should_delay_webhook_for_recurring_payment = current_flow_info_for_recurrence_webhook
+        .is_some()
         && payment_data
             .get_payment_attempt_connector()
             .and_then(|connector_name| {
@@ -1549,19 +1552,13 @@ where
                 .ok()
             })
             .and_then(|connector_data| {
-                let setup_future_usage = {
-                    #[cfg(feature = "v1")]
-                    {
-                        payment_data.get_payment_intent().setup_future_usage
-                    }
-                    #[cfg(feature = "v2")]
-                    {
-                        Some(payment_data.get_payment_intent().setup_future_usage)
-                    }
-                };
+                let setup_future_usage = payment_data.get_payment_intent().setup_future_usage;
                 connector_data
                     .connector
-                    .is_payment_recurrence_operation_needed(setup_future_usage)
+                    .is_payment_recurrence_operation_needed(
+                        setup_future_usage,
+                        current_flow_info_for_recurrence_webhook,
+                    )
             })
             .unwrap_or(false);
 
@@ -2903,7 +2900,6 @@ where
             header_payload.clone(),
             &dimensions,
             payment_pre_fetched_info,
-            false,
         )
         .await?;
 

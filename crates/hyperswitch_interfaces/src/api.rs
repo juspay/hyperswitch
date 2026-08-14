@@ -547,6 +547,7 @@ pub trait ConnectorSpecifications {
     fn is_payment_recurrence_operation_needed(
         &self,
         _setup_future_usage: Option<common_enums::FutureUsage>,
+        _current_flow: Option<CurrentFlowInfo>,
     ) -> Option<bool> {
         Some(false)
     }

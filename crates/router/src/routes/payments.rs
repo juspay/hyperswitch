@@ -2664,7 +2664,6 @@ where
                             header_payload.clone(),
                             &dimensions,
                             None,
-                            true,
                         ))
                         .await?;
 
@@ -2677,19 +2676,10 @@ where
                             GetToken::Connector,
                             None,
                         )?;
-                        let setup_future_usage = {
-                            #[cfg(feature = "v1")]
-                            {
-                                payment_data.payment_intent.setup_future_usage
-                            }
-                            #[cfg(feature = "v2")]
-                            {
-                                Some(payment_data.payment_intent.setup_future_usage)
-                            }
-                        };
+                        let setup_future_usage = payment_data.payment_intent.setup_future_usage;
                         let should_continue_further = connector_data
                             .connector
-                            .is_payment_recurrence_operation_needed(setup_future_usage)
+                            .is_payment_recurrence_operation_needed(setup_future_usage, None)
                             .unwrap_or(false);
                         if should_continue_further {
                             logger::info!(
@@ -2718,7 +2708,6 @@ where
                                     header_payload.clone(),
                                     &dimensions,
                                     None,
-                                    false,
                                 ))
                                 .await?;
                             let total_ext_latency = match (external_latency, ext_latency) {
