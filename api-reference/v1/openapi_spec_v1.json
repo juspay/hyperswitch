@@ -7488,7 +7488,7 @@
         },
         "security": [
           {
-            "admin_api_key": []
+            "jwt_key": []
           }
         ]
       }
@@ -7596,7 +7596,7 @@
         },
         "security": [
           {
-            "admin_api_key": []
+            "jwt_key": []
           }
         ]
       }
@@ -7643,7 +7643,7 @@
         },
         "security": [
           {
-            "admin_api_key": []
+            "jwt_key": []
           }
         ]
       }
