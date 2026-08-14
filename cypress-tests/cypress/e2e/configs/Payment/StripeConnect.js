@@ -76,7 +76,7 @@ const payment_method_data_3ds = {
     last4: "3155",
     card_type: "CREDIT",
     card_network: "Visa",
-    card_issuer: "Intl Hdqtrs Center Owned",
+    card_issuer: "INTL HDQTRS CENTER OWNED",
     card_issuing_country: "UNITED STATES OF AMERICA",
     card_isin: "400000",
     card_extended_bin: null,
@@ -95,7 +95,7 @@ const payment_method_data_no3ds = {
     last4: "0005",
     card_type: "CREDIT",
     card_network: "AmericanExpress",
-    card_issuer: "American Express US Cars",
+    card_issuer: "AMERICAN EXPRESS US CARS",
     card_issuing_country: "UNITED STATES OF AMERICA",
     card_isin: "378282",
     card_extended_bin: null,
@@ -576,6 +576,25 @@ export const connectorDetails = {
     MITAutoCapture: {
       Request: {
         split_payments: stripeSplitPaymentData,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    MITAutoCaptureWithCustomerAcceptance: {
+      Request: {
+        split_payments: stripeSplitPaymentData,
+        customer_acceptance: {
+          acceptance_type: "offline",
+          accepted_at: "1963-05-03T04:07:52.723Z",
+          online: {
+            ip_address: "127.0.0.1",
+            user_agent: "amet irure esse",
+          },
+        },
       },
       Response: {
         status: 200,

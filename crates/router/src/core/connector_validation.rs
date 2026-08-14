@@ -288,6 +288,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 )?;
                 Ok(())
             }
+            api_enums::Connector::Givepayments => {
+                givepayments::transformers::GivepaymentsAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Globalpay => {
                 globalpay::transformers::GlobalpayAuthType::try_from(self.auth_type)?;
                 globalpay::transformers::GlobalPayMeta::try_from(self.connector_meta_data)?;

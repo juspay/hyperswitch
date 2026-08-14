@@ -52,7 +52,7 @@ use crate::{
     constants::headers::STRIPE_COMPATIBLE_CONNECT_ACCOUNT,
     utils::{
         convert_uppercase, deserialize_zero_minor_amount_as_none, ApplePay,
-        RouterData as OtherRouterData,
+        PaymentMethodTokenizationRequestData, RouterData as OtherRouterData,
     },
 };
 
@@ -67,7 +67,7 @@ use crate::{
     },
     utils::{
         get_unimplemented_payment_method_error_message, is_payment_failure, is_refund_failure,
-        PaymentsAuthorizeRequestData, SplitPaymentData,
+        PaymentMethodPredicates, PaymentsAuthorizeRequestData, SplitPaymentData,
     },
 };
 pub mod auth_headers {
@@ -192,6 +192,50 @@ pub struct StripeBrowserInformation {
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
+pub struct StripeLineItemsData {
+    #[serde(
+        rename = "payment_details[customer_reference]",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub customer_reference: Option<String>,
+    #[serde(
+        rename = "payment_details[order_reference]",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub order_reference: Option<String>,
+
+    #[serde(
+        rename = "amount_details[shipping][from_postal_code]",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub shipping_from_postal_code: Option<Secret<String>>,
+    #[serde(
+        rename = "amount_details[shipping][to_postal_code]",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub shipping_to_postal_code: Option<Secret<String>>,
+    #[serde(
+        rename = "amount_details[shipping][amount]",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub shipping_amount: Option<MinorUnit>,
+
+    #[serde(
+        rename = "amount_details[tax][total_tax_amount]",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub order_tax_amount: Option<MinorUnit>,
+    #[serde(
+        rename = "amount_details[discount_amount]",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub discount_amount: Option<MinorUnit>,
+
+    #[serde(flatten, skip_serializing_if = "Option::is_none")]
+    pub line_items: Option<HashMap<String, String>>,
+}
+
+#[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct PaymentIntentRequest {
     pub amount: MinorUnit, //amount in cents, hence passed as integer
     pub currency: String,
@@ -230,6 +274,9 @@ pub struct PaymentIntentRequest {
     /// The Stripe account ID that these funds are intended for
     #[serde(skip_serializing_if = "Option::is_none")]
     pub on_behalf_of: Option<String>,
+    /// Line items for L2/L3 data
+    #[serde(flatten)]
+    pub line_items: Option<StripeLineItemsData>,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize, Clone)]
@@ -290,6 +337,17 @@ pub enum StripePaymentMethodAuthType {
         #[serde(rename = "payment_method_options[card][request_three_d_secure]")]
         payment_method_auth_type: Auth3ds,
     },
+}
+
+impl From<enums::AuthenticationType> for StripePaymentMethodAuthType {
+    fn from(auth_type: enums::AuthenticationType) -> Self {
+        Self::Request3ds {
+            payment_method_auth_type: match auth_type {
+                enums::AuthenticationType::ThreeDs => Auth3ds::Any,
+                enums::AuthenticationType::NoThreeDs => Auth3ds::Automatic,
+            },
+        }
+    }
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -390,6 +448,10 @@ pub struct StripePayLaterData {
 pub struct TokenRequest {
     #[serde(flatten)]
     pub token_data: StripePaymentMethodData,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ip: Option<Secret<String, pii::IpAddress>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub user_agent: Option<String>,
 }
 
 #[derive(Debug, Eq, PartialEq, Deserialize, Serialize)]
@@ -600,12 +662,26 @@ pub struct MultibancoCreditTransferSourceRequest {
 #[serde(untagged)]
 pub enum StripePaymentMethodData {
     CardToken(StripeCardToken),
+    NtidCardToken(StripeNtidCardToken),
     Card(StripeCardData),
     PayLater(StripePayLaterData),
     Wallet(StripeWallet),
     BankRedirect(StripeBankRedirectData),
     BankDebit(StripeBankDebitData),
     BankTransfer(StripeBankTransferData),
+}
+
+impl StripePaymentMethodData {
+    fn get_stripe_ntid_card_token_data(
+        payment_method_data: &payment_method_data::CardDetailsForNetworkTransactionId,
+    ) -> Result<Self, error_stack::Report<ConnectorError>> {
+        Ok(Self::NtidCardToken(StripeNtidCardToken {
+            payment_method_type: Some(StripePaymentMethodType::Card),
+            token_card_number: payment_method_data.card_number.clone(),
+            token_card_exp_month: payment_method_data.card_exp_month.clone(),
+            token_card_exp_year: payment_method_data.card_exp_year.clone(),
+        }))
+    }
 }
 
 #[derive(Debug, Clone, Default, Eq, PartialEq, Serialize)]
@@ -625,6 +701,19 @@ pub struct StripeBillingAddressCardToken {
     #[serde(rename = "billing_details[address][city]")]
     pub city: Option<String>,
 }
+
+#[derive(Debug, Eq, PartialEq, Serialize)]
+pub struct StripeNtidCardToken {
+    #[serde(rename = "type")]
+    pub payment_method_type: Option<StripePaymentMethodType>,
+    #[serde(rename = "card[number]")]
+    pub token_card_number: cards::CardNumber,
+    #[serde(rename = "card[exp_month]")]
+    pub token_card_exp_month: Secret<String>,
+    #[serde(rename = "card[exp_year]")]
+    pub token_card_exp_year: Secret<String>,
+}
+
 // Struct to call the Stripe tokens API to create a PSP token for the card details provided
 #[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct StripeCardToken {
@@ -735,9 +824,9 @@ pub struct StripeGooglePayPredecrypt {
     #[serde(rename = "card[exp_month]")]
     exp_month: Secret<String>,
     #[serde(rename = "card[cryptogram]")]
-    cryptogram: Option<Secret<String>>,
+    cryptogram: Secret<String>,
     #[serde(rename = "card[eci]")]
-    eci: Option<String>,
+    eci: String,
     #[serde(rename = "card[tokenization_method]")]
     tokenization_method: String,
 }
@@ -1408,24 +1497,18 @@ fn create_stripe_payment_method(
     error_stack::Report<ConnectorError>,
 > {
     match payment_method_data {
-        PaymentMethodData::Card(card_details) => {
-            let payment_method_auth_type = match payment_request_details.auth_type {
-                enums::AuthenticationType::ThreeDs => Auth3ds::Any,
-                enums::AuthenticationType::NoThreeDs => Auth3ds::Automatic,
-            };
-            Ok((
-                StripePaymentMethodData::try_from((
-                    card_details,
-                    payment_method_auth_type,
-                    authentication,
-                    payment_request_details.request_incremental_authorization,
-                    payment_request_details.request_extended_authorization,
-                    payment_request_details.request_overcapture,
-                ))?,
-                Some(StripePaymentMethodType::Card),
-                payment_request_details.billing_address,
-            ))
-        }
+        PaymentMethodData::Card(card_details) => Ok((
+            StripePaymentMethodData::try_from((
+                card_details,
+                payment_request_details.auth_type,
+                authentication,
+                payment_request_details.request_incremental_authorization,
+                payment_request_details.request_extended_authorization,
+                payment_request_details.request_overcapture,
+            ))?,
+            Some(StripePaymentMethodType::Card),
+            payment_request_details.billing_address,
+        )),
         PaymentMethodData::PayLater(pay_later_data) => {
             let stripe_pm_type = StripePaymentMethodType::try_from(pay_later_data)?;
 
@@ -1457,6 +1540,7 @@ fn create_stripe_payment_method(
             let wallet_specific_data = StripePaymentMethodData::try_from((
                 wallet_data,
                 payment_request_details.payment_method_token,
+                payment_request_details.auth_type,
             ))?;
             Ok((
                 wallet_specific_data,
@@ -1657,7 +1741,7 @@ fn get_stripe_card_network(card_network: common_enums::CardNetwork) -> Option<St
 impl
     TryFrom<(
         &Card,
-        Auth3ds,
+        enums::AuthenticationType,
         Option<AuthenticationData>,
         bool,
         Option<primitive_wrappers::RequestExtendedAuthorizationBool>,
@@ -1675,7 +1759,7 @@ impl
             request_overcapture,
         ): (
             &Card,
-            Auth3ds,
+            enums::AuthenticationType,
             Option<AuthenticationData>,
             bool,
             Option<primitive_wrappers::RequestExtendedAuthorizationBool>,
@@ -1700,9 +1784,7 @@ impl
                     error_on_requires_action: true,
                 },
             )),
-            None => Some(StripePaymentMethodAuthType::Request3ds {
-                payment_method_auth_type,
-            }),
+            None => Some(payment_method_auth_type.into()),
         };
         Ok(Self::Card(StripeCardData {
             payment_method_data_type: StripePaymentMethodType::Card,
@@ -1733,10 +1815,20 @@ impl
     }
 }
 
-impl TryFrom<(&WalletData, Option<PaymentMethodToken>)> for StripePaymentMethodData {
+impl
+    TryFrom<(
+        &WalletData,
+        Option<PaymentMethodToken>,
+        enums::AuthenticationType,
+    )> for StripePaymentMethodData
+{
     type Error = error_stack::Report<ConnectorError>;
     fn try_from(
-        (wallet_data, payment_method_token): (&WalletData, Option<PaymentMethodToken>),
+        (wallet_data, payment_method_token, auth_type): (
+            &WalletData,
+            Option<PaymentMethodToken>,
+            enums::AuthenticationType,
+        ),
     ) -> Result<Self, Self::Error> {
         match wallet_data {
             WalletData::ApplePay(applepay_data) => {
@@ -1812,9 +1904,11 @@ impl TryFrom<(&WalletData, Option<PaymentMethodToken>)> for StripePaymentMethodD
                     payment_method_types: StripePaymentMethodType::RevolutPay,
                 })))
             }
-            WalletData::GooglePay(gpay_data) => {
-                Ok(Self::try_from((gpay_data, payment_method_token))?)
-            }
+            WalletData::GooglePay(gpay_data) => Ok(Self::try_from((
+                gpay_data,
+                payment_method_token,
+                auth_type,
+            ))?),
             WalletData::PaypalRedirect(_) | WalletData::MobilePayRedirect(_) => Err(
                 ConnectorError::NotImplemented(get_unimplemented_payment_method_error_message(
                     "stripe",
@@ -1932,10 +2026,20 @@ impl TryFrom<&BankRedirectData> for StripePaymentMethodData {
     }
 }
 
-impl TryFrom<(&GooglePayWalletData, Option<PaymentMethodToken>)> for StripePaymentMethodData {
+impl
+    TryFrom<(
+        &GooglePayWalletData,
+        Option<PaymentMethodToken>,
+        enums::AuthenticationType,
+    )> for StripePaymentMethodData
+{
     type Error = error_stack::Report<ConnectorError>;
     fn try_from(
-        (gpay_data, payment_method_token): (&GooglePayWalletData, Option<PaymentMethodToken>),
+        (gpay_data, payment_method_token, auth_type): (
+            &GooglePayWalletData,
+            Option<PaymentMethodToken>,
+            enums::AuthenticationType,
+        ),
     ) -> Result<Self, error_stack::Report<ConnectorError>> {
         match payment_method_token {
             Some(PaymentMethodToken::GooglePayDecrypt(predecrypted_data)) => {
@@ -1946,16 +2050,41 @@ impl TryFrom<(&GooglePayWalletData, Option<PaymentMethodToken>)> for StripePayme
                         field_name: "expiry_year_4_digit",
                     })?;
 
-                Ok(Self::Wallet(StripeWallet::GooglePayPredecryptToken(
-                    Box::new(StripeGooglePayPredecrypt {
-                        number: predecrypted_data.application_primary_account_number.clone(),
-                        exp_year: expiry_year_4_digit,
-                        exp_month: predecrypted_data.card_exp_month.clone(),
-                        eci: predecrypted_data.eci_indicator.clone(),
-                        cryptogram: predecrypted_data.cryptogram.clone(),
-                        tokenization_method: "android_pay".to_string(),
-                    }),
-                )))
+                match (
+                    predecrypted_data.cryptogram.clone(),
+                    predecrypted_data.eci_indicator.clone(),
+                ) {
+                    (Some(cryptogram), Some(eci)) => {
+                        Ok(Self::Wallet(StripeWallet::GooglePayPredecryptToken(
+                            Box::new(StripeGooglePayPredecrypt {
+                                number: predecrypted_data
+                                    .application_primary_account_number
+                                    .clone(),
+                                exp_year: expiry_year_4_digit,
+                                exp_month: predecrypted_data.card_exp_month.clone(),
+                                cryptogram,
+                                eci,
+                                tokenization_method: "android_pay".to_string(),
+                            }),
+                        )))
+                    }
+                    _ => Ok(Self::Card(StripeCardData {
+                        payment_method_data_type: StripePaymentMethodType::Card,
+                        payment_method_data_card_number: predecrypted_data
+                            .application_primary_account_number
+                            .clone(),
+                        payment_method_data_card_exp_month: predecrypted_data
+                            .card_exp_month
+                            .clone(),
+                        payment_method_data_card_exp_year: expiry_year_4_digit,
+                        payment_method_data_card_cvc: None,
+                        payment_method_auth_type: Some(auth_type.into()),
+                        payment_method_data_card_preferred_network: None,
+                        request_incremental_authorization: None,
+                        request_extended_authorization: None,
+                        request_overcapture: None,
+                    })),
+                }
             }
             Some(PaymentMethodToken::Token(gpay_token)) => {
                 // Use decrypted token flow
@@ -1986,6 +2115,125 @@ impl TryFrom<(&GooglePayWalletData, Option<PaymentMethodToken>)> for StripePayme
             }
         }
     }
+}
+
+fn create_stripe_line_items_data(
+    l2_l3_data: &Option<Box<hyperswitch_domain_models::router_data::L2L3Data>>,
+) -> Option<StripeLineItemsData> {
+    l2_l3_data.as_ref().map(|data| {
+        let customer_reference = data.get_customer_id().map(|id| id.get_string_repr().to_string());
+        let order_reference = data.get_merchant_order_reference_id();
+
+        let shipping_from_postal_code = data.get_shipping_origin_zip();
+        let shipping_to_postal_code = data.get_shipping_zip();
+        let shipping_amount = data.get_shipping_cost();
+
+        let discount_amount = data.get_discount_amount();
+
+        // Stripe requires tax to be either at order level OR line-item level, not both
+        let (line_items, order_tax_amount) = data.get_order_details().map_or((None, data.get_order_tax_amount()), |order_details| {
+            if order_details.is_empty() {
+                (None, data.get_order_tax_amount())
+            } else {
+                let mut items_map = HashMap::new();
+                let mut has_line_item_tax = false;
+
+                for (index, order_item) in order_details.iter().enumerate() {
+                    items_map.insert(
+                        format!("amount_details[line_items][{}][product_name]", index),
+                        order_item.product_name.clone(),
+                    );
+                    items_map.insert(
+                        format!("amount_details[line_items][{}][unit_cost]", index),
+                        order_item.amount.get_amount_as_i64().to_string(),
+                    );
+                    items_map.insert(
+                        format!("amount_details[line_items][{}][quantity]", index),
+                        order_item.quantity.to_string(),
+                    );
+
+                    if let Some(ref product_code) = order_item.product_id {
+                        items_map.insert(
+                            format!("amount_details[line_items][{}][product_code]", index),
+                            product_code.clone(),
+                        );
+                    }
+
+                    // Line-item level tax (mutually exclusive with order-level tax)
+                    if let Some(tax_amount) = order_item.total_tax_amount {
+                        has_line_item_tax = true;
+                        items_map.insert(
+                            format!("amount_details[line_items][{}][tax][total_tax_amount]", index),
+                            tax_amount.get_amount_as_i64().to_string(),
+                        );
+                    }
+
+                    if let Some(ref unit_of_measure) = order_item.unit_of_measure {
+                        items_map.insert(
+                            format!("amount_details[line_items][{}][unit_of_measure]", index),
+                            unit_of_measure.clone(),
+                        );
+                    }
+
+                    // Line-item level discount (mutually exclusive with order-level discount)
+                    if let Some(line_discount) = order_item.unit_discount_amount {
+                        items_map.insert(
+                            format!("amount_details[line_items][{}][discount_amount]", index),
+                            line_discount.get_amount_as_i64().to_string(),
+                        );
+                    }
+
+                    if let Some(ref commodity_code) = order_item.commodity_code {
+                        items_map.insert(
+                            format!("amount_details[line_items][{}][payment_method_options][card][commodity_code]", index),
+                            commodity_code.clone(),
+                        );
+                    }
+                }
+
+                let order_tax = if has_line_item_tax {
+                    None
+                } else {
+                    data.get_order_tax_amount()
+                };
+
+                (Some(items_map), order_tax)
+            }
+        });
+
+        StripeLineItemsData {
+            customer_reference,
+            order_reference,
+            shipping_from_postal_code,
+            shipping_to_postal_code,
+            shipping_amount,
+            order_tax_amount,
+            discount_amount,
+            line_items,
+        }
+    })
+}
+
+pub fn is_payment_method_tokenize_flow_required(data: &PaymentsAuthorizeRouterData) -> bool {
+    data.request.is_stripe_split_payment()
+        && (data.request.payment_method_data.is_card_payment()
+            || data
+                .request
+                .mandate_id
+                .as_ref()
+                .map(|mandate_id| mandate_id.is_network_transaction_id_flow())
+                .unwrap_or(false))
+}
+
+fn is_tokenized_ntid_flow(item: &PaymentsAuthorizeRouterData) -> bool {
+    item.payment_method_token.is_some()
+        && item.request.is_stripe_split_payment()
+        && item
+            .request
+            .mandate_id
+            .as_ref()
+            .map(|mandate_id| mandate_id.is_network_transaction_id_flow())
+            .unwrap_or(false)
 }
 
 impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest {
@@ -2024,18 +2272,13 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
             (None, None, None)
         };
 
-        let payment_method_token = match (
-            item.request.split_payments.as_ref(),
-            item.request.payment_method_data.clone(),
-        ) {
-            (Some(SplitPaymentsRequest::StripeSplitPayment(_)), PaymentMethodData::Card(_)) => {
-                match item.payment_method_token.clone() {
-                    Some(PaymentMethodToken::Token(secret)) => Some(secret),
-                    _ => None,
-                }
+        let payment_method_token = if is_payment_method_tokenize_flow_required(item) {
+            match item.payment_method_token.clone() {
+                Some(PaymentMethodToken::Token(secret)) => Some(secret),
+                _ => None,
             }
-
-            _ => None,
+        } else {
+            None
         };
 
         let amount = data.1;
@@ -2085,6 +2328,20 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
                 item.request.setup_future_usage,
                 item.request.payment_method_type,
             )?;
+
+            if is_tokenized_ntid_flow(item) {
+                payment_method_options = Some(StripePaymentMethodOptions::Card {
+                    mandate_options: None,
+                    network_transaction_id: None,
+                    mit_exemption: item
+                        .request
+                        .get_network_mandate_id_from_network_transaction_id_flow()
+                        .map(|network_mandate_id| MitExemption {
+                            network_transaction_id: Secret::new(network_mandate_id),
+                        }),
+                })
+            };
+
             (
                 None,
                 None,
@@ -2369,6 +2626,7 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
             }
             Some(SplitPaymentsRequest::AdyenSplitPayment(_))
             | Some(SplitPaymentsRequest::XenditSplitPayment(_))
+            | Some(SplitPaymentsRequest::PayloadSplitPayment(_))
             | None => match charge_type {
                 Some(PaymentChargeType::Stripe(StripeChargeType::Direct)) => Some(IntentCharges {
                     application_fee_amount: None, // default to 0 if None
@@ -2467,6 +2725,7 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
             charges,
             moto: is_moto,
             on_behalf_of,
+            line_items: create_stripe_line_items_data(&item.l2_l3_data),
         })
     }
 }
@@ -2612,6 +2871,9 @@ impl TryFrom<&TokenizationRouterData> for TokenRequest {
                     billing: billing_address,
                 })
             }
+            PaymentMethodData::CardDetailsForNetworkTransactionId(card_details) => {
+                StripePaymentMethodData::get_stripe_ntid_card_token_data(card_details)?
+            }
             _ => {
                 create_stripe_payment_method(
                     &item.request.payment_method_data,
@@ -2632,6 +2894,8 @@ impl TryFrom<&TokenizationRouterData> for TokenRequest {
 
         Ok(Self {
             token_data: request_payment_data,
+            ip: item.request.get_optional_ip_address(),
+            user_agent: item.request.get_optional_user_agent(),
         })
     }
 }
@@ -4782,20 +5046,14 @@ impl
     ) -> Result<Self, Self::Error> {
         let pm_data = &item.request.payment_method_data;
         match pm_data {
-            PaymentMethodData::Card(ref ccard) => {
-                let payment_method_auth_type = match auth_type {
-                    enums::AuthenticationType::ThreeDs => Auth3ds::Any,
-                    enums::AuthenticationType::NoThreeDs => Auth3ds::Automatic,
-                };
-                Ok(Self::try_from((
-                    ccard,
-                    payment_method_auth_type,
-                    None,
-                    item.request.request_incremental_authorization,
-                    None,
-                    None,
-                ))?)
-            }
+            PaymentMethodData::Card(ref ccard) => Ok(Self::try_from((
+                ccard,
+                auth_type,
+                None,
+                item.request.request_incremental_authorization,
+                None,
+                None,
+            ))?),
             PaymentMethodData::PayLater(_) => Ok(Self::PayLater(StripePayLaterData {
                 payment_method_data_type: pm_type,
             })),
@@ -4805,6 +5063,7 @@ impl
             PaymentMethodData::Wallet(ref wallet_data) => Ok(Self::try_from((
                 wallet_data,
                 item.payment_method_token.clone(),
+                auth_type,
             ))?),
             PaymentMethodData::BankDebit(bank_debit_data) => {
                 let (_pm_type, bank_data) = get_bank_debit_data(bank_debit_data);

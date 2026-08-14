@@ -1821,6 +1821,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "card_metadata"
+version = "0.1.0"
+dependencies = [
+ "error-stack 0.4.1",
+ "serde",
+ "thiserror 1.0.69",
+ "toml 0.8.22",
+]
+
+[[package]]
 name = "cards"
 version = "0.1.0"
 dependencies = [
@@ -2857,12 +2867,13 @@ checksum = "092966b41edc516079bdf31ec78a2e0588d1d0c08f78b91d8307215928642b2b"
 [[package]]
 name = "deja"
 version = "0.1.0"
-source = "git+https://github.com/juspay/deja?rev=075a614324897b8b6a878af36d7ac243fbec5d33#075a614324897b8b6a878af36d7ac243fbec5d33"
+source = "git+https://github.com/juspay/deja?rev=2c3a795ef4d8d2a5eebc47bbe7134984b75be6b3#2c3a795ef4d8d2a5eebc47bbe7134984b75be6b3"
 dependencies = [
  "deja-context",
  "deja-core",
  "deja-derive",
  "deja-runtime",
+ "error-stack 0.4.1",
  "serde",
  "serde_json",
 ]
@@ -2870,7 +2881,7 @@ dependencies = [
 [[package]]
 name = "deja-context"
 version = "0.1.0"
-source = "git+https://github.com/juspay/deja?rev=075a614324897b8b6a878af36d7ac243fbec5d33#075a614324897b8b6a878af36d7ac243fbec5d33"
+source = "git+https://github.com/juspay/deja?rev=2c3a795ef4d8d2a5eebc47bbe7134984b75be6b3#2c3a795ef4d8d2a5eebc47bbe7134984b75be6b3"
 dependencies = [
  "pin-project-lite",
 ]
@@ -2878,7 +2889,7 @@ dependencies = [
 [[package]]
 name = "deja-core"
 version = "0.1.0"
-source = "git+https://github.com/juspay/deja?rev=075a614324897b8b6a878af36d7ac243fbec5d33#075a614324897b8b6a878af36d7ac243fbec5d33"
+source = "git+https://github.com/juspay/deja?rev=2c3a795ef4d8d2a5eebc47bbe7134984b75be6b3#2c3a795ef4d8d2a5eebc47bbe7134984b75be6b3"
 dependencies = [
  "serde",
  "serde_json",
@@ -2888,7 +2899,7 @@ dependencies = [
 [[package]]
 name = "deja-derive"
 version = "0.1.0"
-source = "git+https://github.com/juspay/deja?rev=075a614324897b8b6a878af36d7ac243fbec5d33#075a614324897b8b6a878af36d7ac243fbec5d33"
+source = "git+https://github.com/juspay/deja?rev=2c3a795ef4d8d2a5eebc47bbe7134984b75be6b3#2c3a795ef4d8d2a5eebc47bbe7134984b75be6b3"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2898,7 +2909,7 @@ dependencies = [
 [[package]]
 name = "deja-runtime"
 version = "0.1.0"
-source = "git+https://github.com/juspay/deja?rev=075a614324897b8b6a878af36d7ac243fbec5d33#075a614324897b8b6a878af36d7ac243fbec5d33"
+source = "git+https://github.com/juspay/deja?rev=2c3a795ef4d8d2a5eebc47bbe7134984b75be6b3#2c3a795ef4d8d2a5eebc47bbe7134984b75be6b3"
 dependencies = [
  "async-trait",
  "deja-context",
@@ -3473,6 +3484,7 @@ name = "euclid_wasm"
 version = "0.1.0"
 dependencies = [
  "api_models",
+ "card_metadata",
  "common_enums",
  "common_types",
  "connector_configs",
@@ -3545,6 +3557,7 @@ dependencies = [
  "error-stack 0.4.1",
  "hex",
  "http 0.2.12",
+ "http-body 1.0.1",
  "http-body-util",
  "hyper 0.14.32",
  "hyper-proxy",
@@ -3555,6 +3568,7 @@ dependencies = [
  "once_cell",
  "open-feature",
  "prost 0.14.3",
+ "prost-reflect",
  "prost-types 0.14.3",
  "quick-xml",
  "reqwest 0.11.27",
@@ -3569,6 +3583,7 @@ dependencies = [
  "thiserror 1.0.69",
  "time 0.3.41",
  "tokio 1.48.0",
+ "tokio-stream",
  "tonic 0.14.5",
  "tonic-prost",
  "tonic-prost-build",
@@ -4776,6 +4791,7 @@ dependencies = [
  "common_utils",
  "dyn-clone",
  "error-stack 0.4.1",
+ "futures 0.3.31",
  "http 0.2.12",
  "hyperswitch_domain_models",
  "hyperswitch_masking",
@@ -6815,6 +6831,7 @@ dependencies = [
  "tera",
  "thiserror 1.0.69",
  "toml 0.8.22",
+ "tracing",
  "url 2.5.4",
  "urlencoding",
  "wasm-bindgen",
@@ -7452,6 +7469,19 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.101",
+]
+
+[[package]]
+name = "prost-reflect"
+version = "0.16.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "01b80ea363c31af2de2b92e3c07ed1156628f7838c4afb4df75ee78a37fedbd1"
+dependencies = [
+ "base64 0.22.1",
+ "prost 0.14.3",
+ "prost-types 0.14.3",
+ "serde",
+ "serde-value",
 ]
 
 [[package]]
@@ -8273,6 +8303,7 @@ dependencies = [
  "common_types",
  "common_utils",
  "config",
+ "connector_configs",
  "cookie 0.18.1",
  "csv",
  "currency_conversion",
@@ -8390,6 +8421,7 @@ dependencies = [
  "deja-core",
  "error-stack 0.4.1",
  "gethostname",
+ "hyperswitch_masking",
  "opentelemetry",
  "opentelemetry-aws",
  "opentelemetry-otlp",
@@ -9871,9 +9903,9 @@ checksum = "13c2bddecc57b384dee18652358fb23172facb8a2c51ccc10d74c157bdea3292"
 
 [[package]]
 name = "superposition_core"
-version = "0.114.0"
+version = "0.115.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6b97214039991ceebacd02afa5fde5fa7de3c421145d3aad60c4000ab58c904e"
+checksum = "fed4c2aa7224ad8d848bc2266cc8f5908667ac9caf99c3cf6da97b76efa25ef6"
 dependencies = [
  "bigdecimal 0.3.1",
  "blake3",
@@ -9892,9 +9924,9 @@ dependencies = [
 
 [[package]]
 name = "superposition_derives"
-version = "0.114.0"
+version = "0.115.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "94ce01eca383050e056a97cb540bc866c17a4caa5e1690dacd39b2099f83294d"
+checksum = "1e1f5f16481c2a0e4654ccf2c7a834991f1ac2cd189820f4e8a6d26ddb86c4af"
 dependencies = [
  "proc-macro-crate 3.2.0",
  "quote",
@@ -9903,9 +9935,9 @@ dependencies = [
 
 [[package]]
 name = "superposition_provider"
-version = "0.114.0"
+version = "0.115.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "aac9de6c9317dd04c25c6cdd3985d8cec7de60cf146ca478089a190803d82d46"
+checksum = "be01f2952ff92c8ea21e57f7b8615491863b07e5ddc830c59f3e9fdcbb298325"
 dependencies = [
  "async-trait",
  "aws-smithy-types",
@@ -9928,9 +9960,9 @@ dependencies = [
 
 [[package]]
 name = "superposition_sdk"
-version = "0.114.0"
+version = "0.115.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dff0c2b933ada9b3fb9e70b796de73d5374d13faa7e606aa10e5730c0fcbf3d0"
+checksum = "732c84601c078655a4ee6f7888ad4f6a1fef3e619027de03d94837c4df881094"
 dependencies = [
  "aws-smithy-async",
  "aws-smithy-http 0.62.1",
@@ -9946,9 +9978,9 @@ dependencies = [
 
 [[package]]
 name = "superposition_types"
-version = "0.114.0"
+version = "0.115.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4e91fcc93ef75fee0a68c709b13219f9b90d7a4efa432f2e680969208a4b9fa0"
+checksum = "9f9c04634344b80b2e0ebb50b5c4f752fd636dabf98902fe5986a1121be9d2fe"
 dependencies = [
  "bigdecimal 0.3.1",
  "chrono",

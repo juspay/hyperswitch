@@ -263,6 +263,12 @@ pub struct DataPaymentCaptureRequest {
     pub refno: String,
 }
 
+// Datatrans cancel expects an empty JSON object `{}` as the body when
+// Content-Type is application/json. Sending anything else (e.g. a bare JSON
+// string) triggers `INVALID_JSON_PAYLOAD`.
+#[derive(Debug, Serialize, Clone)]
+pub struct DatatransCancelRequest {}
+
 impl<T> TryFrom<(MinorUnit, T)> for DatatransRouterData<T> {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from((amount, item): (MinorUnit, T)) -> Result<Self, Self::Error> {

@@ -15,16 +15,21 @@ use hyperswitch_domain_models::{
     payment_method_data::{BankTransferData, BoletoVoucherData, PaymentMethodData, VoucherData},
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
+        merchant_connector_webhook_management::ConnectorWebhookRegister,
         payments::PushNotification, AuthorizeSessionToken, GenerateQr, SetupMandate,
     },
     router_request_types::{
+        merchant_connector_webhook_management::ConnectorWebhookRegisterRequest,
         AuthorizeSessionTokenData, CurrentFlowInfo, GenerateQrRequestData,
         PaymentsUpdatePostConfirmData, PushNotificationRequestData, ResponseId,
         SetupMandateRequestData,
     },
-    router_response_types::{MandateReference, PaymentsResponseData, RefundsResponseData},
+    router_response_types::{
+        merchant_connector_webhook_management::ConnectorWebhookRegisterResponse, MandateReference,
+        PaymentsResponseData, RefundsResponseData,
+    },
     types::{
-        PaymentsAuthorizeRouterData, PaymentsCancelRouterData,
+        ConnectorWebhookRegisterRouterData, PaymentsAuthorizeRouterData, PaymentsCancelRouterData,
         PaymentsPreAuthorizeCancelRouterData, PaymentsPushNotificationRouterData,
         PaymentsSyncRouterData, PaymentsUpdatePostConfirmRouterData, RefundsRouterData,
     },
@@ -41,13 +46,14 @@ use url::Url;
 use crate::{
     connectors::santander::{
         requests::{
-            AccessTokenUrlPath, BoletoAdditionalFields, Discount, DiscountObject, Environment,
-            JourneyData, Periodicidade, RecurrenceActivation, RecurrenceCalendar, RecurrenceDebtor,
-            RecurrenceLink, RecurrenceValue, RetryPolicy, SantanderAccountType,
-            SantanderAuthRequest, SantanderAuthType, SantanderBoletoCancelOperation,
-            SantanderBoletoCancelRequest, SantanderBoletoPaymentRequest, SantanderDebtor,
+            AccessTokenUrlPath, BoletoAdditionalFields, BoletoMetadataPatch, Discount,
+            DiscountObject, Environment, JourneyData, Periodicidade, RecurrenceActivation,
+            RecurrenceCalendar, RecurrenceDebtor, RecurrenceLink, RecurrenceValue, RetryPolicy,
+            SantanderAccountType, SantanderAuthRequest, SantanderAuthType,
+            SantanderBoletoCancelOperation, SantanderBoletoCancelRequest,
+            SantanderBoletoPaymentRequest, SantanderBoletoWebhookRegisterRequest, SantanderDebtor,
             SantanderDiscountType, SantanderGrantType, SantanderMetadataObject,
-            SantanderPaymentRequest, SantanderPaymentsCancelRequest,
+            SantanderMetadataPatch, SantanderPaymentRequest, SantanderPaymentsCancelRequest,
             SantanderPixAutomaticCalendarRequest, SantanderPixAutomaticDestinationRequest,
             SantanderPixAutomaticSolicitationRequest, SantanderPixAutomaticoCobrCalendario,
             SantanderPixAutomaticoCobrRequest, SantanderPixAutomaticoCobrValor,
@@ -56,19 +62,21 @@ use crate::{
             SantanderPixQRPaymentRequest, SantanderPixRequestCalendar,
             SantanderPostProcessingStepRequest, SantanderProtestType, SantanderRefundRequest,
             SantanderRouterData, SantanderSetupMandateRequest, SantanderValue, SantanderValueType,
+            SantanderWebhookRegisterRequest,
         },
         responses::{
             Beneficiary, Key, Payer, RecurrenceStatus, SanatanderAccessTokenResponse,
             SanatanderTokenResponse, SantanderAdditionalInfo, SantanderBoletoDocumentKind,
             SantanderBoletoPaymentType, SantanderBoletoStatus,
-            SantanderCreatePixPayloadLocationResponse, SantanderDocumentKind, SantanderJourneyType,
+            SantanderBoletoWebhookRegisterResponse, SantanderCreatePixPayloadLocationResponse,
+            SantanderDocumentKind, SantanderEmptyResponse, SantanderJourneyType,
             SantanderPaymentStatus, SantanderPaymentsResponse, SantanderPaymentsSyncResponse,
             SantanderPixAutomaticRecResponse, SantanderPixAutomaticSolicitationResponse,
             SantanderPixAutomaticoCobrStatus, SantanderPixAutomaticoCobrSyncResponse,
             SantanderPixKeyType, SantanderPixQRCodePaymentsResponse,
-            SantanderPixQRCodeSyncResponse, SantanderRefundResponse, SantanderRefundStatus,
-            SantanderSetupMandateResponse, SantanderUpdateResponse, SantanderVoidResponse,
-            SantanderVoidStatus, WaitScreenData,
+            SantanderPixQRCodeSyncResponse, SantanderPixWebhookRegisterResponse,
+            SantanderRefundResponse, SantanderRefundStatus, SantanderSetupMandateResponse,
+            SantanderUpdateResponse, SantanderVoidResponse, SantanderVoidStatus, WaitScreenData,
         },
     },
     types::{RefreshTokenRouterData, RefundsResponseRouterData, ResponseRouterData},
@@ -1344,6 +1352,8 @@ impl<F, T> TryFrom<ResponseRouterData<F, SantanderPaymentsSyncResponse, T, Payme
                             .map(|pix| {
                                 let data = SantanderData {
                                     end_to_end_id: Some(pix.end_to_end_id.clone().expose()),
+                                    paid_at: (attempt_status == AttemptStatus::Charged)
+                                        .then_some(pix.horario),
                                 };
                                 serde_json::to_value(data)
                                     .change_context(errors::ConnectorError::ParsingFailed)
@@ -1387,23 +1397,70 @@ impl<F, T> TryFrom<ResponseRouterData<F, SantanderPaymentsSyncResponse, T, Payme
             }
             // Journey 1/2
             SantanderPaymentsSyncResponse::PixAutomaticoConsultAndActivateJourney(res) => {
-                let status = AttemptStatus::from(res.status);
-                // TODO : Make a write on connector_metadata to modify the ExpiryType as it may chance after approval of Recurrence
+                let status = AttemptStatus::from(res.status.clone());
+                let connector_metadata = if matches!(res.status, RecurrenceStatus::Aprovada) {
+                    res.atualizacao
+                        .iter()
+                        .find(|update| matches!(update.status, Some(RecurrenceStatus::Aprovada)))
+                        .map(|update| {
+                            let data = SantanderData {
+                                end_to_end_id: None,
+                                paid_at: Some(update.data),
+                            };
+                            serde_json::to_value(data)
+                                .change_context(errors::ConnectorError::ParsingFailed)
+                        })
+                        .transpose()?
+                } else {
+                    None
+                };
+                let mut response = item.data.response.clone();
+                if let Ok(PaymentsResponseData::TransactionResponse {
+                    connector_metadata: ref mut cm,
+                    ..
+                }) = response
+                {
+                    *cm = connector_metadata;
+                }
                 Ok(Self {
                     status,
-                    response: item.data.response,
+                    response,
                     ..item.data
                 })
             }
             SantanderPaymentsSyncResponse::Boleto(res) => {
-                let status = res.content.first().map(|data| data.status.clone()).ok_or(
-                    errors::ConnectorError::MissingRequiredField {
-                        field_name: "status",
-                    },
-                )?;
+                let content = res.content.first();
+                let attempt_status = content
+                    .map(|data| AttemptStatus::from(data.status.clone()))
+                    .unwrap_or(AttemptStatus::AuthenticationPending);
+                let connector_metadata = content
+                    .filter(|_| {
+                        matches!(
+                            attempt_status,
+                            AttemptStatus::Charged | AttemptStatus::PartialChargedAndChargeable
+                        )
+                    })
+                    .map(|data| {
+                        let paid_at = data.payment.date;
+                        let data = SantanderData {
+                            end_to_end_id: None,
+                            paid_at,
+                        };
+                        serde_json::to_value(data)
+                            .change_context(errors::ConnectorError::ParsingFailed)
+                    })
+                    .transpose()?;
+                let mut response = item.data.response.clone();
+                if let Ok(PaymentsResponseData::TransactionResponse {
+                    connector_metadata: ref mut cm,
+                    ..
+                }) = response
+                {
+                    *cm = connector_metadata;
+                }
                 Ok(Self {
-                    status: AttemptStatus::from(status),
-                    response: item.data.response,
+                    status: attempt_status,
+                    response,
                     ..item.data
                 })
             }
@@ -1417,6 +1474,8 @@ impl<F, T> TryFrom<ResponseRouterData<F, SantanderPaymentsSyncResponse, T, Payme
                     .map(|pix| {
                         let data = SantanderData {
                             end_to_end_id: Some(pix.end_to_end_id.clone().expose()),
+                            paid_at: (attempt_status == AttemptStatus::Charged)
+                                .then_some(pix.horario),
                         };
                         serde_json::to_value(data)
                             .change_context(errors::ConnectorError::ParsingFailed)
@@ -2986,7 +3045,28 @@ pub fn decide_access_token_key_suffix(
                 (None, Some(enums::PaymentMethodType::PixAutomaticoPush)) => {
                     Some(AccessTokenUrlPath::Leg2)
                 }
-                (None, Some(enums::PaymentMethodType::PixAutomaticoQr)) => None,
+                (None, Some(enums::PaymentMethodType::PixAutomaticoQr)) => {
+                    Some(AccessTokenUrlPath::Leg2)
+                }
+                (
+                    Some(CurrentFlowInfo::ConnectorWebhookRegister { request_data }),
+                    Some(enums::PaymentMethodType::PixAutomaticoQr),
+                ) => {
+                    let base_url = request_data.base_url.to_string();
+                    if base_url.contains("{chaveKey}") || base_url.contains("%7BchaveKey%7D") {
+                        Some(AccessTokenUrlPath::Leg1)
+                    } else {
+                        Some(AccessTokenUrlPath::Leg2)
+                    }
+                }
+                (
+                    Some(CurrentFlowInfo::ConnectorWebhookRegister { .. }),
+                    Some(enums::PaymentMethodType::PixAutomaticoPush),
+                ) => Some(AccessTokenUrlPath::Leg2),
+                (
+                    Some(CurrentFlowInfo::ConnectorWebhookRegister { .. }),
+                    Some(enums::PaymentMethodType::PixQr),
+                ) => Some(AccessTokenUrlPath::Leg1),
                 // No payment method type or unsupported payment method type
                 (_, None) => None,
                 (_, Some(_)) => None,
@@ -3002,5 +3082,166 @@ impl From<SantanderJourneyType> for Option<ExpiryType> {
             SantanderJourneyType::Jornada4 => Some(ExpiryType::Scheduled),
             _ => None,
         }
+    }
+}
+
+impl TryFrom<&ConnectorWebhookRegisterRouterData> for SantanderWebhookRegisterRequest {
+    type Error = Error;
+    fn try_from(item: &ConnectorWebhookRegisterRouterData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            webhook_url: Secret::new(item.request.webhook_url.clone().expose().to_string()),
+        })
+    }
+}
+
+impl TryFrom<&ConnectorWebhookRegisterRouterData> for SantanderBoletoWebhookRegisterRequest {
+    type Error = Error;
+    fn try_from(item: &ConnectorWebhookRegisterRouterData) -> Result<Self, Self::Error> {
+        let santander_mca_metadata = SantanderMetadataObject::try_from(&item.connector_meta_data)?;
+        let boleto_metadata = santander_mca_metadata
+            .boleto
+            .ok_or(errors::ConnectorError::NoConnectorMetaData)?;
+
+        Ok(Self {
+            workspace_type: "BILLING".to_string(),
+            description: "Workspace de Cobrança".to_string(),
+            covenants: vec![
+                crate::connectors::santander::requests::SantanderBoletoCovenant {
+                    code: boleto_metadata.covenant_code.peek().clone(),
+                },
+            ],
+            webhook_url: item.request.webhook_url.clone().expose(),
+            bank_slip_billing_webhook_active: true,
+            pix_billing_webhook_active: true,
+        })
+    }
+}
+
+fn santander_composite_webhook_id(
+    payment_method_type: Option<enums::PaymentMethodType>,
+    connector_webhook_id: &str,
+) -> String {
+    let pmt_slug = payment_method_type
+        .map(|pmt| format!("{:?}", pmt).to_lowercase())
+        .unwrap_or_else(|| "unknown".to_string());
+    format!("santander_{}_{}", pmt_slug, connector_webhook_id)
+}
+
+impl
+    TryFrom<
+        ResponseRouterData<
+            ConnectorWebhookRegister,
+            SantanderPixWebhookRegisterResponse,
+            ConnectorWebhookRegisterRequest,
+            ConnectorWebhookRegisterResponse,
+        >,
+    > for ConnectorWebhookRegisterRouterData
+{
+    type Error = Error;
+    fn try_from(
+        item: ResponseRouterData<
+            ConnectorWebhookRegister,
+            SantanderPixWebhookRegisterResponse,
+            ConnectorWebhookRegisterRequest,
+            ConnectorWebhookRegisterResponse,
+        >,
+    ) -> Result<Self, Self::Error> {
+        Ok(ConnectorWebhookRegisterRouterData {
+            response: Ok(ConnectorWebhookRegisterResponse {
+                identifier: item.data.request.scope.clone(),
+                connector_webhook_id: Some(santander_composite_webhook_id(
+                    item.data.payment_method_type,
+                    &item.response.chave,
+                )),
+                status: common_enums::WebhookRegistrationStatus::Success,
+                error_code: None,
+                error_message: None,
+                metadata: None,
+            }),
+            ..item.data
+        })
+    }
+}
+
+impl
+    TryFrom<
+        ResponseRouterData<
+            ConnectorWebhookRegister,
+            SantanderBoletoWebhookRegisterResponse,
+            ConnectorWebhookRegisterRequest,
+            ConnectorWebhookRegisterResponse,
+        >,
+    > for ConnectorWebhookRegisterRouterData
+{
+    type Error = Error;
+    fn try_from(
+        item: ResponseRouterData<
+            ConnectorWebhookRegister,
+            SantanderBoletoWebhookRegisterResponse,
+            ConnectorWebhookRegisterRequest,
+            ConnectorWebhookRegisterResponse,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let workspace_id = item.response.id.clone();
+        let metadata = Some(
+            serde_json::to_value(SantanderMetadataPatch {
+                boleto: BoletoMetadataPatch {
+                    workspace_id: Secret::new(workspace_id),
+                },
+            })
+            .change_context(errors::ConnectorError::ParsingFailed)
+            .map(common_utils::pii::SecretSerdeValue::new)?,
+        );
+
+        Ok(ConnectorWebhookRegisterRouterData {
+            response: Ok(ConnectorWebhookRegisterResponse {
+                identifier: item.data.request.scope.clone(),
+                connector_webhook_id: Some(santander_composite_webhook_id(
+                    item.data.payment_method_type,
+                    &item.response.id,
+                )),
+                status: common_enums::WebhookRegistrationStatus::Success,
+                error_code: None,
+                error_message: None,
+                metadata,
+            }),
+            ..item.data
+        })
+    }
+}
+
+impl
+    TryFrom<
+        ResponseRouterData<
+            ConnectorWebhookRegister,
+            SantanderEmptyResponse,
+            ConnectorWebhookRegisterRequest,
+            ConnectorWebhookRegisterResponse,
+        >,
+    > for ConnectorWebhookRegisterRouterData
+{
+    type Error = Error;
+    fn try_from(
+        item: ResponseRouterData<
+            ConnectorWebhookRegister,
+            SantanderEmptyResponse,
+            ConnectorWebhookRegisterRequest,
+            ConnectorWebhookRegisterResponse,
+        >,
+    ) -> Result<Self, Self::Error> {
+        Ok(ConnectorWebhookRegisterRouterData {
+            response: Ok(ConnectorWebhookRegisterResponse {
+                identifier: item.data.request.scope.clone(),
+                connector_webhook_id: Some(santander_composite_webhook_id(
+                    item.data.payment_method_type,
+                    &uuid::Uuid::new_v4().to_string(),
+                )),
+                status: common_enums::WebhookRegistrationStatus::Success,
+                error_code: None,
+                error_message: None,
+                metadata: None,
+            }),
+            ..item.data
+        })
     }
 }

@@ -739,6 +739,8 @@ pub struct TokenizedBankInsensitiveValues {
     pub bank_city: Option<String>,
     pub bank_branch: Option<String>,
     pub ispb: Option<String>,
+    pub bank_code: Option<String>,
+    pub bank_account_type: Option<common_enums::BankType>,
     pub payout_method_type: Option<PaymentMethodType>,
 }
 
@@ -801,7 +803,7 @@ impl Vaultable for api::BankPayout {
                 tax_id: bank_details.tax_id.to_owned(),
                 bank_number: None,
                 emv: None,
-                account_holder_name: None,
+                account_holder_name: bank_details.account_holder_name.clone(),
                 cellphone: None,
                 shap_id: None,
             },
@@ -881,6 +883,8 @@ impl Vaultable for api::BankPayout {
                 bank_city: b.bank_city.to_owned(),
                 bank_branch: None,
                 ispb: None,
+                bank_code: None,
+                bank_account_type: None,
                 payout_method_type: Some(PaymentMethodType::Ach),
             },
             Self::Bacs(b) => TokenizedBankInsensitiveValues {
@@ -890,6 +894,8 @@ impl Vaultable for api::BankPayout {
                 bank_city: b.bank_city.to_owned(),
                 bank_branch: None,
                 ispb: None,
+                bank_code: None,
+                bank_account_type: None,
                 payout_method_type: Some(PaymentMethodType::Bacs),
             },
             Self::Sepa(bank_details) => TokenizedBankInsensitiveValues {
@@ -899,6 +905,8 @@ impl Vaultable for api::BankPayout {
                 bank_city: bank_details.bank_city.to_owned(),
                 bank_branch: None,
                 ispb: None,
+                bank_code: None,
+                bank_account_type: None,
                 payout_method_type: Some(PaymentMethodType::Sepa),
             },
             Self::Pix(bank_details) => TokenizedBankInsensitiveValues {
@@ -908,6 +916,8 @@ impl Vaultable for api::BankPayout {
                 bank_city: None,
                 bank_branch: bank_details.bank_branch.to_owned(),
                 ispb: bank_details.ispb.to_owned(),
+                bank_code: bank_details.bank_code.to_owned(),
+                bank_account_type: bank_details.bank_account_type,
                 payout_method_type: Some(PaymentMethodType::Pix),
             },
             Self::Trustly(bank_details) => TokenizedBankInsensitiveValues {
@@ -917,6 +927,8 @@ impl Vaultable for api::BankPayout {
                 bank_branch: None,
                 bank_country_code: Some(bank_details.country_code.to_owned()),
                 ispb: None,
+                bank_code: None,
+                bank_account_type: None,
                 payout_method_type: Some(PaymentMethodType::Trustly),
             },
             Self::OpenBanking(_) => TokenizedBankInsensitiveValues {
@@ -926,6 +938,28 @@ impl Vaultable for api::BankPayout {
                 bank_branch: None,
                 bank_country_code: None,
                 ispb: None,
+                bank_code: None,
+                bank_account_type: None,
+                payout_method_type: Some(PaymentMethodType::OpenBanking),
+            },
+            Self::Payshap(_) => TokenizedBankInsensitiveValues {
+                customer_id,
+                bank_name: None,
+                bank_city: None,
+                bank_branch: None,
+                bank_country_code: None,
+                ispb: None,
+                payout_method_type: Some(PaymentMethodType::OpenBanking),
+            },
+            Self::PayshapProxy(_) => TokenizedBankInsensitiveValues {
+                customer_id,
+                bank_name: None,
+                bank_city: None,
+                bank_branch: None,
+                bank_country_code: None,
+                ispb: None,
+                bank_code: None,
+                bank_account_type: None,
                 payout_method_type: Some(PaymentMethodType::OpenBanking),
             },
             Self::Payshap(_) => TokenizedBankInsensitiveValues {
@@ -1038,6 +1072,9 @@ impl Vaultable for api::BankPayout {
                     tax_id,
                     emv: bank_sensitive_data.emv,
                     ispb: bank_insensitive_data.ispb,
+                    bank_code: bank_insensitive_data.bank_code,
+                    bank_account_type: bank_insensitive_data.bank_account_type,
+                    account_holder_name: bank_sensitive_data.account_holder_name,
                 })
             }
             _ => Err(errors::VaultError::ResponseDeserializationFailed)?,
@@ -1111,7 +1148,7 @@ impl Vaultable for api::BankTransferPayout {
                 tax_id: bank_details.tax_id.to_owned(),
                 bank_number: None,
                 emv: None,
-                account_holder_name: None,
+                account_holder_name: bank_details.account_holder_name.clone(),
                 cellphone: None,
                 shap_id: None,
             },
@@ -1219,6 +1256,8 @@ impl Vaultable for api::BankTransferPayout {
                 bank_city: b.bank_city.to_owned(),
                 bank_branch: None,
                 ispb: None,
+                bank_code: None,
+                bank_account_type: None,
                 payout_method_type: Some(PaymentMethodType::Ach),
             },
             Self::Bacs(b) => TokenizedBankInsensitiveValues {
@@ -1228,6 +1267,8 @@ impl Vaultable for api::BankTransferPayout {
                 bank_city: b.bank_city.to_owned(),
                 bank_branch: None,
                 ispb: None,
+                bank_code: None,
+                bank_account_type: None,
                 payout_method_type: Some(PaymentMethodType::Bacs),
             },
             Self::Sepa(bank_details) => TokenizedBankInsensitiveValues {
@@ -1237,6 +1278,8 @@ impl Vaultable for api::BankTransferPayout {
                 bank_city: bank_details.bank_city.to_owned(),
                 bank_branch: None,
                 ispb: None,
+                bank_code: None,
+                bank_account_type: None,
                 payout_method_type: Some(PaymentMethodType::Sepa),
             },
             Self::Pix(bank_details) => TokenizedBankInsensitiveValues {
@@ -1246,6 +1289,8 @@ impl Vaultable for api::BankTransferPayout {
                 bank_city: None,
                 bank_branch: bank_details.bank_branch.to_owned(),
                 ispb: bank_details.ispb.to_owned(),
+                bank_code: bank_details.bank_code.to_owned(),
+                bank_account_type: bank_details.bank_account_type,
                 payout_method_type: Some(PaymentMethodType::Pix),
             },
             Self::PixKey(_) => TokenizedBankInsensitiveValues {
@@ -1255,6 +1300,8 @@ impl Vaultable for api::BankTransferPayout {
                 bank_city: None,
                 bank_branch: None,
                 ispb: None,
+                bank_code: None,
+                bank_account_type: None,
                 payout_method_type: Some(PaymentMethodType::PixKey),
             },
             Self::PixEmv(_) => TokenizedBankInsensitiveValues {
@@ -1264,6 +1311,8 @@ impl Vaultable for api::BankTransferPayout {
                 bank_city: None,
                 bank_branch: None,
                 ispb: None,
+                bank_code: None,
+                bank_account_type: None,
                 payout_method_type: Some(PaymentMethodType::PixEmv),
             },
             Self::Trustly(bank_details) => TokenizedBankInsensitiveValues {
@@ -1273,6 +1322,8 @@ impl Vaultable for api::BankTransferPayout {
                 bank_branch: None,
                 bank_country_code: Some(bank_details.bank_country_code.to_owned()),
                 ispb: None,
+                bank_code: None,
+                bank_account_type: None,
                 payout_method_type: Some(PaymentMethodType::Trustly),
             },
             Self::OpenBanking(_) => TokenizedBankInsensitiveValues {
@@ -1282,6 +1333,8 @@ impl Vaultable for api::BankTransferPayout {
                 bank_branch: None,
                 bank_country_code: None,
                 ispb: None,
+                bank_code: None,
+                bank_account_type: None,
                 payout_method_type: Some(PaymentMethodType::OpenBanking),
             },
             Self::Payshap(bank_details) => TokenizedBankInsensitiveValues {
@@ -1390,6 +1443,9 @@ impl Vaultable for api::BankTransferPayout {
                 bank_name: bank_insensitive_data.bank_name,
                 tax_id: bank_sensitive_data.tax_id,
                 ispb: bank_insensitive_data.ispb,
+                bank_code: bank_insensitive_data.bank_code,
+                bank_account_type: bank_insensitive_data.bank_account_type,
+                account_holder_name: bank_sensitive_data.account_holder_name,
             }),
             Some(PaymentMethodType::PixKey) => Self::PixKey(payouts::PixKeyBankTransfer {
                 pix_key: bank_sensitive_data.pix_key.ok_or(
@@ -2130,6 +2186,19 @@ async fn create_vault_request<R: pm_types::VaultingInterface>(
     Ok(request)
 }
 
+/// Maps a vault flow name (`V::get_vaulting_flow_name()`) to its dedicated latency histogram.
+/// Falls back to `VAULT_ADD_TIME` for flows without a dedicated histogram (e.g. entity creation).
+fn vault_operation_latency_metric(
+    flow_name: &str,
+) -> &'static router_env::opentelemetry::metrics::Histogram<f64> {
+    match flow_name {
+        consts::V2_VAULT_RETRIEVE_FLOW_TYPE => &metrics::VAULT_GET_TIME,
+        consts::V2_VAULT_DELETE_FLOW_TYPE => &metrics::VAULT_DELETE_TIME,
+        consts::V2_VAULT_GET_FINGERPRINT_FLOW_TYPE => &metrics::VAULT_FINGERPRINT_TIME,
+        _ => &metrics::VAULT_ADD_TIME,
+    }
+}
+
 #[instrument(skip_all)]
 pub async fn call_to_vault<V: pm_types::VaultingInterface>(
     state: &routes::SessionState,
@@ -2139,6 +2208,18 @@ pub async fn call_to_vault<V: pm_types::VaultingInterface>(
 ) -> CustomResult<String, errors::VaultError> {
     let locker = &state.conf.locker;
     let jwekey = state.conf.jwekey.get_inner();
+    let additional_headers = if cfg!(feature = "ext_services_latency") {
+        let mut additional_headers = additional_headers.unwrap_or_default();
+        if let Some(request_id) = state.request_id.as_ref() {
+            additional_headers.insert(
+                common_utils::consts::X_REQUEST_ID.to_string(),
+                request_id.to_string(),
+            );
+        }
+        additional_headers
+    } else {
+        additional_headers.unwrap_or_default()
+    };
 
     let request = create_vault_request::<V>(
         jwekey,
@@ -2146,12 +2227,21 @@ pub async fn call_to_vault<V: pm_types::VaultingInterface>(
         payload,
         state.tenant.tenant_id.to_owned(),
         query_params,
-        additional_headers,
+        Some(additional_headers),
     )
     .await?;
-    let response = services::call_connector_api(state, request, V::get_vaulting_flow_name())
-        .await
-        .change_context(errors::VaultError::VaultAPIError);
+    let flow_name = V::get_vaulting_flow_name();
+    let response = common_utils::metrics::utils::record_operation_time(
+        services::call_connector_api(state, request, flow_name, None),
+        vault_operation_latency_metric(flow_name),
+        router_env::metric_attributes!(("operation", flow_name)),
+    )
+    .await
+    .change_context(errors::VaultError::VaultAPIError)
+    .inspect_err(|_| {
+        metrics::VAULT_CALL_FAILURES
+            .add(1, router_env::metric_attributes!(("operation", flow_name)));
+    });
 
     let jwe_body: services::JweBody = response
         .get_response_inner("JweBody")
@@ -2168,6 +2258,27 @@ pub async fn call_to_vault<V: pm_types::VaultingInterface>(
     .attach_printable("Error getting decrypted vault response payload")?;
 
     Ok(decrypted_payload)
+}
+
+pub async fn create_entity_in_locker(
+    state: &routes::SessionState,
+    entity_id: &id_type::MerchantId,
+) -> CustomResult<pm_types::EntityCreateResponse, errors::VaultError> {
+    let payload = pm_types::EntityCreateRequest {
+        entity_id: entity_id.clone(),
+    }
+    .encode_to_vec()
+    .change_context(errors::VaultError::RequestEncodingFailed)?;
+
+    let response = call_to_vault::<pm_types::EntityCreate>(state, payload, None, None)
+        .await
+        .change_context(errors::VaultError::VaultAPIError)
+        .attach_printable("Call to vault failed while creating locker entity")?;
+
+    response
+        .parse_struct("EntityCreateResponse")
+        .change_context(errors::VaultError::ResponseDeserializationFailed)
+        .attach_printable("Failed to parse EntityCreateResponse")
 }
 
 #[cfg(feature = "v2")]
@@ -3149,7 +3260,7 @@ pub async fn get_delete_tokenize_schedule_time(
             process_data::PaymentMethodsPTMapping::default()
         }
     };
-    let time_delta = process_tracker_utils::get_pm_schedule_time(mapping, pm, retry_count + 1);
+    let time_delta = process_tracker_utils::get_pm_schedule_time(mapping, pm, retry_count);
 
     process_tracker_utils::get_time_from_delta(time_delta)
 }
@@ -3159,7 +3270,7 @@ pub async fn retry_delete_tokenize(
     pm: enums::PaymentMethod,
     pt: storage::ProcessTracker,
 ) -> Result<(), errors::ProcessTrackerError> {
-    let schedule_time = get_delete_tokenize_schedule_time(db, pm, pt.retry_count).await;
+    let schedule_time = get_delete_tokenize_schedule_time(db, pm, pt.retry_count + 1).await;
 
     match schedule_time {
         Some(s_time) => {

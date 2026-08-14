@@ -49,6 +49,7 @@ pub enum PayoutConnectors {
     Adyen,
     Adyenplatform,
     Cybersource,
+    Deutschebank,
     Ebanx,
     Gigadat,
     GotymeSanlam,
@@ -65,6 +66,7 @@ pub enum PayoutConnectors {
     Worldpayxml,
     Envoy,
     Itaubank,
+    Santander,
 }
 
 #[cfg(feature = "v2")]
@@ -95,6 +97,7 @@ impl From<PayoutConnectors> for RoutableConnectors {
             PayoutConnectors::Adyen => Self::Adyen,
             PayoutConnectors::Adyenplatform => Self::Adyenplatform,
             PayoutConnectors::Cybersource => Self::Cybersource,
+            PayoutConnectors::Deutschebank => Self::Deutschebank,
             PayoutConnectors::Ebanx => Self::Ebanx,
             PayoutConnectors::Gigadat => Self::Gigadat,
             PayoutConnectors::GotymeSanlam => Self::GotymeSanlam,
@@ -111,6 +114,7 @@ impl From<PayoutConnectors> for RoutableConnectors {
             PayoutConnectors::Worldpayxml => Self::Worldpayxml,
             PayoutConnectors::Envoy => Self::Envoy,
             PayoutConnectors::Itaubank => Self::Itaubank,
+            PayoutConnectors::Santander => Self::Santander,
         }
     }
 }
@@ -122,6 +126,7 @@ impl From<PayoutConnectors> for Connector {
             PayoutConnectors::Adyen => Self::Adyen,
             PayoutConnectors::Adyenplatform => Self::Adyenplatform,
             PayoutConnectors::Cybersource => Self::Cybersource,
+            PayoutConnectors::Deutschebank => Self::Deutschebank,
             PayoutConnectors::Ebanx => Self::Ebanx,
             PayoutConnectors::Gigadat => Self::Gigadat,
             PayoutConnectors::GotymeSanlam => Self::GotymeSanlam,
@@ -138,6 +143,7 @@ impl From<PayoutConnectors> for Connector {
             PayoutConnectors::Worldpayxml => Self::Worldpayxml,
             PayoutConnectors::Envoy => Self::Envoy,
             PayoutConnectors::Itaubank => Self::Itaubank,
+            PayoutConnectors::Santander => Self::Santander,
         }
     }
 }
@@ -150,6 +156,7 @@ impl TryFrom<Connector> for PayoutConnectors {
             Connector::Adyen => Ok(Self::Adyen),
             Connector::Adyenplatform => Ok(Self::Adyenplatform),
             Connector::Cybersource => Ok(Self::Cybersource),
+            Connector::Deutschebank => Ok(Self::Deutschebank),
             Connector::Ebanx => Ok(Self::Ebanx),
             Connector::Gigadat => Ok(Self::Gigadat),
             Connector::GotymeSanlam => Ok(Self::GotymeSanlam),
@@ -166,6 +173,7 @@ impl TryFrom<Connector> for PayoutConnectors {
             Connector::Worldpayxml => Ok(Self::Worldpayxml),
             Connector::Envoy => Ok(Self::Envoy),
             Connector::Itaubank => Ok(Self::Itaubank),
+            Connector::Santander => Ok(Self::Santander),
             _ => Err(format!("Invalid payout connector {value}")),
         }
     }

@@ -230,6 +230,22 @@ impl PaymentMethodData {
         }
     }
 
+    /// Extended BIN for any variant that carries the original card number.
+    pub fn get_card_extended_bin(&self) -> Option<String> {
+        match self {
+            Self::Card(card) => Some(card.card_number.get_extended_card_bin()),
+            Self::CardWithOptionalCVC(card) => Some(card.card_number.get_extended_card_bin()),
+            Self::CardWithNetworkTokenDetails(card) => {
+                Some(card.card_details.card_number.get_extended_card_bin())
+            }
+            Self::CardDetailsForNetworkTransactionId(card) => {
+                Some(card.card_number.get_extended_card_bin())
+            }
+            Self::CardWithLimitedDetails(card) => Some(card.card_number.get_extended_card_bin()),
+            _ => None,
+        }
+    }
+
     pub fn apply_additional_payment_data(
         &self,
         additional_payment_data: api_models::payments::AdditionalPaymentData,
@@ -383,12 +399,43 @@ pub enum EligibilityPaymentMethodData {
 
 impl EligibilityPaymentMethodData {
     pub fn is_eligible_for_profile_config_blocklist(&self) -> bool {
-        matches!(self, Self::Card(_))
+        matches!(self, Self::Card(_) | Self::Wallet(_))
     }
 
     pub fn get_card_iin(&self) -> Option<String> {
         match self {
             Self::Card(card) => Some(card.card_number.get_card_isin()),
+            _ => None,
+        }
+    }
+
+    pub fn get_card_data(&self) -> Option<&EligibilityCard> {
+        if let Self::Card(card) = self {
+            Some(card)
+        } else {
+            None
+        }
+    }
+
+    /// 8-digit BIN of a wallet's decrypted token. `None` while the token is still encrypted.
+    pub fn get_decrypted_token_extended_bin(&self) -> Option<String> {
+        match self {
+            Self::Wallet(WalletData::GooglePay(google_pay)) => google_pay
+                .tokenization_data
+                .get_decrypted_google_pay_payment_data_optional()
+                .map(|decrypted_data| {
+                    decrypted_data
+                        .application_primary_account_number
+                        .get_extended_card_bin()
+                }),
+            Self::Wallet(WalletData::ApplePay(apple_pay)) => apple_pay
+                .payment_data
+                .get_decrypted_apple_pay_payment_data_optional()
+                .map(|decrypted_data| {
+                    decrypted_data
+                        .application_primary_account_number
+                        .get_extended_card_bin()
+                }),
             _ => None,
         }
     }
@@ -474,6 +521,23 @@ pub struct CardWithOptionalCVC {
 }
 
 impl CardWithOptionalCVC {
+    pub fn get_card_expiry_month_2_digit(
+        &self,
+    ) -> Result<Secret<String>, common_utils::errors::ValidationError> {
+        let exp_month = self.card_exp_month.peek().parse::<u8>().map_err(|_| {
+            common_utils::errors::ValidationError::InvalidValue {
+                message: "Invalid card expiry month".to_string(),
+            }
+        })?;
+        let month = ::cards::CardExpirationMonth::try_from(exp_month).map_err(|_| {
+            common_utils::errors::ValidationError::InvalidValue {
+                message: "Invalid card expiry month".to_string(),
+            }
+        })?;
+
+        Ok(Secret::new(month.two_digits()))
+    }
+
     fn apply_additional_card_info(
         &self,
         additional_card_info: api_models::payments::AdditionalCardInfo,
@@ -1921,6 +1985,9 @@ impl From<api_models::payments::PaymentMethodData> for PaymentMethodData {
             api_models::payments::PaymentMethodData::Card(card_data) => {
                 Self::Card(Card::from((card_data, None)))
             }
+            api_models::payments::PaymentMethodData::CardWithNoCVC(card_data) => {
+                Self::CardWithOptionalCVC(CardWithOptionalCVC::from((card_data, None)))
+            }
             api_models::payments::PaymentMethodData::CardRedirect(card_redirect) => {
                 Self::CardRedirect(From::from(card_redirect))
             }
@@ -2074,6 +2141,50 @@ impl
             card_exp_month,
             card_exp_year,
             card_cvc,
+            card_issuer,
+            card_network,
+            card_type,
+            card_issuing_country,
+            card_issuing_country_code,
+            bank_code,
+            nick_name,
+            card_holder_name,
+            co_badged_card_data: co_badged_card_data_optional,
+        }
+    }
+}
+
+impl
+    From<(
+        api_models::payments::CardWithNoCVC,
+        Option<payment_methods::CoBadgedCardData>,
+    )> for CardWithOptionalCVC
+{
+    fn from(
+        (value, co_badged_card_data_optional): (
+            api_models::payments::CardWithNoCVC,
+            Option<payment_methods::CoBadgedCardData>,
+        ),
+    ) -> Self {
+        let api_models::payments::CardWithNoCVC {
+            card_number,
+            card_exp_month,
+            card_exp_year,
+            card_holder_name,
+            card_issuer,
+            card_network,
+            card_type,
+            card_issuing_country,
+            card_issuing_country_code,
+            bank_code,
+            nick_name,
+        } = value;
+
+        Self {
+            card_number,
+            card_exp_month,
+            card_exp_year,
+            card_cvc: None,
             card_issuer,
             card_network,
             card_type,
