@@ -6132,6 +6132,14 @@ pub enum RawPaymentMethodFetchAccess {
 }
 
 #[cfg(feature = "v2")]
+#[derive(Clone, Copy, Debug)]
+pub struct RawPaymentMethodAccess {
+    pub response: RawPaymentMethodFetchAccess,
+    pub retrieve_raw_card: RawPaymentMethodFetchAccess,
+    pub account_updater: RawPaymentMethodFetchAccess,
+}
+
+#[cfg(feature = "v2")]
 impl RawPaymentMethodFetchAccess {
     pub async fn get_raw_payment_method_data(
         &self,
@@ -6306,14 +6314,6 @@ fn get_proxy_card_data(
                 },
             )
         })
-}
-
-#[cfg(feature = "v2")]
-#[derive(Clone, Copy, Debug)]
-pub struct RawPaymentMethodAccess {
-    pub response: RawPaymentMethodFetchAccess,
-    pub retrieve_raw_card: RawPaymentMethodFetchAccess,
-    pub account_updater: RawPaymentMethodFetchAccess,
 }
 
 #[cfg(feature = "v2")]
