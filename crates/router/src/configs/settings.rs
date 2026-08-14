@@ -403,7 +403,12 @@ pub struct JuspayAccountUpdaterConfig {
     pub card_sync_key_id: String,
     #[serde(deserialize_with = "deserialize_hashset")]
     pub supported_card_networks: HashSet<enums::CardNetwork>,
+    #[serde(default = "default_account_updater_refresh_timeout_in_secs")]
     pub refresh_timeout_in_secs: u64,
+}
+
+fn default_account_updater_refresh_timeout_in_secs() -> u64 {
+    5
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]

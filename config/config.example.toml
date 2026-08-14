@@ -1528,7 +1528,7 @@ euler_encryption_public_key = "" # Provider RSA public key, used to seal outboun
 au_decryption_pvt_key = ""       # Our RSA private key, used to open the response payload
 card_sync_key_id = ""            # Id of our public key as registered with the provider
 supported_card_networks = "Visa, Mastercard" # Supported card networks for Account Updater refresh
-refresh_timeout_in_secs = 5                 # Per-call deadline for the refresh request sent to UCS
+refresh_timeout_in_secs = 5                 # Optional, defaults to 5. Per-call deadline for the refresh request sent to UCS
 
 [micro_services]
 # Base URLs for modular microservices
