@@ -1,4 +1,5 @@
 use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods, Table};
+use error_stack::ResultExt;
 
 use super::generics;
 #[cfg(feature = "v1")]
@@ -20,7 +21,9 @@ impl RefundNew {
         self,
         conn: &mut PgPooledConn,
     ) -> StorageResult<kv::SerializableQuery> {
-        kv::generate_insert_query(conn, self).await
+        kv::generate_insert_query(conn, self)
+            .await
+            .attach_printable("Failed to generate insert query for refund")
     }
 }
 
@@ -309,6 +312,7 @@ impl RefundUpdate {
             RefundUpdateInternal::from(self),
         )
         .await
+        .attach_printable("Failed to generate update query for refund")
     }
 
     #[cfg(feature = "v2")]
@@ -323,5 +327,6 @@ impl RefundUpdate {
             RefundUpdateInternal::from(self),
         )
         .await
+        .attach_printable("Failed to generate update query for refund")
     }
 }

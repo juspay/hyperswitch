@@ -187,12 +187,9 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
         let payment_method = (&payment_method_new.clone()).into();
 
         let mut query_gen_conn = pg_connection_write(self).await?;
-        let drainer_query = payment_method_new
+        let drainer_query_fut = payment_method_new
             .clone()
-            .generate_drainer_insert_query(&mut query_gen_conn)
-            .await
-            .change_context(errors::StorageError::KVError)
-            .attach_printable("Failed to generate payment method insert query")?;
+            .generate_drainer_insert_query(&mut query_gen_conn);
 
         let payment_method: DomainPaymentMethod = Box::pin(self.insert_resource(
             key_store,
@@ -200,7 +197,7 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
             payment_method_new.clone().insert(&conn),
             payment_method,
             InsertResourceParams {
-                drainer_query,
+                drainer_query_fut,
                 reverse_lookups,
                 key,
                 identifier,
@@ -243,15 +240,10 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
         let updated_payment_method = p_update.clone().apply_changeset(payment_method.clone());
 
         let mut query_gen_conn = pg_connection_write(self).await?;
-        let drainer_query = p_update
-            .clone()
-            .generate_drainer_update_query(
-                &mut query_gen_conn,
-                payment_method.payment_method_id.clone(),
-            )
-            .await
-            .change_context(errors::StorageError::KVError)
-            .attach_printable("Failed to generate payment method update query")?;
+        let drainer_query_fut = p_update.clone().generate_drainer_update_query(
+            &mut query_gen_conn,
+            payment_method.payment_method_id.clone(),
+        );
 
         let payment_method: DomainPaymentMethod = Box::pin(
             self.update_resource(
@@ -262,7 +254,7 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
                     .update_with_payment_method_id(&conn, p_update.clone()),
                 updated_payment_method,
                 UpdateResourceParams {
-                    drainer_query,
+                    drainer_query_fut,
                     operation: Op::Update(
                         key.clone(),
                         &field,
