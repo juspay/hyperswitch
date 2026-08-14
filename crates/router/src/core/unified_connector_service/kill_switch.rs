@@ -61,7 +61,7 @@ pub async fn is_kill_switched(
     if kill_switch_enabled {
         match read_counter(state, rollout_scope).await {
             Ok(count) => {
-                let exceeded = count > kill_switch_threshold;
+                let exceeded = count >= kill_switch_threshold;
                 if exceeded {
                     logger::debug!(
                         rollout_scope = %rollout_scope,

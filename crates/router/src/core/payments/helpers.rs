@@ -2579,7 +2579,7 @@ impl Default for RolloutExecutionResult {
             proxy_override: None,
             execution_mode: ExecutionMode::NotApplicable,
             kill_switch_enabled: false,
-            kill_switch_threshold: 0,
+            kill_switch_threshold: 1,
         }
     }
 }
