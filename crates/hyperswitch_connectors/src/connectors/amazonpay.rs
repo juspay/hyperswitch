@@ -453,13 +453,16 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             .parse_struct("Amazonpay PaymentsAuthorizeResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
 
-        let response_integrity_object = response.payment_details.map(|payment_details| {
-            connector_utils::get_authorise_integrity_object(
+        let response_integrity_object = if let Some(ref payment_details) = response.payment_details
+        {
+            Some(connector_utils::get_authorise_integrity_object(
                 self.amount_converter,
-                payment_details.charge_amount.amount,
-                payment_details.charge_amount.currency_code.into(),
-            )?
-        });
+                payment_details.charge_amount.amount.to_owned(),
+                payment_details.charge_amount.currency_code.to_string(),
+            )?)
+        } else {
+            None
+        };
 
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -543,8 +546,8 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Ama
 
         let response_integrity_object = connector_utils::get_sync_integrity_object(
             self.amount_converter,
-            response.charge_amount.amount,
-            response.charge_amount.currency_code.into(),
+            response.charge_amount.amount.to_owned(),
+            response.charge_amount.currency_code.to_string(),
         )?;
 
         event_builder.map(|i| i.set_response_body(&response));
@@ -555,7 +558,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Ama
             http_code: res.status_code,
         })
         .map(|mut router_data| {
-            router_data.request.integrity_object = Some(integrity_object);
+            router_data.request.integrity_object = Some(response_integrity_object);
             router_data
         })
     }
@@ -658,8 +661,8 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Amazonp
 
         let response_integrity_object = connector_utils::get_refund_integrity_object(
             self.amount_converter,
-            response.refund_amount.amount,
-            response.refund_amount.currency_code.into(),
+            response.refund_amount.amount.to_owned(),
+            response.refund_amount.currency_code.to_string(),
         )?;
 
         event_builder.map(|i| i.set_response_body(&response));
@@ -745,8 +748,8 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Amazonpay
 
         let response_integrity_object = connector_utils::get_refund_integrity_object(
             self.amount_converter,
-            response.refund_amount.amount,
-            response.refund_amount.currency_code.into(),
+            response.refund_amount.amount.to_owned(),
+            response.refund_amount.currency_code.to_string().to_owned(),
         )?;
 
         event_builder.map(|i| i.set_response_body(&response));
