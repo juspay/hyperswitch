@@ -79,8 +79,6 @@ use super::{
     pm_auth,
 };
 #[cfg(feature = "v2")]
-use crate::routes::metrics;
-#[cfg(feature = "v2")]
 use crate::{
     configs::settings,
     core::{

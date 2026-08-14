@@ -211,6 +211,7 @@ pub async fn payment_link_create(
                 header_payload.clone(),
                 req,
                 api::AuthFlow::Client,
+                None,
             )
         },
         &auth::InternalMerchantIdProfileIdAuth(auth::JWTAuth {
