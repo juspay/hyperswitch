@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 
 use api_models::{self, enums as api_enums};
-use common_enums::CaptureMethod;
+use common_enums::{CaptureMethod, PreFrmFailureMode};
 use error_stack::ResultExt;
 use hyperswitch_masking::PeekInterface;
 use router_env::{
@@ -13,7 +13,7 @@ use self::{
     flows::{self as frm_flows, FeatureFrm},
     types::{
         self as frm_core_types, ConnectorDetailsCore, FrmConfigsObject, FrmData, FrmEligibility,
-        FrmInfo, PaymentDetails, PaymentToFrmData, PreFrmFailureMode,
+        FrmInfo, PaymentDetails, PaymentToFrmData,
     },
 };
 use super::errors::{ConnectorErrorExt, RouterResponse};
@@ -537,13 +537,7 @@ where
                     .await?;
                 let frm_fraud_check = frm_data_updated.fraud_check.clone();
                 payment_data.set_frm_message(frm_fraud_check.clone());
-                if matches!(frm_fraud_check.frm_status, FraudCheckStatus::Fraud)
-                    || (matches!(failure_mode, PreFrmFailureMode::FailClosed)
-                        && matches!(
-                            frm_fraud_check.frm_status,
-                            FraudCheckStatus::TransactionFailure
-                        ))
-                {
+                if frm_fraud_check.frm_status.should_stop_payment(failure_mode) {
                     *should_continue_transaction = false;
                     frm_info.suggested_action = Some(FrmSuggestion::FrmCancelTransaction);
                 }

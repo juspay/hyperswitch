@@ -104,14 +104,6 @@ pub enum FrmEligibility {
     },
 }
 
-#[derive(Debug, Clone, Default, strum::Display, strum::EnumString)]
-#[strum(serialize_all = "snake_case")]
-pub enum PreFrmFailureMode {
-    #[default]
-    FailOpen,
-    FailClosed,
-}
-
 #[derive(Debug, Deserialize, Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
 #[serde_with::skip_serializing_none]

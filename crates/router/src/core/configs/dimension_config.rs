@@ -6,10 +6,7 @@ use external_services::superposition;
 use scheduler::consumer::types::process_data::RetryMapping;
 
 use super::{dimension_state, fetch_db_config_for_dimensions, ConfigContext, DatabaseBackedConfig};
-use crate::{
-    consts::superposition as superposition_consts, core::fraud_check, db::StorageInterface,
-    utils::id_type,
-};
+use crate::{consts::superposition as superposition_consts, db::StorageInterface, utils::id_type};
 
 /// Macro to generate config struct and superposition::Config trait implementation.
 /// Note: Manually implement `DatabaseBackedConfig` for the config struct:
@@ -864,8 +861,8 @@ impl DatabaseBackedConfig for AccountUpdaterCredentialSource {
 
 config! {
     superposition_key = PRE_FRM_FAILURE_MODE,
-    output = fraud_check::types::PreFrmFailureMode,
-    default = fraud_check::types::PreFrmFailureMode::FailOpen,
+    output = common_enums::PreFrmFailureMode,
+    default = common_enums::PreFrmFailureMode::FailOpen,
     string_enum = true,
     requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
     targeting_key = id_type::ProfileId
