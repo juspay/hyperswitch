@@ -344,19 +344,11 @@ pub async fn trip_status(
     key_or_scope: String,
 ) -> errors::RouterResponse<KillSwitchStatusResponse> {
     let rollout_scope = rollout_scope_in(&key_or_scope);
-    let key: redis_interface::RedisKey = counter_key(rollout_scope).as_str().into();
 
-    let counter_value: u64 = state
-        .store
-        .get_redis_conn()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to get a redis connection to read the UCS kill switch counter")?
-        .get_hash_field(&key, COUNTER_FIELD)
+    let counter_value: u64 = read_counter(&state, rollout_scope)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable(format!(
-            "UCS kill switch counter not found for key: {key:?}"
-        ))?;
+        .attach_printable("Failed to read the UCS kill switch counter")?;
 
     // Fetch the kill_switch_threshold from the RolloutConfig for this scope.
     // Uses the scope-level config key (without org prefix) since trip_status
