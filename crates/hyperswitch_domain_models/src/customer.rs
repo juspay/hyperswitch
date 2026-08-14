@@ -120,33 +120,6 @@ pub struct CustomerWithoutEncrypted {
     pub last_modified_by: Option<CreatedBy>,
 }
 
-#[cfg(feature = "v2")]
-impl From<storage_types::Customer> for CustomerWithoutEncrypted {
-    fn from(customer: storage_types::Customer) -> Self {
-        Self {
-            merchant_id: customer.merchant_id,
-            phone_country_code: customer.phone_country_code,
-            description: customer.description,
-            created_at: customer.created_at,
-            metadata: customer.metadata,
-            connector_customer: customer.connector_customer,
-            modified_at: customer.modified_at,
-            default_payment_method_id: customer.default_payment_method_id,
-            updated_by: customer.updated_by,
-            merchant_reference_id: customer.merchant_reference_id,
-            id: customer.id,
-            version: customer.version,
-            status: customer.status,
-            created_by: customer
-                .created_by
-                .and_then(|created_by| created_by.parse::<CreatedBy>().ok()),
-            last_modified_by: customer
-                .last_modified_by
-                .and_then(|last_modified_by| last_modified_by.parse::<CreatedBy>().ok()),
-        }
-    }
-}
-
 impl Customer {
     #[cfg(feature = "v1")]
     #[allow(clippy::too_many_arguments)]
