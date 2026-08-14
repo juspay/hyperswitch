@@ -864,6 +864,18 @@ pub fn validate_schema(input: proc_macro::TokenStream) -> proc_macro::TokenStrea
         .into()
 }
 
+/// Derives `From<{StructName}New>` for the struct by mapping fields with matching names.
+///
+/// Assumes the `New` type follows the `{StructName}New` naming convention.
+#[proc_macro_derive(FromNew)]
+pub fn from_new_derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    let ast = syn::parse_macro_input!(input as syn::DeriveInput);
+
+    macros::from_new_derive_inner(ast)
+        .unwrap_or_else(|error| error.to_compile_error())
+        .into()
+}
+
 /// Derives code to validate if `String` or `Option<String>` fields contain potential XSS or SQLi.
 ///
 /// This macro generates a `validate_xss_or_sqli(&self) -> Result<(), String>` method that checks
