@@ -463,9 +463,7 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
             headers_builder,
             unified_connector_service_execution_mode,
             |mut router_data, payment_authorize_request, grpc_headers| async move {
-                // Connector errors (4xx/5xx from the connector via UCS) are converted back
-                // into `Ok(RouterData)` carrying `response: Err(ErrorResponse)` by the
-                // wrapper, not here — see `ucs_logging_wrapper`.
+                // UCS connector errors are handled by the wrapper — see `ucs_logging_wrapper`.
                 let response = Box::pin(client
                     .payment_authorize(
                         payment_authorize_request,
@@ -580,9 +578,7 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
             headers_builder,
             unified_connector_service_execution_mode,
             |mut router_data, payment_authorize_request, grpc_headers| async move {
-                // Connector errors (4xx/5xx from the connector via UCS) are converted back
-                // into `Ok(RouterData)` carrying `response: Err(ErrorResponse)` by the
-                // wrapper, not here — see `ucs_logging_wrapper`.
+                // UCS connector errors are handled by the wrapper — see `ucs_logging_wrapper`.
                 let response = Box::pin(client
                     .payment_authorize(
                         payment_authorize_request,

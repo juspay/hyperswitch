@@ -3489,9 +3489,7 @@ pub async fn call_unified_connector_service_for_refund_execute(
         execution_mode,
         |mut router_data, grpc_request, grpc_headers| async move {
             // Call UCS payment_refund method
-            // Connector errors (4xx/5xx from the connector via UCS) are converted back
-            // into `Ok(RouterData)` carrying `response: Err(ErrorResponse)` by the
-            // wrapper, not here — see `ucs_logging_wrapper`.
+            // UCS connector errors are handled by the wrapper — see `ucs_logging_wrapper`.
             let response = ucs_client
                 .payment_refund(grpc_request, connector_auth_metadata, grpc_headers)
                 .await
@@ -3587,9 +3585,7 @@ pub async fn call_unified_connector_service_for_refund_sync(
         execution_mode,
         |mut router_data, grpc_request, grpc_headers| async move {
             // Call UCS refund_sync method
-            // Connector errors (4xx/5xx from the connector via UCS) are converted back
-            // into `Ok(RouterData)` carrying `response: Err(ErrorResponse)` by the
-            // wrapper, not here — see `ucs_logging_wrapper`.
+            // UCS connector errors are handled by the wrapper — see `ucs_logging_wrapper`.
             let response = ucs_client
                 .refund_get(grpc_request, connector_auth_metadata, grpc_headers)
                 .await
