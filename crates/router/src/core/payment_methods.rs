@@ -79,6 +79,8 @@ use super::{
     pm_auth,
 };
 #[cfg(feature = "v2")]
+use crate::routes::metrics;
+#[cfg(feature = "v2")]
 use crate::{
     configs::settings,
     core::{
@@ -6766,11 +6768,14 @@ pub async fn payment_methods_session_create(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Unable to generate GlobalPaymentMethodSessionId")?;
 
-    let encrypted_data = request
-        .encrypt_data(key_manager_state, platform.get_provider().get_key_store())
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to encrypt payment methods session data")?;
+    let encrypted_data = common_utils::metrics::utils::record_operation_time(
+        request.encrypt_data(key_manager_state, platform.get_provider().get_key_store()),
+        &metrics::PAYMENT_METHOD_CRYPTO_DURATION,
+        router_env::metric_attributes!(("operation", "encrypt")),
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to encrypt payment methods session data")?;
 
     let billing = encrypted_data
         .billing
@@ -6894,11 +6899,14 @@ pub async fn payment_methods_session_update(
         })
         .attach_printable("Failed to retrieve payment methods session from db")?;
 
-    let encrypted_data = request
-        .encrypt_data(key_manager_state, provider.get_key_store())
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to encrypt payment methods session data")?;
+    let encrypted_data = common_utils::metrics::utils::record_operation_time(
+        request.encrypt_data(key_manager_state, provider.get_key_store()),
+        &metrics::PAYMENT_METHOD_CRYPTO_DURATION,
+        router_env::metric_attributes!(("operation", "encrypt")),
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to encrypt payment methods session data")?;
 
     let billing = encrypted_data
         .billing
@@ -7397,7 +7405,15 @@ pub async fn payment_methods_session_confirm(
         })
         .or_else(|| payment_method_session_billing.clone());
 
-    let storage_type = payment_method_session.storage_type;
+    // The session's storage_type carries the merchant's intent (persistent when
+    // setup_future_usage and a customer are present at session create). The customer's
+    // acceptance at confirm makes the save final: without it the payment method is
+    // created as volatile even when the session asked for persistent storage.
+    let storage_type = if request.customer_acceptance.is_some() {
+        payment_method_session.storage_type
+    } else {
+        common_enums::StorageType::Volatile
+    };
 
     let create_payment_method_request = get_payment_method_create_request(
         request
