@@ -347,7 +347,10 @@ pub async fn trip_status(
         .attach_printable("Failed to get a redis connection to read the UCS kill switch counter")?
         .get_hash_field(&key, COUNTER_FIELD)
         .await
-        .unwrap_or(0);
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable(format!(
+            "UCS kill switch counter not found for key: {key:?}"
+        ))?;
 
     // Fetch the kill_switch_threshold from the RolloutConfig for this scope.
     // Uses the scope-level config key (without org prefix) since trip_status
