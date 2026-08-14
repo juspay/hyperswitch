@@ -56,14 +56,14 @@ pub struct Transaction {
     payment_id: String,
     amount_in_cents: String,
     currency: String,
-    payment_method: PaymentMethod,
+    payment_method_type: PaymentMethodType,
     created_at: String,
 }
 
 #[derive(Debug, Serialize)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum PaymentMethod {
-    Eft,
+#[serde(rename_all = "camelCase")]
+pub enum PaymentMethodType {
+    EftDebitOrder,
 }
 
 impl TryFrom<&FrmCheckoutRouterData> for SanlamPayshieldCheckoutRequest {
@@ -85,10 +85,10 @@ impl TryFrom<&FrmCheckoutRouterData> for SanlamPayshieldCheckoutRequest {
             .ok_or(ConnectorError::MissingRequiredField {
                 field_name: "currency",
             })?;
-        let payment_method = match data.request.payment_method_data.as_ref() {
+        let payment_method_type = match data.request.payment_method_data.as_ref() {
             Some(AdditionalPaymentData::BankDebit {
                 details: Some(BankDebitAdditionalData::EftDebitOrder { .. }),
-            }) => Ok(PaymentMethod::Eft),
+            }) => Ok(PaymentMethodType::EftDebitOrder),
 
             _ => Err(ConnectorError::NotImplemented(
                 get_unimplemented_payment_method_error_message("sanlam_paysheild"),
@@ -104,7 +104,7 @@ impl TryFrom<&FrmCheckoutRouterData> for SanlamPayshieldCheckoutRequest {
                 payment_id: data.payment_id.clone(),
                 amount_in_cents: data.request.amount.to_string(),
                 currency: currency.to_string(),
-                payment_method,
+                payment_method_type,
                 created_at: get_current_time()?,
             },
             metadata: data.frm_metadata.clone(),
