@@ -355,6 +355,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                         &payment_attempt,
                         business_profile.is_manual_retry_enabled,
                         business_profile.get_order_fulfillment_time(),
+                        request.payment_token.is_some(),
                         "confirm",
                     )?;
 

@@ -5420,6 +5420,7 @@ pub fn get_attempt_type(
     payment_attempt: &PaymentAttempt,
     is_manual_retry_enabled: Option<bool>,
     intent_fulfillment_time: Option<i64>,
+    is_token_based_retry: bool,
     action: &str,
 ) -> RouterResult<AttemptType> {
     match payment_intent.status {
@@ -5431,6 +5432,7 @@ pub fn get_attempt_type(
                         payment_intent.created_at,
                         payment_intent.session_expiry,
                         intent_fulfillment_time,
+                        is_token_based_retry,
                     ),
                     || {
                         Err(report!(errors::ApiErrorResponse::PreconditionFailed {
@@ -5552,17 +5554,22 @@ fn validate_manual_retry_cutoff(
     created_at: time::PrimitiveDateTime,
     session_expiry: Option<time::PrimitiveDateTime>,
     intent_fulfillment_time: Option<i64>,
+    is_token_based_retry: bool,
 ) -> bool {
     let utc_current_time = time::OffsetDateTime::now_utc();
     let primitive_utc_current_time =
         time::PrimitiveDateTime::new(utc_current_time.date(), utc_current_time.time());
     let time_difference_from_creation = primitive_utc_current_time - created_at;
 
-    let cutoff_limit = intent_fulfillment_time.unwrap_or_else(|| {
+    // Token based retries (S2S) use the fulfillment window;
+    // Raw data based retries (client) retain the half-session cutoff.
+    let cutoff_limit = if is_token_based_retry {
+        intent_fulfillment_time.unwrap_or(common_utils::consts::DEFAULT_INTENT_FULFILLMENT_TIME)
+    } else {
         session_expiry
             .map(|session_expiry| (session_expiry - created_at).whole_seconds() / 2)
             .unwrap_or(consts::DEFAULT_SESSION_EXPIRY / 2)
-    });
+    };
 
     time_difference_from_creation.whole_seconds() <= cutoff_limit
 }
