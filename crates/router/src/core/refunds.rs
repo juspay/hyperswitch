@@ -6,7 +6,7 @@ use api_models::admin::MerchantConnectorInfo;
 use api_models::enums as api_enums;
 use common_enums::ExecutionMode;
 use common_utils::{
-    ext_traits::AsyncExt,
+    ext_traits::{AsyncExt, Encode, StringExt, ValueExt},
     pii,
     types::{ConnectorTransactionId, MinorUnit},
 };
@@ -20,7 +20,7 @@ use hyperswitch_interfaces::{
     consts as interfaces_consts,
     integrity::{CheckIntegrity, FlowIntegrity, GetIntegrityObject},
 };
-use hyperswitch_masking::{ExposeInterface, PeekInterface};
+use hyperswitch_masking::ExposeInterface;
 use router_env::{instrument, tracing, tracing::Instrument};
 use scheduler::{errors as sch_errors, utils as process_tracker_utils};
 #[cfg(feature = "olap")]
@@ -54,34 +54,77 @@ use crate::{
     utils::{self, OptionExt},
 };
 
+#[derive(Debug, serde::Serialize)]
+struct VoidPostRefundStateMetadata {
+    status: common_enums::RefundStatus,
+    connector_refund_id: String,
+}
+
+struct RefundReverseResponse {
+    state_metadata: Option<hyperswitch_masking::Secret<String>>,
+    raw_connector_response: Option<hyperswitch_masking::Secret<String>>,
+    connector_refund_id: String,
+    status: common_enums::RefundStatus,
+    error: Option<ErrorResponse>,
+}
+
+impl From<unified_connector_service::RefundReverseUcsResponse> for RefundReverseResponse {
+    fn from(response: unified_connector_service::RefundReverseUcsResponse) -> Self {
+        Self {
+            state_metadata: response.state_metadata,
+            raw_connector_response: response.raw_connector_response,
+            connector_refund_id: response.connector_refund_id,
+            status: response.status,
+            error: response.error,
+        }
+    }
+}
+
 fn build_void_post_refund_metadata(
     existing_metadata: Option<pii::SecretSerdeValue>,
-    reverse_response: &unified_connector_service::RefundReverseUcsResponse,
-) -> pii::SecretSerdeValue {
-    let mut metadata = existing_metadata
+    reverse_response: &RefundReverseResponse,
+) -> RouterResult<pii::SecretSerdeValue> {
+    let mut metadata: serde_json::Map<String, serde_json::Value> = existing_metadata
         .map(ExposeInterface::expose)
-        .unwrap_or_else(|| serde_json::json!({}));
-
-    if !metadata.is_object() {
-        metadata = serde_json::json!({ "previous_metadata": metadata });
-    }
+        .map(|metadata| metadata.parse_value("refund metadata"))
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to parse refund metadata as a JSON object")?
+        .unwrap_or_default();
 
     let state_metadata = reverse_response
         .state_metadata
         .as_ref()
-        .and_then(|state_metadata| serde_json::from_str(state_metadata.peek()).ok())
+        .map(|state_metadata| {
+            state_metadata
+                .clone()
+                .expose()
+                .parse_struct("void post-refund state metadata")
+                .inspect_err(|error| {
+                    logger::error!(?error, "Failed to parse void post-refund state metadata")
+                })
+        })
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError)?
+        .map(Ok)
         .unwrap_or_else(|| {
-            serde_json::json!({
-                "connector_refund_id": reverse_response.connector_refund_id,
-                "status": reverse_response.status.to_string(),
-            })
-        });
+            VoidPostRefundStateMetadata {
+                status: reverse_response.status,
+                connector_refund_id: reverse_response.connector_refund_id.clone(),
+            }
+            .encode_to_value()
+        })
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to encode void post-refund state metadata")?;
 
-    if let Some(metadata_object) = metadata.as_object_mut() {
-        metadata_object.insert("state_metadata".to_string(), state_metadata);
-    }
+    metadata.insert("state_metadata".to_string(), state_metadata);
 
-    pii::SecretSerdeValue::new(metadata)
+    Ok(pii::SecretSerdeValue::new(
+        metadata
+            .encode_to_value()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to encode updated refund metadata")?,
+    ))
 }
 
 #[cfg(feature = "v1")]
@@ -175,10 +218,7 @@ pub async fn refund_reverse_core(
         &merchant_connector_account,
     )
     .await?;
-    router_data.request.reason = req
-        .cancellation_reason
-        .clone()
-        .or(router_data.request.reason.clone());
+    router_data.request.reason = req.cancellation_reason.clone();
 
     let (execution_path, updated_state) =
         unified_connector_service::should_call_unified_connector_service(
@@ -192,23 +232,7 @@ pub async fn refund_reverse_core(
         )
         .await?;
 
-    if !matches!(
-        execution_path,
-        common_enums::ExecutionPath::UnifiedConnectorService
-            | common_enums::ExecutionPath::ShadowUnifiedConnectorService
-    ) {
-        return Err(report!(errors::ApiErrorResponse::NotImplemented {
-            message: errors::NotImplementedMessage::Reason(
-                "refund reverse is supported only through Unified Connector Service".to_string(),
-            ),
-        }));
-    }
-
-    let execution_mode = match execution_path {
-        common_enums::ExecutionPath::UnifiedConnectorService => ExecutionMode::Primary,
-        common_enums::ExecutionPath::ShadowUnifiedConnectorService => ExecutionMode::Shadow,
-        common_enums::ExecutionPath::Direct => ExecutionMode::NotApplicable,
-    };
+    let execution_mode = execution_path.get_execution_mode();
     let lineage_ids = LineageIds::new(payment_intent.merchant_id.clone(), profile_id.clone());
     let gateway_context = gateway_context::RouterGatewayContext {
         creds_identifier: None,
@@ -242,20 +266,28 @@ pub async fn refund_reverse_core(
         },
     )?;
 
-    let reverse_response =
-        unified_connector_service::call_unified_connector_service_for_refund_void_post_refund(
-            &updated_state,
-            processor,
-            router_data,
-            execution_mode,
-            merchant_connector_account,
-        )
-        .await
-        .attach_printable(format!(
-            "UCS refund reverse failed for connector: {connector_id}, refund_id: {}",
-            refund.refund_id
-        ))?;
-    let metadata = build_void_post_refund_metadata(refund.metadata.clone(), &reverse_response);
+    let reverse_response = match execution_path {
+        common_enums::ExecutionPath::UnifiedConnectorService => {
+            unified_connector_service::call_unified_connector_service_for_refund_void_post_refund(
+                &updated_state,
+                processor,
+                router_data,
+                ExecutionMode::Primary,
+                merchant_connector_account,
+            )
+            .await
+            .attach_printable(format!(
+                "UCS refund reverse failed for connector: {connector_id}, refund_id: {}",
+                refund.refund_id
+            ))?
+            .into()
+        }
+        common_enums::ExecutionPath::Direct
+        | common_enums::ExecutionPath::ShadowUnifiedConnectorService => {
+            execute_refund_void_post_refund_via_direct(&state, &connector, router_data).await?
+        }
+    };
+    let metadata = build_void_post_refund_metadata(refund.metadata.clone(), &reverse_response)?;
     let raw_connector_response = reverse_response.raw_connector_response.clone();
     let response = db
         .update_refund(
@@ -289,6 +321,78 @@ pub async fn refund_reverse_core(
     Ok(services::ApplicationResponse::Json(
         (response, raw_connector_response).foreign_into(),
     ))
+}
+
+async fn execute_refund_void_post_refund_via_direct(
+    state: &SessionState,
+    connector: &api::ConnectorData,
+    router_data: types::RefundsRouterData<api::VoidPostRefund>,
+) -> RouterResult<RefundReverseResponse> {
+    let connector_integration: services::BoxedRefundConnectorIntegrationInterface<
+        api::VoidPostRefund,
+        types::RefundsData,
+        types::RefundsResponseData,
+    > = match &connector.connector {
+        hyperswitch_interfaces::connector_integration_interface::ConnectorEnum::Old(
+            connector,
+        ) => connector
+            .get_void_post_refund_integration()
+            .map(|integration| {
+                Box::new(
+                    hyperswitch_interfaces::connector_integration_interface::ConnectorIntegrationEnum::Old(
+                        integration,
+                    ),
+                ) as services::BoxedRefundConnectorIntegrationInterface<
+                    api::VoidPostRefund,
+                    types::RefundsData,
+                    types::RefundsResponseData,
+                >
+            }),
+        hyperswitch_interfaces::connector_integration_interface::ConnectorEnum::New(_) => None,
+    }
+        .ok_or_else(|| {
+            report!(errors::ApiErrorResponse::NotImplemented {
+                message: errors::NotImplementedMessage::Reason(format!(
+                    "void post-refund is not implemented for {}",
+                    connector.connector_name
+                )),
+            })
+        })?;
+
+    let router_data = services::execute_connector_processing_step(
+        state,
+        connector_integration,
+        &router_data,
+        payments::CallConnectorAction::Trigger,
+        None,
+        None,
+    )
+    .await
+    .to_refund_failed_response()?;
+
+    let raw_connector_response = router_data.raw_connector_response.clone();
+    let fallback_connector_refund_id = router_data
+        .request
+        .connector_refund_id
+        .clone()
+        .unwrap_or_default();
+
+    Ok(match router_data.response {
+        Ok(response) => RefundReverseResponse {
+            state_metadata: None,
+            raw_connector_response,
+            connector_refund_id: response.connector_refund_id,
+            status: response.refund_status,
+            error: None,
+        },
+        Err(error) => RefundReverseResponse {
+            state_metadata: None,
+            raw_connector_response,
+            connector_refund_id: fallback_connector_refund_id,
+            status: common_enums::RefundStatus::Failure,
+            error: Some(error),
+        },
+    })
 }
 
 // ********************************************** REFUND EXECUTE **********************************************

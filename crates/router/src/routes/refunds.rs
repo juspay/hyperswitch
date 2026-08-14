@@ -377,14 +377,14 @@ pub async fn refunds_update(
 /// Refunds - Reverse
 ///
 /// Reverse or void a successful refund before connector settlement.
-#[instrument(skip_all, fields(flow = ?Flow::RefundsUpdate))]
+#[instrument(skip_all, fields(flow = ?Flow::RefundsReverse))]
 pub async fn refunds_reverse(
     state: web::Data<AppState>,
     req: HttpRequest,
     json_payload: web::Json<refunds::RefundReverseRequest>,
     path: web::Path<String>,
 ) -> HttpResponse {
-    let flow = Flow::RefundsUpdate;
+    let flow = Flow::RefundsReverse;
     let mut refund_reverse_request = json_payload.into_inner();
     refund_reverse_request.refund_id = path.into_inner();
 
