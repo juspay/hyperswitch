@@ -2782,14 +2782,12 @@ impl PaymentMethodResolver {
 
                 let cvc_expiry_details = if let Some(cvc) = card_cvc {
                     logger::debug!("Inserting CVC for payment method {:?}", existing_pm.id);
-                    let intent_fulfillment_time =
-                        common_utils::consts::DEFAULT_INTENT_FULFILLMENT_TIME;
                     Some(
                         vault::insert_cvc_using_payment_token(
                             state,
                             existing_pm.id.get_string_repr(),
                             cvc,
-                            intent_fulfillment_time,
+                            profile.get_order_fulfillment_time_or_default(),
                             platform.get_provider().get_key_store(),
                         )
                         .await?,
@@ -3037,8 +3035,6 @@ async fn execute_payment_method_create(
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to update payment method in db")?;
 
-            let intent_fulfillment_time = common_utils::consts::DEFAULT_INTENT_FULFILLMENT_TIME;
-
             let card_cvc = req
                 .payment_method_data
                 .get_card()
@@ -3050,7 +3046,7 @@ async fn execute_payment_method_create(
                         state,
                         payment_method.id.get_string_repr(),
                         cvc,
-                        intent_fulfillment_time,
+                        profile.get_order_fulfillment_time_or_default(),
                         platform.get_provider().get_key_store(),
                     )
                 })
@@ -3212,8 +3208,6 @@ pub async fn create_generic_volatile_payment_method(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("failed to convert payment method")?;
 
-            let intent_fulfillment_time = common_utils::consts::DEFAULT_INTENT_FULFILLMENT_TIME;
-
             let card_cvc = req
                 .payment_method_data
                 .get_card()
@@ -3225,7 +3219,7 @@ pub async fn create_generic_volatile_payment_method(
                         state,
                         domain_payment_method.id.get_string_repr(),
                         cvc,
-                        intent_fulfillment_time,
+                        profile.get_order_fulfillment_time_or_default(),
                         platform.get_provider().get_key_store(),
                     )
                 })
@@ -5794,6 +5788,12 @@ pub async fn retrieve_payment_method(
     .attach_printable("Failed to retrieve cvc from redis")
     .ok();
 
+    let cvc_read_mode = get_cvc_read_mode(
+        api_key_type,
+        profile.is_manual_retry_enabled,
+        profile.get_order_fulfillment_time(),
+    );
+
     let raw_payment_method_data =
         Box::pin(raw_payment_method_fetch_access.get_raw_payment_method_data(
             &state,
@@ -5801,6 +5801,7 @@ pub async fn retrieve_payment_method(
             &profile,
             &payment_method,
             storage_type,
+            cvc_read_mode,
         ))
         .await
         .attach_printable("Failed to get raw payment method data")?;
@@ -6074,6 +6075,22 @@ pub enum RawPaymentMethodFetchAccess {
 }
 
 #[cfg(feature = "v2")]
+fn get_cvc_read_mode(
+    api_key_type: enums::ApiKeyType,
+    is_manual_retry_enabled: Option<bool>,
+    intent_fulfillment_time: Option<i64>,
+) -> vault::CvcReadMode {
+    if api_key_type == enums::ApiKeyType::Internal
+        && is_manual_retry_enabled == Some(true)
+        && intent_fulfillment_time.is_some()
+    {
+        vault::CvcReadMode::ReadOnly
+    } else {
+        vault::CvcReadMode::ReadAndDelete
+    }
+}
+
+#[cfg(feature = "v2")]
 impl RawPaymentMethodFetchAccess {
     pub async fn get_raw_payment_method_data(
         &self,
@@ -6082,6 +6099,7 @@ impl RawPaymentMethodFetchAccess {
         profile: &domain::Profile,
         payment_method: &domain::PaymentMethod,
         storage_type: common_enums::StorageType,
+        cvc_read_mode: vault::CvcReadMode,
     ) -> RouterResult<Option<payment_methods::RawPaymentMethodData>> {
         match self {
             Self::Denied => {
@@ -6142,6 +6160,7 @@ impl RawPaymentMethodFetchAccess {
                         profile,
                         payment_method,
                         storage_type,
+                        Some(cvc_read_mode),
                     ))
                     .await
                     .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -6204,6 +6223,7 @@ impl RawPaymentMethodFetchAccess {
                         profile,
                         &network_token_payment_method,
                         storage_type,
+                        None,
                     ))
                     .await
                     .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -6927,7 +6947,7 @@ pub async fn payment_methods_session_retrieve(
 
 /// Stores `card_cvc` as an encrypted CVC under `pm_token_{token}_hyperswitch_cvc` — the same
 /// `_hyperswitch_cvc` mechanism used by the first-time flow — so CVC retrieval (router-side
-/// `retrieve_and_delete_cvc_from_payment_token`) resolves it consistently. The card holder name is
+/// `retrieve_cvc_from_payment_token`) resolves it consistently. The card holder name is
 /// not vaulted with the CVC token; it is carried by the saved payment method itself.
 #[cfg(feature = "v2")]
 async fn store_cvc_and_card_holder_name_as_payment_token_in_redis(
@@ -6935,6 +6955,7 @@ async fn store_cvc_and_card_holder_name_as_payment_token_in_redis(
     token: &str,
     card_cvc: Option<Secret<String>>,
     _card_holder_name: Option<Secret<String>>,
+    intent_fulfillment_time: i64,
     key_store: &domain::MerchantKeyStore,
 ) -> RouterResult<()> {
     if let Some(card_cvc) = card_cvc {
@@ -6942,7 +6963,7 @@ async fn store_cvc_and_card_holder_name_as_payment_token_in_redis(
             state,
             token,
             card_cvc,
-            common_utils::consts::DEFAULT_INTENT_FULFILLMENT_TIME,
+            intent_fulfillment_time,
             key_store,
         )
         .await?;
@@ -7056,6 +7077,7 @@ pub async fn payment_methods_session_update_payment_method(
                 &parent_payment_method_token,
                 card_cvc,
                 card_holder_name,
+                profile.get_order_fulfillment_time_or_default(),
                 platform.get_provider().get_key_store(),
             )
             .await?;
@@ -7118,6 +7140,7 @@ pub async fn payment_methods_session_update_payment_method(
                     &pm_token,
                     card_cvc,
                     card_holder_name,
+                    profile.get_order_fulfillment_time_or_default(),
                     platform.get_provider().get_key_store(),
                 )
                 .await?;
@@ -7359,9 +7382,12 @@ pub async fn payment_methods_session_confirm(
 
     // insert the token data into redis
     if let Some(token_data) = token_data {
-        let intent_fulfillment_time = common_utils::consts::DEFAULT_INTENT_FULFILLMENT_TIME;
         pm_routes::ParentPaymentMethodToken::create_key_for_token(&parent_payment_method_token)
-            .insert(intent_fulfillment_time, token_data, &state)
+            .insert(
+                profile.get_order_fulfillment_time_or_default(),
+                token_data,
+                &state,
+            )
             .await?;
     };
 
@@ -7762,7 +7788,7 @@ impl<'a> pm_types::PaymentMethodUpdateHandler<'a> {
                     self.state,
                     self.payment_method.get_id().get_string_repr(),
                     cvc,
-                    common_utils::consts::DEFAULT_INTENT_FULFILLMENT_TIME,
+                    self.profile.get_order_fulfillment_time_or_default(),
                     self.platform.get_provider().get_key_store(),
                 )
             })

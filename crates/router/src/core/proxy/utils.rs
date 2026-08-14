@@ -248,10 +248,11 @@ impl ProxyRecord {
                         payment_method.get_id().get_string_repr().to_string();
                     let key_store = platform.get_provider().get_key_store();
 
-                    match vault::retrieve_and_delete_cvc_from_payment_token(
+                    match vault::retrieve_cvc_from_payment_token(
                         state,
                         &payment_method_id_str,
                         key_store,
+                        vault::CvcReadMode::ReadAndDelete,
                     )
                     .await
                     {
@@ -326,10 +327,11 @@ impl ProxyRecord {
                                 payment_method.get_id().get_string_repr().to_string();
                             let key_store = platform.get_provider().get_key_store();
 
-                            match vault::retrieve_and_delete_cvc_from_payment_token(
+                            match vault::retrieve_cvc_from_payment_token(
                                 state,
                                 &payment_method_id_str,
                                 key_store,
+                                vault::CvcReadMode::ReadAndDelete,
                             )
                             .await
                             {

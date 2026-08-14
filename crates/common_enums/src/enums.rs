@@ -248,6 +248,17 @@ impl AttemptStatus {
         matches!(self, Self::Charged | Self::PartialCharged)
     }
 
+    pub fn is_authorization_success(self) -> bool {
+        matches!(
+            self,
+            Self::Authorized
+                | Self::PartiallyAuthorized
+                | Self::Charged
+                | Self::PartialCharged
+                | Self::PartialChargedAndChargeable
+        )
+    }
+
     pub fn should_update_payment_method(self) -> bool {
         match self {
             Self::Charged
@@ -2132,6 +2143,10 @@ pub enum IntentStatus {
 }
 
 impl IntentStatus {
+    pub fn is_eligible_for_manual_retry(self) -> bool {
+        matches!(self, Self::Failed)
+    }
+
     /// Indicates whether the payment intent is in terminal state or not
     pub fn is_in_terminal_state(self) -> bool {
         match self {
