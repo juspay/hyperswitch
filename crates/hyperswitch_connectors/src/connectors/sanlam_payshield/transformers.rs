@@ -166,7 +166,7 @@ impl
     type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
-        item: ResponseRouterData<
+        item: ResponseRouterDataa<
             hyperswitch_domain_models::router_flow_types::Checkout,
             SanlamPayshieldCheckoutResponse,
             hyperswitch_domain_models::router_request_types::fraud_check::FraudCheckCheckoutData,
