@@ -304,6 +304,8 @@ async fn write_counter(
 pub struct KillSwitchStatusResponse {
     pub rollout_scope: String,
     pub counter: u64,
+    /// `None` when no `RolloutConfig` exists for this scope — falls back to trip-on-first-failure.
+    pub threshold: Option<u64>,
     pub tripped: bool,
 }
 
@@ -358,11 +360,47 @@ pub async fn trip_status(
         .await
         .unwrap_or(0);
 
+    // Fetch the kill_switch_threshold from the RolloutConfig for this scope.
+    // Uses the scope-level config key (without org prefix) since trip_status
+    // doesn't have org context.
+    let config_key = format!(
+        "{}_{}",
+        consts::UCS_ROLLOUT_PERCENT_CONFIG_PREFIX,
+        rollout_scope
+    );
+    let threshold: Option<u64> = state
+        .store
+        .find_config_by_key_unwrap_or(
+            &config_key,
+            Some(consts::UCS_ROLLOUT_CONFIG_NOT_CONFIGURED.to_string()),
+        )
+        .await
+        .ok()
+        .filter(|config| config.config != consts::UCS_ROLLOUT_CONFIG_NOT_CONFIGURED)
+        .and_then(|config| {
+            serde_json::from_str::<crate::core::payments::helpers::RolloutConfig>(&config.config)
+                .inspect_err(|err| {
+                    logger::warn!(
+                        ?err,
+                        config_key = %config_key,
+                        "ucs_kill_switch: failed to parse RolloutConfig for threshold lookup"
+                    );
+                })
+                .ok()
+        })
+        .map(|rc| rc.kill_switch_threshold);
+
+    let tripped = match threshold {
+        Some(t) => counter_value > t,
+        None => counter_value > 0,
+    };
+
     Ok(crate::services::ApplicationResponse::Json(
         KillSwitchStatusResponse {
             rollout_scope: rollout_scope.to_string(),
             counter: counter_value,
-            tripped: counter_value > 0,
+            threshold,
+            tripped,
         },
     ))
 }
