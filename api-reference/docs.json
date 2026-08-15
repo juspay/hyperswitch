@@ -67,7 +67,8 @@
                       "v2/payment-methods/payment-method--delete-v1",
                       "v2/payment-methods/payment-method--list-customer-saved-payment-methods-v1",
                       "v2/payment-methods/payment-method--payment-method-token-to-payment-method-id-v1",
-                      "v2/payment-methods/payment-method--set-default-payment-method-for-customer-v1"
+                      "v2/payment-methods/payment-method--set-default-payment-method-for-customer-v1",
+                      "v1/payment-methods/list-payment-methods-for-a-payment-via-client-sdk"
                     ]
                   },
                   {

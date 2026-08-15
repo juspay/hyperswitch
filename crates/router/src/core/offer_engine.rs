@@ -1,6 +1,9 @@
+pub mod amount;
+pub mod apply;
 pub mod client;
 pub mod config;
 pub mod connectivity;
+pub mod eligibility;
 pub mod types;
 
 pub use client::OfferEngineClient;

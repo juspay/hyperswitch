@@ -369,6 +369,7 @@ pub enum RoutableConnectors {
     CtpMastercard,
     CtpVisa,
     Netcetera,
+    Vgs,
     Cardinal,
     Threedsecureio,
 }
@@ -698,6 +699,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::CtpMastercard => Self::CtpMastercard,
             RoutableConnectors::CtpVisa => Self::CtpVisa,
             RoutableConnectors::Netcetera => Self::Netcetera,
+            RoutableConnectors::Vgs => Self::Vgs,
             RoutableConnectors::Cardinal => Self::Cardinal,
             RoutableConnectors::Threedsecureio => Self::Threedsecureio,
         }
