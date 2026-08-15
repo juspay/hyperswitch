@@ -248,6 +248,17 @@ impl AttemptStatus {
         matches!(self, Self::Charged | Self::PartialCharged)
     }
 
+    pub fn is_authorization_success(self) -> bool {
+        matches!(
+            self,
+            Self::Authorized
+                | Self::PartiallyAuthorized
+                | Self::Charged
+                | Self::PartialCharged
+                | Self::PartialChargedAndChargeable
+        )
+    }
+
     pub fn should_update_payment_method(self) -> bool {
         match self {
             Self::Charged
@@ -680,25 +691,77 @@ pub enum BlocklistDataKind {
     ExtendedCardBin,
 }
 
-/// Reasons for blocking a payment method.
-#[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema)]
-#[serde(rename_all = "snake_case")]
+#[derive(Debug)]
 pub enum BlockReason {
     BlockedBin,
+    BlockedCardInfoUnavailable,
     BlockedCardType(CardType),
+    BlockedCardNetwork,
+    BlockedFundingSource,
     BlockedCardSubtype,
+    BlockedCardSegmentType,
+    BlockedVirtualCard,
+    BlockedNonReloadablePrepaidCard,
+    BlockedGamblingCard,
     BlockedIssuerCountry,
     BlockedIssuer,
+}
+
+/// A stable, machine-readable identifier for the reason a payment was blocked.
+#[derive(
+    Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, SmithyModel, ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub enum BlockReasonCode {
+    BlockedBin,
+    BlockedCardInfoUnavailable,
+    BlockedCardType,
+    BlockedCardNetwork,
+    BlockedFundingSource,
+    BlockedCardSubtype,
+    BlockedCardSegmentType,
+    BlockedVirtualCard,
+    BlockedNonReloadablePrepaidCard,
+    BlockedGamblingCard,
+    BlockedIssuerCountry,
+    BlockedIssuer,
+}
+
+impl From<BlockReason> for BlockReasonCode {
+    fn from(block_reason: BlockReason) -> Self {
+        match block_reason {
+            BlockReason::BlockedBin => Self::BlockedBin,
+            BlockReason::BlockedCardInfoUnavailable => Self::BlockedCardInfoUnavailable,
+            BlockReason::BlockedCardType(_) => Self::BlockedCardType,
+            BlockReason::BlockedCardNetwork => Self::BlockedCardNetwork,
+            BlockReason::BlockedFundingSource => Self::BlockedFundingSource,
+            BlockReason::BlockedCardSubtype => Self::BlockedCardSubtype,
+            BlockReason::BlockedCardSegmentType => Self::BlockedCardSegmentType,
+            BlockReason::BlockedVirtualCard => Self::BlockedVirtualCard,
+            BlockReason::BlockedNonReloadablePrepaidCard => Self::BlockedNonReloadablePrepaidCard,
+            BlockReason::BlockedGamblingCard => Self::BlockedGamblingCard,
+            BlockReason::BlockedIssuerCountry => Self::BlockedIssuerCountry,
+            BlockReason::BlockedIssuer => Self::BlockedIssuer,
+        }
+    }
 }
 
 impl BlockReason {
     pub fn error_message(&self) -> String {
         match self {
             Self::BlockedBin => "We're unable to accept this card, please try another card or a different payment method".to_string(),
+            Self::BlockedCardInfoUnavailable => "We couldn't verify this card's information, please try a different card".to_string(),
             Self::BlockedCardType(card_type) => {
                 format!("{} cards are not accepted for this transaction, please try a different card", card_type.title_case())
             }
+            Self::BlockedCardNetwork => "This card network is not accepted for this transaction, please try a different card".to_string(),
+            Self::BlockedFundingSource => "This card funding source is not accepted for this transaction, please try a different card".to_string(),
             Self::BlockedCardSubtype => "This card is not accepted for this transaction, please try a different card".to_string(),
+            Self::BlockedCardSegmentType => "This card segment is not accepted for this transaction, please try a different card".to_string(),
+            Self::BlockedVirtualCard => "Virtual cards are not accepted for this transaction, please try a different card".to_string(),
+            Self::BlockedNonReloadablePrepaidCard => "Non-reloadable prepaid cards are not accepted for this transaction, please try a different card".to_string(),
+            Self::BlockedGamblingCard => "Cards associated with gambling are not accepted for this transaction, please try a different card".to_string(),
             Self::BlockedIssuerCountry => "Cards issued in your region aren't supported for this transaction, please try a different card".to_string(),
             Self::BlockedIssuer => "We can't process payments from this bank, please try another card or a different payment method".to_string(),
         }
@@ -1760,6 +1823,7 @@ impl Currency {
     serde::Serialize,
     strum::Display,
     strum::EnumString,
+    ToSchema,
 )]
 #[router_derive::diesel_enum(storage_type = "text")]
 #[serde(rename_all = "snake_case")]
@@ -1858,6 +1922,7 @@ impl EventClass {
                 EventType::PayoutCancelled,
                 EventType::PayoutExpired,
                 EventType::PayoutReversed,
+                EventType::PayoutNotPermitted,
             ]),
             Self::Subscriptions => HashSet::from([EventType::InvoicePaid]),
         }
@@ -1919,6 +1984,8 @@ pub enum EventType {
     PayoutExpired,
     #[cfg(feature = "payouts")]
     PayoutReversed,
+    #[cfg(feature = "payouts")]
+    PayoutNotPermitted,
     InvoicePaid,
     SurchargePaymentSucceeded,
     SurchargeRefundSucceeded,
@@ -2076,6 +2143,10 @@ pub enum IntentStatus {
 }
 
 impl IntentStatus {
+    pub fn is_eligible_for_manual_retry(self) -> bool {
+        matches!(self, Self::Failed)
+    }
+
     /// Indicates whether the payment intent is in terminal state or not
     pub fn is_in_terminal_state(self) -> bool {
         match self {
@@ -2937,7 +3008,7 @@ impl From<ExecutionMode> for EventExecutionMode {
     }
 }
 
-#[derive(Clone, Copy, Debug, serde::Serialize)]
+#[derive(Clone, Copy, Debug, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "snake_case")]
 /// Where a connector event's call was sent.
 pub enum EventDestination {
@@ -3306,6 +3377,12 @@ pub enum CardNetwork {
     Accel,
     #[serde(alias = "NYCE")]
     Nyce,
+    #[serde(alias = "PROP")]
+    Prop,
+    #[serde(alias = "PRIVATE LABEL")]
+    PrivateLabel,
+    #[serde(alias = "DINACARD")]
+    Dinacard,
 }
 
 #[derive(
@@ -3347,12 +3424,63 @@ pub enum RegulatedName {
     utoipa::ToSchema,
     Copy,
 )]
-#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[router_derive::diesel_enum(storage_type = "text")]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "lowercase")]
 pub enum PanOrToken {
     Pan,
     Token,
+}
+
+#[derive(
+    Clone,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumIter,
+    strum::EnumString,
+    utoipa::ToSchema,
+    Copy,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "UPPERCASE")]
+#[strum(serialize_all = "UPPERCASE")]
+pub enum FundingSource {
+    Credit,
+    Debit,
+    #[serde(rename = "DEFERRED DEBIT")]
+    #[strum(serialize = "DEFERRED DEBIT")]
+    DeferredDebit,
+    Prepaid,
+    #[serde(rename = "CHARGE CARD")]
+    #[strum(serialize = "CHARGE CARD")]
+    ChargeCard,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumIter,
+    strum::EnumString,
+    utoipa::ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum CardSegmentType {
+    Business,
+    Commercial,
+    Consumer,
+    Government,
 }
 
 #[derive(
@@ -3386,388 +3514,6 @@ impl CardType {
     }
 }
 
-// TODO: This enum will be updated with all card subtype values
-#[derive(
-    Clone,
-    Debug,
-    Eq,
-    Hash,
-    PartialEq,
-    serde::Deserialize,
-    serde::Serialize,
-    strum::Display,
-    strum::EnumIter,
-    strum::EnumString,
-    utoipa::ToSchema,
-    Copy,
-)]
-#[strum(serialize_all = "UPPERCASE")]
-#[serde(rename_all = "snake_case")]
-pub enum CardSubtype {
-    Aarp,
-    Airmilespremier,
-    Atmcard,
-    Atmonly,
-    #[strum(serialize = "ATMONLY-CASHLINECARD")]
-    AtmonlyCashlinecard,
-    #[strum(serialize = "BEST PRICE SAVE MAX")]
-    BestPriceSaveMax,
-    #[strum(serialize = "BEST PRICE SAVE SMART")]
-    BestPriceSaveSmart,
-    Bharat,
-    #[strum(serialize = "BHARAT CASHBACK")]
-    BharatCashback,
-    #[strum(serialize = "BHARAT PLATINUM")]
-    BharatPlatinum,
-    Black,
-    Blackcard,
-    Blue,
-    #[strum(serialize = "BLUE&REVOLVING")]
-    BlueAndRevolving,
-    Blueairmilescashbackcard,
-    Bluecash,
-    Blueforbusiness,
-    Bmiplus,
-    Bonus,
-    Business,
-    #[strum(serialize = "BUSINESS GOLD")]
-    BusinessGold,
-    #[strum(serialize = "BUSINESS MONEYBACK")]
-    BusinessMoneyback,
-    #[strum(serialize = "BUSINESS PLATINUM")]
-    BusinessPlatinum,
-    #[strum(serialize = "BUSINESS PREPAID")]
-    BusinessPrepaid,
-    #[strum(serialize = "BUSINESS REGALIA")]
-    BusinessRegalia,
-    #[strum(serialize = "BUSINESS REGALIA FIRST")]
-    BusinessRegaliaFirst,
-    Businesscard,
-    Businesselite,
-    Businessimmediatedebit,
-    Businessloan,
-    Cashback,
-    Cashrebate,
-    Centurion,
-    Centurionservicio,
-    Chargecard,
-    Checkcard,
-    Classic,
-    Classicpremium,
-    Commercial,
-    Commercialtransportebt,
-    Companion,
-    Consumer,
-    Consumercard,
-    #[strum(serialize = "CORP.GOLDD&RANGES")]
-    CorpGolddAndRanges,
-    #[strum(serialize = "CORP.GOLDS&RANGES")]
-    CorpGoldsAndRanges,
-    #[strum(serialize = "CORP.GREEND&RANGES")]
-    CorpGreendAndRanges,
-    #[strum(serialize = "CORP.GREENS&RANGES")]
-    CorpGreensAndRanges,
-    #[strum(serialize = "CORP.PURCHASINGCARD")]
-    CorpPurchasingcard,
-    #[strum(serialize = "CORPO.CO.S&RANGES")]
-    CorpoCoSAndRanges,
-    Corporate,
-    #[strum(serialize = "CORPORATE PLATINUM")]
-    CorporatePlatinum,
-    #[strum(serialize = "CORPORATE PREMIUM")]
-    CorporatePremium,
-    Corporatecard,
-    Corporateexecutive,
-    Corporatefleetcard,
-    Corporategold,
-    Corporategoldyplatinum,
-    Corporategreen,
-    Corporategreenebta,
-    Corporatepurchasing,
-    Corporaterevolving,
-    Corporatet,
-    #[strum(serialize = "CORPORATET&E")]
-    CorporateTAndE,
-    Corporation,
-    Credit,
-    Ctslandcard,
-    Debit,
-    Delayeddebit,
-    Delta,
-    #[strum(serialize = "DINERS CLUB BLACK")]
-    DinersClubBlack,
-    #[strum(serialize = "DINERS CLUB MILES")]
-    DinersClubMiles,
-    #[strum(serialize = "DINERS CLUB PREMIUM")]
-    DinersClubPremium,
-    #[strum(serialize = "DINERS CLUB PRIVILEGE")]
-    DinersClubPrivilege,
-    #[strum(serialize = "DINERS CLUB REWARDZ")]
-    DinersClubRewardz,
-    #[strum(serialize = "DOCTORS PLATINUM")]
-    DoctorsPlatinum,
-    #[strum(serialize = "DOCTORS REGALIA")]
-    DoctorsRegalia,
-    #[strum(serialize = "DOCTORS SUPERIA")]
-    DoctorsSuperia,
-    Dorada,
-    #[strum(serialize = "DUMMY LOGO")]
-    DummyLogo,
-    #[strum(serialize = "EASY EMI")]
-    EasyEmi,
-    #[strum(serialize = "EDGE PLATINUM")]
-    EdgePlatinum,
-    Electricorange,
-    Electron,
-    Electronic,
-    Electronicunembossed,
-    Embossed,
-    Executivebusiness,
-    Express,
-    Firstcitizen,
-    #[strum(serialize = "FIRSTCITIZEN BLACK")]
-    FirstcitizenBlack,
-    Fleetcard,
-    #[strum(serialize = "FLIPKART WHOLESALE")]
-    FlipkartWholesale,
-    Freedom,
-    #[strum(serialize = "FREEDOM PLATINUM")]
-    FreedomPlatinum,
-    #[strum(serialize = "GENERAL PURPOSE RE-LOADABLE CARD")]
-    GeneralPurposeReLoadableCard,
-    Gift,
-    #[strum(serialize = "GIFT CARDS")]
-    GiftCards,
-    Globalpayment,
-    Gmcard,
-    Gold,
-    #[strum(serialize = "GOLD PERSONAL")]
-    GoldPersonal,
-    #[strum(serialize = "GOLD/PLATINUM")]
-    GoldPlatinum,
-    #[strum(serialize = "GOLD/PREM")]
-    GoldPrem,
-    Goldcashbackcard,
-    Goldgrccyblue,
-    Goldimmediatedebit,
-    Goldpremium,
-    Governmentcommercialcard,
-    Governmentservicesloan,
-    Green,
-    Gsacard,
-    #[strum(serialize = "GSACORPORATET&E")]
-    GsacorporateTAndE,
-    Gsapurchasing,
-    #[strum(serialize = "HSANON-SUBSTANTIATED")]
-    HsanonSubstantiated,
-    Icard,
-    Ikeacard,
-    Immediatedebit,
-    #[strum(serialize = "INDIAN OIL")]
-    IndianOil,
-    #[strum(serialize = "INDIGO 6E REWARDS")]
-    Indigo6eRewards,
-    Individual,
-    Infinia,
-    Infinite,
-    #[strum(serialize = "INTERMILES DINERS CLUB")]
-    IntermilesDinersClub,
-    #[strum(serialize = "INTERMILES PREMIUM")]
-    IntermilesPremium,
-    #[strum(serialize = "INTERMILES SIGNATURE")]
-    IntermilesSignature,
-    #[strum(serialize = "IX RBL 09")]
-    IxRbl09,
-    #[strum(serialize = "IX RBL 24")]
-    IxRbl24,
-    #[strum(serialize = "IX SLICE 01")]
-    IxSlice01,
-    #[strum(serialize = "IX SLICE 02")]
-    IxSlice02,
-    #[strum(serialize = "JCB CLASSIC")]
-    JcbClassic,
-    #[strum(serialize = "JCB PLATINUM")]
-    JcbPlatinum,
-    #[strum(serialize = "JCB SELECT")]
-    JcbSelect,
-    #[strum(serialize = "JUMBO LOAN")]
-    JumboLoan,
-    Lowescard,
-    Mastercard,
-    Mastermoney,
-    #[strum(serialize = "MICRO-BUSINESSCARD")]
-    MicroBusinesscard,
-    Millennia,
-    #[strum(serialize = "MONEYBACK INSTA")]
-    MoneybackInsta,
-    #[strum(serialize = "MONEYBACK PLATINUM")]
-    MoneybackPlatinum,
-    #[strum(serialize = "MONEYBACK PLUS")]
-    MoneybackPlus,
-    #[strum(serialize = "MONEYBACK ST")]
-    MoneybackSt,
-    Newworld,
-    Newworldimmediatedebit,
-    Optima,
-    Others,
-    Ourocard,
-    Paymentcard,
-    Paypass,
-    #[strum(serialize = "PAYROLL CARDS")]
-    PayrollCards,
-    Paytm,
-    #[strum(serialize = "PAYTM BUSINESS")]
-    PaytmBusiness,
-    #[strum(serialize = "PAYTM MOBILE")]
-    PaytmMobile,
-    #[strum(serialize = "PAYTM SELECT")]
-    PaytmSelect,
-    Peony,
-    Peonymoneylink,
-    Pinelabs,
-    #[strum(serialize = "PINELABS PRO")]
-    PinelabsPro,
-    Platinum,
-    Platinum1,
-    #[strum(serialize = "PLATINUM EDGE")]
-    PlatinumEdge,
-    #[strum(serialize = "PLATINUM FREEDOM")]
-    PlatinumFreedom,
-    #[strum(serialize = "PLATINUM PLUS")]
-    PlatinumPlus,
-    #[strum(serialize = "PLATINUM SOLITAIRE")]
-    PlatinumSolitaire,
-    #[strum(serialize = "PLATINUM TIMES")]
-    PlatinumTimes,
-    Platinumimmediatedebit,
-    Platinumtravel,
-    Plus,
-    Pmjdy,
-    Premier,
-    Premium,
-    Premiumcard,
-    Premiumplus,
-    Prepaid,
-    #[strum(serialize = "PREPAID-ELECTRON")]
-    PrepaidElectron,
-    #[strum(serialize = "PREPAID-PRIVATELABEL")]
-    PrepaidPrivatelabel,
-    Prepaidcash,
-    Prepaidtravelmoney,
-    Private,
-    Privatelabel,
-    Pro,
-    Proprietary,
-    #[strum(serialize = "PROPRIETARY ATM")]
-    ProprietaryAtm,
-    Purchasing,
-    Quantum,
-    Rebate,
-    Regalia,
-    #[strum(serialize = "REGALIA FIRST")]
-    RegaliaFirst,
-    Revolving,
-    Rewards,
-    Rewardsonly,
-    #[strum(serialize = "RUPAY SELECT")]
-    RupaySelect,
-    Salute,
-    #[strum(serialize = "SAP CONCUR SOLUTIONS BLACK CORPORATE")]
-    SapConcurSolutionsBlackCorporate,
-    #[strum(serialize = "SAP CONCUR SOLUTIONS PRIME CORPORATE")]
-    SapConcurSolutionsPrimeCorporate,
-    Sbsgoldyblue,
-    Sears,
-    Signature,
-    Signaturebusiness,
-    Signaturebusinessplatinum,
-    Silver,
-    #[serde(rename = "6e_rewards")]
-    SixERewards,
-    #[serde(rename = "6e_rewards_xl")]
-    SixERewardsXl,
-    Smallbusiness,
-    Smallbusinesscard,
-    Smallbusinesssbsgreen,
-    Smallcorporate,
-    Smallcorporatecard,
-    Solitaire,
-    #[strum(serialize = "SOLITAIRE PLATINUM")]
-    SolitairePlatinum,
-    Standard,
-    Standardunembossed,
-    #[strum(serialize = "TATA NEU INFINITY")]
-    TataNeuInfinity,
-    #[strum(serialize = "TATA NEU PLUS")]
-    TataNeuPlus,
-    #[strum(serialize = "TEACHERS PLATINUM")]
-    TeachersPlatinum,
-    #[strum(serialize = "TEST PLASTIC")]
-    TestPlastic,
-    Titanium,
-    #[strum(serialize = "TITANIUM EDGE")]
-    TitaniumEdge,
-    #[strum(serialize = "TITANIUM PERSONAL")]
-    TitaniumPersonal,
-    #[strum(serialize = "TITANIUM TIMES")]
-    TitaniumTimes,
-    Tjpersonal,
-    Travelmoney,
-    #[strum(serialize = "UAT RANGE")]
-    UatRange,
-    Unembossed,
-    Virginatlantic,
-    Virtual,
-    #[strum(serialize = "VISA BUSINESS")]
-    VisaBusiness,
-    #[strum(serialize = "VISA BUSINESS ENHANCED")]
-    VisaBusinessEnhanced,
-    #[strum(serialize = "VISA CLASSIC")]
-    VisaClassic,
-    #[strum(serialize = "VISA CORPORATE T&E")]
-    VisaCorporateTAndE,
-    #[strum(serialize = "VISA ELECTRON")]
-    VisaElectron,
-    #[strum(serialize = "VISA ENHANCED")]
-    VisaEnhanced,
-    #[strum(serialize = "VISA GOLD")]
-    VisaGold,
-    #[strum(serialize = "VISA INFINITE")]
-    VisaInfinite,
-    #[strum(serialize = "VISA INFINITE BUSINESS")]
-    VisaInfiniteBusiness,
-    #[strum(serialize = "VISA PLATINUM")]
-    VisaPlatinum,
-    #[strum(serialize = "VISA PLATINUM BUSINESS")]
-    VisaPlatinumBusiness,
-    #[strum(serialize = "VISA PURCHASING")]
-    VisaPurchasing,
-    #[strum(serialize = "VISA PURCHASING WITH FLEET")]
-    VisaPurchasingWithFleet,
-    #[strum(serialize = "VISA REWARDS")]
-    VisaRewards,
-    #[strum(serialize = "VISA SIGNATURE")]
-    VisaSignature,
-    #[strum(serialize = "VISA SIGNATURE BUSINESS")]
-    VisaSignatureBusiness,
-    #[strum(serialize = "VISA TRADITIONAL")]
-    VisaTraditional,
-    Visacash,
-    Visacommerce,
-    Vpay,
-    World,
-    #[strum(serialize = "WORLD MASTER")]
-    WorldMaster,
-    Worldblack,
-    Worldcard,
-    Worlddebitembossed,
-    Worldelite,
-    Worldeliteforbusiness,
-    Worldembossed,
-    Worldforbusiness,
-    Worldsigniaimmediatedebit,
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize, strum::EnumString, strum::Display)]
 #[serde(rename_all = "snake_case")]
 pub enum DecisionEngineMerchantCategoryCode {
@@ -3793,7 +3539,10 @@ impl CardNetwork {
             | Self::Discover
             | Self::UnionPay
             | Self::RuPay
-            | Self::Maestro => true,
+            | Self::Maestro
+            | Self::Prop
+            | Self::PrivateLabel
+            | Self::Dinacard => true,
         }
     }
 
@@ -3810,9 +3559,61 @@ impl CardNetwork {
             | Self::Discover
             | Self::UnionPay
             | Self::RuPay
-            | Self::Maestro => false,
+            | Self::Maestro
+            | Self::Prop
+            | Self::PrivateLabel
+            | Self::Dinacard => false,
         }
     }
+}
+
+/// If a card is associated with a secondary (co-badged) network — e.g. Star, Pulse, Nyce —
+/// this represents that network's identity, distinct from the card's primary `CardNetwork`.
+/// Secondary networks typically provide less complete BIN data than primary networks.
+#[derive(
+    Clone,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumIter,
+    strum::EnumString,
+    utoipa::ToSchema,
+    Copy,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+pub enum CoBadgedCardNetwork {
+    #[serde(alias = "RUPAY")]
+    RuPay,
+    #[serde(alias = "CARTES BANCAIRES")]
+    CartesBancaires,
+    #[serde(alias = "STAR")]
+    Star,
+    #[serde(alias = "ACCEL")]
+    Accel,
+    #[serde(alias = "PULSE")]
+    Pulse,
+    #[serde(alias = "NYCE")]
+    Nyce,
+    #[serde(alias = "ELO")]
+    Elo,
+    #[serde(alias = "DANKORT")]
+    Dankort,
+    #[serde(alias = "CULIANCE")]
+    Culiance,
+    #[serde(alias = "KOREAN LOCAL")]
+    KoreanLocal,
+    #[serde(alias = "EFTPOS_AUSTRALIA")]
+    EftposAustralia,
+    #[serde(alias = "HIPERCARD")]
+    Hipercard,
+    #[serde(alias = "UATP")]
+    Uatp,
+    #[serde(alias = "BANCONTACT")]
+    Bancontact,
 }
 
 /// Stage of the dispute
@@ -9077,7 +8878,15 @@ pub enum PayoutStatus {
     Expired,
     Reversed,
     Pending,
+    /// Non-terminal: the payout method/payee was found ineligible, but the payout
+    /// is not conclusively closed. This status is intentionally NOT terminal and
+    /// emits no outgoing webhook (see `From<PayoutStatus> for Option<EventType>`).
     Ineligible,
+    /// Terminal: the payout was conclusively refused by the processor (e.g. a
+    /// Verification-of-Payee "no match" / "could not verify" result). Unlike
+    /// [`PayoutStatus::Ineligible`], this is a final failure state — it counts as a
+    /// payout failure and triggers a `payout_failed` outgoing webhook to the merchant.
+    NotPermitted,
     #[default]
     RequiresCreation,
     RequiresConfirmation,
@@ -9090,7 +8899,7 @@ impl PayoutStatus {
     pub fn is_payout_failure(&self) -> bool {
         matches!(
             self,
-            Self::Failed | Self::Cancelled | Self::Expired | Self::Ineligible
+            Self::Failed | Self::Cancelled | Self::Expired | Self::Ineligible | Self::NotPermitted
         )
     }
 
@@ -9101,7 +8910,12 @@ impl PayoutStatus {
     pub fn is_terminal_status(&self) -> bool {
         matches!(
             self,
-            Self::Success | Self::Failed | Self::Cancelled | Self::Expired | Self::Reversed
+            Self::Success
+                | Self::Failed
+                | Self::Cancelled
+                | Self::Expired
+                | Self::Reversed
+                | Self::NotPermitted
         )
     }
 }
@@ -9673,6 +9487,16 @@ impl TransactionStatus {
     }
 }
 
+impl From<TransactionStatus> for DecoupledAuthenticationType {
+    fn from(trans_status: TransactionStatus) -> Self {
+        match trans_status {
+            TransactionStatus::ChallengeRequired
+            | TransactionStatus::ChallengeRequiredDecoupledAuthentication => Self::Challenge,
+            _ => Self::Frictionless,
+        }
+    }
+}
+
 #[derive(
     Clone,
     Copy,
@@ -9708,6 +9532,8 @@ pub enum PermissionGroup {
     CloneConnectorManage,
     ThemeView,
     ThemeManage,
+    ConfigurationsView,
+    ConfigurationsManage,
     ReconSourcesView,
     ReconSourcesManage,
     ReconExceptionsView,
@@ -9732,6 +9558,7 @@ pub enum ParentGroup {
     ApiKeys,
     CloneConnector,
     Theme,
+    Configurations,
     ReconSources,
     ReconExceptions,
     ReconTransactions,
@@ -9767,6 +9594,7 @@ pub enum Resource {
     ReconStagingEntry,
     ReconTransaction,
     ReconRule,
+    SuperpositionConfig,
 }
 
 #[derive(
@@ -9965,6 +9793,8 @@ pub enum BankNames {
 pub enum BankType {
     Checking,
     Savings,
+    Salary,
+    Payment,
 }
 #[derive(
     Clone,
@@ -10440,6 +10270,24 @@ pub enum ConnectorTokenStatus {
     Inactive,
 }
 
+impl From<ConnectorMandateStatus> for ConnectorTokenStatus {
+    fn from(status: ConnectorMandateStatus) -> Self {
+        match status {
+            ConnectorMandateStatus::Active => Self::Active,
+            ConnectorMandateStatus::Inactive => Self::Inactive,
+        }
+    }
+}
+
+impl From<ConnectorTokenStatus> for ConnectorMandateStatus {
+    fn from(status: ConnectorTokenStatus) -> Self {
+        match status {
+            ConnectorTokenStatus::Active => Self::Active,
+            ConnectorTokenStatus::Inactive => Self::Inactive,
+        }
+    }
+}
+
 #[derive(
     Clone,
     Copy,
@@ -10861,6 +10709,7 @@ pub enum ProcessTrackerRunner {
     InvoiceSyncflow,
     PayoutSyncWorkFlow,
     BatchBlocklistUpload,
+    NetworkTokenizationWorkflow,
 }
 
 #[derive(

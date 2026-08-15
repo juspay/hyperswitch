@@ -79,6 +79,7 @@ pub const DECISION_ENGINE_RULE_GET_ENDPOINT: &str = "rule/get";
 pub const DECISION_ENGINE_RULE_DELETE_ENDPOINT: &str = "rule/delete";
 pub const DECISION_ENGINE_MERCHANT_BASE_ENDPOINT: &str = "merchant-account";
 pub const DECISION_ENGINE_MERCHANT_CREATE_ENDPOINT: &str = "merchant-account/create";
+pub const DECISION_ENGINE_MERCHANT_TOKEN_ENDPOINT: &str = "auth/admin/merchant-token";
 
 /// Provides us with all the configured configs of the Merchant in the ascending time configured
 /// manner and chooses the first of them
@@ -463,34 +464,96 @@ impl RoutingAlgorithmHelpers<'_> {
     }
 }
 
+/// Validates the `label_info` entries of a contract-based routing config against the
+/// merchant's connector accounts, in a single list fetch.
+///
+/// Shared by the contract-based setup and update endpoints so both apply the same
+/// checks in the same order:
+/// 1. duplicate `mca_id` in the request -> `InvalidRequestData` ("Duplicate ...")
+/// 2. `mca_id` not present for the profile -> `MerchantConnectorAccountNotFound`
+/// 3. label not matching the connector name -> `InvalidRequestData` ("Incorrect ...")
+///
+/// A failure of the list fetch itself is an infra error (an empty result is `Ok(vec![])`,
+/// not an error), so it maps to `InternalServerError` rather than a 404.
+#[cfg(all(feature = "v1", feature = "dynamic_routing"))]
+pub async fn validate_contract_based_label_info(
+    db: &dyn StorageInterface,
+    merchant_id: &id_type::MerchantId,
+    profile_id: &id_type::ProfileId,
+    label_info: &[routing_types::LabelInformation],
+) -> RouterResult<()> {
+    // Fetching disabled MCAs too: a contract config may reference a temporarily disabled
+    // MCA — validation checks connector existence and label, not activity.
+    let all_mcas = db
+        .list_merchant_connector_accounts_without_encrypted_including_disabled_by_merchant_id_profile_id(
+            merchant_id,
+            profile_id,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable(
+            "Failed to list merchant connector accounts for contract based routing validation",
+        )?;
+
+    let mca_map: std::collections::HashMap<_, _> = all_mcas
+        .iter()
+        .map(|mca| (mca.get_id(), mca.connector_name.clone()))
+        .collect();
+
+    let mut contained_mca = Vec::new();
+    for info in label_info {
+        if contained_mca.contains(&info.mca_id) {
+            return Err(error_stack::Report::new(
+                errors::ApiErrorResponse::InvalidRequestData {
+                    message: "Duplicate mca configuration received".to_string(),
+                },
+            ));
+        }
+
+        let mca_connector_name = mca_map.get(&info.mca_id).ok_or_else(|| {
+            error_stack::Report::new(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                id: info.mca_id.get_string_repr().to_owned(),
+            })
+        })?;
+
+        if mca_connector_name != &info.label {
+            return Err(error_stack::Report::new(
+                errors::ApiErrorResponse::InvalidRequestData {
+                    message: "Incorrect mca configuration received".to_string(),
+                },
+            ));
+        }
+
+        contained_mca.push(info.mca_id.clone());
+    }
+
+    Ok(())
+}
+
 #[cfg(feature = "v1")]
 pub async fn validate_connectors_in_routing_config(
     state: &SessionState,
-    key_store: &domain::MerchantKeyStore,
+    _key_store: &domain::MerchantKeyStore,
     merchant_id: &id_type::MerchantId,
     profile_id: &id_type::ProfileId,
     routing_algorithm: &routing_types::StaticRoutingAlgorithm,
 ) -> RouterResult<()> {
+    // Fetching disabled MCAs too: routing configs may reference MCAs that are
+    // temporarily disabled — validation checks connector existence, not activity.
     let all_mcas = state
         .store
-        .find_merchant_connector_account_by_merchant_id_and_disabled_list(
-            merchant_id,
-            true,
-            key_store,
-        )
+        .list_merchant_connector_accounts_without_encrypted_including_disabled_by_merchant_id_profile_id(merchant_id, profile_id)
         .await
         .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
             id: merchant_id.get_string_repr().to_owned(),
         })?;
     let name_mca_id_set = all_mcas
         .iter()
-        .filter(|mca| mca.profile_id == *profile_id)
         .map(|mca| (&mca.connector_name, mca.get_id()))
         .collect::<FxHashSet<_>>();
 
     let name_set = all_mcas
         .iter()
-        .filter(|mca| mca.profile_id == *profile_id)
         .map(|mca| &mca.connector_name)
         .collect::<FxHashSet<_>>();
 
@@ -2732,6 +2795,47 @@ pub async fn create_decision_engine_merchant(
     .attach_printable("Failed to create merchant account on decision engine")?;
 
     Ok(())
+}
+
+#[cfg(feature = "v1")]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct DecisionEngineMerchantTokenResponse {
+    pub code: String,
+}
+
+/// Mint a one-time SSO handoff code from the Decision Engine for the profile (keyed on profile_id).
+#[cfg(feature = "v1")]
+#[instrument(skip_all)]
+pub async fn mint_decision_engine_sso_code(
+    state: &SessionState,
+    profile_id: &id_type::ProfileId,
+) -> error_stack::Result<String, errors::RoutingError> {
+    let merchant_token_req = open_router::MerchantAccount {
+        merchant_id: profile_id.get_string_repr().to_string(),
+        gateway_success_rate_based_decider_input: None,
+    };
+
+    let response: Option<DecisionEngineMerchantTokenResponse> =
+        routing_utils::ConfigApiClient::send_decision_engine_request(
+            state,
+            services::Method::Post,
+            DECISION_ENGINE_MERCHANT_TOKEN_ENDPOINT,
+            Some(merchant_token_req),
+            None,
+            None,
+        )
+        .await
+        .attach_printable("Failed to mint SSO code on decision engine")?
+        .response;
+
+    let code = response
+        .ok_or(errors::RoutingError::OpenRouterError(
+            "Decision engine returned an empty SSO code response".to_string(),
+        ))
+        .attach_printable("Decision engine returned an empty SSO code response")?
+        .code;
+
+    Ok(code)
 }
 
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]

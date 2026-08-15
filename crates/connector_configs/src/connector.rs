@@ -7,6 +7,7 @@ use api_models::{
         AuthenticationConnectors, BillingConnectors, Connector, PmAuthConnectors,
         SurchargeConnectors, TaxConnectors,
     },
+    merchant_connector_webhook_management::ScopeType,
     payments,
 };
 use serde::{Deserialize, Serialize};
@@ -157,6 +158,9 @@ pub struct ConfigMetadata {
     pub pix_automatico_push: Option<Vec<InputData>>,
     pub pix_automatico_qr: Option<Vec<InputData>>,
     pub boleto: Option<Vec<InputData>>,
+    pub client_id: Option<InputData>,
+    pub client_secret: Option<InputData>,
+    pub workspace_id: Option<InputData>,
     pub merchant_id: Option<InputData>,
     pub endpoint_prefix: Option<InputData>,
     pub mcc: Option<InputData>,
@@ -203,6 +207,9 @@ pub struct ConfigMetadata {
     pub kid: Option<InputData>,
     pub account_holder_name: Option<InputData>,
     pub private_key: Option<InputData>,
+    pub merchant_street_address: Option<InputData>,
+    pub customer_service_phone_number: Option<InputData>,
+    pub merchant_url: Option<InputData>,
 }
 
 #[serde_with::skip_serializing_none]
@@ -216,11 +223,22 @@ pub struct ConnectorWalletDetailsConfig {
 
 #[serde_with::skip_serializing_none]
 #[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct ConnectorWebhookRegisterDetailsConfig {
+    pub label: String,
+    pub webhook_auto_configuration_supported: bool,
+    pub scope_type: Option<ScopeType>,
+    pub payment_method_types: Option<Vec<String>>,
+    pub event_types: Option<Vec<String>>,
+}
+
+#[serde_with::skip_serializing_none]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct ConnectorTomlConfig {
     pub connector_auth: Option<ConnectorAuthType>,
     pub connector_webhook_details: Option<api_models::admin::MerchantConnectorWebhookDetails>,
     pub metadata: Option<Box<ConfigMetadata>>,
     pub connector_wallets_details: Option<Box<ConnectorWalletDetailsConfig>>,
+    pub connector_webhook_register_details: Option<ConnectorWebhookRegisterDetailsConfig>,
     pub additional_merchant_data: Option<Box<ConfigMerchantAdditionalDetails>>,
     pub credit: Option<Vec<CardProvider>>,
     pub debit: Option<Vec<CardProvider>>,
@@ -293,6 +311,8 @@ pub struct ConnectorConfig {
     pub cybersourcedecisionmanager: Option<ConnectorTomlConfig>,
     pub datatrans: Option<ConnectorTomlConfig>,
     pub deutschebank: Option<ConnectorTomlConfig>,
+    #[cfg(feature = "payouts")]
+    pub deutschebank_payout: Option<ConnectorTomlConfig>,
     pub digitalvirgo: Option<ConnectorTomlConfig>,
     pub dlocal: Option<ConnectorTomlConfig>,
     pub dwolla: Option<ConnectorTomlConfig>,
@@ -311,6 +331,7 @@ pub struct ConnectorConfig {
     pub forte: Option<ConnectorTomlConfig>,
     pub getnet: Option<ConnectorTomlConfig>,
     pub gigadat: Option<ConnectorTomlConfig>,
+    pub givepayments: Option<ConnectorTomlConfig>,
     #[cfg(feature = "payouts")]
     pub gigadat_payout: Option<ConnectorTomlConfig>,
     pub globalpay: Option<ConnectorTomlConfig>,
@@ -371,6 +392,7 @@ pub struct ConnectorConfig {
     pub redsys: Option<ConnectorTomlConfig>,
     pub revolv3: Option<ConnectorTomlConfig>,
     pub santander: Option<ConnectorTomlConfig>,
+    pub santander_payout: Option<ConnectorTomlConfig>,
     pub shift4: Option<ConnectorTomlConfig>,
     pub sift: Option<ConnectorTomlConfig>,
     pub silverflow: Option<ConnectorTomlConfig>,
@@ -393,6 +415,7 @@ pub struct ConnectorConfig {
     pub threedsecureio: Option<ConnectorTomlConfig>,
     pub netcetera: Option<ConnectorTomlConfig>,
     pub tsys: Option<ConnectorTomlConfig>,
+    pub tsys_transit: Option<ConnectorTomlConfig>,
     pub vgs: Option<ConnectorTomlConfig>,
     pub volt: Option<ConnectorTomlConfig>,
     pub wellsfargo: Option<ConnectorTomlConfig>,
@@ -447,6 +470,7 @@ impl ConnectorConfig {
             PayoutConnectors::Adyen => Ok(connector_data.adyen_payout),
             PayoutConnectors::Adyenplatform => Ok(connector_data.adyenplatform_payout),
             PayoutConnectors::Cybersource => Ok(connector_data.cybersource_payout),
+            PayoutConnectors::Deutschebank => Ok(connector_data.deutschebank_payout),
             PayoutConnectors::Ebanx => Ok(connector_data.ebanx_payout),
             PayoutConnectors::Gigadat => Ok(connector_data.gigadat_payout),
             PayoutConnectors::Loonio => Ok(connector_data.loonio_payout),
@@ -462,6 +486,7 @@ impl ConnectorConfig {
             PayoutConnectors::Worldpayxml => Ok(connector_data.worldpayxml_payout),
             PayoutConnectors::Envoy => Ok(connector_data.envoy_payout),
             PayoutConnectors::Itaubank => Ok(connector_data.itaubank_payout),
+            PayoutConnectors::Santander => Ok(connector_data.santander_payout),
         }
     }
 
@@ -650,6 +675,7 @@ impl ConnectorConfig {
             Connector::Taxjar => Ok(connector_data.taxjar),
             Connector::Interpayments => Ok(connector_data.interpayments),
             Connector::Tsys => Ok(connector_data.tsys),
+            Connector::TsysTransit => Ok(connector_data.tsys_transit),
             Connector::Vgs => Ok(connector_data.vgs),
             Connector::Volt => Ok(connector_data.volt),
             Connector::Wellsfargo => Ok(connector_data.wellsfargo),
@@ -685,6 +711,7 @@ impl ConnectorConfig {
             Connector::Payjustnow => Ok(connector_data.payjustnow),
             Connector::Payjustnowinstore => Ok(connector_data.payjustnowinstore),
             Connector::Imerchantsolutions => Ok(connector_data.imerchantsolutions),
+            Connector::Givepayments => Ok(connector_data.givepayments),
         }
     }
 }

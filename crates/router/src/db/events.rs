@@ -4,6 +4,7 @@ use common_utils::ext_traits::AsyncExt;
 use error_stack::{report, ResultExt};
 use futures::future::try_join_all;
 use router_env::{instrument, tracing};
+use storage_impl::DatabaseStore;
 
 use super::{MockDb, Store};
 use crate::{
@@ -334,7 +335,11 @@ impl EventInterface for Store {
         merchant_key_store: &domain::MerchantKeyStore,
         event_recipient: Option<common_enums::EventRecipient>,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let conn = self
+            .get_replica_pool()
+            .get()
+            .await
+            .change_context(errors::StorageError::DatabaseConnectionError)?;
         storage::Event::list_initial_attempts_by_initiator_merchant_id_constraints(
             &conn,
             initiator_merchant_id,
@@ -415,7 +420,11 @@ impl EventInterface for Store {
         merchant_key_store: &domain::MerchantKeyStore,
         event_recipient: Option<common_enums::EventRecipient>,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let conn = self
+            .get_replica_pool()
+            .get()
+            .await
+            .change_context(errors::StorageError::DatabaseConnectionError)?;
         storage::Event::list_by_initiator_merchant_id_initial_attempt_id(
             &conn,
             initial_attempt_id,
@@ -482,7 +491,11 @@ impl EventInterface for Store {
         merchant_key_store: &domain::MerchantKeyStore,
         event_recipient: Option<common_enums::EventRecipient>,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let conn = self
+            .get_replica_pool()
+            .get()
+            .await
+            .change_context(errors::StorageError::DatabaseConnectionError)?;
         storage::Event::list_initial_attempts_by_initiator_merchant_id_primary_object_id(
             &conn,
             initiator_merchant_id,
@@ -588,7 +601,11 @@ impl EventInterface for Store {
         merchant_key_store: &domain::MerchantKeyStore,
         event_recipient: Option<common_enums::EventRecipient>,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let conn = self
+            .get_replica_pool()
+            .get()
+            .await
+            .change_context(errors::StorageError::DatabaseConnectionError)?;
         storage::Event::list_initial_attempts_by_profile_id_constraints(
             &conn,
             profile_id,
@@ -741,7 +758,11 @@ impl EventInterface for Store {
         is_delivered: Option<bool>,
         event_recipient: Option<common_enums::EventRecipient>,
     ) -> CustomResult<i64, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let conn = self
+            .get_replica_pool()
+            .get()
+            .await
+            .change_context(errors::StorageError::DatabaseConnectionError)?;
         storage::Event::count_initial_attempts_by_profile_id_constraints(
             &conn,
             profile_id,
@@ -766,7 +787,11 @@ impl EventInterface for Store {
         is_delivered: Option<bool>,
         event_recipient: Option<common_enums::EventRecipient>,
     ) -> CustomResult<i64, errors::StorageError> {
-        let conn = connection::pg_connection_read(self).await?;
+        let conn = self
+            .get_replica_pool()
+            .get()
+            .await
+            .change_context(errors::StorageError::DatabaseConnectionError)?;
         storage::Event::count_initial_attempts_by_initiator_merchant_id_constraints(
             &conn,
             initiator_merchant_id,
@@ -1083,7 +1108,7 @@ impl EventInterface for MockDb {
             .iter()
             .filter(|event| {
                 event.merchant_id == Some(merchant_id.to_owned())
-                    && event.initial_attempt_id.as_deref() == Some(&event.event_id)
+                    && event.initial_attempt_id.as_deref() == Some(event.event_id.as_str())
                     && event.primary_object_id.as_str() == primary_object_id
                     && (event_recipient.is_none() || event_recipient == event.recipient)
             })
@@ -1221,7 +1246,7 @@ impl EventInterface for MockDb {
             .iter()
             .filter(|event| {
                 event.business_profile_id == Some(profile_id.to_owned())
-                    && event.initial_attempt_id.as_deref() == Some(&event.event_id)
+                    && event.initial_attempt_id.as_deref() == Some(event.event_id.as_str())
                     && event.primary_object_id.as_str() == primary_object_id
                     && (event_recipient.is_none() || event_recipient == event.recipient)
             })
@@ -1488,7 +1513,7 @@ impl EventInterface for MockDb {
                     .is_none_or(|pid| event.business_profile_id.as_ref() == Some(pid));
                 matches_initiator
                     && matches_profile
-                    && event.initial_attempt_id.as_deref() == Some(&event.event_id)
+                    && event.initial_attempt_id.as_deref() == Some(event.event_id.as_str())
                     && event.primary_object_id.as_str() == primary_object_id
                     && (event_recipient.is_none() || event_recipient == event.recipient)
             })
@@ -1996,6 +2021,7 @@ mod tests {
             product_type: None,
             version: common_enums::ApiVersion::V1,
             network_tokenization_credentials: None,
+            fingerprint_secret: None,
         });
         let merchant_account = state
             .store
@@ -2121,6 +2147,7 @@ mod tests {
             processor_merchant_id: merchant_id,
             initiator: None,
             sdk_authorization: None,
+            applied_offer: None,
             connector: None,
             customer: None,
             disputes: None,

@@ -95,6 +95,7 @@ export const connectorDetails = {
     PaymentConfirmWithShippingCost: {
       Request: {
         payment_method: "card",
+        payment_method_type: "credit",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
@@ -164,6 +165,7 @@ export const connectorDetails = {
     No3DSManualCapture: {
       Request: {
         payment_method: "card",
+        payment_method_type: "credit",
         amount: 6000,
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -183,6 +185,7 @@ export const connectorDetails = {
     No3DSAutoCapture: {
       Request: {
         payment_method: "card",
+        payment_method_type: "credit",
         amount: 6000,
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -202,6 +205,7 @@ export const connectorDetails = {
     No3DSFailPayment: {
       Request: {
         payment_method: "card",
+        payment_method_type: "credit",
         payment_method_data: {
           card: failedNo3DSCardDetails,
         },
@@ -550,6 +554,32 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
       Request: {},
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            code: "IR_19",
+            message: "Payment method type not supported",
+            reason: "automatic is not supported by peachpayments",
+            type: "invalid_request",
+          },
+        },
+      },
+    },
+    MITAutoCaptureWithCustomerAcceptance: {
+      config: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        customer_acceptance: {
+          acceptance_type: "offline",
+          accepted_at: "1963-05-03T04:07:52.723Z",
+          online: {
+            ip_address: "127.0.0.1",
+            user_agent: "amet irure esse",
+          },
+        },
+      },
       Response: {
         status: 400,
         body: {

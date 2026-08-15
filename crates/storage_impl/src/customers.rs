@@ -19,6 +19,11 @@ use crate::{
     utils::{pg_connection_read, pg_connection_write},
     CustomResult, DatabaseStore, MockDb, RouterStore,
 };
+#[cfg(feature = "v2")]
+use crate::{
+    redis::kv_store::{kv_wrapper, KvOperation},
+    utils::try_redis_get_else_try_database_get,
+};
 
 impl KvStorePartition for customers::Customer {}
 
@@ -62,24 +67,23 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Option<domain::Customer>, StorageError> {
         let conn = pg_connection_read(self).await?;
-        let maybe_result = self
-            .find_optional_resource_by_id(
-                key_store,
-                storage_scheme,
-                customers::Customer::find_optional_by_customer_id_merchant_id(
-                    &conn,
-                    customer_id,
+        let maybe_result = Box::pin(self.find_optional_resource_by_id(
+            key_store,
+            storage_scheme,
+            customers::Customer::find_optional_by_customer_id_merchant_id(
+                &conn,
+                customer_id,
+                merchant_id,
+            ),
+            kv_router_store::FindResourceBy::Id(
+                format!("cust_{}", customer_id.get_string_repr()),
+                PartitionKey::MerchantIdCustomerId {
                     merchant_id,
-                ),
-                kv_router_store::FindResourceBy::Id(
-                    format!("cust_{}", customer_id.get_string_repr()),
-                    PartitionKey::MerchantIdCustomerId {
-                        merchant_id,
-                        customer_id,
-                    },
-                ),
-            )
-            .await?;
+                    customer_id,
+                },
+            ),
+        ))
+        .await?;
 
         maybe_result.map_or(Ok(None), |customer: domain::Customer| match customer.name {
             Some(ref name) if name.peek() == pii::REDACTED => Err(StorageError::CustomerRedacted)?,
@@ -98,7 +102,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Option<domain::Customer>, StorageError> {
         let conn = pg_connection_read(self).await?;
-        self.find_optional_resource_by_id(
+        Box::pin(self.find_optional_resource_by_id(
             key_store,
             storage_scheme,
             customers::Customer::find_optional_by_customer_id_merchant_id(
@@ -113,7 +117,7 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
                     customer_id,
                 },
             ),
-        )
+        ))
         .await
     }
 
@@ -126,24 +130,23 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Option<domain::Customer>, StorageError> {
         let conn = pg_connection_read(self).await?;
-        let maybe_result = self
-            .find_optional_resource_by_id(
-                key_store,
-                storage_scheme,
-                customers::Customer::find_optional_by_merchant_id_merchant_reference_id(
-                    &conn,
-                    merchant_reference_id,
+        let maybe_result = Box::pin(self.find_optional_resource_by_id(
+            key_store,
+            storage_scheme,
+            customers::Customer::find_optional_by_merchant_id_merchant_reference_id(
+                &conn,
+                merchant_reference_id,
+                merchant_id,
+            ),
+            kv_router_store::FindResourceBy::Id(
+                format!("cust_{}", merchant_reference_id.get_string_repr()),
+                PartitionKey::MerchantIdMerchantReferenceId {
                     merchant_id,
-                ),
-                kv_router_store::FindResourceBy::Id(
-                    format!("cust_{}", merchant_reference_id.get_string_repr()),
-                    PartitionKey::MerchantIdMerchantReferenceId {
-                        merchant_id,
-                        merchant_reference_id: merchant_reference_id.get_string_repr(),
-                    },
-                ),
-            )
-            .await?;
+                    merchant_reference_id: merchant_reference_id.get_string_repr(),
+                },
+            ),
+        ))
+        .await?;
 
         maybe_result.map_or(Ok(None), |customer: domain::Customer| match customer.name {
             Some(ref name) if name.peek() == pii::REDACTED => Err(StorageError::CustomerRedacted)?,
@@ -203,17 +206,13 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
         let field = format!("cust_{}", customer_id.get_string_repr());
 
         let mut query_gen_conn = pg_connection_write(self).await?;
-        let drainer_query = customer_update_internal
-            .generate_drainer_update_query(
-                &mut query_gen_conn,
-                customer_id.clone(),
-                merchant_id.clone(),
-            )
-            .await
-            .change_context(StorageError::KVError)
-            .attach_printable("Failed to generate customer update query")?;
+        let drainer_query_fut = customer_update_internal.generate_drainer_update_query(
+            &mut query_gen_conn,
+            customer_id.clone(),
+            merchant_id.clone(),
+        );
 
-        self.update_resource(
+        Box::pin(self.update_resource(
             key_store,
             storage_scheme,
             customers::Customer::update_by_customer_id_merchant_id(
@@ -224,10 +223,10 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
             ),
             updated_customer,
             kv_router_store::UpdateResourceParams {
-                drainer_query,
+                drainer_query_fut,
                 operation: Op::Update(key.clone(), &field, customer.updated_by.as_deref()),
             },
-        )
+        ))
         .await
     }
 
@@ -241,24 +240,23 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::Customer, StorageError> {
         let conn = pg_connection_read(self).await?;
-        let result: domain::Customer = self
-            .find_resource_by_id(
-                key_store,
-                storage_scheme,
-                customers::Customer::find_by_merchant_reference_id_merchant_id(
-                    &conn,
-                    merchant_reference_id,
+        let result: domain::Customer = Box::pin(self.find_resource_by_id(
+            key_store,
+            storage_scheme,
+            customers::Customer::find_by_merchant_reference_id_merchant_id(
+                &conn,
+                merchant_reference_id,
+                merchant_id,
+            ),
+            kv_router_store::FindResourceBy::Id(
+                format!("cust_{}", merchant_reference_id.get_string_repr()),
+                PartitionKey::MerchantIdMerchantReferenceId {
                     merchant_id,
-                ),
-                kv_router_store::FindResourceBy::Id(
-                    format!("cust_{}", merchant_reference_id.get_string_repr()),
-                    PartitionKey::MerchantIdMerchantReferenceId {
-                        merchant_id,
-                        merchant_reference_id: merchant_reference_id.get_string_repr(),
-                    },
-                ),
-            )
-            .await?;
+                    merchant_reference_id: merchant_reference_id.get_string_repr(),
+                },
+            ),
+        ))
+        .await?;
 
         match result.name {
             Some(ref name) if name.peek() == pii::REDACTED => Err(StorageError::CustomerRedacted)?,
@@ -276,24 +274,19 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::Customer, StorageError> {
         let conn = pg_connection_read(self).await?;
-        let result: domain::Customer = self
-            .find_resource_by_id(
-                key_store,
-                storage_scheme,
-                customers::Customer::find_by_customer_id_merchant_id(
-                    &conn,
-                    customer_id,
+        let result: domain::Customer = Box::pin(self.find_resource_by_id(
+            key_store,
+            storage_scheme,
+            customers::Customer::find_by_customer_id_merchant_id(&conn, customer_id, merchant_id),
+            kv_router_store::FindResourceBy::Id(
+                format!("cust_{}", customer_id.get_string_repr()),
+                PartitionKey::MerchantIdCustomerId {
                     merchant_id,
-                ),
-                kv_router_store::FindResourceBy::Id(
-                    format!("cust_{}", customer_id.get_string_repr()),
-                    PartitionKey::MerchantIdCustomerId {
-                        merchant_id,
-                        customer_id,
-                    },
-                ),
-            )
-            .await?;
+                    customer_id,
+                },
+            ),
+        ))
+        .await?;
 
         match result.name {
             Some(ref name) if name.peek() == pii::REDACTED => Err(StorageError::CustomerRedacted)?,
@@ -361,26 +354,23 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
         }
 
         let mut query_gen_conn = pg_connection_write(self).await?;
-        let drainer_query = new_customer
+        let drainer_query_fut = new_customer
             .clone()
-            .generate_drainer_insert_query(&mut query_gen_conn)
-            .await
-            .change_context(StorageError::KVError)
-            .attach_printable("Failed to generate customer insert query")?;
+            .generate_drainer_insert_query(&mut query_gen_conn);
 
-        self.insert_resource(
+        Box::pin(self.insert_resource(
             key_store,
             decided_storage_scheme,
             new_customer.clone().insert(&conn),
             new_customer.clone().into(),
             kv_router_store::InsertResourceParams {
-                drainer_query,
+                drainer_query_fut,
                 reverse_lookups,
                 identifier,
                 key,
                 resource_type: "customer",
             },
-        )
+        ))
         .await
     }
 
@@ -393,11 +383,12 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::Customer, StorageError> {
         let conn = pg_connection_write(self).await?;
+        let customer_id = customer_data.get_id().clone();
         let key = PartitionKey::MerchantIdCustomerId {
             merchant_id: &customer_data.merchant_id.clone(),
-            customer_id: &customer_data.customer_id.clone(),
+            customer_id: &customer_id,
         };
-        let identifier = format!("cust_{}", customer_data.customer_id.get_string_repr());
+        let identifier = format!("cust_{}", customer_id.get_string_repr());
         let mut new_customer = customer_data
             .construct_new()
             .await
@@ -412,26 +403,23 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
         let customer = new_customer.clone().into();
 
         let mut query_gen_conn = pg_connection_write(self).await?;
-        let drainer_query = new_customer
+        let drainer_query_fut = new_customer
             .clone()
-            .generate_drainer_insert_query(&mut query_gen_conn)
-            .await
-            .change_context(StorageError::KVError)
-            .attach_printable("Failed to generate customer insert query")?;
+            .generate_drainer_insert_query(&mut query_gen_conn);
 
-        self.insert_resource(
+        Box::pin(self.insert_resource(
             key_store,
             storage_scheme,
             new_customer.clone().insert(&conn),
             customer,
             kv_router_store::InsertResourceParams {
-                drainer_query,
+                drainer_query_fut,
                 reverse_lookups: vec![],
                 identifier,
                 key,
                 resource_type: "customer",
             },
-        )
+        ))
         .await
     }
 
@@ -456,19 +444,18 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::Customer, StorageError> {
         let conn = pg_connection_read(self).await?;
-        let result: domain::Customer = self
-            .find_resource_by_id(
-                key_store,
-                storage_scheme,
-                customers::Customer::find_by_global_id(&conn, id),
-                kv_router_store::FindResourceBy::Id(
-                    format!("cust_{}", id.get_string_repr()),
-                    PartitionKey::GlobalId {
-                        id: id.get_string_repr(),
-                    },
-                ),
-            )
-            .await?;
+        let result: domain::Customer = Box::pin(self.find_resource_by_id(
+            key_store,
+            storage_scheme,
+            customers::Customer::find_by_global_id(&conn, id),
+            kv_router_store::FindResourceBy::Id(
+                format!("cust_{}", id.get_string_repr()),
+                PartitionKey::GlobalId {
+                    id: id.get_string_repr(),
+                },
+            ),
+        ))
+        .await?;
 
         if result.status == common_enums::DeleteStatus::Redacted {
             Err(StorageError::CustomerRedacted)?
@@ -487,19 +474,76 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::Customer, StorageError> {
         let conn = pg_connection_read(self).await?;
-        let result: domain::Customer = self
-            .find_resource_by_id(
-                key_store,
-                storage_scheme,
-                customers::Customer::find_by_global_id_merchant_id(&conn, id, merchant_id),
-                kv_router_store::FindResourceBy::Id(
-                    format!("cust_{}", id.get_string_repr()),
-                    PartitionKey::GlobalId {
-                        id: id.get_string_repr(),
-                    },
-                ),
+        let result: domain::Customer = Box::pin(self.find_resource_by_id(
+            key_store,
+            storage_scheme,
+            customers::Customer::find_by_global_id_merchant_id(&conn, id, merchant_id),
+            kv_router_store::FindResourceBy::Id(
+                format!("cust_{}", id.get_string_repr()),
+                PartitionKey::GlobalId {
+                    id: id.get_string_repr(),
+                },
+            ),
+        ))
+        .await?;
+
+        if result.merchant_id != *merchant_id {
+            Err(StorageError::ValueNotFound(
+                "db value not found".to_string(),
+            ))?
+        } else if result.status == common_enums::DeleteStatus::Redacted {
+            Err(StorageError::CustomerRedacted)?
+        } else {
+            Ok(result)
+        }
+    }
+
+    #[cfg(feature = "v2")]
+    #[instrument(skip_all)]
+    async fn find_customer_by_global_id_merchant_id_without_encrypted(
+        &self,
+        id: &id_type::GlobalCustomerId,
+        merchant_id: &id_type::MerchantId,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<domain::CustomerWithoutEncrypted, StorageError> {
+        let conn = pg_connection_read(self).await?;
+        let database_call = || async {
+            Ok::<_, error_stack::Report<StorageError>>(
+                customers::Customer::find_by_global_id(&conn, id)
+                    .await
+                    .map(domain::CustomerWithoutEncrypted::from)
+                    .map_err(StorageError::from)?,
             )
-            .await?;
+        };
+        let storage_scheme = Box::pin(decide_storage_scheme::<T, customers::Customer>(
+            self,
+            storage_scheme,
+            Op::Find,
+        ))
+        .await;
+        let result = match storage_scheme {
+            MerchantStorageScheme::PostgresOnly => database_call().await?,
+            MerchantStorageScheme::RedisKv => {
+                let field = format!("cust_{}", id.get_string_repr());
+                let key = PartitionKey::GlobalId {
+                    id: id.get_string_repr(),
+                };
+                Box::pin(try_redis_get_else_try_database_get(
+                    async {
+                        let customer: customers::Customer = Box::pin(kv_wrapper(
+                            self,
+                            KvOperation::<customers::Customer>::HGet(&field),
+                            key,
+                        ))
+                        .await?
+                        .try_into_hget()?;
+                        Ok(domain::CustomerWithoutEncrypted::from(customer))
+                    },
+                    database_call,
+                ))
+                .await?
+            }
+        };
 
         if result.merchant_id != *merchant_id {
             Err(StorageError::ValueNotFound(
@@ -536,23 +580,20 @@ impl<T: DatabaseStore> domain::CustomerInterface for kv_router_store::KVRouterSt
         let field = format!("cust_{}", id.get_string_repr());
 
         let mut query_gen_conn = pg_connection_write(self).await?;
-        let drainer_query = customer_update_internal
+        let drainer_query_fut = customer_update_internal
             .clone()
-            .generate_drainer_update_query(&mut query_gen_conn, id.clone())
-            .await
-            .change_context(StorageError::KVError)
-            .attach_printable("Failed to generate customer update query")?;
+            .generate_drainer_update_query(&mut query_gen_conn, id.clone());
 
-        self.update_resource(
+        Box::pin(self.update_resource(
             key_store,
             storage_scheme,
             database_call,
             customer_update_internal.apply_changeset(customer.clone()),
             kv_router_store::UpdateResourceParams {
-                drainer_query,
+                drainer_query_fut,
                 operation: Op::Update(key.clone(), &field, customer.updated_by.as_deref()),
             },
-        )
+        ))
         .await
     }
 }
@@ -907,6 +948,31 @@ impl<T: DatabaseStore> domain::CustomerInterface for RouterStore<T> {
             _ => Ok(customer),
         }
     }
+
+    #[cfg(feature = "v2")]
+    #[instrument(skip_all)]
+    async fn find_customer_by_global_id_merchant_id_without_encrypted(
+        &self,
+        id: &id_type::GlobalCustomerId,
+        merchant_id: &id_type::MerchantId,
+        _storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<domain::CustomerWithoutEncrypted, StorageError> {
+        let conn = pg_connection_read(self).await?;
+        let customer = customers::Customer::find_by_global_id(&conn, id)
+            .await
+            .map(domain::CustomerWithoutEncrypted::from)
+            .map_err(StorageError::from)?;
+
+        if customer.merchant_id != *merchant_id {
+            Err(StorageError::ValueNotFound(
+                "db value not found".to_string(),
+            ))?
+        } else if customer.status == common_enums::DeleteStatus::Redacted {
+            Err(StorageError::CustomerRedacted)?
+        } else {
+            Ok(customer)
+        }
+    }
 }
 
 #[async_trait::async_trait]
@@ -1186,6 +1252,17 @@ impl domain::CustomerInterface for MockDb {
         _key_store: &MerchantKeyStore,
         _storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<domain::Customer, StorageError> {
+        // [#172]: Implement function for `MockDb`
+        Err(StorageError::MockDbError)?
+    }
+
+    #[cfg(feature = "v2")]
+    async fn find_customer_by_global_id_merchant_id_without_encrypted(
+        &self,
+        _id: &id_type::GlobalCustomerId,
+        _merchant_id: &id_type::MerchantId,
+        _storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<domain::CustomerWithoutEncrypted, StorageError> {
         // [#172]: Implement function for `MockDb`
         Err(StorageError::MockDbError)?
     }

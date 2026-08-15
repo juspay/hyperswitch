@@ -213,6 +213,13 @@ pub enum DirKeyKind {
     #[serde(rename = "amount")]
     PaymentAmount,
     #[strum(
+        serialize = "surcharge_amount",
+        detailed_message = "External surcharge amount computed during eligibility",
+        props(Category = "Payments")
+    )]
+    #[serde(rename = "surcharge_amount")]
+    SurchargeAmount,
+    #[strum(
         serialize = "currency",
         detailed_message = "Currency used for the payment",
         props(Category = "Payments")
@@ -400,6 +407,7 @@ impl DirKeyKind {
             Self::CryptoType => types::DataType::EnumVariant,
             Self::RewardType => types::DataType::EnumVariant,
             Self::PaymentAmount => types::DataType::Number,
+            Self::SurchargeAmount => types::DataType::Number,
             Self::PaymentCurrency => types::DataType::EnumVariant,
             Self::AuthenticationType => types::DataType::EnumVariant,
             Self::CaptureMethod => types::DataType::EnumVariant,
@@ -498,6 +506,7 @@ impl DirKeyKind {
                     .collect(),
             ),
             Self::PaymentAmount => None,
+            Self::SurchargeAmount => None,
             Self::PaymentCurrency => Some(
                 enums::PaymentCurrency::iter()
                     .map(DirValue::PaymentCurrency)
@@ -652,6 +661,8 @@ pub enum DirValue {
     GiftCardType(enums::GiftCardType),
     #[serde(rename = "amount")]
     PaymentAmount(types::NumValue),
+    #[serde(rename = "surcharge_amount")]
+    SurchargeAmount(types::NumValue),
     #[serde(rename = "currency")]
     PaymentCurrency(enums::PaymentCurrency),
     #[serde(rename = "authentication_type")]
@@ -719,6 +730,7 @@ impl DirValue {
             Self::AuthenticationType(_) => (DirKeyKind::AuthenticationType, None),
             Self::CaptureMethod(_) => (DirKeyKind::CaptureMethod, None),
             Self::PaymentAmount(_) => (DirKeyKind::PaymentAmount, None),
+            Self::SurchargeAmount(_) => (DirKeyKind::SurchargeAmount, None),
             Self::PaymentCurrency(_) => (DirKeyKind::PaymentCurrency, None),
             Self::Connector(_) => (DirKeyKind::Connector, None),
             Self::BankDebitType(_) => (DirKeyKind::BankDebitType, None),
@@ -763,6 +775,7 @@ impl DirValue {
             Self::CaptureMethod(_) => None,
             Self::GiftCardType(_) => None,
             Self::PaymentAmount(_) => None,
+            Self::SurchargeAmount(_) => None,
             Self::PaymentCurrency(_) => None,
             Self::BusinessCountry(_) => None,
             Self::BillingCountry(_) => None,
@@ -806,6 +819,7 @@ impl DirValue {
     pub fn get_num_value(&self) -> Option<types::NumValue> {
         match self {
             Self::PaymentAmount(val) => Some(val.clone()),
+            Self::SurchargeAmount(val) => Some(val.clone()),
             Self::AcquirerFraudRate(val) => Some(val.clone()),
             _ => None,
         }

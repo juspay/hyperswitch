@@ -117,11 +117,15 @@ pub struct CybersourceConnectorMetadataObject {
 impl TryFrom<&Option<pii::SecretSerdeValue>> for CybersourceConnectorMetadataObject {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(meta_data: &Option<pii::SecretSerdeValue>) -> Result<Self, Self::Error> {
-        let metadata = utils::to_connector_meta_from_secret::<Self>(meta_data.clone())
-            .change_context(errors::ConnectorError::InvalidConnectorConfig {
-                config: "metadata",
-            })?;
-        Ok(metadata)
+        // Cybersource metadata is optional (all fields are optional), so treat an absent
+        // metadata object as the default rather than a missing required field.
+        match meta_data {
+            Some(_) => utils::to_connector_meta_from_secret::<Self>(meta_data.clone())
+                .change_context(errors::ConnectorError::InvalidConnectorConfig {
+                    config: "metadata",
+                }),
+            None => Ok(Self::default()),
+        }
     }
 }
 
@@ -278,7 +282,7 @@ impl TryFrom<&SetupMandateRouterData> for CybersourceZeroMandateRequest {
                             number: ccard.card_number,
                             expiration_month: ccard.card_exp_month,
                             expiration_year: ccard.card_exp_year,
-                            security_code: Some(ccard.card_cvc),
+                            security_code: get_optional_security_code(ccard.card_cvc),
                             card_type,
                             type_selection_indicator: Some("1".to_owned()),
                         },
@@ -757,11 +761,21 @@ pub struct Card {
     number: cards::CardNumber,
     expiration_month: Secret<String>,
     expiration_year: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     security_code: Option<Secret<String>>,
     #[serde(rename = "type")]
     card_type: Option<String>,
     type_selection_indicator: Option<String>,
 }
+
+fn get_optional_security_code(card_cvc: Secret<String>) -> Option<Secret<String>> {
+    if card_cvc.peek().is_empty() {
+        None
+    } else {
+        Some(card_cvc)
+    }
+}
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct OrderInformationWithBill {
@@ -1149,7 +1163,7 @@ impl
                         }),
                     )
                 }
-                Some(mandates::MandateReferenceId::CardWithLimitedData) | None => {
+                Some(mandates::MandateReferenceId::CardWithLimitedData(_)) | None => {
                     (None, None, None)
                 }
             }
@@ -1599,7 +1613,7 @@ impl
         {
             None
         } else {
-            Some(ccard.card_cvc)
+            get_optional_security_code(ccard.card_cvc)
         };
 
         let payment_information = PaymentInformation::Cards(Box::new(CardPaymentInformation {
@@ -2077,7 +2091,7 @@ impl
                 number: ccard.card_number,
                 expiration_month: ccard.card_exp_month,
                 expiration_year: ccard.card_exp_year,
-                security_code: Some(ccard.card_cvc),
+                security_code: get_optional_security_code(ccard.card_cvc),
                 card_type,
                 type_selection_indicator: Some("1".to_owned()),
             },
@@ -2818,7 +2832,7 @@ impl TryFrom<&CybersourceRouterData<&PaymentsAuthorizeRouterData>> for Cybersour
                             number: ccard.card_number,
                             expiration_month: ccard.card_exp_month,
                             expiration_year: ccard.card_exp_year,
-                            security_code: Some(ccard.card_cvc),
+                            security_code: get_optional_security_code(ccard.card_cvc),
                             card_type,
                             type_selection_indicator: Some("1".to_owned()),
                         },
@@ -2887,7 +2901,7 @@ impl TryFrom<&CybersourceRouterData<&PaymentsPreAuthenticateRouterData>>
                             number: ccard.card_number,
                             expiration_month: ccard.card_exp_month,
                             expiration_year: ccard.card_exp_year,
-                            security_code: Some(ccard.card_cvc),
+                            security_code: get_optional_security_code(ccard.card_cvc),
                             card_type,
                             type_selection_indicator: Some("1".to_owned()),
                         },
@@ -3144,6 +3158,8 @@ pub enum CybersourcePaymentStatus {
     Cancelled,
     StatusNotReceived,
     //PartialAuthorized, not being consumed yet.
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -3152,11 +3168,14 @@ pub enum CybersourceIncrementalAuthorizationStatus {
     Authorized,
     Declined,
     AuthorizedPendingReview,
+    #[serde(other)]
+    Unknown,
 }
 
 pub fn map_cybersource_attempt_status(
     status: CybersourcePaymentStatus,
     capture: bool,
+    prev_status: enums::AttemptStatus,
 ) -> enums::AttemptStatus {
     match status {
         CybersourcePaymentStatus::Authorized => {
@@ -3188,6 +3207,13 @@ pub fn map_cybersource_attempt_status(
         | CybersourcePaymentStatus::Accepted
         | CybersourcePaymentStatus::Pending
         | CybersourcePaymentStatus::AuthorizedPendingReview => enums::AttemptStatus::Pending,
+        CybersourcePaymentStatus::Unknown => {
+            router_env::logger::warn!(
+                "Unknown cybersource connector status received; retaining previous status {:?}",
+                prev_status
+            );
+            prev_status
+        }
     }
 }
 impl From<CybersourceIncrementalAuthorizationStatus> for common_enums::AuthorizationStatus {
@@ -3196,6 +3222,14 @@ impl From<CybersourceIncrementalAuthorizationStatus> for common_enums::Authoriza
             CybersourceIncrementalAuthorizationStatus::Authorized => Self::Success,
             CybersourceIncrementalAuthorizationStatus::AuthorizedPendingReview => Self::Processing,
             CybersourceIncrementalAuthorizationStatus::Declined => Self::Failure,
+            CybersourceIncrementalAuthorizationStatus::Unknown => {
+                // No previous AuthorizationStatus is tracked for this flow; Processing is
+                // the enum's neutral, non-terminal default and avoids assuming success/failure.
+                router_env::logger::warn!(
+                    "Unknown cybersource incremental authorization status received; defaulting to Processing"
+                );
+                Self::Unresolved
+            }
         }
     }
 }
@@ -3404,6 +3438,7 @@ impl
                 .clone()
                 .unwrap_or(CybersourcePaymentStatus::StatusNotReceived),
             item.data.request.is_auto_capture()?,
+            item.data.status,
         );
         let response =
             get_payment_response((&item.response, status, item.http_code)).map_err(|err| *err);
@@ -3583,7 +3618,7 @@ impl TryFrom<&CybersourceRouterData<&PaymentsPreProcessingRouterData>>
                             number: ccard.card_number,
                             expiration_month: ccard.card_exp_month,
                             expiration_year: ccard.card_exp_year,
-                            security_code: Some(ccard.card_cvc),
+                            security_code: get_optional_security_code(ccard.card_cvc),
                             card_type,
                             type_selection_indicator: Some("1".to_owned()),
                         },
@@ -3729,7 +3764,7 @@ impl TryFrom<&CybersourceRouterData<&PaymentsAuthenticateRouterData>>
                             number: ccard.card_number,
                             expiration_month: ccard.card_exp_month,
                             expiration_year: ccard.card_exp_year,
-                            security_code: Some(ccard.card_cvc),
+                            security_code: get_optional_security_code(ccard.card_cvc),
                             card_type,
                             type_selection_indicator: Some("1".to_owned()),
                         },
@@ -3855,7 +3890,7 @@ impl TryFrom<&CybersourceRouterData<&PaymentsPostAuthenticateRouterData>>
                             number: ccard.card_number,
                             expiration_month: ccard.card_exp_month,
                             expiration_year: ccard.card_exp_year,
-                            security_code: Some(ccard.card_cvc),
+                            security_code: get_optional_security_code(ccard.card_cvc),
                             card_type,
                             type_selection_indicator: Some("1".to_owned()),
                         },
@@ -3980,6 +4015,8 @@ pub enum CybersourceAuthEnrollmentStatus {
     PendingAuthentication,
     AuthenticationSuccessful,
     AuthenticationFailed,
+    #[serde(other)]
+    Unknown,
 }
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -4017,6 +4054,10 @@ impl ForeignTryFrom<&CybersourceConsumerAuthValidateResponse> for UcsAuthenticat
             trans_status: None,
             transaction_id: value.xid.clone(),
             ucaf_collection_indicator: value.ucaf_collection_indicator.clone(),
+            challenge_code: None,
+            challenge_cancel: None,
+            challenge_code_reason: None,
+            message_extension: None,
         })
     }
 }
@@ -4055,14 +4096,26 @@ pub enum CybersourceAuthenticateResponse {
     ErrorInformation(Box<CybersourceErrorInformationResponse>),
 }
 
-impl From<CybersourceAuthEnrollmentStatus> for enums::AttemptStatus {
-    fn from(item: CybersourceAuthEnrollmentStatus) -> Self {
-        match item {
-            CybersourceAuthEnrollmentStatus::PendingAuthentication => Self::AuthenticationPending,
-            CybersourceAuthEnrollmentStatus::AuthenticationSuccessful => {
-                Self::AuthenticationSuccessful
-            }
-            CybersourceAuthEnrollmentStatus::AuthenticationFailed => Self::AuthenticationFailed,
+fn get_auth_enrollment_status(
+    status: CybersourceAuthEnrollmentStatus,
+    prev_status: enums::AttemptStatus,
+) -> enums::AttemptStatus {
+    match status {
+        CybersourceAuthEnrollmentStatus::PendingAuthentication => {
+            enums::AttemptStatus::AuthenticationPending
+        }
+        CybersourceAuthEnrollmentStatus::AuthenticationSuccessful => {
+            enums::AttemptStatus::AuthenticationSuccessful
+        }
+        CybersourceAuthEnrollmentStatus::AuthenticationFailed => {
+            enums::AttemptStatus::AuthenticationFailed
+        }
+        CybersourceAuthEnrollmentStatus::Unknown => {
+            router_env::logger::warn!(
+                "Unknown cybersource auth enrollment status received; retaining previous status {:?}",
+                prev_status
+            );
+            prev_status
         }
     }
 }
@@ -4076,7 +4129,7 @@ impl TryFrom<PaymentsPreprocessingResponseRouterData<CybersourcePreProcessingRes
     ) -> Result<Self, Self::Error> {
         match item.response {
             CybersourcePreProcessingResponse::ClientAuthCheckInfo(info_response) => {
-                let status = enums::AttemptStatus::from(info_response.status);
+                let status = get_auth_enrollment_status(info_response.status, item.data.status);
                 let risk_info: Option<ClientRiskInformation> = None;
                 if utils::is_payment_failure(status) {
                     let response = Err(get_error_response(
@@ -4217,6 +4270,7 @@ impl<F>
                 .clone()
                 .unwrap_or(CybersourcePaymentStatus::StatusNotReceived),
             item.data.request.is_auto_capture()?,
+            item.data.status,
         );
         let response =
             get_payment_response((&item.response, status, item.http_code)).map_err(|err| *err);
@@ -4265,6 +4319,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<CybersourcePaymentsResponse>>
                 .clone()
                 .unwrap_or(CybersourcePaymentStatus::StatusNotReceived),
             true,
+            item.data.status,
         );
         let response =
             get_payment_response((&item.response, status, item.http_code)).map_err(|err| *err);
@@ -4289,6 +4344,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<CybersourcePaymentsResponse>>
                 .clone()
                 .unwrap_or(CybersourcePaymentStatus::StatusNotReceived),
             false,
+            item.data.status,
         );
         let response =
             get_payment_response((&item.response, status, item.http_code)).map_err(|err| *err);
@@ -4338,6 +4394,7 @@ impl
                 .clone()
                 .unwrap_or(CybersourcePaymentStatus::StatusNotReceived),
             false,
+            item.data.status,
         );
         if matches!(mandate_status, enums::AttemptStatus::Authorized) {
             //In case of zero auth mandates we want to make the payment reach the terminal status so we are converting the authorized status to charged as well.
@@ -4562,7 +4619,7 @@ impl<F>
     ) -> Result<Self, Self::Error> {
         match item.response {
             CybersourceAuthenticateResponse::ClientAuthCheckInfo(info_response) => {
-                let status = enums::AttemptStatus::from(info_response.status);
+                let status = get_auth_enrollment_status(info_response.status, item.data.status);
                 let risk_info: Option<ClientRiskInformation> = None;
                 if utils::is_payment_failure(status) {
                     let response = Err(get_error_response(
@@ -4699,7 +4756,7 @@ impl<F>
     ) -> Result<Self, Self::Error> {
         match item.response {
             CybersourceAuthenticateResponse::ClientAuthCheckInfo(info_response) => {
-                let status = enums::AttemptStatus::from(info_response.status);
+                let status = get_auth_enrollment_status(info_response.status, item.data.status);
                 let risk_info: Option<ClientRiskInformation> = None;
                 if utils::is_payment_failure(status) {
                     let response = Err(get_error_response(
@@ -4824,8 +4881,11 @@ impl TryFrom<PaymentsSyncResponseRouterData<CybersourceTransactionResponse>>
     ) -> Result<Self, Self::Error> {
         match item.response.application_information.status {
             Some(status) => {
-                let status =
-                    map_cybersource_attempt_status(status, item.data.request.is_auto_capture()?);
+                let status = map_cybersource_attempt_status(
+                    status,
+                    item.data.request.is_auto_capture()?,
+                    item.data.status,
+                );
                 let incremental_authorization_allowed =
                     Some(status == enums::AttemptStatus::Authorized);
                 let risk_info: Option<ClientRiskInformation> = None;
@@ -4911,16 +4971,24 @@ impl<F> TryFrom<&CybersourceRouterData<&RefundsRouterData<F>>> for CybersourceRe
     }
 }
 
-impl From<CybersourceRefundStatus> for enums::RefundStatus {
-    fn from(item: CybersourceRefundStatus) -> Self {
-        match item {
-            CybersourceRefundStatus::Succeeded | CybersourceRefundStatus::Transmitted => {
-                Self::Success
-            }
-            CybersourceRefundStatus::Cancelled
-            | CybersourceRefundStatus::Failed
-            | CybersourceRefundStatus::Voided => Self::Failure,
-            CybersourceRefundStatus::Pending => Self::Pending,
+fn get_refund_status(
+    status: CybersourceRefundStatus,
+    prev_status: enums::RefundStatus,
+) -> enums::RefundStatus {
+    match status {
+        CybersourceRefundStatus::Succeeded | CybersourceRefundStatus::Transmitted => {
+            enums::RefundStatus::Success
+        }
+        CybersourceRefundStatus::Cancelled
+        | CybersourceRefundStatus::Failed
+        | CybersourceRefundStatus::Voided => enums::RefundStatus::Failure,
+        CybersourceRefundStatus::Pending => enums::RefundStatus::Pending,
+        CybersourceRefundStatus::Unknown => {
+            router_env::logger::warn!(
+                "Unknown cybersource refund status received; retaining previous status {:?}",
+                prev_status
+            );
+            prev_status
         }
     }
 }
@@ -4934,6 +5002,8 @@ pub enum CybersourceRefundStatus {
     Pending,
     Voided,
     Cancelled,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -4951,7 +5021,8 @@ impl TryFrom<RefundsResponseRouterData<Execute, CybersourceRefundResponse>>
     fn try_from(
         item: RefundsResponseRouterData<Execute, CybersourceRefundResponse>,
     ) -> Result<Self, Self::Error> {
-        let refund_status = enums::RefundStatus::from(item.response.status.clone());
+        let refund_status =
+            get_refund_status(item.response.status, item.data.request.refund_status);
         let response = if utils::is_refund_failure(refund_status) {
             Err(get_error_response(
                 &item.response.error_information,
@@ -4964,7 +5035,7 @@ impl TryFrom<RefundsResponseRouterData<Execute, CybersourceRefundResponse>>
         } else {
             Ok(RefundsResponseData {
                 connector_refund_id: item.response.id,
-                refund_status: enums::RefundStatus::from(item.response.status),
+                refund_status,
             })
         };
 
@@ -4996,13 +5067,14 @@ impl TryFrom<RefundsResponseRouterData<RSync, CybersourceRsyncResponse>>
     fn try_from(
         item: RefundsResponseRouterData<RSync, CybersourceRsyncResponse>,
     ) -> Result<Self, Self::Error> {
+        let prev_refund_status = item.data.request.refund_status;
         let response = match item
             .response
             .application_information
             .and_then(|application_information| application_information.status)
         {
             Some(status) => {
-                let refund_status = enums::RefundStatus::from(status.clone());
+                let refund_status = get_refund_status(status.clone(), prev_refund_status);
                 if utils::is_refund_failure(refund_status) {
                     if status == CybersourceRefundStatus::Voided {
                         Err(get_error_response(
@@ -5251,14 +5323,24 @@ pub enum CybersourcePayoutStatus {
     Accepted,
     Declined,
     InvalidRequest,
+    #[serde(other)]
+    Unknown,
 }
 
 #[cfg(feature = "payouts")]
-fn map_payout_status(status: CybersourcePayoutStatus) -> enums::PayoutStatus {
+fn map_payout_status(status: CybersourcePayoutStatus) -> Option<enums::PayoutStatus> {
     match status {
-        CybersourcePayoutStatus::Accepted => enums::PayoutStatus::Success,
+        CybersourcePayoutStatus::Accepted => Some(enums::PayoutStatus::Success),
         CybersourcePayoutStatus::Declined | CybersourcePayoutStatus::InvalidRequest => {
-            enums::PayoutStatus::Failed
+            Some(enums::PayoutStatus::Failed)
+        }
+        CybersourcePayoutStatus::Unknown => {
+            // No previous PayoutStatus is tracked for this flow; return None rather than
+            // assuming a concrete outcome.
+            router_env::logger::warn!(
+                "Unknown cybersource payout status received; returning no status"
+            );
+            None
         }
     }
 }
@@ -5271,7 +5353,7 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, CybersourceFulfillResponse>> for Pa
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(PayoutsResponseData {
-                status: Some(map_payout_status(item.response.status)),
+                status: map_payout_status(item.response.status),
                 connector_payout_id: Some(item.response.id),
                 payout_eligible: None,
                 should_add_next_step_to_process_tracker: false,
@@ -5322,6 +5404,8 @@ pub enum Reason {
     SystemError,
     ServerTimeout,
     ServiceTimeout,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -5367,20 +5451,21 @@ pub fn get_error_response(
 ) -> ErrorResponse {
     let avs_message = risk_information
         .clone()
-        .map(|client_risk_information| {
-            client_risk_information.rules.map(|rules| {
-                rules
+        .and_then(|client_risk_information| {
+            client_risk_information.rules.and_then(|rules| {
+                let message = rules
                     .iter()
-                    .map(|risk_info| {
-                        risk_info.name.clone().map_or("".to_string(), |name| {
-                            format!(" , {}", name.clone().expose())
-                        })
+                    .filter_map(|risk_info| {
+                        risk_info
+                            .name
+                            .as_ref()
+                            .map(|name| format!(" , {}", name.peek()))
                     })
                     .collect::<Vec<String>>()
-                    .join("")
+                    .join("");
+                (!message.is_empty()).then_some(message)
             })
-        })
-        .unwrap_or(Some("".to_string()));
+        });
 
     let detailed_error_info = error_data.as_ref().and_then(|error_data| {
         error_data.details.as_ref().map(|details| {
@@ -5472,7 +5557,10 @@ fn get_cybersource_card_type(card_network: common_enums::CardNetwork) -> Option<
         | common_enums::CardNetwork::Star
         | common_enums::CardNetwork::Accel
         | common_enums::CardNetwork::Pulse
-        | common_enums::CardNetwork::Nyce => None,
+        | common_enums::CardNetwork::Nyce
+        | common_enums::CardNetwork::Prop
+        | common_enums::CardNetwork::PrivateLabel
+        | common_enums::CardNetwork::Dinacard => None,
     }
 }
 

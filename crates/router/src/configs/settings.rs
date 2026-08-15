@@ -33,7 +33,7 @@ pub use hyperswitch_interfaces::{
     },
     types::{ComparisonServiceConfig, Proxy},
 };
-use hyperswitch_masking::{Maskable, Secret};
+use hyperswitch_masking::{Maskable, PeekInterface, Secret};
 pub use payment_methods::configs::{
     settings::{
         BankRedirectConfig, BanksVector, ConnectorBankNames, ConnectorFields,
@@ -83,11 +83,19 @@ pub struct Settings<S: SecretState> {
     pub proxy: Proxy,
     pub env: Env,
     pub chat: SecretStateContainer<ChatSettings, S>,
+    pub sage: SecretStateContainer<SageSettings, S>,
     pub master_database: SecretStateContainer<Database, S>,
+    /// Falls back to `master_database` when not configured.
+    pub accounts_database: Option<SecretStateContainer<Database, S>>,
+    /// Falls back to `master_database` when not configured.
+    pub global_database: Option<SecretStateContainer<Database, S>>,
     #[cfg(feature = "olap")]
     pub replica_database: SecretStateContainer<Database, S>,
     pub redis: RedisSettings,
     pub log: Log,
+    #[cfg(feature = "deja")]
+    #[serde(default)]
+    pub deja: DejaSettings,
     pub secrets: SecretStateContainer<Secrets, S>,
     pub fallback_merchant_ids_api_key_auth: Option<FallbackMerchantIds>,
     pub locker: Locker,
@@ -186,6 +194,7 @@ pub struct Settings<S: SecretState> {
     #[serde(default)]
     pub enhancement: Option<HashMap<String, String>>,
     pub superposition: SecretStateContainer<SuperpositionClientConfig, S>,
+    pub offer_engine: Option<SecretStateContainer<OfferEngineConfig, S>>,
     pub proxy_status_mapping: ProxyStatusMapping,
     pub trace_header: TraceHeaderConfig,
     pub internal_services: InternalServicesConfig,
@@ -194,6 +203,181 @@ pub struct Settings<S: SecretState> {
     pub comparison_service: Option<ComparisonServiceConfig>,
     pub authentication_service_enabled_connectors: AuthenticationServiceEnabledConnectors,
     pub save_payment_method_on_session: OnSessionConfig,
+    pub account_updater: Option<SecretStateContainer<AccountUpdaterConfig, S>>,
+}
+
+#[cfg(feature = "deja")]
+#[derive(Debug, Deserialize, Clone, PartialEq, Eq, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum DejaMode {
+    #[default]
+    Disabled,
+    Record,
+    Replay,
+}
+
+#[cfg(feature = "deja")]
+impl DejaMode {
+    pub fn is_disabled(&self) -> bool {
+        matches!(self, Self::Disabled)
+    }
+
+    pub fn is_record(&self) -> bool {
+        matches!(self, Self::Record)
+    }
+
+    pub fn is_replay(&self) -> bool {
+        matches!(self, Self::Replay)
+    }
+}
+
+#[cfg(feature = "deja")]
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(default)]
+pub struct DejaSettings {
+    pub mode: DejaMode,
+    pub run_id: Option<String>,
+    pub recording: DejaRecordingSettings,
+    pub replay: DejaReplaySettings,
+    pub sampler: DejaSamplerSettings,
+    pub identity: DejaIdentitySettings,
+    pub writer: DejaWriterSettings,
+}
+
+#[cfg(feature = "deja")]
+impl DejaSettings {
+    pub fn effective_run_id(&self) -> Option<&str> {
+        self.run_id.as_deref().filter(|run_id| !run_id.is_empty())
+    }
+}
+
+#[cfg(feature = "deja")]
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(default)]
+pub struct DejaRecordingSettings {
+    // Execution-graph capture is coupled to the runtime mode (the graph layer
+    // rides the installed Record/Replay hook), so there is no `graph` dial here.
+    pub kafka: DejaRecordingKafkaSettings,
+}
+
+#[cfg(feature = "deja")]
+#[derive(Debug, Deserialize, Clone)]
+#[serde(default)]
+pub struct DejaRecordingKafkaSettings {
+    pub topic: Option<String>,
+    pub brokers: Vec<String>,
+    pub client_id: Option<String>,
+    pub acks: String,
+    pub idempotence: bool,
+    pub compression: Option<String>,
+    pub linger: Option<u64>,
+    pub message_timeout: Option<u64>,
+    /// rdkafka producer send-buffer depth — the loss-budget knob. A full buffer
+    /// surfaces as enqueue errors the writer accounts as dropped (never memory
+    /// growth); tune per environment. Default matches the former hardcoded cap.
+    pub queue_buffering_max_messages: usize,
+}
+
+#[cfg(feature = "deja")]
+impl DejaRecordingKafkaSettings {
+    pub fn effective_topic(&self) -> Option<&str> {
+        self.topic.as_deref().filter(|topic| !topic.is_empty())
+    }
+}
+
+#[cfg(feature = "deja")]
+impl Default for DejaRecordingKafkaSettings {
+    fn default() -> Self {
+        Self {
+            topic: None,
+            brokers: Vec::new(),
+            client_id: None,
+            acks: "all".to_owned(),
+            idempotence: true,
+            compression: None,
+            linger: None,
+            message_timeout: Some(30_000),
+            queue_buffering_max_messages: 100_000,
+        }
+    }
+}
+
+#[cfg(feature = "deja")]
+#[derive(Debug, Default, Deserialize, Clone)]
+#[serde(default)]
+pub struct DejaReplaySettings {
+    pub source: Option<String>,
+    pub lookup_dir: Option<PathBuf>,
+    pub observed_sink: Option<String>,
+}
+
+/// Per-request recording-sampler settings. The sampler is active exactly when
+/// `deja.mode = "record"` — there is no separate on/off switch; `fail_closed`
+/// governs what happens when the sampling source cannot answer.
+#[cfg(feature = "deja")]
+#[derive(Debug, Deserialize, Clone)]
+#[serde(default)]
+pub struct DejaSamplerSettings {
+    pub record_key: Option<String>,
+    pub timeout_ms: u64,
+    pub fail_closed: bool,
+}
+
+#[cfg(feature = "deja")]
+impl Default for DejaSamplerSettings {
+    fn default() -> Self {
+        Self {
+            record_key: None,
+            timeout_ms: 25,
+            fail_closed: true,
+        }
+    }
+}
+
+#[cfg(feature = "deja")]
+#[derive(Debug, Deserialize, Clone)]
+#[serde(default)]
+pub struct DejaIdentitySettings {
+    pub pod_name_env: String,
+    pub git_sha_env: String,
+    pub instance_id: Option<String>,
+    pub code_sha: Option<String>,
+}
+
+#[cfg(feature = "deja")]
+impl Default for DejaIdentitySettings {
+    fn default() -> Self {
+        Self {
+            pod_name_env: "POD_NAME".to_owned(),
+            git_sha_env: "VERGEN_GIT_SHA".to_owned(),
+            instance_id: None,
+            code_sha: None,
+        }
+    }
+}
+
+#[cfg(feature = "deja")]
+#[derive(Debug, Deserialize, Clone)]
+#[serde(default)]
+pub struct DejaWriterSettings {
+    pub queue_capacity: usize,
+    pub batch_size: usize,
+    pub flush_after_records: usize,
+    pub flush_interval_ms: u64,
+    pub shutdown_flush_ms: u64,
+}
+
+#[cfg(feature = "deja")]
+impl Default for DejaWriterSettings {
+    fn default() -> Self {
+        Self {
+            queue_capacity: 8_192,
+            batch_size: 500,
+            flush_after_records: 500,
+            flush_interval_ms: 1_000,
+            shutdown_flush_ms: 5_000,
+        }
+    }
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -201,6 +385,22 @@ pub struct OnSessionConfig {
     #[serde(default, deserialize_with = "deserialize_hashmap")]
     pub unsupported_payment_methods:
         HashMap<enums::PaymentMethod, HashSet<enums::PaymentMethodType>>,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+#[serde(rename_all = "snake_case")]
+pub enum AccountUpdaterConfig {
+    Juspay(JuspayAccountUpdaterConfig),
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct JuspayAccountUpdaterConfig {
+    pub base_url: url::Url,
+    pub api_key: Secret<String>,
+    pub merchant_id: String,
+    pub euler_encryption_public_key: Secret<String>,
+    pub au_decryption_pvt_key: Secret<String>,
+    pub card_sync_key_id: String,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -217,7 +417,41 @@ pub struct DebitRoutingConfig {
 pub struct OpenRouter {
     pub dynamic_routing_enabled: bool,
     pub static_routing_enabled: bool,
+    /// Shadow-evaluate static routing on the Decision Engine for profiles that are NOT cut
+    /// over, logging DE-vs-HS diffs and feeding the diff kill switch while the Hyperswitch
+    /// result keeps serving traffic. Requires `static_routing_enabled`.
+    #[serde(default)]
+    pub shadow_routing_enabled: bool,
+    #[serde(default)]
+    pub diff_kill_switch: DecisionEngineDiffKillSwitch,
     pub url: String,
+    /// Browser-facing Decision Engine dashboard base URL, used for the merchant SSO redirect.
+    #[serde(default)]
+    pub dashboard_url: String,
+    /// Shared secret sent as the `x-admin-secret` header on Decision Engine requests. The DE
+    /// verifies it on admin endpoints (merchant provisioning, SSO code mint) and accepts it as
+    /// service-to-service auth on its protected routes. Decrypted via secrets management when
+    /// enabled; empty disables the header.
+    #[serde(default)]
+    pub admin_secret: Secret<String>,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+#[serde(default)]
+pub struct DecisionEngineDiffKillSwitch {
+    pub enabled: bool,
+    /// Lifetime non-volume diff count per profile that trips the cutover back to Hyperswitch
+    /// routing. The counter does not expire; clear it via the diff-counter reset API.
+    pub diff_count_threshold: u64,
+}
+
+impl Default for DecisionEngineDiffKillSwitch {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            diff_count_threshold: 100,
+        }
+    }
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -241,6 +475,15 @@ pub struct ChatSettings {
     pub enabled: bool,
     pub hyperswitch_ai_host: String,
     pub encryption_key: Secret<String>,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(default)]
+pub struct SageSettings {
+    pub enabled: bool,
+    pub base_url: String,
+    pub mint_path: String,
+    pub infra_key: Secret<String>,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -271,6 +514,10 @@ pub struct DecisionConfig {
     pub base_url: String,
 }
 
+type StorageInterfaceMap = HashMap<id_type::TenantId, Box<dyn app::StorageInterface>>;
+type AccountsStorageInterfaceMap =
+    HashMap<id_type::TenantId, Box<dyn app::AccountsStorageInterface>>;
+
 #[derive(Debug, Clone, Default)]
 pub struct TenantConfig(pub HashMap<id_type::TenantId, Tenant>);
 
@@ -278,68 +525,47 @@ impl TenantConfig {
     /// # Panics
     ///
     /// Panics if Failed to create event handler
-    pub async fn get_store_interface_map(
+    pub async fn get_store_interface_maps(
         &self,
         storage_impl: &app::StorageImpl,
         conf: &configs::Settings,
         cache_store: Arc<storage_impl::redis::RedisStore>,
         testable: bool,
-    ) -> HashMap<id_type::TenantId, Box<dyn app::StorageInterface>> {
+    ) -> (StorageInterfaceMap, AccountsStorageInterfaceMap) {
         #[allow(clippy::expect_used)]
         let event_handler = conf
             .events
             .get_event_handler()
             .await
             .expect("Failed to create event handler");
-        futures::future::join_all(self.0.iter().map(|(tenant_name, tenant)| async {
-            let store = Box::pin(AppState::get_store_interface(
-                storage_impl,
-                &event_handler,
-                conf,
-                tenant,
-                cache_store.clone(),
-                testable,
-            ))
-            .await
-            .get_storage_interface();
-            (tenant_name.clone(), store)
-        }))
-        .await
-        .into_iter()
-        .collect()
-    }
-    /// # Panics
-    ///
-    /// Panics if Failed to create event handler
-    pub async fn get_accounts_store_interface_map(
-        &self,
-        storage_impl: &app::StorageImpl,
-        conf: &configs::Settings,
-        cache_store: Arc<storage_impl::redis::RedisStore>,
-        testable: bool,
-    ) -> HashMap<id_type::TenantId, Box<dyn app::AccountsStorageInterface>> {
-        #[allow(clippy::expect_used)]
-        let event_handler = conf
-            .events
-            .get_event_handler()
-            .await
-            .expect("Failed to create event handler");
-        futures::future::join_all(self.0.iter().map(|(tenant_name, tenant)| async {
-            let store = Box::pin(AppState::get_store_interface(
-                storage_impl,
-                &event_handler,
-                conf,
-                tenant,
-                cache_store.clone(),
-                testable,
-            ))
-            .await
-            .get_accounts_storage_interface();
-            (tenant_name.clone(), store)
-        }))
-        .await
-        .into_iter()
-        .collect()
+        let tenant_stores =
+            futures::future::join_all(self.0.iter().map(|(tenant_name, tenant)| async {
+                let store = Box::pin(AppState::get_store_interface(
+                    storage_impl,
+                    &event_handler,
+                    conf,
+                    tenant,
+                    conf.master_database.clone().into_inner(),
+                    conf.accounts_database_config(),
+                    cache_store.clone(),
+                    testable,
+                ))
+                .await;
+                (tenant_name.clone(), store)
+            }))
+            .await;
+
+        let stores = tenant_stores
+            .iter()
+            .map(|(tenant_name, store)| (tenant_name.clone(), store.get_storage_interface()))
+            .collect();
+        let accounts_store = tenant_stores
+            .iter()
+            .map(|(tenant_name, store)| {
+                (tenant_name.clone(), store.get_accounts_storage_interface())
+            })
+            .collect();
+        (stores, accounts_store)
     }
     #[cfg(feature = "olap")]
     pub async fn get_pools_map(
@@ -468,6 +694,35 @@ pub struct ForexApi {
     pub data_expiration_delay_in_seconds: u32,
     pub redis_lock_timeout_in_seconds: u32,
     pub redis_ttl_in_seconds: u32,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct OfferEngineConfig {
+    pub base_url: url::Url,
+    pub api_key: Secret<String>,
+    pub merchant_id: String,
+}
+
+impl OfferEngineConfig {
+    pub fn validate(&self) -> ApplicationResult<()> {
+        common_utils::fp_utils::when(!self.base_url.path().ends_with('/'), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "offer_engine.base_url must end with a trailing slash".into(),
+            ))
+        })?;
+        common_utils::fp_utils::when(self.api_key.peek().is_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "offer_engine.api_key must not be empty".into(),
+            ))
+        })?;
+        common_utils::fp_utils::when(self.merchant_id.is_empty(), || {
+            Err(error_stack::Report::from(
+                ApplicationError::InvalidConfigurationValueError(
+                    "offer_engine.merchant_id must not be empty".into(),
+                ),
+            ))
+        })
+    }
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -792,6 +1047,7 @@ pub struct Locker {
     pub locker_enabled: bool,
     pub ttl_for_storage_in_secs: i64,
     pub decryption_scheme: DecryptionScheme,
+    pub create_entity_on_merchant_create: bool,
 }
 
 impl Locker {
@@ -855,11 +1111,14 @@ pub struct Database {
     pub host: String,
     pub port: u16,
     pub dbname: String,
-    pub pool_size: u32,
+    #[serde(alias = "pool_size")]
+    pub max_pool_size: u32,
     pub connection_timeout: u64,
     pub queue_strategy: QueueStrategy,
-    pub min_idle: Option<u32>,
-    pub max_lifetime: Option<u64>,
+    #[serde(alias = "min_idle")]
+    pub min_idle_pool_size: u32,
+    pub max_lifetime: u64,
+    pub idle_timeout: u64,
 }
 
 impl From<Database> for storage_impl::config::Database {
@@ -870,11 +1129,12 @@ impl From<Database> for storage_impl::config::Database {
             host: val.host,
             port: val.port,
             dbname: val.dbname,
-            pool_size: val.pool_size,
+            max_pool_size: val.max_pool_size,
             connection_timeout: val.connection_timeout,
             queue_strategy: val.queue_strategy,
-            min_idle: val.min_idle,
+            min_idle_pool_size: val.min_idle_pool_size,
             max_lifetime: val.max_lifetime,
+            idle_timeout: val.idle_timeout,
         }
     }
 }
@@ -1116,7 +1376,10 @@ impl MerchantAdviceCodeLookupConfig {
             | common_enums::CardNetwork::Star
             | common_enums::CardNetwork::Pulse
             | common_enums::CardNetwork::Accel
-            | common_enums::CardNetwork::Nyce => None,
+            | common_enums::CardNetwork::Nyce
+            | common_enums::CardNetwork::Prop
+            | common_enums::CardNetwork::PrivateLabel
+            | common_enums::CardNetwork::Dinacard => None,
         }
     }
 }
@@ -1154,19 +1417,22 @@ impl Settings<SecuredSecret> {
             config.add_source(File::from(required_fields_config_file).required(false))
         };
 
-        let config = config
-            .add_source(
-                Environment::with_prefix("ROUTER")
-                    .try_parsing(true)
-                    .separator("__")
-                    .list_separator(",")
-                    .with_list_parse_key("log.telemetry.route_to_trace")
-                    .with_list_parse_key("redis.cluster_urls")
-                    .with_list_parse_key("events.kafka.brokers")
-                    .with_list_parse_key("connectors.supported.wallets")
-                    .with_list_parse_key("connector_request_reference_id_config.merchant_ids_send_payment_id_as_connector_request_id"),
+        let environment_source = Environment::with_prefix("ROUTER")
+            .try_parsing(true)
+            .separator("__")
+            .list_separator(",")
+            .with_list_parse_key("log.telemetry.route_to_trace")
+            .with_list_parse_key("redis.cluster_urls")
+            .with_list_parse_key("events.kafka.brokers")
+            .with_list_parse_key("connectors.supported.wallets")
+            .with_list_parse_key("connector_request_reference_id_config.merchant_ids_send_payment_id_as_connector_request_id");
 
-            )
+        #[cfg(feature = "deja")]
+        let environment_source =
+            environment_source.with_list_parse_key("deja.recording.kafka.brokers");
+
+        let config = config
+            .add_source(environment_source)
             .build()
             .change_context(ApplicationError::ConfigurationError)?;
 
@@ -1183,6 +1449,12 @@ impl Settings<SecuredSecret> {
     pub fn validate(&self) -> ApplicationResult<()> {
         self.server.validate()?;
         self.master_database.get_inner().validate()?;
+        if let Some(accounts_database) = &self.accounts_database {
+            accounts_database.get_inner().validate()?;
+        }
+        if let Some(global_database) = &self.global_database {
+            global_database.get_inner().validate()?;
+        }
         #[cfg(feature = "olap")]
         self.replica_database.get_inner().validate()?;
 
@@ -1214,6 +1486,7 @@ impl Settings<SecuredSecret> {
         self.locker.validate()?;
         self.connectors.validate("connectors")?;
         self.chat.get_inner().validate()?;
+        self.sage.get_inner().validate()?;
         self.cors.validate()?;
 
         self.scheduler
@@ -1253,6 +1526,16 @@ impl Settings<SecuredSecret> {
         self.network_tokenization_service
             .as_ref()
             .map(|x| x.get_inner().validate())
+            .transpose()?;
+
+        self.offer_engine
+            .as_ref()
+            .map(|offer_engine| offer_engine.get_inner().validate())
+            .transpose()?;
+
+        self.account_updater
+            .as_ref()
+            .map(|account_updater| account_updater.get_inner().validate())
             .transpose()?;
 
         self.paze_decrypt_keys
@@ -1307,6 +1590,24 @@ impl Settings<RawSecret> {
     #[cfg(not(feature = "kv_store"))]
     pub fn is_kv_soft_kill_mode(&self) -> bool {
         false
+    }
+
+    /// Returns the accounts database config, falling back to `master_database` if
+    /// `accounts_database` is not configured.
+    pub fn accounts_database_config(&self) -> Database {
+        self.accounts_database
+            .clone()
+            .map(SecretStateContainer::into_inner)
+            .unwrap_or_else(|| self.master_database.clone().into_inner())
+    }
+
+    /// Returns the global database config, falling back to `master_database` if
+    /// `global_database` is not configured.
+    pub fn global_database_config(&self) -> Database {
+        self.global_database
+            .clone()
+            .map(SecretStateContainer::into_inner)
+            .unwrap_or_else(|| self.master_database.clone().into_inner())
     }
 }
 
@@ -1375,27 +1676,11 @@ pub struct ServerTls {
     pub certificate: PathBuf,
 }
 
-#[cfg(feature = "v2")]
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
 pub struct CellInformation {
     pub id: id_type::CellId,
 }
 
-#[cfg(feature = "v1")]
-#[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
-pub struct CellInformation {
-    pub id: String,
-}
-#[cfg(feature = "v1")]
-impl Default for CellInformation {
-    fn default() -> Self {
-        Self {
-            id: String::from("00"),
-        }
-    }
-}
-
-#[cfg(feature = "v2")]
 impl Default for CellInformation {
     fn default() -> Self {
         // We provide a static default cell id for constructing application settings.

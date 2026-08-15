@@ -27,14 +27,16 @@ use crate::{enums::IntentStatus, payment_attempt::PaymentAttemptUpdate, PaymentI
 
 impl PaymentAttemptNew {
     pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<PaymentAttempt> {
-        generics::generic_insert(conn, self).await
+        Box::pin(generics::generic_insert(conn, self)).await
     }
 
     pub async fn generate_drainer_insert_query(
         self,
         conn: &mut PgPooledConn,
     ) -> StorageResult<kv::SerializableQuery> {
-        kv::generate_insert_query(conn, self).await
+        kv::generate_insert_query(conn, self)
+            .await
+            .attach_printable("Failed to generate insert query for payment attempt")
     }
 }
 
@@ -45,7 +47,7 @@ impl PaymentAttempt {
         conn: &PgPooledConn,
         payment_attempt: PaymentAttemptUpdate,
     ) -> StorageResult<Self> {
-        match generics::generic_update_with_unique_predicate_get_result::<
+        match Box::pin(generics::generic_update_with_unique_predicate_get_result::<
             <Self as HasTable>::Table,
             _,
             _,
@@ -56,7 +58,7 @@ impl PaymentAttempt {
                 .eq(self.attempt_id.to_owned())
                 .and(dsl::processor_merchant_id.eq(self.processor_merchant_id.to_owned())),
             PaymentAttemptUpdateInternal::from(payment_attempt).populate_derived_fields(&self),
-        )
+        ))
         .await
         {
             Err(error) => match error.current_context() {
@@ -579,6 +581,7 @@ impl PaymentAttemptUpdate {
                 .populate_derived_fields(source_payment_attempt),
         )
         .await
+        .attach_printable("Failed to generate update query for payment attempt")
     }
 }
 
@@ -595,5 +598,6 @@ impl PaymentAttemptUpdateInternal {
             self,
         )
         .await
+        .attach_printable("Failed to generate update query for payment attempt")
     }
 }

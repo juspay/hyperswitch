@@ -31,6 +31,43 @@ use crate::{
     services::{api as oss_api, authentication as auth, authorization::permissions::Permission},
     types::domain,
 };
+
+/// Dashboard routing entry: returns the profile's routing source and, with `?target`, a DE deep-link.
+#[cfg(all(feature = "olap", feature = "v1"))]
+#[instrument(skip_all)]
+pub async fn routing_entry(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    query: web::Query<routing_types::RoutingEntryRequest>,
+) -> impl Responder {
+    let flow = Flow::DecisionEngineSsoRedirect;
+    let target = query.into_inner().target;
+    Box::pin(oss_api::server_wrap(
+        flow,
+        state,
+        &req,
+        (),
+        move |state, auth: auth::AuthenticationData, _, _| {
+            let platform = auth.platform;
+            let profile_id = auth.profile.map(|profile| profile.get_id().clone());
+            routing::routing_entry(state, platform, profile_id, target)
+        },
+        auth::auth_type(
+            &auth::HeaderAuth(auth::ApiKeyAuth {
+                allow_connected_scope_operation: true,
+                allow_platform_self_operation: false,
+            }),
+            &auth::JWTAuth {
+                permission: Permission::ProfileRoutingRead,
+                allow_connected: true,
+                allow_platform: false,
+            },
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
 #[cfg(all(feature = "olap", feature = "v1"))]
 #[instrument(skip_all)]
 pub async fn routing_create_config(
@@ -1705,6 +1742,26 @@ pub async fn migrate_routing_rules_for_profile(
             .await?;
             Ok(services::ApplicationResponse::Json(res))
         },
+        &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[instrument(skip_all, fields(flow = ?Flow::DecisionEngineDiffCounterReset))]
+pub async fn reset_decision_engine_diff_counter(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<common_utils::id_type::ProfileId>,
+) -> impl Responder {
+    let flow = Flow::DecisionEngineDiffCounterReset;
+    let profile_id = path.into_inner();
+    Box::pin(oss_api::server_wrap(
+        flow,
+        state,
+        &req,
+        profile_id.clone(),
+        |state, _, profile_id, _| routing::reset_decision_engine_diff_counter(state, profile_id),
         &auth::AdminApiAuth,
         api_locking::LockAction::NotApplicable,
     ))

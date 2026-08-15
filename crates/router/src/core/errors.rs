@@ -2,6 +2,8 @@ pub mod chat;
 pub mod customers_error_response;
 pub mod error_handlers;
 #[cfg(feature = "olap")]
+pub mod launch_sage;
+#[cfg(feature = "olap")]
 pub mod oidc;
 pub mod transformers;
 #[cfg(feature = "olap")]
@@ -299,6 +301,8 @@ pub enum RoutingError {
     KgraphCacheFailure,
     #[error("failed to refresh the kgraph cache")]
     KgraphCacheRefreshFailed,
+    #[error("failed to fetch merchant connector accounts")]
+    MerchantConnectorAccountsFetchFailed,
     #[error("there was an error during the kgraph analysis phase")]
     KgraphAnalysisError,
     #[error("'profile_id' was not provided")]
