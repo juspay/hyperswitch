@@ -1909,16 +1909,14 @@ pub fn build_unified_connector_service_auth_metadata_without_mca(
     processor_merchant_id: &id_type::MerchantId,
     metadata: Option<&serde_json::Value>,
 ) -> CustomResult<ConnectorAuthMetadata, UnifiedConnectorServiceError> {
-    let connector_name = connector.to_string();
-
     let connector_config =
-        connector_config::build_connector_config_header(&connector_name, auth_type, metadata)
+        connector_config::build_connector_config_header(connector, auth_type, metadata)
             .change_context(UnifiedConnectorServiceError::FailedToObtainAuthType)
             .attach_printable("Failed to build connector config header")?
             .map(Secret::new);
 
     build_connector_auth_metadata(
-        connector_name,
+        connector,
         auth_type,
         processor_merchant_id,
         connector_config,
@@ -2000,6 +1998,9 @@ pub fn build_unified_connector_service_auth_metadata(
         .get_connector_account_details()
         .change_context(UnifiedConnectorServiceError::FailedToObtainAuthType)
         .attach_printable("Failed to obtain ConnectorAuthType")?;
+    let connector = Connector::from_str(&connector_name)
+        .change_context(UnifiedConnectorServiceError::FailedToObtainAuthType)
+        .attach_printable_lazy(|| format!("Invalid connector name: {connector_name}"))?;
     // Extract connector metadata from MCA for connector-specific config
     let merchant_account_metadata = merchant_connector_account.get_metadata();
     let merchant_account_metadata_value = merchant_account_metadata
@@ -2007,7 +2008,7 @@ pub fn build_unified_connector_service_auth_metadata(
         .and_then(|m| serde_json::to_value(m.clone().expose()).ok());
     // Build connector-specific config for supported connectors
     let connector_config = connector_config::build_connector_config_header(
-        &connector_name,
+        connector,
         &auth_type,
         merchant_account_metadata_value.as_ref(),
     )
@@ -2016,7 +2017,7 @@ pub fn build_unified_connector_service_auth_metadata(
     .map(Secret::new);
 
     build_connector_auth_metadata(
-        connector_name,
+        connector,
         &auth_type,
         processor_merchant_id,
         connector_config,
@@ -2025,11 +2026,12 @@ pub fn build_unified_connector_service_auth_metadata(
 
 /// Maps a [`ConnectorAuthType`] onto the credential fields UCS expects.
 fn build_connector_auth_metadata(
-    connector_name: String,
+    connector: Connector,
     auth_type: &ConnectorAuthType,
     processor_merchant_id: &id_type::MerchantId,
     connector_config: Option<Secret<String>>,
 ) -> CustomResult<ConnectorAuthMetadata, UnifiedConnectorServiceError> {
+    let connector_name = connector.to_string();
     let merchant_id = processor_merchant_id.get_string_repr();
 
     match auth_type {
@@ -2100,17 +2102,47 @@ fn build_connector_auth_metadata(
         ConnectorAuthType::CertificateAuth {
             certificate,
             private_key,
-        } => Ok(ConnectorAuthMetadata {
-            connector_name,
-            auth_type: consts::UCS_AUTH_MULTI_KEY.to_string(),
-            api_key: Some(certificate.clone()),
-            key1: Some(private_key.clone()),
-            key2: None,
-            api_secret: None,
-            auth_key_map: None,
-            merchant_id: Secret::new(merchant_id.to_string()),
-            connector_config,
-        }),
+        } => {
+            if matches!(connector, Connector::Netcetera) {
+                // Netcetera is UCS's one authentication-only, no-key connector: its mTLS cert
+                // is presented on the VGS outbound route, not via UCS auth headers, and
+                // connector-service explicitly opts it out of the
+                // CertificateAuth->ConnectorSpecificConfig conversion (see
+                // `ConnectorEnum::Netcetera => Err(...)` in connector-service's
+                // router_data.rs), routing it via the `x-auth: no-key` shortcut instead.
+                // Sending it as multi-auth-key (like Santander, which does need real cert/key
+                // transmitted) makes UCS fail with "Failed to convert legacy auth for
+                // connector: netcetera".
+                Ok(ConnectorAuthMetadata {
+                    connector_name,
+                    auth_type: consts::UCS_AUTH_NO_KEY.to_string(),
+                    api_key: None,
+                    key1: None,
+                    key2: None,
+                    api_secret: None,
+                    auth_key_map: None,
+                    merchant_id: Secret::new(merchant_id.to_string()),
+                    connector_config: None,
+                })
+            } else {
+                Ok(ConnectorAuthMetadata {
+                    connector_name,
+                    auth_type: consts::UCS_AUTH_MULTI_KEY.to_string(),
+                    api_key: Some(certificate.clone()),
+                    key1: Some(private_key.clone()),
+                    // UCS's "multi-auth-key" header parsing unconditionally requires x-key2
+                    // and x-api-secret to be present. Connectors reaching this branch (e.g.
+                    // Santander) only supply certificate/private_key, so duplicate
+                    // private_key here purely to satisfy UCS's presence check; the connector
+                    // implementation itself never reads key2/api_secret.
+                    key2: Some(private_key.clone()),
+                    api_secret: Some(private_key.clone()),
+                    auth_key_map: None,
+                    merchant_id: Secret::new(merchant_id.to_string()),
+                    connector_config,
+                })
+            }
+        }
         ConnectorAuthType::TemporaryAuth | ConnectorAuthType::NoKey => {
             Err(UnifiedConnectorServiceError::FailedToObtainAuthType)
                 .attach_printable("Unsupported ConnectorAuthType for header injection")
