@@ -816,7 +816,6 @@ pub async fn call_unified_connector_service_authenticate(
         payment_authenticate_request,
         headers_builder,
         unified_connector_service_execution_mode,
-        None,
         |mut router_data, payment_authenticate_request, grpc_headers| async move {
             let response = Box::pin(client.payment_authenticate(
                 payment_authenticate_request,
@@ -976,7 +975,6 @@ pub async fn call_unified_connector_service_authenticate_proxy(
         payment_authenticate_request,
         headers_builder,
         unified_connector_service_execution_mode,
-        None,
         |mut router_data, payment_authenticate_request, grpc_headers| async move {
             let response = Box::pin(client.payment_authenticate(
                 payment_authenticate_request,
@@ -1083,7 +1081,6 @@ pub async fn call_unified_connector_service_post_authenticate(
         payment_post_authenticate_request,
         headers_builder,
         unified_connector_service_execution_mode,
-        None,
         |mut router_data, payment_post_authenticate_request, grpc_headers| async move {
             let response = Box::pin(client.payment_post_authenticate(
                 payment_post_authenticate_request,
@@ -1227,7 +1224,6 @@ pub async fn call_unified_connector_service_post_authenticate_proxy(
         payment_post_authenticate_request,
         headers_builder,
         unified_connector_service_execution_mode,
-        None,
         |mut router_data, payment_post_authenticate_request, grpc_headers| async move {
             let response = Box::pin(client.payment_post_authenticate(
                 payment_post_authenticate_request,
