@@ -3670,7 +3670,6 @@ pub async fn make_pm_data<'a, F: Clone, R, D>(
     use crate::core::payments::OperationSessionGetters;
 
     let request = payment_data.payment_method_data.clone();
-
     let mut card_token_data = payment_data
         .payment_method_data
         .clone()
@@ -5420,6 +5419,8 @@ pub fn get_attempt_type(
     payment_intent: &PaymentIntent,
     payment_attempt: &PaymentAttempt,
     is_manual_retry_enabled: Option<bool>,
+    intent_fulfillment_time: Option<i64>,
+    is_token_based_retry: bool,
     action: &str,
 ) -> RouterResult<AttemptType> {
     match payment_intent.status {
@@ -5430,6 +5431,8 @@ pub fn get_attempt_type(
                     !validate_manual_retry_cutoff(
                         payment_intent.created_at,
                         payment_intent.session_expiry,
+                        intent_fulfillment_time,
+                        is_token_based_retry,
                     ),
                     || {
                         Err(report!(errors::ApiErrorResponse::PreconditionFailed {
@@ -5550,19 +5553,22 @@ pub fn get_attempt_type(
 fn validate_manual_retry_cutoff(
     created_at: time::PrimitiveDateTime,
     session_expiry: Option<time::PrimitiveDateTime>,
+    intent_fulfillment_time: Option<i64>,
+    is_token_based_retry: bool,
 ) -> bool {
     let utc_current_time = time::OffsetDateTime::now_utc();
     let primitive_utc_current_time =
         time::PrimitiveDateTime::new(utc_current_time.date(), utc_current_time.time());
     let time_difference_from_creation = primitive_utc_current_time - created_at;
 
-    // cutoff time is 50% of session duration
-    let cutoff_limit = match session_expiry {
-        Some(session_expiry) => {
-            let duration = session_expiry - created_at;
-            duration.whole_seconds() / 2
-        }
-        None => consts::DEFAULT_SESSION_EXPIRY / 2,
+    // Token based retries (S2S) use the fulfillment window;
+    // Raw data based retries (client) retain the half-session cutoff.
+    let cutoff_limit = if is_token_based_retry {
+        intent_fulfillment_time.unwrap_or(common_utils::consts::DEFAULT_INTENT_FULFILLMENT_TIME)
+    } else {
+        session_expiry
+            .map(|session_expiry| (session_expiry - created_at).whole_seconds() / 2)
+            .unwrap_or(consts::DEFAULT_SESSION_EXPIRY / 2)
     };
 
     time_difference_from_creation.whole_seconds() <= cutoff_limit
@@ -5576,17 +5582,37 @@ pub enum AttemptType {
 
 impl AttemptType {
     #[cfg(feature = "v1")]
-    // The function creates a new payment_attempt from the previous payment attempt but doesn't populate fields like payment_method, error_code etc.
-    // Logic to override the fields with data provided in the request should be done after this if required.
-    // In case if fields are not overridden by the request then they contain the same data that was in the previous attempt provided it is populated in this function.
+    // A retry request carrying a payment token can reuse and override the previous attempt's fields.
+    // Other retries keep the existing reset and inheritance behavior.
     #[inline(always)]
     fn make_new_manual_retry_payment_attempt(
-        payment_method_data: Option<&api_models::payments::PaymentMethodData>,
+        request: &api_models::payments::PaymentsRequest,
         old_payment_attempt: PaymentAttempt,
         new_attempt_count: i16,
         storage_scheme: enums::MerchantStorageScheme,
     ) -> PaymentAttempt {
         let created_at @ modified_at @ last_synced = common_utils::date_time::now();
+        let is_token_based_retry = request.payment_token.is_some();
+        let (payment_method, browser_info, payment_method_type, setup_future_usage_applied) =
+            if is_token_based_retry {
+                (
+                    request
+                        .payment_method
+                        .or(old_payment_attempt.payment_method),
+                    request
+                        .browser_info
+                        .clone()
+                        .or(old_payment_attempt.browser_info),
+                    request
+                        .payment_method_type
+                        .or(old_payment_attempt.payment_method_type),
+                    request
+                        .setup_future_usage
+                        .or(old_payment_attempt.setup_future_usage_applied),
+                )
+            } else {
+                (None, None, None, None)
+            };
 
         PaymentAttempt {
             attempt_id: old_payment_attempt
@@ -5596,7 +5622,15 @@ impl AttemptType {
             merchant_id: old_payment_attempt.merchant_id,
 
             // A new payment attempt is getting created so, used the same function which is used to populate status in PaymentCreate Flow.
-            status: payment_attempt_status_fsm(payment_method_data, Some(true)),
+            status: payment_attempt_status_fsm(
+                request
+                    .payment_method_data
+                    .as_ref()
+                    .and_then(|payment_method_data| {
+                        payment_method_data.payment_method_data.as_ref()
+                    }),
+                Some(true),
+            ),
 
             currency: old_payment_attempt.currency,
             save_to_locker: old_payment_attempt.save_to_locker,
@@ -5606,7 +5640,7 @@ impl AttemptType {
             error_message: None,
             offer_amount: old_payment_attempt.offer_amount,
             payment_method_id: None,
-            payment_method: None,
+            payment_method,
             capture_method: old_payment_attempt.capture_method,
             capture_on: old_payment_attempt.capture_on,
             confirm: old_payment_attempt.confirm,
@@ -5621,14 +5655,14 @@ impl AttemptType {
             // Since mandate_id is a contract between merchant and customer to debit customers amount adding it to newly created attempt
             mandate_id: old_payment_attempt.mandate_id,
 
-            // The payment could be done from a different browser or same browser, it would probably be overridden by request data.
-            browser_info: None,
+            // Token-based retries can override reusable fields from the previous attempt.
+            browser_info,
 
             error_code: None,
             payment_token: None,
             connector_metadata: None,
             payment_experience: None,
-            payment_method_type: None,
+            payment_method_type,
             payment_method_data: None,
 
             // In case it is passed in create and not in confirm,
@@ -5671,7 +5705,7 @@ impl AttemptType {
             card_discovery: None,
             processor_merchant_id: old_payment_attempt.processor_merchant_id,
             created_by: old_payment_attempt.created_by,
-            setup_future_usage_applied: None,
+            setup_future_usage_applied,
             routing_approach: old_payment_attempt.routing_approach,
             connector_request_reference_id: None,
             network_transaction_id: None,
@@ -5728,12 +5762,7 @@ impl AttemptType {
                 let db = &*state.store;
                 let new_attempt_count = fetched_payment_intent.attempt_count + 1;
                 let new_payment_attempt_to_insert = Self::make_new_manual_retry_payment_attempt(
-                    request
-                        .payment_method_data
-                        .as_ref()
-                        .and_then(|request_payment_method_data| {
-                            request_payment_method_data.payment_method_data.as_ref()
-                        }),
+                    request,
                     fetched_payment_attempt,
                     new_attempt_count,
                     storage_scheme,

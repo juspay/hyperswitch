@@ -1614,8 +1614,29 @@ pub async fn perform_hybrid_routing_if_enabled(
         utils::get_routing_result_source(state, dimensions).await,
         api_models::routing::RoutingResultSource::DecisionEngine
     );
+    let has_active_routing_algorithm = business_profile
+        .routing_algorithm
+        .clone()
+        .and_then(|ra| {
+            ra.parse_value::<api::routing::RoutingAlgorithmRef>("RoutingAlgorithmRef")
+                .ok()
+        })
+        .and_then(|algorithm_ref| algorithm_ref.algorithm_id)
+        .is_some();
 
-    if is_decision_engine_cutover_enabled {
+    if !has_active_routing_algorithm {
+        logger::debug!(
+            business_profile_id=?business_profile.get_id(),
+            "decision_engine_euclid: no active routing algorithm, skipping DE evaluation"
+        );
+        logger::info!(
+            business_profile_id=?business_profile.get_id(),
+            routing_source = "hyperswitch_static",
+            "decision_engine_euclid: selected routing source after hybrid stage"
+        );
+
+        (static_connectors.to_vec(), static_approach)
+    } else if is_decision_engine_cutover_enabled {
         let hybrid_stage_outcome = stage
             .route(input)
             .await
