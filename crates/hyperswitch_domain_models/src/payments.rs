@@ -721,20 +721,48 @@ impl AmountDetails {
         self.skip_external_tax_calculation.as_bool()
     }
 
-    /// Calculate the net amount for the order
-    pub fn calculate_net_amount(&self) -> MinorUnit {
+    /// Get the order tax amount that applies to this order.
+    ///
+    /// `payment_method_subtype` is provided once a payment method has been chosen, so that a tax
+    /// amount calculated for that specific payment method is preferred over the payment method
+    /// agnostic default tax. Passing `None` resolves to the default tax amount.
+    fn get_order_tax_amount(
+        &self,
+        payment_method_subtype: Option<common_enums::PaymentMethodType>,
+    ) -> Option<MinorUnit> {
+        self.tax_details
+            .as_ref()
+            .and_then(|tax_details| tax_details.get_tax_amount(payment_method_subtype))
+    }
+
+    /// Sum the order amount and every additional charge into the net amount, using the order tax
+    /// amount that the caller will report alongside it.
+    ///
+    /// The net amount and the order tax amount are surfaced together on both payment intents and
+    /// payment attempts, so they have to be derived from the same value to stay consistent.
+    fn calculate_net_amount_with_order_tax(
+        &self,
+        order_tax_amount: Option<MinorUnit>,
+    ) -> MinorUnit {
         self.order_amount
             + self.shipping_cost.unwrap_or(MinorUnit::zero())
+            + order_tax_amount.unwrap_or(MinorUnit::zero())
             + self.surcharge_amount.unwrap_or(MinorUnit::zero())
             + self.tax_on_surcharge.unwrap_or(MinorUnit::zero())
+    }
+
+    /// Calculate the net amount for the order
+    ///
+    /// No payment method has been chosen at this point, so the payment method agnostic default tax
+    /// is included, matching the order tax amount reported on intent only responses.
+    pub fn calculate_net_amount(&self) -> MinorUnit {
+        self.calculate_net_amount_with_order_tax(self.get_order_tax_amount(None))
     }
 
     pub fn create_attempt_amount_details(
         &self,
         confirm_intent_request: &api_models::payments::PaymentsConfirmIntentRequest,
     ) -> payment_attempt::AttemptAmountDetails {
-        let net_amount = self.calculate_net_amount();
-
         let surcharge_amount = match self.skip_surcharge_calculation {
             common_enums::SurchargeCalculationOverride::Skip => self.surcharge_amount,
             common_enums::SurchargeCalculationOverride::Calculate => None,
@@ -747,12 +775,12 @@ impl AmountDetails {
 
         let order_tax_amount = match self.skip_external_tax_calculation {
             common_enums::TaxCalculationOverride::Skip => {
-                self.tax_details.as_ref().and_then(|tax_details| {
-                    tax_details.get_tax_amount(confirm_intent_request.payment_method_subtype)
-                })
+                self.get_order_tax_amount(confirm_intent_request.payment_method_subtype)
             }
             common_enums::TaxCalculationOverride::Calculate => None,
         };
+
+        let net_amount = self.calculate_net_amount_with_order_tax(order_tax_amount);
 
         payment_attempt::AttemptAmountDetails::from(payment_attempt::AttemptAmountDetailsSetter {
             net_amount,
@@ -801,9 +829,7 @@ impl AmountDetails {
 
         let order_tax_amount = match self.skip_external_tax_calculation {
             common_enums::TaxCalculationOverride::Skip => {
-                self.tax_details.as_ref().and_then(|tax_details| {
-                    tax_details.get_tax_amount(confirm_intent_request.payment_method_subtype)
-                })
+                self.get_order_tax_amount(confirm_intent_request.payment_method_subtype)
             }
             common_enums::TaxCalculationOverride::Calculate => None,
         };
@@ -825,8 +851,6 @@ impl AmountDetails {
         &self,
         _confirm_intent_request: &api_models::payments::ProxyPaymentsRequest,
     ) -> payment_attempt::AttemptAmountDetails {
-        let net_amount = self.calculate_net_amount();
-
         let surcharge_amount = match self.skip_surcharge_calculation {
             common_enums::SurchargeCalculationOverride::Skip => self.surcharge_amount,
             common_enums::SurchargeCalculationOverride::Calculate => None,
@@ -838,12 +862,11 @@ impl AmountDetails {
         };
 
         let order_tax_amount = match self.skip_external_tax_calculation {
-            common_enums::TaxCalculationOverride::Skip => self
-                .tax_details
-                .as_ref()
-                .and_then(|tax_details| tax_details.get_tax_amount(None)),
+            common_enums::TaxCalculationOverride::Skip => self.get_order_tax_amount(None),
             common_enums::TaxCalculationOverride::Calculate => None,
         };
+
+        let net_amount = self.calculate_net_amount_with_order_tax(order_tax_amount);
 
         payment_attempt::AttemptAmountDetails::from(payment_attempt::AttemptAmountDetailsSetter {
             net_amount,
@@ -1796,4 +1819,162 @@ impl VaultData {
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone, PartialEq)]
 pub struct GuestCustomer {
     pub customer_id: String,
+}
+
+#[cfg(all(test, feature = "v2"))]
+mod amount_details_tests {
+    use diesel_models::{DefaultTax, PaymentMethodTypeTax};
+
+    use super::*;
+
+    const ORDER_AMOUNT: i64 = 10_000;
+    const ORDER_TAX_AMOUNT: i64 = 800;
+
+    fn amount_details(tax_details: Option<TaxDetails>) -> AmountDetails {
+        AmountDetails {
+            order_amount: MinorUnit::new(ORDER_AMOUNT),
+            currency: common_enums::Currency::USD,
+            shipping_cost: None,
+            tax_details,
+            skip_external_tax_calculation: common_enums::TaxCalculationOverride::Skip,
+            skip_surcharge_calculation: common_enums::SurchargeCalculationOverride::Skip,
+            surcharge_amount: None,
+            tax_on_surcharge: None,
+            amount_captured: None,
+        }
+    }
+
+    fn default_tax(order_tax_amount: i64) -> TaxDetails {
+        TaxDetails {
+            default: Some(DefaultTax {
+                order_tax_amount: MinorUnit::new(order_tax_amount),
+            }),
+            payment_method_type: None,
+        }
+    }
+
+    fn payment_method_tax(
+        order_tax_amount: i64,
+        pmt: common_enums::PaymentMethodType,
+    ) -> TaxDetails {
+        TaxDetails {
+            default: None,
+            payment_method_type: Some(PaymentMethodTypeTax {
+                order_tax_amount: MinorUnit::new(order_tax_amount),
+                pmt,
+            }),
+        }
+    }
+
+    fn confirm_intent_request(
+        payment_method_subtype: Option<common_enums::PaymentMethodType>,
+    ) -> api_models::payments::PaymentsConfirmIntentRequest {
+        api_models::payments::PaymentsConfirmIntentRequest {
+            return_url: None,
+            payment_method_data: api_models::payments::PaymentMethodDataRequest {
+                payment_method_data: None,
+                billing: None,
+            },
+            split_payment_method_data: None,
+            payment_method_type: common_enums::PaymentMethod::Card,
+            payment_method_subtype,
+            shipping: None,
+            customer_acceptance: None,
+            browser_info: None,
+            payment_method_id: None,
+            payment_token: None,
+            merchant_connector_details: None,
+            return_raw_connector_response: None,
+            webhook_url: None,
+        }
+    }
+
+    #[test]
+    fn net_amount_includes_default_order_tax() {
+        let amount_details = amount_details(Some(default_tax(ORDER_TAX_AMOUNT)));
+
+        assert_eq!(
+            amount_details.calculate_net_amount(),
+            MinorUnit::new(ORDER_AMOUNT + ORDER_TAX_AMOUNT)
+        );
+    }
+
+    #[test]
+    fn net_amount_without_tax_details_is_the_order_amount() {
+        let amount_details = amount_details(None);
+
+        assert_eq!(
+            amount_details.calculate_net_amount(),
+            MinorUnit::new(ORDER_AMOUNT)
+        );
+    }
+
+    #[test]
+    fn net_amount_sums_every_component() {
+        let mut amount_details = amount_details(Some(default_tax(ORDER_TAX_AMOUNT)));
+        amount_details.shipping_cost = Some(MinorUnit::new(500));
+        amount_details.surcharge_amount = Some(MinorUnit::new(200));
+        amount_details.tax_on_surcharge = Some(MinorUnit::new(20));
+
+        assert_eq!(
+            amount_details.calculate_net_amount(),
+            MinorUnit::new(ORDER_AMOUNT + 500 + ORDER_TAX_AMOUNT + 200 + 20)
+        );
+    }
+
+    /// Intent level callers have not picked a payment method yet, so a tax amount that was
+    /// calculated for one specific payment method must not be charged for every payment method.
+    #[test]
+    fn net_amount_ignores_payment_method_specific_tax() {
+        let amount_details = amount_details(Some(payment_method_tax(
+            ORDER_TAX_AMOUNT,
+            common_enums::PaymentMethodType::Credit,
+        )));
+
+        assert_eq!(
+            amount_details.calculate_net_amount(),
+            MinorUnit::new(ORDER_AMOUNT)
+        );
+    }
+
+    /// The net amount and the order tax amount are reported side by side on a payment attempt,
+    /// so the net amount has to include exactly the tax amount that is reported with it.
+    #[test]
+    fn attempt_net_amount_matches_the_reported_order_tax_amount() {
+        let amount_details = amount_details(Some(payment_method_tax(
+            ORDER_TAX_AMOUNT,
+            common_enums::PaymentMethodType::Credit,
+        )));
+
+        let attempt_amount_details = amount_details.create_attempt_amount_details(
+            &confirm_intent_request(Some(common_enums::PaymentMethodType::Credit)),
+        );
+
+        assert_eq!(
+            attempt_amount_details.get_order_tax_amount(),
+            Some(MinorUnit::new(ORDER_TAX_AMOUNT))
+        );
+        assert_eq!(
+            attempt_amount_details.get_net_amount(),
+            MinorUnit::new(ORDER_AMOUNT + ORDER_TAX_AMOUNT)
+        );
+    }
+
+    /// Tax that is still to be calculated by the external tax provider is not reported on the
+    /// attempt, so it must not be charged through the net amount either.
+    #[test]
+    fn attempt_excludes_tax_that_is_yet_to_be_calculated() {
+        let mut amount_details = amount_details(Some(default_tax(ORDER_TAX_AMOUNT)));
+        amount_details.skip_external_tax_calculation =
+            common_enums::TaxCalculationOverride::Calculate;
+
+        let attempt_amount_details =
+            amount_details.create_attempt_amount_details(&confirm_intent_request(None));
+
+        assert_eq!(attempt_amount_details.get_order_tax_amount(), None);
+        assert_eq!(
+            attempt_amount_details.get_net_amount(),
+            MinorUnit::new(ORDER_AMOUNT)
+        );
+    }
 }
