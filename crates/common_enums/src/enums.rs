@@ -1866,6 +1866,7 @@ pub enum EventObjectType {
     serde::Deserialize,
     serde::Serialize,
     strum::Display,
+    strum::EnumIter,
     strum::EnumString,
     ToSchema,
 )]
@@ -1893,6 +1894,7 @@ impl EventClass {
                 EventType::PaymentCancelled,
                 EventType::PaymentCancelledPostCapture,
                 EventType::PaymentAuthorized,
+                EventType::PaymentPartiallyAuthorized,
                 EventType::PaymentCaptured,
                 EventType::PaymentExpired,
                 EventType::ActionRequired,
@@ -1929,6 +1931,35 @@ impl EventClass {
     }
 }
 
+#[cfg(test)]
+mod event_class_event_type_tests {
+    use std::collections::HashSet;
+
+    use strum::IntoEnumIterator;
+
+    use super::{EventClass, EventType};
+
+    // Enforces the invariant documented on `EventType`: every variant must be
+    // reachable from some `EventClass::event_types()` set. A variant missing
+    // here causes webhook subscriptions for that event type to be rejected as
+    // not a subset of the selected event classes.
+    #[test]
+    fn every_event_type_belongs_to_an_event_class() {
+        let mapped: HashSet<EventType> = EventClass::iter()
+            .flat_map(|class| class.event_types())
+            .collect();
+
+        let unmapped: Vec<EventType> = EventType::iter()
+            .filter(|event_type| !mapped.contains(event_type))
+            .collect();
+
+        assert!(
+            unmapped.is_empty(),
+            "these EventType variants are not mapped to any EventClass: {unmapped:?}"
+        );
+    }
+}
+
 #[derive(
     Clone,
     Copy,
@@ -1939,6 +1970,7 @@ impl EventClass {
     serde::Deserialize,
     serde::Serialize,
     strum::Display,
+    strum::EnumIter,
     strum::EnumString,
     ToSchema,
 )]
