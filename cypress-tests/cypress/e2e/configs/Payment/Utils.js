@@ -593,6 +593,7 @@ export const CONNECTOR_LISTS = {
     // shared mandate specs, so the whole spec is scoped to this connector
     CONNECTOR_AGNOSTIC_MANDATES: ["tsys_transit"],
     INCREMENTAL_AUTH: [
+      "wellsfargo",
       "archipel",
       // "cybersource",    // issues with MULTIPLE_CONNECTORS handling
       "paypal",
