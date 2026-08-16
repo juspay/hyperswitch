@@ -1,0 +1,410 @@
+use common_utils::{ext_traits::ValueExt, id_type};
+use diesel_models::process_tracker::business_status;
+use hyperswitch_domain_models::platform::ProcessorMerchantId;
+use scheduler::{consumer::types::process_data, utils as pt_utils};
+
+use super::{
+    client::OfferEngineClient,
+    config::resolve_offer_engine_config,
+    types::{
+        OfferNotifyOffer, OfferNotifyOrigin, OfferNotifyRequest, OfferNotifyStatus, OfferTxnStatus,
+    },
+};
+use crate::{
+    core::{configs::dimension_state, errors},
+    logger,
+    routes::{metrics, SessionState},
+    types::storage,
+};
+
+const OFFER_ENGINE_NOTIFY_NAME: &str = "OFFER_ENGINE_NOTIFY";
+const OFFER_ENGINE_NOTIFY_TAG: &str = "OFFER_ENGINE";
+const OFFER_ENGINE_NOTIFY_RUNNER: diesel_models::ProcessTrackerRunner =
+    diesel_models::ProcessTrackerRunner::OfferEngineNotifyWorkflow;
+
+/// The durable outcome a notification reports; drives `txn_status` and offer status.
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    strum::EnumString,
+)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+#[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
+pub enum OfferEngineNotificationType {
+    Charged,
+    Failure,
+    Refunded,
+    PartiallyRefunded,
+    AutoRefunded,
+}
+
+impl OfferEngineNotificationType {
+    fn txn_status(self) -> OfferTxnStatus {
+        match self {
+            Self::Charged => OfferTxnStatus::Charged,
+            Self::Failure => OfferTxnStatus::Failure,
+            Self::Refunded => OfferTxnStatus::Refunded,
+            Self::PartiallyRefunded => OfferTxnStatus::PartiallyRefunded,
+            Self::AutoRefunded => OfferTxnStatus::AutoRefunded,
+        }
+    }
+
+    fn offer_status(self) -> OfferNotifyStatus {
+        match self {
+            Self::Charged => OfferNotifyStatus::Availed,
+            Self::Failure => OfferNotifyStatus::Failed,
+            // A partial refund revokes the offer; full/auto refunds settle it as refunded.
+            Self::PartiallyRefunded => OfferNotifyStatus::Revoked,
+            Self::Refunded | Self::AutoRefunded => OfferNotifyStatus::Refunded,
+        }
+    }
+}
+
+/// Non-sensitive Process Tracker payload; OE identifiers are re-read from
+/// `applied_offer_details` at execution time.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct OfferEngineNotifyTrackingData {
+    pub payment_id: id_type::PaymentId,
+    pub payment_attempt_id: String,
+    pub processor_merchant_id: id_type::MerchantId,
+    pub refund_id: Option<String>,
+    pub notification_type: OfferEngineNotificationType,
+}
+
+fn payment_task_id(attempt_id: &str, notification_type: OfferEngineNotificationType) -> String {
+    format!("offer_engine_notify_payment_{attempt_id}_{notification_type}")
+}
+
+fn refund_task_id(refund_id: &str, notification_type: OfferEngineNotificationType) -> String {
+    format!("offer_engine_notify_refund_{refund_id}_{notification_type}")
+}
+
+fn notify_attributes(
+    notification_type: OfferEngineNotificationType,
+) -> [router_env::opentelemetry::KeyValue; 2] {
+    [
+        router_env::opentelemetry::KeyValue::new("flow", "OfferEngineNotify"),
+        router_env::opentelemetry::KeyValue::new(
+            "notification_type",
+            notification_type.to_string(),
+        ),
+    ]
+}
+
+/// Gated on the same enablement as `/list` and `/apply`, resolved at the
+/// processor + org + profile scope used when the offer was applied at confirm.
+async fn is_notification_enabled(
+    state: &SessionState,
+    payment_attempt: &storage::PaymentAttempt,
+) -> bool {
+    let dimensions = dimension_state::Dimensions::new()
+        .with_processor_merchant_id(ProcessorMerchantId::from(
+            payment_attempt.processor_merchant_id.clone(),
+        ))
+        .with_organization_id(payment_attempt.organization_id.clone())
+        .with_profile_id(payment_attempt.profile_id.clone());
+    match resolve_offer_engine_config(state, &dimensions).await {
+        Ok(Some(_)) => true,
+        Ok(None) => false,
+        Err(err) => {
+            logger::warn!(
+                ?err,
+                "Offer Engine config could not be resolved while scheduling notification"
+            );
+            false
+        }
+    }
+}
+
+/// Maps a durable attempt status to a supported notification; `None` for
+/// intermediate/non-terminal states (never notified).
+fn attempt_notification_type(
+    status: common_enums::AttemptStatus,
+) -> Option<OfferEngineNotificationType> {
+    use common_enums::AttemptStatus;
+    match status {
+        AttemptStatus::Charged => Some(OfferEngineNotificationType::Charged),
+        AttemptStatus::AutoRefunded => Some(OfferEngineNotificationType::AutoRefunded),
+        AttemptStatus::Failure
+        | AttemptStatus::AuthenticationFailed
+        | AttemptStatus::AuthorizationFailed
+        | AttemptStatus::RouterDeclined
+        | AttemptStatus::Voided
+        | AttemptStatus::Expired => Some(OfferEngineNotificationType::Failure),
+        AttemptStatus::Started
+        | AttemptStatus::AuthenticationPending
+        | AttemptStatus::AuthenticationSuccessful
+        | AttemptStatus::Authorized
+        | AttemptStatus::Authorizing
+        | AttemptStatus::CodInitiated
+        | AttemptStatus::VoidedPostCharge
+        | AttemptStatus::VoidInitiated
+        | AttemptStatus::CaptureInitiated
+        | AttemptStatus::CaptureFailed
+        | AttemptStatus::VoidFailed
+        | AttemptStatus::PartialCharged
+        | AttemptStatus::PartiallyAuthorized
+        | AttemptStatus::PartialChargedAndChargeable
+        | AttemptStatus::Unresolved
+        | AttemptStatus::Pending
+        | AttemptStatus::PaymentMethodAwaited
+        | AttemptStatus::ConfirmationAwaited
+        | AttemptStatus::DeviceDataCollectionPending
+        | AttemptStatus::IntegrityFailure
+        | AttemptStatus::CaptureReview => None,
+    }
+}
+
+/// Payment-hook entry point: schedules a notification for a durable attempt
+/// outcome that carries an applied offer. Best-effort; never fails the caller.
+pub async fn schedule_payment_notification_for_attempt(
+    state: &SessionState,
+    payment_attempt: &storage::PaymentAttempt,
+) {
+    if let Some(notification_type) = attempt_notification_type(payment_attempt.status)
+        .filter(|_| payment_attempt.applied_offer_details.is_some())
+    {
+        schedule_payment_notification(state, payment_attempt, notification_type).await;
+    }
+}
+
+async fn schedule_payment_notification(
+    state: &SessionState,
+    payment_attempt: &storage::PaymentAttempt,
+    notification_type: OfferEngineNotificationType,
+) {
+    if is_notification_enabled(state, payment_attempt).await {
+        let tracking_data = OfferEngineNotifyTrackingData {
+            payment_id: payment_attempt.payment_id.clone(),
+            payment_attempt_id: payment_attempt.attempt_id.clone(),
+            processor_merchant_id: payment_attempt.processor_merchant_id.clone(),
+            refund_id: None,
+            notification_type,
+        };
+        let task_id = payment_task_id(&payment_attempt.attempt_id, notification_type);
+        insert_notification_task(state, task_id, tracking_data, notification_type).await;
+    }
+}
+
+/// Refund-hook entry point: full refund -> REFUNDED, partial -> PARTIALLY_REFUNDED
+/// (revokes the offer), by comparing refund amount to the attempt total. Best-effort.
+pub async fn schedule_refund_notification(
+    state: &SessionState,
+    payment_attempt: &storage::PaymentAttempt,
+    refund: &diesel_models::refund::Refund,
+) {
+    if payment_attempt.applied_offer_details.is_some()
+        && is_notification_enabled(state, payment_attempt).await
+    {
+        let notification_type = if refund.refund_amount >= refund.total_amount {
+            OfferEngineNotificationType::Refunded
+        } else {
+            OfferEngineNotificationType::PartiallyRefunded
+        };
+
+        let tracking_data = OfferEngineNotifyTrackingData {
+            payment_id: refund.payment_id.clone(),
+            payment_attempt_id: refund.attempt_id.clone(),
+            processor_merchant_id: payment_attempt.processor_merchant_id.clone(),
+            refund_id: Some(refund.refund_id.clone()),
+            notification_type,
+        };
+        let task_id = refund_task_id(&refund.refund_id, notification_type);
+        insert_notification_task(state, task_id, tracking_data, notification_type).await;
+    }
+}
+
+/// Idempotent insert: a unique-violation on the deterministic task id means it
+/// was already scheduled, so it's suppressed (and metered) rather than an error.
+async fn insert_notification_task(
+    state: &SessionState,
+    task_id: String,
+    tracking_data: OfferEngineNotifyTrackingData,
+    notification_type: OfferEngineNotificationType,
+) {
+    let schedule_time = common_utils::date_time::now();
+    let entry = match storage::ProcessTrackerNew::new(
+        task_id.clone(),
+        OFFER_ENGINE_NOTIFY_NAME,
+        OFFER_ENGINE_NOTIFY_RUNNER,
+        [OFFER_ENGINE_NOTIFY_TAG],
+        tracking_data,
+        None,
+        schedule_time,
+        common_types::consts::API_VERSION,
+        common_enums::ApplicationSource::Main,
+    ) {
+        Ok(entry) => entry,
+        Err(err) => {
+            logger::error!(?err, %task_id, "Failed to construct offer engine notify task");
+            metrics::OFFER_ENGINE_NOTIFY_SCHEDULE_FAILURES
+                .add(1, &notify_attributes(notification_type));
+            return;
+        }
+    };
+
+    match state.store.insert_process(entry).await {
+        Ok(_) => {
+            logger::info!(%task_id, ?notification_type, "Scheduled offer engine notify task");
+            metrics::OFFER_ENGINE_NOTIFY_TASKS_SCHEDULED
+                .add(1, &notify_attributes(notification_type));
+        }
+        Err(err) if err.current_context().is_db_unique_violation() => {
+            logger::info!(%task_id, "Offer engine notify task already scheduled; suppressing duplicate");
+        }
+        Err(err) => {
+            logger::error!(?err, %task_id, "Failed to schedule offer engine notify task");
+            metrics::OFFER_ENGINE_NOTIFY_SCHEDULE_FAILURES
+                .add(1, &notify_attributes(notification_type));
+        }
+    }
+}
+
+/// Reconstructs the request from persisted state, calls `/notify`, then finishes
+/// or retries the task. Delivery failures retry; bad state / missing creds terminate.
+pub async fn execute_notification(
+    state: &SessionState,
+    process: storage::ProcessTracker,
+) -> Result<(), errors::ProcessTrackerError> {
+    let tracking_data: OfferEngineNotifyTrackingData = process
+        .tracking_data
+        .clone()
+        .parse_value("OfferEngineNotifyTrackingData")?;
+    let notification_type = tracking_data.notification_type;
+    let attributes = notify_attributes(notification_type);
+
+    let db = &*state.store;
+    let key_store = db
+        .get_merchant_key_store_by_merchant_id(
+            &tracking_data.processor_merchant_id,
+            &db.get_master_key().to_vec().into(),
+        )
+        .await?;
+    let merchant_account = db
+        .find_merchant_account_by_merchant_id(&tracking_data.processor_merchant_id, &key_store)
+        .await?;
+    let payment_attempt = db
+        .find_payment_attempt_by_attempt_id_processor_merchant_id(
+            &tracking_data.payment_attempt_id,
+            &tracking_data.processor_merchant_id,
+            merchant_account.storage_scheme,
+            &key_store,
+        )
+        .await?;
+
+    let Some(applied) = payment_attempt.applied_offer_details.as_ref() else {
+        logger::warn!(
+            payment_id = %tracking_data.payment_id.get_string_repr(),
+            payment_attempt_id = %tracking_data.payment_attempt_id,
+            refund_id = ?tracking_data.refund_id,
+            ?notification_type,
+            process_tracker_id = %process.id,
+            "applied_offer_details missing; terminating offer engine notify task"
+        );
+        metrics::OFFER_ENGINE_NOTIFY_TERMINAL_FAILURES.add(1, &attributes);
+        return db
+            .as_scheduler()
+            .finish_process_with_business_status(process, business_status::RESOURCE_STATUS_MISMATCH)
+            .await
+            .map_err(Into::<errors::ProcessTrackerError>::into);
+    };
+    let applied = applied.inner();
+
+    let dimensions = dimension_state::Dimensions::new()
+        .with_processor_merchant_id(ProcessorMerchantId::from(
+            payment_attempt.processor_merchant_id.clone(),
+        ))
+        .with_organization_id(payment_attempt.organization_id.clone())
+        .with_profile_id(payment_attempt.profile_id.clone());
+    let config = match resolve_offer_engine_config(state, &dimensions).await {
+        Ok(Some(config)) => config,
+        other => {
+            logger::error!(
+                ?other,
+                process_tracker_id = %process.id,
+                "Offer Engine disabled or credentials unavailable; terminating notify task"
+            );
+            metrics::OFFER_ENGINE_NOTIFY_TERMINAL_FAILURES.add(1, &attributes);
+            return db
+                .as_scheduler()
+                .finish_process_with_business_status(process, business_status::FAILURE)
+                .await
+                .map_err(Into::<errors::ProcessTrackerError>::into);
+        }
+    };
+
+    let request = OfferNotifyRequest {
+        order_id: tracking_data.payment_id.get_string_repr().to_string(),
+        txn_id: applied.offer_engine_txn_id.clone(),
+        txn_status: notification_type.txn_status(),
+        merchant_id: applied.offer_engine_merchant_id.clone(),
+        origin: OfferNotifyOrigin::Juspay,
+        offers: vec![OfferNotifyOffer {
+            offer_id: applied.offer_id.clone(),
+            status: notification_type.offer_status(),
+            error_code: None,
+            error_message: None,
+        }],
+        refund_id: tracking_data.refund_id.clone(),
+    };
+
+    let client = OfferEngineClient::new(config, &state.conf.trace_header.header_name);
+    match client.notify(state, request).await {
+        Ok(()) => {
+            logger::info!(
+                payment_id = %tracking_data.payment_id.get_string_repr(),
+                payment_attempt_id = %tracking_data.payment_attempt_id,
+                refund_id = ?tracking_data.refund_id,
+                txn_status = ?notification_type.txn_status(),
+                offer_id = %applied.offer_id,
+                process_tracker_id = %process.id,
+                attempt = process.retry_count,
+                "Offer engine notification delivered"
+            );
+            metrics::OFFER_ENGINE_NOTIFY_SUCCESS.add(1, &attributes);
+            db.as_scheduler()
+                .finish_process_with_business_status(process, business_status::COMPLETED_BY_PT)
+                .await
+                .map_err(Into::<errors::ProcessTrackerError>::into)
+        }
+        Err(err) => {
+            logger::warn!(
+                ?err,
+                payment_attempt_id = %tracking_data.payment_attempt_id,
+                refund_id = ?tracking_data.refund_id,
+                process_tracker_id = %process.id,
+                attempt = process.retry_count,
+                "Offer engine notification delivery failed"
+            );
+            let mapping = process_data::RetryMapping::default();
+            let time_delta = if process.retry_count == 0 {
+                Some(mapping.start_after)
+            } else {
+                pt_utils::get_delay(process.retry_count + 1, &mapping.frequencies)
+            };
+            match pt_utils::get_time_from_delta(time_delta) {
+                Some(schedule_time) => db
+                    .as_scheduler()
+                    .retry_process(process, schedule_time)
+                    .await
+                    .map_err(Into::<errors::ProcessTrackerError>::into),
+                None => {
+                    metrics::OFFER_ENGINE_NOTIFY_TERMINAL_FAILURES.add(1, &attributes);
+                    db.as_scheduler()
+                        .finish_process_with_business_status(
+                            process,
+                            business_status::RETRIES_EXCEEDED,
+                        )
+                        .await
+                        .map_err(Into::<errors::ProcessTrackerError>::into)
+                }
+            }
+        }
+    }
+}

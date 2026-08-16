@@ -396,6 +396,21 @@ impl ProcessTrackerWorkflows<routes::SessionState> for WorkflowRunner {
                 storage::ProcessTrackerRunner::NetworkTokenizationWorkflow => Ok(Box::new(
                     workflows::network_tokenization::NetworkTokenizationWorkflow,
                 )),
+                storage::ProcessTrackerRunner::OfferEngineNotifyWorkflow => {
+                    #[cfg(feature = "v1")]
+                    {
+                        Ok(Box::new(
+                            workflows::offer_engine_notify::OfferEngineNotifyWorkflow,
+                        ))
+                    }
+                    #[cfg(feature = "v2")]
+                    {
+                        Err(error_stack::report!(ProcessTrackerError::UnexpectedFlow))
+                            .attach_printable(
+                                "Cannot run offer engine notify workflow when v1 feature is disabled",
+                            )
+                    }
+                }
             }
         };
 
