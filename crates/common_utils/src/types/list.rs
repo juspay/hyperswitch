@@ -39,11 +39,9 @@ impl<'de> Deserialize<'de> for PageSize {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         match Option::<u32>::deserialize(deserializer)? {
             None => Ok(Self::default()),
-            Some(value) if value == 0 || value > LIST_MAX_LIMIT => {
-                Err(serde::de::Error::custom(format!(
-                    "list limit {value} is invalid, it must be between 1 and {LIST_MAX_LIMIT}"
-                )))
-            }
+            Some(value) if value == 0 || value > LIST_MAX_LIMIT => Err(serde::de::Error::custom(
+                format!("list limit {value} is invalid, it must be between 1 and {LIST_MAX_LIMIT}"),
+            )),
             Some(value) => Ok(Self(u64::from(value))),
         }
     }
