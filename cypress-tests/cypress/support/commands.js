@@ -6643,10 +6643,6 @@ Cypress.Commands.add(
       "api-key": globalState.get("apiKey"),
     };
 
-    if (globalState.get("connectorId") === "truelayer") {
-      headers["x-feature"] = "integ-custom";
-    }
-
     return cy
       .request({
         method: "POST",
@@ -6697,10 +6693,6 @@ Cypress.Commands.add(
       "api-key": globalState.get("apiKey"),
     };
 
-    if (globalState.get("connectorId") === "truelayer") {
-      headers["x-feature"] = "integ-custom";
-    }
-
     cy.request({
       method: "POST",
       url: `${globalState.get("baseUrl")}/payouts/create`,
@@ -6745,10 +6737,6 @@ Cypress.Commands.add(
       "api-key": globalState.get("apiKey"),
     };
 
-    if (globalState.get("connectorId") === "truelayer") {
-      headers["x-feature"] = "integ-custom";
-    }
-
     cy.request({
       method: "POST",
       url: `${globalState.get("baseUrl")}/payouts/create`,
@@ -6785,10 +6773,6 @@ Cypress.Commands.add(
       "Content-Type": "application/json",
       "api-key": globalState.get("apiKey"),
     };
-
-    if (globalState.get("connectorId") === "truelayer") {
-      headers["x-feature"] = "integ-custom";
-    }
 
     cy.request({
       method: "POST",

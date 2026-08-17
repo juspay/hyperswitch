@@ -98,8 +98,6 @@ export const CONNECTOR_LISTS = {
     PAYOUT_RECURRING: ["adyenplatform"],
     PAYOUT_LINK: ["wise"],
     BANK_TRANSFER_OPEN_BANKING: ["truelayer"],
-    BANK_TRANSFER_OPEN_BANKING_AUTO_FULFILL: ["truelayer"],
-    BANK_TRANSFER_OPEN_BANKING_MANUAL_FULFILL: [],
     BANK_TRANSFER_OPEN_BANKING_INVALID_REFERENCE_FULFILL: [],
     BANK_TRANSFER_SEPA: ["adyen", "adyenplatform", "nomupay", "wise"],
     SAVED_CARD: ["adyen", "adyenplatform", "nomupay", "wise"],

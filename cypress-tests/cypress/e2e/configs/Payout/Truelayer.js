@@ -30,12 +30,14 @@ export const connectorDetails = {
         Request: {
           amount: 10,
           currency: "GBP",
-          connector: ["truelayer"],
           payout_type: "bank_redirect",
           payout_method_data: {
             passthrough: passthrough_data,
           },
           billing: billing,
+          billing_descriptor: {
+            reference: "heellow-world",
+          },
         },
         Response: {
           status: 200,
@@ -49,12 +51,14 @@ export const connectorDetails = {
         Request: {
           amount: 10,
           currency: "GBP",
-          connector: ["truelayer"],
           payout_type: "bank_redirect",
           payout_method_data: {
             passthrough: passthrough_data,
           },
           billing: billing,
+          billing_descriptor: {
+            reference: "heellow-world",
+          },
         },
         Response: {
           status: 200,
@@ -68,12 +72,14 @@ export const connectorDetails = {
         Request: {
           amount: 10,
           currency: "GBP",
-          connector: ["truelayer"],
           payout_type: "bank_redirect",
           payout_method_data: {
             passthrough: passthrough_data,
           },
           billing: billing,
+          billing_descriptor: {
+            reference: "heellow-world",
+          },
         },
         Response: {
           status: 200,
@@ -94,6 +100,7 @@ export const connectorDetails = {
           body: {
             payment_method: "bank_transfer",
             payment_method_type: "open_banking",
+            status: "active",
           },
         },
       },
@@ -114,12 +121,14 @@ export const connectorDetails = {
         Request: {
           amount: 10,
           currency: "GBP",
-          connector: ["truelayer"],
           payout_type: "bank_redirect",
           payout_method_data: {
             passthrough: passthrough_data,
           },
           billing: billing,
+          billing_descriptor: {
+            reference: "heellow-world",
+          },
         },
         Response: {
           status: 200,
