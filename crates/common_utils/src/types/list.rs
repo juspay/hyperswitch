@@ -27,11 +27,25 @@ impl PageSize {
     pub fn as_usize(self) -> usize {
         usize::try_from(self.0).unwrap_or_default()
     }
+
+    /// The raw limit as `u64`.
+    pub fn as_u64(self) -> u64 {
+        self.0
+    }
 }
 
 impl Default for PageSize {
     fn default() -> Self {
         Self(u64::from(LIST_DEFAULT_LIMIT))
+    }
+}
+
+impl From<u32> for PageSize {
+    /// Clamp a resolved `u32` into the global bounds. For internal callers (e.g.
+    /// compatibility-layer conversions) that already hold a value; the request path
+    /// uses `Deserialize`, which *rejects* out-of-range values instead of clamping.
+    fn from(value: u32) -> Self {
+        Self(u64::from(value.clamp(LIST_MIN_LIMIT, LIST_MAX_LIMIT)))
     }
 }
 
@@ -94,6 +108,14 @@ impl PageOffset {
     /// `try_from` never fails in practice.
     pub fn as_usize(self) -> usize {
         usize::try_from(self.0).unwrap_or_default()
+    }
+}
+
+impl From<u32> for PageOffset {
+    /// Clamp a resolved `u32` into the offset bound. For internal callers that already
+    /// hold a value; the request path uses `Deserialize`, which rejects over-`MAX` values.
+    fn from(value: u32) -> Self {
+        Self(u64::from(value.min(Self::MAX)))
     }
 }
 

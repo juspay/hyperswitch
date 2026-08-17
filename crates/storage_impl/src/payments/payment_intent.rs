@@ -1006,12 +1006,8 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
 
                 query = diesel_models::list::apply_pagination(
                     query,
-                    diesel_models::list::PageSize::new(
-                        params.limit,
-                        common_utils::consts::default_payments_list_limit(),
-                        common_utils::consts::PAYMENTS_LIST_MAX_LIMIT_V1,
-                    ),
-                    diesel_models::list::PageOffset::new(Some(params.offset)),
+                    params.limit,
+                    params.offset,
                 );
             }
         }
@@ -1279,12 +1275,8 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
 
                 diesel_models::list::apply_pagination(
                     query,
-                    diesel_models::list::PageSize::new(
-                        params.limit,
-                        common_utils::consts::default_payments_list_limit(),
-                        common_utils::consts::PAYMENTS_LIST_MAX_LIMIT_V1,
-                    ),
-                    diesel_models::list::PageOffset::new(Some(params.offset)),
+                    params.limit,
+                    params.offset,
                 )
             }
         };
@@ -1497,12 +1489,8 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
 
                 diesel_models::list::apply_pagination(
                     query,
-                    diesel_models::list::PageSize::new(
-                        params.limit,
-                        common_utils::consts::default_payments_list_limit(),
-                        common_utils::consts::PAYMENTS_LIST_MAX_LIMIT_V2,
-                    ),
-                    diesel_models::list::PageOffset::new(Some(params.offset)),
+                    params.limit,
+                    params.offset,
                 )
             }
         };

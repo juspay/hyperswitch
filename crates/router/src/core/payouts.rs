@@ -832,7 +832,6 @@ pub async fn payouts_list_core(
     profile_id_list: Option<Vec<id_type::ProfileId>>,
     constraints: payouts::PayoutListConstraints,
 ) -> RouterResponse<payouts::PayoutListResponse> {
-    validator::validate_payout_list_request(&constraints)?;
     let merchant_id = platform.get_processor().get_account().get_id();
     let db = state.store.as_ref();
     let payouts = helpers::filter_by_constraints(
@@ -975,8 +974,8 @@ pub async fn payouts_filtered_list_core(
     profile_id_list: Option<Vec<id_type::ProfileId>>,
     filters: payouts::PayoutListFilterConstraints,
 ) -> RouterResponse<payouts::PayoutListResponse> {
-    let limit = &filters.limit;
-    validator::validate_payout_list_request_for_joins(*limit)?;
+    let limit = filters.limit;
+    validator::validate_payout_list_request_for_joins(limit)?;
     let db = state.store.as_ref();
     let constraints = filters.clone().into();
     let list: Vec<(
