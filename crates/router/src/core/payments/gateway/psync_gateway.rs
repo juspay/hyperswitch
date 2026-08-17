@@ -12,7 +12,6 @@ use hyperswitch_interfaces::{
     unified_connector_service::{
         get_payments_response_from_ucs_webhook_content,
         handle_unified_connector_service_response_for_payment_get,
-        transformers::UnifiedConnectorServiceError,
     },
 };
 use hyperswitch_masking::ExposeInterface as UcsMaskingExposeInterface;
@@ -133,7 +132,6 @@ where
                 let lineage_ids = context.lineage_ids;
                 let header_payload = context.header_payload;
                 let unified_connector_service_execution_mode = context.execution_mode;
-                let ucs_matched_rollout_key = context.ucs_matched_rollout_key;
                 let is_ucs_psync_disabled = state
                     .conf
                     .grpc_client
@@ -200,38 +198,14 @@ where
                     payment_get_request,
                     header_payload,
                     unified_connector_service_execution_mode,
-                    ucs_matched_rollout_key,
                     |mut router_data, payment_get_request, grpc_headers| async move {
                         let response = match client
                             .payment_get(payment_get_request, connector_auth_metadata, grpc_headers)
                             .await
                         {
                             Ok(resp) => resp,
+                            // UCS connector errors are handled by the wrapper — see `ucs_logging_wrapper_granular`.
                             Err(report) => {
-                                if let UnifiedConnectorServiceError::ConnectorError(inner) =
-                                    report.current_context()
-                                {
-                                    let (code, message, status_code, connector) = (
-                                        &inner.code,
-                                        &inner.message,
-                                        inner.status_code,
-                                        &inner.connector,
-                                    );
-                                    logger::debug!(
-                                        "Connector error via UCS for psync (connector {}, status {}): {} - {}",
-                                        connector,
-                                        status_code,
-                                        code,
-                                        message
-                                    );
-                                    router_data.response = Err(inner.as_ref().into());
-                                    router_data.connector_http_status_code = Some(status_code);
-                                    return Ok((
-                                        router_data,
-                                        (),
-                                        payments_grpc::PaymentServiceGetResponse::default(),
-                                    ));
-                                }
                                 return Err(report.attach_printable("Failed to get payment"));
                             }
                         };
@@ -275,10 +249,10 @@ where
                                 Some(MinorUnit::new(captured_amount));
                         }
                         if return_raw_connector_response.unwrap_or(false) {
-                            router_data.raw_connector_response = payment_get_response
-                                .raw_connector_response
-                                .clone()
-                                .map(|raw_connector_response| raw_connector_response.expose().into());
+                            router_data.raw_connector_response =
+                                payment_get_response.raw_connector_response.clone().map(
+                                    |raw_connector_response| raw_connector_response.expose().into(),
+                                );
                         }
                         router_data.connector_http_status_code = Some(status_code);
                         router_data.sender_payment_instrument_id =

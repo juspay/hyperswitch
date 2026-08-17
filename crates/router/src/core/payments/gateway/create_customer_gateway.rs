@@ -12,7 +12,6 @@ use hyperswitch_interfaces::{
     api::gateway as payment_gateway,
     connector_integration_interface::{BoxedConnectorIntegrationInterface, RouterDataConversion},
     errors::ConnectorError,
-    unified_connector_service::transformers::UnifiedConnectorServiceError,
 };
 use unified_connector_service_client::payments as payments_grpc;
 
@@ -74,7 +73,6 @@ where
         let lineage_ids = context.lineage_ids;
         let header_payload = context.header_payload;
         let unified_connector_service_execution_mode = context.execution_mode;
-        let ucs_matched_rollout_key = context.ucs_matched_rollout_key;
 
         let client = state
             .grpc_client
@@ -126,7 +124,6 @@ where
             create_connector_customer_request,
             grpc_headers,
             unified_connector_service_execution_mode,
-            ucs_matched_rollout_key,
             |mut router_data, create_connector_customer_request, grpc_headers| async move {
                 let response = match Box::pin(client.create_connector_customer(
                     create_connector_customer_request,
@@ -136,25 +133,8 @@ where
                 .await
                 {
                     Ok(response) => response,
+                    // UCS connector errors are handled by the wrapper — see `ucs_logging_wrapper_granular`.
                     Err(report) => {
-                        if let UnifiedConnectorServiceError::ConnectorError(inner) =
-                            report.current_context()
-                        {
-                            logger::debug!(
-                                "Connector error via UCS for create connector customer (connector {}, status {}): {} - {}",
-                                inner.connector,
-                                inner.status_code,
-                                inner.code,
-                                inner.message
-                            );
-                            router_data.response = Err(inner.as_ref().into());
-                            router_data.connector_http_status_code = Some(inner.status_code);
-                            return Ok((
-                                router_data,
-                                (),
-                                payments_grpc::CustomerServiceCreateResponse::default(),
-                            ));
-                        }
                         return Err(report.attach_printable("Failed to create connector customer"));
                     }
                 };

@@ -221,7 +221,7 @@ pub async fn trigger_refund_to_gateway(
     )
     .await?;
 
-    let (execution_path, updated_state, matched_rollout_key) =
+    let (execution_path, updated_state) =
         unified_connector_service::should_call_unified_connector_service(
             state,
             platform.get_processor(),
@@ -256,7 +256,6 @@ pub async fn trigger_refund_to_gateway(
         merchant_connector_account: merchant_connector_account.clone(),
         execution_path,
         execution_mode,
-        ucs_matched_rollout_key: matched_rollout_key,
     };
 
     // Add access token for both UCS and direct connector paths
@@ -638,6 +637,9 @@ async fn execute_refund_execute_via_direct_with_ucs_shadow(
         Err(e) => Err(format!("{:?}", e)),
     };
     let connector_name = router_data.connector.clone();
+    let merchant_id = router_data.merchant_id.clone();
+    let payment_method = router_data.payment_method;
+    let payment_method_type = router_data.payment_method_type;
 
     tokio::spawn(
         (async move {
@@ -662,6 +664,9 @@ async fn execute_refund_execute_via_direct_with_ucs_shadow(
                     connector_name,
                     direct_for_compare,
                     ucs_for_compare,
+                    Some(&merchant_id),
+                    Some(payment_method),
+                    payment_method_type,
                 ),
             )
             .await;
@@ -888,7 +893,7 @@ pub async fn sync_refund_with_gateway(
     // Access token available or not needed - proceed with execution
 
     // Check which gateway system to use for refund sync
-    let (execution_path, updated_state, matched_rollout_key) =
+    let (execution_path, updated_state) =
         unified_connector_service::should_call_unified_connector_service(
             state,
             platform.get_processor(),
@@ -923,7 +928,6 @@ pub async fn sync_refund_with_gateway(
         merchant_connector_account: merchant_connector_account.clone(),
         execution_path,
         execution_mode,
-        ucs_matched_rollout_key: matched_rollout_key,
     };
 
     // Add access token for both UCS and direct connector paths
@@ -1185,6 +1189,9 @@ async fn execute_refund_sync_via_direct_with_ucs_shadow(
         Err(e) => Err(format!("{:?}", e)),
     };
     let connector_name = router_data.connector.clone();
+    let merchant_id = router_data.merchant_id.clone();
+    let payment_method = router_data.payment_method;
+    let payment_method_type = router_data.payment_method_type;
 
     tokio::spawn(
         (async move {
@@ -1209,6 +1216,9 @@ async fn execute_refund_sync_via_direct_with_ucs_shadow(
                     connector_name,
                     direct_for_compare,
                     ucs_for_compare,
+                    Some(&merchant_id),
+                    Some(payment_method),
+                    payment_method_type,
                 ),
             )
             .await;
@@ -1659,6 +1669,7 @@ pub async fn refund_manual_update(
         .await
         .to_not_found_response(errors::ApiErrorResponse::RefundNotFound)?;
     let refund_update = diesel_refund::RefundUpdate::ManualUpdate {
+        connector_refund_id: req.connector_refund_id.map(ConnectorTransactionId::from),
         refund_status: req.status.map(common_enums::RefundStatus::from),
         refund_error_message: req.error_message.map(|msg| match msg {
             api_enums::SetOrUnset::Set(value) => Some(value),

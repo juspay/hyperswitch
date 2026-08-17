@@ -75,7 +75,6 @@ where
         let lineage_ids = context.lineage_ids;
         let header_payload = context.header_payload;
         let unified_connector_service_execution_mode = context.execution_mode;
-        let ucs_matched_rollout_key = context.ucs_matched_rollout_key;
         let client = state
             .grpc_client
             .unified_connector_service_client
@@ -136,7 +135,6 @@ where
                 recurring_payment_charge_request,
                 grpc_headers,
                 unified_connector_service_execution_mode,
-                ucs_matched_rollout_key,
                 |mut router_data, recurring_payment_charge_request, grpc_headers| async move {
                     let response = match Box::pin(client.recurring_payment_charge(
                         recurring_payment_charge_request,
@@ -146,34 +144,11 @@ where
                     .await
                     {
                         Ok(resp) => resp,
+                        // UCS connector errors are handled by the wrapper — see `ucs_logging_wrapper_granular`.
                         Err(report) => {
-                            // Check if this is a connector error (4xx/5xx from connector via UCS)
-                            if let UnifiedConnectorServiceError::ConnectorError(inner) =
-                                report.current_context()
-                            {
-                                let (code, message, status_code, connector) = (
-                                    &inner.code,
-                                    &inner.message,
-                                    inner.status_code,
-                                    &inner.connector,
-                                );
-                                logger::debug!(
-                                    "Connector error via UCS for recurring charge (connector {}, status {}): {} - {}",
-                                    connector,
-                                    status_code,
-                                    code,
-                                    message
-                                );
-                                router_data.response = Err(inner.as_ref().into());
-                                router_data.connector_http_status_code = Some(status_code);
-                                return Ok((
-                                    router_data,
-                                    (),
-                                    payments_grpc::RecurringPaymentServiceChargeResponse::default(),
-                                ));
-                            }
-                            // Propagate as Err for proper HTTP error handling
-                            return Err(report.attach_printable("Failed to charge recurring payment"));
+                            return Err(
+                                report.attach_printable("Failed to charge recurring payment")
+                            );
                         }
                     };
 
@@ -243,7 +218,6 @@ where
                 granular_authorize_request,
                 grpc_headers,
                 unified_connector_service_execution_mode,
-                ucs_matched_rollout_key,
                 |mut router_data, granular_authorize_request, grpc_headers| async move {
                     let response = match Box::pin(client.payment_authorize(
                         granular_authorize_request,
@@ -253,37 +227,8 @@ where
                     .await
                     {
                         Ok(resp) => resp,
+                        // UCS connector errors are handled by the wrapper — see `ucs_logging_wrapper_granular`.
                         Err(report) => {
-                            // Check if this is a connector error (4xx/5xx from connector via UCS)
-                            // If so, set it as router_data.response = Err(ErrorResponse) and return Ok
-                            // This matches how direct connector errors are handled
-                            if let UnifiedConnectorServiceError::ConnectorError(inner) =
-                                report.current_context()
-                            {
-                                let (code, message, status_code, connector) = (
-                                    &inner.code,
-                                    &inner.message,
-                                    inner.status_code,
-                                    &inner.connector,
-                                );
-                                logger::debug!(
-                                    "Connector error via UCS (connector {}, status {}): {} - {}",
-                                    connector,
-                                    status_code,
-                                    code,
-                                    message
-                                );
-                                router_data.response = Err(inner.as_ref().into());
-                                // Return Ok with router_data containing the error response
-                                // This ensures the connector error flows through the normal
-                                // response handling path (same as direct connector errors)
-                                router_data.connector_http_status_code = Some(status_code);
-                                return Ok((
-                                    router_data,
-                                    (),
-                                    payments_grpc::PaymentServiceAuthorizeResponse::default(),
-                                ));
-                            }
                             return Err(report.attach_printable("Failed to authorize payment"));
                         }
                     };
