@@ -407,8 +407,8 @@ where
         }
     };
 
-    // Kill switch: a scope that already failed deterministically serves from the direct
-    // integration regardless of what its rollout config says.
+    // Kill switch: a scope whose failure counter exceeds the configured threshold serves from
+    // the direct integration regardless of what its rollout config says.
     //
     // Only the primary path is diverted, and it is diverted to shadow rather than to direct — the
     // merchant is served by the direct integration either way, but shadow keeps mirroring, so a
@@ -425,12 +425,19 @@ where
             router_data.payment_method_type,
         );
 
-        if Box::pin(kill_switch::is_tripped(state, &rollout_scope)).await {
+        if Box::pin(kill_switch::is_kill_switched(
+            state,
+            &rollout_scope,
+            rollout_result.kill_switch_enabled,
+            rollout_result.kill_switch_threshold,
+        ))
+        .await
+        {
             router_env::logger::warn!(
                 merchant_id = %merchant_id,
                 connector = %connector_name,
                 flow = %flow_name,
-                "UCS kill switch is tripped for this scope, serving from the direct integration"
+                "UCS kill switch counter exceeds threshold for this scope, routing to shadow"
             );
             gateway_system = GatewaySystem::Direct;
             execution_path = ExecutionPath::ShadowUnifiedConnectorService;
@@ -1902,6 +1909,27 @@ fn get_ucs_client(
         })
 }
 
+/// Builds auth metadata for flows whose credentials come from application config.
+pub fn build_unified_connector_service_auth_metadata_without_mca(
+    connector: Connector,
+    auth_type: &ConnectorAuthType,
+    processor_merchant_id: &id_type::MerchantId,
+    metadata: Option<&serde_json::Value>,
+) -> CustomResult<ConnectorAuthMetadata, UnifiedConnectorServiceError> {
+    let connector_config =
+        connector_config::build_connector_config_header(connector, auth_type, metadata)
+            .change_context(UnifiedConnectorServiceError::FailedToObtainAuthType)
+            .attach_printable("Failed to build connector config header")?
+            .map(Secret::new);
+
+    build_connector_auth_metadata(
+        connector,
+        auth_type,
+        processor_merchant_id,
+        connector_config,
+    )
+}
+
 // The UCS proto has no first-class fields for Netcetera-style authentication-connector
 // metadata (force_3ds_challenge, results/notification URLs, acquirer details), so these are
 // merged into the authentication-connector MCA's metadata JSON and passed through the generic
@@ -1977,7 +2005,6 @@ pub fn build_unified_connector_service_auth_metadata(
         .get_connector_account_details()
         .change_context(UnifiedConnectorServiceError::FailedToObtainAuthType)
         .attach_printable("Failed to obtain ConnectorAuthType")?;
-    let merchant_id = processor_merchant_id.get_string_repr();
     let connector = Connector::from_str(&connector_name)
         .change_context(UnifiedConnectorServiceError::FailedToObtainAuthType)
         .attach_printable_lazy(|| format!("Invalid connector name: {connector_name}"))?;
@@ -1996,7 +2023,25 @@ pub fn build_unified_connector_service_auth_metadata(
     .attach_printable("Failed to build connector config header")?
     .map(Secret::new);
 
-    match &auth_type {
+    build_connector_auth_metadata(
+        connector,
+        &auth_type,
+        processor_merchant_id,
+        connector_config,
+    )
+}
+
+/// Maps a [`ConnectorAuthType`] onto the credential fields UCS expects.
+fn build_connector_auth_metadata(
+    connector: Connector,
+    auth_type: &ConnectorAuthType,
+    processor_merchant_id: &id_type::MerchantId,
+    connector_config: Option<Secret<String>>,
+) -> CustomResult<ConnectorAuthMetadata, UnifiedConnectorServiceError> {
+    let connector_name = connector.to_string();
+    let merchant_id = processor_merchant_id.get_string_repr();
+
+    match auth_type {
         ConnectorAuthType::SignatureKey {
             api_key,
             key1,
@@ -2979,14 +3024,19 @@ where
     Resp: std::fmt::Debug + Clone + Send + Sync + 'static,
     GrpcReq: serde::Serialize,
     GrpcResp: serde::Serialize,
+    FlowOutput: Default,
     F: FnOnce(
             RouterData<T, Req, Resp>,
             GrpcReq,
             external_services::grpc_client::GrpcHeadersUcs,
         ) -> Fut
         + Send,
-    Fut: std::future::Future<Output = RouterResult<(RouterData<T, Req, Resp>, FlowOutput, GrpcResp)>>
-        + Send,
+    Fut: std::future::Future<
+            Output = CustomResult<
+                (RouterData<T, Req, Resp>, FlowOutput, GrpcResp),
+                UnifiedConnectorServiceError,
+            >,
+        > + Send,
 {
     tracing::Span::current().record("connector_name", &router_data.connector);
     tracing::Span::current().record("flow_type", std::any::type_name::<T>());
@@ -2999,6 +3049,11 @@ where
     let refund_id = router_data.refund_id.clone();
     let dispute_id = router_data.dispute_id.clone();
     let payout_id = router_data.payout_id.clone();
+    let payment_method = router_data.payment_method;
+    let payment_method_type = router_data.payment_method_type;
+    // Clone router_data before handler consumes it, so we can use it if the handler
+    // returns a ConnectorError (which we convert to Ok(router_data) with Err(ErrorResponse))
+    let router_data_clone = router_data.clone();
     let grpc_header = grpc_header_builder.build();
     // Log the actual gRPC request with masking
     let grpc_request_body = hyperswitch_masking::masked_serialize(&grpc_request)
@@ -3020,8 +3075,9 @@ where
     );
 
     // Execute UCS function and measure timing
+    // Box::pin the handler to reduce the monomorphized future size and prevent stack overflow
     let start_time = Instant::now();
-    let result = handler(router_data, grpc_request, grpc_header).await;
+    let result = Box::pin(handler(router_data, grpc_request, grpc_header)).await;
     let external_latency = start_time.elapsed().as_millis();
 
     // Create and emit connector event after UCS call
@@ -3044,21 +3100,86 @@ where
             )
         }
         Err(error) => {
-            // Update error metrics for UCS calls
-            crate::routes::metrics::CONNECTOR_ERROR_RESPONSE_COUNT.add(
-                1,
-                router_env::metric_attributes!(("connector", connector_name.clone(),)),
-            );
+            // Check if this is a connector error (4xx/5xx from connector via UCS).
+            // Convert it to Ok(router_data) with response = Err(ErrorResponse) so the
+            // caller sees a proper error response instead of a raw UCS error.
+            if let UnifiedConnectorServiceError::ConnectorError(inner) = error.current_context() {
+                // Fire kill switch for connector errors
+                if let Ok(flow_name) = get_flow_name::<T>() {
+                    kill_switch::record_failure(
+                        state,
+                        kill_switch::UcsFailureContext {
+                            merchant_id: merchant_id.get_string_repr(),
+                            connector_name: &connector_name,
+                            flow_name: &flow_name,
+                            payment_id: &payment_id,
+                            payment_method,
+                            payment_method_type,
+                        },
+                        execution_mode,
+                        error.current_context(),
+                    )
+                    .await;
+                }
 
-            let error_body = serde_json::json!({
-                "error": error.to_string(),
-                "error_type": "ucs_call_failed"
-            });
-            (
-                error.current_context().status_code().as_u16(),
-                Some(error_body),
-                Err(error),
-            )
+                let status_code = inner.status_code;
+                let mut router_data = router_data_clone;
+                router_data.response = Err(inner.as_ref().into());
+                router_data.connector_http_status_code = Some(status_code);
+
+                let error_body = serde_json::json!({
+                    "error": error.to_string(),
+                    "error_type": "connector_error"
+                });
+
+                (
+                    status_code,
+                    Some(error_body),
+                    Ok((router_data, FlowOutput::default())),
+                )
+            } else {
+                // Update error metrics for UCS calls
+                crate::routes::metrics::CONNECTOR_ERROR_RESPONSE_COUNT.add(
+                    1,
+                    router_env::metric_attributes!(("connector", connector_name.clone(),)),
+                );
+
+                // Fire kill switch for non-connector UCS errors
+                match get_flow_name::<T>() {
+                    Ok(flow_name) => {
+                        kill_switch::record_failure(
+                            state,
+                            kill_switch::UcsFailureContext {
+                                merchant_id: merchant_id.get_string_repr(),
+                                connector_name: &connector_name,
+                                flow_name: &flow_name,
+                                payment_id: &payment_id,
+                                payment_method,
+                                payment_method_type,
+                            },
+                            execution_mode,
+                            error.current_context(),
+                        )
+                        .await;
+                    }
+                    Err(flow_name_error) => logger::error!(
+                        ?flow_name_error,
+                        connector = %connector_name,
+                        "ucs_kill_switch: could not resolve the flow name, failure not classified"
+                    ),
+                }
+
+                let error_body = serde_json::json!({
+                    "error": error.to_string(),
+                    "error_type": "ucs_call_failed"
+                });
+                let api_error: errors::ApiErrorResponse = error.current_context().switch();
+                (
+                    api_error.status_code().as_u16(),
+                    Some(error_body),
+                    Err(error.change_context(api_error)),
+                )
+            }
         }
     };
 
@@ -3110,6 +3231,7 @@ where
             external_services::grpc_client::GrpcHeadersUcs,
         ) -> Fut
         + Send,
+    FlowOutput: Default,
     Fut: std::future::Future<
             Output = CustomResult<
                 (RouterData<T, Req, Resp>, FlowOutput, GrpcResp),
@@ -3150,9 +3272,14 @@ where
         ),
     );
 
+    // Clone router_data before handler consumes it, so we can use it if the handler
+    // returns a ConnectorError (which we convert to Ok(router_data) with Err(ErrorResponse))
+    let router_data_clone = router_data.clone();
+
     // Execute UCS function and measure timing
+    // Box::pin the handler to reduce the monomorphized future size and prevent stack overflow
     let start_time = Instant::now();
-    let result = handler(router_data, grpc_request, grpc_header).await;
+    let result = Box::pin(handler(router_data, grpc_request, grpc_header)).await;
     let external_latency = start_time.elapsed().as_millis();
 
     // Create and emit connector event after UCS call
@@ -3175,16 +3302,12 @@ where
             )
         }
         Err(error) => {
-            // Update error metrics for UCS calls
-            crate::routes::metrics::CONNECTOR_ERROR_RESPONSE_COUNT.add(
-                1,
-                router_env::metric_attributes!(("connector", connector_name.clone(),)),
-            );
-
-            // Every payment and payout gateway funnels through here with the UCS error still
-            // typed, so this is the one place the kill switch has to observe.
-            match get_flow_name::<T>() {
-                Ok(flow_name) => {
+            // Check if this is a connector error (4xx/5xx from connector via UCS).
+            // Convert it to Ok(router_data) with response = Err(ErrorResponse) so the
+            // caller sees a proper error response instead of a raw UCS error.
+            if let UnifiedConnectorServiceError::ConnectorError(inner) = error.current_context() {
+                // Fire kill switch for connector errors
+                if let Ok(flow_name) = get_flow_name::<T>() {
                     kill_switch::record_failure(
                         state,
                         kill_switch::UcsFailureContext {
@@ -3200,24 +3323,67 @@ where
                     )
                     .await;
                 }
-                // Never expected, but skipping here would disable the kill switch for this flow
-                // without saying so.
-                Err(flow_name_error) => logger::error!(
-                    ?flow_name_error,
-                    connector = %connector_name,
-                    "ucs_kill_switch: could not resolve the flow name, failure not classified"
-                ),
-            }
 
-            let error_body = serde_json::json!({
-                "error": error.to_string(),
-                "error_type": "ucs_call_failed"
-            });
-            (
-                error.current_context().http_status(),
-                Some(error_body),
-                Err(error),
-            )
+                let status_code = inner.status_code;
+                let mut router_data = router_data_clone;
+                router_data.response = Err(inner.as_ref().into());
+                router_data.connector_http_status_code = Some(status_code);
+
+                let error_body = serde_json::json!({
+                    "error": error.to_string(),
+                    "error_type": "connector_error"
+                });
+
+                (
+                    status_code,
+                    Some(error_body),
+                    Ok((router_data, FlowOutput::default())),
+                )
+            } else {
+                // Update error metrics for UCS calls
+                crate::routes::metrics::CONNECTOR_ERROR_RESPONSE_COUNT.add(
+                    1,
+                    router_env::metric_attributes!(("connector", connector_name.clone(),)),
+                );
+
+                // Every payment and payout gateway funnels through here with the UCS error still
+                // typed, so this is the one place the kill switch has to observe.
+                match get_flow_name::<T>() {
+                    Ok(flow_name) => {
+                        kill_switch::record_failure(
+                            state,
+                            kill_switch::UcsFailureContext {
+                                merchant_id: merchant_id.get_string_repr(),
+                                connector_name: &connector_name,
+                                flow_name: &flow_name,
+                                payment_id: &payment_id,
+                                payment_method,
+                                payment_method_type,
+                            },
+                            execution_mode,
+                            error.current_context(),
+                        )
+                        .await;
+                    }
+                    // Never expected, but skipping here would disable the kill switch for this flow
+                    // without saying so.
+                    Err(flow_name_error) => logger::error!(
+                        ?flow_name_error,
+                        connector = %connector_name,
+                        "ucs_kill_switch: could not resolve the flow name, failure not classified"
+                    ),
+                }
+
+                let error_body = serde_json::json!({
+                    "error": error.to_string(),
+                    "error_type": "ucs_call_failed"
+                });
+                (
+                    error.current_context().http_status(),
+                    Some(error_body),
+                    Err(error),
+                )
+            }
         }
     };
 
@@ -3381,14 +3547,6 @@ pub async fn call_unified_connector_service_for_refund_execute(
 
     let prev_refund_status = router_data.request.refund_status;
 
-    // Captured before `router_data` moves into the wrapper, so the kill switch can build the same
-    // scope the gateway decision built.
-    let merchant_id_for_kill_switch = processor.get_account().get_id().clone();
-    let connector_name_for_kill_switch = router_data.connector.clone();
-    let payment_method_for_kill_switch = router_data.payment_method;
-    let payment_method_type_for_kill_switch = router_data.payment_method_type;
-    let payment_id_for_kill_switch = router_data.payment_id.clone();
-
     // Make UCS refund call with logging wrapper
     Box::pin(ucs_logging_wrapper(
         router_data,
@@ -3398,67 +3556,11 @@ pub async fn call_unified_connector_service_for_refund_execute(
         execution_mode,
         |mut router_data, grpc_request, grpc_headers| async move {
             // Call UCS payment_refund method
-            let response = match ucs_client
+            // UCS connector errors are handled by the wrapper — see `ucs_logging_wrapper`.
+            let response = ucs_client
                 .payment_refund(grpc_request, connector_auth_metadata, grpc_headers)
                 .await
-            {
-                Ok(resp) => resp,
-                Err(report) => {
-                    // Recorded before the connector-error branch below returns `Ok`, so a refund
-                    // decline is classified on the same footing as a payment one.
-                    kill_switch::record_failure(
-                        state,
-                        kill_switch::UcsFailureContext {
-                            merchant_id: merchant_id_for_kill_switch.get_string_repr(),
-                            connector_name: &connector_name_for_kill_switch,
-                            flow_name: "Execute",
-                            payment_id: &payment_id_for_kill_switch,
-                            payment_method: payment_method_for_kill_switch,
-                            payment_method_type: payment_method_type_for_kill_switch,
-                        },
-                        execution_mode,
-                        report.current_context(),
-                    )
-                    .await;
-
-                    if let UnifiedConnectorServiceError::ConnectorError(inner) =
-                        report.current_context()
-                    {
-                        let (code, message, status_code, reason, connector,
-                             network_decline_code, network_advice_code, network_error_message) = (
-                            &inner.code, &inner.message, inner.status_code, &inner.reason,
-                            &inner.connector, &inner.network_decline_code,
-                            &inner.network_advice_code, &inner.network_error_message,
-                        );
-                        logger::info!(
-                            "Connector error via UCS for refund execute (connector {}, status {}): {} - {}",
-                            connector,
-                            status_code,
-                            code,
-                            message
-                        );
-                        router_data.response = Err(ErrorResponse {
-                            code: code.clone(),
-                            message: message.clone(),
-                            reason: reason.clone(),
-                            status_code,
-                            attempt_status: None,
-                            connector_transaction_id: inner.connector_transaction_id.clone(),
-                            connector_response_reference_id: None,
-                            network_decline_code: network_decline_code.clone(),
-                            network_advice_code: network_advice_code.clone(),
-                            network_error_message: network_error_message.clone(),
-                            connector_metadata: None,
-                        });
-                        router_data.connector_http_status_code = Some(status_code);
-                        return Ok((router_data, (), payments_grpc::RefundResponse::default()));
-                    }
-                    let api_error = report.current_context().switch();
-                    return Err(report
-                        .change_context(api_error)
-                        .attach_printable("UCS refund execution failed"));
-                }
-            };
+                .attach_printable("UCS refund execution failed")?;
 
             let grpc_response = response.into_inner();
 
@@ -3468,7 +3570,6 @@ pub async fn call_unified_connector_service_for_refund_execute(
                     grpc_response.clone(),
                     prev_refund_status,
                 )
-                .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to transform UCS refund response")?;
 
             router_data.response = refund_response_data;
@@ -3542,14 +3643,6 @@ pub async fn call_unified_connector_service_for_refund_sync(
 
     let prev_refund_status = router_data.request.refund_status;
 
-    // Captured before `router_data` moves into the wrapper, so the kill switch can build the same
-    // scope the gateway decision built.
-    let merchant_id_for_kill_switch = processor.get_account().get_id().clone();
-    let connector_name_for_kill_switch = router_data.connector.clone();
-    let payment_method_for_kill_switch = router_data.payment_method;
-    let payment_method_type_for_kill_switch = router_data.payment_method_type;
-    let payment_id_for_kill_switch = router_data.payment_id.clone();
-
     // Make UCS refund sync call with logging wrapper
     Box::pin(ucs_logging_wrapper(
         router_data,
@@ -3559,67 +3652,11 @@ pub async fn call_unified_connector_service_for_refund_sync(
         execution_mode,
         |mut router_data, grpc_request, grpc_headers| async move {
             // Call UCS refund_sync method
-            let response = match ucs_client
+            // UCS connector errors are handled by the wrapper — see `ucs_logging_wrapper`.
+            let response = ucs_client
                 .refund_get(grpc_request, connector_auth_metadata, grpc_headers)
                 .await
-            {
-                Ok(resp) => resp,
-                Err(report) => {
-                    // Recorded before the connector-error branch below returns `Ok`, so a refund
-                    // decline is classified on the same footing as a payment one.
-                    kill_switch::record_failure(
-                        state,
-                        kill_switch::UcsFailureContext {
-                            merchant_id: merchant_id_for_kill_switch.get_string_repr(),
-                            connector_name: &connector_name_for_kill_switch,
-                            flow_name: "RSync",
-                            payment_id: &payment_id_for_kill_switch,
-                            payment_method: payment_method_for_kill_switch,
-                            payment_method_type: payment_method_type_for_kill_switch,
-                        },
-                        execution_mode,
-                        report.current_context(),
-                    )
-                    .await;
-
-                    if let UnifiedConnectorServiceError::ConnectorError(inner) =
-                        report.current_context()
-                    {
-                        let (code, message, status_code, reason, connector,
-                             network_decline_code, network_advice_code, network_error_message) = (
-                            &inner.code, &inner.message, inner.status_code, &inner.reason,
-                            &inner.connector, &inner.network_decline_code,
-                            &inner.network_advice_code, &inner.network_error_message,
-                        );
-                        logger::info!(
-                            "Connector error via UCS for refund sync (connector {}, status {}): {} - {}",
-                            connector,
-                            status_code,
-                            code,
-                            message
-                        );
-                        router_data.response = Err(ErrorResponse {
-                            code: code.clone(),
-                            message: message.clone(),
-                            reason: reason.clone(),
-                            status_code,
-                            attempt_status: None,
-                            connector_transaction_id: inner.connector_transaction_id.clone(),
-                            connector_response_reference_id: None,
-                            network_decline_code: network_decline_code.clone(),
-                            network_advice_code: network_advice_code.clone(),
-                            network_error_message: network_error_message.clone(),
-                            connector_metadata: None,
-                        });
-                        router_data.connector_http_status_code = Some(status_code);
-                        return Ok((router_data, (), payments_grpc::RefundResponse::default()));
-                    }
-                    let api_error = report.current_context().switch();
-                    return Err(report
-                        .change_context(api_error)
-                        .attach_printable("UCS refund sync execution failed"));
-                }
-            };
+                .attach_printable("UCS refund sync execution failed")?;
 
             let grpc_response = response.into_inner();
 
@@ -3629,7 +3666,6 @@ pub async fn call_unified_connector_service_for_refund_sync(
                     grpc_response.clone(),
                     prev_refund_status,
                 )
-                .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to transform UCS refund get response")?;
 
             router_data.response = refund_response_data;
