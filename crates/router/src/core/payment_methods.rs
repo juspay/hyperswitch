@@ -5738,7 +5738,7 @@ pub async fn retrieve_payment_method(
         resolve_storage_type_from_token(&state, &pm.payment_method_id).await?;
 
     // 2. Fetch payment method record based on resolved storage type
-    let (storage_type, payment_method) = fetch_payment_method_by_storage(
+    let (storage_type, mut payment_method) = fetch_payment_method_by_storage(
         &state,
         platform.get_provider(),
         &pm,
@@ -5834,7 +5834,7 @@ pub async fn retrieve_payment_method(
             .with_organization_id(platform.get_provider().get_account().get_org_id().clone())
             .with_profile_id(profile.get_id().clone());
 
-        Box::pin(account_updater::run_account_updater(
+        let updated_payment_method = Box::pin(account_updater::run_account_updater(
             &state,
             &platform,
             &profile,
@@ -5842,7 +5842,40 @@ pub async fn retrieve_payment_method(
             raw_payment_method_data.as_ref(),
             &account_updater_dimensions,
         ))
-        .await;
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Account Updater failed while applying a card change")?;
+
+        if let Some(updated_payment_method) = updated_payment_method {
+            let refreshed_card = Box::pin(
+                raw_payment_method_access
+                    .retrieve_raw_card
+                    .get_raw_payment_method_data(
+                        &state,
+                        &platform,
+                        &profile,
+                        &updated_payment_method,
+                        storage_type,
+                    ),
+            )
+            .await
+            .attach_printable("Failed to get raw payment method data")?;
+
+            raw_payment_method_data = match (refreshed_card, raw_payment_method_data) {
+                (
+                    Some(payment_methods::RawPaymentMethodData::Card(card_details)),
+                    Some(payment_methods::RawPaymentMethodData::CardWithNT(previous)),
+                ) => Some(payment_methods::RawPaymentMethodData::CardWithNT(
+                    payment_methods::RawCardWithNTDetails {
+                        card_details,
+                        network_token_details: previous.network_token_details,
+                    },
+                )),
+                (refreshed_card, _) => refreshed_card,
+            };
+
+            payment_method = updated_payment_method;
+        }
     }
 
     match raw_payment_method_access.response {

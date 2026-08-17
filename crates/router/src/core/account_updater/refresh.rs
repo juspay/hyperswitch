@@ -5,7 +5,7 @@ use external_services::grpc_client::LineageIds;
 use router_env::{instrument, tracing};
 use unified_connector_service_client::payments as payments_grpc;
 
-use super::types::{AccountUpdaterError, ResolvedAccountUpdaterConfig};
+use super::types::{AccountUpdaterError, CardRefreshResult, ResolvedAccountUpdaterConfig};
 use crate::{
     core::unified_connector_service::build_unified_connector_service_auth_metadata_without_mca,
     routes::SessionState, types::domain,
@@ -18,7 +18,7 @@ pub async fn request_account_updater_refresh(
     profile: &domain::Profile,
     config: &ResolvedAccountUpdaterConfig,
     refreshable_payment_method: payments_grpc::PaymentMethod,
-) -> CustomResult<payments_grpc::CardRefreshOutcome, AccountUpdaterError> {
+) -> CustomResult<CardRefreshResult, AccountUpdaterError> {
     let client = state
         .grpc_client
         .unified_connector_service_client
@@ -75,15 +75,23 @@ pub async fn request_account_updater_refresh(
         );
     }
 
-    response
+    let result = response
         .result
         .and_then(|result| result.result)
-        .map(|result| match result {
-            payments_grpc::refresh_result::Result::Card(card) => {
-                payments_grpc::CardRefreshOutcome::try_from(card.outcome)
-                    .unwrap_or(payments_grpc::CardRefreshOutcome::Unspecified)
-            }
-        })
         .ok_or_else(|| report!(AccountUpdaterError::RefreshReturnedError))
-        .attach_printable("UCS returned neither a result nor an error")
+        .attach_printable("UCS returned neither a result nor an error")?;
+
+    match result {
+        payments_grpc::refresh_result::Result::Card(card) => Ok(build_card_refresh_result(card)),
+    }
+}
+
+fn build_card_refresh_result(card_result: payments_grpc::CardRefreshResult) -> CardRefreshResult {
+    let outcome = payments_grpc::CardRefreshOutcome::try_from(card_result.outcome)
+        .unwrap_or(payments_grpc::CardRefreshOutcome::Unspecified);
+
+    CardRefreshResult {
+        outcome,
+        card: card_result.card,
+    }
 }
