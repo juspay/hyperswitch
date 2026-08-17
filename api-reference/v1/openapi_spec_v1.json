@@ -40523,15 +40523,17 @@
               },
               "limit": {
                 "type": "integer",
-                "format": "int64",
+                "format": "int32",
                 "description": "Limit on the number of objects to return",
-                "nullable": true
+                "nullable": true,
+                "minimum": 0
               },
               "offset": {
                 "type": "integer",
-                "format": "int64",
+                "format": "int32",
                 "description": "The starting point within a list of objects",
-                "nullable": true
+                "nullable": true,
+                "minimum": 0
               },
               "amount_filter": {
                 "allOf": [
