@@ -806,8 +806,7 @@ impl DisputeInterface for MockDb {
         _storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<Vec<storage::Dispute>, errors::StorageError> {
         let locked_disputes = self.disputes.lock().await;
-        let limit_usize =
-            usize::try_from(dispute_constraints.limit.as_i64()).unwrap_or(usize::MAX);
+        let limit_usize = usize::try_from(dispute_constraints.limit.as_i64()).unwrap_or(usize::MAX);
         let offset_usize =
             usize::try_from(dispute_constraints.offset.as_i64()).unwrap_or(usize::MIN);
         let filtered_disputes: Vec<storage::Dispute> = locked_disputes
