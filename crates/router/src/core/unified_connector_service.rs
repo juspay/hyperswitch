@@ -10,7 +10,7 @@ use common_enums::{
 use common_utils::{
     consts::BASE64_ENGINE,
     errors::{CustomResult, ErrorSwitch},
-    ext_traits::ValueExt,
+    ext_traits::{StringExt, ValueExt},
     id_type,
     request::Method,
     ucs_types,
@@ -72,7 +72,7 @@ pub mod kill_switch;
 pub mod transformers;
 
 pub struct RefundReverseUcsResponse {
-    pub state_metadata: Option<Secret<String>>,
+    pub state_metadata: Option<common_utils::pii::SecretSerdeValue>,
     pub raw_connector_response: Option<Secret<String>>,
     pub connector_refund_id: String,
     pub status: common_enums::RefundStatus,
@@ -3647,17 +3647,19 @@ pub async fn call_unified_connector_service_for_refund_void_post_refund(
     let lineage_ids = LineageIds::new(merchant_id, profile_id);
     let merchant_reference_id =
         id_type::PaymentReferenceId::from_str(router_data.payment_id.as_str())
-            .inspect_err(|error| logger::warn!(?error, "Invalid PaymentId for UCS reference id"))
-            .ok()
-            .map(ucs_types::UcsReferenceId::Payment);
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to convert payment_id to UCS reference id")
+            .map(ucs_types::UcsReferenceId::Payment)
+            .map(Some)?;
     let resource_id = router_data
         .refund_id
         .as_ref()
-        .and_then(|refund_id| {
+        .map(|refund_id| {
             id_type::RefundReferenceId::try_from(Cow::Owned(refund_id.to_string()))
-                .inspect_err(|error| logger::warn!(?error, "Invalid RefundId for UCS resource id"))
-                .ok()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to convert refund_id to UCS resource id")
         })
+        .transpose()?
         .map(ucs_types::UcsResourceId::Refund);
     let grpc_headers = state
         .get_grpc_headers_ucs(execution_mode)
@@ -3730,9 +3732,20 @@ pub async fn call_unified_connector_service_for_refund_void_post_refund(
     ))
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to transform UCS refund reverse status")?;
+    let state_metadata = grpc_response
+        .state_metadata
+        .map(|state_metadata| {
+            state_metadata
+                .expose()
+                .parse_struct("UCS refund reverse state metadata")
+                .map(common_utils::pii::SecretSerdeValue::new)
+        })
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to deserialize UCS refund reverse state metadata")?;
 
     Ok(RefundReverseUcsResponse {
-        state_metadata: grpc_response.state_metadata,
+        state_metadata,
         raw_connector_response: grpc_response.raw_connector_response,
         connector_refund_id: grpc_response.connector_refund_id,
         status,
