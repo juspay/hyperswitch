@@ -4108,6 +4108,7 @@ pub struct AdditionalCardInfo {
     pub card_issuer: Option<String>,
 
     /// Card network of the card
+    #[schema(value_type = Option<CardNetwork>, example = "Visa")]
     pub card_network: Option<api_enums::CardNetwork>,
 
     /// Card type, can be either `credit` or `debit`
@@ -4126,10 +4127,13 @@ pub struct AdditionalCardInfo {
     /// Extended bin of card, contains the first 8 digits of card number
     pub card_extended_bin: Option<String>,
 
+    #[schema(value_type = Option<String>, example = "01")]
     pub card_exp_month: Option<Secret<String>>,
 
+    #[schema(value_type = Option<String>, example = "2026")]
     pub card_exp_year: Option<Secret<String>>,
 
+    #[schema(value_type = Option<String>, example = "John Doe")]
     pub card_holder_name: Option<Secret<String>>,
 
     /// Additional payment checks done on the cvv and billing address by the processors.
@@ -4147,6 +4151,7 @@ pub struct AdditionalCardInfo {
 
     /// The global signature network under which the card is issued.
     /// This represents the primary global card brand, even if the transaction uses a local network
+    #[schema(value_type = Option<CardNetwork>, example = "Visa")]
     pub signature_network: Option<api_enums::CardNetwork>,
     /// Unique authorisation code generated for the payment.
     pub auth_code: Option<String>,
@@ -13895,6 +13900,7 @@ pub struct RecoveryPaymentsCreate {
     pub payment_method_data: CustomRecoveryPaymentMethodData,
 
     /// Type of action that needs to be taken after consuming the recovery payload. For example: scheduling a failed payment or stopping the invoice.
+    #[schema(value_type = RecoveryAction, example = "schedule_failed_payment")]
     pub action: common_payments_types::RecoveryAction,
 
     /// Allow partial authorization for this payment
