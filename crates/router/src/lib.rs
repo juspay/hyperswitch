@@ -9,6 +9,8 @@ pub mod cors;
 pub mod db;
 #[cfg(feature = "deja")]
 pub mod deja_boot;
+#[cfg(all(test, feature = "deja"))]
+pub(crate) mod deja_test_support;
 pub mod env;
 pub mod locale;
 pub(crate) mod macros;

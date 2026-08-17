@@ -8397,6 +8397,7 @@ dependencies = [
  "tokio 1.48.0",
  "totp-rs",
  "tracing-futures",
+ "tracing-subscriber",
  "ucs_cards",
  "unicode-segmentation",
  "url 2.5.4",

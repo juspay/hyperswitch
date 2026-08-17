@@ -1,5 +1,13 @@
 use std::{collections::HashMap, ops::Deref};
 
+#[cfg(any(feature = "v1", all(test, feature = "deja")))]
+use std::future::Future;
+#[cfg(all(feature = "deja", any(feature = "v1", test)))]
+use std::{
+    pin::Pin,
+    task::{Context, Poll},
+};
+
 #[cfg(feature = "v1")]
 use ::payment_methods::client::{
     BankDebitDetailUpdate, CardDetailUpdate, PaymentMethodUpdateData, UpdatePaymentMethodV1Payload,
@@ -70,6 +78,68 @@ use crate::{
     },
     utils,
 };
+
+#[cfg(all(feature = "deja", any(feature = "v1", test)))]
+/// Reinstalls a captured sampling decision when request teardown has removed it.
+/// Correlation and fork lineage remain owned by `deja::spawn_fork`'s tracing span.
+struct RetainedDejaDecision<F> {
+    future: Pin<Box<F>>,
+    correlation_id: Option<String>,
+    decision: Option<deja::RecordDecision>,
+}
+
+#[cfg(all(feature = "deja", any(feature = "v1", test)))]
+impl<F> RetainedDejaDecision<F> {
+    fn capture(future: F) -> Self {
+        Self {
+            future: Box::pin(future),
+            correlation_id: deja::__private::current_correlation_id(),
+            decision: deja::recording_decision_for_current(),
+        }
+    }
+}
+
+#[cfg(all(feature = "deja", any(feature = "v1", test)))]
+impl<F: Future> Future for RetainedDejaDecision<F> {
+    type Output = F::Output;
+
+    fn poll(self: Pin<&mut Self>, context: &mut Context<'_>) -> Poll<Self::Output> {
+        let this = self.get_mut();
+        let _decision_guard = this
+            .correlation_id
+            .as_deref()
+            .zip(this.decision)
+            .filter(|(correlation_id, _)| deja::recording_decision(correlation_id).is_none())
+            .map(|(correlation_id, decision)| {
+                deja::set_recording_decision(correlation_id, decision);
+                InstalledDejaDecision(correlation_id)
+            });
+
+        this.future.as_mut().poll(context)
+    }
+}
+
+#[cfg(all(feature = "deja", any(feature = "v1", test)))]
+struct InstalledDejaDecision<'a>(&'a str);
+
+#[cfg(all(feature = "deja", any(feature = "v1", test)))]
+impl Drop for InstalledDejaDecision<'_> {
+    fn drop(&mut self) {
+        deja::clear_recording_decision(self.0);
+    }
+}
+
+#[cfg(any(feature = "v1", all(test, feature = "deja")))]
+fn spawn_save_payment_method<F>(future: F)
+where
+    F: Future<Output = ()> + Send + 'static,
+{
+    #[cfg(feature = "deja")]
+    deja::spawn_fork(RetainedDejaDecision::capture(future));
+
+    #[cfg(not(feature = "deja"))]
+    let _task_handle = tokio::spawn(future.in_current_span());
+}
 
 /// This implementation executes the flow only when
 /// 1. Payment was created with supported payment methods
@@ -712,78 +782,76 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
             let cloned_platform = platform.clone();
             let async_dimension = dimensions.clone();
             logger::info!("Call to save_payment_method in locker");
-            let _task_handle = tokio::spawn(
-                async move {
-                    logger::info!("Starting async call to save_payment_method in locker");
+            let save_payment_method_future = async move {
+                logger::info!("Starting async call to save_payment_method in locker");
 
-                    let result = Box::pin(tokenization::save_payment_method(
-                        &state,
-                        connector_name,
-                        save_payment_data,
-                        customer_id,
-                        &cloned_platform,
-                        payment_method_type,
-                        billing_name,
-                        payment_method_billing_address.as_ref(),
-                        &business_profile,
-                        connector_mandate_reference_id,
-                        merchant_connector_id.clone(),
-                        vault_operation.clone(),
-                        payment_method_info.clone(),
-                        payment_method_token.clone(),
-                        customer_details.clone(),
-                        &async_dimension,
-                    ))
-                    .await;
+                let result = Box::pin(tokenization::save_payment_method(
+                    &state,
+                    connector_name,
+                    save_payment_data,
+                    customer_id,
+                    &cloned_platform,
+                    payment_method_type,
+                    billing_name,
+                    payment_method_billing_address.as_ref(),
+                    &business_profile,
+                    connector_mandate_reference_id,
+                    merchant_connector_id.clone(),
+                    vault_operation.clone(),
+                    payment_method_info.clone(),
+                    payment_method_token.clone(),
+                    customer_details.clone(),
+                    &async_dimension,
+                ))
+                .await;
 
-                    if let Err(err) = result {
-                        logger::error!("Asynchronously saving card in locker failed : {:?}", err);
-                    } else if let Ok(tokenization::SavePaymentMethodDataResponse {
-                        payment_method_id,
-                        ..
-                    }) = result
-                    {
-                        let payment_attempt_update =
-                            storage::PaymentAttemptUpdate::PaymentMethodDetailsUpdate {
-                                payment_method_id,
-                                updated_by: cloned_platform
-                                    .get_processor()
-                                    .get_account()
-                                    .storage_scheme
-                                    .clone()
-                                    .to_string(),
-                            };
-
-                        #[cfg(feature = "v1")]
-                        let respond = state
-                            .store
-                            .update_payment_attempt_with_attempt_id(
-                                payment_attempt,
-                                payment_attempt_update,
-                                cloned_platform.get_processor().get_account().storage_scheme,
-                                cloned_platform.get_processor().get_key_store(),
-                            )
-                            .await;
-
-                        #[cfg(feature = "v2")]
-                        let respond = state
-                            .store
-                            .update_payment_attempt_with_attempt_id(
-                                &(&state).into(),
-                                &key_store.clone(),
-                                payment_attempt,
-                                payment_attempt_update,
-                                cloned_platform.get_processor().get_account().storage_scheme,
-                            )
-                            .await;
-
-                        if let Err(err) = respond {
-                            logger::error!("Error updating payment attempt: {:?}", err);
+                if let Err(err) = result {
+                    logger::error!("Asynchronously saving card in locker failed : {:?}", err);
+                } else if let Ok(tokenization::SavePaymentMethodDataResponse {
+                    payment_method_id,
+                    ..
+                }) = result
+                {
+                    let payment_attempt_update =
+                        storage::PaymentAttemptUpdate::PaymentMethodDetailsUpdate {
+                            payment_method_id,
+                            updated_by: cloned_platform
+                                .get_processor()
+                                .get_account()
+                                .storage_scheme
+                                .clone()
+                                .to_string(),
                         };
-                    }
+
+                    #[cfg(feature = "v1")]
+                    let respond = state
+                        .store
+                        .update_payment_attempt_with_attempt_id(
+                            payment_attempt,
+                            payment_attempt_update,
+                            cloned_platform.get_processor().get_account().storage_scheme,
+                            cloned_platform.get_processor().get_key_store(),
+                        )
+                        .await;
+
+                    #[cfg(feature = "v2")]
+                    let respond = state
+                        .store
+                        .update_payment_attempt_with_attempt_id(
+                            &(&state).into(),
+                            &key_store.clone(),
+                            payment_attempt,
+                            payment_attempt_update,
+                            cloned_platform.get_processor().get_account().storage_scheme,
+                        )
+                        .await;
+
+                    if let Err(err) = respond {
+                        logger::error!("Error updating payment attempt: {:?}", err);
+                    };
                 }
-                .in_current_span(),
-            );
+            };
+            spawn_save_payment_method(save_payment_method_future);
             Ok(())
         }
     }
@@ -4558,5 +4626,84 @@ impl<F: Clone + Send + Sync>
         }
 
         Ok(payment_data)
+    }
+}
+#[cfg(all(test, feature = "deja"))]
+mod deja_tests {
+    use super::spawn_save_payment_method;
+
+    #[tokio::test]
+    async fn detached_save_payment_method_clock_retains_correlation_and_fork_lineage() {
+        const CORRELATION_ID: &str = "payment-response-detached-save-payment-method-clock";
+
+        let (modified_at, events) = crate::deja_test_support::capture_after_request(
+            CORRELATION_ID,
+            async {
+                let (release_tx, release_rx) = tokio::sync::oneshot::channel();
+                let (completed_tx, completed_rx) = tokio::sync::oneshot::channel();
+
+                spawn_save_payment_method(async move {
+                    release_rx
+                        .await
+                        .expect("request must release detached save-payment-method future");
+                    let update =
+                        diesel_models::payment_attempt::PaymentAttemptUpdate::PaymentMethodDetailsUpdate {
+                            payment_method_id: Some("pm_detached_clock".to_owned()),
+                            updated_by: "payment-response-deja-test".to_owned(),
+                        };
+                    let internal =
+                        diesel_models::payment_attempt::PaymentAttemptUpdateInternal::from(update);
+                    let _ = completed_tx.send(internal.modified_at);
+                });
+
+                (release_tx, completed_rx)
+            },
+            |(release_tx, completed_rx)| async move {
+                release_tx
+                    .send(())
+                    .expect("detached save-payment-method future must still be waiting");
+                completed_rx
+                    .await
+                    .expect("detached save-payment-method future must complete")
+            },
+        )
+        .await;
+
+        let clock_event = events
+            .iter()
+            .find_map(|record| match record {
+                deja::DejaRecord::BoundaryEvent(event)
+                    if event.boundary == "time"
+                        && event.trait_name == "common_utils"
+                        && event.method_name == "date_time::now" =>
+                {
+                    Some(event.as_ref())
+                }
+                _ => None,
+            })
+            .expect("PaymentMethodDetailsUpdate clock boundary must be retained");
+
+        assert_eq!(
+            clock_event.correlation_id.as_deref(),
+            Some(CORRELATION_ID),
+            "detached clock boundary must inherit the request correlation"
+        );
+        assert_eq!(
+            clock_event.result,
+            serde_json::to_value(modified_at).expect("modified_at must serialize"),
+            "capture must retain PaymentMethodDetailsUpdate's plaintext modified_at"
+        );
+        let lineage_bucket = clock_event
+            .bucket_id
+            .as_deref()
+            .expect("deja.fork must stamp a lineage bucket");
+        assert_ne!(
+            lineage_bucket, "root",
+            "deja.fork must create a non-root lineage bucket"
+        );
+        assert!(
+            clock_event.fork_seq.is_some_and(|fork_seq| fork_seq > 0),
+            "deja.fork must stamp a positive fork sequence"
+        );
     }
 }

@@ -336,6 +336,7 @@ rand = "0.8.5"
 serial_test = "3.2.0"
 time = { version = "0.3.41", features = ["macros"] }
 tokio = "1.48.0"
+tracing-subscriber = { version = "0.3.19", default-features = false, features = ["registry"] }
 wiremock = "0.6.3"
 
 # First party dev-dependencies

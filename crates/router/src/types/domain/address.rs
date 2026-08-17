@@ -11,7 +11,7 @@ use diesel_models::{address::AddressUpdateInternal, enums};
 use error_stack::ResultExt;
 use hyperswitch_masking::{PeekInterface, Secret, SwitchStrategy};
 use rustc_hash::FxHashMap;
-use time::{OffsetDateTime, PrimitiveDateTime};
+use time::PrimitiveDateTime;
 
 use super::{behaviour, types};
 
@@ -335,11 +335,64 @@ impl From<AddressUpdate> for AddressUpdateInternal {
                 last_name: last_name.map(Encryption::from),
                 phone_number: phone_number.map(Encryption::from),
                 country_code,
-                modified_at: date_time::convert_to_pdt(OffsetDateTime::now_utc()),
+                modified_at: date_time::now(),
                 updated_by,
                 email: email.map(Encryption::from),
                 origin_zip: origin_zip.map(Encryption::from),
             },
         }
+    }
+}
+
+#[cfg(all(test, feature = "deja"))]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn address_update_modified_at_matches_captured_clock_value() {
+        let correlation_id = format!("address-update-clock-{}", uuid::Uuid::new_v4());
+        let (update, records) = crate::deja_test_support::capture(&correlation_id, async {
+            AddressUpdateInternal::from(AddressUpdate::Update {
+                city: None,
+                country: None,
+                line1: None,
+                line2: None,
+                line3: None,
+                state: None,
+                zip: None,
+                first_name: None,
+                last_name: None,
+                phone_number: None,
+                country_code: None,
+                updated_by: "address-clock-test".to_owned(),
+                email: None,
+                origin_zip: None,
+            })
+        })
+        .await;
+
+        let mut clock_results = records.iter().filter_map(|record| match record {
+            deja::DejaRecord::BoundaryEvent(event)
+                if event.boundary == "time"
+                    && event.trait_name == "common_utils"
+                    && event.method_name == "date_time::now" =>
+            {
+                Some(&event.result)
+            }
+            _ => None,
+        });
+        let captured_time: PrimitiveDateTime = serde_json::from_value(
+            clock_results
+                .next()
+                .expect("address update must cross the instrumented clock")
+                .clone(),
+        )
+        .expect("captured clock result must contain a plaintext PrimitiveDateTime");
+
+        assert!(
+            clock_results.next().is_none(),
+            "address update must read the instrumented clock exactly once"
+        );
+        assert_eq!(update.modified_at, captured_time);
     }
 }
