@@ -10142,7 +10142,7 @@ pub struct DatatransConnectorMetadataData {
     /// The amount in the targeted currency.
     #[schema(value_type = i64)]
     #[smithy(value_type = "i64")]
-    pub amount: i64,
+    pub amount: MinorUnit,
     /// Conversion rate received from the currency rates endpoint. Required for dynamic MCP.
     #[smithy(value_type = "Option<f64>")]
     pub conversion_rate: Option<f64>,
