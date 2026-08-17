@@ -2708,11 +2708,7 @@
             "description": "limit on the number of objects to return",
             "required": true,
             "schema": {
-              "type": "integer",
-              "format": "int32",
-              "default": 10,
-              "maximum": 100,
-              "minimum": 0
+              "$ref": "#/components/schemas/common_utils.types.list.PageSize"
             }
           },
           {
@@ -2721,10 +2717,7 @@
             "description": "The starting point within a list of objects",
             "required": true,
             "schema": {
-              "type": "integer",
-              "format": "int32",
-              "nullable": true,
-              "minimum": 0
+              "$ref": "#/components/schemas/common_utils.types.list.PageOffset"
             }
           },
           {
@@ -26331,12 +26324,7 @@
                 "nullable": true
               },
               "limit": {
-                "type": "integer",
-                "format": "int32",
-                "description": "limit on the number of objects to return",
-                "default": 10,
-                "maximum": 100,
-                "minimum": 0
+                "$ref": "#/components/schemas/common_utils.types.list.PageSize"
               },
               "created": {
                 "type": "string",
@@ -26393,17 +26381,10 @@
                 "nullable": true
               },
               "limit": {
-                "type": "integer",
-                "format": "int32",
-                "description": "The limit on the number of objects. The default limit is 10 and max limit is 20",
-                "minimum": 0
+                "$ref": "#/components/schemas/common_utils.types.list.PageSize"
               },
               "offset": {
-                "type": "integer",
-                "format": "int32",
-                "description": "The starting point within a list of objects",
-                "nullable": true,
-                "minimum": 0
+                "$ref": "#/components/schemas/common_utils.types.list.PageOffset"
               },
               "connector": {
                 "type": "array",
@@ -29077,18 +29058,10 @@
                 "description": "The identifier for the refund"
               },
               "limit": {
-                "type": "integer",
-                "format": "int32",
-                "description": "Limit on the number of objects to return",
-                "nullable": true,
-                "minimum": 0
+                "$ref": "#/components/schemas/common_utils.types.list.PageSize"
               },
               "offset": {
-                "type": "integer",
-                "format": "int32",
-                "description": "The starting point within a list of objects",
-                "nullable": true,
-                "minimum": 0
+                "$ref": "#/components/schemas/common_utils.types.list.PageOffset"
               },
               "amount_filter": {
                 "allOf": [
