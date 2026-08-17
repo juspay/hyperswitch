@@ -1500,14 +1500,8 @@ pub async fn refund_list(
     req: api_models::refunds::RefundListRequest,
 ) -> RouterResponse<api_models::refunds::RefundListResponse> {
     let db = state.store;
-    let limit = diesel_models::list::PageSize::new(
-        req.limit.map(|l| u32::try_from(l).unwrap_or(u32::MAX)),
-        common_utils::consts::REFUNDS_LIST_DEFAULT_LIMIT,
-        common_utils::consts::REFUNDS_LIST_MAX_LIMIT,
-    );
-    let offset = diesel_models::list::PageOffset::new(
-        req.offset.map(|o| u32::try_from(o).unwrap_or(u32::MAX)),
-    );
+    let limit = req.limit;
+    let offset = req.offset;
 
     let refund_list = db
         .filter_refund_by_constraints(

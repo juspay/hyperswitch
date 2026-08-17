@@ -22,6 +22,11 @@ pub static FRM_CONFIGS_EG: &str = r#"
 [{"gateway":"stripe","payment_methods":[{"payment_method":"card","payment_method_types":[{"payment_method_type":"credit","card_networks":["Visa"],"flow":"pre","action":"cancel_txn"},{"payment_method_type":"debit","card_networks":["Visa"],"flow":"pre"}]}]}]
 "#;
 
+/// Global maximum limit for any list API (single cap across endpoints).
+pub const LIST_MAX_LIMIT: u32 = 100;
+/// Global default limit for any list API when the caller omits it.
+pub const LIST_DEFAULT_LIMIT: u32 = 10;
+
 /// Maximum limit for payments list get api
 pub const PAYMENTS_LIST_MAX_LIMIT_V1: u32 = 100;
 /// Maximum limit for payments list post api with filters

@@ -9248,7 +9248,7 @@ pub enum SortOn {
     /// Sort by the created_at field
     #[default]
     Created,
-    /// Sort by the modified_at field (now sorts by `created_at` for pagination stability).
+    /// Sort by the modified_at field
     Modified,
 }
 

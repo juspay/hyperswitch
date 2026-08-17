@@ -4154,30 +4154,21 @@ pub(super) async fn filter_by_constraints(
 pub(super) fn validate_payment_list_request(
     req: &api::PaymentListConstraints,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
-    use common_utils::consts::PAYMENTS_LIST_MAX_LIMIT_V1;
-
-    utils::when(
-        req.limit > PAYMENTS_LIST_MAX_LIMIT_V1 || req.limit < 1,
-        || {
-            Err(errors::ApiErrorResponse::InvalidRequestData {
-                message: format!("limit should be in between 1 and {PAYMENTS_LIST_MAX_LIMIT_V1}"),
-            })
-        },
-    )?;
-    Ok(())
+    crate::core::utils::validate_list_limit(
+        Some(req.limit),
+        common_utils::consts::PAYMENTS_LIST_MAX_LIMIT_V1,
+    )
+    .map_err(Into::into)
 }
 #[cfg(feature = "olap")]
 pub(super) fn validate_payment_list_request_for_joins(
     limit: u32,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
-    use common_utils::consts::PAYMENTS_LIST_MAX_LIMIT_V2;
-
-    utils::when(!(1..=PAYMENTS_LIST_MAX_LIMIT_V2).contains(&limit), || {
-        Err(errors::ApiErrorResponse::InvalidRequestData {
-            message: format!("limit should be in between 1 and {PAYMENTS_LIST_MAX_LIMIT_V2}"),
-        })
-    })?;
-    Ok(())
+    crate::core::utils::validate_list_limit(
+        Some(limit),
+        common_utils::consts::PAYMENTS_LIST_MAX_LIMIT_V2,
+    )
+    .map_err(Into::into)
 }
 
 #[cfg(feature = "v1")]
