@@ -442,6 +442,19 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
             .await
     }
 
+    #[cfg(feature = "v2")]
+    #[instrument(skip_all)]
+    async fn find_all_payment_methods_by_id(
+        &self,
+        key_store: &MerchantKeyStore,
+        id: &id_type::GlobalPaymentMethodId,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<Vec<DomainPaymentMethod>, errors::StorageError> {
+        self.router_store
+            .find_all_payment_methods_by_id(key_store, id, storage_scheme)
+            .await
+    }
+
     #[cfg(feature = "v1")]
     async fn delete_payment_method_by_merchant_id_payment_method_id(
         &self,
@@ -806,6 +819,19 @@ impl<T: DatabaseStore> PaymentMethodInterface for RouterStore<T> {
         .await
     }
 
+    #[cfg(feature = "v2")]
+    #[instrument(skip_all)]
+    async fn find_all_payment_methods_by_id(
+        &self,
+        key_store: &MerchantKeyStore,
+        id: &id_type::GlobalPaymentMethodId,
+        _storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<Vec<DomainPaymentMethod>, errors::StorageError> {
+        let conn = pg_connection_read(self).await?;
+        self.find_resources(key_store, PaymentMethod::find_all_by_id(&conn, id))
+            .await
+    }
+
     #[cfg(feature = "v1")]
     async fn delete_payment_method_by_merchant_id_payment_method_id(
         &self,
@@ -1110,6 +1136,20 @@ impl PaymentMethodInterface for MockDb {
                 .unwrap_or(false);
             customer_id_matches && pm.merchant_id == *merchant_id && statuses.contains(&pm.status)
         };
+        let error_message = "cannot find payment method".to_string();
+        self.get_resources(key_store, payment_methods, find_pm_by, error_message)
+            .await
+    }
+
+    #[cfg(feature = "v2")]
+    async fn find_all_payment_methods_by_id(
+        &self,
+        key_store: &MerchantKeyStore,
+        id: &id_type::GlobalPaymentMethodId,
+        _storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<Vec<DomainPaymentMethod>, errors::StorageError> {
+        let payment_methods = self.payment_methods.lock().await;
+        let find_pm_by = |pm: &&PaymentMethod| pm.id == *id;
         let error_message = "cannot find payment method".to_string();
         self.get_resources(key_store, payment_methods, find_pm_by, error_message)
             .await

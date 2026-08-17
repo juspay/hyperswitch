@@ -6614,35 +6614,56 @@ pub async fn delete_payment_method_by_record(
     profile: &domain::Profile,
     payment_method: domain::PaymentMethod,
 ) -> RouterResult<()> {
-    // Soft delete - mark as Redacted (terminal state, no transitions allowed)
-    let pm_update = storage::PaymentMethodUpdate::StatusAndFingerprintUpdate {
-        status: Some(enums::PaymentMethodStatus::Redacted),
-        last_modified_by: platform
-            .get_initiator()
-            .and_then(|initiator| initiator.to_created_by())
-            .map(|last_modified_by| last_modified_by.to_string()),
-        // `Some(None)` clears the column to SQL NULL. A sentinel string cannot be used here: an id
-        // may already carry a retired row, and repeating the sentinel would collide under
-        // `UNIQUE (id, locker_fingerprint_id)`.
-        locker_fingerprint_id: Some(None),
-    };
+    let last_modified_by = platform
+        .get_initiator()
+        .and_then(|initiator| initiator.to_created_by())
+        .map(|last_modified_by| last_modified_by.to_string());
 
-    db.update_payment_method(
-        platform.get_provider().get_key_store(),
-        payment_method.clone(),
-        pm_update,
-        platform.get_provider().get_account().storage_scheme,
-        // Redaction updates should not trigger PM modular compat scheduling.
-        None,
-    )
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Failed to update payment method in db")?;
-
-    vault::delete_payment_method_data_from_vault(state, platform, profile, &payment_method)
+    let sibling_records = db
+        .find_all_payment_methods_by_id(
+            platform.get_provider().get_key_store(),
+            &payment_method.id,
+            platform.get_provider().get_account().storage_scheme,
+        )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to delete payment method from vault")?;
+        .attach_printable("Failed to load every row for the payment method id")?;
+
+    // Fall back to the caller's record rather than deleting nothing if the lookup comes back empty.
+    let records_to_redact = if sibling_records.is_empty() {
+        vec![payment_method]
+    } else {
+        sibling_records
+    };
+
+    for record in &records_to_redact {
+        // Rewriting an already-retired row is a no-op, so the loop need not filter them out.
+        let pm_update = storage::PaymentMethodUpdate::StatusAndFingerprintUpdate {
+            status: Some(enums::PaymentMethodStatus::Redacted),
+            last_modified_by: last_modified_by.clone(),
+            // `Some(None)` clears the column to SQL NULL. A sentinel string cannot be used here: an
+            // id may already carry a retired row, and repeating the sentinel would collide under
+            // `UNIQUE (id, locker_fingerprint_id)`.
+            locker_fingerprint_id: Some(None),
+        };
+
+        db.update_payment_method(
+            platform.get_provider().get_key_store(),
+            record.clone(),
+            pm_update,
+            platform.get_provider().get_account().storage_scheme,
+            // Redaction updates should not trigger PM modular compat scheduling.
+            None,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to update payment method in db")?;
+
+        vault::delete_payment_method_data_from_vault(state, platform, profile, record)
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to delete payment method from vault")?;
+    }
 
     Ok(())
 }

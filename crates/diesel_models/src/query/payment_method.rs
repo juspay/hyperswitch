@@ -294,6 +294,25 @@ impl PaymentMethod {
         .attach_printable("Error finding payment method by id")
     }
 
+    /// Every row under one payment method id, including the retired rows `find_by_id` hides.
+    /// Ordered newest-first on the same key as `find_by_id`.
+    pub async fn find_all_by_id(
+        conn: &PgPooledConn,
+        id: &common_utils::id_type::GlobalPaymentMethodId,
+    ) -> StorageResult<Vec<Self>> {
+        generics::generic_filter::<<Self as HasTable>::Table, _, _, Self>(
+            conn,
+            pm_id.eq(id.to_owned()),
+            None,
+            None,
+            Some((
+                dsl::created_at.desc(),
+                dsl::locker_fingerprint_id.desc().nulls_last(),
+            )),
+        )
+        .await
+    }
+
     pub async fn find_by_global_customer_id_merchant_id_statuses(
         conn: &PgPooledConn,
         customer_id: &common_utils::id_type::GlobalCustomerId,
