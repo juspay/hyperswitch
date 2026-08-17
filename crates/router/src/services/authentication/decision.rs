@@ -191,6 +191,28 @@ pub fn convert_expiry(expiry: time::PrimitiveDateTime) -> u64 {
     }
 }
 
+/// Fire the decision-service call as detached background work.
+///
+/// The task is deliberately not awaited: registering a key with the decision
+/// service must not add latency to, or fail, the request that created the key.
+/// That is unchanged, as is the non-deja build — a discarded-handle
+/// `tokio::spawn` of the same future.
+///
+/// What changes under `deja` is that the child no longer loses the request it
+/// came from. A bare `tokio::spawn` carries neither the tracing span nor the
+/// deja context, so the `POST /rule` this task makes crossed `http_outgoing`
+/// with no correlation, failed the opt-in capture gate as `SkipNoDecision`, and
+/// never reached the tape — while a replayed candidate still made the same call
+/// and had it written off as environmental noise. Not a racing subset: the
+/// correlation is lost at spawn, unconditionally, so every one of these calls
+/// was affected.
+///
+/// `deja::spawn_fork` is the whole fix. It instruments the child with a fork
+/// span — inheriting the correlation and opening its own lineage bucket, so the
+/// tail is not mistaken for the request's next inline statement — and carries
+/// the sampling decision, which the span alone does not: ingress clears the
+/// correlation-keyed entry when the response returns, and this task routinely
+/// outlives that. The six call sites below are untouched.
 pub fn spawn_tracked_job<E, F>(future: F, request_type: &'static str)
 where
     E: std::fmt::Debug,
@@ -198,7 +220,8 @@ where
 {
     metrics::API_KEY_REQUEST_INITIATED
         .add(1, router_env::metric_attributes!(("type", request_type)));
-    tokio::spawn(async move {
+
+    let tracked = async move {
         match future.await {
             Ok(_) => {
                 metrics::API_KEY_REQUEST_COMPLETED
@@ -208,5 +231,11 @@ where
                 router_env::error!("Error in tracked job: {:?}", e);
             }
         }
-    });
+    };
+
+    #[cfg(feature = "deja")]
+    deja::spawn_fork(tracked);
+
+    #[cfg(not(feature = "deja"))]
+    let _task_handle = tokio::spawn(tracked);
 }

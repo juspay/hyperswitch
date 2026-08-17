@@ -2,11 +2,6 @@ use std::{collections::HashMap, ops::Deref};
 
 #[cfg(any(feature = "v1", all(test, feature = "deja")))]
 use std::future::Future;
-#[cfg(all(feature = "deja", any(feature = "v1", test)))]
-use std::{
-    pin::Pin,
-    task::{Context, Poll},
-};
 
 #[cfg(feature = "v1")]
 use ::payment_methods::client::{
@@ -79,63 +74,25 @@ use crate::{
     utils,
 };
 
-#[cfg(all(feature = "deja", any(feature = "v1", test)))]
-/// Reinstalls a captured sampling decision when request teardown has removed it.
-/// Correlation and fork lineage remain owned by `deja::spawn_fork`'s tracing span.
-struct RetainedDejaDecision<F> {
-    future: Pin<Box<F>>,
-    correlation_id: Option<String>,
-    decision: Option<deja::RecordDecision>,
-}
-
-#[cfg(all(feature = "deja", any(feature = "v1", test)))]
-impl<F> RetainedDejaDecision<F> {
-    fn capture(future: F) -> Self {
-        Self {
-            future: Box::pin(future),
-            correlation_id: deja::__private::current_correlation_id(),
-            decision: deja::recording_decision_for_current(),
-        }
-    }
-}
-
-#[cfg(all(feature = "deja", any(feature = "v1", test)))]
-impl<F: Future> Future for RetainedDejaDecision<F> {
-    type Output = F::Output;
-
-    fn poll(self: Pin<&mut Self>, context: &mut Context<'_>) -> Poll<Self::Output> {
-        let this = self.get_mut();
-        let _decision_guard = this
-            .correlation_id
-            .as_deref()
-            .zip(this.decision)
-            .filter(|(correlation_id, _)| deja::recording_decision(correlation_id).is_none())
-            .map(|(correlation_id, decision)| {
-                deja::set_recording_decision(correlation_id, decision);
-                InstalledDejaDecision(correlation_id)
-            });
-
-        this.future.as_mut().poll(context)
-    }
-}
-
-#[cfg(all(feature = "deja", any(feature = "v1", test)))]
-struct InstalledDejaDecision<'a>(&'a str);
-
-#[cfg(all(feature = "deja", any(feature = "v1", test)))]
-impl Drop for InstalledDejaDecision<'_> {
-    fn drop(&mut self) {
-        deja::clear_recording_decision(self.0);
-    }
-}
-
 #[cfg(any(feature = "v1", all(test, feature = "deja")))]
 fn spawn_save_payment_method<F>(future: F)
 where
     F: Future<Output = ()> + Send + 'static,
 {
+    // `RetainedDejaDecision`, defined privately here, is gone: `deja::spawn_fork`
+    // now captures the request context at spawn and re-enters it per poll, so the
+    // rule lives once inside the fork boundary instead of once per host call
+    // site. The behaviour this site needs is unchanged — the tail still records
+    // after the response has returned and ingress has cleared the decision
+    // registry — and a second detached spawn (the decision-service registration
+    // in `services::authentication::decision`) now gets it for free rather than
+    // by copying it.
+    //
+    // NOTE: this requires a `deja` revision carrying that change. Against an
+    // older one the tail silently stops recording; the post-request test below
+    // is what catches it.
     #[cfg(feature = "deja")]
-    deja::spawn_fork(RetainedDejaDecision::capture(future));
+    deja::spawn_fork(future);
 
     #[cfg(not(feature = "deja"))]
     let _task_handle = tokio::spawn(future.in_current_span());
