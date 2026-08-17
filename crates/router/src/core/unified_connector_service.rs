@@ -43,6 +43,10 @@ use unified_connector_service_client::payments::{
     ClassicReward, CryptoCurrency, EVoucher, OpenBanking, PaymentServiceAuthorizeResponse,
 };
 
+#[cfg(feature = "ucs_cutover")]
+use crate::core::payments::helpers::{
+    should_execute_based_on_rollout_with_precedence, ProxyOverride,
+};
 use crate::{
     consts,
     core::{
@@ -50,9 +54,8 @@ use crate::{
         payments::{
             helpers::{
                 get_ucs_enabled_mode, is_googlepay_predecrypted_flow_supported,
-                should_execute_based_on_rollout,
-                MerchantConnectorAccountType, WebhookRolloutConfig,
-                WebhookRolloutExecutionResult,
+                should_execute_based_on_rollout, MerchantConnectorAccountType,
+                WebhookRolloutConfig, WebhookRolloutExecutionResult,
             },
             OperationSessionGetters, OperationSessionSetters,
         },
@@ -69,8 +72,6 @@ use crate::{
         UcsPaymentSetupRecurringResponseData, UcsRecurringPaymentChargeResponseData,
     },
 };
-#[cfg(feature = "ucs_cutover")]
-use crate::core::payments::helpers::{ProxyOverride, should_execute_based_on_rollout_with_precedence};
 
 pub mod connector_config;
 pub mod kill_switch;
@@ -328,8 +329,11 @@ where
     let is_blacklisted = is_connector_blacklisted_from_ucs(state, connector_enum);
     let is_grpc_client_available = is_ucs_grpc_client_available(state);
 
-    let execution_path =
-        resolve_default_execution_path(call_connector_action, is_blacklisted, is_grpc_client_available)?;
+    let execution_path = resolve_default_execution_path(
+        call_connector_action,
+        is_blacklisted,
+        is_grpc_client_available,
+    )?;
 
     let flow_name = get_flow_name::<F>()?;
 
@@ -369,8 +373,14 @@ where
 
     let ucs_availability = check_ucs_availability(state).await;
 
-    let (rollout_keys, superposition_context) =
-        build_rollout_context_for_transaction(transaction_type, org_id, merchant_id, connector_name, &flow_name, router_data);
+    let (rollout_keys, superposition_context) = build_rollout_context_for_transaction(
+        transaction_type,
+        org_id,
+        merchant_id,
+        connector_name,
+        &flow_name,
+        router_data,
+    );
 
     let connector_integration_type =
         determine_connector_integration_type(state, connector_enum).await?;
@@ -383,16 +393,15 @@ where
     )
     .await?;
 
-    let (gateway_system, mut execution_path) =
-        resolve_cutover_execution_path(
-            ucs_availability,
-            call_connector_action,
-            shadow_ucs_call_connector_action.as_ref(),
-            &rollout_result,
-            connector_integration_type,
-            previous_gateway,
-            state,
-        )?;
+    let (gateway_system, mut execution_path) = resolve_cutover_execution_path(
+        ucs_availability,
+        call_connector_action,
+        shadow_ucs_call_connector_action.as_ref(),
+        &rollout_result,
+        connector_integration_type,
+        previous_gateway,
+        state,
+    )?;
 
     let session_state =
         build_session_state_for_execution_path(&mut execution_path, state, &rollout_result);
@@ -443,12 +452,8 @@ fn resolve_default_execution_path(
     is_grpc_client_available: bool,
 ) -> RouterResult<ExecutionPath> {
     match call_connector_action {
-        CallConnectorAction::HandleResponse { .. } => {
-            Ok(ExecutionPath::Direct)
-        }
-        CallConnectorAction::UCSConsumeResponse(_) => {
-            Ok(ExecutionPath::UnifiedConnectorService)
-        }
+        CallConnectorAction::HandleResponse { .. } => Ok(ExecutionPath::Direct),
+        CallConnectorAction::UCSConsumeResponse(_) => Ok(ExecutionPath::UnifiedConnectorService),
         CallConnectorAction::Trigger
         | CallConnectorAction::HandleResponseWithoutBuildRequest
         | CallConnectorAction::Avoid
@@ -511,9 +516,7 @@ fn resolve_cutover_execution_path(
     state: &SessionState,
 ) -> RouterResult<(GatewaySystem, ExecutionPath)> {
     match ucs_availability {
-        UcsAvailability::Disabled => {
-            resolve_path_when_ucs_disabled(call_connector_action)
-        }
+        UcsAvailability::Disabled => resolve_path_when_ucs_disabled(call_connector_action),
         UcsAvailability::Enabled | UcsAvailability::ShadowKilled => {
             resolve_path_when_ucs_available(
                 call_connector_action,
@@ -589,8 +592,7 @@ fn resolve_path_when_ucs_available(
                 false => ExecutionMode::NotApplicable,
             };
 
-            let execution_mode =
-                resolve_execution_mode(state, execution_mode, ucs_availability);
+            let execution_mode = resolve_execution_mode(state, execution_mode, ucs_availability);
 
             decide_execution_path(connector_integration_type, previous_gateway, execution_mode)
         }
@@ -606,27 +608,23 @@ fn build_session_state_for_execution_path(
     rollout_result: &crate::core::payments::helpers::RolloutExecutionResult,
 ) -> SessionState {
     match execution_path {
-        ExecutionPath::ShadowUnifiedConnectorService => {
-            match &rollout_result.proxy_override {
-                Some(proxy_override) => {
-                    router_env::logger::debug!(
-                        proxy_override = ?proxy_override,
-                        "Creating updated session state with proxy configuration for Shadow UCS"
-                    );
-                    create_updated_session_state_with_proxy(state.clone(), proxy_override)
-                }
-                None => {
-                    router_env::logger::debug!(
+        ExecutionPath::ShadowUnifiedConnectorService => match &rollout_result.proxy_override {
+            Some(proxy_override) => {
+                router_env::logger::debug!(
+                    proxy_override = ?proxy_override,
+                    "Creating updated session state with proxy configuration for Shadow UCS"
+                );
+                create_updated_session_state_with_proxy(state.clone(), proxy_override)
+            }
+            None => {
+                router_env::logger::debug!(
                         "No proxy override available for Shadow UCS, Using the Original State and Sending Request Directly"
                     );
-                    *execution_path = ExecutionPath::Direct;
-                    state.clone()
-                }
+                *execution_path = ExecutionPath::Direct;
+                state.clone()
             }
-        }
-        ExecutionPath::Direct | ExecutionPath::UnifiedConnectorService => {
-            state.clone()
-        }
+        },
+        ExecutionPath::Direct | ExecutionPath::UnifiedConnectorService => state.clone(),
     }
 }
 
