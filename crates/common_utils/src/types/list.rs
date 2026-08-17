@@ -69,6 +69,8 @@ impl<'de> Deserialize<'de> for PageSize {
     }
 }
 
+// Manual `ToSchema`: the derive would emit `array` for a newtype tuple struct, and we
+// need a custom component key + integer bounds matching `Deserialize` validation.
 impl<'a> utoipa::ToSchema<'a> for PageSize {
     fn schema() -> (
         &'a str,
@@ -140,6 +142,7 @@ impl<'de> Deserialize<'de> for PageOffset {
     }
 }
 
+// Manual `ToSchema` for the same reasons as `PageSize` above.
 impl<'a> utoipa::ToSchema<'a> for PageOffset {
     fn schema() -> (
         &'a str,
