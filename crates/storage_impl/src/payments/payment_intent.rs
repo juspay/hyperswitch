@@ -1004,11 +1004,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                     query = query.filter(pi_dsl::status.eq_any(status.clone()));
                 }
 
-                query = diesel_models::list::apply_pagination(
-                    query,
-                    params.limit,
-                    params.offset,
-                );
+                query = diesel_models::list::apply_pagination(query, params.limit, params.offset);
             }
         }
         let keymanager_state = self
@@ -1273,11 +1269,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                     query = query.filter(pa_dsl::card_discovery.eq_any(card_discovery.clone()));
                 }
 
-                diesel_models::list::apply_pagination(
-                    query,
-                    params.limit,
-                    params.offset,
-                )
+                diesel_models::list::apply_pagination(query, params.limit, params.offset)
             }
         };
 
@@ -1487,11 +1479,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                     query = query.filter(pi_dsl::id.eq(payment_id.clone()));
                 }
 
-                diesel_models::list::apply_pagination(
-                    query,
-                    params.limit,
-                    params.offset,
-                )
+                diesel_models::list::apply_pagination(query, params.limit, params.offset)
             }
         };
 

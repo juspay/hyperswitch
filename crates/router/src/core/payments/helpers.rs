@@ -4155,7 +4155,10 @@ pub(super) fn validate_payment_list_request_for_joins(
     limit: common_utils::types::list::PageSize,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
     crate::core::utils::validate_list_limit(
-        Some(u32::try_from(limit.as_u64()).unwrap_or(common_utils::consts::PAYMENTS_LIST_MAX_LIMIT_V2 + 1)),
+        Some(
+            u32::try_from(limit.as_u64())
+                .unwrap_or(common_utils::consts::PAYMENTS_LIST_MAX_LIMIT_V2 + 1),
+        ),
         common_utils::consts::PAYMENTS_LIST_MAX_LIMIT_V2,
     )
     .map_err(Into::into)

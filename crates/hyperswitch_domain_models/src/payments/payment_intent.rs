@@ -2012,10 +2012,10 @@ impl From<api_models::payments::PaymentListFilterConstraints> for PaymentIntentF
         if let Some(payment_intent_id) = payment_id {
             Self::Single { payment_intent_id }
         } else {
-        Self::List(Box::new(PaymentIntentListParams {
-            offset,
-            starting_at: time_range.map(|t| t.start_time),
-            ending_at: time_range.and_then(|t| t.end_time),
+            Self::List(Box::new(PaymentIntentListParams {
+                offset,
+                starting_at: time_range.map(|t| t.start_time),
+                ending_at: time_range.and_then(|t| t.end_time),
                 amount_filter,
                 connector,
                 currency,
@@ -2026,10 +2026,10 @@ impl From<api_models::payments::PaymentListFilterConstraints> for PaymentIntentF
                 merchant_connector_id,
                 profile_id: profile_id.map(|profile_id| vec![profile_id]),
                 customer_id,
-            starting_after_id: None,
-            ending_before_id: None,
-            limit,
-            order,
+                starting_after_id: None,
+                ending_before_id: None,
+                limit,
+                order,
                 card_network,
                 card_discovery,
                 merchant_order_reference_id,
