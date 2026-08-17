@@ -672,7 +672,7 @@ impl ConnectorSpecifications for Ilixium {
         Some(&ILIXIUM_SUPPORTED_WEBHOOK_FLOWS)
     }
 
-   fn is_pre_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo) -> bool {
+    fn is_pre_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo) -> bool {
         match current_flow {
             api::CurrentFlowInfo::Authorize {
                 auth_type,
