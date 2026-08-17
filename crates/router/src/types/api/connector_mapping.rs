@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use error_stack::{report, ResultExt};
-use hyperswitch_connectors::connectors::{Payconex, Paytm, Phonepe};
+use hyperswitch_connectors::connectors::{Payconex, Paytm, Phonepe, Worldpayraft};
 
 use crate::{
     configs::settings::Connectors,
@@ -530,6 +530,9 @@ impl ConnectorData {
                 enums::Connector::Phonepe => Ok(ConnectorEnum::Old(Box::new(Phonepe::new()))),
                 enums::Connector::Paytm => Ok(ConnectorEnum::Old(Box::new(Paytm::new()))),
                 enums::Connector::Payconex => Ok(ConnectorEnum::Old(Box::new(Payconex::new()))),
+                enums::Connector::Worldpayraft => {
+                    Ok(ConnectorEnum::Old(Box::new(Worldpayraft::new())))
+                }
             },
             Err(_) => Err(report!(errors::ConnectorError::InvalidConnectorName)
                 .attach_printable(format!("invalid connector name: {connector_name}")))

@@ -182,6 +182,7 @@ wise.base_url = "https://api.sandbox.transferwise.tech/"
 worldline.base_url = "https://eu.sandbox.api-ingenico.com/"
 worldpay.base_url = "https://try.access.worldpay.com/"
 worldpaymodular.base_url = "https://try.access.worldpay.com/"
+worldpayraft.base_url = "https://ws-cert.vantiv.com/merchant/servicing/apitransactions/NativeRaftApi/v1"
 worldpayvantiv.base_url = "https://transact.vantivprelive.com/vap/communicator/online"
 worldpayvantiv.secondary_base_url = "https://onlinessr.vantivprelive.com"
 worldpayvantiv.third_base_url = "https://services.vantivprelive.com"
@@ -1050,7 +1051,7 @@ connector_list = "juspaythreedsserver, ctp_mastercard, ctp_visa"
 connector_list = "worldpayvantiv"
 
 [grpc_client.unified_connector_service]
-ucs_only_connectors = "imerchantsolutions, paytm, phonepe, hyperpg, revolv3, fiservcommercehub, absa_sanlam, interpayments, payconex, dlocal, barclaycard, jpmorgan, datatrans, tsys_transit, givepayments"    # Comma-separated list of connectors that use UCS only
+ucs_only_connectors = "imerchantsolutions, paytm, phonepe, hyperpg, revolv3, fiservcommercehub, absa_sanlam, interpayments, payconex, dlocal, barclaycard, jpmorgan, datatrans, tsys_transit, givepayments, worldpayraft"    # Comma-separated list of connectors that use UCS only
 ucs_psync_disabled_connectors = "cashtocode, trustly"    # Comma-separated list of connectors to disable UCS PSync call
 
 # Merchant Advice Code Configuration

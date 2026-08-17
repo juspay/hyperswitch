@@ -262,6 +262,12 @@ pub enum ConnectorSpecificConfig {
         account_id: Secret<String>,
         base_url: Option<String>,
     },
+    /// Worldpay Native RAFT connector configuration
+    Worldpayraft {
+        license: Secret<String>,
+        merchant_id: Secret<String>,
+        base_url: Option<String>,
+    },
     /// Fiservcommercehub connector configuration
     Fiservcommercehub {
         api_key: Secret<String>,
@@ -1704,6 +1710,14 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                     base_url: None,
                 }),
                 _ => Err(err("Payconex requires BodyKey auth type")),
+            },
+            Connector::Worldpayraft => match auth {
+                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Worldpayraft {
+                    license: api_key.clone(),
+                    merchant_id: key1.clone(),
+                    base_url: None,
+                }),
+                _ => Err(err("Worldpayraft requires BodyKey auth type")),
             },
             Connector::Interpayments => match auth {
                 ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Interpayments {

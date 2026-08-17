@@ -152,6 +152,7 @@ pub struct ConnectorAuthentication {
     // pub wellsfargopayout: Option<HeaderKey>,
     pub wise: Option<BodyKey>,
     pub worldpay: Option<BodyKey>,
+    pub worldpayraft: Option<BodyKey>,
     pub worldpaymodular: Option<HeaderKey>,
     pub worldpayvantiv: Option<HeaderKey>,
     pub worldpayxml: Option<HeaderKey>,
