@@ -955,6 +955,7 @@ payjustnow = { country = "ZA", currency = "ZAR" }
 payjustnow = { country = "ZA", currency = "ZAR" }
 
 [temp_locker_enable_config]
+ilixium.payment_method = "card"
 bluesnap.payment_method = "card"
 nuvei.payment_method = "card"
 shift4.payment_method = "card"
