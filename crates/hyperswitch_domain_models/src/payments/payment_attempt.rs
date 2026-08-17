@@ -140,6 +140,7 @@ pub trait PaymentAttemptInterface {
         &self,
         processor_merchant_id: &id_type::MerchantId,
         connector_txn_id: &str,
+        merchant_connector_id: Option<&id_type::MerchantConnectorAccountId>,
         storage_scheme: storage_enums::MerchantStorageScheme,
         merchant_key_store: &MerchantKeyStore,
     ) -> error_stack::Result<PaymentAttempt, Self::Error>;

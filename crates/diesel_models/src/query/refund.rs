@@ -123,15 +123,35 @@ impl Refund {
         processor_merchant_id: &common_utils::id_type::MerchantId,
         connector_refund_id: &str,
         connector: &str,
+        merchant_connector_id: Option<&common_utils::id_type::MerchantConnectorAccountId>,
     ) -> StorageResult<Self> {
-        generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
-            conn,
-            dsl::processor_merchant_id
-                .eq(processor_merchant_id.to_owned())
-                .and(dsl::connector_refund_id.eq(connector_refund_id.to_owned()))
-                .and(dsl::connector.eq(connector.to_owned())),
-        )
-        .await
+        match merchant_connector_id {
+            Some(merchant_connector_id) => {
+                generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
+                    conn,
+                    dsl::processor_merchant_id
+                        .eq(processor_merchant_id.to_owned())
+                        .and(dsl::connector_refund_id.eq(connector_refund_id.to_owned()))
+                        .and(dsl::connector.eq(connector.to_owned()))
+                        .and(
+                            dsl::merchant_connector_id
+                                .eq(merchant_connector_id.to_owned())
+                                .or(dsl::merchant_connector_id.is_null()),
+                        ),
+                )
+                .await
+            }
+            None => {
+                generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
+                    conn,
+                    dsl::processor_merchant_id
+                        .eq(processor_merchant_id.to_owned())
+                        .and(dsl::connector_refund_id.eq(connector_refund_id.to_owned()))
+                        .and(dsl::connector.eq(connector.to_owned())),
+                )
+                .await
+            }
+        }
     }
 
     // Fallback function for stagger release - queries by merchant_id when processor_merchant_id is NULL
@@ -140,15 +160,35 @@ impl Refund {
         processor_merchant_id: &common_utils::id_type::MerchantId,
         connector_refund_id: &str,
         connector: &str,
+        merchant_connector_id: Option<&common_utils::id_type::MerchantConnectorAccountId>,
     ) -> StorageResult<Self> {
-        generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
-            conn,
-            dsl::merchant_id
-                .eq(processor_merchant_id.to_owned())
-                .and(dsl::connector_refund_id.eq(connector_refund_id.to_owned()))
-                .and(dsl::connector.eq(connector.to_owned())),
-        )
-        .await
+        match merchant_connector_id {
+            Some(merchant_connector_id) => {
+                generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
+                    conn,
+                    dsl::merchant_id
+                        .eq(processor_merchant_id.to_owned())
+                        .and(dsl::connector_refund_id.eq(connector_refund_id.to_owned()))
+                        .and(dsl::connector.eq(connector.to_owned()))
+                        .and(
+                            dsl::merchant_connector_id
+                                .eq(merchant_connector_id.to_owned())
+                                .or(dsl::merchant_connector_id.is_null()),
+                        ),
+                )
+                .await
+            }
+            None => {
+                generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
+                    conn,
+                    dsl::merchant_id
+                        .eq(processor_merchant_id.to_owned())
+                        .and(dsl::connector_refund_id.eq(connector_refund_id.to_owned()))
+                        .and(dsl::connector.eq(connector.to_owned())),
+                )
+                .await
+            }
+        }
     }
 
     pub async fn find_by_internal_reference_id_processor_merchant_id(

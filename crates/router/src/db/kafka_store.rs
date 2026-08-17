@@ -1819,6 +1819,7 @@ impl PaymentAttemptInterface for KafkaStore {
         &self,
         processor_merchant_id: &id_type::MerchantId,
         connector_txn_id: &str,
+        merchant_connector_id: Option<&id_type::MerchantConnectorAccountId>,
         storage_scheme: MerchantStorageScheme,
         key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<storage::PaymentAttempt, errors::StorageError> {
@@ -1826,6 +1827,7 @@ impl PaymentAttemptInterface for KafkaStore {
             .find_payment_attempt_by_processor_merchant_id_connector_txn_id(
                 processor_merchant_id,
                 connector_txn_id,
+                merchant_connector_id,
                 storage_scheme,
                 key_store,
             )
@@ -3079,6 +3081,7 @@ impl RefundInterface for KafkaStore {
         processor_merchant_id: &id_type::MerchantId,
         connector_refund_id: &str,
         connector: &str,
+        merchant_connector_id: Option<&id_type::MerchantConnectorAccountId>,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<diesel_refund::Refund, errors::StorageError> {
         self.diesel_store
@@ -3086,6 +3089,7 @@ impl RefundInterface for KafkaStore {
                 processor_merchant_id,
                 connector_refund_id,
                 connector,
+                merchant_connector_id,
                 storage_scheme,
             )
             .await

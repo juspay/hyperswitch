@@ -527,6 +527,7 @@ async fn process_webhook_business_logic(
     };
 
     let profile_id = &merchant_connector_account.profile_id;
+    let merchant_connector_id = merchant_connector_account.merchant_connector_id.clone();
 
     let business_profile = state
         .store
@@ -586,6 +587,7 @@ async fn process_webhook_business_logic(
                 event_type,
                 &content,
                 webhook_resource_data,
+                Some(&merchant_connector_id),
             ))
             .await
             .attach_printable("Incoming webhook flow for payments failed"),
@@ -599,6 +601,7 @@ async fn process_webhook_business_logic(
                 source_verified,
                 event_type,
                 webhook_resource_data,
+                Some(&merchant_connector_id),
             ))
             .await
             .attach_printable("Incoming webhook flow for refunds failed"),
@@ -613,6 +616,7 @@ async fn process_webhook_business_logic(
                 request_details,
                 event_type,
                 webhook_resource_data,
+                Some(&merchant_connector_id),
             ))
             .await
             .attach_printable("Incoming webhook flow for disputes failed"),
@@ -858,6 +862,7 @@ async fn payments_incoming_webhook_flow(
     event_type: webhooks::IncomingWebhookEvent,
     content: &super::gateway::WebhookContent,
     webhook_resource_data: Option<WebhookResourceData>,
+    merchant_connector_id: Option<&common_utils::id_type::MerchantConnectorAccountId>,
 ) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
     let consume_or_trigger_flow = if source_verified {
         let resource_object = webhook_details.resource_object.clone();
@@ -879,17 +884,34 @@ async fn payments_incoming_webhook_flow(
     let shadow_ucs_call_connector_action: Option<payments::CallConnectorAction> = None;
 
     // Reuse the pre-fetched payment attempt when available; otherwise fetch now.
-    let payment_attempt =
-        if let Some(WebhookResourceData::Payment { payment_attempt }) = webhook_resource_data {
-            payment_attempt
-        } else {
+    // When the object reference is a connector-transaction-id, re-fetch scoped by
+    // merchant_connector_id so that the returned attempt belongs to this MCA.
+    let payment_attempt = if let Some(WebhookResourceData::Payment { payment_attempt }) =
+        webhook_resource_data
+    {
+        if matches!(
+            &webhook_details.object_reference_id,
+            webhooks::ObjectReferenceId::PaymentId(api::PaymentIdType::ConnectorTransactionId(_))
+        ) {
             get_payment_attempt_from_object_reference_id(
                 &state,
                 webhook_details.object_reference_id.clone(),
                 platform.get_processor(),
+                merchant_connector_id,
             )
             .await?
-        };
+        } else {
+            payment_attempt
+        }
+    } else {
+        get_payment_attempt_from_object_reference_id(
+            &state,
+            webhook_details.object_reference_id.clone(),
+            platform.get_processor(),
+            merchant_connector_id,
+        )
+        .await?
+    };
 
     let payments_response = match webhook_details.object_reference_id {
         webhooks::ObjectReferenceId::PaymentId(ref id) => {
@@ -911,6 +933,13 @@ async fn payments_incoming_webhook_flow(
                 )
                 .await?;
 
+            let resource_id = match id {
+                api::PaymentIdType::ConnectorTransactionId(_) => {
+                    api::PaymentIdType::PaymentAttemptId(payment_attempt.attempt_id.clone())
+                }
+                _ => id.clone(),
+            };
+
             let response = Box::pin(payments::payments_core::<
                 api::PSync,
                 api::PaymentsResponse,
@@ -925,7 +954,7 @@ async fn payments_incoming_webhook_flow(
                 None,
                 payments::operations::PaymentStatus,
                 api::PaymentsRetrieveRequest {
-                    resource_id: id.clone(),
+                    resource_id,
                     merchant_id: Some(platform.get_processor().get_account().get_id().clone()),
                     force_sync: true,
                     connector: None,
@@ -1548,6 +1577,7 @@ async fn refunds_incoming_webhook_flow(
     source_verified: bool,
     event_type: webhooks::IncomingWebhookEvent,
     webhook_resource_data: Option<WebhookResourceData>,
+    merchant_connector_id: Option<&common_utils::id_type::MerchantConnectorAccountId>,
 ) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
     let db = &*state.store;
     //find refund by connector refund id
@@ -1567,6 +1597,7 @@ async fn refunds_incoming_webhook_flow(
                     platform.get_processor().get_account().get_id(),
                     &id,
                     connector_name,
+                    merchant_connector_id,
                     platform.get_processor().get_account().storage_scheme,
                 )
                 .await
@@ -1730,6 +1761,7 @@ pub async fn get_payment_attempt_from_object_reference_id(
     state: &SessionState,
     object_reference_id: webhooks::ObjectReferenceId,
     processor: &domain::Processor,
+    merchant_connector_id: Option<&common_utils::id_type::MerchantConnectorAccountId>,
 ) -> CustomResult<PaymentAttempt, errors::ApiErrorResponse> {
     let db = &*state.store;
     match object_reference_id {
@@ -1737,6 +1769,7 @@ pub async fn get_payment_attempt_from_object_reference_id(
             .find_payment_attempt_by_processor_merchant_id_connector_txn_id(
                 processor.get_account().get_id(),
                 id,
+                merchant_connector_id,
                 processor.get_account().storage_scheme,
                 processor.get_key_store(),
             )
@@ -2316,6 +2349,7 @@ async fn frm_incoming_webhook_flow(
             &state,
             object_ref_id,
             platform.get_processor(),
+            None,
         )
         .await?;
         let payment_response = match event_type {
@@ -2435,19 +2469,38 @@ async fn disputes_incoming_webhook_flow(
     request_details: &IncomingWebhookRequestDetails<'_>,
     event_type: webhooks::IncomingWebhookEvent,
     webhook_resource_data: Option<WebhookResourceData>,
+    merchant_connector_id: Option<&common_utils::id_type::MerchantConnectorAccountId>,
 ) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
     metrics::INCOMING_DISPUTE_WEBHOOK_METRIC.add(1, &[]);
     if source_verified {
         let db = &*state.store;
         // Reuse the pre-fetched payment attempt when available; otherwise fetch now.
+        // When the object reference is a connector-transaction-id, re-fetch scoped by
+        // merchant_connector_id so that the returned attempt belongs to this MCA.
         let payment_attempt =
             if let Some(WebhookResourceData::Payment { payment_attempt }) = webhook_resource_data {
-                payment_attempt
+                if matches!(
+                    &webhook_details.object_reference_id,
+                    webhooks::ObjectReferenceId::PaymentId(
+                        api::PaymentIdType::ConnectorTransactionId(_)
+                    )
+                ) {
+                    get_payment_attempt_from_object_reference_id(
+                        &state,
+                        webhook_details.object_reference_id.clone(),
+                        platform.get_processor(),
+                        merchant_connector_id,
+                    )
+                    .await?
+                } else {
+                    payment_attempt
+                }
             } else {
                 get_payment_attempt_from_object_reference_id(
                     &state,
                     webhook_details.object_reference_id.clone(),
                     platform.get_processor(),
+                    merchant_connector_id,
                 )
                 .await?
             };
@@ -2575,6 +2628,7 @@ async fn bank_transfer_webhook_flow(
             &state,
             webhook_details.object_reference_id,
             platform.get_processor(),
+            None,
         )
         .await?;
         let payment_id = payment_attempt.payment_id.clone();
@@ -2842,6 +2896,7 @@ async fn update_connector_mandate_details(
             state,
             object_ref_id,
             platform.get_processor(),
+            None,
         )
         .await?;
         if let Some(ref payment_method_id) = payment_attempt.payment_method_id {

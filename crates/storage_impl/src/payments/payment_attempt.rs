@@ -287,6 +287,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
         &self,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         connector_txn_id: &str,
+        merchant_connector_id: Option<&common_utils::id_type::MerchantConnectorAccountId>,
         _storage_scheme: MerchantStorageScheme,
         merchant_key_store: &MerchantKeyStore,
     ) -> CustomResult<PaymentAttempt, errors::StorageError> {
@@ -298,6 +299,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for RouterStore<T> {
             &conn,
             processor_merchant_id,
             connector_txn_id,
+            merchant_connector_id,
         )
         .await
         .map_err(|er| {
@@ -1431,6 +1433,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
         &self,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         connector_txn_id: &str,
+        merchant_connector_id: Option<&common_utils::id_type::MerchantConnectorAccountId>,
         storage_scheme: MerchantStorageScheme,
         merchant_key_store: &MerchantKeyStore,
     ) -> error_stack::Result<PaymentAttempt, errors::StorageError> {
@@ -1446,6 +1449,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     .find_payment_attempt_by_processor_merchant_id_connector_txn_id(
                         processor_merchant_id,
                         connector_txn_id,
+                        merchant_connector_id,
                         storage_scheme,
                         merchant_key_store,
                     )
@@ -1463,6 +1467,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                         .find_payment_attempt_by_processor_merchant_id_connector_txn_id(
                             processor_merchant_id,
                             connector_txn_id,
+                            merchant_connector_id,
                             storage_scheme,
                             merchant_key_store,
                         )
@@ -1477,13 +1482,25 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     .attach_printable("Missing KeyManagerState")?;
                 Box::pin(try_redis_get_else_try_database_get(
                     async {
-                        let diesel_payment_attempt = Box::pin(kv_wrapper(
-                            self,
-                            KvOperation::<DieselPaymentAttempt>::HGet(&lookup.sk_id),
-                            key,
-                        ))
-                        .await?
-                        .try_into_hget()?;
+                        let diesel_payment_attempt =
+                            Box::pin(kv_wrapper::<DieselPaymentAttempt, _, _>(
+                                self,
+                                KvOperation::<DieselPaymentAttempt>::HGet(&lookup.sk_id),
+                                key,
+                            ))
+                            .await?
+                            .try_into_hget()?;
+                        if let Some(merchant_connector_id) = merchant_connector_id {
+                            if let Some(merchant_connector_id_in_kv) =
+                                diesel_payment_attempt.merchant_connector_id.as_ref()
+                            {
+                                if merchant_connector_id_in_kv != merchant_connector_id {
+                                    return Err(
+                                        redis_interface::errors::RedisError::NotFound.into()
+                                    );
+                                }
+                            }
+                        }
                         PaymentAttempt::convert_back(
                             key_manager_state,
                             diesel_payment_attempt,
@@ -1499,6 +1516,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                             .find_payment_attempt_by_processor_merchant_id_connector_txn_id(
                                 processor_merchant_id,
                                 connector_txn_id,
+                                merchant_connector_id,
                                 storage_scheme,
                                 merchant_key_store,
                             )

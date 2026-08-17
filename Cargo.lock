@@ -3104,12 +3104,14 @@ version = "0.1.0"
 dependencies = [
  "async-bb8-diesel",
  "base64 0.22.1",
+ "bb8",
  "common_enums",
  "common_types",
  "common_utils",
  "deja",
  "diesel",
  "error-stack 0.4.1",
+ "futures 0.3.31",
  "hyperswitch_masking",
  "router_derive",
  "router_env",
@@ -3118,6 +3120,7 @@ dependencies = [
  "strum 0.26.3",
  "thiserror 1.0.69",
  "time 0.3.41",
+ "tokio 1.48.0",
 ]
 
 [[package]]
