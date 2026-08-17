@@ -293,8 +293,8 @@ common_utils = { version = "0.1.0", path = "../common_utils", features = [
     "keymanager",
 ] }
 common_types = { version = "0.1.0", path = "../common_types" }
-deja = { git = "https://github.com/juspay/deja", rev = "d457c0e2e5ebbfbda24d5cebcc3c64911e512f46", optional = true, default-features = false }
-deja-core = { git = "https://github.com/juspay/deja", rev = "d457c0e2e5ebbfbda24d5cebcc3c64911e512f46", optional = true }
+deja = { git = "https://github.com/juspay/deja", rev = "337181ebfd74b7e571a63a9cce515ff3c9309db7", optional = true, default-features = false }
+deja-core = { git = "https://github.com/juspay/deja", rev = "337181ebfd74b7e571a63a9cce515ff3c9309db7", optional = true }
 connector_configs = { version = "0.1.0", path = "../connector_configs" }
 currency_conversion = { version = "0.1.0", path = "../currency_conversion" }
 diesel_models = { version = "0.1.0", path = "../diesel_models", features = [
