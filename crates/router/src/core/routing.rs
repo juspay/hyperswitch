@@ -283,6 +283,7 @@ pub async fn retrieve_merchant_routing_dictionary(
             de_result.clone(),
             result.clone(),
             "list_routing".to_string(),
+            false,
         );
         result =
             build_list_routing_result(&state, platform, &result, &de_result, profile_ids.clone())
@@ -357,11 +358,13 @@ pub async fn create_routing_algorithm_under_profile(
             .get_required_value("Profile")?;
     let processor_merchant_id = processor.get_account().get_id();
     core_utils::validate_profile_id_from_auth_layer(authentication_profile_id, &business_profile)?;
+    // Fetching disabled MCAs too: routing configs may reference MCAs that are
+    // temporarily disabled — validation checks connector existence, not activity.
     let all_mcas = state
         .store
-        .find_merchant_connector_account_without_encrypted_by_merchant_id_and_disabled_list(
+        .list_merchant_connector_accounts_without_encrypted_including_disabled_by_merchant_id_profile_id(
             processor_merchant_id,
-            true,
+            business_profile.get_id(),
         )
         .await
         .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
@@ -369,14 +372,14 @@ pub async fn create_routing_algorithm_under_profile(
         })?;
 
     let name_mca_id_set = helpers::ConnectNameAndMCAIdForProfile(
-        all_mcas.filter_by_profile(business_profile.get_id(), |mca| {
-            (&mca.connector_name, mca.get_id())
-        }),
+        all_mcas
+            .iter()
+            .map(|mca| (&mca.connector_name, mca.get_id()))
+            .collect(),
     );
 
-    let name_set = helpers::ConnectNameForProfile(
-        all_mcas.filter_by_profile(business_profile.get_id(), |mca| &mca.connector_name),
-    );
+    let name_set =
+        helpers::ConnectNameForProfile(all_mcas.iter().map(|mca| &mca.connector_name).collect());
 
     let algorithm_helper = helpers::RoutingAlgorithmHelpers {
         name_mca_id_set,
@@ -1491,6 +1494,7 @@ pub async fn retrieve_linked_routing_config(
                 de_records.clone(),
                 hs_records.clone(),
                 "list_active_routing".to_string(),
+                false,
             );
             let dimensions = dimension_state::Dimensions::new()
                 .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
@@ -2217,52 +2221,14 @@ pub async fn contract_based_dynamic_routing_setup(
     };
 
     // validate the contained mca_ids
-    let mut contained_mca = Vec::new();
     if let Some(info_vec) = &config.label_info {
-        for info in info_vec {
-            utils::when(
-                contained_mca.iter().any(|mca_id| mca_id == &info.mca_id),
-                || {
-                    Err(error_stack::Report::new(
-                        errors::ApiErrorResponse::InvalidRequestData {
-                            message: "Duplicate mca configuration received".to_string(),
-                        },
-                    ))
-                },
-            )?;
-
-            contained_mca.push(info.mca_id.to_owned());
-        }
-
-        let validation_futures: Vec<_> = info_vec
-            .iter()
-            .map(|info| async {
-                let mca_id = info.mca_id.clone();
-                let label = info.label.clone();
-                let mca = db
-                    .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-                        processor.get_account().get_id(),
-                        &mca_id,
-                        processor.get_key_store(),
-                    )
-                    .await
-                    .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                        id: mca_id.get_string_repr().to_owned(),
-                    })?;
-
-                utils::when(mca.connector_name != label, || {
-                    Err(error_stack::Report::new(
-                        errors::ApiErrorResponse::InvalidRequestData {
-                            message: "Incorrect mca configuration received".to_string(),
-                        },
-                    ))
-                })?;
-
-                Ok::<_, error_stack::Report<errors::ApiErrorResponse>>(())
-            })
-            .collect();
-
-        futures::future::try_join_all(validation_futures).await?;
+        helpers::validate_contract_based_label_info(
+            db,
+            processor.get_account().get_id(),
+            &profile_id,
+            info_vec,
+        )
+        .await?;
     }
 
     let record = db
@@ -2320,39 +2286,14 @@ pub async fn contract_based_routing_update_configs(
         .attach_printable("unable to deserialize algorithm data from routing table into ContractBasedRoutingConfig")?;
 
     // validate the contained mca_ids
-    let mut contained_mca = Vec::new();
     if let Some(info_vec) = &request.label_info {
-        for info in info_vec {
-            let mca = db
-                .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-                    processor.get_account().get_id(),
-                    &info.mca_id,
-                    processor.get_key_store(),
-                )
-                .await
-                .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                    id: info.mca_id.get_string_repr().to_owned(),
-                })?;
-
-            utils::when(mca.connector_name != info.label, || {
-                Err(errors::ApiErrorResponse::InvalidRequestData {
-                    message: "Incorrect mca configuration received".to_string(),
-                })
-            })?;
-
-            utils::when(
-                contained_mca.iter().any(|mca_id| mca_id == &info.mca_id),
-                || {
-                    Err(error_stack::Report::new(
-                        errors::ApiErrorResponse::InvalidRequestData {
-                            message: "Duplicate mca configuration received".to_string(),
-                        },
-                    ))
-                },
-            )?;
-
-            contained_mca.push(info.mca_id.to_owned());
-        }
+        helpers::validate_contract_based_label_info(
+            db,
+            processor.get_account().get_id(),
+            &profile_id,
+            info_vec,
+        )
+        .await?;
     }
 
     config_to_update.update(request);
@@ -2588,6 +2529,22 @@ impl RoutableConnectors {
 
         Ok(connector_data)
     }
+}
+
+/// Clears the Decision Engine routing diff kill-switch counter for a profile, so the switch can
+/// trip again after the profile is re-enabled for the Decision Engine.
+pub async fn reset_decision_engine_diff_counter(
+    state: SessionState,
+    profile_id: common_utils::id_type::ProfileId,
+) -> RouterResult<service_api::ApplicationResponse<()>> {
+    reset_de_diff_counter(&state, &profile_id).await?;
+
+    router_env::logger::info!(
+        profile_id=?profile_id.get_string_repr(),
+        "decision_engine_euclid: routing diff counter reset via api"
+    );
+
+    Ok(service_api::ApplicationResponse::StatusOk)
 }
 
 pub async fn migrate_rules_for_profile(

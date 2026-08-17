@@ -248,6 +248,17 @@ impl AttemptStatus {
         matches!(self, Self::Charged | Self::PartialCharged)
     }
 
+    pub fn is_authorization_success(self) -> bool {
+        matches!(
+            self,
+            Self::Authorized
+                | Self::PartiallyAuthorized
+                | Self::Charged
+                | Self::PartialCharged
+                | Self::PartialChargedAndChargeable
+        )
+    }
+
     pub fn should_update_payment_method(self) -> bool {
         match self {
             Self::Charged
@@ -680,25 +691,77 @@ pub enum BlocklistDataKind {
     ExtendedCardBin,
 }
 
-/// Reasons for blocking a payment method.
-#[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema)]
-#[serde(rename_all = "snake_case")]
+#[derive(Debug)]
 pub enum BlockReason {
     BlockedBin,
+    BlockedCardInfoUnavailable,
     BlockedCardType(CardType),
+    BlockedCardNetwork,
+    BlockedFundingSource,
     BlockedCardSubtype,
+    BlockedCardSegmentType,
+    BlockedVirtualCard,
+    BlockedNonReloadablePrepaidCard,
+    BlockedGamblingCard,
     BlockedIssuerCountry,
     BlockedIssuer,
+}
+
+/// A stable, machine-readable identifier for the reason a payment was blocked.
+#[derive(
+    Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, SmithyModel, ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub enum BlockReasonCode {
+    BlockedBin,
+    BlockedCardInfoUnavailable,
+    BlockedCardType,
+    BlockedCardNetwork,
+    BlockedFundingSource,
+    BlockedCardSubtype,
+    BlockedCardSegmentType,
+    BlockedVirtualCard,
+    BlockedNonReloadablePrepaidCard,
+    BlockedGamblingCard,
+    BlockedIssuerCountry,
+    BlockedIssuer,
+}
+
+impl From<BlockReason> for BlockReasonCode {
+    fn from(block_reason: BlockReason) -> Self {
+        match block_reason {
+            BlockReason::BlockedBin => Self::BlockedBin,
+            BlockReason::BlockedCardInfoUnavailable => Self::BlockedCardInfoUnavailable,
+            BlockReason::BlockedCardType(_) => Self::BlockedCardType,
+            BlockReason::BlockedCardNetwork => Self::BlockedCardNetwork,
+            BlockReason::BlockedFundingSource => Self::BlockedFundingSource,
+            BlockReason::BlockedCardSubtype => Self::BlockedCardSubtype,
+            BlockReason::BlockedCardSegmentType => Self::BlockedCardSegmentType,
+            BlockReason::BlockedVirtualCard => Self::BlockedVirtualCard,
+            BlockReason::BlockedNonReloadablePrepaidCard => Self::BlockedNonReloadablePrepaidCard,
+            BlockReason::BlockedGamblingCard => Self::BlockedGamblingCard,
+            BlockReason::BlockedIssuerCountry => Self::BlockedIssuerCountry,
+            BlockReason::BlockedIssuer => Self::BlockedIssuer,
+        }
+    }
 }
 
 impl BlockReason {
     pub fn error_message(&self) -> String {
         match self {
             Self::BlockedBin => "We're unable to accept this card, please try another card or a different payment method".to_string(),
+            Self::BlockedCardInfoUnavailable => "We couldn't verify this card's information, please try a different card".to_string(),
             Self::BlockedCardType(card_type) => {
                 format!("{} cards are not accepted for this transaction, please try a different card", card_type.title_case())
             }
+            Self::BlockedCardNetwork => "This card network is not accepted for this transaction, please try a different card".to_string(),
+            Self::BlockedFundingSource => "This card funding source is not accepted for this transaction, please try a different card".to_string(),
             Self::BlockedCardSubtype => "This card is not accepted for this transaction, please try a different card".to_string(),
+            Self::BlockedCardSegmentType => "This card segment is not accepted for this transaction, please try a different card".to_string(),
+            Self::BlockedVirtualCard => "Virtual cards are not accepted for this transaction, please try a different card".to_string(),
+            Self::BlockedNonReloadablePrepaidCard => "Non-reloadable prepaid cards are not accepted for this transaction, please try a different card".to_string(),
+            Self::BlockedGamblingCard => "Cards associated with gambling are not accepted for this transaction, please try a different card".to_string(),
             Self::BlockedIssuerCountry => "Cards issued in your region aren't supported for this transaction, please try a different card".to_string(),
             Self::BlockedIssuer => "We can't process payments from this bank, please try another card or a different payment method".to_string(),
         }
@@ -1859,6 +1922,7 @@ impl EventClass {
                 EventType::PayoutCancelled,
                 EventType::PayoutExpired,
                 EventType::PayoutReversed,
+                EventType::PayoutNotPermitted,
             ]),
             Self::Subscriptions => HashSet::from([EventType::InvoicePaid]),
         }
@@ -1920,6 +1984,8 @@ pub enum EventType {
     PayoutExpired,
     #[cfg(feature = "payouts")]
     PayoutReversed,
+    #[cfg(feature = "payouts")]
+    PayoutNotPermitted,
     InvoicePaid,
     SurchargePaymentSucceeded,
     SurchargeRefundSucceeded,
@@ -2077,6 +2143,10 @@ pub enum IntentStatus {
 }
 
 impl IntentStatus {
+    pub fn is_eligible_for_manual_retry(self) -> bool {
+        matches!(self, Self::Failed)
+    }
+
     /// Indicates whether the payment intent is in terminal state or not
     pub fn is_in_terminal_state(self) -> bool {
         match self {
@@ -3407,7 +3477,6 @@ pub enum FundingSource {
     utoipa::ToSchema,
 )]
 #[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "UPPERCASE")]
 pub enum CardSegmentType {
     Business,
     Commercial,
@@ -8810,7 +8879,15 @@ pub enum PayoutStatus {
     Expired,
     Reversed,
     Pending,
+    /// Non-terminal: the payout method/payee was found ineligible, but the payout
+    /// is not conclusively closed. This status is intentionally NOT terminal and
+    /// emits no outgoing webhook (see `From<PayoutStatus> for Option<EventType>`).
     Ineligible,
+    /// Terminal: the payout was conclusively refused by the processor (e.g. a
+    /// Verification-of-Payee "no match" / "could not verify" result). Unlike
+    /// [`PayoutStatus::Ineligible`], this is a final failure state — it counts as a
+    /// payout failure and triggers a `payout_failed` outgoing webhook to the merchant.
+    NotPermitted,
     #[default]
     RequiresCreation,
     RequiresConfirmation,
@@ -8823,7 +8900,7 @@ impl PayoutStatus {
     pub fn is_payout_failure(&self) -> bool {
         matches!(
             self,
-            Self::Failed | Self::Cancelled | Self::Expired | Self::Ineligible
+            Self::Failed | Self::Cancelled | Self::Expired | Self::Ineligible | Self::NotPermitted
         )
     }
 
@@ -8834,7 +8911,12 @@ impl PayoutStatus {
     pub fn is_terminal_status(&self) -> bool {
         matches!(
             self,
-            Self::Success | Self::Failed | Self::Cancelled | Self::Expired | Self::Reversed
+            Self::Success
+                | Self::Failed
+                | Self::Cancelled
+                | Self::Expired
+                | Self::Reversed
+                | Self::NotPermitted
         )
     }
 }
@@ -9406,6 +9488,16 @@ impl TransactionStatus {
     }
 }
 
+impl From<TransactionStatus> for DecoupledAuthenticationType {
+    fn from(trans_status: TransactionStatus) -> Self {
+        match trans_status {
+            TransactionStatus::ChallengeRequired
+            | TransactionStatus::ChallengeRequiredDecoupledAuthentication => Self::Challenge,
+            _ => Self::Frictionless,
+        }
+    }
+}
+
 #[derive(
     Clone,
     Copy,
@@ -9702,6 +9794,8 @@ pub enum BankNames {
 pub enum BankType {
     Checking,
     Savings,
+    Salary,
+    Payment,
 }
 #[derive(
     Clone,
