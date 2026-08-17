@@ -821,6 +821,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     retry_type: payment_attempt.retry_type,
                     installment_data: payment_attempt.installment_data.clone(),
                     external_surcharge_details: payment_attempt.external_surcharge_details.clone(),
+                    applied_offer_details: payment_attempt.applied_offer_details.clone(),
                     sender_payment_instrument_id: payment_attempt
                         .sender_payment_instrument_id
                         .clone(),
@@ -1159,11 +1160,8 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
             .update_with_attempt_id(&conn, payment_attempt_internal.clone());
 
         let mut query_gen_conn = pg_connection_write(self).await?;
-        let drainer_query = payment_attempt_internal
-            .generate_drainer_update_query(&mut query_gen_conn, payment_attempt.id.clone())
-            .await
-            .change_context(errors::StorageError::KVError)
-            .attach_printable("Failed to generate payment attempt update query")?;
+        let drainer_query_fut = payment_attempt_internal
+            .generate_drainer_update_query(&mut query_gen_conn, payment_attempt.id.clone());
 
         Box::pin(self.update_resource(
             merchant_key_store,
@@ -1171,7 +1169,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
             updated_payment_attempt_with_id,
             updated_payment_attempt,
             UpdateResourceParams {
-                drainer_query,
+                drainer_query_fut,
                 operation: Op::Update(key.clone(), &field, Some(updated_by.as_str())),
             },
         ))

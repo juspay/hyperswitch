@@ -1614,8 +1614,29 @@ pub async fn perform_hybrid_routing_if_enabled(
         utils::get_routing_result_source(state, dimensions).await,
         api_models::routing::RoutingResultSource::DecisionEngine
     );
+    let has_active_routing_algorithm = business_profile
+        .routing_algorithm
+        .clone()
+        .and_then(|ra| {
+            ra.parse_value::<api::routing::RoutingAlgorithmRef>("RoutingAlgorithmRef")
+                .ok()
+        })
+        .and_then(|algorithm_ref| algorithm_ref.algorithm_id)
+        .is_some();
 
-    if is_decision_engine_cutover_enabled {
+    if !has_active_routing_algorithm {
+        logger::debug!(
+            business_profile_id=?business_profile.get_id(),
+            "decision_engine_euclid: no active routing algorithm, skipping DE evaluation"
+        );
+        logger::info!(
+            business_profile_id=?business_profile.get_id(),
+            routing_source = "hyperswitch_static",
+            "decision_engine_euclid: selected routing source after hybrid stage"
+        );
+
+        (static_connectors.to_vec(), static_approach)
+    } else if is_decision_engine_cutover_enabled {
         let hybrid_stage_outcome = stage
             .route(input)
             .await
@@ -1660,6 +1681,8 @@ pub async fn perform_hybrid_routing_if_enabled(
         if state.conf.open_router.static_routing_enabled
             && state.conf.open_router.shadow_routing_enabled
         {
+            use router_env::tracing::Instrument;
+
             let payment_id = payment_dsl_input
                 .payment_attempt
                 .payment_id
@@ -1670,19 +1693,28 @@ pub async fn perform_hybrid_routing_if_enabled(
             let shadow_backend_input = backend_input.clone();
             let shadow_fallback = fallback_config.to_vec();
             let shadow_static_connectors = static_connectors.to_vec();
-
-            tokio::spawn(async move {
-                utils::shadow_decision_engine_routing(
-                    shadow_state,
-                    shadow_profile,
-                    payment_id,
-                    shadow_backend_input,
-                    shadow_fallback,
-                    shadow_static_connectors,
-                    static_is_volume_split,
-                )
-                .await;
-            });
+            let shadow_span = router_env::tracing::info_span!(
+                "shadow_decision_engine_routing",
+                de_shadow = true,
+                profile_id = %business_profile.get_id().get_string_repr(),
+                merchant_id = %business_profile.merchant_id.get_string_repr(),
+                payment_id = %payment_id,
+            );
+            tokio::spawn(
+                async move {
+                    utils::shadow_decision_engine_routing(
+                        shadow_state,
+                        shadow_profile,
+                        payment_id,
+                        shadow_backend_input,
+                        shadow_fallback,
+                        shadow_static_connectors,
+                        static_is_volume_split,
+                    )
+                    .await;
+                }
+                .instrument(shadow_span),
+            );
         }
 
         (static_connectors.to_vec(), static_approach)
