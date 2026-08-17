@@ -29,14 +29,6 @@ const externalThreeDSCardDetails = {
   card_cvc: "123",
 };
 
-const l2l3CardDetails = {
-  card_number: "4111111111111111",
-  card_exp_month: "12",
-  card_exp_year: "30",
-  card_holder_name: "Test Card",
-  card_cvc: "121",
-};
-
 const failedNo3DSCardDetails = {
   card_number: "4000000000000002",
   card_exp_month: "01",
@@ -395,11 +387,12 @@ export const connectorDetails = {
     L2L3Data: {
       Request: {
         currency: "USD",
-        shipping_cost: 1000,
         payment_method: "card",
         payment_method_data: {
-          card: l2l3CardDetails,
+          card: successfulNo3DSCardDetails,
         },
+        order_tax_amount: 500,
+        shipping_cost: 100,
         shipping: {
           address: {
             city: "SANTA MARIA",
@@ -416,21 +409,9 @@ export const connectorDetails = {
         merchant_order_reference_id: "stripe-l2l3-order-reference",
         order_details: [
           {
-            product_name: "Rock Fountain",
+            product_name: "Test Product",
             quantity: 1,
-            amount: 1000,
-            requires_shipping: true,
-          },
-          {
-            product_name: "Fountain Pump",
-            quantity: 1,
-            amount: 1000,
-            requires_shipping: true,
-          },
-          {
-            product_name: "Concrete for fountain installation",
-            quantity: 4,
-            amount: 1000,
+            amount: 6000,
             requires_shipping: true,
           },
         ],
