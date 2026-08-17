@@ -622,6 +622,7 @@ impl ConnectorConfig {
             Connector::Helcim => Ok(connector_data.helcim),
             Connector::Inespay => Ok(connector_data.inespay),
             Connector::Jpmorgan => Ok(connector_data.jpmorgan),
+            Connector::Juspay => Err("Configured through application config".to_string()),
             Connector::Juspaythreedsserver => Ok(connector_data.juspaythreedsserver),
             Connector::Klarna => Ok(connector_data.klarna),
             Connector::Loonio => Ok(connector_data.loonio),

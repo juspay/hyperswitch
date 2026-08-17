@@ -336,6 +336,7 @@ pub async fn payment_method_retrieve_api(
         payment_method_id: path.into_inner(),
     })
     .into_inner();
+    let retrieve_request = query_payload.into_inner();
 
     let api_auth = auth::V2ApiKeyAuth {
         allow_connected_scope_operation: true,
@@ -365,7 +366,7 @@ pub async fn payment_method_retrieve_api(
                     auth.profile,
                     auth.platform,
                     api_key_type,
-                    query_payload.fetch_raw_detail,
+                    retrieve_request.clone(),
                 ),
             )
         },

@@ -194,6 +194,15 @@ pub struct TsysTransitMetadata {
     merchant_url: Option<url::Url>,
 }
 
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct JuspayMetadata {
+    pub merchant_id: String,
+    pub base_url: String,
+    pub juspay_encryption_public_key: Secret<String>,
+    pub response_decryption_private_key: Secret<String>,
+    pub card_sync_key_id: String,
+}
+
 /// Connector-specific configuration enum for all supported connectors
 #[derive(Debug, Clone, serde::Serialize)]
 pub enum ConnectorSpecificConfig {
@@ -664,6 +673,15 @@ pub enum ConnectorSpecificConfig {
     },
     /// Givepayments connector configuration
     Givepayments { api_key: Secret<String> },
+    /// Juspay Account Updater configuration
+    Juspay {
+        api_key: Secret<String>,
+        merchant_id: String,
+        base_url: String,
+        juspay_encryption_public_key: Secret<String>,
+        response_decryption_private_key: Secret<String>,
+        card_sync_key_id: String,
+    },
     /// Netcetera authentication connector configuration (no connector-specific config needed)
     Netcetera,
     /// Santander payout connector configuration
@@ -1700,6 +1718,21 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                 }),
                 _ => Err(err("Givepayments requires HeaderKey auth type")),
             },
+            Connector::Juspay => match auth {
+                ConnectorAuthType::HeaderKey { api_key } => {
+                    let juspay_meta = metadata
+                        .map(|meta| {
+                            serde_json::from_value::<JuspayMetadata>(meta.clone())
+                                .change_context(errors::ApiErrorResponse::InternalServerError)
+                                .attach_printable("Invalid Juspay metadata format")
+                        })
+                        .transpose()?
+                        .ok_or_else(|| err("Juspay requires metadata"))?;
+
+                    Ok(Self::from((api_key.clone(), juspay_meta)))
+                }
+                _ => Err(err("Juspay requires HeaderKey auth type")),
+            },
             Connector::Netcetera => Ok(Self::Netcetera),
             Connector::Santander => match auth {
                 ConnectorAuthType::CertificateAuth {
@@ -1751,6 +1784,19 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                         connector
                     )),
             ),
+        }
+    }
+}
+
+impl From<(Secret<String>, JuspayMetadata)> for ConnectorSpecificConfig {
+    fn from((api_key, metadata): (Secret<String>, JuspayMetadata)) -> Self {
+        Self::Juspay {
+            api_key,
+            merchant_id: metadata.merchant_id,
+            base_url: metadata.base_url,
+            juspay_encryption_public_key: metadata.juspay_encryption_public_key,
+            response_decryption_private_key: metadata.response_decryption_private_key,
+            card_sync_key_id: metadata.card_sync_key_id,
         }
     }
 }

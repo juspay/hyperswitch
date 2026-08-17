@@ -518,6 +518,7 @@ impl ConnectorData {
                 | enums::Connector::Gpayments
                 | enums::Connector::Threedsecureio
                 | enums::Connector::Cardinal
+                | enums::Connector::Juspay
                 | enums::Connector::Taxjar => {
                     Err(report!(errors::ConnectorError::InvalidConnectorName)
                         .attach_printable(format!("invalid connector name: {connector_name}")))

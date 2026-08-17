@@ -1524,7 +1524,7 @@ base_url = "https://offer-engine.example.com/" # Base URL of the Offer Engine se
 api_key = ""                                  # API key for API-key authenticated Offer Engine calls
 merchant_id = ""                              # Offer Engine merchant id sent in request bodies
 
-# Credentials forwarded to UCS for the Account Updater flow; omit the section entirely to keep it off
+# Credentials and call settings for the Account Updater flow; omit the section entirely to keep it off
 [account_updater.juspay]
 base_url = "https://account-updater.example.com/" # Account Updater base URL
 api_key = ""                     # API key for the Account Updater provider
@@ -1532,6 +1532,8 @@ merchant_id = ""                 # Merchant id sent in Account Updater request b
 euler_encryption_public_key = "" # Provider RSA public key, used to seal outbound card data
 au_decryption_pvt_key = ""       # Our RSA private key, used to open the response payload
 card_sync_key_id = ""            # Id of our public key as registered with the provider
+supported_card_networks = "Visa, Mastercard" # Supported card networks for Account Updater refresh
+refresh_timeout_in_secs = 5                 # Optional, defaults to 5. Per-call deadline for the refresh request sent to UCS
 
 [micro_services]
 # Base URLs for modular microservices

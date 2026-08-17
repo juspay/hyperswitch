@@ -457,7 +457,7 @@ impl FeatureMatrixConnectorData {
                 enums::Connector::Interpayments => Ok(ConnectorEnum::Old(Box::new(
                     connector::Interpayments::new(),
                 ))),
-                enums::Connector::Cardinal => {
+                enums::Connector::Cardinal | enums::Connector::Juspay => {
                     Err(report!(errors::ConnectorError::InvalidConnectorName)
                         .attach_printable(format!("invalid connector name: {connector_name}")))
                     .change_context(errors::ApiErrorResponse::InternalServerError)
