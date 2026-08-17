@@ -5,9 +5,12 @@ use error_stack::ResultExt;
 use hyperswitch_domain_models::router_data::ConnectorAuthType;
 use hyperswitch_masking::Secret;
 
-use crate::core::{
-    errors::{self, RouterResult},
-    unified_connector_service::connector_config::JuspayMetadata,
+use crate::{
+    configs::settings,
+    core::{
+        errors::{self, RouterResult},
+        unified_connector_service::connector_config::JuspayMetadata,
+    },
 };
 
 #[derive(
@@ -84,6 +87,29 @@ pub struct JuspayConfig {
     pub card_sync_key_id: String,
     pub supported_card_networks: HashSet<CardNetwork>,
     pub refresh_timeout: Duration,
+}
+
+impl From<&settings::JuspayAccountUpdaterConfig> for JuspayConfig {
+    fn from(config: &settings::JuspayAccountUpdaterConfig) -> Self {
+        Self {
+            base_url: config.base_url.clone(),
+            api_key: config.api_key.clone(),
+            merchant_id: config.merchant_id.clone(),
+            euler_encryption_public_key: config.euler_encryption_public_key.clone(),
+            au_decryption_pvt_key: config.au_decryption_pvt_key.clone(),
+            card_sync_key_id: config.card_sync_key_id.clone(),
+            supported_card_networks: config.supported_card_networks.clone(),
+            refresh_timeout: Duration::from_secs(config.refresh_timeout_in_secs),
+        }
+    }
+}
+
+impl From<&settings::AccountUpdaterConfig> for ResolvedAccountUpdaterConfig {
+    fn from(config: &settings::AccountUpdaterConfig) -> Self {
+        match config {
+            settings::AccountUpdaterConfig::Juspay(juspay) => Self::Juspay(juspay.into()),
+        }
+    }
 }
 
 #[derive(Debug, thiserror::Error, serde::Serialize)]

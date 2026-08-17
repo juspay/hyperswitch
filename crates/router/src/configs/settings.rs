@@ -194,7 +194,7 @@ pub struct Settings<S: SecretState> {
     #[serde(default)]
     pub enhancement: Option<HashMap<String, String>>,
     pub superposition: SecretStateContainer<SuperpositionClientConfig, S>,
-    pub offer_engine: Option<OfferEngineConfig>,
+    pub offer_engine: Option<SecretStateContainer<OfferEngineConfig, S>>,
     pub proxy_status_mapping: ProxyStatusMapping,
     pub trace_header: TraceHeaderConfig,
     pub internal_services: InternalServicesConfig,
@@ -403,7 +403,12 @@ pub struct JuspayAccountUpdaterConfig {
     pub card_sync_key_id: String,
     #[serde(deserialize_with = "deserialize_hashset")]
     pub supported_card_networks: HashSet<enums::CardNetwork>,
+    #[serde(default = "default_account_updater_refresh_timeout_in_secs")]
     pub refresh_timeout_in_secs: u64,
+}
+
+fn default_account_updater_refresh_timeout_in_secs() -> u64 {
+    5
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -420,6 +425,13 @@ pub struct DebitRoutingConfig {
 pub struct OpenRouter {
     pub dynamic_routing_enabled: bool,
     pub static_routing_enabled: bool,
+    /// Shadow-evaluate static routing on the Decision Engine for profiles that are NOT cut
+    /// over, logging DE-vs-HS diffs and feeding the diff kill switch while the Hyperswitch
+    /// result keeps serving traffic. Requires `static_routing_enabled`.
+    #[serde(default)]
+    pub shadow_routing_enabled: bool,
+    #[serde(default)]
+    pub diff_kill_switch: DecisionEngineDiffKillSwitch,
     pub url: String,
     /// Browser-facing Decision Engine dashboard base URL, used for the merchant SSO redirect.
     #[serde(default)]
@@ -430,6 +442,24 @@ pub struct OpenRouter {
     /// enabled; empty disables the header.
     #[serde(default)]
     pub admin_secret: Secret<String>,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+#[serde(default)]
+pub struct DecisionEngineDiffKillSwitch {
+    pub enabled: bool,
+    /// Lifetime non-volume diff count per profile that trips the cutover back to Hyperswitch
+    /// routing. The counter does not expire; clear it via the diff-counter reset API.
+    pub diff_count_threshold: u64,
+}
+
+impl Default for DecisionEngineDiffKillSwitch {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            diff_count_threshold: 100,
+        }
+    }
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -1508,7 +1538,7 @@ impl Settings<SecuredSecret> {
 
         self.offer_engine
             .as_ref()
-            .map(|offer_engine| offer_engine.validate())
+            .map(|offer_engine| offer_engine.get_inner().validate())
             .transpose()?;
 
         self.account_updater

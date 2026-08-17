@@ -848,6 +848,32 @@ export const connectorDetails = {
         },
       },
     },
+    MITAutoCaptureWithCustomerAcceptance: {
+      // stax does not support MIT payments with mandate_id
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        customer_acceptance: {
+          acceptance_type: "offline",
+          accepted_at: "1963-05-03T04:07:52.723Z",
+          online: {
+            ip_address: "127.0.0.1",
+            user_agent: "amet irure esse",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          mandate_id: null,
+          payment_method: "card",
+          payment_method_data: payment_method_data_no3ds,
+          connector: "stax",
+        },
+      },
+    },
     MITManualCapture: {
       // stax does not support MIT payments with mandate_id
       Configs: {
