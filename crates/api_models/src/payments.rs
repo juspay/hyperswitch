@@ -8954,10 +8954,12 @@ pub struct PaymentListConstraints {
     pub ending_before: Option<id_type::GlobalPaymentId>,
 
     /// limit on the number of objects to return
+    #[param(value_type = u32, default = 10, minimum = 1, maximum = 100)]
     #[serde(default)]
     pub limit: common_utils::types::list::PageSize,
 
     /// The starting point within a list of objects
+    #[param(value_type = Option<u32>)]
     #[serde(default)]
     pub offset: common_utils::types::list::PageOffset,
 

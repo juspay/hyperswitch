@@ -28557,18 +28557,6 @@
           }
         }
       },
-      "PageOffset": {
-        "type": "integer",
-        "format": "int32",
-        "maximum": 20000,
-        "minimum": 0
-      },
-      "PageSize": {
-        "type": "integer",
-        "format": "int32",
-        "maximum": 100,
-        "minimum": 1
-      },
       "PartnerApplicationDetails": {
         "type": "object",
         "description": "Information identifying partner / external platform details",
@@ -37226,7 +37214,10 @@
                 "nullable": true
               },
               "limit": {
-                "$ref": "#/components/schemas/common_utils.types.list.PageSize"
+                "type": "integer",
+                "format": "int32",
+                "description": "limit on the number of objects to return",
+                "minimum": 0
               },
               "created": {
                 "type": "string",
@@ -37283,10 +37274,17 @@
                 "nullable": true
               },
               "limit": {
-                "$ref": "#/components/schemas/common_utils.types.list.PageSize"
+                "type": "integer",
+                "format": "int32",
+                "description": "The limit on the number of objects to return",
+                "minimum": 0
               },
               "offset": {
-                "$ref": "#/components/schemas/common_utils.types.list.PageOffset"
+                "type": "integer",
+                "format": "int32",
+                "description": "The starting point within a list of objects",
+                "nullable": true,
+                "minimum": 0
               },
               "connector": {
                 "type": "array",

@@ -1122,6 +1122,7 @@ pub struct PayoutListConstraints {
 
     /// limit on the number of objects to return
     #[serde(default)]
+    #[schema(value_type = u32)]
     pub limit: common_utils::types::list::PageSize,
 
     /// The time at which payout is created
@@ -1157,9 +1158,11 @@ pub struct PayoutListFilterConstraints {
     pub customer_id: Option<id_type::CustomerId>,
     /// The limit on the number of objects to return
     #[serde(default)]
+    #[schema(value_type = u32)]
     pub limit: common_utils::types::list::PageSize,
     /// The starting point within a list of objects
     #[serde(default)]
+    #[schema(value_type = Option<u32>)]
     pub offset: common_utils::types::list::PageOffset,
     /// The time range for which objects are needed. TimeRange has two fields start_time and end_time from which objects can be filtered as per required scenarios (created_at, time less than, greater than etc).
     #[serde(flatten)]
