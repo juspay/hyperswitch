@@ -1851,10 +1851,137 @@ impl RuleMigrationQuery {
     }
 }
 
+/// Migrate a batch of profiles, named explicitly so a run's blast radius is in the request.
+/// Each profile's merchant is resolved from its rules, so no contradictory pair is expressible.
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+pub struct RuleMigrationRequest {
+    pub profile_ids: Vec<common_utils::id_type::ProfileId>,
+    /// Rules read per profile, not per batch.
+    pub limit: Option<u32>,
+    pub offset: Option<u32>,
+}
+
+impl RuleMigrationRequest {
+    pub fn validated_limit(&self) -> u32 {
+        self.limit.unwrap_or(50).min(1000)
+    }
+}
+
 #[derive(Debug, serde::Serialize)]
 pub struct RuleMigrationResult {
+    pub profiles: Vec<RuleMigrationProfileResult>,
+    pub totals: RuleMigrationTotals,
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct RuleMigrationProfileResult {
+    pub profile_id: common_utils::id_type::ProfileId,
+    /// Absent when the profile holds no rules.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub merchant_id: Option<common_utils::id_type::MerchantId>,
     pub success: Vec<RuleMigrationResponse>,
+    /// Already in the decision engine, left alone. Apart from `errors` so a finished migration
+    /// is distinguishable from a failed one.
+    pub skipped: Vec<RuleMigrationSkipped>,
     pub errors: Vec<RuleMigrationError>,
+    /// Nothing was attempted: no rules, or the merchant could not be read. Per-rule failures
+    /// are `errors`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub not_attempted: Option<String>,
+}
+
+#[derive(Debug, Default, serde::Serialize)]
+pub struct RuleMigrationTotals {
+    pub profiles: usize,
+    pub rules_migrated: usize,
+    pub rules_skipped: usize,
+    pub rules_failed: usize,
+    pub profiles_not_attempted: usize,
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+pub struct RoutingMigrationStatusQuery {
+    pub limit: Option<u32>,
+    pub offset: Option<u32>,
+}
+
+impl RoutingMigrationStatusQuery {
+    /// Each profile costs a decision engine call, so the page size bounds the work.
+    pub fn validated_limit(&self) -> u32 {
+        self.limit.unwrap_or(50).min(500)
+    }
+}
+
+/// Where one profile stands in the migration. The order is the lifecycle.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RoutingMigrationState {
+    /// Rules exist in Hyperswitch and none of them are in the decision engine.
+    Pending,
+    /// Some rules made it across and some did not — a dual-write that failed, usually.
+    Partial,
+    /// Both sides hold rules, but not the same ones — counts can match, so ids are compared.
+    Diverged,
+    /// Every rule is in the decision engine, and Hyperswitch is still routing.
+    Migrated,
+    /// Cut over: the decision engine decides this profile's routing.
+    Enabled,
+    /// Cut over with rules missing, so traffic falls through to the default connector list.
+    /// The one state that is actively wrong rather than unfinished.
+    EnabledWithoutRules,
+    /// Something could not be read, so no claim is made. Never conflated with a zero.
+    Unknown,
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct RoutingMigrationProfileStatus {
+    pub profile_id: common_utils::id_type::ProfileId,
+    pub merchant_id: common_utils::id_type::MerchantId,
+    pub rules_hyperswitch: i64,
+    /// `None` when the decision engine could not be reached for this profile.
+    pub rules_decision_engine: Option<i64>,
+    /// Held by Hyperswitch, absent in the decision engine — what a migration run would write.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub rules_missing_in_decision_engine: Vec<String>,
+    /// Held by the decision engine, absent in Hyperswitch. Migration does not remove them.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub rules_only_in_decision_engine: Vec<String>,
+    /// The cut-over as configured, not as enforced — the diff kill switch can suppress it at
+    /// runtime. `None` when unresolved, which is not the same as "on Hyperswitch".
+    pub routing_source: Option<RoutingResultSource>,
+    pub state: RoutingMigrationState,
+}
+
+/// Counts for the returned page only — an estate-wide total would mean scanning everything.
+#[derive(Debug, Default, serde::Serialize)]
+pub struct RoutingMigrationPageTotals {
+    pub profiles: usize,
+    pub pending: usize,
+    pub partial: usize,
+    pub migrated: usize,
+    pub enabled: usize,
+    pub enabled_without_rules: usize,
+    pub diverged: usize,
+    pub unknown: usize,
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct RoutingMigrationStatusResponse {
+    pub profiles: Vec<RoutingMigrationProfileStatus>,
+    pub limit: u32,
+    pub offset: u32,
+    /// The page came back full, so another is worth asking for.
+    pub has_more: bool,
+    pub page_totals: RoutingMigrationPageTotals,
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct RuleMigrationSkipped {
+    pub profile_id: common_utils::id_type::ProfileId,
+    pub algorithm_id: common_utils::id_type::RoutingId,
+    pub decision_engine_algorithm_id: String,
+    /// This run linked it as the profile's active rule.
+    pub linked_active_rule: bool,
 }
 
 #[derive(Debug, serde::Serialize)]

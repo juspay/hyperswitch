@@ -313,4 +313,55 @@ impl RoutingAlgorithm {
             )
             .collect())
     }
+
+    /// Every rule id held by the given profiles, with each profile's merchant — taken from here
+    /// rather than `business_profile`, which is encrypted and needs the merchant to read.
+    pub async fn rule_ids_for_profiles(
+        conn: &PgPooledConn,
+        profile_ids: &[common_utils::id_type::ProfileId],
+    ) -> StorageResult<
+        Vec<(
+            common_utils::id_type::ProfileId,
+            common_utils::id_type::MerchantId,
+            common_utils::id_type::RoutingId,
+        )>,
+    > {
+        Self::table()
+            .select((dsl::profile_id, dsl::merchant_id, dsl::algorithm_id))
+            .filter(dsl::profile_id.eq_any(profile_ids.to_vec()))
+            .order((dsl::profile_id.asc(), dsl::algorithm_id.asc()))
+            .load_async::<(
+                common_utils::id_type::ProfileId,
+                common_utils::id_type::MerchantId,
+                common_utils::id_type::RoutingId,
+            )>(conn)
+            .await
+            .change_context(DatabaseError::Others)
+    }
+
+    /// A page of the profiles that hold routing rules. Grouped so the page is of profiles —
+    /// paginating per rule would split one across pages. Ordered so paging is stable.
+    pub async fn list_scope_page(
+        conn: &PgPooledConn,
+        limit: i64,
+        offset: i64,
+    ) -> StorageResult<
+        Vec<(
+            common_utils::id_type::ProfileId,
+            common_utils::id_type::MerchantId,
+        )>,
+    > {
+        Self::table()
+            .group_by((dsl::merchant_id, dsl::profile_id))
+            .select((dsl::profile_id, dsl::merchant_id))
+            .order((dsl::merchant_id.asc(), dsl::profile_id.asc()))
+            .limit(limit)
+            .offset(offset)
+            .load_async::<(
+                common_utils::id_type::ProfileId,
+                common_utils::id_type::MerchantId,
+            )>(conn)
+            .await
+            .change_context(DatabaseError::Others)
+    }
 }
