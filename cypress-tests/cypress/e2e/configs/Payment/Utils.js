@@ -811,6 +811,7 @@ export const CONNECTOR_LISTS = {
     CLIENT_SESSION_VALIDATION: ["stripe"],
     WEBHOOK_CONFIG: ["stripe"],
     REQUIRES_CVV: ["bankofamerica"],
+    AUTH_CODE: ["checkout"],
     // Add more inclusion lists
   },
 };
