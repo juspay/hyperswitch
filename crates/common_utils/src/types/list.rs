@@ -21,6 +21,12 @@ impl PageSize {
     pub fn as_i64(self) -> i64 {
         i64::try_from(self.0).unwrap_or(i64::MAX)
     }
+
+    /// The resolved limit as `usize` (for in-memory slicing). The value is bounded to
+    /// `LIST_MAX_LIMIT`, so the `try_from` never fails in practice.
+    pub fn as_usize(self) -> usize {
+        usize::try_from(self.0).unwrap_or_default()
+    }
 }
 
 impl Default for PageSize {
@@ -39,7 +45,7 @@ impl<'de> Deserialize<'de> for PageSize {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         match Option::<u32>::deserialize(deserializer)? {
             None => Ok(Self::default()),
-            Some(value) if value < LIST_MIN_LIMIT || value > LIST_MAX_LIMIT => {
+            Some(value) if !(LIST_MIN_LIMIT..=LIST_MAX_LIMIT).contains(&value) => {
                 Err(serde::de::Error::custom(format!(
                     "list limit {value} is invalid, it must be between {LIST_MIN_LIMIT} and {LIST_MAX_LIMIT}"
                 )))
@@ -83,6 +89,12 @@ impl PageOffset {
     pub fn as_i64(self) -> i64 {
         i64::try_from(self.0).unwrap_or(i64::MAX)
     }
+
+    /// The capped offset as `usize` (for in-memory skipping). Bounded to `MAX`, so the
+    /// `try_from` never fails in practice.
+    pub fn as_usize(self) -> usize {
+        usize::try_from(self.0).unwrap_or_default()
+    }
 }
 
 impl Serialize for PageOffset {
@@ -93,7 +105,14 @@ impl Serialize for PageOffset {
 
 impl<'de> Deserialize<'de> for PageOffset {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        Ok(Self::new(Option::<u32>::deserialize(deserializer)?))
+        match Option::<u32>::deserialize(deserializer)? {
+            None => Ok(Self(0)),
+            Some(value) if value > Self::MAX => Err(serde::de::Error::custom(format!(
+                "list offset {value} is invalid, it must be at most {}",
+                Self::MAX
+            ))),
+            Some(value) => Ok(Self(u64::from(value))),
+        }
     }
 }
 
