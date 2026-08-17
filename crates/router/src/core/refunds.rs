@@ -1500,7 +1500,7 @@ pub async fn refund_list(
     req: api_models::refunds::RefundListRequest,
 ) -> RouterResponse<api_models::refunds::RefundListResponse> {
     let db = state.store;
-    let limit = req.limit;
+    let limit = req.limit.unwrap_or_default();
     let offset = req.offset;
 
     let refund_list = db

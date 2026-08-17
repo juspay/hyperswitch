@@ -226,7 +226,7 @@ pub struct PaymentListFilterConstraintsV1 {
     #[serde(default)]
     pub limit: common_utils::types::list::PageSize,
     #[serde(default)]
-    pub offset: common_utils::types::list::PageOffset,
+    pub offset: Option<common_utils::types::list::PageOffset>,
     pub amount_filter: Option<payments::AmountFilter>,
     #[serde(flatten)]
     pub time_range: Option<common_utils::types::TimeRange>,
@@ -327,7 +327,7 @@ pub struct PaymentAdvancedViewFilterConstraints {
     #[serde(default)]
     pub limit: common_utils::types::list::PageSize,
     #[serde(default)]
-    pub offset: common_utils::types::list::PageOffset,
+    pub offset: Option<common_utils::types::list::PageOffset>,
     pub amount_filter: Option<payments::AmountFilter>,
     #[serde(flatten)]
     pub time_range: Option<common_utils::types::TimeRange>,

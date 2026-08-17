@@ -448,8 +448,9 @@ pub struct RefundListRequest {
     pub profile_id: Option<common_utils::id_type::ProfileId>,
     /// Limit on the number of objects to return
     #[serde(default)]
+    #[schema(value_type = Option<u32>)]
     #[smithy(value_type = "Option<u32>")]
-    pub limit: common_utils::types::list::PageSize,
+    pub limit: Option<common_utils::types::list::PageSize>,
     /// The starting point within a list of objects
     #[serde(default)]
     #[smithy(value_type = "Option<u32>")]

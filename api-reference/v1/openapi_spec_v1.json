@@ -40522,7 +40522,11 @@
                 "nullable": true
               },
               "limit": {
-                "$ref": "#/components/schemas/common_utils.types.list.PageSize"
+                "type": "integer",
+                "format": "int32",
+                "description": "Limit on the number of objects to return",
+                "nullable": true,
+                "minimum": 0
               },
               "offset": {
                 "$ref": "#/components/schemas/common_utils.types.list.PageOffset"
