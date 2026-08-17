@@ -96,13 +96,11 @@ impl DisputeDbExt for Dispute {
         if let Some(merchant_connector_id) = &dispute_list_constraints.merchant_connector_id {
             filter = filter.filter(dsl::merchant_connector_id.eq(merchant_connector_id.clone()))
         }
-        let limit = common_utils::types::list::PageSize::new(
+        let filter = diesel_models::list::apply_pagination(
+            filter,
             dispute_list_constraints.limit,
-            common_utils::consts::DISPUTES_LIST_DEFAULT_LIMIT,
-            common_utils::consts::DISPUTES_LIST_MAX_LIMIT,
+            dispute_list_constraints.offset,
         );
-        let offset = common_utils::types::list::PageOffset::new(dispute_list_constraints.offset);
-        let filter = diesel_models::list::apply_pagination(filter, limit, offset);
 
         logger::debug!(query = %diesel::debug_query::<diesel::pg::Pg, _>(&filter).to_string());
 

@@ -2,7 +2,7 @@
 
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-use crate::consts::{LIST_DEFAULT_LIMIT, LIST_MAX_LIMIT};
+use crate::consts::{LIST_DEFAULT_LIMIT, LIST_MAX_LIMIT, LIST_MIN_LIMIT};
 
 /// A page size, validated against the global list bounds (`1..=LIST_MAX_LIMIT`).
 /// Deserialization rejects an out-of-range limit, so the caller gets an error rather
@@ -39,13 +39,31 @@ impl<'de> Deserialize<'de> for PageSize {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         match Option::<u32>::deserialize(deserializer)? {
             None => Ok(Self::default()),
-            Some(value) if value == 0 || value > LIST_MAX_LIMIT => {
+            Some(value) if value < LIST_MIN_LIMIT || value > LIST_MAX_LIMIT => {
                 Err(serde::de::Error::custom(format!(
-                    "list limit {value} is invalid, it must be between 1 and {LIST_MAX_LIMIT}"
+                    "list limit {value} is invalid, it must be between {LIST_MIN_LIMIT} and {LIST_MAX_LIMIT}"
                 )))
             }
             Some(value) => Ok(Self(u64::from(value))),
         }
+    }
+}
+
+impl<'a> utoipa::ToSchema<'a> for PageSize {
+    fn schema() -> (
+        &'a str,
+        utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>,
+    ) {
+        use utoipa::openapi::{KnownFormat, ObjectBuilder, SchemaFormat, SchemaType};
+        (
+            "PageSize",
+            ObjectBuilder::new()
+                .schema_type(SchemaType::Integer)
+                .format(Some(SchemaFormat::KnownFormat(KnownFormat::Int32)))
+                .minimum(Some(f64::from(LIST_MIN_LIMIT)))
+                .maximum(Some(f64::from(LIST_MAX_LIMIT)))
+                .into(),
+        )
     }
 }
 
@@ -76,6 +94,24 @@ impl Serialize for PageOffset {
 impl<'de> Deserialize<'de> for PageOffset {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         Ok(Self::new(Option::<u32>::deserialize(deserializer)?))
+    }
+}
+
+impl<'a> utoipa::ToSchema<'a> for PageOffset {
+    fn schema() -> (
+        &'a str,
+        utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>,
+    ) {
+        use utoipa::openapi::{KnownFormat, ObjectBuilder, SchemaFormat, SchemaType};
+        (
+            "PageOffset",
+            ObjectBuilder::new()
+                .schema_type(SchemaType::Integer)
+                .format(Some(SchemaFormat::KnownFormat(KnownFormat::Int32)))
+                .minimum(Some(0.0))
+                .maximum(Some(f64::from(Self::MAX)))
+                .into(),
+        )
     }
 }
 

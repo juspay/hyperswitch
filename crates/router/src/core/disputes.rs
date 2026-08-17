@@ -189,10 +189,6 @@ pub async fn retrieve_disputes_list(
     profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
     constraints: api_models::disputes::DisputeListGetConstraints,
 ) -> RouterResponse<Vec<api_models::disputes::DisputeResponse>> {
-    crate::core::utils::validate_list_limit(
-        constraints.limit,
-        common_utils::consts::DISPUTES_LIST_MAX_LIMIT,
-    )?;
     let dispute_list_constraints = &(constraints.clone(), profile_id_list.clone()).try_into()?;
     let disputes = state
         .store
