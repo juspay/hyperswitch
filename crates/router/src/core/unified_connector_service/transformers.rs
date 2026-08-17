@@ -1621,7 +1621,14 @@ impl
                     .email
                     .clone()
                     .map(|e| e.expose().expose().into()),
-                id: None,
+                // Mirrors the Authorize builder. `PaymentsPreAuthenticateData` carries no
+                // `customer_id`, but the router data does, and a connector whose PreAuthenticate
+                // leg sends a full authorisation needs the same customer identity it would see
+                // on Authorize.
+                id: router_data
+                    .customer_id
+                    .as_ref()
+                    .map(|id| id.get_string_repr().to_string()),
                 connector_customer_id: router_data.connector_customer.clone(),
                 phone_number: None,
                 phone_country_code: None,
@@ -1642,7 +1649,11 @@ impl
             connector_feature_data: None,
             capture_method: capture_method.map(|capture_method| capture_method.into()),
             description: router_data.description.clone(),
-            merchant_transaction_id: None,
+            // Mirrors the Authorize builder. UCS resolves this leg's
+            // `connector_request_reference_id` from `merchant_order_id` above, so this is not
+            // load-bearing for the reference — it is the value connectors read directly off
+            // `PaymentsPreAuthenticateData::merchant_transaction_id` (e.g. Kount's DDC sessionId).
+            merchant_transaction_id: Some(router_data.connector_request_reference_id.clone()),
         })
     }
 }
