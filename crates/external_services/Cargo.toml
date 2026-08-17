@@ -62,7 +62,7 @@ aws-smithy-runtime-api = { version = "1.7", features = ["client"] }
 aws-smithy-types = "1.3.1"
 base64 = "0.22.1"
 dyn-clone = "1.0.19"
-deja = { git = "https://github.com/juspay/deja", rev = "9afd102f672e71ae59ca7e9c861c77dd2d83a1af", optional = true, default-features = false }
+deja = { git = "https://github.com/juspay/deja", rev = "eff9c038f0e051bebaa763ba679802d96d983c3c", optional = true, default-features = false }
 error-stack = "0.4.1"
 hex = "0.4.3"
 hyper = "0.14.32"
