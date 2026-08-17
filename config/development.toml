@@ -1570,6 +1570,7 @@ connection_timeout = 10
 request_timeout = 35
 ucs_only_connectors = "imerchantsolutions, paytm, phonepe, hyperpg, revolv3, fiservcommercehub, absa_sanlam, interpayments, payconex, dlocal, barclaycard, tsys_transit, jpmorgan, datatrans, givepayments"    # Comma-separated list of connectors that use UCS only
 ucs_psync_disabled_connectors = "cashtocode, trustly"    # Comma-separated list of connectors to disable UCS PSync call
+ucs_blacklisted_connectors = ""    # Comma-separated list of connectors that must use Direct path instead of UCS (used in default non-cutover mode)
 default_execution_mode = "not_applicable"    # Default execution mode when no rollout config matches (not_applicable, primary, shadow)
 
 [revenue_recovery]

@@ -83,6 +83,11 @@ pub struct UnifiedConnectorServiceClientConfig {
     #[serde(default, deserialize_with = "deserialize_hashset")]
     pub ucs_psync_disabled_connectors: HashSet<Connector>,
 
+    /// Set of connectors that are blacklisted from using UCS and must use the Direct path.
+    /// Used in the default (non-cutover) mode where UCS is the standard path.
+    #[serde(default, deserialize_with = "deserialize_hashset")]
+    pub ucs_blacklisted_connectors: HashSet<Connector>,
+
     /// Default execution mode when no rollout config is found.
     /// Controls what happens when UCS is enabled but no specific rollout config matches.
     /// Defaults to NotApplicable (direct HS path). Can be set to "primary" to make UCS
