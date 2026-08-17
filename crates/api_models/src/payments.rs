@@ -8881,9 +8881,8 @@ pub struct PaymentListConstraints {
     pub ending_before: Option<id_type::PaymentId>,
 
     /// limit on the number of objects to return
-    #[schema(default = 10, maximum = 100)]
-    #[serde(default = "common_utils::consts::default_payments_list_limit")]
-    pub limit: u32,
+    #[serde(default)]
+    pub limit: common_utils::types::list::PageSize,
 
     /// The time at which payment is created
     #[schema(example = "2022-09-10T10:11:12Z")]
@@ -8954,12 +8953,10 @@ pub struct PaymentListConstraints {
     pub ending_before: Option<id_type::GlobalPaymentId>,
 
     /// limit on the number of objects to return
-    #[param(value_type = u32, default = 10, minimum = 1, maximum = 100)]
     #[serde(default)]
     pub limit: common_utils::types::list::PageSize,
 
     /// The starting point within a list of objects
-    #[param(value_type = Option<u32>)]
     #[serde(default)]
     pub offset: common_utils::types::list::PageOffset,
 

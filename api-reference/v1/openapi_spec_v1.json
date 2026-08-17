@@ -28557,6 +28557,18 @@
           }
         }
       },
+      "PageOffset": {
+        "type": "integer",
+        "format": "int32",
+        "maximum": 20000,
+        "minimum": 0
+      },
+      "PageSize": {
+        "type": "integer",
+        "format": "int32",
+        "maximum": 100,
+        "minimum": 1
+      },
       "PartnerApplicationDetails": {
         "type": "object",
         "description": "Information identifying partner / external platform details",
@@ -29970,12 +29982,7 @@
             "nullable": true
           },
           "limit": {
-            "type": "integer",
-            "format": "int32",
-            "description": "limit on the number of objects to return",
-            "default": 10,
-            "maximum": 100,
-            "minimum": 0
+            "$ref": "#/components/schemas/common_utils.types.list.PageSize"
           },
           "created": {
             "type": "string",
@@ -37214,10 +37221,7 @@
                 "nullable": true
               },
               "limit": {
-                "type": "integer",
-                "format": "int32",
-                "description": "limit on the number of objects to return",
-                "minimum": 0
+                "$ref": "#/components/schemas/common_utils.types.list.PageSize"
               },
               "created": {
                 "type": "string",
@@ -37274,17 +37278,10 @@
                 "nullable": true
               },
               "limit": {
-                "type": "integer",
-                "format": "int32",
-                "description": "The limit on the number of objects to return",
-                "minimum": 0
+                "$ref": "#/components/schemas/common_utils.types.list.PageSize"
               },
               "offset": {
-                "type": "integer",
-                "format": "int32",
-                "description": "The starting point within a list of objects",
-                "nullable": true,
-                "minimum": 0
+                "$ref": "#/components/schemas/common_utils.types.list.PageOffset"
               },
               "connector": {
                 "type": "array",
@@ -40716,11 +40713,12 @@
                 "nullable": true
               },
               "limit": {
-                "type": "integer",
-                "format": "int32",
-                "description": "Limit on the number of objects to return",
-                "nullable": true,
-                "minimum": 0
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/common_utils.types.list.PageSize"
+                  }
+                ],
+                "nullable": true
               },
               "offset": {
                 "$ref": "#/components/schemas/common_utils.types.list.PageOffset"

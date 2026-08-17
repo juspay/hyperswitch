@@ -138,11 +138,9 @@ pub struct DisputeListGetConstraints {
     pub payment_id: Option<common_utils::id_type::PaymentId>,
     /// Limit on the number of objects to return
     #[serde(default)]
-    #[schema(value_type = u32)]
     pub limit: common_utils::types::list::PageSize,
     /// The starting point within a list of object
     #[serde(default)]
-    #[schema(value_type = Option<u32>)]
     pub offset: common_utils::types::list::PageOffset,
     /// The identifier for business profile
     #[schema(value_type = Option<String>)]

@@ -69,6 +69,24 @@ impl<'de> Deserialize<'de> for PageSize {
     }
 }
 
+impl<'a> utoipa::ToSchema<'a> for PageSize {
+    fn schema() -> (
+        &'a str,
+        utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>,
+    ) {
+        use utoipa::openapi::{KnownFormat, ObjectBuilder, SchemaFormat, SchemaType};
+        (
+            "PageSize",
+            ObjectBuilder::new()
+                .schema_type(SchemaType::Integer)
+                .format(Some(SchemaFormat::KnownFormat(KnownFormat::Int32)))
+                .minimum(Some(f64::from(LIST_MIN_LIMIT)))
+                .maximum(Some(f64::from(LIST_MAX_LIMIT)))
+                .into(),
+        )
+    }
+}
+
 /// A page offset, capped so a caller can't skip a huge number of rows.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct PageOffset(u64);
@@ -117,6 +135,24 @@ impl<'de> Deserialize<'de> for PageOffset {
             ))),
             Some(value) => Ok(Self(u64::from(value))),
         }
+    }
+}
+
+impl<'a> utoipa::ToSchema<'a> for PageOffset {
+    fn schema() -> (
+        &'a str,
+        utoipa::openapi::RefOr<utoipa::openapi::schema::Schema>,
+    ) {
+        use utoipa::openapi::{KnownFormat, ObjectBuilder, SchemaFormat, SchemaType};
+        (
+            "PageOffset",
+            ObjectBuilder::new()
+                .schema_type(SchemaType::Integer)
+                .format(Some(SchemaFormat::KnownFormat(KnownFormat::Int32)))
+                .minimum(Some(0.0))
+                .maximum(Some(f64::from(Self::MAX)))
+                .into(),
+        )
     }
 }
 
