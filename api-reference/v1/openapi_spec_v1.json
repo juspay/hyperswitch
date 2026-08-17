@@ -28557,18 +28557,6 @@
           }
         }
       },
-      "PageOffset": {
-        "type": "integer",
-        "format": "int32",
-        "maximum": 20000,
-        "minimum": 0
-      },
-      "PageSize": {
-        "type": "integer",
-        "format": "int32",
-        "maximum": 100,
-        "minimum": 1
-      },
       "PartnerApplicationDetails": {
         "type": "object",
         "description": "Information identifying partner / external platform details",
@@ -47178,6 +47166,18 @@
           }
         },
         "additionalProperties": false
+      },
+      "common_utils.types.list.PageOffset": {
+        "type": "integer",
+        "format": "int32",
+        "maximum": 20000,
+        "minimum": 0
+      },
+      "common_utils.types.list.PageSize": {
+        "type": "integer",
+        "format": "int32",
+        "maximum": 100,
+        "minimum": 1
       }
     },
     "securitySchemes": {

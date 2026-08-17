@@ -76,7 +76,9 @@ impl<'a> utoipa::ToSchema<'a> for PageSize {
     ) {
         use utoipa::openapi::{KnownFormat, ObjectBuilder, SchemaFormat, SchemaType};
         (
-            "PageSize",
+            // Use the full dotted path so the component key matches the `$ref` that
+            // utoipa's derive macro generates for fields of this type.
+            "common_utils.types.list.PageSize",
             ObjectBuilder::new()
                 .schema_type(SchemaType::Integer)
                 .format(Some(SchemaFormat::KnownFormat(KnownFormat::Int32)))
@@ -145,7 +147,9 @@ impl<'a> utoipa::ToSchema<'a> for PageOffset {
     ) {
         use utoipa::openapi::{KnownFormat, ObjectBuilder, SchemaFormat, SchemaType};
         (
-            "PageOffset",
+            // Use the full dotted path so the component key matches the `$ref` that
+            // utoipa's derive macro generates for fields of this type.
+            "common_utils.types.list.PageOffset",
             ObjectBuilder::new()
                 .schema_type(SchemaType::Integer)
                 .format(Some(SchemaFormat::KnownFormat(KnownFormat::Int32)))

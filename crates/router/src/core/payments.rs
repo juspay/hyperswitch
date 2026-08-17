@@ -10621,8 +10621,6 @@ pub async fn list_payments(
 ) -> RouterResponse<payments_api::PaymentListResponse> {
     common_utils::metrics::utils::record_operation_time(
         async {
-            let limit = constraints.limit;
-            helpers::validate_payment_list_request_for_joins(limit)?;
             let db: &dyn StorageInterface = state.store.as_ref();
             let fetch_constraints = constraints.clone().into();
             let list: Vec<(storage::PaymentIntent, Option<storage::PaymentAttempt>)> = db
@@ -10840,11 +10838,9 @@ pub async fn apply_filters_on_payments(
 ) -> RouterResponse<api::PaymentListResponseV2> {
     common_utils::metrics::utils::record_operation_time(
         async {
-            let limit = constraints.limit;
-            helpers::validate_payment_list_request_for_joins(limit)?;
             let db: &dyn StorageInterface = state.store.as_ref();
-            let pi_fetch_constraints = (constraints.clone(), profile_id_list.clone()).try_into()?;
-            let list: Vec<(storage::PaymentIntent, storage::PaymentAttempt)> = db
+            let fetch_constraints = constraints.clone().into();
+            let list: Vec<(storage::PaymentIntent, Option<storage::PaymentAttempt>)> = db
                 .get_filtered_payment_intents_attempt(
                     platform.get_processor().get_account().get_id(),
                     &pi_fetch_constraints,

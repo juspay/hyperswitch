@@ -754,22 +754,6 @@ pub fn validate_id(id: String, key: &str) -> Result<String, errors::ApiErrorResp
     }
 }
 
-/// Reject a list request whose `limit` is outside `1..=max`, so the caller gets a clear
-/// 400 instead of silently receiving fewer (or zero) rows. `None` uses the endpoint default.
-pub fn validate_list_limit(
-    requested: Option<u32>,
-    max: u32,
-) -> Result<(), errors::ApiErrorResponse> {
-    match requested {
-        Some(limit) if limit == 0 || limit > max => {
-            Err(errors::ApiErrorResponse::InvalidRequestData {
-                message: format!("list limit {limit} is invalid, it must be between 1 and {max}"),
-            })
-        }
-        _ => Ok(()),
-    }
-}
-
 #[cfg(feature = "v1")]
 pub async fn build_platform_from_refund_core(
     state: &SessionState,
