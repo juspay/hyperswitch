@@ -236,6 +236,15 @@ type UnifiedConnectorServiceResult = CustomResult<
 type UnifiedConnectorServiceRefundResult =
     CustomResult<(Result<RefundsResponseData, ErrorResponse>, u16), UnifiedConnectorServiceError>;
 
+type UnifiedConnectorServiceRefundVoidPostRefundResult = CustomResult<
+    (
+        RefundReverseUcsResponse,
+        Result<RefundsResponseData, ErrorResponse>,
+        u16,
+    ),
+    UnifiedConnectorServiceError,
+>;
+
 type UnifiedConnectorServiceCreateOrderResult = CustomResult<
     (
         Result<(PaymentsResponseData, AttemptStatus), ErrorResponse>,
@@ -2614,6 +2623,44 @@ pub fn handle_unified_connector_service_response_for_refund_get(
     Ok((router_data_response, status_code))
 }
 
+pub fn handle_unified_connector_service_response_for_refund_void_post_refund(
+    response: payments_grpc::RefundResponse,
+) -> UnifiedConnectorServiceRefundVoidPostRefundResult {
+    let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
+    let router_data_response = Result::<RefundsResponseData, ErrorResponse>::foreign_try_from((
+        response.clone(),
+        common_enums::RefundStatus::Success,
+    ))?;
+    let status = common_enums::RefundStatus::foreign_try_from((
+        response.status(),
+        common_enums::RefundStatus::Success,
+    ))?;
+    let state_metadata = response
+        .state_metadata
+        .map(|state_metadata| {
+            state_metadata
+                .expose()
+                .parse_struct("UCS refund reverse state metadata")
+                .map(common_utils::pii::SecretSerdeValue::new)
+        })
+        .transpose()
+        .change_context(UnifiedConnectorServiceError::ResponseDeserializationFailed)
+        .attach_printable("Failed to deserialize UCS refund reverse state metadata")?;
+    let error = router_data_response.as_ref().err().cloned();
+
+    Ok((
+        RefundReverseUcsResponse {
+            state_metadata,
+            raw_connector_response: response.raw_connector_response,
+            connector_refund_id: response.connector_refund_id,
+            status,
+            error,
+        },
+        router_data_response,
+        status_code,
+    ))
+}
+
 pub fn handle_unified_connector_service_response_for_payment_cancel(
     response: payments_grpc::PaymentServiceVoidResponse,
     prev_status: AttemptStatus,
@@ -3694,96 +3741,41 @@ pub async fn call_unified_connector_service_for_refund_void_post_refund(
         })
         .transpose()?
         .map(ucs_types::UcsResourceId::Refund);
-    let grpc_headers = state
+    let grpc_header_builder = state
         .get_grpc_headers_ucs(execution_mode)
         .lineage_ids(lineage_ids)
         .external_vault_proxy_metadata(None)
         .merchant_reference_id(merchant_reference_id)
-        .resource_id(resource_id)
-        .build();
+        .resource_id(resource_id);
 
-    let grpc_response = ucs_client
-        .refund_void_post_refund(grpc_request, connector_auth_metadata, grpc_headers)
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("UCS refund reverse execution failed")?
-        .into_inner();
-    let status_code =
-        transformers::convert_connector_service_status_code(grpc_response.status_code)
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to transform UCS refund reverse status code")?;
-    let error = grpc_response
-        .error
-        .as_ref()
-        .map(|error_info| {
-            let connector_details = error_info
-                .connector_details
-                .as_ref()
-                .ok_or(UnifiedConnectorServiceError::ResponseDeserializationFailed)?;
+    Box::pin(ucs_logging_wrapper_granular(
+        router_data,
+        state,
+        grpc_request,
+        grpc_header_builder,
+        execution_mode,
+        |mut router_data, grpc_request, grpc_headers| async move {
+            let grpc_response = ucs_client
+                .refund_void_post_refund(grpc_request, connector_auth_metadata, grpc_headers)
+                .await
+                .attach_printable("UCS refund reverse execution failed")?
+                .into_inner();
+            let (reverse_response, router_data_response, status_code) =
+                handle_unified_connector_service_response_for_refund_void_post_refund(
+                    grpc_response.clone(),
+                )
+                .attach_printable("Failed to transform UCS refund reverse response")?;
 
-            Ok::<_, error_stack::Report<UnifiedConnectorServiceError>>(ErrorResponse {
-                code: connector_details
-                    .code
-                    .clone()
-                    .ok_or(UnifiedConnectorServiceError::ResponseDeserializationFailed)?,
-                message: connector_details
-                    .message
-                    .clone()
-                    .ok_or(UnifiedConnectorServiceError::ResponseDeserializationFailed)?,
-                reason: connector_details.reason.clone(),
-                status_code,
-                attempt_status: None,
-                connector_transaction_id: connector_details.connector_transaction_id.clone(),
-                connector_response_reference_id: None,
-                network_decline_code: error_info.issuer_details.as_ref().and_then(|details| {
-                    details
-                        .network_details
-                        .as_ref()
-                        .and_then(|network| network.decline_code.clone())
-                }),
-                network_advice_code: error_info.issuer_details.as_ref().and_then(|details| {
-                    details
-                        .network_details
-                        .as_ref()
-                        .and_then(|network| network.advice_code.clone())
-                }),
-                network_error_message: error_info.issuer_details.as_ref().and_then(|details| {
-                    details
-                        .network_details
-                        .as_ref()
-                        .and_then(|network| network.error_message.clone())
-                }),
-                connector_metadata: None,
-            })
-        })
-        .transpose()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to transform UCS refund reverse connector error")?;
-    let status = common_enums::RefundStatus::foreign_try_from((
-        grpc_response.status(),
-        common_enums::RefundStatus::Success,
+            router_data.connector_http_status_code = Some(status_code);
+            router_data.response = router_data_response;
+
+            Ok((router_data, reverse_response, grpc_response))
+        },
     ))
+    .await
+    .map(|(_router_data, reverse_response)| reverse_response)
     .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Failed to transform UCS refund reverse status")?;
-    let state_metadata = grpc_response
-        .state_metadata
-        .map(|state_metadata| {
-            state_metadata
-                .expose()
-                .parse_struct("UCS refund reverse state metadata")
-                .map(common_utils::pii::SecretSerdeValue::new)
-        })
-        .transpose()
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to deserialize UCS refund reverse state metadata")?;
-
-    Ok(RefundReverseUcsResponse {
-        state_metadata,
-        raw_connector_response: grpc_response.raw_connector_response,
-        connector_refund_id: grpc_response.connector_refund_id,
-        status,
-        error,
-    })
+    .attach_printable("UCS refund reverse execution failed")
 }
 
 /// Execute a surcharge calculation call via UCS SurchargeService.Calculate.
