@@ -553,8 +553,7 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
                     query = query.filter(po_dsl::status.eq_any(status.clone()));
                 }
 
-                query =
-                    diesel_models::list::apply_pagination(query, params.limit, params.offset);
+                query = diesel_models::list::apply_pagination(query, params.limit, params.offset);
             }
         }
 
@@ -698,11 +697,7 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
                     _ => query,
                 };
 
-                diesel_models::list::apply_pagination(
-                    query,
-                    params.limit,
-                    params.offset,
-                )
+                diesel_models::list::apply_pagination(query, params.limit, params.offset)
             }
         };
 
