@@ -1491,6 +1491,15 @@ where
         }
 
         let payment_intent_status = payment_data.get_payment_intent().status;
+        let retain_payment_method_token_for_retry = payment_intent_status
+            .is_eligible_for_manual_retry()
+            && business_profile.is_manual_retry_enabled == Some(true)
+            && business_profile.intent_fulfillment_time.is_some()
+            && payment_data
+                .get_payment_method_info()
+                .is_some_and(|payment_method| {
+                    payment_method.version == common_enums::ApiVersion::V2
+                });
 
         payment_data
             .get_payment_attempt()
@@ -1501,6 +1510,7 @@ where
             .async_map(|key_for_hyperswitch_token| async move {
                 if key_for_hyperswitch_token
                     .should_delete_payment_method_token(payment_intent_status)
+                    && !retain_payment_method_token_for_retry
                 {
                     let _ = key_for_hyperswitch_token.delete(state).await;
                 }
