@@ -701,6 +701,116 @@ export const connectorDetails = {
         },
       },
     },
+    CvcOmitAndRiskMessages: {
+      Configs: {
+        CONNECTOR_CREDENTIAL: {
+          value: "connector_1",
+        },
+      },
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        mandate_data: singleUseMandateData,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    CvcOmitNoBilling: {
+      Configs: {
+        CONNECTOR_CREDENTIAL: {
+          value: "connector_1",
+        },
+      },
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "off_session",
+        billing: {
+          address: {
+            first_name: "Test",
+            last_name: "User",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_code: "MISSING_FIELD",
+        },
+      },
+    },
+    CvcOmitEmptyCvc: {
+      Configs: {
+        CONNECTOR_CREDENTIAL: {
+          value: "connector_1",
+        },
+      },
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: {
+            ...successfulNo3DSCardDetails,
+            card_cvc: "",
+          },
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "off_session",
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message: "Invalid card_cvc length",
+            code: "IR_16",
+          },
+        },
+      },
+    },
+    CvcOmitOmittedCvc: {
+      Configs: {
+        CONNECTOR_CREDENTIAL: {
+          value: "connector_1",
+        },
+      },
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: {
+            card_number: "4242424242424242",
+            card_exp_month: "01",
+            card_exp_year: "50",
+            card_holder_name: "joseph Doe",
+          },
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "off_session",
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            error_type: "invalid_request",
+            message: "Json deserialize error: missing field `card_cvc`",
+            code: "IR_06",
+          },
+        },
+      },
+    },
     MandateMultiUseNo3DSAutoCapture: {
       Configs: {
         CONNECTOR_CREDENTIAL: {
