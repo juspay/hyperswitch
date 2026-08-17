@@ -1873,7 +1873,7 @@ impl From<api_models::payments::PaymentListConstraints> for PaymentIntentFetchCo
             customer_id,
             starting_after_id: starting_after,
             ending_before_id: ending_before,
-            limit,
+            limit: limit.into(),
             order: Default::default(),
             card_network: None,
             card_discovery: None,
