@@ -3,7 +3,7 @@
 //! This module provides functionality to transform connector authentication data
 //! into connector-specific configuration structures expected by the Unified Connector Service (UCS).
 
-use std::{collections::HashMap, str::FromStr};
+use std::collections::HashMap;
 
 use common_enums::{connector_enums::Connector, enums::Currency};
 use common_utils::ext_traits::ValueExt;
@@ -71,14 +71,25 @@ pub struct JpmorganMetadata {
 
 #[derive(Debug, serde::Deserialize)]
 pub struct SantanderPayoutMetadata {
-    pix_payout: Option<SantanderPixPayoutMetadata>,
-}
-
-#[derive(Debug, serde::Deserialize)]
-pub struct SantanderPixPayoutMetadata {
     client_id: Secret<String>,
     client_secret: Secret<String>,
     workspace_id: Secret<String>,
+}
+
+#[derive(Debug, serde::Deserialize)]
+#[serde(untagged)]
+enum SantanderPayoutMetadataCompat {
+    Flat(SantanderPayoutMetadata),
+    Nested { pix_payout: SantanderPayoutMetadata },
+}
+
+impl SantanderPayoutMetadataCompat {
+    fn into_inner(self) -> SantanderPayoutMetadata {
+        match self {
+            Self::Flat(m) => m,
+            Self::Nested { pix_payout } => pix_payout,
+        }
+    }
 }
 
 #[derive(Debug, serde::Deserialize)]
@@ -1728,22 +1739,20 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                     certificate,
                     private_key,
                 } => {
-                    // When multiple payout methods are added, hold each as an Option here
-                    // and defer per-method credential validation to request time in UCS.
-                    let pix_payout = metadata
+                    let meta_data = metadata
                         .map(|m| {
-                            serde_json::from_value::<SantanderPayoutMetadata>(m.clone())
+                            serde_json::from_value::<SantanderPayoutMetadataCompat>(m.clone())
                                 .map_err(|_| err("Invalid Santander payout metadata format"))
                         })
                         .transpose()?
-                        .and_then(|m| m.pix_payout)
-                        .ok_or_else(|| err("Santander payout requires pix_payout metadata"))?;
+                        .ok_or_else(|| err("Santander payout requires metadata"))?
+                        .into_inner();
                     Ok(Self::Santander {
                         certificates: certificate.clone(),
                         private_key: private_key.clone(),
-                        client_id: pix_payout.client_id,
-                        client_secret: pix_payout.client_secret,
-                        workspace_id: pix_payout.workspace_id,
+                        client_id: meta_data.client_id,
+                        client_secret: meta_data.client_secret,
+                        workspace_id: meta_data.workspace_id,
                     })
                 }
                 _ => Err(err("Santander payout requires CertificateAuth auth type")),
@@ -1794,19 +1803,23 @@ impl From<(Secret<String>, JuspayMetadata)> for ConnectorSpecificConfig {
 
 /// Build the X_CONNECTOR_CONFIG header value for any connector
 pub fn build_connector_config_header(
-    connector_name: &str,
+    connector: Connector,
     auth_type: &ConnectorAuthType,
     merchant_account_metadata: Option<&serde_json::Value>,
 ) -> RouterResult<Option<String>> {
-    let connector = Connector::from_str(connector_name)
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable_lazy(|| format!("Invalid connector name: {}", connector_name))?;
-
     let config = ConnectorSpecificConfig::foreign_try_from((
         connector,
         auth_type,
         merchant_account_metadata,
     ))?;
+
+    // Netcetera has no connector-specific config on the wire (connector-service's
+    // `ConnectorSpecificConfig` oneof has no `netcetera` case), so sending this header makes
+    // UCS hard-error on deserialization instead of falling back to the legacy auth header.
+    // Suppress it here so UCS takes the legacy-header path, which does work for Netcetera.
+    if matches!(config, ConnectorSpecificConfig::Netcetera) {
+        return Ok(None);
+    }
 
     let config_json = serde_json::to_value(&config)
         .change_context(errors::ApiErrorResponse::InternalServerError)

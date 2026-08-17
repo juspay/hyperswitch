@@ -38,6 +38,10 @@ counter_metric!(SUBSEQUENT_MANDATE_PAYMENT, GLOBAL_METER);
 counter_metric!(MANUAL_RETRY_REQUEST_COUNT, GLOBAL_METER);
 counter_metric!(MANUAL_RETRY_COUNT, GLOBAL_METER);
 counter_metric!(MANUAL_RETRY_VALIDATION_FAILED, GLOBAL_METER);
+counter_metric!(CVC_READ_ONLY_RETRIEVAL, GLOBAL_METER);
+counter_metric!(CVC_DELETED_AFTER_SUCCESS, GLOBAL_METER);
+counter_metric!(CVC_DELETION_FAILURE, GLOBAL_METER);
+counter_metric!(MANUAL_RETRY_CVC_LOOKUP_MISS, GLOBAL_METER);
 
 counter_metric!(STORED_TO_LOCKER, GLOBAL_METER);
 counter_metric!(GET_FROM_LOCKER, GLOBAL_METER);
@@ -159,3 +163,23 @@ counter_metric!(MERCHANT_ADVICE_CODE_CONFIG_MISS, GLOBAL_METER);
 // Config Fetch Metrics
 counter_metric!(CONFIG_DATABASE_FETCH, GLOBAL_METER); // When fetched from database
 counter_metric!(CONFIG_DEFAULT_FALLBACK, GLOBAL_METER); // When defaulted to application default
+
+// Payment Method (modular service) business-level metrics
+counter_metric!(PAYMENT_METHOD_OPS_COUNT, GLOBAL_METER);
+histogram_metric_f64!(PAYMENT_METHOD_OPERATION_DURATION, GLOBAL_METER);
+
+counter_metric!(PAYMENT_METHOD_SESSION_OPS_COUNT, GLOBAL_METER);
+histogram_metric_f64!(PAYMENT_METHOD_SESSION_OPERATION_DURATION, GLOBAL_METER);
+counter_metric!(SUCCESSFUL_PAYMENT_METHOD_SESSION_CONFIRM, GLOBAL_METER);
+
+// v2 vault call latency (payment_methods modular service) - distinct from the
+// v1-only CARD_ADD_TIME/CARD_GET_TIME/CARD_DELETE_TIME, which instrument the
+// legacy add_card_to_locker/delete_card_from_locker functions, not vault::call_to_vault.
+histogram_metric_f64!(VAULT_ADD_TIME, GLOBAL_METER);
+histogram_metric_f64!(VAULT_GET_TIME, GLOBAL_METER);
+histogram_metric_f64!(VAULT_DELETE_TIME, GLOBAL_METER);
+histogram_metric_f64!(VAULT_FINGERPRINT_TIME, GLOBAL_METER);
+counter_metric!(VAULT_CALL_FAILURES, GLOBAL_METER);
+
+// Encryption/keymanager latency for payment_methods operations
+histogram_metric_f64!(PAYMENT_METHOD_CRYPTO_DURATION, GLOBAL_METER);
