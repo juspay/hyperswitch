@@ -13516,10 +13516,9 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
             error_message: response.error_message,
         };
 
-        if get_external_authentication_failure_attempt_status(
-            authentication_response.trans_status.clone(),
-        ) == Some(storage_enums::AttemptStatus::AuthenticationFailed)
-        {
+        let failure_attempt_status: Option<storage_enums::AttemptStatus> =
+            authentication_response.trans_status.clone().into();
+        if failure_attempt_status == Some(storage_enums::AttemptStatus::AuthenticationFailed) {
             update_payment_status_for_failed_external_authentication(
                 &state,
                 &platform,
@@ -13547,6 +13546,16 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
             .await
             .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Error while fetching authentication record")?;
+        let payment_method_details = helpers::get_payment_method_details_from_payment_token(
+            &state,
+            &payment_attempt,
+            &payment_intent,
+            &platform,
+            storage_scheme,
+        )
+        .await?
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("missing payment_method_details")?;
         let authentication_response = match Box::pin(authentication_core::perform_authentication(
             &state,
             business_profile.merchant_id,
@@ -13595,10 +13604,9 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
             }
         };
 
-        if get_external_authentication_failure_attempt_status(
-            authentication_response.trans_status.clone(),
-        ) == Some(storage_enums::AttemptStatus::AuthenticationFailed)
-        {
+        let failure_attempt_status: Option<storage_enums::AttemptStatus> =
+            authentication_response.trans_status.clone().into();
+        if failure_attempt_status == Some(storage_enums::AttemptStatus::AuthenticationFailed) {
             update_payment_status_for_failed_external_authentication(
                 &state,
                 &platform,
@@ -13632,23 +13640,6 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
             error_message: authentication_response.error_message,
         },
     ))
-}
-
-fn get_external_authentication_failure_attempt_status(
-    trans_status: common_enums::TransactionStatus,
-) -> Option<storage_enums::AttemptStatus> {
-    match trans_status {
-        common_enums::TransactionStatus::Failure
-        | common_enums::TransactionStatus::Rejected
-        | common_enums::TransactionStatus::VerificationNotPerformed
-        | common_enums::TransactionStatus::NotVerified => {
-            Some(storage_enums::AttemptStatus::AuthenticationFailed)
-        }
-        common_enums::TransactionStatus::Success
-        | common_enums::TransactionStatus::ChallengeRequired
-        | common_enums::TransactionStatus::ChallengeRequiredDecoupledAuthentication
-        | common_enums::TransactionStatus::InformationOnly => None,
-    }
 }
 
 async fn update_payment_status_for_external_authentication_failure(
