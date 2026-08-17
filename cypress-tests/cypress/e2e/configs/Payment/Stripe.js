@@ -393,6 +393,7 @@ export const connectorDetails = {
         },
         order_tax_amount: 500,
         shipping_cost: 100,
+        // Stripe requires full shipping address object with complete address details for L2/L3 data processing
         shipping: {
           address: {
             city: "SANTA MARIA",
@@ -403,15 +404,18 @@ export const connectorDetails = {
             state: "we",
             first_name: "were",
             last_name: "wer",
+            // origin_zip is Stripe-specific and represents the merchant's origin location
             origin_zip: "95014",
           },
         },
+        // merchant_order_reference_id is required by Stripe for L2/L3 data reconciliation
         merchant_order_reference_id: "stripe-l2l3-order-reference",
         order_details: [
           {
             product_name: "Test Product",
             quantity: 1,
             amount: 6000,
+            // requires_shipping is Stripe-specific; indicates if this line item requires shipping
             requires_shipping: true,
           },
         ],
@@ -421,6 +425,9 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
+          // Stripe L2/L3 data requests return minimal response body on success
+          // Additional fields (payment_method_type, connector, etc.) are not asserted here
+          // as they vary by payment flow; core assertion is status: "succeeded"
           status: "succeeded",
         },
       },
