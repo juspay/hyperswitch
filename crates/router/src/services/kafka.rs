@@ -282,6 +282,12 @@ impl KafkaSettings {
             ))
         })?;
 
+        common_utils::fp_utils::when(self.account_updater_topic.is_default_or_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "Kafka Account Updater topic must not be empty".into(),
+            ))
+        })?;
+
         Ok(())
     }
 
@@ -300,20 +306,6 @@ impl KafkaSettings {
                 ))
             },
         )
-    }
-
-    pub fn validate_account_updater_topic(
-        &self,
-    ) -> Result<(), crate::core::errors::ApplicationError> {
-        use common_utils::ext_traits::ConfigExt;
-
-        use crate::core::errors::ApplicationError;
-
-        common_utils::fp_utils::when(self.account_updater_topic.is_default_or_empty(), || {
-            Err(ApplicationError::InvalidConfigurationValueError(
-                "Kafka Account Updater topic must not be empty".into(),
-            ))
-        })
     }
 }
 

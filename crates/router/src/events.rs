@@ -52,8 +52,6 @@ pub struct EventsConfig {
     pub source: EventsSource,
     #[serde(default)]
     pub emit_external_service_call_events: bool,
-    #[serde(default)]
-    pub emit_account_updater_events: bool,
 }
 
 #[derive(Debug, Default, Deserialize, Clone)]
@@ -113,9 +111,6 @@ impl EventsConfig {
                 kafka.validate()?;
                 if self.emit_external_service_call_events {
                     kafka.validate_external_service_call_topic()?;
-                }
-                if self.emit_account_updater_events {
-                    kafka.validate_account_updater_topic()?;
                 }
                 Ok(())
             }

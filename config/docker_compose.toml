@@ -1295,7 +1295,6 @@ enabled = true
 [events]
 source = "logs"
 emit_external_service_call_events = false
-emit_account_updater_events = false
 
 [file_storage]
 file_storage_backend = "file_system"

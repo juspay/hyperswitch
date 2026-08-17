@@ -62,18 +62,16 @@ pub async fn run_account_updater<D>(
         Err(error) => logger::warn!(?error, "Account Updater refresh did not complete"),
     }
 
-    if state.conf.events.emit_account_updater_events {
-        let event = account_updater_events::KafkaAccountUpdaterEvent::new(
-            state.request_id.as_ref().map(|id| id.to_string()),
-            platform.get_processor().get_account().get_id(),
-            profile.get_id(),
-            payment_method,
-            &outcome,
-            started_at.elapsed().as_millis(),
-        );
+    let event = account_updater_events::KafkaAccountUpdaterEvent::new(
+        state.request_id.as_ref().map(|id| id.to_string()),
+        platform.get_processor().get_account().get_id(),
+        profile.get_id(),
+        payment_method,
+        &outcome,
+        started_at.elapsed().as_millis(),
+    );
 
-        state.event_handler.log_event(&event);
-    }
+    state.event_handler.log_event(&event);
 }
 
 async fn refresh_stored_payment_method(
