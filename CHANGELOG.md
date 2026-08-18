@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.08.12.0-hotfix4
+
+### Bug Fixes
+
+- **ucs:** Fire kill switch on connector errors in Ok(RouterData) ([#13748](https://github.com/juspay/hyperswitch/pull/13748)) ([`45c8c3f`](https://github.com/juspay/hyperswitch/commit/45c8c3f9f524d550e86502181caf05bb276f825b))
+
+**Full Changelog:** [`2026.08.12.0-hotfix3...2026.08.12.0-hotfix4`](https://github.com/juspay/hyperswitch/compare/2026.08.12.0-hotfix3...2026.08.12.0-hotfix4)
+
+- - -
+
 ## 2026.08.12.0-hotfix3
 
 ### Features
