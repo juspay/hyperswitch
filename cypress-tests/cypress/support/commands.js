@@ -292,7 +292,8 @@ function createIndividualRolloutConfig(
                   });
               });
           });
-      });
+      }
+    );
   };
 
   return cy
