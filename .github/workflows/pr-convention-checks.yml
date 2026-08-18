@@ -130,7 +130,6 @@ jobs:
             fi
           done <<< "${linked_issues}"
 
-
   pr_labeler:
     name: Attach suitable labels to PR
     if: ${{ github.event_name == 'pull_request_target' }}
