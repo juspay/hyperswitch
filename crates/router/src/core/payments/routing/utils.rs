@@ -682,33 +682,24 @@ pub fn transform_de_output_for_router(
     de_output: Vec<ConnectorInfo>,
     de_evaluated_output: Vec<RoutableConnectorChoice>,
 ) -> RoutingResult<Vec<RoutableConnectorChoice>> {
+    // Keyed on the full (connector, merchant_connector_id) pair rather than the connector name
+    // alone: a merchant can hold several MCAs for the same connector, and a rule that spans two
+    // of them (e.g. a volume split across two paypal MCAs) must keep both.
     let mut seen = HashSet::new();
 
     // evaluated connectors on top, to ensure the fallback is based on other connectors.
     let mut ordered = Vec::with_capacity(de_output.len() + de_evaluated_output.len());
     for eval_conn in de_evaluated_output {
-        if seen.insert(eval_conn.connector) {
+        if seen.insert((eval_conn.connector, eval_conn.merchant_connector_id.clone())) {
             ordered.push(eval_conn);
         }
     }
 
     // Add remaining connectors from de_output (only if not already seen), for fallback
     for conn in de_output {
-        let connector_name = conn.gateway_name.clone();
-        let key = RoutableConnectors::from_str(&connector_name).map_err(|error| {
-            logger::error!(
-                error=?error,
-                connector_name = %connector_name,
-                "euclid: failed to parse connector name from decision engine output"
-            );
-            errors::RoutingError::GenericConversionError {
-                from: "String".to_string(),
-                to: "RoutableConnectors".to_string(),
-            }
-        })?;
-        if seen.insert(key) {
-            let de_choice = DeRoutableConnectorChoice::try_from(conn)?;
-            ordered.push(RoutableConnectorChoice::from(de_choice));
+        let choice = RoutableConnectorChoice::from(DeRoutableConnectorChoice::try_from(conn)?);
+        if seen.insert((choice.connector, choice.merchant_connector_id.clone())) {
+            ordered.push(choice);
         }
     }
     Ok(ordered)
