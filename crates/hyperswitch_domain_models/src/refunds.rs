@@ -89,7 +89,10 @@ impl
             payment_id,
             refund_id,
             profile_id: profile_id_list,
-            limit,
+            // API keeps `Option<PageSize>` for wire compat; the domain holds a resolved
+            // value. `PageSize::default()` is the semantically-correct "no preference"
+            // — same behavior as the previous `Option<i64>` validator's `None → 10`.
+            limit: limit.unwrap_or_default(),
             offset,
             time_range,
             amount_filter,
