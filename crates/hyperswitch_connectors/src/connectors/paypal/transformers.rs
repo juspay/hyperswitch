@@ -150,6 +150,9 @@ pub mod auth_headers {
 }
 
 const ORDER_QUANTITY: u16 = 1;
+/// Express Checkout billing agreement ids carry this prefix. Payment Method Tokens v3 vault ids
+/// do not, which is how the two are told apart when a stored token is reused.
+const BILLING_AGREEMENT_ID_PREFIX: &str = "B-";
 
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
 #[serde(rename_all = "UPPERCASE")]
@@ -537,6 +540,15 @@ pub enum ShippingPreference {
 pub enum PaypalRedirectionRequest {
     PaypalRedirectionStruct(PaypalRedirectionStruct),
     PaypalVaultStruct(VaultStruct),
+    PaypalBillingAgreementStruct(BillingAgreementStruct),
+}
+
+/// Express Checkout billing agreement, as opposed to a Payment Method Tokens v3 vault entry.
+/// Orders v2 accepts both but under different keys, and rejects a billing agreement sent as a
+/// `vault_id`.
+#[derive(Debug, Serialize)]
+pub struct BillingAgreementStruct {
+    billing_agreement_id: Secret<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -1274,16 +1286,28 @@ impl TryFrom<&PaypalRouterData<&PaymentsAuthorizeRouterData>> for PaypalPayments
                         }),
                     ))),
                     enums::PaymentMethodType::Paypal => Ok(Some(PaymentSourceItem::Paypal(
-                        PaypalRedirectionRequest::PaypalVaultStruct(VaultStruct {
-                            vault_id: connector_mandate_id.into(),
-                            attributes: item.router_data.get_optional_customer_id().as_ref().map(
-                                |customer_id| VaultRequestAttributes {
-                                    customer: Some(CustomerRequestData {
-                                        merchant_customer_id: Some(customer_id.clone()),
-                                    }),
+                        // Billing agreement ids carry a `B-` prefix; vault tokens do not. Orders v2
+                        // rejects a billing agreement sent as `vault_id` with PERMISSION_DENIED.
+                        if connector_mandate_id.starts_with(BILLING_AGREEMENT_ID_PREFIX) {
+                            PaypalRedirectionRequest::PaypalBillingAgreementStruct(
+                                BillingAgreementStruct {
+                                    billing_agreement_id: connector_mandate_id.into(),
                                 },
-                            ),
-                        }),
+                            )
+                        } else {
+                            PaypalRedirectionRequest::PaypalVaultStruct(VaultStruct {
+                                vault_id: connector_mandate_id.into(),
+                                attributes: item
+                                    .router_data
+                                    .get_optional_customer_id()
+                                    .as_ref()
+                                    .map(|customer_id| VaultRequestAttributes {
+                                        customer: Some(CustomerRequestData {
+                                            merchant_customer_id: Some(customer_id.clone()),
+                                        }),
+                                    }),
+                            })
+                        },
                     ))),
                     enums::PaymentMethodType::Ach
                     | enums::PaymentMethodType::Affirm
