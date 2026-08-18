@@ -96,6 +96,7 @@ pub struct Connectors {
     pub nexinets: ConnectorParams,
     pub nexixpay: ConnectorParams,
     pub payconex: ConnectorParams,
+    pub citigate: ConnectorParams,
     pub nmi: ConnectorParams,
     pub nomupay: ConnectorParams,
     pub noon: ConnectorParamsWithModeType,

@@ -39,6 +39,7 @@ impl ForeignTryFrom<api_enums::Connector> for euclid::enums::RoutableConnectors 
             api_enums::Connector::Chargebee => Self::Chargebee,
             api_enums::Connector::Checkbook => Self::Checkbook,
             api_enums::Connector::Checkout => Self::Checkout,
+            api_enums::Connector::Citigate => Self::Citigate,
             api_enums::Connector::Coinbase => Self::Coinbase,
             api_enums::Connector::Coingate => Self::Coingate,
             api_enums::Connector::Cryptopay => Self::Cryptopay,
