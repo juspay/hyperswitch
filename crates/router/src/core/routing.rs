@@ -65,7 +65,7 @@ use crate::{
     types::{
         api, domain,
         storage::{self, enums as storage_enums},
-        transformers::{ForeignInto, ForeignTryFrom},
+        transformers::{ForeignFrom, ForeignInto, ForeignTryFrom},
     },
     utils::{self, OptionExt},
 };
@@ -2738,7 +2738,7 @@ pub async fn migrate_rules_for_profiles(
         .await
         .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?
         .into_iter()
-        .map(|(profile_id, merchant_id, _)| (profile_id, merchant_id))
+        .map(|(profile_id, merchant_id, _, _)| (profile_id, merchant_id))
         .collect();
 
     let mut profiles = Vec::with_capacity(request.profile_ids.len());
@@ -2784,6 +2784,7 @@ pub async fn migrate_rules_for_profiles(
                 success: vec![],
                 skipped: vec![],
                 errors: vec![],
+                not_applicable: vec![],
                 not_attempted: Some("no routing rules in Hyperswitch".to_string()),
             });
             totals.profiles_not_attempted += 1;
@@ -2802,6 +2803,7 @@ pub async fn migrate_rules_for_profiles(
                 success: vec![],
                 skipped: vec![],
                 errors: vec![],
+                not_applicable: vec![],
                 not_attempted: Some(reason.to_string()),
             });
             totals.profiles_not_attempted += 1;
@@ -2814,6 +2816,7 @@ pub async fn migrate_rules_for_profiles(
                 totals.rules_migrated += result.success.len();
                 totals.rules_skipped += result.skipped.len();
                 totals.rules_failed += result.errors.len();
+                totals.rules_not_applicable += result.not_applicable.len();
                 profiles.push(result);
             }
             Err(err) => {
@@ -2828,6 +2831,7 @@ pub async fn migrate_rules_for_profiles(
                     success: vec![],
                     skipped: vec![],
                     errors: vec![],
+                    not_applicable: vec![],
                     not_attempted: Some(err.current_context().to_string()),
                 });
                 totals.profiles_not_attempted += 1;
@@ -2920,6 +2924,7 @@ async fn migrate_rules_for_profile(
     let mut response_list = Vec::new();
     let mut skipped_list = Vec::new();
     let mut error_list = Vec::new();
+    let mut not_applicable_list = Vec::new();
 
     let mut push_error = |algorithm_id, msg: String| {
         error_list.push(RuleMigrationError {
@@ -2931,6 +2936,19 @@ async fn migrate_rules_for_profile(
 
     for routing_metadata in routing_metadatas {
         let algorithm_id = routing_metadata.algorithm_id.clone();
+
+        // Held apart from `errors`: these kinds are not Euclid rules, so parsing one as an
+        // algorithm fails every time and would keep a finished profile looking incomplete.
+        let kind = routing_types::RoutingAlgorithmKind::foreign_from(routing_metadata.kind);
+        if let Some(reason) = kind.rule_migration_exclusion() {
+            not_applicable_list.push(routing_types::RuleMigrationNotApplicable {
+                profile_id: profile_id.clone(),
+                algorithm_id,
+                kind,
+                reason: reason.to_string(),
+            });
+            continue;
+        }
 
         // Already migrated. The rule is left untouched — an insert cannot repair diverged
         // contents anyway. Linking is still attempted: a rule can arrive without being made
@@ -3027,7 +3045,9 @@ async fn migrate_rules_for_profile(
         let routing_rule = RoutingRule {
             rule_id: Some(algorithm.algorithm_id.clone().get_string_repr().to_string()),
             name: algorithm.name.clone(),
-            description: algorithm.description.clone(),
+            // The decision engine requires a description; the column here is nullable, and a
+            // null one is rejected outright rather than migrated.
+            description: Some(algorithm.description.clone().unwrap_or_default()),
             created_by: profile_id.get_string_repr().to_string(),
             algorithm: static_algorithm,
             algorithm_for: algorithm.algorithm_for.into(),
@@ -3079,6 +3099,7 @@ async fn migrate_rules_for_profile(
         success: response_list,
         skipped: skipped_list,
         errors: error_list,
+        not_applicable: not_applicable_list,
         not_attempted: None,
     })
 }
@@ -3105,9 +3126,19 @@ pub async fn routing_migration_status(
         .collect();
     let mut hs_rule_ids: HashMap<common_utils::id_type::ProfileId, HashSet<String>> =
         HashMap::new();
+    // Rules the migration is not expected to carry, counted apart so holding one never leaves a
+    // finished profile reading as partial.
+    let mut out_of_scope: HashMap<common_utils::id_type::ProfileId, i64> = HashMap::new();
     match state.store.find_rule_ids_for_profiles(&page_profiles).await {
         Ok(rows) => {
-            for (profile_id, _, algorithm_id) in rows {
+            for (profile_id, _, algorithm_id, kind) in rows {
+                if routing_types::RoutingAlgorithmKind::foreign_from(kind)
+                    .rule_migration_exclusion()
+                    .is_some()
+                {
+                    *out_of_scope.entry(profile_id).or_default() += 1;
+                    continue;
+                }
                 hs_rule_ids
                     .entry(profile_id)
                     .or_default()
@@ -3216,6 +3247,7 @@ pub async fn routing_migration_status(
         }
 
         profiles.push(routing_types::RoutingMigrationProfileStatus {
+            rules_out_of_scope: out_of_scope.get(&profile_id).copied().unwrap_or_default(),
             profile_id,
             merchant_id,
             rules_hyperswitch,

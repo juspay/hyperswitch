@@ -3515,7 +3515,12 @@ impl RoutingAlgorithmInterface for KafkaStore {
         &self,
         profile_ids: &[id_type::ProfileId],
     ) -> CustomResult<
-        Vec<(id_type::ProfileId, id_type::MerchantId, id_type::RoutingId)>,
+        Vec<(
+            id_type::ProfileId,
+            id_type::MerchantId,
+            id_type::RoutingId,
+            enums::RoutingAlgorithmKind,
+        )>,
         errors::StorageError,
     > {
         self.diesel_store

@@ -1,4 +1,6 @@
-use diesel_models::{errors::DatabaseError, routing_algorithm as routing_storage};
+use diesel_models::{
+    enums as storage_enums, errors::DatabaseError, routing_algorithm as routing_storage,
+};
 use error_stack::report;
 use router_env::{instrument, tracing};
 use storage_impl::mock_db::MockDb;
@@ -77,6 +79,7 @@ pub trait RoutingAlgorithmInterface {
             common_utils::id_type::ProfileId,
             common_utils::id_type::MerchantId,
             common_utils::id_type::RoutingId,
+            storage_enums::RoutingAlgorithmKind,
         )>,
     >;
 }
@@ -241,6 +244,7 @@ impl RoutingAlgorithmInterface for Store {
             common_utils::id_type::ProfileId,
             common_utils::id_type::MerchantId,
             common_utils::id_type::RoutingId,
+            storage_enums::RoutingAlgorithmKind,
         )>,
     > {
         let conn = connection::pg_connection_read(self).await?;
@@ -332,6 +336,7 @@ impl RoutingAlgorithmInterface for MockDb {
             common_utils::id_type::ProfileId,
             common_utils::id_type::MerchantId,
             common_utils::id_type::RoutingId,
+            storage_enums::RoutingAlgorithmKind,
         )>,
     > {
         Err(errors::StorageError::MockDbError)?

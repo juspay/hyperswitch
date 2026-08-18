@@ -139,6 +139,9 @@ impl RoutingAlgorithm {
                 dsl::algorithm_for,
             ))
             .filter(dsl::profile_id.eq(profile_id.to_owned()))
+            // `algorithm_id` breaks ties on `modified_at`, which bulk-created rules share. Without
+            // a total order the pages of one limit/offset walk overlap and leave rules unvisited.
+            .order((dsl::modified_at.desc(), dsl::algorithm_id.asc()))
             .limit(limit)
             .offset(offset)
             .load_async::<(
@@ -206,7 +209,8 @@ impl RoutingAlgorithm {
             )
             .limit(limit)
             .offset(offset)
-            .order(dsl::modified_at.desc())
+            // `algorithm_id` breaks ties on `modified_at`, so the pages of one walk stay disjoint.
+            .order((dsl::modified_at.desc(), dsl::algorithm_id.asc()))
             .load_async::<(
                 common_utils::id_type::ProfileId,
                 common_utils::id_type::RoutingId,
@@ -274,7 +278,8 @@ impl RoutingAlgorithm {
             .filter(dsl::algorithm_for.eq(transaction_type.to_owned()))
             .limit(limit)
             .offset(offset)
-            .order(dsl::modified_at.desc())
+            // `algorithm_id` breaks ties on `modified_at`, so the pages of one walk stay disjoint.
+            .order((dsl::modified_at.desc(), dsl::algorithm_id.asc()))
             .load_async::<(
                 common_utils::id_type::ProfileId,
                 common_utils::id_type::RoutingId,
@@ -315,7 +320,8 @@ impl RoutingAlgorithm {
     }
 
     /// Every rule id held by the given profiles, with each profile's merchant — taken from here
-    /// rather than `business_profile`, which is encrypted and needs the merchant to read.
+    /// rather than `business_profile`, which is encrypted and needs the merchant to read. The
+    /// kind rides along so callers can tell which rules a migration is expected to carry.
     pub async fn rule_ids_for_profiles(
         conn: &PgPooledConn,
         profile_ids: &[common_utils::id_type::ProfileId],
@@ -324,16 +330,23 @@ impl RoutingAlgorithm {
             common_utils::id_type::ProfileId,
             common_utils::id_type::MerchantId,
             common_utils::id_type::RoutingId,
+            enums::RoutingAlgorithmKind,
         )>,
     > {
         Self::table()
-            .select((dsl::profile_id, dsl::merchant_id, dsl::algorithm_id))
+            .select((
+                dsl::profile_id,
+                dsl::merchant_id,
+                dsl::algorithm_id,
+                dsl::kind,
+            ))
             .filter(dsl::profile_id.eq_any(profile_ids.to_vec()))
             .order((dsl::profile_id.asc(), dsl::algorithm_id.asc()))
             .load_async::<(
                 common_utils::id_type::ProfileId,
                 common_utils::id_type::MerchantId,
                 common_utils::id_type::RoutingId,
+                enums::RoutingAlgorithmKind,
             )>(conn)
             .await
             .change_context(DatabaseError::Others)

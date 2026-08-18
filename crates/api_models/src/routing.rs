@@ -582,6 +582,23 @@ pub enum RoutingAlgorithmKind {
     ThreeDsDecisionRule,
 }
 
+impl RoutingAlgorithmKind {
+    /// Why `/routing/rule/migrate` does not carry this kind, or `None` when it does. Both
+    /// excluded kinds reach the decision engine another way, so a rule migration that leaves
+    /// them behind is finished, not partial.
+    pub fn rule_migration_exclusion(self) -> Option<&'static str> {
+        match self {
+            Self::Single | Self::Priority | Self::VolumeSplit | Self::Advanced => None,
+            Self::Dynamic => {
+                Some("dynamic routing configuration, provisioned by the dynamic routing setup")
+            }
+            Self::ThreeDsDecisionRule => {
+                Some("3DS decision rules are not held in the decision engine rule store")
+            }
+        }
+    }
+}
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct RoutingPayloadWrapper {
     pub updated_config: Vec<RoutableConnectorChoice>,
@@ -1884,10 +1901,22 @@ pub struct RuleMigrationProfileResult {
     /// is distinguishable from a failed one.
     pub skipped: Vec<RuleMigrationSkipped>,
     pub errors: Vec<RuleMigrationError>,
+    /// Rules this endpoint does not carry, listed so a profile can still reach a clean finish.
+    /// Retrying will never move them, which is what separates these from `errors`.
+    pub not_applicable: Vec<RuleMigrationNotApplicable>,
     /// Nothing was attempted: no rules, or the merchant could not be read. Per-rule failures
     /// are `errors`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub not_attempted: Option<String>,
+}
+
+/// A rule outside this endpoint's scope, with the reason it is out of scope.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct RuleMigrationNotApplicable {
+    pub profile_id: common_utils::id_type::ProfileId,
+    pub algorithm_id: common_utils::id_type::RoutingId,
+    pub kind: RoutingAlgorithmKind,
+    pub reason: String,
 }
 
 #[derive(Debug, Default, serde::Serialize)]
@@ -1896,6 +1925,7 @@ pub struct RuleMigrationTotals {
     pub rules_migrated: usize,
     pub rules_skipped: usize,
     pub rules_failed: usize,
+    pub rules_not_applicable: usize,
     pub profiles_not_attempted: usize,
 }
 
@@ -1937,7 +1967,12 @@ pub enum RoutingMigrationState {
 pub struct RoutingMigrationProfileStatus {
     pub profile_id: common_utils::id_type::ProfileId,
     pub merchant_id: common_utils::id_type::MerchantId,
+    /// Counts only the kinds a rule migration carries, so it can be compared with the decision
+    /// engine directly. Dynamic and 3DS rules are `rules_out_of_scope`.
     pub rules_hyperswitch: i64,
+    /// Held by Hyperswitch but never migrated by this endpoint — see
+    /// [`RoutingAlgorithmKind::rule_migration_exclusion`].
+    pub rules_out_of_scope: i64,
     /// `None` when the decision engine could not be reached for this profile.
     pub rules_decision_engine: Option<i64>,
     /// Held by Hyperswitch, absent in the decision engine — what a migration run would write.
