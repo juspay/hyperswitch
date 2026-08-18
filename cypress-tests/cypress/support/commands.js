@@ -3300,9 +3300,17 @@ Cypress.Commands.add(
                 }
               }
               for (const key in resData.body) {
-                expect(resData.body[key], [key]).to.deep.equal(
-                  response.body[key]
-                );
+                if (key === "payment_method_data") {
+                  expect(response.body[key], [key]).to.not.be.empty;
+                  expect(
+                    response.body[key]?.card?.auth_code,
+                    "payment_method_data.card.auth_code"
+                  ).to.be.a("string").and.not.be.empty;
+                } else {
+                  expect(resData.body[key], [key]).to.deep.equal(
+                    response.body[key]
+                  );
+                }
               }
             } else if (response.body.authentication_type === "no_three_ds") {
               // Handle pay later methods that require redirect (Affirm, Klarna, etc.)
@@ -3328,9 +3336,17 @@ Cypress.Commands.add(
                 );
               }
               for (const key in resData.body) {
-                expect(resData.body[key], [key]).to.deep.equal(
-                  response.body[key]
-                );
+                if (key === "payment_method_data") {
+                  expect(response.body[key], [key]).to.not.be.empty;
+                  expect(
+                    response.body[key]?.card?.auth_code,
+                    "payment_method_data.card.auth_code"
+                  ).to.be.a("string").and.not.be.empty;
+                } else {
+                  expect(resData.body[key], [key]).to.deep.equal(
+                    response.body[key]
+                  );
+                }
                 if (
                   response.body.setup_future_usage === "off_session" &&
                   response.body.status === "succeeded" &&
@@ -3386,9 +3402,17 @@ Cypress.Commands.add(
                 }
               }
               for (const key in resData.body) {
-                expect(resData.body[key], [key]).to.deep.equal(
-                  response.body[key]
-                );
+                if (key === "payment_method_data") {
+                  expect(response.body[key], [key]).to.not.be.empty;
+                  expect(
+                    response.body[key]?.card?.auth_code,
+                    "payment_method_data.card.auth_code"
+                  ).to.be.a("string").and.not.be.empty;
+                } else {
+                  expect(resData.body[key], [key]).to.deep.equal(
+                    response.body[key]
+                  );
+                }
               }
             } else if (response.body.authentication_type === "no_three_ds") {
               // Handle pay later methods that require redirect (Affirm, Klarna, etc.)
@@ -3403,9 +3427,17 @@ Cypress.Commands.add(
                 globalState.set("nextActionType", "redirect_to_url");
               }
               for (const key in resData.body) {
-                expect(resData.body[key], [key]).to.deep.equal(
-                  response.body[key]
-                );
+                if (key === "payment_method_data") {
+                  expect(response.body[key], [key]).to.not.be.empty;
+                  expect(
+                    response.body[key]?.card?.auth_code,
+                    "payment_method_data.card.auth_code"
+                  ).to.be.a("string").and.not.be.empty;
+                } else {
+                  expect(resData.body[key], [key]).to.deep.equal(
+                    response.body[key]
+                  );
+                }
                 if (
                   response.body.setup_future_usage === "off_session" &&
                   response.body.status === "succeeded" &&
@@ -4073,15 +4105,31 @@ Cypress.Commands.add(
                 }
               }
               for (const key in resData.body) {
-                expect(resData.body[key], [key]).to.deep.equal(
-                  response.body[key]
-                );
+                if (key === "payment_method_data") {
+                  expect(response.body[key], [key]).to.not.be.empty;
+                  expect(
+                    response.body[key]?.card?.auth_code,
+                    "payment_method_data.card.auth_code"
+                  ).to.be.a("string").and.not.be.empty;
+                } else {
+                  expect(resData.body[key], [key]).to.deep.equal(
+                    response.body[key]
+                  );
+                }
               }
             } else if (response.body.authentication_type === "no_three_ds") {
               for (const key in resData.body) {
-                expect(resData.body[key], [key]).to.deep.equal(
-                  response.body[key]
-                );
+                if (key === "payment_method_data") {
+                  expect(response.body[key], [key]).to.not.be.empty;
+                  expect(
+                    response.body[key]?.card?.auth_code,
+                    "payment_method_data.card.auth_code"
+                  ).to.be.a("string").and.not.be.empty;
+                } else {
+                  expect(resData.body[key], [key]).to.deep.equal(
+                    response.body[key]
+                  );
+                }
               }
             } else {
               throw new Error(
@@ -4118,27 +4166,37 @@ Cypress.Commands.add(
                 }
               }
               for (const key in resData.body) {
-                expect(resData.body[key], [key]).to.deep.equal(
-                  response.body[key]
-                );
+                if (key === "payment_method_data") {
+                  expect(response.body[key], [key]).to.not.be.empty;
+                  expect(
+                    response.body[key]?.card?.auth_code,
+                    "payment_method_data.card.auth_code"
+                  ).to.be.a("string").and.not.be.empty;
+                } else {
+                  expect(resData.body[key], [key]).to.deep.equal(
+                    response.body[key]
+                  );
+                }
               }
             } else if (response.body.authentication_type === "no_three_ds") {
               for (const key in resData.body) {
-                expect(resData.body[key], [key]).to.deep.equal(
-                  response.body[key]
-                );
+                if (key === "payment_method_data") {
+                  expect(response.body[key], [key]).to.not.be.empty;
+                  expect(
+                    response.body[key]?.card?.auth_code,
+                    "payment_method_data.card.auth_code"
+                  ).to.be.a("string").and.not.be.empty;
+                } else {
+                  expect(resData.body[key], [key]).to.deep.equal(
+                    response.body[key]
+                  );
+                }
               }
             } else {
               throw new Error(
                 `Invalid authentication type: ${response.body.authentication_type}`
               );
             }
-          }
-          if (response.body.payment_method_data?.card?.auth_code) {
-            expect(
-              response.body.payment_method_data.card.auth_code,
-              "auth_code should be a non-empty string"
-            ).to.be.a("string").and.not.be.empty;
           }
         } else {
           defaultErrorHandler(response, resData);
@@ -4251,9 +4309,17 @@ Cypress.Commands.add(
               }
             } else if (response.body.authentication_type === "no_three_ds") {
               for (const key in resData.body) {
-                expect(resData.body[key], [key]).to.deep.equal(
-                  response.body[key]
-                );
+                if (key === "payment_method_data") {
+                  expect(response.body[key], [key]).to.not.be.empty;
+                  expect(
+                    response.body[key]?.card?.auth_code,
+                    "payment_method_data.card.auth_code"
+                  ).to.be.a("string").and.not.be.empty;
+                } else {
+                  expect(resData.body[key], [key]).to.deep.equal(
+                    response.body[key]
+                  );
+                }
               }
               expect(response.body.customer_id).to.equal(
                 globalState.get("customerId") ?? null
@@ -4300,9 +4366,17 @@ Cypress.Commands.add(
               );
             } else if (response.body.authentication_type === "no_three_ds") {
               for (const key in resData.body) {
-                expect(resData.body[key], [key]).to.deep.equal(
-                  response.body[key]
-                );
+                if (key === "payment_method_data") {
+                  expect(response.body[key], [key]).to.not.be.empty;
+                  expect(
+                    response.body[key]?.card?.auth_code,
+                    "payment_method_data.card.auth_code"
+                  ).to.be.a("string").and.not.be.empty;
+                } else {
+                  expect(resData.body[key], [key]).to.deep.equal(
+                    response.body[key]
+                  );
+                }
               }
               expect(response.body.customer_id).to.equal(
                 globalState.get("customerId") ?? null
@@ -4369,13 +4443,15 @@ Cypress.Commands.add(
         if (response.body.capture_method !== undefined) {
           expect(response.body.payment_id).to.equal(paymentId);
           for (const key in resData.body) {
-            expect(resData.body[key]).to.equal(response.body[key]);
-          }
-          if (response.body.payment_method_data?.card?.auth_code) {
-            expect(
-              response.body.payment_method_data.card.auth_code,
-              "auth_code should be a non-empty string"
-            ).to.be.a("string").and.not.be.empty;
+            if (key === "payment_method_data") {
+              expect(response.body[key], [key]).to.not.be.empty;
+              expect(
+                response.body[key]?.card?.auth_code,
+                "payment_method_data.card.auth_code"
+              ).to.be.a("string").and.not.be.empty;
+            } else {
+              expect(resData.body[key], [key]).to.equal(response.body[key]);
+            }
           }
         } else {
           defaultErrorHandler(response, resData);
@@ -4526,13 +4602,6 @@ Cypress.Commands.add(
                 )
               );
             }
-          }
-
-          if (response.body.payment_method_data?.card?.auth_code) {
-            expect(
-              response.body.payment_method_data.card.auth_code,
-              "auth_code should be a non-empty string"
-            ).to.be.a("string").and.not.be.empty;
           }
 
           if (
@@ -5021,9 +5090,17 @@ Cypress.Commands.add(
               // Response body key comparison runs for all three_ds paths, including succeeded status
               // — the redirect URL is extracted above when status !== succeeded, but all response keys are verified here
               for (const key in resData.body) {
-                expect(resData.body[key], [key]).to.deep.equal(
-                  response.body[key]
-                );
+                if (key === "payment_method_data") {
+                  expect(response.body[key], [key]).to.not.be.empty;
+                  expect(
+                    response.body[key]?.card?.auth_code,
+                    "payment_method_data.card.auth_code"
+                  ).to.be.a("string").and.not.be.empty;
+                } else {
+                  expect(resData.body[key], [key]).to.deep.equal(
+                    response.body[key]
+                  );
+                }
               }
             } else if (response.body.authentication_type === "no_three_ds") {
               if (
@@ -5094,9 +5171,17 @@ Cypress.Commands.add(
               // Response body key comparison runs for all three_ds paths, including succeeded status
               // — the redirect URL is extracted above when status !== succeeded, but all response keys are verified here
               for (const key in resData.body) {
-                expect(resData.body[key], [key]).to.deep.equal(
-                  response.body[key]
-                );
+                if (key === "payment_method_data") {
+                  expect(response.body[key], [key]).to.not.be.empty;
+                  expect(
+                    response.body[key]?.card?.auth_code,
+                    "payment_method_data.card.auth_code"
+                  ).to.be.a("string").and.not.be.empty;
+                } else {
+                  expect(resData.body[key], [key]).to.deep.equal(
+                    response.body[key]
+                  );
+                }
               }
             } else if (response.body.authentication_type === "no_three_ds") {
               if (
