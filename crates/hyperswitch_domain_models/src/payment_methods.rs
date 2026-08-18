@@ -1185,16 +1185,6 @@ pub trait PaymentMethodInterface {
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Vec<PaymentMethod>, Self::Error>;
 
-    /// Every row under one payment method id, including retired ones. Used by deletion, which must
-    /// reach the rows ordinary reads hide.
-    #[cfg(feature = "v2")]
-    async fn find_all_payment_methods_by_id(
-        &self,
-        key_store: &MerchantKeyStore,
-        id: &id_type::GlobalPaymentMethodId,
-        storage_scheme: MerchantStorageScheme,
-    ) -> CustomResult<Vec<PaymentMethod>, Self::Error>;
-
     #[cfg(feature = "v1")]
     async fn get_payment_method_count_by_customer_id_merchant_id_status(
         &self,

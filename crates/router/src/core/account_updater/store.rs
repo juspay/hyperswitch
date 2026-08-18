@@ -1,8 +1,9 @@
-//! Stores a reported card change by forking the payment method record.
+//! Applies a reported card change by forking the payment method record.
 //!
-//! The id does not change: the row holding the superseded card is retired and a new active row is
-//! written under the same id, so references the merchant already holds keep working. The old locker
-//! entry and `payment_method_data` are left in place, so the previous card stays retrievable.
+//! The id does not change: a new row carrying the updated card is written under the same id and the
+//! row holding the superseded card is deleted, so references the merchant already holds keep
+//! working. The superseded row is deleted only once its replacement exists, so a failure leaves the
+//! merchant with the card they already had.
 
 use std::str::FromStr;
 
@@ -12,9 +13,7 @@ use common_utils::{
     id_type, type_name,
 };
 use error_stack::{report, ResultExt};
-use hyperswitch_domain_models::payment_method_data::{
-    CardDetailsPaymentMethod, PaymentMethodsData,
-};
+use hyperswitch_domain_models::payment_method_data::CardDetailsPaymentMethod;
 use router_env::{instrument, logger, tracing};
 use unified_connector_service_client::payments as payments_grpc;
 
@@ -28,16 +27,13 @@ use crate::{
     types::{api, domain, payment_methods as pm_types, storage},
 };
 
-/// Writes the reported change as a new row under the same payment method id.
-///
-/// `Ok(None)` means the change was a no-op and nothing was written.
 #[instrument(skip_all)]
-pub async fn store_card_change(
+pub async fn create_payment_method_for_updated_card(
     state: &SessionState,
     platform: &domain::Platform,
     profile: &domain::Profile,
     payment_method: &domain::PaymentMethod,
-    refreshed_card: payments_grpc::CardDetailsWithNoCvc,
+    updated_card: payments_grpc::CardDetailsWithNoCvc,
 ) -> CustomResult<Option<domain::PaymentMethod>, AccountUpdaterError> {
     let stored_card = stored_card_details(payment_method)?;
 
@@ -46,24 +42,33 @@ pub async fn store_card_change(
         .clone()
         .get_required_value("customer_id")
         .change_context(AccountUpdaterError::StoreFailed)
-        .attach_printable("Payment method has no customer to vault the refreshed card against")?;
+        .attach_printable("Payment method has no customer to vault the updated card against")?;
 
-    let new_card = build_new_card(refreshed_card, &stored_card)?;
+    let new_card = build_new_card(updated_card, &stored_card)?;
 
     let vaulting_data = domain::PaymentMethodVaultingData::Card(new_card);
 
-    // The locker fingerprint covers number + expiry, so it moves on both applied outcomes; the
-    // auxiliary one covers the number alone, so an expiry-only change leaves it untouched.
-    let locker_fingerprint_id = vault::get_fingerprint_id_for_payment_method(
-        state,
-        &vaulting_data,
-        customer_id.get_string_repr().to_owned(),
-    )
-    .await
-    .change_context(AccountUpdaterError::StoreFailed)
-    .attach_printable("Failed to fingerprint the refreshed card")?;
+    let (locker_fingerprint_id, auxiliary_fingerprint_id) = tokio::join!(
+        vault::get_fingerprint_id_for_payment_method(
+            state,
+            &vaulting_data,
+            customer_id.get_string_repr().to_owned(),
+        ),
+        vault::get_auxiliary_fingerprint_id_for_payment_method(
+            state,
+            &vaulting_data,
+            customer_id.get_string_repr().to_owned(),
+        ),
+    );
 
-    // Without this the duplicate surfaces as a unique violation on the composite index.
+    let locker_fingerprint_id = locker_fingerprint_id
+        .change_context(AccountUpdaterError::StoreFailed)
+        .attach_printable("Failed to fingerprint the updated card")?;
+
+    let auxiliary_fingerprint_id = auxiliary_fingerprint_id
+        .change_context(AccountUpdaterError::StoreFailed)
+        .attach_printable("Failed to compute the auxiliary fingerprint for the updated card")?;
+
     match payment_method.locker_fingerprint_id.as_deref() == Some(locker_fingerprint_id.as_str()) {
         true => {
             logger::info!(
@@ -79,13 +84,14 @@ pub async fn store_card_change(
             vaulting_data,
             &customer_id,
             locker_fingerprint_id,
+            auxiliary_fingerprint_id,
         )
         .await
         .map(Some),
     }
 }
 
-/// Vaults the refreshed card, retires the superseded row and inserts the new one under the same id.
+#[allow(clippy::too_many_arguments)]
 async fn write_forked_record(
     state: &SessionState,
     platform: &domain::Platform,
@@ -94,23 +100,13 @@ async fn write_forked_record(
     vaulting_data: domain::PaymentMethodVaultingData,
     customer_id: &id_type::GlobalCustomerId,
     locker_fingerprint_id: String,
+    auxiliary_fingerprint_id: String,
 ) -> CustomResult<domain::PaymentMethod, AccountUpdaterError> {
-    let auxiliary_fingerprint_id = vault::get_auxiliary_fingerprint_id_for_payment_method(
-        state,
-        &vaulting_data,
-        customer_id.get_string_repr().to_owned(),
-    )
-    .await
-    .change_context(AccountUpdaterError::StoreFailed)
-    .attach_printable("Failed to compute the auxiliary fingerprint for the refreshed card")?;
-
     let bin_enriched = vaulting_data
         .populate_bin_details_for_payment_method(state)
         .await;
     let vaulting_data = bin_enriched.data;
 
-    // `WriteMode::Insert` with no `existing_vault_id` leaves the superseded entry holding the
-    // previous card.
     let (vault_response, external_vault_source) = pm_core::vault_payment_method(
         state,
         &vaulting_data,
@@ -123,9 +119,7 @@ async fn write_forked_record(
     )
     .await
     .change_context(AccountUpdaterError::StoreFailed)
-    .attach_printable("Failed to vault the refreshed card")?;
-
-    retire_superseded_row(state, platform, payment_method).await?;
+    .attach_printable("Failed to vault the updated card")?;
 
     let new_record = build_new_record(
         state,
@@ -140,53 +134,52 @@ async fn write_forked_record(
     )
     .await?;
 
-    match insert_new_row(state, platform, new_record).await {
-        Ok(inserted) => Ok(inserted),
-        Err(insert_error) => {
-            restore_superseded_row(state, platform, payment_method).await;
-            Err(insert_error)
-        }
-    }
+    let new_record = insert_new_row(state, platform, new_record).await?;
+
+    pm_core::delete_payment_method_by_record(
+        state.store.as_ref(),
+        state,
+        platform,
+        profile,
+        payment_method.clone(),
+    )
+    .await
+    .change_context(AccountUpdaterError::StoreFailed)
+    .attach_printable("Failed to delete the superseded payment method")?;
+
+    activate_new_row(state, platform, new_record).await
 }
 
-/// The card the row currently holds.
 fn stored_card_details(
     payment_method: &domain::PaymentMethod,
 ) -> CustomResult<CardDetailsPaymentMethod, AccountUpdaterError> {
-    match payment_method
+    payment_method
         .payment_method_data
         .as_ref()
-        .map(|data| data.get_inner())
-    {
-        Some(PaymentMethodsData::Card(card)) => Ok(card.clone()),
-        _ => Err(report!(AccountUpdaterError::StoreFailed)
-            .attach_printable("Stored payment method data holds no card to apply a change to")),
-    }
+        .and_then(|data| data.get_inner().get_card_details())
+        .ok_or_else(|| report!(AccountUpdaterError::StoreFailed))
+        .attach_printable("Stored payment method data holds no card to apply a change to")
 }
 
-/// Number and expiry from the issuer, the rest from what we already stored. Issuer/country/type are
-/// left unset because they describe the old number; the BIN lookup re-derives them from the new one.
 fn build_new_card(
-    refreshed: payments_grpc::CardDetailsWithNoCvc,
+    updated: payments_grpc::CardDetailsWithNoCvc,
     stored: &CardDetailsPaymentMethod,
 ) -> CustomResult<api::payment_methods::CardDetail, AccountUpdaterError> {
-    let card_number = refreshed
+    let card_number = updated
         .card_number
         .ok_or_else(|| report!(AccountUpdaterError::RefreshReturnedError))
         .attach_printable("Refreshed card carries no card number")?;
 
-    // UCS and the router each have their own card-number type; this is the same crossing the
-    // eligibility check makes in the outbound direction.
     let card_number = cards::CardNumber::from_str(&card_number.get_card_no())
         .change_context(AccountUpdaterError::RefreshReturnedError)
         .attach_printable("Refreshed card number failed validation")?;
 
-    let card_exp_month = refreshed
+    let card_exp_month = updated
         .card_exp_month
         .ok_or_else(|| report!(AccountUpdaterError::RefreshReturnedError))
         .attach_printable("Refreshed card carries no expiry month")?;
 
-    let card_exp_year = refreshed
+    let card_exp_year = updated
         .card_exp_year
         .ok_or_else(|| report!(AccountUpdaterError::RefreshReturnedError))
         .attach_printable("Refreshed card carries no expiry year")?;
@@ -205,16 +198,13 @@ fn build_new_card(
     })
 }
 
-/// Clears the fingerprint to SQL NULL and moves the row to `Redacted`, so any number of retired rows
-/// can coexist under one id. `compat_action: None` because the insert below writes the v1 mirror.
-async fn retire_superseded_row(
+async fn activate_new_row(
     state: &SessionState,
     platform: &domain::Platform,
-    payment_method: &domain::PaymentMethod,
-) -> CustomResult<(), AccountUpdaterError> {
-    let update = storage::PaymentMethodUpdate::StatusAndFingerprintUpdate {
-        status: Some(common_enums::PaymentMethodStatus::Redacted),
-        locker_fingerprint_id: Some(None),
+    new_record: domain::PaymentMethod,
+) -> CustomResult<domain::PaymentMethod, AccountUpdaterError> {
+    let update = storage::PaymentMethodUpdate::StatusUpdate {
+        status: Some(common_enums::PaymentMethodStatus::Active),
         last_modified_by: account_updater_created_by_string(platform),
     };
 
@@ -222,61 +212,21 @@ async fn retire_superseded_row(
         .store
         .update_payment_method(
             platform.get_provider().get_key_store(),
-            payment_method.clone(),
+            new_record.clone(),
             update,
             platform.get_provider().get_account().storage_scheme,
             None,
         )
         .await
-        .change_context(AccountUpdaterError::StoreFailed)
-        .attach_printable("Failed to retire the superseded payment method row")?;
-
-    Ok(())
+        .inspect_err(|error| {
+            logger::warn!(
+                ?error,
+                "Account Updater stored the updated card but could not activate the row"
+            )
+        })
+        .or(Ok(new_record))
 }
 
-async fn restore_superseded_row(
-    state: &SessionState,
-    platform: &domain::Platform,
-    payment_method: &domain::PaymentMethod,
-) {
-    let update = storage::PaymentMethodUpdate::StatusAndFingerprintUpdate {
-        status: Some(common_enums::PaymentMethodStatus::Active),
-        locker_fingerprint_id: Some(payment_method.locker_fingerprint_id.clone()),
-        last_modified_by: account_updater_created_by_string(platform),
-    };
-
-    // The retired row no longer carries its fingerprint, so `update_with_id` must be pointed at the
-    // row as it now stands.
-    let retired = domain::PaymentMethod {
-        locker_fingerprint_id: None,
-        status: common_enums::PaymentMethodStatus::Redacted,
-        ..payment_method.clone()
-    };
-
-    match state
-        .store
-        .update_payment_method(
-            platform.get_provider().get_key_store(),
-            retired,
-            update,
-            platform.get_provider().get_account().storage_scheme,
-            None,
-        )
-        .await
-    {
-        Ok(_) => logger::warn!(
-            "Account Updater restored the superseded payment method row after a failed insert"
-        ),
-        Err(error) => logger::error!(
-            ?error,
-            "Account Updater could not restore the superseded payment method row; the payment \
-             method id may have no active row"
-        ),
-    }
-}
-
-/// The write is made by the system applying an issuer-reported change, not on behalf of the caller
-/// who triggered the force-sync, so it is not attributed to the request's initiator.
 fn account_updater_created_by(
     platform: &domain::Platform,
 ) -> Option<common_utils::types::CreatedBy> {
@@ -294,8 +244,6 @@ fn account_updater_created_by_string(platform: &domain::Platform) -> Option<Stri
     account_updater_created_by(platform).map(|created_by| created_by.to_string())
 }
 
-/// Everything the change does not touch is carried across from the superseded row, so the merchant
-/// sees the same payment method with a new card rather than a new payment method.
 #[allow(clippy::too_many_arguments)]
 async fn build_new_record(
     state: &SessionState,
@@ -318,57 +266,31 @@ async fn build_new_record(
     )
     .await
     .change_context(AccountUpdaterError::StoreFailed)
-    .attach_printable("Failed to encrypt the refreshed card for storage")?
+    .attach_printable("Failed to encrypt the updated card for storage")?
     .deserialize_inner_value(|value| value.parse_value("PaymentMethodsData"))
     .change_context(AccountUpdaterError::StoreFailed)
-    .attach_printable("Failed to parse the encrypted refreshed card")?;
+    .attach_printable("Failed to parse the encrypted updated card")?;
 
     Ok(domain::PaymentMethod {
-        id: payment_method.id.clone(),
-
-        // Recomputed for the new card.
         payment_method_data: Some(encrypted_payment_method_data),
         locker_id,
         locker_fingerprint_id: Some(locker_fingerprint_id),
         auxiliary_fingerprint_id: Some(auxiliary_fingerprint_id),
         external_vault_source,
-        status: common_enums::PaymentMethodStatus::Active,
+        status: common_enums::PaymentMethodStatus::New,
         created_at: now,
         last_modified: now,
         last_modified_by: account_updater_created_by(platform),
         updated_by: account_updater_created_by_string(platform),
+        payment_method_subtype: payment_method_subtype.or(payment_method.payment_method_subtype),
 
-        // Deliberately not carried over.
         connector_mandate_details: None,
         client_secret: None,
 
-        // Carried across unchanged — the card changed, the payment method did not.
-        last_used_at: payment_method.last_used_at,
-        created_by: payment_method.created_by.clone(),
-        compatibility_updated_at: payment_method.compatibility_updated_at,
-        customer_id: payment_method.customer_id.clone(),
-        merchant_id: payment_method.merchant_id.clone(),
-        payment_method_type: payment_method.payment_method_type,
-        payment_method_subtype: payment_method_subtype.or(payment_method.payment_method_subtype),
-        version: payment_method.version,
-        customer_acceptance: payment_method.customer_acceptance.clone(),
-        payment_method_billing_address: payment_method.payment_method_billing_address.clone(),
-        customer_details: payment_method.customer_details.clone(),
-        network_transaction_id: payment_method.network_transaction_id.clone(),
-        network_transaction_link_id: payment_method.network_transaction_link_id.clone(),
-        network_token_requestor_reference_id: payment_method
-            .network_token_requestor_reference_id
-            .clone(),
-        network_token_locker_id: payment_method.network_token_locker_id.clone(),
-        network_token_payment_method_data: payment_method.network_token_payment_method_data.clone(),
-        network_tokenization_data: payment_method.network_tokenization_data.clone(),
-        external_vault_token_data: payment_method.external_vault_token_data.clone(),
-        vault_type: payment_method.vault_type,
+        ..payment_method.clone()
     })
 }
 
-/// The compat action is attached so the v1 mirror — keyed by the same id, therefore single-row —
-/// ends up holding the new card.
 async fn insert_new_row(
     state: &SessionState,
     platform: &domain::Platform,
@@ -387,5 +309,5 @@ async fn insert_new_row(
         )
         .await
         .change_context(AccountUpdaterError::StoreFailed)
-        .attach_printable("Failed to insert the refreshed payment method row")
+        .attach_printable("Failed to insert the updated payment method row")
 }

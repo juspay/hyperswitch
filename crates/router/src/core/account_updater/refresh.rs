@@ -5,7 +5,9 @@ use external_services::grpc_client::LineageIds;
 use router_env::{instrument, tracing};
 use unified_connector_service_client::payments as payments_grpc;
 
-use super::types::{AccountUpdaterError, CardRefreshResult, ResolvedAccountUpdaterConfig};
+use super::types::{
+    AccountUpdaterError, CardRefreshResult, RefreshResult, ResolvedAccountUpdaterConfig,
+};
 use crate::{
     core::unified_connector_service::build_unified_connector_service_auth_metadata_without_mca,
     routes::SessionState, types::domain,
@@ -18,7 +20,7 @@ pub async fn request_account_updater_refresh(
     profile: &domain::Profile,
     config: &ResolvedAccountUpdaterConfig,
     refreshable_payment_method: payments_grpc::PaymentMethod,
-) -> CustomResult<CardRefreshResult, AccountUpdaterError> {
+) -> CustomResult<RefreshResult, AccountUpdaterError> {
     let client = state
         .grpc_client
         .unified_connector_service_client
@@ -82,7 +84,9 @@ pub async fn request_account_updater_refresh(
         .attach_printable("UCS returned neither a result nor an error")?;
 
     match result {
-        payments_grpc::refresh_result::Result::Card(card) => Ok(build_card_refresh_result(card)),
+        payments_grpc::refresh_result::Result::Card(card) => {
+            Ok(RefreshResult::Card(build_card_refresh_result(card)))
+        }
     }
 }
 

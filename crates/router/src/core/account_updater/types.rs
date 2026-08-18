@@ -4,6 +4,7 @@ use common_enums::{connector_enums::Connector, CardNetwork};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::router_data::ConnectorAuthType;
 use hyperswitch_masking::Secret;
+use router_env::logger;
 use unified_connector_service_client::payments as payments_grpc;
 
 use crate::{
@@ -113,18 +114,33 @@ impl From<&settings::AccountUpdaterConfig> for ResolvedAccountUpdaterConfig {
     }
 }
 
+/// What the refresh reported, one variant per payment method kind UCS can refresh.
+pub enum RefreshResult {
+    Card(CardRefreshResult),
+}
+
 pub struct CardRefreshResult {
     pub outcome: payments_grpc::CardRefreshOutcome,
     pub card: Option<payments_grpc::CardDetailsWithNoCvc>,
 }
 
 impl CardRefreshResult {
-    pub fn requires_store(&self) -> bool {
-        matches!(
-            self.outcome,
+    /// The card that replaces the stored one, or `None` when the outcome reports no change.
+    pub fn updated_card(self) -> Option<payments_grpc::CardDetailsWithNoCvc> {
+        match self.outcome {
             payments_grpc::CardRefreshOutcome::CardRefreshAccountUpdated
-                | payments_grpc::CardRefreshOutcome::CardRefreshExpiryUpdated
-        )
+            | payments_grpc::CardRefreshOutcome::CardRefreshExpiryUpdated => {
+                if self.card.is_none() {
+                    logger::warn!("Account Updater reported a card change but returned no card");
+                }
+                self.card
+            }
+            payments_grpc::CardRefreshOutcome::Unspecified
+            | payments_grpc::CardRefreshOutcome::CardRefreshNoChange
+            | payments_grpc::CardRefreshOutcome::CardRefreshClosed
+            | payments_grpc::CardRefreshOutcome::CardRefreshNotFound
+            | payments_grpc::CardRefreshOutcome::CardRefreshContactIssuer => None,
+        }
     }
 }
 

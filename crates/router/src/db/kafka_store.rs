@@ -2472,18 +2472,6 @@ impl PaymentMethodInterface for KafkaStore {
             .await
     }
 
-    #[cfg(feature = "v2")]
-    async fn find_all_payment_methods_by_id(
-        &self,
-        key_store: &domain::MerchantKeyStore,
-        id: &id_type::GlobalPaymentMethodId,
-        storage_scheme: MerchantStorageScheme,
-    ) -> CustomResult<Vec<domain::PaymentMethod>, errors::StorageError> {
-        self.diesel_store
-            .find_all_payment_methods_by_id(key_store, id, storage_scheme)
-            .await
-    }
-
     #[cfg(feature = "v1")]
     async fn get_payment_method_count_by_customer_id_merchant_id_status(
         &self,
