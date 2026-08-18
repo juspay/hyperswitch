@@ -200,18 +200,13 @@ function createIndividualRolloutConfig(
 
   // setConfigs only logs the response; this helper returns the result object
   // consumed by createUcsConfigs' success/failure aggregation.
-  const createConfig = () => {
-    const requestBody = {
-      key: key,
-      value: value,
-    };
-
+  const makeRequest = (method, requestUrl, body, operationType) => {
     return cy
       .request({
-        method: "POST",
-        url: url,
+        method: method,
+        url: requestUrl,
         headers: headers,
-        body: requestBody,
+        body: body,
         failOnStatusCode: false,
       })
       .then((response) => {
@@ -221,45 +216,43 @@ function createIndividualRolloutConfig(
           return cy
             .task(
               "cli_log",
-              `PASS: ${configType} config created successfully: ${merchantId}_${connector}_${methodFlow}`
+              `PASS: ${configType} config ${operationType} successfully: ${merchantId}_${connector}_${methodFlow}`
             )
             .then(() => {
               return cy.wrap({ success: true, flow: methodFlow });
             });
         }
-
-        if (
-          response.body?.error?.code === "HE_01" ||
-          response.body?.error?.message?.includes("already exists")
-        ) {
-          return updateConfig();
-        }
-
-        return handleConfigCreateFailure(response);
+        return response;
       });
   };
 
+  const createConfig = () => {
+    const requestBody = {
+      key: key,
+      value: value,
+    };
+
+    return makeRequest("POST", url, requestBody, "created").then((response) => {
+      if (response.status === 200) {
+        return cy.wrap({ success: true, flow: methodFlow });
+      }
+
+      if (
+        response.body?.error?.code === "HE_01" ||
+        response.body?.error?.message?.includes("already exists")
+      ) {
+        return updateConfig();
+      }
+
+      return handleConfigCreateFailure(response);
+    });
+  };
+
   const updateConfig = () => {
-    return cy
-      .request({
-        method: "POST",
-        url: `${url}${key}`,
-        headers: headers,
-        body: { value },
-        failOnStatusCode: false,
-      })
-      .then((updateResponse) => {
+    return makeRequest("POST", `${url}${key}`, { value }, "updated").then(
+      (updateResponse) => {
         if (updateResponse.status === 200) {
-          expect(updateResponse.body).to.have.property("key").to.equal(key);
-          expect(updateResponse.body).to.have.property("value").to.equal(value);
-          return cy
-            .task(
-              "cli_log",
-              `PASS: ${configType} config updated successfully: ${merchantId}_${connector}_${methodFlow}`
-            )
-            .then(() => {
-              return cy.wrap({ success: true, flow: methodFlow });
-            });
+          return cy.wrap({ success: true, flow: methodFlow });
         }
 
         const updateErrorMsg =
