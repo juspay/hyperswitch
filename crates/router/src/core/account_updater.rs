@@ -8,12 +8,10 @@ use api_models::payment_methods::RawPaymentMethodData;
 use common_utils::errors::CustomResult;
 use router_env::{instrument, logger, tracing};
 
-pub use self::store::create_payment_method_for_updated_card;
+pub use self::store::create_payment_method_for_refreshed_card;
 use self::{
     config::resolve_account_updater_config,
-    eligibility::{
-        check_deployment_stores_fingerprints, check_eligibility_and_build_payment_method,
-    },
+    eligibility::{check_eligibility_and_build_payment_method, check_vault_eligibility},
     refresh::request_account_updater_refresh,
     types::{AccountUpdaterError, RefreshResult, ResolvedAccountUpdaterConfig},
 };
@@ -70,7 +68,7 @@ async fn refresh_stored_payment_method(
     raw_payment_method_data: Option<&RawPaymentMethodData>,
     config: &ResolvedAccountUpdaterConfig,
 ) -> CustomResult<RefreshResult, AccountUpdaterError> {
-    check_deployment_stores_fingerprints(state, platform, profile).await?;
+    check_vault_eligibility(state, platform, profile).await?;
 
     let refreshable_payment_method = check_eligibility_and_build_payment_method(
         payment_method,

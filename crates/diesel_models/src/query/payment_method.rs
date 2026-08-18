@@ -268,8 +268,6 @@ impl PaymentMethod {
 
 #[cfg(feature = "v2")]
 impl PaymentMethod {
-    /// An id can span several rows once a card change has been applied: one live row alongside any
-    /// number of redacted ones. A live row always wins, then the newest.
     pub async fn find_by_id(
         conn: &PgPooledConn,
         id: &common_utils::id_type::GlobalPaymentMethodId,
@@ -348,12 +346,6 @@ impl PaymentMethod {
         .await
     }
 
-    /// Updates the single row the caller loaded.
-    ///
-    /// The id alone no longer identifies one row. Redaction is terminal, so redacted rows are
-    /// excluded and their NULL fingerprints stay out of the way; the fingerprint then pins the
-    /// update to the loaded row. `IS NOT DISTINCT FROM` because a row not yet vaulted carries no
-    /// fingerprint.
     pub async fn update_with_id(
         self,
         conn: &PgPooledConn,
@@ -370,7 +362,6 @@ impl PaymentMethod {
             conn,
             pm_id
                 .eq(self.id.to_owned())
-                .and(dsl::status.ne(storage_enums::PaymentMethodStatus::Redacted))
                 .and(dsl::locker_fingerprint_id.is_not_distinct_from(locker_fingerprint_id)),
             payment_method,
         )

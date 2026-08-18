@@ -2,7 +2,7 @@ use common_enums::ExecutionMode;
 use common_utils::errors::CustomResult;
 use error_stack::{report, ResultExt};
 use external_services::grpc_client::LineageIds;
-use router_env::{instrument, tracing};
+use router_env::{instrument, logger, tracing};
 use unified_connector_service_client::payments as payments_grpc;
 
 use super::types::{
@@ -94,8 +94,23 @@ fn build_card_refresh_result(card_result: payments_grpc::CardRefreshResult) -> C
     let outcome = payments_grpc::CardRefreshOutcome::try_from(card_result.outcome)
         .unwrap_or(payments_grpc::CardRefreshOutcome::Unspecified);
 
+    let refreshed_card = match outcome {
+        payments_grpc::CardRefreshOutcome::CardRefreshAccountUpdated
+        | payments_grpc::CardRefreshOutcome::CardRefreshExpiryUpdated => {
+            if card_result.card.is_none() {
+                logger::warn!("Account Updater reported a card change but returned no card");
+            }
+            card_result.card
+        }
+        payments_grpc::CardRefreshOutcome::Unspecified
+        | payments_grpc::CardRefreshOutcome::CardRefreshNoChange
+        | payments_grpc::CardRefreshOutcome::CardRefreshClosed
+        | payments_grpc::CardRefreshOutcome::CardRefreshNotFound
+        | payments_grpc::CardRefreshOutcome::CardRefreshContactIssuer => None,
+    };
+
     CardRefreshResult {
         outcome,
-        card: card_result.card,
+        refreshed_card,
     }
 }

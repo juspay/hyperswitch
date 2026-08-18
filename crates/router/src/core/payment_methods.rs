@@ -5826,7 +5826,7 @@ pub async fn retrieve_payment_method(
         (raw_payment_method_data, _) => raw_payment_method_data,
     };
 
-    let updated_card = match raw_payment_method_access.account_updater {
+    let refresh_result = match raw_payment_method_access.account_updater {
         RawPaymentMethodFetchAccess::Allowed => {
             let account_updater_dimensions = dimensions
                 .with_organization_id(platform.get_provider().get_account().get_org_id().clone())
@@ -5841,62 +5841,61 @@ pub async fn retrieve_payment_method(
                 &account_updater_dimensions,
             ))
             .await
-            .and_then(|refresh_result| match refresh_result {
-                account_updater::types::RefreshResult::Card(card_result) => {
-                    card_result.updated_card()
-                }
-            })
         }
         RawPaymentMethodFetchAccess::Denied => None,
     };
 
-    let payment_method = match updated_card {
-        Some(updated_card) => {
-            let updated_payment_method =
-                Box::pin(account_updater::create_payment_method_for_updated_card(
-                    &state,
-                    &platform,
-                    &profile,
-                    &payment_method,
-                    updated_card,
-                ))
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Account Updater failed while applying a card change")?;
-
-            match updated_payment_method {
-                Some(updated_payment_method) => {
-                    let updated_raw_data = Box::pin(
-                        raw_payment_method_access
-                            .retrieve_raw_card
-                            .get_raw_payment_method_data(
-                                &state,
-                                &platform,
-                                &profile,
-                                &updated_payment_method,
-                                storage_type,
-                            ),
-                    )
+    let updated_payment_method = match refresh_result {
+        Some(account_updater::types::RefreshResult::Card(card_result)) => {
+            match card_result.refreshed_card {
+                Some(refreshed_card) => {
+                    Box::pin(account_updater::create_payment_method_for_refreshed_card(
+                        &state,
+                        &platform,
+                        &profile,
+                        &payment_method,
+                        refreshed_card,
+                    ))
                     .await
-                    .attach_printable("Failed to get raw payment method data")?;
-
-                    raw_payment_method_data = match (updated_raw_data, raw_payment_method_data) {
-                        (
-                            Some(payment_methods::RawPaymentMethodData::Card(card_details)),
-                            Some(payment_methods::RawPaymentMethodData::CardWithNT(previous)),
-                        ) => Some(payment_methods::RawPaymentMethodData::CardWithNT(
-                            payment_methods::RawCardWithNTDetails {
-                                card_details,
-                                network_token_details: previous.network_token_details,
-                            },
-                        )),
-                        (updated_raw_data, _) => updated_raw_data,
-                    };
-
-                    updated_payment_method
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Account Updater failed while applying a card change")?
                 }
-                None => payment_method,
+                None => None,
             }
+        }
+        None => None,
+    };
+
+    let payment_method = match updated_payment_method {
+        Some(updated_payment_method) => {
+            let updated_raw_data = Box::pin(
+                raw_payment_method_access
+                    .retrieve_raw_card
+                    .get_raw_payment_method_data(
+                        &state,
+                        &platform,
+                        &profile,
+                        &updated_payment_method,
+                        storage_type,
+                    ),
+            )
+            .await
+            .attach_printable("Failed to get raw payment method data")?;
+
+            raw_payment_method_data = match (updated_raw_data, raw_payment_method_data) {
+                (
+                    Some(payment_methods::RawPaymentMethodData::Card(card_details)),
+                    Some(payment_methods::RawPaymentMethodData::CardWithNT(previous)),
+                ) => Some(payment_methods::RawPaymentMethodData::CardWithNT(
+                    payment_methods::RawCardWithNTDetails {
+                        card_details,
+                        network_token_details: previous.network_token_details,
+                    },
+                )),
+                (updated_raw_data, _) => updated_raw_data,
+            };
+
+            updated_payment_method
         }
         None => payment_method,
     };
@@ -6679,9 +6678,6 @@ pub async fn delete_payment_method_by_record(
     let pm_update = storage::PaymentMethodUpdate::StatusAndFingerprintUpdate {
         status: Some(enums::PaymentMethodStatus::Redacted),
         last_modified_by,
-        // `Some(None)` clears the column to SQL NULL. A sentinel string cannot be used here: an id
-        // may already carry a retired row, and repeating the sentinel would collide under
-        // `UNIQUE (id, locker_fingerprint_id)`.
         locker_fingerprint_id: Some(None),
     };
 

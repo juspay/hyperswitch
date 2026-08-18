@@ -36,12 +36,8 @@ pub fn check_eligibility_and_build_payment_method(
     }
 }
 
-/// Rejects deployments whose payment methods carry no `locker_fingerprint_id`.
-///
-/// Applying a change writes a second row under the same id, and `UNIQUE (id, locker_fingerprint_id)`
-/// is what tells the two apart. Only the generic locker populates that column.
 #[instrument(skip_all)]
-pub async fn check_deployment_stores_fingerprints(
+pub async fn check_vault_eligibility(
     state: &SessionState,
     platform: &domain::Platform,
     profile: &domain::Profile,
@@ -50,8 +46,6 @@ pub async fn check_deployment_stores_fingerprints(
         Err(report!(AccountUpdaterError::LegacyLockerUnsupported))
     })?;
 
-    // An external-vault profile does carry a fingerprint, but the card lives at the vault connector
-    // rather than in the locker this flow vaults into.
     let provider_profile = payment_helpers::resolve_provider_profile(state, platform, profile)
         .await
         .change_context(AccountUpdaterError::ProviderProfileUnresolved)?;
