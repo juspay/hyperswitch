@@ -73,6 +73,7 @@ use hyperswitch_domain_models::{
     payments::{self, payment_intent::CustomerData, ClickToPayMetaData},
     router_data::{AccessToken, FeatureData},
 };
+use hyperswitch_interfaces::api::ConnectorSpecifications;
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 #[cfg(feature = "v2")]
 use operations::ValidateStatusForOperation;
@@ -859,6 +860,7 @@ where
 
     let mut connector_http_status_code = None;
     let mut external_latency = None;
+    let mut current_flow_info_for_recurrence_webhook = None;
     if let Some(connector_details) = connector {
         // Fetch and check FRM configs
         #[cfg(feature = "frm")]
@@ -1117,6 +1119,7 @@ where
 
                     connector_http_status_code = router_data.connector_http_status_code;
                     external_latency = router_data.external_latency;
+                    current_flow_info_for_recurrence_webhook = router_data.current_flow_info();
                     //add connector http status code metrics
                     add_connector_http_status_code_metrics(connector_http_status_code);
 
@@ -1342,6 +1345,7 @@ where
                     let operation = Box::new(PaymentResponse);
                     connector_http_status_code = router_data.connector_http_status_code;
                     external_latency = router_data.external_latency;
+                    current_flow_info_for_recurrence_webhook = router_data.current_flow_info();
                     //add connector http status code metrics
                     add_connector_http_status_code_metrics(connector_http_status_code);
 
@@ -1544,16 +1548,42 @@ where
         )
         .await?;
 
-    utils::trigger_payments_webhook(
-        platform,
-        business_profile,
-        cloned_payment_data,
-        state,
-        operation,
-    )
-    .await
-    .map_err(|error| logger::warn!(payments_outgoing_webhook_error=?error))
-    .ok();
+    let should_delay_webhook_for_recurring_payment = current_flow_info_for_recurrence_webhook
+        .is_some()
+        && payment_data
+            .get_payment_attempt_connector()
+            .and_then(|connector_name| {
+                api::ConnectorData::get_connector_by_name(
+                    &state.conf.connectors,
+                    connector_name,
+                    api::GetToken::Connector,
+                    None,
+                )
+                .ok()
+            })
+            .and_then(|connector_data| {
+                let setup_future_usage = payment_data.get_payment_intent().setup_future_usage;
+                connector_data
+                    .connector
+                    .is_payment_recurrence_operation_needed(
+                        setup_future_usage,
+                        current_flow_info_for_recurrence_webhook,
+                    )
+            })
+            .unwrap_or(false);
+
+    if !should_delay_webhook_for_recurring_payment {
+        utils::trigger_payments_webhook(
+            platform,
+            business_profile,
+            cloned_payment_data,
+            state,
+            operation,
+        )
+        .await
+        .map_err(|error| logger::warn!(payments_outgoing_webhook_error=?error))
+        .ok();
+    }
 
     Ok((
         payment_data,
@@ -9719,7 +9749,8 @@ async fn set_payment_method_from_token_for_modular_payment_method_flow<F, D>(
             | storage::PaymentTokenData::PermanentCard(_)
             | storage::PaymentTokenData::AuthBankDebit(_)
             | storage::PaymentTokenData::WalletToken(_)
-            | storage::PaymentTokenData::BankDebit(_),
+            | storage::PaymentTokenData::BankDebit(_)
+            | storage::PaymentTokenData::BankRedirect(_),
         )
         | None => {
             logger::debug!(
@@ -10270,7 +10301,8 @@ impl PaymentEligibilityData {
             | storage::PaymentTokenData::Permanent(_)
             | storage::PaymentTokenData::AuthBankDebit(_)
             | storage::PaymentTokenData::WalletToken(_)
-            | storage::PaymentTokenData::BankDebit(_) => None,
+            | storage::PaymentTokenData::BankDebit(_)
+            | storage::PaymentTokenData::BankRedirect(_) => None,
         };
 
         Ok(payment_method_data)

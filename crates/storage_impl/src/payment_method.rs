@@ -1303,6 +1303,7 @@ impl Conversion for hyperswitch_domain_models::payment_methods::PaymentMethod {
             customer_details: self.customer_details.map(|val| val.into()),
             locker_fingerprint_id: self.locker_fingerprint_id,
             network_tokenization_data: self.network_tokenization_data.map(|val| val.into()),
+            connector_payment_method_details: self.connector_payment_method_details.clone(),
             payment_method_type_v2: None,
             payment_method_subtype: None,
             id: None,
@@ -1422,6 +1423,7 @@ impl Conversion for hyperswitch_domain_models::payment_methods::PaymentMethod {
             network_tokenization_data: data.network_tokenization_data,
             storage_type: None,
             compatibility_updated_at: item.compatibility_updated_at,
+            connector_payment_method_details: item.connector_payment_method_details,
         })
     }
 
@@ -1477,6 +1479,7 @@ impl Conversion for hyperswitch_domain_models::payment_methods::PaymentMethod {
             customer_details: self.customer_details.map(|val| val.into()),
             locker_fingerprint_id: self.locker_fingerprint_id,
             network_tokenization_data: self.network_tokenization_data.map(|val| val.into()),
+            connector_payment_method_details: self.connector_payment_method_details.clone(),
             id: None,
             compatibility_updated_at: self.compatibility_updated_at,
             auxiliary_fingerprint_id: None,
@@ -1533,6 +1536,7 @@ impl Conversion for hyperswitch_domain_models::payment_methods::PaymentMethod {
             network_tokenization_data: self.network_tokenization_data.map(|val| val.into()),
             auxiliary_fingerprint_id: self.auxiliary_fingerprint_id,
             compatibility_updated_at: self.compatibility_updated_at,
+            connector_payment_method_details: None,
         })
     }
 

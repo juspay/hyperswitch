@@ -254,6 +254,9 @@ pub async fn validate_create_request(
                     false,
                     true,
                     platform.get_provider(),
+                    None,
+                    None,
+                    None,
                 )
                 .await?
                 {
