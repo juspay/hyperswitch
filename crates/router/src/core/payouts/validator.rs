@@ -354,14 +354,11 @@ pub(super) fn validate_payout_list_request_for_joins(
 ) -> CustomResult<(), errors::ApiErrorResponse> {
     use common_utils::consts::PAYOUTS_LIST_MAX_LIMIT_POST;
 
-    utils::when(
-        limit.as_u32() > PAYOUTS_LIST_MAX_LIMIT_POST,
-        || {
-            Err(errors::ApiErrorResponse::InvalidRequestData {
-                message: format!("limit should be in between 1 and {PAYOUTS_LIST_MAX_LIMIT_POST}"),
-            })
-        },
-    )?;
+    utils::when(limit.as_u32() > PAYOUTS_LIST_MAX_LIMIT_POST, || {
+        Err(errors::ApiErrorResponse::InvalidRequestData {
+            message: format!("limit should be in between 1 and {PAYOUTS_LIST_MAX_LIMIT_POST}"),
+        })
+    })?;
     Ok(())
 }
 
