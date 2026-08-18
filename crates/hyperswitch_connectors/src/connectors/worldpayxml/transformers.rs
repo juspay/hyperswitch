@@ -3515,7 +3515,7 @@ fn get_mandate_reference(
 ) -> MandateReference {
     MandateReference {
         connector_mandate_id: Some(token.token_details.payment_token_i_d.expose()),
-        payment_method_id: Some("Pm_nitedafasefdasf".to_string()),
+        payment_method_id: None,
         mandate_metadata: None,
         connector_mandate_request_reference_id: scheme_response
             .map(|response| response.transaction_identifier.clone()),
