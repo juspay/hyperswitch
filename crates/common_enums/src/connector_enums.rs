@@ -89,6 +89,7 @@ pub enum Connector {
     Chargebee,
     Checkbook,
     Checkout,
+    Citigate,
     Coinbase,
     Coingate,
     Custombilling,
@@ -459,6 +460,7 @@ impl Connector {
             | Self::Datatrans
             | Self::Paytm
             | Self::Payconex
+            | Self::Citigate
             | Self::Payjustnow
             | Self::Payjustnowinstore
             | Self::Phonepe
