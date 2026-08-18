@@ -3161,8 +3161,8 @@ impl RefundInterface for KafkaStore {
         processor_merchant_id: &id_type::MerchantId,
         refund_details: &refunds::RefundListConstraints,
         storage_scheme: MerchantStorageScheme,
-        limit: i64,
-        offset: i64,
+        limit: diesel_models::list::PageSize,
+        offset: diesel_models::list::PageOffset,
     ) -> CustomResult<Vec<diesel_refund::Refund>, errors::StorageError> {
         self.diesel_store
             .filter_refund_by_constraints(
@@ -3181,8 +3181,8 @@ impl RefundInterface for KafkaStore {
         merchant_id: &id_type::MerchantId,
         refund_details: refunds::RefundListConstraints,
         storage_scheme: MerchantStorageScheme,
-        limit: i64,
-        offset: i64,
+        limit: diesel_models::list::PageSize,
+        offset: diesel_models::list::PageOffset,
     ) -> CustomResult<Vec<diesel_refund::Refund>, errors::StorageError> {
         self.diesel_store
             .filter_refund_by_constraints(
@@ -3498,6 +3498,33 @@ impl RoutingAlgorithmInterface for KafkaStore {
                 limit,
                 offset,
             )
+            .await
+    }
+
+    async fn list_routing_scope_page(
+        &self,
+        limit: i64,
+        offset: i64,
+    ) -> CustomResult<Vec<(id_type::ProfileId, id_type::MerchantId)>, errors::StorageError> {
+        self.diesel_store
+            .list_routing_scope_page(limit, offset)
+            .await
+    }
+
+    async fn find_rule_ids_for_profiles(
+        &self,
+        profile_ids: &[id_type::ProfileId],
+    ) -> CustomResult<
+        Vec<(
+            id_type::ProfileId,
+            id_type::MerchantId,
+            id_type::RoutingId,
+            enums::RoutingAlgorithmKind,
+        )>,
+        errors::StorageError,
+    > {
+        self.diesel_store
+            .find_rule_ids_for_profiles(profile_ids)
             .await
     }
 }

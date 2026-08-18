@@ -429,7 +429,7 @@ volt.base_url = "https://gateway.sandbox.volt.io"
 volt.secondary_base_url = "https://api.sandbox.volt.io"
 wellsfargo.base_url = "https://apitest.cybersource.com/"
 wellsfargopayout.base_url = "https://api-sandbox.wellsfargo.com/"
-wise.base_url = "https://api.sandbox.transferwise.tech/"
+wise.base_url = "https://api.wise-sandbox.com/"
 worldline.base_url = "https://eu.sandbox.api-ingenico.com/"
 worldpay.base_url = "https://try.access.worldpay.com/"
 worldpaymodular.base_url = "https://try.access.worldpay.com/"
@@ -1294,6 +1294,7 @@ authentication_analytics_topic = "topic" # Kafka topic to be used for Authentica
 routing_logs_topic = "topic"             # Kafka topic to be used for Routing events
 revenue_recovery_topic = "topic"         # Kafka topic to be used for revenue recovery events
 external_service_call_topic = "topic"   # Kafka topic to be used for external service call events
+account_updater_topic = "topic"         # Kafka topic to be used for account updater synchronization events
 
 # File storage configuration
 [file_storage]
