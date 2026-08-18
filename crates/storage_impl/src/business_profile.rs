@@ -25,13 +25,6 @@ use crate::{
 #[cfg(feature = "accounts_cache")]
 use crate::{metrics, RedisConnInterface};
 
-/// Time to live for the redis copy of a profile, in seconds.
-///
-/// Tuned independently of the in-memory cache's TTL, and deliberately longer than it, so that an
-/// expired in-memory entry can be refilled from redis instead of the database.
-#[cfg(feature = "accounts_cache")]
-const PROFILE_REDIS_CACHE_TTL: i64 = 60 * 60;
-
 /// Cache key for a profile, shared by both the profile-scoped and merchant-scoped lookups.
 #[cfg(feature = "accounts_cache")]
 fn profile_cache_key(profile_id: &common_utils::id_type::ProfileId) -> String {
@@ -201,12 +194,12 @@ impl<T: DatabaseStore> ProfileInterface for RouterStore<T> {
                 .await
                 .map_err(|error| report!(StorageError::from(error)))
         };
+        let state = self
+            .get_keymanager_state()
+            .attach_printable("Missing KeyManagerState")?;
 
         #[cfg(not(feature = "accounts_cache"))]
         {
-            let state = self
-                .get_keymanager_state()
-                .attach_printable("Missing KeyManagerState")?;
             fetch_func()
                 .await?
                 .convert(
@@ -220,27 +213,20 @@ impl<T: DatabaseStore> ProfileInterface for RouterStore<T> {
 
         #[cfg(feature = "accounts_cache")]
         {
-            let state = self
-                .get_keymanager_state()
-                .attach_printable("Missing KeyManagerState")?
-                .clone();
-
-            let identifier = merchant_key_store.merchant_id.clone().into();
-
-            cache::get_or_populate_in_memory_with_transform(
+            cache::get_or_populate_in_memory(
                 self,
                 &profile_cache_key(profile_id),
-                Some(PROFILE_REDIS_CACHE_TTL),
                 fetch_func,
-                |diesel_profile| async move {
-                    diesel_profile
-                        .convert(&state, &merchant_key_store.key, identifier)
-                        .await
-                        .change_context(StorageError::DecryptionError)
-                },
                 &ACCOUNTS_CACHE,
             )
+            .await?
+            .convert(
+                state,
+                merchant_key_store.key.get_inner(),
+                merchant_key_store.merchant_id.clone().into(),
+            )
             .await
+            .change_context(StorageError::DecryptionError)
         }
     }
 
@@ -256,12 +242,12 @@ impl<T: DatabaseStore> ProfileInterface for RouterStore<T> {
                 .await
                 .map_err(|error| report!(StorageError::from(error)))
         };
+        let state = self
+            .get_keymanager_state()
+            .attach_printable("Missing KeyManagerState")?;
 
         #[cfg(not(feature = "accounts_cache"))]
         {
-            let state = self
-                .get_keymanager_state()
-                .attach_printable("Missing KeyManagerState")?;
             fetch_func()
                 .await?
                 .convert(
@@ -275,27 +261,20 @@ impl<T: DatabaseStore> ProfileInterface for RouterStore<T> {
 
         #[cfg(feature = "accounts_cache")]
         {
-            let state = self
-                .get_keymanager_state()
-                .attach_printable("Missing KeyManagerState")?
-                .clone();
-
-            let identifier = merchant_key_store.merchant_id.clone().into();
-
-            cache::get_or_populate_in_memory_with_transform(
+            cache::get_or_populate_in_memory(
                 self,
                 &profile_cache_key(profile_id),
-                Some(PROFILE_REDIS_CACHE_TTL),
                 fetch_func,
-                |diesel_profile| async move {
-                    diesel_profile
-                        .convert(&state, &merchant_key_store.key, identifier)
-                        .await
-                        .change_context(StorageError::DecryptionError)
-                },
                 &ACCOUNTS_CACHE,
             )
+            .await?
+            .convert(
+                state,
+                merchant_key_store.key.get_inner(),
+                merchant_key_store.merchant_id.clone().into(),
+            )
             .await
+            .change_context(StorageError::DecryptionError)
         }
     }
 
@@ -695,6 +674,7 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                     metadata,
                     routing_algorithm,
                     intent_fulfillment_time,
+                    order_fulfillment_time: intent_fulfillment_time,
                     frm_routing_algorithm,
                     payout_routing_algorithm,
                     is_recon_enabled: None,
@@ -763,6 +743,7 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                 metadata: None,
                 routing_algorithm,
                 intent_fulfillment_time: None,
+                order_fulfillment_time: None,
                 frm_routing_algorithm: None,
                 payout_routing_algorithm,
                 is_recon_enabled: None,
@@ -826,6 +807,7 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                 metadata: None,
                 routing_algorithm: None,
                 intent_fulfillment_time: None,
+                order_fulfillment_time: None,
                 frm_routing_algorithm: None,
                 payout_routing_algorithm: None,
                 is_recon_enabled: None,
@@ -889,6 +871,7 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                 metadata: None,
                 routing_algorithm: None,
                 intent_fulfillment_time: None,
+                order_fulfillment_time: None,
                 frm_routing_algorithm: None,
                 payout_routing_algorithm: None,
                 is_recon_enabled: None,
@@ -952,6 +935,7 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                 metadata: None,
                 routing_algorithm: None,
                 intent_fulfillment_time: None,
+                order_fulfillment_time: None,
                 frm_routing_algorithm: None,
                 payout_routing_algorithm: None,
                 is_recon_enabled: None,
@@ -1016,6 +1000,7 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                 metadata: None,
                 routing_algorithm: None,
                 intent_fulfillment_time: None,
+                order_fulfillment_time: None,
                 frm_routing_algorithm: None,
                 payout_routing_algorithm: None,
                 is_recon_enabled: None,
@@ -1080,6 +1065,7 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                 metadata: None,
                 routing_algorithm: None,
                 intent_fulfillment_time: None,
+                order_fulfillment_time: None,
                 frm_routing_algorithm: None,
                 payout_routing_algorithm: None,
                 is_recon_enabled: None,
@@ -1143,6 +1129,7 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                 metadata: None,
                 routing_algorithm: None,
                 intent_fulfillment_time: None,
+                order_fulfillment_time: None,
                 frm_routing_algorithm: None,
                 payout_routing_algorithm: None,
                 is_recon_enabled: None,
@@ -1207,6 +1194,7 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                 metadata: None,
                 routing_algorithm: None,
                 intent_fulfillment_time: None,
+                order_fulfillment_time: None,
                 frm_routing_algorithm: None,
                 payout_routing_algorithm: None,
                 is_recon_enabled: None,
@@ -1286,6 +1274,7 @@ impl Conversion for domain::Profile {
             metadata: self.metadata,
             routing_algorithm: self.routing_algorithm,
             intent_fulfillment_time: self.intent_fulfillment_time,
+            order_fulfillment_time: self.intent_fulfillment_time,
             frm_routing_algorithm: self.frm_routing_algorithm,
             payout_routing_algorithm: self.payout_routing_algorithm,
             is_recon_enabled: self.is_recon_enabled,
@@ -1520,6 +1509,7 @@ impl Conversion for domain::Profile {
             metadata: self.metadata,
             routing_algorithm: self.routing_algorithm,
             intent_fulfillment_time: self.intent_fulfillment_time,
+            order_fulfillment_time: self.intent_fulfillment_time,
             frm_routing_algorithm: self.frm_routing_algorithm,
             payout_routing_algorithm: self.payout_routing_algorithm,
             is_recon_enabled: self.is_recon_enabled,
@@ -2393,6 +2383,7 @@ impl Conversion for domain::Profile {
                     merchant_category_code: item.merchant_category_code,
                     merchant_country_code: item.merchant_country_code,
                     split_txns_enabled: item.split_txns_enabled.unwrap_or_default(),
+                    is_manual_retry_enabled: item.is_manual_retry_enabled,
                     billing_processor_id: item.billing_processor_id,
                     surcharge_connector_details: item.surcharge_connector_details,
                 }

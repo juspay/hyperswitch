@@ -680,10 +680,9 @@ options=["PAN_ONLY", "CRYPTOGRAM_3DS"]
   payment_method_type = "Mastercard"
 [[authipay.debit]]
   payment_method_type = "Visa"
-[authipay.connector_auth.SignatureKey]
+[authipay.connector_auth.BodyKey]
 api_key="API Key"
-api_secret="API Secret"
-key1="Merchant ID"
+key1="API Secret"
 [authipay.connector_webhook_details]
 merchant_secret="Source verification key"
 
@@ -1946,7 +1945,7 @@ label="Payment Processing Details At"
 placeholder="Enter Payment Processing Details At"
 required=true
 type="Radio"
-options=["Connector"]
+options = ["Connector", "Hyperswitch"]
 
 [[checkout.metadata.google_pay]]
 name="merchant_name"
@@ -5985,6 +5984,15 @@ key1 = "Wise Account Id"
 merchant_secret="Source verification key"
 
 
+[deutschebank_payout]
+[[deutschebank_payout.bank_transfer]]
+  payment_method_type = "sepa_bank_transfer"
+[deutschebank_payout.connector_auth.MultiAuthKey]
+api_key="Customer Identifier"
+key1="Key ID"
+api_secret="Signing Private Key (PEM)"
+key2="Client Certificate Bundle (PEM cert + key concatenated)"
+
 [itaubank_payout]
 [[itaubank_payout.bank_transfer]]
   payment_method_type = "pix"
@@ -5995,6 +6003,35 @@ merchant_secret="Source verification key"
 [itaubank_payout.connector_auth.BodyKey]
 key1="Client Id"
 api_key="Client Secret"
+
+[santander_payout]
+[[santander_payout.bank_transfer]]
+  payment_method_type = "pix"
+[[santander_payout.bank_transfer]]
+  payment_method_type = "pix_key"
+[[santander_payout.bank_transfer]]
+  payment_method_type = "pix_emv"
+[santander_payout.connector_auth.CertificateAuth]
+certificate="Certificate"
+private_key="Certificate Key"
+[santander_payout.metadata.client_id]
+name="client_id"
+label="Client Id"
+placeholder="Enter the client id"
+required=true
+type="Text"
+[santander_payout.metadata.client_secret]
+name="client_secret"
+label="Client Secret"
+placeholder="Enter the client secret"
+required=true
+type="Text"
+[santander_payout.metadata.workspace_id]
+name="workspace_id"
+label="Workspace Id"
+placeholder="Enter the workspace id"
+required=true
+type="Text"
 
 [threedsecureio]
 [threedsecureio.connector_auth.HeaderKey]
@@ -8986,3 +9023,28 @@ payment_method_type = "Discover"
 payment_method_type = "DinersClub"
 [[givepayments.debit]]
 payment_method_type = "UnionPay"
+
+[citigate]
+[[citigate.credit]]
+  payment_method_type = "Visa"
+[[citigate.credit]]
+  payment_method_type = "Mastercard"
+[[citigate.credit]]
+  payment_method_type = "AmericanExpress"
+[[citigate.credit]]
+  payment_method_type = "DinersClub"
+[[citigate.credit]]
+  payment_method_type = "Maestro"
+[[citigate.debit]]
+  payment_method_type = "Visa"
+[[citigate.debit]]
+  payment_method_type = "Mastercard"
+[[citigate.debit]]
+  payment_method_type = "AmericanExpress"
+[[citigate.debit]]
+  payment_method_type = "DinersClub"
+[[citigate.debit]]
+  payment_method_type = "Maestro"
+[citigate.connector_auth.BodyKey]
+api_key = "Merchant Name"
+key1 = "Merchant Password"

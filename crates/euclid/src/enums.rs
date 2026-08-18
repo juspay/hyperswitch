@@ -253,6 +253,7 @@ pub enum RoutableConnectors {
     Custombilling,
     Checkbook,
     Checkout,
+    Citigate,
     Coinbase,
     Coingate,
     Cryptopay,
@@ -368,6 +369,7 @@ pub enum RoutableConnectors {
     CtpMastercard,
     CtpVisa,
     Netcetera,
+    Vgs,
     Cardinal,
     Threedsecureio,
 }
@@ -420,6 +422,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Chargebee => Ok(Self::Chargebee),
             Connector::Checkbook => Ok(Self::Checkbook),
             Connector::Checkout => Ok(Self::Checkout),
+            Connector::Citigate => Ok(Self::Citigate),
             Connector::Coinbase => Ok(Self::Coinbase),
             Connector::Coingate => Ok(Self::Coingate),
             Connector::Cryptopay => Ok(Self::Cryptopay),
@@ -527,6 +530,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::CtpMastercard
             | Connector::Gpayments
             | Connector::HyperswitchVault
+            | Connector::Juspay
             | Connector::Juspaythreedsserver
             | Connector::Netcetera
             | Connector::Taxjar
@@ -587,6 +591,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Custombilling => Self::Custombilling,
             RoutableConnectors::Checkbook => Self::Checkbook,
             RoutableConnectors::Checkout => Self::Checkout,
+            RoutableConnectors::Citigate => Self::Citigate,
             RoutableConnectors::Coinbase => Self::Coinbase,
             RoutableConnectors::Cryptopay => Self::Cryptopay,
             RoutableConnectors::Cybersource => Self::Cybersource,
@@ -695,6 +700,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::CtpMastercard => Self::CtpMastercard,
             RoutableConnectors::CtpVisa => Self::CtpVisa,
             RoutableConnectors::Netcetera => Self::Netcetera,
+            RoutableConnectors::Vgs => Self::Vgs,
             RoutableConnectors::Cardinal => Self::Cardinal,
             RoutableConnectors::Threedsecureio => Self::Threedsecureio,
         }

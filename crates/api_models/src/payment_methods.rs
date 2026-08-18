@@ -121,6 +121,9 @@ pub struct PaymentMethodCreate {
 pub struct PaymentMethodRetrieveRequest {
     #[serde(default)]
     pub fetch_raw_detail: bool,
+    /// Trigger an Account Updater check for the stored payment method.
+    #[serde(default)]
+    pub force_sync: bool,
 }
 
 #[cfg(feature = "v2")]
@@ -653,6 +656,25 @@ pub enum PaymentMethodCreateData {
     Card(CardDetail),
     BankDebit(BankDebitDetail),
     Wallet(WalletDetail),
+    BankRedirect(BankRedirectData),
+}
+
+#[cfg(feature = "v1")]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+#[serde(deny_unknown_fields)]
+#[serde(rename_all = "snake_case")]
+pub enum BankRedirectData {
+    OpenBanking {
+        #[schema(value_type = Option<String>)]
+        account_number: Option<hyperswitch_masking::Secret<String>>,
+        #[schema(value_type = Option<String>)]
+        iban: Option<hyperswitch_masking::Secret<String>>,
+        #[schema(value_type = Option<String>)]
+        sort_code: Option<hyperswitch_masking::Secret<String>>,
+        #[schema(value_type = Option<String>)]
+        #[serde(default)]
+        account_holder_name: Option<hyperswitch_masking::Secret<String>>,
+    },
 }
 
 #[cfg(feature = "v1")]
@@ -2983,6 +3005,7 @@ pub struct ResponsePaymentMethodsEnabledForClient {
     pub data: Option<PaymentMethodSubtypeSpecificDataForClient>,
 
     /// Payment experience options for this method (wallets, pay_later, etc.)
+    #[schema(value_type = Option<Vec<PaymentExperience>>)]
     pub payment_experience: Option<Vec<api_enums::PaymentExperience>>,
 
     /// Whether to collect shipping details from the wallet connector (null for non-wallet)
@@ -3008,6 +3031,7 @@ pub struct ResponsePaymentMethodsEnabledForClient {
 pub enum WalletPaymentMethodDataForClient {
     ApplePay(Box<PaymentMethodDataWalletInfo>),
     GooglePay(Box<PaymentMethodDataWalletInfo>),
+    #[schema(value_type = PaypalRedirection)]
     PayPal(Box<payments::PaypalRedirection>),
 }
 
@@ -3041,6 +3065,8 @@ pub enum CustomerPaymentMethodDataForClient {
     Wallet(WalletPaymentMethodDataForClient),
     /// Bank debit details (ACH, …).
     BankDebit(BankDebitDataForClient),
+    /// Masked bank redirect details.
+    BankRedirect(MaskedBankDetails),
 }
 
 /// A saved customer payment method as returned in the client-facing PM list.

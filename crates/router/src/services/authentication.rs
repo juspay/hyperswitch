@@ -245,6 +245,29 @@ impl AuthenticationType {
             | Self::NoAuth => None,
         }
     }
+
+    pub fn get_user_id(&self) -> Option<String> {
+        match self {
+            Self::OrganizationJwt { user_id, .. }
+            | Self::MerchantJwtWithProfileId { user_id, .. }
+            | Self::UserJwt { user_id, .. }
+            | Self::SinglePurposeJwt { user_id, .. }
+            | Self::SinglePurposeOrLoginJwt { user_id, .. } => Some(user_id.clone()),
+            Self::MerchantJwt { user_id, .. } => user_id.clone(),
+            Self::ApiKey { .. }
+            | Self::AdminApiKey
+            | Self::AdminApiAuthWithMerchantId { .. }
+            | Self::BasicAuth { .. }
+            | Self::MerchantId { .. }
+            | Self::PublishableKey { .. }
+            | Self::SdkAuthorization { .. }
+            | Self::WebhookAuth { .. }
+            | Self::InternalMerchantIdProfileId { .. }
+            | Self::EmbeddedJwt { .. }
+            | Self::InternalApiKey
+            | Self::NoAuth => None,
+        }
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, serde::Deserialize, strum::Display)]
@@ -5178,6 +5201,34 @@ where
 }
 
 pub type AuthenticationDataWithUserId = (AuthenticationData, Option<String>);
+
+/// Auth data paired with the dashboard user behind the request. Unlike
+/// `AuthenticationDataWithUserId`, it carries the whole token identity — a user holds different
+/// roles in different lineages, so the role backing *this* session has to be resolvable.
+#[cfg(feature = "v1")]
+pub type AuthenticationDataWithUser = (AuthenticationData, UserFromToken);
+
+#[cfg(feature = "v1")]
+#[async_trait]
+impl<A> AuthenticateAndFetch<AuthenticationDataWithUser, A> for JWTAuth
+where
+    A: SessionStateInfo + Sync,
+{
+    async fn authenticate_and_fetch(
+        &self,
+        request_headers: &HeaderMap,
+        state: &A,
+    ) -> RouterResult<(AuthenticationDataWithUser, AuthenticationType)> {
+        // Both halves are delegated rather than reimplemented, so the permission and tenant checks
+        // stay in one place and this cannot drift from them.
+        let (auth_data, auth_type): (AuthenticationData, AuthenticationType) =
+            self.authenticate_and_fetch(request_headers, state).await?;
+        let (user, _): (UserFromToken, AuthenticationType) =
+            self.authenticate_and_fetch(request_headers, state).await?;
+
+        Ok(((auth_data, user), auth_type))
+    }
+}
 
 #[cfg(feature = "v1")]
 #[async_trait]
