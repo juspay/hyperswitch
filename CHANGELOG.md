@@ -4,6 +4,17 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.08.12.0-hotfix3
+
+### Features
+
+- **connector:** [Adyen] update adyen managemenet base url ([#13737](https://github.com/juspay/hyperswitch/pull/13737)) ([`c6131b1`](https://github.com/juspay/hyperswitch/commit/c6131b1e0655f8e25d35f7db8f5d5d363da6bf9e))
+- **toml:** Update l2 l3 config to true ([#13739](https://github.com/juspay/hyperswitch/pull/13739)) ([`dbf137c`](https://github.com/juspay/hyperswitch/commit/dbf137c8269d81b0a6d0614c2cb857625dba94e8))
+
+**Full Changelog:** [`2026.08.12.0-hotfix2...2026.08.12.0-hotfix3`](https://github.com/juspay/hyperswitch/compare/2026.08.12.0-hotfix2...2026.08.12.0-hotfix3)
+
+- - -
+
 ## 2026.08.12.0-hotfix2
 
 ### Bug Fixes
