@@ -833,6 +833,7 @@ pub struct UcsPayoutTransferResponseData {
 pub struct UcsPayoutEligibilityResponseData {
     pub router_data_response: Result<PayoutsResponseData, ErrorResponse>,
     pub status_code: u16,
+    pub connector_eligibility_reference_id: Option<String>,
 }
 
 #[cfg(feature = "payouts")]

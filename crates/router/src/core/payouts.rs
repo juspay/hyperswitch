@@ -1731,17 +1731,16 @@ pub async fn check_payout_eligibility(
 
     // 4. Process data returned by the connector
     let db = &*state.store;
+    let connector_eligibility_reference_id = router_data_resp
+        .request
+        .connector_eligibility_reference_id
+        .clone();
     match router_data_resp.response {
         Ok(payout_response_data) => {
             let payout_attempt = &payout_data.payout_attempt;
             let status = payout_response_data
                 .status
                 .unwrap_or(payout_attempt.status.to_owned());
-            let connector_eligibility_reference_id =
-                helpers::read_connector_eligibility_reference_id(
-                    payout_response_data.payout_connector_metadata.as_ref(),
-                );
-
             let updated_payout_attempt = storage::PayoutAttemptUpdate::StatusUpdate {
                 connector_eligibility_reference_id,
                 connector_payout_id: payout_response_data.connector_payout_id,
@@ -3023,6 +3022,7 @@ pub async fn response_handler(
         metadata: helpers::merge_connector_metadata(
             payouts.metadata.clone(),
             payout_attempt.payout_connector_metadata.clone(),
+            payout_attempt.connector_eligibility_reference_id.clone(),
         ),
         merchant_connector_id: payout_attempt.merchant_connector_id.to_owned(),
         status: payout_attempt.status.to_owned(),

@@ -156,10 +156,6 @@ pub const MAX_STATEMENT_DESCRIPTOR_LENGTH: u16 = 22;
 /// Payout flow identifier used for performing GSM operations
 pub const PAYOUT_FLOW_STR: &str = "payout_flow";
 
-/// Key in `payout_connector_metadata` carrying the eligibility reference id
-pub const PAYOUT_CONNECTOR_ELIGIBILITY_REFERENCE_ID_KEY: &str =
-    "connector_eligibility_reference_id";
-
 /// length of the publishable key
 pub const PUBLISHABLE_KEY_LENGTH: u16 = 39;
 

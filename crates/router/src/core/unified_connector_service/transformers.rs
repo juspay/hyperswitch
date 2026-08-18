@@ -12,7 +12,6 @@ use api_models::payments::{
 };
 use common_enums::{AttemptStatus, AuthenticationType, AuthorizationStatus, RefundStatus};
 use common_utils::{
-    consts,
     ext_traits::Encode,
     types::{self, AmountConvertor, MinorUnit, StringMajorUnitForConnector},
 };
@@ -8014,26 +8013,14 @@ impl
                 should_add_next_step_to_process_tracker: false,
                 error_code: connector_details.and_then(|details| details.code.clone()),
                 error_message: connector_details.and_then(|details| details.message.clone()),
-                payout_connector_metadata: {
-                    let mut details = response
-                        .connector_metadata
-                        .as_ref()
-                        .and_then(|metadata| {
-                            serde_json::from_str::<serde_json::Value>(metadata.peek()).ok()
-                        })
-                        .and_then(|value| value.as_object().cloned())
-                        .unwrap_or_default();
-
-                    if let Some(reference_id) = response.connector_eligibility_reference_id.clone()
-                    {
-                        details.insert(
-                            consts::PAYOUT_CONNECTOR_ELIGIBILITY_REFERENCE_ID_KEY.to_string(),
-                            serde_json::Value::String(reference_id),
-                        );
-                    }
-
-                    (!details.is_empty()).then(|| Secret::new(serde_json::Value::Object(details)))
-                },
+                payout_connector_metadata: response
+                    .connector_metadata
+                    .as_ref()
+                    .and_then(|metadata| {
+                        serde_json::from_str::<serde_json::Value>(metadata.peek()).ok()
+                    })
+                    .filter(|value| value.as_object().is_some_and(|details| !details.is_empty()))
+                    .map(Secret::new),
             })
         };
 

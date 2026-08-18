@@ -2686,6 +2686,7 @@ impl
         Ok(Self {
             router_data_response,
             status_code,
+            connector_eligibility_reference_id: response.connector_eligibility_reference_id,
         })
     }
 }
