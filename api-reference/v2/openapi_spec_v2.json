@@ -29102,8 +29102,8 @@
           },
           "merchant_reference_id": {
             "type": "string",
-            "description": "Unique identifier for the payment. This ensures idempotency for multiple payments\nthat have been done by a single merchant.",
-            "example": "pay_mbabizu24mvu3mela5njyhpit4",
+            "description": "The invoice identifier from the merchant's billing system that this payment attempt is\nbeing recorded against. This ensures idempotency when the same invoice is reported\nmore than once.",
+            "example": "invoice_mbabizu24mvu3mela5njyh",
             "nullable": true,
             "maxLength": 30,
             "minLength": 30
