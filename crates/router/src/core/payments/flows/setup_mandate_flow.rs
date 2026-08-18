@@ -104,6 +104,13 @@ impl
 
 #[async_trait]
 impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::SetupMandateRouterData {
+    fn current_flow_info(&self) -> Option<api_interface::CurrentFlowInfo> {
+        Some(api_interface::CurrentFlowInfo::SetupMandate {
+            auth_type: self.auth_type,
+            request_data: Box::new(self.request.clone()),
+        })
+    }
+
     async fn decide_flows<'a>(
         mut self,
         state: &SessionState,

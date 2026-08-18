@@ -55,6 +55,7 @@ celero.base_url = "https://app.gotnpgateway.com"
 chargebee.base_url = "https://{{merchant_endpoint_prefix}}.chargebee.com/api/"
 checkbook.base_url = "https://api.checkbook.io"
 checkout.base_url = "https://api.checkout.com/"
+citigate.base_url = "https://gw.cgate.tech"
 coinbase.base_url = "https://api.commerce.coinbase.com"
 coingate.base_url = "https://api.coingate.com"
 cryptopay.base_url = "https://business.cryptopay.me/"
@@ -1002,7 +1003,7 @@ outgoing_enabled = true
 redis_lock_expiry_seconds = 180
 
 [l2_l3_data_config]
-enabled = "false"
+enabled = "true"
 
 [webhook_source_verification_call]
 connectors_with_webhook_source_verification_call = "paypal, truelayer"     # List of connectors which has additional source verification api-call
@@ -1039,7 +1040,7 @@ click_to_pay = {connector_list = "adyen, cybersource, trustpay"}
 connector_list = "juspaythreedsserver, ctp_mastercard, ctp_visa"
 
 [grpc_client.unified_connector_service]
-ucs_only_connectors = "imerchantsolutions, paytm, phonepe, hyperpg, revolv3, fiservcommercehub, absa_sanlam, interpayments, payconex, dlocal, barclaycard, jpmorgan, datatrans, tsys_transit, givepayments"    # Comma-separated list of connectors that use UCS only
+ucs_only_connectors = "imerchantsolutions, paytm, phonepe, hyperpg, revolv3, fiservcommercehub, absa_sanlam, interpayments, payconex, dlocal, barclaycard, jpmorgan, datatrans, tsys_transit, givepayments, citigate"    # Comma-separated list of connectors that use UCS only
 ucs_psync_disabled_connectors = "cashtocode, trustly"    # Comma-separated list of connectors to disable UCS PSync call
 
 # Merchant Advice Code Configuration

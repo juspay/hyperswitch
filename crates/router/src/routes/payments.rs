@@ -2752,11 +2752,10 @@ where
                             GetToken::Connector,
                             None,
                         )?;
+                        let setup_future_usage = payment_data.payment_intent.setup_future_usage;
                         let should_continue_further = connector_data
                             .connector
-                            .is_payment_recurrence_operation_needed(
-                                &payment_data.payment_intent.clone(),
-                            )
+                            .is_payment_recurrence_operation_needed(setup_future_usage, None)
                             .unwrap_or(false);
                         if should_continue_further {
                             logger::info!(

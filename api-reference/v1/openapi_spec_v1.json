@@ -17273,6 +17273,7 @@
           "chargebee",
           "checkbook",
           "checkout",
+          "citigate",
           "coinbase",
           "coingate",
           "custombilling",
@@ -19691,6 +19692,17 @@
             "properties": {
               "bank_debit": {
                 "$ref": "#/components/schemas/BankDebitDataForClient"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "bank_redirect"
+            ],
+            "properties": {
+              "bank_redirect": {
+                "$ref": "#/components/schemas/MaskedBankDetails"
               }
             }
           }
@@ -30354,6 +30366,17 @@
             "properties": {
               "wallet": {
                 "$ref": "#/components/schemas/WalletDetail"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "bank_redirect"
+            ],
+            "properties": {
+              "bank_redirect": {
+                "$ref": "#/components/schemas/BankRedirectData"
               }
             }
           }
@@ -42053,6 +42076,7 @@
           "custombilling",
           "checkbook",
           "checkout",
+          "citigate",
           "coinbase",
           "coingate",
           "cryptopay",
