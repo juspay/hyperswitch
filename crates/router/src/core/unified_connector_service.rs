@@ -1909,6 +1909,27 @@ fn get_ucs_client(
         })
 }
 
+/// Builds auth metadata for flows whose credentials come from application config.
+pub fn build_unified_connector_service_auth_metadata_without_mca(
+    connector: Connector,
+    auth_type: &ConnectorAuthType,
+    processor_merchant_id: &id_type::MerchantId,
+    metadata: Option<&serde_json::Value>,
+) -> CustomResult<ConnectorAuthMetadata, UnifiedConnectorServiceError> {
+    let connector_config =
+        connector_config::build_connector_config_header(connector, auth_type, metadata)
+            .change_context(UnifiedConnectorServiceError::FailedToObtainAuthType)
+            .attach_printable("Failed to build connector config header")?
+            .map(Secret::new);
+
+    build_connector_auth_metadata(
+        connector,
+        auth_type,
+        processor_merchant_id,
+        connector_config,
+    )
+}
+
 // The UCS proto has no first-class fields for Netcetera-style authentication-connector
 // metadata (force_3ds_challenge, results/notification URLs, acquirer details), so these are
 // merged into the authentication-connector MCA's metadata JSON and passed through the generic
@@ -1984,7 +2005,6 @@ pub fn build_unified_connector_service_auth_metadata(
         .get_connector_account_details()
         .change_context(UnifiedConnectorServiceError::FailedToObtainAuthType)
         .attach_printable("Failed to obtain ConnectorAuthType")?;
-    let merchant_id = processor_merchant_id.get_string_repr();
     let connector = Connector::from_str(&connector_name)
         .change_context(UnifiedConnectorServiceError::FailedToObtainAuthType)
         .attach_printable_lazy(|| format!("Invalid connector name: {connector_name}"))?;
@@ -2003,7 +2023,25 @@ pub fn build_unified_connector_service_auth_metadata(
     .attach_printable("Failed to build connector config header")?
     .map(Secret::new);
 
-    match &auth_type {
+    build_connector_auth_metadata(
+        connector,
+        &auth_type,
+        processor_merchant_id,
+        connector_config,
+    )
+}
+
+/// Maps a [`ConnectorAuthType`] onto the credential fields UCS expects.
+fn build_connector_auth_metadata(
+    connector: Connector,
+    auth_type: &ConnectorAuthType,
+    processor_merchant_id: &id_type::MerchantId,
+    connector_config: Option<Secret<String>>,
+) -> CustomResult<ConnectorAuthMetadata, UnifiedConnectorServiceError> {
+    let connector_name = connector.to_string();
+    let merchant_id = processor_merchant_id.get_string_repr();
+
+    match auth_type {
         ConnectorAuthType::SignatureKey {
             api_key,
             key1,
