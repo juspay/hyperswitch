@@ -4663,11 +4663,17 @@ pub async fn build_merchant_enabled_pms_context(
         None => false,
     };
 
+    let offers_enabled = matches!(
+        crate::core::offer_engine::resolve_offer_engine_config(state, &dimensions).await,
+        Ok(Some(_))
+    );
+
     let sdk_next_action = payment_method_utils::get_sdk_next_action_for_payment_method_list(
         state,
         &dimensions,
         payment_intent.and_then(|pi| pi.customer_id.as_ref()),
         has_surcharge_processor,
+        offers_enabled,
     )
     .await;
 
