@@ -3500,6 +3500,33 @@ impl RoutingAlgorithmInterface for KafkaStore {
             )
             .await
     }
+
+    async fn list_routing_scope_page(
+        &self,
+        limit: i64,
+        offset: i64,
+    ) -> CustomResult<Vec<(id_type::ProfileId, id_type::MerchantId)>, errors::StorageError> {
+        self.diesel_store
+            .list_routing_scope_page(limit, offset)
+            .await
+    }
+
+    async fn find_rule_ids_for_profiles(
+        &self,
+        profile_ids: &[id_type::ProfileId],
+    ) -> CustomResult<
+        Vec<(
+            id_type::ProfileId,
+            id_type::MerchantId,
+            id_type::RoutingId,
+            enums::RoutingAlgorithmKind,
+        )>,
+        errors::StorageError,
+    > {
+        self.diesel_store
+            .find_rule_ids_for_profiles(profile_ids)
+            .await
+    }
 }
 
 #[async_trait::async_trait]
