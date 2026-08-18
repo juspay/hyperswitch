@@ -528,6 +528,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::CtpMastercard
             | Connector::Gpayments
             | Connector::HyperswitchVault
+            | Connector::Juspay
             | Connector::Juspaythreedsserver
             | Connector::Netcetera
             | Connector::Taxjar

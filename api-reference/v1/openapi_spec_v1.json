@@ -7623,7 +7623,7 @@
         },
         "security": [
           {
-            "admin_api_key": []
+            "jwt_key": []
           }
         ]
       }
@@ -7731,7 +7731,7 @@
         },
         "security": [
           {
-            "admin_api_key": []
+            "jwt_key": []
           }
         ]
       }
@@ -7778,7 +7778,7 @@
         },
         "security": [
           {
-            "admin_api_key": []
+            "jwt_key": []
           }
         ]
       }
@@ -17314,6 +17314,7 @@
           "imerchantsolutions",
           "itaubank",
           "jpmorgan",
+          "juspay",
           "juspaythreedsserver",
           "klarna",
           "loonio",
