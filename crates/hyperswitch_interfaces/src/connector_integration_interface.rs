@@ -827,14 +827,15 @@ impl ConnectorSpecifications for ConnectorEnum {
 
     fn is_payment_recurrence_operation_needed(
         &self,
-        payment_intent: &hyperswitch_domain_models::payments::PaymentIntent,
+        setup_future_usage: Option<common_enums::FutureUsage>,
+        current_flow: Option<CurrentFlowInfo>,
     ) -> Option<bool> {
         match self {
             Self::Old(connector) => {
-                connector.is_payment_recurrence_operation_needed(payment_intent)
+                connector.is_payment_recurrence_operation_needed(setup_future_usage, current_flow)
             }
             Self::New(connector) => {
-                connector.is_payment_recurrence_operation_needed(payment_intent)
+                connector.is_payment_recurrence_operation_needed(setup_future_usage, current_flow)
             }
         }
     }
