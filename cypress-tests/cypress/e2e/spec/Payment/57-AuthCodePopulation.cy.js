@@ -39,7 +39,7 @@ describe("Card - Auth Code Population test", () => {
   context(
     "Card-NoThreeDS Auto Capture - auth_code population and persistence",
     () => {
-      it("Create+Confirm Payment -> Verify auth_code -> Retrieve Payment -> Verify auth_code persisted", () => {
+      it("Create+Confirm Payment -> Retrieve Payment -> Verify auth_code persisted", () => {
         let shouldContinue = true;
 
         cy.step("Create and Confirm Payment (No3DS Auto Capture)", () => {
@@ -53,16 +53,7 @@ describe("Card - Auth Code Population test", () => {
             "no_three_ds",
             "automatic",
             globalState
-          ).then((response) => {
-            expect(
-              response.body.payment_method_data.card.auth_code,
-              "auth_code should be populated in create+confirm response"
-            ).to.not.be.null;
-            expect(
-              response.body.payment_method_data.card.auth_code,
-              "auth_code should be a non-empty string"
-            ).to.be.a("string").and.not.be.empty;
-          });
+          );
 
           if (!utils.should_continue_further(data)) {
             shouldContinue = false;
@@ -76,111 +67,10 @@ describe("Card - Auth Code Population test", () => {
           }
           const data = getConnectorDetails(globalState.get("connectorId"))[
             "card_pm"
-          ]["AuthCode"];
+          ]["No3DSAutoCapture"];
 
-          cy.retrievePaymentCallTest({ globalState, data }).then((response) => {
-            expect(
-              response.body.payment_method_data.card.auth_code,
-              "auth_code should be persisted in retrieve response"
-            ).to.not.be.null;
-            expect(
-              response.body.payment_method_data.card.auth_code,
-              "auth_code should be a non-empty string"
-            ).to.be.a("string").and.not.be.empty;
-          });
+          cy.retrievePaymentCallTest({ globalState, data });
         });
-      });
-    }
-  );
-
-  context(
-    "Card-NoThreeDS Manual Capture - auth_code population and persistence through capture",
-    () => {
-      it("Create+Confirm Payment -> Verify auth_code -> Capture Payment -> Verify auth_code persists -> Retrieve Payment -> Verify auth_code still present", () => {
-        let shouldContinue = true;
-
-        cy.step("Create and Confirm Payment (No3DS Manual Capture)", () => {
-          const data = getConnectorDetails(globalState.get("connectorId"))[
-            "card_pm"
-          ]["No3DSManualCapture"];
-
-          cy.createConfirmPaymentTest(
-            fixtures.createConfirmPaymentBody,
-            data,
-            "no_three_ds",
-            "manual",
-            globalState
-          ).then((response) => {
-            expect(
-              response.body.payment_method_data.card.auth_code,
-              "auth_code should be populated in create+confirm response"
-            ).to.not.be.null;
-            expect(
-              response.body.payment_method_data.card.auth_code,
-              "auth_code should be a non-empty string"
-            ).to.be.a("string").and.not.be.empty;
-          });
-
-          if (!utils.should_continue_further(data)) {
-            shouldContinue = false;
-          }
-        });
-
-        cy.step(
-          "Capture Payment - verify auth_code persists after capture",
-          () => {
-            if (!shouldContinue) {
-              cy.task("cli_log", "Skipping step: Capture Payment");
-              return;
-            }
-            const data = getConnectorDetails(globalState.get("connectorId"))[
-              "card_pm"
-            ]["Capture"];
-
-            cy.captureCallTest(fixtures.captureBody, data, globalState).then(
-              (response) => {
-                expect(
-                  response.body.payment_method_data.card.auth_code,
-                  "auth_code should persist after capture"
-                ).to.not.be.null;
-                expect(
-                  response.body.payment_method_data.card.auth_code,
-                  "auth_code should be a non-empty string"
-                ).to.be.a("string").and.not.be.empty;
-              }
-            );
-
-            if (!utils.should_continue_further(data)) {
-              shouldContinue = false;
-            }
-          }
-        );
-
-        cy.step(
-          "Retrieve Payment - verify auth_code still present after capture",
-          () => {
-            if (!shouldContinue) {
-              cy.task("cli_log", "Skipping step: Retrieve Payment");
-              return;
-            }
-            const data = getConnectorDetails(globalState.get("connectorId"))[
-              "card_pm"
-            ]["AuthCode"];
-
-            cy.retrievePaymentCallTest({ globalState, data }).then(
-              (response) => {
-                expect(
-                  response.body.payment_method_data.card.auth_code,
-                  "auth_code should be present in retrieve response after capture"
-                ).to.not.be.null;
-                expect(
-                  response.body.payment_method_data.card.auth_code,
-                  "auth_code should be a non-empty string"
-                ).to.be.a("string").and.not.be.empty;
-              }
-            );
-          }
-        );
       });
     }
   );

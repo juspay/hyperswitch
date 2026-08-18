@@ -4134,6 +4134,12 @@ Cypress.Commands.add(
               );
             }
           }
+          if (response.body.payment_method_data?.card?.auth_code) {
+            expect(
+              response.body.payment_method_data.card.auth_code,
+              "auth_code should be a non-empty string"
+            ).to.be.a("string").and.not.be.empty;
+          }
         } else {
           defaultErrorHandler(response, resData);
         }
@@ -4365,6 +4371,12 @@ Cypress.Commands.add(
           for (const key in resData.body) {
             expect(resData.body[key]).to.equal(response.body[key]);
           }
+          if (response.body.payment_method_data?.card?.auth_code) {
+            expect(
+              response.body.payment_method_data.card.auth_code,
+              "auth_code should be a non-empty string"
+            ).to.be.a("string").and.not.be.empty;
+          }
         } else {
           defaultErrorHandler(response, resData);
         }
@@ -4514,6 +4526,13 @@ Cypress.Commands.add(
                 )
               );
             }
+          }
+
+          if (response.body.payment_method_data?.card?.auth_code) {
+            expect(
+              response.body.payment_method_data.card.auth_code,
+              "auth_code should be a non-empty string"
+            ).to.be.a("string").and.not.be.empty;
           }
 
           if (

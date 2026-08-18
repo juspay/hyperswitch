@@ -934,13 +934,5 @@ export const connectorDetails = {
         },
       },
     },
-    AuthCode: {
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
-      },
-    },
   },
 };
