@@ -39,6 +39,7 @@ impl ForeignTryFrom<api_enums::Connector> for euclid::enums::RoutableConnectors 
             api_enums::Connector::Chargebee => Self::Chargebee,
             api_enums::Connector::Checkbook => Self::Checkbook,
             api_enums::Connector::Checkout => Self::Checkout,
+            api_enums::Connector::Citigate => Self::Citigate,
             api_enums::Connector::Coinbase => Self::Coinbase,
             api_enums::Connector::Coingate => Self::Coingate,
             api_enums::Connector::Cryptopay => Self::Cryptopay,
@@ -96,6 +97,11 @@ impl ForeignTryFrom<api_enums::Connector> for euclid::enums::RoutableConnectors 
             api_enums::Connector::Interpayments => Self::Interpayments,
             api_enums::Connector::Itaubank => Self::Itaubank,
             api_enums::Connector::Jpmorgan => Self::Jpmorgan,
+            api_enums::Connector::Juspay => {
+                Err(common_utils::errors::ValidationError::InvalidValue {
+                    message: "juspay is not a routable connector".to_string(),
+                })?
+            }
             api_enums::Connector::Juspaythreedsserver => {
                 Err(common_utils::errors::ValidationError::InvalidValue {
                     message: "juspaythreedsserver is not a routable connector".to_string(),

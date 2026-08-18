@@ -463,6 +463,7 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
             headers_builder,
             unified_connector_service_execution_mode,
             |mut router_data, payment_authorize_request, grpc_headers| async move {
+                // UCS connector errors are handled by the wrapper — see `ucs_logging_wrapper`.
                 let response = Box::pin(client
                     .payment_authorize(
                         payment_authorize_request,
@@ -470,7 +471,6 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
                         grpc_headers,
                     ))
                     .await
-                    .change_context(ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed to authorize payment")?;
 
                 let payment_authorize_response = response.into_inner();
@@ -480,7 +480,6 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
                         payment_authorize_response.clone(),
                         router_data.status,
                     )
-                    .change_context(ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed to deserialize UCS response")?;
 
                 let router_data_response = match ucs_data.router_data_response {
@@ -579,6 +578,7 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
             headers_builder,
             unified_connector_service_execution_mode,
             |mut router_data, payment_authorize_request, grpc_headers| async move {
+                // UCS connector errors are handled by the wrapper — see `ucs_logging_wrapper`.
                 let response = Box::pin(client
                     .payment_authorize(
                         payment_authorize_request,
@@ -586,7 +586,6 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
                         grpc_headers,
                     ))
                     .await
-                    .change_context(ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed to authorize payment")?;
 
                 let payment_authorize_response = response.into_inner();
@@ -596,7 +595,6 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
                         payment_authorize_response.clone(),
                         router_data.status,
                     )
-                    .change_context(ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed to deserialize UCS response")?;
 
                 let router_data_response = match ucs_data.router_data_response {

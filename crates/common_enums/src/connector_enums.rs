@@ -89,6 +89,7 @@ pub enum Connector {
     Chargebee,
     Checkbook,
     Checkout,
+    Citigate,
     Coinbase,
     Coingate,
     Custombilling,
@@ -132,6 +133,7 @@ pub enum Connector {
     Imerchantsolutions,
     Itaubank,
     Jpmorgan,
+    Juspay,
     Juspaythreedsserver,
     Klarna,
     Loonio,
@@ -383,6 +385,7 @@ impl Connector {
 			| Self::Inespay
             | Self::Itaubank
             | Self::Jpmorgan
+            | Self::Juspay
             | Self::Juspaythreedsserver
             | Self::Klarna
             | Self::Loonio
@@ -458,6 +461,7 @@ impl Connector {
             | Self::Datatrans
             | Self::Paytm
             | Self::Payconex
+            | Self::Citigate
             | Self::Payjustnow
             | Self::Payjustnowinstore
             | Self::Phonepe

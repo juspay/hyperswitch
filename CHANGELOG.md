@@ -4,6 +4,42 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.08.18.0
+
+### Features
+
+- **account_updater:** Add force_sync trigger and UCS refresh call ([#13510](https://github.com/juspay/hyperswitch/pull/13510)) ([`02f8303`](https://github.com/juspay/hyperswitch/commit/02f8303d4abbbf8a028d2cccce8a8524b991f146))
+
+### Bug Fixes
+
+- **connector:** [CYBERSOURCE] Commerce Indicator Mapping For Externally Authenticated Transactions ([#13527](https://github.com/juspay/hyperswitch/pull/13527)) ([`745c4ea`](https://github.com/juspay/hyperswitch/commit/745c4ea77a3bc05db412b4b86d320036eef72f32))
+- **ucs:** Fire kill switch on connector errors in Ok(RouterData) ([#13683](https://github.com/juspay/hyperswitch/pull/13683)) ([`3aae454`](https://github.com/juspay/hyperswitch/commit/3aae4545e2bcfef1fd64809cf47f6e6ad8ba92de))
+- Mark UCS shadow gateway failures non-primary ([#13562](https://github.com/juspay/hyperswitch/pull/13562)) ([`4eff117`](https://github.com/juspay/hyperswitch/commit/4eff11762cefd910101939112a0678f1fc33660c))
+
+**Full Changelog:** [`2026.08.17.0...2026.08.18.0`](https://github.com/juspay/hyperswitch/compare/2026.08.17.0...2026.08.18.0)
+
+- - -
+
+## 2026.08.17.0
+
+### Features
+
+- **payments:** Add retries using retry_token ([#13499](https://github.com/juspay/hyperswitch/pull/13499)) ([`9b8b89d`](https://github.com/juspay/hyperswitch/commit/9b8b89dc378b62c9a6feda647bad4719d2de7699))
+
+### Bug Fixes
+
+- **storage:** Align kv helpers with intent insert path and build drainer queries lazily ([#13172](https://github.com/juspay/hyperswitch/pull/13172)) ([`6d555d8`](https://github.com/juspay/hyperswitch/commit/6d555d8efc14ba40468a429be0345634c85fcb72))
+- **ucs:** Correct Netcetera auth-header injection and suppress its X-Connector-Config ([#13673](https://github.com/juspay/hyperswitch/pull/13673)) ([`440d09b`](https://github.com/juspay/hyperswitch/commit/440d09b19c15d0b8ba9a071c7ce3599e72742275))
+
+### Refactors
+
+- **connector:** [Calida] Make context_data optional to avoid deserialization issues ([#13698](https://github.com/juspay/hyperswitch/pull/13698)) ([`882a944`](https://github.com/juspay/hyperswitch/commit/882a94466388178b0e9e91ff324de597d1a82650))
+- **router:** Scope event apis to jwt auth and profile, and read listings from the replica ([#13703](https://github.com/juspay/hyperswitch/pull/13703)) ([`61a3879`](https://github.com/juspay/hyperswitch/commit/61a3879911073a4f6e0c7565c138752b2ccd03d3))
+
+**Full Changelog:** [`2026.08.14.0...2026.08.17.0`](https://github.com/juspay/hyperswitch/compare/2026.08.14.0...2026.08.17.0)
+
+- - -
+
 ## 2026.08.14.0
 
 ### Features
