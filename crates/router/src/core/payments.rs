@@ -13592,14 +13592,20 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
         {
             Ok(response) => response,
             Err(error) => {
-                update_payment_status_for_external_authentication_failure(
+                if let Err(update_err) = update_payment_status_for_external_authentication_failure(
                     &state,
                     &platform,
                     payment_intent.clone(),
                     &payment_attempt,
                     &authentication_connector,
                 )
-                .await?;
+                .await
+                {
+                    logger::error!(
+                        ?update_err,
+                        "failed to update payment status after external auth failure"
+                    );
+                }
                 return Err(error);
             }
         };
