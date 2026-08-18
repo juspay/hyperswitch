@@ -538,6 +538,8 @@ impl BackwardCompatWorkflowBuilder<BackwardDbCompatPrepared> {
                             last_used_at: None,
                             connector_mandate_details: None,
                             network_tokenization_data: None,
+                            connector_payment_method_details: Box::new(None),
+                            locker_fingerprint_id: None,
                         };
 
                         db.update_payment_method(

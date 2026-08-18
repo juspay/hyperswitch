@@ -242,6 +242,7 @@ where
         customer_document_details: None,
         feature_data: None,
         sender_payment_instrument_id: None,
+        connector_returned_payment_method_details: None,
     };
     Ok(router_data)
 }
@@ -591,6 +592,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         customer_document_details: None,
         feature_data: None,
         sender_payment_instrument_id: None,
+        connector_returned_payment_method_details: None,
     };
 
     Ok(router_data)
@@ -1006,6 +1008,7 @@ pub async fn construct_external_vault_proxy_payment_router_data_v1<'a>(
         customer_document_details: None,
         feature_data: None,
         sender_payment_instrument_id: None,
+        connector_returned_payment_method_details: None,
     };
 
     Ok(router_data)
@@ -1177,6 +1180,7 @@ pub async fn construct_payment_router_data_for_capture<'a>(
         customer_document_details: None,
         feature_data: None,
         sender_payment_instrument_id: None,
+        connector_returned_payment_method_details: None,
     };
 
     Ok(router_data)
@@ -1316,6 +1320,7 @@ pub async fn construct_router_data_for_psync<'a>(
         customer_document_details: None,
         feature_data: None,
         sender_payment_instrument_id: None,
+        connector_returned_payment_method_details: None,
     };
 
     Ok(router_data)
@@ -1672,6 +1677,7 @@ pub async fn construct_payment_router_data_for_sdk_session<'a>(
         customer_document_details: None,
         feature_data: None,
         sender_payment_instrument_id: None,
+        connector_returned_payment_method_details: None,
     };
 
     Ok(router_data)
@@ -1899,6 +1905,7 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
         customer_document_details: None,
         feature_data: None,
         sender_payment_instrument_id: None,
+        connector_returned_payment_method_details: None,
     };
 
     Ok(router_data)
@@ -2233,6 +2240,7 @@ where
         customer_document_details,
         feature_data,
         sender_payment_instrument_id: None,
+        connector_returned_payment_method_details: None,
     };
 
     Ok(router_data)
@@ -2456,6 +2464,7 @@ pub async fn construct_payment_router_data_for_update_metadata<'a>(
             .attach_printable("Failed to extract customer document details from payment_intent")?,
         feature_data: None,
         sender_payment_instrument_id: None,
+        connector_returned_payment_method_details: None,
     };
 
     Ok(router_data)
@@ -8255,6 +8264,7 @@ pub async fn construct_payment_router_data_for_update_post_confirm<'a>(
             .attach_printable("Failed to extract customer document details from payment_intent")?,
         feature_data: None,
         sender_payment_instrument_id: None,
+        connector_returned_payment_method_details: None,
     };
 
     Ok(router_data)
