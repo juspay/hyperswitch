@@ -3,7 +3,7 @@
 //! This module provides functionality to transform connector authentication data
 //! into connector-specific configuration structures expected by the Unified Connector Service (UCS).
 
-use std::{collections::HashMap, str::FromStr};
+use std::collections::HashMap;
 
 use common_enums::{connector_enums::Connector, enums::Currency};
 use common_utils::ext_traits::ValueExt;
@@ -192,6 +192,15 @@ pub struct TsysTransitMetadata {
     merchant_street_address: Option<Secret<String>>,
     customer_service_phone_number: Option<Secret<String>>,
     merchant_url: Option<url::Url>,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct JuspayMetadata {
+    pub merchant_id: String,
+    pub base_url: String,
+    pub juspay_encryption_public_key: Secret<String>,
+    pub response_decryption_private_key: Secret<String>,
+    pub card_sync_key_id: String,
 }
 
 /// Connector-specific configuration enum for all supported connectors
@@ -664,6 +673,15 @@ pub enum ConnectorSpecificConfig {
     },
     /// Givepayments connector configuration
     Givepayments { api_key: Secret<String> },
+    /// Juspay Account Updater configuration
+    Juspay {
+        api_key: Secret<String>,
+        merchant_id: String,
+        base_url: String,
+        juspay_encryption_public_key: Secret<String>,
+        response_decryption_private_key: Secret<String>,
+        card_sync_key_id: String,
+    },
     /// Netcetera authentication connector configuration (no connector-specific config needed)
     Netcetera,
     /// Santander payout connector configuration
@@ -1700,6 +1718,21 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                 }),
                 _ => Err(err("Givepayments requires HeaderKey auth type")),
             },
+            Connector::Juspay => match auth {
+                ConnectorAuthType::HeaderKey { api_key } => {
+                    let juspay_meta = metadata
+                        .map(|meta| {
+                            serde_json::from_value::<JuspayMetadata>(meta.clone())
+                                .change_context(errors::ApiErrorResponse::InternalServerError)
+                                .attach_printable("Invalid Juspay metadata format")
+                        })
+                        .transpose()?
+                        .ok_or_else(|| err("Juspay requires metadata"))?;
+
+                    Ok(Self::from((api_key.clone(), juspay_meta)))
+                }
+                _ => Err(err("Juspay requires HeaderKey auth type")),
+            },
             Connector::Netcetera => Ok(Self::Netcetera),
             Connector::Santander => match auth {
                 ConnectorAuthType::CertificateAuth {
@@ -1755,21 +1788,38 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
     }
 }
 
+impl From<(Secret<String>, JuspayMetadata)> for ConnectorSpecificConfig {
+    fn from((api_key, metadata): (Secret<String>, JuspayMetadata)) -> Self {
+        Self::Juspay {
+            api_key,
+            merchant_id: metadata.merchant_id,
+            base_url: metadata.base_url,
+            juspay_encryption_public_key: metadata.juspay_encryption_public_key,
+            response_decryption_private_key: metadata.response_decryption_private_key,
+            card_sync_key_id: metadata.card_sync_key_id,
+        }
+    }
+}
+
 /// Build the X_CONNECTOR_CONFIG header value for any connector
 pub fn build_connector_config_header(
-    connector_name: &str,
+    connector: Connector,
     auth_type: &ConnectorAuthType,
     merchant_account_metadata: Option<&serde_json::Value>,
 ) -> RouterResult<Option<String>> {
-    let connector = Connector::from_str(connector_name)
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable_lazy(|| format!("Invalid connector name: {}", connector_name))?;
-
     let config = ConnectorSpecificConfig::foreign_try_from((
         connector,
         auth_type,
         merchant_account_metadata,
     ))?;
+
+    // Netcetera has no connector-specific config on the wire (connector-service's
+    // `ConnectorSpecificConfig` oneof has no `netcetera` case), so sending this header makes
+    // UCS hard-error on deserialization instead of falling back to the legacy auth header.
+    // Suppress it here so UCS takes the legacy-header path, which does work for Netcetera.
+    if matches!(config, ConnectorSpecificConfig::Netcetera) {
+        return Ok(None);
+    }
 
     let config_json = serde_json::to_value(&config)
         .change_context(errors::ApiErrorResponse::InternalServerError)
