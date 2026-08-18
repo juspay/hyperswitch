@@ -396,7 +396,12 @@ pub enum PaymentMethodUpdate {
     },
     StatusAndFingerprintUpdate {
         status: Option<storage_enums::PaymentMethodStatus>,
-        locker_fingerprint_id: Option<String>,
+        /// Outer `None` leaves the fingerprint alone; `Some(None)` clears it to SQL NULL.
+        ///
+        /// Retiring a row has to clear the fingerprint rather than stamp a sentinel over it: an id
+        /// can carry several retired rows, and `UNIQUE (id, locker_fingerprint_id)` would reject a
+        /// repeated sentinel. Postgres treats NULLs as distinct, so any number of them coexist.
+        locker_fingerprint_id: Option<Option<String>>,
         last_modified_by: Option<String>,
     },
     // Compatibility-only update used by modular backward-compat inline/PT.
@@ -441,7 +446,9 @@ pub struct PaymentMethodUpdateInternal {
     network_token_requestor_reference_id: Option<String>,
     network_token_locker_id: Option<String>,
     network_token_payment_method_data: Option<Encryption>,
-    locker_fingerprint_id: Option<String>,
+    /// Nested so the changeset can express "write NULL" as well as "leave alone":
+    /// outer `None` skips the column, `Some(None)` sets it to SQL NULL.
+    locker_fingerprint_id: Option<Option<String>>,
     external_vault_source: Option<common_utils::id_type::MerchantConnectorAccountId>,
     last_modified_by: Option<String>,
     customer_details: Option<Encryption>,
@@ -1150,7 +1157,9 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 network_token_requestor_reference_id,
                 network_token_locker_id,
                 network_token_payment_method_data,
-                locker_fingerprint_id,
+                // `GenericUpdate` cannot clear the fingerprint: its `None` has always meant
+                // "leave alone", so it maps onto the outer `None`, never onto `Some(None)`.
+                locker_fingerprint_id: locker_fingerprint_id.map(Some),
                 external_vault_source,
                 network_transaction_id,
                 network_transaction_link_id,

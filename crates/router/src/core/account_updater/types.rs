@@ -4,6 +4,7 @@ use common_enums::{connector_enums::Connector, CardNetwork};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::router_data::ConnectorAuthType;
 use hyperswitch_masking::Secret;
+use unified_connector_service_client::payments as payments_grpc;
 
 use crate::{
     configs::settings,
@@ -112,6 +113,21 @@ impl From<&settings::AccountUpdaterConfig> for ResolvedAccountUpdaterConfig {
     }
 }
 
+pub struct CardRefreshResult {
+    pub outcome: payments_grpc::CardRefreshOutcome,
+    pub card: Option<payments_grpc::CardDetailsWithNoCvc>,
+}
+
+impl CardRefreshResult {
+    pub fn requires_store(&self) -> bool {
+        matches!(
+            self.outcome,
+            payments_grpc::CardRefreshOutcome::CardRefreshAccountUpdated
+                | payments_grpc::CardRefreshOutcome::CardRefreshExpiryUpdated
+        )
+    }
+}
+
 #[derive(Debug, thiserror::Error)]
 pub enum AccountUpdaterError {
     #[error("Account Updater application config is missing or invalid")]
@@ -122,10 +138,18 @@ pub enum AccountUpdaterError {
     PaymentMethodNotActive,
     #[error("Card network is not supported by Account Updater")]
     UnsupportedNetwork,
+    #[error("Account Updater is not supported on the legacy locker")]
+    LegacyLockerUnsupported,
+    #[error("Account Updater is not supported on an external vault profile")]
+    ExternalVaultUnsupported,
+    #[error("Could not resolve the provider profile to check the deployment")]
+    ProviderProfileUnresolved,
     #[error("Stored card cannot be used for Account Updater")]
     CardUnusable,
     #[error("Account Updater refresh call failed")]
     RefreshCallFailed,
     #[error("Account Updater refresh returned an error")]
     RefreshReturnedError,
+    #[error("Account Updater could not store the reported card change")]
+    StoreFailed,
 }

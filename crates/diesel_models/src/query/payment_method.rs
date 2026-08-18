@@ -4,6 +4,8 @@ use diesel::Table;
 use diesel::{
     associations::HasTable, debug_query, pg::Pg, BoolExpressionMethods, ExpressionMethods, QueryDsl,
 };
+#[cfg(feature = "v2")]
+use diesel::{PgExpressionMethods, PgSortExpressionMethods};
 use error_stack::ResultExt;
 
 use super::generics;
@@ -266,12 +268,49 @@ impl PaymentMethod {
 
 #[cfg(feature = "v2")]
 impl PaymentMethod {
+    /// Resolves an id to the row that currently represents that payment method.
+    ///
+    /// An id can span several rows once a card change has been applied: one active row alongside
+    /// any number of retired ones. The newest row wins; the fingerprint breaks a same-timestamp tie
+    /// toward the live row, since retired rows carry a NULL fingerprint.
     pub async fn find_by_id(
         conn: &PgPooledConn,
         id: &common_utils::id_type::GlobalPaymentMethodId,
     ) -> StorageResult<Self> {
-        generics::generic_find_one::<<Self as HasTable>::Table, _, _>(conn, pm_id.eq(id.to_owned()))
-            .await
+        generics::generic_filter::<<Self as HasTable>::Table, _, _, Self>(
+            conn,
+            pm_id.eq(id.to_owned()),
+            Some(1),
+            None,
+            Some((
+                dsl::created_at.desc(),
+                dsl::locker_fingerprint_id.desc().nulls_last(),
+            )),
+        )
+        .await?
+        .into_iter()
+        .next()
+        .ok_or_else(|| error_stack::report!(errors::DatabaseError::NotFound))
+        .attach_printable("Error finding payment method by id")
+    }
+
+    /// Every row under one payment method id, including the retired rows `find_by_id` hides.
+    /// Ordered newest-first on the same key as `find_by_id`.
+    pub async fn find_all_by_id(
+        conn: &PgPooledConn,
+        id: &common_utils::id_type::GlobalPaymentMethodId,
+    ) -> StorageResult<Vec<Self>> {
+        generics::generic_filter::<<Self as HasTable>::Table, _, _, Self>(
+            conn,
+            pm_id.eq(id.to_owned()),
+            None,
+            None,
+            Some((
+                dsl::created_at.desc(),
+                dsl::locker_fingerprint_id.desc().nulls_last(),
+            )),
+        )
+        .await
     }
 
     pub async fn find_by_global_customer_id_merchant_id_statuses(
@@ -329,17 +368,30 @@ impl PaymentMethod {
         .await
     }
 
+    /// Updates the single row the caller loaded.
+    ///
+    /// The id alone no longer identifies one row, so the fingerprint of the loaded record pins the
+    /// update to the row it came from. `IS NOT DISTINCT FROM` rather than `=` so that rows with no
+    /// fingerprint yet — `New`/`AwaitingData`, and retired rows — still match.
     pub async fn update_with_id(
         self,
         conn: &PgPooledConn,
         payment_method: payment_method::PaymentMethodUpdateInternal,
     ) -> StorageResult<Self> {
+        let locker_fingerprint_id = self.locker_fingerprint_id.clone();
+
         match generics::generic_update_with_unique_predicate_get_result::<
             <Self as HasTable>::Table,
             _,
             _,
             _,
-        >(conn, pm_id.eq(self.id.to_owned()), payment_method)
+        >(
+            conn,
+            pm_id
+                .eq(self.id.to_owned())
+                .and(dsl::locker_fingerprint_id.is_not_distinct_from(locker_fingerprint_id)),
+            payment_method,
+        )
         .await
         {
             Err(error) => match error.current_context() {

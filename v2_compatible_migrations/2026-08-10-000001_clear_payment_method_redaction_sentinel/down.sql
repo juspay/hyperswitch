@@ -1,0 +1,11 @@
+-- Deliberate no-op.
+--
+-- Neither statement in up.sql is meaningfully reversible:
+--
+--   * Restoring 'FINGERPRINT_ID_REDACTED' would re-break the very index the next migration builds,
+--     and the sentinel carries no information that NULL does not.
+--   * The rows retired by the duplicate guard cannot be told apart from rows that were already
+--     redacted, and reactivating them would produce two active rows under one id.
+--
+-- Reverting the index swap is handled by that migration's own down.sql.
+SELECT 1;

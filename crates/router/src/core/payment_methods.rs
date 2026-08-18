@@ -127,8 +127,6 @@ const PAYMENT_METHOD_MODULAR_BACKWARD_COMPAT_TASK: &str = "PM_MOD_BACK_COMPAT";
 const PAYMENT_METHOD_MODULAR_BACKWARD_COMPAT_TAG: &str = "PM_MOD_BACK_COMPAT";
 const PAYMENT_METHOD_MODULAR_COMPAT_PROCESS_TRACKER_ID_MAX_LENGTH: usize = 126;
 const PAYMENT_METHOD_MODULAR_COMPAT_PROCESS_TRACKER_ID_SUFFIX_LENGTH: usize = 8;
-#[cfg(feature = "v2")]
-const PAYMENT_METHOD_REDACTED_FINGERPRINT_ID: &str = "FINGERPRINT_ID_REDACTED";
 /// `process_tracker.id` is a `varchar(127)`; ids are built to stay within it.
 const NETWORK_TOKENIZATION_PROCESS_TRACKER_ID_MAX_LENGTH: usize = 126;
 const NETWORK_TOKENIZATION_PROCESS_TRACKER_ID_SUFFIX_LENGTH: usize = 8;
@@ -5740,7 +5738,7 @@ pub async fn retrieve_payment_method(
         resolve_storage_type_from_token(&state, &pm.payment_method_id).await?;
 
     // 2. Fetch payment method record based on resolved storage type
-    let (storage_type, payment_method) = fetch_payment_method_by_storage(
+    let (storage_type, mut payment_method) = fetch_payment_method_by_storage(
         &state,
         platform.get_provider(),
         &pm,
@@ -5836,7 +5834,7 @@ pub async fn retrieve_payment_method(
             .with_organization_id(platform.get_provider().get_account().get_org_id().clone())
             .with_profile_id(profile.get_id().clone());
 
-        Box::pin(account_updater::run_account_updater(
+        let updated_payment_method = Box::pin(account_updater::run_account_updater(
             &state,
             &platform,
             &profile,
@@ -5844,7 +5842,40 @@ pub async fn retrieve_payment_method(
             raw_payment_method_data.as_ref(),
             &account_updater_dimensions,
         ))
-        .await;
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Account Updater failed while applying a card change")?;
+
+        if let Some(updated_payment_method) = updated_payment_method {
+            let refreshed_card = Box::pin(
+                raw_payment_method_access
+                    .retrieve_raw_card
+                    .get_raw_payment_method_data(
+                        &state,
+                        &platform,
+                        &profile,
+                        &updated_payment_method,
+                        storage_type,
+                    ),
+            )
+            .await
+            .attach_printable("Failed to get raw payment method data")?;
+
+            raw_payment_method_data = match (refreshed_card, raw_payment_method_data) {
+                (
+                    Some(payment_methods::RawPaymentMethodData::Card(card_details)),
+                    Some(payment_methods::RawPaymentMethodData::CardWithNT(previous)),
+                ) => Some(payment_methods::RawPaymentMethodData::CardWithNT(
+                    payment_methods::RawCardWithNTDetails {
+                        card_details,
+                        network_token_details: previous.network_token_details,
+                    },
+                )),
+                (refreshed_card, _) => refreshed_card,
+            };
+
+            payment_method = updated_payment_method;
+        }
     }
 
     match raw_payment_method_access.response {
@@ -6616,32 +6647,56 @@ pub async fn delete_payment_method_by_record(
     profile: &domain::Profile,
     payment_method: domain::PaymentMethod,
 ) -> RouterResult<()> {
-    // Soft delete - mark as Redacted (terminal state, no transitions allowed)
-    let pm_update = storage::PaymentMethodUpdate::StatusAndFingerprintUpdate {
-        status: Some(enums::PaymentMethodStatus::Redacted),
-        last_modified_by: platform
-            .get_initiator()
-            .and_then(|initiator| initiator.to_created_by())
-            .map(|last_modified_by| last_modified_by.to_string()),
-        locker_fingerprint_id: Some(PAYMENT_METHOD_REDACTED_FINGERPRINT_ID.to_string()),
-    };
+    let last_modified_by = platform
+        .get_initiator()
+        .and_then(|initiator| initiator.to_created_by())
+        .map(|last_modified_by| last_modified_by.to_string());
 
-    db.update_payment_method(
-        platform.get_provider().get_key_store(),
-        payment_method.clone(),
-        pm_update,
-        platform.get_provider().get_account().storage_scheme,
-        // Redaction updates should not trigger PM modular compat scheduling.
-        None,
-    )
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Failed to update payment method in db")?;
-
-    vault::delete_payment_method_data_from_vault(state, platform, profile, &payment_method)
+    let sibling_records = db
+        .find_all_payment_methods_by_id(
+            platform.get_provider().get_key_store(),
+            &payment_method.id,
+            platform.get_provider().get_account().storage_scheme,
+        )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to delete payment method from vault")?;
+        .attach_printable("Failed to load every row for the payment method id")?;
+
+    // Fall back to the caller's record rather than deleting nothing if the lookup comes back empty.
+    let records_to_redact = if sibling_records.is_empty() {
+        vec![payment_method]
+    } else {
+        sibling_records
+    };
+
+    for record in &records_to_redact {
+        // Rewriting an already-retired row is a no-op, so the loop need not filter them out.
+        let pm_update = storage::PaymentMethodUpdate::StatusAndFingerprintUpdate {
+            status: Some(enums::PaymentMethodStatus::Redacted),
+            last_modified_by: last_modified_by.clone(),
+            // `Some(None)` clears the column to SQL NULL. A sentinel string cannot be used here: an
+            // id may already carry a retired row, and repeating the sentinel would collide under
+            // `UNIQUE (id, locker_fingerprint_id)`.
+            locker_fingerprint_id: Some(None),
+        };
+
+        db.update_payment_method(
+            platform.get_provider().get_key_store(),
+            record.clone(),
+            pm_update,
+            platform.get_provider().get_account().storage_scheme,
+            // Redaction updates should not trigger PM modular compat scheduling.
+            None,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to update payment method in db")?;
+
+        vault::delete_payment_method_data_from_vault(state, platform, profile, record)
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to delete payment method from vault")?;
+    }
 
     Ok(())
 }

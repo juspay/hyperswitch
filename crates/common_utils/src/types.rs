@@ -1585,6 +1585,11 @@ impl_enum_str!(
             /// merchant id of creator.
             merchant_id: String,
         },
+        /// AccountUpdater variant, for writes made while applying a reported card change
+        AccountUpdater {
+            /// merchant id whose payment method was updated.
+            merchant_id: String,
+        },
     }
 );
 
@@ -1596,7 +1601,10 @@ impl CreatedBy {
             Self::Api { merchant_id } => id_type::MerchantId::wrap(merchant_id.clone())
                 .map(|parsed_merchant_id| parsed_merchant_id == *provider_merchant_id)
                 .unwrap_or_default(),
-            Self::Jwt { .. } | Self::Invalid | Self::EmbeddedToken { .. } => false,
+            Self::Jwt { .. }
+            | Self::Invalid
+            | Self::EmbeddedToken { .. }
+            | Self::AccountUpdater { .. } => false,
         }
     }
 }
