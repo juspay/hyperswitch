@@ -23,6 +23,35 @@ pub fn validate_phone_number(phone_number: &str) -> Result<(), ValidationError> 
     Ok(())
 }
 
+/// Maximum length allowed for a phone country (calling) code, matching the `VARCHAR(8)`
+/// column used to store it.
+pub const MAX_PHONE_COUNTRY_CODE_LENGTH: usize = 8;
+
+/// Validates a phone country (calling) code, e.g. `"+1"` or `"91"`.
+///
+/// It returns a [ValidationError::InvalidValue] if the value is empty, longer than
+/// [MAX_PHONE_COUNTRY_CODE_LENGTH], or contains characters other than digits and an optional
+/// leading `+`.
+pub fn validate_phone_country_code(phone_country_code: &str) -> Result<(), ValidationError> {
+    let is_valid = !phone_country_code.is_empty()
+        && phone_country_code.len() <= MAX_PHONE_COUNTRY_CODE_LENGTH
+        && phone_country_code
+            .strip_prefix('+')
+            .unwrap_or(phone_country_code)
+            .chars()
+            .all(|character| character.is_ascii_digit());
+
+    if is_valid {
+        Ok(())
+    } else {
+        Err(ValidationError::InvalidValue {
+            message: format!(
+                "phone_country_code must be a valid country calling code (e.g. \"+1\"), got \"{phone_country_code}\""
+            ),
+        })
+    }
+}
+
 /// Performs a simple validation against a provided email address.
 pub fn validate_email(email: &str) -> CustomResult<(), ValidationError> {
     #[deny(clippy::invalid_regex)]
