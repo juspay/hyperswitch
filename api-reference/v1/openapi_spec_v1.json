@@ -7623,7 +7623,7 @@
         },
         "security": [
           {
-            "admin_api_key": []
+            "jwt_key": []
           }
         ]
       }
@@ -7731,7 +7731,7 @@
         },
         "security": [
           {
-            "admin_api_key": []
+            "jwt_key": []
           }
         ]
       }
@@ -7778,7 +7778,7 @@
         },
         "security": [
           {
-            "admin_api_key": []
+            "jwt_key": []
           }
         ]
       }
@@ -17273,6 +17273,7 @@
           "chargebee",
           "checkbook",
           "checkout",
+          "citigate",
           "coinbase",
           "coingate",
           "custombilling",
@@ -17314,6 +17315,7 @@
           "imerchantsolutions",
           "itaubank",
           "jpmorgan",
+          "juspay",
           "juspaythreedsserver",
           "klarna",
           "loonio",
@@ -42052,6 +42054,7 @@
           "custombilling",
           "checkbook",
           "checkout",
+          "citigate",
           "coinbase",
           "coingate",
           "cryptopay",
