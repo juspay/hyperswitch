@@ -126,6 +126,7 @@ impl BatchBlocklistJobInterface for MockDb {
             failed_rows: new.failed_rows,
             created_at: new.created_at,
             updated_at: new.updated_at,
+            profile_id: None,
         };
         jobs.push(job.clone());
         Ok(job)

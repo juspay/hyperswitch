@@ -279,6 +279,7 @@ impl BlocklistInterface for MockDb {
                     created_at: entry.created_at,
                     processor_merchant_id: entry.processor_merchant_id,
                     created_by: entry.created_by,
+                    profile_id: None,
                 });
                 inserted += 1;
             }
