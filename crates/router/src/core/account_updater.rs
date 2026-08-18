@@ -14,7 +14,10 @@ use self::{
     refresh::request_account_updater_refresh,
     types::{AccountUpdaterError, ResolvedAccountUpdaterConfig},
 };
-use crate::{core::configs::dimension_state, routes::SessionState, types::domain};
+use crate::{
+    core::configs::dimension_state, events::account_updater as account_updater_events,
+    routes::SessionState, types::domain,
+};
 
 #[instrument(skip_all)]
 pub async fn run_account_updater<D>(
@@ -39,6 +42,8 @@ pub async fn run_account_updater<D>(
         }
     };
 
+    let started_at = std::time::Instant::now();
+
     let outcome = refresh_stored_payment_method(
         state,
         platform,
@@ -49,13 +54,24 @@ pub async fn run_account_updater<D>(
     )
     .await;
 
-    match outcome {
+    match &outcome {
         Ok(refresh_outcome) => logger::info!(
             account_updater_outcome = refresh_outcome.as_str_name(),
             "Account Updater refresh completed"
         ),
         Err(error) => logger::warn!(?error, "Account Updater refresh did not complete"),
     }
+
+    let event = account_updater_events::KafkaAccountUpdaterEvent::new(
+        state.request_id.as_ref().map(|id| id.to_string()),
+        platform.get_processor().get_account().get_id(),
+        profile.get_id(),
+        payment_method,
+        &outcome,
+        started_at.elapsed().as_millis(),
+    );
+
+    state.event_handler.log_event(&event);
 }
 
 async fn refresh_stored_payment_method(
