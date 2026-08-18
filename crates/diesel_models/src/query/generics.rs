@@ -17,7 +17,7 @@ use diesel::{
         LoadQuery, RunQueryDsl,
     },
     result::Error as DieselError,
-    Expression, ExpressionMethods, Insertable, QueryDsl, QuerySource, Table,
+    Expression, ExpressionMethods, Insertable, QuerySource, Table,
 };
 use error_stack::{report, ResultExt};
 #[cfg(feature = "deja")]
@@ -854,7 +854,7 @@ where
     O: Expression,
     R: Send + 'static + DejaQueryResult,
 {
-    let mut query = T::table().into_boxed();
+    let mut query = crate::list::into_boxed_list(T::table());
     query = query
         .filter(predicate)
         .filter(T::table().get_primary_key().is_not_null());

@@ -18,7 +18,7 @@ use common_types::{
     customers::DocumentKind, payments as common_payments_types, primitive_wrappers,
 };
 use common_utils::{
-    consts::{default_payments_list_limit, DISCOUNT_PERCENTAGE_PRECISION_LENGTH},
+    consts::DISCOUNT_PERCENTAGE_PRECISION_LENGTH,
     crypto,
     errors::ValidationError,
     ext_traits::{ConfigExt, Encode, ValueExt},
@@ -8881,9 +8881,8 @@ pub struct PaymentListConstraints {
     pub ending_before: Option<id_type::PaymentId>,
 
     /// limit on the number of objects to return
-    #[schema(default = 10, maximum = 100)]
-    #[serde(default = "default_payments_list_limit")]
-    pub limit: u32,
+    #[serde(default)]
+    pub limit: common_utils::types::list::PageSize,
 
     /// The time at which payment is created
     #[schema(example = "2022-09-10T10:11:12Z")]
@@ -8954,12 +8953,12 @@ pub struct PaymentListConstraints {
     pub ending_before: Option<id_type::GlobalPaymentId>,
 
     /// limit on the number of objects to return
-    #[param(default = 10, maximum = 100)]
-    #[serde(default = "default_payments_list_limit")]
-    pub limit: u32,
+    #[serde(default)]
+    pub limit: common_utils::types::list::PageSize,
 
     /// The starting point within a list of objects
-    pub offset: Option<u32>,
+    #[serde(default)]
+    pub offset: common_utils::types::list::PageOffset,
 
     /// The time at which payment is created
     #[param(example = "2022-09-10T10:11:12Z")]
@@ -9136,10 +9135,11 @@ pub struct PaymentListFilterConstraints {
     /// The identifier for customer
     pub customer_id: Option<id_type::CustomerId>,
     /// The limit on the number of objects. The default limit is 10 and max limit is 20
-    #[serde(default = "default_payments_list_limit")]
-    pub limit: u32,
+    #[serde(default)]
+    pub limit: common_utils::types::list::PageSize,
     /// The starting point within a list of objects
-    pub offset: Option<u32>,
+    #[serde(default)]
+    pub offset: common_utils::types::list::PageOffset,
     /// The amount to filter payments list
     pub amount_filter: Option<AmountFilter>,
     /// The time range for which objects are needed. TimeRange has two fields start_time and end_time from which objects can be filtered as per required scenarios (created_at, time less than, greater than etc).

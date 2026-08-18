@@ -90,16 +90,17 @@ impl Event {
         primary_object_id: &str,
         event_recipient: Option<common_enums::EventRecipient>,
     ) -> StorageResult<Vec<Self>> {
-        let mut query = Self::table()
-            .filter(
-                dsl::event_id
-                    .nullable()
-                    .eq(dsl::initial_attempt_id) // Filter initial attempts only
-                    .and(dsl::merchant_id.eq(merchant_id.to_owned()))
-                    .and(dsl::primary_object_id.eq(primary_object_id.to_owned())),
-            )
-            .order(dsl::created_at.desc())
-            .into_boxed();
+        let mut query = crate::list::into_boxed_list(
+            Self::table()
+                .filter(
+                    dsl::event_id
+                        .nullable()
+                        .eq(dsl::initial_attempt_id) // Filter initial attempts only
+                        .and(dsl::merchant_id.eq(merchant_id.to_owned()))
+                        .and(dsl::primary_object_id.eq(primary_object_id.to_owned())),
+                )
+                .order(dsl::created_at.desc()),
+        );
 
         query = Self::apply_event_recipient(query, event_recipient);
 
@@ -144,15 +145,16 @@ impl Event {
         is_delivered: Option<bool>,
         event_recipient: Option<common_enums::EventRecipient>,
     ) -> StorageResult<Vec<Self>> {
-        let mut query = Self::table()
-            .filter(
-                dsl::event_id
-                    .nullable()
-                    .eq(dsl::initial_attempt_id) // Filter initial attempts only
-                    .and(dsl::merchant_id.eq(merchant_id.to_owned())),
-            )
-            .order(dsl::created_at.desc())
-            .into_boxed();
+        let mut query = crate::list::into_boxed_list(
+            Self::table()
+                .filter(
+                    dsl::event_id
+                        .nullable()
+                        .eq(dsl::initial_attempt_id) // Filter initial attempts only
+                        .and(dsl::merchant_id.eq(merchant_id.to_owned())),
+                )
+                .order(dsl::created_at.desc()),
+        );
 
         query = Self::apply_filters(
             query,
@@ -179,14 +181,15 @@ impl Event {
         initial_attempt_id: &str,
         event_recipient: Option<common_enums::EventRecipient>,
     ) -> StorageResult<Vec<Self>> {
-        let mut query = Self::table()
-            .filter(
-                dsl::merchant_id
-                    .eq(merchant_id.to_owned())
-                    .and(dsl::initial_attempt_id.eq(initial_attempt_id.to_owned())),
-            )
-            .order(dsl::created_at.desc())
-            .into_boxed();
+        let mut query = crate::list::into_boxed_list(
+            Self::table()
+                .filter(
+                    dsl::merchant_id
+                        .eq(merchant_id.to_owned())
+                        .and(dsl::initial_attempt_id.eq(initial_attempt_id.to_owned())),
+                )
+                .order(dsl::created_at.desc()),
+        );
 
         query = Self::apply_event_recipient(query, event_recipient);
 
@@ -209,22 +212,23 @@ impl Event {
         // handle events created during staggered rollout by older code. This
         // fallback is correct for standard merchants where merchant_id equals
         // the webhook recipient.
-        let mut query = Self::table()
-            .filter(
-                dsl::event_id
-                    .nullable()
-                    .eq(dsl::initial_attempt_id) // Filter initial attempts only
-                    .and(
-                        dsl::initiator_merchant_id
-                            .eq(initiator_merchant_id.to_owned())
-                            .or(dsl::initiator_merchant_id
-                                .is_null()
-                                .and(dsl::merchant_id.eq(initiator_merchant_id.to_owned()))),
-                    )
-                    .and(dsl::primary_object_id.eq(primary_object_id.to_owned())),
-            )
-            .order(dsl::created_at.desc())
-            .into_boxed();
+        let mut query = crate::list::into_boxed_list(
+            Self::table()
+                .filter(
+                    dsl::event_id
+                        .nullable()
+                        .eq(dsl::initial_attempt_id) // Filter initial attempts only
+                        .and(
+                            dsl::initiator_merchant_id
+                                .eq(initiator_merchant_id.to_owned())
+                                .or(dsl::initiator_merchant_id
+                                    .is_null()
+                                    .and(dsl::merchant_id.eq(initiator_merchant_id.to_owned()))),
+                        )
+                        .and(dsl::primary_object_id.eq(primary_object_id.to_owned())),
+                )
+                .order(dsl::created_at.desc()),
+        );
 
         query = Self::apply_event_recipient(query, recipient);
 
@@ -258,21 +262,22 @@ impl Event {
         // handle events created during staggered rollout by older code. This
         // fallback is correct for standard merchants where merchant_id equals
         // the webhook recipient.
-        let mut query = Self::table()
-            .filter(
-                dsl::event_id
-                    .nullable()
-                    .eq(dsl::initial_attempt_id) // Filter initial attempts only
-                    .and(
-                        dsl::initiator_merchant_id
-                            .eq(initiator_merchant_id.to_owned())
-                            .or(dsl::initiator_merchant_id
-                                .is_null()
-                                .and(dsl::merchant_id.eq(initiator_merchant_id.to_owned()))),
-                    ),
-            )
-            .order(dsl::created_at.desc())
-            .into_boxed();
+        let mut query = crate::list::into_boxed_list(
+            Self::table()
+                .filter(
+                    dsl::event_id
+                        .nullable()
+                        .eq(dsl::initial_attempt_id) // Filter initial attempts only
+                        .and(
+                            dsl::initiator_merchant_id
+                                .eq(initiator_merchant_id.to_owned())
+                                .or(dsl::initiator_merchant_id
+                                    .is_null()
+                                    .and(dsl::merchant_id.eq(initiator_merchant_id.to_owned()))),
+                        ),
+                )
+                .order(dsl::created_at.desc()),
+        );
 
         query = Self::apply_filters(
             query,
@@ -302,20 +307,21 @@ impl Event {
         // Fallback on merchant_id for rows with NULL initiator_merchant_id to
         // handle events created during staggered rollout by older code.
 
-        let mut query = Self::table()
-            .filter(
-                dsl::initial_attempt_id
-                    .eq(initial_attempt_id.to_owned())
-                    .and(
-                        dsl::initiator_merchant_id
-                            .eq(initiator_merchant_id.to_owned())
-                            .or(dsl::initiator_merchant_id
-                                .is_null()
-                                .and(dsl::merchant_id.eq(initiator_merchant_id.to_owned()))),
-                    ),
-            )
-            .order(dsl::created_at.desc())
-            .into_boxed();
+        let mut query = crate::list::into_boxed_list(
+            Self::table()
+                .filter(
+                    dsl::initial_attempt_id
+                        .eq(initial_attempt_id.to_owned())
+                        .and(
+                            dsl::initiator_merchant_id
+                                .eq(initiator_merchant_id.to_owned())
+                                .or(dsl::initiator_merchant_id
+                                    .is_null()
+                                    .and(dsl::merchant_id.eq(initiator_merchant_id.to_owned()))),
+                        ),
+                )
+                .order(dsl::created_at.desc()),
+        );
 
         query = Self::apply_event_recipient(query, event_recipient);
 
@@ -333,16 +339,17 @@ impl Event {
         primary_object_id: &str,
         event_recipient: Option<common_enums::EventRecipient>,
     ) -> StorageResult<Vec<Self>> {
-        let mut query = Self::table()
-            .filter(
-                dsl::event_id
-                    .nullable()
-                    .eq(dsl::initial_attempt_id) // Filter initial attempts only
-                    .and(dsl::business_profile_id.eq(profile_id.to_owned()))
-                    .and(dsl::primary_object_id.eq(primary_object_id.to_owned())),
-            )
-            .order(dsl::created_at.desc())
-            .into_boxed();
+        let mut query = crate::list::into_boxed_list(
+            Self::table()
+                .filter(
+                    dsl::event_id
+                        .nullable()
+                        .eq(dsl::initial_attempt_id) // Filter initial attempts only
+                        .and(dsl::business_profile_id.eq(profile_id.to_owned()))
+                        .and(dsl::primary_object_id.eq(primary_object_id.to_owned())),
+                )
+                .order(dsl::created_at.desc()),
+        );
 
         query = Self::apply_event_recipient(query, event_recipient);
 
@@ -387,15 +394,16 @@ impl Event {
         is_delivered: Option<bool>,
         event_recipient: Option<common_enums::EventRecipient>,
     ) -> StorageResult<Vec<Self>> {
-        let mut query = Self::table()
-            .filter(
-                dsl::event_id
-                    .nullable()
-                    .eq(dsl::initial_attempt_id) // Filter initial attempts only
-                    .and(dsl::business_profile_id.eq(profile_id.to_owned())),
-            )
-            .order(dsl::created_at.desc())
-            .into_boxed();
+        let mut query = crate::list::into_boxed_list(
+            Self::table()
+                .filter(
+                    dsl::event_id
+                        .nullable()
+                        .eq(dsl::initial_attempt_id) // Filter initial attempts only
+                        .and(dsl::business_profile_id.eq(profile_id.to_owned())),
+                )
+                .order(dsl::created_at.desc()),
+        );
 
         query = Self::apply_filters(
             query,
@@ -595,15 +603,14 @@ impl Event {
         is_delivered: Option<bool>,
         event_recipient: Option<common_enums::EventRecipient>,
     ) -> StorageResult<i64> {
-        let mut query = Self::table()
-            .count()
-            .filter(
+        let mut query = crate::list::into_boxed_list(
+            Self::table().count().filter(
                 dsl::event_id
                     .nullable()
                     .eq(dsl::initial_attempt_id) // Filter initial attempts only
                     .and(dsl::merchant_id.eq(merchant_id.to_owned())),
-            )
-            .into_boxed();
+            ),
+        );
 
         query = Self::apply_filters(
             query,
@@ -636,15 +643,14 @@ impl Event {
         is_delivered: Option<bool>,
         event_recipient: Option<common_enums::EventRecipient>,
     ) -> StorageResult<i64> {
-        let mut query = Self::table()
-            .count()
-            .filter(
+        let mut query = crate::list::into_boxed_list(
+            Self::table().count().filter(
                 dsl::event_id
                     .nullable()
                     .eq(dsl::initial_attempt_id) // Filter initial attempts only
                     .and(dsl::business_profile_id.eq(profile_id.to_owned())),
-            )
-            .into_boxed();
+            ),
+        );
 
         query = Self::apply_filters(
             query,
@@ -683,9 +689,8 @@ impl Event {
         // handle events created during staggered rollout by older code. This
         // fallback is correct for standard merchants where merchant_id equals
         // the webhook recipient.
-        let mut query = Self::table()
-            .count()
-            .filter(
+        let mut query = crate::list::into_boxed_list(
+            Self::table().count().filter(
                 dsl::event_id
                     .nullable()
                     .eq(dsl::initial_attempt_id) // Filter initial attempts only
@@ -696,8 +701,8 @@ impl Event {
                                 .is_null()
                                 .and(dsl::merchant_id.eq(initiator_merchant_id.to_owned()))),
                     ),
-            )
-            .into_boxed();
+            ),
+        );
 
         query = Self::apply_filters(
             query,

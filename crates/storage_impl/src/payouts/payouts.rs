@@ -493,20 +493,17 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
 
         //[#350]: Replace this with Boxable Expression and pass it into generic filter
         // when https://github.com/rust-lang/rust/issues/52662 becomes stable
-        let mut query = <DieselPayouts as HasTable>::table()
-            .filter(po_dsl::merchant_id.eq(merchant_id.to_owned()))
-            .order(po_dsl::created_at.desc())
-            .into_boxed();
+        let mut query = diesel_models::boxed_list_query!(
+            DieselPayouts,
+            scope = po_dsl::merchant_id.eq(merchant_id.to_owned()),
+            order = po_dsl::created_at.desc()
+        );
 
         match filters {
             PayoutFetchConstraints::Single { payout_id } => {
                 query = query.filter(po_dsl::payout_id.eq(payout_id.to_owned()));
             }
             PayoutFetchConstraints::List(params) => {
-                if let Some(limit) = params.limit {
-                    query = query.limit(limit.into());
-                }
-
                 if let Some(customer_id) = &params.customer_id {
                     query = query.filter(po_dsl::customer_id.eq(customer_id.clone()));
                 }
@@ -548,8 +545,6 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
                     (None, None) => query,
                 };
 
-                query = query.offset(params.offset.into());
-
                 if let Some(currency) = &params.currency {
                     query = query.filter(po_dsl::destination_currency.eq_any(currency.clone()));
                 }
@@ -557,6 +552,8 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
                 if let Some(status) = &params.status {
                     query = query.filter(po_dsl::status.eq_any(status.clone()));
                 }
+
+                query = diesel_models::list::apply_pagination(query, params.limit, params.offset);
             }
         }
 
@@ -597,33 +594,30 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
     > {
         let conn = connection::pg_connection_read(self).await?;
         let conn = async_bb8_diesel::Connection::as_async_conn(&conn);
-        let mut query = DieselPayouts::table()
-            .inner_join(
-                diesel_models::schema::payout_attempt::table
-                    .on(poa_dsl::payout_id.eq(po_dsl::payout_id)),
-            )
-            .left_join(
-                diesel_models::schema::customers::table
-                    .on(cust_dsl::customer_id.nullable().eq(po_dsl::customer_id)),
-            )
-            .filter(cust_dsl::merchant_id.eq(merchant_id.to_owned()))
-            .left_outer_join(
-                diesel_models::schema::address::table
-                    .on(add_dsl::address_id.nullable().eq(po_dsl::address_id)),
-            )
-            .filter(po_dsl::merchant_id.eq(merchant_id.to_owned()))
-            .order(po_dsl::created_at.desc())
-            .into_boxed();
+        let mut query = diesel_models::list::into_boxed_list(
+            DieselPayouts::table()
+                .inner_join(
+                    diesel_models::schema::payout_attempt::table
+                        .on(poa_dsl::payout_id.eq(po_dsl::payout_id)),
+                )
+                .left_join(
+                    diesel_models::schema::customers::table
+                        .on(cust_dsl::customer_id.nullable().eq(po_dsl::customer_id)),
+                )
+                .filter(cust_dsl::merchant_id.eq(merchant_id.to_owned()))
+                .left_outer_join(
+                    diesel_models::schema::address::table
+                        .on(add_dsl::address_id.nullable().eq(po_dsl::address_id)),
+                )
+                .filter(po_dsl::merchant_id.eq(merchant_id.to_owned()))
+                .order(po_dsl::created_at.desc()),
+        );
 
         query = match filters {
             PayoutFetchConstraints::Single { payout_id } => {
                 query.filter(po_dsl::payout_id.eq(payout_id.to_owned()))
             }
             PayoutFetchConstraints::List(params) => {
-                if let Some(limit) = params.limit {
-                    query = query.limit(limit.into());
-                }
-
                 if let Some(customer_id) = &params.customer_id {
                     query = query.filter(po_dsl::customer_id.eq(customer_id.clone()));
                 }
@@ -673,8 +667,6 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
                     (None, None) => query,
                 };
 
-                query = query.offset(params.offset.into());
-
                 if let Some(currency) = &params.currency {
                     query = query.filter(po_dsl::destination_currency.eq_any(currency.clone()));
                 }
@@ -705,7 +697,7 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
                     _ => query,
                 };
 
-                query
+                diesel_models::list::apply_pagination(query, params.limit, params.offset)
             }
         };
 
@@ -826,20 +818,21 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
     ) -> error_stack::Result<Vec<common_utils::id_type::PayoutId>, StorageError> {
         let conn = connection::pg_connection_read(self).await?;
         let conn = async_bb8_diesel::Connection::as_async_conn(&conn);
-        let mut query = DieselPayouts::table()
-            .inner_join(
-                diesel_models::schema::payout_attempt::table
-                    .on(poa_dsl::payout_id.eq(po_dsl::payout_id)),
-            )
-            .left_join(
-                diesel_models::schema::customers::table
-                    .on(cust_dsl::customer_id.nullable().eq(po_dsl::customer_id)),
-            )
-            .select(po_dsl::payout_id)
-            .filter(cust_dsl::merchant_id.eq(merchant_id.to_owned()))
-            .filter(po_dsl::merchant_id.eq(merchant_id.to_owned()))
-            .order(po_dsl::created_at.desc())
-            .into_boxed();
+        let mut query = diesel_models::list::into_boxed_list(
+            DieselPayouts::table()
+                .inner_join(
+                    diesel_models::schema::payout_attempt::table
+                        .on(poa_dsl::payout_id.eq(po_dsl::payout_id)),
+                )
+                .left_join(
+                    diesel_models::schema::customers::table
+                        .on(cust_dsl::customer_id.nullable().eq(po_dsl::customer_id)),
+                )
+                .select(po_dsl::payout_id)
+                .filter(cust_dsl::merchant_id.eq(merchant_id.to_owned()))
+                .filter(po_dsl::merchant_id.eq(merchant_id.to_owned()))
+                .order(po_dsl::created_at.desc()),
+        );
 
         query = match constraints {
             PayoutFetchConstraints::Single { payout_id } => {
@@ -920,11 +913,12 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
         let conn = connection::pg_connection_read(self).await?;
         let conn = async_bb8_diesel::Connection::as_async_conn(&conn);
 
-        let mut query = <DieselPayouts as HasTable>::table()
-            .group_by(po_dsl::status)
-            .select((po_dsl::status, diesel::dsl::count_star()))
-            .filter(po_dsl::merchant_id.eq(merchant_id.to_owned()))
-            .into_boxed();
+        let mut query = diesel_models::list::into_boxed_list(
+            <DieselPayouts as HasTable>::table()
+                .group_by(po_dsl::status)
+                .select((po_dsl::status, diesel::dsl::count_star()))
+                .filter(po_dsl::merchant_id.eq(merchant_id.to_owned())),
+        );
 
         if let Some(profile_id) = profile_id_list {
             query = query.filter(po_dsl::profile_id.eq_any(profile_id));

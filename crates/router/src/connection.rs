@@ -63,6 +63,7 @@ pub async fn pg_connection_read<T: storage_impl::DatabaseStore>(
         .change_context(storage_errors::StorageError::DatabaseConnectionError)?;
     #[cfg(feature = "deja")]
     deja_route_replay_schema(&mut conn, store).await;
+
     Ok(conn)
 }
 

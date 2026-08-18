@@ -29,6 +29,7 @@ pub mod hyperswitch_ai_interaction;
 pub mod invoice;
 #[cfg(feature = "kv_store")]
 pub mod kv;
+pub mod list;
 pub mod locker_mock_up;
 pub mod mandate;
 pub mod merchant_account;
