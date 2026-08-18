@@ -15,7 +15,10 @@ use self::{
     refresh::request_account_updater_refresh,
     types::{AccountUpdaterError, RefreshResult, ResolvedAccountUpdaterConfig},
 };
-use crate::{core::configs::dimension_state, routes::SessionState, types::domain};
+use crate::{
+    core::configs::dimension_state, events::account_updater as account_updater_events,
+    routes::SessionState, types::domain,
+};
 
 #[instrument(skip_all)]
 pub async fn run_account_updater<D>(
@@ -41,7 +44,9 @@ where
         }
     };
 
-    refresh_stored_payment_method(
+    let started_at = std::time::Instant::now();
+
+    let refresh_result = refresh_stored_payment_method(
         state,
         platform,
         profile,
@@ -49,15 +54,28 @@ where
         raw_payment_method_data,
         &config,
     )
-    .await
-    .inspect(|refresh_result| match refresh_result {
-        RefreshResult::Card(card_result) => logger::info!(
+    .await;
+
+    match &refresh_result {
+        Ok(RefreshResult::Card(card_result)) => logger::info!(
             account_updater_outcome = card_result.outcome.as_str_name(),
             "Account Updater refresh completed"
         ),
-    })
-    .inspect_err(|error| logger::warn!(?error, "Account Updater refresh did not complete"))
-    .ok()
+        Err(error) => logger::warn!(?error, "Account Updater refresh did not complete"),
+    }
+
+    let event = account_updater_events::KafkaAccountUpdaterEvent::new(
+        state.request_id.as_ref().map(|id| id.to_string()),
+        platform.get_processor().get_account().get_id(),
+        profile.get_id(),
+        payment_method,
+        &refresh_result,
+        started_at.elapsed().as_millis(),
+    );
+
+    state.event_handler.log_event(&event);
+
+    refresh_result.ok()
 }
 
 async fn refresh_stored_payment_method(
