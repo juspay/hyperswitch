@@ -323,9 +323,9 @@ diesel::table! {
         payment_method_blocking -> Nullable<Jsonb>,
         default_fallback_routing -> Nullable<Jsonb>,
         surcharge_connector_details -> Nullable<Jsonb>,
+        order_fulfillment_time -> Nullable<Int8>,
         #[max_length = 64]
         routing_algorithm_id -> Nullable<Varchar>,
-        order_fulfillment_time -> Nullable<Int8>,
         order_fulfillment_time_origin -> Nullable<OrderFulfillmentTimeOrigin>,
         #[max_length = 64]
         frm_routing_algorithm_id -> Nullable<Varchar>,
@@ -1192,6 +1192,7 @@ diesel::table! {
         sender_payment_instrument_id -> Nullable<Varchar>,
         #[max_length = 64]
         external_threeds_authentication_type -> Nullable<Varchar>,
+        applied_offer_details -> Nullable<Jsonb>,
         payment_method_type_v2 -> Nullable<Varchar>,
         #[max_length = 128]
         connector_payment_id -> Nullable<Varchar>,
