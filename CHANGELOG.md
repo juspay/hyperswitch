@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.07.29.2-hotfix8
+
+### Bug Fixes
+
+- **connector:** [Peachpayments] Fix Setup Mandate Endpoint ([#13764](https://github.com/juspay/hyperswitch/pull/13764)) ([`f730969`](https://github.com/juspay/hyperswitch/commit/f730969f71076a8ee72c126ff3702a8a2c69656b))
+
+**Full Changelog:** [`2026.07.29.2-hotfix7...2026.07.29.2-hotfix8`](https://github.com/juspay/hyperswitch/compare/2026.07.29.2-hotfix7...2026.07.29.2-hotfix8)
+
+- - -
+
 ## 2026.07.29.2-hotfix7
 
 ### Refactors
