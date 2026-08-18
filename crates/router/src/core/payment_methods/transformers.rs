@@ -2045,17 +2045,12 @@ pub async fn retrieve_pm_modular_service_call(
     );
 
     //Modular service call
-    let payment_method_id = payment_method_fetch_req
-        .payment_method_id
-        .payment_method_id
-        .clone();
     let pm_response =
         pm_client::RetrievePaymentMethod::call(state, &client, payment_method_fetch_req)
             .await
             .map_err(|err| {
                 logger::error!(
                     error=?err,
-                    payment_method_id=%payment_method_id,
                     merchant_id=%processor_merchant_id.get_string_repr(),
                     profile_id=%profile_id.get_string_repr(),
                     "modular payment method retrieve failed"
@@ -2064,7 +2059,7 @@ pub async fn retrieve_pm_modular_service_call(
             })
             .attach_printable("Failed to retrieve payment method from modular service")?;
     logger::info!(
-        payment_method_id=%payment_method_id,
+        payment_method_id=%pm_response.payment_method_id,
         merchant_id=%processor_merchant_id.get_string_repr(),
         "modular payment method retrieve succeeded"
     );
@@ -2226,38 +2221,38 @@ pub async fn get_permanent_pm_id_from_temporary_token(
 
     let response = http_client::send_request(&state.conf.proxy, request, None)
         .await
-        .map_err(|err| {
+        .inspect_err(|err| {
             logger::error!(
                 error=?err,
                 "hyperswitch vault token details call failed (transport)"
             );
-            err
         })
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to call hyperswitch vault token details endpoint")?;
 
     let status_code = response.status().as_u16();
-    if !response.status().is_success() {
-        logger::error!(
-            status_code,
-            "hyperswitch vault token details endpoint returned non-success status"
-        );
-        return Err(error_stack::report!(
-            errors::ApiErrorResponse::InternalServerError
-        ))
-        .attach_printable("Hyperswitch vault token details endpoint returned an error status");
-    }
+    response
+        .status()
+        .is_success()
+        .then_some(())
+        .ok_or_else(|| {
+            logger::error!(
+                status_code,
+                "hyperswitch vault token details endpoint returned non-success status"
+            );
+            error_stack::report!(errors::ApiErrorResponse::InternalServerError)
+        })
+        .attach_printable("Hyperswitch vault token details endpoint returned an error status")?;
 
     let token_details = response
         .json::<VaultTokenDetailsResponse>()
         .await
-        .map_err(|err| {
+        .inspect_err(|err| {
             logger::error!(
                 error=?err,
                 status_code,
                 "failed to parse hyperswitch vault token details response"
             );
-            err
         })
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to parse hyperswitch vault token details response")?;
@@ -2361,7 +2356,6 @@ pub async fn create_pm_modular_service_call(
     );
 
     //Modular service call
-    let payment_method_type = payment_method_create_req.payment_method;
     let pm_response =
         pm_client::CreatePaymentMethod::call(state, &client, payment_method_create_req)
             .await
@@ -2370,7 +2364,6 @@ pub async fn create_pm_modular_service_call(
                     error=?err,
                     merchant_id=%merchant_id.get_string_repr(),
                     profile_id=%profile_id.get_string_repr(),
-                    payment_method=%payment_method_type,
                     "modular payment method create failed"
                 );
                 errors::ApiErrorResponse::InternalServerError
