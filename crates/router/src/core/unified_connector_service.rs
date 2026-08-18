@@ -71,6 +71,7 @@ pub mod connector_config;
 pub mod kill_switch;
 pub mod transformers;
 
+#[derive(Default)]
 pub struct RefundReverseUcsResponse {
     pub state_metadata: Option<common_utils::pii::SecretSerdeValue>,
     pub raw_connector_response: Option<Secret<String>>,
