@@ -42,20 +42,20 @@ pub async fn revenue_recovery_pt_retrieve_api() {}
                         },
                         "merchant_reference_id": "invoice_mbabizu24mvu3mela5njyh",
                         "billing_merchant_connector_id": "mca_billing_1234567890",
-                        "payment_merchant_connector_id": "mca_payment_1234567890",
                         "attempt_status": "failure",
                         "payment_method_type": "card",
                         "payment_method_sub_type": "credit",
-                        "connector_customer_id": "cust_12345",
-                        "connector_transaction_id": "993672945374576J",
                         "transaction_created_at": "2022-09-10T10:11:12Z",
                         "error": {
                             "code": "card_declined",
                             "message": "The card was declined."
                         },
-                        "payment_method_data": {
-                            "primary_processor_payment_method_token": "token_1234",
-                            "additional_payment_method_info": {
+                        "payment_connector_details": {
+                            "id": "mca_payment_1234567890",
+                            "customer_id": "cust_12345",
+                            "transaction_id": "993672945374576J",
+                            "payment_method_token": "token_1234",
+                            "payment_method_token_details": {
                                 "card_network": "Visa",
                                 "card_type": "credit",
                                 "last4": "4242"
