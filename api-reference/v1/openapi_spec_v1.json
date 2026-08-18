@@ -19694,6 +19694,17 @@
                 "$ref": "#/components/schemas/BankDebitDataForClient"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "bank_redirect"
+            ],
+            "properties": {
+              "bank_redirect": {
+                "$ref": "#/components/schemas/MaskedBankDetails"
+              }
+            }
           }
         ]
       },
@@ -30355,6 +30366,17 @@
             "properties": {
               "wallet": {
                 "$ref": "#/components/schemas/WalletDetail"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "bank_redirect"
+            ],
+            "properties": {
+              "bank_redirect": {
+                "$ref": "#/components/schemas/BankRedirectData"
               }
             }
           }

@@ -4,7 +4,9 @@ use async_trait::async_trait;
 use common_enums::{CallConnectorAction, ExecutionPath};
 use common_utils::{errors::CustomResult, id_type, request::Request, ucs_types};
 use error_stack::ResultExt;
-use hyperswitch_domain_models::{router_data::RouterData, router_flow_types as domain};
+use hyperswitch_domain_models::{
+    payment_method_data::PaymentMethodData, router_data::RouterData, router_flow_types as domain,
+};
 use hyperswitch_interfaces::{
     api::gateway as payment_gateway,
     connector_integration_interface::{BoxedConnectorIntegrationInterface, RouterDataConversion},
@@ -12,6 +14,7 @@ use hyperswitch_interfaces::{
     unified_connector_service::{
         get_payments_response_from_ucs_webhook_content,
         handle_unified_connector_service_response_for_payment_get,
+        transformers::UnifiedConnectorServiceError,
     },
 };
 use hyperswitch_masking::ExposeInterface as UcsMaskingExposeInterface;
@@ -120,6 +123,15 @@ where
                 router_data.connector_http_status_code = Some(status_code);
                 router_data.sender_payment_instrument_id =
                     payment_get_response.sender_payment_instrument_id.clone();
+                router_data.connector_returned_payment_method_details = payment_get_response
+                    .connector_returned_payment_method_details
+                    .clone()
+                    .map(PaymentMethodData::foreign_try_from)
+                    .transpose()
+                    .change_context(ConnectorError::ResponseDeserializationFailed)
+                    .attach_printable(
+                        "Failed to convert UCS connector returned payment method details",
+                    )?;
                 Ok(router_data.clone())
             }
             CallConnectorAction::Trigger => {
@@ -257,6 +269,18 @@ where
                         router_data.connector_http_status_code = Some(status_code);
                         router_data.sender_payment_instrument_id =
                             payment_get_response.sender_payment_instrument_id.clone();
+                        router_data.connector_returned_payment_method_details =
+                            payment_get_response
+                                .connector_returned_payment_method_details
+                                .clone()
+                                .map(PaymentMethodData::foreign_try_from)
+                                .transpose()
+                                .change_context(
+                                    UnifiedConnectorServiceError::ResponseDeserializationFailed,
+                                )
+                                .attach_printable(
+                                    "Failed to convert UCS connector returned payment method details",
+                                )?;
                         Ok((router_data, (), payment_get_response))
                     },
                 ))
