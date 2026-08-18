@@ -216,31 +216,8 @@ where
                             .await
                         {
                             Ok(resp) => resp,
+                            // UCS connector errors are handled by the wrapper — see `ucs_logging_wrapper_granular`.
                             Err(report) => {
-                                if let UnifiedConnectorServiceError::ConnectorError(inner) =
-                                    report.current_context()
-                                {
-                                    let (code, message, status_code, connector) = (
-                                        &inner.code,
-                                        &inner.message,
-                                        inner.status_code,
-                                        &inner.connector,
-                                    );
-                                    logger::debug!(
-                                        "Connector error via UCS for psync (connector {}, status {}): {} - {}",
-                                        connector,
-                                        status_code,
-                                        code,
-                                        message
-                                    );
-                                    router_data.response = Err(inner.as_ref().into());
-                                    router_data.connector_http_status_code = Some(status_code);
-                                    return Ok((
-                                        router_data,
-                                        (),
-                                        payments_grpc::PaymentServiceGetResponse::default(),
-                                    ));
-                                }
                                 return Err(report.attach_printable("Failed to get payment"));
                             }
                         };
@@ -284,10 +261,10 @@ where
                                 Some(MinorUnit::new(captured_amount));
                         }
                         if return_raw_connector_response.unwrap_or(false) {
-                            router_data.raw_connector_response = payment_get_response
-                                .raw_connector_response
-                                .clone()
-                                .map(|raw_connector_response| raw_connector_response.expose().into());
+                            router_data.raw_connector_response =
+                                payment_get_response.raw_connector_response.clone().map(
+                                    |raw_connector_response| raw_connector_response.expose().into(),
+                                );
                         }
                         router_data.connector_http_status_code = Some(status_code);
                         router_data.sender_payment_instrument_id =

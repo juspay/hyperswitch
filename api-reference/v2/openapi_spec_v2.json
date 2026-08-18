@@ -11483,6 +11483,7 @@
           "imerchantsolutions",
           "itaubank",
           "jpmorgan",
+          "juspay",
           "juspaythreedsserver",
           "klarna",
           "loonio",
@@ -23132,6 +23133,10 @@
         "properties": {
           "fetch_raw_detail": {
             "type": "boolean"
+          },
+          "force_sync": {
+            "type": "boolean",
+            "description": "Trigger an Account Updater check for the stored payment method."
           }
         },
         "additionalProperties": false

@@ -2494,6 +2494,9 @@ pub trait PaymentsAuthorizeRequestData {
     fn get_connector_testing_data(&self) -> Option<pii::SecretSerdeValue>;
     fn get_order_id(&self) -> Result<String, errors::ConnectorError>;
     fn get_card_mandate_info(&self) -> Result<CardMandateInfo, Error>;
+    fn is_stripe_split_payment(&self) -> bool;
+    fn is_network_transaction_flow(&self) -> bool;
+    fn get_network_mandate_id_from_network_transaction_id_flow(&self) -> Option<String>;
 }
 
 impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
@@ -2802,6 +2805,47 @@ impl PaymentsAuthorizeRequestData for PaymentsAuthorizeData {
             .into()),
         }
     }
+
+    fn is_stripe_split_payment(&self) -> bool {
+        matches!(
+            self.split_payments,
+            Some(common_types::payments::SplitPaymentsRequest::StripeSplitPayment(..))
+        )
+    }
+
+    fn is_network_transaction_flow(&self) -> bool {
+        self.mandate_id
+            .as_ref()
+            .map(|mandate_ids| match &mandate_ids.mandate_reference_id {
+                Some(mandates::MandateReferenceId::NetworkMandateId(_)) => true,
+                Some(mandates::MandateReferenceId::NetworkTokenWithNTI(_))
+                | Some(mandates::MandateReferenceId::CardWithLimitedData(_))
+                | Some(mandates::MandateReferenceId::ConnectorMandateId(_))
+                | None => false,
+            })
+            .unwrap_or(false)
+    }
+
+    fn get_network_mandate_id_from_network_transaction_id_flow(&self) -> Option<String> {
+        self.mandate_id
+            .clone()
+            .and_then(|mandate_id| match &mandate_id.mandate_reference_id {
+                Some(mandates::MandateReferenceId::NetworkMandateId(data)) => {
+                    Some(data.network_transaction_id.clone())
+                }
+                _ => None,
+            })
+    }
+}
+
+pub trait PaymentMethodPredicates {
+    fn is_card_payment(&self) -> bool;
+}
+
+impl PaymentMethodPredicates for PaymentMethodData {
+    fn is_card_payment(&self) -> bool {
+        matches!(self, Self::Card(_))
+    }
 }
 
 pub trait PaymentsCaptureRequestData {
@@ -3046,9 +3090,12 @@ impl PaymentsSetupMandateRequestData for SetupMandateRequestData {
 
 pub trait PaymentMethodTokenizationRequestData {
     fn get_browser_info(&self) -> Result<BrowserInformation, Error>;
+    fn get_optional_ip_address(&self) -> Option<Secret<String, IpAddress>>;
+    fn get_optional_user_agent(&self) -> Option<String>;
     fn get_router_return_url(&self) -> Result<String, Error>;
     fn is_mandate_payment(&self) -> bool;
     fn is_customer_initiated_mandate_payment(&self) -> bool;
+    fn is_stripe_split_payment(&self) -> bool;
 }
 
 impl PaymentMethodTokenizationRequestData for PaymentMethodTokenizationData {
@@ -3057,6 +3104,20 @@ impl PaymentMethodTokenizationRequestData for PaymentMethodTokenizationData {
             .clone()
             .ok_or_else(missing_field_err("browser_info"))
     }
+
+    fn get_optional_ip_address(&self) -> Option<Secret<String, IpAddress>> {
+        self.browser_info.clone().and_then(|browser_info| {
+            browser_info
+                .ip_address
+                .map(|ip| Secret::new(ip.to_string()))
+        })
+    }
+    fn get_optional_user_agent(&self) -> Option<String> {
+        self.browser_info
+            .as_ref()
+            .and_then(|browser_info| browser_info.user_agent.clone())
+    }
+
     fn get_router_return_url(&self) -> Result<String, Error> {
         self.router_return_url
             .clone()
@@ -3074,6 +3135,12 @@ impl PaymentMethodTokenizationRequestData for PaymentMethodTokenizationData {
     fn is_customer_initiated_mandate_payment(&self) -> bool {
         (self.customer_acceptance.is_some() || self.setup_mandate_details.is_some())
             && self.setup_future_usage == Some(FutureUsage::OffSession)
+    }
+    fn is_stripe_split_payment(&self) -> bool {
+        matches!(
+            self.split_payments,
+            Some(common_types::payments::SplitPaymentsRequest::StripeSplitPayment(..))
+        )
     }
 }
 
