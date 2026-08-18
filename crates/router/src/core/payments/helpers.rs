@@ -4169,36 +4169,6 @@ pub(super) async fn filter_by_constraints(
     Ok(result)
 }
 
-#[cfg(feature = "olap")]
-pub(super) fn validate_payment_list_request(
-    req: &api::PaymentListConstraints,
-) -> CustomResult<(), errors::ApiErrorResponse> {
-    use common_utils::consts::PAYMENTS_LIST_MAX_LIMIT_V1;
-
-    utils::when(
-        req.limit > PAYMENTS_LIST_MAX_LIMIT_V1 || req.limit < 1,
-        || {
-            Err(errors::ApiErrorResponse::InvalidRequestData {
-                message: format!("limit should be in between 1 and {PAYMENTS_LIST_MAX_LIMIT_V1}"),
-            })
-        },
-    )?;
-    Ok(())
-}
-#[cfg(feature = "olap")]
-pub(super) fn validate_payment_list_request_for_joins(
-    limit: u32,
-) -> CustomResult<(), errors::ApiErrorResponse> {
-    use common_utils::consts::PAYMENTS_LIST_MAX_LIMIT_V2;
-
-    utils::when(!(1..=PAYMENTS_LIST_MAX_LIMIT_V2).contains(&limit), || {
-        Err(errors::ApiErrorResponse::InvalidRequestData {
-            message: format!("limit should be in between 1 and {PAYMENTS_LIST_MAX_LIMIT_V2}"),
-        })
-    })?;
-    Ok(())
-}
-
 #[cfg(feature = "v1")]
 pub fn get_handle_response_url(
     payment_id: id_type::PaymentId,

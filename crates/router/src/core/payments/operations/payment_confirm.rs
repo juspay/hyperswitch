@@ -2276,7 +2276,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                         .change_context(errors::ApiErrorResponse::InternalServerError)
                         .attach_printable("Failed to call authentication sync flow")?
                     } else {
-                        crate::core::unified_authentication_service::authentication_sync_core(
+                        let resp = crate::core::unified_authentication_service::authentication_sync_core(
                             state.clone(),
                             platform.clone(),
                             services::api::AuthFlow::Merchant,
@@ -2285,13 +2285,15 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                         .await?
                         .get_json_body()
                         .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Failed to get json body from authentication sync response")?
-                    }
-                } else {
-                    return Err(errors::ApiErrorResponse::InternalServerError).attach_printable("Pull mechanism disabled or terminal status during post-authentication sync")?;
-                };
+                        .attach_printable("Failed to get json body from authentication sync response")?;
+                    router_env::logger::info!("Authentication Microservice Sync Response is : {:#?}", resp);
+                    resp
+                }
+            } else {
+                return Err(errors::ApiErrorResponse::InternalServerError).attach_printable("Pull mechanism disabled or terminal status during post-authentication sync")?;
+            };
 
-                let updated_authentication_status = sync_response.status;
+            let updated_authentication_status = sync_response.status;
 
                  let authentication_domain_model = authentication::transformers::construct_authentication_domain_model(
                     (

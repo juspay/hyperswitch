@@ -15,6 +15,8 @@ pub struct BlocklistNew {
     pub created_by: Option<String>,
 }
 
+// `profile_id` is read-only for now: the column exists and is selected, but
+// nothing writes or filters on it until the profile-scoping change lands.
 #[derive(
     Clone, Debug, Eq, PartialEq, Identifiable, Queryable, Selectable, Deserialize, Serialize,
 )]
@@ -27,4 +29,5 @@ pub struct Blocklist {
     pub created_at: time::PrimitiveDateTime,
     pub processor_merchant_id: Option<common_utils::id_type::MerchantId>,
     pub created_by: Option<String>,
+    pub profile_id: Option<common_utils::id_type::ProfileId>,
 }
