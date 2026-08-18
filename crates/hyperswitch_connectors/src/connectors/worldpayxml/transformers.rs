@@ -554,10 +554,16 @@ enum MandateType {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+enum TokenScope {
+    Shopper,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct CreateToken {
     #[serde(rename = "@tokenScope")]
-    token_scope: String,
+    token_scope: TokenScope,
     token_event_reference: String,
 }
 
@@ -595,7 +601,7 @@ enum PaymentMethod {
 #[serde(rename_all = "camelCase")]
 struct TokenData {
     #[serde(rename = "@tokenScope")]
-    token_scope: Secret<String>,
+    token_scope: TokenScope,
     payment_token_i_d: Secret<String>,
 }
 
@@ -914,7 +920,7 @@ impl TryFrom<PaymentsAuthorizeData> for PaymentDetails {
         Ok(Self {
             action: None,
             payment_method: PaymentMethod::TokenSSL(TokenData {
-                token_scope: Secret::new("shopper".to_string()),
+                token_scope: TokenScope::Shopper,
                 payment_token_i_d: Secret::new(item.get_connector_mandate_id()?),
             }),
             session: None,
@@ -1420,7 +1426,7 @@ impl TryFrom<&WorldpayxmlRouterData<&PaymentsAuthorizeRouterData>> for PaymentSe
                     &google_pay_data,
                     item.router_data.request.clone(),
                     session,
-                    item.router_data.get_billing_full_name().ok(),
+                    item.router_data.get_optional_billing_full_name(),
                 ))?,
                 WalletData::ApplePay(apple_pay_data) => PaymentDetails::try_from((
                     &apple_pay_data,
@@ -1441,7 +1447,7 @@ impl TryFrom<&WorldpayxmlRouterData<&PaymentsAuthorizeRouterData>> for PaymentSe
 
         let create_token = if item.router_data.request.is_cit_mandate_payment() {
             Some(CreateToken {
-                token_scope: "shopper".to_string(),
+                token_scope: TokenScope::Shopper,
                 token_event_reference: item.router_data.connector_request_reference_id.clone(),
             })
         } else {
@@ -2417,7 +2423,7 @@ impl TryFrom<WorldpayxmlRouterData<&PaymentsCompleteAuthorizeRouterData>> for Pa
             };
             let create_token = if item.router_data.request.is_cit_mandate_payment() {
                 Some(CreateToken {
-                    token_scope: "shopper".to_string(),
+                    token_scope: TokenScope::Shopper,
                     token_event_reference: item.router_data.connector_request_reference_id.clone(),
                 })
             } else {
