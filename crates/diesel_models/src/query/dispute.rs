@@ -1,4 +1,5 @@
 use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods, Table};
+use error_stack::ResultExt;
 
 use super::generics;
 use crate::{
@@ -17,7 +18,9 @@ impl DisputeNew {
         self,
         conn: &mut DatabaseConnectionWithContext<'_>,
     ) -> StorageResult<kv::SerializableQuery> {
-        kv::generate_insert_query(conn, self).await
+        kv::generate_insert_query(conn, self)
+            .await
+            .attach_printable("Failed to generate insert query for dispute")
     }
 }
 
@@ -170,5 +173,6 @@ impl DisputeUpdateInternal {
             self,
         )
         .await
+        .attach_printable("Failed to generate update query for dispute")
     }
 }

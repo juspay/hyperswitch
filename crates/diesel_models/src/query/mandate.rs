@@ -1,5 +1,5 @@
 use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods, Table};
-use error_stack::report;
+use error_stack::{report, ResultExt};
 
 use super::generics;
 use crate::{
@@ -15,7 +15,9 @@ impl MandateNew {
         self,
         conn: &mut DatabaseConnectionWithContext<'_>,
     ) -> StorageResult<kv::SerializableQuery> {
-        kv::generate_insert_query(conn, self).await
+        kv::generate_insert_query(conn, self)
+            .await
+            .attach_printable("Failed to generate insert query for mandate")
     }
 }
 
@@ -129,5 +131,6 @@ impl MandateUpdateInternal {
             self,
         )
         .await
+        .attach_printable("Failed to generate update query for mandate")
     }
 }

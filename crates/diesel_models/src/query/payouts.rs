@@ -23,7 +23,9 @@ impl PayoutsNew {
         self,
         conn: &mut DatabaseConnectionWithContext<'_>,
     ) -> StorageResult<kv::SerializableQuery> {
-        kv::generate_insert_query(conn, self).await
+        kv::generate_insert_query(conn, self)
+            .await
+            .attach_printable("Failed to generate insert query for payouts")
     }
 }
 impl Payouts {
@@ -162,5 +164,6 @@ impl PayoutsUpdate {
             PayoutsUpdateInternal::from(self),
         )
         .await
+        .attach_printable("Failed to generate update query for payouts")
     }
 }

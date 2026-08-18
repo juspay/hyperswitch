@@ -157,8 +157,10 @@ pub struct ConfigMetadata {
     pub pix_qr: Option<Vec<InputData>>,
     pub pix_automatico_push: Option<Vec<InputData>>,
     pub pix_automatico_qr: Option<Vec<InputData>>,
-    pub pix_payout: Option<Vec<InputData>>,
     pub boleto: Option<Vec<InputData>>,
+    pub client_id: Option<InputData>,
+    pub client_secret: Option<InputData>,
+    pub workspace_id: Option<InputData>,
     pub merchant_id: Option<InputData>,
     pub endpoint_prefix: Option<InputData>,
     pub mcc: Option<InputData>,
@@ -205,9 +207,9 @@ pub struct ConfigMetadata {
     pub kid: Option<InputData>,
     pub account_holder_name: Option<InputData>,
     pub private_key: Option<InputData>,
-    pub merchant_street_address: Option<String>,
-    pub customer_service_phone_number: Option<String>,
-    pub merchant_url: Option<String>,
+    pub merchant_street_address: Option<InputData>,
+    pub customer_service_phone_number: Option<InputData>,
+    pub merchant_url: Option<InputData>,
 }
 
 #[serde_with::skip_serializing_none]
@@ -620,6 +622,7 @@ impl ConnectorConfig {
             Connector::Helcim => Ok(connector_data.helcim),
             Connector::Inespay => Ok(connector_data.inespay),
             Connector::Jpmorgan => Ok(connector_data.jpmorgan),
+            Connector::Juspay => Err("Configured through application config".to_string()),
             Connector::Juspaythreedsserver => Ok(connector_data.juspaythreedsserver),
             Connector::Klarna => Ok(connector_data.klarna),
             Connector::Loonio => Ok(connector_data.loonio),

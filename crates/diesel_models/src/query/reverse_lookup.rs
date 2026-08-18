@@ -1,4 +1,5 @@
 use diesel::{associations::HasTable, ExpressionMethods};
+use error_stack::ResultExt;
 
 use super::generics;
 use crate::{
@@ -28,7 +29,9 @@ impl ReverseLookupNew {
         self,
         conn: &mut DatabaseConnectionWithContext<'_>,
     ) -> StorageResult<kv::SerializableQuery> {
-        kv::generate_insert_query(conn, self).await
+        kv::generate_insert_query(conn, self)
+            .await
+            .attach_printable("Failed to generate insert query for reverse lookup")
     }
 }
 impl ReverseLookup {

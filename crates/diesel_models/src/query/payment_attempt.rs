@@ -37,7 +37,9 @@ impl PaymentAttemptNew {
         self,
         conn: &mut DatabaseConnectionWithContext<'_>,
     ) -> StorageResult<kv::SerializableQuery> {
-        kv::generate_insert_query(conn, self).await
+        kv::generate_insert_query(conn, self)
+            .await
+            .attach_printable("Failed to generate insert query for payment attempt")
     }
 }
 
@@ -586,6 +588,7 @@ impl PaymentAttemptUpdate {
                 .populate_derived_fields(source_payment_attempt),
         )
         .await
+        .attach_printable("Failed to generate update query for payment attempt")
     }
 }
 
@@ -602,5 +605,6 @@ impl PaymentAttemptUpdateInternal {
             self,
         )
         .await
+        .attach_printable("Failed to generate update query for payment attempt")
     }
 }
