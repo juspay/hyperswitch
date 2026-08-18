@@ -3062,14 +3062,18 @@ pub async fn decode_and_decrypt_locker_data(
         .change_context(errors::VaultError::ResponseDeserializationFailed)
         .attach_printable("Failed to decode hex string into bytes")?;
     // Decrypt
-    domain::types::crypto_operation(
-        &state.into(),
-        type_name!(payment_method::PaymentMethod),
-        domain::types::CryptoOperation::DecryptOptional(Some(Encryption::new(
-            decoded_bytes.into(),
-        ))),
-        Identifier::Merchant(key_store.merchant_id.clone()),
-        key,
+    common_utils::metrics::utils::record_operation_time(
+        domain::types::crypto_operation(
+            &state.into(),
+            type_name!(payment_method::PaymentMethod),
+            domain::types::CryptoOperation::DecryptOptional(Some(Encryption::new(
+                decoded_bytes.into(),
+            ))),
+            Identifier::Merchant(key_store.merchant_id.clone()),
+            key,
+        ),
+        &metrics::PAYMENT_METHOD_CRYPTO_DURATION,
+        router_env::metric_attributes!(("operation", "decrypt")),
     )
     .await
     .and_then(|val| val.try_into_optionaloperation())
@@ -3179,9 +3183,21 @@ where
     let jwekey = state.conf.jwekey.get_inner();
     let response_type_name = type_name!(T);
 
-    let response = services::call_connector_api(state, request, flow_name, None)
-        .await
-        .change_context(errors::VaultError::ApiError)?;
+    let start = std::time::Instant::now();
+    let response_result = services::call_connector_api(state, request, flow_name, None).await;
+    if let Some(context) = state.payment_metrics_context {
+        let operation = match flow_name {
+            router_consts::LOCKER_ADD_CARD_PATH => "store",
+            router_consts::LOCKER_RETRIEVE_CARD_PATH => "retrieve",
+            router_consts::LOCKER_DELETE_CARD_PATH => "delete",
+            _ => "other",
+        };
+        let succeeded = response_result
+            .as_ref()
+            .is_ok_and(|response| response.is_ok());
+        metrics::record_vault_call(start.elapsed(), operation, succeeded, context);
+    }
+    let response = response_result.change_context(errors::VaultError::ApiError)?;
 
     let is_locker_call_succeeded = response.is_ok();
 
@@ -6194,19 +6210,22 @@ where
 {
     let key = key_store.key.get_inner().peek();
     let identifier = Identifier::Merchant(key_store.merchant_id.clone());
-    let decrypted_data =
+    let decrypted_data = common_utils::metrics::utils::record_operation_time(
         domain::types::crypto_operation::<serde_json::Value, hyperswitch_masking::WithType>(
             &state.into(),
             type_name!(T),
             domain::types::CryptoOperation::DecryptOptional(data),
             identifier,
             key,
-        )
-        .await
-        .and_then(|val| val.try_into_optionaloperation())
-        .change_context(errors::StorageError::DecryptionError)
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("unable to decrypt data")?;
+        ),
+        &metrics::PAYMENT_METHOD_CRYPTO_DURATION,
+        router_env::metric_attributes!(("operation", "decrypt")),
+    )
+    .await
+    .and_then(|val| val.try_into_optionaloperation())
+    .change_context(errors::StorageError::DecryptionError)
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("unable to decrypt data")?;
 
     decrypted_data
         .map(|decrypted_data| decrypted_data.into_inner().expose())

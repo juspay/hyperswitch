@@ -60,6 +60,8 @@ pub mod superposition_sdk_config;
 pub mod three_ds_decision_rule;
 pub mod tokenization;
 #[cfg(feature = "olap")]
+pub mod unified_connector_service;
+#[cfg(feature = "olap")]
 pub mod user;
 #[cfg(feature = "olap")]
 pub mod user_role;
@@ -100,7 +102,9 @@ pub use self::app::{
     Webhooks,
 };
 #[cfg(feature = "olap")]
-pub use self::app::{Blocklist, Organization, Routing, Subscription, Verify, WebhookEvents};
+pub use self::app::{
+    Blocklist, Organization, Routing, Subscription, UnifiedConnectorService, Verify, WebhookEvents,
+};
 #[cfg(feature = "payouts")]
 pub use self::app::{PayoutLink, Payouts};
 #[cfg(feature = "v2")]

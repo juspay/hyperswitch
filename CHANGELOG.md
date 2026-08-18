@@ -4,6 +4,69 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.07.29.2-hotfix7
+
+### Refactors
+
+- **router:** Scope event apis to jwt auth and profile, and read listings from the replica ([#13720](https://github.com/juspay/hyperswitch/pull/13720)) ([`a19fdbb`](https://github.com/juspay/hyperswitch/commit/a19fdbb62333372a86423f2011877837a016d001))
+
+**Full Changelog:** [`2026.07.29.2-hotfix6...2026.07.29.2-hotfix7`](https://github.com/juspay/hyperswitch/compare/2026.07.29.2-hotfix6...2026.07.29.2-hotfix7)
+
+- - -
+
+## 2026.07.29.2-hotfix6
+
+### Features
+
+- **payment_methods:** Add metrics for modular payment method service ([#13705](https://github.com/juspay/hyperswitch/pull/13705)) ([`25ba942`](https://github.com/juspay/hyperswitch/commit/25ba942682799c12b08d7b9ad9d36064a869da70))
+
+**Full Changelog:** [`2026.07.29.2-hotfix5...2026.07.29.2-hotfix6`](https://github.com/juspay/hyperswitch/compare/2026.07.29.2-hotfix5...2026.07.29.2-hotfix6)
+
+- - -
+
+## 2026.07.29.2-hotfix5
+
+### Bug Fixes
+
+- **ucs:** Suppress X-Connector-Config header for Netcetera ([#13672](https://github.com/juspay/hyperswitch/pull/13672)) ([`f3b2b90`](https://github.com/juspay/hyperswitch/commit/f3b2b90b74ab4b46628f27399d104a86b60a5161))
+
+**Full Changelog:** [`2026.07.29.2-hotfix4...2026.07.29.2-hotfix5`](https://github.com/juspay/hyperswitch/compare/2026.07.29.2-hotfix4...2026.07.29.2-hotfix5)
+
+- - -
+
+## 2026.07.29.2-hotfix4
+
+### Features
+
+- **routing:** Add automatic kill switch for decision engine routing diffs ([#13646](https://github.com/juspay/hyperswitch/pull/13646)) ([`53157ff`](https://github.com/juspay/hyperswitch/commit/53157ffcd716343fcd4fbbc022d7e459f8261b36))
+- **ucs:** Add automatic kill switch for deterministic UCS failures ([#13647](https://github.com/juspay/hyperswitch/pull/13647)) ([`44774b9`](https://github.com/juspay/hyperswitch/commit/44774b910b588179882e5275877d073fb66e8451))
+
+### Bug Fixes
+
+- **router:** Add setup future usage check in payment session tokens flow to fetch vault session details ([#13615](https://github.com/juspay/hyperswitch/pull/13615)) ([`0561011`](https://github.com/juspay/hyperswitch/commit/0561011e3fab1f19ce72066b16100937b34acee1))
+
+**Full Changelog:** [`2026.07.29.2-hotfix3...2026.07.29.2-hotfix4`](https://github.com/juspay/hyperswitch/compare/2026.07.29.2-hotfix3...2026.07.29.2-hotfix4)
+
+- - -
+
+## 2026.07.29.2-hotfix3
+
+### Features
+
+- **authentication:** Added cardbin/extended_cardbin routing support for exemption manager ([#13618](https://github.com/juspay/hyperswitch/pull/13618)) ([`a3c5600`](https://github.com/juspay/hyperswitch/commit/a3c560054503efe752b49c26f4b841f3b3b115e5))
+- **connector:** [stripe][stripe_connect] pass ip address and user agent in tokenization request ([#13637](https://github.com/juspay/hyperswitch/pull/13637)) ([`237c42d`](https://github.com/juspay/hyperswitch/commit/237c42d372c27f2e1969a00be424ae1392c5cef5))
+- **connectors:** [stripe_connect] add support for raw card payments ([#13636](https://github.com/juspay/hyperswitch/pull/13636)) ([`d0d9d9f`](https://github.com/juspay/hyperswitch/commit/d0d9d9f533ea79306675e42f260e7c197abeb1eb))
+- **external-3ds-vgs:** Netcetera external 3DS authentication over VGS external vault (v1) ([#13608](https://github.com/juspay/hyperswitch/pull/13608)) ([`b21ca18`](https://github.com/juspay/hyperswitch/commit/b21ca18129927f95d4754ef80096f1803f847ad5))
+
+### Bug Fixes
+
+- **connector:** [Stripe] Pass line_items whenever L2L3 config is enabled ([#13632](https://github.com/juspay/hyperswitch/pull/13632)) ([`7a6f605`](https://github.com/juspay/hyperswitch/commit/7a6f6055f457d0d723508924eee2a030533c7b83))
+- Add Vgs to RoutableConnectors to fix vault processor MCA update ([#13609](https://github.com/juspay/hyperswitch/pull/13609)) ([`51afe4e`](https://github.com/juspay/hyperswitch/commit/51afe4e522a2ff11de6ce21f592efbb1ee150bbb))
+
+**Full Changelog:** [`2026.07.29.2-hotfix2...2026.07.29.2-hotfix3`](https://github.com/juspay/hyperswitch/compare/2026.07.29.2-hotfix2...2026.07.29.2-hotfix3)
+
+- - -
+
 ## 2026.07.29.2-hotfix2
 
 ### Bug Fixes

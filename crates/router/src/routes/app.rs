@@ -62,6 +62,8 @@ use super::refunds;
 use super::routing;
 #[cfg(all(feature = "oltp", feature = "v2"))]
 use super::tokenization as tokenization_routes;
+#[cfg(feature = "olap")]
+use super::unified_connector_service as unified_connector_service_routes;
 #[cfg(all(feature = "olap", any(feature = "v1", feature = "v2")))]
 use super::verification::{apple_pay_merchant_registration, retrieve_apple_pay_verified_domains};
 #[cfg(feature = "oltp")]
@@ -75,7 +77,7 @@ use super::{
     apple_pay_certificates_migration, blocklist, payment_link, subscription, webhook_events,
 };
 #[cfg(any(feature = "olap", feature = "oltp"))]
-use super::{configs::*, customers, payments};
+use super::{configs::*, customers, metrics::PaymentMetricsContext, payments};
 #[cfg(all(any(feature = "olap", feature = "oltp"), feature = "v1"))]
 use super::{mandates::*, refunds::*};
 #[cfg(feature = "olap")]
@@ -143,6 +145,8 @@ pub struct SessionState {
     pub infra_components: Option<serde_json::Value>,
     pub enhancement: Option<HashMap<String, String>>,
     pub superposition_service: Arc<SuperpositionClient>,
+    /// Bounded request context used to correlate v1 payment I/O metrics.
+    pub payment_metrics_context: Option<PaymentMetricsContext>,
 }
 impl scheduler::SchedulerSessionState for SessionState {
     fn get_db(&self) -> Box<dyn SchedulerInterface> {
@@ -585,6 +589,7 @@ impl AppState {
             ca: km_conf.ca.clone(),
             infra_values: Self::process_env_mappings(conf.infra_values.clone()),
             use_legacy_key_store_decryption: km_conf.use_legacy_key_store_decryption,
+            metrics_context: None,
         };
         match storage_impl {
             StorageImpl::Postgresql | StorageImpl::PostgresqlTest => match event_handler {
@@ -687,6 +692,7 @@ impl AppState {
             infra_components: self.infra_components.clone(),
             enhancement: self.enhancement.clone(),
             superposition_service: self.superposition_service.clone(),
+            payment_metrics_context: None,
         })
     }
 
@@ -1146,6 +1152,10 @@ impl Routing {
         let mut route = web::scope("/routing")
             .app_data(web::Data::new(state.clone()))
             .service(web::resource("/entry").route(web::post().to(routing::routing_entry)))
+            .service(
+                web::resource("/decision-engine/{profile_id}/diff-counter")
+                    .route(web::delete().to(routing::reset_decision_engine_diff_counter)),
+            )
             .service(
                 web::resource("/active").route(web::get().to(|state, req, query_params| {
                     routing::routing_retrieve_linked_config(state, req, query_params, None)
@@ -2295,6 +2305,21 @@ impl Configs {
                     .route(web::get().to(config_key_retrieve))
                     .route(web::post().to(config_key_update))
                     .route(web::delete().to(config_key_delete)),
+            )
+    }
+}
+
+pub struct UnifiedConnectorService;
+
+#[cfg(feature = "olap")]
+impl UnifiedConnectorService {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/unified-connector-service")
+            .app_data(web::Data::new(state))
+            .service(
+                web::resource("/kill-switch/{scope}")
+                    .route(web::get().to(unified_connector_service_routes::kill_switch_status))
+                    .route(web::delete().to(unified_connector_service_routes::reset_kill_switch)),
             )
     }
 }

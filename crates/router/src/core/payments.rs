@@ -9298,11 +9298,13 @@ async fn decide_payment_method_tokenize_action(
     if matches!(
         payment_intent_data.split_payments,
         Some(common_types::payments::SplitPaymentsRequest::StripeSplitPayment(_))
-    ) && !is_network_transaction_id_flow
-    {
+    ) {
         match pm_parent_token {
-            None => Ok(TokenizationAction::TokenizeInConnector),
-            Some(_) => Ok(TokenizationAction::TokenizeInConnectorAndRouter),
+            // If the payment method is not stored in the router and this is not a network tokenization flow,
+            // there is no need to resolve the payment method data from the payment method ID.
+            // In this case, only connector-side tokenization is required.
+            None if !is_network_transaction_id_flow => Ok(TokenizationAction::TokenizeInConnector),
+            None | Some(_) => Ok(TokenizationAction::TokenizeInConnectorAndRouter),
         }
     } else {
         match pm_parent_token {
@@ -12731,14 +12733,15 @@ pub async fn static_dynamic_routing_v1_for_payments(
     backend_input: euclid::backend::BackendInput,
     fallback_config: Vec<api_models::routing::RoutableConnectorChoice>,
 ) -> RouterResult<routing::RoutingConnectorOutcomeWithApproachAndEligibility> {
-    let (static_connectors, static_approach) = routing::perform_static_routing_locally(
-        state,
-        business_profile,
-        &payment_dsl_input,
-        &backend_input,
-        &fallback_config,
-    )
-    .await?;
+    let (static_connectors, static_approach, static_is_volume_split) =
+        routing::perform_static_routing_locally(
+            state,
+            business_profile,
+            &payment_dsl_input,
+            &backend_input,
+            &fallback_config,
+        )
+        .await?;
 
     let (connectors, routing_approach) = routing::perform_hybrid_routing_if_enabled(
         state,
@@ -12749,6 +12752,7 @@ pub async fn static_dynamic_routing_v1_for_payments(
         &fallback_config,
         &static_connectors,
         static_approach,
+        static_is_volume_split,
     )
     .await;
 
