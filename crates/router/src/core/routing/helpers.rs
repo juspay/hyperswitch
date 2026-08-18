@@ -8,9 +8,7 @@ use std::str::FromStr;
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
 use std::sync::Arc;
 
-#[cfg(feature = "v1")]
-use api_models::open_router;
-use api_models::routing as routing_types;
+use api_models::{open_router, routing as routing_types};
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
 use common_utils::ext_traits::ValueExt;
 use common_utils::{ext_traits::Encode, id_type};
@@ -30,15 +28,14 @@ use external_services::grpc_client::dynamic_routing::{
 use hyperswitch_domain_models::api::ApplicationResponse;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use hyperswitch_interfaces::events::routing_api_logs as routing_events;
-#[cfg(feature = "v1")]
-use router_env::logger;
-#[cfg(feature = "v1")]
-use router_env::{instrument, tracing};
+use router_env::{instrument, logger, tracing};
 use rustc_hash::FxHashSet;
 use storage_impl::redis::cache;
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
 use storage_impl::redis::cache::Cacheable;
 
+#[cfg(feature = "v1")]
+use crate::core::payments::{OperationSessionGetters, OperationSessionSetters};
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
 use crate::db::errors::StorageErrorExt;
 #[cfg(feature = "v2")]
@@ -46,19 +43,15 @@ use crate::types::domain::MerchantConnectorAccount;
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
 use crate::types::transformers::ForeignFrom;
 use crate::{
-    core::errors::{self, RouterResult},
+    core::{
+        errors::{self, RouterResult},
+        payments::routing::utils::{self as routing_utils, DecisionEngineApiHandler},
+    },
     db::StorageInterface,
     routes::SessionState,
+    services,
     types::{domain, storage},
     utils::StringExt,
-};
-#[cfg(feature = "v1")]
-use crate::{
-    core::payments::{
-        routing::utils::{self as routing_utils, DecisionEngineApiHandler},
-        OperationSessionGetters, OperationSessionSetters,
-    },
-    services,
 };
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
 use crate::{
@@ -2803,7 +2796,6 @@ pub async fn create_decision_engine_merchant(
 /// Prefer this over [`create_decision_engine_merchant`], which registers a scope with no ancestry.
 /// Upserted, so re-calling is a no-op. A failure must stop a rule migration: rules under a
 /// non-existent scope route correctly but break the dashboard handoff.
-#[cfg(feature = "v1")]
 #[instrument(skip_all)]
 pub async fn sync_decision_engine_hierarchy(
     state: &SessionState,
