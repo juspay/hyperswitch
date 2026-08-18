@@ -18,6 +18,7 @@ pub enum PaymentMethodVaultingData {
     CardNumber(cards::CardNumber),
     BankDebit(payment_method_data::BankDebitDetail),
     Wallet(payment_method_data::WalletDetail),
+    BankRedirect(payment_method_data::BankRedirectDetail),
 }
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub enum FingerprintData {
@@ -26,13 +27,24 @@ pub enum FingerprintData {
     CardNumber(cards::CardNumber),
     BankDebit(FingerprintBankDebitData),
     Wallet(FingerprintWalletData),
+    BankRedirect(FingerprintBankRedirectData),
 }
 
 #[derive(Debug, Default, Deserialize, Serialize, Clone)]
-pub struct FingerprintWalletData {
-    application_primary_account_number: cards::CardNumber,
-    expiry_month: hyperswitch_masking::Secret<String>,
-    expiry_year: hyperswitch_masking::Secret<String>,
+pub struct FingerprintBankRedirectData {
+    account_number: Option<hyperswitch_masking::Secret<String>>,
+    sort_code: Option<hyperswitch_masking::Secret<String>>,
+    iban: Option<hyperswitch_masking::Secret<String>>,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(rename_all = "snake_case")]
+pub enum FingerprintWalletData {
+    ApplePayDecryptedData {
+        application_primary_account_number: cards::CardNumber,
+        expiry_month: hyperswitch_masking::Secret<String>,
+        expiry_year: hyperswitch_masking::Secret<String>,
+    },
 }
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub enum AuxiliaryFingerprintData {
@@ -40,12 +52,16 @@ pub enum AuxiliaryFingerprintData {
     NetworkToken(cards::NetworkToken),
     CardNumberData(cards::CardNumber),
     BankDebit(hyperswitch_masking::Secret<String>),
+    BankRedirect(hyperswitch_masking::Secret<String>),
 }
 
-#[derive(Debug, Default, Deserialize, Serialize, Clone)]
-pub struct FingerprintBankDebitData {
-    account_number: hyperswitch_masking::Secret<String>,
-    routing_number: hyperswitch_masking::Secret<String>,
+#[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(rename_all = "snake_case")]
+pub enum FingerprintBankDebitData {
+    Ach {
+        account_number: hyperswitch_masking::Secret<String>,
+        routing_number: hyperswitch_masking::Secret<String>,
+    },
 }
 
 #[derive(Debug, Default, Deserialize, Serialize, Clone)]
@@ -67,9 +83,11 @@ impl PaymentMethodVaultingData {
     pub fn get_card(&self) -> Option<&payment_methods::CardDetail> {
         match self {
             Self::Card(card) => Some(card),
-            Self::NetworkToken(_) | Self::CardNumber(_) | Self::BankDebit(_) | Self::Wallet(_) => {
-                None
-            }
+            Self::NetworkToken(_)
+            | Self::CardNumber(_)
+            | Self::BankDebit(_)
+            | Self::Wallet(_)
+            | Self::BankRedirect(_) => None,
         }
     }
 
@@ -79,7 +97,11 @@ impl PaymentMethodVaultingData {
             Self::Card(card_details) => {
                 card_details.card_cvc = Some(card_cvc);
             }
-            Self::NetworkToken(_) | Self::CardNumber(_) | Self::BankDebit(_) | Self::Wallet(_) => {}
+            Self::NetworkToken(_)
+            | Self::CardNumber(_)
+            | Self::BankDebit(_)
+            | Self::Wallet(_)
+            | Self::BankRedirect(_) => {}
         }
     }
 
@@ -98,6 +120,7 @@ impl PaymentMethodVaultingData {
                 bank_debit.clone().into(),
             )),
             Self::Wallet(_) => None,
+            Self::BankRedirect(_) => None,
         }
     }
 
@@ -132,7 +155,10 @@ impl PaymentMethodVaultingData {
 
                 Ok(Self::Card(card_detail))
             }
-            Self::NetworkToken(_) | Self::BankDebit(_) | Self::Wallet(_) => Ok(self.clone()),
+            Self::NetworkToken(_)
+            | Self::BankDebit(_)
+            | Self::Wallet(_)
+            | Self::BankRedirect(_) => Ok(self.clone()),
             Self::CardNumber(card_number) => {
                 let payment_methods_data = payment_methods_data_optional
                     .get_required_value("payment methods data")
@@ -221,6 +247,11 @@ impl PaymentMethodVaultingData {
                         application_primary_account_number,
                         expiry_month,
                         expiry_year,
+                    }
+                    | payment_method_data::WalletDetail::GooglePayDecryptedData {
+                        application_primary_account_number,
+                        expiry_month,
+                        expiry_year,
                     } => payment_methods::PaymentMethodDataWalletInfo {
                         last4: Some(application_primary_account_number.get_last4()),
                         card_network: None,
@@ -233,10 +264,30 @@ impl PaymentMethodVaultingData {
                 };
                 payment_method_data::PaymentMethodsData::WalletDetails(wallet_info)
             }
+            Self::BankRedirect(bank_redirect) => {
+                let payment_method_data::BankRedirectDetail::OpenBanking {
+                    iban,
+                    account_number,
+                    sort_code,
+                } = bank_redirect.clone();
+                payment_method_data::PaymentMethodsData::BankRedirect(
+                    payment_method_data::BankRedirectDetailsPaymentMethod::OpenBanking {
+                        masked_iban: iban.map(|iban| {
+                            common_utils::new_type::mask_sensitive_field(iban.peek(), 4)
+                        }),
+                        masked_account_number: account_number.map(|account_number| {
+                            common_utils::new_type::mask_sensitive_field(account_number.peek(), 4)
+                        }),
+                        masked_sort_code: sort_code.map(|sort_code| {
+                            common_utils::new_type::mask_sensitive_field(sort_code.peek(), 4)
+                        }),
+                        account_holder_name: None,
+                    },
+                )
+            }
         }
     }
 
-    #[cfg(feature = "v2")]
     pub fn to_fingerprint_data(&self) -> FingerprintData {
         match self {
             Self::Card(card) => FingerprintData::Card(FingerprintCardData {
@@ -259,24 +310,39 @@ impl PaymentMethodVaultingData {
                         application_primary_account_number,
                         expiry_month,
                         expiry_year,
+                    }
+                    | payment_method_data::WalletDetail::GooglePayDecryptedData {
+                        application_primary_account_number,
+                        expiry_month,
+                        expiry_year,
                     } => (
                         application_primary_account_number.clone(),
                         expiry_month.clone(),
                         expiry_year.clone(),
                     ),
                 };
-                FingerprintData::Wallet(FingerprintWalletData {
+                FingerprintData::Wallet(FingerprintWalletData::ApplePayDecryptedData {
                     application_primary_account_number,
                     expiry_month,
                     expiry_year,
                 })
             }
+            Self::BankRedirect(bank_redirect) => match bank_redirect {
+                payment_method_data::BankRedirectDetail::OpenBanking {
+                    iban,
+                    account_number,
+                    sort_code,
+                } => FingerprintData::BankRedirect(FingerprintBankRedirectData {
+                    iban: iban.clone(),
+                    account_number: account_number.clone(),
+                    sort_code: sort_code.clone(),
+                }),
+            },
         }
     }
 
-    #[cfg(feature = "v2")]
-    pub fn to_auxiliary_fingerprint_data(&self) -> AuxiliaryFingerprintData {
-        match self {
+    pub fn to_auxiliary_fingerprint_data(&self) -> Option<AuxiliaryFingerprintData> {
+        Some(match self {
             Self::Card(card) => AuxiliaryFingerprintData::CardNumber(card.card_number.clone()),
             Self::NetworkToken(nt) => {
                 AuxiliaryFingerprintData::NetworkToken(nt.network_token.clone())
@@ -292,14 +358,28 @@ impl PaymentMethodVaultingData {
                 };
                 AuxiliaryFingerprintData::BankDebit(account_number)
             }
-            Self::Wallet(payment_method_data::WalletDetail::ApplePayDecryptedData {
-                application_primary_account_number,
-                ..
-            }) => AuxiliaryFingerprintData::CardNumber(application_primary_account_number.clone()),
-        }
+            Self::Wallet(
+                payment_method_data::WalletDetail::ApplePayDecryptedData {
+                    application_primary_account_number,
+                    ..
+                }
+                | payment_method_data::WalletDetail::GooglePayDecryptedData {
+                    application_primary_account_number,
+                    ..
+                },
+            ) => AuxiliaryFingerprintData::CardNumber(application_primary_account_number.clone()),
+            Self::BankRedirect(bank_redirect) => match bank_redirect {
+                payment_method_data::BankRedirectDetail::OpenBanking {
+                    iban,
+                    account_number,
+                    ..
+                } => AuxiliaryFingerprintData::BankRedirect(
+                    account_number.clone().or_else(|| iban.clone())?,
+                ),
+            },
+        })
     }
 
-    #[cfg(feature = "v2")]
     pub fn get_bank_debit_fingerprint_data(
         bank_debit: &payment_method_data::BankDebitDetail,
     ) -> FingerprintBankDebitData {
@@ -310,7 +390,7 @@ impl PaymentMethodVaultingData {
                 ..
             } => (account_number.clone(), routing_number.clone()),
         };
-        FingerprintBankDebitData {
+        FingerprintBankDebitData::Ach {
             account_number,
             routing_number,
         }
@@ -465,6 +545,9 @@ impl From<payment_methods::PaymentMethodCreateData> for PaymentMethodVaultingDat
             payment_methods::PaymentMethodCreateData::Wallet(wallet_detail) => {
                 Self::Wallet(wallet_detail.into())
             }
+            payment_methods::PaymentMethodCreateData::BankRedirect(bank_redirect_detail) => {
+                Self::BankRedirect(bank_redirect_detail.into())
+            }
         }
     }
 }
@@ -507,6 +590,14 @@ impl TryFrom<PaymentMethodVaultingData> for PaymentMethodCustomVaultingData {
                 errors::api_error_response::ApiErrorResponse::NotImplemented {
                     message: errors::api_error_response::NotImplementedMessage::Reason(
                         "PaymentMethodCustomVaultingData not implemented for Wallet".to_string(),
+                    ),
+                },
+            )?,
+            PaymentMethodVaultingData::BankRedirect(_) => Err(
+                errors::api_error_response::ApiErrorResponse::NotImplemented {
+                    message: errors::api_error_response::NotImplementedMessage::Reason(
+                        "PaymentMethodCustomVaultingData not implemented for BankRedirect"
+                            .to_string(),
                     ),
                 },
             )?,

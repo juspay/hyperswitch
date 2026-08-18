@@ -4,7 +4,9 @@ use async_trait::async_trait;
 use common_enums::{CallConnectorAction, ExecutionPath};
 use common_utils::{errors::CustomResult, id_type, request::Request, ucs_types};
 use error_stack::ResultExt;
-use hyperswitch_domain_models::{router_data::RouterData, router_flow_types as domain};
+use hyperswitch_domain_models::{
+    payment_method_data::PaymentMethodData, router_data::RouterData, router_flow_types as domain,
+};
 use hyperswitch_interfaces::{
     api::gateway as payment_gateway,
     connector_integration_interface::{BoxedConnectorIntegrationInterface, RouterDataConversion},
@@ -62,7 +64,7 @@ where
         router_data: &RouterData<Self, types::PaymentsSyncData, types::PaymentsResponseData>,
         call_connector_action: CallConnectorAction,
         _connector_request: Option<Request>,
-        _return_raw_connector_response: Option<bool>,
+        return_raw_connector_response: Option<bool>,
         context: RouterGatewayContext,
     ) -> CustomResult<
         RouterData<Self, types::PaymentsSyncData, types::PaymentsResponseData>,
@@ -105,16 +107,31 @@ where
                 };
 
                 router_data.response = router_data_response;
-                router_data.amount_captured = payment_get_response.captured_amount;
-                router_data.minor_amount_captured =
-                    payment_get_response.captured_amount.map(MinorUnit::new);
-                router_data.raw_connector_response = payment_get_response
-                    .raw_connector_response
-                    .clone()
-                    .map(|raw_connector_response| raw_connector_response.expose().into());
+                // Only override `amount_captured` when UCS actually reports a captured
+                // amount on sync. Connectors that don't return an amount on psync (e.g.
+                // cybersource TSS) leave this `None` .
+                if let Some(captured_amount) = payment_get_response.captured_amount {
+                    router_data.amount_captured = Some(captured_amount);
+                    router_data.minor_amount_captured = Some(MinorUnit::new(captured_amount));
+                }
+                if return_raw_connector_response.unwrap_or(false) {
+                    router_data.raw_connector_response = payment_get_response
+                        .raw_connector_response
+                        .clone()
+                        .map(|raw_connector_response| raw_connector_response.expose().into());
+                }
                 router_data.connector_http_status_code = Some(status_code);
                 router_data.sender_payment_instrument_id =
                     payment_get_response.sender_payment_instrument_id.clone();
+                router_data.connector_returned_payment_method_details = payment_get_response
+                    .connector_returned_payment_method_details
+                    .clone()
+                    .map(PaymentMethodData::foreign_try_from)
+                    .transpose()
+                    .change_context(ConnectorError::ResponseDeserializationFailed)
+                    .attach_printable(
+                        "Failed to convert UCS connector returned payment method details",
+                    )?;
                 Ok(router_data.clone())
             }
             CallConnectorAction::Trigger => {
@@ -160,7 +177,7 @@ where
                 let connector_auth_metadata =
                     unified_connector_service::build_unified_connector_service_auth_metadata(
                         merchant_connector_account,
-                        processor,
+                        processor.get_account().get_id(),
                         router_data.connector.clone(),
                     )
                     .change_context(ConnectorError::RequestEncodingFailed)
@@ -199,46 +216,8 @@ where
                             .await
                         {
                             Ok(resp) => resp,
+                            // UCS connector errors are handled by the wrapper — see `ucs_logging_wrapper_granular`.
                             Err(report) => {
-                                if let UnifiedConnectorServiceError::ConnectorError(inner) =
-                                    report.current_context()
-                                {
-                                    let (code, message, status_code, reason,
-                                         network_decline_code, network_advice_code,
-                                         network_error_message, connector) = (
-                                        &inner.code, &inner.message, inner.status_code,
-                                        &inner.reason, &inner.network_decline_code,
-                                        &inner.network_advice_code, &inner.network_error_message,
-                                        &inner.connector,
-                                    );
-                                    logger::info!(
-                                        "Connector error via UCS for psync (connector {}, status {}): {} - {}",
-                                        connector,
-                                        status_code,
-                                        code,
-                                        message
-                                    );
-                                    router_data.response = Err(
-                                        hyperswitch_domain_models::router_data::ErrorResponse {
-                                            code: code.clone(),
-                                            message: message.clone(),
-                                            reason: reason.clone(),
-                                            status_code,
-                                            attempt_status: None,
-                                            connector_transaction_id: None,
-                                            connector_response_reference_id: None,
-                                            network_decline_code: network_decline_code.clone(),
-                                            network_advice_code: network_advice_code.clone(),
-                                            network_error_message: network_error_message.clone(),
-                                            connector_metadata: None,
-                                        },
-                                    );
-                                    return Ok((
-                                        router_data,
-                                        (),
-                                        payments_grpc::PaymentServiceGetResponse::default(),
-                                    ));
-                                }
                                 return Err(report.attach_printable("Failed to get payment"));
                             }
                         };
@@ -273,16 +252,35 @@ where
                         }
 
                         router_data.response = router_data_response;
-                        router_data.amount_captured = payment_get_response.captured_amount;
-                        router_data.minor_amount_captured =
-                            payment_get_response.captured_amount.map(MinorUnit::new);
-                        router_data.raw_connector_response = payment_get_response
-                            .raw_connector_response
-                            .clone()
-                            .map(|raw_connector_response| raw_connector_response.expose().into());
+                        // Only override `amount_captured` when UCS actually reports a
+                        // captured amount on sync. Connectors that don't return an amount
+                        // on psync (e.g. cybersource TSS) leave this `None`;
+                        if let Some(captured_amount) = payment_get_response.captured_amount {
+                            router_data.amount_captured = Some(captured_amount);
+                            router_data.minor_amount_captured =
+                                Some(MinorUnit::new(captured_amount));
+                        }
+                        if return_raw_connector_response.unwrap_or(false) {
+                            router_data.raw_connector_response =
+                                payment_get_response.raw_connector_response.clone().map(
+                                    |raw_connector_response| raw_connector_response.expose().into(),
+                                );
+                        }
                         router_data.connector_http_status_code = Some(status_code);
                         router_data.sender_payment_instrument_id =
                             payment_get_response.sender_payment_instrument_id.clone();
+                        router_data.connector_returned_payment_method_details =
+                            payment_get_response
+                                .connector_returned_payment_method_details
+                                .clone()
+                                .map(PaymentMethodData::foreign_try_from)
+                                .transpose()
+                                .change_context(
+                                    UnifiedConnectorServiceError::ResponseDeserializationFailed,
+                                )
+                                .attach_printable(
+                                    "Failed to convert UCS connector returned payment method details",
+                                )?;
                         Ok((router_data, (), payment_get_response))
                     },
                 ))

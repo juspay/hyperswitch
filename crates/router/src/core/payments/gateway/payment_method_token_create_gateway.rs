@@ -90,7 +90,7 @@ where
         let connector_auth_metadata =
             unified_connector_service::build_unified_connector_service_auth_metadata(
                 merchant_connector_account,
-                processor,
+                processor.get_account().get_id(),
                 router_data.connector.clone(),
             )
             .change_context(ConnectorError::RequestEncodingFailed)
@@ -122,13 +122,19 @@ where
             header_payload,
             unified_connector_service_execution_mode,
             |mut router_data, payment_method_tokenize_request, grpc_headers| async move {
-                let response = Box::pin(client.payment_method_tokenize(
+                let response = match Box::pin(client.payment_method_tokenize(
                     payment_method_tokenize_request,
                     connector_auth_metadata,
                     grpc_headers,
                 ))
                 .await
-                .attach_printable("Failed to Tokenize payment method")?;
+                {
+                    Ok(response) => response,
+                    // UCS connector errors are handled by the wrapper — see `ucs_logging_wrapper_granular`.
+                    Err(report) => {
+                        return Err(report.attach_printable("Failed to Tokenize payment method"));
+                    }
+                };
 
                 let payment_method_tokenize_response = response.into_inner();
 
@@ -157,7 +163,7 @@ where
         ))
         .await
         .map(|(router_data, _)| router_data)
-        .change_context(ConnectorError::ResponseHandlingFailed)
+        .map_err(super::convert_ucs_error_to_connector_error)
     }
 }
 

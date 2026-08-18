@@ -85,6 +85,7 @@ impl crate::id_type::TargetingKey for GlobalCustomerId {
     }
 }
 
+#[cfg(feature = "v2")]
 impl crate::events::ApiEventMetric for GlobalCustomerId {
     fn get_api_event_type(&self) -> Option<crate::events::ApiEventsType> {
         Some(crate::events::ApiEventsType::Customer {

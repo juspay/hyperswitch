@@ -1,4 +1,4 @@
-use std::{fmt::Debug, sync::Arc};
+use std::fmt::Debug;
 
 use common_utils::errors::CustomResult;
 use diesel_models::enums::MerchantStorageScheme;
@@ -46,6 +46,9 @@ pub enum PartitionKey<'a> {
         merchant_id: &'a common_utils::id_type::MerchantId,
         mandate_id: &'a str,
     },
+    AuthenticationId {
+        authentication_id: &'a common_utils::id_type::AuthenticationId,
+    },
     #[cfg(feature = "v2")]
     GlobalId {
         id: &'a str,
@@ -63,7 +66,7 @@ impl std::fmt::Display for PartitionKey<'_> {
                 merchant_id,
                 payment_id,
             } => f.write_str(&format!(
-                "mid_{}_pid_{}",
+                "payment_{}_{}",
                 merchant_id.get_string_repr(),
                 payment_id.get_string_repr()
             )),
@@ -72,7 +75,7 @@ impl std::fmt::Display for PartitionKey<'_> {
                 merchant_id,
                 customer_id,
             } => f.write_str(&format!(
-                "mid_{}_cust_{}",
+                "customer_{}_{}",
                 merchant_id.get_string_repr(),
                 customer_id.get_string_repr()
             )),
@@ -88,7 +91,7 @@ impl std::fmt::Display for PartitionKey<'_> {
                 merchant_id,
                 payout_id,
             } => f.write_str(&format!(
-                "mid_{}_po_{}",
+                "payout_{}_{}",
                 merchant_id.get_string_repr(),
                 payout_id.get_string_repr()
             )),
@@ -96,8 +99,13 @@ impl std::fmt::Display for PartitionKey<'_> {
                 merchant_id,
                 mandate_id,
             } => f.write_str(&format!(
-                "mid_{}_mandate_{mandate_id}",
-                merchant_id.get_string_repr()
+                "mandate_{}_{}",
+                merchant_id.get_string_repr(),
+                mandate_id
+            )),
+            PartitionKey::AuthenticationId { authentication_id } => f.write_str(&format!(
+                "authentication_{}",
+                authentication_id.get_string_repr()
             )),
 
             #[cfg(feature = "v2")]
@@ -113,7 +121,7 @@ impl std::fmt::Display for PartitionKey<'_> {
 pub trait RedisConnInterface {
     fn get_redis_conn(
         &self,
-    ) -> error_stack::Result<Arc<redis_interface::RedisConnectionPool>, RedisError>;
+    ) -> error_stack::Result<redis_interface::RedisConnectionWithContext, RedisError>;
 }
 
 /// An enum to represent what operation to do on
@@ -137,6 +145,18 @@ pub enum KvResult<T: de::DeserializeOwned> {
     Scan(Vec<T>),
 }
 
+#[cfg(feature = "deja")]
+pub trait DejaKvValue: serde::Serialize {}
+
+#[cfg(feature = "deja")]
+impl<T: serde::Serialize> DejaKvValue for T {}
+
+#[cfg(not(feature = "deja"))]
+pub trait DejaKvValue {}
+
+#[cfg(not(feature = "deja"))]
+impl<T> DejaKvValue for T {}
+
 impl<T> std::fmt::Display for KvOperation<'_, T>
 where
     T: serde::Serialize + Debug,
@@ -159,11 +179,11 @@ pub async fn kv_wrapper<'a, T, D, S>(
     partition_key: PartitionKey<'a>,
 ) -> CustomResult<KvResult<T>, RedisError>
 where
-    T: de::DeserializeOwned,
+    T: de::DeserializeOwned + DejaKvValue,
     D: crate::database::store::DatabaseStore,
     S: serde::Serialize + Debug + KvStorePartition + UniqueConstraints + Sync,
 {
-    let redis_conn = store.get_redis_conn()?;
+    let redis_conn = store.router_store.get_redis_conn()?;
 
     let key = format!("{partition_key}");
 

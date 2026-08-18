@@ -5,7 +5,9 @@ use crate::{
     router_data_v2::{self, RouterDataV2},
     router_flow_types::{
         mandate_revoke::MandateRevoke,
-        merchant_connector_webhook_management::ConnectorWebhookRegister,
+        merchant_connector_webhook_management::{
+            ConnectorWebhookGenerateSecret, ConnectorWebhookRegister,
+        },
         revenue_recovery::InvoiceRecordBack,
         subscriptions::{
             GetSubscriptionEstimate, GetSubscriptionItemPrices, GetSubscriptionItems,
@@ -17,12 +19,15 @@ use crate::{
         CompleteRefundSurchrge, CompleteSurcharge, CreateConnectorCustomer, CreateOrder, Execute,
         ExtendAuthorization, ExternalVaultProxy, GenerateQr, GiftCardBalanceCheck,
         IncrementalAuthorization, PSync, PaymentMethodToken, PostAuthenticate, PostCaptureVoid,
-        PostCaptureVoidSync, PostSessionTokens, PreAuthenticate, PreProcessing,
+        PostCaptureVoidSync, PostSessionTokens, PreAuthenticate, PreAuthorizeVoid, PreProcessing,
         ProcessIncomingWebhook, PushNotification, RSync, SdkSessionUpdate, Session,
-        SettlementSplitCreate, SetupMandate, UpdateMetadata, VerifyWebhookSource, Void,
+        SettlementSplitCreate, SetupMandate, UpdateMetadata, UpdatePostConfirm,
+        VerifyWebhookSource, Void,
     },
     router_request_types::{
-        merchant_connector_webhook_management::ConnectorWebhookRegisterRequest,
+        merchant_connector_webhook_management::{
+            ConnectorWebhookGenerateSecretRequest, ConnectorWebhookRegisterRequest,
+        },
         revenue_recovery::{
             BillingConnectorInvoiceSyncRequest, BillingConnectorPaymentsSyncRequest,
             InvoiceRecordBackRequest,
@@ -45,14 +50,17 @@ use crate::{
         PaymentsCancelPostCaptureSyncData, PaymentsCaptureData, PaymentsCompleteRefundSurchrgeData,
         PaymentsCompleteSurchargeData, PaymentsExtendAuthorizationData,
         PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
-        PaymentsPostSessionTokensData, PaymentsPreAuthenticateData, PaymentsPreProcessingData,
-        PaymentsSessionData, PaymentsSurchargeCalculationData, PaymentsSyncData,
-        PaymentsTaxCalculationData, PaymentsUpdateMetadataData, PushNotificationRequestData,
-        RefundsData, SdkPaymentsSessionUpdateData, SettlementSplitRequestData,
-        SetupMandateRequestData, VaultRequestData, VerifyWebhookSourceRequestData,
+        PaymentsPostSessionTokensData, PaymentsPreAuthenticateData, PaymentsPreAuthorizeCancelData,
+        PaymentsPreProcessingData, PaymentsSessionData, PaymentsSurchargeCalculationData,
+        PaymentsSyncData, PaymentsTaxCalculationData, PaymentsUpdateMetadataData,
+        PaymentsUpdatePostConfirmData, PushNotificationRequestData, RefundsData,
+        SdkPaymentsSessionUpdateData, SettlementSplitRequestData, SetupMandateRequestData,
+        VaultRequestData, VerifyWebhookSourceRequestData,
     },
     router_response_types::{
-        merchant_connector_webhook_management::ConnectorWebhookRegisterResponse,
+        merchant_connector_webhook_management::{
+            ConnectorWebhookGenerateSecretResponse, ConnectorWebhookRegisterResponse,
+        },
         revenue_recovery::{
             BillingConnectorInvoiceSyncResponse, BillingConnectorPaymentsSyncResponse,
             InvoiceRecordBackResponse,
@@ -96,6 +104,8 @@ pub type PaymentsCancelPostCaptureRouterData =
     RouterData<PostCaptureVoid, PaymentsCancelPostCaptureData, PaymentsResponseData>;
 pub type PaymentsCancelPostCaptureSyncRouterData =
     RouterData<PostCaptureVoidSync, PaymentsCancelPostCaptureSyncData, PaymentsResponseData>;
+pub type PaymentsPreAuthorizeCancelRouterData =
+    RouterData<PreAuthorizeVoid, PaymentsPreAuthorizeCancelData, PaymentsResponseData>;
 pub type SetupMandateRouterData =
     RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponseData>;
 pub type RefundsRouterData<F> = RouterData<F, RefundsData, RefundsResponseData>;
@@ -139,7 +149,8 @@ pub type PaymentsPostSessionTokensRouterData =
 pub type PaymentsSessionRouterData = RouterData<Session, PaymentsSessionData, PaymentsResponseData>;
 pub type PaymentsUpdateMetadataRouterData =
     RouterData<UpdateMetadata, PaymentsUpdateMetadataData, PaymentsResponseData>;
-
+pub type PaymentsUpdatePostConfirmRouterData =
+    RouterData<UpdatePostConfirm, PaymentsUpdatePostConfirmData, PaymentsResponseData>;
 pub type CreateOrderRouterData =
     RouterData<CreateOrder, CreateOrderRequestData, PaymentsResponseData>;
 pub type UasPostAuthenticationRouterData =
@@ -263,4 +274,10 @@ pub type ConnectorWebhookRegisterRouterData = RouterData<
     ConnectorWebhookRegister,
     ConnectorWebhookRegisterRequest,
     ConnectorWebhookRegisterResponse,
+>;
+
+pub type ConnectorWebhookGenerateSecretRouterData = RouterData<
+    ConnectorWebhookGenerateSecret,
+    ConnectorWebhookGenerateSecretRequest,
+    ConnectorWebhookGenerateSecretResponse,
 >;

@@ -483,6 +483,7 @@ pub trait ConnectorActions: Connector {
                 payout_connector_metadata: None,
                 additional_payout_method_data: None,
                 source_bank_data: None,
+                billing_descriptor: None,
             },
             payment_info,
         )
@@ -572,6 +573,7 @@ pub trait ConnectorActions: Connector {
             customer_document_details: None,
             feature_data: None,
             sender_payment_instrument_id: None,
+            connector_returned_payment_method_details: None,
         }
     }
 
@@ -1031,7 +1033,6 @@ impl Default for PaymentAuthorizeType {
             billing_descriptor: None,
             tokenization: None,
             partner_merchant_identifier_details: None,
-            rrn: None,
             feature_metadata: None,
             installment_details: None,
             connector_intent_metadata: None,

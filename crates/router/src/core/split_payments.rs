@@ -566,6 +566,7 @@ pub async fn create_domain_model_for_split_payment(
         encoded_data: None,
         merchant_connector_id: None,
         external_three_ds_authentication_attempted: None,
+        external_threeds_authentication_type: None,
         authentication_connector: None,
         authentication_id: None,
         fingerprint_id: None,
@@ -597,5 +598,6 @@ pub async fn create_domain_model_for_split_payment(
         network_transaction_link_id: None,
         authorized_amount: None,
         external_surcharge_details: None,
+        applied_offer_details: None,
     })
 }

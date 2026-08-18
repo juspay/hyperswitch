@@ -49,9 +49,11 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         request: &api::PaymentsRequest,
         platform: &domain::Platform,
         _auth_flow: services::AuthFlow,
+        _flow_kind: operations::PaymentFlowKind,
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
         payment_method_fetch_data: operations::PaymentMethodFetchData,
         dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
+        _payment_pre_fetched_info: Option<operations::PaymentPreFetchedInformation>,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest, PaymentData<F>>>
     {
         let operations::PaymentMethodFetchData {
@@ -148,7 +150,12 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .payment_method_data
             .as_ref()
             .and_then(|pmd| pmd.payment_method_data.clone())
-            .map(domain::PaymentMethodData::from);
+            .map(domain::PaymentMethodData::from)
+            .or_else(|| {
+                payment_method_with_raw_data
+                    .as_ref()
+                    .and_then(|payment_method| payment_method.raw_payment_method_data.clone())
+            });
 
         let store = state.clone().store;
         let superposition_service = state.clone().superposition_service;
@@ -386,6 +393,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             client_session_id: None,
             vault_session_details: None,
             external_vault_pmd: None,
+            update_request_fields: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -431,7 +439,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                         .payment_intent
                         .customer_id
                         .as_ref()
-                        .is_some_and(|existing_id| existing_id != &cust.customer_id)
+                        .is_some_and(|existing_id| existing_id != cust.get_id())
                         .then_some(errors::StorageError::ValueNotFound(
                             "Customer id mismatch between payment intent and request".to_string(),
                         ))

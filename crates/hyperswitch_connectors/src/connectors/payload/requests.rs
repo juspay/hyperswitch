@@ -1,4 +1,7 @@
-use common_utils::{pii::Email, types::StringMajorUnit};
+use common_utils::{
+    pii::Email,
+    types::{FloatMajorUnit, StringMajorUnit},
+};
 use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 
@@ -33,6 +36,15 @@ pub struct BillingAddress {
     pub street_address: Option<Secret<String>>,
 }
 
+/// A single ledger entry in a split payment request, routing a signed amount to one receiver
+#[derive(Clone, Debug, Serialize, PartialEq)]
+pub struct PayloadSplitLedgerEntry {
+    /// Signed amount in major units (negative = debit from the payment)
+    pub amount: FloatMajorUnit,
+    /// processing_id of the receiver account
+    pub receiver_id: String,
+}
+
 /// Top-level payment request sent to /transactions
 #[derive(Debug, Clone, Serialize)]
 pub struct PayloadPaymentRequestData {
@@ -48,6 +60,8 @@ pub struct PayloadPaymentRequestData {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub processing_id: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub processing_method_id: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub customer_id: Option<String>,
     /// This text provides context about the purchase, service, or payment purpose and may be displayed to customers on receipts and in transaction histories
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -58,6 +72,9 @@ pub struct PayloadPaymentRequestData {
     /// Flexible JSON object for structured metadata (order IDs, lease references, etc.)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub attrs: Option<serde_json::Value>,
+    /// Split payment ledger entries distributing the payment across receivers
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ledger: Option<Vec<PayloadSplitLedgerEntry>>,
 }
 
 /// Wrapper that nests `billing_address` and `keep_active` inside `payment_method`
@@ -93,11 +110,16 @@ pub struct PayloadMandateRequestData {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub processing_id: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub processing_method_id: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub descriptor: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub attrs: Option<serde_json::Value>,
+    /// Split payment ledger entries distributing the payment across receivers
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ledger: Option<Vec<PayloadSplitLedgerEntry>>,
 }
 
 #[derive(Default, Clone, Debug, Serialize, Eq, PartialEq)]
@@ -183,9 +205,6 @@ pub struct PayloadPaymentMethodRequest {
     pub account_holder: Secret<String>,
     #[serde(rename = "type")]
     pub payment_method_type: PayloadPaymentMethodType,
-    pub description: Option<String>,
-    pub descriptor: Option<String>,
-    pub attrs: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -199,4 +218,27 @@ pub struct PayloadBankAccountData {
 #[serde(rename_all = "snake_case")]
 pub enum PayloadPaymentMethodType {
     BankAccount,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct PayloadWebhookRegisterRequest {
+    pub trigger: PayloadEventType,
+    pub url: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sender_secret: Option<Secret<String>>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PayloadEventType {
+    Payment,
+    Processed,
+    Authorized,
+    Credit,
+    Refund,
+    Reversal,
+    Void,
+    Decline,
+    Deposit,
+    Reject,
 }

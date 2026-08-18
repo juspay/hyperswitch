@@ -25,38 +25,233 @@ use crate::{
         REDIS_COMMAND_GET, REDIS_COMMAND_HSCAN, REDIS_COMMAND_SCAN, REDIS_COMMAND_SET,
     },
     errors,
+    metrics::{track_redis_call, RedisOperation},
     types::{
         DelReply, HsetnxReply, MsetnxReply, RedisEntryId, RedisKey, SaddReply, SetGetReply,
         SetnxReply, StreamEntries, StreamReadResult, StreamTrimConfig,
     },
 };
 
-impl super::RedisConnectionPool {
-    pub fn add_prefix(&self, key: &str) -> String {
-        if self.key_prefix.is_empty() {
-            key.to_string()
-        } else {
-            format!("{}:{}", self.key_prefix, key)
+#[cfg(feature = "deja")]
+#[derive(serde::Serialize, serde::Deserialize)]
+enum DejaRedisValue {
+    Null,
+    Int(i64),
+    BulkString(Vec<u8>),
+    Array(Vec<Self>),
+    SimpleString(String),
+    Okay,
+    Map(Vec<(Self, Self)>),
+    Attribute {
+        data: Box<Self>,
+        attributes: Vec<(Self, Self)>,
+    },
+    Set(Vec<Self>),
+    Double(f64),
+    Boolean(bool),
+    VerbatimString {
+        format: String,
+        text: String,
+    },
+    Push {
+        kind: String,
+        data: Vec<Self>,
+    },
+    UnsupportedSuccessfulValue {
+        variant: String,
+    },
+}
+
+#[cfg(feature = "deja")]
+impl From<redis::Value> for DejaRedisValue {
+    fn from(value: redis::Value) -> Self {
+        match value {
+            redis::Value::Nil => Self::Null,
+            redis::Value::Int(value) => Self::Int(value),
+            redis::Value::BulkString(value) => Self::BulkString(value),
+            redis::Value::Array(values) => {
+                Self::Array(values.into_iter().map(Self::from).collect())
+            }
+            redis::Value::SimpleString(value) => Self::SimpleString(value),
+            redis::Value::Okay => Self::Okay,
+            redis::Value::Map(values) => Self::Map(
+                values
+                    .into_iter()
+                    .map(|(key, value)| (Self::from(key), Self::from(value)))
+                    .collect(),
+            ),
+            redis::Value::Attribute { data, attributes } => Self::Attribute {
+                data: Box::new(Self::from(*data)),
+                attributes: attributes
+                    .into_iter()
+                    .map(|(key, value)| (Self::from(key), Self::from(value)))
+                    .collect(),
+            },
+            redis::Value::Set(values) => Self::Set(values.into_iter().map(Self::from).collect()),
+            redis::Value::Double(value) => Self::Double(value),
+            redis::Value::Boolean(value) => Self::Boolean(value),
+            redis::Value::VerbatimString { format, text } => Self::VerbatimString {
+                format: format.to_string(),
+                text,
+            },
+            redis::Value::Push { kind, data } => Self::Push {
+                kind: kind.to_string(),
+                data: data.into_iter().map(Self::from).collect(),
+            },
+            redis::Value::BigNumber(_) => Self::UnsupportedSuccessfulValue {
+                variant: "BigNumber".to_string(),
+            },
+            redis::Value::ServerError(error) => Self::UnsupportedSuccessfulValue {
+                variant: match error.details() {
+                    Some(details) => format!("ServerError({}: {details})", error.code()),
+                    None => format!("ServerError({})", error.code()),
+                },
+            },
+            _ => Self::UnsupportedSuccessfulValue {
+                variant: "unknown non-exhaustive redis::Value variant".to_string(),
+            },
         }
+    }
+}
+
+#[cfg(feature = "deja")]
+impl DejaRedisValue {
+    fn into_supported_redis_value(self) -> Result<redis::Value, redis::RedisError> {
+        match self {
+            Self::Null => Ok(redis::Value::Nil),
+            Self::Int(value) => Ok(redis::Value::Int(value)),
+            Self::BulkString(value) => Ok(redis::Value::BulkString(value)),
+            Self::Array(values) => Ok(redis::Value::Array(
+                values
+                    .into_iter()
+                    .map(Self::into_supported_redis_value)
+                    .collect::<Result<Vec<_>, _>>()?,
+            )),
+            Self::SimpleString(value) => Ok(redis::Value::SimpleString(value)),
+            Self::Okay => Ok(redis::Value::Okay),
+            Self::Map(values) => Ok(redis::Value::Map(
+                values
+                    .into_iter()
+                    .map(|(key, value)| {
+                        Ok((
+                            key.into_supported_redis_value()?,
+                            value.into_supported_redis_value()?,
+                        ))
+                    })
+                    .collect::<Result<Vec<_>, redis::RedisError>>()?,
+            )),
+            Self::Attribute { data, attributes } => Ok(redis::Value::Attribute {
+                data: Box::new(data.into_supported_redis_value()?),
+                attributes: attributes
+                    .into_iter()
+                    .map(|(key, value)| {
+                        Ok((
+                            key.into_supported_redis_value()?,
+                            value.into_supported_redis_value()?,
+                        ))
+                    })
+                    .collect::<Result<Vec<_>, redis::RedisError>>()?,
+            }),
+            Self::Set(values) => Ok(redis::Value::Set(
+                values
+                    .into_iter()
+                    .map(Self::into_supported_redis_value)
+                    .collect::<Result<Vec<_>, _>>()?,
+            )),
+            Self::Double(value) => Ok(redis::Value::Double(value)),
+            Self::Boolean(value) => Ok(redis::Value::Boolean(value)),
+            Self::VerbatimString { format, text } => Ok(redis::Value::VerbatimString {
+                format: match format.as_str() {
+                    "mkd" => redis::VerbatimFormat::Markdown,
+                    "txt" => redis::VerbatimFormat::Text,
+                    other => redis::VerbatimFormat::Unknown(other.to_string()),
+                },
+                text,
+            }),
+            Self::Push { kind, data } => Ok(redis::Value::Push {
+                kind: match kind.as_str() {
+                    "disconnection" => redis::PushKind::Disconnection,
+                    "invalidate" => redis::PushKind::Invalidate,
+                    "message" => redis::PushKind::Message,
+                    "pmessage" => redis::PushKind::PMessage,
+                    "smessage" => redis::PushKind::SMessage,
+                    "unsubscribe" => redis::PushKind::Unsubscribe,
+                    "punsubscribe" => redis::PushKind::PUnsubscribe,
+                    "sunsubscribe" => redis::PushKind::SUnsubscribe,
+                    "subscribe" => redis::PushKind::Subscribe,
+                    "psubscribe" => redis::PushKind::PSubscribe,
+                    "ssubscribe" => redis::PushKind::SSubscribe,
+                    other => redis::PushKind::Other(other.to_string()),
+                },
+                data: data
+                    .into_iter()
+                    .map(Self::into_supported_redis_value)
+                    .collect::<Result<Vec<_>, _>>()?,
+            }),
+            Self::UnsupportedSuccessfulValue { variant } => Err((
+                redis::ErrorKind::UnexpectedReturnType,
+                "unsupported Redis value variant recorded by Deja replay",
+                variant,
+            )
+                .into()),
+        }
+    }
+}
+
+impl super::RedisConnectionWithContext {
+    /// Prefix `key` with the tenant key prefix of the underlying pool.
+    pub fn add_prefix(&self, key: &str) -> String {
+        self.redis_conn.add_prefix(key)
     }
 
     // ─── Key Commands ────────────────────────────────────────────────────────
 
+    #[cfg_attr(
+        feature = "deja",
+        deja::redis(
+            operation = "set_key",
+            codec = deja::codec::ResultCodec::<(), errors::RedisError>,
+            args = {
+                serde_json::json!({
+                    "key": key.as_str(),
+                    "command": "SET",
+                    "has_ttl": true,
+                })
+            },
+        )
+    )]
     #[instrument(level = "DEBUG", skip(self))]
     pub async fn set_key<V>(&self, key: &RedisKey, value: V) -> CustomResult<(), errors::RedisError>
     where
         V: redis::ToRedisArgs + Debug + Send + Sync + ToSingleRedisArg,
     {
-        let mut conn = self.pool.clone();
+        let mut conn = self.redis_conn.pool.clone();
         let options = SetOptions::default()
-            .with_expiration(SetExpiry::EX(u64::from(self.config.default_ttl)));
-        let _: Option<String> = conn
-            .set_options(key.tenant_aware_key(self), value, options)
-            .await
-            .change_context(errors::RedisError::SetFailed)?;
+            .with_expiration(SetExpiry::EX(u64::from(self.redis_conn.config.default_ttl)));
+        let _: Option<String> = track_redis_call(
+            self.request_id.as_deref(),
+            self.redis_conn.event_emitter.as_ref(),
+            RedisOperation::SetKey,
+            conn.set_options(key.tenant_aware_key(&self.redis_conn), value, options),
+        )
+        .await
+        .change_context(errors::RedisError::SetFailed)?;
         Ok(())
     }
 
+    #[cfg_attr(
+        feature = "deja",
+        deja::redis(
+            operation = "set_key_without_modifying_ttl",
+            codec = deja::codec::ResultCodec::<(), errors::RedisError>,
+            args = {
+                serde_json::json!({
+                    "key": key.as_str(),
+                    "command": "SET_KEEP_TTL",
+                })
+            },
+        )
+    )]
     pub async fn set_key_without_modifying_ttl<V>(
         &self,
         key: &RedisKey,
@@ -65,12 +260,16 @@ impl super::RedisConnectionPool {
     where
         V: redis::ToRedisArgs + Debug + Send + Sync + ToSingleRedisArg,
     {
-        let mut conn = self.pool.clone();
+        let mut conn = self.redis_conn.pool.clone();
         let options = SetOptions::default().with_expiration(SetExpiry::KEEPTTL);
-        let _: Option<String> = conn
-            .set_options(key.tenant_aware_key(self), value, options)
-            .await
-            .change_context(errors::RedisError::SetFailed)?;
+        let _: Option<String> = track_redis_call(
+            self.request_id.as_deref(),
+            self.redis_conn.event_emitter.as_ref(),
+            RedisOperation::SetKeyWithoutModifyingTtl,
+            conn.set_options(key.tenant_aware_key(&self.redis_conn), value, options),
+        )
+        .await
+        .change_context(errors::RedisError::SetFailed)?;
         Ok(())
     }
 
@@ -82,10 +281,15 @@ impl super::RedisConnectionPool {
         K: redis::ToRedisArgs + Debug + Send + Sync,
         V: redis::ToRedisArgs + Debug + Send + Sync,
     {
-        let mut conn = self.pool.clone();
-        conn.mset_nx(key_value_pairs)
-            .await
-            .change_context(errors::RedisError::SetFailed)
+        let mut conn = self.redis_conn.pool.clone();
+        track_redis_call(
+            self.request_id.as_deref(),
+            self.redis_conn.event_emitter.as_ref(),
+            RedisOperation::SetMultipleKeysIfNotExist,
+            conn.mset_nx(key_value_pairs),
+        )
+        .await
+        .change_context(errors::RedisError::SetFailed)
     }
 
     #[instrument(level = "DEBUG", skip(self))]
@@ -152,29 +356,62 @@ impl super::RedisConnectionPool {
             .encode_to_vec()
             .change_context(errors::RedisError::JsonSerializationFailed)?;
 
-        let mut conn = self.pool.clone();
-        let options = SetOptions::default().with_expiration(SetExpiry::EX(
-            u64::try_from(seconds).change_context(errors::RedisError::SetExFailed)?,
-        ));
-        let _: Option<String> = conn
-            .set_options(key.tenant_aware_key(self), serialized.as_slice(), options)
+        #[cfg(feature = "deja")]
+        {
+            self.set_key_with_expiry(key, serialized.as_slice(), seconds)
+                .await
+        }
+
+        #[cfg(not(feature = "deja"))]
+        {
+            let mut conn = self.redis_conn.pool.clone();
+            let options = SetOptions::default().with_expiration(SetExpiry::EX(
+                u64::try_from(seconds).change_context(errors::RedisError::SetExFailed)?,
+            ));
+            let _: Option<String> = track_redis_call(
+                self.request_id.as_deref(),
+                self.redis_conn.event_emitter.as_ref(),
+                RedisOperation::SerializeAndSetKeyWithExpiry,
+                conn.set_options(
+                    key.tenant_aware_key(&self.redis_conn),
+                    serialized.as_slice(),
+                    options,
+                ),
+            )
             .await
             .change_context(errors::RedisError::SetExFailed)?;
-        Ok(())
+            Ok(())
+        }
     }
 
+    #[cfg(feature = "deja")]
     #[instrument(level = "DEBUG", skip(self))]
-    pub async fn get_key<V>(&self, key: &RedisKey) -> CustomResult<V, errors::RedisError>
-    where
-        V: FromRedisValue + Send + 'static,
-    {
-        let mut conn = self.pool.clone();
-        match conn
-            .get::<_, V>(key.tenant_aware_key(self))
-            .await
-            .change_context(errors::RedisError::GetFailed)
+    #[deja::redis(
+        operation = "get_key",
+        codec = deja::codec::ResultCodec::<DejaRedisValue, errors::RedisError>,
+        state_read = key.tenant_aware_key(&self.redis_conn),
+        args = {
+            serde_json::json!({
+                "key": key.as_str(),
+                "command": "GET",
+            })
+        },
+    )]
+    async fn get_key_raw(
+        &self,
+        key: &RedisKey,
+    ) -> CustomResult<DejaRedisValue, errors::RedisError> {
+        let mut conn = self.redis_conn.pool.clone();
+        match track_redis_call(
+            self.request_id.as_deref(),
+            self.redis_conn.event_emitter.as_ref(),
+            RedisOperation::GetKey,
+            conn.get::<_, redis::Value>(key.tenant_aware_key(&self.redis_conn)),
+        )
+        .await
+        .change_context(errors::RedisError::GetFailed)
         {
-            Ok(v) => Ok(v),
+            Ok(value) => Ok(DejaRedisValue::from(value)),
             Err(_err) => {
                 #[cfg(not(feature = "multitenancy_fallback"))]
                 {
@@ -183,9 +420,66 @@ impl super::RedisConnectionPool {
 
                 #[cfg(feature = "multitenancy_fallback")]
                 {
-                    conn.get::<_, V>(key.tenant_unaware_key(self))
+                    track_redis_call(
+                        self.request_id.as_deref(),
+                        self.redis_conn.event_emitter.as_ref(),
+                        RedisOperation::GetKey,
+                        conn.get::<_, redis::Value>(key.tenant_unaware_key(&self.redis_conn)),
+                    )
+                    .await
+                    .map(DejaRedisValue::from)
+                    .change_context(errors::RedisError::GetFailed)
+                }
+            }
+        }
+    }
+
+    #[instrument(level = "DEBUG", skip(self))]
+    pub async fn get_key<V>(&self, key: &RedisKey) -> CustomResult<V, errors::RedisError>
+    where
+        V: FromRedisValue + Send + 'static,
+    {
+        #[cfg(feature = "deja")]
+        {
+            let raw_value = self
+                .get_key_raw(key)
+                .await?
+                .into_supported_redis_value()
+                .map_err(|err| report!(err).change_context(errors::RedisError::GetFailed))?;
+            return V::from_redis_value(raw_value)
+                .map_err(|err| report!(err).change_context(errors::RedisError::GetFailed));
+        }
+
+        #[cfg(not(feature = "deja"))]
+        {
+            let mut conn = self.redis_conn.pool.clone();
+            match track_redis_call(
+                self.request_id.as_deref(),
+                self.redis_conn.event_emitter.as_ref(),
+                RedisOperation::GetKey,
+                conn.get::<_, V>(key.tenant_aware_key(&self.redis_conn)),
+            )
+            .await
+            .change_context(errors::RedisError::GetFailed)
+            {
+                Ok(v) => Ok(v),
+                Err(_err) => {
+                    #[cfg(not(feature = "multitenancy_fallback"))]
+                    {
+                        Err(_err)
+                    }
+
+                    #[cfg(feature = "multitenancy_fallback")]
+                    {
+                        track_redis_call(
+                            self.request_id.as_deref(),
+                            self.redis_conn.event_emitter.as_ref(),
+                            RedisOperation::GetKey,
+                            conn.get::<_, V>(key.tenant_unaware_key(&self.redis_conn)),
+                        )
                         .await
                         .change_context(errors::RedisError::GetFailed)
+                    }
                 }
             }
         }
@@ -203,12 +497,19 @@ impl super::RedisConnectionPool {
             return Ok(Vec::new());
         }
 
-        let tenant_aware_keys: Vec<String> =
-            keys.iter().map(|key| key.tenant_aware_key(self)).collect();
-        let mut conn = self.pool.clone();
-        conn.mget(&tenant_aware_keys)
-            .await
-            .change_context(errors::RedisError::GetFailed)
+        let tenant_aware_keys: Vec<String> = keys
+            .iter()
+            .map(|key| key.tenant_aware_key(&self.redis_conn))
+            .collect();
+        let mut conn = self.redis_conn.pool.clone();
+        track_redis_call(
+            self.request_id.as_deref(),
+            self.redis_conn.event_emitter.as_ref(),
+            RedisOperation::GetMultipleKeys,
+            conn.mget(&tenant_aware_keys),
+        )
+        .await
+        .change_context(errors::RedisError::GetFailed)
     }
 
     #[instrument(level = "DEBUG", skip(self))]
@@ -222,13 +523,23 @@ impl super::RedisConnectionPool {
         if keys.is_empty() {
             return Ok(Vec::new());
         }
-        let tenant_aware_keys: Vec<String> =
-            keys.iter().map(|key| key.tenant_aware_key(self)).collect();
+        let tenant_aware_keys: Vec<String> = keys
+            .iter()
+            .map(|key| key.tenant_aware_key(&self.redis_conn))
+            .collect();
 
         let futures = tenant_aware_keys.iter().map(|redis_key| {
-            let mut conn = self.pool.clone();
+            let mut conn = self.redis_conn.pool.clone();
             let key = redis_key.clone();
-            async move { conn.get::<_, Option<V>>(&key).await }
+            async move {
+                track_redis_call(
+                    self.request_id.as_deref(),
+                    self.redis_conn.event_emitter.as_ref(),
+                    RedisOperation::GetKey,
+                    conn.get::<_, Option<V>>(&key),
+                )
+                .await
+            }
         });
 
         let results = futures::future::try_join_all(futures)
@@ -248,7 +559,7 @@ impl super::RedisConnectionPool {
     where
         V: FromRedisValue + Send + 'static,
     {
-        if self.config.cluster_enabled {
+        if self.redis_conn.config.cluster_enabled {
             // Use individual GET commands for cluster mode to avoid CROSSSLOT errors
             self.get_multiple_keys_with_parallel_get(keys).await
         } else {
@@ -257,6 +568,29 @@ impl super::RedisConnectionPool {
         }
     }
 
+    #[cfg_attr(
+        feature = "deja",
+        deja::redis(
+            operation = "get_multiple_keys",
+            read_set = keys.iter().map(|key| key.tenant_aware_key(&self.redis_conn)).collect::<Vec<_>>(),
+            args = {
+                serde_json::json!({
+                    "key_count": keys.len(),
+                    "keys": keys.iter().map(|key| key.as_str()).collect::<Vec<_>>(),
+                    "command": "MGET",
+                })
+            },
+            result = {
+                (
+                    match &__deja_result {
+                        Ok(_) => serde_json::json!({"ok": true}),
+                        Err(e) => serde_json::json!({"ok": false, "error": format!("{:?}", e)}),
+                    },
+                    __deja_result.is_err(),
+                )
+            },
+        )
+    )]
     #[instrument(level = "DEBUG", skip(self))]
     pub async fn get_multiple_keys<V>(
         &self,
@@ -281,7 +615,7 @@ impl super::RedisConnectionPool {
                 {
                     let tenant_unaware_keys: Vec<RedisKey> = keys
                         .iter()
-                        .map(|key| key.tenant_unaware_key(self).into())
+                        .map(|key| key.tenant_unaware_key(&self.redis_conn).into())
                         .collect();
 
                     self.get_keys_by_mode(&tenant_unaware_keys).await
@@ -295,11 +629,15 @@ impl super::RedisConnectionPool {
     where
         V: Send + 'static,
     {
-        let mut conn = self.pool.clone();
-        match conn
-            .exists::<_, bool>(key.tenant_aware_key(self))
-            .await
-            .change_context(errors::RedisError::GetFailed)
+        let mut conn = self.redis_conn.pool.clone();
+        match track_redis_call(
+            self.request_id.as_deref(),
+            self.redis_conn.event_emitter.as_ref(),
+            RedisOperation::Exists,
+            conn.exists::<_, bool>(key.tenant_aware_key(&self.redis_conn)),
+        )
+        .await
+        .change_context(errors::RedisError::GetFailed)
         {
             Ok(v) => Ok(v),
             Err(_err) => {
@@ -310,9 +648,14 @@ impl super::RedisConnectionPool {
 
                 #[cfg(feature = "multitenancy_fallback")]
                 {
-                    conn.exists::<_, bool>(key.tenant_unaware_key(self))
-                        .await
-                        .change_context(errors::RedisError::GetFailed)
+                    track_redis_call(
+                        self.request_id.as_deref(),
+                        self.redis_conn.event_emitter.as_ref(),
+                        RedisOperation::Exists,
+                        conn.exists::<_, bool>(key.tenant_unaware_key(&self.redis_conn)),
+                    )
+                    .await
+                    .change_context(errors::RedisError::GetFailed)
                 }
             }
         }
@@ -365,15 +708,32 @@ impl super::RedisConnectionPool {
         Ok(results)
     }
 
+    #[cfg_attr(
+        feature = "deja",
+        deja::redis(
+            operation = "delete_key",
+            codec = deja::codec::ResultCodec::<DelReply, errors::RedisError>,
+            args = {
+                serde_json::json!({
+                    "key": key.as_str(),
+                    "command": "DEL",
+                })
+            },
+        )
+    )]
     #[instrument(level = "DEBUG", skip(self))]
     pub async fn delete_key(&self, key: &RedisKey) -> CustomResult<DelReply, errors::RedisError> {
-        let mut conn = self.pool.clone();
+        let mut conn = self.redis_conn.pool.clone();
         // Redis DEL returns the number of keys that were deleted.
         // 0 means the key did not exist (not an error).
-        let deleted_count: usize = conn
-            .del(key.tenant_aware_key(self))
-            .await
-            .change_context(errors::RedisError::DeleteFailed)?;
+        let deleted_count: usize = track_redis_call(
+            self.request_id.as_deref(),
+            self.redis_conn.event_emitter.as_ref(),
+            RedisOperation::DeleteKey,
+            conn.del(key.tenant_aware_key(&self.redis_conn)),
+        )
+        .await
+        .change_context(errors::RedisError::DeleteFailed)?;
 
         let reply = if deleted_count > 0 {
             DelReply::KeyDeleted
@@ -389,10 +749,14 @@ impl super::RedisConnectionPool {
 
             #[cfg(feature = "multitenancy_fallback")]
             {
-                let fallback_count: usize = conn
-                    .del(key.tenant_unaware_key(self))
-                    .await
-                    .change_context(errors::RedisError::DeleteFailed)?;
+                let fallback_count: usize = track_redis_call(
+                    self.request_id.as_deref(),
+                    self.redis_conn.event_emitter.as_ref(),
+                    RedisOperation::DeleteKey,
+                    conn.del(key.tenant_unaware_key(&self.redis_conn)),
+                )
+                .await
+                .change_context(errors::RedisError::DeleteFailed)?;
                 if fallback_count > 0 {
                     DelReply::KeyDeleted
                 } else {
@@ -418,6 +782,20 @@ impl super::RedisConnectionPool {
         Ok(del_result)
     }
 
+    #[cfg_attr(
+        feature = "deja",
+        deja::redis(
+            operation = "set_key_with_expiry",
+            codec = deja::codec::ResultCodec::<(), errors::RedisError>,
+            args = {
+                serde_json::json!({
+                    "key": key.as_str(),
+                    "command": "SETEX",
+                    "ttl_seconds": seconds,
+                })
+            },
+        )
+    )]
     #[instrument(level = "DEBUG", skip(self))]
     pub async fn set_key_with_expiry<V>(
         &self,
@@ -428,17 +806,36 @@ impl super::RedisConnectionPool {
     where
         V: redis::ToRedisArgs + Debug + Send + Sync + ToSingleRedisArg,
     {
-        let mut conn = self.pool.clone();
+        let mut conn = self.redis_conn.pool.clone();
         let options = SetOptions::default().with_expiration(SetExpiry::EX(
             u64::try_from(seconds).change_context(errors::RedisError::SetExFailed)?,
         ));
-        let _: Option<String> = conn
-            .set_options(key.tenant_aware_key(self), value, options)
-            .await
-            .change_context(errors::RedisError::SetExFailed)?;
+        let _: Option<String> = track_redis_call(
+            self.request_id.as_deref(),
+            self.redis_conn.event_emitter.as_ref(),
+            RedisOperation::SetKeyWithExpiry,
+            conn.set_options(key.tenant_aware_key(&self.redis_conn), value, options),
+        )
+        .await
+        .change_context(errors::RedisError::SetExFailed)?;
         Ok(())
     }
 
+    #[cfg_attr(
+        feature = "deja",
+        deja::redis(
+            operation = "set_key_if_not_exists_with_expiry",
+            codec = deja::codec::ResultCodec::<SetnxReply, errors::RedisError>,
+            state_write = key.tenant_aware_key(&self.redis_conn),
+            args = {
+                serde_json::json!({
+                    "key": key.as_str(),
+                    "command": "SETNX",
+                    "ttl_seconds": seconds,
+                })
+            },
+        )
+    )]
     #[instrument(level = "DEBUG", skip(self))]
     pub async fn set_key_if_not_exists_with_expiry<V>(
         &self,
@@ -449,17 +846,21 @@ impl super::RedisConnectionPool {
     where
         V: redis::ToRedisArgs + Debug + Send + Sync + ToSingleRedisArg,
     {
-        let ttl = seconds.unwrap_or(self.config.default_ttl.into());
-        let mut conn = self.pool.clone();
+        let ttl = seconds.unwrap_or(self.redis_conn.config.default_ttl.into());
+        let mut conn = self.redis_conn.pool.clone();
         let options = SetOptions::default()
             .conditional_set(ExistenceCheck::NX)
             .with_expiration(SetExpiry::EX(
                 u64::try_from(ttl).change_context(errors::RedisError::SetFailed)?,
             ));
-        let result: Option<String> = conn
-            .set_options(key.tenant_aware_key(self), value, options)
-            .await
-            .change_context(errors::RedisError::SetFailed)?;
+        let result: Option<String> = track_redis_call(
+            self.request_id.as_deref(),
+            self.redis_conn.event_emitter.as_ref(),
+            RedisOperation::SetKeyIfNotExistsWithExpiry,
+            conn.set_options(key.tenant_aware_key(&self.redis_conn), value, options),
+        )
+        .await
+        .change_context(errors::RedisError::SetFailed)?;
 
         // SET NX returns OK on success, nil if key already exists
         let reply = if result.is_some() {
@@ -476,10 +877,15 @@ impl super::RedisConnectionPool {
         key: &RedisKey,
         seconds: i64,
     ) -> CustomResult<(), errors::RedisError> {
-        let mut conn = self.pool.clone();
-        conn.expire::<_, ()>(key.tenant_aware_key(self), seconds)
-            .await
-            .change_context(errors::RedisError::SetExpiryFailed)
+        let mut conn = self.redis_conn.pool.clone();
+        track_redis_call(
+            self.request_id.as_deref(),
+            self.redis_conn.event_emitter.as_ref(),
+            RedisOperation::SetExpiry,
+            conn.expire::<_, ()>(key.tenant_aware_key(&self.redis_conn), seconds),
+        )
+        .await
+        .change_context(errors::RedisError::SetExpiryFailed)
     }
 
     #[instrument(level = "DEBUG", skip(self))]
@@ -488,18 +894,28 @@ impl super::RedisConnectionPool {
         key: &RedisKey,
         timestamp: i64,
     ) -> CustomResult<(), errors::RedisError> {
-        let mut conn = self.pool.clone();
-        conn.expire_at::<_, ()>(key.tenant_aware_key(self), timestamp)
-            .await
-            .change_context(errors::RedisError::SetExpiryFailed)
+        let mut conn = self.redis_conn.pool.clone();
+        track_redis_call(
+            self.request_id.as_deref(),
+            self.redis_conn.event_emitter.as_ref(),
+            RedisOperation::SetExpireAt,
+            conn.expire_at::<_, ()>(key.tenant_aware_key(&self.redis_conn), timestamp),
+        )
+        .await
+        .change_context(errors::RedisError::SetExpiryFailed)
     }
 
     #[instrument(level = "DEBUG", skip(self))]
     pub async fn get_ttl(&self, key: &RedisKey) -> CustomResult<i64, errors::RedisError> {
-        let mut conn = self.pool.clone();
-        conn.ttl::<_, i64>(key.tenant_aware_key(self))
-            .await
-            .change_context(errors::RedisError::GetFailed)
+        let mut conn = self.redis_conn.pool.clone();
+        track_redis_call(
+            self.request_id.as_deref(),
+            self.redis_conn.event_emitter.as_ref(),
+            RedisOperation::GetTtl,
+            conn.ttl::<_, i64>(key.tenant_aware_key(&self.redis_conn)),
+        )
+        .await
+        .change_context(errors::RedisError::GetFailed)
     }
 
     // ─── Hash Commands ───────────────────────────────────────────────────────
@@ -515,16 +931,25 @@ impl super::RedisConnectionPool {
         F: redis::ToRedisArgs + Debug + Send + Sync,
         V: redis::ToRedisArgs + Debug + Send + Sync,
     {
-        let mut conn = self.pool.clone();
-        let _: () = conn
-            .hset_multiple(key.tenant_aware_key(self), &field_value_pairs)
-            .await
-            .change_context(errors::RedisError::SetHashFailed)?;
+        let mut conn = self.redis_conn.pool.clone();
+        let _: () = track_redis_call(
+            self.request_id.as_deref(),
+            self.redis_conn.event_emitter.as_ref(),
+            RedisOperation::SetHashFields,
+            conn.hset_multiple(key.tenant_aware_key(&self.redis_conn), &field_value_pairs),
+        )
+        .await
+        .change_context(errors::RedisError::SetHashFailed)?;
 
         // setting expiry for the key — reuse the same connection
-        conn.expire::<_, ()>(
-            key.tenant_aware_key(self),
-            ttl.unwrap_or(self.config.default_hash_ttl.into()),
+        track_redis_call(
+            self.request_id.as_deref(),
+            self.redis_conn.event_emitter.as_ref(),
+            RedisOperation::SetHashFields,
+            conn.expire::<_, ()>(
+                key.tenant_aware_key(&self.redis_conn),
+                ttl.unwrap_or(self.redis_conn.config.default_hash_ttl.into()),
+            ),
         )
         .await
         .change_context(errors::RedisError::SetExpiryFailed)
@@ -541,20 +966,28 @@ impl super::RedisConnectionPool {
     where
         V: redis::ToRedisArgs + ToSingleRedisArg + Debug + Send + Sync,
     {
-        let mut conn = self.pool.clone();
-        let result: HsetnxReply = conn
-            .hset_nx::<_, _, _, HsetnxReply>(key.tenant_aware_key(self), field, value)
-            .await
-            .change_context(errors::RedisError::SetHashFieldFailed)?;
+        let mut conn = self.redis_conn.pool.clone();
+        let result: HsetnxReply = track_redis_call(
+            self.request_id.as_deref(),
+            self.redis_conn.event_emitter.as_ref(),
+            RedisOperation::SetHashFieldIfNotExist,
+            conn.hset_nx::<_, _, _, HsetnxReply>(
+                key.tenant_aware_key(&self.redis_conn),
+                field,
+                value,
+            ),
+        )
+        .await
+        .change_context(errors::RedisError::SetHashFieldFailed)?;
 
         // Only set expiry if the field was actually set
         if matches!(result, HsetnxReply::KeySet) {
-            conn.expire::<_, ()>(
-                key.tenant_aware_key(self),
-                ttl.unwrap_or(self.config.default_hash_ttl).into(),
+            self.set_expiry(
+                key,
+                ttl.unwrap_or(self.redis_conn.config.default_hash_ttl)
+                    .into(),
             )
-            .await
-            .change_context(errors::RedisError::SetExpiryFailed)?;
+            .await?;
         }
 
         Ok(result)
@@ -608,14 +1041,19 @@ impl super::RedisConnectionPool {
     where
         T: Debug + ToString,
     {
-        let mut conn = self.pool.clone();
+        let mut conn = self.redis_conn.pool.clone();
         let mut values_after_increment = Vec::with_capacity(fields_to_increment.len());
         for (field, increment) in fields_to_increment {
             values_after_increment.push(
-                conn.hincr::<_, _, _, usize>(
-                    key.tenant_aware_key(self),
-                    field.to_string(),
-                    *increment,
+                track_redis_call(
+                    self.request_id.as_deref(),
+                    self.redis_conn.event_emitter.as_ref(),
+                    RedisOperation::IncrementFieldsInHash,
+                    conn.hincr::<_, _, _, usize>(
+                        key.tenant_aware_key(&self.redis_conn),
+                        field.to_string(),
+                        *increment,
+                    ),
                 )
                 .await
                 .change_context(errors::RedisError::IncrementHashFieldFailed)?,
@@ -635,7 +1073,7 @@ impl super::RedisConnectionPool {
         pattern: &str,
         count: Option<u32>,
     ) -> CustomResult<Vec<String>, errors::RedisError> {
-        let mut conn = self.pool.clone();
+        let mut conn = self.redis_conn.pool.clone();
 
         let mut results: Vec<String> = Vec::new();
         let mut cursor: u64 = 0;
@@ -652,7 +1090,7 @@ impl super::RedisConnectionPool {
             // Build HSCAN command: HSCAN key cursor MATCH pattern [COUNT count]
             let mut command = redis::cmd(REDIS_COMMAND_HSCAN);
             command
-                .arg(key.tenant_aware_key(self))
+                .arg(key.tenant_aware_key(&self.redis_conn))
                 .arg(cursor)
                 .arg(REDIS_ARG_MATCH)
                 .arg(pattern);
@@ -662,10 +1100,14 @@ impl super::RedisConnectionPool {
             }
 
             // HSCAN returns: [cursor, [field1, value1, field2, value2, ...]]
-            let reply: (u64, Vec<redis::Value>) = command
-                .query_async(&mut conn)
-                .await
-                .change_context(errors::RedisError::GetHashFieldFailed)?;
+            let reply: (u64, Vec<redis::Value>) = track_redis_call(
+                self.request_id.as_deref(),
+                self.redis_conn.event_emitter.as_ref(),
+                RedisOperation::Hscan,
+                command.query_async(&mut conn),
+            )
+            .await
+            .change_context(errors::RedisError::GetHashFieldFailed)?;
 
             cursor = reply.0;
 
@@ -695,7 +1137,7 @@ impl super::RedisConnectionPool {
         count: Option<u32>,
         scan_type: Option<crate::types::RedisScanType>,
     ) -> CustomResult<Vec<String>, errors::RedisError> {
-        let mut conn = self.pool.clone();
+        let mut conn = self.redis_conn.pool.clone();
 
         let mut results: Vec<String> = Vec::new();
         let mut cursor: u64 = 0;
@@ -713,7 +1155,7 @@ impl super::RedisConnectionPool {
             command
                 .arg(cursor)
                 .arg(REDIS_ARG_MATCH)
-                .arg(pattern.tenant_aware_key(self));
+                .arg(pattern.tenant_aware_key(&self.redis_conn));
 
             if let Some(count_value) = count {
                 command.arg(REDIS_ARG_COUNT).arg(count_value);
@@ -723,10 +1165,14 @@ impl super::RedisConnectionPool {
                 command.arg(REDIS_ARG_TYPE).arg(scan_type_value.as_ref());
             }
 
-            let reply: (u64, Vec<String>) = command
-                .query_async(&mut conn)
-                .await
-                .change_context(errors::RedisError::GetFailed)?;
+            let reply: (u64, Vec<String>) = track_redis_call(
+                self.request_id.as_deref(),
+                self.redis_conn.event_emitter.as_ref(),
+                RedisOperation::Scan,
+                command.query_async(&mut conn),
+            )
+            .await
+            .change_context(errors::RedisError::GetFailed)?;
 
             cursor = reply.0;
             results.extend(reply.1);
@@ -768,19 +1214,28 @@ impl super::RedisConnectionPool {
     where
         V: FromRedisValue + Send + 'static,
     {
-        let mut conn = self.pool.clone();
-        match conn
-            .hget::<_, _, V>(key.tenant_aware_key(self), field)
-            .await
-            .change_context(errors::RedisError::GetHashFieldFailed)
+        let mut conn = self.redis_conn.pool.clone();
+        match track_redis_call(
+            self.request_id.as_deref(),
+            self.redis_conn.event_emitter.as_ref(),
+            RedisOperation::GetHashField,
+            conn.hget::<_, _, V>(key.tenant_aware_key(&self.redis_conn), field),
+        )
+        .await
+        .change_context(errors::RedisError::GetHashFieldFailed)
         {
             Ok(v) => Ok(v),
             Err(_err) => {
                 #[cfg(feature = "multitenancy_fallback")]
                 {
-                    conn.hget::<_, _, V>(key.tenant_unaware_key(self), field)
-                        .await
-                        .change_context(errors::RedisError::GetHashFieldFailed)
+                    track_redis_call(
+                        self.request_id.as_deref(),
+                        self.redis_conn.event_emitter.as_ref(),
+                        RedisOperation::GetHashField,
+                        conn.hget::<_, _, V>(key.tenant_unaware_key(&self.redis_conn), field),
+                    )
+                    .await
+                    .change_context(errors::RedisError::GetHashFieldFailed)
                 }
 
                 #[cfg(not(feature = "multitenancy_fallback"))]
@@ -796,19 +1251,28 @@ impl super::RedisConnectionPool {
     where
         V: FromRedisValue + Send + 'static,
     {
-        let mut conn = self.pool.clone();
-        match conn
-            .hgetall::<_, V>(key.tenant_aware_key(self))
-            .await
-            .change_context(errors::RedisError::GetHashFieldFailed)
+        let mut conn = self.redis_conn.pool.clone();
+        match track_redis_call(
+            self.request_id.as_deref(),
+            self.redis_conn.event_emitter.as_ref(),
+            RedisOperation::GetHashFields,
+            conn.hgetall::<_, V>(key.tenant_aware_key(&self.redis_conn)),
+        )
+        .await
+        .change_context(errors::RedisError::GetHashFieldFailed)
         {
             Ok(v) => Ok(v),
             Err(_err) => {
                 #[cfg(feature = "multitenancy_fallback")]
                 {
-                    conn.hgetall::<_, V>(key.tenant_unaware_key(self))
-                        .await
-                        .change_context(errors::RedisError::GetHashFieldFailed)
+                    track_redis_call(
+                        self.request_id.as_deref(),
+                        self.redis_conn.event_emitter.as_ref(),
+                        RedisOperation::GetHashFields,
+                        conn.hgetall::<_, V>(key.tenant_unaware_key(&self.redis_conn)),
+                    )
+                    .await
+                    .change_context(errors::RedisError::GetHashFieldFailed)
                 }
 
                 #[cfg(not(feature = "multitenancy_fallback"))]
@@ -840,8 +1304,44 @@ impl super::RedisConnectionPool {
             .change_context(errors::RedisError::JsonDeserializationFailed)
     }
 
+    #[instrument(level = "DEBUG", skip(self))]
+    pub async fn delete_hash_fields<F>(
+        &self,
+        key: &RedisKey,
+        fields: F,
+    ) -> CustomResult<usize, errors::RedisError>
+    where
+        F: redis::ToRedisArgs + Debug + Send + Sync,
+    {
+        let mut conn = self.redis_conn.pool.clone();
+        // HDEL returns the number of fields removed (missing fields are ignored, not an error).
+        track_redis_call(
+            self.request_id.as_deref(),
+            self.redis_conn.event_emitter.as_ref(),
+            RedisOperation::DeleteHashFields,
+            conn.hdel(key.tenant_aware_key(&self.redis_conn), fields),
+        )
+        .await
+        .change_context(errors::RedisError::DeleteHashFieldFailed)
+    }
+
     // ─── Set Commands ────────────────────────────────────────────────────────
 
+    #[cfg_attr(
+        feature = "deja",
+        deja::redis(
+            replay = Substitute,
+            operation = "sadd",
+            codec = deja::codec::ResultCodec::<SaddReply, errors::RedisError>,
+            state_write = key.tenant_aware_key(&self.redis_conn),
+            args = {
+                serde_json::json!({
+                    "key": key.as_str(),
+                    "command": "SADD",
+                })
+            },
+        )
+    )]
     #[instrument(level = "DEBUG", skip(self))]
     pub async fn sadd<V>(
         &self,
@@ -851,10 +1351,15 @@ impl super::RedisConnectionPool {
     where
         V: redis::ToRedisArgs + Debug + Send + Sync,
     {
-        let mut conn = self.pool.clone();
-        conn.sadd::<_, _, SaddReply>(key.tenant_aware_key(self), members)
-            .await
-            .change_context(errors::RedisError::SetAddMembersFailed)
+        let mut conn = self.redis_conn.pool.clone();
+        track_redis_call(
+            self.request_id.as_deref(),
+            self.redis_conn.event_emitter.as_ref(),
+            RedisOperation::Sadd,
+            conn.sadd::<_, _, SaddReply>(key.tenant_aware_key(&self.redis_conn), members),
+        )
+        .await
+        .change_context(errors::RedisError::SetAddMembersFailed)
     }
 
     // ─── Stream Commands ─────────────────────────────────────────────────────
@@ -875,15 +1380,19 @@ impl super::RedisConnectionPool {
             .map(|(f, v)| (f.into(), v.into()))
             .collect();
 
-        let mut conn = self.pool.clone();
-        let _: Option<String> = conn
-            .xadd_map(
-                stream.tenant_aware_key(self),
+        let mut conn = self.redis_conn.pool.clone();
+        let _: Option<String> = track_redis_call(
+            self.request_id.as_deref(),
+            self.redis_conn.event_emitter.as_ref(),
+            RedisOperation::StreamAppendEntry,
+            conn.xadd_map(
+                stream.tenant_aware_key(&self.redis_conn),
                 entry_id.to_stream_id(),
                 &pairs,
-            )
-            .await
-            .change_context(errors::RedisError::StreamAppendFailed)?;
+            ),
+        )
+        .await
+        .change_context(errors::RedisError::StreamAppendFailed)?;
         Ok(())
     }
 
@@ -893,10 +1402,15 @@ impl super::RedisConnectionPool {
         stream: &RedisKey,
         ids: Vec<String>,
     ) -> CustomResult<usize, errors::RedisError> {
-        let mut conn = self.pool.clone();
-        conn.xdel(stream.tenant_aware_key(self), &ids)
-            .await
-            .change_context(errors::RedisError::StreamDeleteFailed)
+        let mut conn = self.redis_conn.pool.clone();
+        track_redis_call(
+            self.request_id.as_deref(),
+            self.redis_conn.event_emitter.as_ref(),
+            RedisOperation::StreamDeleteEntries,
+            conn.xdel(stream.tenant_aware_key(&self.redis_conn), &ids),
+        )
+        .await
+        .change_context(errors::RedisError::StreamDeleteFailed)
     }
 
     #[instrument(level = "DEBUG", skip(self))]
@@ -905,15 +1419,20 @@ impl super::RedisConnectionPool {
         stream: &RedisKey,
         config: StreamTrimConfig,
     ) -> CustomResult<usize, errors::RedisError> {
-        let mut conn = self.pool.clone();
+        let mut conn = self.redis_conn.pool.clone();
 
         let options = config
             .to_trim_options()
             .change_context(errors::RedisError::StreamTrimFailed)?;
 
-        conn.xtrim_options(stream.tenant_aware_key(self), &options)
-            .await
-            .change_context(errors::RedisError::StreamTrimFailed)
+        track_redis_call(
+            self.request_id.as_deref(),
+            self.redis_conn.event_emitter.as_ref(),
+            RedisOperation::StreamTrimEntries,
+            conn.xtrim_options(stream.tenant_aware_key(&self.redis_conn), &options),
+        )
+        .await
+        .change_context(errors::RedisError::StreamTrimFailed)
     }
 
     #[instrument(level = "DEBUG", skip(self))]
@@ -923,10 +1442,15 @@ impl super::RedisConnectionPool {
         group: &str,
         ids: Vec<String>,
     ) -> CustomResult<usize, errors::RedisError> {
-        let mut conn = self.pool.clone();
-        conn.xack(stream.tenant_aware_key(self), group, &ids)
-            .await
-            .change_context(errors::RedisError::StreamAcknowledgeFailed)
+        let mut conn = self.redis_conn.pool.clone();
+        track_redis_call(
+            self.request_id.as_deref(),
+            self.redis_conn.event_emitter.as_ref(),
+            RedisOperation::StreamAcknowledgeEntries,
+            conn.xack(stream.tenant_aware_key(&self.redis_conn), group, &ids),
+        )
+        .await
+        .change_context(errors::RedisError::StreamAcknowledgeFailed)
     }
 
     #[instrument(level = "DEBUG", skip(self))]
@@ -934,10 +1458,15 @@ impl super::RedisConnectionPool {
         &self,
         stream: &RedisKey,
     ) -> CustomResult<usize, errors::RedisError> {
-        let mut conn = self.pool.clone();
-        conn.xlen(stream.tenant_aware_key(self))
-            .await
-            .change_context(errors::RedisError::GetLengthFailed)
+        let mut conn = self.redis_conn.pool.clone();
+        track_redis_call(
+            self.request_id.as_deref(),
+            self.redis_conn.event_emitter.as_ref(),
+            RedisOperation::StreamGetLength,
+            conn.xlen(stream.tenant_aware_key(&self.redis_conn)),
+        )
+        .await
+        .change_context(errors::RedisError::GetLengthFailed)
     }
 
     /// Read entries from one or more streams using XREAD.
@@ -950,29 +1479,33 @@ impl super::RedisConnectionPool {
         ids: Vec<String>,
         read_count: Option<u64>,
     ) -> CustomResult<StreamReadResult, errors::RedisError> {
-        let mut conn = self.pool.clone();
+        let mut conn = self.redis_conn.pool.clone();
         let stream_keys: Vec<String> = streams
             .iter()
-            .map(|stream| stream.tenant_aware_key(self))
+            .map(|stream| stream.tenant_aware_key(&self.redis_conn))
             .collect();
 
-        let count = read_count.unwrap_or(self.config.default_stream_read_count);
+        let count = read_count.unwrap_or(self.redis_conn.config.default_stream_read_count);
 
         let options = StreamReadOptions::default()
             .count(usize::try_from(count).change_context(errors::RedisError::StreamReadFailed)?);
 
-        let reply: redis::streams::StreamReadReply = conn
-            .xread_options(&stream_keys, &ids, &options)
-            .await
-            .map_err(|err| {
-                let kind = err.kind();
-                match kind {
-                    redis::ErrorKind::UnexpectedReturnType | redis::ErrorKind::Parse => {
-                        report!(err).change_context(errors::RedisError::StreamEmptyOrNotAvailable)
-                    }
-                    _ => report!(err).change_context(errors::RedisError::StreamReadFailed),
+        let reply: redis::streams::StreamReadReply = track_redis_call(
+            self.request_id.as_deref(),
+            self.redis_conn.event_emitter.as_ref(),
+            RedisOperation::StreamReadEntries,
+            conn.xread_options(&stream_keys, &ids, &options),
+        )
+        .await
+        .map_err(|err| {
+            let kind = err.kind();
+            match kind {
+                redis::ErrorKind::UnexpectedReturnType | redis::ErrorKind::Parse => {
+                    report!(err).change_context(errors::RedisError::StreamEmptyOrNotAvailable)
                 }
-            })?;
+                _ => report!(err).change_context(errors::RedisError::StreamReadFailed),
+            }
+        })?;
 
         Ok(reply
             .keys
@@ -1013,10 +1546,10 @@ impl super::RedisConnectionPool {
         block: Option<u64>,
         group: Option<(&str, &str)>,
     ) -> CustomResult<StreamReadResult, errors::RedisError> {
-        let mut conn = self.pool.clone();
+        let mut conn = self.redis_conn.pool.clone();
         let stream_keys: Vec<String> = streams
             .iter()
-            .map(|stream| stream.tenant_aware_key(self))
+            .map(|stream| stream.tenant_aware_key(&self.redis_conn))
             .collect();
 
         let mut options = StreamReadOptions::default();
@@ -1035,18 +1568,22 @@ impl super::RedisConnectionPool {
             options = options.group(group_name, consumer_name);
         }
 
-        let reply: redis::streams::StreamReadReply = conn
-            .xread_options(&stream_keys, &ids, &options)
-            .await
-            .map_err(|err| {
-                let kind = err.kind();
-                match kind {
-                    redis::ErrorKind::UnexpectedReturnType | redis::ErrorKind::Parse => {
-                        report!(err).change_context(errors::RedisError::StreamEmptyOrNotAvailable)
-                    }
-                    _ => report!(err).change_context(errors::RedisError::StreamReadFailed),
+        let reply: redis::streams::StreamReadReply = track_redis_call(
+            self.request_id.as_deref(),
+            self.redis_conn.event_emitter.as_ref(),
+            RedisOperation::StreamReadWithOptions,
+            conn.xread_options(&stream_keys, &ids, &options),
+        )
+        .await
+        .map_err(|err| {
+            let kind = err.kind();
+            match kind {
+                redis::ErrorKind::UnexpectedReturnType | redis::ErrorKind::Parse => {
+                    report!(err).change_context(errors::RedisError::StreamEmptyOrNotAvailable)
                 }
-            })?;
+                _ => report!(err).change_context(errors::RedisError::StreamReadFailed),
+            }
+        })?;
 
         Ok(reply
             .keys
@@ -1085,10 +1622,15 @@ impl super::RedisConnectionPool {
     where
         V: redis::ToRedisArgs + Debug + Send + Sync,
     {
-        let mut conn = self.pool.clone();
-        conn.rpush::<_, _, ()>(key.tenant_aware_key(self), elements)
-            .await
-            .change_context(errors::RedisError::AppendElementsToListFailed)
+        let mut conn = self.redis_conn.pool.clone();
+        track_redis_call(
+            self.request_id.as_deref(),
+            self.redis_conn.event_emitter.as_ref(),
+            RedisOperation::AppendElementsToList,
+            conn.rpush::<_, _, ()>(key.tenant_aware_key(&self.redis_conn), elements),
+        )
+        .await
+        .change_context(errors::RedisError::AppendElementsToListFailed)
     }
 
     #[instrument(level = "DEBUG", skip(self))]
@@ -1098,11 +1640,16 @@ impl super::RedisConnectionPool {
         start: i64,
         stop: i64,
     ) -> CustomResult<Vec<String>, errors::RedisError> {
-        let mut conn = self.pool.clone();
-        conn.lrange::<_, Vec<String>>(
-            key.tenant_aware_key(self),
-            isize::try_from(start).change_context(errors::RedisError::GetListElementsFailed)?,
-            isize::try_from(stop).change_context(errors::RedisError::GetListElementsFailed)?,
+        let mut conn = self.redis_conn.pool.clone();
+        track_redis_call(
+            self.request_id.as_deref(),
+            self.redis_conn.event_emitter.as_ref(),
+            RedisOperation::GetListElements,
+            conn.lrange::<_, Vec<String>>(
+                key.tenant_aware_key(&self.redis_conn),
+                isize::try_from(start).change_context(errors::RedisError::GetListElementsFailed)?,
+                isize::try_from(stop).change_context(errors::RedisError::GetListElementsFailed)?,
+            ),
         )
         .await
         .change_context(errors::RedisError::GetListElementsFailed)
@@ -1110,10 +1657,15 @@ impl super::RedisConnectionPool {
 
     #[instrument(level = "DEBUG", skip(self))]
     pub async fn get_list_length(&self, key: &RedisKey) -> CustomResult<usize, errors::RedisError> {
-        let mut conn = self.pool.clone();
-        conn.llen::<_, usize>(key.tenant_aware_key(self))
-            .await
-            .change_context(errors::RedisError::GetListLengthFailed)
+        let mut conn = self.redis_conn.pool.clone();
+        track_redis_call(
+            self.request_id.as_deref(),
+            self.redis_conn.event_emitter.as_ref(),
+            RedisOperation::GetListLength,
+            conn.llen::<_, usize>(key.tenant_aware_key(&self.redis_conn)),
+        )
+        .await
+        .change_context(errors::RedisError::GetListLengthFailed)
     }
 
     #[instrument(level = "DEBUG", skip(self))]
@@ -1122,11 +1674,16 @@ impl super::RedisConnectionPool {
         key: &RedisKey,
         count: Option<usize>,
     ) -> CustomResult<Vec<String>, errors::RedisError> {
-        let mut conn = self.pool.clone();
+        let mut conn = self.redis_conn.pool.clone();
         let non_zero_count = count.and_then(std::num::NonZeroUsize::new);
-        conn.lpop::<_, Vec<String>>(key.tenant_aware_key(self), non_zero_count)
-            .await
-            .change_context(errors::RedisError::PopListElementsFailed)
+        track_redis_call(
+            self.request_id.as_deref(),
+            self.redis_conn.event_emitter.as_ref(),
+            RedisOperation::LpopListElements,
+            conn.lpop::<_, Vec<String>>(key.tenant_aware_key(&self.redis_conn), non_zero_count),
+        )
+        .await
+        .change_context(errors::RedisError::PopListElementsFailed)
     }
 
     //                                              Consumer Group API
@@ -1145,11 +1702,19 @@ impl super::RedisConnectionPool {
             Err(errors::RedisError::InvalidRedisEntryId)?;
         }
 
-        let mut conn = self.pool.clone();
-        let _: () = conn
-            .xgroup_create_mkstream(stream.tenant_aware_key(self), group, id.to_stream_id())
-            .await
-            .change_context(errors::RedisError::ConsumerGroupCreateFailed)?;
+        let mut conn = self.redis_conn.pool.clone();
+        let _: () = track_redis_call(
+            self.request_id.as_deref(),
+            self.redis_conn.event_emitter.as_ref(),
+            RedisOperation::ConsumerGroupCreate,
+            conn.xgroup_create_mkstream(
+                stream.tenant_aware_key(&self.redis_conn),
+                group,
+                id.to_stream_id(),
+            ),
+        )
+        .await
+        .change_context(errors::RedisError::ConsumerGroupCreateFailed)?;
         Ok(())
     }
 
@@ -1159,11 +1724,15 @@ impl super::RedisConnectionPool {
         stream: &RedisKey,
         group: &str,
     ) -> CustomResult<crate::types::ConsumerGroupDestroyReply, errors::RedisError> {
-        let mut conn = self.pool.clone();
-        let reply: crate::types::ConsumerGroupDestroyReply = conn
-            .xgroup_destroy(stream.tenant_aware_key(self), group)
-            .await
-            .change_context(errors::RedisError::ConsumerGroupDestroyFailed)?;
+        let mut conn = self.redis_conn.pool.clone();
+        let reply: crate::types::ConsumerGroupDestroyReply = track_redis_call(
+            self.request_id.as_deref(),
+            self.redis_conn.event_emitter.as_ref(),
+            RedisOperation::ConsumerGroupDestroy,
+            conn.xgroup_destroy(stream.tenant_aware_key(&self.redis_conn), group),
+        )
+        .await
+        .change_context(errors::RedisError::ConsumerGroupDestroyFailed)?;
         Ok(reply)
     }
 
@@ -1175,10 +1744,15 @@ impl super::RedisConnectionPool {
         group: &str,
         consumer: &str,
     ) -> CustomResult<usize, errors::RedisError> {
-        let mut conn = self.pool.clone();
-        conn.xgroup_delconsumer(stream.tenant_aware_key(self), group, consumer)
-            .await
-            .change_context(errors::RedisError::ConsumerGroupRemoveConsumerFailed)
+        let mut conn = self.redis_conn.pool.clone();
+        track_redis_call(
+            self.request_id.as_deref(),
+            self.redis_conn.event_emitter.as_ref(),
+            RedisOperation::ConsumerGroupDeleteConsumer,
+            conn.xgroup_delconsumer(stream.tenant_aware_key(&self.redis_conn), group, consumer),
+        )
+        .await
+        .change_context(errors::RedisError::ConsumerGroupRemoveConsumerFailed)
     }
 
     #[instrument(level = "DEBUG", skip(self))]
@@ -1188,11 +1762,19 @@ impl super::RedisConnectionPool {
         group: &str,
         id: &RedisEntryId,
     ) -> CustomResult<String, errors::RedisError> {
-        let mut conn = self.pool.clone();
-        let _: () = conn
-            .xgroup_setid(stream.tenant_aware_key(self), group, id.to_stream_id())
-            .await
-            .change_context(errors::RedisError::ConsumerGroupSetIdFailed)?;
+        let mut conn = self.redis_conn.pool.clone();
+        let _: () = track_redis_call(
+            self.request_id.as_deref(),
+            self.redis_conn.event_emitter.as_ref(),
+            RedisOperation::ConsumerGroupSetLastId,
+            conn.xgroup_setid(
+                stream.tenant_aware_key(&self.redis_conn),
+                group,
+                id.to_stream_id(),
+            ),
+        )
+        .await
+        .change_context(errors::RedisError::ConsumerGroupSetIdFailed)?;
         Ok(id.to_stream_id().to_string())
     }
 
@@ -1208,13 +1790,18 @@ impl super::RedisConnectionPool {
     where
         R: FromRedisValue + Send + 'static,
     {
-        let mut conn = self.pool.clone();
-        conn.xclaim(
-            stream.tenant_aware_key(self),
-            group,
-            consumer,
-            min_idle_time,
-            &ids,
+        let mut conn = self.redis_conn.pool.clone();
+        track_redis_call(
+            self.request_id.as_deref(),
+            self.redis_conn.event_emitter.as_ref(),
+            RedisOperation::ConsumerGroupSetMessageOwner,
+            conn.xclaim(
+                stream.tenant_aware_key(&self.redis_conn),
+                group,
+                consumer,
+                min_idle_time,
+                &ids,
+            ),
         )
         .await
         .change_context(errors::RedisError::ConsumerGroupClaimFailed)
@@ -1233,7 +1820,7 @@ impl super::RedisConnectionPool {
         V: redis::ToRedisArgs + Debug + Send + Sync,
         T: serde::de::DeserializeOwned + FromRedisValue,
     {
-        let mut conn = self.pool.clone();
+        let mut conn = self.redis_conn.pool.clone();
         let script = redis::Script::new(lua_script);
         let mut invocation = script.prepare_invoke();
 
@@ -1242,10 +1829,14 @@ impl super::RedisConnectionPool {
         }
         invocation.arg(values);
 
-        let val: T = invocation
-            .invoke_async(&mut conn)
-            .await
-            .change_context(errors::RedisError::ScriptExecutionFailed)?;
+        let val: T = track_redis_call(
+            self.request_id.as_deref(),
+            self.redis_conn.event_emitter.as_ref(),
+            RedisOperation::EvaluateRedisScript,
+            invocation.invoke_async(&mut conn),
+        )
+        .await
+        .change_context(errors::RedisError::ScriptExecutionFailed)?;
         Ok(val)
     }
 
@@ -1289,10 +1880,10 @@ impl super::RedisConnectionPool {
     where
         V: redis::ToRedisArgs + Debug + FromRedisValue + Send + Sync + serde::de::DeserializeOwned,
     {
-        let redis_key = key.tenant_aware_key(self);
-        let ttl_seconds = ttl.unwrap_or(self.config.default_ttl.into());
+        let redis_key = key.tenant_aware_key(&self.redis_conn);
+        let ttl_seconds = ttl.unwrap_or(self.redis_conn.config.default_ttl.into());
 
-        let mut conn = self.pool.clone();
+        let mut conn = self.redis_conn.pool.clone();
 
         // Build an atomic pipeline (MULTI/EXEC)
         let mut pipe = redis::pipe();
@@ -1311,11 +1902,15 @@ impl super::RedisConnectionPool {
         // Execute the transaction.
         // Redis MULTI/EXEC guarantees results are returned in the same order
         // as the commands were queued: [SET result, GET result].
-        let results: Vec<redis::Value> = pipe
-            .query_async(&mut conn)
-            .await
-            .change_context(errors::RedisError::SetFailed)
-            .attach_printable("Failed to execute the redis transaction")?;
+        let results: Vec<redis::Value> = track_redis_call(
+            self.request_id.as_deref(),
+            self.redis_conn.event_emitter.as_ref(),
+            RedisOperation::SetKeyIfNotExistsAndGetValue,
+            pipe.query_async(&mut conn),
+        )
+        .await
+        .change_context(errors::RedisError::SetFailed)
+        .attach_printable("Failed to execute the redis transaction")?;
 
         let msg = "Got unexpected number of results from transaction";
         if results.len() < 2 {

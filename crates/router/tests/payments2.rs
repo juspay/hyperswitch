@@ -23,7 +23,7 @@ fn connector_list() {
 
     let json = serde_json::to_string(&connector_list).unwrap();
 
-    println!("{}", &json);
+    println!("{}", json);
 
     let newlist: types::ConnectorsList = serde_json::from_str(&json).unwrap();
 
@@ -134,6 +134,7 @@ async fn payments_create_core() {
 
     let expected_response = api::PaymentsResponse {
         payment_id,
+        applied_offer: None,
         status: api_enums::IntentStatus::Succeeded,
         amount: MinorUnit::new(6540),
         amount_capturable: MinorUnit::new(0),
@@ -271,6 +272,7 @@ async fn payments_create_core() {
         None,
         None,
         hyperswitch_domain_models::payments::HeaderPayload::default(),
+        None,
     ))
     .await
     .unwrap();
@@ -449,6 +451,7 @@ async fn payments_create_core_adyen_no_redirect() {
     let expected_response = services::ApplicationResponse::JsonWithHeaders((
         api::PaymentsResponse {
             payment_id: payment_id.clone(),
+            applied_offer: None,
             status: api_enums::IntentStatus::Processing,
             amount: MinorUnit::new(6540),
             amount_capturable: MinorUnit::new(0),
@@ -585,6 +588,7 @@ async fn payments_create_core_adyen_no_redirect() {
         None,
         None,
         hyperswitch_domain_models::payments::HeaderPayload::default(),
+        None,
     ))
     .await
     .unwrap();

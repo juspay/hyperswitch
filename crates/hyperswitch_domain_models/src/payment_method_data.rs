@@ -193,6 +193,14 @@ pub struct CardWithLimitedData {
 
     /// The ECI(Electronic Commerce Indicator) value for this authentication.
     pub eci: Option<String>,
+
+    /// The network transaction ID provided by the card network during a Customer Initiated Transaction (CIT)
+    /// when `setup_future_usage` is set to `off_session`.
+    pub network_transaction_id: Option<Secret<String>>,
+
+    /// The Mastercard Transaction Link Identifier (TLID) provided by the card network during a CIT (Customer Initiated Transaction),
+    /// when `setup_future_usage` is set to `off_session`.
+    pub transaction_link_id: Option<String>,
 }
 
 // Determines if decryption should be performed
@@ -206,6 +214,38 @@ pub enum ApplePayFlow {
 }
 
 impl PaymentMethodData {
+    /// BIN for any card-bearing variant — raw, saved, network-token, or NTID-based MIT.
+    pub fn get_card_iin(&self) -> Option<String> {
+        match self {
+            Self::Card(card) => Some(card.card_number.get_card_isin()),
+            Self::CardWithOptionalCVC(card) => Some(card.card_number.get_card_isin()),
+            Self::CardWithNetworkTokenDetails(card) => {
+                Some(card.card_details.card_number.get_card_isin())
+            }
+            Self::CardDetailsForNetworkTransactionId(card) => {
+                Some(card.card_number.get_card_isin())
+            }
+            Self::CardWithLimitedDetails(card) => Some(card.card_number.get_card_isin()),
+            _ => None,
+        }
+    }
+
+    /// Extended BIN for any variant that carries the original card number.
+    pub fn get_card_extended_bin(&self) -> Option<String> {
+        match self {
+            Self::Card(card) => Some(card.card_number.get_extended_card_bin()),
+            Self::CardWithOptionalCVC(card) => Some(card.card_number.get_extended_card_bin()),
+            Self::CardWithNetworkTokenDetails(card) => {
+                Some(card.card_details.card_number.get_extended_card_bin())
+            }
+            Self::CardDetailsForNetworkTransactionId(card) => {
+                Some(card.card_number.get_extended_card_bin())
+            }
+            Self::CardWithLimitedDetails(card) => Some(card.card_number.get_extended_card_bin()),
+            _ => None,
+        }
+    }
+
     pub fn apply_additional_payment_data(
         &self,
         additional_payment_data: api_models::payments::AdditionalPaymentData,
@@ -359,12 +399,43 @@ pub enum EligibilityPaymentMethodData {
 
 impl EligibilityPaymentMethodData {
     pub fn is_eligible_for_profile_config_blocklist(&self) -> bool {
-        matches!(self, Self::Card(_))
+        matches!(self, Self::Card(_) | Self::Wallet(_))
     }
 
     pub fn get_card_iin(&self) -> Option<String> {
         match self {
             Self::Card(card) => Some(card.card_number.get_card_isin()),
+            _ => None,
+        }
+    }
+
+    pub fn get_card_data(&self) -> Option<&EligibilityCard> {
+        if let Self::Card(card) = self {
+            Some(card)
+        } else {
+            None
+        }
+    }
+
+    /// 8-digit BIN of a wallet's decrypted token. `None` while the token is still encrypted.
+    pub fn get_decrypted_token_extended_bin(&self) -> Option<String> {
+        match self {
+            Self::Wallet(WalletData::GooglePay(google_pay)) => google_pay
+                .tokenization_data
+                .get_decrypted_google_pay_payment_data_optional()
+                .map(|decrypted_data| {
+                    decrypted_data
+                        .application_primary_account_number
+                        .get_extended_card_bin()
+                }),
+            Self::Wallet(WalletData::ApplePay(apple_pay)) => apple_pay
+                .payment_data
+                .get_decrypted_apple_pay_payment_data_optional()
+                .map(|decrypted_data| {
+                    decrypted_data
+                        .application_primary_account_number
+                        .get_extended_card_bin()
+                }),
             _ => None,
         }
     }
@@ -450,6 +521,23 @@ pub struct CardWithOptionalCVC {
 }
 
 impl CardWithOptionalCVC {
+    pub fn get_card_expiry_month_2_digit(
+        &self,
+    ) -> Result<Secret<String>, common_utils::errors::ValidationError> {
+        let exp_month = self.card_exp_month.peek().parse::<u8>().map_err(|_| {
+            common_utils::errors::ValidationError::InvalidValue {
+                message: "Invalid card expiry month".to_string(),
+            }
+        })?;
+        let month = ::cards::CardExpirationMonth::try_from(exp_month).map_err(|_| {
+            common_utils::errors::ValidationError::InvalidValue {
+                message: "Invalid card expiry month".to_string(),
+            }
+        })?;
+
+        Ok(Secret::new(month.two_digits()))
+    }
+
     fn apply_additional_card_info(
         &self,
         additional_card_info: api_models::payments::AdditionalCardInfo,
@@ -671,7 +759,13 @@ impl CardWithLimitedDetails {
         card_with_limited_data: CardWithLimitedData,
     ) -> (mandates::MandateReferenceId, PaymentMethodData) {
         (
-            mandates::MandateReferenceId::CardWithLimitedData,
+            mandates::MandateReferenceId::CardWithLimitedData(mandates::CardWithLimitedDataRef {
+                network_transaction_id: card_with_limited_data
+                    .clone()
+                    .network_transaction_id
+                    .map(|id| id.peek().to_string()),
+                transaction_link_id: card_with_limited_data.transaction_link_id.clone(),
+            }),
             PaymentMethodData::CardWithLimitedDetails(card_with_limited_data.into()),
         )
     }
@@ -1225,7 +1319,38 @@ pub enum BankRedirectData {
     Eft {
         provider: String,
     },
-    OpenBanking {},
+    OpenBanking {
+        iban: Option<Secret<String>>,
+        account_number: Option<Secret<String>>,
+        sort_code: Option<Secret<String>>,
+        account_holder_name: Option<Secret<String>>,
+        additional_details: Option<Secret<serde_json::Value>>,
+    },
+}
+
+impl BankRedirectData {
+    pub fn get_bank_redirect_details(self) -> Option<BankRedirectDetailsPaymentMethod> {
+        match self {
+            Self::OpenBanking {
+                iban,
+                account_number,
+                sort_code,
+                account_holder_name,
+                additional_details: _,
+            } => Some(BankRedirectDetailsPaymentMethod::OpenBanking {
+                masked_iban: iban
+                    .map(|iban| common_utils::new_type::mask_sensitive_field(iban.peek(), 4)),
+                masked_account_number: account_number.map(|account_number| {
+                    common_utils::new_type::mask_sensitive_field(account_number.peek(), 4)
+                }),
+                masked_sort_code: sort_code.map(|sort_code| {
+                    common_utils::new_type::mask_sensitive_field(sort_code.peek(), 4)
+                }),
+                account_holder_name,
+            }),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -1419,6 +1544,10 @@ pub struct CardToken {
 
     /// The CVC number for the card
     pub card_cvc: Option<Secret<String>>,
+
+    /// Token referencing a CVC vaulted in the hyperswitch (self-hosted) vault, resolved by the
+    /// server to the raw CVC for the self-hosted default-vault repeat-customer flow.
+    pub card_cvc_token: Option<Secret<String>>,
 }
 
 #[derive(serde::Deserialize, serde::Serialize, Debug, Clone, Eq, PartialEq)]
@@ -1470,24 +1599,14 @@ impl BankDebitData {
                 bank_type,
                 bank_holder_type,
             } => Some(BankDebitDetailsPaymentMethod::AchBankDebit {
-                masked_account_number: account_number
-                    .peek()
-                    .chars()
-                    .rev()
-                    .take(4)
-                    .collect::<String>()
-                    .chars()
-                    .rev()
-                    .collect::<String>(),
-                masked_routing_number: routing_number
-                    .peek()
-                    .chars()
-                    .rev()
-                    .take(4)
-                    .collect::<String>()
-                    .chars()
-                    .rev()
-                    .collect::<String>(),
+                masked_account_number: common_utils::new_type::mask_sensitive_field(
+                    account_number.peek(),
+                    4,
+                ),
+                masked_routing_number: common_utils::new_type::mask_sensitive_field(
+                    routing_number.peek(),
+                    4,
+                ),
                 bank_account_holder_name,
                 bank_name,
                 bank_type,
@@ -1531,29 +1650,17 @@ pub enum BankDebitDetail {
 impl BankDebitDetail {
     pub fn get_masked_account_number(&self) -> String {
         match self {
-            Self::Ach { account_number, .. } => account_number
-                .peek()
-                .chars()
-                .rev()
-                .take(4)
-                .collect::<String>()
-                .chars()
-                .rev()
-                .collect::<String>(),
+            Self::Ach { account_number, .. } => {
+                common_utils::new_type::mask_sensitive_field(account_number.peek(), 4)
+            }
         }
     }
 
     pub fn get_masked_routing_number(&self) -> String {
         match self {
-            Self::Ach { routing_number, .. } => routing_number
-                .peek()
-                .chars()
-                .rev()
-                .take(4)
-                .collect::<String>()
-                .chars()
-                .rev()
-                .collect::<String>(),
+            Self::Ach { routing_number, .. } => {
+                common_utils::new_type::mask_sensitive_field(routing_number.peek(), 4)
+            }
         }
     }
 }
@@ -1658,6 +1765,11 @@ pub enum WalletDetail {
         expiry_month: Secret<String>,
         expiry_year: Secret<String>,
     },
+    GooglePayDecryptedData {
+        application_primary_account_number: cards::CardNumber,
+        expiry_month: Secret<String>,
+        expiry_year: Secret<String>,
+    },
 }
 
 #[cfg(feature = "v1")]
@@ -1673,10 +1785,64 @@ impl From<payment_methods::WalletDetail> for WalletDetail {
                 expiry_month,
                 expiry_year,
             },
+            payment_methods::WalletDetail::GooglePayDecryptedData {
+                application_primary_account_number,
+                expiry_month,
+                expiry_year,
+            } => Self::GooglePayDecryptedData {
+                application_primary_account_number,
+                expiry_month,
+                expiry_year,
+            },
         }
     }
 }
 
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum BankRedirectDetail {
+    OpenBanking {
+        iban: Option<Secret<String>>,
+        account_number: Option<Secret<String>>,
+        sort_code: Option<Secret<String>>,
+    },
+}
+
+#[cfg(feature = "v1")]
+impl From<payment_methods::BankRedirectData> for BankRedirectDetail {
+    fn from(bank_redirect: payment_methods::BankRedirectData) -> Self {
+        match bank_redirect {
+            payment_methods::BankRedirectData::OpenBanking {
+                iban,
+                account_number,
+                sort_code,
+                account_holder_name: _,
+            } => Self::OpenBanking {
+                iban,
+                account_number,
+                sort_code,
+            },
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
+impl From<BankRedirectDetailsPaymentMethod> for BankRedirectDetail {
+    fn from(bank_redirect: BankRedirectDetailsPaymentMethod) -> Self {
+        match bank_redirect {
+            BankRedirectDetailsPaymentMethod::OpenBanking {
+                masked_account_number,
+                masked_sort_code,
+                account_holder_name: _,
+                masked_iban,
+            } => Self::OpenBanking {
+                account_number: masked_account_number.map(Secret::new),
+                iban: masked_iban.map(Secret::new),
+                sort_code: masked_sort_code.map(Secret::new),
+            },
+        }
+    }
+}
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum BankTransferData {
@@ -1706,6 +1872,7 @@ pub enum BankTransferData {
         expiry_date: Option<time::PrimitiveDateTime>,
     },
     PixEmv {},
+    PixQr {},
     PixAutomaticoPush {
         account_number: Option<Secret<String>>,
         branch_code: Option<Secret<String>>,
@@ -1872,6 +2039,9 @@ impl From<api_models::payments::PaymentMethodData> for PaymentMethodData {
             api_models::payments::PaymentMethodData::Card(card_data) => {
                 Self::Card(Card::from((card_data, None)))
             }
+            api_models::payments::PaymentMethodData::CardWithNoCVC(card_data) => {
+                Self::CardWithOptionalCVC(CardWithOptionalCVC::from((card_data, None)))
+            }
             api_models::payments::PaymentMethodData::CardRedirect(card_redirect) => {
                 Self::CardRedirect(From::from(card_redirect))
             }
@@ -2025,6 +2195,50 @@ impl
             card_exp_month,
             card_exp_year,
             card_cvc,
+            card_issuer,
+            card_network,
+            card_type,
+            card_issuing_country,
+            card_issuing_country_code,
+            bank_code,
+            nick_name,
+            card_holder_name,
+            co_badged_card_data: co_badged_card_data_optional,
+        }
+    }
+}
+
+impl
+    From<(
+        api_models::payments::CardWithNoCVC,
+        Option<payment_methods::CoBadgedCardData>,
+    )> for CardWithOptionalCVC
+{
+    fn from(
+        (value, co_badged_card_data_optional): (
+            api_models::payments::CardWithNoCVC,
+            Option<payment_methods::CoBadgedCardData>,
+        ),
+    ) -> Self {
+        let api_models::payments::CardWithNoCVC {
+            card_number,
+            card_exp_month,
+            card_exp_year,
+            card_holder_name,
+            card_issuer,
+            card_network,
+            card_type,
+            card_issuing_country,
+            card_issuing_country_code,
+            bank_code,
+            nick_name,
+        } = value;
+
+        Self {
+            card_number,
+            card_exp_month,
+            card_exp_year,
+            card_cvc: None,
             card_issuer,
             card_network,
             card_type,
@@ -2599,7 +2813,13 @@ impl From<api_models::payments::BankRedirectData> for BankRedirectData {
                 Self::LocalBankRedirect {}
             }
             api_models::payments::BankRedirectData::Eft { provider } => Self::Eft { provider },
-            api_models::payments::BankRedirectData::OpenBanking { .. } => Self::OpenBanking {},
+            api_models::payments::BankRedirectData::OpenBanking { .. } => Self::OpenBanking {
+                iban: None,
+                account_holder_name: None,
+                account_number: None,
+                sort_code: None,
+                additional_details: None,
+            },
         }
     }
 }
@@ -2826,10 +3046,12 @@ impl From<api_models::payments::CardToken> for CardToken {
         let api_models::payments::CardToken {
             card_holder_name,
             card_cvc,
+            card_cvc_token,
         } = value;
         Self {
             card_holder_name,
             card_cvc,
+            card_cvc_token,
         }
     }
 }
@@ -3047,6 +3269,7 @@ impl From<api_models::payments::BankTransferData> for BankTransferData {
                 expiry_date,
             },
             api_models::payments::BankTransferData::PixEmv {} => Self::PixEmv {},
+            api_models::payments::BankTransferData::PixQr {} => Self::PixQr {},
             api_models::payments::BankTransferData::PixAutomaticoPush {
                 account_number,
                 branch_code,
@@ -3117,6 +3340,7 @@ impl From<BankTransferData> for api_models::payments::additional_info::BankTrans
                 },
             )),
             BankTransferData::PixEmv {} => Self::PixEmv {},
+            BankTransferData::PixQr {} => Self::PixQr {},
             BankTransferData::PixAutomaticoPush {
                 account_number,
                 branch_code,
@@ -3450,6 +3674,7 @@ impl GetPaymentMethodType for BankTransferData {
             Self::MandiriVaBankTransfer { .. } => api_enums::PaymentMethodType::MandiriVa,
             Self::Pix { .. } => api_enums::PaymentMethodType::Pix,
             Self::PixEmv {} => api_enums::PaymentMethodType::PixEmv,
+            Self::PixQr {} => api_enums::PaymentMethodType::PixQr,
             Self::PixAutomaticoPush { .. } => api_enums::PaymentMethodType::PixAutomaticoPush,
             Self::PixAutomaticoQr {} => api_enums::PaymentMethodType::PixAutomaticoQr,
             Self::Pse {} => api_enums::PaymentMethodType::Pse,
@@ -3621,6 +3846,7 @@ pub enum PaymentMethodsData {
     WalletDetails(payment_methods::PaymentMethodDataWalletInfo), //PaymentMethodDataWalletInfo and its transformations should be moved to the domain models
     NetworkToken(NetworkTokenDetailsPaymentMethod),
     BankDebit(BankDebitDetailsPaymentMethod),
+    BankRedirect(BankRedirectDetailsPaymentMethod),
 }
 
 impl PaymentMethodsData {
@@ -3665,7 +3891,8 @@ impl PaymentMethodsData {
             Self::BankDetails(_)
             | Self::WalletDetails(_)
             | Self::NetworkToken(_)
-            | Self::BankDebit(_) => None,
+            | Self::BankDebit(_)
+            | Self::BankRedirect(_) => None,
         }
     }
     pub fn get_card_details(&self) -> Option<CardDetailsPaymentMethod> {
@@ -3708,6 +3935,17 @@ pub enum BankDebitDetailsPaymentMethod {
         bank_name: Option<common_enums::BankNames>,
         bank_type: Option<common_enums::BankType>,
         bank_holder_type: Option<common_enums::BankHolderType>,
+    },
+}
+
+#[derive(serde::Deserialize, serde::Serialize, Debug, Clone, Eq, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum BankRedirectDetailsPaymentMethod {
+    OpenBanking {
+        masked_account_number: Option<String>,
+        masked_sort_code: Option<String>,
+        account_holder_name: Option<Secret<String>>,
+        masked_iban: Option<String>,
     },
 }
 
@@ -4382,6 +4620,8 @@ impl From<api_mandates::CardWithLimitedData> for CardWithLimitedData {
             card_exp_year: card_with_limited_data.card_exp_year,
             card_holder_name: card_with_limited_data.card_holder_name,
             eci: card_with_limited_data.eci,
+            network_transaction_id: card_with_limited_data.network_transaction_id,
+            transaction_link_id: card_with_limited_data.transaction_link_id,
         }
     }
 }

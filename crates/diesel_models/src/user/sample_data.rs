@@ -326,7 +326,9 @@ impl PaymentAttemptBatchNew {
             retry_type: None,
             installment_data: None,
             external_surcharge_details: None,
+            applied_offer_details: None,
             sender_payment_instrument_id: None,
+            external_threeds_authentication_type: None,
         }
     }
 }

@@ -57,7 +57,7 @@ where
         router_data: &RouterData<Self, types::CompleteAuthorizeData, types::PaymentsResponseData>,
         call_connector_action: CallConnectorAction,
         _connector_request: Option<Request>,
-        _return_raw_connector_response: Option<bool>,
+        return_raw_connector_response: Option<bool>,
         context: RouterGatewayContext,
     ) -> CustomResult<
         RouterData<Self, types::CompleteAuthorizeData, types::PaymentsResponseData>,
@@ -86,7 +86,7 @@ where
         let connector_auth_metadata =
             unified_connector_service::build_unified_connector_service_auth_metadata(
                 merchant_connector_account,
-                processor,
+                processor.get_account().get_id(),
                 router_data.connector.clone(),
             )
             .change_context(ConnectorError::RequestEncodingFailed)
@@ -117,13 +117,19 @@ where
             header_payload,
             unified_connector_service_execution_mode,
             |mut router_data, granular_authorize_request, grpc_headers| async move {
-                let response = Box::pin(client.payment_authorize(
+                let response = match Box::pin(client.payment_authorize(
                     granular_authorize_request,
                     connector_auth_metadata,
                     grpc_headers,
                 ))
                 .await
-                .attach_printable("Failed to get payment")?;
+                {
+                    Ok(response) => response,
+                    // UCS connector errors are handled by the wrapper — see `ucs_logging_wrapper_granular`.
+                    Err(report) => {
+                        return Err(report.attach_printable("Failed to get payment"));
+                    }
+                };
 
                 let payment_authorize_response = response.into_inner();
 
@@ -152,10 +158,12 @@ where
                 router_data.minor_amount_captured = payment_authorize_response
                     .captured_amount
                     .map(MinorUnit::new);
-                router_data.raw_connector_response = payment_authorize_response
-                    .raw_connector_response
-                    .clone()
-                    .map(|raw_connector_response| raw_connector_response.expose().into());
+                if return_raw_connector_response.unwrap_or(false) {
+                    router_data.raw_connector_response = payment_authorize_response
+                        .raw_connector_response
+                        .clone()
+                        .map(|raw_connector_response| raw_connector_response.expose().into());
+                }
                 router_data.connector_http_status_code = Some(ucs_data.status_code);
 
                 ucs_data.connector_response.map(|customer_response| {
@@ -167,7 +175,7 @@ where
         ))
         .await
         .map(|(router_data, _)| router_data)
-        .change_context(ConnectorError::ResponseHandlingFailed)
+        .map_err(super::convert_ucs_error_to_connector_error)
     }
 }
 

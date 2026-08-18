@@ -89,6 +89,7 @@ pub enum Connector {
     Chargebee,
     Checkbook,
     Checkout,
+    Citigate,
     Coinbase,
     Coingate,
     Custombilling,
@@ -115,6 +116,7 @@ pub enum Connector {
     Forte,
     Getnet,
     Gigadat,
+    Givepayments,
     Globalpay,
     Globepay,
     Gocardless,
@@ -130,6 +132,7 @@ pub enum Connector {
     Imerchantsolutions,
     Itaubank,
     Jpmorgan,
+    Juspay,
     Juspaythreedsserver,
     Klarna,
     Loonio,
@@ -190,6 +193,7 @@ pub enum Connector {
     Trustpay,
     Trustpayments,
     Tsys,
+    TsysTransit,
     // UnifiedAuthenticationService,
     Vgs,
     Volt,
@@ -226,6 +230,7 @@ impl Connector {
                 | (Self::Worldpay, Some(PayoutType::Wallet))
                 | (Self::Worldpayxml, Some(PayoutType::Wallet))
                 | (Self::Itaubank, Some(PayoutType::Bank))
+                | (Self::Deutschebank, Some(PayoutType::Bank))
         )
     }
     #[cfg(feature = "payouts")]
@@ -237,7 +242,17 @@ impl Connector {
     }
     #[cfg(feature = "payouts")]
     pub fn supports_payout_eligibility(self, payout_method: Option<PayoutType>) -> bool {
-        matches!((self, payout_method), (_, Some(PayoutType::Card)))
+        matches!(
+            (self, payout_method),
+            (_, Some(PayoutType::Card)) | (Self::Deutschebank, Some(PayoutType::Bank))
+        )
+    }
+    #[cfg(feature = "payouts")]
+    pub fn requires_source_bank_data_for_sync(self, payout_method: Option<PayoutType>) -> bool {
+        matches!(
+            (self, payout_method),
+            (Self::Deutschebank, Some(PayoutType::Bank))
+        )
     }
     #[cfg(feature = "payouts")]
     pub fn is_payout_quote_call_required(self) -> bool {
@@ -247,7 +262,10 @@ impl Connector {
     pub fn supports_access_token_for_payout(self, payout_method: Option<PayoutType>) -> bool {
         matches!(
             (self, payout_method),
-            (Self::Paypal, _) | (Self::Truelayer, _) | (Self::Itaubank, _)
+            (Self::Paypal, _)
+                | (Self::Truelayer, _)
+                | (Self::Itaubank, _)
+                | (Self::Santander, Some(PayoutType::Bank))
         )
     }
     #[cfg(feature = "payouts")]
@@ -294,7 +312,7 @@ impl Connector {
         matches!(self, Self::Stripe | Self::Checkout | Self::Worldpayvantiv)
     }
     pub fn requires_defend_dispute(self) -> bool {
-        matches!(self, Self::Checkout)
+        matches!(self, Self::Adyen | Self::Checkout)
     }
     pub fn is_separate_authentication_supported(self) -> bool {
         match self {
@@ -366,6 +384,7 @@ impl Connector {
 			| Self::Inespay
             | Self::Itaubank
             | Self::Jpmorgan
+            | Self::Juspay
             | Self::Juspaythreedsserver
             | Self::Klarna
             | Self::Loonio
@@ -411,6 +430,7 @@ impl Connector {
             | Self::Trustpayments
             // | Self::Tokenio
             | Self::Tsys
+            | Self::TsysTransit
             // | Self::UnifiedAuthenticationService
             | Self::Vgs
             | Self::Volt
@@ -440,10 +460,12 @@ impl Connector {
             | Self::Datatrans
             | Self::Paytm
             | Self::Payconex
+            | Self::Citigate
             | Self::Payjustnow
             | Self::Payjustnowinstore
             | Self::Phonepe
-            | Self::Imerchantsolutions => false,
+            | Self::Imerchantsolutions
+            | Self::Givepayments => false,
             Self::Stripe | Self::Checkout | Self::Zift | Self::Nmi | Self::Braintree|
             Self::Cybersource | Self::Archipel | Self::Nuvei | Self::Adyen => true,
         }

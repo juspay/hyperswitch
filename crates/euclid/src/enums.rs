@@ -253,6 +253,7 @@ pub enum RoutableConnectors {
     Custombilling,
     Checkbook,
     Checkout,
+    Citigate,
     Coinbase,
     Coingate,
     Cryptopay,
@@ -276,6 +277,7 @@ pub enum RoutableConnectors {
     Forte,
     Getnet,
     Gigadat,
+    Givepayments,
     Globalpay,
     Globepay,
     Gocardless,
@@ -346,6 +348,7 @@ pub enum RoutableConnectors {
     Tokenio,
     // Tsys,
     Tsys,
+    TsysTransit,
     // UnifiedAuthenticationService,
     // Vgs
     Volt,
@@ -366,6 +369,7 @@ pub enum RoutableConnectors {
     CtpMastercard,
     CtpVisa,
     Netcetera,
+    Vgs,
     Cardinal,
     Threedsecureio,
 }
@@ -418,6 +422,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Chargebee => Ok(Self::Chargebee),
             Connector::Checkbook => Ok(Self::Checkbook),
             Connector::Checkout => Ok(Self::Checkout),
+            Connector::Citigate => Ok(Self::Citigate),
             Connector::Coinbase => Ok(Self::Coinbase),
             Connector::Coingate => Ok(Self::Coingate),
             Connector::Cryptopay => Ok(Self::Cryptopay),
@@ -440,6 +445,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Fiuu => Ok(Self::Fiuu),
             Connector::Flexiti => Ok(Self::Flexiti),
             Connector::Forte => Ok(Self::Forte),
+            Connector::Givepayments => Ok(Self::Givepayments),
             Connector::Globalpay => Ok(Self::Globalpay),
             Connector::Globepay => Ok(Self::Globepay),
             Connector::Gocardless => Ok(Self::Gocardless),
@@ -495,6 +501,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Trustpay => Ok(Self::Trustpay),
             Connector::Trustpayments => Ok(Self::Trustpayments),
             Connector::Tsys => Ok(Self::Tsys),
+            Connector::TsysTransit => Ok(Self::TsysTransit),
             Connector::Volt => Ok(Self::Volt),
             Connector::Wellsfargo => Ok(Self::Wellsfargo),
             Connector::Wise => Ok(Self::Wise),
@@ -523,6 +530,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::CtpMastercard
             | Connector::Gpayments
             | Connector::HyperswitchVault
+            | Connector::Juspay
             | Connector::Juspaythreedsserver
             | Connector::Netcetera
             | Connector::Taxjar
@@ -583,6 +591,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Custombilling => Self::Custombilling,
             RoutableConnectors::Checkbook => Self::Checkbook,
             RoutableConnectors::Checkout => Self::Checkout,
+            RoutableConnectors::Citigate => Self::Citigate,
             RoutableConnectors::Coinbase => Self::Coinbase,
             RoutableConnectors::Cryptopay => Self::Cryptopay,
             RoutableConnectors::Cybersource => Self::Cybersource,
@@ -605,6 +614,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Forte => Self::Forte,
             RoutableConnectors::Getnet => Self::Getnet,
             RoutableConnectors::Gigadat => Self::Gigadat,
+            RoutableConnectors::Givepayments => Self::Givepayments,
             RoutableConnectors::Globalpay => Self::Globalpay,
             RoutableConnectors::Globepay => Self::Globepay,
             RoutableConnectors::Gocardless => Self::Gocardless,
@@ -665,6 +675,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Trustpayments => Self::Trustpayments,
             // RoutableConnectors::Tokenio => Self::Tokenio,
             RoutableConnectors::Tsys => Self::Tsys,
+            RoutableConnectors::TsysTransit => Self::TsysTransit,
             RoutableConnectors::Volt => Self::Volt,
             RoutableConnectors::Wellsfargo => Self::Wellsfargo,
             RoutableConnectors::Wise => Self::Wise,
@@ -689,6 +700,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::CtpMastercard => Self::CtpMastercard,
             RoutableConnectors::CtpVisa => Self::CtpVisa,
             RoutableConnectors::Netcetera => Self::Netcetera,
+            RoutableConnectors::Vgs => Self::Vgs,
             RoutableConnectors::Cardinal => Self::Cardinal,
             RoutableConnectors::Threedsecureio => Self::Threedsecureio,
         }

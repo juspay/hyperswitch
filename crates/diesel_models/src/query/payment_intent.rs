@@ -1,4 +1,5 @@
 use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
+use error_stack::ResultExt;
 
 use super::generics;
 #[cfg(feature = "v1")]
@@ -13,14 +14,16 @@ use crate::{
 
 impl PaymentIntentNew {
     pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<PaymentIntent> {
-        generics::generic_insert(conn, self).await
+        Box::pin(generics::generic_insert(conn, self)).await
     }
 
     pub async fn generate_drainer_insert_query(
         self,
         conn: &mut PgPooledConn,
     ) -> StorageResult<kv::SerializableQuery> {
-        kv::generate_insert_query(conn, self).await
+        kv::generate_insert_query(conn, self)
+            .await
+            .attach_printable("Failed to generate insert query for payment intent")
     }
 }
 
@@ -31,11 +34,12 @@ impl PaymentIntent {
         conn: &PgPooledConn,
         payment_intent_update: payment_intent::PaymentIntentUpdateInternal,
     ) -> StorageResult<Self> {
-        match generics::generic_update_by_id::<<Self as HasTable>::Table, _, _, _>(
-            conn,
-            self.id.to_owned(),
-            payment_intent_update,
-        )
+        match Box::pin(generics::generic_update_by_id::<
+            <Self as HasTable>::Table,
+            _,
+            _,
+            _,
+        >(conn, self.id.to_owned(), payment_intent_update))
         .await
         {
             Err(error) => match error.current_context() {
@@ -173,6 +177,7 @@ impl payment_intent::PaymentIntentUpdate {
             payment_intent::PaymentIntentUpdateInternal::from(self),
         )
         .await
+        .attach_printable("Failed to generate update query for payment intent")
     }
 }
 
@@ -185,5 +190,6 @@ impl payment_intent::PaymentIntentUpdateInternal {
     ) -> StorageResult<kv::SerializableQuery> {
         kv::generate_update_query_by_id::<<PaymentIntent as HasTable>::Table, _, _>(conn, id, self)
             .await
+            .attach_printable("Failed to generate update query for payment intent")
     }
 }

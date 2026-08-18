@@ -102,7 +102,7 @@ impl<'a> KafkaPaymentIntent<'a> {
                 .and_then(|obj| obj.get("email"))
                 .and_then(|email| email.as_str())
                 .map(|email| HashedString::from(Secret::new(email.to_string()))),
-            feature_metadata: intent.feature_metadata.as_ref(),
+            feature_metadata: intent.feature_metadata.as_ref().map(|s| s.peek()),
             merchant_order_reference_id: intent.merchant_order_reference_id.as_ref(),
             organization_id: &intent.organization_id,
             processor_merchant_id: &intent.processor_merchant_id,

@@ -9,12 +9,14 @@ pub mod extend_authorization_flow;
 pub mod external_proxy_flow;
 pub mod incremental_authorization_flow;
 pub mod post_session_tokens_flow;
+pub mod pre_authorize_void_flow;
 pub mod psync_flow;
 pub mod reject_flow;
 pub mod session_flow;
 pub mod session_update_flow;
 pub mod setup_mandate_flow;
 pub mod update_metadata_flow;
+pub mod update_post_confirm_flow;
 
 use async_trait::async_trait;
 use common_enums;
@@ -25,7 +27,8 @@ use hyperswitch_domain_models::router_flow_types::{
     BillingConnectorInvoiceSync, BillingConnectorPaymentsSync, InvoiceRecordBack,
 };
 use hyperswitch_domain_models::{
-    payments as domain_payments, router_request_types::PaymentsCaptureData,
+    payments as domain_payments,
+    router_request_types::{CurrentFlowInfo, PaymentsCaptureData},
 };
 
 use crate::{
@@ -90,6 +93,10 @@ pub trait ConstructFlowSpecificData<F, Req, Res> {
 #[allow(clippy::too_many_arguments)]
 #[async_trait]
 pub trait Feature<F, T> {
+    fn current_flow_info(&self) -> Option<CurrentFlowInfo> {
+        None
+    }
+
     async fn decide_flows<'a>(
         self,
         state: &SessionState,
@@ -362,20 +369,23 @@ pub fn should_initiate_capture_flow(
     status: common_enums::AttemptStatus,
 ) -> bool {
     match status {
-        common_enums::AttemptStatus::Authorized => {
-            if let Some(api_enums::CaptureMethod::SequentialAutomatic) = capture_method {
-                match connector_name {
-                    router_types::Connector::Paybox => {
-                        // Check CIT conditions for Paybox
-                        setup_future_usage == Some(api_enums::FutureUsage::OffSession)
-                            && customer_acceptance.is_some()
-                    }
-                    _ => false,
+        common_enums::AttemptStatus::Authorized => match capture_method {
+            Some(api_enums::CaptureMethod::SequentialAutomatic) => match connector_name {
+                router_types::Connector::Paybox => {
+                    // Check CIT conditions for Paybox
+                    setup_future_usage == Some(api_enums::FutureUsage::OffSession)
+                        && customer_acceptance.is_some()
                 }
-            } else {
-                false
+                _ => false,
+            },
+            // Affirm (BNPL) authorizes the loan on the transaction-create (CompleteAuthorize)
+            // leg and needs a follow-up capture (POST /transactions/{id}/capture) to settle for
+            // automatic capture, so chain the capture flow when it comes back Authorized.
+            Some(api_enums::CaptureMethod::Automatic) => {
+                matches!(connector_name, router_types::Connector::Affirm)
             }
-        }
+            _ => false,
+        },
         _ => false,
     }
 }

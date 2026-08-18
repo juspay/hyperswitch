@@ -1,3 +1,5 @@
+#[cfg(feature = "v2")]
+pub mod account_updater;
 pub mod admin;
 pub mod api_keys;
 pub mod api_locking;
@@ -35,6 +37,7 @@ pub mod health_check;
 pub mod mandate;
 pub mod merchant_connector_webhook_management;
 pub mod metrics;
+pub mod offer_engine;
 pub mod payment_link;
 #[cfg(feature = "v2")]
 pub mod payment_method_balance;
@@ -63,6 +66,7 @@ pub mod revenue_recovery;
 #[cfg(feature = "v2")]
 pub mod revenue_recovery_data_backfill;
 pub mod routing;
+pub mod superposition_proxy;
 #[cfg(feature = "v1")]
 pub mod superposition_sdk_config;
 pub mod surcharge_decision_config;

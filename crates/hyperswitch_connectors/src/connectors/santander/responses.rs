@@ -10,12 +10,19 @@ use crate::connectors::santander::requests;
 #[serde(rename_all = "camelCase")]
 pub struct Payer {
     pub name: Secret<String>,
-    pub document_type: SantanderDocumentKind,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub document_type: Option<SantanderDocumentKind>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub document_number: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub address: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub neighborhood: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub city: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub state: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub zip_code: Option<Secret<String>>,
 }
 
@@ -270,7 +277,7 @@ pub struct SantanderPixVoidResponse {
     // Debtor
     pub devedor: Option<requests::SantanderDebtor>,
     // Recipient
-    pub recebedor: Recipient,
+    pub recebedor: Option<Recipient>,
     // Status
     pub status: SantanderPaymentStatus,
     // Value
@@ -284,6 +291,8 @@ pub struct SantanderPixVoidResponse {
     // Additional Info
     pub info_adicionais: Option<Vec<SantanderAdditionalInfo>>,
     pub pix: Option<Vec<SantanderPix>>,
+    // Location (for void response)
+    pub location: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -312,6 +321,8 @@ pub struct ValueResponse {
     pub juros: Option<Interest>,
     // Discount details
     pub desconto: Option<DiscountResponse>,
+    // Modal of alteration (for void response)
+    pub modalidade_alteracao: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -401,7 +412,8 @@ pub struct SantanderPix {
     // Transaction amount
     pub valor: String,
     // Timestamp when the transaction occurred
-    pub horario: String,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub horario: PrimitiveDateTime,
     // Optional information provided by the payer
     pub info_pagador: Option<String>,
 }
@@ -454,7 +466,8 @@ pub struct SantanderCobrSyncPix {
     /// Value information
     pub valor: serde_json::Value,
     /// Timestamp when the Pix was processed
-    pub horario: String,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub horario: PrimitiveDateTime,
     /// Optional payer info
     #[serde(skip_serializing_if = "Option::is_none")]
     pub info_pagador: Option<String>,
@@ -800,7 +813,7 @@ pub struct QrDataUrlSantander {
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(untagged)]
-pub enum SantanderUpdateMetadataResponse {
+pub enum SantanderUpdateResponse {
     Pix(Box<SantanderPixQRCodePaymentsResponse>),
     Boleto(Box<SantanderUpdateBoletoResponse>),
 }
@@ -887,7 +900,8 @@ pub struct SantanderPaymentDetails {
     pub deduction_value: Option<StringMajorUnit>,
     pub rebate_value: Option<StringMajorUnit>,
     pub iof_value: Option<StringMajorUnit>,
-    pub date: Option<String>,
+    #[serde(with = "common_utils::custom_serde::iso8601::option")]
+    pub date: Option<PrimitiveDateTime>,
     #[serde(rename = "type")]
     pub bank_type: Option<String>,
     pub bank_code: Option<String>,
@@ -964,7 +978,8 @@ pub struct SantanderPixAutomaticoAtualizacao {
     /// Status of the recurrence at the time of update
     pub status: Option<RecurrenceStatus>,
     /// Date when the status update occurred
-    pub data: String,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub data: PrimitiveDateTime,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1280,5 +1295,39 @@ pub struct RecurrenceStatusUpdate {
     /// Status of the recurrence
     pub status: Option<RecurrenceStatus>,
     /// Date/time of this status update
-    pub data: String,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub data: PrimitiveDateTime,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SantanderPixWebhookRegisterResponse {
+    pub chave: String,
+    pub webhook_url: String,
+    pub criacao: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SantanderBoletoCovenantResponse {
+    pub code: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SantanderBoletoWebhookRegisterResponse {
+    pub id: String,
+    pub status: String,
+    #[serde(rename = "type")]
+    pub workspace_type: String,
+    pub description: String,
+    pub covenants: Vec<SantanderBoletoCovenantResponse>,
+    #[serde(rename = "webhookURL")]
+    pub webhook_url: String,
+    #[serde(rename = "bankSlipBillingWebhookActive")]
+    pub bank_slip_billing_webhook_active: bool,
+    #[serde(rename = "pixBillingWebhookActive")]
+    pub pix_billing_webhook_active: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SantanderEmptyResponse {}

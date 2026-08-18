@@ -2,10 +2,10 @@ use std::collections::HashMap;
 
 use cards::CardNumber;
 use common_enums::CardNetwork;
+use common_types::payouts::PayoutsBillingDescriptor;
 #[cfg(feature = "v2")]
 use common_utils::types::BrowserInformation;
 use common_utils::{
-    consts::default_payouts_list_limit,
     crypto,
     errors::ValidationError,
     id_type, link_utils, payout_method_utils,
@@ -147,6 +147,10 @@ pub struct PayoutCreateRequest {
     #[schema(example = "It's my first payout request", value_type = Option<String>)]
     pub description: Option<String>,
 
+    /// Billing descriptor information for the payout. The reference is displayed on the beneficiary's bank statement.
+    #[schema(value_type = Option<PayoutsBillingDescriptor>)]
+    pub billing_descriptor: Option<PayoutsBillingDescriptor>,
+
     /// Type of entity to whom the payout is being carried out to, select from the given list of options
     #[schema(value_type = Option<PayoutEntityType>, example = "Individual")]
     pub entity_type: Option<api_enums::PayoutEntityType>,
@@ -286,6 +290,9 @@ impl TryFrom<Bank> for BankTransfer {
                         bank_account_number,
                         tax_id: pix.tax_id,
                         ispb: pix.ispb,
+                        bank_code: pix.bank_code,
+                        bank_account_type: pix.bank_account_type,
+                        account_holder_name: pix.account_holder_name,
                     })),
                     // If pix key is present then it's PixKeyBankTransfer
                     (None, Some(pix_key), None) => Ok(Self::PixKey(PixKeyBankTransfer {
@@ -326,6 +333,9 @@ impl From<BankTransfer> for Bank {
                 tax_id: pix.tax_id,
                 emv: None,
                 ispb: pix.ispb,
+                bank_code: pix.bank_code,
+                bank_account_type: pix.bank_account_type,
+                account_holder_name: pix.account_holder_name,
             }),
             BankTransfer::Trustly(trustly) => Self::Trustly(TrustlyBankTransfer {
                 iban: trustly.iban,
@@ -341,6 +351,9 @@ impl From<BankTransfer> for Bank {
                 tax_id: None,
                 emv: Some(pix_emv.emv),
                 ispb: None,
+                bank_code: None,
+                bank_account_type: None,
+                account_holder_name: None,
             }),
             BankTransfer::PixKey(pix_key) => Self::Pix(PixBankTransfer {
                 bank_name: None,
@@ -350,6 +363,9 @@ impl From<BankTransfer> for Bank {
                 tax_id: None,
                 emv: None,
                 ispb: None,
+                bank_code: None,
+                bank_account_type: None,
+                account_holder_name: None,
             }),
             BankTransfer::OpenBanking(open_banking) => Self::OpenBanking(open_banking),
         }
@@ -515,6 +531,18 @@ pub struct PixBankTransfer {
     /// ispb code is a unique identifier assigned by Brazilian Central Bank to identify the financial institution of the recipient's bank account in Pix transactions.
     #[schema(value_type = Option<String>, example = "60701190")]
     pub ispb: Option<String>,
+
+    /// 3-digit COMPE/FEBRABAN bank code used to identify the financial institution for routing PIX payouts.
+    #[schema(value_type = Option<String>, example = "033")]
+    pub bank_code: Option<String>,
+
+    /// Bank account type for PIX payouts.
+    #[schema(value_type = Option<BankType>)]
+    pub bank_account_type: Option<api_enums::BankType>,
+
+    /// Name of the account holder
+    #[schema(value_type = Option<String>, example = "John Doe")]
+    pub account_holder_name: Option<Secret<String>>,
 }
 
 #[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -538,6 +566,18 @@ pub struct PixAccountBankTransfer {
     /// ispb code is a unique identifier assigned by Brazilian Central Bank to identify the financial institution of the recipient's bank account in Pix transactions.
     #[schema(value_type = Option<String>, example = "60701190")]
     pub ispb: Option<String>,
+
+    /// 3-digit COMPE/FEBRABAN bank code used to identify the financial institution for routing PIX payouts.
+    #[schema(value_type = Option<String>, example = "033")]
+    pub bank_code: Option<String>,
+
+    /// Bank account type for PIX payouts.
+    #[schema(value_type = Option<BankType>)]
+    pub bank_account_type: Option<api_enums::BankType>,
+
+    /// Name of the account holder
+    #[schema(value_type = Option<String>, example = "John Doe")]
+    pub account_holder_name: Option<Secret<String>>,
 }
 
 #[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
@@ -558,6 +598,7 @@ pub struct PixEmvBankTransfer {
 #[serde(rename_all = "snake_case")]
 pub enum Wallet {
     ApplePayDecrypt(ApplePayDecrypt),
+    GooglePayDecrypt(GooglePayDecrypt),
     Paypal(Paypal),
     Venmo(Venmo),
 }
@@ -689,6 +730,29 @@ pub struct ApplePayDecrypt {
     pub card_network: Option<CardNetwork>,
 }
 
+#[derive(Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
+pub struct GooglePayDecrypt {
+    /// The dpan number associated with card number
+    #[schema(value_type = String, example = "4242424242424242")]
+    pub application_primary_account_number: CardNumber,
+
+    /// The card's expiry month
+    #[schema(value_type = String)]
+    pub expiry_month: Secret<String>,
+
+    /// The card's expiry year
+    #[schema(value_type = String)]
+    pub expiry_year: Secret<String>,
+
+    /// The card holder's name
+    #[schema(value_type = String, example = "John Doe")]
+    pub card_holder_name: Option<Secret<String>>,
+
+    /// The card's network
+    #[schema(value_type = Option<CardNetwork>, example = "Visa")]
+    pub card_network: Option<CardNetwork>,
+}
+
 #[derive(Debug, ToSchema, Clone, Serialize, router_derive::PolymorphicSchema)]
 #[serde(deny_unknown_fields)]
 pub struct PayoutCreateResponse {
@@ -779,8 +843,8 @@ pub struct PayoutCreateResponse {
     #[schema(value_type = bool, example = true, default = false)]
     pub auto_fulfill: bool,
 
-    /// The identifier for the customer object. If not provided the customer ID will be autogenerated.
-    #[schema(value_type = String, max_length = 255, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
+    /// The identifier for the customer object. If not provided the customer ID will be autogenerated. _Deprecated: Use the customer object instead._
+    #[schema(deprecated, value_type = String, max_length = 255, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
     pub customer_id: Option<id_type::CustomerId>,
 
     /// Passing this object creates a new customer or attaches an existing customer to the payout
@@ -795,17 +859,21 @@ pub struct PayoutCreateResponse {
     #[schema(value_type = String, example = "https://hyperswitch.io")]
     pub return_url: Option<String>,
 
-    /// Business country of the merchant for this payout
-    #[schema(example = "US", value_type = CountryAlpha2)]
+    /// Business country of the merchant for this payout. _Deprecated: Use profile_id instead._
+    #[schema(deprecated, example = "US", value_type = CountryAlpha2)]
     pub business_country: Option<api_enums::CountryAlpha2>,
 
-    /// Business label of the merchant for this payout
-    #[schema(example = "food", value_type = Option<String>)]
+    /// Business label of the merchant for this payout. _Deprecated: Use profile_id instead._
+    #[schema(deprecated, example = "food", value_type = Option<String>)]
     pub business_label: Option<String>,
 
     /// A description of the payout
     #[schema(example = "It's my first payout request", value_type = Option<String>)]
     pub description: Option<String>,
+
+    /// Billing descriptor information for the payout
+    #[schema(value_type = Option<PayoutsBillingDescriptor>)]
+    pub billing_descriptor: Option<PayoutsBillingDescriptor>,
 
     /// Type of entity to whom the payout is being carried out to
     #[schema(value_type = PayoutEntityType, example = "Individual")]
@@ -1053,9 +1121,8 @@ pub struct PayoutListConstraints {
     pub ending_before: Option<id_type::PayoutId>,
 
     /// limit on the number of objects to return
-    #[schema(default = 10, maximum = 100)]
-    #[serde(default = "default_payouts_list_limit")]
-    pub limit: u32,
+    #[serde(default)]
+    pub limit: common_utils::types::list::PageSize,
 
     /// The time at which payout is created
     #[schema(example = "2022-09-10T10:11:12Z")]
@@ -1088,11 +1155,12 @@ pub struct PayoutListFilterConstraints {
     /// The identifier for customer
     #[schema(value_type = Option<String>,example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
     pub customer_id: Option<id_type::CustomerId>,
-    /// The limit on the number of objects. The default limit is 10 and max limit is 20
-    #[serde(default = "default_payouts_list_limit")]
-    pub limit: u32,
+    /// The limit on the number of objects to return
+    #[serde(default)]
+    pub limit: common_utils::types::list::PageSize,
     /// The starting point within a list of objects
-    pub offset: Option<u32>,
+    #[serde(default)]
+    pub offset: common_utils::types::list::PageOffset,
     /// The time range for which objects are needed. TimeRange has two fields start_time and end_time from which objects can be filtered as per required scenarios (created_at, time less than, greater than etc).
     #[serde(flatten)]
     #[schema(value_type = Option<TimeRange>)]
@@ -1288,6 +1356,9 @@ impl From<Bank> for payout_method_utils::BankAdditionalData {
                 tax_id,
                 emv,
                 ispb,
+                bank_code,
+                bank_account_type,
+                account_holder_name,
             }) => Self::Pix(Box::new(
                 payout_method_utils::PixBankTransferAdditionalData {
                     bank_name,
@@ -1297,6 +1368,9 @@ impl From<Bank> for payout_method_utils::BankAdditionalData {
                     tax_id: tax_id.map(From::from),
                     emv: emv.map(From::from),
                     ispb,
+                    account_holder_name,
+                    bank_code,
+                    bank_account_type,
                 },
             )),
             Bank::Trustly(TrustlyBankTransfer {
@@ -1383,6 +1457,9 @@ impl From<BankTransfer> for payout_method_utils::BankAdditionalData {
                 bank_account_number,
                 tax_id,
                 ispb,
+                bank_code,
+                bank_account_type,
+                account_holder_name,
             }) => Self::Pix(Box::new(
                 payout_method_utils::PixBankTransferAdditionalData {
                     bank_name,
@@ -1392,6 +1469,9 @@ impl From<BankTransfer> for payout_method_utils::BankAdditionalData {
                     emv: None,
                     tax_id: tax_id.map(From::from),
                     ispb,
+                    account_holder_name,
+                    bank_code,
+                    bank_account_type,
                 },
             )),
             BankTransfer::PixKey(PixKeyBankTransfer { pix_key }) => Self::Pix(Box::new(
@@ -1403,6 +1483,9 @@ impl From<BankTransfer> for payout_method_utils::BankAdditionalData {
                     emv: None,
                     tax_id: None,
                     ispb: None,
+                    account_holder_name: None,
+                    bank_code: None,
+                    bank_account_type: None,
                 },
             )),
             BankTransfer::PixEmv(PixEmvBankTransfer { emv }) => Self::Pix(Box::new(
@@ -1414,6 +1497,9 @@ impl From<BankTransfer> for payout_method_utils::BankAdditionalData {
                     emv: Some(emv.into()),
                     tax_id: None,
                     ispb: None,
+                    account_holder_name: None,
+                    bank_code: None,
+                    bank_account_type: None,
                 },
             )),
 
@@ -1469,6 +1555,18 @@ impl From<Wallet> for payout_method_utils::WalletAdditionalData {
                     telephone_number: telephone_number.map(From::from),
                 }))
             }
+            Wallet::GooglePayDecrypt(GooglePayDecrypt {
+                expiry_month,
+                expiry_year,
+                card_holder_name,
+                ..
+            }) => Self::GooglePayDecrypt(Box::new(
+                payout_method_utils::GooglePayDecryptAdditionalData {
+                    card_exp_month: expiry_month,
+                    card_exp_year: expiry_year,
+                    card_holder_name,
+                },
+            )),
             Wallet::ApplePayDecrypt(ApplePayDecrypt {
                 expiry_month,
                 expiry_year,
@@ -1619,6 +1717,7 @@ impl From<&PayoutMethodData> for api_enums::PaymentMethodType {
                 Wallet::ApplePayDecrypt(_) => Self::ApplePay,
                 Wallet::Paypal(_) => Self::Paypal,
                 Wallet::Venmo(_) => Self::Venmo,
+                Wallet::GooglePayDecrypt(_) => Self::GooglePay,
             },
             PayoutMethodData::BankRedirect(bank_redirect) => match bank_redirect {
                 BankRedirect::Interac(_) => Self::Interac,

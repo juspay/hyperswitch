@@ -494,6 +494,26 @@ pub struct OpenSearchQueryBuilder {
     pub order: Option<Order>,
 }
 
+pub enum OpenSearchComparison {
+    Equal,
+    GreaterThan,
+    GreaterThanOrEqual,
+    LessThan,
+    LessThanOrEqual,
+}
+
+impl OpenSearchComparison {
+    fn range_operator(&self) -> Option<&'static str> {
+        match self {
+            Self::Equal => None,
+            Self::GreaterThan => Some("gt"),
+            Self::GreaterThanOrEqual => Some("gte"),
+            Self::LessThan => Some("lt"),
+            Self::LessThanOrEqual => Some("lte"),
+        }
+    }
+}
+
 const ACTIVE_ATTEMPT_FILTER_SCRIPT: &str = r#"
     if (!params.containsKey('_source')) return false;
 
@@ -545,7 +565,10 @@ impl OpenSearchQueryBuilder {
                 "search_tags.keyword",
                 "card_last_4.keyword",
                 "payment_id.keyword",
+                "active_attempt_id.keyword",
+                "merchant_connector_id.keyword",
                 "amount",
+                "first_attempt",
                 "customer_id.keyword",
                 "merchant_order_reference_id.keyword",
             ]),
@@ -588,6 +611,100 @@ impl OpenSearchQueryBuilder {
             SearchIndex::Disputes | SearchIndex::SessionizerDisputes => "dispute_amount",
             _ => "amount",
         }
+    }
+
+    fn parse_search_amounts(&self) -> Vec<Value> {
+        let query = self.query.trim();
+        if query.is_empty()
+            || (query.len() > 1 && query.starts_with('0') && !query.starts_with("0."))
+        {
+            return Vec::new();
+        }
+
+        let amount_parts = query.split('.').collect::<Vec<_>>();
+        let major_units = match amount_parts.as_slice() {
+            [whole] if whole.chars().all(|char| char.is_ascii_digit()) => whole.parse::<u64>().ok(),
+            [whole, fractional]
+                if whole.chars().all(|char| char.is_ascii_digit())
+                    && fractional.len() <= 2
+                    && fractional.chars().all(|char| char.is_ascii_digit()) =>
+            {
+                let fractional_units = match fractional.len() {
+                    0 => Some(0),
+                    1 => fractional
+                        .parse::<u64>()
+                        .ok()
+                        .and_then(|amount| amount.checked_mul(10)),
+                    2 => fractional.parse::<u64>().ok(),
+                    _ => None,
+                };
+
+                whole.parse::<u64>().ok().and_then(|whole_units| {
+                    fractional_units.and_then(|fractional_units| {
+                        whole_units
+                            .checked_mul(100)
+                            .and_then(|amount| amount.checked_add(fractional_units))
+                    })
+                })
+            }
+            _ => None,
+        };
+
+        let mut amounts = Vec::new();
+
+        if amount_parts.len() == 1 {
+            if let Ok(raw_amount) = query.parse::<u64>() {
+                amounts.push(Value::from(raw_amount));
+            }
+        }
+
+        if let Some(minor_amount) = major_units.and_then(|amount| {
+            if amount_parts.len() == 1 {
+                amount.checked_mul(100)
+            } else {
+                Some(amount)
+            }
+        }) {
+            let minor_amount = Value::from(minor_amount);
+            if !amounts.contains(&minor_amount) {
+                amounts.push(minor_amount);
+            }
+        }
+
+        amounts
+    }
+
+    fn make_query_filter(&self, index: SearchIndex) -> Option<Value> {
+        if self.query.is_empty() {
+            return None;
+        }
+
+        let text_query = json!({
+            "multi_match": {
+                "type": "phrase",
+                "query": self.query,
+                "lenient": true
+            }
+        });
+
+        let amount_values = self.parse_search_amounts();
+        if amount_values.is_empty() {
+            return Some(text_query);
+        }
+
+        Some(json!({
+            "bool": {
+                "should": [
+                    text_query,
+                    {
+                        "terms": {
+                            self.get_amount_field(index): amount_values
+                        }
+                    }
+                ],
+                "minimum_should_match": 1
+            }
+        }))
     }
 
     fn make_active_attempt_script_filter(&self, field: &str, values: &Vec<Value>) -> Value {
@@ -657,25 +774,70 @@ impl OpenSearchQueryBuilder {
         })
     }
 
+    fn make_case_insensitive_multi_field_filter(&self, fields: &[&str], values: &[Value]) -> Value {
+        json!({
+            "bool": {
+                "should": fields.iter().flat_map(|field| {
+                    values.iter().map(|value| {
+                        json!({
+                            "term": {
+                                *field: {
+                                    "value": value,
+                                    "case_insensitive": true
+                                }
+                            }
+                        })
+                    })
+                }).collect::<Vec<Value>>(),
+                "minimum_should_match": 1
+            }
+        })
+    }
+
     pub fn build_filter_array(
         &self,
         case_sensitive_filters: Vec<&(String, Vec<Value>)>,
         index: SearchIndex,
     ) -> Vec<Value> {
         let mut filter_array = Vec::new();
-        if !self.query.is_empty() {
-            filter_array.push(json!({
-                "multi_match": {
-                    "type": "phrase",
-                    "query": self.query,
-                    "lenient": true
-                }
-            }));
+        if let Some(query_filter) = self.make_query_filter(index) {
+            filter_array.push(query_filter);
         }
 
         let case_sensitive_json_filters = case_sensitive_filters
             .into_iter()
             .map(|(k, v)| {
+                if *k == "first_attempt" {
+                    let mut should_clauses = Vec::new();
+
+                    if v.iter().any(|value| value.as_bool() == Some(true)) {
+                        should_clauses.push(json!({
+                            "term": {
+                                "attempt_count": 1
+                            }
+                        }));
+                    }
+
+                    if v.iter().any(|value| value.as_bool() == Some(false)) {
+                        if let Some(operator) = OpenSearchComparison::GreaterThan.range_operator() {
+                            should_clauses.push(json!({
+                                "range": {
+                                    "attempt_count": {
+                                        (operator): 1
+                                    }
+                                }
+                            }));
+                        }
+                    }
+
+                    return json!({
+                        "bool": {
+                            "should": should_clauses,
+                            "minimum_should_match": 1
+                        }
+                    });
+                }
+
                 let key = if *k == "amount" {
                     self.get_amount_field(index).to_string()
                 } else {
@@ -721,6 +883,28 @@ impl OpenSearchQueryBuilder {
             .map(|(k, v)| {
                 if *k == "card_discovery.keyword" {
                     return self.make_active_attempt_script_filter("card_discovery", v);
+                }
+                if *k == "refunds_status.keyword" {
+                    return self.make_case_insensitive_multi_field_filter(
+                        &[
+                            "refunds_status.keyword",
+                            "refunds_list.refund_status.keyword",
+                            "refunds_list.status.keyword",
+                        ],
+                        v,
+                    );
+                }
+                if *k == "dispute_status.keyword" {
+                    return self.make_case_insensitive_multi_field_filter(
+                        &[
+                            "dispute_status.keyword",
+                            "disputes_list.dispute_status.keyword",
+                            "disputes_list.status.keyword",
+                            "dispute_list.dispute_status.keyword",
+                            "dispute_list.status.keyword",
+                        ],
+                        v,
+                    );
                 }
                 let key = if *k == "status.keyword" {
                     self.get_status_field(index).to_string()

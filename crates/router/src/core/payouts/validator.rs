@@ -190,7 +190,7 @@ pub async fn validate_create_request(
                         .clone()
                         .get_required_value("customer_id")?;
 
-                    utils::when(pm_customer_id != customer.customer_id, || {
+                    utils::when(pm_customer_id != *customer.get_id(), || {
                         Err(report!(errors::ApiErrorResponse::InvalidRequestData {
                         message: "Payment method does not belong to this customer_id".to_string(),
                     })
@@ -221,7 +221,7 @@ pub async fn validate_create_request(
                 state,
                 req.payout_method_data.as_ref(),
                 Some(payout_token),
-                &customer.customer_id,
+                customer.get_id(),
                 platform.get_processor().get_account().get_id(),
                 req.payout_type,
                 platform.get_processor().get_key_store(),
@@ -254,6 +254,9 @@ pub async fn validate_create_request(
                     false,
                     true,
                     platform.get_provider(),
+                    None,
+                    None,
+                    None,
                 )
                 .await?
                 {
@@ -284,6 +287,21 @@ pub async fn validate_create_request(
                                         api_models::payouts::Wallet::ApplePayDecrypt(
                                             api_models::payouts::ApplePayDecrypt {
                                                 dpan: application_primary_account_number,
+                                                expiry_month,
+                                                expiry_year,
+                                                card_holder_name: None,
+                                                card_network: None,
+                                            }
+                                        )
+                                    ))),
+                                    hyperswitch_domain_models::payment_method_data::WalletDetail::GooglePayDecryptedData {
+                                        application_primary_account_number,
+                                        expiry_month,
+                                        expiry_year,
+                                    } => Ok(Some(payouts::PayoutMethodData::Wallet(
+                                        api_models::payouts::Wallet::GooglePayDecrypt(
+                                            api_models::payouts::GooglePayDecrypt {
+                                                application_primary_account_number,
                                                 expiry_month,
                                                 expiry_year,
                                                 card_holder_name: None,
@@ -334,29 +352,12 @@ pub fn validate_payout_link_request(
 }
 
 #[cfg(feature = "olap")]
-pub(super) fn validate_payout_list_request(
-    req: &payouts::PayoutListConstraints,
-) -> CustomResult<(), errors::ApiErrorResponse> {
-    use common_utils::consts::PAYOUTS_LIST_MAX_LIMIT_GET;
-
-    utils::when(
-        req.limit > PAYOUTS_LIST_MAX_LIMIT_GET || req.limit < 1,
-        || {
-            Err(errors::ApiErrorResponse::InvalidRequestData {
-                message: format!("limit should be in between 1 and {PAYOUTS_LIST_MAX_LIMIT_GET}"),
-            })
-        },
-    )?;
-    Ok(())
-}
-
-#[cfg(feature = "olap")]
 pub(super) fn validate_payout_list_request_for_joins(
-    limit: u32,
+    limit: common_utils::types::list::PageSize,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
     use common_utils::consts::PAYOUTS_LIST_MAX_LIMIT_POST;
 
-    utils::when(!(1..=PAYOUTS_LIST_MAX_LIMIT_POST).contains(&limit), || {
+    utils::when(limit.as_u32() > PAYOUTS_LIST_MAX_LIMIT_POST, || {
         Err(errors::ApiErrorResponse::InvalidRequestData {
             message: format!("limit should be in between 1 and {PAYOUTS_LIST_MAX_LIMIT_POST}"),
         })

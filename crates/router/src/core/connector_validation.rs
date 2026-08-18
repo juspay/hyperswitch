@@ -288,6 +288,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 )?;
                 Ok(())
             }
+            api_enums::Connector::Givepayments => {
+                givepayments::transformers::GivepaymentsAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Globalpay => {
                 globalpay::transformers::GlobalpayAuthType::try_from(self.auth_type)?;
                 globalpay::transformers::GlobalPayMeta::try_from(self.connector_meta_data)?;
@@ -349,7 +353,7 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 )?;
                 Ok(())
             }
-            api_enums::Connector::Juspaythreedsserver => Ok(()),
+            api_enums::Connector::Juspay | api_enums::Connector::Juspaythreedsserver => Ok(()),
             api_enums::Connector::Klarna => {
                 klarna::transformers::KlarnaAuthType::try_from(self.auth_type)?;
                 klarna::transformers::KlarnaConnectorMetadataObject::try_from(
@@ -574,6 +578,11 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 tsys::transformers::TsysAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            api_enums::Connector::TsysTransit => {
+                tsys_transit::TsysTransitAuthType::try_from(self.auth_type)?;
+                tsys_transit::TsysTransitMetadataObject::try_from(self.connector_meta_data)?;
+                Ok(())
+            }
             api_enums::Connector::Volt => {
                 volt::transformers::VoltAuthType::try_from(self.auth_type)?;
                 Ok(())
@@ -655,6 +664,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
             }
             api_enums::Connector::Payconex => {
                 payconex::transformers::PayconexAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
+            api_enums::Connector::Citigate => {
+                citigate::transformers::CitigateAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
             api_enums::Connector::Finix => {

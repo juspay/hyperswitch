@@ -13,7 +13,7 @@ pub struct ListCustomerPaymentMethods;
 /// V1-facing retrieve request payload.
 #[derive(Debug)]
 pub struct ListCustomerPaymentMethodsV1Request {
-    pub customer_id: id_type::CustomerId,
+    pub customer_id: id_type::GlobalCustomerId,
     pub query_params: PaymentMethodListRequest,
     pub modular_service_prefix: String,
 }
