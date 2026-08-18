@@ -330,6 +330,13 @@
                       "v1/subscriptions/resume",
                       "v1/subscriptions/cancel"
                     ]
+                  },
+                  {
+                    "group": "Revenue Recovery",
+                    "pages": [
+                      "v2/revenue-recovery/revenue-recovery--create",
+                      "v2/revenue-recovery/revenue-recovery--retrieve"
+                    ]
                   }
                 ]
               }
@@ -497,13 +504,6 @@
                     "group": "Tokenization",
                     "pages": [
                       "v2/tokenization/tokenization--create"
-                    ]
-                  },
-                  {
-                    "group": "Revenue Recovery",
-                    "pages": [
-                      "v2/revenue-recovery/revenue-recovery--create",
-                      "v2/revenue-recovery/revenue-recovery--retrieve"
                     ]
                   }
                 ]
