@@ -1052,7 +1052,6 @@ connector_list = "worldpayvantiv"
 [grpc_client.unified_connector_service]
 ucs_only_connectors = "imerchantsolutions, paytm, phonepe, hyperpg, revolv3, fiservcommercehub, absa_sanlam, interpayments, payconex, dlocal, barclaycard, jpmorgan, datatrans, tsys_transit, givepayments"    # Comma-separated list of connectors that use UCS only
 ucs_psync_disabled_connectors = "cashtocode, trustly"    # Comma-separated list of connectors to disable UCS PSync call
-ucs_blacklisted_connectors = ""    # Comma-separated list of connectors that must use Direct path instead of UCS (used in default non-cutover mode)
 
 # Merchant Advice Code Configuration
 [merchant_advice_codes.visa]
