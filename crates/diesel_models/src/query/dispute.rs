@@ -1,4 +1,5 @@
 use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods, Table};
+use error_stack::ResultExt;
 
 use super::generics;
 use crate::{
@@ -17,12 +18,14 @@ impl DisputeNew {
         self,
         conn: &mut PgPooledConn,
     ) -> StorageResult<kv::SerializableQuery> {
-        kv::generate_insert_query(conn, self).await
+        kv::generate_insert_query(conn, self)
+            .await
+            .attach_printable("Failed to generate insert query for dispute")
     }
 }
 
 impl Dispute {
-    pub async fn find_by_processor_merchant_id_payment_id_connector_dispute_id(
+    pub async fn find_optional_by_processor_merchant_id_payment_id_connector_dispute_id(
         conn: &PgPooledConn,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         payment_id: &common_utils::id_type::PaymentId,
@@ -78,7 +81,7 @@ impl Dispute {
     }
 
     // Fallback function for stagger release - finds by merchant_id when processor_merchant_id is NULL
-    pub async fn find_by_merchant_id_payment_id_connector_dispute_id(
+    pub async fn find_optional_by_merchant_id_payment_id_connector_dispute_id(
         conn: &PgPooledConn,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         payment_id: &common_utils::id_type::PaymentId,
@@ -166,5 +169,6 @@ impl DisputeUpdateInternal {
             self,
         )
         .await
+        .attach_printable("Failed to generate update query for dispute")
     }
 }

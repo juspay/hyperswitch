@@ -36,6 +36,7 @@ pub struct PaymentInput {
     pub business_label: Option<String>,
     pub setup_future_usage: Option<enums::SetupFutureUsage>,
     pub transaction_initiator: Option<TransactionInitiator>,
+    pub surcharge_amount: Option<common_utils::types::MinorUnit>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -33,7 +33,7 @@ const failedNo3DSCardDetails = {
 
 // Checkout.com partial authorization test card (provided via sandbox dashboard)
 const partialAuthCardDetails = {
-  card_number: "5518207720770101",
+  card_number: "4757337282365488",
   card_exp_month: "12",
   card_exp_year: "2027",
   card_holder_name: "CL-BRW2",
@@ -673,6 +673,25 @@ export const connectorDetails = {
         },
       },
     },
+    MITAutoCaptureWithCustomerAcceptance: {
+      Request: {
+        mit_category: "installment",
+        customer_acceptance: {
+          acceptance_type: "offline",
+          accepted_at: "1963-05-03T04:07:52.723Z",
+          online: {
+            ip_address: "127.0.0.1",
+            user_agent: "amet irure esse",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
     No3DSFailPayment: {
       Request: {
         payment_method: "card",
@@ -883,8 +902,23 @@ export const connectorDetails = {
         },
       },
     },
+    PaymentIntentPartialAuth: {
+      Request: {
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+        amount: 1000,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    },
     PartialAuth: {
       Request: {
+        amount: 1000,
         payment_method: "card",
         payment_method_data: {
           card: partialAuthCardDetails,

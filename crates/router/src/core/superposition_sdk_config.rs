@@ -152,19 +152,13 @@ pub async fn get_profile_superposition_sdk_config(
             id: profile_id.to_owned(),
         })?;
 
-    let all_mcas = db
-        .find_merchant_connector_account_by_merchant_id_and_disabled_list(
+    let mcas = db
+        .list_enabled_merchant_connector_accounts_without_encrypted_by_merchant_id_profile_id(
             platform.get_processor().get_account().get_id(),
-            false,
-            platform.get_processor().get_key_store(),
+            &profile_id_typed,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
-
-    let filtered_mcas: Vec<_> = all_mcas
-        .into_iter()
-        .filter(|mca| mca.profile_id == profile_id_typed)
-        .collect();
 
     let mut payment_experiences_consolidated_hm: std::collections::HashMap<
         api_enums::PaymentMethod,
@@ -195,7 +189,7 @@ pub async fn get_profile_superposition_sdk_config(
         Vec<String>,
     > = std::collections::HashMap::new();
 
-    for mca in &filtered_mcas {
+    for mca in &mcas {
         if let Some(payment_methods_enabled_list) = &mca.payment_methods_enabled {
             for pm_value in payment_methods_enabled_list {
                 if let Ok(pm_enabled) = serde_json::from_value::<
@@ -291,7 +285,7 @@ pub async fn get_profile_superposition_sdk_config(
         serde_json::Value::String(profile_id.to_string()),
     );
     dimension_filter.insert(
-        "merchant_id".to_string(),
+        "processor_merchant_id".to_string(),
         serde_json::Value::String(merchant_account.get_id().get_string_repr().to_string()),
     );
     dimension_filter.insert(
@@ -301,8 +295,7 @@ pub async fn get_profile_superposition_sdk_config(
     dimension_filter.insert(
         "connector".to_string(),
         serde_json::Value::Array(
-            filtered_mcas
-                .iter()
+            mcas.iter()
                 .map(|mca| serde_json::Value::String(mca.connector_name.clone()))
                 .collect(),
         ),
@@ -389,7 +382,7 @@ pub async fn get_superposition_sdk_config(
         serde_json::Value::String(profile_id.get_string_repr().to_string()),
     );
     dimension_filter.insert(
-        "merchant_id".to_string(),
+        "processor_merchant_id".to_string(),
         serde_json::Value::String(merchant_account.get_id().get_string_repr().to_string()),
     );
     dimension_filter.insert(
@@ -447,10 +440,26 @@ async fn build_account_config(
         .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
     let feature_config = crate::core::utils::get_feature_config(state, platform, &dimensions).await;
 
+    // Org level override on top of the modular service flag. Defaults to `true` for all merchants;
+    // when set to `false` for a specific org, the SDK is told to skip vaulting.
+    let should_perform_sdk_vaulting =
+        crate::core::payment_methods::utils::get_should_perform_sdk_vaulting(
+            state,
+            &Dimensions::new().with_organization_id(
+                platform
+                    .get_processor()
+                    .get_account()
+                    .organization_id
+                    .clone(),
+            ),
+        )
+        .await;
+
     AccountConfig {
         profile: build_profile_account_config(
             business_profile,
             feature_config.is_payment_method_modular_allowed,
+            should_perform_sdk_vaulting,
         ),
     }
 }
@@ -459,6 +468,7 @@ async fn build_account_config(
 fn build_profile_account_config(
     business_profile: &domain::Profile,
     is_payment_method_modular_allowed: bool,
+    should_perform_sdk_vaulting: bool,
 ) -> ProfileAccountConfig {
     ProfileAccountConfig {
         collect_shipping_details_from_wallet_connector: business_profile
@@ -473,16 +483,24 @@ fn build_profile_account_config(
         always_collect_shipping_details_from_wallet_connector: business_profile
             .always_collect_shipping_details_from_wallet_connector
             .unwrap_or(false),
-        vaulting_action: resolve_vaulting_action(is_payment_method_modular_allowed),
+        vaulting_action: resolve_vaulting_action(
+            is_payment_method_modular_allowed,
+            should_perform_sdk_vaulting,
+        ),
     }
 }
 
 /// Determine whether the SDK should tokenize payment method details.
 ///
-/// Driven solely by whether the modular vaulting flow should be invoked: `Tokenize` when it
-/// should, `Skip` otherwise.
-fn resolve_vaulting_action(should_call_modular: bool) -> VaultingAction {
-    if should_call_modular {
+/// `should_call_modular` decides whether the modular vaulting flow is invoked at all.
+/// `should_perform_sdk_vaulting` is a merchant level override (default `true`) that can force the
+/// SDK to skip vaulting for specific merchants. Vaulting is `Tokenize` only when both are `true`;
+/// otherwise it is `Skip`.
+fn resolve_vaulting_action(
+    should_call_modular: bool,
+    should_perform_sdk_vaulting: bool,
+) -> VaultingAction {
+    if should_call_modular && should_perform_sdk_vaulting {
         VaultingAction::Tokenize
     } else {
         VaultingAction::Skip

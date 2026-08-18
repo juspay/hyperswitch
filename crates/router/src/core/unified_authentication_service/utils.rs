@@ -151,6 +151,7 @@ pub fn construct_uas_router_data<F: Clone, Req, Res>(
         customer_document_details: None,
         feature_data: None,
         sender_payment_instrument_id: None,
+        connector_returned_payment_method_details: None,
     })
 }
 
@@ -319,6 +320,13 @@ pub async fn external_authentication_update_trackers<F: Clone, Req>(
                 let authentication_status = common_enums::AuthenticationStatus::foreign_from(
                     authentication_details.trans_status.clone(),
                 );
+                let exemption_accepted =
+                    authentication.psd2_sca_exemption_type.as_ref().map(|_| {
+                        matches!(
+                            &authentication_details.trans_status,
+                            common_enums::TransactionStatus::Success
+                        )
+                    });
                 authentication_details
                     .authentication_value
                     .async_map(|auth_val| {
@@ -375,6 +383,8 @@ pub async fn external_authentication_update_trackers<F: Clone, Req>(
                         device_display: device_details
                             .as_ref()
                             .and_then(|details| details.device_display.clone()),
+                        platform: None,
+                        exemption_accepted,
                         updated_by: storage_scheme.to_string(),
                     },
                 )
@@ -444,7 +454,7 @@ pub async fn external_authentication_update_trackers<F: Clone, Req>(
 
     state
         .store
-        .update_authentication_by_merchant_id_authentication_id(
+        .update_authentication_by_processor_merchant_id_authentication_id(
             authentication,
             authentication_update,
             merchant_key_store,
@@ -711,6 +721,7 @@ pub fn construct_uas_webhook_router_data<F: Clone, Req, Res>(
         customer_document_details: None,
         feature_data: None,
         sender_payment_instrument_id: None,
+        connector_returned_payment_method_details: None,
     })
 }
 

@@ -44,7 +44,7 @@ use hyperswitch_domain_models::router_flow_types::{
         CreateConnectorCustomer, CreateOrder, ExtendAuthorization, ExternalVaultProxy, GenerateQr,
         IncrementalAuthorization, InitPayment, PSync, PostCaptureVoid, PostCaptureVoidSync,
         PostProcessing, PostSessionTokens, PreAuthorizeVoid, PreProcessing, PushNotification,
-        Reject, SdkSessionUpdate, Session, SetupMandate, UpdateMetadata, Void,
+        Reject, SdkSessionUpdate, Session, SetupMandate, UpdateMetadata, UpdatePostConfirm, Void,
     },
     refunds::{Execute, RSync},
     webhooks::VerifyWebhookSource,
@@ -90,10 +90,10 @@ pub use hyperswitch_domain_models::{
         PaymentsPreAuthenticateData, PaymentsPreAuthorizeCancelData, PaymentsPreProcessingData,
         PaymentsRejectData, PaymentsSessionData, PaymentsSurchargeCalculationData,
         PaymentsSyncData, PaymentsTaxCalculationData, PaymentsUpdateMetadataData,
-        PushNotificationRequestData, RefundsData, ResponseId, RetrieveFileRequestData,
-        SdkPaymentsSessionUpdateData, SetupMandateRequestData, SplitRefundsRequest,
-        SubmitEvidenceRequestData, SyncRequestType, UploadFileRequestData, VaultRequestData,
-        VerifyWebhookSourceRequestData,
+        PaymentsUpdatePostConfirmData, PushNotificationRequestData, RefundsData, ResponseId,
+        RetrieveFileRequestData, SdkPaymentsSessionUpdateData, SetupMandateRequestData,
+        SplitRefundsRequest, SubmitEvidenceRequestData, SyncRequestType, UploadFileRequestData,
+        VaultRequestData, VerifyWebhookSourceRequestData,
     },
     router_response_types::{
         merchant_connector_webhook_management::{
@@ -201,6 +201,9 @@ pub type PaymentsPostSessionTokensRouterData =
 
 pub type PaymentsUpdateMetadataRouterData =
     RouterData<UpdateMetadata, PaymentsUpdateMetadataData, PaymentsResponseData>;
+
+pub type PaymentsUpdatePostConfirmRouterData =
+    RouterData<UpdatePostConfirm, PaymentsUpdatePostConfirmData, PaymentsResponseData>;
 
 pub type PaymentsCancelRouterData = RouterData<Void, PaymentsCancelData, PaymentsResponseData>;
 pub type PaymentsPreAuthorizeVoidRouterData =
@@ -539,6 +542,7 @@ impl Capturable for PaymentsTaxCalculationData {}
 impl Capturable for SdkPaymentsSessionUpdateData {}
 impl Capturable for PaymentsPostSessionTokensData {}
 impl Capturable for PaymentsUpdateMetadataData {}
+impl Capturable for PaymentsUpdatePostConfirmData {}
 impl Capturable for PaymentsCancelData {
     fn get_captured_amount<F>(
         &self,
@@ -821,6 +825,12 @@ pub struct UcsPayoutCreateResponseData {
 
 #[cfg(feature = "payouts")]
 pub struct UcsPayoutTransferResponseData {
+    pub router_data_response: Result<PayoutsResponseData, ErrorResponse>,
+    pub status_code: u16,
+}
+
+#[cfg(feature = "payouts")]
+pub struct UcsPayoutEligibilityResponseData {
     pub router_data_response: Result<PayoutsResponseData, ErrorResponse>,
     pub status_code: u16,
 }
@@ -1435,7 +1445,6 @@ impl ForeignFrom<&SetupMandateRouterData> for PaymentsAuthorizeData {
                 .request
                 .partner_merchant_identifier_details
                 .clone(),
-            rrn: None,
             feature_metadata: None,
             installment_details: None,
             connector_intent_metadata: None,
@@ -1510,6 +1519,7 @@ impl<F1, F2, T1, T2> ForeignFrom<(&RouterData<F1, T1, PaymentsResponseData>, T2)
             customer_document_details: data.customer_document_details.clone(),
             feature_data: data.feature_data.clone(),
             sender_payment_instrument_id: None,
+            connector_returned_payment_method_details: None,
         }
     }
 }
@@ -1586,6 +1596,7 @@ impl<F1, F2>
             customer_document_details: None,
             feature_data: data.feature_data.clone(),
             sender_payment_instrument_id: None,
+            connector_returned_payment_method_details: None,
         }
     }
 }

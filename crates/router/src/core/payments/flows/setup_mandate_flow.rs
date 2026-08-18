@@ -104,6 +104,13 @@ impl
 
 #[async_trait]
 impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::SetupMandateRouterData {
+    fn current_flow_info(&self) -> Option<api_interface::CurrentFlowInfo> {
+        Some(api_interface::CurrentFlowInfo::SetupMandate {
+            auth_type: self.auth_type,
+            request_data: Box::new(self.request.clone()),
+        })
+    }
+
     async fn decide_flows<'a>(
         mut self,
         state: &SessionState,
@@ -112,7 +119,7 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
         connector_request: Option<services::Request>,
         _business_profile: &domain::Profile,
         _header_payload: domain_payments::HeaderPayload,
-        _return_raw_connector_response: Option<bool>,
+        return_raw_connector_response: Option<bool>,
         gateway_context: gateway_context::RouterGatewayContext,
     ) -> RouterResult<Self> {
         let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
@@ -141,7 +148,7 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
             &self,
             call_connector_action.clone(),
             connector_request,
-            None,
+            return_raw_connector_response,
             gateway_context,
         )
         .await

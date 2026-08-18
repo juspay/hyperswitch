@@ -65,6 +65,7 @@ use crate::{consts, types::payment_methods as pm_types};
 #[cfg(feature = "v1")]
 #[derive(Default)]
 pub struct PaymentMethodFetchData {
+    pub payment_intent: Option<storage::PaymentIntent>,
     pub payment_method_info: Option<domain::PaymentMethod>,
     pub payment_method_with_raw_data: Option<PaymentMethodWithRawData>,
     pub token_data: Option<storage::PaymentTokenData>,
@@ -74,6 +75,7 @@ pub struct PaymentMethodFetchData {
 impl PaymentMethodFetchData {
     pub fn from_modular(payment_method_with_raw_data: PaymentMethodWithRawData) -> Self {
         Self {
+            payment_intent: None,
             payment_method_info: Some(payment_method_with_raw_data.payment_method.clone()),
             payment_method_with_raw_data: Some(payment_method_with_raw_data),
             token_data: None,
@@ -85,6 +87,7 @@ impl PaymentMethodFetchData {
         token_data: Option<storage::PaymentTokenData>,
     ) -> Self {
         Self {
+            payment_intent: None,
             payment_method_info: Some(payment_method_info),
             payment_method_with_raw_data: None,
             token_data,
@@ -1035,6 +1038,9 @@ impl
                 payment_method_data::PaymentMethodsData::NetworkToken(_) => {
                     todo!()
                 }
+                payment_method_data::PaymentMethodsData::BankRedirect(_) => {
+                    todo!()
+                }
             });
 
         let payment_method_billing = item
@@ -1139,6 +1145,9 @@ impl
                     }
                 }
                 payment_method_data::PaymentMethodsData::NetworkToken(_) => {
+                    todo!()
+                }
+                payment_method_data::PaymentMethodsData::BankRedirect(_) => {
                     todo!()
                 }
             });
@@ -1543,6 +1552,7 @@ impl DomainPaymentMethodWrapper {
             network_tokenization_data: None,
             storage_type: response.storage_type,
             compatibility_updated_at: Some(current_time),
+            connector_payment_method_details: None,
         }))
     }
 
@@ -1666,6 +1676,7 @@ impl DomainPaymentMethodWrapper {
             network_tokenization_data: None,
             storage_type: response.storage_type,
             compatibility_updated_at: Some(current_time),
+            connector_payment_method_details: None,
         }))
     }
 }
@@ -1853,6 +1864,7 @@ impl TryFrom<CreatePaymentMethodResponse> for DomainPaymentMethodWrapper {
             network_tokenization_data: None,
             storage_type: response.storage_type,
             compatibility_updated_at: Some(current_time),
+            connector_payment_method_details: None,
         }))
     }
 }
@@ -1895,29 +1907,27 @@ impl<'a>
     fn foreign_try_from(
         card_data: &'a hyperswitch_domain_models::payment_method_data::CardWithOptionalCVC,
     ) -> Result<Self, Self::Error> {
-        let card_cvc =
-            card_data
-                .card_cvc
-                .clone()
-                .ok_or(errors::ApiErrorResponse::UnprocessableEntity {
-                    message: "card_cvc is required for card payment path".to_string(),
-                })?;
-
-        Ok(Self::Card(domain::Card {
-            card_number: card_data.card_number.clone(),
-            card_exp_month: card_data.card_exp_month.clone(),
-            card_exp_year: card_data.card_exp_year.clone(),
-            card_cvc,
-            card_issuer: card_data.card_issuer.clone(),
-            card_network: card_data.card_network.clone(),
-            card_type: card_data.card_type.clone(),
-            card_issuing_country: card_data.card_issuing_country.clone(),
-            card_issuing_country_code: card_data.card_issuing_country_code.clone(),
-            bank_code: card_data.bank_code.clone(),
-            nick_name: card_data.nick_name.clone(),
-            card_holder_name: card_data.card_holder_name.clone(),
-            co_badged_card_data: card_data.co_badged_card_data.clone(),
-        }))
+        match &card_data.card_cvc {
+            Some(card_cvc) => Ok(Self::Card(domain::Card {
+                card_number: card_data.card_number.clone(),
+                card_exp_month: card_data.card_exp_month.clone(),
+                card_exp_year: card_data.card_exp_year.clone(),
+                card_cvc: card_cvc.clone(),
+                card_issuer: card_data.card_issuer.clone(),
+                card_network: card_data.card_network.clone(),
+                card_type: card_data.card_type.clone(),
+                card_issuing_country: card_data.card_issuing_country.clone(),
+                card_issuing_country_code: card_data.card_issuing_country_code.clone(),
+                bank_code: card_data.bank_code.clone(),
+                nick_name: card_data.nick_name.clone(),
+                card_holder_name: card_data.card_holder_name.clone(),
+                co_badged_card_data: card_data.co_badged_card_data.clone(),
+            })),
+            None => {
+                logger::warn!("Preserving CardWithOptionalCVC because card_cvc is absent");
+                Ok(Self::CardWithOptionalCVC(card_data.clone()))
+            }
+        }
     }
 }
 
@@ -2060,7 +2070,7 @@ pub async fn create_payment_method_in_modular_service(
     payment_method_type: Option<common_enums::PaymentMethodType>,
     payment_method_data: domain::PaymentMethodData,
     billing_address: Option<hyperswitch_domain_models::address::Address>,
-    customer_id: id_type::CustomerId,
+    customer_id: id_type::GlobalCustomerId,
     is_network_tokenization_enabled: bool,
 ) -> CustomResult<domain::PaymentMethod, errors::ApiErrorResponse> {
     let payment_method_request = CreatePaymentMethodV1Request {
@@ -2107,7 +2117,7 @@ pub async fn create_proxy_card_payment_method_in_modular_service(
     payment_method_type: Option<common_enums::PaymentMethodType>,
     vault_card: hyperswitch_domain_models::payment_method_data::ExternalVaultCard,
     billing_address: Option<hyperswitch_domain_models::address::Address>,
-    customer_id: id_type::CustomerId,
+    customer_id: id_type::GlobalCustomerId,
 ) -> CustomResult<domain::PaymentMethod, errors::ApiErrorResponse> {
     // Proxy flow: the card comes from `proxy_card_data`, so `payment_method_data` is None.
     let payment_method_request = CreatePaymentMethodV1Request {
@@ -2205,7 +2215,7 @@ pub async fn list_customer_payment_methods_from_modular_service(
     state: &routes::SessionState,
     merchant_id: &id_type::MerchantId,
     profile_id: &id_type::ProfileId,
-    customer_id: id_type::CustomerId,
+    customer_id: id_type::GlobalCustomerId,
 ) -> CustomResult<Vec<payment_methods::types::PaymentMethodResponseItemV1>, errors::ApiErrorResponse>
 {
     let internal_api_key = &state

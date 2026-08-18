@@ -64,7 +64,7 @@ pub async fn list_blocked_payment_methods() {}
     request_body(
         content = String,
         content_type = "multipart/form-data",
-        description = "A multipart/form-data request with a `file` field containing a UTF-8 CSV (max 5 MB). \
+        description = "A multipart/form-data request with a `file` field containing a UTF-8 CSV (max 5 MiB). \
             The CSV must have a header row: `type,data,metadata`. \
             `type`: one of `card_bin` (6 digits), `extended_card_bin` (8 digits), `fingerprint`. \
             `metadata`: optional, `key=value` pairs separated by `;` (e.g. `reason=fraud;source=manual`). \
@@ -72,7 +72,7 @@ pub async fn list_blocked_payment_methods() {}
     ),
     responses(
         (status = 202, description = "Batch blocklist job initiated", body = BatchBlocklistUploadResponse),
-        (status = 400, description = "CSV validation error or file exceeds 5 MB limit"),
+        (status = 400, description = "CSV validation error or file exceeds 5 MiB limit"),
     ),
     tag = "Blocklist",
     operation_id = "Upload a batch blocklist CSV",

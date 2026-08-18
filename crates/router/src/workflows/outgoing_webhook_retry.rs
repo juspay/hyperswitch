@@ -166,8 +166,7 @@ impl ProcessTrackerWorkflow<SessionState> for OutgoingWebhookRetryWorkflow {
                 .await;
             }
 
-            // Event inserted by old version of application, fetch current information about
-            // resource
+            // Event inserted by an older version of the application, or event created when sending webhooks to a connector
             None => {
                 // Fetch provider merchant account and keystore
                 let provider_key_store = db
@@ -207,6 +206,7 @@ impl ProcessTrackerWorkflow<SessionState> for OutgoingWebhookRetryWorkflow {
                 );
 
                 // TODO: Add request state for the PT flows as well
+                // Fetch the current resource information
                 let (content, event_type) =
                     if let WebhookRecipientData::Merchant { .. } = recipient_data.clone() {
                         let (content, event_type) =
@@ -508,7 +508,8 @@ async fn get_outgoing_webhook_content_and_event_type(
                 | ApplicationResponse::Form(_)
                 | ApplicationResponse::GenericLinkForm(_)
                 | ApplicationResponse::PaymentLinkForm(_)
-                | ApplicationResponse::FileData(_) => {
+                | ApplicationResponse::FileData(_)
+                | ApplicationResponse::IncomingWebhookEvent { .. } => {
                     Err(errors::ProcessTrackerError::ResourceFetchingFailed {
                         resource_name: tracking_data.primary_object_id.clone(),
                     })
@@ -568,7 +569,8 @@ async fn get_outgoing_webhook_content_and_event_type(
                     | ApplicationResponse::Form(_)
                     | ApplicationResponse::GenericLinkForm(_)
                     | ApplicationResponse::PaymentLinkForm(_)
-                    | ApplicationResponse::FileData(_) => {
+                    | ApplicationResponse::FileData(_)
+                    | ApplicationResponse::IncomingWebhookEvent { .. } => {
                         Err(errors::ProcessTrackerError::ResourceFetchingFailed {
                             resource_name: tracking_data.primary_object_id.clone(),
                         })
@@ -599,7 +601,8 @@ async fn get_outgoing_webhook_content_and_event_type(
                 | ApplicationResponse::Form(_)
                 | ApplicationResponse::GenericLinkForm(_)
                 | ApplicationResponse::PaymentLinkForm(_)
-                | ApplicationResponse::FileData(_) => {
+                | ApplicationResponse::FileData(_)
+                | ApplicationResponse::IncomingWebhookEvent { .. } => {
                     Err(errors::ProcessTrackerError::ResourceFetchingFailed {
                         resource_name: tracking_data.primary_object_id.clone(),
                     })

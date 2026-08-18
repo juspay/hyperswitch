@@ -3,9 +3,10 @@
 //! This module provides functionality to transform connector authentication data
 //! into connector-specific configuration structures expected by the Unified Connector Service (UCS).
 
-use std::{collections::HashMap, str::FromStr};
+use std::collections::HashMap;
 
 use common_enums::{connector_enums::Connector, enums::Currency};
+use common_utils::ext_traits::ValueExt;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::router_data::ConnectorAuthType;
 use hyperswitch_masking::{PeekInterface, Secret};
@@ -63,6 +64,41 @@ pub struct AdyenMetadata {
 }
 
 #[derive(Debug, serde::Deserialize)]
+pub struct JpmorganMetadata {
+    company_name: Secret<String>,
+    product_name: Secret<String>,
+}
+
+#[derive(Debug, serde::Deserialize)]
+pub struct SantanderPayoutMetadata {
+    client_id: Secret<String>,
+    client_secret: Secret<String>,
+    workspace_id: Secret<String>,
+}
+
+#[derive(Debug, serde::Deserialize)]
+#[serde(untagged)]
+enum SantanderPayoutMetadataCompat {
+    Flat(SantanderPayoutMetadata),
+    Nested { pix_payout: SantanderPayoutMetadata },
+}
+
+impl SantanderPayoutMetadataCompat {
+    fn into_inner(self) -> SantanderPayoutMetadata {
+        match self {
+            Self::Flat(m) => m,
+            Self::Nested { pix_payout } => pix_payout,
+        }
+    }
+}
+
+#[derive(Debug, serde::Deserialize)]
+pub struct MifinityMetadata {
+    brand_id: Secret<String>,
+    destination_account_number: Secret<String>,
+}
+
+#[derive(Debug, serde::Deserialize)]
 pub struct TruelayerMetadata {
     merchant_account_id: Option<Secret<String>>,
     account_holder_name: Option<Secret<String>>,
@@ -76,8 +112,10 @@ pub struct PaysafeMetadata {
 }
 
 /// Paysafe payment method details for account_id configuration.
-/// Contains card and ACH account IDs grouped by currency.
-/// This struct is compatible with the UCS Paysafe connector expectations.
+/// Contains per-currency account IDs for card, ACH, Apple Pay, Interac,
+/// Skrill and paysafecard.
+/// This struct is compatible with the UCS Paysafe connector expectations
+/// (proto `PaysafePaymentMethodDetails` in the UCS `PaysafeConfig`).
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PaysafePaymentMethodDetails {
     // UCS proto map fields — must always be present in serialized JSON (not Option)
@@ -87,6 +125,18 @@ pub struct PaysafePaymentMethodDetails {
     /// ACH account IDs by currency
     #[serde(default)]
     pub ach: HashMap<Currency, PaysafeAchAccountId>,
+    /// Dedicated Apple Pay processing accounts (encrypt/decrypt) by currency
+    #[serde(default)]
+    pub apple_pay: HashMap<Currency, PaysafeApplePayAccountId>,
+    /// Interac e-Transfer account IDs by currency
+    #[serde(default)]
+    pub interac: HashMap<Currency, PaysafeRedirectAccountId>,
+    /// Skrill wallet account IDs by currency
+    #[serde(default)]
+    pub skrill: HashMap<Currency, PaysafeRedirectAccountId>,
+    /// paysafecard account IDs by currency
+    #[serde(default)]
+    pub pay_safe_card: HashMap<Currency, PaysafeRedirectAccountId>,
 }
 
 /// Paysafe card account ID configuration for a specific currency
@@ -108,15 +158,59 @@ pub struct PaysafeAchAccountId {
     pub account_id: Option<Secret<String>>,
 }
 
+/// Paysafe dedicated Apple Pay processing account for a specific currency,
+/// split by token flow (encrypted PKPaymentToken vs decrypted token).
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct PaysafeApplePayAccountId {
+    /// Account ID for the encrypted-token flow
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub encrypt: Option<Secret<String>>,
+    /// Account ID for the decrypted-token flow
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub decrypt: Option<Secret<String>>,
+}
+
+/// Paysafe redirect-APM processing account (Interac, Skrill, paysafecard)
+/// for a specific currency. Mirrors the native hyperswitch Paysafe connector's
+/// `RedirectAccountId` (metadata key `three_ds`) so the same MCA metadata is
+/// portable between the native and UCS paths.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct PaysafeRedirectAccountId {
+    /// Processing account ID (native metadata key: `three_ds`)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub three_ds: Option<Secret<String>>,
+}
+
 #[derive(Debug, serde::Deserialize)]
 pub struct PeachpaymentsMetadata {
     client_merchant_reference_id: Secret<String>,
     merchant_payment_method_route_id: Secret<String>,
 }
 
+#[derive(Debug, serde::Deserialize)]
+pub struct TsysTransitMetadata {
+    merchant_street_address: Option<Secret<String>>,
+    customer_service_phone_number: Option<Secret<String>>,
+    merchant_url: Option<url::Url>,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct JuspayMetadata {
+    pub merchant_id: String,
+    pub base_url: String,
+    pub juspay_encryption_public_key: Secret<String>,
+    pub response_decryption_private_key: Secret<String>,
+    pub card_sync_key_id: String,
+}
+
 /// Connector-specific configuration enum for all supported connectors
 #[derive(Debug, Clone, serde::Serialize)]
 pub enum ConnectorSpecificConfig {
+    /// Affirm connector configuration (public/private API key pair, HTTP Basic auth)
+    Affirm {
+        public_key: Secret<String>,
+        private_key: Secret<String>,
+    },
     /// Adyen connector configuration
     Adyen {
         api_key: Secret<String>,
@@ -166,6 +260,12 @@ pub enum ConnectorSpecificConfig {
     Payconex {
         api_key: Secret<String>,
         account_id: Secret<String>,
+        base_url: Option<String>,
+    },
+    /// Citigate connector configuration
+    Citigate {
+        api_key: Secret<String>,
+        key1: Secret<String>,
         base_url: Option<String>,
     },
     /// Fiservcommercehub connector configuration
@@ -416,6 +516,17 @@ pub enum ConnectorSpecificConfig {
         transaction_key: Secret<String>,
         developer_id: Secret<String>,
     },
+    /// TsysTransit (TransIT XML, API3.0) connector configuration. Same auth shape as
+    /// the legacy JSON Tsys but a separate variant so the UCS side can route
+    /// to the tsys_transit ConnectorIntegration impls.
+    TsysTransit {
+        device_id: Secret<String>,
+        transaction_key: Secret<String>,
+        developer_id: Secret<String>,
+        merchant_street_address: Option<Secret<String>>,
+        customer_service_phone_number: Option<Secret<String>>,
+        merchant_url: Option<String>,
+    },
     /// Bamboraapac connector configuration
     Bamboraapac {
         username: Secret<String>,
@@ -457,6 +568,10 @@ pub enum ConnectorSpecificConfig {
     Jpmorgan {
         client_id: Secret<String>,
         client_secret: Secret<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        company_name: Option<Secret<String>>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        product_name: Option<Secret<String>>,
     },
     /// Peachpayments connector configuration
     Peachpayments {
@@ -508,6 +623,12 @@ pub enum ConnectorSpecificConfig {
         merchant_account: Secret<String>,
         api_secret: Secret<String>,
     },
+    /// Tesouro connector configuration
+    Tesouro {
+        api_key: Secret<String>,
+        key1: Secret<String>,
+        api_secret: Secret<String>,
+    },
     /// Finix connector configuration
     Finix {
         finix_user_name: Secret<String>,
@@ -534,6 +655,13 @@ pub enum ConnectorSpecificConfig {
         certificates: Option<Secret<String>>,
         private_key: Option<Secret<String>>,
     },
+    /// Deutsche Bank CSEAL configuration
+    Deutschebank {
+        customer_identifier: Secret<String>,
+        key_id: Secret<String>,
+        signing_private_key: Secret<String>,
+        client_certificate_bundle: Secret<String>,
+    },
     /// Imerchantsolutions connector configuration
     Imerchantsolutions {
         api_key: Secret<String>,
@@ -548,6 +676,33 @@ pub enum ConnectorSpecificConfig {
     Interpayments {
         api_key: Secret<String>,
         base_url: Option<String>,
+    },
+    /// Givepayments connector configuration
+    Givepayments { api_key: Secret<String> },
+    /// Juspay Account Updater configuration
+    Juspay {
+        api_key: Secret<String>,
+        merchant_id: String,
+        base_url: String,
+        juspay_encryption_public_key: Secret<String>,
+        response_decryption_private_key: Secret<String>,
+        card_sync_key_id: String,
+    },
+    /// Netcetera authentication connector configuration (no connector-specific config needed)
+    Netcetera,
+    /// Santander payout connector configuration
+    Santander {
+        certificates: Secret<String>,
+        private_key: Secret<String>,
+        client_id: Secret<String>,
+        client_secret: Secret<String>,
+        workspace_id: Secret<String>,
+    },
+    /// Mifinity connector configuration
+    Mifinity {
+        key: Secret<String>,
+        brand_id: Option<Secret<String>>,
+        destination_account_number: Option<Secret<String>>,
     },
 }
 
@@ -836,10 +991,22 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                 _ => Err(err("Hipay requires BodyKey auth type")),
             },
             Connector::Jpmorgan => match auth {
-                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Jpmorgan {
-                    client_id: api_key.clone(),
-                    client_secret: key1.clone(),
-                }),
+                ConnectorAuthType::BodyKey { api_key, key1 } => {
+                    let jpm_meta = metadata
+                        .map(|m| {
+                            m.clone()
+                                .parse_value::<JpmorganMetadata>("JpmorganMetadata")
+                                .change_context(errors::ApiErrorResponse::InternalServerError)
+                                .attach_printable("Invalid Jpmorgan metadata format")
+                        })
+                        .transpose()?;
+                    Ok(Self::Jpmorgan {
+                        client_id: api_key.clone(),
+                        client_secret: key1.clone(),
+                        company_name: jpm_meta.as_ref().map(|m| m.company_name.clone()),
+                        product_name: jpm_meta.as_ref().map(|m| m.product_name.clone()),
+                    })
+                }
                 _ => Err(err("Jpmorgan requires BodyKey auth type")),
             },
             Connector::Loonio => match auth {
@@ -993,6 +1160,13 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                 }),
                 _ => Err(err("Bamboraapac requires SignatureKey auth type")),
             },
+            Connector::Affirm => match auth {
+                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Affirm {
+                    public_key: api_key.clone(),
+                    private_key: key1.clone(),
+                }),
+                _ => Err(err("Affirm requires BodyKey auth type")),
+            },
             Connector::Barclaycard => match auth {
                 ConnectorAuthType::SignatureKey {
                     api_key,
@@ -1004,6 +1178,18 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                     api_secret: api_secret.clone(),
                 }),
                 _ => Err(err("Barclaycard requires SignatureKey auth type")),
+            },
+            Connector::Tesouro => match auth {
+                ConnectorAuthType::SignatureKey {
+                    api_key,
+                    key1,
+                    api_secret,
+                } => Ok(Self::Tesouro {
+                    api_key: api_key.clone(),
+                    key1: key1.clone(),
+                    api_secret: api_secret.clone(),
+                }),
+                _ => Err(err("Tesouro requires SignatureKey auth type")),
             },
             Connector::Checkout => match auth {
                 ConnectorAuthType::SignatureKey {
@@ -1237,6 +1423,39 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                 }),
                 _ => Err(err("Tsys requires SignatureKey auth type")),
             },
+            Connector::TsysTransit => match auth {
+                ConnectorAuthType::SignatureKey {
+                    api_key,
+                    key1,
+                    api_secret,
+                } => {
+                    let tsys_transit_meta = metadata
+                        .map(|meta| {
+                            serde_json::from_value::<TsysTransitMetadata>(meta.clone())
+                                .map_err(|_| err("Invalid tsys transit metadata format"))
+                        })
+                        .transpose()?;
+
+                    Ok(Self::TsysTransit {
+                        device_id: api_key.clone(),
+                        transaction_key: key1.clone(),
+                        developer_id: api_secret.clone(),
+                        merchant_street_address: tsys_transit_meta
+                            .as_ref()
+                            .and_then(|metadata| metadata.merchant_street_address.clone()),
+                        customer_service_phone_number: tsys_transit_meta
+                            .as_ref()
+                            .and_then(|metadata| metadata.customer_service_phone_number.clone()),
+                        merchant_url: tsys_transit_meta.as_ref().and_then(|metadata| {
+                            metadata
+                                .merchant_url
+                                .as_ref()
+                                .map(|merchant_url| merchant_url.to_string())
+                        }),
+                    })
+                }
+                _ => Err(err("TsysTransit requires SignatureKey auth type")),
+            },
             Connector::Wellsfargo => match auth {
                 ConnectorAuthType::SignatureKey {
                     api_key,
@@ -1449,6 +1668,23 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                 }),
                 _ => Err(err("Itaubank requires BodyKey auth type")),
             },
+            Connector::Deutschebank => match auth {
+                ConnectorAuthType::MultiAuthKey {
+                    api_key,
+                    key1,
+                    api_secret,
+                    key2,
+                } => Ok(Self::Deutschebank {
+                    customer_identifier: api_key.clone(),
+                    key_id: key1.clone(),
+                    signing_private_key: api_secret.clone(),
+                    client_certificate_bundle: key2.clone(),
+                }),
+                _ => Err(err(
+                    "Deutsche Bank requires MultiAuthKey auth type \
+                     (customer_identifier / key_id / signing_private_key / client_certificate_bundle)",
+                )),
+            },
             Connector::Imerchantsolutions => match auth {
                 ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Imerchantsolutions {
                     api_key: api_key.clone(),
@@ -1475,12 +1711,84 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                 }),
                 _ => Err(err("Payconex requires BodyKey auth type")),
             },
+            Connector::Citigate => match auth {
+                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Citigate {
+                    api_key: api_key.clone(),
+                    key1: key1.clone(),
+                    base_url: None,
+                }),
+                _ => Err(err("Citigate requires BodyKey auth type")),
+            },
             Connector::Interpayments => match auth {
                 ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Interpayments {
                     api_key: api_key.clone(),
                     base_url: None,
                 }),
                 _ => Err(err("Interpayments requires HeaderKey auth type")),
+            },
+            Connector::Givepayments => match auth {
+                ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Givepayments {
+                    api_key: api_key.clone(),
+                }),
+                _ => Err(err("Givepayments requires HeaderKey auth type")),
+            },
+            Connector::Juspay => match auth {
+                ConnectorAuthType::HeaderKey { api_key } => {
+                    let juspay_meta = metadata
+                        .map(|meta| {
+                            serde_json::from_value::<JuspayMetadata>(meta.clone())
+                                .change_context(errors::ApiErrorResponse::InternalServerError)
+                                .attach_printable("Invalid Juspay metadata format")
+                        })
+                        .transpose()?
+                        .ok_or_else(|| err("Juspay requires metadata"))?;
+
+                    Ok(Self::from((api_key.clone(), juspay_meta)))
+                }
+                _ => Err(err("Juspay requires HeaderKey auth type")),
+            },
+            Connector::Netcetera => Ok(Self::Netcetera),
+            Connector::Santander => match auth {
+                ConnectorAuthType::CertificateAuth {
+                    certificate,
+                    private_key,
+                } => {
+                    let meta_data = metadata
+                        .map(|m| {
+                            serde_json::from_value::<SantanderPayoutMetadataCompat>(m.clone())
+                                .map_err(|_| err("Invalid Santander payout metadata format"))
+                        })
+                        .transpose()?
+                        .ok_or_else(|| err("Santander payout requires metadata"))?
+                        .into_inner();
+                    Ok(Self::Santander {
+                        certificates: certificate.clone(),
+                        private_key: private_key.clone(),
+                        client_id: meta_data.client_id,
+                        client_secret: meta_data.client_secret,
+                        workspace_id: meta_data.workspace_id,
+                    })
+                }
+                _ => Err(err("Santander payout requires CertificateAuth auth type")),
+            },
+            Connector::Mifinity => match auth {
+                ConnectorAuthType::HeaderKey { api_key } => {
+                    let mifinity_meta = metadata
+                        .map(|m| {
+                            serde_json::from_value::<MifinityMetadata>(m.clone())
+                                .map_err(|_| err("Invalid Mifinity metadata format"))
+                        })
+                        .transpose()?;
+
+                    Ok(Self::Mifinity {
+                        key: api_key.clone(),
+                        brand_id: mifinity_meta.as_ref().map(|m| m.brand_id.clone()),
+                        destination_account_number: mifinity_meta
+                            .as_ref()
+                            .map(|m| m.destination_account_number.clone()),
+                    })
+                }
+                _ => Err(err("Mifinity requires HeaderKey auth type")),
             },
             // --- Unsupported connectors ---
             _ => Err(
@@ -1494,21 +1802,38 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
     }
 }
 
+impl From<(Secret<String>, JuspayMetadata)> for ConnectorSpecificConfig {
+    fn from((api_key, metadata): (Secret<String>, JuspayMetadata)) -> Self {
+        Self::Juspay {
+            api_key,
+            merchant_id: metadata.merchant_id,
+            base_url: metadata.base_url,
+            juspay_encryption_public_key: metadata.juspay_encryption_public_key,
+            response_decryption_private_key: metadata.response_decryption_private_key,
+            card_sync_key_id: metadata.card_sync_key_id,
+        }
+    }
+}
+
 /// Build the X_CONNECTOR_CONFIG header value for any connector
 pub fn build_connector_config_header(
-    connector_name: &str,
+    connector: Connector,
     auth_type: &ConnectorAuthType,
     merchant_account_metadata: Option<&serde_json::Value>,
 ) -> RouterResult<Option<String>> {
-    let connector = Connector::from_str(connector_name)
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable_lazy(|| format!("Invalid connector name: {}", connector_name))?;
-
     let config = ConnectorSpecificConfig::foreign_try_from((
         connector,
         auth_type,
         merchant_account_metadata,
     ))?;
+
+    // Netcetera has no connector-specific config on the wire (connector-service's
+    // `ConnectorSpecificConfig` oneof has no `netcetera` case), so sending this header makes
+    // UCS hard-error on deserialization instead of falling back to the legacy auth header.
+    // Suppress it here so UCS takes the legacy-header path, which does work for Netcetera.
+    if matches!(config, ConnectorSpecificConfig::Netcetera) {
+        return Ok(None);
+    }
 
     let config_json = serde_json::to_value(&config)
         .change_context(errors::ApiErrorResponse::InternalServerError)

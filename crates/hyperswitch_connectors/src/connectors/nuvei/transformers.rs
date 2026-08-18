@@ -65,10 +65,10 @@ use crate::{
     },
     utils::{
         self, convert_amount, missing_field_err, AddressData, AddressDetailsData,
-        BrowserInformationData, CardData, ForeignTryFrom, PaymentsAuthorizeRequestData,
-        PaymentsCancelRequestData, PaymentsCompleteAuthorizeRequestData,
-        PaymentsPreAuthenticateRequestData, PaymentsPreProcessingRequestData,
-        PaymentsSetupMandateRequestData, RouterData as _,
+        BrowserInformationData, CardData, ForeignTryFrom, NetworkTokenData as _,
+        PaymentsAuthorizeRequestData, PaymentsCancelRequestData,
+        PaymentsCompleteAuthorizeRequestData, PaymentsPreAuthenticateRequestData,
+        PaymentsPreProcessingRequestData, PaymentsSetupMandateRequestData, RouterData as _,
     },
 };
 
@@ -496,13 +496,30 @@ pub struct Card {
     pub stored_credentials: Option<StoredCredentialMode>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum ExternalToken {
+    Wallet(WalletExternalToken),
+    NetworkToken(NetworkTokenExternalToken),
+}
+
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ExternalToken {
+pub struct WalletExternalToken {
     pub external_token_provider: ExternalTokenProvider,
     pub mobile_token: Option<Secret<String>>,
     pub cryptogram: Option<Secret<String>>,
     pub eci_provider: Option<String>,
+}
+
+#[serde_with::skip_serializing_none]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NetworkTokenExternalToken {
+    pub network_token_number: cards::CardNumber,
+    pub network_token_cryptogram: Option<Secret<String>>,
+    pub token_assurance_level: Option<String>,
+    pub token_requestor_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -763,12 +780,12 @@ fn get_google_pay_decrypt_data(
                 )),
                 expiration_month: Some(predecrypt_data.card_exp_month.clone()),
                 expiration_year: Some(predecrypt_data.card_exp_year.clone()),
-                external_token: Some(ExternalToken {
+                external_token: Some(ExternalToken::Wallet(WalletExternalToken {
                     external_token_provider: ExternalTokenProvider::GooglePay,
                     mobile_token: None,
                     cryptogram: predecrypt_data.cryptogram.clone(),
                     eci_provider: predecrypt_data.eci_indicator.clone(),
-                }),
+                })),
                 ..Default::default()
             }),
             ..Default::default()
@@ -796,7 +813,7 @@ where
         GpayTokenizationData::Encrypted(ref encrypted_data) => Ok(NuveiPaymentsRequest {
             payment_option: PaymentOption {
                 card: Some(Card {
-                    external_token: Some(ExternalToken {
+                    external_token: Some(ExternalToken::Wallet(WalletExternalToken {
                         external_token_provider: ExternalTokenProvider::GooglePay,
 
                         mobile_token: {
@@ -835,7 +852,7 @@ where
                         },
                         cryptogram: None,
                         eci_provider: None,
-                    }),
+                    })),
                     ..Default::default()
                 }),
                 ..Default::default()
@@ -873,7 +890,7 @@ fn get_apple_pay_decrypt_data(
                         .application_expiration_year
                         .clone(),
                 ),
-                external_token: Some(ExternalToken {
+                external_token: Some(ExternalToken::Wallet(WalletExternalToken {
                     external_token_provider: ExternalTokenProvider::ApplePay,
                     mobile_token: None,
                     cryptogram: Some(
@@ -883,7 +900,7 @@ fn get_apple_pay_decrypt_data(
                             .clone(),
                     ),
                     eci_provider: apple_pay_predecrypt_data.payment_data.eci_indicator.clone(),
-                }),
+                })),
                 ..Default::default()
             }),
             ..Default::default()
@@ -912,7 +929,7 @@ where
         ApplePayPaymentData::Encrypted(ref encrypted_data) => Ok(NuveiPaymentsRequest {
             payment_option: PaymentOption {
                 card: Some(Card {
-                    external_token: Some(ExternalToken {
+                    external_token: Some(ExternalToken::Wallet(WalletExternalToken {
                         external_token_provider: ExternalTokenProvider::ApplePay,
                         mobile_token: {
                             let apple_pay: ApplePayCamelCase = ApplePayCamelCase {
@@ -941,7 +958,7 @@ where
                         },
                         cryptogram: None,
                         eci_provider: None,
-                    }),
+                    })),
                     ..Default::default()
                 }),
                 ..Default::default()
@@ -1084,6 +1101,65 @@ where
     })
 }
 
+fn get_network_token_info<F, Req, T>(
+    item: &RouterData<F, Req, PaymentsResponseData>,
+    network_token_data: &T,
+    external_scheme_details: Option<ExternalSchemeDetails>,
+) -> Result<NuveiPaymentsRequest, error_stack::Report<errors::ConnectorError>>
+where
+    Req: NuveiAuthorizePreprocessingCommon,
+    T: utils::NetworkTokenData,
+{
+    Ok(NuveiPaymentsRequest {
+        related_transaction_id: item.request.get_related_transaction_id().clone(),
+        device_details: DeviceDetails::foreign_try_from(&item.request.get_browser_info().clone())?,
+        payment_option: PaymentOption {
+            card: Some(Card {
+                expiration_month: Some(network_token_data.get_network_token_expiry_month()),
+                expiration_year: Some(network_token_data.get_network_token_expiry_year()),
+                external_token: Some(ExternalToken::NetworkToken(NetworkTokenExternalToken {
+                    network_token_number: cards::CardNumber::from(
+                        network_token_data.get_network_token(),
+                    ),
+                    network_token_cryptogram: network_token_data.get_cryptogram(),
+                    token_assurance_level: None,
+                    token_requestor_id: None,
+                })),
+                ..Default::default()
+            }),
+            ..Default::default()
+        },
+        external_scheme_details,
+        is_moto: item.request.get_is_moto(),
+        ..Default::default()
+    })
+}
+
+fn get_ntid_network_token_info<F, Req>(
+    item: &RouterData<F, Req, PaymentsResponseData>,
+    network_token_data: &payment_method_data::NetworkTokenDetailsForNetworkTransactionId,
+) -> Result<NuveiPaymentsRequest, error_stack::Report<errors::ConnectorError>>
+where
+    Req: NuveiAuthorizePreprocessingCommon,
+{
+    let card_type = match network_token_data.card_network.clone() {
+        Some(card_type) => NuveiCardType::try_from(card_type)?,
+        None => NuveiCardType::try_from(&network_token_data.get_card_issuer()?)?,
+    };
+
+    let external_scheme_details = Some(ExternalSchemeDetails {
+        transaction_id: item
+            .request
+            .get_ntid()
+            .ok_or_else(missing_field_err("network_transaction_id"))
+            .attach_printable("Nuvei unable to find NTID for MIT")?
+            .into(),
+        brand: Some(card_type),
+    });
+
+    get_network_token_info(item, network_token_data, external_scheme_details)
+}
+
 impl<F, Req> TryFrom<(&RouterData<F, Req, PaymentsResponseData>, String)> for NuveiPaymentsRequest
 where
     Req: NuveiAuthorizePreprocessingCommon + std::fmt::Debug,
@@ -1111,9 +1187,15 @@ where
         };
         let request_data = match item.request.get_payment_method_data_required()?.clone() {
             PaymentMethodData::Card(card) => get_card_info(item, &card),
+            PaymentMethodData::NetworkToken(network_token_data) => {
+                get_network_token_info(item, &network_token_data, None)
+            }
             PaymentMethodData::MandatePayment => Self::try_from(item),
             PaymentMethodData::CardDetailsForNetworkTransactionId(data) => {
                 get_ntid_card_info(item, data)
+            }
+            PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(network_token_data) => {
+                get_ntid_network_token_info(item, &network_token_data)
             }
             PaymentMethodData::Wallet(wallet) => match wallet {
                 WalletData::GooglePay(gpay_data) => get_googlepay_info(item, &gpay_data),
@@ -1926,6 +2008,8 @@ pub struct NuveiPaymentsResponse {
     pub auth_code: Option<String>,
     // NTID
     pub external_scheme_transaction_id: Option<Secret<String>>,
+    // Mastercard TLID
+    pub transaction_link_id: Option<String>,
     pub session_token: Option<Secret<String>>,
     pub partial_approval: Option<NuveiPartialApproval>,
     //The ID of the transaction in the merchant’s system.
@@ -1967,6 +2051,7 @@ pub struct NuveiTransactionSyncResponse {
     pub payment_option: Option<PaymentOption>,
     pub partial_approval: Option<NuveiTxnPartialApproval>,
     pub transaction_details: Option<NuveiTransactionSyncResponseDetails>,
+    pub transaction_link_id: Option<String>,
     pub client_unique_id: Option<String>,
     // API response status
     pub status: NuveiPaymentStatus,
@@ -2236,7 +2321,10 @@ impl
                     response.transaction_id.clone(),
                     response.order_id.clone(),
                     response.session_token.clone(),
-                    response.external_scheme_transaction_id.clone(),
+                    NuveiNetworkTransactionData {
+                        id: response.external_scheme_transaction_id.clone(),
+                        link_id: response.transaction_link_id.clone(),
+                    },
                     response.payment_option.clone(),
                 )?)
             },
@@ -2344,13 +2432,18 @@ fn process_nuvei_payment_response(
 }
 
 // Helper function to create transaction response
+struct NuveiNetworkTransactionData {
+    id: Option<Secret<String>>,
+    link_id: Option<String>,
+}
+
 fn create_transaction_response(
     redirection_data: Option<RedirectForm>,
     ip_address: Option<String>,
     transaction_id: Option<String>,
     order_id: Option<String>,
     session_token: Option<Secret<String>>,
-    external_scheme_transaction_id: Option<Secret<String>>,
+    network_transaction_data: NuveiNetworkTransactionData,
     payment_option: Option<PaymentOption>,
 ) -> Result<PaymentsResponseData, error_stack::Report<errors::ConnectorError>> {
     Ok(PaymentsResponseData::TransactionResponse {
@@ -2383,15 +2476,19 @@ fn create_transaction_response(
         } else {
             None
         },
-        network_txn_id: external_scheme_transaction_id
-            .as_ref()
-            .map(|ntid| ntid.clone().expose()),
-        network_txn_link_id: None,
+        network_txn_id: get_network_txn_id(network_transaction_data.id),
+        network_txn_link_id: network_transaction_data.link_id,
         connector_response_reference_id: order_id.clone(),
         incremental_authorization_allowed: None,
         authentication_data: None,
         charges: None,
     })
+}
+
+fn get_network_txn_id(external_scheme_transaction_id: Option<Secret<String>>) -> Option<String> {
+    external_scheme_transaction_id
+        .map(|ntid| ntid.expose())
+        .filter(|ntid| !ntid.is_empty())
 }
 
 // Specialized implementation for Authorize
@@ -2455,7 +2552,10 @@ impl
                     response.transaction_id.clone(),
                     response.order_id.clone(),
                     response.session_token.clone(),
-                    response.external_scheme_transaction_id.clone(),
+                    NuveiNetworkTransactionData {
+                        id: response.external_scheme_transaction_id.clone(),
+                        link_id: response.transaction_link_id.clone(),
+                    },
                     response.payment_option.clone(),
                 )?)
             },
@@ -2515,7 +2615,10 @@ where
                     response.transaction_id.clone(),
                     response.order_id.clone(),
                     response.session_token.clone(),
-                    response.external_scheme_transaction_id.clone(),
+                    NuveiNetworkTransactionData {
+                        id: response.external_scheme_transaction_id.clone(),
+                        link_id: response.transaction_link_id.clone(),
+                    },
                     response.payment_option.clone(),
                 )?)
             },
@@ -2653,7 +2756,10 @@ where
                         .and_then(|data| data.transaction_id.clone()),
                     None,
                     None,
-                    None,
+                    NuveiNetworkTransactionData {
+                        id: None,
+                        link_id: response.transaction_link_id.clone(),
+                    },
                     response.payment_option.clone(),
                 )?)
             },
@@ -3316,6 +3422,7 @@ pub struct PaymentDmnNotification {
     pub currency: String,
     #[serde(rename = "TransactionID")]
     pub transaction_id: Option<String>,
+    pub transaction_link_id: Option<String>,
     // Status of the Payment
     #[serde(rename = "Status")]
     pub status: Option<DmnStatus>,
@@ -3390,6 +3497,7 @@ impl From<PaymentDmnNotification> for NuveiTransactionSyncResponse {
             merchant_id: notification.merchant_id,
             merchant_site_id: notification.merchant_site_id,
             merchant_advice_code: notification.merchant_advice_code,
+            transaction_link_id: notification.transaction_link_id,
             ..Default::default()
         }
     }

@@ -34,6 +34,7 @@ pub struct ApiEvent {
     status_code: i64,
     #[serde(flatten)]
     auth_type: AuthenticationType,
+    auth_user_id: Option<String>,
     request: String,
     user_agent: Option<String>,
     ip_addr: Option<String>,
@@ -61,6 +62,7 @@ impl ApiEvent {
         response: Option<serde_json::Value>,
         hs_latency: Option<u128>,
         auth_type: AuthenticationType,
+        auth_user_id: Option<String>,
         error: Option<serde_json::Value>,
         event_type: ApiEventsType,
         http_req: &HttpRequest,
@@ -78,6 +80,7 @@ impl ApiEvent {
             request: request.to_string(),
             response: response.map(|resp| resp.to_string()),
             auth_type,
+            auth_user_id,
             error,
             ip_addr: http_req
                 .connection_info()
@@ -168,6 +171,40 @@ impl ApiEventMetric for PollId {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::Poll {
             poll_id: self.poll_id.clone(),
+        })
+    }
+}
+
+#[cfg(feature = "v1")]
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct WebhookRequestPayload {
+    pub connector: String,
+}
+
+#[cfg(feature = "v1")]
+impl ApiEventMetric for WebhookRequestPayload {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Webhooks {
+            connector: self.connector.clone(),
+            payment_id: None,
+            refund_id: None,
+        })
+    }
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct WebhookRequestPayload {
+    pub connector: common_utils::id_type::MerchantConnectorAccountId,
+}
+
+#[cfg(feature = "v2")]
+impl ApiEventMetric for WebhookRequestPayload {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Webhooks {
+            connector: self.connector.clone(),
+            payment_id: None,
+            refund_id: None,
         })
     }
 }

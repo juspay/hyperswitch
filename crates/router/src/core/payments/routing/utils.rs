@@ -29,12 +29,13 @@ use euclid::{
 use external_services::grpc_client::dynamic_routing as ir_client;
 use hyperswitch_domain_models::business_profile;
 use hyperswitch_interfaces::events::routing_api_logs as routing_events;
+use hyperswitch_masking::{Mask, PeekInterface};
 use router_env::RequestId;
 use serde::{Deserialize, Serialize};
 
 use super::RoutingResult;
 use crate::{
-    core::{configs::dimension_state, errors},
+    core::{configs::dimension_state, errors, metrics},
     db::domain,
     routes::{app::SessionStateInfo, SessionState},
     services::{self, logger},
@@ -90,12 +91,92 @@ pub struct HybridRoutingOutcome {
     pub routing_approach: RoutingApproach,
 }
 
+impl HybridRoutingOutcome {
+    /// Empty outcome (no DE connectors); the caller falls back to the Hyperswitch static result.
+    pub fn empty() -> Self {
+        Self {
+            connectors: Vec::new(),
+            routing_approach: RoutingApproach::Default,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum DecisionEngineEndpoint {
+    DecideGateway,
+    UpdateGatewayScore,
+    RoutingEvaluate,
+    RoutingHybrid,
+    RoutingCreate,
+    RoutingActivate,
+    RoutingListActive,
+    RoutingList,
+    RuleConfig,
+    Other,
+}
+
+impl DecisionEngineEndpoint {
+    const DECIDE_GATEWAY_PATH: &'static str = "decide-gateway";
+    const UPDATE_GATEWAY_SCORE_PATH: &'static str = "update-gateway-score";
+    const ROUTING_EVALUATE_PATH: &'static str = "routing/evaluate";
+    const ROUTING_HYBRID_PATH: &'static str = "routing/hybrid";
+    const ROUTING_CREATE_PATH: &'static str = "routing/create";
+    const ROUTING_ACTIVATE_PATH: &'static str = "routing/activate";
+    const ROUTING_LIST_ACTIVE_PATH: &'static str = "routing/list/active";
+    const ROUTING_LIST_PATH: &'static str = "routing/list";
+    const RULE_PATH: &'static str = "rule";
+
+    const DECIDE_GATEWAY_LABEL: &'static str = "decide_gateway";
+    const UPDATE_GATEWAY_SCORE_LABEL: &'static str = "update_gateway_score";
+    const ROUTING_EVALUATE_LABEL: &'static str = "routing_evaluate";
+    const ROUTING_HYBRID_LABEL: &'static str = "routing_hybrid";
+    const ROUTING_CREATE_LABEL: &'static str = "routing_create";
+    const ROUTING_ACTIVATE_LABEL: &'static str = "routing_activate";
+    const ROUTING_LIST_ACTIVE_LABEL: &'static str = "routing_list_active";
+    const ROUTING_LIST_LABEL: &'static str = "routing_list";
+    const RULE_CONFIG_LABEL: &'static str = "rule_config";
+    const OTHER_LABEL: &'static str = "other";
+
+    fn from_path(path: &str) -> Self {
+        let path = path.split('?').next().unwrap_or(path).trim_matches('/');
+        match path {
+            Self::DECIDE_GATEWAY_PATH => Self::DecideGateway,
+            Self::UPDATE_GATEWAY_SCORE_PATH => Self::UpdateGatewayScore,
+            Self::ROUTING_EVALUATE_PATH => Self::RoutingEvaluate,
+            Self::ROUTING_HYBRID_PATH => Self::RoutingHybrid,
+            Self::ROUTING_CREATE_PATH => Self::RoutingCreate,
+            Self::ROUTING_ACTIVATE_PATH => Self::RoutingActivate,
+            p if p.starts_with(Self::ROUTING_LIST_ACTIVE_PATH) => Self::RoutingListActive,
+            p if p.starts_with(Self::ROUTING_LIST_PATH) => Self::RoutingList,
+            p if p.starts_with(Self::RULE_PATH) => Self::RuleConfig,
+            _ => Self::Other,
+        }
+    }
+
+    fn as_label(self) -> &'static str {
+        match self {
+            Self::DecideGateway => Self::DECIDE_GATEWAY_LABEL,
+            Self::UpdateGatewayScore => Self::UPDATE_GATEWAY_SCORE_LABEL,
+            Self::RoutingEvaluate => Self::ROUTING_EVALUATE_LABEL,
+            Self::RoutingHybrid => Self::ROUTING_HYBRID_LABEL,
+            Self::RoutingCreate => Self::ROUTING_CREATE_LABEL,
+            Self::RoutingActivate => Self::ROUTING_ACTIVATE_LABEL,
+            Self::RoutingListActive => Self::ROUTING_LIST_ACTIVE_LABEL,
+            Self::RoutingList => Self::ROUTING_LIST_LABEL,
+            Self::RuleConfig => Self::RULE_CONFIG_LABEL,
+            Self::Other => Self::OTHER_LABEL,
+        }
+    }
+}
+
+const DECISION_ENGINE_ADMIN_SECRET_HEADER: &str = "x-admin-secret";
+
 pub async fn build_and_send_decision_engine_http_request<Req, Res, ErrRes>(
     state: &SessionState,
     http_method: services::Method,
     path: &str,
     request_body: Option<Req>,
-    _timeout: Option<u64>,
+    timeout: Option<u64>,
     context_message: &str,
     events_wrapper: Option<RoutingEventsWrapper<Req>>,
 ) -> RoutingResult<RoutingEventsResponse<Res>>
@@ -112,31 +193,64 @@ where
         .method(http_method)
         .url(&url);
 
+    // The Decision Engine authenticates Hyperswitch via a shared admin secret: its admin
+    // endpoints (merchant provisioning, SSO code mint) verify the header in the handler, and
+    // its protected router accepts it as service-to-service auth. Attach it on every call
+    // when configured; an empty secret omits the header.
+    let admin_secret = &state.conf.open_router.admin_secret;
+    if !admin_secret.peek().is_empty() {
+        request_builder = request_builder.headers(vec![(
+            DECISION_ENGINE_ADMIN_SECRET_HEADER.to_string(),
+            admin_secret.clone().into_masked(),
+        )]);
+    }
+
     if let Some(body_content) = request_body {
         let body = common_utils::request::RequestContent::Json(Box::new(body_content));
         request_builder = request_builder.set_body(body);
     }
 
     let http_request = request_builder.build();
-    logger::info!(?http_request, decision_engine_request_path = %path, "decision_engine: Constructed Decision Engine API request details ({})", context_message);
     let should_parse_response = events_wrapper
         .as_ref()
         .map(|wrapper| wrapper.parse_response)
         .unwrap_or(true);
 
+    let endpoint_label = DecisionEngineEndpoint::from_path(path).as_label();
+
+    let (merchant_id_label, profile_id_label) = events_wrapper
+        .as_ref()
+        .map(|wrapper| {
+            (
+                wrapper.merchant_id.get_string_repr().to_string(),
+                wrapper.profile_id.get_string_repr().to_string(),
+            )
+        })
+        .unwrap_or_else(|| ("unknown".to_string(), "unknown".to_string()));
+
     let closure = || async {
+        let request_start = std::time::Instant::now();
         let response =
-            services::call_connector_api(state, http_request, "Decision Engine API call")
+            services::call_connector_api(state, http_request, "Decision Engine API call", timeout)
                 .await
                 .change_context(errors::RoutingError::OpenRouterCallFailed)?;
 
+        let status_code = match &response {
+            Ok(res) => res.status_code,
+            Err(err) => err.status_code,
+        };
+        let metrics_attributes = router_env::metric_attributes!(
+            ("endpoint", endpoint_label),
+            ("status_code", status_code.to_string()),
+            ("merchant_id", merchant_id_label.clone()),
+            ("profile_id", profile_id_label.clone()),
+        );
+        metrics::DECISION_ENGINE_REQUEST_TIME
+            .record(request_start.elapsed().as_secs_f64(), metrics_attributes);
+        metrics::DECISION_ENGINE_REQUESTS.add(1, metrics_attributes);
+
         match response {
             Ok(resp) => {
-                logger::debug!(
-                    "decision_engine: Received response from Decision Engine API ({:?})",
-                    String::from_utf8_lossy(&resp.response) // For logging
-                );
-
                 let resp = should_parse_response
                     .then(|| {
                         if std::any::TypeId::of::<Res>() == std::any::TypeId::of::<String>()
@@ -202,9 +316,10 @@ where
             .trigger_event(state, closure)
             .await?
     } else {
-        let resp = closure()
-            .await
-            .change_context(errors::RoutingError::OpenRouterCallFailed)?;
+        // Keep the closure's error context (e.g. `RoutingEventsError` carrying the DE status
+        // code) so callers can react to specific statuses, like the 404-gated merchant
+        // provisioning in the SSO mint flow.
+        let resp = closure().await?;
 
         RoutingEventsResponse::new(None, resp)
     };
@@ -237,15 +352,14 @@ impl DecisionEngineApiHandler for EuclidApiClient {
         )
         .await?;
 
-        let parsed_response =
-            event_response
-                .response
-                .as_ref()
-                .ok_or(errors::RoutingError::OpenRouterError(
-                    "Response from decision engine API is empty".to_string(),
-                ))?;
+        // Reject an empty DE response even though the parsed value itself is unused here.
+        event_response
+            .response
+            .as_ref()
+            .ok_or(errors::RoutingError::OpenRouterError(
+                "Response from decision engine API is empty".to_string(),
+            ))?;
 
-        logger::debug!(parsed_response = ?parsed_response, response_type = %std::any::type_name::<Res>(), euclid_request_path = %path, "decision_engine_euclid: Successfully parsed response from Euclid API");
         Ok(event_response)
     }
 }
@@ -419,10 +533,7 @@ pub fn normalize_hybrid_routing_response(
         logger::debug!(
             "euclid: hybrid routing response did not include usable evaluated connectors or static output; returning empty connector set"
         );
-        HybridRoutingOutcome {
-            connectors: Vec::new(),
-            routing_approach: RoutingApproach::Default,
-        }
+        HybridRoutingOutcome::empty()
     };
 
     Ok(outcome)
@@ -561,7 +672,6 @@ pub async fn perform_decision_euclid_routing(
     routing_event.set_routable_connectors(euclid_response.evaluated_output.clone());
     state.event_handler.log_event(&routing_event);
 
-    logger::debug!(decision_engine_euclid_response=?euclid_response,"decision_engine_euclid");
     logger::debug!(decision_engine_euclid_selected_connector=?euclid_response.evaluated_output,"decision_engine_euclid");
     Ok(euclid_response)
 }
@@ -923,29 +1033,245 @@ pub async fn list_de_euclid_active_routing_algorithm(
         .collect())
 }
 
+/// Outcome of a DE-vs-HS routing comparison, used to drive the diff kill switch.
+#[derive(Debug, Clone, Copy)]
+pub struct DeComparisonResult {
+    pub is_equal: bool,
+    pub is_equal_length: bool,
+    pub is_volume: bool,
+    pub is_de_result_empty: bool,
+}
+
+/// Classification of a countable DE-vs-HS divergence, also used as the log/metric tag.
+#[derive(Debug, Clone, Copy)]
+enum DeDiffReason {
+    ResultMismatch,
+    LengthMismatch,
+    Unresponsive,
+}
+
+impl DeDiffReason {
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::ResultMismatch => "decision_engine_result_mismatch",
+            Self::LengthMismatch => "decision_engine_length_mismatch",
+            Self::Unresponsive => "decision_engine_unresponsive",
+        }
+    }
+}
+
+impl DeComparisonResult {
+    /// Why this comparison counts toward the kill switch, if it does (empty DE result => `Unresponsive`).
+    fn diff_reason(self) -> Option<DeDiffReason> {
+        if self.is_equal {
+            None
+        } else if self.is_de_result_empty {
+            Some(DeDiffReason::Unresponsive)
+        } else if !self.is_equal_length {
+            Some(DeDiffReason::LengthMismatch)
+        } else {
+            Some(DeDiffReason::ResultMismatch)
+        }
+    }
+}
+
 pub fn compare_and_log_result<T: RoutingEq<T> + Serialize>(
     de_result: Vec<T>,
     result: Vec<T>,
     flow: String,
-) {
-    let is_equal = if de_result.is_empty() && result.is_empty() {
-        true
-    } else {
-        de_result
+    is_volume: bool,
+) -> DeComparisonResult {
+    let is_de_result_empty = de_result.is_empty();
+    let is_equal_in_length = de_result.len() == result.len();
+    // Equal means identical: same length AND same elements in order — an empty or
+    // prefix-only DE result is not equal (zip alone would be vacuously true).
+    let is_equal = is_equal_in_length
+        && de_result
             .iter()
             .zip(result.iter())
-            .all(|(a, b)| T::is_equal(a, b))
-    };
-
-    let is_equal_in_length = de_result.len() == result.len();
+            .all(|(a, b)| T::is_equal(a, b));
 
     router_env::logger::debug!(
         routing_flow=?flow,
         is_equal=?is_equal,
         is_equal_length=?is_equal_in_length,
+        is_volume=?is_volume,
+        is_de_result_empty=?is_de_result_empty,
         de_response=?to_json_string(&de_result),
         hs_response=?to_json_string(&result),
         "decision_engine_euclid"
+    );
+
+    DeComparisonResult {
+        is_equal,
+        is_equal_length: is_equal_in_length,
+        is_volume,
+        is_de_result_empty,
+    }
+}
+
+fn de_diff_count_key(profile_id: &id_type::ProfileId) -> String {
+    format!(
+        "routing_decision_engine_{}_diff_count",
+        profile_id.get_string_repr()
+    )
+}
+
+/// Clears the per-profile routing diff counter, releasing the kill-switch overlay (reset API).
+pub async fn reset_de_diff_counter(
+    state: &SessionState,
+    profile_id: &id_type::ProfileId,
+) -> errors::RouterResult<()> {
+    let redis_conn = state
+        .store
+        .get_redis_conn()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("failed to get redis connection to reset routing diff counter")?;
+
+    redis_conn
+        .delete_key(&de_diff_count_key(profile_id).as_str().into())
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("failed to delete routing diff counter key")?;
+
+    Ok(())
+}
+
+/// Counts a non-volume DE-vs-HS diff and cuts the profile over to Hyperswitch at the threshold.
+pub async fn record_de_diff_and_maybe_trip_kill_switch(
+    state: &SessionState,
+    profile_id: &id_type::ProfileId,
+    comparison: DeComparisonResult,
+) {
+    let config = &state.conf.open_router.diff_kill_switch;
+    let countable_reason = match comparison.diff_reason() {
+        Some(reason) if config.enabled && !comparison.is_volume => Some(reason),
+        _ => None,
+    };
+
+    if let Some(reason) = countable_reason {
+        // Treat a zero threshold as 1 so the one-shot cutover log/metric below still fires.
+        let threshold = config.diff_count_threshold.max(1);
+
+        logger::warn!(
+            routing_flow=?"evaluate_routing",
+            profile_id=?profile_id.get_string_repr(),
+            "{}: counting routing diff towards the kill switch threshold",
+            reason.as_str()
+        );
+
+        metrics::DECISION_ENGINE_ROUTING_DIFF.add(
+            1,
+            router_env::metric_attributes!(
+                ("profile_id", profile_id.get_string_repr().to_string()),
+                ("reason", reason.as_str())
+            ),
+        );
+
+        match state.store.get_redis_conn() {
+            Ok(redis_conn) => {
+                let counter_key = de_diff_count_key(profile_id);
+                let increment_result = redis_conn
+                    .increment_fields_in_hash(&counter_key.as_str().into(), &[("count", 1)])
+                    .await;
+
+                match increment_result.as_ref().map(|counts| counts.first()) {
+                    Ok(Some(count)) => {
+                        let diff_count = u64::try_from(*count).unwrap_or(u64::MAX);
+
+                        // The counter is a lifetime total (no TTL) and is cleared only via the
+                        // diff-counter reset API. HINCRBY is atomic and sequential, so exactly
+                        // one request observes the threshold value; the cutover alarm fires
+                        // once. Enforcement is passive from here — the counter stays at/over
+                        // threshold and get_routing_result_source overlays Hyperswitch routing.
+                        if diff_count == threshold {
+                            alert_cutover(profile_id, diff_count, threshold);
+                        }
+                    }
+                    Ok(None) => {
+                        logger::error!("decision_engine_euclid: empty response while incrementing routing diff counter");
+                    }
+                    Err(err) => {
+                        logger::error!(error=?err, "decision_engine_euclid: failed to increment routing diff counter");
+                    }
+                }
+            }
+            Err(err) => {
+                logger::error!(error=?err, "decision_engine_euclid: unable to get redis connection to record routing diff");
+            }
+        }
+    }
+}
+
+/// One-shot cutover alarm on the threshold-crossing diff (enforcement is the passive overlay in `get_routing_result_source`).
+fn alert_cutover(profile_id: &id_type::ProfileId, diff_count: u64, threshold: u64) {
+    metrics::DECISION_ENGINE_KILL_SWITCH_TRIGGERED.add(
+        1,
+        router_env::metric_attributes!(("profile_id", profile_id.get_string_repr().to_string())),
+    );
+    router_env::logger::error!(
+        routing_flow=?"auto_cutover",
+        profile_id=?profile_id.get_string_repr(),
+        diff_count=?diff_count,
+        threshold=?threshold,
+        "decision_engine_euclid: routing diff threshold breached, cutting profile over to Hyperswitch routing"
+    );
+}
+
+/// Whether the profile's diff counter has reached the threshold; fail-open (disabled switch or any Redis error => false).
+async fn is_de_diff_threshold_exceeded(
+    state: &SessionState,
+    profile_id: &id_type::ProfileId,
+) -> bool {
+    let config = &state.conf.open_router.diff_kill_switch;
+    if config.enabled {
+        match state.store.get_redis_conn() {
+            Ok(redis_conn) => match redis_conn
+                .get_hash_field::<Option<u64>>(
+                    &de_diff_count_key(profile_id).as_str().into(),
+                    "count",
+                )
+                .await
+            {
+                Ok(count) => count.unwrap_or(0) >= config.diff_count_threshold.max(1),
+                Err(err) => {
+                    logger::error!(error=?err, "decision_engine_euclid: kill switch counter lookup failed, using configured routing source");
+                    false
+                }
+            },
+            Err(err) => {
+                logger::error!(error=?err, "decision_engine_euclid: unable to get redis connection for kill switch check");
+                false
+            }
+        }
+    } else {
+        false
+    }
+}
+
+/// Shadow-evaluates the DE rule off the payment path and logs the DE-vs-HS diff (observation-only, never feeds the kill switch).
+pub async fn shadow_decision_engine_routing(
+    state: SessionState,
+    business_profile: domain::Profile,
+    payment_id: String,
+    backend_input: BackendInput,
+    fallback_config: Vec<RoutableConnectorChoice>,
+    hs_connectors: Vec<RoutableConnectorChoice>,
+    is_volume: bool,
+) {
+    let de_result =
+        decision_engine_routing(&state, backend_input, &business_profile, payment_id, fallback_config)
+            .await
+            .map_err(|err| {
+                logger::error!(shadow_decision_engine_error=?err, "decision_engine_euclid: error in shadow evaluation of rule")
+            })
+            .unwrap_or_default();
+
+    compare_and_log_result(
+        de_result,
+        hs_connectors,
+        "evaluate_routing".to_string(),
+        is_volume,
     );
 }
 
@@ -1730,14 +2056,37 @@ pub async fn get_routing_result_source(
     state: &SessionState,
     dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
 ) -> api_routing::RoutingResultSource {
-    // No customer_id and payment_id in call sites so passing Targeting key as None
-    dimensions
+    // No customer_id and payment_id in call sites so passing Targeting key as None.
+    let source = dimensions
         .get_routing_result_source(
             state.store.as_ref(),
             state.superposition_service.as_ref(),
             None,
         )
-        .await
+        .await;
+
+    // Overlay Hyperswitch routing when the diff counter is at/over threshold, without mutating the stored source (covers routing + dashboard, both resolve here).
+    let overlay_hyperswitch = matches!(source, api_routing::RoutingResultSource::DecisionEngine)
+        && match dimensions.get_profile_id() {
+            Some(profile_id) => {
+                let exceeded = is_de_diff_threshold_exceeded(state, profile_id).await;
+                if exceeded {
+                    logger::info!(
+                        routing_flow=?"kill_switch_active",
+                        profile_id=?profile_id.get_string_repr(),
+                        "decision_engine_euclid: diff threshold reached, overlaying Hyperswitch routing result"
+                    );
+                }
+                exceeded
+            }
+            None => false,
+        };
+
+    if overlay_hyperswitch {
+        api_routing::RoutingResultSource::HyperswitchRouting
+    } else {
+        source
+    }
 }
 pub async fn select_routing_result<T>(
     state: &SessionState,
@@ -2108,6 +2457,19 @@ impl RoutingApproach {
             "SR_SELECTION_V3_ROUTING" => Self::Exploitation,
             "SR_V3_HEDGING" => Self::Exploration,
             _ => Self::Default,
+        }
+    }
+
+    /// Only DE static outcomes are diff-comparable; unmapped dynamic approaches land on
+    /// `Default` and must not feed the kill switch.
+    pub fn is_de_static_result(&self) -> bool {
+        match self {
+            Self::StaticRouting => true,
+            Self::Exploitation
+            | Self::Exploration
+            | Self::Elimination
+            | Self::ContractBased
+            | Self::Default => false,
         }
     }
 }

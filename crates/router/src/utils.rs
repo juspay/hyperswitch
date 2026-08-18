@@ -116,7 +116,15 @@ pub mod error_parser {
     }
 }
 
+// deja: a nanoid-based random id distinct from common_utils::generate_id. Used
+// for merchant fingerprint secrets and other persisted ids, so it must replay to
+// the recorded value or the substituted INSERT args diverge (and a live insert
+// collides with the record-phase row).
 #[inline]
+#[cfg_attr(
+    feature = "deja",
+    deja::id(component = "router::utils", operation = "generate_id", codec = SerdeCodec,)
+)]
 pub fn generate_id(length: usize, prefix: &str) -> String {
     format!("{}_{}", prefix, nanoid!(length, &consts::ALPHABETS))
 }
@@ -324,7 +332,7 @@ pub async fn find_mca_from_authentication_id_type(
     let db = &*state.store;
     let authentication = match authentication_id_type {
         webhooks::AuthenticationIdType::AuthenticationId(authentication_id) => db
-            .find_authentication_by_merchant_id_authentication_id(
+            .find_authentication_by_processor_merchant_id_authentication_id(
                 platform.get_processor().get_account().get_id(),
                 &authentication_id,
                 platform.get_processor().get_key_store(),
@@ -334,7 +342,7 @@ pub async fn find_mca_from_authentication_id_type(
             .await
             .to_not_found_response(errors::ApiErrorResponse::InternalServerError)?,
         webhooks::AuthenticationIdType::ConnectorAuthenticationId(connector_authentication_id) => {
-            db.find_authentication_by_merchant_id_connector_authentication_id(
+            db.find_authentication_by_processor_merchant_id_connector_authentication_id(
                 platform.get_processor().get_account().get_id().clone(),
                 connector_authentication_id,
                 platform.get_processor().get_key_store(),

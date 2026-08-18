@@ -360,6 +360,9 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             profile_id.clone(),
             &customer_acceptance,
             payment_method_recurring_details.clone(),
+            payment_method_with_raw_data
+                .as_ref()
+                .and_then(|payment_method| payment_method.raw_payment_method_data.clone()),
             customer_details.customer_id.as_ref(),
             dimensions,
         )
@@ -450,7 +453,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                                                 connector_id.get_connector_mandate_id(),
                                                 connector_id.get_payment_method_id(),
                                                 None,
-                                                None,
+                                                connector_id.get_mandate_metadata(),
                                                 connector_id
                                                     .get_connector_mandate_request_reference_id(),
                                                 None,
@@ -750,6 +753,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             client_session_id,
             vault_session_details: None,
             external_vault_pmd,
+            update_request_fields: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -800,7 +804,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                 )
                 .await?
                 .inspect(|cust| {
-                    payment_data.payment_intent.customer_id = Some(cust.customer_id.clone());
+                    payment_data.payment_intent.customer_id = Some(cust.get_id().clone());
                 });
                 let op: PaymentCreateOperation<'a, F> = Box::new(self);
                 Ok((op, customer))
@@ -1446,6 +1450,7 @@ impl PaymentCreate {
         profile_id: common_utils::id_type::ProfileId,
         customer_acceptance: &Option<common_payments_types::CustomerAcceptance>,
         payment_method_recurring_details: Option<domain::PaymentMethodData>,
+        modular_raw_payment_method_data: Option<domain::PaymentMethodData>,
         customer_id: Option<&common_utils::id_type::CustomerId>,
         dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> RouterResult<(
@@ -1473,6 +1478,7 @@ impl PaymentCreate {
             })
             .map(domain::PaymentMethodData::from)
             .or(payment_method_recurring_details)
+            .or(modular_raw_payment_method_data)
             .zip(Some(profile_id.clone())) // since data is consumed by async move, profile_id needs to be send separately
             .async_map(|(payment_method_data, _)| async move {
                 helpers::get_additional_payment_data(
@@ -1743,6 +1749,7 @@ impl PaymentCreate {
                 retry_type: None,
                 installment_data: None,
                 external_surcharge_details: None,
+                applied_offer_details: None,
                 sender_payment_instrument_id: None,
             },
             additional_pm_data,
