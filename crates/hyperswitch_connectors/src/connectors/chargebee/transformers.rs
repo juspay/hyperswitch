@@ -479,17 +479,137 @@ pub struct ChargebeeTransactionData {
     #[serde(default, with = "common_utils::custom_serde::timestamp::option")]
     date: Option<PrimitiveDateTime>,
     payment_method: ChargebeeTransactionPaymentMethod,
-    payment_method_details: String,
+    payment_method_details: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone, Copy)]
 #[serde(rename_all = "snake_case")]
 pub enum ChargebeeTransactionPaymentMethod {
     Card,
+    #[serde(rename = "unionpay")]
+    UnionPay,
+    SouthKoreanCards,
+    PaypalExpressCheckout,
+    AmazonPayments,
+    ApplePay,
+    GooglePay,
+    #[serde(rename = "wechat_pay")]
+    WeChatPay,
+    #[serde(rename = "alipay")]
+    AliPay,
+    #[serde(rename = "alipay_hk")]
+    AliPayHk,
+    Venmo,
+    KakaoPay,
+    RevolutPay,
+    CashAppPay,
+    Twint,
+    GoPay,
+    Gcash,
+    Dana,
+    TouchNGo,
+    Swish,
+    Ideal,
+    Sofort,
+    Bancontact,
+    PayconiqByBancontact,
+    Giropay,
+    Dotpay,
+    OnlineBankingPoland,
+    Trustly,
+    Bizum,
+    NetbankingEmandates,
+    PayByBank,
+    Upi,
+    DirectDebit,
+    PayTo,
+    FasterPayments,
+    SepaInstantTransfer,
+    AutomatedBankTransfer,
+    Pix,
+    Promptpay,
+    Klarna,
+    KlarnaPayNow,
+    AfterPay,
+    Stablecoin,
+    #[serde(other)]
+    Other,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
-pub struct ChargebeePaymentMethodDetails {
+#[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+impl ChargebeeTransactionPaymentMethod {
+    fn payment_method_sub_type(self) -> Option<enums::PaymentMethodType> {
+        match self {
+            Self::PaypalExpressCheckout => Some(enums::PaymentMethodType::Paypal),
+            Self::AmazonPayments => Some(enums::PaymentMethodType::AmazonPay),
+            Self::ApplePay => Some(enums::PaymentMethodType::ApplePay),
+            Self::GooglePay => Some(enums::PaymentMethodType::GooglePay),
+            Self::WeChatPay => Some(enums::PaymentMethodType::WeChatPay),
+            Self::AliPay => Some(enums::PaymentMethodType::AliPay),
+            Self::AliPayHk => Some(enums::PaymentMethodType::AliPayHk),
+            Self::Venmo => Some(enums::PaymentMethodType::Venmo),
+            Self::KakaoPay => Some(enums::PaymentMethodType::KakaoPay),
+            Self::RevolutPay => Some(enums::PaymentMethodType::RevolutPay),
+            Self::CashAppPay => Some(enums::PaymentMethodType::Cashapp),
+            Self::Twint => Some(enums::PaymentMethodType::Twint),
+            Self::GoPay => Some(enums::PaymentMethodType::GoPay),
+            Self::Gcash => Some(enums::PaymentMethodType::Gcash),
+            Self::Dana => Some(enums::PaymentMethodType::Dana),
+            Self::TouchNGo => Some(enums::PaymentMethodType::TouchNGo),
+            Self::Swish => Some(enums::PaymentMethodType::Swish),
+            Self::Ideal => Some(enums::PaymentMethodType::Ideal),
+            Self::Sofort => Some(enums::PaymentMethodType::Sofort),
+            Self::Bancontact | Self::PayconiqByBancontact => {
+                Some(enums::PaymentMethodType::BancontactCard)
+            }
+            Self::Giropay => Some(enums::PaymentMethodType::Giropay),
+            Self::Dotpay | Self::OnlineBankingPoland => {
+                Some(enums::PaymentMethodType::OnlineBankingPoland)
+            }
+            Self::Trustly => Some(enums::PaymentMethodType::Trustly),
+            Self::Bizum => Some(enums::PaymentMethodType::Bizum),
+            Self::NetbankingEmandates => Some(enums::PaymentMethodType::LocalBankRedirect),
+            Self::PayByBank => Some(enums::PaymentMethodType::OpenBanking),
+            Self::Upi => Some(enums::PaymentMethodType::UpiCollect),
+            Self::DirectDebit => Some(enums::PaymentMethodType::Sepa),
+            Self::PayTo => Some(enums::PaymentMethodType::Becs),
+            Self::FasterPayments => Some(enums::PaymentMethodType::Bacs),
+            Self::SepaInstantTransfer => Some(enums::PaymentMethodType::InstantBankTransfer),
+            Self::AutomatedBankTransfer => Some(enums::PaymentMethodType::LocalBankTransfer),
+            Self::Pix => Some(enums::PaymentMethodType::Pix),
+            Self::Promptpay => Some(enums::PaymentMethodType::PromptPay),
+            Self::Klarna | Self::KlarnaPayNow => Some(enums::PaymentMethodType::Klarna),
+            Self::AfterPay => Some(enums::PaymentMethodType::AfterpayClearpay),
+            Self::Stablecoin => Some(enums::PaymentMethodType::CryptoCurrency),
+            Self::Card | Self::UnionPay | Self::SouthKoreanCards => None,
+            Self::Other => None,
+        }
+    }
+
+    fn parse_payment_method_details(
+        self,
+        raw_details: &str,
+    ) -> Result<ChargebeePaymentMethodDetails, error_stack::Report<errors::ConnectorError>> {
+        match self {
+            Self::Card | Self::UnionPay | Self::SouthKoreanCards => {
+                let details: ChargebeeCardPaymentMethodDetails = serde_json::from_str(raw_details)
+                    .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+                Ok(ChargebeePaymentMethodDetails::Card(details.card))
+            }
+            _ => Ok(ChargebeePaymentMethodDetails::NonCard),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum ChargebeePaymentMethodDetails {
+    Card(ChargebeeCardDetails),
+    NonCard,
+}
+
+#[cfg(all(feature = "revenue_recovery", feature = "v2"))]
+#[derive(Deserialize, Debug)]
+struct ChargebeeCardPaymentMethodDetails {
     card: ChargebeeCardDetails,
 }
 
@@ -523,27 +643,31 @@ pub enum ChargebeeCardBrand {
     Pulse,
     Accel,
     Nyce,
+    #[serde(other)]
+    Other,
 }
 
-impl From<ChargebeeCardBrand> for common_enums::CardNetwork {
+impl From<ChargebeeCardBrand> for Option<common_enums::CardNetwork> {
     fn from(brand: ChargebeeCardBrand) -> Self {
-        match brand {
-            ChargebeeCardBrand::Visa => Self::Visa,
-            ChargebeeCardBrand::Mastercard => Self::Mastercard,
-            ChargebeeCardBrand::AmericanExpress => Self::AmericanExpress,
-            ChargebeeCardBrand::Jcb => Self::JCB,
-            ChargebeeCardBrand::DinersClub => Self::DinersClub,
-            ChargebeeCardBrand::Discover => Self::Discover,
-            ChargebeeCardBrand::CartesBancaires => Self::CartesBancaires,
-            ChargebeeCardBrand::UnionPay => Self::UnionPay,
-            ChargebeeCardBrand::Interac => Self::Interac,
-            ChargebeeCardBrand::RuPay => Self::RuPay,
-            ChargebeeCardBrand::Maestro => Self::Maestro,
-            ChargebeeCardBrand::Star => Self::Star,
-            ChargebeeCardBrand::Pulse => Self::Pulse,
-            ChargebeeCardBrand::Accel => Self::Accel,
-            ChargebeeCardBrand::Nyce => Self::Nyce,
-        }
+        use common_enums::CardNetwork;
+        Some(match brand {
+            ChargebeeCardBrand::Visa => CardNetwork::Visa,
+            ChargebeeCardBrand::Mastercard => CardNetwork::Mastercard,
+            ChargebeeCardBrand::AmericanExpress => CardNetwork::AmericanExpress,
+            ChargebeeCardBrand::Jcb => CardNetwork::JCB,
+            ChargebeeCardBrand::DinersClub => CardNetwork::DinersClub,
+            ChargebeeCardBrand::Discover => CardNetwork::Discover,
+            ChargebeeCardBrand::CartesBancaires => CardNetwork::CartesBancaires,
+            ChargebeeCardBrand::UnionPay => CardNetwork::UnionPay,
+            ChargebeeCardBrand::Interac => CardNetwork::Interac,
+            ChargebeeCardBrand::RuPay => CardNetwork::RuPay,
+            ChargebeeCardBrand::Maestro => CardNetwork::Maestro,
+            ChargebeeCardBrand::Star => CardNetwork::Star,
+            ChargebeeCardBrand::Pulse => CardNetwork::Pulse,
+            ChargebeeCardBrand::Accel => CardNetwork::Accel,
+            ChargebeeCardBrand::Nyce => CardNetwork::Nyce,
+            ChargebeeCardBrand::Other => return None,
+        })
     }
 }
 
@@ -552,6 +676,11 @@ impl From<ChargebeeCardBrand> for common_enums::CardNetwork {
 pub enum ChargebeeFundingType {
     Credit,
     Debit,
+    Prepaid,
+    NotKnown,
+    NotApplicable,
+    #[serde(other)]
+    Other,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -597,8 +726,39 @@ pub struct ChargebeePaymentMethod {
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "snake_case")]
 pub enum ChargebeeGateway {
+    Adyen,
     Stripe,
     Braintree,
+    AuthorizeNet,
+    Paypal,
+    PaypalPro,
+    PaypalExpressCheckout,
+    PaypalPayflowPro,
+    AmazonPayments,
+    Worldpay,
+    Vantiv,
+    Beanstream,
+    Elavon,
+    Nmi,
+    Gocardless,
+    Moneris,
+    MonerisUs,
+    Bluesnap,
+    Cybersource,
+    CheckoutCom,
+    IngenicoDirect,
+    Mollie,
+    Razorpay,
+    GlobalPayments,
+    BankOfAmerica,
+    Ebanx,
+    Dlocal,
+    Nuvei,
+    Paystack,
+    JpMorgan,
+    DeutscheBank,
+    #[serde(other)]
+    Other,
 }
 
 impl ChargebeeWebhookBody {
@@ -655,25 +815,15 @@ pub struct ChargebeeMandateDetails {
 }
 
 impl ChargebeeCustomer {
-    // the logic to find connector customer id & mandate id is different for different gateways, reference : https://apidocs.chargebee.com/docs/api/customers?prod_cat_ver=2#customer_payment_method_reference_id .
     pub fn find_connector_ids(&self) -> Result<ChargebeeMandateDetails, errors::ConnectorError> {
-        match self.payment_method.gateway {
-            ChargebeeGateway::Stripe | ChargebeeGateway::Braintree => {
-                let mut parts = self.payment_method.reference_id.split('/');
-                let customer_id = parts
-                    .next()
-                    .ok_or(errors::ConnectorError::WebhookBodyDecodingFailed)?
-                    .to_string();
-                let mandate_id = parts
-                    .next_back()
-                    .ok_or(errors::ConnectorError::WebhookBodyDecodingFailed)?
-                    .to_string();
-                Ok(ChargebeeMandateDetails {
-                    customer_id,
-                    mandate_id,
-                })
-            }
-        }
+        let reference_id = self.payment_method.reference_id.as_str();
+        let mut parts = reference_id.split('/');
+        let customer_id = parts.next().unwrap_or(reference_id);
+        let mandate_id = parts.next_back().unwrap_or(customer_id);
+        Ok(ChargebeeMandateDetails {
+            customer_id: customer_id.to_string(),
+            mandate_id: mandate_id.to_string(),
+        })
     }
 }
 
@@ -706,13 +856,34 @@ impl TryFrom<ChargebeeWebhookBody> for revenue_recovery::RevenueRecoveryAttemptD
         let connector_account_reference_id = item.content.transaction.gateway_account_id.clone();
         let transaction_created_at = item.content.transaction.date;
         let status = enums::AttemptStatus::from(item.content.transaction.status);
-        let payment_method_type =
-            enums::PaymentMethod::from(item.content.transaction.payment_method);
-        let payment_method_details: ChargebeePaymentMethodDetails =
-            serde_json::from_str(&item.content.transaction.payment_method_details)
-                .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
-        let payment_method_sub_type =
-            enums::PaymentMethodType::from(payment_method_details.card.funding_type);
+        let chargebee_payment_method = item.content.transaction.payment_method;
+        let payment_method_type = enums::PaymentMethod::try_from(chargebee_payment_method)?;
+        let payment_method_details = item
+            .content
+            .transaction
+            .payment_method_details
+            .as_deref()
+            .map(|raw_details| chargebee_payment_method.parse_payment_method_details(raw_details))
+            .transpose()?;
+        let (payment_method_sub_type, card_info) = match payment_method_details {
+            Some(ChargebeePaymentMethodDetails::Card(card)) => (
+                enums::PaymentMethodType::from(card.funding_type),
+                api_models::payments::AdditionalCardInfo {
+                    card_network: card.brand.into(),
+                    card_isin: Some(card.iin),
+                    ..Default::default()
+                },
+            ),
+            Some(ChargebeePaymentMethodDetails::NonCard) | None => (
+                chargebee_payment_method.payment_method_sub_type().ok_or(
+                    errors::ConnectorError::NotSupported {
+                        message: "payment method in revenue recovery webhook".to_string(),
+                        connector: "chargebee",
+                    },
+                )?,
+                api_models::payments::AdditionalCardInfo::default(),
+            ),
+        };
         // Chargebee retry count will always be less than u16 always. Chargebee can have maximum 12 retry attempts
         #[allow(clippy::as_conversions)]
         let retry_count = item
@@ -752,26 +923,7 @@ impl TryFrom<ChargebeeWebhookBody> for revenue_recovery::RevenueRecoveryAttemptD
             invoice_billing_started_at_time,
             // This field is none because it is specific to stripebilling.
             charge_id: None,
-            // Need to populate these card info field
-            card_info: api_models::payments::AdditionalCardInfo {
-                card_network: Some(payment_method_details.card.brand.into()),
-                card_isin: Some(payment_method_details.card.iin),
-                card_issuer: None,
-                card_type: None,
-                card_issuing_country: None,
-                card_issuing_country_code: None,
-                bank_code: None,
-                last4: None,
-                card_extended_bin: None,
-                card_exp_month: None,
-                card_exp_year: None,
-                card_holder_name: None,
-                payment_checks: None,
-                authentication_data: None,
-                is_regulated: None,
-                signature_network: None,
-                auth_code: None,
-            },
+            card_info,
         })
     }
 }
@@ -789,10 +941,58 @@ impl From<ChargebeeTranasactionStatus> for enums::AttemptStatus {
     }
 }
 
-impl From<ChargebeeTransactionPaymentMethod> for enums::PaymentMethod {
-    fn from(payment_method: ChargebeeTransactionPaymentMethod) -> Self {
+impl TryFrom<ChargebeeTransactionPaymentMethod> for enums::PaymentMethod {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(payment_method: ChargebeeTransactionPaymentMethod) -> Result<Self, Self::Error> {
         match payment_method {
-            ChargebeeTransactionPaymentMethod::Card => Self::Card,
+            ChargebeeTransactionPaymentMethod::Card
+            | ChargebeeTransactionPaymentMethod::UnionPay
+            | ChargebeeTransactionPaymentMethod::SouthKoreanCards => Ok(Self::Card),
+            ChargebeeTransactionPaymentMethod::PaypalExpressCheckout
+            | ChargebeeTransactionPaymentMethod::AmazonPayments
+            | ChargebeeTransactionPaymentMethod::ApplePay
+            | ChargebeeTransactionPaymentMethod::GooglePay
+            | ChargebeeTransactionPaymentMethod::WeChatPay
+            | ChargebeeTransactionPaymentMethod::AliPay
+            | ChargebeeTransactionPaymentMethod::AliPayHk
+            | ChargebeeTransactionPaymentMethod::Venmo
+            | ChargebeeTransactionPaymentMethod::KakaoPay
+            | ChargebeeTransactionPaymentMethod::RevolutPay
+            | ChargebeeTransactionPaymentMethod::CashAppPay
+            | ChargebeeTransactionPaymentMethod::Twint
+            | ChargebeeTransactionPaymentMethod::GoPay
+            | ChargebeeTransactionPaymentMethod::Gcash
+            | ChargebeeTransactionPaymentMethod::Dana
+            | ChargebeeTransactionPaymentMethod::TouchNGo
+            | ChargebeeTransactionPaymentMethod::Swish => Ok(Self::Wallet),
+            ChargebeeTransactionPaymentMethod::DirectDebit
+            | ChargebeeTransactionPaymentMethod::PayTo => Ok(Self::BankDebit),
+            ChargebeeTransactionPaymentMethod::SepaInstantTransfer
+            | ChargebeeTransactionPaymentMethod::AutomatedBankTransfer
+            | ChargebeeTransactionPaymentMethod::FasterPayments
+            | ChargebeeTransactionPaymentMethod::Pix => Ok(Self::BankTransfer),
+            ChargebeeTransactionPaymentMethod::Ideal
+            | ChargebeeTransactionPaymentMethod::Sofort
+            | ChargebeeTransactionPaymentMethod::Bancontact
+            | ChargebeeTransactionPaymentMethod::PayconiqByBancontact
+            | ChargebeeTransactionPaymentMethod::Giropay
+            | ChargebeeTransactionPaymentMethod::Dotpay
+            | ChargebeeTransactionPaymentMethod::OnlineBankingPoland
+            | ChargebeeTransactionPaymentMethod::Trustly
+            | ChargebeeTransactionPaymentMethod::Bizum
+            | ChargebeeTransactionPaymentMethod::NetbankingEmandates => Ok(Self::BankRedirect),
+            ChargebeeTransactionPaymentMethod::PayByBank => Ok(Self::OpenBanking),
+            ChargebeeTransactionPaymentMethod::Upi => Ok(Self::Upi),
+            ChargebeeTransactionPaymentMethod::Promptpay => Ok(Self::RealTimePayment),
+            ChargebeeTransactionPaymentMethod::Stablecoin => Ok(Self::Crypto),
+            ChargebeeTransactionPaymentMethod::Klarna
+            | ChargebeeTransactionPaymentMethod::KlarnaPayNow
+            | ChargebeeTransactionPaymentMethod::AfterPay => Ok(Self::PayLater),
+            ChargebeeTransactionPaymentMethod::Other => Err(errors::ConnectorError::NotSupported {
+                message: "payment method in revenue recovery webhook".to_string(),
+                connector: "chargebee",
+            }
+            .into()),
         }
     }
 }
@@ -802,6 +1002,19 @@ impl From<ChargebeeFundingType> for enums::PaymentMethodType {
         match funding_type {
             ChargebeeFundingType::Credit => Self::Credit,
             ChargebeeFundingType::Debit => Self::Debit,
+            ChargebeeFundingType::Prepaid
+            | ChargebeeFundingType::NotKnown
+            | ChargebeeFundingType::NotApplicable
+            | ChargebeeFundingType::Other => {
+                #[cfg(feature = "v2")]
+                {
+                    Self::Card
+                }
+                #[cfg(feature = "v1")]
+                {
+                    Self::Credit
+                }
+            }
         }
     }
 }
