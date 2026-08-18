@@ -1,2 +1,0 @@
-request-property-one-of-removed warn
-response-property-one-of-added warn
