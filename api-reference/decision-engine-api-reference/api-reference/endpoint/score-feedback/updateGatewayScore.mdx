@@ -1,0 +1,84 @@
+---
+title: "Update Gateway Score"
+description: "Feed a transaction outcome back into the success-rate model. Call this after every transaction so the engine has accurate SR data for future routing decisions."
+openapi: "decision_engine_openapi-specs.json POST /update-gateway-score"
+---
+
+# Update Gateway Score
+
+## Use case
+
+Records the observed transaction outcome for a previously selected gateway so auth-rate analytics can learn from real payment results.
+
+## Authentication
+
+Protected. Send either `Authorization: Bearer <jwt_token>` or `x-api-key: <api_key>`. In sandbox, also send `x-feature: decision-engine`.
+
+For local development, start with:
+
+```bash
+export BASE_URL=http://localhost:8080
+export AUTH_HEADER="Authorization: Bearer <jwt_token>"
+# Sandbox only:
+# export BASE_URL=https://sandbox.hyperswitch.io
+# export FEATURE_HEADER="x-feature: decision-engine"
+```
+
+## Request
+
+- Method and path: `POST /update-gateway-score`
+- Parameters: none.
+- Body: JSON body with `merchantId`, `paymentId`, `gateway` and `status`, plus optional `gatewayReferenceId`, `enforceDynamicRoutingFailure`, `txnLatency`, `errorInfo` and `isSmartRetry`.
+
+## Example
+
+### Update gateway score
+
+```bash
+curl --location "$BASE_URL/update-gateway-score" \
+  --header "$AUTH_HEADER" \
+  --header "Content-Type: application/json" \
+  --data '{
+  "merchantId": "merchant_demo",
+  "paymentId": "pay_sr_001",
+  "gateway": "stripe",
+  "status": "CHARGED",
+  "gatewayReferenceId": "stripe_ref_001",
+  "enforceDynamicRoutingFailure": false,
+  "txnLatency": { "gatewayLatency": 120.5 }
+}'
+```
+
+`status` must be a transaction status value - `CHARGED`, `AUTHORIZATION_FAILED`,
+`AUTHENTICATION_FAILED`, `JUSPAY_DECLINED`, `FAILURE`, and so on. Lowercase values such as
+`success` are rejected with a 400.
+
+Payment attributes (amount, currency, payment method, auth type) are **not** part of this
+payload - the engine already has them from the `/decide-gateway` call for this `paymentId`.
+Any unrecognised field is silently ignored, so a misspelled key fails quietly rather than
+erroring. Note in particular that latency goes in `txnLatency.gatewayLatency`, not `latency`.
+
+## Response
+
+```json
+{
+  "message": "Gateway score updated successfully",
+  "merchant_id": "merchant_demo",
+  "gateway": "stripe",
+  "payment_id": "pay_sr_001"
+}
+```
+
+When `errorInfo` is supplied in the request and matches a gateway status map rule, the response
+also carries a `gsm_info` object describing the lookup result.
+
+## Notes
+
+- Do not call this after `NTW_BASED_ROUTING` just to record the selected debit network; debit audit comes from `/decide-gateway` analytics.
+- Call it after payment authorization completes, not before.
+
+## Related
+
+- [Decide Gateway](/decision-engine-api-reference/api-reference/endpoint/gateway-decision/decideGateway)
+- [Analytics Gateway Scores](/decision-engine-api-reference/api-reference/endpoint/analytics/analyticsGatewayScores)
+- [Update Gateway Score](/decision-engine-api-reference/api-reference/guides/feedback-scoring/update-gateway-score)

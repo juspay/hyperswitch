@@ -1,8 +1,13 @@
 use std::collections::HashMap;
 
-use api_models::webhooks::IncomingWebhookEvent;
+use api_models::{
+    merchant_connector_webhook_management::ScopeIdentifier, webhooks::IncomingWebhookEvent,
+};
 use common_enums::{self as common_enums, enums};
-use common_utils::{ext_traits::ValueExt, types::StringMajorUnit};
+use common_utils::{
+    ext_traits::ValueExt,
+    types::{FloatMajorUnitForConnector, MinorUnit, StringMajorUnit},
+};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     address::AddressDetails,
@@ -12,11 +17,16 @@ use hyperswitch_domain_models::{
         ErrorResponse, RouterData,
     },
     router_flow_types::{
+        merchant_connector_webhook_management::ConnectorWebhookRegister,
         payments::PostCaptureVoid,
         refunds::{Execute, RSync},
     },
-    router_request_types::{PaymentsCancelPostCaptureData, ResponseId},
+    router_request_types::{
+        merchant_connector_webhook_management::ConnectorWebhookRegisterRequest,
+        PaymentsCancelPostCaptureData, ResponseId,
+    },
     router_response_types::{
+        merchant_connector_webhook_management::ConnectorWebhookRegisterResponse,
         ConnectorCustomerResponseData, MandateReference, PaymentsResponseData, RefundsResponseData,
     },
     types::{
@@ -37,7 +47,7 @@ use crate::{
     utils::{
         get_unimplemented_payment_method_error_message, is_manual_capture, AddressDetailsData,
         CardData, CustomerData, PaymentsAuthorizeRequestData, PaymentsSetupMandateRequestData,
-        RouterData as OtherRouterData,
+        RouterData as OtherRouterData, SplitPaymentData,
     },
 };
 
@@ -52,11 +62,21 @@ fn get_processing_account_id_from_metadata(
         .map(|s| Secret::new(s.to_string()))
 }
 
+fn get_processing_method_id_from_metadata(
+    metadata: Option<&serde_json::Value>,
+) -> Option<Secret<String>> {
+    metadata
+        .and_then(|m| m.get("processing_method_id"))
+        .and_then(|v| v.as_str())
+        .map(|s| Secret::new(s.to_string()))
+}
+
 fn get_filtered_metadata(metadata: Option<&serde_json::Value>) -> Option<serde_json::Value> {
     metadata.and_then(|m| match m {
         serde_json::Value::Object(map) => {
             let mut filtered = map.clone();
             filtered.remove("processing_account_id");
+            filtered.remove("processing_method_id");
             if filtered.is_empty() {
                 None
             } else {
@@ -65,6 +85,29 @@ fn get_filtered_metadata(metadata: Option<&serde_json::Value>) -> Option<serde_j
         }
         _ => None,
     })
+}
+
+fn get_payload_ledger_entries(
+    split: &common_types::payments::PayloadSplitPaymentRequest,
+    currency: enums::Currency,
+) -> Result<Vec<requests::PayloadSplitLedgerEntry>, Error> {
+    split
+        .ledger
+        .iter()
+        .map(|item| {
+            // Payload expects each ledger entry as a negative amount (a debit against the payment);
+            // merchants provide the positive amount routed to the receiver, so it is negated here.
+            let amount = crate::utils::convert_amount(
+                &FloatMajorUnitForConnector,
+                MinorUnit::new(-item.amount.get_amount_as_i64()),
+                currency,
+            )?;
+            Ok(requests::PayloadSplitLedgerEntry {
+                amount,
+                receiver_id: item.receiver_id.clone(),
+            })
+        })
+        .collect()
 }
 
 fn get_description_from_billing_descriptor(
@@ -95,6 +138,7 @@ fn build_payload_payment_request_data(
     metadata: Option<&serde_json::Value>,
     description: Option<String>,
     billing_descriptor: Option<&common_types::payments::BillingDescriptor>,
+    ledger: Option<Vec<requests::PayloadSplitLedgerEntry>>,
 ) -> Result<requests::PayloadPaymentRequestData, Error> {
     let payment_method: Result<requests::PayloadPaymentMethods, Error> = match payment_method_data {
         PaymentMethodData::Card(req_card) => {
@@ -127,14 +171,11 @@ fn build_payload_payment_request_data(
                 enums::BankHolderType::Business => requests::PayloadAccClass::Business,
                 enums::BankHolderType::Personal => requests::PayloadAccClass::Personal,
             });
-            let account_type = bank_type
-                .map(|b_type| match b_type {
-                    enums::BankType::Checking => requests::PayloadAccAccountType::Checking,
-                    enums::BankType::Savings => requests::PayloadAccAccountType::Savings,
-                })
-                .ok_or_else(|| errors::ConnectorError::MissingRequiredField {
+            let account_type = requests::PayloadAccAccountType::try_from(bank_type.ok_or(
+                errors::ConnectorError::MissingRequiredField {
                     field_name: "bank_type",
-                })?;
+                },
+            )?)?;
             let account_holder = bank_account_holder_name.clone().ok_or_else(|| {
                 errors::ConnectorError::MissingRequiredField {
                     field_name: "bank_account_holder_name",
@@ -191,16 +232,35 @@ fn build_payload_payment_request_data(
         status,
         processing_id: get_processing_account_id_from_metadata(metadata)
             .or(payload_auth.processing_account_id),
+        processing_method_id: get_processing_method_id_from_metadata(metadata),
         customer_id,
         description,
         descriptor: get_description_from_billing_descriptor(billing_descriptor),
         attrs: get_filtered_metadata(metadata),
+        ledger,
     })
 }
 
 pub struct PayloadRouterData<T> {
     pub amount: StringMajorUnit,
     pub router_data: T,
+}
+
+impl TryFrom<enums::BankType> for requests::PayloadAccAccountType {
+    type Error = errors::ConnectorError;
+
+    fn try_from(bank_type: enums::BankType) -> Result<Self, Self::Error> {
+        match bank_type {
+            enums::BankType::Checking => Ok(Self::Checking),
+            enums::BankType::Savings => Ok(Self::Savings),
+            b_type @ (enums::BankType::Salary | enums::BankType::Payment) => {
+                Err(errors::ConnectorError::NotSupported {
+                    message: format!("bank_type {b_type} is not supported"),
+                    connector: "payload",
+                })
+            }
+        }
+    }
 }
 
 impl<T> From<(StringMajorUnit, T)> for PayloadRouterData<T> {
@@ -334,6 +394,7 @@ impl TryFrom<&SetupMandateRouterData> for requests::PayloadPaymentRequestData {
                 item.request.metadata.as_ref().map(|m| m.peek()),
                 item.description.clone(),
                 item.request.billing_descriptor.as_ref(),
+                None,
             )
         }
     }
@@ -359,14 +420,11 @@ impl TryFrom<&SetupMandateRouterData> for requests::PayloadPaymentMethodRequest 
                 bank_account_holder_name,
                 ..
             }) => {
-                let account_type = bank_type
-                    .map(|b_type| match b_type {
-                        enums::BankType::Checking => requests::PayloadAccAccountType::Checking,
-                        enums::BankType::Savings => requests::PayloadAccAccountType::Savings,
-                    })
-                    .ok_or_else(|| errors::ConnectorError::MissingRequiredField {
+                let account_type = requests::PayloadAccAccountType::try_from(bank_type.ok_or(
+                    errors::ConnectorError::MissingRequiredField {
                         field_name: "bank_type",
-                    })?;
+                    },
+                )?)?;
 
                 let account_holder = bank_account_holder_name.clone().ok_or_else(|| {
                     errors::ConnectorError::MissingRequiredField {
@@ -406,6 +464,13 @@ impl TryFrom<&PayloadRouterData<&PaymentsAuthorizeRouterData>>
         let billing_descriptor = item.router_data.request.billing_descriptor.as_ref();
         let metadata = item.router_data.request.metadata.as_ref();
 
+        let split_ledger = match item.router_data.request.split_payments.as_ref() {
+            Some(common_types::payments::SplitPaymentsRequest::PayloadSplitPayment(split)) => Some(
+                get_payload_ledger_entries(split, item.router_data.request.currency)?,
+            ),
+            _ => None,
+        };
+
         match item.router_data.request.payment_method_data.clone() {
             PaymentMethodData::BankDebit(BankDebitData::AchBankDebit { .. })
             | PaymentMethodData::Card(_) => {
@@ -425,6 +490,7 @@ impl TryFrom<&PayloadRouterData<&PaymentsAuthorizeRouterData>>
                     metadata,
                     description,
                     billing_descriptor,
+                    split_ledger,
                 )?;
 
                 Ok(Self::PaymentRequest(Box::new(payment_request)))
@@ -442,6 +508,10 @@ impl TryFrom<&PayloadRouterData<&PaymentsAuthorizeRouterData>>
                     item.router_data.request.metadata.as_ref(),
                 );
 
+                let processing_method_id = get_processing_method_id_from_metadata(
+                    item.router_data.request.metadata.as_ref(),
+                );
+
                 Ok(Self::PayloadMandateRequest(Box::new(
                     requests::PayloadMandateRequestData {
                         amount: item.amount.clone(),
@@ -451,9 +521,11 @@ impl TryFrom<&PayloadRouterData<&PaymentsAuthorizeRouterData>>
                         ),
                         status,
                         processing_id,
+                        processing_method_id,
                         description,
                         descriptor: get_description_from_billing_descriptor(billing_descriptor),
                         attrs: get_filtered_metadata(metadata),
+                        ledger: split_ledger,
                     },
                 )))
             }
@@ -488,7 +560,7 @@ impl<F: 'static, T>
     TryFrom<ResponseRouterData<F, responses::PayloadPaymentsResponse, T, PaymentsResponseData>>
     for RouterData<F, T, PaymentsResponseData>
 where
-    T: 'static,
+    T: 'static + SplitPaymentData,
 {
     type Error = Error;
     fn try_from(
@@ -571,6 +643,18 @@ where
                         connector_metadata: None,
                     })
                 } else {
+                    let charges = item.data.request.get_split_payment_data().and_then(|split_payment| {
+                        match split_payment {
+                            common_types::payments::SplitPaymentsRequest::PayloadSplitPayment(
+                                split,
+                            ) => Some(
+                                common_types::payments::ConnectorChargeResponseData::PayloadSplitPayment(
+                                    split,
+                                ),
+                            ),
+                            _ => None,
+                        }
+                    });
                     Ok(PaymentsResponseData::TransactionResponse {
                         resource_id: ResponseId::ConnectorTransactionId(response.transaction_id),
                         redirection_data: Box::new(None),
@@ -581,7 +665,7 @@ where
                         connector_response_reference_id: response.ref_number,
                         incremental_authorization_allowed: None,
                         authentication_data: None,
-                        charges: None,
+                        charges,
                     })
                 };
                 Ok(Self {
@@ -896,5 +980,89 @@ impl TryFrom<responses::PayloadWebhookEvent> for responses::PayloadPaymentsRespo
                 response_type: None,
             },
         ))
+    }
+}
+
+impl TryFrom<ScopeIdentifier> for requests::PayloadEventType {
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(item: ScopeIdentifier) -> Result<Self, Self::Error> {
+        match item {
+            ScopeIdentifier::EventType(event_type) => {
+                match event_type {
+                    common_enums::EventType::PaymentProcessing => Ok(Self::Payment),
+                    common_enums::EventType::PaymentAuthorized
+                    | common_enums::EventType::PaymentPartiallyAuthorized => Ok(Self::Authorized),
+                    common_enums::EventType::PaymentSucceeded
+                    | common_enums::EventType::PaymentCaptured => Ok(Self::Processed),
+                    common_enums::EventType::PaymentFailed
+                    | common_enums::EventType::RefundFailed => Ok(Self::Decline),
+                    common_enums::EventType::PaymentCancelled => Ok(Self::Void),
+                    common_enums::EventType::PaymentCancelledPostCapture => Ok(Self::Reversal),
+                    common_enums::EventType::RefundSucceeded => Ok(Self::Refund),
+                    common_enums::EventType::DisputeOpened => Ok(Self::Reject),
+                    common_enums::EventType::DisputeAccepted
+                    | common_enums::EventType::DisputeLost => Ok(Self::Reversal),
+
+                    #[cfg(feature = "payouts")]
+                    common_enums::EventType::PayoutInitiated
+                    | common_enums::EventType::PayoutProcessing => Ok(Self::Credit),
+                    #[cfg(feature = "payouts")]
+                    common_enums::EventType::PayoutSuccess => Ok(Self::Deposit),
+                    #[cfg(feature = "payouts")]
+                    common_enums::EventType::PayoutFailed => Ok(Self::Decline),
+                    #[cfg(feature = "payouts")]
+                    common_enums::EventType::PayoutCancelled => Ok(Self::Void),
+                    #[cfg(feature = "payouts")]
+                    common_enums::EventType::PayoutReversed => Ok(Self::Reversal),
+
+                    _ => Err(error_stack::report!(errors::ConnectorError::NotSupported {
+                        message: "Webhook event type mapping failed".to_string(),
+                        connector: "payload",
+                    })),
+                }
+            }
+            ScopeIdentifier::NotSpecific | ScopeIdentifier::PaymentMethodType(_) => Err(
+                error_stack::report!(errors::ConnectorError::WebhookEventTypeNotFound),
+            ),
+        }
+    }
+}
+
+impl
+    TryFrom<
+        ResponseRouterData<
+            ConnectorWebhookRegister,
+            responses::PayloadWebhookRegisterResponse,
+            ConnectorWebhookRegisterRequest,
+            ConnectorWebhookRegisterResponse,
+        >,
+    >
+    for RouterData<
+        ConnectorWebhookRegister,
+        ConnectorWebhookRegisterRequest,
+        ConnectorWebhookRegisterResponse,
+    >
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<
+            ConnectorWebhookRegister,
+            responses::PayloadWebhookRegisterResponse,
+            ConnectorWebhookRegisterRequest,
+            ConnectorWebhookRegisterResponse,
+        >,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            response: Ok(ConnectorWebhookRegisterResponse {
+                identifier: item.data.request.scope.clone(),
+                connector_webhook_id: Some(item.response.id),
+                status: common_enums::WebhookRegistrationStatus::Success,
+                error_code: None,
+                error_message: None,
+                metadata: None,
+            }),
+            ..item.data
+        })
     }
 }

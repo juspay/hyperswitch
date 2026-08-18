@@ -348,6 +348,7 @@ impl GsmValidation for PayoutData {
             | common_enums::PayoutStatus::Reversed
             | common_enums::PayoutStatus::Expired
             | common_enums::PayoutStatus::Ineligible
+            | common_enums::PayoutStatus::NotPermitted
             | common_enums::PayoutStatus::RequiresCreation
             | common_enums::PayoutStatus::RequiresPayoutMethodData
             | common_enums::PayoutStatus::RequiresVendorAccountCreation

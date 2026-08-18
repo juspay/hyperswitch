@@ -9,8 +9,10 @@ use api_models::user::dashboard_metadata::{
 use api_models::{
     payments,
     user::dashboard_metadata::{
-        CreateSavedViewRequest, PaymentListFilterConstraintsV1, SavedViewFilters,
-        SavedViewFiltersV1, SavedViewOperation, UpdateSavedViewRequest,
+        CreatePaymentAdvancedViewRequest, CreateSavedViewRequest, PaymentAdvancedViewFilters,
+        PaymentAdvancedViewFiltersV1, PaymentAdvancedViewOperation, PaymentListFilterConstraintsV1,
+        SavedViewFilters, SavedViewFiltersV1, SavedViewOperation, UpdatePaymentAdvancedViewRequest,
+        UpdateSavedViewRequest,
     },
 };
 use common_enums::EntityType;
@@ -270,7 +272,7 @@ pub fn separate_metadata_type_based_on_scope(
             | DBEnum::ReconStatus
             | DBEnum::ProdIntent => merchant_scoped.push(key),
             #[cfg(feature = "v1")]
-            DBEnum::PaymentViews => profile_user_scoped.push(key),
+            DBEnum::PaymentViews | DBEnum::PaymentAdvancedViews => profile_user_scoped.push(key),
             DBEnum::Feedback | DBEnum::IsChangePasswordRequired => user_scoped.push(key),
         }
     }
@@ -766,6 +768,174 @@ async fn delete_saved_view(
                 })?;
 
             views_data.views.remove(position);
+
+            Ok(views_data)
+        },
+    )
+    .await
+}
+
+#[cfg(feature = "v1")]
+fn get_payment_advanced_view_filters(
+    data: PaymentAdvancedViewFilters,
+) -> types::PaymentAdvancedViewFilters {
+    match data {
+        PaymentAdvancedViewFilters::V1(PaymentAdvancedViewFiltersV1::PaymentViews(filters)) => {
+            types::PaymentAdvancedViewFilters::V1(filters)
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
+pub async fn handle_payment_advanced_view_operations(
+    state: &SessionState,
+    user: UserFromToken,
+    metadata_key: DBEnum,
+    operation: PaymentAdvancedViewOperation,
+) -> UserResult<DashboardMetadata> {
+    let profile_id = get_profile_id_from_role(state, &user).await?;
+    match operation {
+        PaymentAdvancedViewOperation::Create(request) => {
+            create_payment_advanced_view(state, user, metadata_key, profile_id, request).await
+        }
+        PaymentAdvancedViewOperation::Update(request) => {
+            update_payment_advanced_view(state, user, metadata_key, profile_id, request).await
+        }
+        PaymentAdvancedViewOperation::Delete(request) => {
+            modify_dashboard_metadata(
+                state,
+                user,
+                metadata_key,
+                profile_id,
+                |existing: Option<types::PaymentAdvancedViewsValue>| {
+                    let mut views_data = existing.ok_or(report!(UserErrors::SavedViewNotFound))?;
+
+                    let position = views_data
+                        .views
+                        .iter()
+                        .position(|v| v.view_id == request.view_id)
+                        .ok_or_else(|| {
+                            report!(UserErrors::SavedViewNotFound)
+                                .attach_printable("Saved view with this ID not found")
+                        })?;
+
+                    views_data.views.remove(position);
+
+                    Ok(views_data)
+                },
+            )
+            .await
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
+async fn create_payment_advanced_view(
+    state: &SessionState,
+    user: UserFromToken,
+    metadata_key: DBEnum,
+    profile_id: Option<String>,
+    request: CreatePaymentAdvancedViewRequest,
+) -> UserResult<DashboardMetadata> {
+    if request.view_name.trim().is_empty() {
+        return Err(report!(UserErrors::InvalidSavedViewName))
+            .attach_printable("Saved view name cannot be empty");
+    }
+
+    let now = common_utils::date_time::now();
+    let view_id = common_utils::generate_id(common_utils::consts::ID_LENGTH, "view");
+    let filters = get_payment_advanced_view_filters(request.data);
+    let new_view_domain = types::PaymentAdvancedView {
+        view_id,
+        view_name: request.view_name.clone(),
+        filters,
+        created_at: now.to_string(),
+        updated_at: now.to_string(),
+    };
+
+    modify_dashboard_metadata(
+        state,
+        user,
+        metadata_key,
+        profile_id,
+        |existing: Option<types::PaymentAdvancedViewsValue>| {
+            let mut views_data =
+                existing.unwrap_or(types::PaymentAdvancedViewsValue { views: vec![] });
+
+            if views_data.views.len() >= MAX_SAVED_VIEWS {
+                return Err(report!(UserErrors::MaxSavedViewsReached))
+                    .attach_printable("Maximum of 5 saved views reached");
+            }
+
+            if views_data
+                .views
+                .iter()
+                .any(|v| v.view_name == request.view_name)
+            {
+                return Err(report!(UserErrors::SavedViewNameAlreadyExists))
+                    .attach_printable("A saved view with this name already exists");
+            }
+
+            views_data.views.push(new_view_domain);
+            Ok(views_data)
+        },
+    )
+    .await
+}
+
+#[cfg(feature = "v1")]
+async fn update_payment_advanced_view(
+    state: &SessionState,
+    user: UserFromToken,
+    metadata_key: DBEnum,
+    profile_id: Option<String>,
+    request: UpdatePaymentAdvancedViewRequest,
+) -> UserResult<DashboardMetadata> {
+    modify_dashboard_metadata(
+        state,
+        user,
+        metadata_key,
+        profile_id,
+        |existing: Option<types::PaymentAdvancedViewsValue>| {
+            let mut views_data = existing.ok_or(report!(UserErrors::SavedViewNotFound))?;
+
+            if !views_data
+                .views
+                .iter()
+                .any(|v| v.view_id == request.view_id)
+            {
+                return Err(report!(UserErrors::SavedViewNotFound))
+                    .attach_printable("Saved view with this ID not found");
+            }
+
+            if let Some(ref new_name) = request.view_name {
+                if new_name.trim().is_empty() {
+                    return Err(report!(UserErrors::InvalidSavedViewName))
+                        .attach_printable("Saved view name cannot be empty");
+                }
+
+                if views_data
+                    .views
+                    .iter()
+                    .any(|v| v.view_id != request.view_id && v.view_name == *new_name)
+                {
+                    return Err(report!(UserErrors::SavedViewNameAlreadyExists))
+                        .attach_printable("A saved view with this name already exists");
+                }
+            }
+
+            let view = views_data
+                .views
+                .iter_mut()
+                .find(|v| v.view_id == request.view_id)
+                .ok_or(report!(UserErrors::SavedViewNotFound))?;
+
+            let filters = get_payment_advanced_view_filters(request.data);
+            if let Some(new_name) = request.view_name {
+                view.view_name = new_name;
+            }
+            view.filters = filters;
+            view.updated_at = common_utils::date_time::now().to_string();
 
             Ok(views_data)
         },

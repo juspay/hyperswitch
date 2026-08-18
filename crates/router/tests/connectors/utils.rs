@@ -483,6 +483,7 @@ pub trait ConnectorActions: Connector {
                 payout_connector_metadata: None,
                 additional_payout_method_data: None,
                 source_bank_data: None,
+                billing_descriptor: None,
             },
             payment_info,
         )

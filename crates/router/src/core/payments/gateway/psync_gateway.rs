@@ -12,7 +12,6 @@ use hyperswitch_interfaces::{
     unified_connector_service::{
         get_payments_response_from_ucs_webhook_content,
         handle_unified_connector_service_response_for_payment_get,
-        transformers::UnifiedConnectorServiceError,
     },
 };
 use hyperswitch_masking::ExposeInterface as UcsMaskingExposeInterface;
@@ -105,9 +104,13 @@ where
                 };
 
                 router_data.response = router_data_response;
-                router_data.amount_captured = payment_get_response.captured_amount;
-                router_data.minor_amount_captured =
-                    payment_get_response.captured_amount.map(MinorUnit::new);
+                // Only override `amount_captured` when UCS actually reports a captured
+                // amount on sync. Connectors that don't return an amount on psync (e.g.
+                // cybersource TSS) leave this `None` .
+                if let Some(captured_amount) = payment_get_response.captured_amount {
+                    router_data.amount_captured = Some(captured_amount);
+                    router_data.minor_amount_captured = Some(MinorUnit::new(captured_amount));
+                }
                 if return_raw_connector_response.unwrap_or(false) {
                     router_data.raw_connector_response = payment_get_response
                         .raw_connector_response
@@ -201,31 +204,8 @@ where
                             .await
                         {
                             Ok(resp) => resp,
+                            // UCS connector errors are handled by the wrapper — see `ucs_logging_wrapper_granular`.
                             Err(report) => {
-                                if let UnifiedConnectorServiceError::ConnectorError(inner) =
-                                    report.current_context()
-                                {
-                                    let (code, message, status_code, connector) = (
-                                        &inner.code,
-                                        &inner.message,
-                                        inner.status_code,
-                                        &inner.connector,
-                                    );
-                                    logger::debug!(
-                                        "Connector error via UCS for psync (connector {}, status {}): {} - {}",
-                                        connector,
-                                        status_code,
-                                        code,
-                                        message
-                                    );
-                                    router_data.response = Err(inner.as_ref().into());
-                                    router_data.connector_http_status_code = Some(status_code);
-                                    return Ok((
-                                        router_data,
-                                        (),
-                                        payments_grpc::PaymentServiceGetResponse::default(),
-                                    ));
-                                }
                                 return Err(report.attach_printable("Failed to get payment"));
                             }
                         };
@@ -260,14 +240,19 @@ where
                         }
 
                         router_data.response = router_data_response;
-                        router_data.amount_captured = payment_get_response.captured_amount;
-                        router_data.minor_amount_captured =
-                            payment_get_response.captured_amount.map(MinorUnit::new);
+                        // Only override `amount_captured` when UCS actually reports a
+                        // captured amount on sync. Connectors that don't return an amount
+                        // on psync (e.g. cybersource TSS) leave this `None`;
+                        if let Some(captured_amount) = payment_get_response.captured_amount {
+                            router_data.amount_captured = Some(captured_amount);
+                            router_data.minor_amount_captured =
+                                Some(MinorUnit::new(captured_amount));
+                        }
                         if return_raw_connector_response.unwrap_or(false) {
-                            router_data.raw_connector_response = payment_get_response
-                                .raw_connector_response
-                                .clone()
-                                .map(|raw_connector_response| raw_connector_response.expose().into());
+                            router_data.raw_connector_response =
+                                payment_get_response.raw_connector_response.clone().map(
+                                    |raw_connector_response| raw_connector_response.expose().into(),
+                                );
                         }
                         router_data.connector_http_status_code = Some(status_code);
                         router_data.sender_payment_instrument_id =

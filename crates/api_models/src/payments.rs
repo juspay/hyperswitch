@@ -18,7 +18,7 @@ use common_types::{
     customers::DocumentKind, payments as common_payments_types, primitive_wrappers,
 };
 use common_utils::{
-    consts::default_payments_list_limit,
+    consts::{default_payments_list_limit, DISCOUNT_PERCENTAGE_PRECISION_LENGTH},
     crypto,
     errors::ValidationError,
     ext_traits::{ConfigExt, Encode, ValueExt},
@@ -26,7 +26,7 @@ use common_utils::{
     id_type,
     new_type::MaskedBankAccount,
     pii::{self, Email},
-    types::{AmountConvertor, MinorUnit, SemanticVersion, StringMajorUnit},
+    types::{AmountConvertor, MinorUnit, Percentage, SemanticVersion, StringMajorUnit},
 };
 use error_stack::ResultExt;
 
@@ -1437,6 +1437,11 @@ pub struct PaymentsRequest {
     #[smithy(value_type = "Option<RequestSurchargeDetails>")]
     pub surcharge_details: Option<RequestSurchargeDetails>,
 
+    /// Offer Engine offer selection to apply during confirm. When present, the
+    /// referenced quote is applied via Offer Engine `/apply` before the PSP call.
+    #[schema(value_type = Option<OfferSelection>)]
+    pub offer_details: Option<OfferSelection>,
+
     /// The type of the payment that differentiates between normal and various types of mandate payments
     #[schema(value_type = Option<PaymentType>)]
     #[smithy(value_type = "Option<PaymentType>")]
@@ -1818,6 +1823,32 @@ impl PaymentsRequest {
                 })?;
         }
         Ok(())
+    }
+
+    pub fn for_payment_link(self) -> Self {
+        Self {
+            amount: self.amount,
+            currency: self.currency,
+            return_url: self.return_url,
+            payment_id: self.payment_id,
+            authentication_type: self.authentication_type,
+            billing: self.billing,
+            customer: self.customer,
+            description: self.description,
+            setup_future_usage: self.setup_future_usage,
+            order_details: self.order_details,
+            metadata: self.metadata,
+            payment_link_config_id: self.payment_link_config_id,
+            profile_id: self.profile_id,
+            routing: self.routing,
+            session_expiry: self.session_expiry,
+            merchant_order_reference_id: self.merchant_order_reference_id,
+            allowed_payment_method_types: self.allowed_payment_method_types,
+            capture_method: self.capture_method,
+            payment_link: Some(true),
+            confirm: Some(false),
+            ..Default::default()
+        }
     }
 }
 
@@ -2542,6 +2573,70 @@ pub struct Card {
     pub nick_name: Option<Secret<String>>,
 }
 
+#[derive(
+    Default,
+    Eq,
+    PartialEq,
+    Clone,
+    Debug,
+    serde::Deserialize,
+    serde::Serialize,
+    ToSchema,
+    SmithyModel,
+)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct CardWithNoCVC {
+    /// The card number
+    #[schema(value_type = String, example = "4242424242424242")]
+    #[smithy(value_type = "String")]
+    pub card_number: CardNumber,
+
+    /// The card's expiry month
+    #[schema(value_type = String, example = "24")]
+    #[smithy(value_type = "String")]
+    pub card_exp_month: Secret<String>,
+
+    /// The card's expiry year
+    #[schema(value_type = String, example = "24")]
+    #[smithy(value_type = "String")]
+    pub card_exp_year: Secret<String>,
+
+    /// The card holder's name
+    #[schema(value_type = String, example = "John Test")]
+    #[smithy(value_type = "Option<String>")]
+    pub card_holder_name: Option<Secret<String>>,
+
+    /// The name of the issuer of card
+    #[schema(example = "chase")]
+    #[smithy(value_type = "Option<String>")]
+    pub card_issuer: Option<String>,
+
+    /// The card network for the card
+    #[schema(value_type = Option<CardNetwork>, example = "Visa")]
+    #[smithy(value_type = "Option<CardNetwork>")]
+    pub card_network: Option<api_enums::CardNetwork>,
+
+    #[schema(example = "CREDIT")]
+    #[smithy(value_type = "Option<String>")]
+    pub card_type: Option<String>,
+
+    #[schema(example = "INDIA")]
+    #[smithy(value_type = "Option<String>")]
+    pub card_issuing_country: Option<String>,
+
+    #[schema(example = "IN")]
+    #[smithy(value_type = "Option<String>")]
+    pub card_issuing_country_code: Option<String>,
+
+    #[schema(example = "JP_AMEX")]
+    #[smithy(value_type = "Option<String>")]
+    pub bank_code: Option<String>,
+    /// The card holder's nick name
+    #[schema(value_type = Option<String>, example = "John Test")]
+    #[smithy(value_type = "Option<String>")]
+    pub nick_name: Option<Secret<String>>,
+}
+
 #[cfg(feature = "v2")]
 impl TryFrom<payment_methods::CardDetail> for Card {
     type Error = error_stack::Report<ValidationError>;
@@ -2651,6 +2746,39 @@ impl GetAddressFromPaymentMethodData for Card {
                 // last_name -> Wheat Dough
                 card_holder_name.peek().split_whitespace()
             })
+            .map(|mut card_holder_name_iter| {
+                let first_name = card_holder_name_iter
+                    .next()
+                    .map(ToOwned::to_owned)
+                    .map(Secret::new);
+
+                let last_name = card_holder_name_iter.collect::<Vec<_>>().join(" ");
+                let last_name = if last_name.is_empty_after_trim() {
+                    None
+                } else {
+                    Some(Secret::new(last_name))
+                };
+
+                AddressDetails {
+                    first_name,
+                    last_name,
+                    ..Default::default()
+                }
+            })
+            .map(|address_details| Address {
+                address: Some(address_details),
+                phone: None,
+                email: None,
+            })
+    }
+}
+
+impl GetAddressFromPaymentMethodData for CardWithNoCVC {
+    fn get_billing_address(&self) -> Option<Address> {
+        self.card_holder_name
+            .as_ref()
+            .filter(|card_holder_name| !card_holder_name.is_empty_after_trim())
+            .map(|card_holder_name| card_holder_name.peek().split_whitespace())
             .map(|mut card_holder_name_iter| {
                 let first_name = card_holder_name_iter
                     .next()
@@ -3138,6 +3266,16 @@ mod payment_method_data_serde {
                                     }
                                     Some(PaymentMethodData::Card(card.clone()))
                                 }
+                                (
+                                    PaymentMethodData::CardWithNoCVC(ref mut card),
+                                    Some(billing_address_details),
+                                ) => {
+                                    if card.card_holder_name.is_none() {
+                                        card.card_holder_name =
+                                            billing_address_details.get_optional_full_name();
+                                    }
+                                    Some(PaymentMethodData::CardWithNoCVC(card.clone()))
+                                }
                                 _ => Some(payment_method_data),
                             }
                         }
@@ -3193,6 +3331,7 @@ mod payment_method_data_serde {
                     | PaymentMethodData::Upi(_)
                     | PaymentMethodData::Voucher(_)
                     | PaymentMethodData::Card(_)
+                    | PaymentMethodData::CardWithNoCVC(_)
                     | PaymentMethodData::NetworkToken(_)
                     | PaymentMethodData::ProxyCard(_)
                     | PaymentMethodData::VaultCardTokenData(_)
@@ -3484,6 +3623,10 @@ pub enum PaymentMethodData {
     #[schema(title = "Card")]
     #[smithy(value_type = "Card")]
     Card(Card),
+    #[schema(title = "CardWithNoCVC")]
+    #[serde(rename = "card_with_no_cvc")]
+    #[smithy(value_type = "CardWithNoCVC")]
+    CardWithNoCVC(CardWithNoCVC),
     #[schema(title = "CardRedirect")]
     #[smithy(value_type = "CardRedirectData")]
     CardRedirect(CardRedirectData),
@@ -3555,6 +3698,7 @@ impl GetAddressFromPaymentMethodData for PaymentMethodData {
     fn get_billing_address(&self) -> Option<Address> {
         match self {
             Self::Card(card_data) => card_data.get_billing_address(),
+            Self::CardWithNoCVC(card_data) => card_data.get_billing_address(),
             Self::CardRedirect(_) => None,
             Self::Wallet(wallet_data) => wallet_data.get_billing_address(),
             Self::PayLater(pay_later) => pay_later.get_billing_address(),
@@ -3581,7 +3725,7 @@ impl GetAddressFromPaymentMethodData for PaymentMethodData {
 impl PaymentMethodData {
     pub fn get_payment_method(&self) -> Option<api_enums::PaymentMethod> {
         match self {
-            Self::Card(_) => Some(api_enums::PaymentMethod::Card),
+            Self::Card(_) | Self::CardWithNoCVC(_) => Some(api_enums::PaymentMethod::Card),
             Self::CardRedirect(_) => Some(api_enums::PaymentMethod::CardRedirect),
             Self::Wallet(_) => Some(api_enums::PaymentMethod::Wallet),
             Self::PayLater(_) => Some(api_enums::PaymentMethod::PayLater),
@@ -7506,6 +7650,10 @@ pub struct PaymentsResponse {
     #[smithy(value_type = "Option<RequestSurchargeDetails>")]
     pub surcharge_details: Option<RequestSurchargeDetails>,
 
+    /// Applied Offer Engine offer details for this payment, if an offer was applied.
+    #[schema(value_type = Option<AppliedOffer>)]
+    pub applied_offer: Option<AppliedOffer>,
+
     /// Total number of attempts associated with this payment
     #[smithy(value_type = "i16")]
     pub attempt_count: i16,
@@ -8705,6 +8853,10 @@ pub struct ExternalAuthenticationDetailsResponse {
     /// Error Message
     #[smithy(value_type = "Option<String>")]
     pub error_message: Option<String>,
+    /// Challenge Cancel Code
+    pub challenge_cancel_code: Option<String>,
+    /// Trans Status Reason Code
+    pub trans_status_reason: Option<String>,
 }
 
 #[cfg(feature = "v1")]
@@ -9442,6 +9594,9 @@ pub struct PaymentsRetrieveRequest {
     pub all_keys_required: Option<bool>,
 }
 
+/// Percentage value used to represent the discount applied on an item.
+pub type DiscountPercentage = Percentage<DISCOUNT_PERCENTAGE_PRECISION_LENGTH>;
+
 #[derive(
     Debug, Default, PartialEq, serde::Deserialize, serde::Serialize, Clone, ToSchema, SmithyModel,
 )]
@@ -9508,10 +9663,20 @@ pub struct OrderDetailsWithAmount {
     #[schema(value_type = Option<i64>)]
     #[smithy(value_type = "Option<i64>")]
     pub total_amount: Option<MinorUnit>, // total_amount,
+    /// Discount name applied to this item.
+    #[smithy(value_type = "Option<String>")]
+    pub discount_name: Option<String>,
     /// Discount amount applied to this item.
     #[schema(value_type = Option<i64>)]
     #[smithy(value_type = "Option<i64>")]
     pub unit_discount_amount: Option<MinorUnit>,
+    /// Discount percentage applied to this item.
+    #[schema(value_type = Option<Percentage<DISCOUNT_PERCENTAGE_PRECISION_LENGTH>>)]
+    #[smithy(value_type = "Option<Percentage<DISCOUNT_PERCENTAGE_PRECISION_LENGTH>>")]
+    pub discount_percentage: Option<DiscountPercentage>,
+    /// Discount type applied to this item.
+    #[smithy(value_type = "Option<String>")]
+    pub discount_type: Option<String>,
 }
 
 impl hyperswitch_masking::SerializableSecret for OrderDetailsWithAmount {}
@@ -9935,8 +10100,16 @@ pub enum ConnectorMetadataResponse {
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 #[serde(deny_unknown_fields)]
 pub struct SantanderData {
+    #[schema(value_type = Option<String>, example = "E9040088820260710172800044983797")]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub end_to_end_id: Option<String>,
+    /// Actual timestamp when the payment was completed, as reported by Santander.
+    #[schema(value_type = Option<PrimitiveDateTime>, example = "2025-07-20T14:35:00Z")]
+    #[serde(
+        skip_serializing_if = "Option::is_none",
+        with = "common_utils::custom_serde::iso8601::option"
+    )]
+    pub paid_at: Option<PrimitiveDateTime>,
 }
 
 impl ConnectorMetadata {
@@ -10726,7 +10899,13 @@ pub enum NextActionCall {
     /// The next action is to await for a merchant callback
     AwaitMerchantCallback,
     /// The next action is to deny the payment with an error message
-    Deny { message: String },
+    Deny {
+        message: String,
+        /// A stable, machine-readable identifier for the reason the payment was denied
+        #[schema(value_type = Option<BlockReasonCode>)]
+        #[smithy(value_type = "Option<BlockReasonCode>")]
+        code: Option<api_enums::BlockReasonCode>,
+    },
     /// The next action is to perform eligibility check
     EligibilityCheck,
 }
@@ -13055,6 +13234,85 @@ pub struct PaymentsEligibilityResponse {
     /// or no surcharge connector is configured for this merchant.
     #[schema(value_type = Option<SurchargeDetailsResponse>)]
     pub surcharge_details: Option<payment_methods::SurchargeDetailsResponse>,
+    /// Payable amount details before and after any Offer Engine discount.
+    /// Present when Offer Engine eligibility is evaluated.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub amount_details: Option<EligibilityAmountDetails>,
+    /// Offer Engine eligibility result: selected quote ids and all eligible offers.
+    /// Present when Offer Engine eligibility is evaluated.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub offer_details: Option<EligibilityOfferDetails>,
+}
+
+/// Payable amount details returned during eligibility, before and after the
+/// Offer Engine discount.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct EligibilityAmountDetails {
+    /// Payable amount before the Offer Engine discount, in minor units.
+    #[schema(value_type = i64)]
+    pub total_amount: MinorUnit,
+    /// Payable amount after the uplifted offer discount, in minor units.
+    #[schema(value_type = i64)]
+    pub net_amount: MinorUnit,
+    /// Currency of the amounts.
+    #[schema(value_type = Currency, example = "USD")]
+    pub currency: common_enums::Currency,
+}
+
+/// Offer Engine eligibility details returned to the client.
+#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct EligibilityOfferDetails {
+    /// Quote ids of the uplifted (selected) offers. First launch selects one.
+    #[serde(default)]
+    pub uplifted_offer_quote_ids: Vec<String>,
+    /// All eligible offers returned to the client.
+    #[serde(default)]
+    pub eligible_offers: Vec<EligibleOffer>,
+}
+
+/// A single eligible offer returned to the client during eligibility.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct EligibleOffer {
+    /// Quote id the client sends back in confirm to apply this offer.
+    pub offer_quote_id: String,
+    /// Charge-reducing offer amount, in minor units.
+    #[schema(value_type = i64)]
+    pub offer_amount: MinorUnit,
+    /// Currency of the offer amount.
+    #[schema(value_type = Currency, example = "USD")]
+    pub currency: common_enums::Currency,
+    /// Offer code.
+    pub code: String,
+    /// Offer title, if provided.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub title: Option<String>,
+    /// Offer description, if provided.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+}
+
+/// Offer selection sent in a confirm request to apply an offer.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct OfferSelection {
+    /// Quote ids of the offers to apply. First launch applies a single offer.
+    pub offer_quote_ids: Vec<String>,
+}
+
+/// Normalized applied-offer details exposed in payment responses.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct AppliedOffer {
+    /// Offer Engine merchant id the offer was applied under.
+    pub offer_engine_merchant_id: String,
+    /// Offer Engine transaction id (the payment attempt id used at `/apply`).
+    pub offer_engine_txn_id: String,
+    /// Offer Engine offer id that was applied.
+    pub offer_id: String,
+    /// Charge-reducing offer amount, in minor units.
+    #[schema(value_type = i64)]
+    pub offer_amount: MinorUnit,
+    /// Currency of the offer amount.
+    #[schema(value_type = Currency, example = "USD")]
+    pub currency: common_enums::Currency,
 }
 
 #[cfg(feature = "v1")]

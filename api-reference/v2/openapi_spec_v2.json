@@ -9455,7 +9455,9 @@
         "type": "string",
         "enum": [
           "checking",
-          "savings"
+          "savings",
+          "salary",
+          "payment"
         ]
       },
       "BecsBankDebitAdditionalData": {
@@ -9577,6 +9579,24 @@
             "nullable": true
           }
         }
+      },
+      "BlockReasonCode": {
+        "type": "string",
+        "description": "A stable, machine-readable identifier for the reason a payment was blocked.",
+        "enum": [
+          "blocked_bin",
+          "blocked_card_info_unavailable",
+          "blocked_card_type",
+          "blocked_card_network",
+          "blocked_funding_source",
+          "blocked_card_subtype",
+          "blocked_card_segment_type",
+          "blocked_virtual_card",
+          "blocked_non_reloadable_prepaid_card",
+          "blocked_gambling_card",
+          "blocked_issuer_country",
+          "blocked_issuer"
+        ]
       },
       "BlocklistDataKind": {
         "type": "string",
@@ -11036,6 +11056,77 @@
           }
         }
       },
+      "CardWithNoCVC": {
+        "type": "object",
+        "required": [
+          "card_number",
+          "card_exp_month",
+          "card_exp_year",
+          "card_holder_name"
+        ],
+        "properties": {
+          "card_number": {
+            "type": "string",
+            "description": "The card number",
+            "example": "4242424242424242"
+          },
+          "card_exp_month": {
+            "type": "string",
+            "description": "The card's expiry month",
+            "example": "24"
+          },
+          "card_exp_year": {
+            "type": "string",
+            "description": "The card's expiry year",
+            "example": "24"
+          },
+          "card_holder_name": {
+            "type": "string",
+            "description": "The card holder's name",
+            "example": "John Test"
+          },
+          "card_issuer": {
+            "type": "string",
+            "description": "The name of the issuer of card",
+            "example": "chase",
+            "nullable": true
+          },
+          "card_network": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardNetwork"
+              }
+            ],
+            "nullable": true
+          },
+          "card_type": {
+            "type": "string",
+            "example": "CREDIT",
+            "nullable": true
+          },
+          "card_issuing_country": {
+            "type": "string",
+            "example": "INDIA",
+            "nullable": true
+          },
+          "card_issuing_country_code": {
+            "type": "string",
+            "example": "IN",
+            "nullable": true
+          },
+          "bank_code": {
+            "type": "string",
+            "example": "JP_AMEX",
+            "nullable": true
+          },
+          "nick_name": {
+            "type": "string",
+            "description": "The card holder's nick name",
+            "example": "John Test",
+            "nullable": true
+          }
+        }
+      },
       "CartesBancairesParams": {
         "type": "object",
         "description": "Represents network-specific parameters for the Cartes Bancaires 3DS process.",
@@ -11377,6 +11468,7 @@
           "forte",
           "getnet",
           "gigadat",
+          "givepayments",
           "globalpay",
           "globepay",
           "gocardless",
@@ -11391,6 +11483,7 @@
           "imerchantsolutions",
           "itaubank",
           "jpmorgan",
+          "juspay",
           "juspaythreedsserver",
           "klarna",
           "loonio",
@@ -11498,6 +11591,17 @@
             "properties": {
               "xendit_split_payment": {
                 "$ref": "#/components/schemas/XenditChargeResponseData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "payload_split_payment"
+            ],
+            "properties": {
+              "payload_split_payment": {
+                "$ref": "#/components/schemas/PayloadSplitPaymentRequest"
               }
             }
           }
@@ -11789,6 +11893,64 @@
           }
         },
         "additionalProperties": false
+      },
+      "ConnectorWebhookScope": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "type"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "not_specific"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "value",
+              "type"
+            ],
+            "properties": {
+              "value": {
+                "$ref": "#/components/schemas/PaymentMethodType"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "payment_method_type"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "value",
+              "type"
+            ],
+            "properties": {
+              "value": {
+                "$ref": "#/components/schemas/EventType"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "event_type"
+                ]
+              }
+            }
+          }
+        ],
+        "description": "Scope of a single registered connector webhook.",
+        "discriminator": {
+          "propertyName": "type"
+        }
       },
       "ContractBasedRoutingConfig": {
         "type": "object",
@@ -14305,6 +14467,7 @@
           "payout_cancelled",
           "payout_expired",
           "payout_reversed",
+          "payout_not_permitted",
           "invoice_paid",
           "surcharge_payment_succeeded",
           "surcharge_refund_succeeded"
@@ -14472,6 +14635,16 @@
           "error_message": {
             "type": "string",
             "description": "Error Message",
+            "nullable": true
+          },
+          "challenge_cancel_code": {
+            "type": "string",
+            "description": "Challenge Cancel Code",
+            "nullable": true
+          },
+          "trans_status_reason": {
+            "type": "string",
+            "description": "Trans Status Reason Code",
             "nullable": true
           }
         }
@@ -19268,6 +19441,14 @@
                 "properties": {
                   "message": {
                     "type": "string"
+                  },
+                  "code": {
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/BlockReasonCode"
+                      }
+                    ],
+                    "nullable": true
                   }
                 }
               }
@@ -19936,10 +20117,28 @@
             "description": "Total amount for the item.",
             "nullable": true
           },
+          "discount_name": {
+            "type": "string",
+            "description": "Discount name applied to this item.",
+            "nullable": true
+          },
           "unit_discount_amount": {
             "type": "integer",
             "format": "int64",
             "description": "Discount amount applied to this item.",
+            "nullable": true
+          },
+          "discount_percentage": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Percentage"
+              }
+            ],
+            "nullable": true
+          },
+          "discount_type": {
+            "type": "string",
+            "description": "Discount type applied to this item.",
             "nullable": true
           }
         }
@@ -20576,6 +20775,42 @@
               }
             ],
             "nullable": true
+          }
+        }
+      },
+      "PayloadLedgerItem": {
+        "type": "object",
+        "description": "A single ledger entry distributing payment to one receiver for Payload split payments",
+        "required": [
+          "amount",
+          "receiver_id"
+        ],
+        "properties": {
+          "amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Amount in minor units to be routed to this receiver out of the payment",
+            "example": 995
+          },
+          "receiver_id": {
+            "type": "string",
+            "description": "processing_id of the receiver"
+          }
+        }
+      },
+      "PayloadSplitPaymentRequest": {
+        "type": "object",
+        "description": "Split payment configuration for Payload — distributes a payment across multiple receivers via ledger entries",
+        "required": [
+          "ledger"
+        ],
+        "properties": {
+          "ledger": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PayloadLedgerItem"
+            },
+            "description": "Ledger entries specifying how the payment is distributed across receivers"
           }
         }
       },
@@ -21901,6 +22136,18 @@
           },
           {
             "type": "object",
+            "title": "CardWithNoCVC",
+            "required": [
+              "card_with_no_cvc"
+            ],
+            "properties": {
+              "card_with_no_cvc": {
+                "$ref": "#/components/schemas/CardWithNoCVC"
+              }
+            }
+          },
+          {
+            "type": "object",
             "title": "CardRedirect",
             "required": [
               "card_redirect"
@@ -22886,6 +23133,10 @@
         "properties": {
           "fetch_raw_detail": {
             "type": "boolean"
+          },
+          "force_sync": {
+            "type": "boolean",
+            "description": "Trigger an Account Updater check for the stored payment method."
           }
         },
         "additionalProperties": false
@@ -25402,6 +25653,7 @@
           "adyen",
           "adyenplatform",
           "cybersource",
+          "deutschebank",
           "ebanx",
           "gigadat",
           "loonio",
@@ -25416,7 +25668,8 @@
           "worldpay",
           "worldpayxml",
           "envoy",
-          "itaubank"
+          "itaubank",
+          "santander"
         ]
       },
       "PayoutCreatePayoutLinkConfig": {
@@ -25620,6 +25873,14 @@
             "type": "string",
             "description": "A description of the payout",
             "example": "It's my first payout request",
+            "nullable": true
+          },
+          "billing_descriptor": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PayoutsBillingDescriptor"
+              }
+            ],
             "nullable": true
           },
           "entity_type": {
@@ -25861,6 +26122,14 @@
             "type": "string",
             "description": "A description of the payout",
             "example": "It's my first payout request",
+            "nullable": true
+          },
+          "billing_descriptor": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PayoutsBillingDescriptor"
+              }
+            ],
             "nullable": true
           },
           "entity_type": {
@@ -26456,6 +26725,7 @@
           "reversed",
           "pending",
           "ineligible",
+          "not_permitted",
           "requires_creation",
           "requires_confirmation",
           "requires_payout_method_data",
@@ -26472,6 +26742,22 @@
           "wallet",
           "bank_redirect"
         ]
+      },
+      "PayoutsBillingDescriptor": {
+        "type": "object",
+        "description": "Billing descriptor information for a payout.",
+        "properties": {
+          "reference": {
+            "type": "string",
+            "description": "Reference displayed on the beneficiary's bank statement.",
+            "nullable": true
+          },
+          "statement_descriptor": {
+            "type": "string",
+            "description": "Statement descriptor displayed for the payout.",
+            "nullable": true
+          }
+        }
       },
       "Paypal": {
         "type": "object",
@@ -26792,6 +27078,20 @@
           }
         }
       },
+      "Percentage": {
+        "type": "object",
+        "description": "Represents Percentage Value between 0 and 100 both inclusive",
+        "required": [
+          "percentage"
+        ],
+        "properties": {
+          "percentage": {
+            "type": "number",
+            "format": "double",
+            "description": "Percentage value ranging between 0 and 100"
+          }
+        }
+      },
       "PhoneDetails": {
         "type": "object",
         "properties": {
@@ -26842,6 +27142,26 @@
             "type": "string",
             "description": "ispb code is a unique identifier assigned by Brazilian Central Bank to identify the financial institution of the recipient's bank account in Pix transactions.",
             "example": "60701190",
+            "nullable": true
+          },
+          "bank_code": {
+            "type": "string",
+            "description": "3-digit COMPE/FEBRABAN bank code used to identify the financial institution for routing PIX payouts.",
+            "example": "033",
+            "nullable": true
+          },
+          "bank_account_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BankType"
+              }
+            ],
+            "nullable": true
+          },
+          "account_holder_name": {
+            "type": "string",
+            "description": "Name of the account holder",
+            "example": "John Doe",
             "nullable": true
           }
         }
@@ -27087,6 +27407,26 @@
             "type": "string",
             "description": "ispb code is a unique identifier assigned by Brazilian Central Bank to identify the financial institution of the recipient's bank account in Pix transactions.",
             "example": "60701190",
+            "nullable": true
+          },
+          "bank_code": {
+            "type": "string",
+            "description": "3-digit COMPE/FEBRABAN bank code used to identify the financial institution for routing PIX payouts.",
+            "example": "033",
+            "nullable": true
+          },
+          "bank_account_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BankType"
+              }
+            ],
+            "nullable": true
+          },
+          "account_holder_name": {
+            "type": "string",
+            "description": "Name of the account holder",
+            "example": "John Doe",
             "nullable": true
           }
         }
@@ -29640,6 +29980,7 @@
           "forte",
           "getnet",
           "gigadat",
+          "givepayments",
           "globalpay",
           "globepay",
           "gocardless",
@@ -29723,6 +30064,7 @@
           "ctp_mastercard",
           "ctp_visa",
           "netcetera",
+          "vgs",
           "cardinal",
           "threedsecureio"
         ]
@@ -30254,6 +30596,14 @@
         "properties": {
           "end_to_end_id": {
             "type": "string",
+            "example": "E9040088820260710172800044983797",
+            "nullable": true
+          },
+          "paid_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Actual timestamp when the payment was completed, as reported by Santander.",
+            "example": "2025-07-20T14:35:00Z",
             "nullable": true
           }
         },
@@ -30396,6 +30746,113 @@
             "nullable": true
           }
         }
+      },
+      "Scope": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "type"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "not_specific"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "values"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "payment_method_types"
+                ]
+              },
+              "values": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/PaymentMethodType"
+                },
+                "description": "Scoped by payment method types (e.g., Pix, Boleto)"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "values"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "event_types"
+                ]
+              },
+              "values": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/EventType"
+                },
+                "description": "Scoped by event types (e.g., Payments, Refunds, Disputes)"
+              }
+            }
+          }
+        ],
+        "description": "The scope of webhook registration.\nDetermines which entities the connector should register webhooks for.",
+        "discriminator": {
+          "propertyName": "type"
+        }
+      },
+      "ScopeIdentifier": {
+        "oneOf": [
+          {
+            "type": "string",
+            "enum": [
+              "NotSpecific"
+            ]
+          },
+          {
+            "type": "object",
+            "required": [
+              "PaymentMethodType"
+            ],
+            "properties": {
+              "PaymentMethodType": {
+                "$ref": "#/components/schemas/PaymentMethodType"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "EventType"
+            ],
+            "properties": {
+              "EventType": {
+                "$ref": "#/components/schemas/EventType"
+              }
+            }
+          }
+        ]
+      },
+      "ScopeType": {
+        "type": "string",
+        "description": "Discriminator for the scope type in the response",
+        "enum": [
+          "not_specific",
+          "payment_method_type",
+          "event_type"
+        ]
       },
       "SdkDisplayMode": {
         "type": "string",
@@ -31049,6 +31506,17 @@
                 "$ref": "#/components/schemas/XenditSplitRequest"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "payload_split_payment"
+            ],
+            "properties": {
+              "payload_split_payment": {
+                "$ref": "#/components/schemas/PayloadSplitPaymentRequest"
+              }
+            }
           }
         ],
         "description": "Fee information for Split Payments to be charged on the payment being collected"
@@ -31626,7 +32094,7 @@
         "properties": {
           "percentage": {
             "type": "number",
-            "format": "float"
+            "format": "double"
           }
         }
       },
@@ -31708,6 +32176,7 @@
           "no_three_ds",
           "challenge_requested",
           "challenge_preferred",
+          "no_preference",
           "three_ds_exemption_requested_tra",
           "three_ds_exemption_requested_low_value",
           "issuer_three_ds_exemption_requested"
@@ -33633,6 +34102,59 @@
           }
         },
         "additionalProperties": false
+      },
+      "WebhookRegistrationError": {
+        "type": "object",
+        "description": "Error details for a failed webhook registration.",
+        "required": [
+          "code",
+          "message"
+        ],
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "WebhookRegistrationResult": {
+        "type": "object",
+        "description": "Result of registering a webhook for a single scope identifier.",
+        "required": [
+          "identifier",
+          "status"
+        ],
+        "properties": {
+          "identifier": {
+            "$ref": "#/components/schemas/ScopeIdentifier"
+          },
+          "status": {
+            "$ref": "#/components/schemas/WebhookRegistrationStatus"
+          },
+          "connector_webhook_id": {
+            "type": "string",
+            "description": "The connector-generated webhook ID, if successful.",
+            "nullable": true
+          },
+          "error": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/WebhookRegistrationError"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "WebhookRegistrationStatus": {
+        "type": "string",
+        "description": "The status of webhook registration",
+        "enum": [
+          "Success",
+          "Failure"
+        ]
       },
       "XenditChargeResponseData": {
         "oneOf": [

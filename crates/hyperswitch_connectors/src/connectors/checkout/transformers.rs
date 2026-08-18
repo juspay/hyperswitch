@@ -369,6 +369,7 @@ pub struct CheckoutPhoneDetails {
 #[derive(Debug, Default, Serialize)]
 pub struct CheckoutProcessing {
     pub order_id: Option<String>,
+    pub scheme_transaction_link_id: Option<String>,
     pub tax_amount: Option<MinorUnit>,
     pub discount_amount: Option<MinorUnit>,
     pub duty_amount: Option<MinorUnit>,
@@ -990,7 +991,7 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
         let auth_type: CheckoutAuthType = connector_auth.try_into()?;
         let processing_channel_id = auth_type.processing_channel_id;
         let metadata = build_metadata(item);
-        let (customer, processing, shipping, items) = if let Some(l2l3_data) =
+        let (customer, mut processing, shipping, items) = if let Some(l2l3_data) =
             &item.router_data.l2_l3_data
         {
             (
@@ -1005,6 +1006,7 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
                 }),
                 l2l3_data.order_info.as_ref().map(|_| CheckoutProcessing {
                     order_id: l2l3_data.get_merchant_order_reference_id(),
+                    scheme_transaction_link_id: None,
                     tax_amount: l2l3_data.get_order_tax_amount(),
                     discount_amount: l2l3_data.get_discount_amount(),
                     duty_amount: l2l3_data.get_duty_amount(),
@@ -1043,6 +1045,14 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
         } else {
             (None, None, None, None)
         };
+
+        if let Some(transaction_link_id) =
+            item.router_data.request.get_optional_transaction_link_id()
+        {
+            processing
+                .get_or_insert_default()
+                .scheme_transaction_link_id = Some(transaction_link_id);
+        }
 
         let partial_authorization = item.router_data.request.enable_partial_authorization.map(
             |enable_partial_authorization| CheckoutPartialAuthorization {
@@ -1299,6 +1309,7 @@ pub struct PaymentsResponse {
     approved: Option<bool>,
     processed_on: Option<String>,
     source: Option<Source>,
+    auth_code: Option<String>,
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
@@ -1405,9 +1416,12 @@ impl TryFrom<PaymentsResponseRouterData<PaymentsResponse>> for PaymentsAuthorize
             None
         };
 
-        let additional_information =
-            convert_to_additional_payment_method_connector_response(item.response.source.as_ref())
-                .map(ConnectorResponseData::with_additional_payment_method_data);
+        let additional_information = convert_to_additional_payment_method_connector_response(
+            item.response.source.as_ref(),
+            item.response.auth_code.clone(),
+            item.data.request.payment_method_type,
+        )
+        .map(ConnectorResponseData::with_additional_payment_method_data);
 
         let payments_response_data = PaymentsResponseData::TransactionResponse {
             resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
@@ -1619,9 +1633,12 @@ impl TryFrom<PaymentsSyncResponseRouterData<PaymentsResponse>> for PaymentsSyncR
             None
         };
 
-        let additional_information =
-            convert_to_additional_payment_method_connector_response(item.response.source.as_ref())
-                .map(ConnectorResponseData::with_additional_payment_method_data);
+        let additional_information = convert_to_additional_payment_method_connector_response(
+            item.response.source.as_ref(),
+            item.response.auth_code.clone(),
+            item.data.request.payment_method_type,
+        )
+        .map(ConnectorResponseData::with_additional_payment_method_data);
 
         let payments_response_data = PaymentsResponseData::TransactionResponse {
             resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
@@ -2124,6 +2141,7 @@ pub struct CheckoutWebhookData {
     pub currency: String,
     pub processed_on: Option<String>,
     pub approved: Option<bool>,
+    pub auth_code: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -2334,6 +2352,7 @@ impl TryFrom<&webhooks::IncomingWebhookRequestDetails<'_>> for PaymentsResponse 
             }),
             scheme_id: None,
             processing: None,
+            auth_code: data.auth_code,
         };
 
         Ok(psync_struct)
@@ -2395,18 +2414,31 @@ impl From<String> for utils::ErrorCodeAndMessage {
 
 fn convert_to_additional_payment_method_connector_response(
     source: Option<&Source>,
+    auth_code: Option<String>,
+    payment_method_type: Option<enums::PaymentMethodType>,
 ) -> Option<AdditionalPaymentMethodConnectorResponse> {
-    source.map(|code| {
-        let payment_checks = serde_json::json!({
-            "avs_result": code.avs_check,
-            "card_validation_result": code.cvv_check,
-        });
-        AdditionalPaymentMethodConnectorResponse::Card {
-            authentication_data: None,
-            payment_checks: Some(payment_checks),
-            card_network: None,
-            domestic_network: None,
-            auth_code: None,
+    match payment_method_type {
+        Some(enums::PaymentMethodType::GooglePay) => {
+            Some(AdditionalPaymentMethodConnectorResponse::GooglePay { auth_code })
         }
-    })
+        Some(enums::PaymentMethodType::ApplePay) => {
+            Some(AdditionalPaymentMethodConnectorResponse::ApplePay { auth_code })
+        }
+        _ => {
+            let payment_checks = source.map(|code| {
+                serde_json::json!({
+                    "avs_result": code.avs_check,
+                    "card_validation_result": code.cvv_check,
+                })
+            });
+
+            Some(AdditionalPaymentMethodConnectorResponse::Card {
+                authentication_data: None,
+                payment_checks,
+                card_network: None,
+                domestic_network: None,
+                auth_code,
+            })
+        }
+    }
 }

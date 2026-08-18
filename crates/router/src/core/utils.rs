@@ -58,6 +58,7 @@ use crate::{
     core::{
         configs::dimension_state,
         errors::{self, RouterResult, StorageErrorExt},
+        payment_methods,
         payments::PaymentData,
     },
     db::StorageInterface,
@@ -104,14 +105,10 @@ pub async fn get_feature_config(
                 .organization_id
                 .clone(),
         )
-        .without_provider_merchant_id()
         .without_processor_merchant_id();
 
-    let is_payment_method_modular_allowed = crate::core::payment_methods::utils::get_organization_eligibility_config_for_pm_modular_service(
-        state,
-        &dimensions,
-    )
-    .await;
+    let is_payment_method_modular_allowed =
+        payment_methods::utils::get_should_call_pm_modular_service(state, &dimensions, None).await;
     FeatureConfig {
         is_payment_method_modular_allowed,
     }
@@ -309,6 +306,7 @@ pub async fn construct_payout_router_data<'a, F>(
             payout_connector_metadata: payout_attempt.payout_connector_metadata.to_owned(),
             additional_payout_method_data: payout_attempt.additional_payout_method_data.to_owned(),
             source_bank_data: payout_data.source_bank_data.clone(),
+            billing_descriptor: payouts.billing_descriptor.clone(),
         },
         response: Ok(types::PayoutsResponseData::default()),
         access_token: None,
@@ -1090,7 +1088,10 @@ pub fn validate_dispute_status(
             matches!(dispute_status, DisputeStatus::DisputeExpired)
         }
         DisputeStatus::DisputeAccepted => {
-            matches!(dispute_status, DisputeStatus::DisputeAccepted)
+            matches!(
+                dispute_status,
+                DisputeStatus::DisputeAccepted | DisputeStatus::DisputeLost
+            )
         }
         DisputeStatus::DisputeCancelled => {
             matches!(dispute_status, DisputeStatus::DisputeCancelled)

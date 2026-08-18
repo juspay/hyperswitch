@@ -321,6 +321,7 @@ where
             let compat_action = payment_methods::payment_method_modular_forward_compat_action(
                 state,
                 &payment_method.merchant_id,
+                &provider.get_account().organization_id,
                 payment_method.customer_id.as_ref(),
             )
             .await;
@@ -396,6 +397,7 @@ where
             let compat_action = payment_methods::payment_method_modular_forward_compat_action(
                 state,
                 &payment_method.merchant_id,
+                &provider.get_account().organization_id,
                 payment_method.customer_id.as_ref(),
             )
             .await;
@@ -899,6 +901,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsIncrementalAu
                                     None,
                                     None,
                                     None,
+                                    None,
                                 ),
                                 amount_capturable: incremental_authorization_details.total_amount,
                             },
@@ -1096,6 +1099,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
             resp.status,
             resp.response.clone(),
             platform.get_provider().get_account().storage_scheme,
+            &platform.get_provider().get_account().organization_id,
             platform.get_initiator(),
         )
         .await?;
@@ -2091,6 +2095,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
             resp.status,
             resp.response.clone(),
             platform.get_provider().get_account().storage_scheme,
+            &platform.get_provider().get_account().organization_id,
             platform.get_initiator(),
         )
         .await?;
@@ -2872,7 +2877,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
         .convert()
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Error while construcing diesel attempt model")?;
+        .attach_printable("Error while constructing diesel attempt model")?;
 
     let payment_attempt = payment_attempt_update
         .map(|payment_attempt_update| {
@@ -2889,7 +2894,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Error while construcing domain attempt model")
+            .attach_printable("Error while constructing domain attempt model")
         })
         .await
         .transpose()?
@@ -3078,6 +3083,20 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
         .await;
     }
 
+    if payment_data.payment_attempt.payment_method == Some(enums::PaymentMethod::Card) {
+        delete_cvc_after_success(
+            state,
+            payment_data.payment_attempt.status,
+            payment_data.payment_method_info.as_ref(),
+            payment_data.card_cvc.is_some()
+                || payment_data
+                    .payment_method_data
+                    .as_ref()
+                    .is_some_and(has_card_cvc),
+        )
+        .await;
+    }
+
     match router_data.integrity_check {
         Ok(()) => Ok(payment_data),
         Err(err) => {
@@ -3111,6 +3130,44 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                     field_names: err.field_names,
                 },
             ))
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
+fn has_card_cvc(payment_method_data: &domain::PaymentMethodData) -> bool {
+    match payment_method_data {
+        domain::PaymentMethodData::Card(_) => true,
+        domain::PaymentMethodData::CardToken(card) => card.card_cvc.is_some(),
+        domain::PaymentMethodData::CardWithOptionalCVC(card) => card.card_cvc.is_some(),
+        domain::PaymentMethodData::CardWithNetworkTokenDetails(card) => {
+            card.card_details.card_cvc.is_some()
+        }
+        _ => false,
+    }
+}
+
+#[cfg(feature = "v1")]
+async fn delete_cvc_after_success(
+    state: &SessionState,
+    attempt_status: enums::AttemptStatus,
+    payment_method_info: Option<&domain::PaymentMethod>,
+    card_cvc_used: bool,
+) {
+    let card_payment_method_id = payment_method_info
+        .filter(|payment_method| {
+            card_cvc_used && payment_method.version == common_enums::ApiVersion::V2
+        })
+        .map(|payment_method| payment_method.get_id());
+
+    if attempt_status.is_authorization_success() {
+        if let Some(payment_method_id) = card_payment_method_id {
+            payment_methods::vault::delete_cvc_from_payment_token(state, payment_method_id)
+                .await
+                .inspect_err(|error| {
+                    logger::error!(?error, "Failed to delete retained CVC after authorization");
+                })
+                .ok();
         }
     }
 }
@@ -3170,6 +3227,7 @@ fn get_payment_intent_update_data<F: Clone, T: types::Capturable>(
 }
 
 #[cfg(feature = "v2")]
+#[allow(clippy::too_many_arguments)]
 async fn update_payment_method_status_and_ntid<F: Clone>(
     state: &SessionState,
     key_store: &domain::MerchantKeyStore,
@@ -3177,12 +3235,14 @@ async fn update_payment_method_status_and_ntid<F: Clone>(
     attempt_status: common_enums::AttemptStatus,
     payment_response: Result<types::PaymentsResponseData, ErrorResponse>,
     storage_scheme: enums::MerchantStorageScheme,
+    _organization_id: &common_utils::id_type::OrganizationId,
     _initiator: Option<&domain::Initiator>,
 ) -> RouterResult<()> {
     todo!()
 }
 
 #[cfg(feature = "v1")]
+#[allow(clippy::too_many_arguments)]
 async fn update_payment_method_status_and_ntid<F: Clone>(
     state: &SessionState,
     key_store: &domain::MerchantKeyStore,
@@ -3190,6 +3250,7 @@ async fn update_payment_method_status_and_ntid<F: Clone>(
     attempt_status: common_enums::AttemptStatus,
     payment_response: Result<types::PaymentsResponseData, ErrorResponse>,
     storage_scheme: enums::MerchantStorageScheme,
+    organization_id: &common_utils::id_type::OrganizationId,
     initiator: Option<&domain::Initiator>,
 ) -> RouterResult<()> {
     // If the payment_method is deleted then ignore the error related to retrieving payment method
@@ -3286,6 +3347,7 @@ async fn update_payment_method_status_and_ntid<F: Clone>(
         let compat_action = payment_methods::payment_method_modular_forward_compat_action(
             state,
             &payment_method.merchant_id,
+            organization_id,
             payment_method.customer_id.as_ref(),
         )
         .await;
