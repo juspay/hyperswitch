@@ -262,6 +262,12 @@ pub enum ConnectorSpecificConfig {
         account_id: Secret<String>,
         base_url: Option<String>,
     },
+    /// Citigate connector configuration
+    Citigate {
+        api_key: Secret<String>,
+        key1: Secret<String>,
+        base_url: Option<String>,
+    },
     /// Worldpay Native RAFT connector configuration
     Worldpayraft {
         license: Secret<String>,
@@ -1710,6 +1716,14 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                     base_url: None,
                 }),
                 _ => Err(err("Payconex requires BodyKey auth type")),
+            },
+            Connector::Citigate => match auth {
+                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Citigate {
+                    api_key: api_key.clone(),
+                    key1: key1.clone(),
+                    base_url: None,
+                }),
+                _ => Err(err("Citigate requires BodyKey auth type")),
             },
             Connector::Worldpayraft => match auth {
                 ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Worldpayraft {
