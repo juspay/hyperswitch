@@ -1,6 +1,4 @@
 use common_utils::errors::CustomResult;
-#[cfg(feature = "payouts")]
-use hyperswitch_interfaces::unified_connector_service::UnifiedConnectorServiceError;
 
 use crate::{core::errors, logger};
 
@@ -486,24 +484,6 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
     #[cfg(feature = "payouts")]
     fn to_payout_failed_response(self) -> error_stack::Result<T, errors::ApiErrorResponse> {
         self.map_err(|err| {
-            if let Some(connector_error) = err
-                .downcast_ref::<UnifiedConnectorServiceError>()
-                .and_then(|ucs_error| match ucs_error {
-                    UnifiedConnectorServiceError::ConnectorError(inner) => Some(inner),
-                    _ => None,
-                })
-            {
-                let data = serde_json::json!({
-                    "code": connector_error.code,
-                    "message": connector_error.message,
-                    "reason": connector_error.reason,
-                    "connector": connector_error.connector,
-                    "status_code": connector_error.status_code,
-                });
-                return err
-                    .change_context(errors::ApiErrorResponse::PayoutFailed { data: Some(data) });
-            }
-
             let error = match err.current_context() {
                 errors::ConnectorError::ProcessingStepFailed(Some(bytes)) => {
                     let response_str = std::str::from_utf8(bytes);

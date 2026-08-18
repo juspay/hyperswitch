@@ -3019,7 +3019,7 @@ pub async fn response_handler(
         billing_descriptor: payouts.billing_descriptor.to_owned(),
         entity_type: payouts.entity_type.to_owned(),
         recurring: payouts.recurring,
-        metadata: helpers::merge_connector_metadata(
+        metadata: helpers::MergedPayoutMetadata::merge(
             payouts.metadata.clone(),
             payout_attempt.payout_connector_metadata.clone(),
             payout_attempt.connector_eligibility_reference_id.clone(),

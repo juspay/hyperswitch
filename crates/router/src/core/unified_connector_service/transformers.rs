@@ -7945,86 +7945,30 @@ impl
             common_enums::PayoutStatus,
         ),
     ) -> Result<Self, Self::Error> {
-        let status_code = convert_connector_service_status_code(response.status_code)?;
         let status = common_enums::PayoutStatus::foreign_try_from(response.payout_status())
             .unwrap_or(prev_status);
 
-        let is_payee_refusal = response.payout_eligible == Some(false);
-        let connector_error = response.error.clone();
+        let connector_details = response
+            .error
+            .as_ref()
+            .and_then(|error_info| error_info.connector_details.as_ref());
 
-        let router_response = if let Some(error_info) =
-            connector_error.clone().filter(|_| !is_payee_refusal)
-        {
-            Err(ErrorResponse {
-                code: error_info
-                    .connector_details
-                    .as_ref()
-                    .and_then(|cd| cd.code.clone())
-                    .ok_or(
-                        error_stack::Report::new(
-                            UnifiedConnectorServiceError::ResponseDeserializationFailed,
-                        )
-                        .attach_printable("Missing error code in UCS response ErrorInfo"),
-                    )?,
-                message: error_info
-                    .connector_details
-                    .as_ref()
-                    .and_then(|cd| cd.message.clone())
-                    .ok_or(
-                        error_stack::Report::new(
-                            UnifiedConnectorServiceError::ResponseDeserializationFailed,
-                        )
-                        .attach_printable("Missing error message in UCS response ErrorInfo"),
-                    )?,
-                reason: error_info
-                    .connector_details
-                    .as_ref()
-                    .and_then(|cd| cd.reason.clone()),
-                status_code,
-                attempt_status: None,
-                connector_transaction_id: response.connector_payout_id.clone(),
-                connector_response_reference_id: response.merchant_payout_id.clone(),
-                network_decline_code: error_info.issuer_details.as_ref().and_then(|id| {
-                    id.network_details
-                        .as_ref()
-                        .and_then(|nd| nd.decline_code.clone())
-                }),
-                network_advice_code: error_info.issuer_details.as_ref().and_then(|id| {
-                    id.network_details
-                        .as_ref()
-                        .and_then(|nd| nd.advice_code.clone())
-                }),
-                network_error_message: error_info.issuer_details.as_ref().and_then(|id| {
-                    id.network_details
-                        .as_ref()
-                        .and_then(|nd| nd.error_message.clone())
-                }),
-                connector_metadata: None,
-            })
-        } else {
-            let connector_details = connector_error
+        Ok(Ok(PayoutsResponseData {
+            status: Some(status),
+            connector_payout_id: response.connector_payout_id,
+            payout_eligible: response.payout_eligible,
+            should_add_next_step_to_process_tracker: false,
+            error_code: connector_details.and_then(|details| details.code.clone()),
+            error_message: connector_details.and_then(|details| details.message.clone()),
+            payout_connector_metadata: response
+                .connector_metadata
                 .as_ref()
-                .and_then(|error_info| error_info.connector_details.as_ref());
-
-            Ok(PayoutsResponseData {
-                status: Some(status),
-                connector_payout_id: response.connector_payout_id,
-                payout_eligible: response.payout_eligible,
-                should_add_next_step_to_process_tracker: false,
-                error_code: connector_details.and_then(|details| details.code.clone()),
-                error_message: connector_details.and_then(|details| details.message.clone()),
-                payout_connector_metadata: response
-                    .connector_metadata
-                    .as_ref()
-                    .and_then(|metadata| {
-                        serde_json::from_str::<serde_json::Value>(metadata.peek()).ok()
-                    })
-                    .filter(|value| value.as_object().is_some_and(|details| !details.is_empty()))
-                    .map(Secret::new),
-            })
-        };
-
-        Ok(router_response)
+                .and_then(|metadata| {
+                    serde_json::from_str::<serde_json::Value>(metadata.peek()).ok()
+                })
+                .filter(|value| value.as_object().is_some_and(|details| !details.is_empty()))
+                .map(Secret::new),
+        }))
     }
 }
 #[cfg(feature = "payouts")]

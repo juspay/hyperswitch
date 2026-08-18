@@ -1818,8 +1818,9 @@ pub fn should_continue_payout<F: Clone + 'static>(
     router_data.response.is_ok()
 }
 
+/// The `metadata` returned on a payout response.
 #[derive(Debug, serde::Serialize)]
-struct PayoutResponseMetadata {
+pub struct MergedPayoutMetadata {
     #[serde(skip_serializing_if = "Option::is_none")]
     connector_eligibility_reference_id: Option<String>,
 
@@ -1830,38 +1831,41 @@ struct PayoutResponseMetadata {
     merchant_metadata: serde_json::Map<String, serde_json::Value>,
 }
 
-fn metadata_object(
-    metadata: Option<&pii::SecretSerdeValue>,
-) -> serde_json::Map<String, serde_json::Value> {
-    metadata
-        .and_then(|metadata| metadata.peek().as_object().cloned())
-        .unwrap_or_default()
-}
-
-pub fn merge_connector_metadata(
-    merchant_metadata: Option<pii::SecretSerdeValue>,
-    connector_metadata: Option<pii::SecretSerdeValue>,
-    connector_eligibility_reference_id: Option<String>,
-) -> Option<pii::SecretSerdeValue> {
-    if merchant_metadata
-        .as_ref()
-        .is_some_and(|metadata| !metadata.peek().is_object())
-    {
-        return merchant_metadata;
+impl MergedPayoutMetadata {
+    /// A `jsonb` metadata column as an object, or empty when it holds anything else.
+    fn metadata_object(
+        metadata: Option<&pii::SecretSerdeValue>,
+    ) -> serde_json::Map<String, serde_json::Value> {
+        metadata
+            .and_then(|metadata| metadata.peek().as_object().cloned())
+            .unwrap_or_default()
     }
 
-    let metadata = PayoutResponseMetadata {
-        connector_eligibility_reference_id,
-        connector_metadata: metadata_object(connector_metadata.as_ref()),
-        merchant_metadata: metadata_object(merchant_metadata.as_ref()),
-    };
+    pub fn merge(
+        merchant_metadata: Option<pii::SecretSerdeValue>,
+        connector_metadata: Option<pii::SecretSerdeValue>,
+        connector_eligibility_reference_id: Option<String>,
+    ) -> Option<pii::SecretSerdeValue> {
+        if merchant_metadata
+            .as_ref()
+            .is_some_and(|metadata| !metadata.peek().is_object())
+        {
+            return merchant_metadata;
+        }
 
-    match metadata.encode_to_value() {
-        Ok(serde_json::Value::Object(merged)) if merged.is_empty() => merchant_metadata,
-        Ok(value) => Some(Secret::new(value)),
-        Err(error) => {
-            logger::error!(?error, "Failed to serialize payout response metadata");
-            merchant_metadata
+        let metadata = Self {
+            connector_eligibility_reference_id,
+            connector_metadata: Self::metadata_object(connector_metadata.as_ref()),
+            merchant_metadata: Self::metadata_object(merchant_metadata.as_ref()),
+        };
+
+        match metadata.encode_to_value() {
+            Ok(serde_json::Value::Object(merged)) if merged.is_empty() => merchant_metadata,
+            Ok(value) => Some(Secret::new(value)),
+            Err(error) => {
+                logger::error!(?error, "Failed to serialize payout response metadata");
+                merchant_metadata
+            }
         }
     }
 }

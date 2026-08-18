@@ -1020,6 +1020,7 @@ impl ForeignTryFrom<payments_grpc::RedirectForm> for RedirectForm {
                 )
                 .into(),
             ),
+            // New `oneof` case from the UCS bump; not consumed here.
             Some(payments_grpc::redirect_form::FormType::Script(_)) => Err(
                 UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
                     "Script form type is not implemented".to_string(),
@@ -1339,8 +1340,18 @@ impl ErrorSwitch<ConnectorError> for UnifiedConnectorServiceError {
                     error_body.to_string(),
                 )))
             }
-            // Connector errors with status code → ResponseHandlingFailed
-            Self::ConnectorError(_) => ConnectorError::ResponseHandlingFailed,
+            Self::ConnectorError(inner) => {
+                let error_body = serde_json::json!({
+                    "code": inner.code,
+                    "message": inner.message,
+                    "reason": inner.reason,
+                    "connector": inner.connector,
+                    "status_code": inner.status_code,
+                });
+                ConnectorError::ProcessingStepFailed(Some(bytes::Bytes::from(
+                    error_body.to_string(),
+                )))
+            }
             // Connection/availability errors → ResponseHandlingFailed
             Self::ConnectionError(_) => ConnectorError::ResponseHandlingFailed,
             // Request encoding errors
