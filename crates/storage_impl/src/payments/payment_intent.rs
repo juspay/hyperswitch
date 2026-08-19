@@ -100,7 +100,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
             .clone()
             .generate_drainer_insert_query(&mut query_gen_conn);
 
-        Box::pin(self.insert_resource(
+        Box::pin(self.insert_resource_old(
             merchant_key_store,
             storage_scheme,
             new_payment_intent.insert(&conn),
@@ -249,7 +249,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
             origin_diesel_intent.processor_merchant_id.clone(),
         );
 
-        Box::pin(self.update_resource(
+        Box::pin(self.update_resource_old(
             merchant_key_store,
             storage_scheme,
             origin_diesel_intent.update(&conn, diesel_intent_update),
@@ -350,7 +350,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PaymentIntent, StorageError> {
         let conn = pg_connection_read(self).await?;
-        Box::pin(self.find_resource_by_id(
+        Box::pin(self.find_resource_by_id_old(
             merchant_key_store,
             storage_scheme,
             DieselPaymentIntent::find_by_payment_id_processor_merchant_id(
@@ -836,20 +836,17 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
 
         //[#350]: Replace this with Boxable Expression and pass it into generic filter
         // when https://github.com/rust-lang/rust/issues/52662 becomes stable
-        let mut query = <DieselPaymentIntent as HasTable>::table()
-            .filter(pi_dsl::processor_merchant_id.eq(processor_merchant_id.to_owned()))
-            .order(pi_dsl::created_at.desc())
-            .into_boxed();
+        let mut query = diesel_models::boxed_list_query!(
+            DieselPaymentIntent,
+            scope = pi_dsl::processor_merchant_id.eq(processor_merchant_id.to_owned()),
+            order = pi_dsl::created_at.desc()
+        );
 
         match filters {
             PaymentIntentFetchConstraints::Single { payment_intent_id } => {
                 query = query.filter(pi_dsl::payment_id.eq(payment_intent_id.to_owned()));
             }
             PaymentIntentFetchConstraints::List(params) => {
-                if let Some(limit) = params.limit {
-                    query = query.limit(limit.into());
-                }
-
                 if let Some(customer_id) = &params.customer_id {
                     query = query.filter(pi_dsl::customer_id.eq(customer_id.clone()));
                 }
@@ -893,8 +890,6 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                     (None, None) => query,
                 };
 
-                query = query.offset(params.offset.into());
-
                 query = match &params.currency {
                     Some(currency) => query.filter(pi_dsl::currency.eq_any(currency.clone())),
                     None => query,
@@ -912,6 +907,8 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                 if let Some(status) = &params.status {
                     query = query.filter(pi_dsl::status.eq_any(status.clone()));
                 }
+
+                query = diesel_models::list::apply_pagination(query, params.limit, params.offset);
             }
         }
         let keymanager_state = self
@@ -972,11 +969,12 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
         let conn = connection::pg_connection_read(self).await?;
         let conn = async_bb8_diesel::Connection::as_async_conn(&conn);
 
-        let mut query = <DieselPaymentIntent as HasTable>::table()
-            .group_by(pi_dsl::status)
-            .select((pi_dsl::status, diesel::dsl::count_star()))
-            .filter(pi_dsl::processor_merchant_id.eq(processor_merchant_id.to_owned()))
-            .into_boxed();
+        let mut query = diesel_models::list::into_boxed_list(
+            <DieselPaymentIntent as HasTable>::table()
+                .group_by(pi_dsl::status)
+                .select((pi_dsl::status, diesel::dsl::count_star()))
+                .filter(pi_dsl::processor_merchant_id.eq(processor_merchant_id.to_owned())),
+        );
 
         if let Some(profile_id) = profile_id_list {
             query = query.filter(pi_dsl::profile_id.eq_any(profile_id));
@@ -1013,13 +1011,15 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
     ) -> error_stack::Result<Vec<(PaymentIntent, PaymentAttempt)>, StorageError> {
         let conn = connection::pg_connection_read(self).await?;
         let conn = async_bb8_diesel::Connection::as_async_conn(&conn);
-        let mut query = DieselPaymentIntent::table()
-            .filter(pi_dsl::processor_merchant_id.eq(processor_merchant_id.to_owned()))
-            .inner_join(
-                payment_attempt_schema::table.on(pa_dsl::attempt_id.eq(pi_dsl::active_attempt_id)),
-            )
-            .filter(pa_dsl::processor_merchant_id.eq(processor_merchant_id.to_owned())) // Ensure merchant_ids match, as different merchants can share payment/attempt IDs.
-            .into_boxed();
+        let mut query = diesel_models::list::into_boxed_list(
+            DieselPaymentIntent::table()
+                .filter(pi_dsl::processor_merchant_id.eq(processor_merchant_id.to_owned()))
+                .inner_join(
+                    payment_attempt_schema::table
+                        .on(pa_dsl::attempt_id.eq(pi_dsl::active_attempt_id)),
+                )
+                .filter(pa_dsl::processor_merchant_id.eq(processor_merchant_id.to_owned())),
+        );
 
         query = match constraints {
             PaymentIntentFetchConstraints::Single { payment_intent_id } => {
@@ -1036,21 +1036,13 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                         by: SortBy::Desc,
                     } => query.order(pi_dsl::amount.desc()),
                     Order {
-                        on: SortOn::Created,
+                        on: SortOn::Created | SortOn::Modified,
                         by: SortBy::Asc,
                     } => query.order(pi_dsl::created_at.asc()),
                     Order {
-                        on: SortOn::Created,
+                        on: SortOn::Created | SortOn::Modified,
                         by: SortBy::Desc,
                     } => query.order(pi_dsl::created_at.desc()),
-                    Order {
-                        on: SortOn::Modified,
-                        by: SortBy::Asc,
-                    } => query.order(pi_dsl::modified_at.asc()),
-                    Order {
-                        on: SortOn::Modified,
-                        by: SortBy::Desc,
-                    } => query.order(pi_dsl::modified_at.desc()),
                     Order {
                         on: SortOn::AttemptCount,
                         by: SortBy::Asc,
@@ -1060,10 +1052,6 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                         by: SortBy::Desc,
                     } => query.order(pi_dsl::attempt_count.desc()),
                 };
-
-                if let Some(limit) = params.limit {
-                    query = query.limit(limit.into());
-                }
 
                 if let Some(customer_id) = &params.customer_id {
                     query = query.filter(pi_dsl::customer_id.eq(customer_id.clone()));
@@ -1114,8 +1102,6 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                     }
                     (None, None) => query,
                 };
-
-                query = query.offset(params.offset.into());
 
                 query = match params.amount_filter {
                     Some(AmountFilter {
@@ -1187,7 +1173,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                     query = query.filter(pa_dsl::card_discovery.eq_any(card_discovery.clone()));
                 }
 
-                query
+                diesel_models::list::apply_pagination(query, params.limit, params.offset)
             }
         };
 
@@ -1246,14 +1232,14 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
 
         let conn = connection::pg_connection_read(self).await?;
         let conn = async_bb8_diesel::Connection::as_async_conn(&conn);
-        let mut query = DieselPaymentIntent::table()
-            .filter(pi_dsl::merchant_id.eq(merchant_id.to_owned()))
-            .left_join(
-                payment_attempt_schema::table
-                    .on(pi_dsl::active_attempt_id.eq(pa_dsl::id.nullable())),
-            )
-            // Filtering on merchant_id for payment_attempt is not required for v2 as payment_attempt_ids are globally unique
-            .into_boxed();
+        let mut query = diesel_models::list::into_boxed_list(
+            DieselPaymentIntent::table()
+                .filter(pi_dsl::merchant_id.eq(merchant_id.to_owned()))
+                .left_join(
+                    payment_attempt_schema::table
+                        .on(pi_dsl::active_attempt_id.eq(pa_dsl::id.nullable())),
+                ),
+        );
 
         query = match constraints {
             PaymentIntentFetchConstraints::List(params) => {
@@ -1267,21 +1253,13 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                         by: SortBy::Desc,
                     } => query.order(pi_dsl::amount.desc()),
                     Order {
-                        on: SortOn::Created,
+                        on: SortOn::Created | SortOn::Modified,
                         by: SortBy::Asc,
                     } => query.order(pi_dsl::created_at.asc()),
                     Order {
-                        on: SortOn::Created,
+                        on: SortOn::Created | SortOn::Modified,
                         by: SortBy::Desc,
                     } => query.order(pi_dsl::created_at.desc()),
-                    Order {
-                        on: SortOn::Modified,
-                        by: SortBy::Asc,
-                    } => query.order(pi_dsl::modified_at.asc()),
-                    Order {
-                        on: SortOn::Modified,
-                        by: SortBy::Desc,
-                    } => query.order(pi_dsl::modified_at.desc()),
                     Order {
                         on: SortOn::AttemptCount,
                         by: SortBy::Asc,
@@ -1291,10 +1269,6 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                         by: SortBy::Desc,
                     } => query.order(pi_dsl::attempt_count.desc()),
                 };
-
-                if let Some(limit) = params.limit {
-                    query = query.limit(limit.into());
-                }
 
                 if let Some(customer_id) = &params.customer_id {
                     query = query.filter(pi_dsl::customer_id.eq(customer_id.clone()));
@@ -1343,8 +1317,6 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                     }
                     (None, None) => query,
                 };
-
-                query = query.offset(params.offset.into());
 
                 query = match params.amount_filter {
                     Some(AmountFilter {
@@ -1411,7 +1383,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
                     query = query.filter(pi_dsl::id.eq(payment_id.clone()));
                 }
 
-                query
+                diesel_models::list::apply_pagination(query, params.limit, params.offset)
             }
         };
 
@@ -1420,6 +1392,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
             .get_keymanager_state()
             .attach_printable("Missing KeyManagerState")?;
 
+        use crate::behaviour::Conversion;
         query
             .get_results_async::<(
                 DieselPaymentIntent,
@@ -1468,11 +1441,12 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
     ) -> error_stack::Result<Vec<Option<String>>, StorageError> {
         let conn = connection::pg_connection_read(self).await?;
         let conn = async_bb8_diesel::Connection::as_async_conn(&conn);
-        let mut query = DieselPaymentIntent::table()
-            .select(pi_dsl::active_attempt_id)
-            .filter(pi_dsl::merchant_id.eq(merchant_id.to_owned()))
-            .order(pi_dsl::created_at.desc())
-            .into_boxed();
+        let mut query = diesel_models::list::into_boxed_list(
+            DieselPaymentIntent::table()
+                .select(pi_dsl::active_attempt_id)
+                .filter(pi_dsl::merchant_id.eq(merchant_id.to_owned()))
+                .order(pi_dsl::created_at.desc()),
+        );
 
         query = match constraints {
             PaymentIntentFetchConstraints::List(params) => {
@@ -1553,11 +1527,12 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
     ) -> error_stack::Result<Vec<String>, StorageError> {
         let conn = connection::pg_connection_read(self).await?;
         let conn = async_bb8_diesel::Connection::as_async_conn(&conn);
-        let mut query = DieselPaymentIntent::table()
-            .select(pi_dsl::active_attempt_id)
-            .filter(pi_dsl::processor_merchant_id.eq(processor_merchant_id.to_owned()))
-            .order(pi_dsl::created_at.desc())
-            .into_boxed();
+        let mut query = diesel_models::list::into_boxed_list(
+            DieselPaymentIntent::table()
+                .select(pi_dsl::active_attempt_id)
+                .filter(pi_dsl::processor_merchant_id.eq(processor_merchant_id.to_owned()))
+                .order(pi_dsl::created_at.desc()),
+        );
 
         query = match constraints {
             PaymentIntentFetchConstraints::Single { payment_intent_id } => {
