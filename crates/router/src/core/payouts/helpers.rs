@@ -1829,10 +1829,10 @@ pub fn merge_connector_metadata(
 
     let merchant_details = match merchant_metadata.as_ref().map(|metadata| metadata.peek()) {
         Some(serde_json::Value::Object(details)) => Some(details.clone()),
-        Some(serde_json::Value::Null) | None => Some(serde_json::Map::new()),
-        Some(_) => None,
+        Some(_) | None => None,
     };
 
+    // if both are present, it is merged but in case of conflict, connector metadata takes precedence
     match (connector_details, merchant_details) {
         (Some(connector_details), Some(mut merged)) => {
             for (key, value) in connector_details {
@@ -1840,6 +1840,6 @@ pub fn merge_connector_metadata(
             }
             Some(Secret::new(serde_json::Value::Object(merged)))
         }
-        (_connector_details, _merchant_details) => merchant_metadata.or(connector_metadata),
+        (connector_details, merchant_details) => merchant_details.or(connector_details.cloned()).map(serde_json::Value::Object).map(Secret::new),
     }
 }
