@@ -3016,10 +3016,9 @@ pub async fn response_handler(
         billing_descriptor: payouts.billing_descriptor.to_owned(),
         entity_type: payouts.entity_type.to_owned(),
         recurring: payouts.recurring,
-        metadata: helpers::MergedPayoutMetadata::merge(
+        metadata: helpers::merge_connector_metadata(
             payouts.metadata.clone(),
             payout_attempt.payout_connector_metadata.clone(),
-            payout_attempt.connector_eligibility_reference_id.clone(),
         ),
         merchant_connector_id: payout_attempt.merchant_connector_id.to_owned(),
         status: payout_attempt.status.to_owned(),
@@ -3028,6 +3027,7 @@ pub async fn response_handler(
         profile_id: payout_attempt.profile_id,
         created: Some(payouts.created_at),
         connector_transaction_id: payout_attempt.connector_payout_id,
+        connector_eligibility_reference_id: payout_attempt.connector_eligibility_reference_id,
         priority: payouts.priority,
         attempts: payout_data.attempts.as_ref().map(|attempts| {
             attempts
