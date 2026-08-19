@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.08.12.0-hotfix5
+
+### Features
+
+- Add metrics in payments confirm ([#13771](https://github.com/juspay/hyperswitch/pull/13771)) ([`21074cf`](https://github.com/juspay/hyperswitch/commit/21074cfe1f5c6eac5e40ce8b8505be077d047400))
+
+**Full Changelog:** [`2026.08.12.0-hotfix4...2026.08.12.0-hotfix5`](https://github.com/juspay/hyperswitch/compare/2026.08.12.0-hotfix4...2026.08.12.0-hotfix5)
+
+- - -
+
 ## 2026.08.12.0-hotfix4
 
 ### Bug Fixes
