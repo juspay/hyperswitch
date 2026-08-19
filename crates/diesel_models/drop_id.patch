@@ -1,7 +1,11 @@
 diff --git a/crates/diesel_models/src/schema.rs b/crates/diesel_models/src/schema.rs
+index b35e809a0..749a5dd47 100644
 --- a/crates/diesel_models/src/schema.rs
 +++ b/crates/diesel_models/src/schema.rs
-@@ -211,8 +211,28 @@
+@@ -142,14 +142,34 @@ diesel::table! {
+ }
+ 
+ diesel::table! {
      use diesel::sql_types::*;
      use crate::enums::diesel_exports::*;
  
@@ -32,7 +36,13 @@ diff --git a/crates/diesel_models/src/schema.rs b/crates/diesel_models/src/schem
          #[max_length = 64]
          merchant_id -> Varchar,
          #[max_length = 64]
-@@ -227,8 +247,7 @@
+         fingerprint_id -> Varchar,
+         data_kind -> BlocklistDataKind,
+         encrypted_fingerprint -> Text,
+@@ -158,14 +178,13 @@ diesel::table! {
+ }
+ 
+ diesel::table! {
      use diesel::sql_types::*;
      use crate::enums::diesel_exports::*;
  
@@ -42,7 +52,13 @@ diff --git a/crates/diesel_models/src/schema.rs b/crates/diesel_models/src/schem
          #[max_length = 64]
          merchant_id -> Varchar,
          fingerprint -> Text,
-@@ -440,7 +459,6 @@
+     }
+ }
+ 
+@@ -300,13 +319,12 @@ diesel::table! {
+ 
+ diesel::table! {
+     use diesel::sql_types::*;
      use crate::enums::diesel_exports::*;
  
      configs (key) {
@@ -50,7 +66,13 @@ diff --git a/crates/diesel_models/src/schema.rs b/crates/diesel_models/src/schem
          #[max_length = 255]
          key -> Varchar,
          config -> Text,
-@@ -888,8 +906,7 @@
+     }
+ }
+ 
+@@ -615,14 +633,13 @@ diesel::table! {
+ }
+ 
+ diesel::table! {
      use diesel::sql_types::*;
      use crate::enums::diesel_exports::*;
  
@@ -60,6 +82,9 @@ diff --git a/crates/diesel_models/src/schema.rs b/crates/diesel_models/src/schem
          #[max_length = 255]
          card_id -> Varchar,
          #[max_length = 255]
+         external_id -> Varchar,
+         #[max_length = 255]
+         card_fingerprint -> Varchar,
 @@ -1982,6 +1999,7 @@
      api_keys,
      authentication,
