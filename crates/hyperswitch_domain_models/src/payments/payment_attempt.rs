@@ -1662,6 +1662,12 @@ impl PaymentAttempt {
             .and_then(|card_info| card_info.card_issuing_country)
     }
 
+    /// Issuer identification number of the card, as stored on the attempt's payment method data.
+    pub fn extract_card_isin(&self) -> Option<String> {
+        self.extract_additional_card_info()
+            .and_then(|card_info| card_info.card_isin)
+    }
+
     /// The card details recorded on the attempt, if the payment method data holds a card.
     fn extract_additional_card_info(&self) -> Option<api_models::payments::AdditionalCardInfo> {
         self.get_payment_method_data()

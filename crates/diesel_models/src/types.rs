@@ -501,6 +501,9 @@ pub struct PaymentRevenueRecoveryMetadata {
     pub card_type: Option<String>,
     /// Country in which the card was issued, enriched from the card bin
     pub card_issuing_country: Option<String>,
+    /// Issuer identification number of the card, retained so that any further card details can
+    /// be looked up from it later
+    pub card_isin: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]

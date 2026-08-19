@@ -7694,6 +7694,7 @@ impl ForeignFrom<&diesel_models::types::FeatureMetadata> for api_models::payment
                     card_issuing_country: payment_revenue_recovery_metadata
                         .card_issuing_country
                         .clone(),
+                    card_isin: payment_revenue_recovery_metadata.card_isin.clone(),
                 }
             });
         let apple_pay_details = feature_metadata

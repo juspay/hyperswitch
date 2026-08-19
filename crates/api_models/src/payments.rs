@@ -13673,6 +13673,10 @@ pub struct PaymentRevenueRecoveryMetadata {
     /// Country in which the card was issued, enriched from the card bin
     #[schema(value_type = Option<String>, example = "INDIA")]
     pub card_issuing_country: Option<String>,
+    /// Issuer identification number of the card, retained so that any further card details can
+    /// be looked up from it later
+    #[schema(value_type = Option<String>, example = "424242")]
+    pub card_isin: Option<String>,
 }
 
 #[cfg(feature = "v2")]

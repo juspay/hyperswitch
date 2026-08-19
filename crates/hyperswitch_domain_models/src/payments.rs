@@ -1623,6 +1623,7 @@ where
         // recovery metadata directly.
         let card_type = self.payment_attempt.extract_card_type();
         let card_issuing_country = self.payment_attempt.extract_card_issuing_country();
+        let card_isin = self.payment_attempt.extract_card_isin();
 
         let payment_revenue_recovery_metadata = match payment_attempt_connector {
             Some(connector) => Some(diesel_models::types::PaymentRevenueRecoveryMetadata {
@@ -1672,6 +1673,7 @@ where
                 first_payment_attempt_pg_error_code: first_pg_error_code,
                 card_type,
                 card_issuing_country,
+                card_isin,
             }),
             None => Err(errors::api_error_response::ApiErrorResponse::InternalServerError)
                 .attach_printable("Connector not found in payment attempt")?,

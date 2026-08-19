@@ -949,6 +949,7 @@ impl ApiModelToDieselModelConvertor<ApiRevenueRecoveryMetadata> for PaymentReven
             invoice_billing_started_at_time: from.invoice_billing_started_at_time,
             card_type: from.card_type,
             card_issuing_country: from.card_issuing_country,
+            card_isin: from.card_isin,
         }
     }
 
@@ -976,6 +977,7 @@ impl ApiModelToDieselModelConvertor<ApiRevenueRecoveryMetadata> for PaymentReven
             invoice_billing_started_at_time: self.invoice_billing_started_at_time,
             card_type: self.card_type,
             card_issuing_country: self.card_issuing_country,
+            card_isin: self.card_isin,
         }
     }
 }
