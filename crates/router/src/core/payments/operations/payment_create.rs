@@ -1372,6 +1372,10 @@ impl PaymentCreate {
             payment_method_ref,
             None, // CVC token data is not passed in create api
             true, // fetch raw card detail from the internal vault
+            // sync the stored card only when this create also authorizes
+            req.confirm == Some(true)
+                && req.off_session == Some(true)
+                && self.get_recurring_payment_method_id(req).is_some(),
         )
         .await?;
         logger::info!("Payment method fetched from PM Modular Service.");

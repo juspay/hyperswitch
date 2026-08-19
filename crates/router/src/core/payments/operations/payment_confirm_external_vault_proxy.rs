@@ -768,6 +768,8 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsRequest, PaymentData<F>>
                         // External vault proxy cards are not in the internal vault; requesting raw
                         // detail fails. The external vault token reference is returned without it.
                         false,
+                        // Account Updater does not cover external vault cards.
+                        false,
                     )
                     .await
                     .attach_printable(
@@ -820,6 +822,7 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsRequest, PaymentData<F>>
                     business_profile.get_id(),
                     &existing_pm_id,
                     None,
+                    false,
                     false,
                 )
                 .await

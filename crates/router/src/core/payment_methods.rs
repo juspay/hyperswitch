@@ -5979,8 +5979,15 @@ pub async fn retrieve_payment_method(
                         refreshed_card,
                     ))
                     .await
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Account Updater failed while applying a card change")?
+                    .inspect_err(|error| {
+                        logger::warn!(
+                            ?error,
+                            "Account Updater failed while applying a card change; responding with \
+                             the stored card"
+                        )
+                    })
+                    .ok()
+                    .flatten()
                 }
                 None => None,
             }

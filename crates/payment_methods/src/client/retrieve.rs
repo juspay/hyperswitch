@@ -19,6 +19,7 @@ pub struct RetrievePaymentMethodV1Request {
     pub payment_method_id: PaymentMethodId,
     pub modular_service_prefix: String,
     pub fetch_raw_detail: bool,
+    pub force_sync: bool,
 }
 /// V1-facing retrieve response payload.
 #[derive(Clone, Debug)]
@@ -113,7 +114,10 @@ impl RetrievePaymentMethod {
         &self,
         request: &RetrievePaymentMethodV1Request,
     ) -> Vec<(&'static str, String)> {
-        vec![("fetch_raw_detail", request.fetch_raw_detail.to_string())]
+        vec![
+            ("fetch_raw_detail", request.fetch_raw_detail.to_string()),
+            ("force_sync", request.force_sync.to_string()),
+        ]
     }
 }
 
