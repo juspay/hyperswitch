@@ -1265,7 +1265,9 @@ pub async fn resume_revenue_recovery_process_tracker(
                 .find_payment_intent_by_id(
                     &id,
                     &revenue_recovery_payment_data.key_store,
-                    revenue_recovery_payment_data.merchant_account.storage_scheme,
+                    revenue_recovery_payment_data
+                        .merchant_account
+                        .storage_scheme,
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::PaymentNotFound)
@@ -1669,5 +1671,188 @@ pub fn map_to_recovery_payment_item(
             .and_then(|p| p.cancellation_reason.clone()),
         modified_at: payment_attempt.as_ref().map(|p| p.modified_at),
         last_attempt_at: payment_attempt.as_ref().map(|p| p.created_at),
+    }
+}
+
+/// Walks an invoice through the whole recovery retry lifecycle against the real gates, so the
+/// interaction between the billing connector threshold, the MCA retry ceiling and the Superposition
+/// retry ladder can be inspected without a live billing connector.
+///
+/// Run with:
+/// `cargo test -p router --lib retry_lifecycle_dry_run -- --nocapture`
+#[cfg(all(test, feature = "v2"))]
+mod retry_lifecycle_dry_run {
+    use scheduler::{types::process_data, utils as scheduler_utils};
+
+    use super::is_retry_budget_exhausted;
+
+    /// The ladder seeded in `config/superposition_seed.toml` under
+    /// `default-configs.pt_mapping_pcr_retries`.
+    fn seeded_ladder() -> process_data::RevenueRecoveryPaymentProcessTrackerMapping {
+        process_data::RevenueRecoveryPaymentProcessTrackerMapping {
+            default_mapping: process_data::RetryMapping {
+                start_after: 60,
+                frequencies: vec![(10800, 2), (21600, 3), (32400, 3), (43200, 3), (64800, 3)],
+            },
+        }
+    }
+
+    /// What the workflow decides for one tick of the invoice.
+    #[derive(Debug, PartialEq, Eq)]
+    enum Outcome {
+        /// Webhook returns `NoEffect`; the billing connector is still working the invoice.
+        WaitForBillingConnector,
+        /// `PaymentProcessorTokenResponse::ScheduledTime`
+        ScheduleRetry { in_seconds: i32 },
+        /// `PaymentProcessorTokenResponse::RetriesExhausted`, finished as `RETRIES_EXCEEDED`
+        RetriesExhausted { because: &'static str },
+    }
+
+    /// Mirrors the production order of gates:
+    ///   1. `recovery_incoming::handle_action`  - `intent_retry_count < mca_retry_threshold`
+    ///   2. `perform_calculate_workflow`        - `is_retry_budget_exhausted`
+    ///   3. `get_token_with_schedule_time_...`  - the Superposition ladder
+    fn dry_run_tick(
+        attempts_on_invoice: u16,
+        billing_connector_retry_threshold: u16,
+        max_retry_count: Option<u16>,
+    ) -> Outcome {
+        // Gate 1: the webhook hands the invoice back until the billing connector has had its turn.
+        if attempts_on_invoice < billing_connector_retry_threshold {
+            return Outcome::WaitForBillingConnector;
+        }
+
+        // The CALCULATE tracker is seeded with the attempts already made on the invoice.
+        let retry_count = i32::from(attempts_on_invoice);
+
+        // Gate 2: the merchant's ceiling on the whole invoice.
+        if is_retry_budget_exhausted(retry_count, max_retry_count) {
+            return Outcome::RetriesExhausted {
+                because: "max_retry_count reached",
+            };
+        }
+
+        // Gate 3: the ladder resolved from Superposition for this payment_method_type.
+        match scheduler_utils::get_pcr_payments_retry_schedule_time(seeded_ladder(), retry_count) {
+            Some(in_seconds) => Outcome::ScheduleRetry { in_seconds },
+            None => Outcome::RetriesExhausted {
+                because: "no schedule time in cascading",
+            },
+        }
+    }
+
+    fn print_walk(label: &str, threshold: u16, max_retry_count: Option<u16>) {
+        println!("\n=== {label} ===");
+        println!(
+            "billing_connector_retry_threshold = {threshold}, max_retry_count = {max_retry_count:?}"
+        );
+        println!(
+            "{:<12} {:<14} {:<10} {:<12} {}",
+            "intent", "pt.retry_count", "budget", "ladder", "outcome"
+        );
+
+        for attempts_on_invoice in 0..=16u16 {
+            let outcome = dry_run_tick(attempts_on_invoice, threshold, max_retry_count);
+            let retry_count = i32::from(attempts_on_invoice);
+            let budget = if is_retry_budget_exhausted(retry_count, max_retry_count) {
+                "EXHAUSTED"
+            } else {
+                "ok"
+            };
+            let ladder =
+                scheduler_utils::get_pcr_payments_retry_schedule_time(seeded_ladder(), retry_count)
+                    .map_or_else(|| "none".to_string(), |secs| format!("{secs}s"));
+
+            let rendered = match outcome {
+                Outcome::WaitForBillingConnector => "wait for billing connector".to_string(),
+                Outcome::ScheduleRetry { in_seconds } => {
+                    format!("schedule retry in {in_seconds}s")
+                }
+                Outcome::RetriesExhausted { because } => {
+                    format!("TERMINAL: RETRIES_EXCEEDED ({because})")
+                }
+            };
+
+            println!(
+                "{:<12} {:<14} {:<10} {:<12} {}",
+                attempts_on_invoice, retry_count, budget, ladder, rendered
+            );
+        }
+    }
+
+    #[test]
+    fn dry_run_the_full_invoice_lifecycle() {
+        print_walk(
+            "ceiling binds first (max_retry_count below the ladder length)",
+            2,
+            Some(5),
+        );
+        print_walk("ladder binds first (no ceiling configured)", 2, None);
+        print_walk(
+            "ceiling above the ladder length, so the ladder still binds",
+            0,
+            Some(20),
+        );
+    }
+
+    #[test]
+    fn the_billing_connector_keeps_the_invoice_until_it_hits_the_threshold() {
+        assert_eq!(
+            dry_run_tick(0, 2, Some(5)),
+            Outcome::WaitForBillingConnector
+        );
+        assert_eq!(
+            dry_run_tick(1, 2, Some(5)),
+            Outcome::WaitForBillingConnector
+        );
+        // At the threshold the invoice becomes ours.
+        assert_eq!(
+            dry_run_tick(2, 2, Some(5)),
+            Outcome::ScheduleRetry { in_seconds: 10800 }
+        );
+    }
+
+    #[test]
+    fn reaching_max_retry_count_is_terminal() {
+        // max_retry_count = 5 permits retries numbered up to and including 5.
+        assert_eq!(
+            dry_run_tick(5, 0, Some(5)),
+            Outcome::ScheduleRetry { in_seconds: 21600 }
+        );
+        // The sixth would exceed the ceiling, and the ceiling is checked before the ladder.
+        assert_eq!(
+            dry_run_tick(6, 0, Some(5)),
+            Outcome::RetriesExhausted {
+                because: "max_retry_count reached"
+            }
+        );
+    }
+
+    #[test]
+    fn running_out_of_schedule_time_in_cascading_is_terminal() {
+        // The seeded ladder covers retry_count 0..=14 (2 + 3 + 3 + 3 + 3 slots after start_after).
+        assert_eq!(
+            dry_run_tick(14, 0, None),
+            Outcome::ScheduleRetry { in_seconds: 64800 }
+        );
+        assert_eq!(
+            dry_run_tick(15, 0, None),
+            Outcome::RetriesExhausted {
+                because: "no schedule time in cascading"
+            }
+        );
+    }
+
+    #[test]
+    fn no_ceiling_configured_leaves_the_ladder_as_the_only_bound() {
+        for attempts_on_invoice in 0..=14u16 {
+            assert!(
+                matches!(
+                    dry_run_tick(attempts_on_invoice, 0, None),
+                    Outcome::ScheduleRetry { .. }
+                ),
+                "attempt {attempts_on_invoice} should still have a ladder slot"
+            );
+        }
     }
 }
