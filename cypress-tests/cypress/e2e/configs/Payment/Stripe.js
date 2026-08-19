@@ -462,9 +462,6 @@ export const connectorDetails = {
           },
         },
       },
-      Configs: {
-        validateL2L3DataComplete: true,
-      },
     },
     No3DSFailPayment: {
       Request: {
