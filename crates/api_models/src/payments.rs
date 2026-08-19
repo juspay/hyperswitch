@@ -13667,6 +13667,12 @@ pub struct PaymentRevenueRecoveryMetadata {
     /// First Payment Attempt Network Advice Code
     #[schema(value_type = Option<String>, example = "02")]
     pub first_payment_attempt_network_advice_code: Option<String>,
+    /// Funding type of the card, `credit` or `debit`, enriched from the card bin
+    #[schema(value_type = Option<String>, example = "credit")]
+    pub card_type: Option<String>,
+    /// Country in which the card was issued, enriched from the card bin
+    #[schema(value_type = Option<String>, example = "INDIA")]
+    pub card_issuing_country: Option<String>,
 }
 
 #[cfg(feature = "v2")]

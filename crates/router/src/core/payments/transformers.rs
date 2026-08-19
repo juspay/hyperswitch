@@ -7690,6 +7690,10 @@ impl ForeignFrom<&diesel_models::types::FeatureMetadata> for api_models::payment
                         .clone(),
                     invoice_billing_started_at_time: payment_revenue_recovery_metadata
                         .invoice_billing_started_at_time,
+                    card_type: payment_revenue_recovery_metadata.card_type.clone(),
+                    card_issuing_country: payment_revenue_recovery_metadata
+                        .card_issuing_country
+                        .clone(),
                 }
             });
         let apple_pay_details = feature_metadata
