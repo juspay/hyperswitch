@@ -8,13 +8,22 @@ readme = "README.md"
 license.workspace = true
 
 [features]
+# Diesel ORM impls for these enums. Default-on, so hyperswitch resolves exactly
+# as before. Consumers that never touch a database opt out via
+# `default-features = false` (see common_utils), which is their only path here.
+# Keeping it default-on also keeps diesel on the 128-column tier in every
+# dependency context: diesel_derives is a single shared proc-macro build
+# carrying the highest tier, while diesel only raises its own recursion_limit
+# when it holds 128-column-tables. A mixed 32/128 split fails to compile.
+default = ["diesel"]
+diesel = ["dep:diesel"]
 dummy_connector = []
 openapi = []
 payouts = []
 v2 = []
 
 [dependencies]
-diesel = { version = "2.2.10", features = ["postgres", "128-column-tables"] }
+diesel = { version = "2.2.10", features = ["postgres", "128-column-tables"], optional = true }
 serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0.140"
 strum = { version = "0.26", features = ["derive"] }

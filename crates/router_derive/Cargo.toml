@@ -27,7 +27,13 @@ serde_json = "1.0.140"
 url = { version = "2.5.4", features = ["serde"] }
 utoipa = "4.2.3"
 
+# common_utils (and transitively common_enums) is a dev-dependency only, used by
+# this crate's own tests. Because --all-targets builds those tests, that chain
+# drags diesel onto the proc-macro/host resolution line; pin the 128-column tier
+# here so it matches the shared diesel_derives build. Dev-dependencies are never
+# propagated to consumers, so this does not affect downstream users.
 common_utils = { version = "0.1.0", path = "../common_utils" }
+common_enums = { version = "0.1.0", path = "../common_enums", features = ["diesel"] }
 
 [lints]
 workspace = true
