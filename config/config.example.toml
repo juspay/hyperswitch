@@ -1294,6 +1294,7 @@ authentication_analytics_topic = "topic" # Kafka topic to be used for Authentica
 routing_logs_topic = "topic"             # Kafka topic to be used for Routing events
 revenue_recovery_topic = "topic"         # Kafka topic to be used for revenue recovery events
 external_service_call_topic = "topic"   # Kafka topic to be used for external service call events
+account_updater_topic = "topic"         # Kafka topic to be used for account updater synchronization events
 
 # File storage configuration
 [file_storage]
