@@ -10178,8 +10178,8 @@ impl PaymentEligibilityData {
                 platform,
                 profile_id,
                 payment_method_id.as_str(),
-                None, // CVC is not collected during the eligibility check
-                true, // fetch raw card detail from the internal vault
+                None,  // CVC is not collected during the eligibility check
+                true,  // fetch raw card detail from the internal vault
                 false, // an eligibility check is not a payment
             )
             .await
@@ -10226,8 +10226,8 @@ impl PaymentEligibilityData {
                         platform,
                         profile_id,
                         payment_method.get_id(),
-                        None, // CVC is not collected during the eligibility check
-                        true, // fetch raw card detail from the internal vault
+                        None,  // CVC is not collected during the eligibility check
+                        true,  // fetch raw card detail from the internal vault
                         false, // an eligibility check is not a payment
                     )
                     .await
