@@ -1088,6 +1088,7 @@ impl DatabaseBackedConfig for OfferEngineCredentialSource {
     const KEY: &'static str = "offer_engine_credential_source";
 }
 
+#[cfg(feature = "v2")]
 config! {
     superposition_key = ACCOUNT_UPDATER_ENABLED,
     output = bool,
@@ -1096,10 +1097,12 @@ config! {
     targeting_key = id_type::PaymentId
 }
 
+#[cfg(feature = "v2")]
 impl DatabaseBackedConfig for AccountUpdaterEnabled {
     const KEY: &'static str = "account_updater_enabled";
 }
 
+#[cfg(feature = "v2")]
 config! {
     superposition_key = ACCOUNT_UPDATER_CREDENTIAL_SOURCE,
     output = crate::core::account_updater::types::AccountUpdaterCredentialSource,
@@ -1109,6 +1112,7 @@ config! {
     targeting_key = id_type::PaymentId
 }
 
+#[cfg(feature = "v2")]
 impl DatabaseBackedConfig for AccountUpdaterCredentialSource {
     const KEY: &'static str = "account_updater_credential_source";
 }

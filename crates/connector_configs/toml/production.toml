@@ -1709,7 +1709,7 @@ label = "Payment Processing Details At"
 placeholder = "Enter Payment Processing Details At"
 required = true
 type = "Radio"
-options = ["Connector"]
+options = ["Connector", "Hyperswitch"]
 
 [[checkout.metadata.google_pay]]
 name = "merchant_name"
@@ -8078,3 +8078,28 @@ payment_method_type = "Discover"
 payment_method_type = "DinersClub"
 [[givepayments.debit]]
 payment_method_type = "UnionPay"
+
+[citigate]
+[[citigate.credit]]
+  payment_method_type = "Visa"
+[[citigate.credit]]
+  payment_method_type = "Mastercard"
+[[citigate.credit]]
+  payment_method_type = "AmericanExpress"
+[[citigate.credit]]
+  payment_method_type = "DinersClub"
+[[citigate.credit]]
+  payment_method_type = "Maestro"
+[[citigate.debit]]
+  payment_method_type = "Visa"
+[[citigate.debit]]
+  payment_method_type = "Mastercard"
+[[citigate.debit]]
+  payment_method_type = "AmericanExpress"
+[[citigate.debit]]
+  payment_method_type = "DinersClub"
+[[citigate.debit]]
+  payment_method_type = "Maestro"
+[citigate.connector_auth.BodyKey]
+api_key = "Merchant Name"
+key1 = "Merchant Password"

@@ -365,10 +365,6 @@ pub const UCS_ROLLOUT_CONFIG_NOT_CONFIGURED: &str = "not_configured";
 // UCS feature enabled config
 pub const UCS_ENABLED: &str = "ucs_enabled";
 
-// Config key gating the UCS kill switch. Read through the same cached config lookup as
-// `UCS_ENABLED`, so the switch can be turned on or off without a redeploy.
-pub const UCS_KILL_SWITCH_ENABLED: &str = "ucs_kill_switch_enabled";
-
 // Prefix of the redis key holding a kill switch trip. Absent until a scope trips.
 pub const UCS_KILL_SWITCH_REDIS_PREFIX: &str = "ucs_kill_switch";
 
