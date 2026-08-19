@@ -2527,6 +2527,18 @@ pub struct RolloutConfig {
     pub http_url: Option<String>,
     pub https_url: Option<String>,
     pub execution_mode: ExecutionMode,
+    #[serde(default = "default_kill_switch_enabled")]
+    pub kill_switch_enabled: bool,
+    #[serde(default = "default_kill_switch_threshold")]
+    pub kill_switch_threshold: u64,
+}
+
+fn default_kill_switch_enabled() -> bool {
+    false
+}
+
+fn default_kill_switch_threshold() -> u64 {
+    1
 }
 
 #[serde_as]
@@ -2546,6 +2558,8 @@ impl Default for RolloutConfig {
             http_url: None,
             https_url: None,
             execution_mode: ExecutionMode::NotApplicable,
+            kill_switch_enabled: false,
+            kill_switch_threshold: 1,
         }
     }
 }
@@ -2558,6 +2572,8 @@ pub struct RolloutExecutionResult {
     pub should_execute: bool,
     pub proxy_override: Option<ProxyOverride>,
     pub execution_mode: ExecutionMode,
+    pub kill_switch_enabled: bool,
+    pub kill_switch_threshold: u64,
 }
 
 impl Default for RolloutExecutionResult {
@@ -2566,6 +2582,8 @@ impl Default for RolloutExecutionResult {
             should_execute: false,
             proxy_override: None,
             execution_mode: ExecutionMode::NotApplicable,
+            kill_switch_enabled: false,
+            kill_switch_threshold: 1,
         }
     }
 }
@@ -2653,6 +2671,8 @@ impl From<RolloutConfig> for RolloutExecutionResult {
                             should_execute: true,
                             proxy_override,
                             execution_mode: config.execution_mode,
+                            kill_switch_enabled: config.kill_switch_enabled,
+                            kill_switch_threshold: config.kill_switch_threshold,
                         }
                     }
                     false => {
@@ -3273,8 +3293,13 @@ pub async fn fetch_card_details_from_external_vault(
             Err(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Wallet not supported")
         }
+        hyperswitch_domain_models::vault::PaymentMethodVaultingData::BankRedirect(_) => {
+            Err(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Bank Redirect not supported")
+        }
     }
 }
+
 #[cfg(feature = "v1")]
 pub async fn fetch_network_token_details_from_locker(
     state: &SessionState,
@@ -3419,6 +3444,13 @@ pub async fn retrieve_payment_method_from_db_with_token_data(
         | storage::PaymentTokenData::Permanent(_)
         | storage::PaymentTokenData::AuthBankDebit(_) => Ok(None),
         storage::PaymentTokenData::BankDebit(data) => state
+            .store
+            .find_payment_method(merchant_key_store, &data.payment_method_id, storage_scheme)
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)
+            .attach_printable("error retrieving payment method from DB")
+            .map(Some),
+        storage::PaymentTokenData::BankRedirect(data) => state
             .store
             .find_payment_method(merchant_key_store, &data.payment_method_id, storage_scheme)
             .await
@@ -4135,36 +4167,6 @@ pub(super) async fn filter_by_constraints(
         .filter_payment_intent_by_constraints(merchant_id, constraints, key_store, storage_scheme)
         .await?;
     Ok(result)
-}
-
-#[cfg(feature = "olap")]
-pub(super) fn validate_payment_list_request(
-    req: &api::PaymentListConstraints,
-) -> CustomResult<(), errors::ApiErrorResponse> {
-    use common_utils::consts::PAYMENTS_LIST_MAX_LIMIT_V1;
-
-    utils::when(
-        req.limit > PAYMENTS_LIST_MAX_LIMIT_V1 || req.limit < 1,
-        || {
-            Err(errors::ApiErrorResponse::InvalidRequestData {
-                message: format!("limit should be in between 1 and {PAYMENTS_LIST_MAX_LIMIT_V1}"),
-            })
-        },
-    )?;
-    Ok(())
-}
-#[cfg(feature = "olap")]
-pub(super) fn validate_payment_list_request_for_joins(
-    limit: u32,
-) -> CustomResult<(), errors::ApiErrorResponse> {
-    use common_utils::consts::PAYMENTS_LIST_MAX_LIMIT_V2;
-
-    utils::when(!(1..=PAYMENTS_LIST_MAX_LIMIT_V2).contains(&limit), || {
-        Err(errors::ApiErrorResponse::InvalidRequestData {
-            message: format!("limit should be in between 1 and {PAYMENTS_LIST_MAX_LIMIT_V2}"),
-        })
-    })?;
-    Ok(())
 }
 
 #[cfg(feature = "v1")]
@@ -5410,6 +5412,7 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
         customer_document_details: router_data.customer_document_details,
         feature_data: router_data.feature_data,
         sender_payment_instrument_id: router_data.sender_payment_instrument_id,
+        connector_returned_payment_method_details: None,
     }
 }
 
@@ -8622,7 +8625,9 @@ pub async fn get_payment_method_details_from_payment_token(
         storage::PaymentTokenData::WalletToken(_) => Ok(None),
 
         // TODO: External authentication not implemented for BankDebit
-        storage::PaymentTokenData::BankDebit(_) => Ok(None),
+        storage::PaymentTokenData::BankDebit(_) | storage::PaymentTokenData::BankRedirect(_) => {
+            Ok(None)
+        }
     }
 }
 
