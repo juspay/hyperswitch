@@ -369,6 +369,12 @@ pub enum ConnectorSpecificConfig {
         secret: Secret<String>,
     },
     /// Nuvei connector configuration
+    Moneris {
+        client_secret: Secret<String>,
+        client_id: Secret<String>,
+        merchant_id: Secret<String>,
+    },
+    /// Nuvei connector configuration
     Nuvei {
         merchant_id: Secret<String>,
         merchant_site_id: Secret<String>,
@@ -1335,6 +1341,18 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                     client_secret: api_secret.clone(),
                 }),
                 _ => Err(err("Iatapay requires SignatureKey auth type")),
+            },
+            Connector::Moneris => match auth {
+                ConnectorAuthType::SignatureKey {
+                    api_key,
+                    key1,
+                    api_secret,
+                } => Ok(Self::Moneris {
+                    client_secret: api_key.clone(),
+                    client_id: key1.clone(),
+                    merchant_id: api_secret.clone(),
+                }),
+                _ => Err(err("Moneris requires SignatureKey auth type")),
             },
             Connector::Noon => match auth {
                 ConnectorAuthType::SignatureKey {
