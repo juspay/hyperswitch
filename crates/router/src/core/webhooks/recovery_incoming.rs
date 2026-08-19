@@ -899,9 +899,9 @@ impl RevenueRecoveryAttempt {
                         invoice_details,
                     )?;
 
-                invoice_transaction_details
-                    .enrich_card_info_using_card_bin(state)
-                    .await;
+                // Boxed to keep this future off the enclosing state machine, the recovery webhook
+                // chain is deep enough that inlining it can overflow the worker thread's stack.
+                Box::pin(invoice_transaction_details.enrich_card_info_using_card_bin(state)).await;
 
                 // Find the payment merchant connector ID at the top level to avoid multiple DB calls.
                 let payment_merchant_connector_account = invoice_transaction_details
