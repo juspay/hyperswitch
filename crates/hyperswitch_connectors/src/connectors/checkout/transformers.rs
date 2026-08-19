@@ -946,30 +946,38 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
 
         let authentication_data = item.router_data.request.authentication_data.as_ref();
 
-        let three_ds = match item.router_data.auth_type {
-            enums::AuthenticationType::ThreeDs => CheckoutThreeDS {
-                enabled: true,
-                force_3ds: true,
-                eci: authentication_data.and_then(|auth| auth.eci.clone()),
-                cryptogram: authentication_data.map(|auth| auth.cavv.clone()),
-                xid: authentication_data
-                    .and_then(|auth| auth.threeds_server_transaction_id.clone()),
-                version: authentication_data.and_then(|auth| {
-                    auth.message_version
-                        .clone()
-                        .map(|version| version.to_string())
-                }),
-                challenge_indicator,
-            },
-            enums::AuthenticationType::NoThreeDs => CheckoutThreeDS {
+        let three_ds = if let Some(auth) = authentication_data {
+            // External 3DS passthrough: merchant already authenticated, send proof without asking Checkout to re-run 3DS
+            CheckoutThreeDS {
                 enabled: false,
                 force_3ds: false,
-                eci: None,
-                cryptogram: None,
-                xid: None,
-                version: None,
+                eci: auth.eci.clone(),
+                cryptogram: Some(auth.cavv.clone()),
+                xid: auth.threeds_server_transaction_id.clone(),
+                version: auth.message_version.clone().map(|v| v.to_string()),
                 challenge_indicator: CheckoutChallengeIndicator::NoPreference,
-            },
+            }
+        } else {
+            match item.router_data.auth_type {
+                enums::AuthenticationType::ThreeDs => CheckoutThreeDS {
+                    enabled: true,
+                    force_3ds: true,
+                    eci: None,
+                    cryptogram: None,
+                    xid: None,
+                    version: None,
+                    challenge_indicator,
+                },
+                enums::AuthenticationType::NoThreeDs => CheckoutThreeDS {
+                    enabled: false,
+                    force_3ds: false,
+                    eci: None,
+                    cryptogram: None,
+                    xid: None,
+                    version: None,
+                    challenge_indicator: CheckoutChallengeIndicator::NoPreference,
+                },
+            }
         };
 
         let return_url = ReturnUrl {
