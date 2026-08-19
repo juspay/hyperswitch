@@ -26,7 +26,9 @@ impl PaymentMethodNew {
         self,
         conn: &mut PgPooledConn,
     ) -> StorageResult<kv::SerializableQuery> {
-        kv::generate_insert_query(conn, self).await
+        kv::generate_insert_query(conn, self)
+            .await
+            .attach_printable("Failed to generate insert query for payment method")
     }
 }
 
@@ -140,15 +142,14 @@ impl PaymentMethod {
         merchant_id: &common_utils::id_type::MerchantId,
         status: common_enums::PaymentMethodStatus,
     ) -> StorageResult<i64> {
-        let filter = <Self as HasTable>::table()
-            .count()
-            .filter(
+        let filter = crate::list::into_boxed_list(
+            <Self as HasTable>::table().count().filter(
                 dsl::customer_id
                     .eq(customer_id.to_owned())
                     .and(dsl::merchant_id.eq(merchant_id.to_owned()))
                     .and(dsl::status.eq(status.to_owned())),
-            )
-            .into_boxed();
+            ),
+        );
 
         router_env::logger::debug!(query = %debug_query::<Pg, _>(&filter).to_string());
 
@@ -403,6 +404,7 @@ impl payment_method::PaymentMethodUpdateInternal {
             self,
         )
         .await
+        .attach_printable("Failed to generate update query for payment method")
     }
 
     #[cfg(feature = "v2")]
@@ -417,5 +419,6 @@ impl payment_method::PaymentMethodUpdateInternal {
             self,
         )
         .await
+        .attach_printable("Failed to generate update query for payment method")
     }
 }

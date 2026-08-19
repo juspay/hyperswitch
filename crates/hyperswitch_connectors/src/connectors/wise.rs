@@ -436,7 +436,7 @@ impl ConnectorIntegration<PoSync, PayoutsData, PayoutsResponseData> for Wise {
             },
         )?;
         Ok(format!(
-            "{}/v1/transfers/{}",
+            "{}v1/transfers/{}",
             connectors.wise.base_url, transfer_id
         ))
     }
@@ -585,7 +585,7 @@ impl ConnectorIntegration<PoCreate, PayoutsData, PayoutsResponseData> for Wise {
         _req: &PayoutsRouterData<PoCreate>,
         connectors: &Connectors,
     ) -> CustomResult<String, ConnectorError> {
-        Ok(format!("{}/v1/transfers", connectors.wise.base_url))
+        Ok(format!("{}v1/transfers", connectors.wise.base_url))
     }
 
     fn get_headers(
