@@ -1852,6 +1852,27 @@ fn get_cards_required_fields() -> HashMap<Connector, RequiredFieldFinal> {
             fields(vec![], card_basic(), vec![]),
         ),
         (
+            Connector::Ilixium,
+            fields(
+                vec![],
+                vec![
+                    RequiredField::CardNumber,
+                    RequiredField::CardExpMonth,
+                    RequiredField::CardExpYear,
+                    RequiredField::CardCvc,
+                    RequiredField::Email,
+                    RequiredField::BillingAddressCountries(vec!["ALL"]),
+                    // Ilixium requires `customer.firstName` and `customer.surname` on every
+                    // authorisation. On a 3DS payment the billing address is the *only* source:
+                    // that leg runs as PreAuthenticate, and `PaymentsPreAuthenticateData` carries
+                    // no `customer_name` for the connector to fall back on.
+                    RequiredField::BillingFirstName("first_name", FieldType::UserFullName),
+                    RequiredField::BillingLastName("last_name", FieldType::UserFullName),
+                ],
+                vec![],
+            ),
+        ),
+        (
             Connector::Givepayments,
             RequiredFieldFinal {
                 mandate: HashMap::new(),
