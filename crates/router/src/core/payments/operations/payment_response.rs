@@ -1,7 +1,6 @@
-use std::{collections::HashMap, ops::Deref};
-
 #[cfg(any(feature = "v1", all(test, feature = "deja")))]
 use std::future::Future;
+use std::{collections::HashMap, ops::Deref};
 
 #[cfg(feature = "v1")]
 use ::payment_methods::client::{
