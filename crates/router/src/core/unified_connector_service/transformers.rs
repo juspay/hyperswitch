@@ -6844,7 +6844,13 @@ impl transformers::ForeignTryFrom<&RouterData<Execute, RefundsData, RefundsRespo
                 .as_ref()
                 .map(|id| id.get_string_repr().to_string()),
             merchant_request_id: None,
-            connector_order_id: None,
+            // Connector-side identifier of the original payment this refund targets. Mirrors how
+            // Capture/Void send `merchant_capture_id`/`merchant_void_id`: the reference the
+            // original attempt was sent to the connector with.
+            connector_order_id: router_data
+                .request
+                .payment_connector_request_reference_id
+                .clone(),
             payment_method: None,
         })
     }
@@ -6919,7 +6925,11 @@ impl transformers::ForeignTryFrom<&RouterData<RSync, RefundsData, RefundsRespons
             payment_method_type,
             connector_feature_data: None,
             merchant_request_id: None,
-            connector_order_id: None,
+            // Connector-side identifier of the original payment this refund sync targets.
+            connector_order_id: router_data
+                .request
+                .payment_connector_request_reference_id
+                .clone(),
         })
     }
 }
