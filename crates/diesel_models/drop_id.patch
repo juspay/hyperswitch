@@ -1,27 +1,38 @@
 diff --git a/crates/diesel_models/src/schema.rs b/crates/diesel_models/src/schema.rs
-index b35e809a0..749a5dd47 100644
 --- a/crates/diesel_models/src/schema.rs
 +++ b/crates/diesel_models/src/schema.rs
-@@ -142,14 +142,13 @@ diesel::table! {
- }
- 
- diesel::table! {
+@@ -211,8 +211,28 @@
      use diesel::sql_types::*;
      use crate::enums::diesel_exports::*;
  
 -    blocklist_fingerprint (id) {
 -        id -> Int4,
++    blocklist (merchant_id, fingerprint_id) {
++        #[max_length = 64]
++        merchant_id -> Varchar,
++        #[max_length = 64]
++        fingerprint_id -> Varchar,
++        data_kind -> BlocklistDataKind,
++        metadata -> Nullable<Jsonb>,
++        created_at -> Timestamp,
++        #[max_length = 64]
++        processor_merchant_id -> Nullable<Varchar>,
++        #[max_length = 255]
++        created_by -> Nullable<Varchar>,
++        #[max_length = 64]
++        profile_id -> Nullable<Varchar>,
++    }
++}
++
++diesel::table! {
++    use diesel::sql_types::*;
++    use crate::enums::diesel_exports::*;
++
 +    blocklist_fingerprint (merchant_id, fingerprint_id) {
          #[max_length = 64]
          merchant_id -> Varchar,
          #[max_length = 64]
-         fingerprint_id -> Varchar,
-         data_kind -> BlocklistDataKind,
-         encrypted_fingerprint -> Text,
-@@ -158,14 +157,13 @@ diesel::table! {
- }
- 
- diesel::table! {
+@@ -227,8 +247,7 @@
      use diesel::sql_types::*;
      use crate::enums::diesel_exports::*;
  
@@ -31,13 +42,7 @@ index b35e809a0..749a5dd47 100644
          #[max_length = 64]
          merchant_id -> Varchar,
          fingerprint -> Text,
-     }
- }
- 
-@@ -300,13 +298,12 @@ diesel::table! {
- 
- diesel::table! {
-     use diesel::sql_types::*;
+@@ -440,7 +459,6 @@
      use crate::enums::diesel_exports::*;
  
      configs (key) {
@@ -45,13 +50,7 @@ index b35e809a0..749a5dd47 100644
          #[max_length = 255]
          key -> Varchar,
          config -> Text,
-     }
- }
- 
-@@ -615,14 +612,13 @@ diesel::table! {
- }
- 
- diesel::table! {
+@@ -888,8 +906,7 @@
      use diesel::sql_types::*;
      use crate::enums::diesel_exports::*;
  
@@ -61,6 +60,11 @@ index b35e809a0..749a5dd47 100644
          #[max_length = 255]
          card_id -> Varchar,
          #[max_length = 255]
-         external_id -> Varchar,
-         #[max_length = 255]
-         card_fingerprint -> Varchar,
+@@ -1982,6 +1999,7 @@
+     api_keys,
+     authentication,
+     batch_blocklist_jobs,
++    blocklist,
+     blocklist_fingerprint,
+     blocklist_lookup,
+     business_profile,
