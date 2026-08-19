@@ -181,6 +181,24 @@ impl DatabaseBackedConfig for ImplicitCustomerUpdate {
     }
 }
 
+config! {
+    superposition_key = BLOCK_IMPLICIT_CUSTOMER_CREATION,
+    output = bool,
+    default = false,
+    requires = dimension_state::DimensionsWithOrgId,
+    targeting_key = id_type::CustomerId
+}
+
+impl DatabaseBackedConfig for BlockImplicitCustomerCreation {
+    const KEY: &'static str = "block_implicit_customer_creation";
+
+    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        dimensions
+            .get_organization_id()
+            .map(|id| format!("{}_{}", Self::KEY, id.get_string_repr()))
+    }
+}
+
 // Retained temporarily so merchants without a database value can fall back to
 // their existing Superposition fingerprint secret during migration.
 config! {
@@ -648,7 +666,7 @@ impl DatabaseBackedConfig for PtMappingPaymentSync {
 config! {
     superposition_key = PT_MAPPING_REFUND_SYNC,
     output = scheduler::types::process_data::ConnectorPTMapping,
-    default = scheduler::types::process_data::ConnectorPTMapping::default(),
+    default = scheduler::types::process_data::ConnectorPTMapping::refund_default(),
     object = true,
     requires = dimension_state::DimensionsWithProcessorMerchantIdAndConnector,
     targeting_key = id_type::PaymentId
@@ -816,6 +834,7 @@ impl DatabaseBackedConfig for OfferEngineCredentialSource {
     const KEY: &'static str = "offer_engine_credential_source";
 }
 
+#[cfg(feature = "v2")]
 config! {
     superposition_key = ACCOUNT_UPDATER_ENABLED,
     output = bool,
@@ -824,10 +843,12 @@ config! {
     targeting_key = id_type::PaymentId
 }
 
+#[cfg(feature = "v2")]
 impl DatabaseBackedConfig for AccountUpdaterEnabled {
     const KEY: &'static str = "account_updater_enabled";
 }
 
+#[cfg(feature = "v2")]
 config! {
     superposition_key = ACCOUNT_UPDATER_CREDENTIAL_SOURCE,
     output = crate::core::account_updater::types::AccountUpdaterCredentialSource,
@@ -837,6 +858,7 @@ config! {
     targeting_key = id_type::PaymentId
 }
 
+#[cfg(feature = "v2")]
 impl DatabaseBackedConfig for AccountUpdaterCredentialSource {
     const KEY: &'static str = "account_updater_credential_source";
 }

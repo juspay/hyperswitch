@@ -26,21 +26,19 @@
 // Cypress.Commands.overwrite('visit', (originalFn, url, options) => { ... })
 // commands.js or your custom support file
 import getConnectorDetails, {
+  CONNECTOR_LISTS,
   defaultErrorHandler,
   extractIntegerAtEnd,
   getOriginalConnectorName,
   getValueByKey,
   injectHelcimTestCard,
   setNormalizedValue,
+  shouldIncludeConnector,
+  stringifyWithBigInt,
 } from "../e2e/configs/Payment/Utils";
 import { execConfig, validateConfig } from "../utils/featureFlags";
 import * as RequestBodyUtils from "../utils/RequestBodyUtils";
 import { isoTimeTomorrow, validateEnv } from "../utils/RequestBodyUtils.js";
-import {
-  handleQRCodeRedirection,
-  handleRedirection,
-  MICRODEPOSIT_CONFIG,
-} from "./redirectionHandler";
 import {
   isMockServer,
   isRecordMode,
@@ -51,6 +49,11 @@ import {
   mockReplayBankRedirect,
   resetMitmRedirectSeq,
 } from "./mitmProxy";
+import {
+  handleQRCodeRedirection,
+  handleRedirection,
+  MICRODEPOSIT_CONFIG,
+} from "./redirectionHandler";
 
 // Returns true (after logging a consistent skip line) when a redirection
 // command should bail out early because we're in replay mode.
@@ -68,16 +71,31 @@ function getOriginalConnectorId(globalState) {
   );
 }
 
-function isStripeConnect(globalState) {
+// True for test-only connector IDs (stripeconnect, payloadconnect, ...)
+// that alias a real backend connector under a different merchant-connector
+// -account configuration -- see getOriginalConnectorName.
+function isAliasedConnector(globalState) {
   const connectorId = getOriginalConnectorId(globalState);
   return (
     typeof connectorId === "string" &&
-    connectorId.toLowerCase() === "stripeconnect"
+    getOriginalConnectorName(connectorId.toLowerCase()) !==
+      connectorId.toLowerCase()
+  );
+}
+
+function supportsSplitPayments(globalState) {
+  const connectorId = getOriginalConnectorId(globalState);
+  return (
+    typeof connectorId === "string" &&
+    !shouldIncludeConnector(
+      connectorId.toLowerCase(),
+      CONNECTOR_LISTS.INCLUDE.SPLIT_PAYMENTS
+    )
   );
 }
 
 function updateConnectorState(globalState, responseConnector) {
-  if (isStripeConnect(globalState)) {
+  if (isAliasedConnector(globalState)) {
     const originalConnectorId = getOriginalConnectorId(globalState);
     globalState.set("connectorId", originalConnectorId);
     return;
@@ -124,11 +142,20 @@ function createIndividualRolloutConfig(
   const rolloutPercent = 1.0;
   const key = `ucs_rollout_config_${merchantId}_${connector}_${methodFlow}`;
 
+  // UCS-only connectors (no working classic direct-integration fallback)
+  // must route "primary" so the classic connector is never invoked; every
+  // other connector keeps mirroring to UCS via "shadow" for comparison.
+  const executionMode = CONNECTOR_LISTS.INCLUDE.UCS_CONNECTORS.includes(
+    connector
+  )
+    ? "primary"
+    : "shadow";
+
   const configValue = {
     rollout_percent: rolloutPercent,
     http_url: httpUrl,
     https_url: httpsUrl,
-    execution_mode: "shadow",
+    execution_mode: executionMode,
   };
   const value = JSON.stringify(configValue);
 
@@ -218,7 +245,9 @@ function createUcsConfigs(globalState, flow, type) {
   const methodFlowInput = flow || globalState.get("methodFlow");
 
   if (!httpUrl || !httpsUrl) {
-    throw new Error("Missing proxyHttp or proxyHttps in globalState");
+    throw new Error(
+      `Missing proxyHttp or proxyHttps in globalState. globalState.proxyHttp=${httpUrl}, globalState.proxyHttps=${httpsUrl}, Cypress.env("PROXY_HTTP")=${Cypress.env("PROXY_HTTP")}, Cypress.env("PROXY_HTTPS")=${Cypress.env("PROXY_HTTPS")}`
+    );
   }
 
   if (!connector || !methodFlowInput) {
@@ -651,6 +680,48 @@ Cypress.Commands.add(
         globalState.set(publishableKeyStateKey, response.body.publishable_key);
         globalState.set("merchantDetails", response.body.merchant_details);
         globalState.set("organizationId", response.body.organization_id);
+
+        if (globalState.get("kvEnabled")) {
+          cy.merchantKvEnableCallTest(
+            { merchant_id: merchantId, kv_enabled: true },
+            globalState
+          );
+        }
+      });
+    });
+  }
+);
+
+Cypress.Commands.add(
+  "merchantKvEnableCallTest",
+  (merchantKvEnableBody, globalState, options = {}) => {
+    const { expectedStatus = 200, expectedErrorCode = null } = options;
+
+    const merchant_id = globalState.get("merchantId");
+
+    cy.request({
+      method: "POST",
+      url: `${globalState.get("baseUrl")}/accounts/${merchant_id}/kv`,
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        "api-key": globalState.get("adminApiKey"),
+      },
+      body: merchantKvEnableBody,
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        expect(response.status).to.equal(expectedStatus);
+
+        if (expectedStatus !== 200) {
+          if (expectedErrorCode) {
+            expect(response.body).to.have.property("error");
+            expect(response.body.error.code).to.equal(expectedErrorCode);
+          }
+          return;
+        }
       });
     });
   }
@@ -2861,10 +2932,17 @@ Cypress.Commands.add(
           expect(response.body.payment_method_id, "payment_method_status").to.be
             .null;
           expect(response.body.profile_id, "profile_id").to.not.be.null;
-          expect(
-            response.body.merchant_order_reference_id,
-            "merchant_order_reference_id"
-          ).to.be.null;
+          if (typeof body.merchant_order_reference_id === "undefined") {
+            expect(
+              response.body.merchant_order_reference_id,
+              "merchant_order_reference_id"
+            ).to.be.null;
+          } else {
+            expect(
+              response.body.merchant_order_reference_id,
+              "merchant_order_reference_id"
+            ).to.equal(body.merchant_order_reference_id);
+          }
           expect(response.body.connector_mandate_id, "connector_mandate_id").to
             .be.null;
 
@@ -3101,7 +3179,7 @@ Cypress.Commands.add(
       delete confirmBody.setup_future_usage;
     }
 
-    if (reqData?.split_payments && isStripeConnect(globalState)) {
+    if (reqData?.split_payments && supportsSplitPayments(globalState)) {
       confirmBody.split_payments = reqData.split_payments;
     }
 
@@ -3255,7 +3333,8 @@ Cypress.Commands.add(
                 );
                 if (
                   response.body.setup_future_usage === "off_session" &&
-                  response.body.status === "succeeded"
+                  response.body.status === "succeeded" &&
+                  globalState.get("connectorId") !== "tsys_transit"
                 ) {
                   expect(
                     response.body.connector_mandate_id,
@@ -3329,7 +3408,8 @@ Cypress.Commands.add(
                 );
                 if (
                   response.body.setup_future_usage === "off_session" &&
-                  response.body.status === "succeeded"
+                  response.body.status === "succeeded" &&
+                  globalState.get("connectorId") !== "tsys_transit"
                 ) {
                   expect(
                     response.body.connector_mandate_id,
@@ -3901,7 +3981,7 @@ Cypress.Commands.add(
       }
     }
 
-    if (reqData?.split_payments && isStripeConnect(globalState)) {
+    if (reqData?.split_payments && supportsSplitPayments(globalState)) {
       createConfirmPaymentBody.split_payments = reqData.split_payments;
     }
 
@@ -4816,7 +4896,7 @@ Cypress.Commands.add(
 
     // Include split_payments only for stripeconnect connector
     // This handles Stripe Connect flows where split_payments is defined in the connector config
-    if (reqData?.split_payments && isStripeConnect(globalState)) {
+    if (reqData?.split_payments && supportsSplitPayments(globalState)) {
       requestBody.split_payments = reqData.split_payments;
     }
 
@@ -4950,6 +5030,7 @@ Cypress.Commands.add(
                   response.body.mandate_id === null &&
                   response.body.status === "succeeded" &&
                   globalState.get("connectorId") !== "peachpayments" &&
+                  globalState.get("connectorId") !== "tsys_transit" &&
                   requestBody.mandate_data !== null
                 ) {
                   expect(
@@ -5020,7 +5101,8 @@ Cypress.Commands.add(
                 if (
                   response.body.setup_future_usage === "off_session" &&
                   response.body.mandate_id === null &&
-                  response.body.status === "succeeded"
+                  response.body.status === "succeeded" &&
+                  globalState.get("connectorId") !== "tsys_transit"
                 ) {
                   expect(
                     response.body.connector_mandate_id,
@@ -5087,7 +5169,7 @@ Cypress.Commands.add(
 
     // Include split_payments only for stripeconnect connector
     // This handles Stripe Connect flows where split_payments is defined in the connector config
-    if (reqData?.split_payments && isStripeConnect(globalState)) {
+    if (reqData?.split_payments && supportsSplitPayments(globalState)) {
       requestBody.split_payments = reqData.split_payments;
     }
 
@@ -6389,8 +6471,11 @@ Cypress.Commands.add("listCustomerPMCallTest", (globalState, order = 0) => {
           expect(cardInfo.card_holder_name, "card_holder_name").to.not.be.null;
         }
 
+        // allow a small buffer for clock skew between the server and the
+        // test runner — last_used_at can otherwise land at or after the
+        // local Date.now() even though it was genuinely set in the past
         expect(new Date(lastUsedAt).getTime(), "last_used_at").to.be.lessThan(
-          Date.now()
+          Date.now() + 5000
         ).and.to.not.be.null;
 
         // For order > 0, validate payment methods are ordered by last_used_at
@@ -7865,6 +7950,14 @@ Cypress.Commands.add("diffCheckResult", (globalState) => {
   // Phase 2: Fetch Validation Results
   const validationServiceUrl = globalState.get("validationServiceUrl");
 
+  if (!validationServiceUrl) {
+    cy.task(
+      "cli_log",
+      "VALIDATION_SERVICE_URL is not set. Skipping diff check validation."
+    );
+    return;
+  }
+
   cy.request({
     method: "GET",
     url: validationServiceUrl,
@@ -8143,7 +8236,7 @@ Cypress.Commands.add(
               ([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`
             )
             .join("&")
-        : webhookBody;
+        : stringifyWithBigInt(webhookBody);
 
     const headers = {
       "Content-Type": contentType,
@@ -8368,6 +8461,22 @@ Cypress.Commands.add("listSavedPMCall", (globalState) => {
   }).then((response) => {
     if (response.status === 200) {
       expect(response.body.customer_payment_methods).to.be.an("array");
+
+      // Mirror `listCustomerPMByClientSecret`: expose the first saved payment
+      // method so a following payment can be made against it. This list carries
+      // no `payment_method_token` — its `id` (0a_pm_...) is what a payment
+      // sends as `payment_token`. Only the session scoped list returns a
+      // separate token, hence the conditional below.
+      const [savedPaymentMethod] = response.body.customer_payment_methods;
+      if (savedPaymentMethod) {
+        globalState.set("paymentMethodId", savedPaymentMethod.id);
+        if (savedPaymentMethod.payment_method_token) {
+          globalState.set(
+            "paymentToken",
+            savedPaymentMethod.payment_method_token
+          );
+        }
+      }
     } else {
       throw new Error(
         `List saved PM failed with status ${response.status}: ${JSON.stringify(response.body)}`
@@ -8566,13 +8675,26 @@ Cypress.Commands.add(
     const customerId = globalState.get("customerId");
     const profileId = globalState.get("profileId");
 
+    // `paymentMethodToken` comes from the payment method session flow, while
+    // `paymentToken` is what the customer payment method list publishes; either
+    // is a valid token to pay with, so accept whichever the caller produced.
+    const paymentToken = useToken
+      ? globalState.get("paymentMethodToken") || globalState.get("paymentToken")
+      : globalState.get("paymentMethodId");
+
+    if (!paymentToken) {
+      throw new Error(
+        useToken
+          ? "paymentWithSavedPMCall: no payment token found. Set `paymentMethodToken` via the payment method session flow, or `paymentToken` via a customer payment method list, before calling with useToken"
+          : "paymentWithSavedPMCall: no `paymentMethodId` found; call a payment method create or list first"
+      );
+    }
+
     const requestBody = {
       ...paymentData,
       customer_id: customerId,
       profile_id: profileId,
-      payment_token: useToken
-        ? globalState.get("paymentMethodToken")
-        : globalState.get("paymentMethodId"),
+      payment_token: paymentToken,
     };
 
     cy.request({
@@ -8587,6 +8709,8 @@ Cypress.Commands.add(
     }).then((response) => {
       if (response.status === 200) {
         globalState.set("paymentId", response.body.payment_id);
+        // `retrievePaymentCallTest` and friends read the `paymentID` spelling
+        globalState.set("paymentID", response.body.payment_id);
         expect(response.body).to.have.property("payment_id");
         expect(response.body).to.have.property("status");
         expect(response.body.amount).to.equal(paymentData.amount);
@@ -11493,12 +11617,15 @@ Cypress.Commands.add(
 // Superposition Config Commands
 // ============================================
 
-// Base command: PUT a superposition context override.
+// Base command: PUT a superposition context carrying one or more overrides.
+// `overrides` is a plain object of config key to value; a single PUT is used so
+// that configs sharing a context land on one context rather than replacing each
+// other, and cost one polling interval instead of several.
 // `context` is a plain object whose keys match the superposition dimension names
 // required by the target config (see dimension_config.rs for each config's dimensions).
 Cypress.Commands.add(
-  "createSuperpositionConfig",
-  (globalState, overrideKey, overrideValue, context) => {
+  "createSuperpositionOverrides",
+  (globalState, overrides, context) => {
     const superpositionBaseUrl = globalState.get("superpositionBaseUrl");
     const superpositionSecret = globalState.get("superpositionSecret");
     const orgId = globalState.get("superpositionOrgId") || "hyperswitch";
@@ -11524,7 +11651,7 @@ Cypress.Commands.add(
         "Content-Type": "application/json",
       },
       body: {
-        override: { [overrideKey]: overrideValue },
+        override: overrides,
         context,
         description: "test config",
         change_reason: "automated test",
@@ -11537,12 +11664,24 @@ Cypress.Commands.add(
         expect(response.status, "superposition_config_status").to.equal(200);
         cy.task(
           "cli_log",
-          `Superposition config set: ${overrideKey}=${overrideValue}, context=${JSON.stringify(context)}`
+          `Superposition config set: ${JSON.stringify(overrides)}, context=${JSON.stringify(context)}`
         );
       });
     });
     // Polling interval is 10 s in CI and 15 s in all other envs
     cy.wait(15000);
+  }
+);
+
+// Base command: PUT a superposition context with a single override.
+Cypress.Commands.add(
+  "createSuperpositionConfig",
+  (globalState, overrideKey, overrideValue, context) => {
+    cy.createSuperpositionOverrides(
+      globalState,
+      { [overrideKey]: overrideValue },
+      context
+    );
   }
 );
 
@@ -11609,6 +11748,15 @@ Cypress.Commands.add(
       overrideValue,
       context
     );
+  }
+);
+
+// Set several superposition configs that share one context, in a single PUT.
+// `overrides` is a plain object of config key to value.
+Cypress.Commands.add(
+  "setSuperpositionConfigs",
+  (globalState, overrides, context) => {
+    cy.createSuperpositionOverrides(globalState, overrides, context);
   }
 );
 

@@ -158,6 +158,9 @@ pub struct ConfigMetadata {
     pub pix_automatico_push: Option<Vec<InputData>>,
     pub pix_automatico_qr: Option<Vec<InputData>>,
     pub boleto: Option<Vec<InputData>>,
+    pub client_id: Option<InputData>,
+    pub client_secret: Option<InputData>,
+    pub workspace_id: Option<InputData>,
     pub merchant_id: Option<InputData>,
     pub endpoint_prefix: Option<InputData>,
     pub mcc: Option<InputData>,
@@ -204,9 +207,9 @@ pub struct ConfigMetadata {
     pub kid: Option<InputData>,
     pub account_holder_name: Option<InputData>,
     pub private_key: Option<InputData>,
-    pub merchant_street_address: Option<String>,
-    pub customer_service_phone_number: Option<String>,
-    pub merchant_url: Option<String>,
+    pub merchant_street_address: Option<InputData>,
+    pub customer_service_phone_number: Option<InputData>,
+    pub merchant_url: Option<InputData>,
 }
 
 #[serde_with::skip_serializing_none]
@@ -308,6 +311,8 @@ pub struct ConnectorConfig {
     pub cybersourcedecisionmanager: Option<ConnectorTomlConfig>,
     pub datatrans: Option<ConnectorTomlConfig>,
     pub deutschebank: Option<ConnectorTomlConfig>,
+    #[cfg(feature = "payouts")]
+    pub deutschebank_payout: Option<ConnectorTomlConfig>,
     pub digitalvirgo: Option<ConnectorTomlConfig>,
     pub dlocal: Option<ConnectorTomlConfig>,
     pub dwolla: Option<ConnectorTomlConfig>,
@@ -353,6 +358,7 @@ pub struct ConnectorConfig {
     pub nexinets: Option<ConnectorTomlConfig>,
     pub nexixpay: Option<ConnectorTomlConfig>,
     pub payconex: Option<ConnectorTomlConfig>,
+    pub citigate: Option<ConnectorTomlConfig>,
     pub nmi: Option<ConnectorTomlConfig>,
     pub nomupay_payout: Option<ConnectorTomlConfig>,
     pub noon: Option<ConnectorTomlConfig>,
@@ -387,6 +393,7 @@ pub struct ConnectorConfig {
     pub redsys: Option<ConnectorTomlConfig>,
     pub revolv3: Option<ConnectorTomlConfig>,
     pub santander: Option<ConnectorTomlConfig>,
+    pub santander_payout: Option<ConnectorTomlConfig>,
     pub shift4: Option<ConnectorTomlConfig>,
     pub sift: Option<ConnectorTomlConfig>,
     pub silverflow: Option<ConnectorTomlConfig>,
@@ -464,6 +471,7 @@ impl ConnectorConfig {
             PayoutConnectors::Adyen => Ok(connector_data.adyen_payout),
             PayoutConnectors::Adyenplatform => Ok(connector_data.adyenplatform_payout),
             PayoutConnectors::Cybersource => Ok(connector_data.cybersource_payout),
+            PayoutConnectors::Deutschebank => Ok(connector_data.deutschebank_payout),
             PayoutConnectors::Ebanx => Ok(connector_data.ebanx_payout),
             PayoutConnectors::Gigadat => Ok(connector_data.gigadat_payout),
             PayoutConnectors::Loonio => Ok(connector_data.loonio_payout),
@@ -479,6 +487,7 @@ impl ConnectorConfig {
             PayoutConnectors::Worldpayxml => Ok(connector_data.worldpayxml_payout),
             PayoutConnectors::Envoy => Ok(connector_data.envoy_payout),
             PayoutConnectors::Itaubank => Ok(connector_data.itaubank_payout),
+            PayoutConnectors::Santander => Ok(connector_data.santander_payout),
         }
     }
 
@@ -614,6 +623,7 @@ impl ConnectorConfig {
             Connector::Helcim => Ok(connector_data.helcim),
             Connector::Inespay => Ok(connector_data.inespay),
             Connector::Jpmorgan => Ok(connector_data.jpmorgan),
+            Connector::Juspay => Err("Configured through application config".to_string()),
             Connector::Juspaythreedsserver => Ok(connector_data.juspaythreedsserver),
             Connector::Klarna => Ok(connector_data.klarna),
             Connector::Loonio => Ok(connector_data.loonio),
@@ -698,6 +708,7 @@ impl ConnectorConfig {
             Connector::Xendit => Ok(connector_data.xendit),
             Connector::Paytm => Ok(connector_data.paytm),
             Connector::Payconex => Ok(connector_data.payconex),
+            Connector::Citigate => Ok(connector_data.citigate),
             Connector::Zift => Ok(connector_data.zift),
             Connector::Phonepe => Ok(connector_data.phonepe),
             Connector::Payjustnow => Ok(connector_data.payjustnow),

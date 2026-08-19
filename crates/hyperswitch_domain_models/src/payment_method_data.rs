@@ -230,6 +230,22 @@ impl PaymentMethodData {
         }
     }
 
+    /// Extended BIN for any variant that carries the original card number.
+    pub fn get_card_extended_bin(&self) -> Option<String> {
+        match self {
+            Self::Card(card) => Some(card.card_number.get_extended_card_bin()),
+            Self::CardWithOptionalCVC(card) => Some(card.card_number.get_extended_card_bin()),
+            Self::CardWithNetworkTokenDetails(card) => {
+                Some(card.card_details.card_number.get_extended_card_bin())
+            }
+            Self::CardDetailsForNetworkTransactionId(card) => {
+                Some(card.card_number.get_extended_card_bin())
+            }
+            Self::CardWithLimitedDetails(card) => Some(card.card_number.get_extended_card_bin()),
+            _ => None,
+        }
+    }
+
     pub fn apply_additional_payment_data(
         &self,
         additional_payment_data: api_models::payments::AdditionalPaymentData,
@@ -390,6 +406,14 @@ impl EligibilityPaymentMethodData {
         match self {
             Self::Card(card) => Some(card.card_number.get_card_isin()),
             _ => None,
+        }
+    }
+
+    pub fn get_card_data(&self) -> Option<&EligibilityCard> {
+        if let Self::Card(card) = self {
+            Some(card)
+        } else {
+            None
         }
     }
 
@@ -1295,7 +1319,38 @@ pub enum BankRedirectData {
     Eft {
         provider: String,
     },
-    OpenBanking {},
+    OpenBanking {
+        iban: Option<Secret<String>>,
+        account_number: Option<Secret<String>>,
+        sort_code: Option<Secret<String>>,
+        account_holder_name: Option<Secret<String>>,
+        additional_details: Option<Secret<serde_json::Value>>,
+    },
+}
+
+impl BankRedirectData {
+    pub fn get_bank_redirect_details(self) -> Option<BankRedirectDetailsPaymentMethod> {
+        match self {
+            Self::OpenBanking {
+                iban,
+                account_number,
+                sort_code,
+                account_holder_name,
+                additional_details: _,
+            } => Some(BankRedirectDetailsPaymentMethod::OpenBanking {
+                masked_iban: iban
+                    .map(|iban| common_utils::new_type::mask_sensitive_field(iban.peek(), 4)),
+                masked_account_number: account_number.map(|account_number| {
+                    common_utils::new_type::mask_sensitive_field(account_number.peek(), 4)
+                }),
+                masked_sort_code: sort_code.map(|sort_code| {
+                    common_utils::new_type::mask_sensitive_field(sort_code.peek(), 4)
+                }),
+                account_holder_name,
+            }),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -1544,24 +1599,14 @@ impl BankDebitData {
                 bank_type,
                 bank_holder_type,
             } => Some(BankDebitDetailsPaymentMethod::AchBankDebit {
-                masked_account_number: account_number
-                    .peek()
-                    .chars()
-                    .rev()
-                    .take(4)
-                    .collect::<String>()
-                    .chars()
-                    .rev()
-                    .collect::<String>(),
-                masked_routing_number: routing_number
-                    .peek()
-                    .chars()
-                    .rev()
-                    .take(4)
-                    .collect::<String>()
-                    .chars()
-                    .rev()
-                    .collect::<String>(),
+                masked_account_number: common_utils::new_type::mask_sensitive_field(
+                    account_number.peek(),
+                    4,
+                ),
+                masked_routing_number: common_utils::new_type::mask_sensitive_field(
+                    routing_number.peek(),
+                    4,
+                ),
                 bank_account_holder_name,
                 bank_name,
                 bank_type,
@@ -1605,29 +1650,17 @@ pub enum BankDebitDetail {
 impl BankDebitDetail {
     pub fn get_masked_account_number(&self) -> String {
         match self {
-            Self::Ach { account_number, .. } => account_number
-                .peek()
-                .chars()
-                .rev()
-                .take(4)
-                .collect::<String>()
-                .chars()
-                .rev()
-                .collect::<String>(),
+            Self::Ach { account_number, .. } => {
+                common_utils::new_type::mask_sensitive_field(account_number.peek(), 4)
+            }
         }
     }
 
     pub fn get_masked_routing_number(&self) -> String {
         match self {
-            Self::Ach { routing_number, .. } => routing_number
-                .peek()
-                .chars()
-                .rev()
-                .take(4)
-                .collect::<String>()
-                .chars()
-                .rev()
-                .collect::<String>(),
+            Self::Ach { routing_number, .. } => {
+                common_utils::new_type::mask_sensitive_field(routing_number.peek(), 4)
+            }
         }
     }
 }
@@ -1765,6 +1798,51 @@ impl From<payment_methods::WalletDetail> for WalletDetail {
     }
 }
 
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum BankRedirectDetail {
+    OpenBanking {
+        iban: Option<Secret<String>>,
+        account_number: Option<Secret<String>>,
+        sort_code: Option<Secret<String>>,
+    },
+}
+
+#[cfg(feature = "v1")]
+impl From<payment_methods::BankRedirectData> for BankRedirectDetail {
+    fn from(bank_redirect: payment_methods::BankRedirectData) -> Self {
+        match bank_redirect {
+            payment_methods::BankRedirectData::OpenBanking {
+                iban,
+                account_number,
+                sort_code,
+                account_holder_name: _,
+            } => Self::OpenBanking {
+                iban,
+                account_number,
+                sort_code,
+            },
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
+impl From<BankRedirectDetailsPaymentMethod> for BankRedirectDetail {
+    fn from(bank_redirect: BankRedirectDetailsPaymentMethod) -> Self {
+        match bank_redirect {
+            BankRedirectDetailsPaymentMethod::OpenBanking {
+                masked_account_number,
+                masked_sort_code,
+                account_holder_name: _,
+                masked_iban,
+            } => Self::OpenBanking {
+                account_number: masked_account_number.map(Secret::new),
+                iban: masked_iban.map(Secret::new),
+                sort_code: masked_sort_code.map(Secret::new),
+            },
+        }
+    }
+}
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum BankTransferData {
@@ -2735,7 +2813,13 @@ impl From<api_models::payments::BankRedirectData> for BankRedirectData {
                 Self::LocalBankRedirect {}
             }
             api_models::payments::BankRedirectData::Eft { provider } => Self::Eft { provider },
-            api_models::payments::BankRedirectData::OpenBanking { .. } => Self::OpenBanking {},
+            api_models::payments::BankRedirectData::OpenBanking { .. } => Self::OpenBanking {
+                iban: None,
+                account_holder_name: None,
+                account_number: None,
+                sort_code: None,
+                additional_details: None,
+            },
         }
     }
 }
@@ -3762,6 +3846,7 @@ pub enum PaymentMethodsData {
     WalletDetails(payment_methods::PaymentMethodDataWalletInfo), //PaymentMethodDataWalletInfo and its transformations should be moved to the domain models
     NetworkToken(NetworkTokenDetailsPaymentMethod),
     BankDebit(BankDebitDetailsPaymentMethod),
+    BankRedirect(BankRedirectDetailsPaymentMethod),
 }
 
 impl PaymentMethodsData {
@@ -3806,7 +3891,8 @@ impl PaymentMethodsData {
             Self::BankDetails(_)
             | Self::WalletDetails(_)
             | Self::NetworkToken(_)
-            | Self::BankDebit(_) => None,
+            | Self::BankDebit(_)
+            | Self::BankRedirect(_) => None,
         }
     }
     pub fn get_card_details(&self) -> Option<CardDetailsPaymentMethod> {
@@ -3849,6 +3935,17 @@ pub enum BankDebitDetailsPaymentMethod {
         bank_name: Option<common_enums::BankNames>,
         bank_type: Option<common_enums::BankType>,
         bank_holder_type: Option<common_enums::BankHolderType>,
+    },
+}
+
+#[derive(serde::Deserialize, serde::Serialize, Debug, Clone, Eq, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum BankRedirectDetailsPaymentMethod {
+    OpenBanking {
+        masked_account_number: Option<String>,
+        masked_sort_code: Option<String>,
+        account_holder_name: Option<Secret<String>>,
+        masked_iban: Option<String>,
     },
 }
 
