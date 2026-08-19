@@ -1829,8 +1829,8 @@ pub fn merge_connector_metadata(
 
     let merchant_details = match merchant_metadata.as_ref().map(|metadata| metadata.peek()) {
         Some(serde_json::Value::Object(details)) => Some(details.clone()),
+        Some(serde_json::Value::Null) | None => Some(serde_json::Map::new()),
         Some(_) => None,
-        None => Some(serde_json::Map::new()),
     };
 
     match (connector_details, merchant_details) {
@@ -1840,6 +1840,6 @@ pub fn merge_connector_metadata(
             }
             Some(Secret::new(serde_json::Value::Object(merged)))
         }
-        _ => merchant_metadata,
+        (_connector_details, _merchant_details) => merchant_metadata.or(connector_metadata),
     }
 }
