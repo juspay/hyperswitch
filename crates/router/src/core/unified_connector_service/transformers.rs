@@ -126,6 +126,7 @@ fn build_ucs_order_details(
                         .as_ref()
                         .map(|value| value.get_percentage()),
                     discount_type: detail.discount_type.clone(),
+                    product_link: None,
                 })
                 .collect()
         })
@@ -7629,6 +7630,7 @@ impl
                 .map(payments_grpc::SourceBankData::foreign_try_from)
                 .transpose()?,
             description: router_data.description.clone(),
+            connector_eligibility_reference_id: None,
         })
     }
 }
@@ -8431,6 +8433,7 @@ impl transformers::ForeignTryFrom<&api_models::payouts::Passthrough>
         Ok(Self {
             psp_token: item.psp_token.clone().expose(),
             token_type: payments_grpc::PaymentMethodType::foreign_from(item.token_type).into(),
+            psp_customer_id: None,
         })
     }
 }

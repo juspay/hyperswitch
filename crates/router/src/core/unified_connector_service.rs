@@ -1019,7 +1019,13 @@ pub fn build_unified_connector_service_payment_method(
             }
             hyperswitch_domain_models::payment_method_data::BankRedirectData::OpenBanking {} =>
                 Ok(payments_grpc::PaymentMethod {
-                        payment_method: Some(PaymentMethod::OpenBanking(OpenBanking {})),
+                        payment_method: Some(PaymentMethod::OpenBanking(OpenBanking {
+                            iban: None,
+                            account_number: None,
+                            sort_code: None,
+                            account_holder_name: None,
+                            additional_details: None,
+                        })),
                     }),
             hyperswitch_domain_models::payment_method_data::BankRedirectData::Ideal { bank_name } => {
                 let ideal = payments_grpc::Ideal {
