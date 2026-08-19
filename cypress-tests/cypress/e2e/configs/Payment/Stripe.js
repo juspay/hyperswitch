@@ -467,12 +467,9 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          // REQUIRED L2/L3 CORE FIELDS (Must be present and validated)
           status: "succeeded",
           shipping_cost: 1000,
           merchant_order_reference_id: "stripe-l2l3-order-reference",
-
-          // REQUIRED L3 DATA (Line Items)
           order_details: [
             {
               product_name: "Test Product Bundle",
@@ -481,8 +478,6 @@ export const connectorDetails = {
               requires_shipping: true,
             },
           ],
-
-          // REQUIRED SHIPPING ADDRESS
           shipping: {
             address: {
               line1: "ewwe",
@@ -495,38 +490,6 @@ export const connectorDetails = {
               last_name: "wer",
             },
           },
-
-          // REQUIRED PAYMENT & AMOUNT FIELDS
-          payment_id: "pay_",
-          merchant_id: "cyMerchant_",
-          amount: 6000,
-          net_amount: 7000,
-          currency: "USD",
-          payment_method: "card",
-          connector: "stripe",
-
-          // REQUIRED PAYMENT DETAILS
-          capture_method: "automatic",
-          authentication_type: "no_three_ds",
-          status: "succeeded",
-          amount_received: 7000,
-          amount_capturable: 0,
-
-          // REQUIRED CUSTOMER DATA
-          customer: {
-            id: "cus_",
-            name: "Joseph First Crypto",
-            email: "hyperswitch_sdk_demo_id@gmail.com",
-          },
-
-          // REQUIRED TRANSACTION IDs
-          connector_transaction_id: "pi_",
-          network_transaction_id: "",
-
-          // REQUIRED IDENTIFIERS & PROFILE
-          profile_id: "pro_",
-          connector_id: "mca_",
-          payment_channel: "ecommerce",
         },
       },
       Configs: {
