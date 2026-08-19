@@ -643,7 +643,7 @@ config! {
     output = scheduler::types::process_data::RevenueRecoveryPaymentProcessTrackerMapping,
     default = scheduler::types::process_data::RevenueRecoveryPaymentProcessTrackerMapping::default(),
     object = true,
-    requires = dimension_state::DimensionsWithProcessorMerchantIdAndConnector,
+    requires = dimension_state::DimensionsWithProcessorMerchantIdAndConnectorAndPaymentMethodType,
     targeting_key = id_type::PaymentId
 }
 

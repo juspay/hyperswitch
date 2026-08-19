@@ -1,5 +1,5 @@
 #[cfg(feature = "v2")]
-use std::collections::HashMap;
+use std::{collections::HashMap, str::FromStr};
 
 #[cfg(feature = "v2")]
 use api_models::{
@@ -232,11 +232,51 @@ pub(crate) async fn extract_data_and_perform_action(
     Ok(pcr_payment_data)
 }
 
+/// `card_type` on the Redis payment processor token holds the snake_case `PaymentMethodType`
+/// that the data backfill wrote ("credit" / "debit" / "card"), so it parses straight back.
+#[cfg(feature = "v2")]
+fn payment_method_type_from_redis_token(
+    token: Option<&PaymentProcessorTokenWithRetryInfo>,
+) -> Option<common_enums::PaymentMethodType> {
+    token
+        .and_then(|token| {
+            token
+                .token_status
+                .payment_processor_token_details
+                .card_type
+                .as_deref()
+        })
+        .and_then(|card_type| {
+            common_enums::PaymentMethodType::from_str(card_type)
+                .inspect_err(|error| {
+                    logger::warn!(
+                        card_type,
+                        ?error,
+                        "Unparseable card_type on the Redis payment processor token"
+                    )
+                })
+                .ok()
+        })
+}
+
+/// Only tokens the data backfill has touched carry a funding type, so the subtype the billing
+/// connector reported on the invoice is the fallback.
+#[cfg(feature = "v2")]
+pub(crate) fn payment_method_subtype_from_invoice(
+    payment_intent: &PaymentIntent,
+) -> Option<common_enums::PaymentMethodType> {
+    payment_intent
+        .feature_metadata
+        .as_ref()
+        .and_then(|metadata| metadata.payment_revenue_recovery_metadata.as_ref())
+        .map(|recovery_metadata| recovery_metadata.payment_method_subtype)
+}
+
 #[cfg(feature = "v2")]
 pub(crate) async fn get_schedule_time_to_retry_mit_payments(
     db: &dyn StorageInterface,
     superposition_client: &external_services::superposition::SuperpositionClient,
-    dimensions: &crate::core::configs::dimension_state::DimensionsWithProcessorMerchantIdAndConnector,
+    dimensions: &crate::core::configs::dimension_state::DimensionsWithProcessorMerchantIdAndConnectorAndPaymentMethodType,
     retry_count: i32,
 ) -> Option<time::PrimitiveDateTime> {
     let mapping = dimensions
@@ -647,24 +687,6 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
         }
 
         RevenueRecoveryAlgorithmType::Cascading => {
-            let dimensions = crate::core::configs::dimension_state::Dimensions::new()
-                .with_processor_merchant_id(payment_intent.merchant_id.clone().into())
-                .with_connector(billing_connector);
-            let schedule_time = get_schedule_time_to_retry_mit_payments(
-                state.store.as_ref(),
-                state.superposition_service.as_ref(),
-                &dimensions,
-                retry_count,
-            )
-            .await;
-
-            // Distinct from `None` below, which means "no token right now, come back later" and
-            // keeps the calculate job alive.
-            let Some(time) = schedule_time else {
-                logger::info!(retry_count, "Retry ladder exhausted for this invoice");
-                return Ok(PaymentProcessorTokenResponse::RetriesExhausted);
-            };
-
             let payment_processor_token = payment_intent
                 .feature_metadata
                 .as_ref()
@@ -690,6 +712,34 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
             let payment_processor_tokens_details_with_retry_info = payment_processor_token
                 .as_ref()
                 .and_then(|t| payment_processor_tokens_details.get(t));
+
+            // The ladder is resolved per payment method type, so the same invoice on a debit card
+            // can follow a different cadence than a credit card. The token is read above, so take
+            // the funding type from it and fall back to the subtype reported on the invoice.
+            let payment_method_type = payment_method_type_from_redis_token(
+                payment_processor_tokens_details_with_retry_info,
+            )
+            .or_else(|| payment_method_subtype_from_invoice(payment_intent));
+
+            let dimensions = crate::core::configs::dimension_state::Dimensions::new()
+                .with_processor_merchant_id(payment_intent.merchant_id.clone().into())
+                .with_connector(billing_connector)
+                .with_payment_method_type(payment_method_type);
+            let schedule_time = get_schedule_time_to_retry_mit_payments(
+                state.store.as_ref(),
+                state.superposition_service.as_ref(),
+                &dimensions,
+                retry_count,
+            )
+            .await;
+
+            // Checked before the token match below so that an exhausted ladder still finishes the
+            // job even when the token has gone missing. Distinct from `None`, which means "no
+            // token right now, come back later" and keeps the calculate job alive.
+            let Some(time) = schedule_time else {
+                logger::info!(retry_count, "Retry ladder exhausted for this invoice");
+                return Ok(PaymentProcessorTokenResponse::RetriesExhausted);
+            };
 
             // If payment_processor_tokens_details_with_retry_info is None, then no schedule time
             match payment_processor_tokens_details_with_retry_info {

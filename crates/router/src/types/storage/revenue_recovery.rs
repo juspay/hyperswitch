@@ -67,9 +67,16 @@ impl RevenueRecoveryPaymentData {
                         })
                         .ok()
                 })?;
+                // The ladder is resolved per payment method subtype, taken from the invoice
+                // rather than the attempt. The cascading path prefers the Redis token's funding
+                // type, but it already holds that token; this path would need a second Redis
+                // round-trip to match, which is not worth it for the invoice's own subtype.
+                let payment_method_type =
+                    revenue_recovery::payment_method_subtype_from_invoice(payment_intent);
                 let dimensions = crate::core::configs::dimension_state::Dimensions::new()
                     .with_processor_merchant_id(merchant_id.clone().into())
-                    .with_connector(connector);
+                    .with_connector(connector)
+                    .with_payment_method_type(payment_method_type);
                 revenue_recovery::get_schedule_time_to_retry_mit_payments(
                     state.store.as_ref(),
                     state.superposition_service.as_ref(),
