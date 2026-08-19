@@ -12468,6 +12468,7 @@ default_imp_for_refund_void_post_refund!(
     connectors::Chargebee,
     connectors::Checkbook,
     connectors::Checkout,
+    connectors::Citigate,
     connectors::Coinbase,
     connectors::Coingate,
     connectors::Cryptopay,

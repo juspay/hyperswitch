@@ -273,7 +273,12 @@ pub async fn refund_reverse_core(
         }
         common_enums::ExecutionPath::Direct
         | common_enums::ExecutionPath::ShadowUnifiedConnectorService => {
-            execute_refund_void_post_refund_via_direct(&state, &connector, router_data).await?
+            Box::pin(execute_refund_void_post_refund_via_direct(
+                &state,
+                &connector,
+                router_data,
+            ))
+            .await?
         }
     };
     let metadata = build_void_post_refund_metadata(refund.metadata.clone(), &reverse_response)?;
