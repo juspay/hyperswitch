@@ -25,29 +25,10 @@ fn non_empty(value: Option<&str>) -> Option<&str> {
     value.map(str::trim).filter(|value| !value.is_empty())
 }
 
-/// The id a recording is known by when nothing configured one.
-///
-/// It names the revision that produced the recording, when recording began,
-/// and which instance produced it:
-///
-/// ```text
-/// rec-dcb9f9e-07291352-a3
-/// ```
-///
-/// Those three facts are already on every envelope this recorder emits, but a
-/// name that carries them can be READ and grouped without opening anything —
-/// and the replay that drives this recording embeds the id, so its own name
-/// then states both revisions: the one that recorded and the one under test.
-/// That comparison is the question a regression tool exists to answer, and it
-/// currently takes two lookups.
-///
-/// When the revision is not known, the older form is kept instead. A name is
-/// worse than useless if it claims a provenance it does not have:
-/// `rec-unknown-…` looks informative and is not, whereas a bare timestamp at
-/// least admits it carries nothing. The fallback is announced, because a
-/// recorder that cannot name its own revision is producing recordings nobody
-/// can reason about later, and that is worth noticing at startup rather than
-/// weeks afterwards when the provenance is questioned.
+/// The id a recording is known by when nothing configured one:
+/// `rec-<short sha>-<MMDDhhmm>-<instance>`, e.g. `rec-dcb9f9e-07291352-a3`.
+/// Without a known revision it falls back to the bare-timestamp form (with a
+/// warning) rather than claiming a provenance it does not have.
 fn fallback_run_id(settings: &DejaSettings) -> String {
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -78,8 +59,8 @@ fn short_revision(sha: &str) -> String {
         .to_ascii_lowercase()
 }
 
-/// `MMDDhhmm` UTC. Minute resolution: the instance discriminator separates two
-/// recorders that start together, and a single process records once.
+/// `MMDDhhmm` UTC; the instance discriminator separates recorders that start
+/// in the same minute.
 fn recording_stamp(unix_secs: u64) -> String {
     let (month, day) = civil_month_day(unix_secs / 86_400);
     let today = unix_secs % 86_400;
@@ -90,9 +71,8 @@ fn recording_stamp(unix_secs: u64) -> String {
     )
 }
 
-/// Two characters standing for the instance, so two pods that start in the same
-/// minute do not share a recording id. The instance itself is on every envelope
-/// as `instance_id`; a name needs only to separate, not to identify.
+/// Two characters standing for the instance, so two pods that start in the
+/// same minute do not share a recording id.
 fn instance_discriminator(instance_id: &str) -> String {
     // FNV-1a, so the same pod is always the same two characters.
     let mut hash: u64 = 0xcbf2_9ce4_8422_2325;
@@ -101,9 +81,8 @@ fn instance_discriminator(instance_id: &str) -> String {
         hash = hash.wrapping_mul(0x100_0000_01b3);
     }
     const ALPHABET: &[u8] = b"0123456789abcdefghijklmnopqrstuvwxyz";
-    // `n % 36` is always a valid index into a 36-byte alphabet, so the fallback
-    // is unreachable. It is spelled out rather than asserted because a boot-time
-    // naming helper must not be able to panic.
+    // `n % 36` always indexes the 36-byte alphabet; spelled out instead of
+    // asserted because a boot-time naming helper must not panic.
     let pick = |n: u64| {
         usize::try_from(n % 36)
             .ok()
@@ -115,11 +94,9 @@ fn instance_discriminator(instance_id: &str) -> String {
     format!("{a}{b}")
 }
 
-/// Days since the epoch to (month, day), civil-from-days. A calendar is needed
-/// in exactly one place, which does not justify a dependency.
+/// Days since the epoch to (month, day), civil-from-days.
 fn civil_month_day(days_since_epoch: u64) -> (i64, i64) {
-    // A clock this far ahead cannot occur. A stamp is a name, not a measurement,
-    // so an impossible clock degrades to a valid date instead of panicking.
+    // An impossible clock degrades to a valid date instead of panicking.
     let Some(z) = i64::try_from(days_since_epoch)
         .ok()
         .and_then(|days| days.checked_add(719_468))
@@ -170,11 +147,7 @@ fn resolved_code_sha(settings: &DejaSettings) -> Option<String> {
     configured_value(settings.identity.code_sha.as_deref())
         .or_else(|| env_value_named(&settings.identity.git_sha_env))
         .or_else(|| option_env!("VERGEN_GIT_SHA").map(str::to_owned))
-    // Deliberately NOT falling back to a placeholder. A literal "unknown"
-    // satisfies the type while destroying the meaning: it cannot be told apart
-    // from a build genuinely named that, and it turns every consumer's "is the
-    // revision known" check into one that always answers yes. Absence is a fact
-    // worth being able to observe.
+    // No "unknown" placeholder: absence is a fact worth being able to observe.
 }
 
 fn writer_config(settings: &DejaSettings) -> deja::WriterConfig {

@@ -62,12 +62,7 @@ async fn main() -> ApplicationResult<()> {
     );
 
     // Record mode fails open to a disabled hook so a broken recorder never
-    // takes down the router. That is deliberate, but it used to be reported at
-    // the same level as a successful install, leaving "recording" and "not
-    // recording" indistinguishable outside a pre-logger `eprintln!`. The
-    // per-request path branches on the installed hook while the sampler is
-    // built from this same config, so a silent downgrade here also strands an
-    // unused sampler.
+    // takes down the router; make the downgrade loud instead of silent.
     #[cfg(feature = "deja")]
     if matches!(conf.deja.mode, router::configs::settings::DejaMode::Record)
         && deja_install_report.mode != "record"

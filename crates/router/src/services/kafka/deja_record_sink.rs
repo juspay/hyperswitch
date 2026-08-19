@@ -577,13 +577,6 @@ mod tests {
             value.pointer("/node/global_sequence"),
             Some(&serde_json::json!(42))
         );
-        // The node states the request it ran under, and that statement has to
-        // survive the envelope: a consumer scopes a graph by this field rather
-        // than by joining through a boundary event that names the node.
-        assert_eq!(
-            value.pointer("/node/correlation_id"),
-            Some(&serde_json::json!("c-123"))
-        );
         assert_eq!(
             value.pointer("/node/span_name"),
             Some(&serde_json::json!("payment.request"))

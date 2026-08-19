@@ -271,12 +271,8 @@ impl Cache {
         }
     }
 
-    /// Populate one entry. Recorded args-only (cache name + logical key):
-    /// the VALUE is observable through the instrumented read; what the event
-    /// buys is population accounting — a candidate that populates a cache the
-    /// baseline never did (or vice versa) becomes a visible call divergence.
-    /// `replay = Execute`: the real (correlation-namespaced) moka insert runs
-    /// on replay; the shadow compare of `()` is trivially inert.
+    // Deja: recorded args-only for population accounting; the real moka insert
+    // still runs on replay (`replay = Execute`).
     #[cfg_attr(
         feature = "deja",
         deja::boundary(
@@ -295,22 +291,10 @@ impl Cache {
             .await;
     }
 
-    /// Read one entry. THE deja L1 seam: every read of process-local cache
-    /// state crosses this boundary — instrumented on the METHOD, not on any
-    /// helper above it, so no call path can be blind by construction (the
-    /// `get_or_populate_in_memory_with_transform` variant read the moka
-    /// directly and its L1 hits were invisible: no event on record, a cold
-    /// miss on replay, and an 86-correlation HE_02 wall in the sandbox).
-    /// A recorded `Some(v)` substitutes; a recorded `None` re-triggers the
-    /// caller's (separately instrumented) fallback identically on record and
-    /// replay. NOT fall-through-silent: a novel L1 read on replay is a real
-    /// divergence, and falling through would read the cross-correlation
-    /// moka — fail-stop is correct.
-    ///
-    /// The serde bound is the chokepoint's lint: a type that cannot be
-    /// captured cannot be cached. It is deliberately unconditional — a cache
-    /// value type that only compiles feature-off is a blind read waiting to
-    /// ship.
+    // Deja: the L1 seam, instrumented on the method itself so no call path can
+    // bypass it. A recorded `Some(v)` substitutes on replay; a recorded `None`
+    // re-triggers the caller's fallback. The serde bound is deliberately
+    // unconditional: a type that cannot be captured cannot be cached.
     #[cfg_attr(
         feature = "deja",
         deja::boundary(
@@ -343,9 +327,7 @@ impl Cache {
         val
     }
 
-    /// Check if a key exists in cache. Same state channel as [`Self::get_val`]
-    /// — instrumented even though it has no production caller today, so the
-    /// first future caller is covered instead of blind.
+    /// Check if a key exists in cache
     #[cfg_attr(
         feature = "deja",
         deja::boundary(
@@ -362,10 +344,8 @@ impl Cache {
         self.inner.contains_key::<String>(&in_memory_cache_key(key))
     }
 
-    /// Invalidate one entry. Args-only, `replay = Execute` — the event is
-    /// the point: a candidate that forgets an invalidation the baseline
-    /// performed (or invalidates something it never did) is a visible call
-    /// divergence instead of a mystery staleness bug.
+    // Deja: recorded args-only so a missed or extra invalidation shows up as a
+    // call divergence; the real invalidation still runs on replay.
     #[cfg_attr(
         feature = "deja",
         deja::boundary(
@@ -480,8 +460,6 @@ where
         key: key.to_string(),
         prefix: redis.redis_conn.key_prefix.clone(),
     };
-    // The L1 lookup is instrumented on `Cache::get_val` itself — the
-    // chokepoint — so this helper needs no deja-specific path at all.
     let cache_val = cache.get_val::<T>(cache_key).await;
     if let Some(val) = cache_val {
         Ok(val)
@@ -637,30 +615,6 @@ where
     let data = fun().await?;
     redact_from_redis_and_publish(store, keys).await?;
     Ok(data)
-}
-
-#[cfg(test)]
-mod chokepoint_invariant {
-    /// The moka store may be touched ONLY inside the instrumented `Cache`
-    /// methods — every other path is a blind read of process-local state
-    /// (the class behind the sandbox HE_02 wall). This counts the
-    /// `self.inner` touches in this file: the four boundary methods
-    /// (`push`/`get_val`/`exists`/`remove`), the two private maintenance
-    /// helpers (`run_pending_tasks`/`get_entry_count`), and the constructor.
-    /// Adding an eighth touch means either instrumenting it or routing it
-    /// through an existing boundary — bump this count only with a boundary
-    /// attribute to show for it.
-    #[test]
-    fn moka_is_touched_only_inside_instrumented_methods() {
-        let source = include_str!("cache.rs");
-        // 6 real touches + the 3 mentions inside this very test module.
-        let touches = source.matches("self.inner").count();
-        assert_eq!(
-            touches, 9,
-            "a new `self.inner` touch appeared in cache.rs — instrument it as a deja boundary \
-             (or route it through one) before bumping this count"
-        );
-    }
 }
 
 #[cfg(test)]

@@ -217,14 +217,9 @@ done
 # dimension_type + json-logic definitions do not round-trip cleanly through the
 # TOML conversion.
 #
-# Each rule anchors the path with `match` (regex) rather than testing for a
-# substring with `in`. `{"in": ["/payments", path]}` is `path.contains(...)`,
-# which matched the route anywhere in the path, not just at the start — so the
-# v2 twins of payments/configs/organizations were swept in while /v2/api-keys
-# and /v2/merchant-accounts were not, purely because v2 renamed underscores to
-# hyphens. The v2 routes below are the ones the substring rules already
-# selected, now stated explicitly; add or remove lines to change the bucket.
-# Note `match` takes [text, pattern] — the opposite argument order from `in`.
+# Each rule anchors the path with `match` (regex) rather than substring `in`,
+# so only route prefixes select. Note `match` takes [text, pattern] — the
+# opposite argument order from `in`.
 echo "Seeding Deja recording sampler (deja_dimension cohort + deja_record override)..."
 post_or_fail "$SUPERPOSITION_URL/dimension" '{
     "dimension": "deja_dimension",
@@ -261,23 +256,14 @@ put_or_fail "$SUPERPOSITION_URL/context" '{
     "change_reason": "Deja recording sampler"
 }' "deja_record override"
 
-# Prove the sampler policy actually resolves.
-# ------------------------------------------------------------------------------
-# Everything above is create-if-absent, and the pieces only combine correctly on
-# the server: the cohort has to be derived from the `path` dimension via a
-# dependency graph this script never writes explicitly, and the override only
-# applies if that derivation names the bucket "recordable". When any of that
-# fails, nothing errors — `deja_record` simply keeps resolving to its default of
-# false and the router records an empty tape. That is indistinguishable from a
-# correctly-seeded instance skipping traffic it was told to skip, so assert both
-# directions here, where the answer is still cheap to get.
+# Prove the sampler policy actually resolves: a mis-seeded cohort fails
+# silently (`deja_record` just keeps resolving to false), so assert both
+# directions here where the answer is still cheap to get.
 resolve_deja_record() {
     local path="$1"
 
     # `has` rather than `//`: jq's alternative operator treats false as empty,
-    # so `.deja_record // "missing"` reports a correctly-resolved skip as a
-    # missing key — turning the expected answer for every non-recordable path
-    # into a failure.
+    # which would report a correctly-resolved skip as a missing key.
     curl -sS -X POST "$SUPERPOSITION_URL/config/resolve" \
         -H "Content-Type: application/json" \
         -H "x-org-id: $ORG_ID" \
@@ -286,12 +272,8 @@ resolve_deja_record() {
         | jq -r 'if has("deja_record") then (.deja_record | tostring) else "missing" end'
 }
 
-# Three probes, because each rules out a different way of being wrong. A
-# recordable path must record, or the policy selects nothing. A probe path must
-# skip, or it selects everything. And a path that merely contains a recordable
-# route must skip, or the rules have gone back to matching substrings, which
-# selects by accident — /foo/payments and /payments_hack were both recordable
-# under the substring rules.
+# Three probes: a recordable path must record, a probe path must skip, and a
+# path merely containing a recordable route must skip (anchored, not substring).
 echo "Verifying the Deja recording sampler resolves..."
 RECORDABLE_RESOLVED=$(resolve_deja_record "/payments")
 PROBE_RESOLVED=$(resolve_deja_record "/health")

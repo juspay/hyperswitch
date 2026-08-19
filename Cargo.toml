@@ -51,13 +51,9 @@ strip = true
 lto = true
 codegen-units = 1
 
-
-# Development-cycle build: `release` above pays fat LTO + a single codegen
-# unit + stripped symbols for peak runtime speed, at ~an hour of compile.
-# This profile keeps optimization but drops the expensive tail, so an image
-# for iteration builds in a fraction of the time, runs close to release
-# speed, and keeps symbols so backtraces resolve. Selected via the
-# Dockerfile's CARGO_BUILD_PROFILE build arg; never the default.
+# Development-cycle build: optimized but without LTO, with parallel codegen and
+# symbols kept. Selected via the Dockerfile's CARGO_BUILD_PROFILE build arg;
+# never the default.
 [profile.release-fast]
 inherits = "release"
 lto = false

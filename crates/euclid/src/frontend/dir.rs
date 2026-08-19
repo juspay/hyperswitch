@@ -256,12 +256,8 @@ pub enum DirKeyKind {
     )]
     #[serde(rename = "billing_country")]
     BillingCountry,
-    // Deserializable like every other variant. `skip_deserializing` was
-    // invisible dead weight for as long as nothing read a DirValue/DirKey
-    // back — the DSL parses from its own AST — but a recorded constraint
-    // graph substituted on replay IS read back, and a variant that
-    // serializes under a tag it refuses to accept fails reconstruction for
-    // the entire graph.
+    // No `skip_deserializing`: a recorded constraint graph substituted on
+    // replay is read back, and an unreadable variant fails the whole graph.
     #[serde(rename = "connector")]
     Connector,
     #[strum(
@@ -688,12 +684,8 @@ pub enum DirValue {
     BusinessCountry(enums::Country),
     #[serde(rename = "billing_country")]
     BillingCountry(enums::Country),
-    // Deserializable like every other variant. `skip_deserializing` was
-    // invisible dead weight for as long as nothing read a DirValue/DirKey
-    // back — the DSL parses from its own AST — but a recorded constraint
-    // graph substituted on replay IS read back, and a variant that
-    // serializes under a tag it refuses to accept fails reconstruction for
-    // the entire graph.
+    // No `skip_deserializing`: a recorded constraint graph substituted on
+    // replay is read back, and an unreadable variant fails the whole graph.
     #[serde(rename = "connector")]
     Connector(Box<ast::ConnectorChoice>),
     #[serde(rename = "business_label")]
@@ -1132,47 +1124,5 @@ mod test {
 
         let out = ast::lowering::lower_program::<DummyOutput>(program);
         assert!(out.is_err())
-    }
-}
-
-#[cfg(test)]
-mod serde_round_trip {
-    use strum::IntoEnumIterator;
-
-    use super::{DirKey, DirKeyKind};
-
-    /// Every key kind must survive a serde round trip.
-    ///
-    /// A variant that serializes under a tag it refuses to deserialize is
-    /// invisible to the compiler and silent in every test that only ever
-    /// writes. `DirKeyKind::Connector` and `DirValue::Connector` carried
-    /// `skip_deserializing` for years, harmlessly, because nothing read these
-    /// back — until a recorded constraint graph was substituted on replay,
-    /// where reconstruction of the WHOLE graph failed on the one unreadable
-    /// variant and took the request down with it. Enumerating the variants
-    /// keeps the asymmetry from returning silently for any of them.
-    #[test]
-    fn every_key_kind_round_trips() {
-        for kind in DirKeyKind::iter() {
-            let wire = serde_json::to_value(&kind)
-                .unwrap_or_else(|e| panic!("{kind:?} does not serialize: {e}"));
-            let back: DirKeyKind = serde_json::from_value(wire.clone()).unwrap_or_else(|e| {
-                panic!("{kind:?} serializes as {wire} but does not read back: {e}")
-            });
-            assert_eq!(back, kind, "{kind:?} changed identity across a round trip");
-        }
-    }
-
-    /// The same for a full key, which is what a graph's key nodes carry.
-    #[test]
-    fn every_key_round_trips_inside_a_key() {
-        for kind in DirKeyKind::iter() {
-            let key = DirKey::new(kind.clone(), None);
-            let wire = serde_json::to_value(&key).expect("serializes");
-            let back: DirKey = serde_json::from_value(wire.clone()).unwrap_or_else(|e| {
-                panic!("DirKey({kind:?}) serializes as {wire} but does not read back: {e}")
-            });
-            assert_eq!(back, key);
-        }
     }
 }

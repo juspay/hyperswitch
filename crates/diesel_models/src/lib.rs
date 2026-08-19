@@ -72,12 +72,9 @@ use diesel_impl::{RequiredFromNullable, RequiredFromNullableWithDefault};
 pub type StorageResult<T> = error_stack::Result<T, errors::DatabaseError>;
 
 /// The concrete diesel connection type every pg pool in the workspace is built
-/// over. Under `deja`, queries run through `deja::DejaLoadConnection`, a
-/// delegating wrapper that captures each result row's wire bytes (column name,
-/// type OID, binary value) before `FromSql` consumes them, so recorded tapes
-/// carry the physical row image for wire-faithful seeding. Feature-off, this
-/// is exactly `diesel::PgConnection` — no wrapper in the type, byte-identical
-/// behavior.
+/// over. Under `deja` it is a delegating wrapper that captures each result
+/// row's wire bytes before `FromSql` consumes them; feature-off it is exactly
+/// `diesel::PgConnection`.
 #[cfg(feature = "deja")]
 pub type DejaPgConnection = deja::DejaLoadConnection<diesel::PgConnection>;
 #[cfg(not(feature = "deja"))]

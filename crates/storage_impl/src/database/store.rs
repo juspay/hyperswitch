@@ -183,13 +183,9 @@ pub async fn diesel_make_pg_pool(
         .change_context(StorageError::InitializationError)
         .attach_printable("Failed to create PostgreSQL connection pool")?;
 
-    // Tell deja which columns identify a row, by asking this database's own
-    // catalog. Row identity is a fact about the SCHEMA, so the schema is what
-    // answers it — deja carries no table list of its own, and a composite key
-    // arrives as the several columns it actually has. Runs once per process
-    // (idempotent, and only while observation is active); on failure identity
-    // stays unregistered, which makes recorded row keys absent rather than
-    // wrong.
+    // Register row identity (primary-key columns) with deja from this
+    // database's own catalog. Idempotent; on failure identity stays
+    // unregistered, making recorded row keys absent rather than wrong.
     #[cfg(feature = "deja")]
     if !deja::runtime_mode_is_disabled() {
         use async_bb8_diesel::AsyncConnection;

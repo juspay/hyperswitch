@@ -118,14 +118,10 @@ impl<T> DejaQueryResult for T {}
 // exprs `.peek()` them at the boundary, and the tape keeps full fidelity.
 // Feature-off, every executor is a plain async fn passthrough.
 
-/// Under `deja`, a row-returning query future resolves to the result PAIRED
-/// with the binary wire rows its own connection captured while producing it:
-/// the captured helpers (`deja::db::get_result_captured` and friends) take the
-/// capture inside the same `conn.run` closure that executed the statement, so
-/// the pairing is lexical and rides the future's value to the boundary —
-/// there is no registry, task-local, or per-checkout install to be evicted or
-/// out of scope. Feature-off the alias is the bare result and everything
-/// compiles exactly as before.
+/// Under `deja`, a row-returning query future resolves to the result paired
+/// with the binary wire rows its own connection captured while producing it;
+/// the pairing is lexical, riding the future's value to the boundary.
+/// Feature-off the alias is the bare result.
 #[cfg(feature = "deja")]
 type Captured<T> = (T, Option<Vec<deja::db::WireRow>>);
 #[cfg(not(feature = "deja"))]

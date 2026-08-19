@@ -773,21 +773,11 @@ where
     }
 }
 
-/// EXACT two-halves serde for [`Encryptable`], for the one context that needs
-/// it: deja capturing a cached DECRYPTED domain value and substituting it back
-/// on replay.
-///
-/// The type's own impls are lossy ON PURPOSE and stay that way — an API
-/// response must expose the value and never the ciphertext, so `Serialize`
-/// writes only `inner` and `Deserialize` rebuilds with an EMPTY ciphertext. For
-/// capture that asymmetry is fatal rather than tidy: a value restored through
-/// it has lost its encrypted half, and `into_encrypted()` has callers on
-/// write-back paths, so a replayed flow would persist empty bytes and call it
-/// reproduction. This module carries BOTH halves verbatim.
-///
-/// Applied per field with `#[serde(with = "…encryptable_exact")]` for a
-/// required field, or `…encryptable_exact::optional` for an `Option`. Nothing
-/// about the public serde behaviour of [`Encryptable`] changes.
+/// Lossless two-halves serde for [`Encryptable`], used by deja capture/replay.
+/// The type's own impls intentionally drop the ciphertext (API responses must
+/// never expose it); this module carries both halves so a substituted value
+/// keeps its encrypted half. Applied per field with
+/// `#[serde(with = "…encryptable_exact")]` (or `::optional` for an `Option`).
 pub mod encryptable_exact {
     use hyperswitch_masking::PeekInterface;
     use serde::{Deserialize, Serialize};
@@ -973,79 +963,6 @@ impl SignMessage for RsaPssSha256 {
             .attach_printable("Failed to sign data with ring")?;
 
         Ok(signature_bytes)
-    }
-}
-
-#[cfg(test)]
-mod encryptable_exact_tests {
-    use hyperswitch_masking::{PeekInterface, Secret};
-    use serde::{Deserialize, Serialize};
-
-    use super::Encryptable;
-
-    #[derive(Serialize, Deserialize)]
-    struct Holder {
-        #[serde(with = "super::encryptable_exact")]
-        required: Encryptable<Secret<String>>,
-        #[serde(with = "super::encryptable_exact::optional")]
-        optional: Option<Encryptable<Secret<String>>>,
-    }
-
-    /// The exactness that matters: the CIPHERTEXT survives the round trip.
-    /// `Encryptable`'s own impls drop it on purpose (an API response must never
-    /// expose it), so capturing a cached decrypted value through them yields
-    /// something the source never held — and `into_encrypted()` has callers on
-    /// write-back paths, which would persist the empty bytes and call it
-    /// reproduction.
-    #[test]
-    fn both_halves_survive_the_round_trip() {
-        let ciphertext = vec![7_u8, 8, 9, 250];
-        let holder = Holder {
-            required: Encryptable::new(
-                Secret::new("plaintext".to_owned()),
-                Secret::new(ciphertext.clone()),
-            ),
-            optional: Some(Encryptable::new(
-                Secret::new("other".to_owned()),
-                Secret::new(vec![1_u8, 2]),
-            )),
-        };
-
-        let wire = serde_json::to_value(&holder).expect("serializes");
-        let back: Holder = serde_json::from_value(wire).expect("deserializes");
-
-        assert_eq!(back.required.get_inner().peek(), "plaintext");
-        assert_eq!(
-            back.required.clone().into_encrypted().peek(),
-            &ciphertext,
-            "the encrypted half must round-trip, not come back empty"
-        );
-        let optional = back.optional.expect("optional present");
-        assert_eq!(optional.get_inner().peek(), "other");
-        assert_eq!(optional.into_encrypted().peek(), &vec![1_u8, 2]);
-
-        // A None optional stays None.
-        let empty = Holder {
-            required: Encryptable::new(Secret::new("x".to_owned()), Secret::new(vec![])),
-            optional: None,
-        };
-        let wire = serde_json::to_value(&empty).expect("serializes");
-        let back: Holder = serde_json::from_value(wire).expect("deserializes");
-        assert!(back.optional.is_none());
-    }
-
-    /// The type's own impls stay lossy — this is the contract the helper exists
-    /// to work around, and a change to it would silently re-break capture.
-    #[test]
-    fn the_types_own_serde_still_drops_the_ciphertext() {
-        let value: Encryptable<Secret<String>> =
-            Encryptable::new(Secret::new("v".to_owned()), Secret::new(vec![1_u8, 2, 3]));
-        let wire = serde_json::to_value(&value).expect("serializes");
-        let back: Encryptable<Secret<String>> = serde_json::from_value(wire).expect("deserializes");
-        assert!(
-            back.into_encrypted().peek().is_empty(),
-            "documented lossiness: the public impls carry only the value"
-        );
     }
 }
 

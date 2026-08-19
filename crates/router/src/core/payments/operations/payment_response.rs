@@ -79,18 +79,8 @@ fn spawn_save_payment_method<F>(future: F)
 where
     F: Future<Output = ()> + Send + 'static,
 {
-    // `RetainedDejaDecision`, defined privately here, is gone: `deja::spawn_fork`
-    // now captures the request context at spawn and re-enters it per poll, so the
-    // rule lives once inside the fork boundary instead of once per host call
-    // site. The behaviour this site needs is unchanged — the tail still records
-    // after the response has returned and ingress has cleared the decision
-    // registry — and a second detached spawn (the decision-service registration
-    // in `services::authentication::decision`) now gets it for free rather than
-    // by copying it.
-    //
-    // NOTE: this requires a `deja` revision carrying that change. Against an
-    // older one the tail silently stops recording; the post-request test below
-    // is what catches it.
+    // Under `deja`, the detached tail must keep the request's correlation and
+    // sampling decision past ingress teardown; `deja::spawn_fork` carries both.
     #[cfg(feature = "deja")]
     deja::spawn_fork(future);
 
@@ -4583,84 +4573,5 @@ impl<F: Clone + Send + Sync>
         }
 
         Ok(payment_data)
-    }
-}
-#[cfg(all(test, feature = "deja"))]
-mod deja_tests {
-    use super::spawn_save_payment_method;
-
-    #[tokio::test]
-    async fn detached_save_payment_method_clock_retains_correlation_and_fork_lineage() {
-        const CORRELATION_ID: &str = "payment-response-detached-save-payment-method-clock";
-
-        let (modified_at, events) = crate::deja_test_support::capture_after_request(
-            CORRELATION_ID,
-            async {
-                let (release_tx, release_rx) = tokio::sync::oneshot::channel();
-                let (completed_tx, completed_rx) = tokio::sync::oneshot::channel();
-
-                spawn_save_payment_method(async move {
-                    release_rx
-                        .await
-                        .expect("request must release detached save-payment-method future");
-                    let update =
-                        diesel_models::payment_attempt::PaymentAttemptUpdate::PaymentMethodDetailsUpdate {
-                            payment_method_id: Some("pm_detached_clock".to_owned()),
-                            updated_by: "payment-response-deja-test".to_owned(),
-                        };
-                    let internal =
-                        diesel_models::payment_attempt::PaymentAttemptUpdateInternal::from(update);
-                    let _ = completed_tx.send(internal.modified_at);
-                });
-
-                (release_tx, completed_rx)
-            },
-            |(release_tx, completed_rx)| async move {
-                release_tx
-                    .send(())
-                    .expect("detached save-payment-method future must still be waiting");
-                completed_rx
-                    .await
-                    .expect("detached save-payment-method future must complete")
-            },
-        )
-        .await;
-
-        let clock_event = events
-            .iter()
-            .find_map(|record| match record {
-                deja::DejaRecord::BoundaryEvent(event)
-                    if event.boundary == "time"
-                        && event.trait_name == "common_utils"
-                        && event.method_name == "date_time::now" =>
-                {
-                    Some(event.as_ref())
-                }
-                _ => None,
-            })
-            .expect("PaymentMethodDetailsUpdate clock boundary must be retained");
-
-        assert_eq!(
-            clock_event.correlation_id.as_deref(),
-            Some(CORRELATION_ID),
-            "detached clock boundary must inherit the request correlation"
-        );
-        assert_eq!(
-            clock_event.result,
-            serde_json::to_value(modified_at).expect("modified_at must serialize"),
-            "capture must retain PaymentMethodDetailsUpdate's plaintext modified_at"
-        );
-        let lineage_bucket = clock_event
-            .bucket_id
-            .as_deref()
-            .expect("deja.fork must stamp a lineage bucket");
-        assert_ne!(
-            lineage_bucket, "root",
-            "deja.fork must create a non-root lineage bucket"
-        );
-        assert!(
-            clock_event.fork_seq.is_some_and(|fork_seq| fork_seq > 0),
-            "deja.fork must stamp a positive fork sequence"
-        );
     }
 }

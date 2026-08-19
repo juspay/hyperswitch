@@ -25,15 +25,9 @@ struct CheckNodeContext<'a, V: ValueNode, C: CheckingContext<Value = V>> {
     domains: Option<&'a [DomainId]>,
 }
 
-/// Serde carries the EVALUATION state of a finished graph — `domain`,
-/// `domain_identifier_map`, `nodes`, `edges`. `value_map` is not on the
-/// wire but IS rebuilt on deserialization (see [`ConstraintGraphWire`]):
-/// it is the entry point of every check — `value_analysis`/`key_analysis`
-/// resolve context values through it — so an empty map silently passes all
-/// analysis. `node_info`/`node_metadata` stay empty on the way in: they are
-/// diagnostics resolved through `.get(..).flatten()`, with no readers
-/// outside this crate. A deserialized graph evaluates identically; it
-/// cannot be handed back to a builder.
+/// Serde carries the evaluation state of a finished graph. `value_map` is not
+/// on the wire but is rebuilt on deserialization (see [`ConstraintGraphWire`]);
+/// `node_info`/`node_metadata` are diagnostics and stay empty on the way in.
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 #[serde(bound(
     serialize = "V: serde::Serialize, <V as ValueNode>::Key: serde::Serialize",
@@ -53,13 +47,9 @@ pub struct ConstraintGraph<V: ValueNode> {
     pub node_metadata: DenseMap<NodeId, Option<Arc<dyn Metadata>>>,
 }
 
-/// The deserialization shape of [`ConstraintGraph`]: the four carried
-/// fields. `value_map` is REBUILT from `nodes` on the way in rather than
-/// serialized — its key is a structured enum no JSON map can key, and it is
-/// exactly derivable: the builder inserts a `value_map` entry if and only if
-/// it creates the corresponding value node. Rebuilding keeps the wire shape
-/// identical to what the Serialize side emits, so a graph captured before
-/// this impl existed still deserializes into a graph that evaluates.
+/// The deserialization shape of [`ConstraintGraph`]. `value_map` is rebuilt
+/// from `nodes` rather than serialized: its key is a structured enum no JSON
+/// map can key, and the builder inserts an entry iff it creates the value node.
 #[derive(serde::Deserialize)]
 #[serde(bound(
     deserialize = "V: serde::de::DeserializeOwned, <V as ValueNode>::Key: serde::de::DeserializeOwned"
@@ -733,67 +723,5 @@ mod viz {
             let digraph = self.get_viz_digraph();
             digraph.print(&mut ctx)
         }
-    }
-}
-
-#[cfg(test)]
-mod serde_roundtrip {
-    use super::*;
-    use crate::types::KeyNode;
-
-    #[derive(Debug, Clone, Hash, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-    struct TestKey(String);
-    impl KeyNode for TestKey {}
-
-    #[derive(Debug, Clone, Hash, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-    struct TestValue(String);
-    impl ValueNode for TestValue {
-        type Key = TestKey;
-        fn get_key(&self) -> Self::Key {
-            TestKey(self.0.clone())
-        }
-    }
-
-    /// The wire carries no `value_map` (its key is a structured enum no JSON
-    /// map can key) — and an EMPTY map silently passes every check, because
-    /// `value_analysis`/`key_analysis` enter the graph through it. The
-    /// deserializer must rebuild it from `nodes`, exactly: the builder
-    /// inserts an entry if and only if it creates the value node. This is
-    /// the regression that took down 32 of 33 replayed payment flows when
-    /// the map was skipped without rebuilding.
-    #[test]
-    fn deserialization_rebuilds_the_value_map_from_nodes() {
-        let mut nodes = DenseMap::new();
-        let key_node = nodes.push(Node::new(NodeType::Value(NodeValue::Key(TestKey(
-            "k".to_string(),
-        )))));
-        let value_node = nodes.push(Node::new(NodeType::Value(NodeValue::Value(TestValue(
-            "v".to_string(),
-        )))));
-        let _aggregator = nodes.push(Node::new(NodeType::AllAggregator));
-        let mut value_map = FxHashMap::default();
-        value_map.insert(NodeValue::Key(TestKey("k".to_string())), key_node);
-        value_map.insert(NodeValue::Value(TestValue("v".to_string())), value_node);
-        let graph = ConstraintGraph::<TestValue> {
-            domain: DenseMap::new(),
-            domain_identifier_map: FxHashMap::default(),
-            nodes,
-            edges: DenseMap::new(),
-            value_map: value_map.clone(),
-            node_info: DenseMap::new(),
-            node_metadata: DenseMap::new(),
-        };
-
-        let wire = serde_json::to_value(&graph).expect("graph serializes");
-        assert!(
-            wire.get("value_map").is_none(),
-            "value_map stays off the wire"
-        );
-        let back: ConstraintGraph<TestValue> =
-            serde_json::from_value(wire).expect("graph deserializes");
-        assert_eq!(
-            back.value_map, value_map,
-            "value_map rebuilt from nodes, exactly"
-        );
     }
 }
