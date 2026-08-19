@@ -336,6 +336,7 @@ pub async fn payment_method_retrieve_api(
         payment_method_id: path.into_inner(),
     })
     .into_inner();
+    let retrieve_request = query_payload.into_inner();
 
     let api_auth = auth::V2ApiKeyAuth {
         allow_connected_scope_operation: true,
@@ -365,7 +366,7 @@ pub async fn payment_method_retrieve_api(
                     auth.profile,
                     auth.platform,
                     api_key_type,
-                    query_payload.fetch_raw_detail,
+                    retrieve_request.clone(),
                 ),
             )
         },
@@ -2202,11 +2203,10 @@ pub async fn payment_method_get_token_details_api(
 /// customer saved payment methods, filtered via Euclid constraint graph and
 /// session flow routing.
 ///
-/// Supported client auth:
+/// Supported auth:
 /// - SDK auth via `Authorization`.
 /// - Publishable-key auth via `api-key: pk_...` and `client_secret` query param.
-///
-/// Merchant secret-key auth is intentionally not supported for this endpoint.
+/// - Merchant API-key auth via `api-key: <api_key>`.
 #[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsList))]
 pub async fn list_payment_methods_for_payments_client(
     state: web::Data<AppState>,

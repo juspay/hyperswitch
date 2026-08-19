@@ -8,9 +8,7 @@ use std::str::FromStr;
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
 use std::sync::Arc;
 
-#[cfg(feature = "v1")]
-use api_models::open_router;
-use api_models::routing as routing_types;
+use api_models::{open_router, routing as routing_types};
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
 use common_utils::ext_traits::ValueExt;
 use common_utils::{ext_traits::Encode, id_type};
@@ -30,15 +28,14 @@ use external_services::grpc_client::dynamic_routing::{
 use hyperswitch_domain_models::api::ApplicationResponse;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use hyperswitch_interfaces::events::routing_api_logs as routing_events;
-#[cfg(feature = "v1")]
-use router_env::logger;
-#[cfg(feature = "v1")]
-use router_env::{instrument, tracing};
+use router_env::{instrument, logger, tracing};
 use rustc_hash::FxHashSet;
 use storage_impl::redis::cache;
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
 use storage_impl::redis::cache::Cacheable;
 
+#[cfg(feature = "v1")]
+use crate::core::payments::{OperationSessionGetters, OperationSessionSetters};
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
 use crate::db::errors::StorageErrorExt;
 #[cfg(feature = "v2")]
@@ -46,19 +43,15 @@ use crate::types::domain::MerchantConnectorAccount;
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
 use crate::types::transformers::ForeignFrom;
 use crate::{
-    core::errors::{self, RouterResult},
+    core::{
+        errors::{self, RouterResult},
+        payments::routing::utils::{self as routing_utils, DecisionEngineApiHandler},
+    },
     db::StorageInterface,
     routes::SessionState,
+    services,
     types::{domain, storage},
     utils::StringExt,
-};
-#[cfg(feature = "v1")]
-use crate::{
-    core::payments::{
-        routing::utils::{self as routing_utils, DecisionEngineApiHandler},
-        OperationSessionGetters, OperationSessionSetters,
-    },
-    services,
 };
 #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
 use crate::{
@@ -79,6 +72,7 @@ pub const DECISION_ENGINE_RULE_GET_ENDPOINT: &str = "rule/get";
 pub const DECISION_ENGINE_RULE_DELETE_ENDPOINT: &str = "rule/delete";
 pub const DECISION_ENGINE_MERCHANT_BASE_ENDPOINT: &str = "merchant-account";
 pub const DECISION_ENGINE_MERCHANT_CREATE_ENDPOINT: &str = "merchant-account/create";
+pub const DECISION_ENGINE_HIERARCHY_SYNC_ENDPOINT: &str = "admin/hierarchy/sync";
 pub const DECISION_ENGINE_MERCHANT_TOKEN_ENDPOINT: &str = "auth/admin/merchant-token";
 
 /// Provides us with all the configured configs of the Merchant in the ascending time configured
@@ -2797,6 +2791,53 @@ pub async fn create_decision_engine_merchant(
     Ok(())
 }
 
+/// Provisions a Decision Engine scope for `profile` with the organization and merchant above it.
+///
+/// Prefer this over [`create_decision_engine_merchant`], which registers a scope with no ancestry.
+/// Upserted, so re-calling is a no-op. A failure must stop a rule migration: rules under a
+/// non-existent scope route correctly but break the dashboard handoff.
+#[instrument(skip_all)]
+pub async fn sync_decision_engine_hierarchy(
+    state: &SessionState,
+    merchant_account: &domain::MerchantAccount,
+    profile: &domain::Profile,
+) -> RouterResult<()> {
+    let request = open_router::HierarchySyncRequest::single_profile(
+        merchant_account
+            .organization_id
+            .get_string_repr()
+            .to_string(),
+        None,
+        merchant_account.get_id().get_string_repr().to_string(),
+        merchant_account
+            .merchant_name
+            .as_ref()
+            .map(|name| crate::pii::PeekInterface::peek(name.get_inner()).to_string()),
+        profile.get_id().get_string_repr().to_string(),
+        Some(profile.profile_name.clone()),
+    );
+
+    routing_utils::ConfigApiClient::send_decision_engine_request::<_, serde_json::Value>(
+        state,
+        services::Method::Post,
+        DECISION_ENGINE_HIERARCHY_SYNC_ENDPOINT,
+        Some(request),
+        None,
+        None,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to sync account hierarchy to decision engine")?;
+
+    logger::info!(
+        profile_id = ?profile.get_id().get_string_repr(),
+        merchant_id = ?merchant_account.get_id().get_string_repr(),
+        "decision_engine_euclid: account hierarchy synced"
+    );
+
+    Ok(())
+}
+
 #[cfg(feature = "v1")]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct DecisionEngineMerchantTokenResponse {
@@ -2804,17 +2845,15 @@ pub struct DecisionEngineMerchantTokenResponse {
 }
 
 /// Mint a one-time SSO handoff code from the Decision Engine for the profile (keyed on profile_id).
+///
+/// Carries the session's grant and permissions; both are omitted for a caller with no user behind
+/// it, which Decision Engine reads as a single profile with unrestricted access.
 #[cfg(feature = "v1")]
 #[instrument(skip_all)]
 pub async fn mint_decision_engine_sso_code(
     state: &SessionState,
-    profile_id: &id_type::ProfileId,
+    merchant_token_req: open_router::MerchantTokenRequest,
 ) -> error_stack::Result<String, errors::RoutingError> {
-    let merchant_token_req = open_router::MerchantAccount {
-        merchant_id: profile_id.get_string_repr().to_string(),
-        gateway_success_rate_based_decider_input: None,
-    };
-
     let response: Option<DecisionEngineMerchantTokenResponse> =
         routing_utils::ConfigApiClient::send_decision_engine_request(
             state,
