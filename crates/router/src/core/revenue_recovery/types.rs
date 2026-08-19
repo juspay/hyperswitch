@@ -1206,7 +1206,15 @@ impl Action {
         payment_intent: &PaymentIntent,
     ) -> RecoveryResult<Self> {
         let db = &*state.store;
-        let next_retry_count = pt.retry_count + 1;
+        // `pt` is the EXECUTE tracker, which only counts our own attempts. The retry ladder and
+        // the MCA ceiling are both indexed by total attempts on the invoice, so take the count
+        // from the intent metadata and fall back to the tracker only when it is missing.
+        let next_retry_count = payment_intent
+            .feature_metadata
+            .as_ref()
+            .and_then(|metadata| metadata.payment_revenue_recovery_metadata.as_ref())
+            .map(|recovery_metadata| i32::from(recovery_metadata.total_retry_count))
+            .unwrap_or(pt.retry_count + 1);
         let error_message = payment_attempt
             .error
             .as_ref()
