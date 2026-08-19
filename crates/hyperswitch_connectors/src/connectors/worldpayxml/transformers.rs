@@ -554,10 +554,16 @@ enum MandateType {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+enum TokenScope {
+    Shopper,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct CreateToken {
     #[serde(rename = "@tokenScope")]
-    token_scope: String,
+    token_scope: TokenScope,
     token_event_reference: String,
 }
 
@@ -595,7 +601,7 @@ enum PaymentMethod {
 #[serde(rename_all = "camelCase")]
 struct TokenData {
     #[serde(rename = "@tokenScope")]
-    token_scope: Secret<String>,
+    token_scope: TokenScope,
     payment_token_i_d: Secret<String>,
 }
 
@@ -914,7 +920,7 @@ impl TryFrom<PaymentsAuthorizeData> for PaymentDetails {
         Ok(Self {
             action: None,
             payment_method: PaymentMethod::TokenSSL(TokenData {
-                token_scope: Secret::new("shopper".to_string()),
+                token_scope: TokenScope::Shopper,
                 payment_token_i_d: Secret::new(item.get_connector_mandate_id()?),
             }),
             session: None,
@@ -1008,10 +1014,22 @@ fn build_google_pay_payment_details(
     })
 }
 
-impl TryFrom<(&GooglePayWalletData, PaymentsAuthorizeData, Option<Session>)> for PaymentDetails {
+impl
+    TryFrom<(
+        &GooglePayWalletData,
+        PaymentsAuthorizeData,
+        Option<Session>,
+        Option<Secret<String>>, // billing full name (fallback for card holder name)
+    )> for PaymentDetails
+{
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        (gpay_data, item, session): (&GooglePayWalletData, PaymentsAuthorizeData, Option<Session>),
+        (gpay_data, item, session, billing_full_name): (
+            &GooglePayWalletData,
+            PaymentsAuthorizeData,
+            Option<Session>,
+            Option<Secret<String>>,
+        ),
     ) -> Result<Self, Self::Error> {
         build_google_pay_payment_details(
             gpay_data,
@@ -1019,7 +1037,7 @@ impl TryFrom<(&GooglePayWalletData, PaymentsAuthorizeData, Option<Session>)> for
             session,
             item.is_cit_mandate_payment(),
             item.mit_category,
-            item.customer_name,
+            item.customer_name.or(billing_full_name),
         )
     }
 }
@@ -1268,12 +1286,23 @@ fn get_shopper_details_cauth(
             user_agent_header,
             time_zone: browser_info.time_zone,
         });
+    let authenticated_shopper_i_d = match item.get_connector_customer_id().ok() {
+        Some(id) => Some(Secret::new(id)),
+        None if item.request.payment_method_data == Some(PaymentMethodData::MandatePayment)
+            || item.request.is_cit_mandate_payment() =>
+        {
+            Err(errors::ConnectorError::MissingRequiredField {
+                field_name: "connector_customer_id",
+            })?
+        }
+        None => None,
+    };
 
-    if shopper_email.is_some() || browser_info.is_some() {
+    if shopper_email.is_some() || browser_info.is_some() || authenticated_shopper_i_d.is_some() {
         Ok(Some(WorldpayxmlShopper {
             shopper_email_address: shopper_email,
             browser: browser_info,
-            authenticated_shopper_i_d: None,
+            authenticated_shopper_i_d,
         }))
     } else {
         Ok(None)
@@ -1323,7 +1352,7 @@ impl TryFrom<&WorldpayxmlRouterData<&PaymentsAuthorizeRouterData>> for PaymentSe
                     df_reference_id: None,
                     javascript_enabled: false,
                     device_channel: "Browser".to_string(),
-                    challenge_preference: ChallengePreference::ChallengeRequested,
+                    challenge_preference: ChallengePreference::ChallengeMandated,
                 });
                 let browser_info = item.router_data.request.get_browser_info()?;
                 let accept_header = browser_info.accept_header.ok_or(
@@ -1397,6 +1426,7 @@ impl TryFrom<&WorldpayxmlRouterData<&PaymentsAuthorizeRouterData>> for PaymentSe
                     &google_pay_data,
                     item.router_data.request.clone(),
                     session,
+                    item.router_data.get_optional_billing_full_name(),
                 ))?,
                 WalletData::ApplePay(apple_pay_data) => PaymentDetails::try_from((
                     &apple_pay_data,
@@ -1417,7 +1447,7 @@ impl TryFrom<&WorldpayxmlRouterData<&PaymentsAuthorizeRouterData>> for PaymentSe
 
         let create_token = if item.router_data.request.is_cit_mandate_payment() {
             Some(CreateToken {
-                token_scope: "shopper".to_string(),
+                token_scope: TokenScope::Shopper,
                 token_event_reference: item.router_data.connector_request_reference_id.clone(),
             })
         } else {
@@ -1781,6 +1811,10 @@ impl<F>
                                 .ok_or(errors::ConnectorError::UnexpectedResponseError(
                                     bytes::Bytes::from("Either order_status.payment or order_status.error must be present in the response".to_string()),
                                 ))?;
+                        let mandate_reference = order_status
+                            .token
+                            .map(|token| get_mandate_reference(token, None));
+
                         // Handle API errors unrelated to the payment to prevent failing the payment.
                         Ok(Self {
                             status: item.data.status,
@@ -1789,7 +1823,7 @@ impl<F>
                                     order_status.order_code.clone(),
                                 ),
                                 redirection_data: Box::new(None),
-                                mandate_reference: Box::new(None),
+                                mandate_reference: Box::new(mandate_reference),
                                 connector_metadata: None,
                                 network_txn_id: None,
                                 network_txn_link_id: None,
@@ -2324,7 +2358,7 @@ impl TryFrom<WorldpayxmlRouterData<&PaymentsCompleteAuthorizeRouterData>> for Pa
                 df_reference_id: session_id,
                 javascript_enabled: true,
                 device_channel: "Browser".to_string(),
-                challenge_preference: ChallengePreference::ChallengeRequested,
+                challenge_preference: ChallengePreference::ChallengeMandated,
             });
             let browser_info = item.router_data.request.get_browser_info()?;
             let accept_header = browser_info.accept_header.clone().ok_or(
@@ -2387,6 +2421,14 @@ impl TryFrom<WorldpayxmlRouterData<&PaymentsCompleteAuthorizeRouterData>> for Pa
                     connector_utils::get_unimplemented_payment_method_error_message("Worldpayxml"),
                 ))?,
             };
+            let create_token = if item.router_data.request.is_cit_mandate_payment() {
+                Some(CreateToken {
+                    token_scope: TokenScope::Shopper,
+                    token_event_reference: item.router_data.connector_request_reference_id.clone(),
+                })
+            } else {
+                None
+            };
 
             Some(Submit {
                 order: Order {
@@ -2401,7 +2443,7 @@ impl TryFrom<WorldpayxmlRouterData<&PaymentsCompleteAuthorizeRouterData>> for Pa
                     additional_threeds_data,
                     info_threed_secure: None,
                     session: None,
-                    create_token: None,
+                    create_token,
                 },
             })
         };
@@ -2604,13 +2646,17 @@ impl<F>
 
                 let metadata = cookie.map(|value| json!({ "cookie": value }));
 
+                let mandate_reference = order_status
+                    .token
+                    .map(|token| get_mandate_reference(token, None));
+
                 let status = common_enums::AttemptStatus::AuthenticationPending;
                 let response = Ok(PaymentsResponseData::TransactionResponse {
                     resource_id: ResponseId::ConnectorTransactionId(
                         order_status.order_code.clone(),
                     ),
                     redirection_data: Box::new(Some(redirection_data)),
-                    mandate_reference: Box::new(None),
+                    mandate_reference: Box::new(mandate_reference),
                     connector_metadata: metadata,
                     network_txn_id: None,
                     network_txn_link_id: None,
@@ -3463,6 +3509,19 @@ fn validate_order_status(order_status: &OrderStatus) -> Result<(), errors::Conne
     }
 }
 
+fn get_mandate_reference(
+    token: Token,
+    scheme_response: Option<&SchemeResponse>,
+) -> MandateReference {
+    MandateReference {
+        connector_mandate_id: Some(token.token_details.payment_token_i_d.expose()),
+        payment_method_id: None,
+        mandate_metadata: None,
+        connector_mandate_request_reference_id: scheme_response
+            .map(|response| response.transaction_identifier.clone()),
+    }
+}
+
 fn process_payment_response(
     status: common_enums::AttemptStatus,
     payment_data: &Payment,
@@ -3494,15 +3553,8 @@ fn process_payment_response(
             connector_metadata: None,
         }))
     } else {
-        let mandate_reference = token.map(|token| MandateReference {
-            connector_mandate_id: Some(token.token_details.payment_token_i_d.expose()),
-            payment_method_id: None,
-            mandate_metadata: None,
-            connector_mandate_request_reference_id: payment_data
-                .scheme_response
-                .as_ref()
-                .map(|response| response.transaction_identifier.clone()),
-        });
+        let mandate_reference =
+            token.map(|token| get_mandate_reference(token, payment_data.scheme_response.as_ref()));
 
         Ok(PaymentsResponseData::TransactionResponse {
             resource_id: ResponseId::ConnectorTransactionId(order_code.clone()),
