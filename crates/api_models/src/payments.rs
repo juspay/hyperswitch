@@ -6163,7 +6163,7 @@ pub struct CustomRecoveryPaymentMethodData {
     pub primary_processor_payment_method_token: Secret<String>,
 
     /// AdditionalCardInfo for the primary token.
-    pub additional_payment_method_info: AdditionalCardInfo,
+    pub payment_method_data: AdditionalCardInfo,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -13593,8 +13593,9 @@ pub struct RecoveryPaymentsCreate {
     #[schema(value_type = String, example = "mca_1234567890")]
     pub payment_merchant_connector_id: id_type::MerchantConnectorAccountId,
 
+    /// Status of the transaction at the billing connector.
     #[schema(value_type = AttemptStatus, example = "charged")]
-    pub attempt_status: enums::AttemptStatus,
+    pub transaction_status: enums::AttemptStatus,
 
     /// The billing details of the payment attempt.
     pub billing: Option<Address>,
