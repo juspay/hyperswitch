@@ -3305,7 +3305,15 @@ pub struct TokenDataResponse {
 }
 
 #[cfg(feature = "v2")]
-impl common_utils::events::ApiEventMetric for TokenDataResponse {}
+impl common_utils::events::ApiEventMetric for TokenDataResponse {
+    fn get_api_event_type(&self) -> Option<common_utils::events::ApiEventsType> {
+        Some(common_utils::events::ApiEventsType::PaymentMethod {
+            payment_method_id: self.payment_method_id.clone(),
+            payment_method_type: None,
+            payment_method_subtype: None,
+        })
+    }
+}
 
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Serialize, ToSchema)]
@@ -4737,7 +4745,21 @@ pub struct NetworkTokenStatusCheckSuccessResponse {
 }
 
 #[cfg(feature = "v2")]
-impl common_utils::events::ApiEventMetric for NetworkTokenStatusCheckResponse {}
+impl common_utils::events::ApiEventMetric for NetworkTokenStatusCheckResponse {
+    fn get_api_event_type(&self) -> Option<common_utils::events::ApiEventsType> {
+        match self {
+            Self::SuccessResponse(success) => {
+                Some(common_utils::events::ApiEventsType::PaymentMethod {
+                    payment_method_id: success.payment_method_id.clone(),
+                    payment_method_type: None,
+                    payment_method_subtype: None,
+                })
+            }
+            // No payment method id in the failure shape; fall back to the request-side event.
+            Self::FailureResponse(_) => None,
+        }
+    }
+}
 
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Serialize, ToSchema)]
