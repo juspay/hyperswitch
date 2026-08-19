@@ -1818,36 +1818,28 @@ pub fn should_continue_payout<F: Clone + 'static>(
     router_data.response.is_ok()
 }
 
-/// Merges the connector-returned metadata into the merchant's `metadata` for the payout
-/// response. Merchant-supplied keys win on collision, and a `metadata` that is not a JSON
-/// object is passed through untouched.
 pub fn merge_connector_metadata(
     merchant_metadata: Option<pii::SecretSerdeValue>,
     connector_metadata: Option<pii::SecretSerdeValue>,
 ) -> Option<pii::SecretSerdeValue> {
-    let Some(connector_details) = connector_metadata
+    let connector_details = connector_metadata
         .as_ref()
-        .and_then(|metadata| metadata.peek().as_object().cloned())
-        .filter(|details| !details.is_empty())
-    else {
-        return merchant_metadata;
+        .and_then(|metadata| metadata.peek().as_object())
+        .filter(|details| !details.is_empty());
+
+    let merchant_details = match merchant_metadata.as_ref().map(|metadata| metadata.peek()) {
+        Some(serde_json::Value::Object(details)) => Some(details.clone()),
+        Some(_) => None,
+        None => Some(serde_json::Map::new()),
     };
 
-    if merchant_metadata
-        .as_ref()
-        .is_some_and(|metadata| !metadata.peek().is_object())
-    {
-        return merchant_metadata;
+    match (connector_details, merchant_details) {
+        (Some(connector_details), Some(mut merged)) => {
+            for (key, value) in connector_details {
+                merged.entry(key.clone()).or_insert_with(|| value.clone());
+            }
+            Some(Secret::new(serde_json::Value::Object(merged)))
+        }
+        _ => merchant_metadata,
     }
-
-    let mut merged = merchant_metadata
-        .as_ref()
-        .and_then(|metadata| metadata.peek().as_object().cloned())
-        .unwrap_or_default();
-
-    for (key, value) in connector_details {
-        merged.entry(key).or_insert(value);
-    }
-
-    Some(Secret::new(serde_json::Value::Object(merged)))
 }
