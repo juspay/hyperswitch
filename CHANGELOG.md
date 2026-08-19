@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.08.12.0-hotfix6
+
+### Features
+
+- **routing:** Add decision engine rule migration and status endpoints ([#13779](https://github.com/juspay/hyperswitch/pull/13779)) ([`abc2495`](https://github.com/juspay/hyperswitch/commit/abc249543a9cef117122244581c29d586d0c46b9))
+
+**Full Changelog:** [`2026.08.12.0-hotfix5...2026.08.12.0-hotfix6`](https://github.com/juspay/hyperswitch/compare/2026.08.12.0-hotfix5...2026.08.12.0-hotfix6)
+
+- - -
+
 ## 2026.08.12.0-hotfix5
 
 ### Features
