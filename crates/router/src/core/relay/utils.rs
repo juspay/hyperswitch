@@ -110,6 +110,9 @@ pub async fn construct_relay_refund_router_data<F>(
             merchant_config_currency: None,
             capture_method: None,
             additional_payment_method_data: None,
+            // Relay refunds have no locally recorded payment attempt, so the original payment's
+            // connector request reference is not known here.
+            payment_connector_request_reference_id: None,
         },
 
         response: Err(ErrorResponse::default()),
