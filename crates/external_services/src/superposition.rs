@@ -964,7 +964,14 @@ impl SuperpositionClient {
                     use superposition_provider::data_source::SuperpositionDataSource;
                     let response = self
                         .provider
-                        .fetch_filtered_config(dimension_filter, prefix_filter, None)
+                        .fetch_filtered_config(
+                            dimension_filter,
+                            prefix_filter,
+                            None,
+                            // `if_modified_since`, added in 0.117.0. `None` always fetches the
+                            // current config, matching the previous behaviour.
+                            None,
+                        )
                         .await
                         .map_err(|e| {
                             report!(SuperpositionError::ProviderError(format!(
@@ -990,7 +997,14 @@ impl SuperpositionClient {
             use superposition_provider::data_source::SuperpositionDataSource;
             let response = self
                 .provider
-                .fetch_filtered_config(dimension_filter, prefix_filter, None)
+                .fetch_filtered_config(
+                    dimension_filter,
+                    prefix_filter,
+                    None,
+                    // `if_modified_since`, added in 0.117.0. `None` always fetches the
+                    // current config, matching the previous behaviour.
+                    None,
+                )
                 .await
                 .map_err(|e| {
                     report!(SuperpositionError::ProviderError(format!(
