@@ -50,7 +50,7 @@ export const blockedPaymentErrorBodyForBinUnavailable = {
     error: {
       type: "blocked",
       message:
-        "We're unable to accept this card, please try another card or a different payment method",
+        "We couldn't verify this card's information, please try a different card",
       code: "HE_03",
       reason: "Blocked",
     },
@@ -3378,6 +3378,34 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
+        },
+      },
+    }),
+    MITAutoCaptureWithCustomerAcceptance: getCustomExchange({
+      Request: {
+        customer_acceptance: {
+          acceptance_type: "offline",
+          accepted_at: "1963-05-03T04:07:52.723Z",
+          online: {
+            ip_address: "127.0.0.1",
+            user_agent: "amet irure esse",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+      ResponseCustom: {
+        status: 400,
+        body: {
+          error: {
+            message:
+              "No eligible connector was found for the current payment method configuration",
+            type: "invalid_request",
+          },
         },
       },
     }),

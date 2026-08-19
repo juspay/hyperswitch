@@ -73,6 +73,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::RoutingLinkConfig
             | Flow::RoutingUnlinkConfig
             | Flow::RoutingRetrieveConfig
+            | Flow::DecisionEngineSsoRedirect
             | Flow::RoutingRetrieveActiveConfig
             | Flow::RoutingRetrieveDefaultConfig
             | Flow::RoutingRetrieveDictionary
@@ -86,7 +87,9 @@ impl From<Flow> for ApiIdentifier {
             | Flow::UpdateDynamicRoutingConfigs
             | Flow::DecisionManagerUpsertConfig
             | Flow::RoutingEvaluateRule
+            | Flow::DecisionEngineDiffCounterReset
             | Flow::DecisionEngineRuleMigration
+            | Flow::DecisionEngineMigrationStatus
             | Flow::VolumeSplitOnRoutingType
             | Flow::DecisionEngineDecideGatewayCall
             | Flow::DecisionEngineGatewayFeedbackCall => Self::Routing,
@@ -117,7 +120,9 @@ impl From<Flow> for ApiIdentifier {
             | Flow::ConfigKeyFetch
             | Flow::ConfigKeyUpdate
             | Flow::ConfigKeyDelete
-            | Flow::CreateConfigKey => Self::Configs,
+            | Flow::CreateConfigKey
+            | Flow::UnifiedConnectorServiceKillSwitchStatus
+            | Flow::UnifiedConnectorServiceKillSwitchReset => Self::Configs,
             Flow::CustomersCreate
             | Flow::CustomersRetrieve
             | Flow::CustomersRetrieveByReferenceId
@@ -129,6 +134,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::CustomersListWithConstraints => Self::Customers,
             Flow::EphemeralKeyCreate | Flow::EphemeralKeyDelete => Self::Ephemeral,
             Flow::DeepHealthCheck | Flow::HealthCheck => Self::Health,
+            Flow::OfferEngineConnectivityCheck => Self::Health,
             Flow::MandatesRetrieve | Flow::MandatesRevoke | Flow::MandatesList => Self::Mandates,
             Flow::PaymentMethodsCreate
             | Flow::PaymentMethodsMigrate
@@ -192,6 +198,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::RecoveryPaymentsCreate
             | Flow::PaymentsSubmitCheckEligibility
             | Flow::PaymentsSubmitEligibility
+            // PaymentLinkCreate creates a payment intent, so it uses the Payments lock namespace
+            | Flow::PaymentLinkCreate
             | Flow::PaymentsCancelPostCaptureSync => Self::Payments,
             Flow::PayoutsCreate
             | Flow::PayoutsRetrieve
@@ -398,8 +406,11 @@ impl From<Flow> for ApiIdentifier {
             | Flow::SuperpositionListContexts
             | Flow::SuperpositionListDefaultConfigs
             | Flow::SuperpositionListDimensions
+            | Flow::SuperpositionGetDimension
+            | Flow::SuperpositionGetDefaultConfig
             | Flow::SuperpositionCreateContext
             | Flow::SuperpositionResolveDetailedConfig
+            | Flow::SuperpositionResolveConfigExplanation
             | Flow::SuperpositionListAuditLogs => Self::Superposition,
             Flow::MerchantConnectorWebhookRegister
             | Flow::MerchantConnectorWebhookList

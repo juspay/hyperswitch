@@ -8,9 +8,13 @@ use error_stack::ResultExt;
 use http::{HeaderMap, HeaderName, HeaderValue, Method, StatusCode};
 use hyperswitch_masking::{PeekInterface, StrongSecret};
 use once_cell::sync::OnceCell;
-use router_env::{instrument, logger, tracing};
+use router_env::{
+    global_meter, histogram_metric_f64, instrument, logger, metric_attributes, tracing,
+};
 use time::OffsetDateTime;
 
+#[cfg(feature = "ext_services_latency")]
+use crate::consts::EXTERNAL_CALL_TAG;
 use crate::{
     consts::{BASE64_ENGINE, TENANT_HEADER},
     errors,
@@ -25,8 +29,27 @@ use crate::{
 const CONTENT_TYPE: &str = "Content-Type";
 static ENCRYPTION_API_CLIENT: OnceCell<reqwest::Client> = OnceCell::new();
 static DEFAULT_ENCRYPTION_VERSION: &str = "v1";
-#[cfg(feature = "km_forward_x_request_id")]
+#[cfg(any(feature = "km_forward_x_request_id", feature = "ext_services_latency"))]
 const X_REQUEST_ID: &str = "X-Request-Id";
+
+global_meter!(KEY_MANAGER_METER, "COMMON_UTILS_KEY_MANAGER");
+histogram_metric_f64!(
+    ENCRYPTION_SERVICE_CALL_DURATION,
+    KEY_MANAGER_METER,
+    name: "encryption_service.call.duration",
+    description: "Duration of completed encryption-service call attempts",
+    unit: "s",
+);
+
+fn encryption_service_operation(endpoint: &str) -> &'static str {
+    match endpoint {
+        "data/encrypt" => "encrypt",
+        "data/decrypt" => "decrypt",
+        "key/create" => "key_create",
+        "key/transfer" => "key_transfer",
+        _ => "other",
+    }
+}
 
 /// Get keymanager client constructed from the url and state
 #[instrument(skip_all)]
@@ -86,18 +109,55 @@ where
     let method_str = method.to_string();
     let start_time = std::time::Instant::now();
 
-    let response = client
+    let response_result = client
         .request(method, url)
         .json(&ConvertRaw::convert_raw(request_body)?)
         .headers(headers)
         .send()
-        .await
-        .change_context(errors::KeyManagerClientError::RequestNotSent(
+        .await;
+
+    let elapsed = start_time.elapsed();
+    if let Some(context) = &state.metrics_context {
+        let outcome = response_result.as_ref().map_or("failure", |response| {
+            if response.status().is_success() {
+                "success"
+            } else {
+                "failure"
+            }
+        });
+        ENCRYPTION_SERVICE_CALL_DURATION.record(
+            elapsed.as_secs_f64(),
+            metric_attributes!(
+                ("operation", encryption_service_operation(endpoint)),
+                ("merchant_mode", context.merchant_mode),
+                ("outcome", outcome),
+            ),
+        );
+    }
+
+    let response =
+        response_result.change_context(errors::KeyManagerClientError::RequestNotSent(
             "Unable to send request to encryption service".to_string(),
         ))?;
 
-    let latency_ms = start_time.elapsed().as_millis();
+    let latency_ms = elapsed.as_millis();
     let created_at_timestamp = OffsetDateTime::now_utc().unix_timestamp_nanos();
+    #[cfg(feature = "ext_services_latency")]
+    {
+        let downstream_request_id = response
+            .headers()
+            .get(X_REQUEST_ID)
+            .and_then(|value| value.to_str().ok());
+
+        logger::info!(
+            tag = EXTERNAL_CALL_TAG,
+            operation = endpoint,
+            method = method_str,
+            status_code = response.status().as_u16(),
+            latency_ms = elapsed.as_secs_f64() * 1000.0,
+            downstream_request_id,
+        );
+    }
 
     if let Some(request_id) = &state.request_id {
         state
@@ -105,7 +165,7 @@ where
             .emit_external_service_call(ExternalServiceCall {
                 service_name: "keymanager".to_string(),
                 endpoint: endpoint.to_string(),
-                method: method_str,
+                method: method_str.clone(),
                 request_id: request_id.clone(),
                 status_code: response.status().as_u16(),
                 success: response.status().is_success(),

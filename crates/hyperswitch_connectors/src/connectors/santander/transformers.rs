@@ -1352,6 +1352,8 @@ impl<F, T> TryFrom<ResponseRouterData<F, SantanderPaymentsSyncResponse, T, Payme
                             .map(|pix| {
                                 let data = SantanderData {
                                     end_to_end_id: Some(pix.end_to_end_id.clone().expose()),
+                                    paid_at: (attempt_status == AttemptStatus::Charged)
+                                        .then_some(pix.horario),
                                 };
                                 serde_json::to_value(data)
                                     .change_context(errors::ConnectorError::ParsingFailed)
@@ -1395,23 +1397,70 @@ impl<F, T> TryFrom<ResponseRouterData<F, SantanderPaymentsSyncResponse, T, Payme
             }
             // Journey 1/2
             SantanderPaymentsSyncResponse::PixAutomaticoConsultAndActivateJourney(res) => {
-                let status = AttemptStatus::from(res.status);
-                // TODO : Make a write on connector_metadata to modify the ExpiryType as it may chance after approval of Recurrence
+                let status = AttemptStatus::from(res.status.clone());
+                let connector_metadata = if matches!(res.status, RecurrenceStatus::Aprovada) {
+                    res.atualizacao
+                        .iter()
+                        .find(|update| matches!(update.status, Some(RecurrenceStatus::Aprovada)))
+                        .map(|update| {
+                            let data = SantanderData {
+                                end_to_end_id: None,
+                                paid_at: Some(update.data),
+                            };
+                            serde_json::to_value(data)
+                                .change_context(errors::ConnectorError::ParsingFailed)
+                        })
+                        .transpose()?
+                } else {
+                    None
+                };
+                let mut response = item.data.response.clone();
+                if let Ok(PaymentsResponseData::TransactionResponse {
+                    connector_metadata: ref mut cm,
+                    ..
+                }) = response
+                {
+                    *cm = connector_metadata;
+                }
                 Ok(Self {
                     status,
-                    response: item.data.response,
+                    response,
                     ..item.data
                 })
             }
             SantanderPaymentsSyncResponse::Boleto(res) => {
-                let attempt_status = res
-                    .content
-                    .first()
+                let content = res.content.first();
+                let attempt_status = content
                     .map(|data| AttemptStatus::from(data.status.clone()))
                     .unwrap_or(AttemptStatus::AuthenticationPending);
+                let connector_metadata = content
+                    .filter(|_| {
+                        matches!(
+                            attempt_status,
+                            AttemptStatus::Charged | AttemptStatus::PartialChargedAndChargeable
+                        )
+                    })
+                    .map(|data| {
+                        let paid_at = data.payment.date;
+                        let data = SantanderData {
+                            end_to_end_id: None,
+                            paid_at,
+                        };
+                        serde_json::to_value(data)
+                            .change_context(errors::ConnectorError::ParsingFailed)
+                    })
+                    .transpose()?;
+                let mut response = item.data.response.clone();
+                if let Ok(PaymentsResponseData::TransactionResponse {
+                    connector_metadata: ref mut cm,
+                    ..
+                }) = response
+                {
+                    *cm = connector_metadata;
+                }
                 Ok(Self {
                     status: attempt_status,
-                    response: item.data.response,
+                    response,
                     ..item.data
                 })
             }
@@ -1425,6 +1474,8 @@ impl<F, T> TryFrom<ResponseRouterData<F, SantanderPaymentsSyncResponse, T, Payme
                     .map(|pix| {
                         let data = SantanderData {
                             end_to_end_id: Some(pix.end_to_end_id.clone().expose()),
+                            paid_at: (attempt_status == AttemptStatus::Charged)
+                                .then_some(pix.horario),
                         };
                         serde_json::to_value(data)
                             .change_context(errors::ConnectorError::ParsingFailed)

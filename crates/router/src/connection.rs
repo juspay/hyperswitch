@@ -9,19 +9,6 @@ pub type PgPool = bb8::Pool<async_bb8_diesel::ConnectionManager<PgConnection>>;
 
 pub type PgPooledConn = async_bb8_diesel::Connection<PgConnection>;
 
-/// Creates a Redis connection pool for the specified Redis settings
-/// # Panics
-///
-/// Panics if failed to create a redis pool
-#[allow(clippy::expect_used)]
-pub async fn redis_connection(
-    conf: &crate::configs::Settings,
-) -> redis_interface::RedisConnectionPool {
-    redis_interface::RedisConnectionPool::new(&conf.redis)
-        .await
-        .expect("Failed to create Redis Connection Pool")
-}
-
 // Deja replay (R1): the minimal replay DB routing hook. On a just-leased pg
 // connection during replay, route it to the active correlation's schema so
 // per-test-case reads/writes stay isolated. The correlation is read from the
@@ -76,6 +63,7 @@ pub async fn pg_connection_read<T: storage_impl::DatabaseStore>(
         .change_context(storage_errors::StorageError::DatabaseConnectionError)?;
     #[cfg(feature = "deja")]
     deja_route_replay_schema(&mut conn, store).await;
+
     Ok(conn)
 }
 

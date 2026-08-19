@@ -45,6 +45,11 @@ impl Default for PayoutRequiredFields {
                         PayoutConnectors::Ebanx,
                         PaymentMethodType::Pix,
                     ),
+                    // Santander
+                    get_connector_payment_method_type_fields(
+                        PayoutConnectors::Santander,
+                        PaymentMethodType::Pix,
+                    ),
                     // Wise
                     get_connector_payment_method_type_fields(
                         PayoutConnectors::Wise,

@@ -300,6 +300,7 @@ pub fn mk_app(
             .service(routes::User::server(state.clone()))
             .service(routes::ApiKeys::server(state.clone()))
             .service(routes::Routing::server(state.clone()))
+            .service(routes::UnifiedConnectorService::server(state.clone()))
             .service(routes::Chat::server(state.clone()));
 
         #[cfg(all(feature = "olap", any(feature = "v1", feature = "v2")))]
@@ -358,6 +359,7 @@ pub fn mk_app(
 
     server_app = server_app.service(routes::Cache::server(state.clone()));
     server_app = server_app.service(routes::Health::server(state.clone()));
+    server_app = server_app.service(routes::OfferEngine::server(state.clone()));
     // Registered at the end because this entry has an empty scope
     #[cfg(feature = "olap")]
     {
@@ -505,6 +507,9 @@ pub fn get_application_builder(
         .content_type_required(true)
         .error_handler(utils::error_parser::custom_json_error_handler);
 
+    let multipart_cfg = actix_multipart::form::MultipartFormConfig::default()
+        .memory_limit(consts::MULTIPART_MEMORY_LIMIT);
+
     let request_identifier = router_env::RequestIdentifier::new(&trace_header.header_name)
         .use_incoming_id({
             #[cfg(feature = "deja")]
@@ -529,6 +534,7 @@ pub fn get_application_builder(
 
     actix_web::App::new()
         .app_data(json_cfg)
+        .app_data(multipart_cfg)
         .wrap(ErrorHandlers::new().handler(
             StatusCode::NOT_FOUND,
             errors::error_handlers::custom_error_handlers,

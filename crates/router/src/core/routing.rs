@@ -1,6 +1,6 @@
 pub mod helpers;
 pub mod transformers;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use api_models::routing::DynamicRoutingAlgoAccessor;
@@ -65,10 +65,202 @@ use crate::{
     types::{
         api, domain,
         storage::{self, enums as storage_enums},
-        transformers::{ForeignInto, ForeignTryFrom},
+        transformers::{ForeignFrom, ForeignInto, ForeignTryFrom},
     },
     utils::{self, OptionExt},
 };
+
+/// Describes the dashboard user to the Decision Engine: which part of the tree the session may
+/// move within, and what it may do there. States the user's position rather than a list of scopes;
+/// DE resolves it against its own synced tree. Falls back to a bare profile request if the role
+/// cannot be read.
+#[cfg(all(feature = "olap", feature = "v1"))]
+async fn decision_engine_token_request(
+    state: &SessionState,
+    profile_id: &common_utils::id_type::ProfileId,
+    user: crate::services::authentication::UserFromToken,
+) -> api_models::open_router::MerchantTokenRequest {
+    use api_models::open_router::{GrantLevel, MerchantTokenRequest};
+    use common_enums::EntityType;
+
+    // Looked up rather than read from the token, which carries only the user id. Display only, so
+    // a failure here costs a name in the dashboard and nothing else.
+    let email = match state.global_store.find_user_by_user_id(&user.user_id).await {
+        Ok(found) => {
+            // `Email` wraps a `Secret`, so it takes both traits to reach the string.
+            use hyperswitch_masking::{ExposeInterface, PeekInterface};
+            Some(
+                domain::UserFromStorage::from(found)
+                    .get_email()
+                    .expose()
+                    .peek()
+                    .to_string(),
+            )
+        }
+        Err(error) => {
+            router_env::logger::warn!(
+                ?error,
+                "decision_engine_euclid: could not read email for SSO handoff"
+            );
+            None
+        }
+    };
+
+    let profile_only = MerchantTokenRequest {
+        merchant_id: profile_id.get_string_repr().to_string(),
+        grant_level: None,
+        grant_id: None,
+        permissions: None,
+        email: email.clone(),
+    };
+
+    let role_info =
+        match crate::services::authorization::roles::RoleInfo::from_role_id_org_id_tenant_id(
+            state,
+            &user.role_id,
+            &user.org_id,
+            user.tenant_id.as_ref().unwrap_or(&state.tenant.tenant_id),
+        )
+        .await
+        {
+            Ok(role_info) => role_info,
+            Err(error) => {
+                // Never fails the handoff: the user is already authorized for this endpoint, so the
+                // worst outcome of an unreadable role is the narrower session they had before.
+                router_env::logger::warn!(
+                ?error,
+                "decision_engine_euclid: could not read role for SSO handoff, falling back to profile scope"
+            );
+                return profile_only;
+            }
+        };
+
+    let (grant_level, grant_id) = match role_info.get_entity_type() {
+        // A tenant role spans every org, which is not a node the tree can name. Treated as the org
+        // the session is currently in, rather than granting more than one org at once.
+        EntityType::Tenant | EntityType::Organization => (
+            GrantLevel::Org,
+            Some(user.org_id.get_string_repr().to_string()),
+        ),
+        EntityType::Merchant => (
+            GrantLevel::Merchant,
+            Some(user.merchant_id.get_string_repr().to_string()),
+        ),
+        EntityType::Profile => (GrantLevel::Profile, None),
+    };
+
+    // Read is implied — this endpoint sits behind ProfileRoutingRead, so reaching it at all means
+    // the role has it. Only write has to be asked about.
+    let mut permissions = vec!["routing:read".to_string()];
+    if role_info.check_permission_exists(
+        crate::services::authorization::permissions::Permission::ProfileRoutingWrite,
+    ) {
+        permissions.push("routing:write".to_string());
+    }
+
+    MerchantTokenRequest {
+        merchant_id: profile_id.get_string_repr().to_string(),
+        grant_level: Some(grant_level),
+        grant_id,
+        permissions: Some(permissions),
+        email,
+    }
+}
+
+/// Dashboard routing entry: reports the profile's routing source and, for a cut-over profile with a `target`, returns a one-time DE dashboard deep-link.
+#[cfg(all(feature = "olap", feature = "v1"))]
+pub async fn routing_entry(
+    state: SessionState,
+    platform: domain::Platform,
+    user: crate::services::authentication::UserFromToken,
+    profile_id: Option<common_utils::id_type::ProfileId>,
+    target: Option<routing_types::DecisionEngineRoutingTarget>,
+) -> RouterResponse<routing_types::RoutingEntryResponse> {
+    let profile_id = profile_id.get_required_value("profile_id")?;
+
+    let dimensions = dimension_state::Dimensions::new()
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+        .with_profile_id(profile_id.clone());
+
+    let routing_source = get_routing_result_source(&state, &dimensions).await;
+    let is_cutover = matches!(
+        routing_source,
+        routing_types::RoutingResultSource::DecisionEngine
+    );
+
+    // Mint a fresh one-time code only when a card was clicked (`target`) on a cut-over profile.
+    let redirect_url = match (is_cutover, target) {
+        (true, Some(target)) => {
+            let token_request = decision_engine_token_request(&state, &profile_id, user).await;
+            let code = match helpers::mint_decision_engine_sso_code(&state, token_request.clone())
+                .await
+            {
+                Ok(code) => code,
+                // Provision the DE merchant only when it does not exist yet (DE returns 404), then retry once.
+                Err(err)
+                    if matches!(
+                        err.current_context(),
+                        errors::RoutingError::RoutingEventsError {
+                            status_code: 404,
+                            ..
+                        }
+                    ) =>
+                {
+                    // Provision with ancestry so a scope created on this path is grouped under its
+                    // merchant, rather than landing in DE unattached. Falls back to the bare
+                    // create if the profile cannot be read, since minting a code for a merchant
+                    // that exists without ancestry still beats failing the dashboard entry.
+                    let processor = platform.get_processor();
+                    match core_utils::validate_and_get_business_profile(
+                        state.store.as_ref(),
+                        processor,
+                        Some(&profile_id),
+                    )
+                    .await
+                    .ok()
+                    .flatten()
+                    {
+                        Some(profile) => {
+                            let _ = helpers::sync_decision_engine_hierarchy(
+                                &state,
+                                processor.get_account(),
+                                &profile,
+                            )
+                            .await;
+                        }
+                        None => {
+                            let _ =
+                                helpers::create_decision_engine_merchant(&state, &profile_id).await;
+                        }
+                    }
+                    helpers::mint_decision_engine_sso_code(&state, token_request)
+                        .await
+                        .change_context(errors::ApiErrorResponse::InternalServerError)?
+                }
+                Err(err) => {
+                    return Err(err)
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed to mint Decision Engine SSO code");
+                }
+            };
+            Some(format!(
+                "{}/{}?code={}",
+                state.conf.open_router.dashboard_url,
+                target.dashboard_path(),
+                code
+            ))
+        }
+        _ => None,
+    };
+
+    Ok(service_api::ApplicationResponse::Json(
+        routing_types::RoutingEntryResponse {
+            is_cutover,
+            redirect_url,
+        },
+    ))
+}
 
 pub enum TransactionData<'a> {
     Payment(PaymentsDslInput<'a>),
@@ -218,6 +410,7 @@ pub async fn retrieve_merchant_routing_dictionary(
             de_result.clone(),
             result.clone(),
             "list_routing".to_string(),
+            false,
         );
         result =
             build_list_routing_result(&state, platform, &result, &de_result, profile_ids.clone())
@@ -292,11 +485,13 @@ pub async fn create_routing_algorithm_under_profile(
             .get_required_value("Profile")?;
     let processor_merchant_id = processor.get_account().get_id();
     core_utils::validate_profile_id_from_auth_layer(authentication_profile_id, &business_profile)?;
+    // Fetching disabled MCAs too: routing configs may reference MCAs that are
+    // temporarily disabled — validation checks connector existence, not activity.
     let all_mcas = state
         .store
-        .find_merchant_connector_account_without_encrypted_by_merchant_id_and_disabled_list(
+        .list_merchant_connector_accounts_without_encrypted_including_disabled_by_merchant_id_profile_id(
             processor_merchant_id,
-            true,
+            business_profile.get_id(),
         )
         .await
         .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
@@ -304,14 +499,14 @@ pub async fn create_routing_algorithm_under_profile(
         })?;
 
     let name_mca_id_set = helpers::ConnectNameAndMCAIdForProfile(
-        all_mcas.filter_by_profile(business_profile.get_id(), |mca| {
-            (&mca.connector_name, mca.get_id())
-        }),
+        all_mcas
+            .iter()
+            .map(|mca| (&mca.connector_name, mca.get_id()))
+            .collect(),
     );
 
-    let name_set = helpers::ConnectNameForProfile(
-        all_mcas.filter_by_profile(business_profile.get_id(), |mca| &mca.connector_name),
-    );
+    let name_set =
+        helpers::ConnectNameForProfile(all_mcas.iter().map(|mca| &mca.connector_name).collect());
 
     let algorithm_helper = helpers::RoutingAlgorithmHelpers {
         name_mca_id_set,
@@ -409,7 +604,29 @@ pub async fn create_routing_algorithm_under_profile(
 
     let mut decision_engine_routing_id: Option<String> = None;
 
-    if let Some(euclid_algorithm) = request.algorithm.clone() {
+    // Provision the scope before dual-writing into it: DE does not verify the scope exists, and
+    // a rule attached to one with no merchant account routes fine but breaks the dashboard handoff.
+    // Non-fatal and gating on purpose — merchants must be able to create rules while DE is down.
+    // A skipped write shows as pending in the reconciliation report and re-migrating repairs it.
+    let de_scope_provisioned = match helpers::sync_decision_engine_hierarchy(
+        &state,
+        processor.get_account(),
+        &business_profile,
+    )
+    .await
+    {
+        Ok(()) => true,
+        Err(err) => {
+            router_env::logger::warn!(
+                decision_engine_error = ?err,
+                profile_id = ?profile_id.get_string_repr(),
+                "decision_engine_euclid: skipping rule dual-write, scope could not be provisioned"
+            );
+            false
+        }
+    };
+
+    if let Some(euclid_algorithm) = request.algorithm.clone().filter(|_| de_scope_provisioned) {
         let maybe_static_algorithm: Option<StaticRoutingAlgorithm> = match euclid_algorithm {
             EuclidAlgorithm::Advanced(program) => match program.try_into() {
                 Ok(internal_program) => Some(StaticRoutingAlgorithm::Advanced(internal_program)),
@@ -1426,6 +1643,7 @@ pub async fn retrieve_linked_routing_config(
                 de_records.clone(),
                 hs_records.clone(),
                 "list_active_routing".to_string(),
+                false,
             );
             let dimensions = dimension_state::Dimensions::new()
                 .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
@@ -2152,52 +2370,14 @@ pub async fn contract_based_dynamic_routing_setup(
     };
 
     // validate the contained mca_ids
-    let mut contained_mca = Vec::new();
     if let Some(info_vec) = &config.label_info {
-        for info in info_vec {
-            utils::when(
-                contained_mca.iter().any(|mca_id| mca_id == &info.mca_id),
-                || {
-                    Err(error_stack::Report::new(
-                        errors::ApiErrorResponse::InvalidRequestData {
-                            message: "Duplicate mca configuration received".to_string(),
-                        },
-                    ))
-                },
-            )?;
-
-            contained_mca.push(info.mca_id.to_owned());
-        }
-
-        let validation_futures: Vec<_> = info_vec
-            .iter()
-            .map(|info| async {
-                let mca_id = info.mca_id.clone();
-                let label = info.label.clone();
-                let mca = db
-                    .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-                        processor.get_account().get_id(),
-                        &mca_id,
-                        processor.get_key_store(),
-                    )
-                    .await
-                    .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                        id: mca_id.get_string_repr().to_owned(),
-                    })?;
-
-                utils::when(mca.connector_name != label, || {
-                    Err(error_stack::Report::new(
-                        errors::ApiErrorResponse::InvalidRequestData {
-                            message: "Incorrect mca configuration received".to_string(),
-                        },
-                    ))
-                })?;
-
-                Ok::<_, error_stack::Report<errors::ApiErrorResponse>>(())
-            })
-            .collect();
-
-        futures::future::try_join_all(validation_futures).await?;
+        helpers::validate_contract_based_label_info(
+            db,
+            processor.get_account().get_id(),
+            &profile_id,
+            info_vec,
+        )
+        .await?;
     }
 
     let record = db
@@ -2255,39 +2435,14 @@ pub async fn contract_based_routing_update_configs(
         .attach_printable("unable to deserialize algorithm data from routing table into ContractBasedRoutingConfig")?;
 
     // validate the contained mca_ids
-    let mut contained_mca = Vec::new();
     if let Some(info_vec) = &request.label_info {
-        for info in info_vec {
-            let mca = db
-                .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-                    processor.get_account().get_id(),
-                    &info.mca_id,
-                    processor.get_key_store(),
-                )
-                .await
-                .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                    id: info.mca_id.get_string_repr().to_owned(),
-                })?;
-
-            utils::when(mca.connector_name != info.label, || {
-                Err(errors::ApiErrorResponse::InvalidRequestData {
-                    message: "Incorrect mca configuration received".to_string(),
-                })
-            })?;
-
-            utils::when(
-                contained_mca.iter().any(|mca_id| mca_id == &info.mca_id),
-                || {
-                    Err(error_stack::Report::new(
-                        errors::ApiErrorResponse::InvalidRequestData {
-                            message: "Duplicate mca configuration received".to_string(),
-                        },
-                    ))
-                },
-            )?;
-
-            contained_mca.push(info.mca_id.to_owned());
-        }
+        helpers::validate_contract_based_label_info(
+            db,
+            processor.get_account().get_id(),
+            &profile_id,
+            info_vec,
+        )
+        .await?;
     }
 
     config_to_update.update(request);
@@ -2525,14 +2680,179 @@ impl RoutableConnectors {
     }
 }
 
-pub async fn migrate_rules_for_profile(
+/// Clears the Decision Engine routing diff kill-switch counter for a profile, so the switch can
+/// trip again after the profile is re-enabled for the Decision Engine.
+pub async fn reset_decision_engine_diff_counter(
     state: SessionState,
-    processor: domain::Processor,
-    query_params: routing_types::RuleMigrationQuery,
+    profile_id: common_utils::id_type::ProfileId,
+) -> RouterResult<service_api::ApplicationResponse<()>> {
+    reset_de_diff_counter(&state, &profile_id).await?;
+
+    router_env::logger::info!(
+        profile_id=?profile_id.get_string_repr(),
+        "decision_engine_euclid: routing diff counter reset via api"
+    );
+
+    Ok(service_api::ApplicationResponse::StatusOk)
+}
+
+/// A merchant account and its key store, by id. Migration works from
+/// `routing_algorithm.merchant_id` rather than an authenticated context, so it resolves its own.
+async fn get_merchant_account(
+    state: &SessionState,
+    merchant_id: &common_utils::id_type::MerchantId,
+) -> RouterResult<(
+    hyperswitch_domain_models::platform::MerchantKeyStore,
+    domain::MerchantAccount,
+)> {
+    let key_store = state
+        .store
+        .get_merchant_key_store_by_merchant_id(
+            merchant_id,
+            &state.store.get_master_key().to_vec().into(),
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
+
+    let merchant_account = state
+        .store
+        .find_merchant_account_by_merchant_id(merchant_id, &key_store)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
+
+    Ok((key_store, merchant_account))
+}
+
+/// Migrates the named profiles' rules into the decision engine. One profile failing does not
+/// stop the batch; a profile with no rules is reported as not attempted rather than as an error.
+pub async fn migrate_rules_for_profiles(
+    state: SessionState,
+    request: routing_types::RuleMigrationRequest,
 ) -> RouterResult<routing_types::RuleMigrationResult> {
+    let limit = request.validated_limit();
+    let offset = request.offset.unwrap_or_default();
+
+    let merchant_of: HashMap<_, _> = state
+        .store
+        .find_rule_ids_for_profiles(&request.profile_ids)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?
+        .into_iter()
+        .map(|(profile_id, merchant_id, _, _)| (profile_id, merchant_id))
+        .collect();
+
+    let mut profiles = Vec::with_capacity(request.profile_ids.len());
+    let mut totals = routing_types::RuleMigrationTotals {
+        profiles: request.profile_ids.len(),
+        ..Default::default()
+    };
+
+    // Once per merchant, before the loop: profiles cluster under merchants, and each read is two
+    // store lookups plus decryption.
+    let mut accounts: HashMap<common_utils::id_type::MerchantId, domain::Processor> =
+        HashMap::new();
+    let mut unreadable_merchants: HashSet<common_utils::id_type::MerchantId> = HashSet::new();
+
+    for merchant_id in merchant_of.values().cloned().collect::<HashSet<_>>() {
+        match get_merchant_account(&state, &merchant_id).await {
+            Ok((key_store, merchant_account)) => {
+                let platform = domain::Platform::new(
+                    merchant_account.clone(),
+                    key_store.clone(),
+                    merchant_account,
+                    key_store,
+                    None,
+                );
+                accounts.insert(merchant_id, platform.get_processor().clone());
+            }
+            Err(err) => {
+                router_env::logger::error!(
+                    ?err,
+                    merchant_id = ?merchant_id.get_string_repr(),
+                    "could not read merchant account while migrating rules"
+                );
+                unreadable_merchants.insert(merchant_id);
+            }
+        }
+    }
+
+    for profile_id in request.profile_ids {
+        let Some(merchant_id) = merchant_of.get(&profile_id).cloned() else {
+            profiles.push(routing_types::RuleMigrationProfileResult {
+                profile_id,
+                merchant_id: None,
+                success: vec![],
+                skipped: vec![],
+                errors: vec![],
+                not_applicable: vec![],
+                not_attempted: Some("no routing rules in Hyperswitch".to_string()),
+            });
+            totals.profiles_not_attempted += 1;
+            continue;
+        };
+
+        let Some(processor) = accounts.get(&merchant_id).cloned() else {
+            let reason = if unreadable_merchants.contains(&merchant_id) {
+                "merchant account could not be read"
+            } else {
+                "merchant account not resolved"
+            };
+            profiles.push(routing_types::RuleMigrationProfileResult {
+                profile_id,
+                merchant_id: Some(merchant_id),
+                success: vec![],
+                skipped: vec![],
+                errors: vec![],
+                not_applicable: vec![],
+                not_attempted: Some(reason.to_string()),
+            });
+            totals.profiles_not_attempted += 1;
+            continue;
+        };
+
+        match migrate_rules_for_profile(&state, processor, profile_id.clone(), limit, offset).await
+        {
+            Ok(result) => {
+                totals.rules_migrated += result.success.len();
+                totals.rules_skipped += result.skipped.len();
+                totals.rules_failed += result.errors.len();
+                totals.rules_not_applicable += result.not_applicable.len();
+                profiles.push(result);
+            }
+            Err(err) => {
+                router_env::logger::error!(
+                    ?err,
+                    profile_id = ?profile_id.get_string_repr(),
+                    "profile could not be migrated"
+                );
+                profiles.push(routing_types::RuleMigrationProfileResult {
+                    profile_id,
+                    merchant_id: Some(merchant_id),
+                    success: vec![],
+                    skipped: vec![],
+                    errors: vec![],
+                    not_applicable: vec![],
+                    not_attempted: Some(err.current_context().to_string()),
+                });
+                totals.profiles_not_attempted += 1;
+            }
+        }
+    }
+
+    Ok(routing_types::RuleMigrationResult { profiles, totals })
+}
+
+/// Migrates one profile's rules. The batch entry point is `migrate_rules_for_profiles`.
+async fn migrate_rules_for_profile(
+    state: &SessionState,
+    processor: domain::Processor,
+    profile_id: common_utils::id_type::ProfileId,
+    limit: u32,
+    offset: u32,
+) -> RouterResult<routing_types::RuleMigrationProfileResult> {
     use api_models::routing::StaticRoutingAlgorithm as EuclidAlgorithm;
 
-    let profile_id = query_params.profile_id.clone();
+    let state = state.clone();
     let db = state.store.as_ref();
 
     let business_profile =
@@ -2542,6 +2862,12 @@ pub async fn migrate_rules_for_profile(
             .change_context(errors::ApiErrorResponse::ProfileNotFound {
                 id: profile_id.get_string_repr().to_owned(),
             })?;
+
+    // Provision the scope, with its ancestry, before migrating any rule into it — otherwise the
+    // rules route but the dashboard handoff returns "merchant not found".
+    helpers::sync_decision_engine_hierarchy(&state, processor.get_account(), &business_profile)
+        .await
+        .attach_printable("Failed to provision decision engine scope before rule migration")?;
 
     #[cfg(feature = "v1")]
     let active_payment_routing_ids: Vec<Option<common_utils::id_type::RoutingId>> = vec![
@@ -2564,14 +2890,41 @@ pub async fn migrate_rules_for_profile(
         .store
         .list_routing_algorithm_metadata_by_profile_id(
             &profile_id,
-            i64::from(query_params.validated_limit()),
-            i64::from(query_params.offset.unwrap_or_default()),
+            i64::from(limit),
+            i64::from(offset),
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?;
 
+    // The decision engine keys rule create on the Hyperswitch algorithm id, so re-writing an
+    // existing rule is a key conflict — without this a finished migration reads as total failure.
+    // A read failure here is not fatal: the set stays empty and every rule is attempted.
+    let already_in_decision_engine: HashSet<String> = match list_de_euclid_routing_algorithms(
+        &state,
+        ListRountingAlgorithmsRequest {
+            created_by: profile_id.get_string_repr().to_string(),
+        },
+    )
+    .await
+    {
+        Ok(records) => records
+            .into_iter()
+            .map(|record| record.id.get_string_repr().to_string())
+            .collect(),
+        Err(err) => {
+            router_env::logger::warn!(
+                decision_engine_error = ?err,
+                profile_id = ?profile_id.get_string_repr(),
+                "decision_engine_euclid: could not list existing rules, migrating without skipping"
+            );
+            HashSet::new()
+        }
+    };
+
     let mut response_list = Vec::new();
+    let mut skipped_list = Vec::new();
     let mut error_list = Vec::new();
+    let mut not_applicable_list = Vec::new();
 
     let mut push_error = |algorithm_id, msg: String| {
         error_list.push(RuleMigrationError {
@@ -2583,6 +2936,55 @@ pub async fn migrate_rules_for_profile(
 
     for routing_metadata in routing_metadatas {
         let algorithm_id = routing_metadata.algorithm_id.clone();
+
+        // Held apart from `errors`: these kinds are not Euclid rules, so parsing one as an
+        // algorithm fails every time and would keep a finished profile looking incomplete.
+        let kind = routing_types::RoutingAlgorithmKind::foreign_from(routing_metadata.kind);
+        if let Some(reason) = kind.rule_migration_exclusion() {
+            not_applicable_list.push(routing_types::RuleMigrationNotApplicable {
+                profile_id: profile_id.clone(),
+                algorithm_id,
+                kind,
+                reason: reason.to_string(),
+            });
+            continue;
+        }
+
+        // Already migrated. The rule is left untouched — an insert cannot repair diverged
+        // contents anyway. Linking is still attempted: a rule can arrive without being made
+        // that profile's active one.
+        if already_in_decision_engine.contains(algorithm_id.get_string_repr()) {
+            let is_active_rule = active_payment_routing_ids.contains(&Some(algorithm_id.clone()));
+            let mut linked_active_rule = false;
+            if is_active_rule {
+                match link_de_euclid_routing_algorithm(
+                    &state,
+                    ActivateRoutingConfigRequest {
+                        created_by: profile_id.get_string_repr().to_string(),
+                        routing_algorithm_id: algorithm_id.get_string_repr().to_string(),
+                    },
+                )
+                .await
+                {
+                    Ok(()) => linked_active_rule = true,
+                    Err(err) => {
+                        router_env::logger::warn!(
+                            decision_engine_error = ?err,
+                            algorithm_id = ?algorithm_id,
+                            "decision_engine_euclid: could not link an already-migrated active rule"
+                        );
+                    }
+                }
+            }
+            skipped_list.push(routing_types::RuleMigrationSkipped {
+                profile_id: profile_id.clone(),
+                algorithm_id: algorithm_id.clone(),
+                decision_engine_algorithm_id: algorithm_id.get_string_repr().to_string(),
+                linked_active_rule,
+            });
+            continue;
+        }
+
         let algorithm = match db
             .find_routing_algorithm_by_profile_id_algorithm_id(&profile_id, &algorithm_id)
             .await
@@ -2643,7 +3045,9 @@ pub async fn migrate_rules_for_profile(
         let routing_rule = RoutingRule {
             rule_id: Some(algorithm.algorithm_id.clone().get_string_repr().to_string()),
             name: algorithm.name.clone(),
-            description: algorithm.description.clone(),
+            // The decision engine requires a description; the column here is nullable, and a
+            // null one is rejected outright rather than migrated.
+            description: Some(algorithm.description.clone().unwrap_or_default()),
             created_by: profile_id.get_string_repr().to_string(),
             algorithm: static_algorithm,
             algorithm_for: algorithm.algorithm_for.into(),
@@ -2689,9 +3093,178 @@ pub async fn migrate_rules_for_profile(
         }
     }
 
-    Ok(routing_types::RuleMigrationResult {
+    Ok(routing_types::RuleMigrationProfileResult {
+        profile_id,
+        merchant_id: Some(processor.get_account().get_id().clone()),
         success: response_list,
+        skipped: skipped_list,
         errors: error_list,
+        not_applicable: not_applicable_list,
+        not_attempted: None,
+    })
+}
+
+/// Where every profile holding a routing rule stands in the migration, a page at a time. Each
+/// source is read independently and its absence reported as unknown rather than assumed.
+pub async fn routing_migration_status(
+    state: SessionState,
+    query: routing_types::RoutingMigrationStatusQuery,
+) -> RouterResult<routing_types::RoutingMigrationStatusResponse> {
+    let limit = query.validated_limit();
+    let offset = query.offset.unwrap_or_default();
+
+    let scopes = state
+        .store
+        .list_routing_scope_page(i64::from(limit), i64::from(offset))
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?;
+
+    // The page's rule ids in one query, so the comparison below costs nothing per profile.
+    let page_profiles: Vec<_> = scopes
+        .iter()
+        .map(|(profile_id, _)| profile_id.clone())
+        .collect();
+    let mut hs_rule_ids: HashMap<common_utils::id_type::ProfileId, HashSet<String>> =
+        HashMap::new();
+    // Rules the migration is not expected to carry, counted apart so holding one never leaves a
+    // finished profile reading as partial.
+    let mut out_of_scope: HashMap<common_utils::id_type::ProfileId, i64> = HashMap::new();
+    match state.store.find_rule_ids_for_profiles(&page_profiles).await {
+        Ok(rows) => {
+            for (profile_id, _, algorithm_id, kind) in rows {
+                if routing_types::RoutingAlgorithmKind::foreign_from(kind)
+                    .rule_migration_exclusion()
+                    .is_some()
+                {
+                    *out_of_scope.entry(profile_id).or_default() += 1;
+                    continue;
+                }
+                hs_rule_ids
+                    .entry(profile_id)
+                    .or_default()
+                    .insert(algorithm_id.get_string_repr().to_string());
+            }
+        }
+        Err(err) => {
+            router_env::logger::warn!(?err, "could not read rule ids while reporting status");
+        }
+    }
+
+    let has_more = scopes.len() == usize::try_from(limit).unwrap_or(usize::MAX);
+    let mut profiles = Vec::with_capacity(scopes.len());
+    let mut page_totals = routing_types::RoutingMigrationPageTotals {
+        profiles: scopes.len(),
+        ..Default::default()
+    };
+
+    for (profile_id, merchant_id) in scopes {
+        // The listing already carries each rule's id, so comparing the sets is free.
+        let de_rule_ids = match list_de_euclid_routing_algorithms(
+            &state,
+            ListRountingAlgorithmsRequest {
+                created_by: profile_id.get_string_repr().to_string(),
+            },
+        )
+        .await
+        {
+            Ok(records) => Some(
+                records
+                    .into_iter()
+                    .map(|record| record.id.get_string_repr().to_string())
+                    .collect::<HashSet<_>>(),
+            ),
+            Err(err) => {
+                router_env::logger::warn!(
+                    decision_engine_error = ?err,
+                    profile_id = ?profile_id.get_string_repr(),
+                    "decision_engine_euclid: could not read rules while reporting migration status"
+                );
+                None
+            }
+        };
+
+        let rules_decision_engine = de_rule_ids
+            .as_ref()
+            .map(|ids| i64::try_from(ids.len()).unwrap_or(i64::MAX));
+
+        let hs_ids = hs_rule_ids.get(&profile_id).cloned().unwrap_or_default();
+        let rules_hyperswitch = i64::try_from(hs_ids.len()).unwrap_or(i64::MAX);
+        let (mut missing_in_de, mut only_in_de) = (Vec::new(), Vec::new());
+        if let Some(de_ids) = de_rule_ids.as_ref() {
+            missing_in_de = hs_ids.difference(de_ids).cloned().collect();
+            only_in_de = de_ids.difference(&hs_ids).cloned().collect();
+            missing_in_de.sort();
+            only_in_de.sort();
+        }
+
+        // The *configured* cut-over. `get_routing_result_source` would overlay Hyperswitch
+        // routing when the diff counter is over threshold — right for a payment, wrong here: a
+        // tripped kill switch would turn a runtime condition into a migration verdict.
+        let dimensions = dimension_state::Dimensions::new()
+            .with_processor_merchant_id(merchant_id.clone().into())
+            .with_provider_merchant_id(
+                hyperswitch_domain_models::platform::ProviderMerchantId::new(merchant_id.clone()),
+            )
+            .with_profile_id(profile_id.clone());
+        let routing_source = Some(
+            dimensions
+                .get_routing_result_source(
+                    state.store.as_ref(),
+                    state.superposition_service.as_ref(),
+                    None,
+                )
+                .await,
+        );
+
+        let cut_over = matches!(
+            routing_source,
+            Some(routing_types::RoutingResultSource::DecisionEngine)
+        );
+        // `Partial` and `Diverged` both mean rules are missing; `Diverged` also means the counts
+        // agree, so nothing that only counts will surface it.
+        let state_of_profile = match rules_decision_engine {
+            None => routing_types::RoutingMigrationState::Unknown,
+            Some(0) if cut_over => routing_types::RoutingMigrationState::EnabledWithoutRules,
+            Some(0) => routing_types::RoutingMigrationState::Pending,
+            Some(count) if !missing_in_de.is_empty() && count == rules_hyperswitch => {
+                routing_types::RoutingMigrationState::Diverged
+            }
+            Some(_) if !missing_in_de.is_empty() => routing_types::RoutingMigrationState::Partial,
+            Some(_) if cut_over => routing_types::RoutingMigrationState::Enabled,
+            Some(_) => routing_types::RoutingMigrationState::Migrated,
+        };
+
+        match state_of_profile {
+            routing_types::RoutingMigrationState::Pending => page_totals.pending += 1,
+            routing_types::RoutingMigrationState::Partial => page_totals.partial += 1,
+            routing_types::RoutingMigrationState::Migrated => page_totals.migrated += 1,
+            routing_types::RoutingMigrationState::Enabled => page_totals.enabled += 1,
+            routing_types::RoutingMigrationState::EnabledWithoutRules => {
+                page_totals.enabled_without_rules += 1
+            }
+            routing_types::RoutingMigrationState::Diverged => page_totals.diverged += 1,
+            routing_types::RoutingMigrationState::Unknown => page_totals.unknown += 1,
+        }
+
+        profiles.push(routing_types::RoutingMigrationProfileStatus {
+            rules_out_of_scope: out_of_scope.get(&profile_id).copied().unwrap_or_default(),
+            profile_id,
+            merchant_id,
+            rules_hyperswitch,
+            rules_decision_engine,
+            rules_missing_in_decision_engine: missing_in_de,
+            rules_only_in_decision_engine: only_in_de,
+            routing_source,
+            state: state_of_profile,
+        });
+    }
+
+    Ok(routing_types::RoutingMigrationStatusResponse {
+        profiles,
+        limit,
+        offset,
+        has_more,
+        page_totals,
     })
 }
 
