@@ -1840,6 +1840,9 @@ pub fn merge_connector_metadata(
             }
             Some(Secret::new(serde_json::Value::Object(merged)))
         }
-        (connector_details, merchant_details) => merchant_details.or(connector_details.cloned()).map(serde_json::Value::Object).map(Secret::new),
+        (connector_details, merchant_details) => merchant_details
+            .or(connector_details.cloned())
+            .map(serde_json::Value::Object)
+            .map(Secret::new),
     }
 }
