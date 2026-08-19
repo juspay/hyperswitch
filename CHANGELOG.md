@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.08.17.0-hotfix1
+
+### Refactors
+
+- **wasm:** [Checkout] enable HS decryption flow ([#13749](https://github.com/juspay/hyperswitch/pull/13749)) ([`f472c20`](https://github.com/juspay/hyperswitch/commit/f472c203f7bc786e49900df85adfa2fc245e35cd))
+
+**Full Changelog:** [`2026.08.17.0...2026.08.17.0-hotfix1`](https://github.com/juspay/hyperswitch/compare/2026.08.17.0...2026.08.17.0-hotfix1)
+
+- - -
+
 ## 2026.08.17.0
 
 ### Features
