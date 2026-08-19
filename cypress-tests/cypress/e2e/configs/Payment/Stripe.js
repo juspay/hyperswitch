@@ -431,9 +431,6 @@ export const connectorDetails = {
           status: "succeeded",
         },
       },
-      Configs: {
-        skipL2L3ResponseValidation: true,
-      },
     },
     L2L3DataRetrieve: {
       Request: {},
