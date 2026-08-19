@@ -352,29 +352,12 @@ pub fn validate_payout_link_request(
 }
 
 #[cfg(feature = "olap")]
-pub(super) fn validate_payout_list_request(
-    req: &payouts::PayoutListConstraints,
-) -> CustomResult<(), errors::ApiErrorResponse> {
-    use common_utils::consts::PAYOUTS_LIST_MAX_LIMIT_GET;
-
-    utils::when(
-        req.limit > PAYOUTS_LIST_MAX_LIMIT_GET || req.limit < 1,
-        || {
-            Err(errors::ApiErrorResponse::InvalidRequestData {
-                message: format!("limit should be in between 1 and {PAYOUTS_LIST_MAX_LIMIT_GET}"),
-            })
-        },
-    )?;
-    Ok(())
-}
-
-#[cfg(feature = "olap")]
 pub(super) fn validate_payout_list_request_for_joins(
-    limit: u32,
+    limit: common_utils::types::list::PageSize,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
     use common_utils::consts::PAYOUTS_LIST_MAX_LIMIT_POST;
 
-    utils::when(!(1..=PAYOUTS_LIST_MAX_LIMIT_POST).contains(&limit), || {
+    utils::when(limit.as_u32() > PAYOUTS_LIST_MAX_LIMIT_POST, || {
         Err(errors::ApiErrorResponse::InvalidRequestData {
             message: format!("limit should be in between 1 and {PAYOUTS_LIST_MAX_LIMIT_POST}"),
         })

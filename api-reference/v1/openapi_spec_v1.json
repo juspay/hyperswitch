@@ -4013,7 +4013,7 @@
           "Payment Methods"
         ],
         "summary": "List payment methods for a Payment",
-        "description": "Client SDK endpoint. Returns a unified response combining merchant-enabled\npayment methods and customer saved payment methods, filtered via Euclid\nconstraint graph and session flow routing.\n\nSupported client auth:\n- SDK auth via `Authorization`.\n- Publishable-key auth via `api-key: pk_...` and `client_secret` query param.\n\nMerchant secret-key auth is intentionally not supported for this endpoint.",
+        "description": "Client SDK endpoint. Returns a unified response combining merchant-enabled\npayment methods and customer saved payment methods, filtered via Euclid\nconstraint graph and session flow routing.\n\nSupported auth:\n- SDK auth via `Authorization`.\n- Publishable-key auth via `api-key: pk_...` and `client_secret` query param.\n- Merchant API-key auth via `api-key: <api_key>`.",
         "operationId": "List Payment Methods for a Payment via Client SDK",
         "parameters": [
           {
@@ -4138,6 +4138,9 @@
         "security": [
           {
             "publishable_key": []
+          },
+          {
+            "api_key": []
           }
         ]
       }
@@ -29982,12 +29985,7 @@
             "nullable": true
           },
           "limit": {
-            "type": "integer",
-            "format": "int32",
-            "description": "limit on the number of objects to return",
-            "default": 10,
-            "maximum": 100,
-            "minimum": 0
+            "$ref": "#/components/schemas/common_utils.types.list.PageSize"
           },
           "created": {
             "type": "string",
@@ -37237,12 +37235,7 @@
                 "nullable": true
               },
               "limit": {
-                "type": "integer",
-                "format": "int32",
-                "description": "limit on the number of objects to return",
-                "default": 10,
-                "maximum": 100,
-                "minimum": 0
+                "$ref": "#/components/schemas/common_utils.types.list.PageSize"
               },
               "created": {
                 "type": "string",
@@ -37299,17 +37292,10 @@
                 "nullable": true
               },
               "limit": {
-                "type": "integer",
-                "format": "int32",
-                "description": "The limit on the number of objects. The default limit is 10 and max limit is 20",
-                "minimum": 0
+                "$ref": "#/components/schemas/common_utils.types.list.PageSize"
               },
               "offset": {
-                "type": "integer",
-                "format": "int32",
-                "description": "The starting point within a list of objects",
-                "nullable": true,
-                "minimum": 0
+                "$ref": "#/components/schemas/common_utils.types.list.PageOffset"
               },
               "connector": {
                 "type": "array",
@@ -40741,16 +40727,15 @@
                 "nullable": true
               },
               "limit": {
-                "type": "integer",
-                "format": "int64",
-                "description": "Limit on the number of objects to return",
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/common_utils.types.list.PageSize"
+                  }
+                ],
                 "nullable": true
               },
               "offset": {
-                "type": "integer",
-                "format": "int64",
-                "description": "The starting point within a list of objects",
-                "nullable": true
+                "$ref": "#/components/schemas/common_utils.types.list.PageOffset"
               },
               "amount_filter": {
                 "allOf": [
@@ -47208,6 +47193,18 @@
           }
         },
         "additionalProperties": false
+      },
+      "common_utils.types.list.PageOffset": {
+        "type": "integer",
+        "format": "int32",
+        "maximum": 20000,
+        "minimum": 0
+      },
+      "common_utils.types.list.PageSize": {
+        "type": "integer",
+        "format": "int32",
+        "maximum": 100,
+        "minimum": 1
       }
     },
     "securitySchemes": {
