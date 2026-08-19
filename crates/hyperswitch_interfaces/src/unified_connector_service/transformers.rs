@@ -757,6 +757,15 @@ impl ForeignTryFrom<payments_grpc::AdditionalPaymentMethodConnectorResponse>
                 Ok(Self::BankRedirect { interac })
 
             }
+            Some(payments_grpc::additional_payment_method_connector_response::PaymentMethodData::PayLater(pay_later_data)) => {
+                Ok(Self::PayLater {
+                    klarna_sdk: pay_later_data.klarna_sdk.map(|klarna| {
+                        hyperswitch_domain_models::router_data::KlarnaSdkResponse {
+                            payment_type: klarna.payment_type,
+                        }
+                    }),
+                })
+            }
             None => Err(error_stack::Report::new(
                 UnifiedConnectorServiceError::ResponseDeserializationFailed,
             )

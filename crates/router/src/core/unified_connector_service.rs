@@ -1370,7 +1370,7 @@ pub fn build_unified_connector_service_payment_method(
         ) => match pay_later_data {
             hyperswitch_domain_models::payment_method_data::PayLaterData::KlarnaRedirect {  } => Ok(payments_grpc::PaymentMethod {
                 payment_method: Some(PaymentMethod::Klarna(
-                    payments_grpc::Klarna {  }
+                    payments_grpc::Klarna { token: None }
                 )),
             }),
             hyperswitch_domain_models::payment_method_data::PayLaterData::AffirmRedirect {  } => Ok(payments_grpc::PaymentMethod {

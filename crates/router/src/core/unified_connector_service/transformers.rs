@@ -2890,6 +2890,12 @@ impl transformers::ForeignTryFrom<&RouterData<Session, PaymentsSessionData, Paym
             }),
             return_url: None,
             metadata: None,
+            // Klarna builds its `order_lines` from these, so forward the
+            // session's order details when the merchant supplied them.
+            order_details: build_ucs_order_details(
+                router_data.request.order_details.as_deref(),
+            ),
+            shipping_address: None,
         };
 
         Ok(Self {
