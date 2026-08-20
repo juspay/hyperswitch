@@ -264,10 +264,14 @@ pub async fn custom_revenue_recovery_core(
 ) -> RouterResponse<payments_api::RecoveryPaymentsResponse> {
     let store = state.store.as_ref();
     let payment_merchant_connector_account_id = request.payment_merchant_connector_id.to_owned();
+    // Both ids arrive in the request body, so the lookups are scoped to the authenticated merchant.
+    // An id belonging to another merchant reads back as not found.
+    let merchant_id = platform.get_processor().get_account().get_id().to_owned();
     // Find the payment & billing merchant connector id at the top level to avoid multiple DB calls.
     let payment_merchant_connector_account = store
-        .find_merchant_connector_account_by_id(
+        .find_merchant_connector_account_by_merchant_connector_id_merchant_id(
             &payment_merchant_connector_account_id,
+            &merchant_id,
             platform.get_processor().get_key_store(),
         )
         .await
@@ -278,8 +282,9 @@ pub async fn custom_revenue_recovery_core(
                 .to_string(),
         })?;
     let billing_connector_account = store
-        .find_merchant_connector_account_by_id(
+        .find_merchant_connector_account_by_merchant_connector_id_merchant_id(
             &request.billing_merchant_connector_id.clone(),
+            &merchant_id,
             platform.get_processor().get_key_store(),
         )
         .await
