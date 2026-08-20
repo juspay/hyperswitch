@@ -4,6 +4,11 @@ on:
   merge_group:
     types:
       - checks_requested
+      # A `destroyed` event carries the same `github.ref` as the run already in
+      # flight for that merge group, so it lands in the same concurrency group
+      # and `cancel-in-progress` reaps the now-stale run. GitHub does not do
+      # this for us. All jobs no-op on this event; see `check-cypress-prerequisites`.
+      - destroyed
   pull_request:
 
 permissions:
@@ -109,6 +114,15 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
+          # The merge group was dissolved. This run exists only to trip the
+          # concurrency group and cancel the stale run, so skip every check.
+          # Note the `exit 0`: the `run-checks=false` path below exits 1, which
+          # would surface a failing check for every dissolved merge group.
+          if [[ "${{ github.event.action }}" == "destroyed" ]]; then
+            echo "run-checks=false" >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
+
           # Merge queue, run checks
           if [[ "${{ github.event_name }}" == "merge_group" ]]; then
             echo "run-checks=true" >> "${GITHUB_OUTPUT}"
@@ -461,7 +475,9 @@ jobs:
   mandatory-cypress-tests-consolidated-result:
     name: Mandatory Cypress Tests — Consolidated Result
     needs: [mandatory-cypress-tests]
-    if: ${{ !cancelled() }}
+    # A skipped dependency is not a cancelled one, so `!cancelled()` alone would
+    # let this run on a `destroyed` event, read `result == 'skipped'` and exit 1.
+    if: ${{ !cancelled() && github.event.action != 'destroyed' }}
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
@@ -1187,7 +1203,9 @@ jobs:
   mitm-cassette-replay-cypress-tests-consolidated-result:
     name: MITM Mock Cypress Tests — Consolidated Result
     needs: [mitm-cassette-replay-cypress-tests]
-    if: ${{ !cancelled() }}
+    # A skipped dependency is not a cancelled one, so `!cancelled()` alone would
+    # let this run on a `destroyed` event, read `result == 'skipped'` and exit 1.
+    if: ${{ !cancelled() && github.event.action != 'destroyed' }}
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
