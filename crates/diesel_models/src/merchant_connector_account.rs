@@ -320,7 +320,11 @@ mod tests {
         let json = r#"{"mca_DfWsOSMEst92brEYhElg": "mca_KC2tl5iWBd1sb1Hek5lx"}"#;
         let result: Result<BillingAccountReference, _> = serde_json::from_str(json);
         println!("BillingAccountReference deser result: {:?}", result);
-        assert!(result.is_ok(), "BillingAccountReference deserialization failed: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "BillingAccountReference deserialization failed: {:?}",
+            result.err()
+        );
     }
 
     #[test]
@@ -328,8 +332,15 @@ mod tests {
         let json = r#"{"revenue_recovery": {"max_retry_count": 5, "billing_account_reference": {"mca_DfWsOSMEst92brEYhElg": "mca_KC2tl5iWBd1sb1Hek5lx"}, "billing_connector_retry_threshold": 0}}"#;
         let result: Result<MerchantConnectorAccountFeatureMetadata, _> = serde_json::from_str(json);
         println!("FeatureMetadata deser result: {:?}", result);
-        assert!(result.is_ok(), "FeatureMetadata deserialization failed: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "FeatureMetadata deserialization failed: {:?}",
+            result.err()
+        );
         let fm = result.unwrap();
-        assert!(fm.revenue_recovery.is_some(), "revenue_recovery should be Some");
+        assert!(
+            fm.revenue_recovery.is_some(),
+            "revenue_recovery should be Some"
+        );
     }
 }
