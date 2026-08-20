@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use api_models::payments::SessionToken;
 use cards::NetworkToken;
-use common_enums::enums;
+use common_enums::{connector_enums::Connector, enums};
 use common_utils::{
     errors::CustomResult,
     ext_traits::OptionExt,
@@ -1528,7 +1528,7 @@ pub(crate) fn get_apple_pay_session<F, T>(
                         required_shipping_contact_fields: None,
                         recurring_payment_request: None,
                     }),
-                    connector: "trustpay".to_string(),
+                    connector: Connector::Trustpay,
                     delayed_session_token: true,
                     sdk_next_action: {
                         api_models::payments::SdkNextAction {
