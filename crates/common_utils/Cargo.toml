@@ -31,7 +31,7 @@ base64 = "0.22.1"
 base64-serde = "0.8.0"
 blake3 = { version = "1.8.2", features = ["serde"] }
 bytes = "1.10.1"
-diesel = "2.2.10"
+diesel = { version = "2.2.10", features = ["postgres"] }
 deja = { git = "https://github.com/juspay/deja", rev = "2c3a795ef4d8d2a5eebc47bbe7134984b75be6b3", optional = true, default-features = false }
 error-stack = "0.4.1"
 futures = { version = "0.3.31", optional = true }
@@ -69,7 +69,7 @@ uuid = { version = "1.17.0", features = ["v7"] }
 ammonia = "3.3"
 
 # First party crates
-common_enums = { version = "0.1.0", path = "../common_enums" }
+common_enums = { version = "0.1.0", path = "../common_enums", default-features = false }
 hyperswitch_masking = { version = "0.0.1", features = ["diesel", "time"] }
 router_env = { version = "0.1.0", path = "../router_env", features = ["log_extra_implicit_fields", "log_custom_entries_to_extra"], optional = true, default-features = false }
 

@@ -8395,6 +8395,7 @@ dependencies = [
 name = "router_derive"
 version = "0.1.0"
 dependencies = [
+ "common_enums",
  "common_utils",
  "diesel",
  "error-stack 0.4.1",
