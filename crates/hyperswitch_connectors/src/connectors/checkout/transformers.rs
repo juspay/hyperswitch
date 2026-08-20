@@ -230,6 +230,7 @@ pub struct CardSource {
     pub number: cards::CardNumber,
     pub expiry_month: Secret<String>,
     pub expiry_year: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub cvv: Option<Secret<String>>,
     pub billing_address: Option<CheckoutAddress>,
     pub account_holder: Option<CheckoutAccountHolderDetails>,
@@ -300,7 +301,7 @@ pub struct GooglePayPredecrypt {
     expiry_month: Secret<String>,
     expiry_year: Secret<String>,
     eci: String,
-    cryptogram: Option<Secret<String>>,
+    cryptogram: Secret<String>,
     pub billing_address: Option<CheckoutAddress>,
 }
 
@@ -682,18 +683,34 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
                                     field_name: "payment_method_data.card.card_exp_year",
                                 })?;
 
-                            let cryptogram = google_pay_decrypted_data.cryptogram.clone();
-
-                            PaymentSource::GooglePayPredecrypt(Box::new(GooglePayPredecrypt {
-                                _type: "network_token".to_string(),
-                                token,
-                                token_type: "googlepay".to_string(),
-                                expiry_month,
-                                expiry_year,
-                                eci: "06".to_string(),
-                                cryptogram,
-                                billing_address: billing_details,
-                            }))
+                            match (
+                                google_pay_decrypted_data.cryptogram.clone(),
+                                google_pay_decrypted_data.eci_indicator.clone(),
+                            ) {
+                                (Some(cryptogram), Some(eci)) => {
+                                    PaymentSource::GooglePayPredecrypt(Box::new(
+                                        GooglePayPredecrypt {
+                                            _type: "network_token".to_string(),
+                                            token,
+                                            token_type: "googlepay".to_string(),
+                                            expiry_month,
+                                            expiry_year,
+                                            eci,
+                                            cryptogram,
+                                            billing_address: billing_details,
+                                        },
+                                    ))
+                                }
+                                _ => PaymentSource::Card(CardSource {
+                                    source_type: CheckoutSourceTypes::Card,
+                                    number: token,
+                                    expiry_month,
+                                    expiry_year,
+                                    cvv: None,
+                                    billing_address: billing_details,
+                                    account_holder: None,
+                                }),
+                            }
                         }
                     };
                     Ok((
