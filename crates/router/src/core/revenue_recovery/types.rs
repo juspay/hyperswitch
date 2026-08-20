@@ -1370,15 +1370,32 @@ pub async fn reopen_calculate_workflow_on_payment_failure(
         .filter(|retry_type| *retry_type != common_enums::RevenueRecoveryAlgorithmType::Monitoring) // ignore Monitoring
         .unwrap_or(old_tracking_data.revenue_recovery_retry);
 
+    // Destructured exhaustively on purpose: this row is reopened on every failure, so
+    // anything not carried across here is wiped exactly when it matters most. A new field
+    // on the struct must break this pattern rather than quietly default.
+    let pcr::RevenueRecoveryWorkflowTrackingData {
+        // Both attempt ids are restamped below from the attempt that just failed.
+        payment_attempt_id: _,
+        prev_attempt_id: _,
+        revenue_recovery_retry: _,
+        merchant_id,
+        profile_id,
+        global_payment_id,
+        billing_mca_id,
+        invoice_scheduled_time,
+        recovery_schedule,
+    } = old_tracking_data;
+
     let new_tracking_data = pcr::RevenueRecoveryWorkflowTrackingData {
         payment_attempt_id: latest_attempt_id.clone(),
         prev_attempt_id: Some(latest_attempt_id.clone()),
         revenue_recovery_retry: retry_algorithm_type,
-        merchant_id: old_tracking_data.merchant_id.clone(),
-        profile_id: old_tracking_data.profile_id.clone(),
-        global_payment_id: old_tracking_data.global_payment_id.clone(),
-        billing_mca_id: old_tracking_data.billing_mca_id.clone(),
-        invoice_scheduled_time: old_tracking_data.invoice_scheduled_time,
+        merchant_id,
+        profile_id,
+        global_payment_id,
+        billing_mca_id,
+        invoice_scheduled_time,
+        recovery_schedule,
     };
 
     let tracking_data = serde_json::to_value(new_tracking_data)

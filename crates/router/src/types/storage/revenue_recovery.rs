@@ -13,7 +13,10 @@ use hyperswitch_masking::PeekInterface;
 use router_env::logger;
 use serde::{Deserialize, Serialize};
 
-use crate::{db::StorageInterface, routes::SessionState, types, workflows::revenue_recovery};
+use crate::{
+    core::revenue_recovery::schedule::RecoverySchedule, db::StorageInterface,
+    routes::SessionState, types, workflows::revenue_recovery,
+};
 #[derive(serde::Serialize, serde::Deserialize, Debug)]
 pub struct RevenueRecoveryWorkflowTrackingData {
     pub merchant_id: id_type::MerchantId,
@@ -31,6 +34,12 @@ pub struct RevenueRecoveryWorkflowTrackingData {
     /// not recorded.
     #[serde(default)]
     pub prev_attempt_id: Option<id_type::GlobalAttemptId>,
+
+    /// Adaptive retry scheduling state — how far down the static ladder this invoice has
+    /// been. Only meaningful on the CALCULATE row, which is reopened rather than recreated
+    /// and so survives for the whole recovery lifecycle of an invoice.
+    #[serde(default)]
+    pub recovery_schedule: RecoverySchedule,
 }
 
 #[derive(Debug, Clone)]
