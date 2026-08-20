@@ -16,31 +16,46 @@ pub async fn resolve_offer_engine_config<D>(
 where
     D: dimension_state::DimensionsBase,
 {
-    let store = state.store.as_ref();
-    let superposition = state.superposition_service.as_ref();
-
     let enabled = configs::fetch_db_config_for_dimensions::<dimension_config::OfferEngineEnabled>(
-        store,
-        superposition,
+        state.store.as_ref(),
+        state.superposition_service.as_ref(),
         dimensions,
         None,
     )
     .await;
 
     if enabled {
-        let source = configs::fetch_db_config_for_string_enum::<
-            dimension_config::OfferEngineCredentialSource,
-            OfferEngineCredentialSource,
-        >(store, superposition, dimensions, None)
-        .await
-        .unwrap_or(OfferEngineCredentialSource::None);
-
-        match source {
-            OfferEngineCredentialSource::None => Ok(None),
-            OfferEngineCredentialSource::Application => resolve_application_config(state).map(Some),
-        }
+        resolve_offer_engine_credentials(state, dimensions).await
     } else {
         Ok(None)
+    }
+}
+
+/// Resolve the Offer Engine credentials for the given dimensions by credential
+/// source, independent of the `enabled` toggle. The notification path uses this:
+/// an applied offer's outcome must be reported even after the feature is disabled.
+pub async fn resolve_offer_engine_credentials<D>(
+    state: &SessionState,
+    dimensions: &D,
+) -> CustomResult<Option<ResolvedOfferEngineConfig>, OfferEngineError>
+where
+    D: dimension_state::DimensionsBase,
+{
+    let source = configs::fetch_db_config_for_string_enum::<
+        dimension_config::OfferEngineCredentialSource,
+        OfferEngineCredentialSource,
+    >(
+        state.store.as_ref(),
+        state.superposition_service.as_ref(),
+        dimensions,
+        None,
+    )
+    .await
+    .unwrap_or(OfferEngineCredentialSource::None);
+
+    match source {
+        OfferEngineCredentialSource::None => Ok(None),
+        OfferEngineCredentialSource::Application => resolve_application_config(state).map(Some),
     }
 }
 
