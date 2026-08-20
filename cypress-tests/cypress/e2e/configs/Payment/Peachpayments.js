@@ -337,9 +337,6 @@ export const connectorDetails = {
       },
     },
     ZeroAuthConfirmPayment: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_type: "setup_mandate",
         payment_method: "card",
@@ -358,6 +355,25 @@ export const connectorDetails = {
             message: "Setup Mandate flow for Peachpayments is not implemented",
             code: "IR_00",
           },
+        },
+      },
+      ResponseManual: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          setup_future_usage: "off_session",
+        },
+      },
+    },
+    MITManualCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
         },
       },
     },

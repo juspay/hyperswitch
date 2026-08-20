@@ -311,8 +311,10 @@ describe("Card - SingleUse Mandates flow test", () => {
           globalState
         );
 
-        if (shouldContinue)
-          shouldContinue = utils.should_continue_further(data);
+        cy.then(() => {
+          if (shouldContinue)
+            shouldContinue = utils.should_continue_further(data);
+        });
       });
 
       it("retrieve-payment-call-test", () => {
@@ -336,6 +338,11 @@ describe("Card - SingleUse Mandates flow test", () => {
           "manual",
           globalState
         );
+
+        cy.then(() => {
+          if (shouldContinue)
+            shouldContinue = utils.should_continue_further(data);
+        });
       });
 
       it("mit-capture-call-test", () => {
