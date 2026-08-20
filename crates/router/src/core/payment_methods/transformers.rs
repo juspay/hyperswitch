@@ -2082,11 +2082,11 @@ pub async fn retrieve_pm_modular_service_call(
     let pm_response = result
         .map_err(|err| {
             logger::error!(
-                    error=?err,
-                    merchant_id=%processor_merchant_id.get_string_repr(),
-                    profile_id=%profile_id.get_string_repr(),
-                    "modular payment method retrieve failed"
-                );
+                error=?err,
+                merchant_id=%processor_merchant_id.get_string_repr(),
+                profile_id=%profile_id.get_string_repr(),
+                "modular payment method retrieve failed"
+            );
             errors::ApiErrorResponse::InternalServerError
         })
         .attach_printable("Failed to retrieve payment method from modular service")?;
@@ -2403,11 +2403,11 @@ pub async fn create_pm_modular_service_call(
     let pm_response = result
         .map_err(|err| {
             logger::error!(
-                    error=?err,
-                    merchant_id=%merchant_id.get_string_repr(),
-                    profile_id=%profile_id.get_string_repr(),
-                    "modular payment method create failed"
-                );
+                error=?err,
+                merchant_id=%merchant_id.get_string_repr(),
+                profile_id=%profile_id.get_string_repr(),
+                "modular payment method create failed"
+            );
             errors::ApiErrorResponse::InternalServerError
         })
         .attach_printable("Failed to create payment method in modular service")?;
