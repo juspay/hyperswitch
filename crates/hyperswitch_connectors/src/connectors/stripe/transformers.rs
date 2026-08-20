@@ -3221,6 +3221,7 @@ impl StripeChargeEnum {
 pub struct StripeCharge {
     pub id: String,
     pub payment_method_details: Option<StripePaymentMethodDetailsResponse>,
+    pub outcome: Option<StripeChargeOutcome>,
 }
 
 #[derive(Deserialize, Clone, Debug, PartialEq, Eq, Serialize)]
@@ -4783,6 +4784,101 @@ impl<F, T> TryFrom<ResponseRouterData<F, ChargesResponse, T, PaymentsResponseDat
         Ok(Self {
             status,
             response,
+            ..item.data
+        })
+    }
+}
+
+/// Stripe charge `outcome` object, shared by charge sync and the intent's `latest_charge`.
+#[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
+pub struct StripeChargeOutcome {
+    #[serde(rename = "type")]
+    pub outcome_type: Option<String>,
+    pub network_status: Option<String>,
+    pub reason: Option<String>,
+    pub risk_level: Option<String>,
+    pub risk_score: Option<i32>,
+    pub seller_message: Option<String>,
+    pub advice_code: Option<String>,
+    pub network_advice_code: Option<String>,
+    pub network_decline_code: Option<String>,
+    pub rule: Option<String>,
+}
+
+/// Stripe charge retrieve response, used when an attempt is tracked by a `ch_` charge id.
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct ChargeSyncResponse {
+    pub id: String,
+    pub status: StripePaymentStatus,
+    pub payment_intent: Option<String>,
+    pub amount_captured: Option<MinorUnit>,
+    pub failure_code: Option<String>,
+    pub failure_message: Option<String>,
+    pub outcome: Option<StripeChargeOutcome>,
+}
+
+impl<F, T> TryFrom<ResponseRouterData<F, ChargeSyncResponse, T, PaymentsResponseData>>
+    for RouterData<F, T, PaymentsResponseData>
+{
+    type Error = error_stack::Report<ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<F, ChargeSyncResponse, T, PaymentsResponseData>,
+    ) -> Result<Self, Self::Error> {
+        let status = get_stripe_payment_status(item.response.status, item.data.status);
+
+        let resource_id = item
+            .response
+            .payment_intent
+            .clone()
+            .unwrap_or_else(|| item.response.id.clone());
+        let outcome = item.response.outcome.clone();
+        let response = if is_payment_failure(status) {
+            Err(hyperswitch_domain_models::router_data::ErrorResponse {
+                code: item
+                    .response
+                    .failure_code
+                    .clone()
+                    .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
+                message: item
+                    .response
+                    .failure_message
+                    .clone()
+                    .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
+                reason: item.response.failure_message.clone(),
+                status_code: item.http_code,
+                attempt_status: Some(status),
+                connector_transaction_id: Some(resource_id.clone()),
+                connector_response_reference_id: Some(resource_id.clone()),
+                network_advice_code: outcome.as_ref().and_then(|o| o.network_advice_code.clone()),
+                network_decline_code: outcome
+                    .as_ref()
+                    .and_then(|o| o.network_decline_code.clone()),
+                network_error_message: outcome.as_ref().and_then(|o| o.seller_message.clone()),
+                connector_metadata: None,
+            })
+        } else {
+            Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(resource_id.clone()),
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(None),
+                connector_metadata: None,
+                network_txn_id: None,
+                network_txn_link_id: None,
+                connector_response_reference_id: Some(resource_id.clone()),
+                incremental_authorization_allowed: None,
+                authentication_data: None,
+                charges: None,
+            })
+        };
+
+        Ok(Self {
+            status,
+            response,
+            amount_captured: item
+                .response
+                .amount_captured
+                .map(|amount| amount.get_amount_as_i64()),
+            minor_amount_captured: item.response.amount_captured,
             ..item.data
         })
     }
