@@ -280,4 +280,86 @@ describe("Card - SingleUse Mandates flow test", () => {
       cy.retrievePaymentCallTest({ globalState, data });
     });
   });
+
+  context(
+    "Card - Zero auth Mandate flow with Manual Capture Using PMID (create + confirm)",
+    () => {
+      let shouldContinue = true;
+
+      beforeEach(function () {
+        if (!shouldContinue) {
+          this.skip();
+        }
+      });
+
+      it("Create Customer", () => {
+        cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
+      });
+
+      it("Confirm No 3DS CIT", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["ZeroAuthConfirmPayment"];
+
+        cy.citForMandatesCallTest(
+          fixtures.citConfirmBody,
+          data,
+          0,
+          true,
+          "manual",
+          "setup_mandate",
+          globalState
+        );
+
+        cy.then(() => {
+          if (shouldContinue)
+            shouldContinue = utils.should_continue_further(data);
+        });
+      });
+
+      it("retrieve-payment-call-test", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["ZeroAuthMandate"];
+
+        cy.retrievePaymentCallTest({ globalState, data });
+      });
+
+      it("Confirm No 3DS MIT", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["MITManualCapture"];
+
+        cy.mitUsingPMId(
+          fixtures.pmIdConfirmBody,
+          data,
+          6000,
+          true,
+          "manual",
+          globalState
+        );
+
+        cy.then(() => {
+          if (shouldContinue)
+            shouldContinue = utils.should_continue_further(data);
+        });
+      });
+
+      it("mit-capture-call-test", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["Capture"];
+
+        cy.captureCallTest(fixtures.captureBody, data, globalState);
+      });
+
+      it("retrieve-payment-call-test", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["Capture"];
+
+        cy.retrievePaymentCallTest({ globalState, data });
+      });
+    }
+  );
 });

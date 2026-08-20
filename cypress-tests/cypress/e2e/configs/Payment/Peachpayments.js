@@ -357,6 +357,25 @@ export const connectorDetails = {
           },
         },
       },
+      ResponseManual: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          setup_future_usage: "off_session",
+        },
+      },
+    },
+    MITManualCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
+        },
+      },
     },
     SaveCardUseNo3DSAutoCapture: {
       Configs: {

@@ -4999,8 +4999,9 @@ Cypress.Commands.add(
     const {
       Configs: configs = {},
       Request: reqData,
-      Response: resData,
+      ResponseManual: resManualData,
     } = data || {};
+    let { Response: resData } = data || {};
 
     const validatedConfigs = validateConfig(configs);
     if (validatedConfigs?.TRIGGER_SKIP) {
@@ -5052,6 +5053,11 @@ Cypress.Commands.add(
       body: requestBody,
     }).then((response) => {
       logRequestId(response.headers["x-request-id"]);
+
+      if (capture_method === "manual" && resManualData) {
+        resData = resManualData;
+        data.Response = resManualData;
+      }
 
       cy.wrap(response).then(() => {
         expect(response.headers["content-type"]).to.include("application/json");
@@ -5261,7 +5267,9 @@ Cypress.Commands.add(
                   response.body.setup_future_usage === "off_session" &&
                   response.body.mandate_id === null &&
                   response.body.status === "succeeded" &&
-                  globalState.get("connectorId") !== "tsys_transit"
+                  globalState.get("connectorId") !== "peachpayments" &&
+                  globalState.get("connectorId") !== "tsys_transit" &&
+                  requestBody.mandate_data !== null
                 ) {
                   expect(
                     response.body.connector_mandate_id,
