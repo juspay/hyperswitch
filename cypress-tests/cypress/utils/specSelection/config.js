@@ -58,6 +58,8 @@ export const CONNECTOR_PAYMENT_METHODS = Object.freeze({
   paystack: ["bank_redirect"],
   plaid: ["open_banking"],
   prophetpay: ["card_redirect"],
+  truelayer: ["bank_redirect"],
+  trustly: ["bank_redirect"],
   volt: ["bank_redirect"],
   tsys_transit: ["card"],
 });
