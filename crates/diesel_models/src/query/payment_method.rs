@@ -276,8 +276,6 @@ impl PaymentMethod {
             pm_id.eq(id.to_owned()),
             Some(1),
             None,
-            // An id can span several rows once a reported card change has been applied. The
-            // replacement row is always the newest, so the newest row is the one serving the id.
             Some(dsl::created_at.desc()),
         )
         .await?

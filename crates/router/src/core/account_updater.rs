@@ -8,7 +8,7 @@ use api_models::payment_methods::RawPaymentMethodData;
 use common_utils::errors::CustomResult;
 use router_env::{instrument, logger, tracing};
 
-pub use self::store::create_payment_method_for_refreshed_card;
+pub use self::store::apply_card_refresh_result;
 use self::{
     config::resolve_account_updater_config,
     eligibility::{check_eligibility_and_build_payment_method, check_vault_eligibility},
