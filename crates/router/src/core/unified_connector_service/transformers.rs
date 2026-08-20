@@ -87,10 +87,10 @@ fn convert_additional_connector_details(
                             datatrans.currency
                         )?;
                         Ok(payments_grpc::DatatransAdditionalInformation {
-                            amount: payments_grpc::Money {
+                            amount: Some(payments_grpc::Money {
                                 minor_amount: datatrans.amount.get_amount_as_i64(),
                                 currency: currency.into(),
-                            },
+                            }),
                             conversion_rate: datatrans.conversion_rate,
                             transaction_date: datatrans
                                 .transaction_date
