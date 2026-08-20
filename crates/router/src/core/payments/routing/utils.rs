@@ -2927,13 +2927,16 @@ mod transform_de_output_tests {
 
         assert_eq!(out.len(), 2, "second paypal MCA was dropped");
         // volume-split winner stays at the front, loser follows as fallback
+        let mca_order = out
+            .iter()
+            .map(|c| c.merchant_connector_id.clone())
+            .collect::<Vec<_>>();
         assert_eq!(
-            out[0].merchant_connector_id,
-            Some(mca("mca_XLx05llokfkj8Tsb7nMa"))
-        );
-        assert_eq!(
-            out[1].merchant_connector_id,
-            Some(mca("mca_9pE8yl5LFwGLe3fA2xNZ"))
+            mca_order,
+            vec![
+                Some(mca("mca_XLx05llokfkj8Tsb7nMa")),
+                Some(mca("mca_9pE8yl5LFwGLe3fA2xNZ")),
+            ]
         );
     }
 
@@ -2965,7 +2968,10 @@ mod transform_de_output_tests {
         .unwrap();
 
         assert_eq!(out.len(), 2);
-        assert_eq!(out[0].connector, RoutableConnectors::Stripe);
-        assert_eq!(out[1].connector, RoutableConnectors::Adyen);
+        let connector_order = out.iter().map(|c| c.connector).collect::<Vec<_>>();
+        assert_eq!(
+            connector_order,
+            vec![RoutableConnectors::Stripe, RoutableConnectors::Adyen]
+        );
     }
 }
