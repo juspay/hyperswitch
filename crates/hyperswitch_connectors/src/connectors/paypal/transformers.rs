@@ -2481,8 +2481,6 @@ pub struct PaypalSetTransactionContextResponse {
 
 /// Whether the Set Transaction Context (STC) preprocessing call is enabled for the merchant
 /// (via the `enable_stc` flag in the merchant connector account metadata).
-/// A metadata parse failure is treated as the flag being absent so that existing merchants
-/// are not impacted.
 pub fn is_stc_enabled(connector_meta_data: &Option<common_utils::pii::SecretSerdeValue>) -> bool {
     PaypalConnectorMetadataObject::try_from(connector_meta_data)
         .ok()
@@ -2506,18 +2504,16 @@ fn split_customer_name(customer_name: Option<String>) -> (Option<String>, Option
                 .map(str::trim)
                 .filter(|part| !part.is_empty())
                 .map(String::from);
-            (first_name, last_name)
+
+            match (first_name, last_name) {
+                (Some(first), Some(last)) => (Some(first), Some(last)),
+                _ => (None, None),
+            }
         })
         .unwrap_or((None, None))
 }
 
 impl PaypalSetTransactionContextRequest {
-    /// Builds the Set Transaction Context request body. The sender profile fields are resolved
-    /// in the following order of preference:
-    /// 1. Payment level connector metadata (`connector_metadata.paypal.risk_data`)
-    /// 2. Customer data (from the payments request)
-    /// 3. Billing data
-    /// Fields that cannot be resolved are dropped instead of being sent as null.
     pub fn build(
         router_data: &PaymentsPreAuthenticateRouterData,
     ) -> Result<Self, error_stack::Report<errors::ConnectorError>> {
