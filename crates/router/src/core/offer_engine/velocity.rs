@@ -4,7 +4,9 @@ use hyperswitch_masking::StrongSecret;
 
 use crate::{
     core::{
-        blocklist::{transformers::generate_fingerprint, utils::get_merchant_fingerprint_secret},
+        blocklist::{
+            transformers::generate_fingerprint_and_get_id, utils::get_merchant_fingerprint_secret,
+        },
         errors::{self, RouterResult},
     },
     routes::SessionState,
@@ -20,7 +22,7 @@ pub async fn generate_card_alias(
     card_number: &CardNumber,
 ) -> RouterResult<String> {
     let secret = get_merchant_fingerprint_secret(state, merchant_account).await?;
-    generate_fingerprint(
+    generate_fingerprint_and_get_id(
         state,
         StrongSecret::new(card_number.get_card_no()),
         StrongSecret::new(secret),
