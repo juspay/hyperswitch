@@ -1,3 +1,6 @@
+pub mod retry_stats_cluster_key;
+pub mod retry_stats_document;
+
 use api_models::{payments as api_payments, webhooks};
 use common_enums::enums as common_enums;
 use common_types::primitive_wrappers;

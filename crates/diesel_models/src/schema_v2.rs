@@ -1670,6 +1670,16 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
+    revenue_recovery_retry_stats (cluster_key) {
+        cluster_key -> Text,
+        stats -> Jsonb,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::enums::diesel_exports::*;
+
     reverse_lookup (lookup_id) {
         #[max_length = 128]
         lookup_id -> Varchar,
@@ -1992,6 +2002,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     process_tracker,
     refund,
     relay,
+    revenue_recovery_retry_stats,
     reverse_lookup,
     roles,
     routing_algorithm,
