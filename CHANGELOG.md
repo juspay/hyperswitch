@@ -4,6 +4,33 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.08.20.0
+
+### Features
+
+- **analytics:** Add payment method audit table for API events and tag internal service traffic ([#13692](https://github.com/juspay/hyperswitch/pull/13692)) ([`27565a5`](https://github.com/juspay/hyperswitch/commit/27565a50e8c8ee8ea82d788848161f1480dbb954))
+- **connector:**
+  - Add Ilixium routing via unified connector service ([#13708](https://github.com/juspay/hyperswitch/pull/13708)) ([`ada4a1e`](https://github.com/juspay/hyperswitch/commit/ada4a1eb8d0934165199832b54c9d2ef7afbb788))
+  - Add moneris as ucs only connector ([#13713](https://github.com/juspay/hyperswitch/pull/13713)) ([`77cf9cc`](https://github.com/juspay/hyperswitch/commit/77cf9ccd2b7b88ea264312ee378dc4462908430c))
+- **cypress:** Add Truelayer open banking payout tests ([#13706](https://github.com/juspay/hyperswitch/pull/13706)) ([`a75df14`](https://github.com/juspay/hyperswitch/commit/a75df14e90128e8b462637e5a939f263d488ae89))
+- Add metrics in payments confirm ([#13700](https://github.com/juspay/hyperswitch/pull/13700)) ([`d5c4593`](https://github.com/juspay/hyperswitch/commit/d5c459305893c6969b6e0404fa0a72066332a9dd))
+
+### Bug Fixes
+
+- **NMI:** [NMI] add PR and LB for card allowed countries payment ([#13773](https://github.com/juspay/hyperswitch/pull/13773)) ([`877a44e`](https://github.com/juspay/hyperswitch/commit/877a44ec5d29669a61590c82005ad9470d229ccf))
+- **config:** Add France to worldpayxml payment method filters ([#13753](https://github.com/juspay/hyperswitch/pull/13753)) ([`182dd4c`](https://github.com/juspay/hyperswitch/commit/182dd4cf5755d90329d24cc08a2d9eab5ea0eaaa))
+- **connector:** [worldpayxml] googlepay MIT with 3ds redirect with GOOGLEPAY-PREDECRYPT ([#13729](https://github.com/juspay/hyperswitch/pull/13729)) ([`5000884`](https://github.com/juspay/hyperswitch/commit/50008843ec8f83807c1e13f6e59737af94b76894))
+- **paysafe:** Align default tokenization config with google_pay (sandbox already overrides) ([#13579](https://github.com/juspay/hyperswitch/pull/13579)) ([`0fa10a4`](https://github.com/juspay/hyperswitch/commit/0fa10a45f5be4f9796c9f57ebb539bb2f14860dd))
+- **ucs:** Populate calida shop name from MCA metadata in ConnectorSpecificConfig ([#13694](https://github.com/juspay/hyperswitch/pull/13694)) ([`ff165e6`](https://github.com/juspay/hyperswitch/commit/ff165e69ca549dfb117d764d677ce45578a03da9))
+
+### Testing
+
+- **cypress:** Add auth_code population coverage for checkout ([#13741](https://github.com/juspay/hyperswitch/pull/13741)) ([`d6476ea`](https://github.com/juspay/hyperswitch/commit/d6476ea67b876086f9727f54ed326bf98549f033))
+
+**Full Changelog:** [`2026.08.19.0...2026.08.20.0`](https://github.com/juspay/hyperswitch/compare/2026.08.19.0...2026.08.20.0)
+
+- - -
+
 ## 2026.08.19.0
 
 ### Features
