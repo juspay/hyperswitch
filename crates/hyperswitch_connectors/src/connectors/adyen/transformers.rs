@@ -5732,7 +5732,7 @@ pub enum WebhookEventCode {
     Capture,
     CaptureFailed,
     RefundFailed,
-    RefundReversed,
+    RefundedReversed,
     NotificationOfChargeback,
     Chargeback,
     ChargebackReversed,
@@ -5791,7 +5791,7 @@ pub fn is_refund_event(event_code: &WebhookEventCode) -> bool {
         WebhookEventCode::Refund
             | WebhookEventCode::CancelOrRefund
             | WebhookEventCode::RefundFailed
-            | WebhookEventCode::RefundReversed
+            | WebhookEventCode::RefundedReversed
     )
 }
 
@@ -5867,8 +5867,9 @@ pub(crate) fn get_adyen_webhook_event(
                 api_models::webhooks::IncomingWebhookEvent::PaymentIntentExtendAuthorizationFailure
             }
         }
-        WebhookEventCode::RefundFailed | WebhookEventCode::RefundReversed => {
-            api_models::webhooks::IncomingWebhookEvent::RefundFailure
+        WebhookEventCode::RefundFailed => api_models::webhooks::IncomingWebhookEvent::RefundFailure,
+        WebhookEventCode::RefundedReversed => {
+            api_models::webhooks::IncomingWebhookEvent::RefundManualReview
         }
         WebhookEventCode::NotificationOfChargeback => {
             api_models::webhooks::IncomingWebhookEvent::DisputeOpened
@@ -6123,7 +6124,7 @@ impl From<AdyenNotificationRequestItemWH> for AdyenWebhookResponse {
                 WebhookEventCode::CancelOrRefund
                 | WebhookEventCode::Refund
                 | WebhookEventCode::RefundFailed
-                | WebhookEventCode::RefundReversed
+                | WebhookEventCode::RefundedReversed
                 | WebhookEventCode::NotificationOfChargeback
                 | WebhookEventCode::RequestForInformation
                 | WebhookEventCode::Chargeback
