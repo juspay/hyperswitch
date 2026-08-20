@@ -598,5 +598,6 @@ pub async fn create_domain_model_for_split_payment(
         network_transaction_link_id: None,
         authorized_amount: None,
         external_surcharge_details: None,
+        applied_offer_details: None,
     })
 }

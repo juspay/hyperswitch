@@ -287,6 +287,8 @@ pub enum Flow {
     RoutingRetrieveDictionary,
     /// Rule migration for decision-engine
     DecisionEngineRuleMigration,
+    /// Migration status report for decision-engine
+    DecisionEngineMigrationStatus,
     /// Routing update config
     RoutingUpdateConfig,
     /// Routing update default config
@@ -395,6 +397,8 @@ pub enum Flow {
     PaymentLinkList,
     /// Payment Link Status
     PaymentLinkStatus,
+    /// Payment Link Create flow
+    PaymentLinkCreate,
     /// Create a profile
     ProfileCreate,
     /// Update a profile

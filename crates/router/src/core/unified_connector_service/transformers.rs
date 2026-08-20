@@ -126,6 +126,7 @@ fn build_ucs_order_details(
                         .as_ref()
                         .map(|value| value.get_percentage()),
                     discount_type: detail.discount_type.clone(),
+                    product_link: None,
                 })
                 .collect()
         })
@@ -3948,6 +3949,36 @@ impl ForeignFrom<common_enums::CardNetwork> for payments_grpc::CardNetwork {
     }
 }
 
+impl transformers::ForeignTryFrom<payments_grpc::CardNetwork> for common_enums::CardNetwork {
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(card_network: payments_grpc::CardNetwork) -> Result<Self, Self::Error> {
+        match card_network {
+            payments_grpc::CardNetwork::Visa => Ok(Self::Visa),
+            payments_grpc::CardNetwork::Mastercard => Ok(Self::Mastercard),
+            payments_grpc::CardNetwork::Amex => Ok(Self::AmericanExpress),
+            payments_grpc::CardNetwork::Discover => Ok(Self::Discover),
+            payments_grpc::CardNetwork::Jcb => Ok(Self::JCB),
+            payments_grpc::CardNetwork::Diners => Ok(Self::DinersClub),
+            payments_grpc::CardNetwork::Unionpay => Ok(Self::UnionPay),
+            payments_grpc::CardNetwork::Maestro => Ok(Self::Maestro),
+            payments_grpc::CardNetwork::CartesBancaires => Ok(Self::CartesBancaires),
+            payments_grpc::CardNetwork::Rupay => Ok(Self::RuPay),
+            payments_grpc::CardNetwork::InteracCard => Ok(Self::Interac),
+            payments_grpc::CardNetwork::Star => Ok(Self::Star),
+            payments_grpc::CardNetwork::Pulse => Ok(Self::Pulse),
+            payments_grpc::CardNetwork::Accel => Ok(Self::Accel),
+            payments_grpc::CardNetwork::Nyce => Ok(Self::Nyce),
+            payments_grpc::CardNetwork::Prop => Ok(Self::Prop),
+            payments_grpc::CardNetwork::PrivateLabel => Ok(Self::PrivateLabel),
+            payments_grpc::CardNetwork::Dinacard => Ok(Self::Dinacard),
+            payments_grpc::CardNetwork::Unspecified => {
+                Err(UnifiedConnectorServiceError::ResponseDeserializationFailed)?
+            }
+        }
+    }
+}
+
 impl transformers::ForeignTryFrom<hyperswitch_domain_models::payment_method_data::UpiSource>
     for payments_grpc::UpiSource
 {
@@ -5392,7 +5423,13 @@ impl ForeignFrom<common_enums::PaymentMethodType> for payments_grpc::PaymentMeth
             common_enums::PaymentMethodType::InstantBankTransfer => Self::InstantBankTransfer,
             common_enums::PaymentMethodType::RevolutPay => Self::RevolutPay,
             // Variants that don't have direct proto equivalents
-            _ => Self::Unspecified,
+            _ => {
+                tracing::warn!(
+                    payment_method_type = ?value,
+                    "PaymentMethodType does not have a direct proto equivalent, mapping to Unspecified"
+                );
+                Self::Unspecified
+            }
         }
     }
 }
@@ -6807,7 +6844,13 @@ impl transformers::ForeignTryFrom<&RouterData<Execute, RefundsData, RefundsRespo
                 .as_ref()
                 .map(|id| id.get_string_repr().to_string()),
             merchant_request_id: None,
-            connector_order_id: None,
+            // Connector-side identifier of the original payment this refund targets. Mirrors how
+            // Capture/Void send `merchant_capture_id`/`merchant_void_id`: the reference the
+            // original attempt was sent to the connector with.
+            connector_order_id: router_data
+                .request
+                .payment_connector_request_reference_id
+                .clone(),
             payment_method: None,
         })
     }
@@ -6882,7 +6925,11 @@ impl transformers::ForeignTryFrom<&RouterData<RSync, RefundsData, RefundsRespons
             payment_method_type,
             connector_feature_data: None,
             merchant_request_id: None,
-            connector_order_id: None,
+            // Connector-side identifier of the original payment this refund sync targets.
+            connector_order_id: router_data
+                .request
+                .payment_connector_request_reference_id
+                .clone(),
         })
     }
 }
@@ -7617,6 +7664,7 @@ impl
                 .map(payments_grpc::SourceBankData::foreign_try_from)
                 .transpose()?,
             description: router_data.description.clone(),
+            connector_eligibility_reference_id: None,
         })
     }
 }
@@ -8419,6 +8467,7 @@ impl transformers::ForeignTryFrom<&api_models::payouts::Passthrough>
         Ok(Self {
             psp_token: item.psp_token.clone().expose(),
             token_type: payments_grpc::PaymentMethodType::foreign_from(item.token_type).into(),
+            psp_customer_id: item.psp_customer_id.clone(),
         })
     }
 }

@@ -73,6 +73,7 @@ use hyperswitch_domain_models::{
     payments::{self, payment_intent::CustomerData, ClickToPayMetaData},
     router_data::{AccessToken, FeatureData},
 };
+use hyperswitch_interfaces::api::ConnectorSpecifications;
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 #[cfg(feature = "v2")]
 use operations::ValidateStatusForOperation;
@@ -172,7 +173,7 @@ use crate::{core::revenue_recovery::get_workflow_entries, db::storage::payment_m
 #[cfg(feature = "v1")]
 use crate::{
     core::{
-        authentication as authentication_core,
+        authentication as authentication_core, offer_engine,
         unified_connector_service::update_gateway_system_in_feature_metadata,
     },
     types::{api::authentication, BrowserInformation},
@@ -859,6 +860,7 @@ where
 
     let mut connector_http_status_code = None;
     let mut external_latency = None;
+    let mut current_flow_info_for_recurrence_webhook = None;
     if let Some(connector_details) = connector {
         // Fetch and check FRM configs
         #[cfg(feature = "frm")]
@@ -1117,6 +1119,7 @@ where
 
                     connector_http_status_code = router_data.connector_http_status_code;
                     external_latency = router_data.external_latency;
+                    current_flow_info_for_recurrence_webhook = router_data.current_flow_info();
                     //add connector http status code metrics
                     add_connector_http_status_code_metrics(connector_http_status_code);
 
@@ -1342,6 +1345,7 @@ where
                     let operation = Box::new(PaymentResponse);
                     connector_http_status_code = router_data.connector_http_status_code;
                     external_latency = router_data.external_latency;
+                    current_flow_info_for_recurrence_webhook = router_data.current_flow_info();
                     //add connector http status code metrics
                     add_connector_http_status_code_metrics(connector_http_status_code);
 
@@ -1491,6 +1495,15 @@ where
         }
 
         let payment_intent_status = payment_data.get_payment_intent().status;
+        let retain_payment_method_token_for_retry = payment_intent_status
+            .is_eligible_for_manual_retry()
+            && business_profile.is_manual_retry_enabled == Some(true)
+            && business_profile.intent_fulfillment_time.is_some()
+            && payment_data
+                .get_payment_method_info()
+                .is_some_and(|payment_method| {
+                    payment_method.version == common_enums::ApiVersion::V2
+                });
 
         payment_data
             .get_payment_attempt()
@@ -1501,6 +1514,7 @@ where
             .async_map(|key_for_hyperswitch_token| async move {
                 if key_for_hyperswitch_token
                     .should_delete_payment_method_token(payment_intent_status)
+                    && !retain_payment_method_token_for_retry
                 {
                     let _ = key_for_hyperswitch_token.delete(state).await;
                 }
@@ -1534,16 +1548,42 @@ where
         )
         .await?;
 
-    utils::trigger_payments_webhook(
-        platform,
-        business_profile,
-        cloned_payment_data,
-        state,
-        operation,
-    )
-    .await
-    .map_err(|error| logger::warn!(payments_outgoing_webhook_error=?error))
-    .ok();
+    let should_delay_webhook_for_recurring_payment = current_flow_info_for_recurrence_webhook
+        .is_some()
+        && payment_data
+            .get_payment_attempt_connector()
+            .and_then(|connector_name| {
+                api::ConnectorData::get_connector_by_name(
+                    &state.conf.connectors,
+                    connector_name,
+                    api::GetToken::Connector,
+                    None,
+                )
+                .ok()
+            })
+            .and_then(|connector_data| {
+                let setup_future_usage = payment_data.get_payment_intent().setup_future_usage;
+                connector_data
+                    .connector
+                    .is_payment_recurrence_operation_needed(
+                        setup_future_usage,
+                        current_flow_info_for_recurrence_webhook,
+                    )
+            })
+            .unwrap_or(false);
+
+    if !should_delay_webhook_for_recurring_payment {
+        utils::trigger_payments_webhook(
+            platform,
+            business_profile,
+            cloned_payment_data,
+            state,
+            operation,
+        )
+        .await
+        .map_err(|error| logger::warn!(payments_outgoing_webhook_error=?error))
+        .ok();
+    }
 
     Ok((
         payment_data,
@@ -9724,7 +9764,8 @@ async fn set_payment_method_from_token_for_modular_payment_method_flow<F, D>(
             | storage::PaymentTokenData::PermanentCard(_)
             | storage::PaymentTokenData::AuthBankDebit(_)
             | storage::PaymentTokenData::WalletToken(_)
-            | storage::PaymentTokenData::BankDebit(_),
+            | storage::PaymentTokenData::BankDebit(_)
+            | storage::PaymentTokenData::BankRedirect(_),
         )
         | None => {
             logger::debug!(
@@ -10275,7 +10316,8 @@ impl PaymentEligibilityData {
             | storage::PaymentTokenData::Permanent(_)
             | storage::PaymentTokenData::AuthBankDebit(_)
             | storage::PaymentTokenData::WalletToken(_)
-            | storage::PaymentTokenData::BankDebit(_) => None,
+            | storage::PaymentTokenData::BankDebit(_)
+            | storage::PaymentTokenData::BankRedirect(_) => None,
         };
 
         Ok(payment_method_data)
@@ -10550,7 +10592,6 @@ pub async fn list_payments(
     profile_id_list: Option<Vec<id_type::ProfileId>>,
     constraints: api::PaymentListConstraints,
 ) -> RouterResponse<api::PaymentListResponse> {
-    helpers::validate_payment_list_request(&constraints)?;
     let processor_merchant_id = platform.get_processor().get_account().get_id();
     let db = state.store.as_ref();
     let payment_intents = helpers::filter_by_constraints(
@@ -10627,8 +10668,6 @@ pub async fn list_payments(
 ) -> RouterResponse<payments_api::PaymentListResponse> {
     common_utils::metrics::utils::record_operation_time(
         async {
-            let limit = &constraints.limit;
-            helpers::validate_payment_list_request_for_joins(*limit)?;
             let db: &dyn StorageInterface = state.store.as_ref();
             let fetch_constraints = constraints.clone().into();
             let list: Vec<(storage::PaymentIntent, Option<storage::PaymentAttempt>)> = db
@@ -10704,8 +10743,7 @@ pub async fn revenue_recovery_list_payments(
 ) -> RouterResponse<payments_api::RecoveryPaymentListResponse> {
     common_utils::metrics::utils::record_operation_time(
         async {
-            let limit = &constraints.limit;
-            helpers::validate_payment_list_request_for_joins(*limit)?;
+            // `limit` is a `PageSize`, already validated at deserialize; no extra check needed.
             let db: &dyn StorageInterface = state.store.as_ref();
             let fetch_constraints = constraints.clone().into();
             let list: Vec<(storage::PaymentIntent, Option<storage::PaymentAttempt>)> = db
@@ -10841,19 +10879,17 @@ pub async fn revenue_recovery_list_payments(
 pub async fn apply_filters_on_payments(
     state: SessionState,
     platform: domain::Platform,
-    profile_id_list: Option<Vec<id_type::ProfileId>>,
+    _profile_id_list: Option<Vec<id_type::ProfileId>>,
     constraints: api::PaymentListFilterConstraints,
 ) -> RouterResponse<api::PaymentListResponseV2> {
     common_utils::metrics::utils::record_operation_time(
         async {
-            let limit = &constraints.limit;
-            helpers::validate_payment_list_request_for_joins(*limit)?;
             let db: &dyn StorageInterface = state.store.as_ref();
-            let pi_fetch_constraints = (constraints.clone(), profile_id_list.clone()).try_into()?;
+            let fetch_constraints = constraints.clone().into();
             let list: Vec<(storage::PaymentIntent, storage::PaymentAttempt)> = db
                 .get_filtered_payment_intents_attempt(
                     platform.get_processor().get_account().get_id(),
-                    &pi_fetch_constraints,
+                    &fetch_constraints,
                     platform.get_processor().get_key_store(),
                     platform.get_processor().get_account().storage_scheme,
                 )
@@ -10865,7 +10901,7 @@ pub async fn apply_filters_on_payments(
             let active_attempt_ids = db
                 .get_filtered_active_attempt_ids_for_total_count(
                     platform.get_processor().get_account().get_id(),
-                    &pi_fetch_constraints,
+                    &fetch_constraints,
                     platform.get_processor().get_account().storage_scheme,
                 )
                 .await
@@ -14821,6 +14857,34 @@ pub async fn payments_submit_eligibility(
     let state_for_surcharge = state.clone();
     let platform_for_surcharge = platform.clone();
 
+    // Capture Offer Engine inputs (order amount, currency, customer, card BIN)
+    // before the eligibility handler takes ownership of the eligibility data.
+    let offer_order_amount = payment_eligibility_data.payment_intent.amount;
+    let offer_currency = payment_eligibility_data.payment_intent.currency;
+    let offer_customer_id = payment_eligibility_data.payment_intent.customer_id.clone();
+    let offer_card_bin = payment_eligibility_data
+        .payment_method_data
+        .as_ref()
+        .and_then(|pmd| pmd.get_card_iin());
+    // Forward whatever card attributes the request carried; Offer Engine uses
+    // them when present and ignores the rest.
+    let offer_card = payment_eligibility_data
+        .payment_method_data
+        .as_ref()
+        .and_then(|pmd| pmd.get_card_data());
+    let offer_card_network = offer_card.and_then(|card| {
+        card.card_network
+            .as_ref()
+            .map(|network| network.to_string())
+    });
+    let offer_card_type = offer_card.and_then(|card| card.card_type.clone());
+    let offer_bank_code = offer_card.and_then(|card| card.bank_code.clone());
+    let offer_card_country = offer_card.and_then(|card| card.card_issuing_country.clone());
+    let offer_payment_method_type = eligibility_req
+        .payment_method_type
+        .to_string()
+        .to_uppercase();
+
     let eligibility_handler =
         EligibilityHandler::new(state, platform, payment_eligibility_data, business_profile);
     let sdk_next_action = eligibility_handler.run_all_eligiblity_checks().await?;
@@ -14841,13 +14905,166 @@ pub async fn payments_submit_eligibility(
         }
     };
 
+    // Offer Engine eligibility: resolve `/list` and, when an offer is selected,
+    // store the quote for confirm to validate `/apply` against.
+    let (amount_details, offer_details) = resolve_offer_eligibility_details(
+        &state_for_surcharge,
+        platform_for_surcharge.get_processor(),
+        &profile_id,
+        &payment_id,
+        &sdk_next_action.next_action,
+        offer_order_amount,
+        offer_currency,
+        offer_customer_id.as_ref(),
+        offer_payment_method_type,
+        offer_card_bin,
+        offer_card_network,
+        offer_card_type,
+        offer_bank_code,
+        offer_card_country,
+    )
+    .await?;
+
     Ok(services::ApplicationResponse::Json(
         api_models::payments::PaymentsEligibilityResponse {
             payment_id,
             sdk_next_action,
             surcharge_details,
+            amount_details,
+            offer_details,
         },
     ))
+}
+
+/// Resolve Offer Engine eligibility into `(amount_details, offer_details)` for the
+/// eligibility response.
+///
+/// Both are `None` when eligibility is denied or Offer Engine is not available
+/// (config resolution failures are treated as "offers not available"). A `/list`
+/// failure while Offer Engine is enabled fails eligibility. When enabled but no
+/// offer is selected, the payable amount is returned unchanged with an empty
+/// offer list.
+#[cfg(all(feature = "oltp", feature = "v1"))]
+#[allow(clippy::too_many_arguments)]
+async fn resolve_offer_eligibility_details(
+    state: &SessionState,
+    processor: &domain::Processor,
+    profile_id: &id_type::ProfileId,
+    payment_id: &id_type::PaymentId,
+    next_action: &api_models::payments::NextActionCall,
+    order_amount: MinorUnit,
+    currency: Option<common_enums::Currency>,
+    customer_id: Option<&id_type::CustomerId>,
+    payment_method_type: String,
+    card_bin: Option<String>,
+    card_network: Option<String>,
+    card_type: Option<String>,
+    bank_code: Option<String>,
+    card_country: Option<String>,
+) -> RouterResult<(
+    Option<api_models::payments::EligibilityAmountDetails>,
+    Option<api_models::payments::EligibilityOfferDetails>,
+)> {
+    // Offers apply only when eligibility is not denied, an Offer Engine config
+    // resolves, and the currency is known (config-resolution failures are treated
+    // as "offers not available").
+    let offer_context = if matches!(
+        next_action,
+        api_models::payments::NextActionCall::Deny { .. }
+    ) {
+        None
+    } else {
+        // Target config at merchant/org/profile so superposition can override per
+        // dimension; falls back to global when no override is configured.
+        let offer_dimensions = Dimensions::new()
+            .with_processor_merchant_id(processor.get_processor_merchant_id())
+            .with_organization_id(processor.get_account().get_org_id().clone())
+            .with_profile_id(profile_id.clone());
+        offer_engine::resolve_offer_engine_config(state, &offer_dimensions)
+            .await
+            .ok()
+            .flatten()
+            .zip(currency)
+    };
+
+    match offer_context {
+        None => Ok((None, None)),
+        Some((offer_config, currency)) => {
+            let ctx = offer_engine::eligibility::OfferEligibilityContext {
+                payment_id: payment_id.clone(),
+                order_amount,
+                currency,
+                customer_id: customer_id.cloned(),
+                payment_method_reference: payment_id.get_string_repr().to_string(),
+                payment_method_type,
+                payment_method: card_network,
+                card_bin,
+                card_type,
+                bank_code,
+                card_country,
+            };
+
+            // A `/list` failure while Offer Engine is enabled fails eligibility.
+            let selected =
+                offer_engine::eligibility::run_offer_eligibility(state, offer_config, ctx)
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Offer Engine /list failed")?;
+
+            match selected {
+                // Enabled but no eligible offer: payable amount unchanged.
+                None => Ok((
+                    Some(api_models::payments::EligibilityAmountDetails {
+                        total_amount: order_amount,
+                        net_amount: order_amount,
+                        currency,
+                    }),
+                    Some(api_models::payments::EligibilityOfferDetails::default()),
+                )),
+                // Eligible offer: store the quote for confirm to validate `/apply`
+                // against (keyed by offer id, the first-launch quote id; TTL kept).
+                Some(selected) => {
+                    let processor_merchant_id = processor.get_account().get_id().clone();
+                    // Issue a unique quote id; confirm echoes it back to apply this offer.
+                    let offer_quote_id = common_utils::generate_time_ordered_id("offer_quote");
+                    let quotes = HashMap::from([(
+                        offer_quote_id.clone(),
+                        client_session::OfferQuote {
+                            offer_id: selected.offer_id.clone(),
+                            offer_amount: selected.offer_amount,
+                            currency: selected.currency,
+                        },
+                    )]);
+                    client_session::ClientSessionManager::store_offer_quotes(
+                        state,
+                        &processor_merchant_id,
+                        payment_id,
+                        quotes,
+                    )
+                    .await?;
+
+                    Ok((
+                        Some(api_models::payments::EligibilityAmountDetails {
+                            total_amount: order_amount,
+                            net_amount: order_amount - selected.offer_amount,
+                            currency,
+                        }),
+                        Some(api_models::payments::EligibilityOfferDetails {
+                            uplifted_offer_quote_ids: vec![offer_quote_id.clone()],
+                            eligible_offers: vec![api_models::payments::EligibleOffer {
+                                offer_quote_id,
+                                offer_amount: selected.offer_amount,
+                                currency: selected.currency,
+                                code: selected.code,
+                                title: selected.title,
+                                description: selected.description,
+                            }],
+                        }),
+                    ))
+                }
+            }
+        }
+    }
 }
 
 pub trait PaymentMethodChecker<F> {
