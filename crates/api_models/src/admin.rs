@@ -3893,6 +3893,7 @@ mod tests {
             is_setup_mandate_flow: None,
             color_icon_card_cvc_error: None,
             show_merchant_name: None,
+            payment_methods_separator_text: None,
         };
         assert!(safe_request.validate().is_ok());
 
