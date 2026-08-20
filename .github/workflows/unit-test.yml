@@ -1,0 +1,45 @@
+name: PR Unit Tests and Follow-up PR
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+
+      - name: Install dependencies
+        run: sudo apt-get update
+
+      - name: Run unit tests
+        run: cargo test --all
+
+  create-followup-pr:
+    needs: unit-tests
+    runs-on: ubuntu-latest
+    if: success()
+    steps:
+      - uses: actions/checkout@v4
+
+      # You can add steps here to do a full project run or any additional checks
+      - name: Run full project tests
+        run: cargo test --all -- --ignored
+
+      - name: Create follow-up PR
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "Full project run for PR #${{ github.event.pull_request.number }}"
+          branch: followup/pr-${{ github.event.pull_request.number }}
+          title: "Follow-up: Full Project Run for PR #${{ github.event.pull_request.number }}"
+          body: |
+            This PR is automatically created after successful unit tests on PR #${{ github.event.pull_request.number }}.
+            Original PR: ${{ github.event.pull_request.html_url }}
