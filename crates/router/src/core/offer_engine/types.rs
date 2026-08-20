@@ -284,3 +284,62 @@ impl OfferApplyResponse {
         })
     }
 }
+
+/// Transaction status reported to Offer Engine for a durable outcome.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
+pub enum OfferTxnStatus {
+    #[serde(rename = "CHARGED")]
+    Charged,
+    #[serde(rename = "FAILURE")]
+    Failure,
+    #[serde(rename = "REFUNDED")]
+    Refunded,
+    #[serde(rename = "PARTIALLY_REFUNDED")]
+    PartiallyRefunded,
+    #[serde(rename = "AUTO_REFUNDED")]
+    AutoRefunded,
+}
+
+/// Per-offer status reported alongside a notification.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
+pub enum OfferNotifyStatus {
+    #[serde(rename = "AVAILED")]
+    Availed,
+    #[serde(rename = "FAILED")]
+    Failed,
+    #[serde(rename = "REFUNDED")]
+    Refunded,
+    #[serde(rename = "REVOKED")]
+    Revoked,
+}
+
+/// Notification origin. Hyperswitch always reports `JUSPAY`.
+#[derive(Debug, Clone, Copy, serde::Serialize)]
+pub enum OfferNotifyOrigin {
+    #[serde(rename = "JUSPAY")]
+    Juspay,
+}
+
+/// A single offer's outcome inside a notification.
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct OfferNotifyOffer {
+    pub offer_id: String,
+    pub status: OfferNotifyStatus,
+    pub error_code: Option<String>,
+    pub error_message: Option<String>,
+}
+
+/// Request body for `/offers/notify`.
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct OfferNotifyRequest {
+    pub order_id: String,
+    pub txn_id: String,
+    pub txn_status: OfferTxnStatus,
+    pub merchant_id: String,
+    pub origin: OfferNotifyOrigin,
+    pub offers: Vec<OfferNotifyOffer>,
+    pub refund_id: Option<String>,
+}
+
+/// Response marker for `/offers/notify`; a 2xx is treated as delivered.
+pub struct OfferNotifyResponse;

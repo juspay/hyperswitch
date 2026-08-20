@@ -234,6 +234,12 @@ counter_metric!(TASKS_ADDED_COUNT, GLOBAL_METER); // Tasks added to process trac
 counter_metric!(TASK_ADDITION_FAILURES_COUNT, GLOBAL_METER); // Failures in task addition to process tracker
 counter_metric!(TASKS_RESET_COUNT, GLOBAL_METER); // Tasks reset in process tracker for requeue flow
 
+// Offer Engine notification (Process Tracker) metrics
+counter_metric!(OFFER_ENGINE_NOTIFY_TASKS_SCHEDULED, GLOBAL_METER);
+counter_metric!(OFFER_ENGINE_NOTIFY_SCHEDULE_FAILURES, GLOBAL_METER);
+counter_metric!(OFFER_ENGINE_NOTIFY_SUCCESS, GLOBAL_METER);
+counter_metric!(OFFER_ENGINE_NOTIFY_TERMINAL_FAILURES, GLOBAL_METER);
+
 // Access token metrics
 //
 // A counter to indicate the number of new access tokens created

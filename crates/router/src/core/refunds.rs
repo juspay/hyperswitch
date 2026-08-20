@@ -487,6 +487,11 @@ pub async fn trigger_refund_to_gateway(
         .await
         .map_err(|error| logger::warn!(refunds_outgoing_webhook_error=?error))
         .ok();
+    #[cfg(feature = "v1")]
+    if response.refund_status == diesel_models::enums::RefundStatus::Success {
+        crate::core::offer_engine::schedule_refund_notification(state, payment_attempt, &response)
+            .await;
+    }
     Ok((response, router_data_res.raw_connector_response))
 }
 
@@ -1115,6 +1120,11 @@ pub async fn sync_refund_with_gateway(
         .await
         .map_err(|error| logger::warn!(refunds_outgoing_webhook_error=?error))
         .ok();
+    #[cfg(feature = "v1")]
+    if response.refund_status == diesel_models::enums::RefundStatus::Success {
+        crate::core::offer_engine::schedule_refund_notification(state, payment_attempt, &response)
+            .await;
+    }
     Ok((response, router_data_res.raw_connector_response))
 }
 
