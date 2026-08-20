@@ -4,7 +4,7 @@ use common_utils::{
     types::{keymanager, TenantConfig},
     DbConnectionParams,
 };
-use diesel::PgConnection;
+use diesel_models::DejaPgConnection;
 use error_stack::ResultExt;
 
 use crate::{
@@ -12,8 +12,8 @@ use crate::{
     errors::{StorageError, StorageResult},
 };
 
-pub type PgPool = bb8::Pool<async_bb8_diesel::ConnectionManager<PgConnection>>;
-pub type PgPooledConn = async_bb8_diesel::Connection<PgConnection>;
+pub type PgPool = bb8::Pool<async_bb8_diesel::ConnectionManager<DejaPgConnection>>;
+pub type PgPooledConn = async_bb8_diesel::Connection<DejaPgConnection>;
 
 #[async_trait::async_trait]
 pub trait DatabaseStore: Clone + Send + Sync {
@@ -164,7 +164,7 @@ pub async fn diesel_make_pg_pool(
     test_transaction: bool,
 ) -> StorageResult<PgPool> {
     let database_url = database.get_database_url(schema);
-    let manager = async_bb8_diesel::ConnectionManager::<PgConnection>::new(database_url);
+    let manager = async_bb8_diesel::ConnectionManager::<DejaPgConnection>::new(database_url);
     let mut pool = bb8::Pool::builder()
         .max_size(database.max_pool_size)
         .min_idle(Some(database.min_idle_pool_size))
@@ -177,10 +177,44 @@ pub async fn diesel_make_pg_pool(
         pool = pool.connection_customizer(Box::new(TestTransaction));
     }
 
-    pool.build(manager)
+    let pool = pool
+        .build(manager)
         .await
         .change_context(StorageError::InitializationError)
-        .attach_printable("Failed to create PostgreSQL connection pool")
+        .attach_printable("Failed to create PostgreSQL connection pool")?;
+
+    // Register row identity (primary-key columns) with deja from this
+    // database's own catalog. Idempotent; on failure identity stays
+    // unregistered, making recorded row keys absent rather than wrong.
+    #[cfg(feature = "deja")]
+    if !deja::runtime_mode_is_disabled() {
+        use async_bb8_diesel::AsyncConnection;
+        use diesel::RunQueryDsl;
+        if let Ok(connection) = pool.get().await {
+            let rows = connection
+                .run(|conn| {
+                    diesel::sql_query(deja::TABLE_IDENTITY_SQL)
+                        .load::<deja::db::TableIdentityRow>(conn)
+                        .map(|rows| {
+                            rows.into_iter()
+                                .map(|row| (row.table_name, row.column_name))
+                                .collect::<Vec<(String, String)>>()
+                        })
+                })
+                .await;
+            match rows {
+                Ok(rows) => deja::db::register_table_identity_rows(rows),
+                Err(error) => {
+                    router_env::logger::warn!(
+                        ?error,
+                        "deja: could not read row identity from the schema; recorded row keys will fall back to query fingerprints"
+                    );
+                }
+            }
+        }
+    }
+
+    Ok(pool)
 }
 
 #[derive(Debug)]

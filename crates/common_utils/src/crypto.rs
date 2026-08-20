@@ -773,6 +773,86 @@ where
     }
 }
 
+/// Lossless two-halves serde for [`Encryptable`], used by deja capture/replay.
+/// The type's own impls intentionally drop the ciphertext (API responses must
+/// never expose it); this module carries both halves so a substituted value
+/// keeps its encrypted half. Applied per field with
+/// `#[serde(with = "…encryptable_exact")]` (or `::optional` for an `Option`).
+pub mod encryptable_exact {
+    use hyperswitch_masking::PeekInterface;
+    use serde::{Deserialize, Serialize};
+
+    use super::{Encryptable, Secret};
+
+    #[derive(Serialize, Deserialize)]
+    struct Halves<T> {
+        inner: T,
+        encrypted: Vec<u8>,
+    }
+
+    impl<T: Clone> Halves<T> {
+        fn of(value: &Encryptable<T>) -> Self {
+            Self {
+                inner: value.inner.clone(),
+                encrypted: value.encrypted.peek().clone(),
+            }
+        }
+
+        fn into_encryptable(self) -> Encryptable<T> {
+            Encryptable {
+                inner: self.inner,
+                encrypted: Secret::new(self.encrypted),
+            }
+        }
+    }
+
+    /// Serialize both halves — the decrypted value AND the ciphertext.
+    pub fn serialize<T, S>(value: &Encryptable<T>, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        T: Clone + Serialize,
+        S: serde::Serializer,
+    {
+        Halves::of(value).serialize(serializer)
+    }
+
+    /// Rebuild from both halves, so the ciphertext survives the round trip.
+    pub fn deserialize<'de, T, D>(deserializer: D) -> Result<Encryptable<T>, D::Error>
+    where
+        T: Clone + serde::de::DeserializeOwned,
+        D: serde::Deserializer<'de>,
+    {
+        Halves::<T>::deserialize(deserializer).map(Halves::into_encryptable)
+    }
+
+    /// The same exactness for an `Option<Encryptable<T>>` field.
+    pub mod optional {
+        use serde::{Deserialize, Serialize};
+
+        use super::{Encryptable, Halves};
+
+        /// Serialize both halves of an optional value.
+        pub fn serialize<T, S>(
+            value: &Option<Encryptable<T>>,
+            serializer: S,
+        ) -> Result<S::Ok, S::Error>
+        where
+            T: Clone + Serialize,
+            S: serde::Serializer,
+        {
+            value.as_ref().map(Halves::of).serialize(serializer)
+        }
+
+        /// Rebuild an optional value from both halves.
+        pub fn deserialize<'de, T, D>(deserializer: D) -> Result<Option<Encryptable<T>>, D::Error>
+        where
+            T: Clone + serde::de::DeserializeOwned,
+            D: serde::Deserializer<'de>,
+        {
+            Ok(Option::<Halves<T>>::deserialize(deserializer)?.map(Halves::into_encryptable))
+        }
+    }
+}
+
 impl<T: Clone> PartialEq for Encryptable<T>
 where
     T: PartialEq,
@@ -883,6 +963,157 @@ impl SignMessage for RsaPssSha256 {
             .attach_printable("Failed to sign data with ring")?;
 
         Ok(signature_bytes)
+    }
+}
+
+#[cfg(test)]
+mod encryptable_exact_tests {
+    use hyperswitch_masking::{PeekInterface, Secret};
+    use serde::{Deserialize, Serialize};
+
+    use super::Encryptable;
+
+    #[derive(Serialize, Deserialize)]
+    struct Holder {
+        #[serde(with = "super::encryptable_exact")]
+        required: Encryptable<Secret<String>>,
+        #[serde(with = "super::encryptable_exact::optional")]
+        optional: Option<Encryptable<Secret<String>>>,
+    }
+
+    fn holder(inner: &str, ciphertext: Vec<u8>) -> Holder {
+        Holder {
+            required: Encryptable::new(Secret::new(inner.to_owned()), Secret::new(ciphertext)),
+            optional: None,
+        }
+    }
+
+    /// The exactness that matters: the CIPHERTEXT survives the round trip.
+    ///
+    /// `Encryptable`'s own impls drop it on purpose — an API response must
+    /// never expose it — so capturing a cached decrypted value through them
+    /// yields something the source never held. `into_encrypted()` has callers
+    /// on write-back paths (`common_utils::encryption`, the `type_encryption`
+    /// conversions), which would persist the empty bytes and call it
+    /// reproduction.
+    #[test]
+    fn both_halves_survive_the_round_trip() {
+        let ciphertext = vec![7_u8, 8, 9, 250];
+        let subject = Holder {
+            required: Encryptable::new(
+                Secret::new("plaintext".to_owned()),
+                Secret::new(ciphertext.clone()),
+            ),
+            optional: Some(Encryptable::new(
+                Secret::new("other".to_owned()),
+                Secret::new(vec![1_u8, 2]),
+            )),
+        };
+
+        let wire = serde_json::to_value(&subject).expect("serializes");
+        let back: Holder = serde_json::from_value(wire).expect("deserializes");
+
+        assert_eq!(back.required.get_inner().peek(), "plaintext");
+        assert_eq!(
+            back.required.clone().into_encrypted().peek(),
+            &ciphertext,
+            "the encrypted half must round-trip, not come back empty"
+        );
+        let optional = back.optional.expect("optional present");
+        assert_eq!(optional.get_inner().peek(), "other");
+        assert_eq!(optional.into_encrypted().peek(), &vec![1_u8, 2]);
+    }
+
+    /// A `None` optional stays `None` rather than becoming an empty value.
+    #[test]
+    fn an_absent_optional_stays_absent() {
+        let subject = holder("x", vec![]);
+        let wire = serde_json::to_value(&subject).expect("serializes");
+        let back: Holder = serde_json::from_value(wire).expect("deserializes");
+        assert!(back.optional.is_none());
+    }
+
+    /// The type's own impls stay lossy — this is the contract the helper
+    /// exists to work around, and a change to it would silently re-break
+    /// capture rather than failing anything.
+    #[test]
+    fn the_types_own_serde_still_drops_the_ciphertext() {
+        let value: Encryptable<Secret<String>> =
+            Encryptable::new(Secret::new("v".to_owned()), Secret::new(vec![1_u8, 2, 3]));
+        let wire = serde_json::to_value(&value).expect("serializes");
+        let back: Encryptable<Secret<String>> = serde_json::from_value(wire).expect("deserializes");
+        assert!(
+            back.into_encrypted().peek().is_empty(),
+            "documented lossiness: the public impls carry only the value"
+        );
+    }
+
+    /// An EMPTY ciphertext must round-trip as empty, distinguishably.
+    ///
+    /// Without this, a regression to the lossy path is only caught by cases
+    /// that happen to carry bytes: `into_encrypted().peek().is_empty()` would
+    /// hold for "the source was empty" and for "the helper dropped it", and
+    /// the two are different facts. Pairing this with the non-empty case
+    /// pins both directions.
+    #[test]
+    fn an_empty_ciphertext_round_trips_as_empty() {
+        let subject = holder("v", Vec::new());
+        let wire = serde_json::to_value(&subject).expect("serializes");
+        let back: Holder = serde_json::from_value(wire).expect("deserializes");
+        assert!(back.required.into_encrypted().peek().is_empty());
+    }
+
+    /// Ciphertext is arbitrary bytes, not text. A NUL, a 0xFF and a long run
+    /// must survive unaltered — a transport that ever routed these through a
+    /// string would mangle exactly these and nothing else.
+    #[test]
+    fn arbitrary_ciphertext_bytes_survive_unaltered() {
+        let mut ciphertext = vec![0_u8, 255, 1, 254, 128, 127];
+        ciphertext.extend(std::iter::repeat_n(0_u8, 64));
+        ciphertext.extend([0xDE, 0xAD, 0xBE, 0xEF]);
+
+        let subject = holder("v", ciphertext.clone());
+        let wire = serde_json::to_value(&subject).expect("serializes");
+        let back: Holder = serde_json::from_value(wire).expect("deserializes");
+        assert_eq!(back.required.into_encrypted().peek(), &ciphertext);
+    }
+
+    /// The same through a STRING, not only a `Value`.
+    ///
+    /// `serde_json::Value` is a lenient intermediate; the tape is bytes. A
+    /// round trip that only ever goes through `Value` can hide an escaping or
+    /// numeric-representation problem that a real serializer would hit.
+    #[test]
+    fn the_round_trip_holds_through_a_string_too() {
+        let ciphertext = vec![0_u8, 34, 92, 10, 255];
+        let subject = holder("quote\" and \\ backslash", ciphertext.clone());
+        let text = serde_json::to_string(&subject).expect("serializes");
+        let back: Holder = serde_json::from_str(&text).expect("deserializes");
+        assert_eq!(back.required.get_inner().peek(), "quote\" and \\ backslash");
+        assert_eq!(back.required.into_encrypted().peek(), &ciphertext);
+    }
+
+    /// The wire shape is part of the contract: both halves, under names the
+    /// tape already carries. Pinning it means a rename or a re-shaping is a
+    /// failing test rather than a silently unreadable recording.
+    #[test]
+    fn the_wire_carries_both_halves_under_stable_names() {
+        let subject = holder("v", vec![1_u8, 2]);
+        let wire = serde_json::to_value(&subject).expect("serializes");
+        let required = wire.get("required").expect("required field present");
+
+        assert!(
+            required.get("inner").is_some(),
+            "the decrypted half must be present as `inner`, got {required}"
+        );
+        assert_eq!(
+            required
+                .get("encrypted")
+                .and_then(|e| e.as_array())
+                .map(Vec::len),
+            Some(2),
+            "the encrypted half must be present as `encrypted`, got {required}"
+        );
     }
 }
 

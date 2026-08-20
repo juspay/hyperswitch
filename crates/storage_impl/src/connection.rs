@@ -1,16 +1,16 @@
 use bb8::PooledConnection;
 use common_utils::errors;
-use diesel::PgConnection;
+use diesel_models::DejaPgConnection;
 use error_stack::ResultExt;
 
-pub type PgPool = bb8::Pool<async_bb8_diesel::ConnectionManager<PgConnection>>;
+pub type PgPool = bb8::Pool<async_bb8_diesel::ConnectionManager<DejaPgConnection>>;
 
-pub type PgPooledConn = async_bb8_diesel::Connection<PgConnection>;
+pub type PgPooledConn = async_bb8_diesel::Connection<DejaPgConnection>;
 
 pub async fn pg_connection_read<T: crate::DatabaseStore>(
     store: &T,
 ) -> errors::CustomResult<
-    PooledConnection<'_, async_bb8_diesel::ConnectionManager<PgConnection>>,
+    PooledConnection<'_, async_bb8_diesel::ConnectionManager<DejaPgConnection>>,
     crate::errors::StorageError,
 > {
     // If only OLAP is enabled get replica pool.
@@ -41,7 +41,7 @@ pub async fn pg_connection_read<T: crate::DatabaseStore>(
 pub async fn pg_connection_write<T: crate::DatabaseStore>(
     store: &T,
 ) -> errors::CustomResult<
-    PooledConnection<'_, async_bb8_diesel::ConnectionManager<PgConnection>>,
+    PooledConnection<'_, async_bb8_diesel::ConnectionManager<DejaPgConnection>>,
     crate::errors::StorageError,
 > {
     // Since all writes should happen to master DB only choose master DB.

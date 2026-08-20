@@ -61,6 +61,22 @@ async fn main() -> ApplicationResult<()> {
         "deja runtime hook initialized"
     );
 
+    // Record mode fails open to a disabled hook so a broken recorder never
+    // takes down the router; make the downgrade loud instead of silent.
+    #[cfg(feature = "deja")]
+    if matches!(conf.deja.mode, router::configs::settings::DejaMode::Record)
+        && deja_install_report.mode != "record"
+    {
+        router_env::tracing::error!(
+            target: "deja",
+            configured_mode = "record",
+            installed_mode = deja_install_report.mode,
+            detail = ?deja_install_report.detail,
+            "deja is configured to record but the recording hook did not install; \
+             this process will not record anything"
+        );
+    }
+
     // Spawn a thread for collecting metrics at fixed intervals
     metrics::bg_metrics_collector::spawn_metrics_collector(
         conf.log.telemetry.bg_metrics_collection_interval_in_secs,

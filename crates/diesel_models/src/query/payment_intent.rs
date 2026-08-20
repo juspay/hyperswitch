@@ -64,13 +64,18 @@ impl PaymentIntent {
         conn: &PgPooledConn,
         payment_intent: payment_intent::PaymentIntentUpdate,
     ) -> StorageResult<Self> {
-        match generics::generic_update_with_results::<<Self as HasTable>::Table, _, _, _>(
+        match Box::pin(generics::generic_update_with_results::<
+            <Self as HasTable>::Table,
+            _,
+            _,
+            _,
+        >(
             conn,
             dsl::payment_id
                 .eq(self.payment_id.to_owned())
                 .and(dsl::processor_merchant_id.eq(self.processor_merchant_id.to_owned())),
             payment_intent::PaymentIntentUpdateInternal::from(payment_intent),
-        )
+        ))
         .await
         {
             Err(error) => match error.current_context() {

@@ -1,13 +1,13 @@
 use bb8::PooledConnection;
-use diesel::PgConnection;
+use diesel_models::DejaPgConnection;
 use error_stack::ResultExt;
 use storage_impl::errors as storage_errors;
 
 use crate::errors;
 
-pub type PgPool = bb8::Pool<async_bb8_diesel::ConnectionManager<PgConnection>>;
+pub type PgPool = bb8::Pool<async_bb8_diesel::ConnectionManager<DejaPgConnection>>;
 
-pub type PgPooledConn = async_bb8_diesel::Connection<PgConnection>;
+pub type PgPooledConn = async_bb8_diesel::Connection<DejaPgConnection>;
 
 // Deja replay (R1): the minimal replay DB routing hook. On a just-leased pg
 // connection during replay, route it to the active correlation's schema so
@@ -20,7 +20,7 @@ pub type PgPooledConn = async_bb8_diesel::Connection<PgConnection>;
 // built by the library (`deja::replay_search_path_sql_for`).
 #[cfg(feature = "deja")]
 async fn deja_route_replay_schema<T: storage_impl::DatabaseStore>(
-    conn: &mut PooledConnection<'_, async_bb8_diesel::ConnectionManager<PgConnection>>,
+    conn: &mut PooledConnection<'_, async_bb8_diesel::ConnectionManager<DejaPgConnection>>,
     store: &T,
 ) {
     use async_bb8_diesel::AsyncConnection;
@@ -38,7 +38,7 @@ async fn deja_route_replay_schema<T: storage_impl::DatabaseStore>(
 pub async fn pg_connection_read<T: storage_impl::DatabaseStore>(
     store: &T,
 ) -> errors::CustomResult<
-    PooledConnection<'_, async_bb8_diesel::ConnectionManager<PgConnection>>,
+    PooledConnection<'_, async_bb8_diesel::ConnectionManager<DejaPgConnection>>,
     storage_errors::StorageError,
 > {
     // If only OLAP is enabled get replica pool.
@@ -70,7 +70,7 @@ pub async fn pg_connection_read<T: storage_impl::DatabaseStore>(
 pub async fn pg_accounts_connection_read<T: storage_impl::DatabaseStore>(
     store: &T,
 ) -> errors::CustomResult<
-    PooledConnection<'_, async_bb8_diesel::ConnectionManager<PgConnection>>,
+    PooledConnection<'_, async_bb8_diesel::ConnectionManager<DejaPgConnection>>,
     storage_errors::StorageError,
 > {
     // If only OLAP is enabled get replica pool.
@@ -101,7 +101,7 @@ pub async fn pg_accounts_connection_read<T: storage_impl::DatabaseStore>(
 pub async fn pg_connection_write<T: storage_impl::DatabaseStore>(
     store: &T,
 ) -> errors::CustomResult<
-    PooledConnection<'_, async_bb8_diesel::ConnectionManager<PgConnection>>,
+    PooledConnection<'_, async_bb8_diesel::ConnectionManager<DejaPgConnection>>,
     storage_errors::StorageError,
 > {
     // Since all writes should happen to master DB only choose master DB.
@@ -120,7 +120,7 @@ pub async fn pg_connection_write<T: storage_impl::DatabaseStore>(
 pub async fn pg_accounts_connection_write<T: storage_impl::DatabaseStore>(
     store: &T,
 ) -> errors::CustomResult<
-    PooledConnection<'_, async_bb8_diesel::ConnectionManager<PgConnection>>,
+    PooledConnection<'_, async_bb8_diesel::ConnectionManager<DejaPgConnection>>,
     storage_errors::StorageError,
 > {
     // Since all writes should happen to master DB only choose master DB.

@@ -387,7 +387,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
         let database_call = || async {
             let conn: bb8::PooledConnection<
                 '_,
-                async_bb8_diesel::ConnectionManager<diesel::PgConnection>,
+                async_bb8_diesel::ConnectionManager<diesel_models::DejaPgConnection>,
             > = pg_connection_read(self).await?;
 
             DieselPaymentIntent::find_by_global_id(&conn, id)

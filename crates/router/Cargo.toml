@@ -293,8 +293,8 @@ common_utils = { version = "0.1.0", path = "../common_utils", features = [
     "keymanager",
 ] }
 common_types = { version = "0.1.0", path = "../common_types" }
-deja = { git = "https://github.com/juspay/deja", rev = "2c3a795ef4d8d2a5eebc47bbe7134984b75be6b3", optional = true, default-features = false }
-deja-core = { git = "https://github.com/juspay/deja", rev = "2c3a795ef4d8d2a5eebc47bbe7134984b75be6b3", optional = true }
+deja = { git = "https://github.com/juspay/deja", rev = "337181ebfd74b7e571a63a9cce515ff3c9309db7", optional = true, default-features = false }
+deja-core = { git = "https://github.com/juspay/deja", rev = "337181ebfd74b7e571a63a9cce515ff3c9309db7", optional = true }
 connector_configs = { version = "0.1.0", path = "../connector_configs" }
 currency_conversion = { version = "0.1.0", path = "../currency_conversion" }
 diesel_models = { version = "0.1.0", path = "../diesel_models", features = [
@@ -336,6 +336,7 @@ rand = "0.8.5"
 serial_test = "3.2.0"
 time = { version = "0.3.41", features = ["macros"] }
 tokio = "1.48.0"
+tracing-subscriber = { version = "0.3.19", default-features = false, features = ["registry"] }
 wiremock = "0.6.3"
 
 # First party dev-dependencies

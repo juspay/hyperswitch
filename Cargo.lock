@@ -1791,6 +1791,9 @@ name = "bytes"
 version = "1.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d71b6127be86fdcfddb610f7182ac57211d4b18a3e9c82eb2d17662f2227ad6a"
+dependencies = [
+ "serde",
+]
 
 [[package]]
 name = "bytes-utils"
@@ -2867,13 +2870,16 @@ checksum = "092966b41edc516079bdf31ec78a2e0588d1d0c08f78b91d8307215928642b2b"
 [[package]]
 name = "deja"
 version = "0.1.0"
-source = "git+https://github.com/juspay/deja?rev=2c3a795ef4d8d2a5eebc47bbe7134984b75be6b3#2c3a795ef4d8d2a5eebc47bbe7134984b75be6b3"
+source = "git+https://github.com/juspay/deja?rev=337181ebfd74b7e571a63a9cce515ff3c9309db7#337181ebfd74b7e571a63a9cce515ff3c9309db7"
 dependencies = [
  "deja-context",
  "deja-core",
  "deja-derive",
+ "deja-diesel",
  "deja-runtime",
  "error-stack 0.4.1",
+ "fred",
+ "redis",
  "serde",
  "serde_json",
 ]
@@ -2881,7 +2887,7 @@ dependencies = [
 [[package]]
 name = "deja-context"
 version = "0.1.0"
-source = "git+https://github.com/juspay/deja?rev=2c3a795ef4d8d2a5eebc47bbe7134984b75be6b3#2c3a795ef4d8d2a5eebc47bbe7134984b75be6b3"
+source = "git+https://github.com/juspay/deja?rev=337181ebfd74b7e571a63a9cce515ff3c9309db7#337181ebfd74b7e571a63a9cce515ff3c9309db7"
 dependencies = [
  "pin-project-lite",
 ]
@@ -2889,7 +2895,7 @@ dependencies = [
 [[package]]
 name = "deja-core"
 version = "0.1.0"
-source = "git+https://github.com/juspay/deja?rev=2c3a795ef4d8d2a5eebc47bbe7134984b75be6b3#2c3a795ef4d8d2a5eebc47bbe7134984b75be6b3"
+source = "git+https://github.com/juspay/deja?rev=337181ebfd74b7e571a63a9cce515ff3c9309db7#337181ebfd74b7e571a63a9cce515ff3c9309db7"
 dependencies = [
  "serde",
  "serde_json",
@@ -2899,7 +2905,7 @@ dependencies = [
 [[package]]
 name = "deja-derive"
 version = "0.1.0"
-source = "git+https://github.com/juspay/deja?rev=2c3a795ef4d8d2a5eebc47bbe7134984b75be6b3#2c3a795ef4d8d2a5eebc47bbe7134984b75be6b3"
+source = "git+https://github.com/juspay/deja?rev=337181ebfd74b7e571a63a9cce515ff3c9309db7#337181ebfd74b7e571a63a9cce515ff3c9309db7"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2907,9 +2913,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "deja-diesel"
+version = "0.1.0"
+source = "git+https://github.com/juspay/deja?rev=337181ebfd74b7e571a63a9cce515ff3c9309db7#337181ebfd74b7e571a63a9cce515ff3c9309db7"
+dependencies = [
+ "async-bb8-diesel",
+ "deja-runtime",
+ "diesel",
+]
+
+[[package]]
 name = "deja-runtime"
 version = "0.1.0"
-source = "git+https://github.com/juspay/deja?rev=2c3a795ef4d8d2a5eebc47bbe7134984b75be6b3#2c3a795ef4d8d2a5eebc47bbe7134984b75be6b3"
+source = "git+https://github.com/juspay/deja?rev=337181ebfd74b7e571a63a9cce515ff3c9309db7#337181ebfd74b7e571a63a9cce515ff3c9309db7"
 dependencies = [
  "async-trait",
  "deja-context",
@@ -4744,6 +4760,7 @@ dependencies = [
  "graphviz-rust",
  "rustc-hash 1.1.0",
  "serde",
+ "serde_json",
  "strum 0.25.0",
  "thiserror 1.0.69",
 ]
@@ -5510,7 +5527,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "07033963ba89ebaf1584d767badaa2e8fcec21aedea6b8c0346d487d49c28667"
 dependencies = [
  "cfg-if 1.0.0",
- "windows-targets 0.53.5",
+ "windows-targets 0.48.5",
 ]
 
 [[package]]
@@ -7430,7 +7447,7 @@ version = "0.14.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "343d3bd7056eda839b03204e68deff7d1b13aba7af2b2fd16890697274262ee7"
 dependencies = [
- "heck 0.5.0",
+ "heck 0.4.1",
  "itertools 0.11.0",
  "log 0.4.27",
  "multimap",
@@ -8380,6 +8397,7 @@ dependencies = [
  "tokio 1.48.0",
  "totp-rs",
  "tracing-futures",
+ "tracing-subscriber",
  "ucs_cards",
  "unicode-segmentation",
  "url 2.5.4",

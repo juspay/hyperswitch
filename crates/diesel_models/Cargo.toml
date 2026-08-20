@@ -13,7 +13,7 @@ kv_store = []
 v1 = ["common_utils/v1", "common_types/v1"]
 v2 = ["common_utils/v2", "common_types/v2"]
 tokenization_v2 = []
-deja = ["dep:deja"]
+deja = ["dep:deja", "deja/diesel-pg"]
 
 [dependencies]
 async-bb8-diesel = "0.2.1"
@@ -33,7 +33,7 @@ common_types = { version = "0.1.0", path = "../common_types" }
 hyperswitch_masking = "0.0.1"
 router_derive = { version = "0.1.0", path = "../router_derive" }
 router_env = { version = "0.1.0", path = "../router_env", features = ["log_extra_implicit_fields", "log_custom_entries_to_extra"] }
-deja = { git = "https://github.com/juspay/deja", rev = "2c3a795ef4d8d2a5eebc47bbe7134984b75be6b3", optional = true, default-features = false, features = ["error-stack"] }
+deja = { git = "https://github.com/juspay/deja", rev = "337181ebfd74b7e571a63a9cce515ff3c9309db7", optional = true, default-features = false, features = ["error-stack"] }
 
 [lints]
 workspace = true

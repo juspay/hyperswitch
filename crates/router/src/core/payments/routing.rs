@@ -80,6 +80,7 @@ use crate::{
     SessionState,
 };
 
+#[derive(serde::Serialize, serde::Deserialize)]
 pub enum CachedAlgorithm {
     Single(Box<routing_types::RoutableConnectorChoice>),
     Priority(Vec<routing_types::RoutableConnectorChoice>),
