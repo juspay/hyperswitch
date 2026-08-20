@@ -1,7 +1,7 @@
 //! Refunds interface
 
 use hyperswitch_domain_models::{
-    router_flow_types::{Execute, RSync},
+    router_flow_types::{Execute, RSync, VoidPostRefund},
     router_request_types::RefundsData,
     router_response_types::RefundsResponseData,
 };
@@ -17,5 +17,11 @@ pub trait RefundExecute:
 /// trait RefundSync
 pub trait RefundSync: api::ConnectorIntegration<RSync, RefundsData, RefundsResponseData> {}
 
+/// trait RefundVoidPostRefund
+pub trait RefundVoidPostRefund:
+    api::ConnectorIntegration<VoidPostRefund, RefundsData, RefundsResponseData>
+{
+}
+
 /// trait Refund
-pub trait Refund: ConnectorCommon + RefundExecute + RefundSync {}
+pub trait Refund: ConnectorCommon + RefundExecute + RefundSync + RefundVoidPostRefund {}

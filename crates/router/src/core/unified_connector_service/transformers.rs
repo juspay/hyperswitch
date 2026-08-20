@@ -24,7 +24,7 @@ use hyperswitch_domain_models::{
     router_data::{AccessToken, ErrorResponse, L2L3Data, RouterData},
     router_flow_types::{
         payments::{Authorize, Capture, PSync, PreAuthorizeVoid, SetupMandate},
-        refunds::{Execute, RSync},
+        refunds::{Execute, RSync, VoidPostRefund},
         unified_authentication_service as uas_flows, ExternalVaultProxy, IncrementalAuthorization,
         Session,
     },
@@ -6930,6 +6930,68 @@ impl transformers::ForeignTryFrom<&RouterData<RSync, RefundsData, RefundsRespons
                 .request
                 .payment_connector_request_reference_id
                 .clone(),
+        })
+    }
+}
+
+impl transformers::ForeignTryFrom<&RouterData<VoidPostRefund, RefundsData, RefundsResponseData>>
+    for payments_grpc::RefundServiceVoidPostRefundRequest
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        router_data: &RouterData<VoidPostRefund, RefundsData, RefundsResponseData>,
+    ) -> Result<Self, Self::Error> {
+        let state = router_data
+            .access_token
+            .as_ref()
+            .map(ConnectorState::foreign_from);
+        let payment_method_type = router_data
+            .payment_method_type
+            .map(payments_grpc::PaymentMethodType::foreign_try_from)
+            .transpose()?
+            .map(Into::into);
+
+        Ok(Self {
+            merchant_refund_id: Some(router_data.connector_request_reference_id.clone()),
+            connector_refund_id: router_data.request.connector_refund_id.clone().ok_or(
+                UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
+                    "Missing connector_refund_id for refund reverse operation".to_string(),
+                ),
+            )?,
+            cancellation_reason: router_data.request.reason.clone(),
+            browser_info: router_data
+                .request
+                .browser_info
+                .clone()
+                .map(payments_grpc::BrowserInformation::foreign_try_from)
+                .transpose()
+                .map_err(|_| {
+                    UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
+                        "Failed to convert browser info".to_string(),
+                    )
+                })?,
+            refund_metadata: router_data
+                .request
+                .refund_connector_metadata
+                .as_ref()
+                .map(serde_json::to_string)
+                .transpose()
+                .change_context(UnifiedConnectorServiceError::RequestEncodingFailed)?
+                .map(Into::into),
+            state,
+            test_mode: router_data.test_mode,
+            payment_method_type,
+            connector_feature_data: router_data
+                .request
+                .connector_metadata
+                .as_ref()
+                .map(serde_json::to_string)
+                .transpose()
+                .change_context(UnifiedConnectorServiceError::RequestEncodingFailed)?
+                .map(Into::into),
+            merchant_request_id: None,
+            connector_order_id: Some(router_data.request.connector_transaction_id.clone()),
         })
     }
 }

@@ -6,7 +6,8 @@ use crate::refunds::{
 };
 #[cfg(feature = "v1")]
 use crate::refunds::{
-    RefundManualUpdateRequest, RefundRequest, RefundUpdateRequest, RefundsRetrieveRequest,
+    RefundManualUpdateRequest, RefundRequest, RefundReverseRequest, RefundUpdateRequest,
+    RefundsRetrieveRequest,
 };
 
 #[cfg(feature = "v1")]
@@ -64,6 +65,16 @@ impl ApiEventMetric for refunds::RefundsRetrieveRequest {
 
 #[cfg(feature = "v1")]
 impl ApiEventMetric for RefundUpdateRequest {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        Some(ApiEventsType::Refund {
+            payment_id: None,
+            refund_id: self.refund_id.clone(),
+        })
+    }
+}
+
+#[cfg(feature = "v1")]
+impl ApiEventMetric for RefundReverseRequest {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::Refund {
             payment_id: None,

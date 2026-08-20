@@ -1584,7 +1584,8 @@ impl Refunds {
                     web::resource("/{id}")
                         .route(web::get().to(refunds_retrieve))
                         .route(web::post().to(refunds_update)),
-                );
+                )
+                .service(web::resource("/{id}/reverse").route(web::post().to(refunds_reverse)));
         }
         route
     }
