@@ -2732,6 +2732,9 @@ pub async fn migrate_rules_for_profiles(
     let limit = request.validated_limit();
     let offset = request.offset.unwrap_or_default();
 
+    // The merchant that owns each profile, which is what the business profile is resolved
+    // under below. For a rule a platform wrote, that is its processor and not the provider the
+    // call was made by — `find_rule_ids_for_profiles` resolves which.
     let merchant_of: HashMap<_, _> = state
         .store
         .find_rule_ids_for_profiles(&request.profile_ids)
@@ -3129,9 +3132,16 @@ pub async fn routing_migration_status(
     // Rules the migration is not expected to carry, counted apart so holding one never leaves a
     // finished profile reading as partial.
     let mut out_of_scope: HashMap<common_utils::id_type::ProfileId, i64> = HashMap::new();
+    // The merchant that owns each profile. The page above is grouped by the rule's
+    // `merchant_id`, which for a platform-written rule is the provider that made the call
+    // rather than the merchant the profile hangs off — reporting that one names an account the
+    // profile is not under, and is the merchant a migration would then fail to find it in.
+    let mut owner_of: HashMap<common_utils::id_type::ProfileId, common_utils::id_type::MerchantId> =
+        HashMap::new();
     match state.store.find_rule_ids_for_profiles(&page_profiles).await {
         Ok(rows) => {
-            for (profile_id, _, algorithm_id, kind) in rows {
+            for (profile_id, owner_merchant_id, algorithm_id, kind) in rows {
+                owner_of.insert(profile_id.clone(), owner_merchant_id);
                 if routing_types::RoutingAlgorithmKind::foreign_from(kind)
                     .rule_migration_exclusion()
                     .is_some()
@@ -3157,7 +3167,14 @@ pub async fn routing_migration_status(
         ..Default::default()
     };
 
-    for (profile_id, merchant_id) in scopes {
+    for (profile_id, provider_merchant_id) in scopes {
+        // Falls back to the grouping merchant only when the rule rows could not be read at all,
+        // which is the same failure that leaves the rule counts empty.
+        let merchant_id = owner_of
+            .get(&profile_id)
+            .cloned()
+            .unwrap_or_else(|| provider_merchant_id.clone());
+
         // The listing already carries each rule's id, so comparing the sets is free.
         let de_rule_ids = match list_de_euclid_routing_algorithms(
             &state,
@@ -3203,7 +3220,7 @@ pub async fn routing_migration_status(
         let dimensions = dimension_state::Dimensions::new()
             .with_processor_merchant_id(merchant_id.clone().into())
             .with_provider_merchant_id(
-                hyperswitch_domain_models::platform::ProviderMerchantId::new(merchant_id.clone()),
+                hyperswitch_domain_models::platform::ProviderMerchantId::new(provider_merchant_id),
             )
             .with_profile_id(profile_id.clone());
         let routing_source = Some(
