@@ -1419,7 +1419,6 @@ impl UnifiedConnectorServiceError {
 
         error_code.into_ucs_error(&integration_error.error_message)
     }
-
 }
 
 /// UCS integration error codes matching the `IntegrationError` enum in connector-service (Prism).
