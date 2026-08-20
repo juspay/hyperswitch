@@ -7700,6 +7700,7 @@ Cypress.Commands.add(
   (requestBody, cardBin, globalState) => {
     const apiKey = globalState.get("apiKey");
     const baseUrl = globalState.get("baseUrl");
+    const profileId = globalState.get("profileId");
     const url = `${baseUrl}/blocklist`;
 
     const body = {
@@ -7714,6 +7715,7 @@ Cypress.Commands.add(
       headers: {
         "Content-Type": "application/json",
         "api-key": apiKey,
+        "X-Profile-Id": profileId,
       },
       body: body,
       failOnStatusCode: false,
@@ -7743,6 +7745,7 @@ Cypress.Commands.add(
 Cypress.Commands.add("blocklistDeleteRule", (type, data, globalState) => {
   const apiKey = globalState.get("apiKey");
   const baseUrl = globalState.get("baseUrl");
+  const profileId = globalState.get("profileId");
   const url = `${baseUrl}/blocklist`;
 
   const body = {
@@ -7756,6 +7759,7 @@ Cypress.Commands.add("blocklistDeleteRule", (type, data, globalState) => {
     headers: {
       "Content-Type": "application/json",
       "api-key": apiKey,
+      "X-Profile-Id": profileId,
     },
     body: body,
     failOnStatusCode: false,
