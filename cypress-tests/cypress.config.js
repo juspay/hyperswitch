@@ -1,8 +1,13 @@
 import { defineConfig } from "cypress";
 import mochawesome from "cypress-mochawesome-reporter/plugin.js";
+import { execFile } from "child_process";
 import crypto from "crypto";
 import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
 import { getTimeoutMultiplier } from "./cypress/utils/RequestBodyUtils.js";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 let globalState;
 
@@ -35,11 +40,66 @@ const forwardedEnv = [
 // Get timeout multiplier from shared utility
 const timeoutMultiplier = getTimeoutMultiplier();
 
+// Rebuilds failure-report/connector-failures.{json,html} from every connector's
+// reports. Set SKIP_FAILURE_REPORT=true to opt out — worth doing in CI, where each
+// connector is a separate `cypress run` and one aggregation at the end is enough.
+const failureReportEnabled = process.env.SKIP_FAILURE_REPORT !== "true";
+
+function generateFailureReport() {
+  const script = path.join(__dirname, "scripts", "collect-failures.sh");
+  if (!fs.existsSync(script)) return Promise.resolve();
+
+  return new Promise((resolve) => {
+    execFile(
+      "bash",
+      [script, "--quiet"],
+      { cwd: __dirname, timeout: 300000 },
+      (error, stdout, stderr) => {
+        // eslint-disable-next-line no-console
+        if (stderr) console.log(stderr.trim());
+        if (error) {
+          // Reporting must never fail a test run.
+          // eslint-disable-next-line no-console
+          console.warn(`⚠️  Could not build failure report: ${error.message}`);
+        }
+        resolve();
+      }
+    );
+  });
+}
+
 export default defineConfig({
   env: forwardedEnv,
   e2e: {
     setupNodeEvents(on, config) {
-      mochawesome(on);
+      // cypress-mochawesome-reporter registers its own `after:run` handler, which
+      // merges the per-spec json into <connector>_report.json. Intercept that
+      // registration rather than adding a second handler for the same event:
+      // Cypress's behaviour with two handlers is unspecified (one may replace the
+      // other), and the aggregate report must not run until the merge has written
+      // the file it reads.
+      let mochawesomeAfterRun = null;
+      mochawesome((event, handler) => {
+        if (event === "after:run") {
+          mochawesomeAfterRun = handler;
+          return;
+        }
+        on(event, handler);
+      });
+
+      on("after:run", async (results) => {
+        try {
+          if (mochawesomeAfterRun) {
+            await mochawesomeAfterRun(results);
+          }
+        } finally {
+          // `finally` so a merge failure still leaves an aggregate report behind,
+          // while the merge error itself surfaces exactly as it did before.
+          if (failureReportEnabled) {
+            await generateFailureReport();
+          }
+        }
+      });
 
       on("task", {
         setGlobalState: (val) => {
