@@ -1624,10 +1624,6 @@ impl ConnectorIntegration<PreAuthenticate, PaymentsPreAuthenticateData, Payments
             router_env::logger::info!(connector_response=?response);
             response.tracking_id
         };
-        println!(
-            "connector_response_reference_id: {:?}",
-            connector_response_reference_id
-        );
 
         Ok(PaymentsPreAuthenticateRouterData {
             response: Ok(PaymentsResponseData::TransactionResponse {
