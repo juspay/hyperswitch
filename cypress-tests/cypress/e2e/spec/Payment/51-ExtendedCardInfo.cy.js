@@ -149,7 +149,7 @@ describe("Extended Card Info Tests", () => {
   );
 
   context(
-    "Extended Card BIN - Enable config, confirm payment, verify BIN is null",
+    "Extended Card BIN - Enable config, confirm payment, verify BIN is populated",
     () => {
       let shouldContinue = true;
 
@@ -171,6 +171,7 @@ describe("Extended Card Info Tests", () => {
         const profileId = globalState.get("profileId");
         const configKey = `${profileId}_enable_extended_card_bin`;
         cy.setConfigs(globalState, configKey, "true", "CREATE");
+        globalState.set("extendedCardBinEnabled", true);
       });
 
       it("Create Payment Intent", () => {
@@ -207,7 +208,7 @@ describe("Extended Card Info Tests", () => {
         }
       });
 
-      it("Retrieve Payment and verify extended BIN is null", () => {
+      it("Retrieve Payment and verify extended BIN is populated", () => {
         cy.retrievePaymentCallTest({
           globalState,
           data: getConnectorDetails(globalState.get("connectorId"))["card_pm"][
@@ -216,8 +217,8 @@ describe("Extended Card Info Tests", () => {
         }).then((response) => {
           expect(
             response.body.payment_method_data.card.card_extended_bin,
-            "card_extended_bin should be null"
-          ).to.be.null;
+            "card_extended_bin should not be null"
+          ).to.not.be.null;
         });
       });
     }
