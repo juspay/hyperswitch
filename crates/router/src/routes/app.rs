@@ -3,7 +3,7 @@ use std::{collections::HashMap, sync::Arc};
 use actix_web::{web, Scope};
 #[cfg(all(feature = "olap", feature = "v1"))]
 use api_models::routing::RoutingRetrieveQuery;
-use api_models::routing::RuleMigrationQuery;
+use api_models::routing::{RoutingMigrationStatusQuery, RuleMigrationRequest};
 #[cfg(feature = "olap")]
 use common_enums::{ExecutionMode, TransactionType};
 #[cfg(feature = "partial-auth")]
@@ -62,6 +62,8 @@ use super::refunds;
 use super::routing;
 #[cfg(all(feature = "oltp", feature = "v2"))]
 use super::tokenization as tokenization_routes;
+#[cfg(feature = "olap")]
+use super::unified_connector_service as unified_connector_service_routes;
 #[cfg(all(feature = "olap", any(feature = "v1", feature = "v2")))]
 use super::verification::{apple_pay_merchant_registration, retrieve_apple_pay_verified_domains};
 #[cfg(feature = "oltp")]
@@ -80,6 +82,10 @@ use super::{configs::*, customers, payments};
 use super::{mandates::*, refunds::*};
 #[cfg(feature = "olap")]
 pub use crate::analytics::opensearch::OpenSearchClient;
+#[cfg(all(feature = "olap", feature = "v1"))]
+use crate::analytics::routes::{
+    get_payment_list_from_opensearch, get_profile_payment_list_from_opensearch,
+};
 #[cfg(feature = "olap")]
 use crate::analytics::AnalyticsProvider;
 #[cfg(feature = "partial-auth")]
@@ -197,23 +203,12 @@ impl SessionState {
             ExecutionMode::Shadow => Some("shadow"),
             ExecutionMode::NotApplicable => None,
         };
-        let config_override = match unified_connector_service_execution_mode {
-            ExecutionMode::Shadow => Some(
-                serde_json::json!({
-                    "events": {
-                        "enabled": false
-                    }
-                })
-                .to_string(),
-            ),
-            _ => None,
-        };
         GrpcHeadersUcs::builder()
             .tenant_id(tenant_id)
             .request_id(request_id)
             .shadow_mode(shadow_mode)
             .proxy_name(proxy_name)
-            .config_override(config_override)
+            .config_override(None)
     }
     #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
     pub fn get_recovery_grpc_headers(&self) -> GrpcRecoveryHeaders {
@@ -976,6 +971,14 @@ impl Payments {
                         .route(web::post().to(payments::profile_payments_list_by_filter)),
                 )
                 .service(
+                    web::resource("/advanced/list")
+                        .route(web::post().to(get_payment_list_from_opensearch)),
+                )
+                .service(
+                    web::resource("/profile/advanced/list")
+                        .route(web::post().to(get_profile_payment_list_from_opensearch)),
+                )
+                .service(
                     web::resource("/filter")
                         .route(web::post().to(payments::get_filters_for_payments)),
                 )
@@ -1007,6 +1010,7 @@ impl Payments {
         {
             route = route
                 .service(web::resource("").route(web::post().to(payments::payments_create)))
+                .service(web::resource("/payment_link").route(web::post().to(payments::payment_link_create)))
                 .service(
                     web::resource("/session_tokens")
                         .route(web::post().to(payments::payments_connector_session)),
@@ -1159,6 +1163,10 @@ impl Routing {
             .app_data(web::Data::new(state.clone()))
             .service(web::resource("/entry").route(web::post().to(routing::routing_entry)))
             .service(
+                web::resource("/decision-engine/{profile_id}/diff-counter")
+                    .route(web::delete().to(routing::reset_decision_engine_diff_counter)),
+            )
+            .service(
                 web::resource("/active").route(web::get().to(|state, req, query_params| {
                     routing::routing_retrieve_linked_config(state, req, query_params, None)
                 })),
@@ -1190,8 +1198,13 @@ impl Routing {
                 })),
             )
             .service(web::resource("/rule/migrate").route(web::post().to(
-                |state, req, query: web::Query<RuleMigrationQuery>| {
-                    routing::migrate_routing_rules_for_profile(state, req, query)
+                |state, req, payload: web::Json<RuleMigrationRequest>| {
+                    routing::migrate_routing_rules(state, req, payload)
+                },
+            )))
+            .service(web::resource("/migration/status").route(web::get().to(
+                |state, req, query: web::Query<RoutingMigrationStatusQuery>| {
+                    routing::routing_migration_status(state, req, query)
                 },
             )))
             .service(
@@ -2307,6 +2320,21 @@ impl Configs {
                     .route(web::get().to(config_key_retrieve))
                     .route(web::post().to(config_key_update))
                     .route(web::delete().to(config_key_delete)),
+            )
+    }
+}
+
+pub struct UnifiedConnectorService;
+
+#[cfg(feature = "olap")]
+impl UnifiedConnectorService {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/unified-connector-service")
+            .app_data(web::Data::new(state))
+            .service(
+                web::resource("/kill-switch/{scope}")
+                    .route(web::get().to(unified_connector_service_routes::kill_switch_status))
+                    .route(web::delete().to(unified_connector_service_routes::reset_kill_switch)),
             )
     }
 }

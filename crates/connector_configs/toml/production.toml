@@ -415,7 +415,7 @@ type = "Text"
 
 [adyen.connector_webhook_register_details]
 label="Webhook Registration"
-webhook_auto_configuration_supported=true 
+webhook_auto_configuration_supported=true
 scope_type="not_specific"
 
 [airwallex]
@@ -487,10 +487,9 @@ payment_method_type = "Visa"
 payment_method_type = "Mastercard"
 [[authipay.debit]]
 payment_method_type = "Visa"
-[authipay.connector_auth.SignatureKey]
+[authipay.connector_auth.BodyKey]
 api_key = "API Key"
-api_secret = "API Secret"
-key1 = "Merchant ID"
+key1 = "API Secret"
 [authipay.connector_webhook_details]
 merchant_secret = "Source verification key"
 
@@ -1710,7 +1709,7 @@ label = "Payment Processing Details At"
 placeholder = "Enter Payment Processing Details At"
 required = true
 type = "Radio"
-options = ["Connector"]
+options = ["Connector", "Hyperswitch"]
 
 [[checkout.metadata.google_pay]]
 name = "merchant_name"
@@ -3781,19 +3780,19 @@ key2="Certificate Key"
 [santander_payout.connector_auth.CertificateAuth]
 certificate="Certificate"
 private_key="Certificate Key"
-[[santander_payout.metadata.pix_payout]]
+[santander_payout.metadata.client_id]
 name="client_id"
 label="Client Id"
 placeholder="Enter the client id"
 required=true
 type="Text"
-[[santander_payout.metadata.pix_payout]]
+[santander_payout.metadata.client_secret]
 name="client_secret"
 label="Client Secret"
 placeholder="Enter the client secret"
 required=true
 type="Text"
-[[santander_payout.metadata.pix_payout]]
+[santander_payout.metadata.workspace_id]
 name="workspace_id"
 label="Workspace Id"
 placeholder="Enter the workspace id"
@@ -6541,7 +6540,7 @@ payment_method_type = "boleto"
 [santander.connector_auth.CertificateAuth]
 certificate="Base64 encoded PEM formatted certificate chain"
 private_key="Base64 encoded PEM formatted private key"
-  
+
 [[santander.metadata.pix_qr]]
 name="client_id"
 label="Client ID"
@@ -6709,7 +6708,7 @@ type="Text"
 
 [santander.connector_webhook_register_details]
 label="Webhook Registration & Workspace Creation"
-webhook_auto_configuration_supported=true 
+webhook_auto_configuration_supported=true
 scope_type="payment_method_type"
 payment_method_types=["pix_qr", "pix_automatico_push", "pix_automatico_qr", "boleto"]
 
@@ -6752,7 +6751,7 @@ merchant_secret = "Source verification key"
 
 [payload.connector_webhook_register_details]
 label="Webhook Registration"
-webhook_auto_configuration_supported=true 
+webhook_auto_configuration_supported=true
 event_types=[
     "payment_processing",
     "payment_authorized",
@@ -8079,3 +8078,28 @@ payment_method_type = "Discover"
 payment_method_type = "DinersClub"
 [[givepayments.debit]]
 payment_method_type = "UnionPay"
+
+[citigate]
+[[citigate.credit]]
+  payment_method_type = "Visa"
+[[citigate.credit]]
+  payment_method_type = "Mastercard"
+[[citigate.credit]]
+  payment_method_type = "AmericanExpress"
+[[citigate.credit]]
+  payment_method_type = "DinersClub"
+[[citigate.credit]]
+  payment_method_type = "Maestro"
+[[citigate.debit]]
+  payment_method_type = "Visa"
+[[citigate.debit]]
+  payment_method_type = "Mastercard"
+[[citigate.debit]]
+  payment_method_type = "AmericanExpress"
+[[citigate.debit]]
+  payment_method_type = "DinersClub"
+[[citigate.debit]]
+  payment_method_type = "Maestro"
+[citigate.connector_auth.BodyKey]
+api_key = "Merchant Name"
+key1 = "Merchant Password"

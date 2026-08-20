@@ -242,6 +242,7 @@ where
         customer_document_details: None,
         feature_data: None,
         sender_payment_instrument_id: None,
+        connector_returned_payment_method_details: None,
     };
     Ok(router_data)
 }
@@ -591,6 +592,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         customer_document_details: None,
         feature_data: None,
         sender_payment_instrument_id: None,
+        connector_returned_payment_method_details: None,
     };
 
     Ok(router_data)
@@ -1006,6 +1008,7 @@ pub async fn construct_external_vault_proxy_payment_router_data_v1<'a>(
         customer_document_details: None,
         feature_data: None,
         sender_payment_instrument_id: None,
+        connector_returned_payment_method_details: None,
     };
 
     Ok(router_data)
@@ -1179,6 +1182,7 @@ pub async fn construct_payment_router_data_for_capture<'a>(
         customer_document_details: None,
         feature_data: None,
         sender_payment_instrument_id: None,
+        connector_returned_payment_method_details: None,
     };
 
     Ok(router_data)
@@ -1318,6 +1322,7 @@ pub async fn construct_router_data_for_psync<'a>(
         customer_document_details: None,
         feature_data: None,
         sender_payment_instrument_id: None,
+        connector_returned_payment_method_details: None,
     };
 
     Ok(router_data)
@@ -1674,6 +1679,7 @@ pub async fn construct_payment_router_data_for_sdk_session<'a>(
         customer_document_details: None,
         feature_data: None,
         sender_payment_instrument_id: None,
+        connector_returned_payment_method_details: None,
     };
 
     Ok(router_data)
@@ -1901,6 +1907,7 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
         customer_document_details: None,
         feature_data: None,
         sender_payment_instrument_id: None,
+        connector_returned_payment_method_details: None,
     };
 
     Ok(router_data)
@@ -2235,6 +2242,7 @@ where
         customer_document_details,
         feature_data,
         sender_payment_instrument_id: None,
+        connector_returned_payment_method_details: None,
     };
 
     Ok(router_data)
@@ -2458,6 +2466,7 @@ pub async fn construct_payment_router_data_for_update_metadata<'a>(
             .attach_printable("Failed to extract customer document details from payment_intent")?,
         feature_data: None,
         sender_payment_instrument_id: None,
+        connector_returned_payment_method_details: None,
     };
 
     Ok(router_data)
@@ -4264,10 +4273,12 @@ where
         let connector_response_metadata =
             payment_attempt.get_connector_response_metadata_from_attempt_metadata();
 
+        let applied_offer = applied_offer_response(payment_attempt.applied_offer_details.clone());
         let payments_response = api::PaymentsResponse {
             payment_id: payment_intent.payment_id,
             merchant_id: payment_intent.merchant_id,
             status: payment_intent.status,
+            applied_offer,
             connector_customer_id: payment_data.get_connector_customer_id(),
             amount: payment_attempt.net_amount.get_order_amount(),
             net_amount: payment_attempt.get_total_amount(),
@@ -4599,6 +4610,22 @@ pub fn construct_connector_invoke_hidden_frame(
 }
 
 #[cfg(feature = "v1")]
+fn applied_offer_response(
+    details: Option<common_types::payments::AppliedOfferDetails>,
+) -> Option<api_models::payments::AppliedOffer> {
+    details.map(|offer| {
+        let offer = offer.into_inner();
+        api_models::payments::AppliedOffer {
+            offer_engine_merchant_id: offer.offer_engine_merchant_id,
+            offer_engine_txn_id: offer.offer_engine_txn_id,
+            offer_id: offer.offer_id,
+            offer_amount: offer.offer_amount,
+            currency: offer.currency,
+        }
+    })
+}
+
+#[cfg(feature = "v1")]
 impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::PaymentsResponse {
     fn foreign_from((pi, pa): (storage::PaymentIntent, storage::PaymentAttempt)) -> Self {
         let connector_transaction_id = pa.get_connector_payment_id().map(ToString::to_string);
@@ -4649,6 +4676,7 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             });
         Self {
             connector_response_metadata: pa.get_connector_response_metadata_from_attempt_metadata(),
+            applied_offer: applied_offer_response(pa.applied_offer_details.clone()),
             payment_id: pi.payment_id,
             merchant_id: pi.merchant_id,
             status: pi.status,
@@ -8250,6 +8278,7 @@ pub async fn construct_payment_router_data_for_update_post_confirm<'a>(
             .attach_printable("Failed to extract customer document details from payment_intent")?,
         feature_data: None,
         sender_payment_instrument_id: None,
+        connector_returned_payment_method_details: None,
     };
 
     Ok(router_data)
