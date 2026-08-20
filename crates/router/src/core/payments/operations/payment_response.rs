@@ -3615,6 +3615,45 @@ impl<F: Clone>
 }
 
 #[cfg(feature = "v2")]
+struct GsmErrorFields {
+    unified_code: Option<String>,
+    unified_message: Option<String>,
+    standardised_code: Option<common_enums::StandardisedCode>,
+}
+
+/// v2 equivalent of the inline GSM lookup v1 performs in `payment_response_update_tracker`
+/// (which v2's domain-layer `get_payment_attempt_update` cannot do — it has no `SessionState`).
+/// Returns `None` when `standardised_code` is already populated.
+#[cfg(feature = "v2")]
+async fn resolve_gsm_error_fields(
+    state: &SessionState,
+    connector: String,
+    card_network: Option<common_enums::CardNetwork>,
+    sub_flow: &str,
+    error: &hyperswitch_domain_models::payments::payment_attempt::ErrorDetails,
+) -> Option<GsmErrorFields> {
+    if error.standardised_code.is_some() {
+        return None;
+    }
+    let option_gsm = payments_helpers::get_gsm_record(
+        state,
+        connector,
+        consts::PAYMENT_FLOW_STR,
+        sub_flow,
+        Some(error.code.clone()),
+        Some(error.message.clone()),
+        error.network_decline_code.clone(),
+        card_network,
+    )
+    .await?;
+    Some(GsmErrorFields {
+        unified_code: option_gsm.unified_code,
+        unified_message: option_gsm.unified_message,
+        standardised_code: option_gsm.standardised_code,
+    })
+}
+
+#[cfg(feature = "v2")]
 #[async_trait]
 impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthorizeData>
     for PaymentResponse
@@ -3644,8 +3683,29 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthor
 
         let payment_intent_update = response_router_data
             .get_payment_intent_update(&payment_data, processor.get_account().storage_scheme);
-        let payment_attempt_update = response_router_data
+        let mut payment_attempt_update = response_router_data
             .get_payment_attempt_update(&payment_data, processor.get_account().storage_scheme);
+
+        if let storage::PaymentAttemptUpdate::ErrorUpdate { error, .. } =
+            &mut payment_attempt_update
+        {
+            let sub_flow = core_utils::get_flow_name::<F>()
+                .unwrap_or_else(|_| consts::AUTHORIZE_FLOW_STR.to_string());
+            let card_network = payment_data.payment_attempt.extract_card_network();
+            let gsm = resolve_gsm_error_fields(
+                state,
+                response_router_data.connector.clone(),
+                card_network,
+                &sub_flow,
+                error,
+            )
+            .await;
+            if let Some(gsm) = gsm {
+                error.unified_code = gsm.unified_code;
+                error.unified_message = gsm.unified_message;
+                error.standardised_code = gsm.standardised_code;
+            }
+        }
 
         let updated_payment_intent = db
             .update_payment_intent(
@@ -3834,8 +3894,29 @@ impl<F: Clone> PostUpdateTracker<F, PaymentStatusData<F>, types::PaymentsSyncDat
 
         let payment_intent_update = response_router_data
             .get_payment_intent_update(&payment_data, processor.get_account().storage_scheme);
-        let payment_attempt_update = response_router_data
+        let mut payment_attempt_update = response_router_data
             .get_payment_attempt_update(&payment_data, processor.get_account().storage_scheme);
+
+        if let storage::PaymentAttemptUpdate::ErrorUpdate { error, .. } =
+            &mut payment_attempt_update
+        {
+            let sub_flow = core_utils::get_flow_name::<F>()
+                .unwrap_or_else(|_| consts::AUTHORIZE_FLOW_STR.to_string());
+            let card_network = payment_data.payment_attempt.extract_card_network();
+            let gsm = resolve_gsm_error_fields(
+                state,
+                response_router_data.connector.clone(),
+                card_network,
+                &sub_flow,
+                error,
+            )
+            .await;
+            if let Some(gsm) = gsm {
+                error.unified_code = gsm.unified_code;
+                error.unified_message = gsm.unified_message;
+                error.standardised_code = gsm.standardised_code;
+            }
+        }
 
         let payment_attempt = payment_data.payment_attempt;
 
@@ -4095,8 +4176,31 @@ impl
 
         let payment_intent_update = response_router_data
             .get_payment_intent_update(&payment_data, processor.get_account().storage_scheme);
-        let payment_attempt_update = response_router_data
+        let mut payment_attempt_update = response_router_data
             .get_payment_attempt_update(&payment_data, processor.get_account().storage_scheme);
+
+        if let storage::PaymentAttemptUpdate::ErrorUpdate { error, .. } =
+            &mut payment_attempt_update
+        {
+            let sub_flow = core_utils::get_flow_name::<
+                hyperswitch_domain_models::router_flow_types::ExternalVaultProxy,
+            >()
+            .unwrap_or_else(|_| consts::AUTHORIZE_FLOW_STR.to_string());
+            let card_network = payment_data.payment_attempt.extract_card_network();
+            let gsm = resolve_gsm_error_fields(
+                state,
+                response_router_data.connector.clone(),
+                card_network,
+                &sub_flow,
+                error,
+            )
+            .await;
+            if let Some(gsm) = gsm {
+                error.unified_code = gsm.unified_code;
+                error.unified_message = gsm.unified_message;
+                error.standardised_code = gsm.standardised_code;
+            }
+        }
 
         let updated_payment_intent = db
             .update_payment_intent(
@@ -4159,8 +4263,29 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::SetupMandateRe
 
         let payment_intent_update = response_router_data
             .get_payment_intent_update(&payment_data, processor.get_account().storage_scheme);
-        let payment_attempt_update = response_router_data
+        let mut payment_attempt_update = response_router_data
             .get_payment_attempt_update(&payment_data, processor.get_account().storage_scheme);
+
+        if let storage::PaymentAttemptUpdate::ErrorUpdate { error, .. } =
+            &mut payment_attempt_update
+        {
+            let sub_flow = core_utils::get_flow_name::<F>()
+                .unwrap_or_else(|_| consts::AUTHORIZE_FLOW_STR.to_string());
+            let card_network = payment_data.payment_attempt.extract_card_network();
+            let gsm = resolve_gsm_error_fields(
+                state,
+                response_router_data.connector.clone(),
+                card_network,
+                &sub_flow,
+                error,
+            )
+            .await;
+            if let Some(gsm) = gsm {
+                error.unified_code = gsm.unified_code;
+                error.unified_message = gsm.unified_message;
+                error.standardised_code = gsm.standardised_code;
+            }
+        }
 
         let updated_payment_intent = db
             .update_payment_intent(

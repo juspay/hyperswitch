@@ -1,4 +1,5 @@
 pub mod api;
+pub mod retry_stats;
 pub mod transformers;
 pub mod types;
 use std::marker::PhantomData;
@@ -124,6 +125,7 @@ pub async fn upsert_calculate_pcr_task(
                 global_payment_id: payment_id.clone(),
                 merchant_id: platform.get_processor().get_account().get_id().to_owned(),
                 profile_id: business_profile.get_id().to_owned(),
+                prev_attempt_id: Some(payment_attempt_id.clone()),
                 payment_attempt_id,
                 revenue_recovery_retry,
                 invoice_scheduled_time: None,
@@ -188,6 +190,22 @@ pub async fn record_internal_attempt_and_execute_payment(
 ) -> Result<(), sch_errors::ProcessTrackerError> {
     let db = &*state.store;
 
+    // The attempt whose failure triggered this execute task — used by the
+    // retry-stats recorder for cluster dimensions (NOT the new attempt that
+    // `record_internal_attempt_api` is about to create). Absent it, there is no
+    // prior outcome to attribute this retry to and retry-stats are not recorded.
+    let prev_attempt = match tracking_data.prev_attempt_id.as_ref() {
+        Some(prev_attempt_id) => db
+            .find_payment_attempt_by_id(
+                platform.get_processor().get_key_store(),
+                prev_attempt_id,
+                platform.get_processor().get_account().storage_scheme,
+            )
+            .await
+            .ok(),
+        None => None,
+    };
+
     let card_info = api_models::payments::AdditionalCardInfo::foreign_from(payment_processor_token);
 
     // record attempt call
@@ -224,6 +242,7 @@ pub async fn record_internal_attempt_and_execute_payment(
                 execute_task_process,
                 revenue_recovery_payment_data,
                 revenue_recovery_metadata,
+                prev_attempt.as_ref(),
             ))
             .await?;
         }
@@ -383,6 +402,10 @@ pub async fn perform_execute_payment(
                         payment_intent.get_id().clone(),
                         revenue_recovery_payment_data.profile.get_id().clone(),
                         attempt_id.clone(),
+                        // The EXECUTE tracking row's prev attempt is the failed attempt
+                        // that triggered this retry — carry it into PSYNC so it need not
+                        // re-derive it from the EXECUTE task later.
+                        tracking_data.prev_attempt_id.clone(),
                         storage::ProcessTrackerRunner::PassiveRecoveryWorkflow,
                         tracking_data.revenue_recovery_retry,
                         state.conf.application_source,
@@ -455,6 +478,7 @@ async fn insert_psync_pcr_task_to_pt(
     payment_id: GlobalPaymentId,
     profile_id: id_type::ProfileId,
     payment_attempt_id: id_type::GlobalAttemptId,
+    prev_attempt_id: Option<id_type::GlobalAttemptId>,
     runner: storage::ProcessTrackerRunner,
     revenue_recovery_retry: diesel_enum::RevenueRecoveryAlgorithmType,
     application_source: common_enums::ApplicationSource,
@@ -468,6 +492,7 @@ async fn insert_psync_pcr_task_to_pt(
         merchant_id,
         profile_id,
         payment_attempt_id,
+        prev_attempt_id,
         revenue_recovery_retry,
         invoice_scheduled_time: Some(schedule_time),
     };
@@ -508,6 +533,26 @@ pub async fn perform_payments_sync(
     revenue_recovery_payment_data: &pcr::RevenueRecoveryPaymentData,
     payment_intent: &PaymentIntent,
 ) -> Result<(), errors::ProcessTrackerError> {
+    let db = &*state.store;
+
+    // The failed attempt that motivated this retry chain is carried in the PSYNC
+    // tracking data (stamped at CALCULATE, propagated through EXECUTE), so no
+    // separate EXECUTE-task lookup is needed. It drives the cluster dims for a
+    // success event, where the attempt being resolved carries no error of its own.
+    let prev_attempt = match tracking_data.prev_attempt_id.as_ref() {
+        Some(prev_attempt_id) => db
+            .find_payment_attempt_by_id(
+                &revenue_recovery_payment_data.key_store,
+                prev_attempt_id,
+                revenue_recovery_payment_data
+                    .merchant_account
+                    .storage_scheme,
+            )
+            .await
+            .ok(),
+        None => None,
+    };
+
     let psync_data = api::call_psync_api(
         state,
         &tracking_data.global_payment_id,
@@ -542,6 +587,7 @@ pub async fn perform_payments_sync(
             new_revenue_recovery_payment_data,
             payment_attempt,
             &mut revenue_recovery_metadata,
+            prev_attempt.as_ref(),
         ),
     )
     .await?;
@@ -982,6 +1028,7 @@ async fn insert_execute_pcr_task_to_pt(
                 merchant_id: merchant_id.clone(),
                 profile_id: profile_id.clone(),
                 payment_attempt_id: payment_attempt_id.clone(),
+                prev_attempt_id: Some(payment_attempt_id.clone()),
                 revenue_recovery_retry,
                 invoice_scheduled_time: Some(schedule_time),
             };

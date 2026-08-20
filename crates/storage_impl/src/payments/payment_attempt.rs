@@ -2347,6 +2347,12 @@ impl Conversion for PaymentAttempt {
                 amount_captured: storage_model.amount_captured,
             };
 
+            let standardised_code = storage_model
+                .error_details
+                .as_ref()
+                .and_then(|error_details| error_details.unified_details.as_ref())
+                .and_then(|unified_details| unified_details.standardised_code);
+
             let error = storage_model
                 .error_code
                 .zip(storage_model.error_message)
@@ -2359,6 +2365,7 @@ impl Conversion for PaymentAttempt {
                     network_advice_code: storage_model.network_advice_code,
                     network_decline_code: storage_model.network_decline_code,
                     network_error_message: storage_model.network_error_message,
+                    standardised_code,
                 });
 
             Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(Self {

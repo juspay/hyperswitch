@@ -465,6 +465,16 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
+    revenue_recovery_retry_stats (cluster_key) {
+        cluster_key -> Text,
+        distribution -> Jsonb,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::enums::diesel_exports::*;
+
     configs (key) {
         id -> Int4,
         #[max_length = 255]
@@ -1963,6 +1973,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     captures,
     card_issuers,
     cards_info,
+    revenue_recovery_retry_stats,
     configs,
     customers,
     dashboard_metadata,

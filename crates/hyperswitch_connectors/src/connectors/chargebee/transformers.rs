@@ -476,6 +476,11 @@ pub struct ChargebeeTransactionData {
     gateway_account_id: String,
     currency_code: enums::Currency,
     amount: MinorUnit,
+    // Chargebee sends this as a UNIX epoch timestamp. `custom_serde::timestamp` maps
+    // it to a UTC `PrimitiveDateTime` (via `to_offset(UtcOffset::UTC)`), and this value
+    // becomes the recovery attempt's `created_at`. Downstream revenue-recovery logic —
+    // e.g. revenue_recovery_retry_stats day/hour bucketing (`EventSlots::from_utc`) — relies on this
+    // being UTC, so keep the UTC-normalizing serde here.
     #[serde(default, with = "common_utils::custom_serde::timestamp::option")]
     date: Option<PrimitiveDateTime>,
     payment_method: ChargebeeTransactionPaymentMethod,

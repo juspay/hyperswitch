@@ -643,6 +643,7 @@ impl RevenueRecoveryAttempt {
         let payment_connector_name = payment_connector_account
             .as_ref()
             .map(|account| account.connector_name);
+
         let request_payload: api_payments::PaymentsAttemptRecordRequest = self
             .create_payment_record_request(
                 state,

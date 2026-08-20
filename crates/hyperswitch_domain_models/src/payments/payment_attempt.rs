@@ -381,6 +381,8 @@ pub struct ErrorDetails {
     pub network_decline_code: Option<String>,
     /// A string indicating how to proceed with an network error if payment gateway provide one. This is used to understand the network error code better.
     pub network_error_message: Option<String>,
+    /// GSM-resolved standardised code, populated on the same error-update path as `unified_code`.
+    pub standardised_code: Option<storage_enums::StandardisedCode>,
 }
 
 #[cfg(feature = "v2")]
@@ -3300,6 +3302,23 @@ impl behaviour::Conversion for PaymentAttempt {
 }
 
 #[cfg(feature = "v2")]
+fn build_error_details_for_storage(error: &ErrorDetails) -> Option<diesel_models::ErrorDetails> {
+    let unified_details = diesel_models::UnifiedErrorDetails {
+        category: None,
+        message: error.unified_message.clone(),
+        standardised_code: error.standardised_code,
+        description: None,
+        user_guidance_message: None,
+        recommended_action: None,
+    };
+    Some(diesel_models::ErrorDetails {
+        unified_details: Some(unified_details),
+        issuer_details: None,
+        connector_details: None,
+    })
+}
+
+#[cfg(feature = "v2")]
 impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal {
     fn from(update: PaymentAttemptUpdate) -> Self {
         match update {
@@ -3341,6 +3360,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 cancellation_reason: None,
                 amount_captured: None,
                 payment_method_data: None,
+                error_details: None,
             },
             PaymentAttemptUpdate::ErrorUpdate {
                 status,
@@ -3356,6 +3376,8 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                     .map(ConnectorTransactionId::form_id_and_data)
                     .map(|(txn_id, txn_data)| (Some(txn_id), txn_data))
                     .unwrap_or((None, None));
+
+                let error_details = build_error_details_for_storage(&error);
 
                 Self {
                     status: Some(status),
@@ -3387,6 +3409,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                     cancellation_reason: None,
                     amount_captured: None,
                     payment_method_data,
+                    error_details,
                 }
             }
             PaymentAttemptUpdate::ConfirmIntentResponse(confirm_intent_response_update) => {
@@ -3439,6 +3462,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                     cancellation_reason: None,
                     amount_captured: None,
                     payment_method_data,
+                    error_details: None,
                 }
             }
             PaymentAttemptUpdate::SyncUpdate {
@@ -3477,6 +3501,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 cancellation_reason: None,
                 amount_captured,
                 payment_method_data: payment_method_data.map(pii::SecretSerdeValue::new),
+                error_details: None,
             },
             PaymentAttemptUpdate::CaptureUpdate {
                 status,
@@ -3512,6 +3537,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 cancellation_reason: None,
                 amount_captured: None,
                 payment_method_data: None,
+                error_details: None,
             },
             PaymentAttemptUpdate::PreCaptureUpdate {
                 amount_to_capture,
@@ -3546,6 +3572,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 cancellation_reason: None,
                 amount_captured: None,
                 payment_method_data: None,
+                error_details: None,
             },
             PaymentAttemptUpdate::ConfirmIntentTokenized {
                 status,
@@ -3585,6 +3612,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 cancellation_reason: None,
                 amount_captured: None,
                 payment_method_data: None,
+                error_details: None,
             },
             PaymentAttemptUpdate::VoidUpdate {
                 status,
@@ -3620,6 +3648,7 @@ impl From<PaymentAttemptUpdate> for diesel_models::PaymentAttemptUpdateInternal 
                 payment_method_id: None,
                 amount_captured: None,
                 payment_method_data: None,
+                error_details: None,
             },
         }
     }

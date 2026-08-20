@@ -116,6 +116,7 @@ impl RevenueRecoveryPaymentIntentStatus {
         revenue_recovery_payment_data: &storage::revenue_recovery::RevenueRecoveryPaymentData,
         payment_attempt: PaymentAttempt,
         revenue_recovery_metadata: &mut PaymentRevenueRecoveryMetadata,
+        prev_attempt: Option<&PaymentAttempt>,
     ) -> Result<(), errors::ProcessTrackerError> {
         let connector_customer_id = payment_intent
             .extract_connector_customer_id_from_payment_intent()
@@ -159,6 +160,21 @@ impl RevenueRecoveryPaymentIntentStatus {
                         business_status::PSYNC_WORKFLOW_COMPLETE,
                     )
                     .await?;
+
+                // Record the psync-resolved retry outcome into revenue_recovery_retry_stats.
+                // Only when there is a previous attempt to attribute this outcome to.
+                if let Some(prev_attempt) = prev_attempt {
+                    super::retry_stats::RetryOutcomeEvent::from_attempt(
+                        state,
+                        &payment_attempt,
+                        prev_attempt,
+                        revenue_recovery_metadata,
+                        true,
+                    )
+                    .await
+                    .record(state)
+                    .await;
+                }
 
                 // publish events to kafka
                 if let Err(e) = recovery_incoming_flow::RecoveryPaymentTuple::publish_revenue_recovery_event_to_kafka(
@@ -298,6 +314,24 @@ impl RevenueRecoveryPaymentIntentStatus {
                         business_status::PSYNC_WORKFLOW_COMPLETE,
                     )
                     .await?;
+
+                // Record the psync-resolved retry outcome into revenue_recovery_retry_stats.
+                // The cluster error dim keys off the failed attempt that triggered this
+                // retry (`prev_attempt`), not the new attempt's error; recorded only when
+                // such a previous attempt exists.
+                if let Some(prev_attempt) = prev_attempt {
+                    super::retry_stats::RetryOutcomeEvent::from_attempt(
+                        state,
+                        &payment_attempt,
+                        prev_attempt,
+                        revenue_recovery_metadata,
+                        false,
+                    )
+                    .await
+                    .record(state)
+                    .await;
+                }
+
                 // publish events to kafka
                 if let Err(e) = recovery_incoming_flow::RecoveryPaymentTuple::publish_revenue_recovery_event_to_kafka(
                     state,
@@ -366,6 +400,7 @@ impl RevenueRecoveryPaymentIntentStatus {
                     &process_tracker,
                     revenue_recovery_metadata,
                     revenue_recovery_payment_data,
+                    prev_attempt,
                 ))
                 .await?;
             }
@@ -774,12 +809,15 @@ impl Action {
         execute_task_process: &storage::ProcessTracker,
         revenue_recovery_payment_data: &storage::revenue_recovery::RevenueRecoveryPaymentData,
         revenue_recovery_metadata: &mut PaymentRevenueRecoveryMetadata,
+        prev_attempt: Option<&PaymentAttempt>,
     ) -> Result<(), errors::ProcessTrackerError> {
         logger::info!("Entering execute_payment_task_response_handler");
 
         let db = &*state.store;
         match self {
             Self::SyncPayment(payment_attempt) => {
+                // Carry the retry chain's prev attempt into the PSYNC task it schedules.
+                let prev_attempt_id = prev_attempt.map(|attempt| attempt.id.clone());
                 revenue_recovery_core::insert_psync_pcr_task_to_pt(
                     revenue_recovery_payment_data.billing_mca.get_id().clone(),
                     db,
@@ -790,6 +828,7 @@ impl Action {
                     payment_intent.id.clone(),
                     revenue_recovery_payment_data.profile.get_id().to_owned(),
                     payment_attempt.id.clone(),
+                    prev_attempt_id,
                     storage::ProcessTrackerRunner::PassiveRecoveryWorkflow,
                     revenue_recovery_payment_data.retry_algorithm,
                     state.conf.application_source,
@@ -846,6 +885,18 @@ impl Action {
                 Ok(())
             }
             Self::TerminalFailure(payment_attempt) => {
+                if let Some(prev_attempt) = prev_attempt {
+                    super::retry_stats::RetryOutcomeEvent::from_attempt(
+                        state,
+                        payment_attempt,
+                        prev_attempt,
+                        revenue_recovery_metadata,
+                        false,
+                    )
+                    .await
+                    .record(state)
+                    .await;
+                }
                 db.as_scheduler()
                     .finish_process_with_business_status(
                         execute_task_process.clone(),
@@ -858,6 +909,18 @@ impl Action {
                 Ok(())
             }
             Self::SuccessfulPayment(payment_attempt) => {
+                if let Some(prev_attempt) = prev_attempt {
+                    super::retry_stats::RetryOutcomeEvent::from_attempt(
+                        state,
+                        payment_attempt,
+                        prev_attempt,
+                        revenue_recovery_metadata,
+                        true,
+                    )
+                    .await
+                    .record(state)
+                    .await;
+                }
                 db.as_scheduler()
                     .finish_process_with_business_status(
                         execute_task_process.clone(),
@@ -916,6 +979,7 @@ impl Action {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub async fn payment_sync_call(
         state: &SessionState,
         revenue_recovery_payment_data: &storage::revenue_recovery::RevenueRecoveryPaymentData,
@@ -1052,6 +1116,7 @@ impl Action {
         psync_task_process: &storage::ProcessTracker,
         revenue_recovery_metadata: &mut PaymentRevenueRecoveryMetadata,
         revenue_recovery_payment_data: &storage::revenue_recovery::RevenueRecoveryPaymentData,
+        prev_attempt: Option<&PaymentAttempt>,
     ) -> Result<(), errors::ProcessTrackerError> {
         logger::info!("Entering psync_response_handler");
 
@@ -1121,6 +1186,18 @@ impl Action {
             Self::TerminalFailure(payment_attempt) => {
                 // TODO: Add support for retrying failed outgoing recordback webhooks
                 // finish the current psync task
+                if let Some(prev_attempt) = prev_attempt {
+                    super::retry_stats::RetryOutcomeEvent::from_attempt(
+                        state,
+                        payment_attempt,
+                        prev_attempt,
+                        revenue_recovery_metadata,
+                        false,
+                    )
+                    .await
+                    .record(state)
+                    .await;
+                }
                 db.as_scheduler()
                     .finish_process_with_business_status(
                         psync_task_process.clone(),
@@ -1133,6 +1210,18 @@ impl Action {
             }
             Self::SuccessfulPayment(payment_attempt) => {
                 // finish the current psync task
+                if let Some(prev_attempt) = prev_attempt {
+                    super::retry_stats::RetryOutcomeEvent::from_attempt(
+                        state,
+                        payment_attempt,
+                        prev_attempt,
+                        revenue_recovery_metadata,
+                        true,
+                    )
+                    .await
+                    .record(state)
+                    .await;
+                }
                 db.as_scheduler()
                     .finish_process_with_business_status(
                         psync_task_process.clone(),
@@ -1283,6 +1372,7 @@ pub async fn reopen_calculate_workflow_on_payment_failure(
 
     let new_tracking_data = pcr::RevenueRecoveryWorkflowTrackingData {
         payment_attempt_id: latest_attempt_id.clone(),
+        prev_attempt_id: Some(latest_attempt_id.clone()),
         revenue_recovery_retry: retry_algorithm_type,
         merchant_id: old_tracking_data.merchant_id.clone(),
         profile_id: old_tracking_data.profile_id.clone(),

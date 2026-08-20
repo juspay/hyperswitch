@@ -1064,6 +1064,7 @@ pub struct PaymentAttemptUpdateInternal {
     pub network_error_message: Option<String>,
     pub connector_request_reference_id: Option<String>,
     pub amount_captured: Option<MinorUnit>,
+    pub error_details: Option<ErrorDetails>,
 }
 #[cfg(feature = "v1")]
 #[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay)]
@@ -1260,6 +1261,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     cancellation_reason: None,
                     amount_captured,
                     payment_method_data: None,
+                    error_details: None,
                 }
             }
             PaymentAttemptUpdate::ErrorUpdate {
@@ -1312,6 +1314,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     cancellation_reason: None,
                     amount_captured,
                     payment_method_data: None,
+                    error_details: None,
                 }
             }
             PaymentAttemptUpdate::UnresolvedResponseUpdate {
@@ -1360,6 +1363,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     cancellation_reason: None,
                     amount_captured: None,
                     payment_method_data: None,
+                    error_details: None,
                 }
             }
             PaymentAttemptUpdate::PreprocessingUpdate {
@@ -1406,6 +1410,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     cancellation_reason: None,
                     amount_captured: None,
                     payment_method_data: None,
+                    error_details: None,
                 }
             }
             PaymentAttemptUpdate::ConnectorResponse {
@@ -1448,6 +1453,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     cancellation_reason: None,
                     amount_captured: None,
                     payment_method_data: None,
+                    error_details: None,
                 }
             }
             PaymentAttemptUpdate::ManualUpdate {
@@ -1496,6 +1502,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                     cancellation_reason: None,
                     amount_captured: None,
                     payment_method_data: None,
+                    error_details: None,
                 }
             }
         }
