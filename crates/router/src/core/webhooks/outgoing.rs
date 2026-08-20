@@ -49,6 +49,53 @@ use crate::{
     workflows::outgoing_webhook_retry,
 };
 
+trait OutgoingWebhookContentStatusExt {
+    const DEFAULT_STATUS_ENABLED: bool = true;
+
+    fn is_status_enabled(&self, profile: &domain::Profile) -> bool;
+}
+
+impl OutgoingWebhookContentStatusExt for api::OutgoingWebhookContent {
+    fn is_status_enabled(&self, profile: &domain::Profile) -> bool {
+        match self {
+            Self::PaymentDetails(response) => profile
+                .get_configured_payment_webhook_statuses()
+                .map(|statuses| statuses.contains(&response.status))
+                .unwrap_or(Self::DEFAULT_STATUS_ENABLED),
+            Self::RefundDetails(response) => {
+                let status = common_enums::RefundStatus::from(response.status);
+                profile
+                    .get_configured_refund_webhook_statuses()
+                    .map(|statuses| statuses.contains(&status))
+                    .unwrap_or(Self::DEFAULT_STATUS_ENABLED)
+            }
+            Self::DisputeDetails(response) => profile
+                .get_configured_dispute_webhook_statuses()
+                .map(|statuses| statuses.contains(&response.dispute_status))
+                .unwrap_or(Self::DEFAULT_STATUS_ENABLED),
+            Self::MandateDetails(response) => profile
+                .get_configured_mandate_webhook_statuses()
+                .map(|statuses| statuses.contains(&response.status))
+                .unwrap_or(Self::DEFAULT_STATUS_ENABLED),
+            #[cfg(feature = "payouts")]
+            Self::PayoutDetails(response) => profile
+                .get_configured_payout_webhook_statuses()
+                .map(|statuses| statuses.contains(&response.status))
+                .unwrap_or(Self::DEFAULT_STATUS_ENABLED),
+            Self::SubscriptionDetails(response) => response
+                .invoice
+                .as_ref()
+                .map(|invoice| {
+                    profile
+                        .get_configured_invoice_webhook_statuses()
+                        .map(|statuses| statuses.contains(&invoice.status))
+                        .unwrap_or(Self::DEFAULT_STATUS_ENABLED)
+                })
+                .unwrap_or(Self::DEFAULT_STATUS_ENABLED),
+        }
+    }
+}
+
 pub(crate) async fn get_webhook_events(
     state: &SessionState,
     platform: domain::Platform,
@@ -170,45 +217,51 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
             business_profile_id=?webhook_recipient.profile.get_id(),
             "Outgoing webhooks are disabled in application configuration"
         );
-        return Ok(());
-    };
-
-    let events_to_trigger = get_webhook_events(
-        &state,
-        platform.clone(),
-        primary_event_type,
-        &primary_content,
-        webhook_resource_data,
-        &provider_profile,
-        &webhook_recipient,
-    )
-    .await?;
-
-    let provider_merchant_id = platform.get_provider().get_account().get_id().clone();
-    let processor_merchant_id = platform.get_processor().get_account().get_id().clone();
-
-    for event_data in events_to_trigger {
-        let event_type = event_data.event_type;
-        let _ = insert_event_and_spawn_webhook_delivery(
-            state.clone(),
-            &platform,
-            event_data,
+    } else if !primary_content.is_status_enabled(&provider_profile) {
+        logger::debug!(
+            business_profile_id = ?provider_profile.get_id(),
+            %event_class,
+            %primary_event_type,
+            "Outgoing webhook is disabled for the current resource status"
+        );
+    } else {
+        let events_to_trigger = get_webhook_events(
+            &state,
+            platform.clone(),
+            primary_event_type,
+            &primary_content,
+            webhook_resource_data,
+            &provider_profile,
             &webhook_recipient,
-            provider_merchant_id.clone(),
-            processor_merchant_id.clone(),
-            primary_object_id.clone(),
-            primary_object_type,
-            primary_object_created_at,
-            event_class,
         )
-        .await
-        .inspect_err(|error| {
-            logger::error!(
-                ?error,
-                "Failed to insert event and spawn webhook delivery for event type {}",
-                event_type
-            );
-        });
+        .await?;
+
+        let provider_merchant_id = platform.get_provider().get_account().get_id().clone();
+        let processor_merchant_id = platform.get_processor().get_account().get_id().clone();
+
+        for event_data in events_to_trigger {
+            let event_type = event_data.event_type;
+            let _ = insert_event_and_spawn_webhook_delivery(
+                state.clone(),
+                &platform,
+                event_data,
+                &webhook_recipient,
+                provider_merchant_id.clone(),
+                processor_merchant_id.clone(),
+                primary_object_id.clone(),
+                primary_object_type,
+                primary_object_created_at,
+                event_class,
+            )
+            .await
+            .inspect_err(|error| {
+                logger::error!(
+                    ?error,
+                    "Failed to insert event and spawn webhook delivery for event type {}",
+                    event_type
+                );
+            });
+        }
     }
 
     Ok(())
