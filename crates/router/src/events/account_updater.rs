@@ -3,11 +3,12 @@ use common_utils::{errors::CustomResult, id_type};
 use hyperswitch_domain_models::payment_method_data::PaymentMethodsData;
 use serde::Serialize;
 use time::OffsetDateTime;
-use unified_connector_service_client::payments as payments_grpc;
 
 use super::EventType;
 use crate::{
-    core::account_updater::types::AccountUpdaterError, services::kafka::KafkaMessage, types::domain,
+    core::account_updater::types::{AccountUpdaterError, RefreshResult},
+    services::kafka::KafkaMessage,
+    types::domain,
 };
 
 #[derive(Debug, Serialize)]
@@ -29,11 +30,11 @@ impl<'a> KafkaAccountUpdaterEvent<'a> {
         merchant_id: &'a id_type::MerchantId,
         profile_id: &'a id_type::ProfileId,
         payment_method: &'a domain::PaymentMethod,
-        evaluation: &'a CustomResult<payments_grpc::CardRefreshOutcome, AccountUpdaterError>,
+        evaluation: &'a CustomResult<RefreshResult, AccountUpdaterError>,
         latency_ms: u128,
     ) -> Self {
         let (updater_outcome, error_category) = match evaluation {
-            Ok(outcome) => (Some(outcome.as_str_name()), None),
+            Ok(RefreshResult::Card(card_result)) => (Some(card_result.outcome.as_str_name()), None),
             Err(error) => (None, Some(error.current_context())),
         };
 

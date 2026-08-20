@@ -4,6 +4,7 @@ use common_enums::{connector_enums::Connector, CardNetwork};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::router_data::ConnectorAuthType;
 use hyperswitch_masking::Secret;
+use unified_connector_service_client::payments as payments_grpc;
 
 use crate::{
     configs::settings,
@@ -46,6 +47,13 @@ impl ResolvedAccountUpdaterConfig {
     pub fn refresh_timeout(&self) -> Duration {
         match self {
             Self::Juspay(juspay) => juspay.refresh_timeout,
+        }
+    }
+
+    /// The account updater service backing this config, recorded against every row it writes.
+    pub fn service(&self) -> Connector {
+        match self {
+            Self::Juspay(_) => Connector::Juspay,
         }
     }
 
@@ -112,6 +120,18 @@ impl From<&settings::AccountUpdaterConfig> for ResolvedAccountUpdaterConfig {
     }
 }
 
+pub enum RefreshResult {
+    Card(CardRefreshResult),
+}
+
+pub struct CardRefreshResult {
+    pub outcome: payments_grpc::CardRefreshOutcome,
+    /// Carries a card only on the outcomes that supersede the stored one.
+    pub refreshed_card: Option<payments_grpc::CardDetailsWithNoCvc>,
+    /// The service that reported the change, attributed on the rows written to apply it.
+    pub service: Connector,
+}
+
 #[derive(Debug, thiserror::Error, serde::Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum AccountUpdaterError {
@@ -123,10 +143,18 @@ pub enum AccountUpdaterError {
     PaymentMethodNotActive,
     #[error("Card network is not supported by Account Updater")]
     UnsupportedNetwork,
+    #[error("Account Updater is not supported on the legacy locker")]
+    LegacyLockerUnsupported,
+    #[error("Account Updater is not supported on an external vault profile")]
+    ExternalVaultUnsupported,
+    #[error("Could not resolve the provider profile to check the deployment")]
+    ProviderProfileUnresolved,
     #[error("Stored card cannot be used for Account Updater")]
     CardUnusable,
     #[error("Account Updater refresh call failed")]
     RefreshCallFailed,
     #[error("Account Updater refresh returned an error")]
     RefreshReturnedError,
+    #[error("Account Updater could not store the reported card change")]
+    StoreFailed,
 }
