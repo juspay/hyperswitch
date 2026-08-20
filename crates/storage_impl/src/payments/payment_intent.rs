@@ -100,7 +100,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
             .clone()
             .generate_drainer_insert_query(&mut query_gen_conn);
 
-        Box::pin(self.insert_resource(
+        Box::pin(self.insert_resource_old(
             merchant_key_store,
             storage_scheme,
             new_payment_intent.insert(&conn),
@@ -249,7 +249,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
             origin_diesel_intent.processor_merchant_id.clone(),
         );
 
-        Box::pin(self.update_resource(
+        Box::pin(self.update_resource_old(
             merchant_key_store,
             storage_scheme,
             origin_diesel_intent.update(&conn, diesel_intent_update),
@@ -350,7 +350,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for KVRouterStore<T> {
         storage_scheme: MerchantStorageScheme,
     ) -> error_stack::Result<PaymentIntent, StorageError> {
         let conn = pg_connection_read(self).await?;
-        Box::pin(self.find_resource_by_id(
+        Box::pin(self.find_resource_by_id_old(
             merchant_key_store,
             storage_scheme,
             DieselPaymentIntent::find_by_payment_id_processor_merchant_id(
@@ -1392,6 +1392,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
             .get_keymanager_state()
             .attach_printable("Missing KeyManagerState")?;
 
+        use crate::behaviour::Conversion;
         query
             .get_results_async::<(
                 DieselPaymentIntent,
