@@ -39,7 +39,11 @@ pub async fn apply_card_refresh_result(
 
     let refreshed_card = match refreshed_card {
         Some(refreshed_card) => refreshed_card,
-        None if matches!(outcome, payments_grpc::CardRefreshOutcome::CardRefreshClosed) => {
+        None if matches!(
+            outcome,
+            payments_grpc::CardRefreshOutcome::CardRefreshClosed
+        ) =>
+        {
             return update_payment_method_status(
                 state,
                 platform,
