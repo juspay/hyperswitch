@@ -2036,6 +2036,14 @@ pub enum PaymentAttemptUpdate {
         external_surcharge_details: Option<common_types::payments::ExternalSurchargeDetails>,
         applied_offer_details: Option<common_types::payments::AppliedOfferDetails>,
     },
+    CompleteAuthorizeUpdate {
+        payment_method: Option<storage_enums::PaymentMethod>,
+        payment_method_type: Option<storage_enums::PaymentMethodType>,
+        payment_method_data: Option<Value>,
+        connector: Option<String>,
+        merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
+        updated_by: String,
+    },
     RejectUpdate {
         status: storage_enums::AttemptStatus,
         error_code: Option<Option<String>>,
@@ -2420,6 +2428,21 @@ impl PaymentAttemptUpdate {
                 request_extended_authorization,
                 external_surcharge_details,
                 applied_offer_details,
+            },
+            Self::CompleteAuthorizeUpdate {
+                payment_method,
+                payment_method_type,
+                payment_method_data,
+                connector,
+                merchant_connector_id,
+                updated_by,
+            } => DieselPaymentAttemptUpdate::CompleteAuthorizeUpdate {
+                payment_method,
+                payment_method_type,
+                payment_method_data,
+                connector,
+                merchant_connector_id,
+                updated_by,
             },
             Self::VoidUpdate {
                 status,
@@ -2819,6 +2842,7 @@ impl PaymentAttemptUpdate {
             | Self::UpdateTrackers { .. }
             | Self::AuthenticationTypeUpdate { .. }
             | Self::ConfirmUpdate { .. }
+            | Self::CompleteAuthorizeUpdate { .. }
             | Self::RejectUpdate { .. }
             | Self::BlocklistUpdate { .. }
             | Self::PaymentMethodDetailsUpdate { .. }

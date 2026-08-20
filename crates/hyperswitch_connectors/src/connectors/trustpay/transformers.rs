@@ -23,7 +23,7 @@ use hyperswitch_domain_models::{
     },
     types::{
         CreateOrderRouterData, PaymentsAuthorizeRouterData, PaymentsPreProcessingRouterData,
-        RefreshTokenRouterData, RefundsRouterData,
+        PaymentsSessionRouterData, RefreshTokenRouterData, RefundsRouterData,
     },
 };
 use hyperswitch_interfaces::{consts, errors};
@@ -34,7 +34,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     types::{
         CreateOrderResponseRouterData, PaymentsPreprocessingResponseRouterData,
-        RefundsResponseRouterData, ResponseRouterData,
+        PaymentsSessionResponseRouterData, RefundsResponseRouterData, ResponseRouterData,
     },
     utils::{
         self, AddressDetailsData, BrowserInformationData, CardData, NetworkTokenData,
@@ -756,7 +756,7 @@ fn get_transaction_status(
 
         Ok((pending_status, None))
     } else {
-        Ok((enums::AttemptStatus::AuthenticationPending, None))
+        Ok((enums::AttemptStatus::Pending, None))
     }
 }
 
@@ -1266,7 +1266,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, TrustpayAuthUpdateResponse, T, AccessTo
 #[serde(rename_all = "camelCase")]
 pub struct TrustpayCreateIntentRequest {
     pub amount: StringMajorUnit,
-    pub currency: String,
+    pub currency: enums::Currency,
     // If true, Apple Pay will be initialized
     pub init_apple_pay: Option<bool>,
     // If true, Google pay will be initialized
@@ -1296,9 +1296,27 @@ impl TryFrom<&TrustpayRouterData<&CreateOrderRouterData>> for TrustpayCreateInte
 
         Ok(Self {
             amount,
-            currency: currency.to_string(),
+            currency,
             init_apple_pay: is_apple_pay,
             init_google_pay: is_google_pay,
+            reference: item.router_data.connector_request_reference_id.clone(),
+        })
+    }
+}
+
+impl TryFrom<&TrustpayRouterData<&PaymentsSessionRouterData>> for TrustpayCreateIntentRequest {
+    type Error = Error;
+    fn try_from(
+        item: &TrustpayRouterData<&PaymentsSessionRouterData>,
+    ) -> Result<Self, Self::Error> {
+        let currency = item.router_data.request.currency;
+        let amount = item.amount.to_owned();
+
+        Ok(Self {
+            amount,
+            currency,
+            init_apple_pay: Some(true),
+            init_google_pay: None,
             reference: item.router_data.connector_request_reference_id.clone(),
         })
     }
@@ -1330,7 +1348,7 @@ impl TryFrom<&TrustpayRouterData<&PaymentsPreProcessingRouterData>>
 
         Ok(Self {
             amount,
-            currency: currency.to_string(),
+            currency,
             init_apple_pay: is_apple_pay,
             init_google_pay: is_google_pay,
             reference: item.router_data.connector_request_reference_id.clone(),
@@ -1496,6 +1514,62 @@ impl TryFrom<PaymentsPreprocessingResponseRouterData<TrustpayCreateIntentRespons
     }
 }
 
+impl TryFrom<PaymentsSessionResponseRouterData<TrustpayCreateIntentResponse>>
+    for PaymentsSessionRouterData
+{
+    type Error = Error;
+    fn try_from(
+        item: PaymentsSessionResponseRouterData<TrustpayCreateIntentResponse>,
+    ) -> Result<Self, Self::Error> {
+        let create_intent_response = item.response.init_result_data;
+        let secrets = item.response.secrets;
+        let apple_pay_init_result = match create_intent_response {
+            InitResultData::AppleInitResultData(apple_pay_response) => apple_pay_response,
+            _ => Err(report!(errors::ConnectorError::InvalidWallet))?,
+        };
+        let instance_id = item.response.instance_id;
+        let session_token = SessionToken::ApplePay(Box::new(
+            api_models::payments::ApplepaySessionTokenResponse {
+                session_token_data: Some(
+                    api_models::payments::ApplePaySessionResponse::ThirdPartySdk(
+                        api_models::payments::ThirdPartySdkSessionResponse {
+                            secrets: secrets.into(),
+                        },
+                    ),
+                ),
+                payment_request_data: Some(api_models::payments::ApplePayPaymentRequest {
+                    country_code: apple_pay_init_result.country_code,
+                    currency_code: apple_pay_init_result.currency_code,
+                    supported_networks: Some(apple_pay_init_result.supported_networks),
+                    merchant_capabilities: Some(apple_pay_init_result.merchant_capabilities),
+                    total: apple_pay_init_result.total.into(),
+                    merchant_identifier: None,
+                    required_billing_contact_fields: None,
+                    required_shipping_contact_fields: None,
+                    recurring_payment_request: None,
+                }),
+                connector: "trustpay".to_string(),
+                delayed_session_token: false,
+                sdk_next_action: {
+                    api_models::payments::SdkNextAction {
+                        next_action: api_models::payments::NextActionCall::CompleteAuthorize,
+                        should_block_confirm: None,
+                    }
+                },
+                connector_reference_id: Some(instance_id),
+                connector_sdk_public_key: None,
+                connector_merchant_id: None,
+            },
+        ));
+
+        Ok(Self {
+            response: Ok(PaymentsResponseData::SessionResponse { session_token }),
+            status: enums::AttemptStatus::AuthenticationPending,
+            ..item.data
+        })
+    }
+}
+
 pub(crate) fn get_apple_pay_session<F, T>(
     instance_id: String,
     secrets: &SdkSecretInfo,
@@ -1505,7 +1579,7 @@ pub(crate) fn get_apple_pay_session<F, T>(
     Ok(RouterData {
         response: Ok(PaymentsResponseData::PreProcessingResponse {
             connector_metadata: None,
-            pre_processing_id: PreprocessingResponseId::ConnectorTransactionId(instance_id),
+            pre_processing_id: PreprocessingResponseId::ConnectorTransactionId(instance_id.clone()),
             session_token: Some(SessionToken::ApplePay(Box::new(
                 api_models::payments::ApplepaySessionTokenResponse {
                     session_token_data: Some(
@@ -1536,7 +1610,7 @@ pub(crate) fn get_apple_pay_session<F, T>(
                             should_block_confirm: None,
                         }
                     },
-                    connector_reference_id: None,
+                    connector_reference_id: Some(instance_id),
                     connector_sdk_public_key: None,
                     connector_merchant_id: None,
                 },
