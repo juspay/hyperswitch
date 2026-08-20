@@ -1,79 +1,240 @@
-## Performance Benchmarking Setup
+# Payment load-test automation
 
-The setup uses docker compose to get the required components up and running. It also handles running database migration
-and starts [K6 load testing](https://k6.io/docs/) script at the end. The metrics are visible in the console as well as
-through Grafana dashboard.
+Automation for non-modular and payment-method-modular payment-confirm load tests. It manages a complete local environment and can run merchant, fixture, and k6 workflows against an already provisioned cloud load-test slice.
 
-We have added a callback at the end of the script to compare result with existing baseline values. The env variable
-`LOADTEST_RUN_NAME` can be used to change the name of the run which will be used to create json, result summary and diff
-benchmark files. The default value is "baseline", and diff will be created by comparing new results against baseline.
-See 'How to run' section.
+Use the recipes in `loadtest/Justfile`; do not invoke the implementation scripts directly.
 
-###  Structure/Files
+## Local prerequisites
 
-`config`:   contains router toml file to change settings. Also setting files for other components like Tempo etc.
+- `just`, Node.js, k6, Git, and curl
+- Podman with Compose support
+- Nix for the default Hyperswitch build and migration commands
+- Free ports and valid CPU sets from `deploy/config.yaml`
 
-`grafana`:  data source and dashboard files
+## Quick start
 
-`k6`:       K6 load testing tool scripts. The `setup.js` contain common functions like creating merchant api key etc.
-            Each js files will contain load testing scenario of each APIs. Currently, we have `health.js` and `payment-confirm.js`.
+Run from `loadtest/`:
 
-`.env`:     It provide default value to docker compose file. Developer can specify which js script they want to run using env
-            variable called `LOADTEST_K6_SCRIPT`. The default script is `health.js`. See 'How to run' section.
-
-### How to run
-
-Build image of checked out branch.
 ```bash
-docker compose build
+cp deploy/config.example.yaml deploy/config.yaml
+cp runner/config.example.yaml runner/config.yaml
+
+just deploy-preflight
+just deploy-ready
+just runner-preflight
+just runner-fixtures
+just runner-start
 ```
 
-Run default (`health.js`) script. It will generate baseline result.
+`runner-start` prints the Grafana dashboard URL and a p50/p75/p90/p99 latency summary.
+
+Stop everything without deleting state:
+
 ```bash
-bash loadtest.sh
+just deploy-down
 ```
 
-The `loadtest.sh` script takes following flags,
+## Configuration
 
-`-c`: _compare_ with baseline results [without argument]
-      auto assign run name based on current commit number
+Local runs use two configuration files:
 
-`-r`: takes _run name_ as argument (default: baseline)
+| File | Owns |
+| --- | --- |
+| `deploy/config.yaml` | Repositories, images, builds, endpoints, CPU affinity, state services, generated TOMLs, migrations, and observability. |
+| `runner/config.yaml` | Merchant path, payment scenario, load shape, fixture policy, and local setup credentials. |
 
-`-s`: _script name_ exists in `k6` directory without the file extension as argument (default: health)
+In local mode, the runner reads service endpoints from deployment configuration. Do not duplicate endpoints in runner configuration. Cloud runner-only mode defines remote targets directly and does not require deployment configuration.
 
-`-a`: run loadtest for _all scripts_ existing in `k6` directory [without argument]
+Canonical application names are `router`, `modular-pm`, `vault`, `encryption`, and `superposition`. They are used for configuration keys, container labels, Loki labels, commands, and Grafana legends. Application container names are derived as `hs-<service>`.
 
-For example, to run the baseline for `payment-confirm.js` script.
+### Application sources
+
+Every application declares `source.path` and `source.git_url`. Missing repositories are cloned automatically.
+
+| Mode | Behavior |
+| --- | --- |
+| `local` | Reuse the configured local image or build it when missing. |
+| `cloud` | Pull the configured image; retain the repository for preparation and migrations. |
+
+Set `build.force: true` or run `FORCE=1 just deploy-build` to rebuild local images.
+
+These source modes belong to the local Podman deployer. `source.mode: cloud` does not target a remote environment; remote execution uses the runner's `environment.mode: cloud` configuration.
+
+### Preparation and state
+
+- PostgreSQL and Redis are shared; schemas and prefixes isolate service data.
+- Router and modular-pm intentionally share the Hyperswitch schema.
+- Preparation resolves override placeholders from `deploy/config.yaml` and merges the resulting TOMLs.
+- Vault preparation generates one RSA key pair shared with router and modular-pm.
+- `cpuset` pins each container to configured logical CPUs.
+- Structured JSON logs are persisted under `deploy/logs/` and shipped to Loki.
+
+## Deployment commands
+
 ```bash
-bash loadtest.sh -s payment-confirm
+just deploy-ready                         # complete deployment
+just deploy-status                        # containers, health, and affinity
+just deploy-build router modular-pm       # build selected services
+just deploy-restart router modular-pm     # restart selected services
+just deploy-logs router                   # application logs
+just deploy-observability-logs             # Grafana/Loki/Prometheus logs
+just deploy-restart-observability          # reprovision observability
+just deploy-down                           # stop the stack
+just deploy-reset                          # remove managed state
 ```
 
-The run name could be anything. It will be used to prefix benchmarking files, stored at `./k6/benchmark`. For example,
+`deploy-ready` acquires repositories, resolves images, prepares configuration, starts state services, initializes state, starts applications, runs migrations, and starts observability.
+
+## Runner model
+
+The runner performs three stages:
+
+1. Create or reuse a merchant and configure modular routing through Superposition APIs.
+2. Create run-owned customers, PM sessions, and payments using k6 `shared-iterations`.
+3. Confirm fixtures at the configured rate using k6 `constant-arrival-rate`.
+
+Fixtures belong to one run and cannot be reused after confirmation.
+
 ```bash
-bash loadtest.sh -r made_calls_asyns -s payment-confirm
+just runner-fixtures     # setup and prepare fixtures
+just runner-start        # execute measured traffic
+just runner-status       # inspect active run
+just runner-discard      # discard unused active fixtures
 ```
 
-A preferred way to compare new changes with the baseline is using the `-c` flag. It automatically assigns commit numbers to
-easily match different results.
-```bash
-bash loadtest.sh -c -s payment-confirm
+### Merchant paths
+
+| Path | Request flow |
+| --- | --- |
+| `non_modular` | Payment create, then payment confirm. |
+| `modular` | PM session create, payment create, PM session confirm, then payment confirm using its token. |
+
+For modular cloud runs, combined latency is PM-session-confirm latency plus the Router `x-hs-latency` value (Router latency excluding connector time).
+
+### Scenarios
+
+| Scenario | Behavior |
+| --- | --- |
+| `guest` | No customer and no saved card; modular PM session uses volatile storage. |
+| `cit_on_session` | Customer-initiated save-card flow with `setup_future_usage: on_session`. |
+| `cit_off_session` | Customer-initiated save-card flow with `setup_future_usage: off_session`. |
+| `cit_metadata_changed` | Non-modular CIT flow that saves a card during fixture setup and changes its metadata during measured confirm. |
+
+Select a flow in `runner/config.yaml`:
+
+```yaml
+scenario:
+  merchant_path: modular
+  name: cit_off_session
 ```
 
-Assuming there is baseline files for all the script, following command will compare them with new changes,
-```bash
-bash loadtest.sh -ca
+### Load shape
+
+Fixed 5 RPS for one minute:
+
+```yaml
+load:
+  starting_rps: 5
+  target_rps: 5
+  step_rps: 0
+  hold_seconds: 60
+  idle_seconds: 0
 ```
-It uses `-c` compare flag and `-a` run loadtest using all the scripts.
 
-Developer can observe live metrics using [K6 Load Testing Dashboard](http://localhost:3002/d/k6/k6-load-testing-results?orgId=1&refresh=5s&from=now-1m&to=now) in Grafana.
-The [Tempo datasource](http://localhost:3002/explore?orgId=1&left=%7B%22datasource%22:%22P214B5B846CF3925F%22,%22queries%22:%5B%7B%22refId%22:%22A%22,%22queryType%22:%22nativeSearch%22%7D%5D,%22range%22:%7B%22from%22:%22now-1m%22,%22to%22:%22now%22%7D%7D)
-is available to inspect tracing of individual requests.
+For a ramp, increase `target_rps`, set `step_rps`, and optionally add `idle_seconds`. With `fixtures.count: auto`, the runner creates enough fixtures for all scheduled requests. Fixture concurrency affects preparation only.
 
-### Notes
+## Smoke tests
 
-1. The script will first "down" the already running docker compose to run loadtest on freshly created database.
-2. Make sure that the Rust compiler is happy with your changes before you start running a performance test. This will save a lot of your time.
-3. If the project image is available locally then `docker compose up` won't take your new changes into account.
-   Either first do `docker compose build` or `docker compose up --build k6`.
-4. For baseline, make sure you in the right branch and have build the image before running the loadtest script.
+```bash
+just smoke non_modular guest
+just smoke modular cit_off_session
+just runner-test
+just e2e-smoke
+```
+
+Smoke tests use the same merchant setup, fixture, and confirmation implementation as load tests.
+
+## Observability
+
+Grafana defaults to `http://127.0.0.1:3002`. The provisioned dashboard contains only:
+
+- Request rate for router, modular-pm, vault, and encryption.
+- Five-second rolling server latency percentiles and modular combined latency.
+- CPU cores consumed by each application service.
+
+Promtail discovers managed containers through canonical Podman labels. Restart observability after editing provisioned dashboards.
+
+## Cloud runner
+
+Cloud mode targets an environment that has already been provisioned and wired by the infrastructure repository. It does not deploy Kubernetes releases, create databases, or configure Router, PM Modular, locker, or encryption application TOMLs.
+
+The runner host needs `just`, Node.js, k6, and network access to every configured target. Local Podman, Nix, PostgreSQL, Redis, and CPU-affinity configuration are not required.
+
+Create the machine-local configuration:
+
+```bash
+cp runner/config.cloud.example.yaml runner/config.cloud.yaml
+export LOADTEST_MERCHANT_ID=merchant_...
+export LOADTEST_MERCHANT_API_KEY=...
+export LOADTEST_PUBLISHABLE_KEY=pk_...
+export LOADTEST_PROFILE_ID=profile_...
+export LOADTEST_ORGANIZATION_ID=org_...
+```
+
+Each target has an independent base URL, API prefix, health URL, and header map. This allows a shared ingress to route Router and PM Modular with different `x-feature` values. Target headers are applied to administrative setup, fixtures, and measured k6 traffic.
+
+The default cloud example uses an existing merchant and preconfigured Superposition context, so preflight and test execution do not mutate administrative or runtime configuration. `merchant.mode: create` is available when explicitly configured with `payments_api.admin_api_key` or `admin_api_key_env`. `superposition.mode` supports `manage`, `preconfigured`, and `disabled`.
+
+Run preflight before any traffic. It validates the configuration and probes every required target using that target's headers:
+
+```bash
+CONFIG=runner/config.cloud.yaml just runner preflight
+```
+
+Run one smoke iteration matching the scenario in the cloud config, then verify its request IDs in the intended custom service logs:
+
+```bash
+CONFIG=runner/config.cloud.yaml just runner smoke modular cit_off_session
+```
+
+After proving Router, database, PM Modular, locker, and encryption isolation:
+
+```bash
+CONFIG=runner/config.cloud.yaml just runner fixtures
+CONFIG=runner/config.cloud.yaml just runner start
+CONFIG=runner/config.cloud.yaml just runner status
+```
+
+`fixtures.wait_before_start_seconds` sets a minimum settling period after fixture preparation. `runner start` waits only for the remaining time, so a manual delay between `fixtures` and `start` is counted toward it.
+
+Cloud Router targets request `x-hs-latency: true`. Runner results report `hyperswitch_internal_excluding_connector`, the Router response-header latency excluding connector time; `payment_confirm` remains the client-observed k6 duration. `combined` adds the internal Router latency to PM-session-confirm latency.
+
+`runner status` reports aggregate latency and a latency breakdown for each configured RPS phase, including the first and last measured request timestamps for that phase.
+
+Non-modular customer scenarios still use the PM customer API during fixture preparation, so they require a PM target even though measured payment-confirm traffic is non-modular. A non-modular guest scenario requires only Router.
+
+The runner uses the PM API prefix configured under `targets.modular_pm.api_prefix`. The current sandbox load-test ingress exposes the runner's modular flows under `/v1`; keep cloud configurations on `/v1` unless the deployed ingress explicitly exposes another version.
+
+Cloud infrastructure remains responsible for provisioning the custom instances, routing `x-feature` traffic, assigning the custom database, and wiring downstream endpoints through application TOML or Helm configuration.
+
+## Adding a flow
+
+1. Define its customer, storage, and save-card behavior in `runner/lib/scenarios.js`.
+2. Add prerequisite requests to `runner/k6/fixtures.js` and measured requests to `runner/k6/workload.js` only when existing behavior cannot be reused.
+3. Add a focused test and include the flow in `e2e-smoke`.
+
+Read service endpoints from deployment configuration; never duplicate them in a flow.
+
+## Troubleshooting
+
+| Symptom | Action |
+| --- | --- |
+| Connection refused | Run `just deploy-status`, then `just deploy-logs <service>`. |
+| Partial fixture creation | Fix the first reported API failure, run `just runner-discard`, then create fresh fixtures. |
+| Invalid or expired token | Fixtures were consumed or expired; run `just runner-fixtures` again. |
+| Modular path bypassed | Check Superposition health and ensure propagation wait covers router polling. |
+| Grafana has no request data | Check JSON logging, Promtail/Loki health, and dashboard time range. |
+| Grafana has no CPU data | Check Podman exporter and Prometheus; restart observability after dashboard changes. |
+| Migration failed | Verify repository path, database URL, schema, and printed migration command. |
+
+Machine-local configs, generated TOMLs/keys, logs, and runner state must not be committed. Commit example configs and minimal override fragments only.

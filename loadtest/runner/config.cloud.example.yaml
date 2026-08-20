@@ -1,0 +1,80 @@
+# Runner-only configuration for an already provisioned cloud load-test slice.
+# Copy to runner/config.cloud.yaml and export the referenced credentials.
+
+environment:
+  mode: cloud
+
+preflight:
+  # Probe each target health URL with that target's configured headers.
+  probe_targets: true
+
+targets:
+  router:
+    base_url: https://sandbox.hyperswitch.io
+    health_url: /health
+    headers:
+      x-feature: sandbox-custom-c3
+      # Requests Router's internal latency (excluding connector time) in the
+      # x-hs-latency response header. The runner records it in results.
+      x-hs-latency: "true"
+
+  modular_pm:
+    # The runner appends api_prefix to base_url for PM API requests.
+    # Ensure the cloud ingress routes this API version before running preflight.
+    base_url: https://sandbox.hyperswitch.io
+    api_prefix: /v1
+    health_url: /v2/health
+    headers:
+      x-feature: sandbox-pm-loadtest
+
+# Existing credentials are the safer cloud default: the runner does not call
+# account, API-key, profile, or connector administration endpoints.
+merchant:
+  mode: existing
+  merchant_id_env: LOADTEST_MERCHANT_ID
+  api_key_env: LOADTEST_MERCHANT_API_KEY
+  publishable_key_env: LOADTEST_PUBLISHABLE_KEY
+  profile_id_env: LOADTEST_PROFILE_ID
+  organization_id_env: LOADTEST_ORGANIZATION_ID
+
+# The cloud environment is expected to have the modular-routing context ready.
+# Use mode: manage only with an explicit Superposition target and authorization.
+superposition:
+  mode: preconfigured
+
+scenario:
+  merchant_path: modular
+  name: cit_off_session
+
+load:
+  # Begin with a low fixed rate. Increase only after routing and isolation are proven.
+  starting_rps: 1
+  target_rps: 1
+  step_rps: 0
+  hold_seconds: 30
+  idle_seconds: 0
+
+fixtures:
+  count: auto
+  concurrency: 5
+  # Wait after fixtures become ready before measured traffic begins. This lets
+  # asynchronous downstream writes settle without changing fixture count/RPS.
+  wait_before_start_seconds: 60
+  amount: 1000
+  currency: USD
+  session_expiry: 900
+
+payments_api:
+  request_timeout_ms: 30000
+  card:
+    card_number: "4242424242424242"
+    card_exp_month: "10"
+    card_exp_year: "35"
+    card_holder_name: "Load Test"
+    card_cvc: "123"
+
+observability:
+  grafana_url: https://grafana.example.com
+
+# Contains merchant credentials, fixtures, and request results. Keep it local.
+state_file: state/cloud-loadtest.json
