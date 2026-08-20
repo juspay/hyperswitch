@@ -5969,23 +5969,16 @@ pub async fn retrieve_payment_method(
 
     let updated_payment_method = match refresh_result {
         Some(account_updater::types::RefreshResult::Card(card_result)) => {
-            let service = card_result.service;
-            match card_result.refreshed_card {
-                Some(refreshed_card) => {
-                    Box::pin(account_updater::create_payment_method_for_refreshed_card(
-                        &state,
-                        &platform,
-                        &profile,
-                        &payment_method,
-                        service,
-                        refreshed_card,
-                    ))
-                    .await
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Account Updater failed while applying a card change")?
-                }
-                None => None,
-            }
+            Box::pin(account_updater::apply_card_refresh_result(
+                &state,
+                &platform,
+                &profile,
+                &payment_method,
+                card_result,
+            ))
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Account Updater failed while applying a card change")?
         }
         None => None,
     };

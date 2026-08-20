@@ -1,5 +1,7 @@
 //! Writes a refreshed card as a new payment method row under the same id, then redacts the existing row
 
+use std::str::FromStr;
+
 use common_enums::connector_enums::Connector;
 use common_utils::{
     errors::CustomResult,
@@ -11,7 +13,7 @@ use hyperswitch_domain_models::payment_method_data::CardDetailsPaymentMethod;
 use router_env::{instrument, logger, tracing};
 use unified_connector_service_client::payments as payments_grpc;
 
-use super::types::AccountUpdaterError;
+use super::types::{AccountUpdaterError, CardRefreshResult};
 use crate::{
     core::{
         payment_methods::{self as pm_core, vault, PaymentMethodExt},
@@ -22,14 +24,36 @@ use crate::{
 };
 
 #[instrument(skip_all)]
-pub async fn create_payment_method_for_refreshed_card(
+pub async fn apply_card_refresh_result(
     state: &SessionState,
     platform: &domain::Platform,
     profile: &domain::Profile,
     payment_method: &domain::PaymentMethod,
-    service: Connector,
-    refreshed_card: payments_grpc::CardDetailsWithNoCvc,
+    card_result: CardRefreshResult,
 ) -> CustomResult<Option<domain::PaymentMethod>, AccountUpdaterError> {
+    let CardRefreshResult {
+        outcome,
+        refreshed_card,
+        service,
+    } = card_result;
+
+    let refreshed_card = match refreshed_card {
+        Some(refreshed_card) => refreshed_card,
+        None if matches!(outcome, payments_grpc::CardRefreshOutcome::CardRefreshClosed) => {
+            return update_payment_method_status(
+                state,
+                platform,
+                service,
+                payment_method.clone(),
+                common_enums::PaymentMethodStatus::Inactive,
+            )
+            .await
+            .attach_printable("Failed to deactivate the closed payment method")
+            .map(Some);
+        }
+        None => return Ok(None),
+    };
+
     let stored_card = payment_method
         .payment_method_data
         .as_ref()
@@ -123,9 +147,22 @@ pub async fn create_payment_method_for_refreshed_card(
     .change_context(AccountUpdaterError::StoreFailed)
     .attach_printable("Failed to delete the superseded payment method")?;
 
-    activate_refreshed_payment_method(state, platform, service, inserted_payment_method)
-        .await
-        .map(Some)
+    update_payment_method_status(
+        state,
+        platform,
+        service,
+        inserted_payment_method.clone(),
+        common_enums::PaymentMethodStatus::Active,
+    )
+    .await
+    .inspect_err(|error| {
+        logger::warn!(
+            ?error,
+            "Account Updater stored the refreshed card but could not activate the row"
+        )
+    })
+    .or(Ok(inserted_payment_method))
+    .map(Some)
 }
 
 fn build_new_card(
@@ -157,22 +194,35 @@ fn build_new_card(
         card_exp_year,
         card_holder_name: stored.card_holder_name.clone(),
         nick_name: stored.nick_name.clone(),
-        card_network: None,
-        card_issuing_country: None,
-        card_issuer: None,
-        card_type: None,
+        card_network: stored.card_network.clone(),
+        card_issuing_country: stored
+            .issuer_country
+            .as_ref()
+            .map(|country| common_enums::CountryAlpha2::from_str(country))
+            .transpose()
+            .ok()
+            .flatten(),
+        card_issuer: stored.card_issuer.clone(),
+        card_type: stored
+            .card_type
+            .as_ref()
+            .map(|card_type| api::payment_methods::CardType::from_str(card_type))
+            .transpose()
+            .ok()
+            .flatten(),
         card_cvc: None,
     })
 }
 
-async fn activate_refreshed_payment_method(
+async fn update_payment_method_status(
     state: &SessionState,
     platform: &domain::Platform,
     service: Connector,
     payment_method: domain::PaymentMethod,
+    status: common_enums::PaymentMethodStatus,
 ) -> CustomResult<domain::PaymentMethod, AccountUpdaterError> {
     let update = storage::PaymentMethodUpdate::StatusUpdate {
-        status: Some(common_enums::PaymentMethodStatus::Active),
+        status: Some(status),
         last_modified_by: Some(account_updater_created_by(service).to_string()),
     };
 
@@ -180,19 +230,13 @@ async fn activate_refreshed_payment_method(
         .store
         .update_payment_method(
             platform.get_provider().get_key_store(),
-            payment_method.clone(),
+            payment_method,
             update,
             platform.get_provider().get_account().storage_scheme,
             None,
         )
         .await
-        .inspect_err(|error| {
-            logger::warn!(
-                ?error,
-                "Account Updater stored the refreshed card but could not activate the row"
-            )
-        })
-        .or(Ok(payment_method))
+        .change_context(AccountUpdaterError::StoreFailed)
 }
 
 fn account_updater_created_by(service: Connector) -> common_utils::types::CreatedBy {
