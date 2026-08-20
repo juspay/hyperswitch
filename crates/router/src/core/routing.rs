@@ -3136,10 +3136,8 @@ pub async fn routing_migration_status(
     // `merchant_id`, which for a platform-written rule is the provider that made the call
     // rather than the merchant the profile hangs off — reporting that one names an account the
     // profile is not under, and is the merchant a migration would then fail to find it in.
-    let mut owner_of: HashMap<
-        common_utils::id_type::ProfileId,
-        common_utils::id_type::MerchantId,
-    > = HashMap::new();
+    let mut owner_of: HashMap<common_utils::id_type::ProfileId, common_utils::id_type::MerchantId> =
+        HashMap::new();
     match state.store.find_rule_ids_for_profiles(&page_profiles).await {
         Ok(rows) => {
             for (profile_id, owner_merchant_id, algorithm_id, kind) in rows {
@@ -3222,9 +3220,7 @@ pub async fn routing_migration_status(
         let dimensions = dimension_state::Dimensions::new()
             .with_processor_merchant_id(merchant_id.clone().into())
             .with_provider_merchant_id(
-                hyperswitch_domain_models::platform::ProviderMerchantId::new(
-                    provider_merchant_id,
-                ),
+                hyperswitch_domain_models::platform::ProviderMerchantId::new(provider_merchant_id),
             )
             .with_profile_id(profile_id.clone());
         let routing_source = Some(

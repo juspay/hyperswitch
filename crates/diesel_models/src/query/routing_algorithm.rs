@@ -361,14 +361,16 @@ impl RoutingAlgorithm {
             .change_context(DatabaseError::Others)
             .map(|rows| {
                 rows.into_iter()
-                    .map(|(profile_id, processor_merchant_id, merchant_id, algorithm_id, kind)| {
-                        (
-                            profile_id,
-                            processor_merchant_id.unwrap_or(merchant_id),
-                            algorithm_id,
-                            kind,
-                        )
-                    })
+                    .map(
+                        |(profile_id, processor_merchant_id, merchant_id, algorithm_id, kind)| {
+                            (
+                                profile_id,
+                                processor_merchant_id.unwrap_or(merchant_id),
+                                algorithm_id,
+                                kind,
+                            )
+                        },
+                    )
                     .collect()
             })
     }
