@@ -1954,12 +1954,15 @@ pub async fn fetch_payment_method_from_modular_service(
     // the internal vault, so requesting raw detail yields an "Invalid Vault Response" error; the
     // external vault token reference is returned regardless. The normal confirm flow uses `true`.
     fetch_raw_detail: bool,
+    // Whether to have the modular service sync the stored card with the Account Updater first.
+    force_sync: bool,
 ) -> CustomResult<PaymentMethodWithRawData, errors::ApiErrorResponse> {
     let payment_method_fetch_req = RetrievePaymentMethodV1Request {
         payment_method_id: api_models::payment_methods::PaymentMethodId {
             payment_method_id: payment_method_id.to_owned(),
         },
         fetch_raw_detail,
+        force_sync,
         modular_service_prefix: state.conf.micro_services.payment_methods_prefix.0.clone(),
     };
 
