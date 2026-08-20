@@ -10087,6 +10087,8 @@ pub struct ConnectorMetadata {
     pub peachpayments: Option<PeachpaymentsData>,
     #[smithy(value_type = "Option<SantanderData>")]
     pub santander: Option<SantanderConnectorMetadataData>,
+    #[smithy(value_type = "Option<PaypalConnectorMetadata>")]
+    pub paypal: Option<PaypalConnectorMetadata>,
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
@@ -10110,6 +10112,63 @@ pub struct SantanderData {
         with = "common_utils::custom_serde::iso8601::option"
     )]
     pub paid_at: Option<PrimitiveDateTime>,
+}
+
+/// PayPal connector specific metadata passed at the payment level (`connector_metadata.paypal`).
+/// Acts as an extensible container for PayPal-specific features; the sender profile data
+/// dictionary sent to PayPal's Risk-as-a-Service Set Transaction Context (STC) API for
+/// fraud risk assessment is nested under `risk_data`.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+#[serde(deny_unknown_fields)]
+pub struct PaypalConnectorMetadata {
+    /// Sender profile data for PayPal's Risk-as-a-Service Set Transaction Context (STC) API
+    #[smithy(value_type = "Option<PaypalRiskData>")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub risk_data: Option<PaypalRiskData>,
+}
+
+/// Sender profile information sent to PayPal's Risk-as-a-Service
+/// Set Transaction Context (STC) API for fraud risk assessment.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct PaypalRiskData {
+    /// Unique identifier of the buyer account on the partner/merchant platform
+    #[schema(value_type = Option<String>, example = "A12345N343")]
+    #[smithy(value_type = "Option<String>")]
+    pub sender_account_id: Option<String>,
+    /// First name registered with the buyer's partner/merchant account
+    #[schema(value_type = Option<String>, example = "John")]
+    #[smithy(value_type = "Option<String>")]
+    pub sender_first_name: Option<Secret<String>>,
+    /// Last name registered with the buyer's partner/merchant account
+    #[schema(value_type = Option<String>, example = "Smith")]
+    #[smithy(value_type = "Option<String>")]
+    pub sender_last_name: Option<Secret<String>>,
+    /// Email address registered with the buyer's partner/merchant account
+    #[schema(value_type = Option<String>, example = "john@sample.com")]
+    #[smithy(value_type = "Option<String>")]
+    pub sender_email: Option<Email>,
+    /// Phone number registered with the buyer's partner/merchant account
+    #[schema(value_type = Option<String>, example = "(042) 1123 4567")]
+    #[smithy(value_type = "Option<String>")]
+    pub sender_phone: Option<Secret<String>>,
+    /// Country code registered with the buyer's partner/merchant account
+    #[schema(value_type = Option<CountryAlpha2>, example = "AU")]
+    #[smithy(value_type = "Option<CountryAlpha2>")]
+    pub sender_country_code: Option<api_enums::CountryAlpha2>,
+    /// Date of creation of the buyer's account on the partner/merchant platform (ISO 8601 date format)
+    #[schema(value_type = Option<String>, example = "2012-12-09T19:14:55.277-0:00")]
+    #[smithy(value_type = "Option<String>")]
+    pub sender_create_date: Option<String>,
+    /// Identifier whether the transaction is eligible for bonus (0 means ineligible, 1 means eligible)
+    #[schema(value_type = Option<String>, example = "1")]
+    #[smithy(value_type = "Option<String>")]
+    pub cd_string_one: Option<String>,
+    /// Date when the customer made the very first payment with the partner/merchant platform (ISO 8601 date format)
+    #[schema(value_type = Option<String>, example = "2022-01-03T17:16:54.433-0:00")]
+    #[smithy(value_type = "Option<String>")]
+    pub first_interaction_date: Option<String>,
 }
 
 impl ConnectorMetadata {

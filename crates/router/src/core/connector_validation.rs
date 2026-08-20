@@ -452,6 +452,9 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
             }
             api_enums::Connector::Paypal => {
                 paypal::transformers::PaypalAuthType::try_from(self.auth_type)?;
+                paypal::transformers::PaypalConnectorMetadataObject::try_from(
+                    self.connector_meta_data,
+                )?;
                 Ok(())
             }
             api_enums::Connector::Paysafe => {

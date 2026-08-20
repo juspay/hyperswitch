@@ -1642,6 +1642,7 @@ impl ConnectorSpecifications for Barclaycard {
             api::CurrentFlowInfo::Authorize {
                 request_data,
                 auth_type,
+                ..
             } => auth_type == common_enums::AuthenticationType::ThreeDs && request_data.is_card(),
             // No alternate flow for complete authorize
             api::CurrentFlowInfo::CompleteAuthorize { .. } => false,

@@ -1580,6 +1580,7 @@ impl ConnectorSpecifications for Worldpayxml {
             api::CurrentFlowInfo::Authorize {
                 request_data,
                 auth_type,
+                ..
             } => {
                 // Googlepay would require 3ds if cryptogram is not present which indicates it is Fpan
                 auth_type == common_enums::AuthenticationType::ThreeDs
