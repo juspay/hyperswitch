@@ -105,7 +105,7 @@ impl ForeignFrom<&api_models::payments::RecoveryPaymentsCreate>
             retry_count: None,
             invoice_next_billing_time: None,
             invoice_billing_started_at_time: data.billing_started_at,
-            card_info: data.payment_method_data.payment_method_data.clone(),
+            card_info: data.payment_method_data.payment_method_metadata.clone(),
             charge_id: None,
         }
     }

@@ -6163,7 +6163,7 @@ pub struct CustomRecoveryPaymentMethodData {
     pub primary_processor_payment_method_token: Secret<String>,
 
     /// AdditionalCardInfo for the primary token.
-    pub payment_method_data: AdditionalCardInfo,
+    pub payment_method_metadata: AdditionalCardInfo,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, ToSchema)]
