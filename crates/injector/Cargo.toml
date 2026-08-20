@@ -13,7 +13,11 @@ serde = []
 tracing-actix-web = []
 
 [dependencies]
-common_utils = { version = "0.1.0", path = "../common_utils" }
+# injector needs common_utils for HTTP/ID/masking helpers, not for database
+# access (it has zero diesel references). Declining the default features keeps
+# diesel out of downstream consumers such as UCS; within hyperswitch, other
+# crates request the defaults and feature unification restores them.
+common_utils = { version = "0.1.0", path = "../common_utils", default-features = false }
 hyperswitch_masking = "0.0.1"
 router_env = { version = "0.1.0", path = "../router_env" }
 

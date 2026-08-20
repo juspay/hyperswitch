@@ -8,7 +8,11 @@ readme = "README.md"
 license.workspace = true
 
 [features]
-default = []
+# Diesel ORM impls for the types defined here. Default-on so hyperswitch is
+# unaffected. Consumers that never touch a database (e.g. UCS, via injector)
+# opt out with `default-features = false` and then compile no diesel at all.
+default = ["diesel"]
+diesel = ["dep:diesel", "hyperswitch_masking/diesel"]
 keymanager = ["dep:router_env"]
 keymanager_mtls = ["reqwest/rustls-tls"]
 encryption_service = ["dep:router_env"]
@@ -31,7 +35,7 @@ base64 = "0.22.1"
 base64-serde = "0.8.0"
 blake3 = { version = "1.8.2", features = ["serde"] }
 bytes = "1.10.1"
-diesel = { version = "2.2.10", features = ["postgres"] }
+diesel = { version = "2.2.10", features = ["postgres"], optional = true }
 deja = { git = "https://github.com/juspay/deja", rev = "2c3a795ef4d8d2a5eebc47bbe7134984b75be6b3", optional = true, default-features = false }
 error-stack = "0.4.1"
 futures = { version = "0.3.31", optional = true }
@@ -60,7 +64,7 @@ serde_urlencoded = "0.7.1"
 signal-hook = { version = "0.3.18", optional = true }
 strum = { version = "0.26.3", features = ["derive"] }
 thiserror = "1.0.69"
-time = { version = "0.3.41", features = ["serde", "serde-well-known", "std"] }
+time = { version = "0.3.41", features = ["macros", "serde", "serde-well-known", "std"] }
 tokio = { version = "1.48.0", features = ["macros", "rt-multi-thread"], optional = true }
 url = { version = "2.5.4", features = ["serde"] }
 urlencoding = "2.1.3"
@@ -70,7 +74,7 @@ ammonia = "3.3"
 
 # First party crates
 common_enums = { version = "0.1.0", path = "../common_enums", default-features = false }
-hyperswitch_masking = { version = "0.0.1", features = ["diesel", "time"] }
+hyperswitch_masking = { version = "0.0.1", features = ["time"] }
 router_env = { version = "0.1.0", path = "../router_env", features = ["log_extra_implicit_fields", "log_custom_entries_to_extra"], optional = true, default-features = false }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies.uuid]
