@@ -3,3 +3,7 @@ allow-expect-in-tests = true
 allow-panic-in-tests = true
 allow-print-in-tests = true
 allow-unwrap-in-tests = true
+
+disallowed-methods = [
+  { path = "diesel::query_dsl::QueryDsl::into_boxed", reason = "dynamic list queries must be built via diesel_models::list::boxed_list_query! or diesel_models::list::into_boxed_list" },
+]
