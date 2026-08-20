@@ -14978,21 +14978,24 @@ async fn resolve_offer_eligibility_details(
     match offer_context {
         None => Ok((None, None)),
         Some((offer_config, currency)) => {
-            let card_alias = match offer_engine::velocity::resolve_card_alias(
-                state,
-                processor.get_account(),
-                card_number.as_ref(),
-            )
-            .await
-            {
-                Ok(card_alias) => card_alias,
-                Err(error) => {
-                    logger::warn!(
-                        ?error,
-                        "offer velocity: card_alias unavailable; treating offers as unavailable"
-                    );
-                    return Ok((None, None));
-                }
+            let card_alias = match card_number.as_ref() {
+                Some(card_number) => match offer_engine::velocity::generate_card_alias(
+                    state,
+                    processor.get_account(),
+                    card_number,
+                )
+                .await
+                {
+                    Ok(alias) => Some(alias),
+                    Err(error) => {
+                        logger::warn!(
+                            ?error,
+                            "offer velocity: card_alias unavailable; treating offers as unavailable"
+                        );
+                        return Ok((None, None));
+                    }
+                },
+                None => None,
             };
             let ctx = offer_engine::eligibility::OfferEligibilityContext {
                 payment_id: payment_id.clone(),

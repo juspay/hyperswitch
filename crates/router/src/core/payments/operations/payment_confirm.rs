@@ -3253,15 +3253,20 @@ async fn apply_selected_offer<F: Clone + Send + Sync>(
         .as_ref()
         .and_then(|payment_method_data| payment_method_data.get_card_data());
 
-    let card_alias = offer_engine::velocity::resolve_card_alias(
-        state,
-        processor.get_account(),
-        offer_card.map(|card| &card.card_number),
-    )
-    .await
-    .change_context(errors::ApiErrorResponse::PreconditionFailed {
-        message: "Cannot apply offer: card velocity key unavailable".to_string(),
-    })?;
+    let card_alias = match offer_card.map(|card| &card.card_number) {
+        Some(card_number) => Some(
+            offer_engine::velocity::generate_card_alias(
+                state,
+                processor.get_account(),
+                card_number,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::PreconditionFailed {
+                message: "Cannot apply offer: card velocity key unavailable".to_string(),
+            })?,
+        ),
+        None => None,
+    };
 
     let ctx = offer_engine::apply::OfferApplyContext {
         payment_id,
