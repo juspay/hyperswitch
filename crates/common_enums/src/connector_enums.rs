@@ -89,6 +89,7 @@ pub enum Connector {
     Chargebee,
     Checkbook,
     Checkout,
+    Citigate,
     Coinbase,
     Coingate,
     Custombilling,
@@ -128,6 +129,7 @@ pub enum Connector {
     Interpayments,
     Inespay,
     Iatapay,
+    Ilixium,
     Imerchantsolutions,
     Itaubank,
     Jpmorgan,
@@ -459,10 +461,12 @@ impl Connector {
             | Self::Datatrans
             | Self::Paytm
             | Self::Payconex
+            | Self::Citigate
             | Self::Payjustnow
             | Self::Payjustnowinstore
             | Self::Phonepe
             | Self::Imerchantsolutions
+            | Self::Ilixium
             | Self::Givepayments => false,
             Self::Stripe | Self::Checkout | Self::Zift | Self::Nmi | Self::Braintree|
             Self::Cybersource | Self::Archipel | Self::Nuvei | Self::Adyen => true,

@@ -7,10 +7,7 @@ use common_utils::{
 };
 use diesel_models::{errors::DatabaseError, kv};
 use error_stack::ResultExt;
-use hyperswitch_domain_models::{
-    behaviour::{Conversion, ReverseConversion},
-    merchant_key_store::MerchantKeyStore,
-};
+use hyperswitch_domain_models::merchant_key_store::MerchantKeyStore;
 #[cfg(not(feature = "payouts"))]
 use hyperswitch_domain_models::{PayoutAttemptInterface, PayoutsInterface};
 use hyperswitch_masking::StrongSecret;
@@ -20,8 +17,8 @@ use serde::de;
 
 #[cfg(not(feature = "payouts"))]
 pub use crate::database::store::Store;
-pub use crate::{database::store::DatabaseStore, mock_db::MockDb};
 use crate::{
+    behaviour::{Conversion, ReverseConversion},
     database::store::PgPool,
     diesel_error_to_data_error,
     errors::{self, RedisErrorExt, StorageResult},
@@ -34,6 +31,7 @@ use crate::{
     utils::{find_all_combined_kv_database, try_redis_get_else_try_database_get},
     RouterStore, TenantConfig, UniqueConstraints,
 };
+pub use crate::{database::store::DatabaseStore, mock_db::MockDb};
 
 #[derive(Debug, Clone)]
 pub struct KVRouterStore<T: DatabaseStore> {
@@ -317,6 +315,85 @@ impl<T: DatabaseStore> KVRouterStore<T> {
             .change_context(errors::StorageError::DecryptionError)
     }
 
+    // Equivalent of find_resource_by_id but where the conversion trait is still
+    // implemented in the hyperswitch_domain_models crate (used by types not yet
+    // migrated to the storage_impl Conversion impls, e.g. PaymentIntent).
+    pub async fn find_resource_by_id_old<D, R, M>(
+        &self,
+        key_store: &MerchantKeyStore,
+        storage_scheme: MerchantStorageScheme,
+        find_resource_db_fut: R,
+        find_by: FindResourceBy<'_>,
+    ) -> error_stack::Result<D, errors::StorageError>
+    where
+        D: Debug + Sync + hyperswitch_domain_models::behaviour::Conversion,
+        M: de::DeserializeOwned
+            + serde::Serialize
+            + Debug
+            + KvStorePartition
+            + UniqueConstraints
+            + Sync
+            + Send
+            + hyperswitch_domain_models::behaviour::ReverseConversion<D>,
+        R: futures::Future<Output = error_stack::Result<M, DatabaseError>> + Send,
+    {
+        let database_call = || async {
+            find_resource_db_fut.await.map_err(|error| {
+                let new_err = diesel_error_to_data_error(*error.current_context());
+                error.change_context(new_err)
+            })
+        };
+        let storage_scheme = Box::pin(decide_storage_scheme::<T, M>(
+            self,
+            storage_scheme,
+            Op::Find,
+        ))
+        .await;
+        let res = || async {
+            match storage_scheme {
+                MerchantStorageScheme::PostgresOnly => database_call().await,
+                MerchantStorageScheme::RedisKv => {
+                    let (field, key) = match find_by {
+                        FindResourceBy::Id(field, key) => (field, key),
+                        FindResourceBy::LookupId(lookup_id) => {
+                            let lookup = fallback_reverse_lookup_not_found!(
+                                self.get_lookup_by_lookup_id(&lookup_id, storage_scheme)
+                                    .await,
+                                database_call().await
+                            );
+                            (
+                                lookup.clone().sk_id,
+                                PartitionKey::CombinationKey {
+                                    combination: &lookup.clone().pk_id,
+                                },
+                            )
+                        }
+                    };
+
+                    Box::pin(try_redis_get_else_try_database_get(
+                        async {
+                            Box::pin(kv_wrapper(self, KvOperation::<M>::HGet(&field), key))
+                                .await?
+                                .try_into_hget()
+                        },
+                        database_call,
+                    ))
+                    .await
+                }
+            }
+        };
+        res()
+            .await?
+            .convert(
+                self.get_keymanager_state()
+                    .attach_printable("Missing KeyManagerState")?,
+                key_store.key.get_inner(),
+                key_store.merchant_id.clone().into(),
+            )
+            .await
+            .change_context(errors::StorageError::DecryptionError)
+    }
+
     pub async fn find_optional_resource_by_id<D, R, M>(
         &self,
         key_store: &MerchantKeyStore,
@@ -486,6 +563,174 @@ impl<T: DatabaseStore> KVRouterStore<T> {
     where
         D: Debug + Sync + Conversion,
         M: StorageModel<D>,
+        R: futures::Future<Output = error_stack::Result<M, DatabaseError>> + Send,
+        DrainerQueryFut:
+            futures::Future<Output = diesel_models::StorageResult<kv::SerializableQuery>> + Send,
+    {
+        match operation {
+            Op::Update(key, field, updated_by) => {
+                let storage_scheme = Box::pin(decide_storage_scheme::<_, M>(
+                    self,
+                    storage_scheme,
+                    Op::Update(key.clone(), field, updated_by),
+                ))
+                .await;
+                match storage_scheme {
+                    MerchantStorageScheme::PostgresOnly => {
+                        update_resource_fut.await.map_err(|error| {
+                            let new_err = diesel_error_to_data_error(*error.current_context());
+                            error.change_context(new_err)
+                        })
+                    }
+                    MerchantStorageScheme::RedisKv => {
+                        let key_str = key.to_string();
+                        let redis_value = serde_json::to_string(&updated_resource)
+                            .change_context(errors::StorageError::SerializationFailed)?;
+                        let drainer_query = drainer_query_fut
+                            .await
+                            .change_context(errors::StorageError::KVError)
+                            .attach_printable("Failed to generate drainer update query")?;
+
+                        Box::pin(kv_wrapper::<(), _, _>(
+                            self,
+                            KvOperation::<M>::Hset((field, redis_value), drainer_query),
+                            key,
+                        ))
+                        .await
+                        .map_err(|err| err.to_redis_failed_response(&key_str))?
+                        .try_into_hset()
+                        .change_context(errors::StorageError::KVError)?;
+                        Ok(updated_resource)
+                    }
+                }
+            }
+            _ => Err(errors::StorageError::KVError.into()),
+        }?
+        .convert(
+            self.get_keymanager_state()
+                .attach_printable("Missing KeyManagerState")?,
+            key_store.key.get_inner(),
+            key_store.merchant_id.clone().into(),
+        )
+        .await
+        .change_context(errors::StorageError::DecryptionError)
+    }
+
+    // Equivalent of insert_resource but where the conversion trait is still
+    // implemented in the hyperswitch_domain_models crate (used by types not yet
+    // migrated to the storage_impl Conversion impls, e.g. PaymentIntent).
+    pub async fn insert_resource_old<D, R, M, DrainerQueryFut>(
+        &self,
+        key_store: &MerchantKeyStore,
+        storage_scheme: MerchantStorageScheme,
+        create_resource_fut: R,
+        resource_new: M,
+        InsertResourceParams {
+            drainer_query_fut,
+            reverse_lookups,
+            key,
+            identifier,
+            resource_type,
+        }: InsertResourceParams<'_, DrainerQueryFut>,
+    ) -> error_stack::Result<D, errors::StorageError>
+    where
+        D: Debug + Sync + hyperswitch_domain_models::behaviour::Conversion,
+        M: de::DeserializeOwned
+            + serde::Serialize
+            + Debug
+            + KvStorePartition
+            + UniqueConstraints
+            + Sync
+            + Send
+            + hyperswitch_domain_models::behaviour::ReverseConversion<D>,
+        R: futures::Future<Output = error_stack::Result<M, DatabaseError>> + Send,
+        DrainerQueryFut:
+            futures::Future<Output = diesel_models::StorageResult<kv::SerializableQuery>> + Send,
+    {
+        let storage_scheme = Box::pin(decide_storage_scheme::<_, M>(
+            self,
+            storage_scheme,
+            Op::Insert,
+        ))
+        .await;
+        match storage_scheme {
+            MerchantStorageScheme::PostgresOnly => create_resource_fut.await.map_err(|error| {
+                let new_err = diesel_error_to_data_error(*error.current_context());
+                error.change_context(new_err)
+            }),
+            MerchantStorageScheme::RedisKv => {
+                let key_str = key.to_string();
+                let reverse_lookup_entry = |v: String| diesel_models::ReverseLookupNew {
+                    sk_id: identifier.clone(),
+                    pk_id: key_str.clone(),
+                    lookup_id: v,
+                    source: resource_type.to_string(),
+                    updated_by: storage_scheme.to_string(),
+                };
+                let results = reverse_lookups
+                    .into_iter()
+                    .map(|v| self.insert_reverse_lookup(reverse_lookup_entry(v), storage_scheme));
+
+                futures::future::try_join_all(results).await?;
+
+                let drainer_query = drainer_query_fut
+                    .await
+                    .change_context(errors::StorageError::KVError)
+                    .attach_printable("Failed to generate drainer insert query")?;
+
+                match Box::pin(kv_wrapper::<M, _, _>(
+                    self,
+                    KvOperation::<M>::HSetNx(&identifier, &resource_new, drainer_query),
+                    key.clone(),
+                ))
+                .await
+                .map_err(|err| err.to_redis_failed_response(&key.to_string()))?
+                .try_into_hsetnx()
+                {
+                    Ok(HsetnxReply::KeyNotSet) => Err(errors::StorageError::DuplicateValue {
+                        entity: resource_type,
+                        key: Some(key_str),
+                    }
+                    .into()),
+                    Ok(HsetnxReply::KeySet) => Ok(resource_new),
+                    Err(er) => Err(er).change_context(errors::StorageError::KVError),
+                }
+            }
+        }?
+        .convert(
+            self.get_keymanager_state()
+                .attach_printable("Missing KeyManagerState")?,
+            key_store.key.get_inner(),
+            key_store.merchant_id.clone().into(),
+        )
+        .await
+        .change_context(errors::StorageError::DecryptionError)
+    }
+
+    // Equivalent of update_resource but where the conversion trait is still
+    // implemented in the hyperswitch_domain_models crate (used by types not yet
+    // migrated to the storage_impl Conversion impls, e.g. PaymentIntent).
+    pub async fn update_resource_old<D, R, M, DrainerQueryFut>(
+        &self,
+        key_store: &MerchantKeyStore,
+        storage_scheme: MerchantStorageScheme,
+        update_resource_fut: R,
+        updated_resource: M,
+        UpdateResourceParams {
+            drainer_query_fut,
+            operation,
+        }: UpdateResourceParams<'_, DrainerQueryFut>,
+    ) -> error_stack::Result<D, errors::StorageError>
+    where
+        D: Debug + Sync + hyperswitch_domain_models::behaviour::Conversion,
+        M: de::DeserializeOwned
+            + serde::Serialize
+            + Debug
+            + KvStorePartition
+            + UniqueConstraints
+            + Sync
+            + Send
+            + hyperswitch_domain_models::behaviour::ReverseConversion<D>,
         R: futures::Future<Output = error_stack::Result<M, DatabaseError>> + Send,
         DrainerQueryFut:
             futures::Future<Output = diesel_models::StorageResult<kv::SerializableQuery>> + Send,

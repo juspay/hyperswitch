@@ -432,7 +432,12 @@ where
                         .attach_printable("Gateway execution failed");
 
                     if let Err(e) = &ucs_shadow_result {
-                        logger::error!(error=?e, "UCS shadow execution failed");
+                        logger::warn!(
+                            error=?e,
+                            execution_mode="shadow",
+                            primary_impact=false,
+                            "UCS shadow execution failed; primary execution result is unaffected"
+                        );
                     }
 
                     let ucs_for_compare = match ucs_shadow_result {
@@ -572,7 +577,12 @@ where
                         .attach_printable("Gateway execution failed");
 
                     if let Err(e) = &ucs_shadow_result {
-                        logger::error!(error=?e, "UCS shadow execution failed");
+                        logger::warn!(
+                            error=?e,
+                            execution_mode="shadow",
+                            primary_impact=false,
+                            "UCS shadow execution failed; primary execution result is unaffected"
+                        );
                     }
 
                     let ucs_for_compare = match ucs_shadow_result {
