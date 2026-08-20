@@ -7,6 +7,7 @@ use crate::enums::PayoutStatus;
 use crate::enums::{
     AttemptStatus, Country, CountryAlpha2, CountryAlpha3, DisputeStatus, EventType, IntentStatus,
     MandateStatus, PaymentMethod, PaymentMethodType, RefundStatus, SubscriptionStatus,
+    TransactionStatus,
 };
 
 impl Display for NumericCountryCodeParseError {
@@ -2139,6 +2140,21 @@ impl From<AttemptStatus> for IntentStatus {
             AttemptStatus::Expired => Self::Expired,
             AttemptStatus::PartiallyAuthorized => Self::PartiallyAuthorizedAndRequiresCapture,
             AttemptStatus::CaptureReview => Self::Review,
+        }
+    }
+}
+
+impl From<TransactionStatus> for Option<AttemptStatus> {
+    fn from(trans_status: TransactionStatus) -> Self {
+        match trans_status {
+            TransactionStatus::Failure
+            | TransactionStatus::Rejected
+            | TransactionStatus::VerificationNotPerformed
+            | TransactionStatus::NotVerified => Some(AttemptStatus::AuthenticationFailed),
+            TransactionStatus::Success
+            | TransactionStatus::ChallengeRequired
+            | TransactionStatus::ChallengeRequiredDecoupledAuthentication
+            | TransactionStatus::InformationOnly => None,
         }
     }
 }

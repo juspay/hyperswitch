@@ -13528,7 +13528,7 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
         .attach_printable("Error while updating the payment_attempt")?;
 
-        authentication::AuthenticationResponse {
+        let authentication_response = authentication::AuthenticationResponse {
             trans_status: response
                 .transaction_status
                 .unwrap_or(common_enums::TransactionStatus::VerificationNotPerformed),
@@ -13540,7 +13540,22 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
             acs_signed_content: response.acs_signed_content,
             challenge_request_key: None,
             error_message: response.error_message,
+        };
+
+        let failure_attempt_status: Option<storage_enums::AttemptStatus> =
+            authentication_response.trans_status.clone().into();
+        if failure_attempt_status == Some(storage_enums::AttemptStatus::AuthenticationFailed) {
+            update_payment_status_for_failed_external_authentication(
+                &state,
+                &platform,
+                payment_intent,
+                &payment_attempt,
+                &authentication_connector,
+            )
+            .await?;
         }
+
+        authentication_response
     } else {
         let authentication = db
             .find_authentication_by_processor_merchant_id_authentication_id(
@@ -13567,10 +13582,10 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
         .await?
         .ok_or(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("missing payment_method_details")?;
-        Box::pin(authentication_core::perform_authentication(
+        let authentication_response = match Box::pin(authentication_core::perform_authentication(
             &state,
             business_profile.merchant_id,
-            authentication_connector,
+            authentication_connector.clone(),
             payment_method_details.0,
             payment_method_details.1,
             billing_address
@@ -13594,12 +13609,47 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
             webhook_url,
             authentication_details.three_ds_requestor_url.clone(),
             payment_intent.psd2_sca_exemption_type,
-            payment_intent.payment_id,
+            payment_intent.payment_id.clone(),
             payment_intent.force_3ds_challenge_trigger.unwrap_or(false),
             platform.get_processor().get_key_store(),
             storage_scheme,
         ))
-        .await?
+        .await
+        {
+            Ok(response) => response,
+            Err(error) => {
+                if let Err(update_err) = update_payment_status_for_external_authentication_failure(
+                    &state,
+                    &platform,
+                    payment_intent.clone(),
+                    &payment_attempt,
+                    &authentication_connector,
+                )
+                .await
+                {
+                    logger::error!(
+                        ?update_err,
+                        "failed to update payment status after external auth failure"
+                    );
+                }
+                return Err(error);
+            }
+        };
+
+        let failure_attempt_status: Option<storage_enums::AttemptStatus> =
+            authentication_response.trans_status.clone().into();
+        if failure_attempt_status == Some(storage_enums::AttemptStatus::AuthenticationFailed) {
+            update_payment_status_for_failed_external_authentication(
+                &state,
+                &platform,
+                payment_intent,
+                &payment_attempt,
+                &authentication_connector,
+            )
+            .await?;
+        }
+
+        authentication_response
     };
     Ok(services::ApplicationResponse::Json(
         api_models::payments::PaymentsExternalAuthenticationResponse {
@@ -13622,6 +13672,98 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
             error_message: authentication_response.error_message,
         },
     ))
+}
+
+async fn update_payment_status_for_external_authentication_failure(
+    state: &SessionState,
+    platform: &domain::Platform,
+    payment_intent: storage::PaymentIntent,
+    payment_attempt: &storage::PaymentAttempt,
+    authentication_connector: &str,
+) -> RouterResult<()> {
+    let authentication_id = payment_attempt
+        .authentication_id
+        .as_ref()
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("missing authentication_id in payment_attempt")?;
+    let key_manager_state = state.into();
+    let authentication = state
+        .store
+        .find_authentication_by_processor_merchant_id_authentication_id(
+            platform.get_processor().get_account().get_id(),
+            authentication_id,
+            platform.get_processor().get_key_store(),
+            &key_manager_state,
+            platform.get_processor().get_account().storage_scheme,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Error while fetching authentication record")?;
+
+    if authentication.authentication_status.is_failed() {
+        update_payment_status_for_failed_external_authentication(
+            state,
+            platform,
+            payment_intent,
+            payment_attempt,
+            authentication_connector,
+        )
+        .await?;
+    }
+
+    Ok(())
+}
+
+async fn update_payment_status_for_failed_external_authentication(
+    state: &SessionState,
+    platform: &domain::Platform,
+    payment_intent: storage::PaymentIntent,
+    payment_attempt: &storage::PaymentAttempt,
+    authentication_connector: &str,
+) -> RouterResult<()> {
+    let storage_scheme = platform.get_processor().get_account().storage_scheme;
+    let attempt_update = storage::PaymentAttemptUpdate::AuthenticationUpdate {
+        status: storage_enums::AttemptStatus::AuthenticationFailed,
+        external_three_ds_authentication_attempted: Some(true),
+        external_threeds_authentication_type: payment_attempt.external_threeds_authentication_type,
+        authentication_connector: Some(authentication_connector.to_string()),
+        authentication_id: payment_attempt.authentication_id.clone(),
+        updated_by: storage_scheme.to_string(),
+    };
+    state
+        .store
+        .update_payment_attempt_with_attempt_id(
+            payment_attempt.clone(),
+            attempt_update,
+            storage_scheme,
+            platform.get_processor().get_key_store(),
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
+        .attach_printable(
+            "Error while updating payment_attempt after external authentication failure",
+        )?;
+
+    let intent_update = storage::PaymentIntentUpdate::ManualUpdate {
+        status: Some(storage_enums::IntentStatus::Failed),
+        updated_by: storage_scheme.to_string(),
+        amount_captured: None,
+    };
+    state
+        .store
+        .update_payment_intent(
+            payment_intent,
+            intent_update,
+            platform.get_processor().get_key_store(),
+            storage_scheme,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
+        .attach_printable(
+            "Error while updating payment_intent after external authentication failure",
+        )?;
+
+    Ok(())
 }
 
 #[instrument(skip_all)]
