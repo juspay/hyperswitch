@@ -2491,7 +2491,16 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                             status,
                             error_message: Some(Some(err.message.clone())),
                             error_code: Some(Some(err.code.clone())),
-                            error_reason: Some(err.reason.clone()),
+                            // DEJA-CALIBRATION C (value divergence): the reason
+                            // written to payment_attempt is trimmed. Shaped like
+                            // a real bug — a well-meant tidy-up of connector text
+                            // — and invisible unless something compares the
+                            // stored value against what was stored before.
+                            error_reason: Some(
+                                err.reason
+                                    .clone()
+                                    .map(|reason| reason.chars().take(24).collect::<String>()),
+                            ),
                             amount_capturable: router_data
                                 .request
                                 .get_amount_capturable(

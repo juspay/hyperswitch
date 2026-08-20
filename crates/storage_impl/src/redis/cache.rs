@@ -460,6 +460,15 @@ where
         key: key.to_string(),
         prefix: redis.redis_conn.key_prefix.clone(),
     };
+    // DEJA-CALIBRATION B (novel call): the same entry is read twice. Shaped
+    // like a real bug — a lookup left behind after a refactor — and invisible
+    // in behaviour, since the second read returns what the first did.
+    let _calibration_duplicate = cache
+        .get_val::<T>(CacheKey {
+            key: key.to_string(),
+            prefix: redis.redis_conn.key_prefix.clone(),
+        })
+        .await;
     let cache_val = cache.get_val::<T>(cache_key).await;
     if let Some(val) = cache_val {
         Ok(val)
@@ -536,7 +545,13 @@ where
     Fut: futures::Future<Output = CustomResult<T, StorageError>> + Send,
 {
     let data = fun().await?;
-    redact_from_redis_and_publish(store, [key]).await?;
+    // DEJA-CALIBRATION A (omitted call): the redis redaction that every
+    // invalidation depends on is skipped. Shaped like a real bug — an early
+    // return added while refactoring — and functionally quiet: the only
+    // symptom is a cache that serves stale entries until it expires.
+    if false {
+        redact_from_redis_and_publish(store, [key]).await?;
+    }
     Ok(data)
 }
 
