@@ -97,6 +97,7 @@ pub struct Profile {
     pub payment_method_blocking: Option<PaymentMethodBlockingConfig>,
     pub default_fallback_routing: Option<pii::SecretSerdeValue>,
     pub surcharge_connector_details: Option<SurchargeConnectorDetails>,
+    pub order_fulfillment_time: Option<i64>,
 }
 
 #[cfg(feature = "v1")]
@@ -164,6 +165,7 @@ pub struct ProfileNew {
     pub payment_method_blocking: Option<PaymentMethodBlockingConfig>,
     pub default_fallback_routing: Option<pii::SecretSerdeValue>,
     pub surcharge_connector_details: Option<SurchargeConnectorDetails>,
+    pub order_fulfillment_time: Option<i64>,
 }
 
 #[cfg(feature = "v1")]
@@ -233,6 +235,7 @@ pub struct ProfileUpdateInternal {
     pub payment_method_blocking: Option<PaymentMethodBlockingConfig>,
     pub default_fallback_routing: Option<pii::SecretSerdeValue>,
     pub surcharge_connector_details: Option<SurchargeConnectorDetails>,
+    pub order_fulfillment_time: Option<i64>,
 }
 
 /// Note: The order of fields in the struct is important.
@@ -314,8 +317,8 @@ pub struct Profile {
     pub payment_method_blocking: Option<PaymentMethodBlockingConfig>,
     pub default_fallback_routing: Option<pii::SecretSerdeValue>,
     pub surcharge_connector_details: Option<SurchargeConnectorDetails>,
-    pub routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
     pub order_fulfillment_time: Option<i64>,
+    pub routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
     pub order_fulfillment_time_origin: Option<common_enums::OrderFulfillmentTimeOrigin>,
     pub frm_routing_algorithm_id: Option<String>,
     pub payout_routing_algorithm_id: Option<common_utils::id_type::RoutingId>,

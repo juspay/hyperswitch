@@ -681,10 +681,9 @@ payment_method_type = "Visa"
 payment_method_type = "Mastercard"
 [[authipay.debit]]
 payment_method_type = "Visa"
-[authipay.connector_auth.SignatureKey]
+[authipay.connector_auth.BodyKey]
 api_key = "API Key"
-api_secret = "API Secret"
-key1 = "Merchant ID"
+key1 = "API Secret"
 [authipay.connector_webhook_details]
 merchant_secret = "Source verification key"
 
@@ -1943,7 +1942,7 @@ label = "Payment Processing Details At"
 placeholder = "Enter Payment Processing Details At"
 required = true
 type = "Radio"
-options = ["Connector"]
+options = ["Connector", "Hyperswitch"]
 
 [[checkout.metadata.google_pay]]
 name = "merchant_name"
@@ -5978,19 +5977,19 @@ api_key="Client Secret"
 [santander_payout.connector_auth.CertificateAuth]
 certificate="Certificate"
 private_key="Certificate Key"
-[[santander_payout.metadata.pix_payout]]
+[santander_payout.metadata.client_id]
 name="client_id"
 label="Client Id"
 placeholder="Enter the client id"
 required=true
 type="Text"
-[[santander_payout.metadata.pix_payout]]
+[santander_payout.metadata.client_secret]
 name="client_secret"
 label="Client Secret"
 placeholder="Enter the client secret"
 required=true
 type="Text"
-[[santander_payout.metadata.pix_payout]]
+[santander_payout.metadata.workspace_id]
 name="workspace_id"
 label="Workspace Id"
 placeholder="Enter the workspace id"
@@ -8997,4 +8996,62 @@ payment_method_type = "Discover"
 [[givepayments.debit]]
 payment_method_type = "DinersClub"
 [[givepayments.debit]]
+payment_method_type = "UnionPay"
+
+[citigate]
+[[citigate.credit]]
+  payment_method_type = "Visa"
+[[citigate.credit]]
+  payment_method_type = "Mastercard"
+[[citigate.credit]]
+  payment_method_type = "AmericanExpress"
+[[citigate.credit]]
+  payment_method_type = "DinersClub"
+[[citigate.credit]]
+  payment_method_type = "Maestro"
+[[citigate.debit]]
+  payment_method_type = "Visa"
+[[citigate.debit]]
+  payment_method_type = "Mastercard"
+[[citigate.debit]]
+  payment_method_type = "AmericanExpress"
+[[citigate.debit]]
+  payment_method_type = "DinersClub"
+[[citigate.debit]]
+  payment_method_type = "Maestro"
+[citigate.connector_auth.BodyKey]
+api_key = "Merchant Name"
+key1 = "Merchant Password"
+[ilixium]
+[ilixium.connector_auth.SignatureKey]
+api_key = "Digest Calculation Password"
+key1 = "Merchant Id"
+api_secret = "Account Id"
+[[ilixium.credit]]
+payment_method_type = "Mastercard"
+[[ilixium.credit]]
+payment_method_type = "Visa"
+[[ilixium.credit]]
+payment_method_type = "AmericanExpress"
+[[ilixium.credit]]
+payment_method_type = "JCB"
+[[ilixium.credit]]
+payment_method_type = "Discover"
+[[ilixium.credit]]
+payment_method_type = "DinersClub"
+[[ilixium.credit]]
+payment_method_type = "UnionPay"
+[[ilixium.debit]]
+payment_method_type = "Mastercard"
+[[ilixium.debit]]
+payment_method_type = "Visa"
+[[ilixium.debit]]
+payment_method_type = "AmericanExpress"
+[[ilixium.debit]]
+payment_method_type = "JCB"
+[[ilixium.debit]]
+payment_method_type = "Discover"
+[[ilixium.debit]]
+payment_method_type = "DinersClub"
+[[ilixium.debit]]
 payment_method_type = "UnionPay"

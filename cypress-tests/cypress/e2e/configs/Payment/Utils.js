@@ -65,6 +65,7 @@ import { connectorDetails as payboxConnectorDetails } from "./Paybox.js";
 import { connectorDetails as payjustnowConnectorDetails } from "./Payjustnow.js";
 import { connectorDetails as payjustnowinstoreConnectorDetails } from "./Payjustnowinstore.js";
 import { connectorDetails as payloadConnectorDetails } from "./Payload.js";
+import { connectorDetails as payloadconnectConnectorDetails } from "./PayloadConnect.js";
 import { connectorDetails as paypalConnectorDetails } from "./Paypal.js";
 import { connectorDetails as paysafeConnectorDetails } from "./Paysafe.js";
 import { connectorDetails as paystackConnectorDetails } from "./Paystack.js";
@@ -155,6 +156,7 @@ const connectorDetails = {
   payjustnow: payjustnowConnectorDetails,
   payjustnowinstore: payjustnowinstoreConnectorDetails,
   payload: payloadConnectorDetails,
+  payloadconnect: payloadconnectConnectorDetails,
   paypal: paypalConnectorDetails,
   paysafe: paysafeConnectorDetails,
   paystack: paystackConnectorDetails,
@@ -190,13 +192,25 @@ const connectorDetails = {
 };
 
 /**
+ * Test-only connector IDs that alias a real backend connector under a
+ * different merchant-connector-account configuration (e.g. split payments).
+ * The backend never sees these IDs -- API requests/assertions always use
+ * the mapped name.
+ */
+const ALIASED_CONNECTORS = {
+  stripeconnect: "stripe",
+  payloadconnect: "payload",
+};
+
+/**
  * Get the backend connector name for a given connector ID
- * Maps stripeconnect -> stripe for backend API calls
+ * Maps stripeconnect -> stripe, payloadconnect -> payload, etc. for backend
+ * API calls
  * @param {string} connectorId - The test connector ID
  * @returns {string} - The backend connector name
  */
 export function getOriginalConnectorName(connectorId) {
-  return connectorId === "stripeconnect" ? "stripe" : connectorId;
+  return ALIASED_CONNECTORS[connectorId] || connectorId;
 }
 
 export default function getConnectorDetails(connectorId) {
@@ -529,6 +543,7 @@ export const CONNECTOR_LISTS = {
       "noon",
       "novalnet",
       "payload",
+      "payloadconnect",
       "paypal",
       "stax",
       "stripeconnect",
@@ -542,6 +557,7 @@ export const CONNECTOR_LISTS = {
       "airwallex",
       "calida",
       "payload",
+      "payloadconnect",
       "gigadat",
       "loonio",
       "redsys",
@@ -571,6 +587,8 @@ export const CONNECTOR_LISTS = {
 
   // Inclusion lists (only run for these connectors)
   INCLUDE: {
+    // Tracking extension to other connectors: #13520
+    SPLIT_PAYMENTS: ["stripeconnect", "payloadconnect"],
     MANDATES_USING_NTID_PROXY: ["cybersource", "checkout"],
     // Card and mandate flows of 54-TsysTransitMandates. The mandates need a
     // profile with connector agnostic MIT enabled, which keeps them out of the
@@ -761,7 +779,7 @@ export const CONNECTOR_LISTS = {
     ],
     CARD_TESTING_GUARD: ["bankofamerica"],
     CLEAR_PAN_RETRY: ["bankofamerica"],
-    L2L3DATA: ["checkout", "nuvei", "worldpayvantiv"],
+    L2L3DATA: ["checkout", "nuvei", "stripe", "worldpayvantiv"],
     REFUND_MANUAL_UPDATE: ["bankofamerica", "cybersource"],
     REFUND_TYPE: ["stripe", "adyen", "checkout"],
     MANUAL_PAYMENT_UPDATE: ["stripe"],

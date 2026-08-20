@@ -121,6 +121,9 @@ pub struct PaymentMethodCreate {
 pub struct PaymentMethodRetrieveRequest {
     #[serde(default)]
     pub fetch_raw_detail: bool,
+    /// Trigger an Account Updater check for the stored payment method.
+    #[serde(default)]
+    pub force_sync: bool,
 }
 
 #[cfg(feature = "v2")]
@@ -653,6 +656,25 @@ pub enum PaymentMethodCreateData {
     Card(CardDetail),
     BankDebit(BankDebitDetail),
     Wallet(WalletDetail),
+    BankRedirect(BankRedirectData),
+}
+
+#[cfg(feature = "v1")]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+#[serde(deny_unknown_fields)]
+#[serde(rename_all = "snake_case")]
+pub enum BankRedirectData {
+    OpenBanking {
+        #[schema(value_type = Option<String>)]
+        account_number: Option<hyperswitch_masking::Secret<String>>,
+        #[schema(value_type = Option<String>)]
+        iban: Option<hyperswitch_masking::Secret<String>>,
+        #[schema(value_type = Option<String>)]
+        sort_code: Option<hyperswitch_masking::Secret<String>>,
+        #[schema(value_type = Option<String>)]
+        #[serde(default)]
+        account_holder_name: Option<hyperswitch_masking::Secret<String>>,
+    },
 }
 
 #[cfg(feature = "v1")]
@@ -3043,6 +3065,8 @@ pub enum CustomerPaymentMethodDataForClient {
     Wallet(WalletPaymentMethodDataForClient),
     /// Bank debit details (ACH, …).
     BankDebit(BankDebitDataForClient),
+    /// Masked bank redirect details.
+    BankRedirect(MaskedBankDetails),
 }
 
 /// A saved customer payment method as returned in the client-facing PM list.
@@ -3281,7 +3305,15 @@ pub struct TokenDataResponse {
 }
 
 #[cfg(feature = "v2")]
-impl common_utils::events::ApiEventMetric for TokenDataResponse {}
+impl common_utils::events::ApiEventMetric for TokenDataResponse {
+    fn get_api_event_type(&self) -> Option<common_utils::events::ApiEventsType> {
+        Some(common_utils::events::ApiEventsType::PaymentMethod {
+            payment_method_id: self.payment_method_id.clone(),
+            payment_method_type: None,
+            payment_method_subtype: None,
+        })
+    }
+}
 
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Serialize, ToSchema)]
@@ -4713,7 +4745,21 @@ pub struct NetworkTokenStatusCheckSuccessResponse {
 }
 
 #[cfg(feature = "v2")]
-impl common_utils::events::ApiEventMetric for NetworkTokenStatusCheckResponse {}
+impl common_utils::events::ApiEventMetric for NetworkTokenStatusCheckResponse {
+    fn get_api_event_type(&self) -> Option<common_utils::events::ApiEventsType> {
+        match self {
+            Self::SuccessResponse(success) => {
+                Some(common_utils::events::ApiEventsType::PaymentMethod {
+                    payment_method_id: success.payment_method_id.clone(),
+                    payment_method_type: None,
+                    payment_method_subtype: None,
+                })
+            }
+            // No payment method id in the failure shape; fall back to the request-side event.
+            Self::FailureResponse(_) => None,
+        }
+    }
+}
 
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Serialize, ToSchema)]

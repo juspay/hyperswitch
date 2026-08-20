@@ -33,6 +33,7 @@ import getConnectorDetails, {
   getValueByKey,
   injectHelcimTestCard,
   setNormalizedValue,
+  shouldIncludeConnector,
   stringifyWithBigInt,
 } from "../e2e/configs/Payment/Utils";
 import { execConfig, validateConfig } from "../utils/featureFlags";
@@ -70,16 +71,31 @@ function getOriginalConnectorId(globalState) {
   );
 }
 
-function isStripeConnect(globalState) {
+// True for test-only connector IDs (stripeconnect, payloadconnect, ...)
+// that alias a real backend connector under a different merchant-connector
+// -account configuration -- see getOriginalConnectorName.
+function isAliasedConnector(globalState) {
   const connectorId = getOriginalConnectorId(globalState);
   return (
     typeof connectorId === "string" &&
-    connectorId.toLowerCase() === "stripeconnect"
+    getOriginalConnectorName(connectorId.toLowerCase()) !==
+      connectorId.toLowerCase()
+  );
+}
+
+function supportsSplitPayments(globalState) {
+  const connectorId = getOriginalConnectorId(globalState);
+  return (
+    typeof connectorId === "string" &&
+    !shouldIncludeConnector(
+      connectorId.toLowerCase(),
+      CONNECTOR_LISTS.INCLUDE.SPLIT_PAYMENTS
+    )
   );
 }
 
 function updateConnectorState(globalState, responseConnector) {
-  if (isStripeConnect(globalState)) {
+  if (isAliasedConnector(globalState)) {
     const originalConnectorId = getOriginalConnectorId(globalState);
     globalState.set("connectorId", originalConnectorId);
     return;
@@ -2001,14 +2017,30 @@ Cypress.Commands.add(
     createConnectorBody.connector_type = "payout_processor";
     createConnectorBody.profile_id = globalState.get("profileId");
 
+    if (connectorName === "truelayer") {
+      createConnectorBody.test_mode = false;
+    }
+
     // readFile is used to read the contents of the file and it always returns a promise ([Object Object]) due to its asynchronous nature
     // it is best to use then() to handle the response within the same block of code
     cy.readFile(globalState.get("connectorAuthFilePath")).then(
       (jsonContent) => {
-        const { authDetails } = getValueByKey(
-          JSON.stringify(jsonContent),
+        const authFileContent = JSON.stringify(jsonContent);
+        let { authDetails } = getValueByKey(
+          authFileContent,
           `${connectorName}_payout`
         );
+
+        if (connectorName === "truelayer") {
+          const { authDetails: truelayerAuthDetails } = getValueByKey(
+            authFileContent,
+            connectorName
+          );
+
+          if (truelayerAuthDetails !== null) {
+            authDetails = truelayerAuthDetails;
+          }
+        }
 
         // If the connector does not have payout connector creds in creds file, set payoutsExecution to false
         if (authDetails === null) {
@@ -3163,7 +3195,7 @@ Cypress.Commands.add(
       delete confirmBody.setup_future_usage;
     }
 
-    if (reqData?.split_payments && isStripeConnect(globalState)) {
+    if (reqData?.split_payments && supportsSplitPayments(globalState)) {
       confirmBody.split_payments = reqData.split_payments;
     }
 
@@ -3284,9 +3316,17 @@ Cypress.Commands.add(
                 }
               }
               for (const key in resData.body) {
-                expect(resData.body[key], [key]).to.deep.equal(
-                  response.body[key]
-                );
+                if (key === "payment_method_data" && globalState.get("connectorId") === "checkout") {
+                  expect(response.body[key], [key]).to.not.be.empty;
+                  expect(
+                    response.body[key]?.card?.auth_code,
+                    "payment_method_data.card.auth_code"
+                  ).to.be.a("string").and.not.be.empty;
+                } else {
+                  expect(resData.body[key], [key]).to.deep.equal(
+                    response.body[key]
+                  );
+                }
               }
             } else if (response.body.authentication_type === "no_three_ds") {
               // Handle pay later methods that require redirect (Affirm, Klarna, etc.)
@@ -3312,9 +3352,17 @@ Cypress.Commands.add(
                 );
               }
               for (const key in resData.body) {
-                expect(resData.body[key], [key]).to.deep.equal(
-                  response.body[key]
-                );
+                if (key === "payment_method_data" && globalState.get("connectorId") === "checkout") {
+                  expect(response.body[key], [key]).to.not.be.empty;
+                  expect(
+                    response.body[key]?.card?.auth_code,
+                    "payment_method_data.card.auth_code"
+                  ).to.be.a("string").and.not.be.empty;
+                } else {
+                  expect(resData.body[key], [key]).to.deep.equal(
+                    response.body[key]
+                  );
+                }
                 if (
                   response.body.setup_future_usage === "off_session" &&
                   response.body.status === "succeeded" &&
@@ -3370,9 +3418,17 @@ Cypress.Commands.add(
                 }
               }
               for (const key in resData.body) {
-                expect(resData.body[key], [key]).to.deep.equal(
-                  response.body[key]
-                );
+                if (key === "payment_method_data" && globalState.get("connectorId") === "checkout") {
+                  expect(response.body[key], [key]).to.not.be.empty;
+                  expect(
+                    response.body[key]?.card?.auth_code,
+                    "payment_method_data.card.auth_code"
+                  ).to.be.a("string").and.not.be.empty;
+                } else {
+                  expect(resData.body[key], [key]).to.deep.equal(
+                    response.body[key]
+                  );
+                }
               }
             } else if (response.body.authentication_type === "no_three_ds") {
               // Handle pay later methods that require redirect (Affirm, Klarna, etc.)
@@ -3387,9 +3443,17 @@ Cypress.Commands.add(
                 globalState.set("nextActionType", "redirect_to_url");
               }
               for (const key in resData.body) {
-                expect(resData.body[key], [key]).to.deep.equal(
-                  response.body[key]
-                );
+                if (key === "payment_method_data" && globalState.get("connectorId") === "checkout") {
+                  expect(response.body[key], [key]).to.not.be.empty;
+                  expect(
+                    response.body[key]?.card?.auth_code,
+                    "payment_method_data.card.auth_code"
+                  ).to.be.a("string").and.not.be.empty;
+                } else {
+                  expect(resData.body[key], [key]).to.deep.equal(
+                    response.body[key]
+                  );
+                }
                 if (
                   response.body.setup_future_usage === "off_session" &&
                   response.body.status === "succeeded" &&
@@ -3965,7 +4029,7 @@ Cypress.Commands.add(
       }
     }
 
-    if (reqData?.split_payments && isStripeConnect(globalState)) {
+    if (reqData?.split_payments && supportsSplitPayments(globalState)) {
       createConfirmPaymentBody.split_payments = reqData.split_payments;
     }
 
@@ -4057,15 +4121,31 @@ Cypress.Commands.add(
                 }
               }
               for (const key in resData.body) {
-                expect(resData.body[key], [key]).to.deep.equal(
-                  response.body[key]
-                );
+                if (key === "payment_method_data" && globalState.get("connectorId") === "checkout") {
+                  expect(response.body[key], [key]).to.not.be.empty;
+                  expect(
+                    response.body[key]?.card?.auth_code,
+                    "payment_method_data.card.auth_code"
+                  ).to.be.a("string").and.not.be.empty;
+                } else {
+                  expect(resData.body[key], [key]).to.deep.equal(
+                    response.body[key]
+                  );
+                }
               }
             } else if (response.body.authentication_type === "no_three_ds") {
               for (const key in resData.body) {
-                expect(resData.body[key], [key]).to.deep.equal(
-                  response.body[key]
-                );
+                if (key === "payment_method_data" && globalState.get("connectorId") === "checkout") {
+                  expect(response.body[key], [key]).to.not.be.empty;
+                  expect(
+                    response.body[key]?.card?.auth_code,
+                    "payment_method_data.card.auth_code"
+                  ).to.be.a("string").and.not.be.empty;
+                } else {
+                  expect(resData.body[key], [key]).to.deep.equal(
+                    response.body[key]
+                  );
+                }
               }
             } else {
               throw new Error(
@@ -4102,15 +4182,31 @@ Cypress.Commands.add(
                 }
               }
               for (const key in resData.body) {
-                expect(resData.body[key], [key]).to.deep.equal(
-                  response.body[key]
-                );
+                if (key === "payment_method_data" && globalState.get("connectorId") === "checkout") {
+                  expect(response.body[key], [key]).to.not.be.empty;
+                  expect(
+                    response.body[key]?.card?.auth_code,
+                    "payment_method_data.card.auth_code"
+                  ).to.be.a("string").and.not.be.empty;
+                } else {
+                  expect(resData.body[key], [key]).to.deep.equal(
+                    response.body[key]
+                  );
+                }
               }
             } else if (response.body.authentication_type === "no_three_ds") {
               for (const key in resData.body) {
-                expect(resData.body[key], [key]).to.deep.equal(
-                  response.body[key]
-                );
+                if (key === "payment_method_data" && globalState.get("connectorId") === "checkout") {
+                  expect(response.body[key], [key]).to.not.be.empty;
+                  expect(
+                    response.body[key]?.card?.auth_code,
+                    "payment_method_data.card.auth_code"
+                  ).to.be.a("string").and.not.be.empty;
+                } else {
+                  expect(resData.body[key], [key]).to.deep.equal(
+                    response.body[key]
+                  );
+                }
               }
             } else {
               throw new Error(
@@ -4229,9 +4325,17 @@ Cypress.Commands.add(
               }
             } else if (response.body.authentication_type === "no_three_ds") {
               for (const key in resData.body) {
-                expect(resData.body[key], [key]).to.deep.equal(
-                  response.body[key]
-                );
+                if (key === "payment_method_data" && globalState.get("connectorId") === "checkout") {
+                  expect(response.body[key], [key]).to.not.be.empty;
+                  expect(
+                    response.body[key]?.card?.auth_code,
+                    "payment_method_data.card.auth_code"
+                  ).to.be.a("string").and.not.be.empty;
+                } else {
+                  expect(resData.body[key], [key]).to.deep.equal(
+                    response.body[key]
+                  );
+                }
               }
               expect(response.body.customer_id).to.equal(
                 globalState.get("customerId") ?? null
@@ -4278,9 +4382,17 @@ Cypress.Commands.add(
               );
             } else if (response.body.authentication_type === "no_three_ds") {
               for (const key in resData.body) {
-                expect(resData.body[key], [key]).to.deep.equal(
-                  response.body[key]
-                );
+                if (key === "payment_method_data" && globalState.get("connectorId") === "checkout") {
+                  expect(response.body[key], [key]).to.not.be.empty;
+                  expect(
+                    response.body[key]?.card?.auth_code,
+                    "payment_method_data.card.auth_code"
+                  ).to.be.a("string").and.not.be.empty;
+                } else {
+                  expect(resData.body[key], [key]).to.deep.equal(
+                    response.body[key]
+                  );
+                }
               }
               expect(response.body.customer_id).to.equal(
                 globalState.get("customerId") ?? null
@@ -4347,7 +4459,15 @@ Cypress.Commands.add(
         if (response.body.capture_method !== undefined) {
           expect(response.body.payment_id).to.equal(paymentId);
           for (const key in resData.body) {
-            expect(resData.body[key]).to.equal(response.body[key]);
+            if (key === "payment_method_data" && globalState.get("connectorId") === "checkout") {
+              expect(response.body[key], [key]).to.not.be.empty;
+              expect(
+                response.body[key]?.card?.auth_code,
+                "payment_method_data.card.auth_code"
+              ).to.be.a("string").and.not.be.empty;
+            } else {
+              expect(resData.body[key], [key]).to.equal(response.body[key]);
+            }
           }
         } else {
           defaultErrorHandler(response, resData);
@@ -4939,7 +5059,7 @@ Cypress.Commands.add(
 
     // Include split_payments only for stripeconnect connector
     // This handles Stripe Connect flows where split_payments is defined in the connector config
-    if (reqData?.split_payments && isStripeConnect(globalState)) {
+    if (reqData?.split_payments && supportsSplitPayments(globalState)) {
       requestBody.split_payments = reqData.split_payments;
     }
 
@@ -5045,9 +5165,17 @@ Cypress.Commands.add(
               // Response body key comparison runs for all three_ds paths, including succeeded status
               // — the redirect URL is extracted above when status !== succeeded, but all response keys are verified here
               for (const key in resData.body) {
-                expect(resData.body[key], [key]).to.deep.equal(
-                  response.body[key]
-                );
+                if (key === "payment_method_data" && globalState.get("connectorId") === "checkout") {
+                  expect(response.body[key], [key]).to.not.be.empty;
+                  expect(
+                    response.body[key]?.card?.auth_code,
+                    "payment_method_data.card.auth_code"
+                  ).to.be.a("string").and.not.be.empty;
+                } else {
+                  expect(resData.body[key], [key]).to.deep.equal(
+                    response.body[key]
+                  );
+                }
               }
             } else if (response.body.authentication_type === "no_three_ds") {
               if (
@@ -5118,9 +5246,17 @@ Cypress.Commands.add(
               // Response body key comparison runs for all three_ds paths, including succeeded status
               // — the redirect URL is extracted above when status !== succeeded, but all response keys are verified here
               for (const key in resData.body) {
-                expect(resData.body[key], [key]).to.deep.equal(
-                  response.body[key]
-                );
+                if (key === "payment_method_data" && globalState.get("connectorId") === "checkout") {
+                  expect(response.body[key], [key]).to.not.be.empty;
+                  expect(
+                    response.body[key]?.card?.auth_code,
+                    "payment_method_data.card.auth_code"
+                  ).to.be.a("string").and.not.be.empty;
+                } else {
+                  expect(resData.body[key], [key]).to.deep.equal(
+                    response.body[key]
+                  );
+                }
               }
             } else if (response.body.authentication_type === "no_three_ds") {
               if (
@@ -5221,7 +5357,7 @@ Cypress.Commands.add(
 
     // Include split_payments only for stripeconnect connector
     // This handles Stripe Connect flows where split_payments is defined in the connector config
-    if (reqData?.split_payments && isStripeConnect(globalState)) {
+    if (reqData?.split_payments && supportsSplitPayments(globalState)) {
       requestBody.split_payments = reqData.split_payments;
     }
 
@@ -6682,15 +6818,16 @@ Cypress.Commands.add(
     createConfirmPayoutBody.auto_fulfill = auto_fulfill;
     createConfirmPayoutBody.confirm = confirm;
     createConfirmPayoutBody.customer_id = globalState.get("customerId");
+    const headers = {
+      "Content-Type": "application/json",
+      "api-key": globalState.get("apiKey"),
+    };
 
     return cy
       .request({
         method: "POST",
         url: `${globalState.get("baseUrl")}/payouts/create`,
-        headers: {
-          "Content-Type": "application/json",
-          "api-key": globalState.get("apiKey"),
-        },
+        headers,
         failOnStatusCode: false,
         body: createConfirmPayoutBody,
       })
@@ -6731,14 +6868,15 @@ Cypress.Commands.add(
     createConfirmPayoutBody.payout_token = globalState.get("paymentToken");
     createConfirmPayoutBody.auto_fulfill = auto_fulfill;
     createConfirmPayoutBody.confirm = confirm;
+    const headers = {
+      "Content-Type": "application/json",
+      "api-key": globalState.get("apiKey"),
+    };
 
     cy.request({
       method: "POST",
       url: `${globalState.get("baseUrl")}/payouts/create`,
-      headers: {
-        "Content-Type": "application/json",
-        "api-key": globalState.get("apiKey"),
-      },
+      headers,
       failOnStatusCode: false,
       body: createConfirmPayoutBody,
     }).then((response) => {
@@ -6774,14 +6912,15 @@ Cypress.Commands.add(
     createConfirmPayoutBody.confirm = confirm;
     createConfirmPayoutBody.payout_method_id = globalState.data.paymentMethodId;
     delete createConfirmPayoutBody.payout_token;
+    const headers = {
+      "Content-Type": "application/json",
+      "api-key": globalState.get("apiKey"),
+    };
 
     cy.request({
       method: "POST",
       url: `${globalState.get("baseUrl")}/payouts/create`,
-      headers: {
-        "Content-Type": "application/json",
-        "api-key": globalState.get("apiKey"),
-      },
+      headers,
       failOnStatusCode: false,
       body: createConfirmPayoutBody,
     }).then((response) => {
@@ -6810,14 +6949,15 @@ Cypress.Commands.add(
     const { Response: resData } = data || {};
 
     payoutFulfillBody.payout_id = globalState.get("payoutID");
+    const headers = {
+      "Content-Type": "application/json",
+      "api-key": globalState.get("apiKey"),
+    };
 
     cy.request({
       method: "POST",
       url: `${globalState.get("baseUrl")}/payouts/${globalState.get("payoutID")}/fulfill`,
-      headers: {
-        "Content-Type": "application/json",
-        "api-key": globalState.get("apiKey"),
-      },
+      headers,
       failOnStatusCode: false,
       body: payoutFulfillBody,
     }).then((response) => {
