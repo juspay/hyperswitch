@@ -39,8 +39,8 @@ pub struct MerchantAccountCreate {
     pub merchant_id: id_type::MerchantId,
 
     /// Name of the Merchant Account
-    #[schema(value_type= Option<String>,example = "NewAge Retailer")]
-    pub merchant_name: Option<Secret<String>>,
+    #[schema(value_type= String,example = "NewAge Retailer")]
+    pub merchant_name: Secret<String>,
 
     /// Details about the merchant, can contain phone and emails of primary and secondary contact person
     pub merchant_details: Option<MerchantDetails>,
