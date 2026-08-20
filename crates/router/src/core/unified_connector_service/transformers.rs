@@ -67,25 +67,43 @@ const UPI_POLL_FREQUENCY: u16 = 60;
 
 fn convert_additional_connector_details(
     connector_intent_metadata: Option<&api_models::payments::ConnectorMetadata>,
-) -> Result<Option<payments_grpc::AdditionalConnectorDetails>, error_stack::Report<UnifiedConnectorServiceError>> {
+) -> Result<
+    Option<payments_grpc::AdditionalConnectorDetails>,
+    error_stack::Report<UnifiedConnectorServiceError>,
+> {
     connector_intent_metadata
         .map(|metadata| {
             let datatrans = metadata
                 .datatrans
                 .as_ref()
-                .map(|datatrans| -> Result<payments_grpc::DatatransConnectorMetadataData, error_stack::Report<UnifiedConnectorServiceError>> {
-                    let currency = <payments_grpc::Currency as transformers::ForeignTryFrom<_>>::foreign_try_from(datatrans.currency)?;
-                    Ok(payments_grpc::DatatransConnectorMetadataData {
-                        currency: currency.into(),
-                        amount: datatrans.amount.get_amount_as_i64(),
-                        conversion_rate: datatrans.conversion_rate,
-                        transaction_date: datatrans.transaction_date.map(|dt| dt.assume_utc().unix_timestamp()),
-                        retrieval_reference_number: datatrans.retrieval_reference_number.clone(),
-                        user_id: datatrans.user_id.clone(),
-                        provider: datatrans.provider.clone(),
-                        reason_indicator: datatrans.reason_indicator.clone(),
-                    })
-                })
+                .map(
+                    |datatrans| -> Result<
+                        payments_grpc::DatatransAdditionalInformation,
+                        error_stack::Report<UnifiedConnectorServiceError>,
+                    > {
+                        let currency = <payments_grpc::Currency as transformers::ForeignTryFrom<
+                            _,
+                        >>::foreign_try_from(
+                            datatrans.currency
+                        )?;
+                        Ok(payments_grpc::DatatransAdditionalInformation {
+                            amount: payments_grpc::Money {
+                                minor_amount: datatrans.amount.get_amount_as_i64(),
+                                currency: currency.into(),
+                            },
+                            conversion_rate: datatrans.conversion_rate,
+                            transaction_date: datatrans
+                                .transaction_date
+                                .map(|dt| dt.assume_utc().unix_timestamp()),
+                            retrieval_reference_number: datatrans
+                                .retrieval_reference_number
+                                .clone(),
+                            user_id: datatrans.user_id.clone(),
+                            provider: datatrans.provider.clone(),
+                            reason_indicator: datatrans.reason_indicator.clone(),
+                        })
+                    },
+                )
                 .transpose()?;
             Ok(payments_grpc::AdditionalConnectorDetails { datatrans })
         })
