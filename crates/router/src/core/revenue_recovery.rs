@@ -1,5 +1,6 @@
 pub mod api;
 pub mod retry_stats;
+pub mod schedule;
 pub mod transformers;
 pub mod types;
 use std::marker::PhantomData;
@@ -129,6 +130,7 @@ pub async fn upsert_calculate_pcr_task(
                 payment_attempt_id,
                 revenue_recovery_retry,
                 invoice_scheduled_time: None,
+                recovery_schedule: schedule::RecoverySchedule::default(),
             };
 
             let tag = ["PCR"];
@@ -495,6 +497,8 @@ async fn insert_psync_pcr_task_to_pt(
         prev_attempt_id,
         revenue_recovery_retry,
         invoice_scheduled_time: Some(schedule_time),
+        // PSYNC has its own row; scheduling state lives on CALCULATE.
+        recovery_schedule: schedule::RecoverySchedule::default(),
     };
     let tag = ["REVENUE_RECOVERY"];
     let process_tracker_entry = storage::ProcessTrackerNew::new(
@@ -595,6 +599,36 @@ pub async fn perform_payments_sync(
     Ok(())
 }
 
+/// Look up the failed attempt that motivated this retry chain by reading it
+/// out of the EXECUTE task's tracking data. `finish_process` only updates
+/// status fields, so the tracking payload remains readable after the EXECUTE
+/// task completes. Best-effort: any miss yields `None` and the recorder falls
+/// back to the dims of the attempt being resolved.
+async fn fetch_prev_attempt_from_execute_tracking_data(
+    db: &dyn StorageInterface,
+    payment_id: &GlobalPaymentId,
+    key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
+    storage_scheme: common_enums::MerchantStorageScheme,
+) -> Option<PaymentAttempt> {
+    let process_tracker_id = payment_id.get_execute_revenue_recovery_id(
+        EXECUTE_WORKFLOW,
+        storage::ProcessTrackerRunner::PassiveRecoveryWorkflow,
+    );
+    let execute_task_process = db
+        .as_scheduler()
+        .find_process_by_id(&process_tracker_id)
+        .await
+        .ok()
+        .flatten()?;
+    let tracking_data = execute_task_process
+        .tracking_data
+        .parse_value::<pcr::RevenueRecoveryWorkflowTrackingData>("PCRWorkflowTrackingData")
+        .ok()?;
+    db.find_payment_attempt_by_id(key_store, &tracking_data.payment_attempt_id, storage_scheme)
+        .await
+        .ok()
+}
+
 pub async fn perform_calculate_workflow(
     state: &SessionState,
     process: &storage::ProcessTracker,
@@ -659,7 +693,7 @@ pub async fn perform_calculate_workflow(
     .await?;
 
     // 2. Get best available token
-    let payment_processor_token_response =
+    let (payment_processor_token_response, next_recovery_schedule) =
         match revenue_recovery_workflow::get_token_with_schedule_time_based_on_retry_algorithm_type(
             state,
             &connector_customer_id,
@@ -667,17 +701,26 @@ pub async fn perform_calculate_workflow(
             revenue_recovery_payment_data.billing_mca.connector_name,
             retry_algorithm_type,
             process.retry_count,
+            &tracking_data.recovery_schedule,
+            tracking_data.prev_attempt_id.as_ref(),
+            &revenue_recovery_payment_data.key_store,
+            revenue_recovery_payment_data
+                .merchant_account
+                .storage_scheme,
         )
         .await
         {
-            Ok(token_opt) => token_opt,
+            Ok(token_and_schedule) => token_and_schedule,
             Err(e) => {
                 logger::error!(
                     error = ?e,
                     connector_customer_id = %connector_customer_id,
                     "Failed to get best PSP token"
                 );
-                revenue_recovery_workflow::PaymentProcessorTokenResponse::None
+                (
+                    revenue_recovery_workflow::PaymentProcessorTokenResponse::None,
+                    None,
+                )
             }
         };
 
@@ -713,20 +756,7 @@ pub async fn perform_calculate_workflow(
             )
             .await?;
 
-            db.as_scheduler()
-                .finish_process_with_business_status(
-                    process.clone(),
-                    business_status::CALCULATE_WORKFLOW_SCHEDULED,
-                )
-                .await
-                .map_err(|e| {
-                    logger::error!(
-                        process_id = %process.id,
-                        error = ?e,
-                        "Failed to update CALCULATE_WORKFLOW status to complete"
-                    );
-                    sch_errors::ProcessTrackerError::ProcessUpdateFailed
-                })?;
+            finish_calculate_workflow_with_schedule(db, process, next_recovery_schedule).await?;
 
             logger::info!(
                 process_id = %process.id,
@@ -846,6 +876,73 @@ pub async fn perform_calculate_workflow(
     ).await;
 
     Ok(())
+}
+
+/// Finish the CALCULATE_WORKFLOW row, carrying any updated adaptive scheduling state.
+///
+/// The row is reopened rather than recreated on the next failure, so its tracking data is
+/// where the ladder position survives between attempts.
+///
+/// State is persisted *before* the row is finished, and the finish itself goes through
+/// `finish_process_with_business_status` unchanged — so every path ends the row exactly the
+/// same way. The ordering also means a crash between the two writes leaves the row `Pending`
+/// and the workflow simply runs again; finishing first would end the row with the state lost.
+async fn finish_calculate_workflow_with_schedule(
+    db: &dyn StorageInterface,
+    process: &storage::ProcessTracker,
+    next_recovery_schedule: Option<schedule::RecoverySchedule>,
+) -> Result<(), sch_errors::ProcessTrackerError> {
+    // `None` on every non-adaptive path — nothing to persist, so nothing extra is written.
+    if let Some(recovery_schedule) = next_recovery_schedule {
+        let mut tracking_data: pcr::RevenueRecoveryWorkflowTrackingData =
+            serde_json::from_value(process.tracking_data.clone())
+                .change_context(errors::RecoveryError::ValueNotFound)
+                .attach_printable("Failed to deserialize the tracking data from process tracker")?;
+
+        tracking_data.recovery_schedule = recovery_schedule;
+
+        let tracking_data = serde_json::to_value(tracking_data)
+            .change_context(errors::RecoveryError::ValueNotFound)
+            .attach_printable("Failed to serialize the tracking data for process tracker")?;
+
+        // Only the tracking data — status and business status are left to the finish below.
+        let pt_update = storage::ProcessTrackerUpdate::Update {
+            name: None,
+            retry_count: None,
+            schedule_time: None,
+            tracking_data: Some(tracking_data),
+            business_status: None,
+            status: None,
+            updated_at: Some(common_utils::date_time::now()),
+        };
+
+        db.as_scheduler()
+            .update_process(process.clone(), pt_update)
+            .await
+            .map_err(|error| {
+                logger::error!(
+                    process_id = %process.id,
+                    error = ?error,
+                    "Failed to persist recovery schedule on CALCULATE_WORKFLOW"
+                );
+                sch_errors::ProcessTrackerError::ProcessUpdateFailed
+            })?;
+    }
+
+    db.as_scheduler()
+        .finish_process_with_business_status(
+            process.clone(),
+            business_status::CALCULATE_WORKFLOW_SCHEDULED,
+        )
+        .await
+        .map_err(|error| {
+            logger::error!(
+                process_id = %process.id,
+                error = ?error,
+                "Failed to update CALCULATE_WORKFLOW status to complete"
+            );
+            sch_errors::ProcessTrackerError::ProcessUpdateFailed
+        })
 }
 
 /// Update the schedule time for a CALCULATE_WORKFLOW process tracker
@@ -1031,6 +1128,8 @@ async fn insert_execute_pcr_task_to_pt(
                 prev_attempt_id: Some(payment_attempt_id.clone()),
                 revenue_recovery_retry,
                 invoice_scheduled_time: Some(schedule_time),
+                // EXECUTE has its own row; scheduling state lives on CALCULATE.
+                recovery_schedule: schedule::RecoverySchedule::default(),
             };
 
             let tag = ["PCR"];
