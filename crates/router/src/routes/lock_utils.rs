@@ -89,6 +89,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::RoutingEvaluateRule
             | Flow::DecisionEngineDiffCounterReset
             | Flow::DecisionEngineRuleMigration
+            | Flow::DecisionEngineMigrationStatus
             | Flow::VolumeSplitOnRoutingType
             | Flow::DecisionEngineDecideGatewayCall
             | Flow::DecisionEngineGatewayFeedbackCall => Self::Routing,
@@ -119,7 +120,9 @@ impl From<Flow> for ApiIdentifier {
             | Flow::ConfigKeyFetch
             | Flow::ConfigKeyUpdate
             | Flow::ConfigKeyDelete
-            | Flow::CreateConfigKey => Self::Configs,
+            | Flow::CreateConfigKey
+            | Flow::UnifiedConnectorServiceKillSwitchStatus
+            | Flow::UnifiedConnectorServiceKillSwitchReset => Self::Configs,
             Flow::CustomersCreate
             | Flow::CustomersRetrieve
             | Flow::CustomersRetrieveByReferenceId
@@ -195,6 +198,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::RecoveryPaymentsCreate
             | Flow::PaymentsSubmitCheckEligibility
             | Flow::PaymentsSubmitEligibility
+            // PaymentLinkCreate creates a payment intent, so it uses the Payments lock namespace
+            | Flow::PaymentLinkCreate
             | Flow::PaymentsCancelPostCaptureSync => Self::Payments,
             Flow::PayoutsCreate
             | Flow::PayoutsRetrieve
