@@ -443,7 +443,7 @@ impl ConnectorValidation for Adyen {
             return Ok(());
         }
         Err(errors::ConnectorError::MissingRequiredField {
-            field_name: "encoded_data",
+            field_name: "encoded_data".into(),
         }
         .into())
     }
@@ -1058,7 +1058,7 @@ impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResp
         let currency = match data.request.currency {
             Some(currency) => currency,
             None => Err(errors::ConnectorError::MissingRequiredField {
-                field_name: "currency",
+                field_name: "currency".into(),
             })?,
         };
         let amount = data.request.minor_amount;
@@ -1291,7 +1291,7 @@ impl
             .currency
             .get_required_value("currency")
             .change_context(errors::ConnectorError::MissingRequiredField {
-                field_name: "currency",
+                field_name: "currency".into(),
             })?;
 
         if response.balance.currency != currency {
@@ -1795,7 +1795,7 @@ impl ConnectorIntegration<PoFulfill, PayoutsData, PayoutsResponseData> for Adyen
             .to_owned()
             .get_required_value("payout_type")
             .change_context(errors::ConnectorError::MissingRequiredField {
-                field_name: "payout_type",
+                field_name: "payout_type".into(),
             })?;
         let mut api_key = vec![(
             headers::X_API_KEY.to_string(),

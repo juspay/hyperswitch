@@ -236,7 +236,7 @@ impl ConnectorIntegration<Checkout, FraudCheckCheckoutData, FraudCheckResponseDa
             req.request
                 .currency
                 .ok_or(ConnectorError::MissingRequiredField {
-                    field_name: "currency",
+                    field_name: "currency".into(),
                 })?,
         )?;
         let req_data = riskified::RiskifiedRouterData::from((amount, req));
@@ -351,7 +351,7 @@ impl ConnectorIntegration<Transaction, FraudCheckTransactionData, FraudCheckResp
                     req.request
                         .currency
                         .ok_or(ConnectorError::MissingRequiredField {
-                            field_name: "currency",
+                            field_name: "currency".into(),
                         })?,
                 )?;
                 let req_data = riskified::RiskifiedRouterData::from((amount, req));

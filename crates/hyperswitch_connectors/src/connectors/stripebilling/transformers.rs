@@ -537,7 +537,7 @@ impl
         let merchant_reference_id =
             id_type::PaymentReferenceId::from_str(charge_details.invoice_id.as_str())
                 .change_context(errors::ConnectorError::MissingRequiredField {
-                    field_name: "invoice_id",
+                    field_name: "invoice_id".into(),
                 })?;
         let connector_transaction_id = Some(common_utils::types::ConnectorTransactionId::from(
             charge_details.payment_intent,
@@ -656,7 +656,7 @@ impl
                     item.response.id.as_str(),
                 )
                 .change_context(errors::ConnectorError::MissingRequiredField {
-                    field_name: "invoice_id in the response",
+                    field_name: "invoice_id in the response".into(),
                 })?,
             }),
             ..item.data

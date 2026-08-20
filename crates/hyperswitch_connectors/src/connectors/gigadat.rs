@@ -815,7 +815,7 @@ impl ConnectorIntegration<PoFulfill, PayoutsData, PayoutsResponseData> for Gigad
     ) -> CustomResult<String, errors::ConnectorError> {
         let transfer_id = req.request.connector_payout_id.to_owned().ok_or(
             errors::ConnectorError::MissingRequiredField {
-                field_name: "transaction_id",
+                field_name: "transaction_id".into(),
             },
         )?;
         let metadata = req
@@ -889,7 +889,7 @@ impl ConnectorIntegration<PoSync, PayoutsData, PayoutsResponseData> for Gigadat 
     ) -> CustomResult<String, errors::ConnectorError> {
         let transfer_id = req.request.connector_payout_id.to_owned().ok_or(
             errors::ConnectorError::MissingRequiredField {
-                field_name: "transaction_id",
+                field_name: "transaction_id".into(),
             },
         )?;
         Ok(format!(

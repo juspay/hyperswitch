@@ -263,7 +263,7 @@ impl TryFrom<&ThreedsecureioRouterData<&ConnectorAuthenticationRouterData>>
             None => {
                 if request.device_channel == DeviceChannel::Browser {
                     Err(errors::ConnectorError::MissingRequiredField {
-                        field_name: "browser_info",
+                        field_name: "browser_info".into(),
                     })?
                 } else {
                     Ok(None)
@@ -281,7 +281,7 @@ impl TryFrom<&ThreedsecureioRouterData<&ConnectorAuthenticationRouterData>>
             .attach_printable("error while parsing Currency")?;
         let billing_address = request.billing_address.address.clone().ok_or(
             errors::ConnectorError::MissingRequiredField {
-                field_name: "billing_address.address",
+                field_name: "billing_address.address".into(),
             },
         )?;
         let billing_state = billing_address.clone().to_state_code()?;
@@ -289,7 +289,7 @@ impl TryFrom<&ThreedsecureioRouterData<&ConnectorAuthenticationRouterData>>
             &billing_address
                 .country
                 .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "billing_address.address.country",
+                    field_name: "billing_address.address.country".into(),
                 })?
                 .to_string(),
         )
@@ -306,7 +306,7 @@ impl TryFrom<&ThreedsecureioRouterData<&ConnectorAuthenticationRouterData>>
         let sdk_information = match request.device_channel {
             DeviceChannel::App => Some(item.router_data.request.sdk_information.clone().ok_or(
                 errors::ConnectorError::MissingRequiredField {
-                    field_name: "sdk_information",
+                    field_name: "sdk_information".into(),
                 },
             )?),
             DeviceChannel::Browser => None,
@@ -317,7 +317,7 @@ impl TryFrom<&ThreedsecureioRouterData<&ConnectorAuthenticationRouterData>>
             .zip(pre_authentication_data.acquirer_merchant_id.clone())
             .get_required_value("acquirer_details")
             .change_context(errors::ConnectorError::MissingRequiredField {
-                field_name: "acquirer_details",
+                field_name: "acquirer_details".into(),
             })?;
         let meta: ThreeDSecureIoConnectorMetaData =
             to_connector_meta(request.pre_authentication_data.connector_metadata.clone())?;
@@ -349,18 +349,18 @@ impl TryFrom<&ThreedsecureioRouterData<&ConnectorAuthenticationRouterData>>
                 .city
                 .clone()
                 .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "billing_address.address.city",
+                    field_name: "billing_address.address.city".into(),
                 })?
                 .to_string(),
             bill_addr_country: billing_country.numeric_id().to_string().into(),
             bill_addr_line1: billing_address.line1.clone().ok_or(
                 errors::ConnectorError::MissingRequiredField {
-                    field_name: "billing_address.address.line1",
+                    field_name: "billing_address.address.line1".into(),
                 },
             )?,
             bill_addr_post_code: billing_address.zip.clone().ok_or(
                 errors::ConnectorError::MissingRequiredField {
-                    field_name: "billing_address.address.zip",
+                    field_name: "billing_address.address.zip".into(),
                 },
             )?,
             bill_addr_state: billing_state,

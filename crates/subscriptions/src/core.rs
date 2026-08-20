@@ -342,7 +342,7 @@ pub async fn confirm_subscription(
             invoice
                 .payment_intent_id
                 .ok_or(errors::ApiErrorResponse::MissingRequiredField {
-                    field_name: "payment_intent_id",
+                    field_name: "payment_intent_id".into(),
                 })?,
             &request,
         )
@@ -703,7 +703,7 @@ pub async fn update_subscription(
             estimate.currency,
             invoice_entry.payment_intent_id.ok_or(
                 errors::ApiErrorResponse::MissingRequiredField {
-                    field_name: "payment_intent_id",
+                    field_name: "payment_intent_id".into(),
                 },
             )?,
         )

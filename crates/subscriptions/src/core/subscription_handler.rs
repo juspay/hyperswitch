@@ -216,7 +216,7 @@ impl<'a> SubscriptionHandler<'a> {
             .clone()
             .get_required_value("client_secret")
             .change_context(errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "client_secret",
+                field_name: "client_secret".into(),
             })
             .attach_printable("client secret not found in db")?;
 
@@ -446,7 +446,7 @@ impl ForeignTryFrom<&hyperswitch_domain_models::invoice::Invoice> for subscripti
             amount: invoice.amount,
             currency: api_enums::Currency::from_str(invoice.currency.as_str())
                 .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "currency",
+                    field_name: "currency".into(),
                 })
                 .attach_printable(format!(
                     "unable to parse currency name {currency:?}",
