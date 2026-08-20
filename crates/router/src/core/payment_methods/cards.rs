@@ -67,6 +67,8 @@ use super::surcharge_decision_configs::{
 #[cfg(feature = "v1")]
 use super::tokenize::NetworkTokenizationProcess;
 #[cfg(feature = "v1")]
+use crate::core::offer_engine;
+#[cfg(feature = "v1")]
 use crate::core::payment_methods::{
     add_payment_method_status_update_task, tokenize,
     utils::{get_merchant_pm_filter_graph, make_pm_graph, refresh_pm_filters_cache},
@@ -4664,7 +4666,7 @@ pub async fn build_merchant_enabled_pms_context(
     };
 
     let offers_enabled = matches!(
-        crate::core::offer_engine::resolve_offer_engine_config(state, &dimensions).await,
+        offer_engine::resolve_offer_engine_config(state, &dimensions).await,
         Ok(Some(_))
     );
 
