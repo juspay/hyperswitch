@@ -86,7 +86,7 @@ impl ForeignFrom<&api_models::payments::RecoveryPaymentsCreate>
                 .get_string_repr()
                 .to_string(),
             transaction_created_at: data.transaction_created_at.to_owned(),
-            status: data.attempt_status,
+            status: data.transaction_status,
             payment_method_type: data.payment_method_type,
             payment_method_sub_type: data.payment_method_sub_type,
             network_advice_code: data
@@ -105,10 +105,7 @@ impl ForeignFrom<&api_models::payments::RecoveryPaymentsCreate>
             retry_count: None,
             invoice_next_billing_time: None,
             invoice_billing_started_at_time: data.billing_started_at,
-            card_info: data
-                .payment_method_data
-                .additional_payment_method_info
-                .clone(),
+            card_info: data.payment_method_data.payment_method_metadata.clone(),
             charge_id: None,
         }
     }
