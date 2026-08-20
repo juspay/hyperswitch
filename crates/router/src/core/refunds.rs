@@ -820,14 +820,16 @@ fn should_call_refund(
     force_sync: bool,
     all_keys_required: bool,
 ) -> bool {
-    // This allows refund sync at connector level if all_keys_required or force_sync is enabled for non terminal refund statuses (i.e. not success or failure)
+    // This allows refund sync at connector level if all_keys_required or force_sync is enabled,
+    // or if the refund is not in a terminal status (i.e. not success, failure or transaction failure)
     all_keys_required
-        || (force_sync
-            && !matches!(
-                refund.refund_status,
-                diesel_models::enums::RefundStatus::Failure
-                    | diesel_models::enums::RefundStatus::Success
-            ))
+        || force_sync
+        || !matches!(
+            refund.refund_status,
+            diesel_models::enums::RefundStatus::Failure
+                | diesel_models::enums::RefundStatus::Success
+                | diesel_models::enums::RefundStatus::TransactionFailure
+        )
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -2376,4 +2378,90 @@ pub async fn get_refund_sync_process_schedule_time(
     let time_delta = process_tracker_utils::get_schedule_time(mapping, retry_count);
 
     Ok(process_tracker_utils::get_time_from_delta(time_delta))
+}
+
+#[cfg(test)]
+mod tests {
+    use common_utils::date_time;
+    use diesel_models::{
+        enums::{Currency, RefundStatus, RefundType},
+        refund::Refund,
+    };
+    use super::*;
+
+    fn make_refund(status: RefundStatus) -> Refund {
+        Refund {
+            internal_reference_id: String::new(),
+            refund_id: String::new(),
+            payment_id: common_utils::id_type::PaymentId::default(),
+            merchant_id: common_utils::id_type::MerchantId::default(),
+            connector_transaction_id: ConnectorTransactionId::from("test_txn_id".to_string()),
+            connector: String::new(),
+            connector_refund_id: None,
+            external_reference_id: None,
+            refund_type: RefundType::RegularRefund,
+            total_amount: MinorUnit::new(0),
+            currency: Currency::USD,
+            refund_amount: MinorUnit::new(0),
+            refund_status: status,
+            sent_to_gateway: false,
+            refund_error_message: None,
+            metadata: None,
+            refund_arn: None,
+            created_at: date_time::now(),
+            modified_at: date_time::now(),
+            description: None,
+            attempt_id: String::new(),
+            refund_reason: None,
+            refund_error_code: None,
+            profile_id: None,
+            updated_by: String::new(),
+            merchant_connector_id: None,
+            charges: None,
+            organization_id: common_utils::id_type::OrganizationId::default(),
+            connector_refund_data: None,
+            connector_transaction_data: None,
+            split_refunds: None,
+            unified_code: None,
+            unified_message: None,
+            processor_refund_data: None,
+            processor_transaction_data: None,
+            issuer_error_code: None,
+            issuer_error_message: None,
+            processor_merchant_id: None,
+            created_by: None,
+        }
+    }
+
+    fn expected(status: RefundStatus, force_sync: bool, all_keys_required: bool) -> bool {
+        all_keys_required
+            || force_sync
+            || !matches!(
+                status,
+                RefundStatus::Failure | RefundStatus::Success | RefundStatus::TransactionFailure
+            )
+    }
+
+    #[test]
+    fn should_call_refund_predicate_directions() {
+        let statuses = [
+            RefundStatus::Failure,
+            RefundStatus::Success,
+            RefundStatus::TransactionFailure,
+            RefundStatus::Pending,
+            RefundStatus::ManualReview,
+        ];
+        for &status in &statuses {
+            for force_sync in [false, true] {
+                for all_keys_required in [false, true] {
+                    let refund = make_refund(status);
+                    assert_eq!(
+                        should_call_refund(&refund, force_sync, all_keys_required),
+                        expected(status, force_sync, all_keys_required),
+                        "status={status:?} force_sync={force_sync} all_keys_required={all_keys_required}"
+                    );
+                }
+            }
+        }
+    }
 }
