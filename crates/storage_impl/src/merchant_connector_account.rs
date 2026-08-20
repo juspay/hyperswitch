@@ -101,6 +101,23 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for kv_router_store::KV
     }
 
     #[instrument(skip_all)]
+    #[cfg(feature = "v2")]
+    async fn find_merchant_connector_account_by_merchant_connector_id_merchant_id(
+        &self,
+        id: &common_utils::id_type::MerchantConnectorAccountId,
+        merchant_id: &common_utils::id_type::MerchantId,
+        key_store: &MerchantKeyStore,
+    ) -> CustomResult<domain::MerchantConnectorAccount, Self::Error> {
+        self.router_store
+            .find_merchant_connector_account_by_merchant_connector_id_merchant_id(
+                id,
+                merchant_id,
+                key_store,
+            )
+            .await
+    }
+
+    #[instrument(skip_all)]
     async fn insert_merchant_connector_account(
         &self,
         t: domain::MerchantConnectorAccount,
@@ -456,6 +473,63 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
             cache::get_or_populate_in_memory(
                 self,
                 id.get_string_repr(),
+                find_call,
+                &cache::ACCOUNTS_CACHE,
+            )
+            .await?
+            .convert(
+                self.get_keymanager_state()
+                    .attach_printable("Missing KeyManagerState")?,
+                key_store.key.get_inner(),
+                common_utils::types::keymanager::Identifier::Merchant(
+                    key_store.merchant_id.clone(),
+                ),
+            )
+            .await
+            .change_context(Self::Error::DecryptionError)
+        }
+    }
+
+    #[instrument(skip_all)]
+    #[cfg(feature = "v2")]
+    async fn find_merchant_connector_account_by_merchant_connector_id_merchant_id(
+        &self,
+        id: &common_utils::id_type::MerchantConnectorAccountId,
+        merchant_id: &common_utils::id_type::MerchantId,
+        key_store: &MerchantKeyStore,
+    ) -> CustomResult<domain::MerchantConnectorAccount, Self::Error> {
+        let find_call = || async {
+            let conn = pg_accounts_connection_read(self).await?;
+            storage::MerchantConnectorAccount::find_by_merchant_id_merchant_connector_id(
+                &conn,
+                merchant_id,
+                id,
+            )
+            .await
+            .map_err(|error| report!(Self::Error::from(error)))
+        };
+
+        #[cfg(not(feature = "accounts_cache"))]
+        {
+            find_call()
+                .await?
+                .convert(
+                    self.get_keymanager_state()
+                        .attach_printable("Missing KeyManagerState")?,
+                    key_store.key.get_inner(),
+                    common_utils::types::keymanager::Identifier::Merchant(
+                        key_store.merchant_id.clone(),
+                    ),
+                )
+                .await
+                .change_context(Self::Error::DecryptionError)
+        }
+
+        #[cfg(feature = "accounts_cache")]
+        {
+            cache::get_or_populate_in_memory(
+                self,
+                &format!("{}_{}", merchant_id.get_string_repr(), id.get_string_repr()),
                 find_call,
                 &cache::ACCOUNTS_CACHE,
             )
@@ -840,6 +914,14 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
                     cache::CacheKind::Accounts(
                         _merchant_connector_id.get_string_repr().to_string().into(),
                     ),
+                    cache::CacheKind::Accounts(
+                        format!(
+                            "{}_{}",
+                            _merchant_id.get_string_repr(),
+                            _merchant_connector_id.get_string_repr()
+                        )
+                        .into(),
+                    ),
                     cache::CacheKind::CGraph(
                         format!(
                             "cgraph_{}_{}",
@@ -1195,6 +1277,45 @@ impl MerchantConnectorAccountInterface for MockDb {
             .await
             .iter()
             .find(|account| account.get_id() == *id)
+            .cloned()
+            .async_map(|account| async {
+                account
+                    .convert(
+                        self.get_keymanager_state()
+                            .attach_printable("Missing KeyManagerState")?,
+                        key_store.key.get_inner(),
+                        common_utils::types::keymanager::Identifier::Merchant(
+                            key_store.merchant_id.clone(),
+                        ),
+                    )
+                    .await
+                    .change_context(StorageError::DecryptionError)
+            })
+            .await
+        {
+            Some(result) => result,
+            None => {
+                return Err(StorageError::ValueNotFound(
+                    "cannot find merchant connector account".to_string(),
+                )
+                .into())
+            }
+        }
+    }
+
+    #[cfg(feature = "v2")]
+    async fn find_merchant_connector_account_by_merchant_connector_id_merchant_id(
+        &self,
+        id: &common_utils::id_type::MerchantConnectorAccountId,
+        merchant_id: &common_utils::id_type::MerchantId,
+        key_store: &MerchantKeyStore,
+    ) -> CustomResult<domain::MerchantConnectorAccount, StorageError> {
+        match self
+            .merchant_connector_accounts
+            .lock()
+            .await
+            .iter()
+            .find(|account| account.get_id() == *id && account.merchant_id == *merchant_id)
             .cloned()
             .async_map(|account| async {
                 account
