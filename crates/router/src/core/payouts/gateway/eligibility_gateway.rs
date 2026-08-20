@@ -135,9 +135,6 @@ where
 
                     router_data.connector_http_status_code = Some(ucs_data.status_code);
 
-                    router_data.request.connector_eligibility_reference_id =
-                        ucs_data.connector_eligibility_reference_id;
-
                     Ok((router_data, (), payout_eligibility_response))
                 },
             ))

@@ -1833,16 +1833,20 @@ pub fn merge_connector_metadata(
     };
 
     // if both are present, it is merged but in case of conflict, connector metadata takes precedence
-    match (connector_details, merchant_details) {
+    let merged = match (connector_details, merchant_details) {
         (Some(connector_details), Some(mut merged)) => {
             for (key, value) in connector_details {
                 merged.entry(key.clone()).or_insert_with(|| value.clone());
             }
-            Some(Secret::new(serde_json::Value::Object(merged)))
+            Some(merged)
         }
-        (connector_details, merchant_details) => merchant_details
-            .or(connector_details.cloned())
-            .map(serde_json::Value::Object)
-            .map(Secret::new),
-    }
+        (connector_details, merchant_details) => merchant_details.or(connector_details.cloned()),
+    };
+
+    // `metadata` also holds a serialized FeatureMetadata, whose unset fields are written out
+    // as nulls. They carry nothing and only clutter the payout response.
+    merged.map(|mut details| {
+        details.retain(|_, value| !value.is_null());
+        Secret::new(serde_json::Value::Object(details))
+    })
 }

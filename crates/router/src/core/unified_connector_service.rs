@@ -3360,13 +3360,12 @@ impl
             transformers::convert_connector_service_status_code(response.status_code)?;
 
         let router_data_response = Result::<PayoutsResponseData, ErrorResponse>::foreign_try_from(
-            (response.clone(), prev_status),
+            (response, prev_status),
         )?;
 
         Ok(Self {
             router_data_response,
             status_code,
-            connector_eligibility_reference_id: response.connector_eligibility_reference_id,
         })
     }
 }

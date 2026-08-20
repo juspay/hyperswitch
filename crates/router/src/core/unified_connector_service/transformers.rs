@@ -7950,6 +7950,7 @@ macro_rules! impl_ucs_payout_response_transformation {
                         error_code: None,
                         error_message: None,
                         payout_connector_metadata: None,
+                        connector_eligibility_reference_id: None,
                     })
                 };
 
@@ -8003,6 +8004,7 @@ impl
                 })
                 .filter(|value| value.as_object().is_some_and(|details| !details.is_empty()))
                 .map(Secret::new),
+            connector_eligibility_reference_id: response.connector_eligibility_reference_id,
         }))
     }
 }
