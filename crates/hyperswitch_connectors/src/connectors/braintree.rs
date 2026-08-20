@@ -1201,7 +1201,7 @@ impl ConnectorRedirectResponse for Braintree {
                     let redirection_response: transformers::BraintreeRedirectionResponse =
                         serde_json::from_value(payload).change_context(
                             errors::ConnectorError::MissingConnectorRedirectionPayload {
-                                field_name: "redirection_response",
+                                field_name: "redirection_response".into(),
                             },
                         )?;
                     let braintree_payload =

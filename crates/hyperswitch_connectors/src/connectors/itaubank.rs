@@ -97,7 +97,7 @@ where
             req.access_token
                 .clone()
                 .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "access_token",
+                    field_name: "access_token".into(),
                 })?;
 
         let header = vec![
@@ -617,7 +617,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Itauban
         let itaubank_metadata = req.request.get_connector_metadata()?;
         let pix_data: itaubank::ItaubankMetaData = serde_json::from_value(itaubank_metadata)
             .change_context(errors::ConnectorError::MissingRequiredField {
-                field_name: "itaubank_metadata",
+                field_name: "itaubank_metadata".into(),
             })?;
         Ok(format!(
             "{}itau-ep9-gtw-pix-recebimentos-ext-v2/v2/pix/{}/devolucao/{}",
@@ -625,7 +625,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Itauban
             pix_data
                 .pix_id
                 .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "pix_id"
+                    field_name: "pix_id".into()
                 })?,
             req.request.connector_transaction_id
         ))
@@ -719,7 +719,7 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Itaubank 
         let itaubank_metadata = req.request.get_connector_metadata()?;
         let pix_data: itaubank::ItaubankMetaData = serde_json::from_value(itaubank_metadata)
             .change_context(errors::ConnectorError::MissingRequiredField {
-                field_name: "itaubank_metadata",
+                field_name: "itaubank_metadata".into(),
             })?;
         Ok(format!(
             "{}itau-ep9-gtw-pix-recebimentos-ext-v2/v2/pix/{}/devolucao/{}",
@@ -727,7 +727,7 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Itaubank 
             pix_data
                 .pix_id
                 .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "pix_id"
+                    field_name: "pix_id".into()
                 })?,
             req.request.connector_transaction_id
         ))

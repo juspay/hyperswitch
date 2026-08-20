@@ -1473,7 +1473,7 @@ impl ConnectorIntegration<Retrieve, RetrieveFileRequestData, RetrieveFileRespons
     ) -> CustomResult<String, errors::ConnectorError> {
         let connector_dispute_id = req.request.connector_dispute_id.clone().ok_or(
             errors::ConnectorError::MissingRequiredField {
-                field_name: "dispute_id",
+                field_name: "dispute_id".into(),
             },
         )?;
         Ok(format!(

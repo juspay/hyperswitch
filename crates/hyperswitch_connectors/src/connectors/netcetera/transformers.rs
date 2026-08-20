@@ -535,7 +535,7 @@ impl TryFrom<&NetceteraRouterData<&ConnectorAuthenticationRouterData>>
             .currency
             .get_required_value("currency")
             .change_context(ConnectorError::MissingRequiredField {
-                field_name: "currency",
+                field_name: "currency".into(),
             })?;
         let purchase = netcetera_types::Purchase {
             purchase_instal_data: None,

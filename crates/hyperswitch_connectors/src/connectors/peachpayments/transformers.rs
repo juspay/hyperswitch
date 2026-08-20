@@ -435,7 +435,7 @@ impl TryFrom<&PeachpaymentsRouterData<&PaymentsCancelRouterData>> for Peachpayme
             amount: item.amount,
             currency_code: item.router_data.request.currency.ok_or(
                 errors::ConnectorError::MissingRequiredField {
-                    field_name: "Currency",
+                    field_name: "Currency".into(),
                 },
             )?,
             display_amount: None,
@@ -507,7 +507,7 @@ impl
             scheme: Some(CardNetworkLowercase::from(
                 token_data.card_network.clone().ok_or(
                     errors::ConnectorError::MissingRequiredField {
-                        field_name: "card_network",
+                        field_name: "card_network".into(),
                     },
                 )?,
             )),
@@ -557,7 +557,7 @@ impl TryFrom<(&PeachpaymentsRouterData<&PaymentsAuthorizeRouterData>, Card)>
             pan: req_card.card_number.clone(),
             cardholder_name: req_card.card_holder_name.clone().ok_or_else(|| {
                 errors::ConnectorError::MissingRequiredField {
-                    field_name: "card_holder_name",
+                    field_name: "card_holder_name".into(),
                 }
             })?,
             expiry_year: Some(req_card.get_card_expiry_year_2_digit()?),
@@ -632,7 +632,7 @@ impl
                 .card_holder_name
                 .clone()
                 .ok_or_else(|| errors::ConnectorError::MissingRequiredField {
-                    field_name: "card_holder_name",
+                    field_name: "card_holder_name".into(),
                 })?,
             expiry_year: card_with_limited_details.get_card_expiry_year_2_digit()?,
             expiry_month: card_with_limited_details.card_exp_month.clone(),
@@ -723,7 +723,7 @@ impl
             pan: card_details.card_number.clone(),
             cardholder_name: card_details.card_holder_name.clone().ok_or_else(|| {
                 errors::ConnectorError::MissingRequiredField {
-                    field_name: "card_holder_name",
+                    field_name: "card_holder_name".into(),
                 }
             })?,
             expiry_year: Some(card_details.get_card_expiry_year_2_digit()?),
@@ -796,7 +796,7 @@ impl
             scheme: Some(CardNetworkLowercase::from(
                 token_details.card_network.clone().ok_or(
                     errors::ConnectorError::MissingRequiredField {
-                        field_name: "card_network",
+                        field_name: "card_network".into(),
                     },
                 )?,
             )),

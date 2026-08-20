@@ -472,7 +472,7 @@ impl ConnectorIntegration<Checkout, FraudCheckCheckoutData, FraudCheckResponseDa
             .request
             .currency
             .ok_or(ConnectorError::MissingRequiredField {
-                field_name: "Currency",
+                field_name: "Currency".into(),
             })?;
         let amount = convert_amount(self.amount_converter, req.request.amount, currency)?;
 
@@ -560,7 +560,7 @@ impl ConnectorIntegration<Transaction, FraudCheckTransactionData, FraudCheckResp
                 .frm_transaction_id
                 .clone()
                 .ok_or(ConnectorError::MissingRequiredField {
-                    field_name: "frm_transaction_id",
+                    field_name: "frm_transaction_id".into(),
                 })?;
         Ok(format!(
             "{}risk/v1/decisions/{}/actions",

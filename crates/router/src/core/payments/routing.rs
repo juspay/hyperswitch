@@ -2853,7 +2853,7 @@ pub async fn perform_session_flow_routing(
             .currency
             .get_required_value("Currency")
             .change_context(errors::RoutingError::DslMissingRequiredField {
-                field_name: "currency".to_string(),
+                field_name: "currency".into(),
             })?,
         authentication_type: session_input.payment_attempt.authentication_type,
         card_bin: None,
@@ -3200,7 +3200,7 @@ pub fn make_dsl_input_for_surcharge(
             .currency
             .get_required_value("currency")
             .change_context(errors::RoutingError::DslMissingRequiredField {
-                field_name: "currency".to_string(),
+                field_name: "currency".into(),
             })?,
         authentication_type: payment_attempt.authentication_type,
         card_bin: None,

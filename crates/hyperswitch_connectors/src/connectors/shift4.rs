@@ -512,7 +512,7 @@ impl ConnectorIntegration<PreAuthenticate, PaymentsPreAuthenticateData, Payments
             req.request
                 .currency
                 .ok_or_else(|| errors::ConnectorError::MissingRequiredField {
-                    field_name: "currency",
+                    field_name: "currency".into(),
                 })?,
         )?;
         let connector_router_data = shift4::Shift4RouterData::try_from((amount, req))?;
@@ -620,7 +620,7 @@ impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResp
             req.request
                 .currency
                 .ok_or_else(|| errors::ConnectorError::MissingRequiredField {
-                    field_name: "currency",
+                    field_name: "currency".into(),
                 })?,
         )?;
         let connector_router_data = shift4::Shift4RouterData::try_from((amount, req))?;

@@ -398,7 +398,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Sil
             .connector_transaction_id
             .get_connector_transaction_id()
             .change_context(errors::ConnectorError::MissingRequiredField {
-                field_name: "connector_transaction_id for payment sync",
+                field_name: "connector_transaction_id for payment sync".into(),
             })?;
         Ok(format!(
             "{}/charges/{}",

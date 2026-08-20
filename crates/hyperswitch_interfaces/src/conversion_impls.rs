@@ -363,7 +363,7 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for RefundFl
             connector_request_reference_id: old_router_data.connector_request_reference_id.clone(),
             refund_id: old_router_data.refund_id.clone().ok_or(
                 ConnectorError::MissingRequiredField {
-                    field_name: "refund_id",
+                    field_name: "refund_id".into(),
                 },
             )?,
         };
@@ -435,7 +435,7 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for Disputes
             connector_request_reference_id: old_router_data.connector_request_reference_id.clone(),
             dispute_id: old_router_data.dispute_id.clone().ok_or(
                 ConnectorError::MissingRequiredField {
-                    field_name: "dispute_id",
+                    field_name: "dispute_id".into(),
                 },
             )?,
         };
@@ -657,7 +657,7 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for MandateR
             merchant_id: old_router_data.merchant_id.clone(),
             customer_id: old_router_data.customer_id.clone().ok_or(
                 ConnectorError::MissingRequiredField {
-                    field_name: "customer_id",
+                    field_name: "customer_id".into(),
                 },
             )?,
             payment_id: Some(old_router_data.payment_id.clone()),
@@ -959,7 +959,7 @@ impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for UasFlowD
                 .authentication_id
                 .clone()
                 .ok_or(ConnectorError::MissingRequiredField {
-                    field_name: "source_authentication_id",
+                    field_name: "source_authentication_id".into(),
                 })
                 .attach_printable("missing authentication id for uas")?,
         };

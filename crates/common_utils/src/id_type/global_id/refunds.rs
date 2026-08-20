@@ -38,7 +38,7 @@ impl TryFrom<std::borrow::Cow<'static, str>> for GlobalRefundId {
     fn try_from(value: std::borrow::Cow<'static, str>) -> Result<Self, Self::Error> {
         let merchant_ref_id = super::GlobalId::from_string(value).change_context(
             errors::ValidationError::IncorrectValueProvided {
-                field_name: "refund_id",
+                field_name: "refund_id".into(),
             },
         )?;
         Ok(Self(merchant_ref_id))

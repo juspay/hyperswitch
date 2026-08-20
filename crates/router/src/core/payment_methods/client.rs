@@ -188,10 +188,11 @@ impl CustomerPaymentMethodsFetcher for ModularCustomerPaymentMethodsFetcher {
         dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> errors::RouterResult<Vec<CustomerPaymentMethodForClient>> {
         let merchant_id = platform.get_processor().get_account().get_id().clone();
-        let id = customer
-            .get_global_id()
-            .cloned()
-            .ok_or(errors::ApiErrorResponse::MissingRequiredField { field_name: "id" })?;
+        let id = customer.get_global_id().cloned().ok_or(
+            errors::ApiErrorResponse::MissingRequiredField {
+                field_name: "id".into(),
+            },
+        )?;
 
         let items = list_customer_payment_methods_from_modular_service(
             state,

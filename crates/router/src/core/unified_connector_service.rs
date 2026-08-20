@@ -1446,7 +1446,7 @@ pub fn build_unified_connector_service_payment_method(
                 .get_card_expiry_month_2_digit()
                 .attach_printable("Failed to extract 2-digit expiry month from card")
                 .change_context(UnifiedConnectorServiceError::InvalidDataFormat {
-                    field_name: "card_exp_month",
+                    field_name: "card_exp_month".into(),
                 })?
                 .peek()
                 .to_string();
@@ -1487,7 +1487,7 @@ pub fn build_unified_connector_service_payment_method(
                 .get_card_expiry_month_2_digit()
                 .attach_printable("Failed to extract 2-digit expiry month from card")
                 .change_context(UnifiedConnectorServiceError::InvalidDataFormat {
-                    field_name: "card_exp_month",
+                    field_name: "card_exp_month".into(),
                 })?
                 .peek()
                 .to_string();

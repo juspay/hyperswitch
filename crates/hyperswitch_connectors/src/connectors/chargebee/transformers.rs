@@ -96,7 +96,7 @@ impl TryFrom<&ChargebeeRouterData<&hyperswitch_domain_models::types::Subscriptio
             req.subscription_items
                 .first()
                 .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "subscription_items",
+                    field_name: "subscription_items".into(),
                 })?;
 
         Ok(Self {
@@ -851,7 +851,7 @@ impl TryFrom<ChargebeeWebhookBody> for revenue_recovery::RevenueRecoveryAttemptD
             .map(|customer| customer.find_connector_ids())
             .transpose()?
             .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "connector_mandate_details",
+                field_name: "connector_mandate_details".into(),
             })?;
         let connector_account_reference_id = item.content.transaction.gateway_account_id.clone();
         let transaction_created_at = item.content.transaction.date;
@@ -1340,7 +1340,7 @@ impl TryFrom<&ChargebeeRouterData<&hyperswitch_domain_models::types::ConnectorCu
                 .customer_id
                 .as_ref()
                 .ok_or_else(|| errors::ConnectorError::MissingRequiredField {
-                    field_name: "customer_id",
+                    field_name: "customer_id".into(),
                 })?
                 .clone(),
             name: req.name.clone(),

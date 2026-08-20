@@ -109,7 +109,7 @@ fn fetch_payment_instrument(
                     .tokenization_data
                     .get_encrypted_google_pay_token()
                     .change_context(ConnectorError::MissingRequiredField {
-                        field_name: "gpay wallet_token",
+                        field_name: "gpay wallet_token".into(),
                     })?
                     .into(),
                 billing_address,

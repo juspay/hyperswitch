@@ -259,7 +259,7 @@ impl transformers::ForeignTryFrom<&payments_grpc::AccessToken> for AccessToken {
             .token
             .clone()
             .ok_or(UnifiedConnectorServiceError::MissingRequiredField {
-                field_name: "token",
+                field_name: "token".into(),
             })
             .attach_printable("Missing token in AccessToken response")?;
 
@@ -1104,7 +1104,7 @@ impl
 
         let amount = router_data.request.amount.ok_or(report!(
             UnifiedConnectorServiceError::MissingRequiredField {
-                field_name: "amount"
+                field_name: "amount".into()
             }
         ))?;
         let address = payments_grpc::PaymentAddress::foreign_try_from(router_data.address.clone())?;
@@ -2635,14 +2635,14 @@ impl
                 }
                 _ => {
                     return Err(UnifiedConnectorServiceError::MissingRequiredField {
-                        field_name: "connector_mandate_id",
+                        field_name: "connector_mandate_id".into(),
                     }
                     .into())
                 }
             },
             None => {
                 return Err(UnifiedConnectorServiceError::MissingRequiredField {
-                    field_name: "connector_mandate_id",
+                    field_name: "connector_mandate_id".into(),
                 }
                 .into())
             }
@@ -3755,7 +3755,7 @@ impl
             let token = response
                 .access_token
                 .ok_or(UnifiedConnectorServiceError::MissingRequiredField {
-                    field_name: "access_token",
+                    field_name: "access_token".into(),
                 })
                 .attach_printable("Missing access_token in CreateAccessToken response")?;
 
@@ -5510,7 +5510,7 @@ impl
                 .connector_order_id
                 .clone()
                 .ok_or(UnifiedConnectorServiceError::MissingRequiredField {
-                    field_name: "connector_order_id",
+                    field_name: "connector_order_id".into(),
                 })
                 .attach_printable(
                     "Missing connector_order_id in PaymentServiceCreateOrderResponse response",
@@ -7547,7 +7547,7 @@ impl
             .map(payments_grpc::Customer::foreign_from)
             .ok_or(
                 error_stack::Report::new(UnifiedConnectorServiceError::MissingRequiredField {
-                    field_name: "customer",
+                    field_name: "customer".into(),
                 })
                 .attach_printable("Missing customer details in Payout Eligibility Request"),
             )?;
@@ -7621,7 +7621,7 @@ impl
             .map(payments_grpc::Customer::foreign_from)
             .ok_or(
                 error_stack::Report::new(UnifiedConnectorServiceError::MissingRequiredField {
-                    field_name: "customer",
+                    field_name: "customer".into(),
                 })
                 .attach_printable("Missing customer details in Payout Transfer Request"),
             )?;
@@ -7705,7 +7705,7 @@ impl
             .map(payments_grpc::Customer::foreign_from)
             .ok_or(
                 error_stack::Report::new(UnifiedConnectorServiceError::MissingRequiredField {
-                    field_name: "customer",
+                    field_name: "customer".into(),
                 })
                 .attach_printable("Missing customer details in Payout Stage Request"),
             )?;
@@ -7756,7 +7756,7 @@ impl
             .map(payments_grpc::Customer::foreign_from)
             .ok_or(
                 error_stack::Report::new(UnifiedConnectorServiceError::MissingRequiredField {
-                    field_name: "customer",
+                    field_name: "customer".into(),
                 })
                 .attach_printable("Missing customer details in Payout Create Recipient Request"),
             )?;
@@ -7832,7 +7832,7 @@ impl
             .map(payments_grpc::Customer::foreign_from)
             .ok_or(
                 error_stack::Report::new(UnifiedConnectorServiceError::MissingRequiredField {
-                    field_name: "customer",
+                    field_name: "customer".into(),
                 })
                 .attach_printable(
                     "Missing customer details in Payout Enroll Disburse Account Request",

@@ -120,7 +120,7 @@ impl TryFrom<&ConnectorCustomerRouterData> for PaysafeCustomerDetails {
                 received_length: customer_id.get_string_repr().len(),
             }),
             None => Err(errors::ConnectorError::MissingRequiredField {
-                field_name: "customer_id",
+                field_name: "customer_id".into(),
             }),
         }?;
 
@@ -1161,7 +1161,7 @@ fn get_apple_pay_decrypt_data(
         application_expiration_date: apple_pay_predecrypt_data
             .get_expiry_date_as_yymm()
             .change_context(errors::ConnectorError::InvalidDataFormat {
-                field_name: "application_expiration_date",
+                field_name: "application_expiration_date".into(),
             })?,
         currency_code: Currency::iso_4217(currency).to_string(),
         transaction_amount: Some(amount),
@@ -1226,13 +1226,13 @@ impl
                             let decoded_data = base64::prelude::BASE64_STANDARD
                                 .decode(applepay_encrypt_data)
                                 .change_context(errors::ConnectorError::InvalidDataFormat {
-                                    field_name: "apple_pay_encrypted_data",
+                                    field_name: "apple_pay_encrypted_data".into(),
                                 })?;
 
                             let apple_pay_token: DecryptedApplePayTokenData =
                                 serde_json::from_slice(&decoded_data).change_context(
                                     errors::ConnectorError::InvalidDataFormat {
-                                        field_name: "apple_pay_token_json",
+                                        field_name: "apple_pay_token_json".into(),
                                     },
                                 )?;
 
@@ -1327,13 +1327,13 @@ impl
                             let decoded_data = base64::prelude::BASE64_STANDARD
                                 .decode(applepay_encrypt_data)
                                 .change_context(errors::ConnectorError::InvalidDataFormat {
-                                    field_name: "apple_pay_encrypted_data",
+                                    field_name: "apple_pay_encrypted_data".into(),
                                 })?;
 
                             let apple_pay_token: DecryptedApplePayTokenData =
                                 serde_json::from_slice(&decoded_data).change_context(
                                     errors::ConnectorError::InvalidDataFormat {
-                                        field_name: "apple_pay_token_json",
+                                        field_name: "apple_pay_token_json".into(),
                                     },
                                 )?;
 
@@ -1413,7 +1413,8 @@ impl TryFrom<&PaymentsAuthorizeRouterData> for PaysafeMandateData {
                             .get_payment_method_token()
                     })
                     .ok_or(errors::ConnectorError::MissingRequiredField {
-                        field_name: "payment_token (preprocessing_id or payment_method_token)",
+                        field_name: "payment_token (preprocessing_id or payment_method_token)"
+                            .into(),
                     })?,
             }),
             (false, Some(mandate_data)) => {
@@ -1447,7 +1448,8 @@ impl TryFrom<&PaymentsAuthorizeRouterData> for PaysafeMandateData {
                             .get_payment_method_token()
                     })
                     .ok_or(errors::ConnectorError::MissingRequiredField {
-                        field_name: "payment_token (preprocessing_id or payment_method_token)",
+                        field_name: "payment_token (preprocessing_id or payment_method_token)"
+                            .into(),
                     })?,
             }),
         }

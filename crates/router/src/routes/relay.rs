@@ -29,7 +29,7 @@ pub async fn unreferenced_refund(
                 .profile
                 .get_required_value("profile_id")
                 .change_context(errors::ApiErrorResponse::MissingRequiredField {
-                    field_name: "profile_id",
+                    field_name: "profile_id".into(),
                 })?
                 .get_id()
                 .clone();

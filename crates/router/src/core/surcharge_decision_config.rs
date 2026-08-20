@@ -30,7 +30,7 @@ pub async fn upsert_surcharge_decision_config(
         .algorithm
         .get_required_value("algorithm")
         .change_context(errors::ApiErrorResponse::MissingRequiredField {
-            field_name: "algorithm",
+            field_name: "algorithm".into(),
         })
         .attach_printable("Program for config not given")?;
     let merchant_surcharge_configs = request.merchant_surcharge_configs;
@@ -107,7 +107,7 @@ pub async fn upsert_surcharge_decision_config(
                 name: name
                     .get_required_value("name")
                     .change_context(errors::ApiErrorResponse::MissingRequiredField {
-                        field_name: "name",
+                        field_name: "name".into(),
                     })
                     .attach_printable("name of the config not found")?,
                 algorithm: program,

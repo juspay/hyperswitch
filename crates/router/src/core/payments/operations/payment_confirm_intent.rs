@@ -63,7 +63,7 @@ impl ValidateStatusForOperation for PaymentIntentConfirm {
             | common_enums::IntentStatus::Review => {
                 Err(errors::ApiErrorResponse::PaymentUnexpectedState {
                     current_flow: format!("{self:?}"),
-                    field_name: "status".to_string(),
+                    field_name: "status".into(),
                     current_value: intent_status.to_string(),
                     states: ["requires_payment_method".to_string()].join(", "),
                 })
@@ -242,7 +242,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, PaymentsConfir
                 ),
                 || {
                     Err(errors::ApiErrorResponse::InvalidDataValue {
-                        field_name: "payment_method_data",
+                        field_name: "payment_method_data".into(),
                     })
                     .attach_printable(
                         "payment_method_data should be card_token when a token is passed",
@@ -581,7 +581,7 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
                             .card_cvc
                             .clone()
                             .ok_or(errors::ApiErrorResponse::InvalidDataValue {
-                                field_name: "card_cvc",
+                                field_name: "card_cvc".into(),
                             })
                             .or(payment_methods::vault::retrieve_cvc_from_payment_token(
                                 state,
@@ -618,7 +618,7 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
             }
 
             (Some(_payment_token), _, _) => Err(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "payment_method_data",
+                field_name: "payment_method_data".into(),
             })
             .attach_printable("payment_method_data should be card_token when a token is passed")?,
 
@@ -627,7 +627,7 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
                     Some(customer_id) => customer_id.clone(),
                     None => {
                         return Err(errors::ApiErrorResponse::InvalidDataValue {
-                            field_name: "customer_id",
+                            field_name: "customer_id".into(),
                         })
                         .attach_printable("customer_id not provided");
                     }

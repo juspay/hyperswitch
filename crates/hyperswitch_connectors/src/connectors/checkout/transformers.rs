@@ -673,13 +673,13 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
                             let expiry_month = google_pay_decrypted_data
                                 .get_expiry_month()
                                 .change_context(errors::ConnectorError::InvalidDataFormat {
-                                    field_name: "payment_method_data.card.card_exp_month",
+                                    field_name: "payment_method_data.card.card_exp_month".into(),
                                 })?;
 
                             let expiry_year = google_pay_decrypted_data
                                 .get_four_digit_expiry_year()
                                 .change_context(errors::ConnectorError::InvalidDataFormat {
-                                    field_name: "payment_method_data.card.card_exp_year",
+                                    field_name: "payment_method_data.card.card_exp_year".into(),
                                 })?;
 
                             let cryptogram = google_pay_decrypted_data.cryptogram.clone();
@@ -724,7 +724,7 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
                         PaymentMethodToken::ApplePayDecrypt(decrypt_data) => {
                             let exp_month = decrypt_data.get_expiry_month().change_context(
                                 errors::ConnectorError::InvalidDataFormat {
-                                    field_name: "expiration_month",
+                                    field_name: "expiration_month".into(),
                                 },
                             )?;
                             let expiry_year_4_digit = decrypt_data.get_four_digit_expiry_year();
@@ -831,7 +831,7 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
                     Some(common_types::payments::TokenSource::ApplePay) => "applepay".to_string(),
                     Some(common_types::payments::TokenSource::GooglePay) => "googlepay".to_string(),
                     None => Err(errors::ConnectorError::MissingRequiredField {
-                        field_name: "token_source",
+                        field_name: "token_source".into(),
                     })?,
                 };
 

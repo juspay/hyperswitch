@@ -186,7 +186,7 @@ pub async fn deep_health_check(
     for (tenant, _) in stores {
         let session_state_res = app_state.clone().get_session_state(&tenant, None, || {
             errors::ApiErrorResponse::MissingRequiredField {
-                field_name: "tenant_id",
+                field_name: "tenant_id".into(),
             }
             .into()
         });

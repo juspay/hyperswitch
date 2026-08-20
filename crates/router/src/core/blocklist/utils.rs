@@ -139,7 +139,7 @@ fn validate_card_bin(bin: &str) -> RouterResult<()> {
         Ok(())
     } else {
         Err(errors::ApiErrorResponse::InvalidDataFormat {
-            field_name: "data".to_string(),
+            field_name: "data".into(),
             expected_format: "a 6 digit number".to_string(),
         }
         .into())
@@ -151,7 +151,7 @@ fn validate_extended_card_bin(bin: &str) -> RouterResult<()> {
         Ok(())
     } else {
         Err(errors::ApiErrorResponse::InvalidDataFormat {
-            field_name: "data".to_string(),
+            field_name: "data".into(),
             expected_format: "an 8 digit number".to_string(),
         }
         .into())

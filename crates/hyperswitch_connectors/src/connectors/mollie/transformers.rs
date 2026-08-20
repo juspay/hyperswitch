@@ -277,7 +277,7 @@ impl Address {
     ) -> Result<Self, Error> {
         let address = address_details.address.clone().ok_or(
             errors::ConnectorError::MissingRequiredField {
-                field_name: "Billing Address details for Klarna",
+                field_name: "Billing Address details for Klarna".into(),
             },
         )?;
 
@@ -649,7 +649,7 @@ impl TryFrom<&types::TokenizationRouterData> for MollieCardTokenRequest {
                 let testmode =
                     item.test_mode
                         .ok_or(errors::ConnectorError::MissingRequiredField {
-                            field_name: "test_mode",
+                            field_name: "test_mode".into(),
                         })?;
                 let profile_token = auth
                     .profile_token
@@ -687,7 +687,7 @@ fn get_payment_method_for_wallet(
                 .payment_data
                 .get_encrypted_apple_pay_payment_data_mandatory()
                 .change_context(errors::ConnectorError::MissingRequiredField {
-                    field_name: "Apple pay encrypted data",
+                    field_name: "Apple pay encrypted data".into(),
                 })?;
             Ok(MolliePaymentMethodData::Applepay(Box::new(
                 ApplePayMethodData {

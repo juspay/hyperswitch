@@ -96,7 +96,7 @@ pub async fn list_card_issuers(
                 .map(ForeignTryInto::foreign_try_into)
                 .collect::<Result<Vec<_>, _>>()
                 .map_err(|_| errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "issuer_name",
+                    field_name: "issuer_name".into(),
                 })?,
         },
     ))

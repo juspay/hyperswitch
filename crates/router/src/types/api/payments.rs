@@ -91,7 +91,7 @@ impl PaymentIdTypeExt for PaymentIdType {
             Self::ConnectorTransactionId(_)
             | Self::PaymentAttemptId(_)
             | Self::PreprocessingId(_) => Err(errors::ValidationError::IncorrectValueProvided {
-                field_name: "payment_id",
+                field_name: "payment_id".into(),
             })
             .attach_printable("Expected payment intent ID but got connector transaction ID"),
         }
@@ -106,7 +106,7 @@ impl PaymentIdTypeExt for PaymentIdType {
             Self::ConnectorTransactionId(_)
             | Self::PaymentAttemptId(_)
             | Self::PreprocessingId(_) => Err(errors::ValidationError::IncorrectValueProvided {
-                field_name: "payment_id",
+                field_name: "payment_id".into(),
             })
             .attach_printable("Expected payment intent ID but got connector transaction ID"),
         }

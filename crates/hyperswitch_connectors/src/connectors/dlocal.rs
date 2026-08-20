@@ -635,7 +635,7 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Dlocal {
     ) -> CustomResult<String, errors::ConnectorError> {
         let refund_id = req.request.connector_refund_id.clone().ok_or(
             errors::ConnectorError::MissingRequiredField {
-                field_name: "connector_refund_id",
+                field_name: "connector_refund_id".into(),
             },
         )?;
         Ok(format!(
