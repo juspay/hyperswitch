@@ -6305,27 +6305,14 @@ impl PaymentMethodDataResponseWithBilling {
     }
 }
 
-/// Details of the payment connector against which the recovery payment attempt was made.
-#[derive(Debug, Clone, serde::Deserialize, ToSchema, serde::Serialize)]
-pub struct RecoveryPaymentConnectorDetails {
-    /// Payments connector id to update the invoices.
-    #[schema(value_type = String, example = "mca_payment_1234567890")]
-    pub id: id_type::MerchantConnectorAccountId,
-
-    /// Customer id at the payment connector for which mandate is attached.
-    #[schema(value_type = String, example = "cust_12345")]
-    pub customer_id: Secret<String>,
-
-    /// A unique identifier for a payment provided by the payment connector.
-    #[schema(value_type = Option<String>, example = "993672945374576J")]
-    pub transaction_id: Option<Secret<String>>,
-
-    /// Primary payment method token at the payment connector end.
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, ToSchema, serde::Serialize)]
+pub struct CustomRecoveryPaymentMethodData {
+    /// Primary payment method token at payment processor end.
     #[schema(value_type = String, example = "token_1234")]
-    pub payment_method_token: Secret<String>,
+    pub primary_processor_payment_method_token: Secret<String>,
 
     /// Card details associated with the primary payment method token.
-    pub payment_method_token_details: AdditionalCardInfo,
+    pub payment_method_metadata: AdditionalCardInfo,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -13874,11 +13861,13 @@ pub struct RecoveryPaymentsCreate {
     #[schema(value_type = String, example = "mca_1234567890")]
     pub billing_merchant_connector_id: id_type::MerchantConnectorAccountId,
 
-    /// Details of the payment connector against which this attempt was made.
-    pub payment_connector_details: RecoveryPaymentConnectorDetails,
+    /// Payments connector id to update the invoices.
+    #[schema(value_type = String, example = "mca_1234567890")]
+    pub payment_merchant_connector_id: id_type::MerchantConnectorAccountId,
 
+    /// The status of the transaction at the payment connector.
     #[schema(value_type = AttemptStatus, example = "charged")]
-    pub attempt_status: enums::AttemptStatus,
+    pub transaction_status: enums::AttemptStatus,
 
     /// The billing details of the payment attempt.
     pub billing: Option<Address>,
@@ -13896,10 +13885,21 @@ pub struct RecoveryPaymentsCreate {
     #[schema(value_type = Option<PaymentMethod>, example = "wallet")]
     pub payment_method_type: common_enums::PaymentMethod,
 
+    /// customer id at payment connector for which mandate is attached.
+    #[schema(value_type = String, example = "cust_12345")]
+    pub connector_customer_id: Secret<String>,
+
     /// Invoice billing started at billing connector end.
     #[schema(example = "2022-09-10T10:11:12Z")]
     #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
     pub billing_started_at: Option<PrimitiveDateTime>,
+
+    /// A unique identifier for a payment provided by the payment connector
+    #[schema(value_type = Option<String>, example = "993672945374576J")]
+    pub connector_transaction_id: Option<Secret<String>>,
+
+    /// payment method token units at payment processor end.
+    pub payment_method_data: CustomRecoveryPaymentMethodData,
 
     /// Type of action that needs to be taken after consuming the recovery payload. For example: scheduling a failed payment or stopping the invoice.
     #[schema(value_type = RecoveryAction, example = "schedule_failed_payment")]

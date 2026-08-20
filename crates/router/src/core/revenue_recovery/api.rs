@@ -263,7 +263,7 @@ pub async fn custom_revenue_recovery_core(
     request: api_models::payments::RecoveryPaymentsCreate,
 ) -> RouterResponse<payments_api::RecoveryPaymentsResponse> {
     let store = state.store.as_ref();
-    let payment_merchant_connector_account_id = request.payment_connector_details.id.to_owned();
+    let payment_merchant_connector_account_id = request.payment_merchant_connector_id.to_owned();
     // Find the payment & billing merchant connector id at the top level to avoid multiple DB calls.
     let payment_merchant_connector_account = store
         .find_merchant_connector_account_by_id(

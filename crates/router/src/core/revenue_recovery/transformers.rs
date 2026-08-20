@@ -70,30 +70,23 @@ impl ForeignFrom<&api_models::payments::RecoveryPaymentsCreate>
             amount: data.amount_details.order_amount().into(),
             currency: data.amount_details.currency(),
             merchant_reference_id: data.merchant_reference_id.to_owned(),
-            connector_transaction_id: data.payment_connector_details.transaction_id.as_ref().map(
-                |txn_id| {
-                    common_utils::types::ConnectorTransactionId::TxnId(txn_id.peek().to_string())
-                },
-            ),
+            connector_transaction_id: data.connector_transaction_id.as_ref().map(|txn_id| {
+                common_utils::types::ConnectorTransactionId::TxnId(txn_id.peek().to_string())
+            }),
             error_code: data.error.as_ref().map(|error| error.code.clone()),
             error_message: data.error.as_ref().map(|error| error.message.clone()),
             processor_payment_method_token: data
-                .payment_connector_details
-                .payment_method_token
+                .payment_method_data
+                .primary_processor_payment_method_token
                 .peek()
                 .to_string(),
-            connector_customer_id: data
-                .payment_connector_details
-                .customer_id
-                .peek()
-                .to_string(),
+            connector_customer_id: data.connector_customer_id.peek().to_string(),
             connector_account_reference_id: data
-                .payment_connector_details
-                .id
+                .payment_merchant_connector_id
                 .get_string_repr()
                 .to_string(),
             transaction_created_at: data.transaction_created_at.to_owned(),
-            status: data.attempt_status,
+            status: data.transaction_status,
             payment_method_type: data.payment_method_type,
             payment_method_sub_type: data.payment_method_sub_type,
             network_advice_code: data
@@ -112,10 +105,7 @@ impl ForeignFrom<&api_models::payments::RecoveryPaymentsCreate>
             retry_count: None,
             invoice_next_billing_time: None,
             invoice_billing_started_at_time: data.billing_started_at,
-            card_info: data
-                .payment_connector_details
-                .payment_method_token_details
-                .clone(),
+            card_info: data.payment_method_data.payment_method_metadata.clone(),
             charge_id: None,
         }
     }
