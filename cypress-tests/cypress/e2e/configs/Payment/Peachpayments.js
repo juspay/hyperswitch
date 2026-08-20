@@ -337,6 +337,9 @@ export const connectorDetails = {
       },
     },
     ZeroAuthConfirmPayment: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_type: "setup_mandate",
         payment_method: "card",
