@@ -48,8 +48,6 @@ use time::Duration;
 #[cfg(all(feature = "olap", feature = "payouts"))]
 use crate::consts as payout_consts;
 #[cfg(feature = "olap")]
-use crate::types::domain::behaviour::Conversion;
-#[cfg(feature = "olap")]
 use crate::types::PayoutActionData;
 use crate::{
     core::{
@@ -832,7 +830,6 @@ pub async fn payouts_list_core(
     profile_id_list: Option<Vec<id_type::ProfileId>>,
     constraints: payouts::PayoutListConstraints,
 ) -> RouterResponse<payouts::PayoutListResponse> {
-    validator::validate_payout_list_request(&constraints)?;
     let merchant_id = platform.get_processor().get_account().get_id();
     let db = state.store.as_ref();
     let payouts = helpers::filter_by_constraints(
@@ -975,8 +972,8 @@ pub async fn payouts_filtered_list_core(
     profile_id_list: Option<Vec<id_type::ProfileId>>,
     filters: payouts::PayoutListFilterConstraints,
 ) -> RouterResponse<payouts::PayoutListResponse> {
-    let limit = &filters.limit;
-    validator::validate_payout_list_request_for_joins(*limit)?;
+    let limit = filters.limit;
+    validator::validate_payout_list_request_for_joins(limit)?;
     let db = state.store.as_ref();
     let constraints = filters.clone().into();
     let list: Vec<(
@@ -997,7 +994,7 @@ pub async fn payouts_filtered_list_core(
         join_all(list.into_iter().map(|(p, pa, customer, address)| async {
             let customer: Option<domain::Customer> = customer
                 .async_and_then(|cust| async {
-                    domain::Customer::convert_back(
+                    <domain::Customer as storage_impl::behaviour::Conversion>::convert_back(
                         &(&state).into(),
                         cust,
                         &(platform.get_processor().get_key_store().clone()).key,
@@ -1019,7 +1016,7 @@ pub async fn payouts_filtered_list_core(
 
             let payout_addr: Option<payment_enums::Address> = address
                 .async_and_then(|addr| async {
-                    domain::Address::convert_back(
+                    <domain::Address as domain::behaviour::Conversion>::convert_back(
                         &(&state).into(),
                         addr,
                         &(platform.get_processor().get_key_store().clone()).key,
