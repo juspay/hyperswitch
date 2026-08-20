@@ -1,6 +1,9 @@
 use std::collections::HashMap;
 
-use common_utils::{pii::Email, types::SemanticVersion};
+use common_utils::{
+    pii::Email,
+    types::{MinorUnit, SemanticVersion},
+};
 use hyperswitch_domain_models::router_request_types::{
     authentication::MessageCategory, BrowserInformation,
 };
@@ -922,7 +925,7 @@ pub struct Purchase {
     ///
     /// Starting from EMV 3DS 2.3.1:
     /// Additionally this field is required for messageCategory = 02 (NPA) if threeRIInd = 01, 02, 06, 07, 08, 09, or 11.
-    pub purchase_amount: Option<i64>,
+    pub purchase_amount: Option<MinorUnit>,
 
     /// Currency in which purchase amount is expressed. The value is limited to 3 numeric characters and is represented by
     /// the ISO 4217 three-digit currency code, except 955-964 and 999.
@@ -989,7 +992,7 @@ pub struct Purchase {
     /// purchaseAmount != recurringAmount AND recurringInd = 01.
     ///
     /// Available for supporting EMV 3DS 2.3.1 and later versions.
-    pub recurring_amount: Option<i64>,
+    pub recurring_amount: Option<MinorUnit>,
 
     /// Currency in which recurring amount is expressed. The value is limited to 3 numeric characters and is represented by
     /// the ISO 4217 three-digit currency code, except 955-964 and 999.
