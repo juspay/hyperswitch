@@ -2,7 +2,6 @@ class State {
   data = {};
   constructor(data) {
     // Initialize data with passed-in state values (enables state inheritance between test contexts)
-    // Cannot be reverted - removing breaks API key initialization and causes IR_01 authentication errors
     this.data = data || {};
     this.data["connectorId"] = this.getEnvOrState("CONNECTOR", "connectorId");
     // Keep original connector when connectorId gets changed (e.g., stripeconnect -> stripe); optional and defaults to connectorId if not explicitly set.
