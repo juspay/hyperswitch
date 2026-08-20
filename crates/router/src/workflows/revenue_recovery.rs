@@ -50,7 +50,6 @@ use time::{Date, OffsetDateTime, Time};
 
 #[cfg(feature = "v2")]
 use crate::core::payments::operations;
-use crate::core::revenue_recovery::retry_stats::document::{SlotCounter, StatsDocument};
 #[cfg(feature = "v2")]
 use crate::routes::app::ReqState;
 #[cfg(feature = "v2")]
@@ -82,7 +81,11 @@ use crate::{
         },
     },
 };
-use crate::{routes::SessionState, types::storage};
+use crate::{
+    core::revenue_recovery::retry_stats::document::{SlotCounter, StatsDocument},
+    routes::SessionState,
+    types::storage,
+};
 pub struct ExecutePcrWorkflow;
 #[cfg(feature = "v2")]
 pub const REVENUE_RECOVERY: &str = "revenue_recovery";
