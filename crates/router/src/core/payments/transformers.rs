@@ -7604,6 +7604,9 @@ impl ForeignFrom<&diesel_models::types::BillingConnectorPaymentMethodDetails>
                 Self::Card(api_models::payments::BillingConnectorAdditionalCardInfo {
                     card_issuer: card_details.card_issuer.clone(),
                     card_network: card_details.card_network.clone(),
+                    card_type: card_details.card_type.clone(),
+                    card_issuing_country: card_details.card_issuing_country.clone(),
+                    card_isin: card_details.card_isin.clone(),
                 })
             }
         }
@@ -7690,11 +7693,6 @@ impl ForeignFrom<&diesel_models::types::FeatureMetadata> for api_models::payment
                         .clone(),
                     invoice_billing_started_at_time: payment_revenue_recovery_metadata
                         .invoice_billing_started_at_time,
-                    card_type: payment_revenue_recovery_metadata.card_type.clone(),
-                    card_issuing_country: payment_revenue_recovery_metadata
-                        .card_issuing_country
-                        .clone(),
-                    card_isin: payment_revenue_recovery_metadata.card_isin.clone(),
                 }
             });
         let apple_pay_details = feature_metadata

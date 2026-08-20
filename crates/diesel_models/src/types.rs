@@ -497,13 +497,6 @@ pub struct PaymentRevenueRecoveryMetadata {
     pub first_payment_attempt_network_decline_code: Option<String>,
     /// First Payment Attempt Network Advice Code
     pub first_payment_attempt_network_advice_code: Option<String>,
-    /// Funding type of the card, `credit` or `debit`, enriched from the card bin
-    pub card_type: Option<String>,
-    /// Country in which the card was issued, enriched from the card bin
-    pub card_issuing_country: Option<String>,
-    /// Issuer identification number of the card, retained so that any further card details can
-    /// be looked up from it later
-    pub card_isin: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
@@ -529,4 +522,11 @@ pub struct BillingConnectorAdditionalCardInfo {
     pub card_network: Option<common_enums::enums::CardNetwork>,
     /// Card Issuer
     pub card_issuer: Option<String>,
+    /// Funding type of the card, `credit` or `debit`, enriched from the card bin
+    pub card_type: Option<String>,
+    /// Country in which the card was issued, enriched from the card bin
+    pub card_issuing_country: Option<String>,
+    /// Issuer identification number of the card, retained so that any further card details can
+    /// be looked up from it later
+    pub card_isin: Option<String>,
 }

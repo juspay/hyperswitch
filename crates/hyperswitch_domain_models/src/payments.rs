@@ -1609,21 +1609,19 @@ where
                 },
             );
 
+        // The bin derived details are enriched onto the attempt's payment method data rather than
+        // being sent by the billing connector, so they are read back from there.
         let billing_connector_payment_method_details = Some(
             diesel_models::types::BillingConnectorPaymentMethodDetails::Card(
                 diesel_models::types::BillingConnectorAdditionalCardInfo {
                     card_network: self.revenue_recovery_data.card_network.clone(),
                     card_issuer: self.revenue_recovery_data.card_issuer.clone(),
+                    card_type: self.payment_attempt.extract_card_type(),
+                    card_issuing_country: self.payment_attempt.extract_card_issuing_country(),
+                    card_isin: self.payment_attempt.extract_card_isin(),
                 },
             ),
         );
-
-        // These are enriched from the card bin onto the attempt's payment method data rather than
-        // being sent by the billing connector, so they are read back from there and stored on the
-        // recovery metadata directly.
-        let card_type = self.payment_attempt.extract_card_type();
-        let card_issuing_country = self.payment_attempt.extract_card_issuing_country();
-        let card_isin = self.payment_attempt.extract_card_isin();
 
         let payment_revenue_recovery_metadata = match payment_attempt_connector {
             Some(connector) => Some(diesel_models::types::PaymentRevenueRecoveryMetadata {
@@ -1671,9 +1669,6 @@ where
                 first_payment_attempt_network_advice_code: first_network_advice_code,
                 first_payment_attempt_network_decline_code: first_network_decline_code,
                 first_payment_attempt_pg_error_code: first_pg_error_code,
-                card_type,
-                card_issuing_country,
-                card_isin,
             }),
             None => Err(errors::api_error_response::ApiErrorResponse::InternalServerError)
                 .attach_printable("Connector not found in payment attempt")?,
