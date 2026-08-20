@@ -1,4 +1,4 @@
-use common_enums::ExecutionMode;
+use common_enums::{connector_enums::Connector, ExecutionMode};
 use common_utils::errors::CustomResult;
 use error_stack::{report, ResultExt};
 use external_services::grpc_client::LineageIds;
@@ -84,13 +84,16 @@ pub async fn request_account_updater_refresh(
         .attach_printable("UCS returned neither a result nor an error")?;
 
     match result {
-        payments_grpc::refresh_result::Result::Card(card) => {
-            Ok(RefreshResult::Card(build_card_refresh_result(card)))
-        }
+        payments_grpc::refresh_result::Result::Card(card) => Ok(RefreshResult::Card(
+            build_card_refresh_result(card, config.service()),
+        )),
     }
 }
 
-fn build_card_refresh_result(card_result: payments_grpc::CardRefreshResult) -> CardRefreshResult {
+fn build_card_refresh_result(
+    card_result: payments_grpc::CardRefreshResult,
+    service: Connector,
+) -> CardRefreshResult {
     let outcome = payments_grpc::CardRefreshOutcome::try_from(card_result.outcome)
         .unwrap_or(payments_grpc::CardRefreshOutcome::Unspecified);
 
@@ -112,5 +115,6 @@ fn build_card_refresh_result(card_result: payments_grpc::CardRefreshResult) -> C
     CardRefreshResult {
         outcome,
         refreshed_card,
+        service,
     }
 }

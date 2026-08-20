@@ -276,12 +276,9 @@ impl PaymentMethod {
             pm_id.eq(id.to_owned()),
             Some(1),
             None,
-            Some((
-                dsl::status
-                    .ne(storage_enums::PaymentMethodStatus::Redacted)
-                    .desc(),
-                dsl::created_at.desc(),
-            )),
+            // An id can span several rows once a reported card change has been applied. The
+            // replacement row is always the newest, so the newest row is the one serving the id.
+            Some(dsl::created_at.desc()),
         )
         .await?
         .into_iter()

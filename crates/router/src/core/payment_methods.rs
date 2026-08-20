@@ -5969,6 +5969,7 @@ pub async fn retrieve_payment_method(
 
     let updated_payment_method = match refresh_result {
         Some(account_updater::types::RefreshResult::Card(card_result)) => {
+            let service = card_result.service;
             match card_result.refreshed_card {
                 Some(refreshed_card) => {
                     Box::pin(account_updater::create_payment_method_for_refreshed_card(
@@ -5976,6 +5977,7 @@ pub async fn retrieve_payment_method(
                         &platform,
                         &profile,
                         &payment_method,
+                        service,
                         refreshed_card,
                     ))
                     .await

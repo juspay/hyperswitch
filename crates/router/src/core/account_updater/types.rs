@@ -50,6 +50,13 @@ impl ResolvedAccountUpdaterConfig {
         }
     }
 
+    /// The account updater service backing this config, recorded against every row it writes.
+    pub fn service(&self) -> Connector {
+        match self {
+            Self::Juspay(_) => Connector::Juspay,
+        }
+    }
+
     /// Builds the connector, auth type and metadata the connector config is resolved from.
     pub fn build_connector_credentials(
         &self,
@@ -121,6 +128,8 @@ pub struct CardRefreshResult {
     pub outcome: payments_grpc::CardRefreshOutcome,
     /// Carries a card only on the outcomes that supersede the stored one.
     pub refreshed_card: Option<payments_grpc::CardDetailsWithNoCvc>,
+    /// The service that reported the change, attributed on the rows written to apply it.
+    pub service: Connector,
 }
 
 #[derive(Debug, thiserror::Error, serde::Serialize)]

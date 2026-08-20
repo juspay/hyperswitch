@@ -1590,8 +1590,8 @@ impl_enum_str!(
         },
         /// AccountUpdater variant, for writes made while applying a reported card change
         AccountUpdater {
-            /// merchant id whose payment method was updated.
-            merchant_id: String,
+            /// account updater service that reported the change.
+            service: String,
         },
     }
 );

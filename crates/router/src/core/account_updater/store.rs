@@ -1,5 +1,6 @@
 //! Writes a refreshed card as a new payment method row under the same id, then redacts the existing row
 
+use common_enums::connector_enums::Connector;
 use common_utils::{
     errors::CustomResult,
     ext_traits::{OptionExt, ValueExt},
@@ -26,6 +27,7 @@ pub async fn create_payment_method_for_refreshed_card(
     platform: &domain::Platform,
     profile: &domain::Profile,
     payment_method: &domain::PaymentMethod,
+    service: Connector,
     refreshed_card: payments_grpc::CardDetailsWithNoCvc,
 ) -> CustomResult<Option<domain::PaymentMethod>, AccountUpdaterError> {
     let stored_card = payment_method
@@ -97,6 +99,7 @@ pub async fn create_payment_method_for_refreshed_card(
         state,
         platform,
         payment_method,
+        service,
         &vaulting_data,
         Some(vault_response.vault_id.clone()),
         locker_fingerprint_id,
@@ -120,7 +123,7 @@ pub async fn create_payment_method_for_refreshed_card(
     .change_context(AccountUpdaterError::StoreFailed)
     .attach_printable("Failed to delete the superseded payment method")?;
 
-    activate_refreshed_payment_method(state, platform, inserted_payment_method)
+    activate_refreshed_payment_method(state, platform, service, inserted_payment_method)
         .await
         .map(Some)
 }
@@ -165,11 +168,12 @@ fn build_new_card(
 async fn activate_refreshed_payment_method(
     state: &SessionState,
     platform: &domain::Platform,
+    service: Connector,
     payment_method: domain::PaymentMethod,
 ) -> CustomResult<domain::PaymentMethod, AccountUpdaterError> {
     let update = storage::PaymentMethodUpdate::StatusUpdate {
         status: Some(common_enums::PaymentMethodStatus::Active),
-        last_modified_by: Some(account_updater_created_by(platform).to_string()),
+        last_modified_by: Some(account_updater_created_by(service).to_string()),
     };
 
     state
@@ -191,14 +195,9 @@ async fn activate_refreshed_payment_method(
         .or(Ok(payment_method))
 }
 
-fn account_updater_created_by(platform: &domain::Platform) -> common_utils::types::CreatedBy {
+fn account_updater_created_by(service: Connector) -> common_utils::types::CreatedBy {
     common_utils::types::CreatedBy::AccountUpdater {
-        merchant_id: platform
-            .get_provider()
-            .get_account()
-            .get_id()
-            .get_string_repr()
-            .to_owned(),
+        service: service.to_string(),
     }
 }
 
@@ -207,6 +206,7 @@ async fn build_refreshed_payment_method(
     state: &SessionState,
     platform: &domain::Platform,
     payment_method: &domain::PaymentMethod,
+    service: Connector,
     vaulting_data: &domain::PaymentMethodVaultingData,
     locker_id: Option<domain::VaultId>,
     locker_fingerprint_id: String,
@@ -215,7 +215,7 @@ async fn build_refreshed_payment_method(
     payment_method_subtype: Option<common_enums::PaymentMethodType>,
 ) -> CustomResult<domain::PaymentMethod, AccountUpdaterError> {
     let now = common_utils::date_time::now();
-    let created_by = account_updater_created_by(platform);
+    let created_by = account_updater_created_by(service);
     let created_by_string = created_by.to_string();
 
     let encrypted_payment_method_data = core_utils::create_encrypted_data(
