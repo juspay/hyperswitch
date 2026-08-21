@@ -10081,6 +10081,8 @@ pub struct ConnectorMetadata {
     pub noon: Option<NoonData>,
     #[smithy(value_type = "Option<BraintreeData>")]
     pub braintree: Option<BraintreeData>,
+    #[smithy(value_type = "Option<DatatransConnectorMetadataData>")]
+    pub datatrans: Option<DatatransConnectorMetadataData>,
     #[smithy(value_type = "Option<AdyenConnectorMetadata>")]
     pub adyen: Option<AdyenConnectorMetadata>,
     #[smithy(value_type = "Option<PeachpaymentsData>")]
@@ -10164,6 +10166,37 @@ pub struct BraintreeData {
     #[schema(value_type = String)]
     #[smithy(value_type = "String")]
     pub merchant_config_currency: Option<api_enums::Currency>,
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct DatatransConnectorMetadataData {
+    /// The targeted currency.
+    #[smithy(value_type = "Currency")]
+    pub currency: api_enums::Currency,
+    /// The amount in the targeted currency.
+    #[schema(value_type = i64)]
+    #[smithy(value_type = "i64")]
+    pub amount: MinorUnit,
+    /// Conversion rate received from the currency rates endpoint. Required for dynamic MCP.
+    #[smithy(value_type = "Option<f64>")]
+    pub conversion_rate: Option<f64>,
+    /// Transaction datetime received from the currency rates endpoint.
+    #[schema(value_type = Option<PrimitiveDateTime>)]
+    #[smithy(value_type = "Option<PrimitiveDateTime>")]
+    #[serde(with = "common_utils::custom_serde::iso8601::option")]
+    pub transaction_date: Option<PrimitiveDateTime>,
+    /// RetrievalReferenceNumber received from the currency rates endpoint.
+    #[smithy(value_type = "Option<String>")]
+    pub retrieval_reference_number: Option<String>,
+    #[smithy(value_type = "String")]
+    pub user_id: String,
+    /// The provider for multi currency processing.
+    #[smithy(value_type = "String")]
+    pub provider: String,
+    /// Reason indicator received from the acquirer.
+    #[smithy(value_type = "String")]
+    pub reason_indicator: String,
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
