@@ -14,6 +14,10 @@ pub fn convert(
     amount: i64,
 ) -> Result<Decimal, CurrencyConversionError> {
     let money_minor = Money::from_minor(amount, currency_match(from_currency));
+    if from_currency == to_currency {
+        return Ok(*money_minor.amount());
+    }
+
     let base_currency = ex_rates.base_currency;
     if to_currency == base_currency {
         ex_rates.forward_conversion(*money_minor.amount(), from_currency)
@@ -87,5 +91,29 @@ mod tests {
         let res =
             convert(&sample_rate, convert_from, convert_to, amount).expect("converted_currency");
         println!("The conversion from {amount} {convert_from} to {convert_to} is {res:?}");
+    }
+
+    #[test]
+    fn same_currency_conversion_returns_original_amount() {
+        use super::*;
+        let conversion: HashMap<Currency, CurrencyFactors> = HashMap::new();
+        let sample_rate = ExchangeRates::new(Currency::USD, conversion);
+
+        let res = convert(&sample_rate, Currency::INR, Currency::INR, 2000)
+            .expect("same_currency_conversion");
+
+        assert_eq!(res, Decimal::new(2000, 2));
+    }
+
+    #[test]
+    fn same_base_currency_conversion_returns_original_amount() {
+        use super::*;
+        let conversion: HashMap<Currency, CurrencyFactors> = HashMap::new();
+        let sample_rate = ExchangeRates::new(Currency::USD, conversion);
+
+        let res = convert(&sample_rate, Currency::USD, Currency::USD, 2000)
+            .expect("same_base_currency_conversion");
+
+        assert_eq!(res, Decimal::new(2000, 2));
     }
 }
