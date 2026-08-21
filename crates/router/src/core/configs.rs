@@ -210,8 +210,27 @@ where
     let config_type = C::KEY;
     let default_value = C::default_value();
 
+    // Times the Superposition resolution itself. Log-gap analysis cannot separate
+    // this from unlogged work preceding the call, so measure it directly.
+    let fetch_started_at = std::time::Instant::now();
     let superposition_result =
         C::fetch(superposition_client, context.as_ref(), targeting_key).await;
+    let fetch_elapsed = fetch_started_at.elapsed();
+
+    metrics::CONFIG_SUPERPOSITION_FETCH_TIME.record(
+        fetch_elapsed.as_secs_f64() * 1000f64,
+        router_env::metric_attributes!(
+            ("config_key", config_type),
+            (
+                "outcome",
+                if superposition_result.is_ok() {
+                    "resolved"
+                } else {
+                    "fallback"
+                }
+            )
+        ),
+    );
 
     match superposition_result {
         Ok(value) => {

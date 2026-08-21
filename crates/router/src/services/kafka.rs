@@ -376,9 +376,15 @@ impl KafkaProducer {
     }
 
     pub fn log_event<T: KafkaMessage>(&self, event: &T) -> MQResult<()> {
+        // Only the inline portion is timed: serialising the payload and enqueueing
+        // it. `ThreadedProducer` + `BaseRecord` is fire-and-forget, so the broker
+        // round trip happens on the producer's own thread and is excluded.
+        let publish_started_at = std::time::Instant::now();
         router_env::logger::debug!("Logging Kafka Event {event:?}");
         let topic = self.get_topic(event.event_type());
-        self.producer
+        let event_type = format!("{:?}", event.event_type());
+        let result = self
+            .producer
             .0
             .send(
                 BaseRecord::to(topic)
@@ -395,7 +401,17 @@ impl KafkaProducer {
                     })),
             )
             .map_err(|(error, record)| report!(error).attach_printable(format!("{record:?}")))
-            .change_context(KafkaError::GenericError)
+            .change_context(KafkaError::GenericError);
+
+        crate::routes::metrics::KAFKA_EVENT_PUBLISH_TIME.record(
+            publish_started_at.elapsed().as_secs_f64() * 1000f64,
+            router_env::metric_attributes!(
+                ("event_type", event_type),
+                ("outcome", if result.is_ok() { "enqueued" } else { "error" })
+            ),
+        );
+
+        result
     }
     pub async fn log_fraud_check(
         &self,

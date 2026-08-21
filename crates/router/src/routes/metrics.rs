@@ -358,6 +358,16 @@ counter_metric!(MERCHANT_ADVICE_CODE_CONFIG_MISS, GLOBAL_METER);
 counter_metric!(CONFIG_DATABASE_FETCH, GLOBAL_METER); // When fetched from database
 counter_metric!(CONFIG_DEFAULT_FALLBACK, GLOBAL_METER); // When defaulted to application default
 
+// Time spent inside the Superposition client resolving one config key, tagged by
+// `config_key` and `outcome`. Resolution is local (the provider evaluates a polled
+// cache in-process), so this is CPU, not a network call.
+histogram_metric_f64!(CONFIG_SUPERPOSITION_FETCH_TIME, GLOBAL_METER);
+
+// Time spent inline on the request task publishing one Kafka event: serialising the
+// payload and enqueueing it. The broker round trip happens on the producer's own
+// thread and is NOT included here.
+histogram_metric_f64!(KAFKA_EVENT_PUBLISH_TIME, GLOBAL_METER);
+
 // Payment Method (modular service) business-level metrics
 counter_metric!(PAYMENT_METHOD_OPS_COUNT, GLOBAL_METER);
 histogram_metric_f64!(PAYMENT_METHOD_OPERATION_DURATION, GLOBAL_METER);

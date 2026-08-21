@@ -151,12 +151,15 @@ impl PaymentMethodSessionConfirmFastPathOutcome {
         retrieve_flag_enabled: bool,
         eligible: bool,
     ) -> Self {
-        if !confirm_flag_enabled {
+        // Eligibility is checked first because the caller resolves it before the
+        // configuration lookups and skips them when ineligible, so the flags are
+        // reported as `false` in that case and would otherwise mask the real reason.
+        if !eligible {
+            Self::Ineligible
+        } else if !confirm_flag_enabled {
             Self::Disabled
         } else if !retrieve_flag_enabled {
             Self::RetrieveFlagDisabled
-        } else if !eligible {
-            Self::Ineligible
         } else {
             Self::Selected
         }
@@ -7650,28 +7653,9 @@ pub async fn payment_methods_session_confirm(
     let dimensions = dimension_state::Dimensions::new()
         .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
 
-    let should_use_redis_for_payment_method_session_confirm = dimensions
-        .get_should_use_redis_for_payment_method_session_confirm(
-            state.store.as_ref(),
-            state.superposition_service.as_ref(),
-            payment_method_session.customer_id.as_ref(),
-        )
-        .await;
-
-    // Avoid a second configuration lookup on the overwhelmingly common flag-disabled path.
-    let should_use_redis_for_payment_method_retrieve =
-        if should_use_redis_for_payment_method_session_confirm {
-            dimensions
-                .get_should_use_redis_for_payment_method_retrieve(
-                    state.store.as_ref(),
-                    state.superposition_service.as_ref(),
-                    payment_method_session.customer_id.as_ref(),
-                )
-                .await
-        } else {
-            false
-        };
-
+    // Eligibility is decided from data already in hand, so resolve it before any
+    // configuration lookup. Each Superposition lookup costs ~13ms, and an
+    // ineligible request can never take the fast path however the flags resolve.
     let is_redis_fast_path_eligible = matches!(storage_type, common_enums::StorageType::Persistent)
         && matches!(
             request.payment_method_type,
@@ -7683,6 +7667,37 @@ pub async fn payment_methods_session_confirm(
         )
         && payment_method_session.customer_id.is_some()
         && !state.conf.micro_services.use_legacy_locker;
+
+    let (
+        should_use_redis_for_payment_method_session_confirm,
+        should_use_redis_for_payment_method_retrieve,
+    ) = if is_redis_fast_path_eligible {
+        let confirm = dimensions
+            .get_should_use_redis_for_payment_method_session_confirm(
+                state.store.as_ref(),
+                state.superposition_service.as_ref(),
+                payment_method_session.customer_id.as_ref(),
+            )
+            .await;
+
+        // Avoid a second configuration lookup on the overwhelmingly common
+        // flag-disabled path.
+        let retrieve = if confirm {
+            dimensions
+                .get_should_use_redis_for_payment_method_retrieve(
+                    state.store.as_ref(),
+                    state.superposition_service.as_ref(),
+                    payment_method_session.customer_id.as_ref(),
+                )
+                .await
+        } else {
+            false
+        };
+
+        (confirm, retrieve)
+    } else {
+        (false, false)
+    };
 
     // The confirm fast path is safe only when retrieve is also Redis-first. Otherwise the
     // returned token could be consumed before the background task has written the card to Vault.
