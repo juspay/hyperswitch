@@ -688,7 +688,7 @@ where
             .await?;
 
             if is_frm_enabled {
-                pre_payment_frm_core(
+                Box::pin(pre_payment_frm_core(
                     state,
                     platform,
                     payment_data,
@@ -697,7 +697,7 @@ where
                     should_continue_transaction,
                     should_continue_capture,
                     operation,
-                )
+                ))
                 .await?;
             }
             *frm_info = Some(updated_frm_info);
