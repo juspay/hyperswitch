@@ -431,4 +431,21 @@ impl ConnectorSpecifications for AbsaSanlam {
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
         Some(&ABSA_SANLAM_SUPPORTED_WEBHOOK_FLOWS)
     }
+
+    #[cfg(feature = "frm")]
+    fn get_frm_metadata(
+        &self,
+        payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
+    ) -> CustomResult<Option<common_utils::pii::SecretSerdeValue>, errors::ConnectorError> {
+        let metadata = absa_sanlam::AbsaSanlamFrmMetadata {
+            profile_id: payment_attempt.profile_id.get_string_repr().to_owned(),
+            connector_id: payment_attempt
+                .merchant_connector_id
+                .as_ref()
+                .map(|id| id.get_string_repr().to_owned()),
+        };
+        serde_json::to_value(metadata)
+            .change_context(errors::ConnectorError::RequestEncodingFailed)
+            .map(|value| Some(hyperswitch_masking::Secret::new(value)))
+    }
 }

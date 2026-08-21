@@ -10,6 +10,7 @@ use crate::{
         errors::{ConnectorErrorExt, RouterResult},
         fraud_check::types::FrmData,
         payments::{self, helpers},
+        utils::get_gateway_frm_metadata,
     },
     errors, services,
     types::{
@@ -140,8 +141,7 @@ impl ConstructFlowSpecificData<frm_api::Checkout, FraudCheckCheckoutData, FraudC
                 email,
                 phone,
                 phone_country_code,
-                profile_id: self.connector_details.profile_id.clone(),
-                gateway_mca_id: self.payment_attempt.merchant_connector_id.clone(),
+                gateway_metadata: get_gateway_frm_metadata(&state.conf, &self.payment_attempt)?,
             },
             response: Ok(FraudCheckResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId("".to_string()),

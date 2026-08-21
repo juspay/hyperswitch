@@ -259,8 +259,7 @@ where
                 email: router_data.request.email,
                 phone: router_data.request.phone,
                 phone_country_code: router_data.request.phone_country_code,
-                profile_id: router_data.request.profile_id,
-                gateway_mca_id: router_data.request.gateway_mca_id,
+                gateway_metadata: router_data.request.gateway_metadata,
             })),
             response: FrmResponse::Checkout(router_data.response),
         })

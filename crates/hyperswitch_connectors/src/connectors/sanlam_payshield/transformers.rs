@@ -1,6 +1,6 @@
 use api_models::payments::{additional_info::BankDebitAdditionalData, AdditionalPaymentData};
 use common_enums::FraudCheckStatus;
-use common_utils::pii::SecretSerdeValue;
+use common_utils::{ext_traits::ValueExt, pii::SecretSerdeValue};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     router_data::ConnectorAuthType, router_request_types::ResponseId,
@@ -32,6 +32,12 @@ impl TryFrom<&ConnectorAuthType> for SanlamPayshieldAuthType {
     }
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SanlamPayshieldFrmMetadata {
+    pub profile_id: String,
+    pub connector_id: Option<String>,
+}
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SanlamPayshieldCheckoutRequest {
@@ -61,7 +67,7 @@ pub struct Transaction {
 }
 
 #[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum PaymentMethodType {
     EftDebitOrder,
 }
@@ -70,21 +76,31 @@ impl TryFrom<&FrmCheckoutRouterData> for SanlamPayshieldCheckoutRequest {
     type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(data: &FrmCheckoutRouterData) -> Result<Self, Self::Error> {
-        let connector_id = data
+        let SanlamPayshieldFrmMetadata {
+            profile_id,
+            connector_id,
+        } = data
             .request
-            .gateway_mca_id
-            .as_ref()
+            .gateway_metadata
+            .clone()
             .ok_or(ConnectorError::MissingRequiredField {
-                field_name: "gateway",
+                field_name: "gateway_metadata",
             })?
-            .get_string_repr()
-            .to_owned();
+            .parse_value("SanlamPayshieldFrmMetadata")
+            .change_context(ConnectorError::RequestEncodingFailed)
+            .attach_printable("Failed to parse SanlamPayshieldFrmMetadata")?;
+
+        let connector_id = connector_id.ok_or(ConnectorError::MissingRequiredField {
+            field_name: "connector_id",
+        })?;
+
         let currency = data
             .request
             .currency
             .ok_or(ConnectorError::MissingRequiredField {
                 field_name: "currency",
             })?;
+
         let payment_method_type = match data.request.payment_method_data.as_ref() {
             Some(AdditionalPaymentData::BankDebit {
                 details: Some(BankDebitAdditionalData::EftDebitOrder { .. }),
@@ -97,7 +113,7 @@ impl TryFrom<&FrmCheckoutRouterData> for SanlamPayshieldCheckoutRequest {
 
         Ok(Self {
             request_id: data.connector_request_reference_id.clone(),
-            profile_id: data.request.profile_id.get_string_repr().to_owned(),
+            profile_id,
             connector_id,
             connector_type: ConnectorType::Payin,
             transaction: Transaction {
