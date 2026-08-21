@@ -512,6 +512,7 @@ mod tests {
             parent_id: Some(3),
             causal_parent_ids: vec![1],
             sequence: 5,
+            correlation_id: Some("c-123".to_string()),
             recording_run_id: Some("run-abc".to_string()),
             span_name: "payment.request".to_string(),
             target: "router".to_string(),

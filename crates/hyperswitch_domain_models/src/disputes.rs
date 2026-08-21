@@ -3,8 +3,8 @@ use crate::errors;
 pub struct DisputeListConstraints {
     pub dispute_id: Option<String>,
     pub payment_id: Option<common_utils::id_type::PaymentId>,
-    pub limit: Option<u32>,
-    pub offset: Option<u32>,
+    pub limit: common_utils::types::list::PageSize,
+    pub offset: common_utils::types::list::PageOffset,
     pub profile_id: Option<Vec<common_utils::id_type::ProfileId>>,
     pub dispute_status: Option<Vec<common_enums::DisputeStatus>>,
     pub dispute_stage: Option<Vec<common_enums::DisputeStage>>,

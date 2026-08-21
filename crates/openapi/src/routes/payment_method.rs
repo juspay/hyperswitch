@@ -124,11 +124,10 @@ pub async fn list_customer_payment_method_api_client() {}
 /// payment methods and customer saved payment methods, filtered via Euclid
 /// constraint graph and session flow routing.
 ///
-/// Supported client auth:
+/// Supported auth:
 /// - SDK auth via `Authorization`.
 /// - Publishable-key auth via `api-key: pk_...` and `client_secret` query param.
-///
-/// Merchant secret-key auth is intentionally not supported for this endpoint.
+/// - Merchant API-key auth via `api-key: <api_key>`.
 #[utoipa::path(
     get,
     path = "/payments/{payment_id}/client",
@@ -150,7 +149,7 @@ pub async fn list_customer_payment_method_api_client() {}
     ),
     tag = "Payment Methods",
     operation_id = "List Payment Methods for a Payment via Client SDK",
-    security(("publishable_key" = []))
+    security(("publishable_key" = []), ("api_key" = []))
 )]
 #[cfg(feature = "v1")]
 pub async fn list_payment_methods_for_payments_client() {}
