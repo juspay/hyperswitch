@@ -3,7 +3,7 @@ use std::{collections::HashMap, sync::Arc};
 use actix_web::{web, Scope};
 #[cfg(all(feature = "olap", feature = "v1"))]
 use api_models::routing::RoutingRetrieveQuery;
-use api_models::routing::RuleMigrationQuery;
+use api_models::routing::{RoutingMigrationStatusQuery, RuleMigrationRequest};
 #[cfg(feature = "olap")]
 use common_enums::{ExecutionMode, TransactionType};
 #[cfg(feature = "partial-auth")]
@@ -77,7 +77,7 @@ use super::{
     apple_pay_certificates_migration, blocklist, payment_link, subscription, webhook_events,
 };
 #[cfg(any(feature = "olap", feature = "oltp"))]
-use super::{configs::*, customers, payments};
+use super::{configs::*, customers, metrics::PaymentMetricsContext, payments};
 #[cfg(all(any(feature = "olap", feature = "oltp"), feature = "v1"))]
 use super::{mandates::*, refunds::*};
 #[cfg(feature = "olap")]
@@ -149,6 +149,8 @@ pub struct SessionState {
     pub infra_components: Option<serde_json::Value>,
     pub enhancement: Option<HashMap<String, String>>,
     pub superposition_service: Arc<SuperpositionClient>,
+    /// Bounded request context used to correlate v1 payment I/O metrics.
+    pub payment_metrics_context: Option<PaymentMetricsContext>,
 }
 impl scheduler::SchedulerSessionState for SessionState {
     fn get_db(&self) -> Box<dyn SchedulerInterface> {
@@ -592,6 +594,7 @@ impl AppState {
             ca: km_conf.ca.clone(),
             infra_values: Self::process_env_mappings(conf.infra_values.clone()),
             use_legacy_key_store_decryption: km_conf.use_legacy_key_store_decryption,
+            metrics_context: None,
         };
         match storage_impl {
             StorageImpl::Postgresql | StorageImpl::PostgresqlTest => match event_handler {
@@ -694,6 +697,7 @@ impl AppState {
             infra_components: self.infra_components.clone(),
             enhancement: self.enhancement.clone(),
             superposition_service: self.superposition_service.clone(),
+            payment_metrics_context: None,
         })
     }
 
@@ -1198,8 +1202,13 @@ impl Routing {
                 })),
             )
             .service(web::resource("/rule/migrate").route(web::post().to(
-                |state, req, query: web::Query<RuleMigrationQuery>| {
-                    routing::migrate_routing_rules_for_profile(state, req, query)
+                |state, req, payload: web::Json<RuleMigrationRequest>| {
+                    routing::migrate_routing_rules(state, req, payload)
+                },
+            )))
+            .service(web::resource("/migration/status").route(web::get().to(
+                |state, req, query: web::Query<RoutingMigrationStatusQuery>| {
+                    routing::routing_migration_status(state, req, query)
                 },
             )))
             .service(
