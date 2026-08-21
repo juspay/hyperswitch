@@ -3195,7 +3195,10 @@ impl GenerateResponse<api_models::payments::PaymentsResponse>
             net_amount,
             amount_to_capture: attempt_amount_details.get_amount_to_capture(),
             amount_capturable: attempt_amount_details.get_amount_capturable(),
-            amount_captured: Some(net_amount),
+            // The captured amount is accumulated across the attempts of the split as each
+            // of them is confirmed, so report what was actually captured rather than the
+            // order total.
+            amount_captured: intent_amount_details.amount_captured,
         };
 
         let connector = payment_attempt
