@@ -521,6 +521,7 @@ impl ConnectorConfig {
             }
             AuthenticationConnectors::Juspaythreedsserver => Ok(connector_data.juspaythreedsserver),
             AuthenticationConnectors::Cardinal => Ok(connector_data.cardinal),
+            AuthenticationConnectors::Aci => Ok(connector_data.aci),
         }
     }
 
