@@ -448,6 +448,9 @@ impl FeatureMatrixConnectorData {
                 enums::Connector::Riskified => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Riskified::new())))
                 }
+                enums::Connector::SanlamPayshield => Ok(ConnectorEnum::Old(Box::new(
+                    connector::SanlamPayshield::new(),
+                ))),
                 enums::Connector::Cybersourcedecisionmanager => Ok(ConnectorEnum::Old(Box::new(
                     connector::Cybersourcedecisionmanager::new(),
                 ))),
