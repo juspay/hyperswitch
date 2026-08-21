@@ -18,6 +18,8 @@ pub enum AnalyticsError {
     MissingEmail,
     #[error("Invalid URL scheme: {0}")]
     InvalidReturnUrl(String),
+    #[error("Invalid request: {0}")]
+    InvalidRequest(String),
 }
 
 impl ErrorSwitch<ApiErrorResponse> for AnalyticsError {
@@ -54,6 +56,12 @@ impl ErrorSwitch<ApiErrorResponse> for AnalyticsError {
                 "IR",
                 6,
                 format!("Invalid return URL: {invalid_url_err}"),
+                None,
+            )),
+            Self::InvalidRequest(message) => ApiErrorResponse::BadRequest(ApiError::new(
+                "IR",
+                6,
+                format!("Invalid request: {message}"),
                 None,
             )),
         }
