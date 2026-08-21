@@ -10117,15 +10117,17 @@ pub struct SantanderData {
 /// PayPal connector specific metadata passed at the payment level (`connector_metadata.paypal`).
 /// Acts as an extensible container for PayPal-specific features; the sender profile data
 /// dictionary sent to PayPal's Risk-as-a-Service Set Transaction Context (STC) API for
-/// fraud risk assessment is nested under `risk_data`.
+/// fraud risk assessment is nested under `transaction_context`.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 #[serde(deny_unknown_fields)]
 pub struct PaypalConnectorMetadata {
-    /// Sender profile data for PayPal's Risk-as-a-Service Set Transaction Context (STC) API
+    /// Acts as an extensible container for PayPal-specific features; the sender profile data
+    /// dictionary sent to PayPal's Risk-as-a-Service Set Transaction Context (STC) API for
+    /// fraud risk assessment
     #[smithy(value_type = "Option<PaypalRiskData>")]
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub risk_data: Option<PaypalRiskData>,
+    pub transaction_context: Option<PaypalRiskData>,
 }
 
 /// Sender profile information sent to PayPal's Risk-as-a-Service
@@ -10161,14 +10163,40 @@ pub struct PaypalRiskData {
     #[schema(value_type = Option<String>, example = "2012-12-09T19:14:55.277-0:00")]
     #[smithy(value_type = "Option<String>")]
     pub sender_create_date: Option<String>,
-    /// Identifier whether the transaction is eligible for bonus (0 means ineligible, 1 means eligible)
-    #[schema(value_type = Option<String>, example = "1")]
-    #[smithy(value_type = "Option<String>")]
-    pub cd_string_one: Option<String>,
+    /// Identifier whether the transaction is eligible for bonus
+    #[schema(value_type = Option<PaypalBonusEligibility>, example = "1")]
+    #[smithy(value_type = "Option<PaypalBonusEligibility>")]
+    pub cd_string_one: Option<PaypalBonusEligibility>,
     /// Date when the customer made the very first payment with the partner/merchant platform (ISO 8601 date format)
     #[schema(value_type = Option<String>, example = "2022-01-03T17:16:54.433-0:00")]
     #[smithy(value_type = "Option<String>")]
     pub first_interaction_date: Option<String>,
+}
+
+/// Identifier whether the transaction is eligible for bonus, serialized as a string
+/// flag ("0" means ineligible, "1" means eligible) in the STC sender profile data
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    ToSchema,
+    SmithyModel,
+)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub enum PaypalBonusEligibility {
+    /// Transaction is ineligible for bonus
+    #[serde(rename = "0")]
+    #[strum(serialize = "0")]
+    Ineligible,
+    /// Transaction is eligible for bonus
+    #[serde(rename = "1")]
+    #[strum(serialize = "1")]
+    Eligible,
 }
 
 impl ConnectorMetadata {

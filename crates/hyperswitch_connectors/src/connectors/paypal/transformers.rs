@@ -2517,12 +2517,12 @@ impl PaypalSetTransactionContextRequest {
     pub fn build(
         router_data: &PaymentsPreAuthenticateRouterData,
     ) -> Result<Self, error_stack::Report<errors::ConnectorError>> {
-        let risk_data = router_data
+        let transaction_context = router_data
             .request
             .connector_intent_metadata
             .as_ref()
             .and_then(|connector_metadata| connector_metadata.paypal.as_ref())
-            .and_then(|paypal_metadata| paypal_metadata.risk_data.as_ref());
+            .and_then(|paypal_metadata| paypal_metadata.transaction_context.as_ref());
 
         let (customer_first_name, customer_last_name) = split_customer_name(
             router_data
@@ -2532,16 +2532,16 @@ impl PaypalSetTransactionContextRequest {
                 .map(|name| name.expose()),
         );
 
-        let sender_account_id = risk_data
-            .and_then(|risk_data| risk_data.sender_account_id.clone())
+        let sender_account_id = transaction_context
+            .and_then(|transaction_context| transaction_context.sender_account_id.clone())
             .or_else(|| {
                 router_data
                     .customer_id
                     .clone()
                     .map(|customer_id| customer_id.get_string_repr().to_string())
             });
-        let sender_first_name = risk_data
-            .and_then(|risk_data| risk_data.sender_first_name.clone())
+        let sender_first_name = transaction_context
+            .and_then(|transaction_context| transaction_context.sender_first_name.clone())
             .map(|name| name.expose())
             .or(customer_first_name)
             .or_else(|| {
@@ -2549,8 +2549,8 @@ impl PaypalSetTransactionContextRequest {
                     .get_optional_billing_first_name()
                     .map(|name| name.expose())
             });
-        let sender_last_name = risk_data
-            .and_then(|risk_data| risk_data.sender_last_name.clone())
+        let sender_last_name = transaction_context
+            .and_then(|transaction_context| transaction_context.sender_last_name.clone())
             .map(|name| name.expose())
             .or(customer_last_name)
             .or_else(|| {
@@ -2558,21 +2558,22 @@ impl PaypalSetTransactionContextRequest {
                     .get_optional_billing_last_name()
                     .map(|name| name.expose())
             });
-        let sender_email = risk_data
-            .and_then(|risk_data| risk_data.sender_email.clone())
+        let sender_email = transaction_context
+            .and_then(|transaction_context| transaction_context.sender_email.clone())
             .or_else(|| router_data.request.email.clone())
             .or_else(|| router_data.get_optional_billing_email());
-        let sender_phone = risk_data
-            .and_then(|risk_data| risk_data.sender_phone.clone())
+        let sender_phone = transaction_context
+            .and_then(|transaction_context| transaction_context.sender_phone.clone())
             .or_else(|| router_data.get_optional_billing_phone_number());
-        let sender_country_code = risk_data
-            .and_then(|risk_data| risk_data.sender_country_code)
+        let sender_country_code = transaction_context
+            .and_then(|transaction_context| transaction_context.sender_country_code)
             .or_else(|| router_data.get_optional_billing_country());
-        let sender_create_date =
-            risk_data.and_then(|risk_data| risk_data.sender_create_date.clone());
-        let cd_string_one = risk_data.and_then(|risk_data| risk_data.cd_string_one.clone());
-        let first_interaction_date =
-            risk_data.and_then(|risk_data| risk_data.first_interaction_date.clone());
+        let sender_create_date = transaction_context
+            .and_then(|transaction_context| transaction_context.sender_create_date.clone());
+        let cd_string_one =
+            transaction_context.and_then(|transaction_context| transaction_context.cd_string_one);
+        let first_interaction_date = transaction_context
+            .and_then(|transaction_context| transaction_context.first_interaction_date.clone());
 
         let mut additional_data = Vec::new();
         let mut push = |key: &str, value: Option<String>| {
@@ -2596,11 +2597,14 @@ impl PaypalSetTransactionContextRequest {
             sender_country_code.map(|country| country.to_string()),
         );
         push(STC_SENDER_CREATE_DATE, sender_create_date);
-        push(STC_CD_STRING_ONE, cd_string_one);
+        push(
+            STC_CD_STRING_ONE,
+            cd_string_one.map(|eligibility| eligibility.to_string()),
+        );
         push(STC_FIRST_INTERACTION_DATE, first_interaction_date);
 
         Ok(Self {
-            tracking_id: router_data.payment_id.clone(),
+            tracking_id: router_data.connector_request_reference_id.clone(),
             additional_data,
         })
     }

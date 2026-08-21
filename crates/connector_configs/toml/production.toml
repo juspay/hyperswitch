@@ -3725,8 +3725,8 @@ required=true
 type="Text"
 [paypal.metadata.enable_stc]
 name="enable_stc"
-label="Enable STC"
-placeholder="Enable Set Transaction Context"
+label="Enable fraud risk assessment - Set Transaction Context (STC)"
+placeholder="Share sender profile data with PayPal's Risk-as-a-Service API so PayPal can evaluate transaction fraud risk when processing PayPal wallet payments"
 required=false
 type="Toggle"
 
