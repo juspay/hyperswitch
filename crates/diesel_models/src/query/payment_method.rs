@@ -19,7 +19,7 @@ use crate::{
 
 impl PaymentMethodNew {
     pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<PaymentMethod> {
-        generics::generic_insert(conn, self).await
+        Box::pin(generics::generic_insert(conn, self)).await
     }
 
     pub async fn generate_drainer_insert_query(
