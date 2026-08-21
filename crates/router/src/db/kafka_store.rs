@@ -1672,6 +1672,17 @@ impl QueueInterface for KafkaStore {
             .await
     }
 
+    async fn consumer_group_delete_consumer(
+        &self,
+        stream: &str,
+        group: &str,
+        consumer: &str,
+    ) -> CustomResult<usize, RedisError> {
+        self.diesel_store
+            .consumer_group_delete_consumer(stream, group, consumer)
+            .await
+    }
+
     async fn acquire_pt_lock(
         &self,
         tag: &str,

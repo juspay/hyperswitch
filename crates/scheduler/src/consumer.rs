@@ -157,6 +157,19 @@ pub async fn consumer_operations<T: SchedulerSessionState + 'static>(
         .fetch_consumer_tasks(&stream_name, &group_name, &consumer_name)
         .await?;
 
+    // The entries read by this consumer are acknowledged within the fetch itself, so the
+    // consumer has no pending entries at this point. Remove it from the consumer group, as
+    // Redis never expires consumers on its own and each registration would otherwise remain
+    // in the group forever (one per poll, or one per process restart).
+    if let Err(error) = state
+        .get_db()
+        .as_scheduler()
+        .consumer_group_delete_consumer(&stream_name, &group_name, &consumer_name)
+        .await
+    {
+        logger::warn!(?error, %consumer_name, "Failed to remove consumer from consumer group");
+    }
+
     if !tasks.is_empty() {
         logger::info!("{} picked {} tasks", consumer_name, tasks.len());
     }

@@ -249,6 +249,12 @@ pub async fn get_batches(
     let batches = batches.into_iter().flatten().collect::<Vec<_>>();
     let entry_ids = entry_ids.into_iter().flatten().collect::<Vec<_>>();
 
+    // `XACK` and `XDEL` fail on an empty ID list, and there is nothing to acknowledge or
+    // delete when the read returned no entries
+    if entry_ids.is_empty() {
+        return Ok(batches);
+    }
+
     conn.stream_acknowledge_entries(&stream_name.into(), group_name, entry_ids.clone())
         .await
         .map_err(|error| {
