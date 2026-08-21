@@ -25,7 +25,7 @@ impl ForeignFrom<storage::Blocklist> for blocklist::AddToBlocklistResponse {
 }
 
 #[instrument(skip_all)]
-pub async fn generate_fingerprint(
+pub async fn generate_fingerprint_and_get_id(
     state: &routes::SessionState,
     card_number: StrongSecret<String>,
     hash_key: StrongSecret<String>,

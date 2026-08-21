@@ -10,7 +10,7 @@ use diesel_models::{
 use error_stack::ResultExt;
 use hyperswitch_masking::{PeekInterface, StrongSecret};
 
-use super::{errors, transformers::generate_fingerprint, SessionState};
+use super::{errors, transformers::generate_fingerprint_and_get_id, SessionState};
 use crate::{
     core::{
         configs::dimension_state,
@@ -342,7 +342,7 @@ pub async fn should_payment_be_blocked(
     // Hashed Fingerprint to check whether or not this payment should be blocked.
     let card_number_fingerprint =
         if let Some(domain::EligibilityPaymentMethodData::Card(card)) = payment_method_data {
-            generate_fingerprint(
+            generate_fingerprint_and_get_id(
                 state,
                 StrongSecret::new(card.card_number.get_card_no()),
                 StrongSecret::new(merchant_fingerprint_secret.clone()),
@@ -711,7 +711,7 @@ pub async fn generate_payment_fingerprint(
 
     Ok(
         if let Some(domain::PaymentMethodData::Card(card)) = payment_method_data.as_ref() {
-            generate_fingerprint(
+            generate_fingerprint_and_get_id(
                 state,
                 StrongSecret::new(card.card_number.get_card_no()),
                 StrongSecret::new(merchant_fingerprint_secret),
