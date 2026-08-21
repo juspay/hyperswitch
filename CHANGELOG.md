@@ -4,6 +4,31 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.08.21.0
+
+### Features
+
+- **connector:**
+  - [Checkout] googlepay decrypted FPAN token + 3ds ([#13736](https://github.com/juspay/hyperswitch/pull/13736)) ([`c8c6f2a`](https://github.com/juspay/hyperswitch/commit/c8c6f2a8d225dd47f9b52f6b14552abbaa602899))
+  - Add elavon as ucs only connector ([#13772](https://github.com/juspay/hyperswitch/pull/13772)) ([`1c2ee09`](https://github.com/juspay/hyperswitch/commit/1c2ee095f59f63b70c4ca7ed84a0468d995bd9af))
+- **deja:** Protocol-faithful store capture — binary row images in-band, one canonical redis wire type ([#13535](https://github.com/juspay/hyperswitch/pull/13535)) ([`42dbb8d`](https://github.com/juspay/hyperswitch/commit/42dbb8d4583683aa8fbdacf94b5bae88cbea4777))
+
+### Bug Fixes
+
+- **checkout:** Send external 3DS authentication data to connector for no_3ds payments ([#13776](https://github.com/juspay/hyperswitch/pull/13776)) ([`0ba2044`](https://github.com/juspay/hyperswitch/commit/0ba2044ffcd10a164219eea4782142e5f4208b95))
+- **cypress:** Update Airwallex redirect handling for iDEAL, Trustly, and Skrill ([#13783](https://github.com/juspay/hyperswitch/pull/13783)) ([`3e5bff5`](https://github.com/juspay/hyperswitch/commit/3e5bff5a89a9f9d16cce8378dd5271359affb022))
+- **routing:**
+  - Dedup decision engine connectors by merchant_connector_id ([#13758](https://github.com/juspay/hyperswitch/pull/13758)) ([`63ef631`](https://github.com/juspay/hyperswitch/commit/63ef631bf796f9a95cb90abbe136581f3bc9f419))
+  - Resolve migration profiles under the merchant that owns them ([#13808](https://github.com/juspay/hyperswitch/pull/13808)) ([`9be92d2`](https://github.com/juspay/hyperswitch/commit/9be92d2490228ce7cd2978bd19fb2a115d714d8d))
+
+### Revert
+
+- "fix(connector): [CYBERSOURCE] Commerce Indicator Mapping For Externally Authenticated Transactions" ([#13806](https://github.com/juspay/hyperswitch/pull/13806)) ([`1d80b48`](https://github.com/juspay/hyperswitch/commit/1d80b48e0acc775e5310d78c673002ac765c8c2c))
+
+**Full Changelog:** [`2026.08.20.0...2026.08.21.0`](https://github.com/juspay/hyperswitch/compare/2026.08.20.0...2026.08.21.0)
+
+- - -
+
 ## 2026.08.20.0
 
 ### Features
