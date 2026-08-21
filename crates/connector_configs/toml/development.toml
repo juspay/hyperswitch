@@ -4336,6 +4336,12 @@ label="Client Id"
 placeholder="Enter Client Id"
 required=true
 type="Text"
+[paypal.metadata.enable_stc]
+name="enable_stc"
+label="Enable fraud risk assessment - Set Transaction Context (STC)"
+placeholder="Share sender profile data with PayPal's Risk-as-a-Service API so PayPal can evaluate transaction fraud risk when processing PayPal wallet payments"
+required=false
+type="Toggle"
 
 [paypal_payout]
 [[paypal_payout.wallet]]
