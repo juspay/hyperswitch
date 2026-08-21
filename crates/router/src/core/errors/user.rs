@@ -126,6 +126,8 @@ pub enum UserErrors {
     SavedViewNotFound,
     #[error("InvalidSavedViewName")]
     InvalidSavedViewName,
+    #[error("SavedViewEntityMismatch")]
+    SavedViewEntityMismatch,
 }
 
 impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorResponse> for UserErrors {
@@ -328,6 +330,9 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
             Self::InvalidSavedViewName => {
                 AER::BadRequest(ApiError::new(sub_code, 65, self.get_error_message(), None))
             }
+            Self::SavedViewEntityMismatch => {
+                AER::BadRequest(ApiError::new(sub_code, 66, self.get_error_message(), None))
+            }
         }
     }
 }
@@ -417,6 +422,9 @@ impl UserErrors {
             Self::SavedViewNotFound => "Saved view not found".to_string(),
             Self::InvalidSavedViewName => {
                 "The saved view name cannot be empty or contain only whitespace".to_string()
+            }
+            Self::SavedViewEntityMismatch => {
+                "The saved view entity does not match the requested key".to_string()
             }
         }
     }
