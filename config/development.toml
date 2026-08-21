@@ -1523,7 +1523,7 @@ id = "0a"
 card_networks = "Visa, AmericanExpress, Mastercard"
 
 [network_tokenization_supported_connectors]
-connector_list = "adyen,cybersource,peachpayments,trustpay"
+connector_list = "adyen,airwallex,cybersource,peachpayments,trustpay"
 
 [alt_id_required_card_networks_and_connector]
 networks.Visa = ["razorpay"]

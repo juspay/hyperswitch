@@ -1395,7 +1395,7 @@ check_tokenize_eligibility_url="" # base url to check tokenization eligibility f
 fetch_altid_url= ""           # base url to fetch Alt-ID and cryptogram for guest checkout tokenization
 
 [network_tokenization_supported_connectors]
-connector_list = "adyen,cybersource,peachpayments,trustpay" # Supported connectors for network tokenization
+connector_list = "adyen,airwallex,cybersource,peachpayments,trustpay" # Supported connectors for network tokenization
 
 [network_transaction_id_supported_connectors]
 connector_list = "adyen,archipel,authorizedotnet,checkout,cybersource,novalnet,stripe,worldpay,worldpayvantiv,revolv3,peachpayments,tsys_transit" # Supported connectors for network transaction id

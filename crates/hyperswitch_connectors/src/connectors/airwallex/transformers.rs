@@ -1,3 +1,4 @@
+use cards::NetworkToken;
 use common_enums::enums;
 use common_types::primitive_wrappers;
 use common_utils::{
@@ -39,7 +40,7 @@ use crate::{
     types::{CreateOrderResponseRouterData, RefundsResponseRouterData, ResponseRouterData},
     utils::{
         self, BrowserInformationData, CardData as _, ExtendedAuthorizationData, ForeignTryFrom,
-        PaymentsAuthorizeRequestData, PhoneDetailsData, RouterData as _,
+        NetworkTokenData as _, PaymentsAuthorizeRequestData, PhoneDetailsData, RouterData as _,
     },
 };
 
@@ -274,6 +275,7 @@ pub struct Mobile {
 #[serde(untagged)]
 pub enum AirwallexPaymentMethod {
     Card(AirwallexCard),
+    NetworkToken(AirwallexNetworkTokenCard),
     Wallets(AirwallexWalletData),
     PayLater(AirwallexPayLaterData),
     BankRedirect(AirwallexBankRedirectData),
@@ -298,6 +300,31 @@ pub struct AirwallexCardDetails {
     expiry_year: Secret<String>,
     number: cards::CardNumber,
     cvc: Secret<String>,
+}
+
+/// An externally-provisioned network token, sent through Airwallex's card object
+/// with `number_type` marking the number as a token rather than a PAN. There is
+/// no `cvc`: the per-transaction cryptogram takes its place and travels in
+/// `payment_method_options.card.cryptogram`.
+#[derive(Debug, Serialize)]
+pub struct AirwallexNetworkTokenCard {
+    card: AirwallexNetworkTokenDetails,
+    #[serde(rename = "type")]
+    payment_method_type: AirwallexPaymentType,
+}
+
+#[derive(Debug, Serialize)]
+pub struct AirwallexNetworkTokenDetails {
+    expiry_month: Secret<String>,
+    expiry_year: Secret<String>,
+    number: NetworkToken,
+    number_type: AirwallexNumberType,
+}
+
+#[derive(Debug, Serialize)]
+pub enum AirwallexNumberType {
+    #[serde(rename = "EXTERNAL_NETWORK_TOKEN")]
+    ExternalNetworkToken,
 }
 
 #[derive(Debug, Serialize)]
@@ -497,6 +524,8 @@ pub enum AirwallexPaymentOptions {
 pub struct AirwallexCardPaymentOptions {
     auto_capture: bool,
     authorization_type: Option<AirwallexCardAuthorizationType>,
+    /// Per-transaction TAVV cryptogram, set only for network token payments.
+    cryptogram: Option<Secret<String>>,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
@@ -539,6 +568,7 @@ impl TryFrom<&AirwallexRouterData<&types::PaymentsAuthorizeRouterData>>
                                     .is_true()
                                     .then_some(AirwallexCardAuthorizationType::PreAuth)
                             }),
+                        cryptogram: None,
                     }));
                 Ok(AirwallexPaymentMethod::Card(AirwallexCard {
                     card: AirwallexCardDetails {
@@ -549,6 +579,53 @@ impl TryFrom<&AirwallexRouterData<&types::PaymentsAuthorizeRouterData>>
                     },
                     payment_method_type: AirwallexPaymentType::Card,
                 }))
+            }
+            PaymentMethodData::NetworkToken(ref token_data) => {
+                payment_method_options =
+                    Some(AirwallexPaymentOptions::Card(AirwallexCardPaymentOptions {
+                        auto_capture: matches!(
+                            request.capture_method,
+                            Some(enums::CaptureMethod::Automatic)
+                                | Some(enums::CaptureMethod::SequentialAutomatic)
+                                | None
+                        ),
+                        // Same treatment as a raw card, deliberately. The two ends
+                        // have to agree: `build_airwallex_connector_response_data`
+                        // reports extended authentication as applied for every
+                        // `PaymentMethod::Card`, and it cannot tell a network token
+                        // apart because it is generic over the request type. Sending
+                        // `None` here while that reports `true` would make the
+                        // response contradict the request. If Airwallex confirms that
+                        // extended pre-authorization does not compose with an
+                        // externally-provisioned token, both sites have to change
+                        // together and the response path needs the payment method data
+                        // threaded into it.
+                        authorization_type: item
+                            .router_data
+                            .request
+                            .request_extended_authorization
+                            .and_then(|extended_authorization| {
+                                extended_authorization
+                                    .is_true()
+                                    .then_some(AirwallexCardAuthorizationType::PreAuth)
+                            }),
+                        cryptogram: Some(token_data.get_cryptogram().ok_or_else(|| {
+                            errors::ConnectorError::MissingRequiredField {
+                                field_name: "payment_method_data.network_token.token_cryptogram",
+                            }
+                        })?),
+                    }));
+                Ok(AirwallexPaymentMethod::NetworkToken(
+                    AirwallexNetworkTokenCard {
+                        card: AirwallexNetworkTokenDetails {
+                            number: token_data.get_network_token(),
+                            expiry_month: token_data.get_network_token_expiry_month(),
+                            expiry_year: token_data.get_expiry_year_4_digit(),
+                            number_type: AirwallexNumberType::ExternalNetworkToken,
+                        },
+                        payment_method_type: AirwallexPaymentType::Card,
+                    },
+                ))
             }
             PaymentMethodData::Wallet(ref wallet_data) => get_wallet_details(wallet_data, item),
             PaymentMethodData::PayLater(ref paylater_data) => {
@@ -610,7 +687,6 @@ impl TryFrom<&AirwallexRouterData<&types::PaymentsAuthorizeRouterData>>
             | PaymentMethodData::GiftCard(_)
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::CardToken(_)
-            | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardWithOptionalCVC(_)
             | PaymentMethodData::CardWithNetworkTokenDetails(_)
@@ -2045,4 +2121,71 @@ fn build_airwallex_connector_response_data(
         }),
         None,
     ))
+}
+
+#[cfg(test)]
+mod tests {
+    use std::str::FromStr;
+
+    use super::*;
+
+    /// The wire format is the whole substance of network token support: the token
+    /// travels in the card object marked `EXTERNAL_NETWORK_TOKEN`, carries no
+    /// `cvc`, and the per-transaction cryptogram rides in
+    /// `payment_method_options.card.cryptogram`. None of that is checkable
+    /// without an Airwallex account, so it is pinned here.
+    #[test]
+    fn network_token_serializes_as_an_external_network_token() {
+        let card = AirwallexNetworkTokenCard {
+            card: AirwallexNetworkTokenDetails {
+                expiry_month: Secret::new("03".to_string()),
+                expiry_year: Secret::new("2030".to_string()),
+                number: NetworkToken::from_str("4111111111111111").expect("valid token number"),
+                number_type: AirwallexNumberType::ExternalNetworkToken,
+            },
+            payment_method_type: AirwallexPaymentType::Card,
+        };
+
+        let json =
+            serde_json::to_value(AirwallexPaymentMethod::NetworkToken(card)).expect("serializes");
+        let card = json.get("card").expect("card object");
+
+        assert_eq!(
+            card.get("number_type").and_then(|v| v.as_str()),
+            Some("EXTERNAL_NETWORK_TOKEN")
+        );
+        assert_eq!(
+            card.get("expiry_month").and_then(|v| v.as_str()),
+            Some("03")
+        );
+        assert_eq!(
+            card.get("expiry_year").and_then(|v| v.as_str()),
+            Some("2030")
+        );
+        assert_eq!(json.get("type").and_then(|v| v.as_str()), Some("card"));
+        // A network token has no CVC — sending an empty one would be rejected.
+        assert!(
+            card.get("cvc").is_none(),
+            "network token must not carry a cvc"
+        );
+    }
+
+    #[test]
+    fn cryptogram_travels_in_the_card_payment_options() {
+        let options = AirwallexPaymentOptions::Card(AirwallexCardPaymentOptions {
+            auto_capture: true,
+            authorization_type: None,
+            cryptogram: Some(Secret::new("AgAAAA...TAVV".to_string())),
+        });
+
+        let json = serde_json::to_value(options).expect("serializes");
+        assert_eq!(
+            json.pointer("/card/cryptogram").and_then(|v| v.as_str()),
+            Some("AgAAAA...TAVV")
+        );
+        assert_eq!(
+            json.pointer("/card/auto_capture").and_then(|v| v.as_bool()),
+            Some(true)
+        );
+    }
 }

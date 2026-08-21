@@ -1398,7 +1398,7 @@ id = "0a"
 card_networks = "Visa, AmericanExpress, Mastercard"
 
 [network_tokenization_supported_connectors]
-connector_list = "adyen,cybersource,peachpayments,trustpay"
+connector_list = "adyen,airwallex,cybersource,peachpayments,trustpay"
 
 # EmailClient configuration. Only applicable when the `email` feature flag is enabled.
 [email]
