@@ -24,6 +24,11 @@ use crate::{
 /// UCS error code indicating the connector returned a 4xx/5xx HTTP response (with `http_status_code` set).
 const CONNECTOR_ERROR_RESPONSE_CODE: &str = "CONNECTOR_ERROR_RESPONSE";
 
+// Synthetic timeout status used when UCS reports a connector-side timeout over gRPC.
+// No connector HTTP response is available in this path; this keeps UCS aligned with
+// direct connector timeout handling.
+const CONNECTOR_TIMEOUT_HTTP_STATUS_CODE: u16 = 504;
+
 /// Unified Connector Service error variants
 #[derive(Debug, Clone, thiserror::Error)]
 pub enum UnifiedConnectorServiceError {
@@ -102,8 +107,10 @@ pub enum UnifiedConnectorServiceError {
         message: String,
     },
 
-    /// Connector error received through UCS (contains original connector HTTP status code).
-    /// Distinguishes connector errors from UCS errors by presence of status_code.
+    /// Connector error received through UCS.
+    /// For connector HTTP errors, this contains the original connector HTTP status code.
+    /// For connector timeout errors without a connector HTTP response, this contains the
+    /// synthetic timeout status used by Hyperswitch.
     #[error("Connector error via UCS: {0:?}")]
     ConnectorError(Box<ConnectorErrorInner>),
 
@@ -236,7 +243,8 @@ pub struct ConnectorErrorInner {
     pub code: String,
     /// Connector error message
     pub message: String,
-    /// Original HTTP status code from connector
+    /// Connector HTTP status code, or the synthetic timeout status when no connector HTTP
+    /// response was received.
     pub status_code: u16,
     /// Optional reason for the error
     pub reason: Option<String>,
@@ -420,10 +428,13 @@ impl ForeignTryFrom<(payments_grpc::PaymentServiceGetResponse, AttemptStatus)>
     ) -> Result<Self, Self::Error> {
         let status_code = convert_connector_service_status_code(response.status_code)?;
 
-        let connector_transaction_id =
+        let connector_transaction_id = if response.connector_transaction_id.is_empty() {
+            hyperswitch_domain_models::router_request_types::ResponseId::NoResponseId
+        } else {
             hyperswitch_domain_models::router_request_types::ResponseId::ConnectorTransactionId(
                 response.connector_transaction_id.clone(),
-            );
+            )
+        };
 
         let connector_details = response
             .error
@@ -456,7 +467,7 @@ impl ForeignTryFrom<(payments_grpc::PaymentServiceGetResponse, AttemptStatus)>
                 status_code,
                 attempt_status,
                 connector_transaction_id: connector_transaction_id.get_optional_response_id(),
-                connector_response_reference_id: response.merchant_transaction_id,
+                connector_response_reference_id: response.connector_reference_id,
                 network_decline_code: response.error.as_ref().and_then(|error| {
                     error.issuer_details.as_ref().and_then(|id| {
                         id.network_details
@@ -519,7 +530,7 @@ impl ForeignTryFrom<(payments_grpc::PaymentServiceGetResponse, AttemptStatus)>
                     connector_metadata,
                     network_txn_id: response.network_transaction_id.clone(),
                     network_txn_link_id: response.network_txn_link_id.clone(),
-                    connector_response_reference_id: response.merchant_transaction_id,
+                    connector_response_reference_id: response.connector_reference_id,
                     incremental_authorization_allowed: response.incremental_authorization_allowed,
                     authentication_data: None,
                     charges: response.splits.map(common_types::payments::ConnectorChargeResponseData::foreign_try_from).transpose()?,
@@ -895,6 +906,8 @@ impl ForeignTryFrom<payments_grpc::BankType> for common_enums::BankType {
         match bank_type {
             payments_grpc::BankType::Checking => Ok(Self::Checking),
             payments_grpc::BankType::Savings => Ok(Self::Savings),
+            payments_grpc::BankType::Salary => Ok(Self::Salary),
+            payments_grpc::BankType::Payment => Ok(Self::Payment),
             payments_grpc::BankType::Bond
             | payments_grpc::BankType::Transmission
             | payments_grpc::BankType::Current
@@ -1100,16 +1113,31 @@ impl UnifiedConnectorServiceError {
     /// Converts tonic::Code to HTTP status code.
     pub fn tonic_to_http_status(code: tonic::Code) -> u16 {
         match code {
-            tonic::Code::InvalidArgument | tonic::Code::FailedPrecondition => 400,
+            tonic::Code::Cancelled => 408,
+            tonic::Code::InvalidArgument => 400,
             tonic::Code::Unauthenticated => 401,
             tonic::Code::PermissionDenied => 403,
             tonic::Code::NotFound => 404,
             tonic::Code::AlreadyExists => 409,
+            tonic::Code::ResourceExhausted => 429,
+            tonic::Code::FailedPrecondition => 412,
+            tonic::Code::Aborted => 409,
+            tonic::Code::OutOfRange => 416,
             tonic::Code::Unimplemented => 501,
             tonic::Code::Unavailable => 503,
             tonic::Code::DeadlineExceeded => 504,
             _ => 500,
         }
+    }
+
+    fn tonic_status_is_ucs_server_error(code: tonic::Code) -> bool {
+        matches!(
+            code,
+            tonic::Code::Unknown
+                | tonic::Code::Internal
+                | tonic::Code::Unavailable
+                | tonic::Code::DataLoss
+        )
     }
 
     /// Returns HTTP status code for this error.
@@ -1138,6 +1166,10 @@ impl UnifiedConnectorServiceError {
             Self::decode_connector_error_response(status, connector_name)
         {
             return error_from_details;
+        }
+
+        if let Some(timeout_error) = Self::decode_connector_timeout(status, connector_name) {
+            return timeout_error;
         }
 
         Self::TonicStatus {
@@ -1180,7 +1212,7 @@ impl UnifiedConnectorServiceError {
                 .as_ref()
                 .and_then(|error_info| error_info.connector_details.as_ref())
                 .and_then(|connector_details| connector_details.code.clone())
-                .unwrap_or_else(|| connector_error.error_code.clone()),
+                .unwrap_or_else(|| crate::consts::NO_ERROR_CODE.to_string()),
             message: connector_error.error_message,
             status_code,
             reason: connector_error
@@ -1212,6 +1244,26 @@ impl UnifiedConnectorServiceError {
                 .and_then(|ei| ei.issuer_details.as_ref())
                 .and_then(|id| id.network_details.as_ref())
                 .and_then(|nd| nd.error_message.clone()),
+        })))
+    }
+
+    fn decode_connector_timeout(status: &tonic::Status, connector_name: &str) -> Option<Self> {
+        // UCS maps connector/API client request timeouts to gRPC DeadlineExceeded. The
+        // status message is not a stable contract, so rely only on the gRPC code.
+        if status.code() != tonic::Code::DeadlineExceeded {
+            return None;
+        }
+
+        Some(Self::ConnectorError(Box::new(ConnectorErrorInner {
+            code: crate::consts::REQUEST_TIMEOUT_ERROR_CODE.to_string(),
+            message: crate::consts::REQUEST_TIMEOUT_ERROR_MESSAGE.to_string(),
+            status_code: CONNECTOR_TIMEOUT_HTTP_STATUS_CODE,
+            reason: Some(crate::consts::REQUEST_TIMEOUT_ERROR_MESSAGE.to_string()),
+            connector: connector_name.to_string(),
+            connector_transaction_id: None,
+            network_decline_code: None,
+            network_advice_code: None,
+            network_error_message: None,
         })))
     }
 }
@@ -1258,9 +1310,19 @@ impl ErrorSwitch<ApiErrorResponse> for UnifiedConnectorServiceError {
 impl ErrorSwitch<ConnectorError> for UnifiedConnectorServiceError {
     fn switch(&self) -> ConnectorError {
         match self {
-            // UCS validation errors (4xx from tonic) → ProcessingStepFailed with encoded error
-            // body so the upstream handler can return the right HTTP status code.
             Self::TonicStatus { code, message } => {
+                // UCS/Prism server failures must surface as Hyperswitch 5xx errors, not as
+                // payment authorization failures with a nested 5xx payload.
+                if Self::tonic_status_is_ucs_server_error(*code) {
+                    return ConnectorError::ResponseHandlingFailed;
+                }
+
+                if *code == tonic::Code::Unimplemented {
+                    return ConnectorError::NotImplemented(message.clone());
+                }
+
+                // UCS validation/client-class errors keep the encoded payload for callers that
+                // already rely on structured processing-step data.
                 let status_code = Self::tonic_to_http_status(*code);
                 let error_body = serde_json::json!({
                     "code": format!("UCS_{}", status_code),
@@ -1333,6 +1395,210 @@ impl ErrorSwitch<ConnectorError> for UnifiedConnectorServiceError {
             | Self::SurchargeCalculateFailure
             | Self::PayoutEnrollDisburseAccountFailure
             | Self::NotifyConnectorFailure => ConnectorError::ResponseHandlingFailed,
+        }
+    }
+}
+
+/// Why a UCS failure should return a rollout scope to the direct connector integration.
+///
+/// Named by where the failure originated, because that decides who fixes it: a `Hyperswitch`
+/// reason is a bug in this repo's request or response mapping, a `Ucs` reason is not.
+///
+/// Doubles as the metric label, so it is a small fixed set rather than the error itself — the
+/// error carries free-form strings and would be unbounded label cardinality.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, strum::Display)]
+#[strum(serialize_all = "snake_case")]
+pub enum UcsKillSwitchReason {
+    /// Hyperswitch could not build a valid request. UCS was never reached.
+    HyperswitchRequestInvalid,
+    /// Hyperswitch could not decode what UCS returned. The two models disagree.
+    HyperswitchResponseUndecodable,
+    /// UCS rejected the request Hyperswitch sent it.
+    UcsRejectedRequest,
+    /// UCS does not implement this flow for this connector.
+    UcsFlowUnsupported,
+    /// UCS failed internally, or failed the flow without saying more.
+    UcsInternalError,
+    /// UCS could not be reached, or was too unwell to answer.
+    UcsUnreachable,
+    /// The connector rejected the request. May be a legitimate decline or a request UCS built
+    /// wrongly — indistinguishable at this layer, so we trip conservatively because falling back
+    /// to the battle-tested direct path is always safe.
+    ConnectorOutcome,
+}
+
+impl UnifiedConnectorServiceError {
+    /// Whether this failure should return the rollout scope to the direct connector integration.
+    ///
+    /// Every error qualifies, including [`Self::ConnectorError`]. A connector rejection may be a
+    /// legitimate decline or a request UCS built wrongly — since the two are indistinguishable,
+    /// we trip conservatively: falling back to the battle-tested direct path is always safe.
+    ///
+    /// Exhaustive: a new variant must be classified here rather than defaulting.
+    pub fn ucs_kill_switch_reason(&self) -> Option<UcsKillSwitchReason> {
+        match self {
+            // Hyperswitch could not read UCS's answer.
+            Self::ResponseDeserializationFailed | Self::ParsingFailed => {
+                Some(UcsKillSwitchReason::HyperswitchResponseUndecodable)
+            }
+
+            // Hyperswitch could not build the request. UCS was never reached.
+            Self::RequestEncodingFailed
+            | Self::RequestEncodingFailedWithReason(_)
+            | Self::MissingRequiredField { .. }
+            | Self::MissingRequiredFields { .. }
+            | Self::MissingConnectorName
+            | Self::InvalidConnectorName
+            | Self::InvalidDataFormat { .. }
+            | Self::FailedToObtainAuthType
+            | Self::HeaderInjectionFailed(_) => {
+                Some(UcsKillSwitchReason::HyperswitchRequestInvalid)
+            }
+
+            // Raised by Hyperswitch, but it reports a flow UCS cannot serve.
+            Self::NotImplemented(_) => Some(UcsKillSwitchReason::UcsFlowUnsupported),
+
+            // UCS-side by construction: `from_grpc_error` extracts connector errors first.
+            Self::TonicStatus { code, .. } => match code {
+                // UCS-wide rather than scope-specific. Still worth falling back for: while UCS
+                // is unwell the payment has nowhere else to go and fails outright.
+                tonic::Code::Unavailable
+                | tonic::Code::DeadlineExceeded
+                | tonic::Code::ResourceExhausted
+                | tonic::Code::Aborted
+                | tonic::Code::Cancelled => Some(UcsKillSwitchReason::UcsUnreachable),
+
+                // UCS rejected what Hyperswitch sent it.
+                tonic::Code::InvalidArgument
+                | tonic::Code::FailedPrecondition
+                | tonic::Code::OutOfRange
+                | tonic::Code::NotFound
+                | tonic::Code::AlreadyExists
+                | tonic::Code::Unauthenticated
+                | tonic::Code::PermissionDenied => Some(UcsKillSwitchReason::UcsRejectedRequest),
+
+                tonic::Code::Unimplemented => Some(UcsKillSwitchReason::UcsFlowUnsupported),
+
+                // UCS itself failed. `Unknown` is included because a rolling deploy surfaces as
+                // `Unavailable`, not `Unknown`, so `Unknown` is more often a server-side panic.
+                tonic::Code::Internal
+                | tonic::Code::DataLoss
+                | tonic::Code::Unknown
+                | tonic::Code::Ok => Some(UcsKillSwitchReason::UcsInternalError),
+            },
+
+            // Could not reach UCS at all. Same treatment as `Unavailable` above.
+            Self::ConnectionError(_) => Some(UcsKillSwitchReason::UcsUnreachable),
+
+            // No usable status never reaches here: `from_grpc_error` falls through to
+            // `TonicStatus`. A zero means UCS supplied one, which is UCS-side.
+            Self::ConnectorError(inner) if inner.status_code == 0 => {
+                Some(UcsKillSwitchReason::UcsInternalError)
+            }
+
+            // The connector answered. This may be a legitimate decline or a request UCS built
+            // wrongly — indistinguishable here. We trip conservatively: a false bypass to the
+            // direct path is safe (it served merchants for years), while a missed trip leaves
+            // merchants on a potentially broken UCS path.
+            Self::ConnectorError(_) => Some(UcsKillSwitchReason::ConnectorOutcome),
+
+            // Per-flow failure markers carrying no further detail.
+            Self::WebhookProcessingFailure
+            | Self::PaymentCreateOrderFailure
+            | Self::PaymentAuthorizeGranularFailure
+            | Self::CreateSessionTokenFailure
+            | Self::CreateAccessTokenFailure
+            | Self::PaymentMethodTokenizeFailure
+            | Self::CreateConnectorCustomerFailure
+            | Self::PaymentAuthorizeFailure
+            | Self::PaymentPreAuthenticateFailure
+            | Self::PaymentAuthenticateFailure
+            | Self::PaymentPostAuthenticateFailure
+            | Self::PaymentGetFailure
+            | Self::PaymentCaptureFailure
+            | Self::PaymentSetupRecurringFailure
+            | Self::RecurringPaymentChargeFailure
+            | Self::PaymentRefundFailure
+            | Self::RefundSyncFailure
+            | Self::IncomingWebhookHandleEventFailure
+            | Self::IncomingWebhookParseEventFailure
+            | Self::PaymentVoidFailure
+            | Self::CreateSdkSessionTokenFailure
+            | Self::PaymentIncrementalAuthorizationFailure
+            | Self::PayoutCreateFailure
+            | Self::PayoutTransferFailure
+            | Self::PayoutGetFailure
+            | Self::PayoutVoidFailure
+            | Self::PayoutStageFailure
+            | Self::PayoutCreateRecipientFailure
+            | Self::PayoutEnrollDisburseAccountFailure
+            | Self::SurchargeCalculateFailure
+            | Self::NotifyConnectorFailure => Some(UcsKillSwitchReason::UcsInternalError),
+        }
+    }
+}
+
+#[cfg(test)]
+mod ucs_kill_switch_reason_tests {
+    use super::*;
+
+    fn tonic_status(code: tonic::Code) -> UnifiedConnectorServiceError {
+        UnifiedConnectorServiceError::TonicStatus {
+            code,
+            message: "from ucs".to_string(),
+        }
+    }
+
+    #[test]
+    fn ucs_wide_grpc_codes_still_qualify() {
+        // While UCS is unwell the payment has no fallback and fails outright, so these qualify
+        // like any other. They share a label so a run of them reads as one UCS-wide event.
+        for code in [
+            tonic::Code::Unavailable,
+            tonic::Code::DeadlineExceeded,
+            tonic::Code::ResourceExhausted,
+            tonic::Code::Aborted,
+            tonic::Code::Cancelled,
+        ] {
+            assert_eq!(
+                tonic_status(code).ucs_kill_switch_reason(),
+                Some(UcsKillSwitchReason::UcsUnreachable),
+                "{code:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn ucs_side_grpc_codes_are_kill_switch_worthy() {
+        // `from_grpc_error` extracts connector errors and timeouts before producing TonicStatus,
+        // so what reaches here is UCS-side and repeats identically for this scope.
+        let cases = [
+            (
+                tonic::Code::InvalidArgument,
+                UcsKillSwitchReason::UcsRejectedRequest,
+            ),
+            (
+                tonic::Code::FailedPrecondition,
+                UcsKillSwitchReason::UcsRejectedRequest,
+            ),
+            (
+                tonic::Code::Unauthenticated,
+                UcsKillSwitchReason::UcsRejectedRequest,
+            ),
+            (
+                tonic::Code::Unimplemented,
+                UcsKillSwitchReason::UcsFlowUnsupported,
+            ),
+            (tonic::Code::Internal, UcsKillSwitchReason::UcsInternalError),
+            (tonic::Code::Unknown, UcsKillSwitchReason::UcsInternalError),
+        ];
+
+        for (code, expected) in cases {
+            assert_eq!(
+                tonic_status(code).ucs_kill_switch_reason(),
+                Some(expected),
+                "{code:?}"
+            );
         }
     }
 }

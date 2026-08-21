@@ -516,6 +516,11 @@ placeholder="Enter Live endpoint prefix"
 required=true
 type="Text"
 
+[adyen.connector_webhook_register_details]
+label="Webhook Registration"
+webhook_auto_configuration_supported=true 
+scope_type="not_specific"
+
 [adyenplatform_payout]
 [[adyenplatform_payout.credit]]
   payment_method_type = "Mastercard"
@@ -5350,6 +5355,24 @@ key1="Transaction Key"
 api_secret="Developer Id"
 [tsys_transit.connector_webhook_details]
 merchant_secret="Source verification key"
+[tsys_transit.metadata.merchant_street_address]
+name="merchant_street_address"
+label="Merchant Street Address"
+placeholder="Enter street address"
+required=false
+type="Text"
+[tsys_transit.metadata.customer_service_phone_number]
+name="customer_service_phone_number"
+label="Customer Service Number"
+placeholder="Enter customer service phone number"
+required=false
+type="Text"
+[tsys_transit.metadata.merchant_url]
+name="merchant_url"
+label="Merchant Url"
+placeholder="Enter merchant url"
+required=false
+type="Text"
 
 [volt]
 [[volt.bank_redirect]]
@@ -5962,6 +5985,15 @@ key1 = "Wise Account Id"
 merchant_secret="Source verification key"
 
 
+[deutschebank_payout]
+[[deutschebank_payout.bank_transfer]]
+  payment_method_type = "sepa_bank_transfer"
+[deutschebank_payout.connector_auth.MultiAuthKey]
+api_key="Customer Identifier"
+key1="Key ID"
+api_secret="Signing Private Key (PEM)"
+key2="Client Certificate Bundle (PEM cert + key concatenated)"
+
 [itaubank_payout]
 [[itaubank_payout.bank_transfer]]
   payment_method_type = "pix"
@@ -5972,6 +6004,35 @@ merchant_secret="Source verification key"
 [itaubank_payout.connector_auth.BodyKey]
 key1="Client Id"
 api_key="Client Secret"
+
+[santander_payout]
+[[santander_payout.bank_transfer]]
+  payment_method_type = "pix"
+[[santander_payout.bank_transfer]]
+  payment_method_type = "pix_key"
+[[santander_payout.bank_transfer]]
+  payment_method_type = "pix_emv"
+[santander_payout.connector_auth.CertificateAuth]
+certificate="Certificate"
+private_key="Certificate Key"
+[santander_payout.metadata.client_id]
+name="client_id"
+label="Client Id"
+placeholder="Enter the client id"
+required=true
+type="Text"
+[santander_payout.metadata.client_secret]
+name="client_secret"
+label="Client Secret"
+placeholder="Enter the client secret"
+required=true
+type="Text"
+[santander_payout.metadata.workspace_id]
+name="workspace_id"
+label="Workspace Id"
+placeholder="Enter the workspace id"
+required=true
+type="Text"
 
 [threedsecureio]
 [threedsecureio.connector_auth.HeaderKey]
@@ -6032,12 +6093,6 @@ name="mcc"
 label="MCC"
 placeholder="Enter MCC"
 required=false
-type="Text"
-[netcetera.metadata.endpoint_prefix]
-name="endpoint_prefix"
-label="Live endpoint prefix"
-placeholder="string that will replace '{prefix}' in this base url 'https://{prefix}.3ds-server.prev.netcetera-cloud-payment.ch'"
-required=true
 type="Text"
 [netcetera.metadata.merchant_country_code]
 name="merchant_country_code"
@@ -6167,6 +6222,10 @@ key1="Public Api Key"
   payment_method_type = "CartesBancaires"
 [[datatrans.debit]]
   payment_method_type = "UnionPay"
+[[datatrans.wallet]]
+  payment_method_type = "google_pay"
+[[datatrans.wallet]]
+  payment_method_type = "apple_pay"
 [datatrans.connector_auth.BodyKey]
 api_key = "Passcode"
 key1 = "datatrans MerchantId"
@@ -6188,6 +6247,125 @@ label="Acquirer Country Code"
 placeholder="Enter Acquirer Country Code"
 required=false
 type="Text"
+[[datatrans.metadata.apple_pay]]
+  name = "certificate"
+  label = "Merchant Certificate (Base64 Encoded)"
+  placeholder = "Enter Merchant Certificate (Base64 Encoded)"
+  required = true
+  type = "Text"
+[[datatrans.metadata.apple_pay]]
+  name = "certificate_keys"
+  label = "Merchant PrivateKey (Base64 Encoded)"
+  placeholder = "Enter Merchant PrivateKey (Base64 Encoded)"
+  required = true
+  type = "Text"
+[[datatrans.metadata.apple_pay]]
+  name = "merchant_identifier"
+  label = "Apple Merchant Identifier"
+  placeholder = "Enter Apple Merchant Identifier"
+  required = true
+  type = "Text"
+[[datatrans.metadata.apple_pay]]
+  name = "display_name"
+  label = "Display Name"
+  placeholder = "Enter Display Name"
+  required = true
+  type = "Text"
+[[datatrans.metadata.apple_pay]]
+  name = "initiative"
+  label = "Domain"
+  placeholder = "Enter Domain"
+  required = true
+  type = "Text"
+[[datatrans.metadata.apple_pay]]
+  name = "initiative_context"
+  label = "Domain Name"
+  placeholder = "Enter Domain Name"
+  required = true
+  type = "Text"
+[[datatrans.metadata.apple_pay]]
+  name = "merchant_business_country"
+  label = "Merchant Business Country"
+  placeholder = "Enter Merchant Business Country"
+  required = true
+  type = "Select"
+  options = []
+[[datatrans.metadata.apple_pay]]
+  name="payment_processing_details_at"
+  label="Payment Processing Details At"
+  placeholder="Enter Payment Processing Details At"
+  required=true
+  type="Radio"
+  options=["Connector"]
+[[datatrans.metadata.google_pay]]
+  name = "merchant_name"
+  label = "Google Pay Merchant Name"
+  placeholder = "Enter Google Pay Merchant Name"
+  required = true
+  type = "Text"
+[[datatrans.metadata.google_pay]]
+  name = "merchant_id"
+  label = "Google Pay Merchant Id"
+  placeholder = "Enter Google Pay Merchant Id"
+  required = true
+  type = "Text"
+[[datatrans.metadata.google_pay]]
+  name = "gateway_merchant_id"
+  label = "Google Pay Merchant Key"
+  placeholder = "Enter Google Pay Merchant Key"
+  required = true
+  type = "Text"
+[[datatrans.metadata.google_pay]]
+  name = "allowed_auth_methods"
+  label = "Allowed Auth Methods"
+  placeholder = "Enter Allowed Auth Methods"
+  required = true
+  type = "MultiSelect"
+  options = ["PAN_ONLY", "CRYPTOGRAM_3DS"]
+
+[[datatrans.connector_wallets_details.google_pay]]
+  name = "merchant_name"
+  label = "Google Pay Merchant Name"
+  placeholder = "Enter Google Pay Merchant Name"
+  required = true
+  type = "Text"
+[[datatrans.connector_wallets_details.google_pay]]
+  name = "merchant_id"
+  label = "Google Pay Merchant Id"
+  placeholder = "Enter Google Pay Merchant Id"
+  required = true
+  type = "Text"
+[[datatrans.connector_wallets_details.google_pay]]
+  name = "gateway_merchant_id"
+  label = "Google Pay Merchant Key"
+  placeholder = "Enter Google Pay Merchant Key"
+  required = true
+  type = "Text"
+[[datatrans.connector_wallets_details.google_pay]]
+  name = "public_key"
+  label = "Google Pay Public Key"
+  placeholder = "Enter Google Pay Public Key"
+  required = true
+  type = "Text"
+[[datatrans.connector_wallets_details.google_pay]]
+  name = "private_key"
+  label = "Google Pay Private Key"
+  placeholder = "Enter Google Pay Private Key"
+  required = true
+  type = "Text"
+[[datatrans.connector_wallets_details.google_pay]]
+  name = "recipient_id"
+  label = "Recipient Id"
+  placeholder = "Enter Recipient Id"
+  required = true
+  type = "Text"
+[[datatrans.connector_wallets_details.google_pay]]
+  name = "allowed_auth_methods"
+  label = "Allowed Auth Methods"
+  placeholder = "Enter Allowed Auth Methods"
+  required = true
+  type = "MultiSelect"
+  options = ["PAN_ONLY", "CRYPTOGRAM_3DS"]
 
 [paybox]
 [[paybox.credit]]
@@ -7505,7 +7683,7 @@ type="Text"
 name="workspace_id"
 label="Workspace Id"
 placeholder="Enter the workspace id"
-required=true
+required=false
 type="Text"
 [[santander.metadata.boleto]]
 name="covenant_code"
@@ -7513,6 +7691,12 @@ label="Covenant Code"
 placeholder="Enter the covenant code"
 required=true
 type="Text"
+
+[santander.connector_webhook_register_details]
+label="Webhook Registration & Workspace Creation"
+webhook_auto_configuration_supported=true 
+scope_type="payment_method_type"
+payment_method_types=["pix_qr", "pix_automatico_push", "pix_automatico_qr", "boleto"]
 
 [blackhawknetwork]
 [[blackhawknetwork.gift_card]]
@@ -7550,6 +7734,32 @@ processing_account_id = "processing_account_id"
 api_key = "API Key"
 [payload.connector_webhook_details]
 merchant_secret = "Source verification key"
+
+[payload.connector_webhook_register_details]
+label="Webhook Registration"
+webhook_auto_configuration_supported=true 
+event_types=[
+    "payment_processing",
+    "payment_authorized",
+    "payment_partially_authorized",
+    "payment_succeeded",
+    "payment_captured",
+    "payment_failed",
+    "refund_failed",
+    "payment_cancelled",
+    "payment_cancelled_post_capture",
+    "refund_succeeded",
+    "dispute_opened",
+    "dispute_accepted",
+    "dispute_lost",
+    "payout_initiated",
+    "payout_processing",
+    "payout_success",
+    "payout_failed",
+    "payout_cancelled",
+    "payout_reversed"
+]
+scope_type="event_type"
 
 [silverflow]
 [[silverflow.credit]]
@@ -7741,6 +7951,8 @@ payment_method_type = "skrill"
 payment_method_type = "pay_safe_card"
 [[paysafe.wallet]]
 payment_method_type = "apple_pay"
+[[paysafe.wallet]]
+payment_method_type = "google_pay"
 
 [paysafe.connector_auth.BodyKey]
 api_key = "Username"
@@ -7828,6 +8040,18 @@ label="Decrypt"
 placeholder="Enter decrypt value"
 required=true
 type="Text"
+[[paysafe.metadata.account_id.apple_pay.EUR.encrypt]]
+name="encrypt"
+label="Encrypt"
+placeholder="Enter encrypt value"
+required=true
+type="Text"
+[[paysafe.metadata.account_id.apple_pay.EUR.decrypt]]
+name="decrypt"
+label="Decrypt"
+placeholder="Enter decrypt value"
+required=true
+type="Text"
 
 [[paysafe.metadata.apple_pay]]
 name="certificate"
@@ -7880,6 +8104,76 @@ placeholder="Enter Payment Processing Details At"
 required=true
 type="Radio"
 options=["Connector","Hyperswitch"]
+
+[[paysafe.metadata.google_pay]]
+name="merchant_name"
+label="Google Pay Merchant Name"
+placeholder="Enter Google Pay Merchant Name"
+required=true
+type="Text"
+[[paysafe.metadata.google_pay]]
+name="merchant_id"
+label="Google Pay Merchant Id"
+placeholder="Enter Google Pay Merchant Id"
+required=true
+type="Text"
+[[paysafe.metadata.google_pay]]
+name="gateway_merchant_id"
+label="Google Pay Merchant Key"
+placeholder="Enter Google Pay Merchant Key"
+required=true
+type="Text"
+[[paysafe.metadata.google_pay]]
+name="allowed_auth_methods"
+label="Allowed Auth Methods"
+placeholder="Enter Allowed Auth Methods"
+required=true
+type="MultiSelect"
+options=["PAN_ONLY", "CRYPTOGRAM_3DS"]
+
+[[paysafe.connector_wallets_details.google_pay]]
+name="merchant_name"
+label="Google Pay Merchant Name"
+placeholder="Enter Google Pay Merchant Name"
+required=true
+type="Text"
+[[paysafe.connector_wallets_details.google_pay]]
+name="merchant_id"
+label="Google Pay Merchant Id"
+placeholder="Enter Google Pay Merchant Id"
+required=true
+type="Text"
+[[paysafe.connector_wallets_details.google_pay]]
+name="gateway_merchant_id"
+label="Google Pay Merchant Key"
+placeholder="Enter Google Pay Merchant Key"
+required=true
+type="Text"
+[[paysafe.connector_wallets_details.google_pay]]
+name="public_key"
+label="Google Pay Public Key"
+placeholder="Enter Google Pay Public Key"
+required=true
+type="Text"
+[[paysafe.connector_wallets_details.google_pay]]
+name="private_key"
+label="Google Pay Private Key"
+placeholder="Enter Google Pay Private Key"
+required=true
+type="Text"
+[[paysafe.connector_wallets_details.google_pay]]
+name="recipient_id"
+label="Recipient Id"
+placeholder="Enter Recipient Id"
+required=true
+type="Text"
+[[paysafe.connector_wallets_details.google_pay]]
+name="allowed_auth_methods"
+label="Allowed Auth Methods"
+placeholder="Enter Allowed Auth Methods"
+required=true
+type="MultiSelect"
+options=["PAN_ONLY", "CRYPTOGRAM_3DS"]
 
 [peachpayments]
 [[peachpayments.credit]]
@@ -8696,3 +8990,37 @@ api_key = "API Key"
 [payconex.connector_auth.BodyKey]
 api_key = "API Key"
 key1 = "Account Id"
+
+[givepayments]
+[givepayments.connector_auth.HeaderKey]
+api_key = "API Key"
+[givepayments.connector_webhook_details]
+merchant_secret="Source verification key"
+[[givepayments.credit]]
+payment_method_type = "Mastercard"
+[[givepayments.credit]]
+payment_method_type = "Visa"
+[[givepayments.credit]]
+payment_method_type = "AmericanExpress"
+[[givepayments.credit]]
+payment_method_type = "JCB"
+[[givepayments.credit]]
+payment_method_type = "Discover"
+[[givepayments.credit]]
+payment_method_type = "DinersClub"
+[[givepayments.credit]]
+payment_method_type = "UnionPay"
+[[givepayments.debit]]
+payment_method_type = "Mastercard"
+[[givepayments.debit]]
+payment_method_type = "Visa"
+[[givepayments.debit]]
+payment_method_type = "AmericanExpress"
+[[givepayments.debit]]
+payment_method_type = "JCB"
+[[givepayments.debit]]
+payment_method_type = "Discover"
+[[givepayments.debit]]
+payment_method_type = "DinersClub"
+[[givepayments.debit]]
+payment_method_type = "UnionPay"

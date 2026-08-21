@@ -28,6 +28,13 @@ pub trait DatabaseStore: Clone + Send + Sync {
     fn get_replica_pool(&self) -> &PgPool;
     fn get_accounts_master_pool(&self) -> &PgPool;
     fn get_accounts_replica_pool(&self) -> &PgPool;
+
+    /// Request correlation used by deja replay to route database connections to
+    /// the active replay schema. Stores without request identity return `None`.
+    #[cfg(feature = "deja")]
+    fn get_request_id(&self) -> Option<String> {
+        None
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -38,18 +45,24 @@ pub struct Store {
 
 #[async_trait::async_trait]
 impl DatabaseStore for Store {
-    type Config = Database;
+    /// (master config, accounts config)
+    type Config = (Database, Database);
     async fn new(
-        config: Database,
+        config: (Database, Database),
         tenant_config: &dyn TenantConfig,
         test_transaction: bool,
         _key_manager_state: Option<keymanager::KeyManagerState>,
     ) -> StorageResult<Self> {
+        let (master_config, accounts_config) = config;
         Ok(Self {
-            master_pool: diesel_make_pg_pool(&config, tenant_config.get_schema(), test_transaction)
-                .await?,
+            master_pool: diesel_make_pg_pool(
+                &master_config,
+                tenant_config.get_schema(),
+                test_transaction,
+            )
+            .await?,
             accounts_pool: diesel_make_pg_pool(
-                &config,
+                &accounts_config,
                 tenant_config.get_accounts_schema(),
                 test_transaction,
             )
@@ -84,20 +97,22 @@ pub struct ReplicaStore {
 
 #[async_trait::async_trait]
 impl DatabaseStore for ReplicaStore {
-    type Config = (Database, Database);
+    /// (master config, replica config, accounts master config, accounts replica config)
+    type Config = (Database, Database, Database, Database);
     async fn new(
-        config: (Database, Database),
+        config: (Database, Database, Database, Database),
         tenant_config: &dyn TenantConfig,
         test_transaction: bool,
         _key_manager_state: Option<keymanager::KeyManagerState>,
     ) -> StorageResult<Self> {
-        let (master_config, replica_config) = config;
+        let (master_config, replica_config, accounts_master_config, accounts_replica_config) =
+            config;
         let master_pool =
             diesel_make_pg_pool(&master_config, tenant_config.get_schema(), test_transaction)
                 .await
                 .attach_printable("failed to create master pool")?;
         let accounts_master_pool = diesel_make_pg_pool(
-            &master_config,
+            &accounts_master_config,
             tenant_config.get_accounts_schema(),
             test_transaction,
         )
@@ -112,7 +127,7 @@ impl DatabaseStore for ReplicaStore {
         .attach_printable("failed to create replica pool")?;
 
         let accounts_replica_pool = diesel_make_pg_pool(
-            &replica_config,
+            &accounts_replica_config,
             tenant_config.get_accounts_schema(),
             test_transaction,
         )

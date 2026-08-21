@@ -286,6 +286,8 @@ pub struct GigadatTransactionStatusResponse {
     pub status: GigadatTransactionStatus,
     pub interac_bank_name: Option<Secret<String>>,
     pub data: Option<GigadatSyncData>,
+    pub amount: Option<FloatMajorUnit>,
+    pub currency: Option<Currency>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -413,6 +415,8 @@ impl<F> TryFrom<&GigadatRouterData<&RefundsRouterData<F>>> for GigadatRefundRequ
 pub struct RefundResponse {
     success: bool,
     data: GigadatPaymentData,
+    pub amount: Option<FloatMajorUnit>,
+    pub currency: Option<Currency>,
 }
 
 impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>> for RefundsRouterData<Execute> {
