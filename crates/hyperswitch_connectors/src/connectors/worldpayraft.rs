@@ -104,8 +104,6 @@ impl ConnectorCommon for Worldpayraft {
     }
 
     fn get_currency_unit(&self) -> api::CurrencyUnit {
-        // Worldpayraft (worldpayraft) processes amounts in base (major) units. Never invoked on the
-        // HS side for this UCS-only connector, but must return a valid value (no todo!()).
         api::CurrencyUnit::Base
     }
 
@@ -604,7 +602,7 @@ static WORLDPAYRAFT_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Worldpayraft",
     description: "Worldpay Native RAFT connector",
     connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
-    integration_status: enums::ConnectorIntegrationStatus::Live,
+    integration_status: enums::ConnectorIntegrationStatus::Alpha,
 };
 
 static WORLDPAYRAFT_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];

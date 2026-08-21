@@ -22,7 +22,6 @@ pub struct WorldpayraftRouterData<T> {
 
 impl<T> From<(StringMinorUnit, T)> for WorldpayraftRouterData<T> {
     fn from((amount, item): (StringMinorUnit, T)) -> Self {
-        //Todo :  use utils to convert the amount to the type of amount that a connector accepts
         Self {
             amount,
             router_data: item,
@@ -173,7 +172,6 @@ impl From<RefundStatus> for enums::RefundStatus {
             RefundStatus::Succeeded => Self::Success,
             RefundStatus::Failed => Self::Failure,
             RefundStatus::Processing => Self::Pending,
-            //TODO: Review mapping
         }
     }
 }
