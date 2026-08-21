@@ -674,6 +674,9 @@ pub enum BankRedirectData {
         #[schema(value_type = Option<String>)]
         #[serde(default)]
         account_holder_name: Option<hyperswitch_masking::Secret<String>>,
+        #[schema(value_type = Option<String>)]
+        #[serde(default)]
+        bank_name: Option<common_enums::BankNames>,
     },
 }
 
@@ -3766,6 +3769,8 @@ pub struct PaymentMethodCollectLinkStatusDetails {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct MaskedBankDetails {
     pub mask: String,
+    pub account_holder_name: Option<String>,
+    pub bank_name: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
