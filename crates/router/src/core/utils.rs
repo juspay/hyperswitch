@@ -318,8 +318,8 @@ pub async fn construct_payout_router_data<'a, F>(
         recurring_mandate_payment_data: None,
         preprocessing_id: None,
         connector_request_reference_id: get_payout_connector_request_reference_id(
-            &connector_data,
-            &payout_attempt,
+            connector_data,
+            payout_attempt,
         ),
         payout_method_data: payout_data.payout_method_data.to_owned(),
         quote_id: None,
@@ -2074,7 +2074,7 @@ pub fn get_connector_request_reference_id(
     Ok(connector_request_reference_id)
 }
 
-#[cfg(all(feature = "payouts", feature = "v1"))]
+#[cfg(feature = "payouts")]
 pub fn get_payout_connector_request_reference_id(
     connector_data: &api::ConnectorData,
     payout_attempt: &hyperswitch_domain_models::payouts::payout_attempt::PayoutAttempt,
