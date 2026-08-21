@@ -35,5 +35,14 @@ router_derive = { version = "0.1.0", path = "../router_derive" }
 router_env = { version = "0.1.0", path = "../router_env", features = ["log_extra_implicit_fields", "log_custom_entries_to_extra"] }
 deja = { git = "https://github.com/juspay/deja", rev = "337181ebfd74b7e571a63a9cce515ff3c9309db7", optional = true, default-features = false, features = ["error-stack"] }
 
+[dev-dependencies]
+bb8 = "0.8.6"
+tokio = { version = "1.48.0", features = ["macros", "rt-multi-thread"] }
+futures = "0.3"
+
+[[test]]
+name = "webhook_lookup_scoping"
+required-features = ["v1"]
+
 [lints]
 workspace = true

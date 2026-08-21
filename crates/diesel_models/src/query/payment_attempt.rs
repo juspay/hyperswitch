@@ -203,6 +203,7 @@ impl PaymentAttempt {
         conn: &PgPooledConn,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         connector_txn_id: &str,
+        merchant_connector_id: Option<&common_utils::id_type::MerchantConnectorAccountId>,
     ) -> StorageResult<Self> {
         let (txn_id, txn_data) = common_utils::types::ConnectorTransactionId::form_id_and_data(
             connector_txn_id.to_string(),
@@ -213,13 +214,31 @@ impl PaymentAttempt {
             .attach_printable_lazy(|| {
                 format!("Failed to retrieve txn_id for ({txn_id:?}, {txn_data:?})")
             })?;
-        generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
-            conn,
-            dsl::processor_merchant_id
-                .eq(processor_merchant_id.to_owned())
-                .and(dsl::connector_transaction_id.eq(connector_transaction_id.to_owned())),
-        )
-        .await
+        match merchant_connector_id {
+            Some(merchant_connector_id) => {
+                generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
+                    conn,
+                    dsl::processor_merchant_id
+                        .eq(processor_merchant_id.to_owned())
+                        .and(dsl::connector_transaction_id.eq(connector_transaction_id.to_owned()))
+                        .and(
+                            dsl::merchant_connector_id
+                                .eq(merchant_connector_id.to_owned())
+                                .or(dsl::merchant_connector_id.is_null()),
+                        ),
+                )
+                .await
+            }
+            None => {
+                generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
+                    conn,
+                    dsl::processor_merchant_id
+                        .eq(processor_merchant_id.to_owned())
+                        .and(dsl::connector_transaction_id.eq(connector_transaction_id.to_owned())),
+                )
+                .await
+            }
+        }
     }
 
     #[cfg(feature = "v2")]
