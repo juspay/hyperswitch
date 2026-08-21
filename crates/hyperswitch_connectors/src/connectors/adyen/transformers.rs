@@ -1391,11 +1391,9 @@ impl TryFrom<&common_enums::BankNames> for OpenBankingUKIssuer {
             | common_enums::BankNames::NationaleNederlanden
             | common_enums::BankNames::KasikornBank
             | common_enums::BankNames::MockUkPayments
-            | _ => {
-                Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("Adyen"),
-                ))?
-            }
+            | _ => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("Adyen"),
+            ))?,
         }
     }
 }

@@ -1338,7 +1338,7 @@ impl BankRedirectData {
                 sort_code,
                 account_holder_name,
                 additional_details: _,
-                bank_name
+                bank_name,
             } => Some(BankRedirectDetailsPaymentMethod::OpenBanking {
                 masked_iban: iban
                     .map(|iban| common_utils::new_type::mask_sensitive_field(iban.peek(), 4)),

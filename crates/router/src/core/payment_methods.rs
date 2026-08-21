@@ -1250,7 +1250,7 @@ pub async fn retrieve_payment_method_with_token(
                             masked_iban: _,
                             masked_sort_code: _,
                             account_holder_name,
-                            bank_name
+                            bank_name,
                         } => (account_holder_name.clone(), bank_name.clone()),
                     }
                 } else {
@@ -1664,7 +1664,7 @@ pub(crate) async fn get_payment_method_create_request(
                                         iban: iban.clone(),
                                         sort_code: sort_code.clone(),
                                         account_holder_name: account_holder_name.clone(),
-                                        bank_name: bank_name.clone()
+                                        bank_name: bank_name.clone(),
                                     },
                                 ),
                             ),

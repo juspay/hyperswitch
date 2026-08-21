@@ -6670,7 +6670,11 @@ pub async fn get_masked_bank_details(
                 let account_holder_name = account_holder_name.map(|name| name.expose());
                 let bank_name = bank_name.map(|name| name.to_display_name());
 
-                Ok(mask.map(|mask| MaskedBankDetails { mask, account_holder_name, bank_name }))
+                Ok(mask.map(|mask| MaskedBankDetails {
+                    mask,
+                    account_holder_name,
+                    bank_name,
+                }))
             }
             domain::PaymentMethodsData::BankDebit(
                 domain::BankDebitDetailsPaymentMethod::AchBankDebit {
