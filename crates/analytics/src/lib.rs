@@ -11,6 +11,7 @@ pub mod frm;
 pub mod health_check;
 pub mod metrics;
 pub mod opensearch;
+pub mod org_activity_log;
 pub mod outgoing_webhook_event;
 pub mod payment_intents;
 pub mod payments;
@@ -1184,6 +1185,8 @@ pub enum AnalyticsFlow {
     GetSankey,
     GetRoutingEvents,
     GetPaymentListFromOpenSearch,
+    GetOrgActivityLogs,
+    GetOrgActivityLogFilters,
 }
 
 impl FlowMetric for AnalyticsFlow {}

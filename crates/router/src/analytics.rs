@@ -14,6 +14,7 @@ pub mod routes {
         errors::AnalyticsError,
         lambda_utils::invoke_lambda,
         opensearch::OpenSearchError,
+        org_activity_log::{org_activity_log_core, ORG_ACTIVITY_LOG_FLOWS},
         outgoing_webhook_event::outgoing_webhook_events_core,
         routing_events::routing_events_core,
         sdk_events::sdk_events_core,
@@ -21,6 +22,10 @@ pub mod routes {
     };
     use api_models::analytics::{
         api_event::QueryType,
+        org_activity_log::{
+            OrgActivityLogEntry, OrgActivityLogFilterValues, OrgActivityLogRequest,
+            OrgActivityLogResponse, ORG_ACTIVITY_LOG_MAX_LIMIT,
+        },
         search::{
             GetGlobalSearchRequest, GetSearchRequest, GetSearchRequestWithIndex, SearchFilters,
             SearchIndex,
@@ -43,7 +48,7 @@ pub mod routes {
         analytics_validator::{request_validator, validate_report_request},
         consts::opensearch::SEARCH_INDEXES,
         core::{api_locking, errors::user::UserErrors, verification::utils},
-        db::user_role::ListUserRolesByUserIdPayload,
+        db::user_role::{ListUserRolesByOrgIdPayload, ListUserRolesByUserIdPayload},
         routes::{metrics, AppState},
         services::{
             api,
@@ -51,7 +56,10 @@ pub mod routes {
             authorization::{permissions::Permission, roles::RoleInfo},
             ApplicationResponse,
         },
-        types::{domain::UserEmail, storage::UserRole},
+        types::{
+            domain::{UserEmail, UserFromStorage},
+            storage::UserRole,
+        },
         utils::get_payment_response_hash_key,
     };
 
@@ -391,6 +399,14 @@ pub mod routes {
                                 .service(
                                     web::resource("metrics/auth_events/sankey")
                                         .route(web::post().to(get_org_auth_event_sankey)),
+                                )
+                                .service(
+                                    web::resource("activity_logs")
+                                        .route(web::post().to(get_org_activity_logs)),
+                                )
+                                .service(
+                                    web::resource("activity_logs/filters")
+                                        .route(web::get().to(get_org_activity_log_filters)),
                                 ),
                         )
                         .service(
@@ -647,6 +663,223 @@ pub mod routes {
                 analytics::payments::get_metrics(&state.pool, &ex_rates, &auth_info, req)
                     .await
                     .map(ApplicationResponse::Json)
+            },
+            auth::auth_type(
+                &auth::PlatformOrgAdminAuth {
+                    is_admin_auth_allowed: false,
+                    organization_id: None,
+                },
+                &auth::JWTAuth {
+                    permission: Permission::OrganizationAnalyticsRead,
+                    allow_connected: true,
+                    allow_platform: true,
+                },
+                req.headers(),
+            ),
+            api_locking::LockAction::NotApplicable,
+        ))
+        .await
+    }
+
+    #[cfg(feature = "v1")]
+    pub async fn get_org_activity_logs(
+        state: web::Data<AppState>,
+        req: actix_web::HttpRequest,
+        json_payload: web::Json<OrgActivityLogRequest>,
+    ) -> impl Responder {
+        let flow = AnalyticsFlow::GetOrgActivityLogs;
+        Box::pin(api::server_wrap(
+            flow,
+            state,
+            &req,
+            json_payload.into_inner(),
+            |state, auth: AuthenticationData, req, _| async move {
+                let org_id = auth
+                    .platform
+                    .get_processor()
+                    .get_account()
+                    .get_org_id()
+                    .clone();
+
+                let api_flows = match &req.api_flows {
+                    Some(requested) if !requested.is_empty() => {
+                        if let Some(unknown) = requested.iter().find(|flow| {
+                            !ORG_ACTIVITY_LOG_FLOWS
+                                .iter()
+                                .any(|allowed| allowed.to_string() == **flow)
+                        }) {
+                            return Err(report!(AnalyticsError::InvalidRequest(format!(
+                                "unknown api_flow: {unknown}"
+                            ))));
+                        }
+                        ORG_ACTIVITY_LOG_FLOWS
+                            .iter()
+                            .filter(|allowed| requested.contains(&allowed.to_string()))
+                            .cloned()
+                            .collect::<Vec<_>>()
+                    }
+                    _ => ORG_ACTIVITY_LOG_FLOWS.to_vec(),
+                };
+
+                let org_merchant_ids = state
+                    .store
+                    .list_merchant_accounts_by_organization_id(&org_id)
+                    .await
+                    .change_context(AnalyticsError::UnknownError)?
+                    .into_iter()
+                    .map(|merchant_account| merchant_account.get_id().to_owned())
+                    .collect::<Vec<_>>();
+
+                let merchant_ids = match &req.merchant_ids {
+                    Some(requested) if !requested.is_empty() => org_merchant_ids
+                        .into_iter()
+                        .filter(|merchant_id| requested.contains(merchant_id))
+                        .collect::<Vec<_>>(),
+                    // org-level actions are recorded under the sentinel merchant id, so
+                    // keep them only when no explicit merchant filter is requested
+                    _ => {
+                        let mut merchant_ids = org_merchant_ids;
+                        merchant_ids
+                            .push(common_utils::id_type::MerchantId::get_merchant_id_not_found());
+                        merchant_ids
+                    }
+                };
+
+                let org_user_ids = state
+                    .global_store
+                    .list_user_roles_by_org_id(ListUserRolesByOrgIdPayload {
+                        user_id: None,
+                        tenant_id: &state.tenant.tenant_id,
+                        org_id: &org_id,
+                        merchant_id: None,
+                        profile_id: None,
+                        entity_type: None,
+                        version: None,
+                        limit: None,
+                    })
+                    .await
+                    .change_context(AnalyticsError::UnknownError)?
+                    .into_iter()
+                    .map(|user_role| user_role.user_id)
+                    .collect::<HashSet<_>>();
+
+                let user_ids = match &req.user_ids {
+                    Some(requested) if !requested.is_empty() => requested
+                        .iter()
+                        .filter(|user_id| org_user_ids.contains(*user_id))
+                        .cloned()
+                        .collect::<Vec<_>>(),
+                    _ => org_user_ids.into_iter().collect(),
+                };
+
+                if user_ids.is_empty() || merchant_ids.is_empty() {
+                    return Ok(ApplicationResponse::Json(OrgActivityLogResponse {
+                        total_count: 0,
+                        activity_logs: Vec::new(),
+                    }));
+                }
+
+                let limit = req.limit.min(ORG_ACTIVITY_LOG_MAX_LIMIT);
+                let (rows, total_count) = org_activity_log_core(
+                    &state.pool,
+                    &user_ids,
+                    &merchant_ids,
+                    &api_flows,
+                    &req.time_range,
+                    limit,
+                    req.offset,
+                )
+                .await?;
+
+                let page_user_ids = rows
+                    .iter()
+                    .filter_map(|row| row.auth_user_id.clone())
+                    .collect::<HashSet<_>>()
+                    .into_iter()
+                    .collect::<Vec<_>>();
+                let users = if page_user_ids.is_empty() {
+                    HashMap::new()
+                } else {
+                    state
+                        .global_store
+                        .list_users_by_user_ids(page_user_ids)
+                        .await
+                        .change_context(AnalyticsError::UnknownError)?
+                        .into_iter()
+                        .map(UserFromStorage::from)
+                        .map(|user| {
+                            (
+                                user.get_user_id().to_string(),
+                                (user.get_name(), user.get_email()),
+                            )
+                        })
+                        .collect::<HashMap<_, _>>()
+                };
+
+                let sentinel_merchant_id =
+                    common_utils::id_type::MerchantId::get_merchant_id_not_found();
+                let activity_logs = rows
+                    .into_iter()
+                    .map(|row| {
+                        let user = row.auth_user_id.as_ref().and_then(|id| users.get(id));
+                        OrgActivityLogEntry {
+                            user_id: row.auth_user_id.clone(),
+                            user_name: user.map(|(name, _)| name.clone()),
+                            user_email: user.map(|(_, email)| email.clone()),
+                            api_flow: row.api_flow,
+                            flow_type: row.flow_type,
+                            url_path: row.url_path,
+                            http_method: row.http_method,
+                            status_code: row.status_code,
+                            merchant_id: (row.merchant_id != sentinel_merchant_id)
+                                .then_some(row.merchant_id),
+                            created_at: row.created_at,
+                        }
+                    })
+                    .collect();
+
+                Ok(ApplicationResponse::Json(OrgActivityLogResponse {
+                    total_count,
+                    activity_logs,
+                }))
+            },
+            auth::auth_type(
+                &auth::PlatformOrgAdminAuth {
+                    is_admin_auth_allowed: false,
+                    organization_id: None,
+                },
+                &auth::JWTAuth {
+                    permission: Permission::OrganizationAnalyticsRead,
+                    allow_connected: true,
+                    allow_platform: true,
+                },
+                req.headers(),
+            ),
+            api_locking::LockAction::NotApplicable,
+        ))
+        .await
+    }
+
+    #[cfg(feature = "v1")]
+    pub async fn get_org_activity_log_filters(
+        state: web::Data<AppState>,
+        req: actix_web::HttpRequest,
+    ) -> impl Responder {
+        let flow = AnalyticsFlow::GetOrgActivityLogFilters;
+        Box::pin(api::server_wrap(
+            flow,
+            state,
+            &req,
+            (),
+            |_state, _auth: AuthenticationData, _req, _| async move {
+                Ok::<_, error_stack::Report<AnalyticsError>>(ApplicationResponse::Json(
+                    OrgActivityLogFilterValues {
+                        api_flows: ORG_ACTIVITY_LOG_FLOWS
+                            .iter()
+                            .map(|flow| flow.to_string())
+                            .collect(),
+                    },
+                ))
             },
             auth::auth_type(
                 &auth::PlatformOrgAdminAuth {

@@ -412,6 +412,8 @@ where
     order_by: Vec<String>,
     having: Option<Vec<(String, FilterTypes, String)>>,
     limit_by: Option<LimitByClause>,
+    limit: Option<u64>,
+    offset: Option<u64>,
     outer_select: Vec<String>,
     top_n: Option<TopN>,
     table: AnalyticsCollection,
@@ -591,6 +593,8 @@ where
             order_by: Default::default(),
             having: Default::default(),
             limit_by: Default::default(),
+            limit: Default::default(),
+            offset: Default::default(),
             outer_select: Default::default(),
             top_n: Default::default(),
             table,
@@ -767,6 +771,11 @@ where
         Ok(())
     }
 
+    pub fn set_limit_and_offset(&mut self, limit: u64, offset: u64) {
+        self.limit = Some(limit);
+        self.offset = Some(offset);
+    }
+
     pub fn add_granularity_in_mins(&mut self, granularity: Granularity) -> QueryResult<()> {
         let interval = match granularity {
             Granularity::OneMin => "1",
@@ -907,6 +916,13 @@ where
 
         if let Some(limit_by) = &self.limit_by {
             query.push_str(&format!(" {limit_by}"));
+        }
+
+        if let Some(limit) = self.limit {
+            query.push_str(&format!(" LIMIT {limit}"));
+            if let Some(offset) = self.offset {
+                query.push_str(&format!(" OFFSET {offset}"));
+            }
         }
 
         if !self.outer_select.is_empty() {
