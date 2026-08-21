@@ -33,6 +33,10 @@ pub enum MetaData {
     PaymentViews(Box<api::SavedViewOperation>),
     #[cfg(feature = "v1")]
     PaymentAdvancedViews(Box<api::PaymentAdvancedViewOperation>),
+    #[cfg(feature = "v1")]
+    RefundViews(Box<api::SavedViewOperation>),
+    #[cfg(feature = "v1")]
+    DisputeViews(Box<api::SavedViewOperation>),
 }
 
 impl From<&MetaData> for DBEnum {
@@ -66,6 +70,10 @@ impl From<&MetaData> for DBEnum {
             MetaData::PaymentViews(_) => Self::PaymentViews,
             #[cfg(feature = "v1")]
             MetaData::PaymentAdvancedViews(_) => Self::PaymentAdvancedViews,
+            #[cfg(feature = "v1")]
+            MetaData::RefundViews(_) => Self::RefundViews,
+            #[cfg(feature = "v1")]
+            MetaData::DisputeViews(_) => Self::DisputeViews,
         }
     }
 }
@@ -79,19 +87,28 @@ pub struct ProductionAgreementValue {
 
 #[cfg(feature = "v1")]
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
-pub struct SavedViewV1 {
+pub struct SavedView<T> {
     pub view_id: String,
     pub view_name: String,
-    pub filters: api::PaymentListFilterConstraintsV1,
+    pub filters: T,
     pub created_at: String,
     pub updated_at: String,
 }
 
 #[cfg(feature = "v1")]
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
-pub struct PaymentViewsValue {
-    pub views: Vec<SavedViewV1>,
+pub struct SavedViewsValue<T> {
+    pub views: Vec<SavedView<T>>,
 }
+
+#[cfg(feature = "v1")]
+pub type PaymentViewsValue = SavedViewsValue<api::PaymentListFilterConstraintsV1>;
+
+#[cfg(feature = "v1")]
+pub type RefundViewsValue = SavedViewsValue<api::RefundViewFilterConstraintsV1>;
+
+#[cfg(feature = "v1")]
+pub type DisputeViewsValue = SavedViewsValue<api::DisputeViewFilterConstraintsV1>;
 
 #[cfg(feature = "v1")]
 #[derive(Debug, serde::Serialize, serde::Deserialize)]

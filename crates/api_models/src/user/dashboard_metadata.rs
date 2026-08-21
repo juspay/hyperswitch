@@ -36,6 +36,10 @@ pub enum SetMetaDataRequest {
     PaymentViews(Box<SavedViewOperation>),
     #[cfg(feature = "v1")]
     PaymentAdvancedViews(Box<PaymentAdvancedViewOperation>),
+    #[cfg(feature = "v1")]
+    RefundViews(Box<SavedViewOperation>),
+    #[cfg(feature = "v1")]
+    DisputeViews(Box<SavedViewOperation>),
 }
 
 #[cfg(feature = "v1")]
@@ -161,6 +165,10 @@ pub enum GetMetaDataRequest {
     PaymentViews,
     #[cfg(feature = "v1")]
     PaymentAdvancedViews,
+    #[cfg(feature = "v1")]
+    RefundViews,
+    #[cfg(feature = "v1")]
+    DisputeViews,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
@@ -204,6 +212,10 @@ pub enum GetMetaDataResponse {
     PaymentViews(Option<Vec<SavedViewResponse>>),
     #[cfg(feature = "v1")]
     PaymentAdvancedViews(Option<Vec<PaymentAdvancedViewResponse>>),
+    #[cfg(feature = "v1")]
+    RefundViews(Option<Vec<SavedViewResponse>>),
+    #[cfg(feature = "v1")]
+    DisputeViews(Option<Vec<SavedViewResponse>>),
 }
 
 // === Saved Views API Types ===
@@ -214,6 +226,8 @@ pub enum GetMetaDataResponse {
 #[serde(rename_all = "snake_case")]
 pub enum SavedViewFiltersV1 {
     PaymentViews(PaymentListFilterConstraintsV1),
+    RefundViews(RefundViewFilterConstraintsV1),
+    DisputeViews(DisputeViewFilterConstraintsV1),
 }
 
 #[cfg(feature = "v1")]
@@ -252,6 +266,45 @@ pub struct PaymentListFilterConstraintsV1 {
     pub merchant_order_reference_id: Option<String>,
     pub card_discovery: Option<Vec<enums::CardDiscovery>>,
     pub customer_email: Option<pii::Email>,
+}
+
+#[cfg(feature = "v1")]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct RefundViewFilterConstraintsV1 {
+    pub payment_id: Option<id_type::PaymentId>,
+    pub refund_id: Option<String>,
+    pub profile_id: Option<id_type::ProfileId>,
+    #[serde(default)]
+    pub limit: Option<common_utils::types::list::PageSize>,
+    #[serde(default)]
+    pub offset: Option<common_utils::types::list::PageOffset>,
+    #[serde(flatten)]
+    pub time_range: Option<common_utils::types::TimeRange>,
+    pub amount_filter: Option<payments::AmountFilter>,
+    pub connector: Option<Vec<String>>,
+    pub merchant_connector_id: Option<Vec<id_type::MerchantConnectorAccountId>>,
+    pub currency: Option<Vec<enums::Currency>>,
+    pub refund_status: Option<Vec<enums::RefundStatus>>,
+}
+
+#[cfg(feature = "v1")]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct DisputeViewFilterConstraintsV1 {
+    pub dispute_id: Option<String>,
+    pub payment_id: Option<id_type::PaymentId>,
+    pub profile_id: Option<id_type::ProfileId>,
+    #[serde(default)]
+    pub limit: Option<common_utils::types::list::PageSize>,
+    #[serde(default)]
+    pub offset: Option<common_utils::types::list::PageOffset>,
+    pub dispute_status: Option<Vec<enums::DisputeStatus>>,
+    pub dispute_stage: Option<Vec<enums::DisputeStage>>,
+    pub reason: Option<String>,
+    pub connector: Option<Vec<String>>,
+    pub currency: Option<Vec<enums::Currency>>,
+    pub merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
+    #[serde(flatten)]
+    pub time_range: Option<common_utils::types::TimeRange>,
 }
 
 #[cfg(feature = "v1")]
