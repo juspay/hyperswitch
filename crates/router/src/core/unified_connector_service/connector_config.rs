@@ -111,6 +111,11 @@ pub struct PaysafeMetadata {
     pub account_id: PaysafePaymentMethodDetails,
 }
 
+#[derive(Debug, serde::Deserialize)]
+pub struct CalidaMetadata {
+    shop_name: Secret<String>,
+}
+
 /// Paysafe payment method details for account_id configuration.
 /// Contains per-currency account IDs for card, ACH, Apple Pay, Interac,
 /// Skrill and paysafecard.
@@ -369,6 +374,12 @@ pub enum ConnectorSpecificConfig {
         secret: Secret<String>,
     },
     /// Nuvei connector configuration
+    Moneris {
+        client_secret: Secret<String>,
+        client_id: Secret<String>,
+        merchant_id: Secret<String>,
+    },
+    /// Nuvei connector configuration
     Nuvei {
         merchant_id: Secret<String>,
         merchant_site_id: Secret<String>,
@@ -593,7 +604,10 @@ pub enum ConnectorSpecificConfig {
     /// Nexixpay connector configuration
     Nexixpay { api_key: Secret<String> },
     /// Calida connector configuration
-    Calida { api_key: Secret<String> },
+    Calida {
+        api_key: Secret<String>,
+        shop_name: Option<Secret<String>>,
+    },
     /// Celero connector configuration
     Celero { api_key: Secret<String> },
     /// Stax connector configuration
@@ -889,9 +903,19 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                 _ => Err(err("Fiservcommercehub requires MultiAuthKey auth type")),
             },
             Connector::Calida => match auth {
-                ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Calida {
-                    api_key: api_key.clone(),
-                }),
+                ConnectorAuthType::HeaderKey { api_key } => {
+                    let calida_meta = metadata
+                        .map(|m| {
+                            serde_json::from_value::<CalidaMetadata>(m.clone())
+                                .map_err(|_| err("Invalid Calida metadata format"))
+                        })
+                        .transpose()?;
+
+                    Ok(Self::Calida {
+                        api_key: api_key.clone(),
+                        shop_name: calida_meta.as_ref().map(|m| m.shop_name.clone()),
+                    })
+                }
                 _ => Err(err("Calida requires HeaderKey auth type")),
             },
             Connector::Celero => match auth {
@@ -1335,6 +1359,18 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                     client_secret: api_secret.clone(),
                 }),
                 _ => Err(err("Iatapay requires SignatureKey auth type")),
+            },
+            Connector::Moneris => match auth {
+                ConnectorAuthType::SignatureKey {
+                    api_key,
+                    key1,
+                    api_secret,
+                } => Ok(Self::Moneris {
+                    client_secret: api_key.clone(),
+                    client_id: key1.clone(),
+                    merchant_id: api_secret.clone(),
+                }),
+                _ => Err(err("Moneris requires SignatureKey auth type")),
             },
             Connector::Noon => match auth {
                 ConnectorAuthType::SignatureKey {
