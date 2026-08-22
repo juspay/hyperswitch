@@ -177,6 +177,7 @@ where
 
 #[allow(missing_docs)]
 #[derive(Debug, thiserror::Error)]
+#[cfg_attr(feature = "deja", derive(serde::Serialize, serde::Deserialize))]
 pub enum KeyManagerClientError {
     #[error("Failed to construct header from the given value")]
     FailedtoConstructHeader,
