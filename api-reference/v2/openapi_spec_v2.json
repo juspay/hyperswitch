@@ -9518,6 +9518,24 @@
             "description": "Card Issuer",
             "example": "JP MORGAN CHASE",
             "nullable": true
+          },
+          "card_type": {
+            "type": "string",
+            "description": "Funding type of the card, `credit` or `debit`, enriched from the card bin",
+            "example": "credit",
+            "nullable": true
+          },
+          "card_issuing_country": {
+            "type": "string",
+            "description": "Country in which the card was issued, enriched from the card bin",
+            "example": "INDIA",
+            "nullable": true
+          },
+          "card_isin": {
+            "type": "string",
+            "description": "Issuer identification number of the card, retained so that any further card details can\nbe looked up from it later",
+            "example": "424242",
+            "nullable": true
           }
         }
       },
