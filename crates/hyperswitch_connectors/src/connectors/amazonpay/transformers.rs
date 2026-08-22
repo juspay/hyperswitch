@@ -43,8 +43,8 @@ pub struct AmazonpayFinalizeRequest {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct ChargeAmount {
-    amount: StringMajorUnit,
-    currency_code: common_enums::Currency,
+    pub amount: StringMajorUnit,
+    pub currency_code: common_enums::Currency,
 }
 
 #[derive(Debug, Deserialize, Serialize, PartialEq)]
@@ -110,7 +110,7 @@ pub struct AmazonpayFinalizeResponse {
     checkout_session_id: String,
     web_checkout_details: WebCheckoutDetails,
     product_type: Option<String>,
-    payment_details: Option<PaymentDetails>,
+    pub payment_details: Option<PaymentDetails>,
     cart_details: CartDetails,
     charge_permission_type: String,
     order_type: Option<String>,
@@ -162,7 +162,7 @@ pub struct WebCheckoutDetails {
 pub struct PaymentDetails {
     payment_intent: String,
     can_handle_pending_authorization: bool,
-    charge_amount: ChargeAmount,
+    pub charge_amount: ChargeAmount,
     total_order_amount: ChargeAmount,
     presentment_currency: String,
     soft_descriptor: String,
@@ -365,7 +365,7 @@ impl From<AmazonpayPaymentStatus> for common_enums::AttemptStatus {
 #[serde(rename_all = "camelCase")]
 pub struct AmazonpayPaymentsResponse {
     charge_id: String,
-    charge_amount: ChargeAmount,
+    pub charge_amount: ChargeAmount,
     charge_permission_id: String,
     capture_amount: Option<ChargeAmount>,
     refunded_amount: Option<ChargeAmount>,
@@ -529,7 +529,7 @@ pub struct RefundResponse {
     refund_id: String,
     charge_id: String,
     creation_timestamp: String,
-    refund_amount: ChargeAmount,
+    pub refund_amount: ChargeAmount,
     status_details: RefundStatusDetails,
     soft_descriptor: String,
     release_environment: ReleaseEnvironment,
