@@ -17,9 +17,12 @@ use common_utils::{
 };
 use diesel_models::types::FeatureMetadata;
 use error_stack::ResultExt;
-use external_services::grpc_client::{
-    unified_connector_service::{ConnectorAuthMetadata, UnifiedConnectorServiceError},
-    LineageIds,
+use external_services::{
+    grpc_client::{
+        unified_connector_service::{ConnectorAuthMetadata, UnifiedConnectorServiceError},
+        LineageIds,
+    },
+    superposition,
 };
 use hyperswitch_connectors::utils::CardData;
 #[cfg(feature = "v2")]
@@ -42,16 +45,19 @@ use unified_connector_service_client::payments::{
     ClassicReward, CryptoCurrency, EVoucher, PaymentServiceAuthorizeResponse,
 };
 
+#[cfg(feature = "ucs_cutover")]
+use crate::core::payments::helpers::{
+    should_execute_based_on_rollout_with_precedence, ProxyOverride,
+};
 use crate::{
     consts,
     core::{
         errors::{self, RouterResult},
         payments::{
             helpers::{
-                is_config_flag_enabled, is_googlepay_predecrypted_flow_supported,
-                should_execute_based_on_rollout, should_execute_based_on_rollout_with_precedence,
-                MerchantConnectorAccountType, ProxyOverride, WebhookRolloutConfig,
-                WebhookRolloutExecutionResult,
+                get_ucs_enabled_mode, is_googlepay_predecrypted_flow_supported,
+                should_execute_based_on_rollout, MerchantConnectorAccountType,
+                WebhookRolloutConfig, WebhookRolloutExecutionResult,
             },
             OperationSessionGetters, OperationSessionSetters,
         },
@@ -825,22 +831,26 @@ type UnifiedConnectorServiceCreateOrderResult = CustomResult<
 async fn check_ucs_availability(state: &SessionState) -> UcsAvailability {
     let is_client_available = state.grpc_client.unified_connector_service_client.is_some();
 
-    let is_enabled = is_config_flag_enabled(state, consts::UCS_ENABLED).await;
+    let ucs_mode = get_ucs_enabled_mode(state, consts::UCS_ENABLED).await;
 
-    match (is_client_available, is_enabled) {
-        (true, true) => {
+    match (is_client_available, &ucs_mode) {
+        (true, UcsAvailability::Enabled) => {
             router_env::logger::debug!("UCS is available and enabled");
             UcsAvailability::Enabled
         }
+        (true, UcsAvailability::ShadowKilled) => {
+            router_env::logger::debug!("UCS is available but shadow is killed");
+            UcsAvailability::ShadowKilled
+        }
         _ => {
             router_env::logger::debug!(
-                "UCS client is {} and UCS is {} in configuration",
+                "UCS client is {} and UCS mode is {:?} in configuration",
                 if is_client_available {
                     "available"
                 } else {
                     "not available"
                 },
-                if is_enabled { "enabled" } else { "not enabled" }
+                ucs_mode
             );
             UcsAvailability::Disabled
         }
@@ -881,6 +891,51 @@ pub async fn determine_connector_integration_type(
     }
 }
 
+/// Default path: UCS is the standard gateway for all connector calls.
+/// Connectors in the `ucs_blacklisted_connectors` config are routed to Direct instead.
+/// If the gRPC client is not available, this returns an error — there is no silent fallback.
+#[cfg(not(feature = "ucs_cutover"))]
+pub async fn should_call_unified_connector_service<F: Clone, T, R>(
+    state: &SessionState,
+    processor: &Processor,
+    router_data: &RouterData<F, T, R>,
+    _previous_gateway: Option<GatewaySystem>,
+    call_connector_action: CallConnectorAction,
+    _shadow_ucs_call_connector_action: Option<CallConnectorAction>,
+    _transaction_type: common_enums::TransactionType,
+) -> RouterResult<(ExecutionPath, SessionState)>
+where
+    R: Send + Sync + Clone,
+{
+    let connector_name = &router_data.connector;
+    let merchant_id = processor.get_account().get_id().get_string_repr();
+
+    let connector_enum = parse_connector_name(connector_name)?;
+    let is_blacklisted = is_connector_blacklisted_from_ucs(state, connector_enum);
+    let is_grpc_client_available = is_ucs_grpc_client_available(state);
+
+    let execution_path = resolve_default_execution_path(
+        call_connector_action,
+        is_blacklisted,
+        is_grpc_client_available,
+    )?;
+
+    let flow_name = get_flow_name::<F>()?;
+
+    router_env::logger::info!(
+        "Payment gateway decision: execution_path={:?} - merchant_id={}, connector={}, flow={}",
+        execution_path,
+        merchant_id,
+        connector_name,
+        flow_name
+    );
+
+    Ok((execution_path, state.clone()))
+}
+
+/// Cutover path: Uses rollout-based routing with shadow mode, stickiness,
+/// and percentage-based traffic splitting for gradual UCS migration.
+#[cfg(feature = "ucs_cutover")]
 pub async fn should_call_unified_connector_service<F: Clone, T, R>(
     state: &SessionState,
     processor: &Processor,
@@ -893,168 +948,48 @@ pub async fn should_call_unified_connector_service<F: Clone, T, R>(
 where
     R: Send + Sync + Clone,
 {
-    // Extract context information
     let merchant_id = processor.get_account().get_id().get_string_repr();
     let org_id = processor.get_account().get_org_id().get_string_repr();
 
     let connector_name = &router_data.connector;
-    let connector_enum = Connector::from_str(connector_name)
-        .change_context(errors::ApiErrorResponse::IncorrectConnectorNameGiven)
-        .attach_printable_lazy(|| format!("Failed to parse connector name: {connector_name}"))?;
+    let connector_enum = parse_connector_name(connector_name)?;
 
     let flow_name = get_flow_name::<F>()?;
 
-    // Check UCS availability using idiomatic helper
     let ucs_availability = check_ucs_availability(state).await;
 
-    // Build rollout keys in ascending precedence order.
-    // Payments use org-level hierarchy; payouts use a single merchant-level key for now.
-    let rollout_keys = match transaction_type {
-        common_enums::TransactionType::Payment
-        | common_enums::TransactionType::ThreeDsAuthentication => build_rollout_keys_by_precedence(
-            org_id,
-            merchant_id,
-            connector_name,
-            &flow_name,
-            router_data.payment_method,
-            router_data.payment_method_type,
-        ),
-        common_enums::TransactionType::Payout => build_rollout_keys_for_payouts(
-            merchant_id,
-            connector_name,
-            &flow_name,
-            router_data.payment_method_type,
-        ),
-    };
+    let (rollout_keys, superposition_context) = build_rollout_context_for_transaction(
+        transaction_type,
+        org_id,
+        merchant_id,
+        connector_name,
+        &flow_name,
+        router_data,
+    );
 
-    // Determine connector integration type
     let connector_integration_type =
         determine_connector_integration_type(state, connector_enum).await?;
 
-    // Try keys highest → lowest precedence, use first match found
-    let rollout_result =
-        should_execute_based_on_rollout_with_precedence(state, &rollout_keys).await?;
+    let rollout_result = should_execute_based_on_rollout_with_precedence(
+        state,
+        consts::superposition::UCS_ROLLOUT_CONFIG,
+        Some(superposition_context),
+        &rollout_keys,
+    )
+    .await?;
 
-    // Single decision point using pattern matching
-    let (mut gateway_system, mut execution_path) = if ucs_availability == UcsAvailability::Disabled
-    {
-        match call_connector_action {
-            CallConnectorAction::UCSConsumeResponse(_) => {
-                Err(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("CallConnectorAction UCSConsumeResponse received but UCS is disabled. This action is only valid in UCS gateway")?
-            }
-            CallConnectorAction::Avoid
-            | CallConnectorAction::Trigger
-            | CallConnectorAction::HandleResponse { .. }
-            | CallConnectorAction::HandleResponseWithoutBuildRequest
-            | CallConnectorAction::StatusUpdate { .. } => {
-                router_env::logger::debug!("UCS is disabled, using Direct gateway");
-                (GatewaySystem::Direct, ExecutionPath::Direct)
-            }
-        }
-    } else {
-        match call_connector_action {
-            CallConnectorAction::UCSConsumeResponse(_) => {
-                router_env::logger::info!(
-                    "CallConnectorAction UCSConsumeResponse received, using UCS gateway"
-                );
-                (
-                    GatewaySystem::UnifiedConnectorService,
-                    ExecutionPath::UnifiedConnectorService,
-                )
-            }
-            CallConnectorAction::HandleResponse { .. } => {
-                router_env::logger::info!(
-                    "CallConnectorAction HandleResponse received, using Direct gateway"
-                );
-                if shadow_ucs_call_connector_action.is_some() {
-                    (
-                        GatewaySystem::Direct,
-                        ExecutionPath::ShadowUnifiedConnectorService,
-                    )
-                } else {
-                    (GatewaySystem::Direct, ExecutionPath::Direct)
-                }
-            }
-            CallConnectorAction::Trigger
-            | CallConnectorAction::HandleResponseWithoutBuildRequest
-            | CallConnectorAction::Avoid
-            | CallConnectorAction::StatusUpdate { .. } => {
-                // If a rollout config key exists use its execution mode,
-                // otherwise default to Shadow so all traffic mirrors through UCS.
-                let execution_mode = if rollout_result.should_execute {
-                    rollout_result.execution_mode
-                } else {
-                    ExecutionMode::Shadow
-                };
-                decide_execution_path(connector_integration_type, previous_gateway, execution_mode)?
-            }
-        }
-    };
+    let (gateway_system, mut execution_path) = resolve_cutover_execution_path(
+        ucs_availability,
+        call_connector_action,
+        shadow_ucs_call_connector_action.as_ref(),
+        &rollout_result,
+        connector_integration_type,
+        previous_gateway,
+        state,
+    )?;
 
-    // Kill switch: a scope whose failure counter exceeds the configured threshold serves from
-    // the direct integration regardless of what its rollout config says.
-    //
-    // Only the primary path is diverted, and it is diverted to shadow rather than to direct — the
-    // merchant is served by the direct integration either way, but shadow keeps mirroring, so a
-    // tripped scope still produces the comparison signal needed to confirm a fix before it is
-    // reset. Shadow itself falls back to direct below when no proxy override is configured.
-    if matches!(execution_path, ExecutionPath::UnifiedConnectorService)
-        && is_kill_switch_applicable(connector_integration_type, &call_connector_action)
-    {
-        let rollout_scope = build_merchant_rollout_scope(
-            merchant_id,
-            connector_name,
-            &flow_name,
-            router_data.payment_method,
-            router_data.payment_method_type,
-        );
-
-        if Box::pin(kill_switch::is_kill_switched(
-            state,
-            &rollout_scope,
-            rollout_result.kill_switch_enabled,
-            rollout_result.kill_switch_threshold,
-        ))
-        .await
-        {
-            router_env::logger::warn!(
-                merchant_id = %merchant_id,
-                connector = %connector_name,
-                flow = %flow_name,
-                "UCS kill switch counter exceeds threshold for this scope, routing to shadow"
-            );
-            gateway_system = GatewaySystem::Direct;
-            execution_path = ExecutionPath::ShadowUnifiedConnectorService;
-        }
-    }
-
-    // Handle proxy configuration for Shadow UCS flows
-    let session_state = match execution_path {
-        ExecutionPath::ShadowUnifiedConnectorService => {
-            // For shadow UCS, use rollout_result for proxy configuration since it takes priority
-            match &rollout_result.proxy_override {
-                Some(proxy_override) => {
-                    router_env::logger::debug!(
-                        proxy_override = ?proxy_override,
-                        "Creating updated session state with proxy configuration for Shadow UCS"
-                    );
-                    create_updated_session_state_with_proxy(state.clone(), proxy_override)
-                }
-                None => {
-                    router_env::logger::debug!(
-                        "No proxy override available for Shadow UCS, Using the Original State and Sending Request Directly"
-                    );
-                    execution_path = ExecutionPath::Direct;
-                    state.clone()
-                }
-            }
-        }
-        ExecutionPath::Direct | ExecutionPath::UnifiedConnectorService => {
-            // For Direct and UCS flows, use original state
-            state.clone()
-        }
-    };
+    let session_state =
+        build_session_state_for_execution_path(&mut execution_path, state, &rollout_result);
 
     router_env::logger::info!(
         "Payment gateway decision: gateway={:?}, execution_path={:?} - merchant_id={}, connector={}, flow={}",
@@ -1068,7 +1003,218 @@ where
     Ok((execution_path, session_state))
 }
 
+/// Parses a connector name string into the Connector enum.
+fn parse_connector_name(connector_name: &str) -> RouterResult<Connector> {
+    Connector::from_str(connector_name)
+        .change_context(errors::ApiErrorResponse::IncorrectConnectorNameGiven)
+        .attach_printable_lazy(|| format!("Failed to parse connector name: {connector_name}"))
+}
+
+/// Checks whether the given connector is in the UCS blacklist config.
+#[cfg(not(feature = "ucs_cutover"))]
+fn is_connector_blacklisted_from_ucs(state: &SessionState, connector: Connector) -> bool {
+    state
+        .conf
+        .grpc_client
+        .unified_connector_service
+        .as_ref()
+        .is_some_and(|config| config.ucs_blacklisted_connectors.contains(&connector))
+}
+
+/// Checks whether the UCS gRPC client is configured and available.
+#[cfg(not(feature = "ucs_cutover"))]
+fn is_ucs_grpc_client_available(state: &SessionState) -> bool {
+    state.grpc_client.unified_connector_service_client.is_some()
+}
+
+/// Resolves the execution path for the default (non-cutover) mode.
+/// UCS is the standard path. Blacklisted connectors go Direct.
+/// If UCS is required but the gRPC client is unavailable, returns an error.
+#[cfg(not(feature = "ucs_cutover"))]
+fn resolve_default_execution_path(
+    call_connector_action: CallConnectorAction,
+    is_blacklisted: bool,
+    is_grpc_client_available: bool,
+) -> RouterResult<ExecutionPath> {
+    match call_connector_action {
+        CallConnectorAction::HandleResponse { .. } => Ok(ExecutionPath::Direct),
+        CallConnectorAction::UCSConsumeResponse(_) => Ok(ExecutionPath::UnifiedConnectorService),
+        CallConnectorAction::Trigger
+        | CallConnectorAction::HandleResponseWithoutBuildRequest
+        | CallConnectorAction::Avoid
+        | CallConnectorAction::StatusUpdate { .. } => {
+            let needs_ucs = !is_blacklisted;
+            let execution_path = match (needs_ucs, is_grpc_client_available) {
+                (true, true) => ExecutionPath::UnifiedConnectorService,
+                (true, false) => {
+                    Err(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable(
+                            "UCS gRPC client is not available but UCS is the required path for this connector"
+                        )?
+                }
+                (false, _) => ExecutionPath::Direct,
+            };
+            Ok(execution_path)
+        }
+    }
+}
+
+/// Builds rollout keys and superposition context based on the transaction type.
+#[cfg(feature = "ucs_cutover")]
+fn build_rollout_context_for_transaction<F: Clone, T, R>(
+    transaction_type: common_enums::TransactionType,
+    org_id: &str,
+    merchant_id: &str,
+    connector_name: &str,
+    flow_name: &str,
+    router_data: &RouterData<F, T, R>,
+) -> (Vec<String>, superposition::ConfigContext) {
+    match transaction_type {
+        common_enums::TransactionType::Payment
+        | common_enums::TransactionType::ThreeDsAuthentication => build_rollout_keys_and_context(
+            org_id,
+            merchant_id,
+            connector_name,
+            flow_name,
+            router_data.payment_method,
+            router_data.payment_method_type,
+        ),
+        common_enums::TransactionType::Payout => build_rollout_keys_and_context_for_payouts(
+            merchant_id,
+            connector_name,
+            flow_name,
+            router_data.payment_method_type,
+        ),
+    }
+}
+
+/// Resolves the execution path for cutover mode based on UCS availability,
+/// call connector action, rollout config, and connector integration type.
+#[cfg(feature = "ucs_cutover")]
+fn resolve_cutover_execution_path(
+    ucs_availability: UcsAvailability,
+    call_connector_action: CallConnectorAction,
+    shadow_ucs_call_connector_action: Option<&CallConnectorAction>,
+    rollout_result: &crate::core::payments::helpers::RolloutExecutionResult,
+    connector_integration_type: ConnectorIntegrationType,
+    previous_gateway: Option<GatewaySystem>,
+    state: &SessionState,
+) -> RouterResult<(GatewaySystem, ExecutionPath)> {
+    match ucs_availability {
+        UcsAvailability::Disabled => resolve_path_when_ucs_disabled(call_connector_action),
+        UcsAvailability::Enabled | UcsAvailability::ShadowKilled => {
+            resolve_path_when_ucs_available(
+                call_connector_action,
+                shadow_ucs_call_connector_action,
+                rollout_result,
+                connector_integration_type,
+                previous_gateway,
+                ucs_availability,
+                state,
+            )
+        }
+    }
+}
+
+/// Resolves execution path when UCS is disabled.
+#[cfg(feature = "ucs_cutover")]
+fn resolve_path_when_ucs_disabled(
+    call_connector_action: CallConnectorAction,
+) -> RouterResult<(GatewaySystem, ExecutionPath)> {
+    match call_connector_action {
+        CallConnectorAction::UCSConsumeResponse(_) => {
+            Err(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("CallConnectorAction UCSConsumeResponse received but UCS is disabled. This action is only valid in UCS gateway")
+        }
+        CallConnectorAction::Avoid
+        | CallConnectorAction::Trigger
+        | CallConnectorAction::HandleResponse { .. }
+        | CallConnectorAction::HandleResponseWithoutBuildRequest
+        | CallConnectorAction::StatusUpdate { .. } => {
+            router_env::logger::debug!("UCS is disabled, using Direct gateway");
+            Ok((GatewaySystem::Direct, ExecutionPath::Direct))
+        }
+    }
+}
+
+/// Resolves execution path when UCS is available (Enabled or ShadowKilled).
+#[cfg(feature = "ucs_cutover")]
+fn resolve_path_when_ucs_available(
+    call_connector_action: CallConnectorAction,
+    shadow_ucs_call_connector_action: Option<&CallConnectorAction>,
+    rollout_result: &crate::core::payments::helpers::RolloutExecutionResult,
+    connector_integration_type: ConnectorIntegrationType,
+    previous_gateway: Option<GatewaySystem>,
+    ucs_availability: UcsAvailability,
+    state: &SessionState,
+) -> RouterResult<(GatewaySystem, ExecutionPath)> {
+    match call_connector_action {
+        CallConnectorAction::UCSConsumeResponse(_) => {
+            router_env::logger::info!(
+                "CallConnectorAction UCSConsumeResponse received, using UCS gateway"
+            );
+            Ok((
+                GatewaySystem::UnifiedConnectorService,
+                ExecutionPath::UnifiedConnectorService,
+            ))
+        }
+        CallConnectorAction::HandleResponse { .. } => {
+            router_env::logger::info!(
+                "CallConnectorAction HandleResponse received, using Direct gateway"
+            );
+            let execution_path = match shadow_ucs_call_connector_action {
+                Some(_) => ExecutionPath::ShadowUnifiedConnectorService,
+                None => ExecutionPath::Direct,
+            };
+            Ok((GatewaySystem::Direct, execution_path))
+        }
+        CallConnectorAction::Trigger
+        | CallConnectorAction::HandleResponseWithoutBuildRequest
+        | CallConnectorAction::Avoid
+        | CallConnectorAction::StatusUpdate { .. } => {
+            let execution_mode = match rollout_result.should_execute {
+                true => rollout_result.execution_mode,
+                false => ExecutionMode::NotApplicable,
+            };
+
+            let execution_mode = resolve_execution_mode(state, execution_mode, ucs_availability);
+
+            decide_execution_path(connector_integration_type, previous_gateway, execution_mode)
+        }
+    }
+}
+
+/// Builds the session state for the resolved execution path.
+/// For shadow UCS, applies proxy configuration if available; otherwise falls back to Direct.
+#[cfg(feature = "ucs_cutover")]
+fn build_session_state_for_execution_path(
+    execution_path: &mut ExecutionPath,
+    state: &SessionState,
+    rollout_result: &crate::core::payments::helpers::RolloutExecutionResult,
+) -> SessionState {
+    match execution_path {
+        ExecutionPath::ShadowUnifiedConnectorService => match &rollout_result.proxy_override {
+            Some(proxy_override) => {
+                router_env::logger::debug!(
+                    proxy_override = ?proxy_override,
+                    "Creating updated session state with proxy configuration for Shadow UCS"
+                );
+                create_updated_session_state_with_proxy(state.clone(), proxy_override)
+            }
+            None => {
+                router_env::logger::debug!(
+                        "No proxy override available for Shadow UCS, Using the Original State and Sending Request Directly"
+                    );
+                *execution_path = ExecutionPath::Direct;
+                state.clone()
+            }
+        },
+        ExecutionPath::Direct | ExecutionPath::UnifiedConnectorService => state.clone(),
+    }
+}
+
 /// Creates a new SessionState with proxy configuration updated from the override
+#[cfg(feature = "ucs_cutover")]
 fn create_updated_session_state_with_proxy(
     state: SessionState,
     proxy_override: &ProxyOverride,
@@ -1089,6 +1235,44 @@ fn create_updated_session_state_with_proxy(
     updated_state.conf = std::sync::Arc::new(updated_conf);
 
     updated_state
+}
+
+/// Resolves the effective execution mode by applying the shadow kill switch.
+/// If the resolved mode is Shadow and ucs_enabled is "shadow_killed",
+/// falls back to the default_execution_mode from env config.
+fn resolve_execution_mode(
+    state: &SessionState,
+    execution_mode: ExecutionMode,
+    ucs_availability: UcsAvailability,
+) -> ExecutionMode {
+    let default_mode = state
+        .conf
+        .grpc_client
+        .unified_connector_service
+        .as_ref()
+        .map(|c| c.default_execution_mode)
+        .unwrap_or(ExecutionMode::NotApplicable);
+
+    let execution_mode = if !matches!(execution_mode, ExecutionMode::NotApplicable) {
+        execution_mode
+    } else {
+        router_env::logger::debug!(
+            ?default_mode,
+            "Rollout not selected, using default execution mode from env config"
+        );
+        default_mode
+    };
+
+    if execution_mode == ExecutionMode::Shadow && ucs_availability == UcsAvailability::ShadowKilled
+    {
+        router_env::logger::info!(
+            ?default_mode,
+            "UCS shadow kill switch is enabled, falling back to env default"
+        );
+        default_mode
+    } else {
+        execution_mode
+    }
 }
 
 /// Whether the kill switch may divert this call away from UCS.
@@ -1232,6 +1416,94 @@ pub fn build_merchant_rollout_scope(
     }
 }
 
+/// The caller tries keys highest -> lowest and uses the first match found.
+/// Builds rollout config keys in ascending precedence order (lowest -> highest):
+/// 1. `ucs_rollout_config_<org_id>`                                         -- org level
+/// 2. `ucs_rollout_config_<org_id>_<merchant_id>`                           -- org + merchant
+/// 3. `ucs_rollout_config_<org_id>_<merchant_id>_<connector>_...`           -- org + merchant + connector
+/// 4. `ucs_rollout_config_<merchant_id>_<connector>_...`                    -- merchant + connector (highest)
+///
+/// The caller iterates highest -> lowest and uses the first match found.
+#[cfg(feature = "ucs_cutover")]
+fn build_rollout_keys_and_context(
+    org_id: &str,
+    merchant_id: &str,
+    connector_name: &str,
+    flow_name: &str,
+    payment_method: common_enums::PaymentMethod,
+    payment_method_type: Option<PaymentMethodType>,
+) -> (Vec<String>, superposition::ConfigContext) {
+    let prefix = consts::UCS_ROLLOUT_PERCENT_CONFIG_PREFIX;
+    let is_refund_flow = matches!(flow_name, "Execute" | "RSync");
+
+    // Build base context (common for all flows)
+    let mut context = superposition::ConfigContext::new()
+        .with("organization_id", org_id)
+        .with("provider_merchant_id", merchant_id)
+        .with("connector", connector_name)
+        .with("flow_name", flow_name);
+
+    let (merchant_connector_key, org_merchant_connector_key) = if is_refund_flow {
+        // Refund flows: ucs_rollout_config_<merchant_id>_<connector>_<flow>
+        (
+            format!("{prefix}_{merchant_id}_{connector_name}_{flow_name}"),
+            format!("{prefix}_{org_id}_{merchant_id}_{connector_name}_{flow_name}"),
+        )
+    } else {
+        let payment_method_str = payment_method.to_string();
+        match payment_method {
+            common_enums::PaymentMethod::Wallet
+            | common_enums::PaymentMethod::BankRedirect
+            | common_enums::PaymentMethod::Voucher
+            | common_enums::PaymentMethod::PayLater => {
+                let payment_method_type_str = payment_method_type
+                    .map(|pmt| pmt.to_string())
+                    .unwrap_or_else(|| "unknown".to_string());
+
+                // Add payment_method and payment_method_type to context
+                context = context
+                    .with("payment_method", &payment_method_str)
+                    .with("payment_method_type", &payment_method_type_str);
+
+                (
+                    format!("{prefix}_{merchant_id}_{connector_name}_{payment_method_str}_{payment_method_type_str}_{flow_name}"),
+                    format!("{prefix}_{org_id}_{merchant_id}_{connector_name}_{payment_method_str}_{payment_method_type_str}_{flow_name}"),
+                )
+            }
+            common_enums::PaymentMethod::Card
+            | common_enums::PaymentMethod::CardRedirect
+            | common_enums::PaymentMethod::Upi
+            | common_enums::PaymentMethod::Crypto
+            | common_enums::PaymentMethod::Reward
+            | common_enums::PaymentMethod::BankDebit
+            | common_enums::PaymentMethod::RealTimePayment
+            | common_enums::PaymentMethod::BankTransfer
+            | common_enums::PaymentMethod::GiftCard
+            | common_enums::PaymentMethod::MobilePayment
+            | common_enums::PaymentMethod::NetworkToken
+            | common_enums::PaymentMethod::OpenBanking => {
+                // Add payment_method to context
+                context = context.with("payment_method", &payment_method_str);
+
+                (
+                    format!("{prefix}_{merchant_id}_{connector_name}_{payment_method_str}_{flow_name}"),
+                    format!("{prefix}_{org_id}_{merchant_id}_{connector_name}_{payment_method_str}_{flow_name}"),
+                )
+            }
+        }
+    };
+
+    // Ascending precedence order (lowest first, highest last)
+    let keys = vec![
+        format!("{prefix}_{org_id}"),
+        format!("{prefix}_{org_id}_{merchant_id}"),
+        org_merchant_connector_key,
+        merchant_connector_key,
+    ];
+
+    (keys, context)
+}
+
 /// Rollout config keys, **lowest precedence first**. The caller reverses this and takes the
 /// first key that exists, so the order is load-bearing.
 fn build_rollout_keys_by_precedence(
@@ -1260,24 +1532,33 @@ fn build_rollout_keys_by_precedence(
 }
 
 /// Build rollout key for payouts — single key, org-level precedence not applied to payouts yet.
-fn build_rollout_keys_for_payouts(
+#[cfg(feature = "ucs_cutover")]
+fn build_rollout_keys_and_context_for_payouts(
     merchant_id: &str,
     connector_name: &str,
     flow_name: &str,
     payment_method_type: Option<PaymentMethodType>,
-) -> Vec<String> {
+) -> (Vec<String>, superposition::ConfigContext) {
     let pmt = payment_method_type
         .map(|t| t.to_string())
         .unwrap_or_else(|| "unknown".to_string());
 
-    vec![format!(
+    let context = superposition::ConfigContext::new()
+        .with("provider_merchant_id", merchant_id)
+        .with("connector", connector_name)
+        .with("flow_name", flow_name)
+        .with("payment_method_type", &pmt);
+
+    let keys = vec![format!(
         "{}_{}_{}_{}_{}",
         consts::UCS_ROLLOUT_PERCENT_CONFIG_PREFIX,
         merchant_id,
         connector_name,
         pmt,
         flow_name
-    )]
+    )];
+
+    (keys, context)
 }
 
 /// Extracts the gateway system from the payment intent's feature metadata
@@ -1371,26 +1652,36 @@ pub async fn should_call_unified_connector_service_for_webhooks(
         flow_name
     );
 
+    // Build context for Superposition (webhooks don't use payment method)
+    let superposition_context = superposition::ConfigContext::new()
+        .with("provider_merchant_id", merchant_id)
+        .with("connector", connector_name)
+        .with("flow_name", flow_name);
+
     // For webhooks, there is no previous gateway system to consider (webhooks are stateless)
     let previous_gateway = None;
 
-    let rollout_result = should_execute_based_on_rollout::<
-        WebhookRolloutConfig,
-        WebhookRolloutExecutionResult,
-    >(state, &rollout_key)
-    .await?;
+    let rollout_result =
+        should_execute_based_on_rollout::<WebhookRolloutConfig, WebhookRolloutExecutionResult>(
+            state,
+            consts::superposition::UCS_ROLLOUT_CONFIG,
+            Some(superposition_context),
+            &rollout_key,
+        )
+        .await?;
 
     // Use the same decision logic as payments, with no call_connector_action to consider
     let (gateway_system, execution_path) = if ucs_availability == UcsAvailability::Disabled {
         router_env::logger::debug!("UCS is disabled for webhooks, using Direct gateway");
         (GatewaySystem::Direct, ExecutionPath::Direct)
     } else {
-        // UCS is enabled, use decide function with no previous gateway for webhooks
-        decide_execution_path(
-            connector_integration_type,
-            previous_gateway,
+        let execution_mode = resolve_execution_mode(
+            state,
             rollout_result.rollout_execution_result.execution_mode,
-        )?
+            ucs_availability,
+        );
+
+        decide_execution_path(connector_integration_type, previous_gateway, execution_mode)?
     };
 
     router_env::logger::info!(

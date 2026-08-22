@@ -2667,7 +2667,11 @@ should_schedule_modular_backward_compat = { value = false, schema = { type = "bo
 "vaulting.should_perform_sdk_vaulting" = { value = true, schema = { type = "boolean" }, description = "Org level override on top of should_call_pm_modular_service; when false the SDK skips vaulting", change_reason = "Initial setup" }
 
 
+ucs_enabled = { value = "disabled", schema = { type = "string", enum = ["disabled", "enabled", "shadow_killed"] }, description = "UCS mode: disabled (off), enabled (on with shadow allowed), shadow_killed (on but shadow traffic stopped)", change_reason = "Initial setup" }
+ucs_rollout_config = { value = { rollout_percent = 0.0, execution_mode = "primary" }, schema = { type = "object" }, description = "UCS rollout configuration controlling traffic routing percentage to Unified Connector Service", change_reason = "Initial setup" }
+
 [dimensions]
+flow_name = { position = 21, schema = { type = "string" }, type = "REGULAR", description = "Payment flow name (e.g. Authorize, PSync, Execute, RSync, Webhooks)", change_reason = "Initial setup" }
 always_collect_billing_details_from_wallet_connector = { position = 7, schema = { type = "boolean" }, type = "REGULAR" }
 always_collect_shipping_details_from_wallet_connector = { position = 8, schema = { type = "boolean" }, type = "REGULAR" }
 connector = { position = 1, schema = { enum = [

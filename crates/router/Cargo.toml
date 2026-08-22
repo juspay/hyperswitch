@@ -151,6 +151,7 @@ tokenization_v2 = [
     "hyperswitch_domain_models/tokenization_v2",
     "storage_impl/tokenization_v2",
 ]
+ucs_cutover = []
 deja = [
     "dep:deja",
     "dep:deja-core",
