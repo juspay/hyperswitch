@@ -5,8 +5,6 @@ use common_utils::request::Method;
 use hyperswitch_interfaces::micro_service::{MicroserviceClientError, MicroserviceClientErrorKind};
 use serde::Deserialize;
 
-const DUMMY_PM_ID: &str = "pm_dummy";
-
 /// V1-facing delete flow type.
 #[derive(Debug)]
 pub struct DeletePaymentMethod;
@@ -57,9 +55,15 @@ impl TryFrom<&DeletePaymentMethodV1Request> for DeletePaymentMethodV2Request {
 impl TryFrom<DeletePaymentMethodV2Response> for DeletePaymentMethodResponse {
     type Error = MicroserviceClientError;
 
-    fn try_from(_: DeletePaymentMethodV2Response) -> Result<Self, Self::Error> {
+    fn try_from(response: DeletePaymentMethodV2Response) -> Result<Self, Self::Error> {
+        // Stub transform: the real id returned by the modular service is surfaced instead of
+        // being discarded, but `deleted` is still hardcoded until the real models land.
+        router_env::logger::warn!(
+            payment_method_id=%response.id,
+            "modular delete response handled by stub transform; deleted=true is hardcoded"
+        );
         Ok(Self {
-            payment_method_id: DUMMY_PM_ID.to_string(),
+            payment_method_id: response.id,
             deleted: Some(true),
         })
     }

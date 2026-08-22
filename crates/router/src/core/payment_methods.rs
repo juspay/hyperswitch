@@ -547,6 +547,12 @@ pub async fn payment_method_modular_forward_compat_action(
         .with_organization_id(organization_id.clone());
     let should_schedule_modular_forward_compat =
         utils::get_should_schedule_modular_forward_compat(state, &dimensions, customer_id).await;
+    logger::debug!(
+        should_schedule_modular_forward_compat,
+        merchant_id=%merchant_id.get_string_repr(),
+        organization_id=%organization_id.get_string_repr(),
+        "resolved modular forward compat scheduling flag"
+    );
 
     let organization_id = organization_id.clone();
     should_schedule_modular_forward_compat.then(|| {
@@ -565,13 +571,22 @@ pub async fn payment_method_modular_forward_compat_action(
                 )
                 .await;
 
-                if let Err(err) = res {
-                    logger::error!(
-                        ?err,
-                        payment_method_id=%payment_method.get_id(),
-                        merchant_id=%payment_method.merchant_id.get_string_repr(),
-                        "Failed to schedule modular forward compatibility PT after payment method DB write"
-                    );
+                match res {
+                    Err(err) => {
+                        logger::error!(
+                            ?err,
+                            payment_method_id=%payment_method.get_id(),
+                            merchant_id=%payment_method.merchant_id.get_string_repr(),
+                            "Failed to schedule modular forward compatibility PT after payment method DB write"
+                        );
+                    }
+                    Ok(_) => {
+                        logger::info!(
+                            payment_method_id=%payment_method.get_id(),
+                            merchant_id=%payment_method.merchant_id.get_string_repr(),
+                            "Scheduled modular forward compatibility PT after payment method DB write"
+                        );
+                    }
                 }
             })
         })

@@ -1425,9 +1425,20 @@ pub async fn call_modular_payment_method_update(
         );
     }
     result.map_err(|err| {
-        logger::error!(error=?err, "modular payment method update failed");
+        logger::error!(
+            error=?err,
+            payment_method_id=%payment_method_id,
+            merchant_id=%processor_merchant_id.get_string_repr(),
+            profile_id=%profile_id.get_string_repr(),
+            "modular payment method update failed"
+        );
         ::payment_methods::errors::ModularPaymentMethodError::UpdateFailed
     })?;
+    logger::info!(
+        payment_method_id=%payment_method_id,
+        merchant_id=%processor_merchant_id.get_string_repr(),
+        "modular payment method update succeeded"
+    );
     Ok(())
 }
 
@@ -2070,10 +2081,20 @@ pub async fn retrieve_pm_modular_service_call(
     }
     let pm_response = result
         .map_err(|err| {
-            logger::debug!("Error in retrieving payment method: {:?}", err);
+            logger::error!(
+                error=?err,
+                merchant_id=%processor_merchant_id.get_string_repr(),
+                profile_id=%profile_id.get_string_repr(),
+                "modular payment method retrieve failed"
+            );
             errors::ApiErrorResponse::InternalServerError
         })
         .attach_printable("Failed to retrieve payment method from modular service")?;
+    logger::info!(
+        payment_method_id=%pm_response.payment_method_id,
+        merchant_id=%processor_merchant_id.get_string_repr(),
+        "modular payment method retrieve succeeded"
+    );
 
     Ok(pm_response)
 }
@@ -2121,7 +2142,13 @@ pub async fn create_payment_method_in_modular_service(
     .await?;
 
     //Convert PMResponse to PaymentMethodWithRawData
-    let payment_method_with_raw_data = DomainPaymentMethodWrapper::try_from(pm_response)?;
+    let payment_method_with_raw_data = DomainPaymentMethodWrapper::try_from(pm_response)
+        .attach_printable("Failed to convert modular create response to domain payment method")?;
+    logger::info!(
+        payment_method_id=%payment_method_with_raw_data.0.get_id(),
+        merchant_id=%processor_merchant_id.get_string_repr(),
+        "modular payment method create succeeded"
+    );
 
     Ok(payment_method_with_raw_data.0)
 }
@@ -2162,7 +2189,15 @@ pub async fn create_proxy_card_payment_method_in_modular_service(
     )
     .await?;
 
-    let payment_method_with_raw_data = DomainPaymentMethodWrapper::try_from(pm_response)?;
+    let payment_method_with_raw_data = DomainPaymentMethodWrapper::try_from(pm_response)
+        .attach_printable(
+            "Failed to convert modular proxy card create response to domain payment method",
+        )?;
+    logger::info!(
+        payment_method_id=%payment_method_with_raw_data.0.get_id(),
+        merchant_id=%processor_merchant_id.get_string_repr(),
+        "modular proxy card payment method create succeeded"
+    );
 
     Ok(payment_method_with_raw_data.0)
 }
@@ -2218,15 +2253,43 @@ pub async fn get_permanent_pm_id_from_temporary_token(
 
     let response = http_client::send_request(&state.conf.proxy, request, None)
         .await
+        .inspect_err(|err| {
+            logger::error!(
+                error=?err,
+                "hyperswitch vault token details call failed (transport)"
+            );
+        })
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to call hyperswitch vault token details endpoint")?;
+
+    let status_code = response.status().as_u16();
+    response
+        .status()
+        .is_success()
+        .then_some(())
+        .ok_or_else(|| {
+            logger::error!(
+                status_code,
+                "hyperswitch vault token details endpoint returned non-success status"
+            );
+            error_stack::report!(errors::ApiErrorResponse::InternalServerError)
+        })
+        .attach_printable("Hyperswitch vault token details endpoint returned an error status")?;
 
     let token_details = response
         .json::<VaultTokenDetailsResponse>()
         .await
+        .inspect_err(|err| {
+            logger::error!(
+                error=?err,
+                status_code,
+                "failed to parse hyperswitch vault token details response"
+            );
+        })
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to parse hyperswitch vault token details response")?;
 
+    logger::info!("resolved permanent payment method id from temporary vault token");
     Ok(token_details.id)
 }
 
@@ -2270,9 +2333,23 @@ pub async fn list_customer_payment_methods_from_modular_service(
 
     ListCustomerPaymentMethods::call(state, &client, request)
         .await
-        .map(|resp| resp.0.customer_payment_methods)
+        .map(|resp| {
+            let payment_methods = resp.0.customer_payment_methods;
+            logger::info!(
+                merchant_id=%merchant_id.get_string_repr(),
+                profile_id=%profile_id.get_string_repr(),
+                payment_method_count=payment_methods.len(),
+                "modular list customer payment methods succeeded"
+            );
+            payment_methods
+        })
         .map_err(|err| {
-            logger::error!(error=?err, "modular list customer payment methods failed");
+            logger::error!(
+                error=?err,
+                merchant_id=%merchant_id.get_string_repr(),
+                profile_id=%profile_id.get_string_repr(),
+                "modular list customer payment methods failed"
+            );
             errors::ApiErrorResponse::InternalServerError
         })
         .attach_printable("Failed to list customer payment methods from modular service")
@@ -2325,7 +2402,12 @@ pub async fn create_pm_modular_service_call(
     }
     let pm_response = result
         .map_err(|err| {
-            logger::debug!("Error in creating payment method: {:?}", err);
+            logger::error!(
+                error=?err,
+                merchant_id=%merchant_id.get_string_repr(),
+                profile_id=%profile_id.get_string_repr(),
+                "modular payment method create failed"
+            );
             errors::ApiErrorResponse::InternalServerError
         })
         .attach_printable("Failed to create payment method in modular service")?;
