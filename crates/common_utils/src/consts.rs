@@ -1,5 +1,8 @@
 //! Commonly used constants
 
+/// Structured log tag for external service latency events.
+pub const EXTERNAL_CALL_TAG: &str = "ExternalCall";
+
 /// Number of characters in a generated ID
 pub const ID_LENGTH: usize = 20;
 
@@ -18,6 +21,13 @@ pub const TOKEN_TTL: i64 = 900;
 pub static FRM_CONFIGS_EG: &str = r#"
 [{"gateway":"stripe","payment_methods":[{"payment_method":"card","payment_method_types":[{"payment_method_type":"credit","card_networks":["Visa"],"flow":"pre","action":"cancel_txn"},{"payment_method_type":"debit","card_networks":["Visa"],"flow":"pre"}]}]}]
 "#;
+
+/// Global minimum limit for any list API.
+pub const LIST_MIN_LIMIT: u32 = 1;
+/// Global maximum limit for any list API (single cap across endpoints).
+pub const LIST_MAX_LIMIT: u32 = 100;
+/// Global default limit for any list API when the caller omits it.
+pub const LIST_DEFAULT_LIMIT: u32 = 10;
 
 /// Maximum limit for payments list get api
 pub const PAYMENTS_LIST_MAX_LIMIT_V1: u32 = 100;
@@ -43,8 +53,21 @@ pub fn default_payouts_list_limit() -> u32 {
     10
 }
 
+/// Default limit for refunds list API
+pub const REFUNDS_LIST_DEFAULT_LIMIT: u32 = 10;
+/// Maximum limit for refunds list API
+pub const REFUNDS_LIST_MAX_LIMIT: u32 = 100;
+
+/// Default limit for disputes list API
+pub const DISPUTES_LIST_DEFAULT_LIMIT: u32 = 10;
+/// Maximum limit for disputes list API
+pub const DISPUTES_LIST_MAX_LIMIT: u32 = 100;
+
 /// surcharge percentage maximum precision length
 pub const SURCHARGE_PERCENTAGE_PRECISION_LENGTH: u8 = 2;
+
+/// discount percentage maximum precision length
+pub const DISCOUNT_PERCENTAGE_PRECISION_LENGTH: u8 = 2;
 
 /// installment interest rate maximum precision length
 pub const INSTALLMENT_INTEREST_RATE_PRECISION_LENGTH: u8 = 2;

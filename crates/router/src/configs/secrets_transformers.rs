@@ -4,6 +4,7 @@ use hyperswitch_interfaces::secrets_interface::{
     secret_state::{RawSecret, SecretStateContainer, SecuredSecret},
     SecretManagementInterface, SecretsManagementError,
 };
+use hyperswitch_masking::PeekInterface;
 
 use crate::settings::{self, Settings};
 
@@ -369,6 +370,24 @@ impl SecretsHandler for settings::NetworkTokenizationService {
 }
 
 #[async_trait::async_trait]
+impl SecretsHandler for settings::OfferEngineConfig {
+    async fn convert_to_raw_secret(
+        value: SecretStateContainer<Self, SecuredSecret>,
+        secret_management_client: &dyn SecretManagementInterface,
+    ) -> CustomResult<SecretStateContainer<Self, RawSecret>, SecretsManagementError> {
+        let offer_engine = value.get_inner();
+        let api_key = secret_management_client
+            .get_secret(offer_engine.api_key.clone())
+            .await?;
+
+        Ok(value.transition_state(|offer_engine| Self {
+            api_key,
+            ..offer_engine
+        }))
+    }
+}
+
+#[async_trait::async_trait]
 impl SecretsHandler for settings::OidcSettings {
     async fn convert_to_raw_secret(
         value: SecretStateContainer<Self, SecuredSecret>,
@@ -593,6 +612,19 @@ pub(crate) async fn fetch_raw_secrets(
         .await;
 
     #[allow(clippy::expect_used)]
+    let offer_engine = conf
+        .offer_engine
+        .async_map(|offer_engine| async {
+            settings::OfferEngineConfig::convert_to_raw_secret(
+                offer_engine,
+                secret_management_client,
+            )
+            .await
+            .expect("Failed to decrypt offer engine configs")
+        })
+        .await;
+
+    #[allow(clippy::expect_used)]
     let chat = settings::ChatSettings::convert_to_raw_secret(conf.chat, secret_management_client)
         .await
         .expect("Failed to decrypt chat configs");
@@ -628,6 +660,18 @@ pub(crate) async fn fetch_raw_secrets(
         )
     } else {
         None
+    };
+
+    #[allow(clippy::expect_used)]
+    let open_router = {
+        let mut open_router = conf.open_router;
+        if !open_router.admin_secret.peek().is_empty() {
+            open_router.admin_secret = secret_management_client
+                .get_secret(open_router.admin_secret)
+                .await
+                .expect("Failed to decrypt open router admin secret");
+        }
+        open_router
     };
 
     Settings {
@@ -734,7 +778,7 @@ pub(crate) async fn fetch_raw_secrets(
         platform: conf.platform,
         l2_l3_data_config: conf.l2_l3_data_config,
         authentication_providers: conf.authentication_providers,
-        open_router: conf.open_router,
+        open_router,
         #[cfg(feature = "v2")]
         revenue_recovery: conf.revenue_recovery,
         merchant_advice_codes: conf.merchant_advice_codes,
@@ -749,7 +793,7 @@ pub(crate) async fn fetch_raw_secrets(
         internal_services: conf.internal_services,
         micro_services: conf.micro_services,
         superposition,
-        offer_engine: conf.offer_engine,
+        offer_engine,
         comparison_service: conf.comparison_service,
         authentication_service_enabled_connectors: conf.authentication_service_enabled_connectors,
         save_payment_method_on_session: conf.save_payment_method_on_session,

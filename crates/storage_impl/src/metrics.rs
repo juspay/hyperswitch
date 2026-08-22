@@ -16,3 +16,6 @@ gauge_metric!(IN_MEMORY_CACHE_ENTRY_COUNT, GLOBAL_METER);
 counter_metric!(IN_MEMORY_CACHE_HIT, GLOBAL_METER);
 counter_metric!(IN_MEMORY_CACHE_MISS, GLOBAL_METER);
 counter_metric!(IN_MEMORY_CACHE_EVICTION_COUNT, GLOBAL_METER);
+
+// Metrics for cache invalidation
+counter_metric!(CACHE_REDACTION_FAILURE_COUNT, GLOBAL_METER);

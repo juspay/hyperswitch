@@ -4007,6 +4007,144 @@
         ]
       }
     },
+    "/payments/{payment_id}/client": {
+      "get": {
+        "tags": [
+          "Payment Methods"
+        ],
+        "summary": "List payment methods for a Payment",
+        "description": "Client SDK endpoint. Returns a unified response combining merchant-enabled\npayment methods and customer saved payment methods, filtered via Euclid\nconstraint graph and session flow routing.\n\nSupported auth:\n- SDK auth via `Authorization`.\n- Publishable-key auth via `api-key: pk_...` and `client_secret` query param.\n- Merchant API-key auth via `api-key: <api_key>`.",
+        "operationId": "List Payment Methods for a Payment via Client SDK",
+        "parameters": [
+          {
+            "name": "payment_id",
+            "in": "path",
+            "description": "The identifier for the payment",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "client_secret",
+            "in": "query",
+            "description": "This is a token which expires after 15 minutes, used from the client to authenticate and create sessions from the SDK",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            }
+          },
+          {
+            "name": "accepted_countries",
+            "in": "query",
+            "description": "The two-letter ISO currency code",
+            "required": false,
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/CountryAlpha2"
+              },
+              "nullable": true
+            }
+          },
+          {
+            "name": "accepted_currencies",
+            "in": "query",
+            "description": "The three-letter ISO currency code",
+            "required": false,
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/Currency"
+              },
+              "nullable": true
+            }
+          },
+          {
+            "name": "amount",
+            "in": "query",
+            "description": "The amount accepted for processing by the particular payment method.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "nullable": true
+            }
+          },
+          {
+            "name": "recurring_enabled",
+            "in": "query",
+            "description": "Indicates whether the payment method is eligible for recurring payments",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "nullable": true
+            }
+          },
+          {
+            "name": "installment_payment_enabled",
+            "in": "query",
+            "description": "Indicates whether the payment method is eligible for installment payments",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "nullable": true
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Indicates the limit of last used payment methods",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "nullable": true
+            }
+          },
+          {
+            "name": "card_networks",
+            "in": "query",
+            "description": "Indicates whether the payment method is eligible for card netwotks",
+            "required": false,
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/CardNetwork"
+              },
+              "nullable": true
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Payment Methods retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClientPaymentMethodsListResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid Data"
+          },
+          "404": {
+            "description": "Payment Methods does not exist in records"
+          }
+        },
+        "security": [
+          {
+            "publishable_key": []
+          },
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
     "/{customer_id}/payment_methods/{payment_method_id}/default": {
       "post": {
         "tags": [
@@ -7488,7 +7626,7 @@
         },
         "security": [
           {
-            "admin_api_key": []
+            "jwt_key": []
           }
         ]
       }
@@ -7596,7 +7734,7 @@
         },
         "security": [
           {
-            "admin_api_key": []
+            "jwt_key": []
           }
         ]
       }
@@ -7643,7 +7781,7 @@
         },
         "security": [
           {
-            "admin_api_key": []
+            "jwt_key": []
           }
         ]
       }
@@ -10873,6 +11011,39 @@
           }
         }
       },
+      "AppliedOffer": {
+        "type": "object",
+        "description": "Normalized applied-offer details exposed in payment responses.",
+        "required": [
+          "offer_engine_merchant_id",
+          "offer_engine_txn_id",
+          "offer_id",
+          "offer_amount",
+          "currency"
+        ],
+        "properties": {
+          "offer_engine_merchant_id": {
+            "type": "string",
+            "description": "Offer Engine merchant id the offer was applied under."
+          },
+          "offer_engine_txn_id": {
+            "type": "string",
+            "description": "Offer Engine transaction id (the payment attempt id used at `/apply`)."
+          },
+          "offer_id": {
+            "type": "string",
+            "description": "Offer Engine offer id that was applied."
+          },
+          "offer_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Charge-reducing offer amount, in minor units."
+          },
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
+          }
+        }
+      },
       "AttemptStatus": {
         "type": "string",
         "description": "The status of the attempt",
@@ -12666,6 +12837,53 @@
             }
           }
         ]
+      },
+      "BankDebitDataForClient": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "ach_bank_debit"
+            ],
+            "properties": {
+              "ach_bank_debit": {
+                "type": "object",
+                "required": [
+                  "account_number_last4_digits",
+                  "routing_number_last4_digits",
+                  "bank_name",
+                  "bank_type",
+                  "bank_holder_type"
+                ],
+                "properties": {
+                  "account_number_last4_digits": {
+                    "type": "string"
+                  },
+                  "routing_number_last4_digits": {
+                    "type": "string"
+                  },
+                  "bank_account_holder_name": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "bank_name": {
+                    "type": "string",
+                    "example": "ach"
+                  },
+                  "bank_type": {
+                    "type": "string",
+                    "example": "checking"
+                  },
+                  "bank_holder_type": {
+                    "type": "string",
+                    "example": "personal"
+                  }
+                }
+              }
+            }
+          }
+        ],
+        "description": "Bank debit payment method data returned in the client-facing PM list.\nField names use `_last4_digits` to match the modular service response."
       },
       "BankDebitDetail": {
         "oneOf": [
@@ -14479,7 +14697,9 @@
         "type": "string",
         "enum": [
           "checking",
-          "savings"
+          "savings",
+          "salary",
+          "payment"
         ]
       },
       "BatchBlocklistJobStatus": {
@@ -16772,6 +16992,38 @@
           }
         }
       },
+      "ClientPaymentMethodsListResponse": {
+        "type": "object",
+        "description": "Response for the GET /payments/{payment_id}/payment-methods/client endpoint",
+        "required": [
+          "payment_methods_enabled",
+          "customer_payment_methods",
+          "sdk_next_action",
+          "intent_data"
+        ],
+        "properties": {
+          "payment_methods_enabled": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ResponsePaymentMethodsEnabledForClient"
+            },
+            "description": "Flat list of enabled payment methods — one entry per (payment_method_type × payment_method_subtype)"
+          },
+          "customer_payment_methods": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CustomerPaymentMethodForClient"
+            },
+            "description": "The customer's saved payment methods"
+          },
+          "sdk_next_action": {
+            "$ref": "#/components/schemas/SdkNextAction"
+          },
+          "intent_data": {
+            "$ref": "#/components/schemas/PaymentMethodListIntentData"
+          }
+        }
+      },
       "ClientSecret": {
         "type": "string",
         "description": "For Client based calls, SDK will use the client_secret\\nin order to call /payment_methods\\nClient secret will be generated whenever a new\\npayment method is created"
@@ -17024,6 +17276,7 @@
           "chargebee",
           "checkbook",
           "checkout",
+          "citigate",
           "coinbase",
           "coingate",
           "custombilling",
@@ -17062,9 +17315,11 @@
           "interpayments",
           "inespay",
           "iatapay",
+          "ilixium",
           "imerchantsolutions",
           "itaubank",
           "jpmorgan",
+          "juspay",
           "juspaythreedsserver",
           "klarna",
           "loonio",
@@ -19409,6 +19664,120 @@
           }
         }
       },
+      "CustomerPaymentMethodDataForClient": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "card"
+            ],
+            "properties": {
+              "card": {
+                "$ref": "#/components/schemas/CardDetailFromLocker"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "wallet"
+            ],
+            "properties": {
+              "wallet": {
+                "$ref": "#/components/schemas/WalletPaymentMethodDataForClient"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "bank_debit"
+            ],
+            "properties": {
+              "bank_debit": {
+                "$ref": "#/components/schemas/BankDebitDataForClient"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "bank_redirect"
+            ],
+            "properties": {
+              "bank_redirect": {
+                "$ref": "#/components/schemas/MaskedBankDetails"
+              }
+            }
+          }
+        ]
+      },
+      "CustomerPaymentMethodForClient": {
+        "type": "object",
+        "description": "A saved customer payment method as returned in the client-facing PM list.\n\nThis is a slimmed-down version of `CustomerPaymentMethod` intended for the\n`GET /payments/{payment_id}/payment-methods/client` endpoint.  Fields that are\nOnly the fields needed by the SDK are included; server-side fields\n(e.g. `surcharge_details`, `metadata`) are omitted.",
+        "required": [
+          "payment_token",
+          "payment_method",
+          "default_payment_method_set",
+          "requires_cvv"
+        ],
+        "properties": {
+          "payment_token": {
+            "type": "string",
+            "description": "Token for payment method in temporary card locker which gets refreshed often.\nThe SDK passes this back when submitting the payment.",
+            "example": "7ebf443f-a050-4067-84e5-e6f6d4800aef"
+          },
+          "payment_method": {
+            "$ref": "#/components/schemas/PaymentMethod"
+          },
+          "payment_method_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodType"
+              }
+            ],
+            "nullable": true
+          },
+          "default_payment_method_set": {
+            "type": "boolean",
+            "description": "Whether this is the customer's default payment method",
+            "example": true
+          },
+          "requires_cvv": {
+            "type": "boolean",
+            "description": "Whether CVV collection is required before using this method",
+            "example": true
+          },
+          "created": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the payment method was saved",
+            "example": "2023-01-18T11:04:09.922Z",
+            "nullable": true
+          },
+          "last_used_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When this payment method was last used for a payment",
+            "example": "2024-02-24T11:04:09.922Z",
+            "nullable": true
+          },
+          "recurring_enabled": {
+            "type": "boolean",
+            "description": "Whether this payment method supports recurring / off-session payments",
+            "example": true,
+            "nullable": true
+          },
+          "payment_method_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CustomerPaymentMethodDataForClient"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
       "CustomerPaymentMethodUpdateResponse": {
         "type": "object",
         "required": [
@@ -20642,6 +21011,30 @@
           }
         ]
       },
+      "EligibilityAmountDetails": {
+        "type": "object",
+        "description": "Payable amount details returned during eligibility, before and after the\nOffer Engine discount.",
+        "required": [
+          "total_amount",
+          "net_amount",
+          "currency"
+        ],
+        "properties": {
+          "total_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Payable amount before the Offer Engine discount, in minor units."
+          },
+          "net_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Payable amount after the uplifted offer discount, in minor units."
+          },
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
+          }
+        }
+      },
       "EligibilityCard": {
         "type": "object",
         "description": "Card data for eligibility check — only card_number is required, no CVV needed",
@@ -20717,6 +21110,26 @@
             "description": "The card holder's nick name",
             "example": "John Test",
             "nullable": true
+          }
+        }
+      },
+      "EligibilityOfferDetails": {
+        "type": "object",
+        "description": "Offer Engine eligibility details returned to the client.",
+        "properties": {
+          "uplifted_offer_quote_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Quote ids of the uplifted (selected) offers. First launch selects one."
+          },
+          "eligible_offers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EligibleOffer"
+            },
+            "description": "All eligible offers returned to the client."
           }
         }
       },
@@ -20971,6 +21384,44 @@
             }
           }
         ]
+      },
+      "EligibleOffer": {
+        "type": "object",
+        "description": "A single eligible offer returned to the client during eligibility.",
+        "required": [
+          "offer_quote_id",
+          "offer_amount",
+          "currency",
+          "code"
+        ],
+        "properties": {
+          "offer_quote_id": {
+            "type": "string",
+            "description": "Quote id the client sends back in confirm to apply this offer."
+          },
+          "offer_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Charge-reducing offer amount, in minor units."
+          },
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
+          },
+          "code": {
+            "type": "string",
+            "description": "Offer code."
+          },
+          "title": {
+            "type": "string",
+            "description": "Offer title, if provided.",
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "description": "Offer description, if provided.",
+            "nullable": true
+          }
+        }
       },
       "EliminationAnalyserConfig": {
         "type": "object",
@@ -21378,6 +21829,7 @@
           "payout_cancelled",
           "payout_expired",
           "payout_reversed",
+          "payout_not_permitted",
           "invoice_paid",
           "surcharge_payment_succeeded",
           "surcharge_refund_succeeded"
@@ -27431,6 +27883,22 @@
           }
         }
       },
+      "OfferSelection": {
+        "type": "object",
+        "description": "Offer selection sent in a confirm request to apply an offer.",
+        "required": [
+          "offer_quote_ids"
+        ],
+        "properties": {
+          "offer_quote_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Quote ids of the offers to apply. First launch applies a single offer."
+          }
+        }
+      },
       "OnlineMandate": {
         "type": "object",
         "description": "Details of online mandate",
@@ -27723,10 +28191,28 @@
             "description": "Total amount for the item.",
             "nullable": true
           },
+          "discount_name": {
+            "type": "string",
+            "description": "Discount name applied to this item.",
+            "nullable": true
+          },
           "unit_discount_amount": {
             "type": "integer",
             "format": "int64",
             "description": "Discount amount applied to this item.",
+            "nullable": true
+          },
+          "discount_percentage": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Percentage"
+              }
+            ],
+            "nullable": true
+          },
+          "discount_type": {
+            "type": "string",
+            "description": "Discount type applied to this item.",
             "nullable": true
           }
         }
@@ -28715,6 +29201,16 @@
           "currency": {
             "$ref": "#/components/schemas/Currency"
           },
+          "card_bin": {
+            "type": "string",
+            "description": "The first 6 digits of the card number.",
+            "nullable": true
+          },
+          "extended_card_bin": {
+            "type": "string",
+            "description": "The first 8 digits of the card number.",
+            "nullable": true
+          },
           "business_country": {
             "allOf": [
               {
@@ -29490,12 +29986,7 @@
             "nullable": true
           },
           "limit": {
-            "type": "integer",
-            "format": "int32",
-            "description": "limit on the number of objects to return",
-            "default": 10,
-            "maximum": 100,
-            "minimum": 0
+            "$ref": "#/components/schemas/common_utils.types.list.PageSize"
           },
           "created": {
             "type": "string",
@@ -29874,6 +30365,17 @@
             "properties": {
               "wallet": {
                 "$ref": "#/components/schemas/WalletDetail"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "bank_redirect"
+            ],
+            "properties": {
+              "bank_redirect": {
+                "$ref": "#/components/schemas/BankRedirectData"
               }
             }
           }
@@ -30916,6 +31418,41 @@
           "redacted"
         ]
       },
+      "PaymentMethodSubtypeSpecificDataForClient": {
+        "oneOf": [
+          {
+            "type": "object",
+            "description": "Card payment method — contains card network info",
+            "required": [
+              "card_networks"
+            ],
+            "properties": {
+              "card_networks": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/CardNetwork"
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "Bank payment method (bank_redirect) — contains supported bank names",
+            "required": [
+              "bank_names"
+            ],
+            "properties": {
+              "bank_names": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/BankNames"
+                }
+              }
+            }
+          }
+        ],
+        "description": "Payment experience entry in the client PM list.\nSubtype-specific data for each payment method entry in the client list"
+      },
       "PaymentMethodTokenizationDetails": {
         "type": "object",
         "required": [
@@ -31780,6 +32317,14 @@
             "description": "Custom payment link config id set at business profile, send only if business_specific_configs is configured",
             "nullable": true
           },
+          "offer_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OfferSelection"
+              }
+            ],
+            "nullable": true
+          },
           "payment_type": {
             "allOf": [
               {
@@ -32330,6 +32875,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/RequestSurchargeDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "offer_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OfferSelection"
               }
             ],
             "nullable": true
@@ -33045,6 +33598,14 @@
             ],
             "nullable": true
           },
+          "applied_offer": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AppliedOffer"
+              }
+            ],
+            "nullable": true
+          },
           "attempt_count": {
             "type": "integer",
             "format": "int32",
@@ -33530,6 +34091,22 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/SurchargeDetailsResponse"
+              }
+            ],
+            "nullable": true
+          },
+          "amount_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/EligibilityAmountDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "offer_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/EligibilityOfferDetails"
               }
             ],
             "nullable": true
@@ -34093,6 +34670,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/RequestSurchargeDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "offer_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OfferSelection"
               }
             ],
             "nullable": true
@@ -34830,6 +35415,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/RequestSurchargeDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "applied_offer": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AppliedOffer"
               }
             ],
             "nullable": true
@@ -35613,6 +36206,14 @@
             ],
             "nullable": true
           },
+          "offer_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/OfferSelection"
+              }
+            ],
+            "nullable": true
+          },
           "payment_type": {
             "allOf": [
               {
@@ -36210,6 +36811,7 @@
           "adyen",
           "adyenplatform",
           "cybersource",
+          "deutschebank",
           "ebanx",
           "gigadat",
           "loonio",
@@ -36224,7 +36826,8 @@
           "worldpay",
           "worldpayxml",
           "envoy",
-          "itaubank"
+          "itaubank",
+          "santander"
         ]
       },
       "PayoutCreatePayoutLinkConfig": {
@@ -36633,12 +37236,7 @@
                 "nullable": true
               },
               "limit": {
-                "type": "integer",
-                "format": "int32",
-                "description": "limit on the number of objects to return",
-                "default": 10,
-                "maximum": 100,
-                "minimum": 0
+                "$ref": "#/components/schemas/common_utils.types.list.PageSize"
               },
               "created": {
                 "type": "string",
@@ -36695,17 +37293,10 @@
                 "nullable": true
               },
               "limit": {
-                "type": "integer",
-                "format": "int32",
-                "description": "The limit on the number of objects. The default limit is 10 and max limit is 20",
-                "minimum": 0
+                "$ref": "#/components/schemas/common_utils.types.list.PageSize"
               },
               "offset": {
-                "type": "integer",
-                "format": "int32",
-                "description": "The starting point within a list of objects",
-                "nullable": true,
-                "minimum": 0
+                "$ref": "#/components/schemas/common_utils.types.list.PageOffset"
               },
               "connector": {
                 "type": "array",
@@ -37024,6 +37615,7 @@
           "reversed",
           "pending",
           "ineligible",
+          "not_permitted",
           "requires_creation",
           "requires_confirmation",
           "requires_payout_method_data",
@@ -37881,6 +38473,20 @@
           }
         }
       },
+      "Percentage": {
+        "type": "object",
+        "description": "Represents Percentage Value between 0 and 100 both inclusive",
+        "required": [
+          "percentage"
+        ],
+        "properties": {
+          "percentage": {
+            "type": "number",
+            "format": "double",
+            "description": "Percentage value ranging between 0 and 100"
+          }
+        }
+      },
       "PeriodUnit": {
         "type": "string",
         "enum": [
@@ -37940,6 +38546,26 @@
             "type": "string",
             "description": "ispb code is a unique identifier assigned by Brazilian Central Bank to identify the financial institution of the recipient's bank account in Pix transactions.",
             "example": "60701190",
+            "nullable": true
+          },
+          "bank_code": {
+            "type": "string",
+            "description": "3-digit COMPE/FEBRABAN bank code used to identify the financial institution for routing PIX payouts.",
+            "example": "033",
+            "nullable": true
+          },
+          "bank_account_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BankType"
+              }
+            ],
+            "nullable": true
+          },
+          "account_holder_name": {
+            "type": "string",
+            "description": "Name of the account holder",
+            "example": "John Doe",
             "nullable": true
           }
         }
@@ -38185,6 +38811,26 @@
             "type": "string",
             "description": "ispb code is a unique identifier assigned by Brazilian Central Bank to identify the financial institution of the recipient's bank account in Pix transactions.",
             "example": "60701190",
+            "nullable": true
+          },
+          "bank_code": {
+            "type": "string",
+            "description": "3-digit COMPE/FEBRABAN bank code used to identify the financial institution for routing PIX payouts.",
+            "example": "033",
+            "nullable": true
+          },
+          "bank_account_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BankType"
+              }
+            ],
+            "nullable": true
+          },
+          "account_holder_name": {
+            "type": "string",
+            "description": "Name of the account holder",
+            "example": "John Doe",
             "nullable": true
           }
         }
@@ -40082,16 +40728,15 @@
                 "nullable": true
               },
               "limit": {
-                "type": "integer",
-                "format": "int64",
-                "description": "Limit on the number of objects to return",
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/common_utils.types.list.PageSize"
+                  }
+                ],
                 "nullable": true
               },
               "offset": {
-                "type": "integer",
-                "format": "int64",
-                "description": "The starting point within a list of objects",
-                "nullable": true
+                "$ref": "#/components/schemas/common_utils.types.list.PageOffset"
               },
               "amount_filter": {
                 "allOf": [
@@ -41019,6 +41664,52 @@
           }
         }
       },
+      "ResponsePaymentMethodsEnabledForClient": {
+        "allOf": [
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodSubtypeSpecificDataForClient"
+              }
+            ],
+            "nullable": true
+          },
+          {
+            "type": "object",
+            "required": [
+              "payment_method",
+              "payment_method_type"
+            ],
+            "properties": {
+              "payment_method": {
+                "$ref": "#/components/schemas/PaymentMethod"
+              },
+              "payment_method_type": {
+                "$ref": "#/components/schemas/PaymentMethodType"
+              },
+              "payment_experience": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/PaymentExperience"
+                },
+                "description": "Payment experience options for this method (wallets, pay_later, etc.)",
+                "nullable": true
+              },
+              "collect_shipping_details_from_wallets": {
+                "type": "boolean",
+                "description": "Whether to collect shipping details from the wallet connector (null for non-wallet)",
+                "nullable": true
+              },
+              "collect_billing_details_from_wallets": {
+                "type": "boolean",
+                "description": "Whether to collect billing details from the wallet connector (null for non-wallet)",
+                "nullable": true
+              }
+            }
+          }
+        ],
+        "description": "A single flat entry in the client payment method list — one per (payment_method_type × payment_method_subtype)"
+      },
       "ResumeOption": {
         "type": "string",
         "enum": [
@@ -41371,6 +42062,7 @@
           "custombilling",
           "checkbook",
           "checkout",
+          "citigate",
           "coinbase",
           "coingate",
           "cryptopay",
@@ -41402,6 +42094,7 @@
           "helcim",
           "hyperpg",
           "iatapay",
+          "ilixium",
           "imerchantsolutions",
           "inespay",
           "interpayments",
@@ -41478,6 +42171,7 @@
           "ctp_mastercard",
           "ctp_visa",
           "netcetera",
+          "vgs",
           "cardinal",
           "threedsecureio"
         ]
@@ -42093,6 +42787,14 @@
         "properties": {
           "end_to_end_id": {
             "type": "string",
+            "example": "E9040088820260710172800044983797",
+            "nullable": true
+          },
+          "paid_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Actual timestamp when the payment was completed, as reported by Santander.",
+            "example": "2025-07-20T14:35:00Z",
             "nullable": true
           }
         },
@@ -43846,7 +44548,7 @@
         "properties": {
           "percentage": {
             "type": "number",
-            "format": "float"
+            "format": "double"
           }
         }
       },
@@ -43929,6 +44631,7 @@
           "no_three_ds",
           "challenge_requested",
           "challenge_preferred",
+          "no_preference",
           "three_ds_exemption_requested_tra",
           "three_ds_exemption_requested_low_value",
           "issuer_three_ds_exemption_requested"
@@ -45486,7 +46189,8 @@
             "items": {
               "$ref": "#/components/schemas/CardType"
             },
-            "description": "Set of card types to block for all wallet payments (e.g., [\"Credit\", \"Debit\"]).\nRetained for backwards compatibility with existing configurations.",
+            "description": "Set of card types to block for all wallet payments (e.g., [\"Credit\", \"Debit\"]).\n\nDeprecated: this applies one rule to every wallet, so a card type cannot be blocked on\nApple Pay without also blocking it on Google Pay. Use `apple_pay.card_types` and\n`google_pay.card_types` instead, which are evaluated per wallet against that wallet's decrypted card.",
+            "deprecated": true,
             "nullable": true
           },
           "apple_pay": {
@@ -45989,6 +46693,44 @@
           }
         ]
       },
+      "WalletPaymentMethodDataForClient": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "apple_pay"
+            ],
+            "properties": {
+              "apple_pay": {
+                "$ref": "#/components/schemas/PaymentMethodDataWalletInfo"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "google_pay"
+            ],
+            "properties": {
+              "google_pay": {
+                "$ref": "#/components/schemas/PaymentMethodDataWalletInfo"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "pay_pal"
+            ],
+            "properties": {
+              "pay_pal": {
+                "$ref": "#/components/schemas/PaypalRedirection"
+              }
+            }
+          }
+        ],
+        "description": "Typed subtype-specific data for a saved customer payment method, returned in the\n`GET /payments/{payment_id}/payment-methods/client` response.\n\nSerializes as an externally-tagged enum, producing e.g.:\n`{ \"card\": { \"last4_digits\": \"4242\", ... } }`\n\nOnly variants for subtypes that actually carry extra data are included;\nfor all other subtypes the `payment_method_data` field on\n`CustomerPaymentMethodForClient` is `None`.\nWallet payment method data returned in the client-facing PM list."
+      },
       "WalletResponse": {
         "allOf": [
           {
@@ -46453,6 +47195,18 @@
           }
         },
         "additionalProperties": false
+      },
+      "common_utils.types.list.PageOffset": {
+        "type": "integer",
+        "format": "int32",
+        "maximum": 20000,
+        "minimum": 0
+      },
+      "common_utils.types.list.PageSize": {
+        "type": "integer",
+        "format": "int32",
+        "maximum": 100,
+        "minimum": 1
       }
     },
     "securitySchemes": {

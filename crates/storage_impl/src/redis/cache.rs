@@ -210,6 +210,29 @@ impl From<CacheKey> for String {
     }
 }
 
+/// The physical moka key for a logical [`CacheKey`].
+///
+/// During replay the in-memory cache is a process-global structure shared across correlations, so
+/// its keys are namespaced by correlation id — the same isolation
+/// `RedisConnectionPool::add_prefix` applies to physical redis keys. This keeps a replayed
+/// correlation from observing entries another one populated: the first lookup per correlation
+/// misses and falls through to the redis and database boundaries, which are instrumented and
+/// therefore deterministic.
+///
+/// Deliberately not folded into `From<CacheKey> for String`: that conversion also builds the
+/// recorded args for the `in_memory_get` boundary, which must stay un-namespaced so the args a
+/// replay computes still match the ones the recording captured.
+fn in_memory_cache_key(key: CacheKey) -> String {
+    let physical = String::from(key);
+
+    #[cfg(feature = "deja")]
+    if let Some(correlation_id) = deja::replay_key_namespace() {
+        return format!("{correlation_id}:{physical}");
+    }
+
+    physical
+}
+
 impl Cache {
     /// With given `time_to_live` and `time_to_idle` creates a moka cache.
     ///
@@ -248,12 +271,47 @@ impl Cache {
         }
     }
 
+    // Deja: recorded args-only for population accounting; the real moka insert
+    // still runs on replay (`replay = Execute`).
+    #[cfg_attr(
+        feature = "deja",
+        deja::boundary(
+            boundary = "imc",
+            component = "storage_impl::redis::cache",
+            operation = "in_memory_push",
+            replay = Execute,
+            effect = Imc,
+            codec = SerdeCodec,
+            args = deja_in_memory_args(self.name, &key),
+        )
+    )]
     pub async fn push<T: Cacheable>(&self, key: CacheKey, val: T) {
-        self.inner.insert(key.into(), Arc::new(val)).await;
+        self.inner
+            .insert(in_memory_cache_key(key), Arc::new(val))
+            .await;
     }
 
-    pub async fn get_val<T: Clone + Cacheable>(&self, key: CacheKey) -> Option<T> {
-        let val = self.inner.get::<String>(&key.into()).await;
+    // Deja: the L1 seam, instrumented on the method itself so no call path can
+    // bypass it. A recorded `Some(v)` substitutes on replay; a recorded `None`
+    // re-triggers the caller's fallback. The serde bound is deliberately
+    // unconditional: a type that cannot be captured cannot be cached.
+    #[cfg_attr(
+        feature = "deja",
+        deja::boundary(
+            boundary = "imc",
+            component = "storage_impl::redis::cache",
+            operation = "in_memory_get",
+            replay = Substitute,
+            effect = Imc,
+            codec = SerdeCodec,
+            args = deja_in_memory_args(self.name, &key),
+        )
+    )]
+    pub async fn get_val<T>(&self, key: CacheKey) -> Option<T>
+    where
+        T: Clone + Cacheable + serde::Serialize + serde::de::DeserializeOwned,
+    {
+        let val = self.inner.get::<String>(&in_memory_cache_key(key)).await;
 
         // Add cache hit and cache miss metrics
         if val.is_some() {
@@ -270,12 +328,40 @@ impl Cache {
     }
 
     /// Check if a key exists in cache
+    #[cfg_attr(
+        feature = "deja",
+        deja::boundary(
+            boundary = "imc",
+            component = "storage_impl::redis::cache",
+            operation = "in_memory_exists",
+            replay = Substitute,
+            effect = Imc,
+            codec = SerdeCodec,
+            args = deja_in_memory_args(self.name, &key),
+        )
+    )]
     pub async fn exists(&self, key: CacheKey) -> bool {
-        self.inner.contains_key::<String>(&key.into())
+        self.inner.contains_key::<String>(&in_memory_cache_key(key))
     }
 
+    // Deja: recorded args-only so a missed or extra invalidation shows up as a
+    // call divergence; the real invalidation still runs on replay.
+    #[cfg_attr(
+        feature = "deja",
+        deja::boundary(
+            boundary = "imc",
+            component = "storage_impl::redis::cache",
+            operation = "in_memory_remove",
+            replay = Execute,
+            effect = Imc,
+            codec = SerdeCodec,
+            args = deja_in_memory_args(self.name, &key),
+        )
+    )]
     pub async fn remove(&self, key: CacheKey) {
-        self.inner.invalidate::<String>(&key.into()).await;
+        self.inner
+            .invalidate::<String>(&in_memory_cache_key(key))
+            .await;
     }
 
     /// Performs any pending maintenance operations needed by the cache.
@@ -306,6 +392,7 @@ impl Cache {
 pub async fn get_or_populate_redis<T, F, Fut>(
     redis: &RedisConnectionWithContext,
     key: impl AsRef<str>,
+    ttl: Option<i64>,
     fun: F,
 ) -> CustomResult<T, StorageError>
 where
@@ -320,10 +407,15 @@ where
         .await;
     let get_data_set_redis = || async {
         let data = fun().await?;
-        redis
-            .serialize_and_set_key(&key.into(), &data)
-            .await
-            .change_context(StorageError::KVError)?;
+        match ttl {
+            Some(ttl) => {
+                redis
+                    .serialize_and_set_key_with_expiry(&key.into(), &data, ttl)
+                    .await
+            }
+            None => redis.serialize_and_set_key(&key.into(), &data).await,
+        }
+        .change_context(StorageError::KVError)?;
         Ok::<_, Report<StorageError>>(data)
     };
     match redis_val {
@@ -339,31 +431,8 @@ where
     }
 }
 
-/// Deja boundary for the in-memory (L1) cache lookup. Captures the `Option<T>`
-/// outcome on record and Substitutes it per-correlation on replay: a recorded
-/// `Some(v)` returns the value; a recorded `None` (absence) returns `None`, so
-/// the caller re-runs the redis fallback — the same control flow as record. The
-/// `cache` handle is not serialized (args = cache name + physical key); the
-/// value round-trips through `SerdeCodec<Option<T>>`. NOT `fall_through_silent`:
-/// a novel L1 read on replay is a real divergence, and falling through would
-/// read the cross-correlation-shared moka — fail-stop is correct.
-#[cfg(feature = "deja")]
-#[deja::boundary(
-    boundary = "imc",
-    component = "storage_impl::redis::cache",
-    operation = "in_memory_get",
-    replay = Substitute,
-    effect = Imc,
-    codec = SerdeCodec,
-    args = deja_in_memory_args(cache.name, &cache_key),
-)]
-async fn deja_in_memory_get<T>(cache: &Cache, cache_key: CacheKey) -> Option<T>
-where
-    T: Clone + Cacheable + serde::Serialize + serde::de::DeserializeOwned,
-{
-    cache.get_val::<T>(cache_key).await
-}
-
+/// Recorded args for the [`Cache`] boundaries: cache name + un-namespaced
+/// physical key, so the args a replay computes match the recording's.
 #[cfg(feature = "deja")]
 fn deja_in_memory_args(cache_name: &str, key: &CacheKey) -> serde_json::Value {
     serde_json::json!({ "cache": cache_name, "key": String::from(key.clone()) })
@@ -391,23 +460,11 @@ where
         key: key.to_string(),
         prefix: redis.redis_conn.key_prefix.clone(),
     };
-    // Deja L1 seam: the in-memory (moka) lookup is a process-global cache that
-    // spans correlations. Instrument the LOOKUP itself (not the surrounding
-    // populate) so its `Option` outcome is recorded per-correlation and
-    // Substituted on replay — a recorded `Some(v)` returns the value; a recorded
-    // `None` re-triggers the (separately instrumented) redis fallback below,
-    // identically on record and replay. Because the lookup returns BEFORE redis,
-    // L1 and L2 stay sequential (not nested) → no subsumed/orphan event. Record
-    // stays a pure observer (the real moka runs); replay never reads the shared
-    // moka, so cross-correlation contamination is impossible by construction.
-    #[cfg(feature = "deja")]
-    let cache_val = deja_in_memory_get::<T>(cache, cache_key).await;
-    #[cfg(not(feature = "deja"))]
     let cache_val = cache.get_val::<T>(cache_key).await;
     if let Some(val) = cache_val {
         Ok(val)
     } else {
-        let val = get_or_populate_redis(redis, key, fun).await?;
+        let val = get_or_populate_redis(redis, key, None, fun).await?;
         cache
             .push(
                 CacheKey {
