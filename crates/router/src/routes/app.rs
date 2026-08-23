@@ -1062,6 +1062,10 @@ impl Payments {
                         .route(web::get().to(payment_methods::list_payment_methods_for_payments_client)),
                 )
                 .service(
+                    web::resource("/{payment_id}/payment_methods")
+                        .route(web::get().to(payment_methods::list_payment_methods_for_payments)),
+                )
+                .service(
                     web::resource("/{payment_id}/eligibility")
                         .route(web::post().to(payments::payments_submit_eligibility)),
                 )

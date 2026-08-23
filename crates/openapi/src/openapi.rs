@@ -150,6 +150,7 @@ Never share your secret api keys. Keep them guarded and secure.
         routes::payment_method::list_customer_payment_method_api,
         routes::payment_method::list_customer_payment_method_api_client,
         routes::payment_method::list_payment_methods_for_payments_client,
+        routes::payment_method::list_payment_methods_for_payments,
         routes::payment_method::default_payment_method_set_api,
         routes::payment_method::payment_method_retrieve_api,
         routes::payment_method::payment_method_update_api,

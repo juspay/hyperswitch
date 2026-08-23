@@ -154,6 +154,37 @@ pub async fn list_customer_payment_method_api_client() {}
 #[cfg(feature = "v1")]
 pub async fn list_payment_methods_for_payments_client() {}
 
+/// List payment methods for a Payment (server-to-server)
+///
+/// Server-to-server endpoint. Returns a unified response combining
+/// merchant-enabled payment methods and customer saved payment methods,
+/// filtered via Euclid constraint graph and session flow routing — identical
+/// to the client SDK endpoint, but authenticated with the merchant API key.
+#[utoipa::path(
+    get,
+    path = "/payments/{payment_id}/payment_methods",
+    params (
+        ("payment_id" = String, Path, description = "The identifier for the payment"),
+        ("accepted_countries" = Option<Vec<CountryAlpha2>>, Query, description = "The two-letter ISO currency code"),
+        ("accepted_currencies" = Option<Vec<Currency>>, Query, description = "The three-letter ISO currency code"),
+        ("amount" = Option<i64>, Query, description = "The amount accepted for processing by the particular payment method."),
+        ("recurring_enabled" = Option<bool>, Query, description = "Indicates whether the payment method is eligible for recurring payments"),
+        ("installment_payment_enabled" = Option<bool>, Query, description = "Indicates whether the payment method is eligible for installment payments"),
+        ("limit" = Option<i64>, Query, description = "Indicates the limit of last used payment methods"),
+        ("card_networks" = Option<Vec<CardNetwork>>, Query, description = "Indicates whether the payment method is eligible for card netwotks"),
+    ),
+    responses(
+        (status = 200, description = "Payment Methods retrieved", body = ClientPaymentMethodsListResponse),
+        (status = 400, description = "Invalid Data"),
+        (status = 404, description = "Payment Methods does not exist in records")
+    ),
+    tag = "Payment Methods",
+    operation_id = "List Payment Methods for a Payment",
+    security(("api_key" = []))
+)]
+#[cfg(feature = "v1")]
+pub async fn list_payment_methods_for_payments() {}
+
 /// Payment Method - Retrieve
 ///
 /// Retrieves a payment method of a customer.
