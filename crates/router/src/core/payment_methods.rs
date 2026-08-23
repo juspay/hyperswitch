@@ -7778,8 +7778,7 @@ pub async fn payment_methods_session_confirm(
         None
     };
 
-    // These writes are independent. Running them together hides the durable process-tracker insert
-    // under work that already existed on the response path.
+    // These two writes are independent, so run them together.
     let insert_token = async {
         if let Some(token_data) = token_data {
             pm_routes::ParentPaymentMethodToken::create_key_for_token(&parent_payment_method_token)
@@ -7805,26 +7804,55 @@ pub async fn payment_methods_session_confirm(
         })
         .attach_printable("Failed to update payment methods session from db")
     };
-    let schedule_persistence = async {
-        if let Some(tracking_data) = persistence_tracking_data {
-            add_payment_method_session_confirm_persistence_task(
-                &*state.store,
-                tracking_data,
-                state.conf.application_source,
-            )
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable(
-                "Failed to durably schedule payment method session confirm persistence",
-            )?;
-            metrics::PAYMENT_METHOD_SESSION_CONFIRM_BACKGROUND_PERSISTENCE
-                .add(1, router_env::metric_attributes!(("outcome", "scheduled")));
-        }
-        Ok::<(), error_stack::Report<errors::ApiErrorResponse>>(())
-    };
+    // Scheduling is deferred off the request path. The task id is derived from the
+    // payment method id, so a retry rewrites the same row rather than duplicating it,
+    // and the insert already treats a unique violation as success.
+    if let Some(tracking_data) = persistence_tracking_data {
+        use router_env::tracing::Instrument;
 
-    let (_, payment_method_session, _) =
-        tokio::try_join!(insert_token, update_session, schedule_persistence)?;
+        let state = state.clone();
+        tokio::spawn(
+            (async move {
+                match add_payment_method_session_confirm_persistence_task(
+                    &*state.store,
+                    tracking_data,
+                    state.conf.application_source,
+                )
+                .await
+                {
+                    Ok(()) => {
+                        metrics::PAYMENT_METHOD_SESSION_CONFIRM_BACKGROUND_PERSISTENCE
+                            .add(1, router_env::metric_attributes!(("outcome", "scheduled")));
+                    }
+                    Err(error) => {
+                        // The fast path hands back a token before the card reaches the
+                        // Vault, and this row is the only durable record that the write
+                        // is still owed. Alert on it rather than dropping it silently.
+                        metrics::PAYMENT_METHOD_SESSION_CONFIRM_BACKGROUND_PERSISTENCE.add(
+                            1,
+                            router_env::metric_attributes!(("outcome", "schedule_failed")),
+                        );
+                        // Same InternalServerError context the synchronous path used
+                        // to propagate, so log-based alerting keeps matching.
+                        // `ProcessTrackerError` is a bare error, not a Report: wrap it
+                        // first, as `ResultExt::change_context` did on the sync path.
+                        let error = report!(error)
+                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable(
+                                "Failed to durably schedule payment method session confirm persistence",
+                            );
+                        logger::error!(
+                            ?error,
+                            "Failed to durably schedule payment method session confirm persistence"
+                        );
+                    }
+                }
+            })
+            .in_current_span(),
+        );
+    }
+
+    let (_, payment_method_session) = tokio::try_join!(insert_token, update_session)?;
 
     let payments_response: Option<api_models::payments::PaymentsResponse> = None;
 

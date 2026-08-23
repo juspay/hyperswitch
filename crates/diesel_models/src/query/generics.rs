@@ -27,6 +27,41 @@ use router_env::logger;
 
 use crate::{errors, query::utils::GetPrimaryKey, PgPooledConn, StorageResult};
 
+/// Renders a query's SQL without paying for it when nothing will read it.
+///
+/// `tracing` only invokes a field's `Display` impl when a subscriber is
+/// listening at that level, so the `debug!` below is free at info level. The
+/// owned `String` is another matter: only the `deja` boundary consumes it, and
+/// with that feature off `execute_*` immediately discards it.
+macro_rules! render_sql {
+    ($query:expr) => {{
+        logger::debug!(query = %debug_query::<Pg, _>(&$query));
+
+        #[cfg(feature = "deja")]
+        let sql = debug_query::<Pg, _>(&$query).to_string();
+        #[cfg(not(feature = "deja"))]
+        let sql = String::new();
+
+        sql
+    }};
+}
+
+/// Builds the `deja` boundary inputs, or nothing at all when `deja` is off.
+///
+/// The `Debug` formatting inside scales with row width — 93 columns for
+/// `payment_attempt` — and lands on every write, so it is worth skipping
+/// rather than building and dropping.
+macro_rules! deja_inputs {
+    ($($json:tt)*) => {{
+        #[cfg(feature = "deja")]
+        let inputs = serde_json::json!($($json)*);
+        #[cfg(not(feature = "deja"))]
+        let inputs = serde_json::Value::Null;
+
+        inputs
+    }};
+}
+
 pub mod db_metrics {
     #[derive(Debug)]
     pub enum DatabaseOperation {
@@ -503,9 +538,8 @@ where
     let debug_values = format!("{values:?}");
 
     let query = diesel::insert_into(<T as HasTable>::table()).values(values);
-    let sql = debug_query::<Pg, _>(&query).to_string();
-    logger::debug!(query = %sql);
-    let inputs = serde_json::json!({
+    let sql = render_sql!(query);
+    let inputs = deja_inputs!({
         "values": { "debug": debug_values.as_str() },
     });
 
@@ -537,9 +571,8 @@ where
     let debug_values = format!("{values:?}");
 
     let query = diesel::update(<T as HasTable>::table().filter(predicate)).set(values);
-    let sql = debug_query::<Pg, _>(&query).to_string();
-    logger::debug!(query = %sql);
-    let inputs = serde_json::json!({
+    let sql = render_sql!(query);
+    let inputs = deja_inputs!({
         "values": { "debug": debug_values.as_str() },
         "predicate": { "type": std::any::type_name::<P>() },
     });
@@ -579,9 +612,8 @@ where
     let debug_values = format!("{values:?}");
 
     let query = diesel::update(<T as HasTable>::table().filter(predicate)).set(values);
-    let sql = debug_query::<Pg, _>(&query).to_string();
-    logger::debug!(query = %sql);
-    let inputs = serde_json::json!({
+    let sql = render_sql!(query);
+    let inputs = deja_inputs!({
         "values": { "debug": debug_values.as_str() },
         "predicate": { "type": std::any::type_name::<P>() },
     });
@@ -663,9 +695,8 @@ where
     let debug_values = format!("{values:?}");
 
     let query = diesel::update(<T as HasTable>::table().find(id.to_owned())).set(values);
-    let sql = debug_query::<Pg, _>(&query).to_string();
-    logger::debug!(query = %sql);
-    let inputs = serde_json::json!({
+    let sql = render_sql!(query);
+    let inputs = deja_inputs!({
         "id": { "debug": format!("{id:?}") },
         "values": { "debug": debug_values.as_str() },
     });
@@ -693,9 +724,8 @@ where
     >: AsQuery + QueryFragment<Pg> + QueryId + Send + 'static,
 {
     let query = diesel::delete(<T as HasTable>::table().filter(predicate));
-    let sql = debug_query::<Pg, _>(&query).to_string();
-    logger::debug!(query = %sql);
-    let inputs = serde_json::json!({
+    let sql = render_sql!(query);
+    let inputs = deja_inputs!({
         "predicate": { "type": std::any::type_name::<P>() },
     });
 
@@ -722,9 +752,8 @@ where
     R: Send + Clone + 'static + DejaQueryResult,
 {
     let query = diesel::delete(<T as HasTable>::table().filter(predicate));
-    let sql = debug_query::<Pg, _>(&query).to_string();
-    logger::debug!(query = %sql);
-    let inputs = serde_json::json!({
+    let sql = render_sql!(query);
+    let inputs = deja_inputs!({
         "predicate": { "type": std::any::type_name::<P>() },
     });
 
@@ -749,9 +778,8 @@ where
     R: Send + 'static + DejaQueryResult,
 {
     let query = <T as HasTable>::table().find(id.to_owned());
-    let sql = debug_query::<Pg, _>(&query).to_string();
-    logger::debug!(query = %sql);
-    let inputs = serde_json::json!({
+    let sql = render_sql!(query);
+    let inputs = deja_inputs!({
         "id": { "debug": format!("{id:?}") },
     });
 
@@ -798,9 +826,8 @@ where
     R: Send + 'static + DejaQueryResult,
 {
     let query = <T as HasTable>::table().filter(predicate);
-    let sql = debug_query::<Pg, _>(&query).to_string();
-    logger::debug!(query = %sql);
-    let inputs = serde_json::json!({
+    let sql = render_sql!(query);
+    let inputs = deja_inputs!({
         "predicate": { "type": std::any::type_name::<P>() },
     });
 
@@ -870,9 +897,8 @@ where
         query = query.order(order);
     }
 
-    let sql = debug_query::<Pg, _>(&query).to_string();
-    logger::debug!(query = %sql);
-    let inputs = serde_json::json!({
+    let sql = render_sql!(query);
+    let inputs = deja_inputs!({
         "predicate": { "type": std::any::type_name::<P>() },
         "limit": limit,
         "offset": offset,
@@ -899,9 +925,8 @@ where
         .filter(predicate)
         .select(count_star());
 
-    let sql = debug_query::<Pg, _>(&query).to_string();
-    logger::debug!(query = %sql);
-    let inputs = serde_json::json!({
+    let sql = render_sql!(query);
+    let inputs = deja_inputs!({
         "predicate": { "type": std::any::type_name::<P>() },
     });
 

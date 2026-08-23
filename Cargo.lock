@@ -9904,8 +9904,7 @@ checksum = "13c2bddecc57b384dee18652358fb23172facb8a2c51ccc10d74c157bdea3292"
 [[package]]
 name = "superposition_core"
 version = "0.117.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d58162b324c299ff75b141bd6ad6d58181aab91a06a518c480e28abc53d5e707"
+source = "git+https://github.com/kashif-m/superposition?rev=36c3de116db4c676b18dc000f868f1ea6f9d7639#36c3de116db4c676b18dc000f868f1ea6f9d7639"
 dependencies = [
  "bigdecimal 0.3.1",
  "blake3",
@@ -9925,8 +9924,7 @@ dependencies = [
 [[package]]
 name = "superposition_derives"
 version = "0.117.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cef3856e062f9d37c87f54eb51a0a8646802626e22d77c970f437ce8d9f7b34a"
+source = "git+https://github.com/kashif-m/superposition?rev=36c3de116db4c676b18dc000f868f1ea6f9d7639#36c3de116db4c676b18dc000f868f1ea6f9d7639"
 dependencies = [
  "proc-macro-crate 3.2.0",
  "quote",
@@ -9936,8 +9934,7 @@ dependencies = [
 [[package]]
 name = "superposition_provider"
 version = "0.117.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "50bb977062265eb923148cd933d22e4eb561bddce2db7f83494a1d23080c2663"
+source = "git+https://github.com/kashif-m/superposition?rev=36c3de116db4c676b18dc000f868f1ea6f9d7639#36c3de116db4c676b18dc000f868f1ea6f9d7639"
 dependencies = [
  "async-trait",
  "aws-smithy-types",
@@ -9961,8 +9958,7 @@ dependencies = [
 [[package]]
 name = "superposition_sdk"
 version = "0.117.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "288c0d70b321435fab68c926060a4a88614d2caff6c135880889a2871e5caa67"
+source = "git+https://github.com/kashif-m/superposition?rev=36c3de116db4c676b18dc000f868f1ea6f9d7639#36c3de116db4c676b18dc000f868f1ea6f9d7639"
 dependencies = [
  "aws-smithy-async",
  "aws-smithy-http 0.62.1",
@@ -9979,8 +9975,7 @@ dependencies = [
 [[package]]
 name = "superposition_types"
 version = "0.117.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "38da2b136824f007c6641d0b346f5b9761124a9bead120938f5507771f2c476b"
+source = "git+https://github.com/kashif-m/superposition?rev=36c3de116db4c676b18dc000f868f1ea6f9d7639#36c3de116db4c676b18dc000f868f1ea6f9d7639"
 dependencies = [
  "bigdecimal 0.3.1",
  "chrono",

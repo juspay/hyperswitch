@@ -1548,20 +1548,50 @@ where
         match schedule_time {
             Some(stime) => {
                 if !requeue {
+                    use router_env::tracing::Instrument;
                     // Here, increment the count of added tasks every time a payment has been confirmed or PSync has been called
-                    metrics::TASKS_ADDED_COUNT.add(
-                        1,
-                        router_env::metric_attributes!(("flow", format!("{:#?}", operation))),
+                    let flow = format!("{operation:#?}");
+                    metrics::TASKS_ADDED_COUNT
+                        .add(1, router_env::metric_attributes!(("flow", flow.clone())));
+
+                    // Scheduling is deferred off the request path: the response does
+                    // not depend on the row, and the task id is derived from the
+                    // attempt, so a retry rewrites the same row instead of duplicating.
+                    let state = state.clone();
+                    let payment_attempt = payment_attempt.clone();
+
+                    tokio::spawn(
+                        (async move {
+                            if let Err(error) = super::add_process_sync_task(
+                                &*state.store,
+                                &payment_attempt,
+                                stime,
+                                state.conf.application_source,
+                            )
+                            .await
+                            {
+                                // A dropped row means this payment is never synced with
+                                // the connector, so surface it rather than swallow it.
+                                // Wrapped as InternalServerError to keep the same error
+                                // signature the synchronous path emitted, so existing
+                                // log-based alerts still match.
+                                metrics::TASK_ADDITION_FAILURES_COUNT
+                                    .add(1, router_env::metric_attributes!(("flow", flow)));
+                                let error = error
+                                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                                    .attach_printable(
+                                        "Failed while adding task to process tracker",
+                                    );
+                                logger::error!(
+                                    ?error,
+                                    "Failed while adding task to process tracker"
+                                );
+                            }
+                        })
+                        .in_current_span(),
                     );
-                    super::add_process_sync_task(
-                        &*state.store,
-                        payment_attempt,
-                        stime,
-                        state.conf.application_source,
-                    )
-                    .await
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed while adding task to process tracker")
+
+                    Ok(())
                 } else {
                     // When the requeue is true, we reset the tasks count as we reset the task every time it is requeued
                     metrics::TASKS_RESET_COUNT.add(

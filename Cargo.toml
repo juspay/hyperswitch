@@ -50,3 +50,9 @@ option_map_unit_fn = "allow"
 strip = true
 lto = true
 codegen-units = 1
+
+[patch.crates-io]
+superposition_provider = { git = "https://github.com/kashif-m/superposition", rev = "36c3de116db4c676b18dc000f868f1ea6f9d7639" }
+superposition_core = { git = "https://github.com/kashif-m/superposition", rev = "36c3de116db4c676b18dc000f868f1ea6f9d7639" }
+superposition_types = { git = "https://github.com/kashif-m/superposition", rev = "36c3de116db4c676b18dc000f868f1ea6f9d7639" }
+superposition_sdk = { git = "https://github.com/kashif-m/superposition", rev = "36c3de116db4c676b18dc000f868f1ea6f9d7639" }
