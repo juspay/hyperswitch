@@ -136,6 +136,10 @@ pub const MAX_ALLOWED_MERCHANT_NAME_LENGTH: usize = 64;
 /// Maximum allowed length for CardIssuerName
 pub const MAX_ALLOWED_CARD_ISSUER_NAME_LENGTH: usize = 255;
 
+/// Maximum allowed length for a phone country (calling) code, matching the `VARCHAR(8)`
+/// column used to store it
+pub const MAX_PHONE_COUNTRY_CODE_LENGTH: usize = 8;
+
 /// Default locale
 pub const DEFAULT_LOCALE: &str = "en";
 
