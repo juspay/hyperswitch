@@ -52,6 +52,8 @@ use scheduler::{types::process_data, utils as scheduler_utils};
 #[cfg(feature = "v2")]
 use storage_impl::errors as storage_errors;
 #[cfg(feature = "v2")]
+use storage_impl::revenue_recovery_retry_stats::RevenueRecoveryRetryStatsInterface;
+#[cfg(feature = "v2")]
 use time::{Date, OffsetDateTime, Time};
 
 #[cfg(feature = "v2")]
@@ -1588,6 +1590,40 @@ pub fn compute_mathmodel_retry_time(
     );
 
     Some(dates[day_idx].with_time(time).assume_offset(now.offset()))
+}
+
+/// Adaptive retry time for a failed invoice: fetch the cluster's success stats by the
+/// (standardised) error code and ask the math model when to retry.
+///
+/// `remaining_grace_days` and `remaining_budget` are resolved by the caller (from the invoice's
+/// grace window and retry allowance) and passed straight through to the model.
+///
+/// Returns `None` on every "no opinion" case — no stats recorded for the cluster yet, a lookup
+/// failure (a corrupt stored key/document surfaces as one), or the model itself declining — so the
+/// caller always has the static ladder to fall back on. The returned instant is UTC
+/// (`OffsetDateTime`); the codebase stays in explicit UTC and only converts to a naive
+/// `PrimitiveDateTime` at the schedule boundary.
+#[cfg(feature = "v2")]
+pub async fn compute_adaptive_retry_time(
+    state: &SessionState,
+    error_code: common_enums::StandardisedCode,
+    remaining_grace_days: u32,
+    remaining_budget: u32,
+) -> Option<OffsetDateTime> {
+    // Fetch the stats recorded against this error code. The store builds the cluster key and
+    // parses the stored document internally; `None` when the cluster has no recorded history yet.
+    let record = state
+        .store
+        .get_revenue_recovery_retry_stats_store()
+        .find_revenue_recovery_retry_stats_by_error_code(error_code)
+        .await
+        .map_err(|error| {
+            logger::error!(?error, ?error_code, "adaptive retry: failed to fetch stats");
+        })
+        .ok()??;
+
+    // Hand the resolved inputs to the math model. Its output is already UTC.
+    compute_mathmodel_retry_time(&record.stats, remaining_budget, remaining_grace_days)
 }
 
 #[cfg(all(test, feature = "v2"))]
