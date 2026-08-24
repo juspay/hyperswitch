@@ -8218,7 +8218,6 @@ impl
                 .map(payments_grpc::SourceBankData::foreign_try_from)
                 .transpose()?,
             description: router_data.description.clone(),
-            connector_eligibility_reference_id: None,
             payout_connector_metadata: None,
         })
     }

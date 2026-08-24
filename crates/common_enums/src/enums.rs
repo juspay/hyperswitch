@@ -10218,7 +10218,7 @@ impl BankNames {
             .join(" ")
     }
 
-    /// Overrides for banks whose correct display casing/formatting cannot be derived from the enum variant's PascalCase name alone
+    /// Overrides for banks whose correct display casing/formatting cannot be derived from the enum variant's snake_case name alone
     fn display_name_override(self) -> Option<&'static str> {
         Some(match self {
             Self::AbnAmro => "ABN Amro",

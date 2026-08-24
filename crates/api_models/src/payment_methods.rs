@@ -674,7 +674,7 @@ pub enum BankRedirectData {
         #[schema(value_type = Option<String>)]
         #[serde(default)]
         account_holder_name: Option<hyperswitch_masking::Secret<String>>,
-        #[schema(value_type = Option<String>)]
+        #[schema(value_type = Option<common_enums::BankNames>)]
         #[serde(default)]
         bank_name: Option<common_enums::BankNames>,
     },
