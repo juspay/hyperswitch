@@ -96,8 +96,7 @@ pub type PgPooledConn = async_bb8_diesel::Connection<DejaPgConnection>;
 /// The lease borrows the pool it was acquired from through `bb8::Pool::get`, so this wrapper
 /// cannot outlive that pool. The pool lifetime is carried through query signatures in this crate.
 pub struct DatabaseConnectionWithContext<'pool> {
-    connection:
-        bb8::PooledConnection<'pool, async_bb8_diesel::ConnectionManager<DejaPgConnection>>,
+    connection: bb8::PooledConnection<'pool, async_bb8_diesel::ConnectionManager<DejaPgConnection>>,
     request_id: Option<String>,
     event_emitter: Arc<dyn ExternalServiceEventEmitter>,
 }

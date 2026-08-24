@@ -1,9 +1,9 @@
 #[cfg(feature = "deja")]
 use bb8::PooledConnection;
 use common_utils::request_context::RequestContext;
+pub use diesel_models::DatabaseConnectionWithContext;
 #[cfg(feature = "deja")]
 use diesel_models::DejaPgConnection;
-pub use diesel_models::DatabaseConnectionWithContext;
 use error_stack::ResultExt;
 use storage_impl::{errors as storage_errors, DatabaseStore};
 
