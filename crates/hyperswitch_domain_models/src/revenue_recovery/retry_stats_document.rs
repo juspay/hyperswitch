@@ -2,10 +2,14 @@ use router_env::logger;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
+/// Success counter for a single slot. Invariant: `k <= n` — every successful retry
+/// is also counted as a retry, so the success count can never exceed the total.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SlotCounter {
+    /// `n` = total number of retries recorded in this slot.
     #[serde(default)]
     pub n: u64,
+    /// `k` = number of those retries that succeeded (`k <= n`).
     #[serde(default)]
     pub k: u64,
 }
