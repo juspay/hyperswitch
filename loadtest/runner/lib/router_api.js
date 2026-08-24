@@ -22,7 +22,16 @@ const DEFAULT_METADATA_UPDATE = Object.freeze({
   card_holder_name: "Updated Load Test",
 });
 const SUCCESS_STATUSES = new Set(["succeeded", "requires_capture", "processing"]);
+const PM_MODULAR_CONFIG_KEY = "system.should_call_pm_modular_service";
 let requestTimeoutMs = 30000;
+
+function k6Invocation(state, args) {
+  const binary = process.env.K6_BIN || "k6";
+  const cpuset = state.config.cpu_allocation?.assignments?.k6;
+  if (!cpuset) return { command: binary, args };
+  process.stderr.write(`k6 CPU: ${cpuset}\n`);
+  return { command: "taskset", args: ["-c", String(cpuset), binary, ...args] };
+}
 
 function apiConfig(state) {
   return state.config.payments_api || {};
@@ -91,6 +100,19 @@ async function ensureSuperpositionResource(baseUrl, resource, name, body, header
   if (existing.status === 404) await requestJson("POST", `${baseUrl}/${resource}`, body, headers);
 }
 
+function modularRoutingConfig(organizationId, enabled) {
+  return {
+    defaultConfig: {
+      key: PM_MODULAR_CONFIG_KEY, value: false, schema: { type: "boolean" }, value_validation_function_name: null,
+      description: "Route payment-method operations through PM modular", change_reason: "Initialize local loadtest workspace", value_compute_function_name: null,
+    },
+    context: {
+      override: { [PM_MODULAR_CONFIG_KEY]: enabled }, context: { organization_id: organizationId },
+      description: `Loadtest automation: ${enabled ? "modular" : "non-modular"} payments`, change_reason: "local loadtest automation",
+    },
+  };
+}
+
 async function configureModularRouting(state, merchant, enabled) {
   if (!merchant.organization_id) throw new Error("merchant setup did not return organization_id");
   const target = state.config.targets.superposition;
@@ -104,14 +126,9 @@ async function configureModularRouting(state, merchant, enabled) {
     dimension: "organization_id", position: 1, schema: { type: "string" }, value_validation_function_name: null,
     description: "Hyperswitch organization identifier", change_reason: "Initialize local loadtest workspace", value_compute_function_name: null,
   }, headers);
-  await ensureSuperpositionResource(baseUrl, "default-config", "should_call_pm_modular_service", {
-    key: "should_call_pm_modular_service", value: false, schema: { type: "boolean" }, value_validation_function_name: null,
-    description: "Route payment-method operations through PM modular", change_reason: "Initialize local loadtest workspace", value_compute_function_name: null,
-  }, headers);
-  await requestJson("PUT", `${baseUrl}/context`, {
-    override: { should_call_pm_modular_service: enabled }, context: { organization_id: merchant.organization_id },
-    description: `Loadtest automation: ${enabled ? "modular" : "non-modular"} payments`, change_reason: "local loadtest automation",
-  }, headers);
+  const routingConfig = modularRoutingConfig(merchant.organization_id, enabled);
+  await ensureSuperpositionResource(baseUrl, "default-config", PM_MODULAR_CONFIG_KEY, routingConfig.defaultConfig, headers);
+  await requestJson("PUT", `${baseUrl}/context`, routingConfig.context, headers);
   const waitSeconds = Number(target.propagation_wait_seconds ?? 6);
   if (waitSeconds > 0) await new Promise((resolve) => setTimeout(resolve, waitSeconds * 1000));
 }
@@ -254,12 +271,13 @@ function remainingFixtureWaitSeconds(run, fixtures) {
   fs.writeFileSync(inputPath, JSON.stringify(input), { mode: 0o600 });
   let execution;
   try {
-    execution = spawnSync(process.env.K6_BIN || "k6", [
+    const invocation = k6Invocation(state, [
       "run",
       "--out",
       `json=${outputPath}`,
       path.resolve(__dirname, "../k6/fixtures.js"),
-    ], {
+    ]);
+    execution = spawnSync(invocation.command, invocation.args, {
       env: { ...process.env, K6_INPUT: inputPath },
       stdio: "inherit",
     });
@@ -350,12 +368,13 @@ async function startRun(state) {
   writeState(state, data);
   let execution;
   try {
-    execution = spawnSync(process.env.K6_BIN || "k6", [
+    const invocation = k6Invocation(state, [
       "run",
       "--out",
       `json=${outputPath}`,
       workloadPath,
-    ], {
+    ]);
+    execution = spawnSync(invocation.command, invocation.args, {
       env: { ...process.env, K6_INPUT: inputPath },
       stdio: "inherit",
     });
@@ -504,6 +523,7 @@ async function run(action, state, args = []) {
 module.exports = {
   buildPaymentConfirmBody,
   loadPhases,
+  modularRoutingConfig,
   plannedFixtureCount,
   remainingFixtureWaitSeconds,
   run,

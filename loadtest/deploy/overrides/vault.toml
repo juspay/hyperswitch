@@ -33,9 +33,9 @@ locker_private_key = """
 """
 
 [tenant_secrets]
-public = { master_key = "{{TENANT_MASTER_KEY}}", public_key = """
+public = { master_key = "{{VAULT_MASTER_KEY}}", public_key = """
 {{VAULT_PUBLIC_KEY}}
-""", schema = "{{POSTGRES_SCHEMA_VAULT}}" }
+""", schema = "{{POSTGRES_SCHEMA_VAULT}}", redis_key_prefix = "{{REDIS_PREFIX_VAULT}}" }
 
 [external_key_manager]
 mode = "enabled"

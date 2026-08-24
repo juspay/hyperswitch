@@ -164,6 +164,20 @@ Grafana defaults to `http://127.0.0.1:3002`. The provisioned dashboard contains 
 
 Promtail discovers managed containers through canonical Podman labels. Restart observability after editing provisioned dashboards.
 
+## CPU pinning
+
+Generate a machine-specific CPU allocation from discovered physical cores and SMT siblings:
+
+```bash
+CONFIG=deploy/config.docker-hub.yaml just cpu-plan
+just cpu-show
+just cpu-apply
+# reboot
+just cpu-verify
+```
+
+The TUI assigns one explicit logical thread to router, modular PM, encryption, vault, Superposition, PostgreSQL, Redis, and k6. Sibling threads are shown on the same physical-core row; only a selected thread becomes unavailable, and every unselected thread belongs to the host OS. Dummy connector and observability services use the host CPU set. Non-interactive planning retains the physical-core recommendation. The planner writes reviewable allocation, apply, verify, and rollback artifacts under `deploy/generated/cpu/`. Deployment and local k6 runs consume that allocation automatically. Without an allocation file, existing YAML `cpuset` values remain unchanged.
+
 ## Cloud runner
 
 Cloud mode targets an environment that has already been provisioned and wired by the infrastructure repository. It does not deploy Kubernetes releases, create databases, or configure Router, PM Modular, locker, or encryption application TOMLs.

@@ -1,5 +1,6 @@
 [server]
 host = "0.0.0.0"
+port = 18080
 
 [log.console]
 enabled = true
@@ -8,7 +9,9 @@ log_format = "json"
 
 [log.telemetry]
 traces_enabled = false
-metrics_enabled = false
+metrics_enabled = true
+ignore_errors = false
+otel_exporter_otlp_endpoint = "http://127.0.0.1:4317"
 
 [dummy_connector]
 enabled = true
@@ -27,6 +30,8 @@ use_legacy_locker = true
 # quickly enough for merchant setup followed by an immediate smoke/load test.
 [superposition]
 endpoint = "{{SUPERPOSITION_BASE_URL}}"
+org_id = "{{SUPERPOSITION_ORG_ID}}"
+workspace_id = "{{SUPERPOSITION_WORKSPACE_ID}}"
 polling_interval = 5
 
 [jwekey]

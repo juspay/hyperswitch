@@ -1,54 +1,96 @@
 services:
   loki:
     image: docker.io/grafana/loki:3.6.8
+    container_name: hs-loadtest-loki
+    labels:
+      io.hyperswitch.loadtest.managed: "true"
+      io.hyperswitch.loadtest.component: observability
+      io.hyperswitch.loadtest.service: loki
     network_mode: host
+    cpuset: "${HOST_CPUSET:-}"
     command: ["-config.file=/etc/loki/config.yaml"]
     volumes:
-      - ./loki.yaml:/etc/loki/config.yaml:ro,Z
-      - loki-data:/loki:Z
+      - ./loki.yaml:/etc/loki/config.yaml:ro
+      - loki-data:/loki
 
   promtail:
     image: docker.io/grafana/promtail:3.6.8
+    container_name: hs-loadtest-promtail
+    labels:
+      io.hyperswitch.loadtest.managed: "true"
+      io.hyperswitch.loadtest.component: observability
+      io.hyperswitch.loadtest.service: promtail
     network_mode: host
-    userns_mode: keep-id
-    user: ${HOST_UID:-1000}:${HOST_GID:-1000}
-    security_opt: [label=disable]
+    cpuset: "${HOST_CPUSET:-}"
     command: ["-config.file=/etc/promtail/config.yaml"]
     volumes:
-      - ./promtail.yaml:/etc/promtail/config.yaml:ro,Z
-      - ${XDG_RUNTIME_DIR}/podman/podman.sock:/run/podman/podman.sock:ro
-      - ../logs:/var/log/loadtest:ro,Z
-      - promtail-data:/tmp:Z
+      - ./promtail.yaml:/etc/promtail/config.yaml:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ../logs:/var/log/loadtest:ro
+      - promtail-data:/tmp
 
-  podman-exporter:
-    image: quay.io/navidys/prometheus-podman-exporter:latest
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:latest
+    container_name: hs-loadtest-cadvisor
+    labels:
+      io.hyperswitch.loadtest.managed: "true"
+      io.hyperswitch.loadtest.component: observability
+      io.hyperswitch.loadtest.service: cadvisor
     network_mode: host
-    userns_mode: keep-id
-    user: ${HOST_UID:-1000}:${HOST_GID:-1000}
-    security_opt: [label=disable]
+    cpuset: "${HOST_CPUSET:-}"
+    privileged: true
     environment:
-      CONTAINER_HOST: unix:///run/podman/podman.sock
-      HOME: /tmp
-      XDG_CONFIG_HOME: /tmp/.config
+      CADVISOR_HEALTHCHECK_URL: http://localhost:18082/healthz
+    command: ["--port=18082", "--docker_only=true", "--housekeeping_interval=1s", "--store_container_labels=true"]
     volumes:
-      - ${XDG_RUNTIME_DIR}/podman/podman.sock:/run/podman/podman.sock:ro
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker:/var/lib/docker:ro
+      - /dev/disk:/dev/disk:ro
+
+  otel-collector:
+    image: docker.io/otel/opentelemetry-collector-contrib:latest
+    container_name: hs-loadtest-otel-collector
+    labels:
+      io.hyperswitch.loadtest.managed: "true"
+      io.hyperswitch.loadtest.component: observability
+      io.hyperswitch.loadtest.service: otel-collector
+    network_mode: host
+    cpuset: "${HOST_CPUSET:-}"
+    command: ["--config=/etc/otelcol/config.yaml"]
+    volumes:
+      - ./otel-collector.yaml:/etc/otelcol/config.yaml:ro
 
   prometheus:
     image: docker.io/prom/prometheus:latest
+    container_name: hs-loadtest-prometheus
+    labels:
+      io.hyperswitch.loadtest.managed: "true"
+      io.hyperswitch.loadtest.component: observability
+      io.hyperswitch.loadtest.service: prometheus
     network_mode: host
+    cpuset: "${HOST_CPUSET:-}"
     command:
       - --config.file=/etc/prometheus/prometheus.yaml
       - --web.listen-address=0.0.0.0:${PROMETHEUS_PORT:-9090}
       - --storage.tsdb.path=/prometheus
       - --storage.tsdb.retention.time=24h
     volumes:
-      - ./prometheus.yaml:/etc/prometheus/prometheus.yaml:ro,Z
-      - prometheus-data:/prometheus:Z
+      - ./prometheus.yaml:/etc/prometheus/prometheus.yaml:ro
+      - prometheus-data:/prometheus
 
   grafana:
     image: docker.io/grafana/grafana:latest
+    container_name: hs-loadtest-grafana
+    labels:
+      io.hyperswitch.loadtest.managed: "true"
+      io.hyperswitch.loadtest.component: observability
+      io.hyperswitch.loadtest.service: grafana
     network_mode: host
+    cpuset: "${HOST_CPUSET:-}"
     environment:
+      GF_SERVER_HTTP_ADDR: "0.0.0.0"
       GF_SERVER_HTTP_PORT: "3002"
       GF_AUTH_ANONYMOUS_ENABLED: "true"
       GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
@@ -56,10 +98,12 @@ services:
       PROMETHEUS_URL: ${PROMETHEUS_URL:-http://127.0.0.1:9090}
       LOKI_URL: ${LOKI_URL:-http://127.0.0.1:3100}
     volumes:
-      - ./grafana/provisioning:/etc/grafana/provisioning:ro,Z
-      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro,Z
+      - grafana-data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
 
 volumes:
   loki-data:
   prometheus-data:
   promtail-data:
+  grafana-data:

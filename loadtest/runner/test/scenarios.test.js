@@ -13,6 +13,7 @@ const { latencySummary, percentile, phaseLatencySummary } = require("../lib/resu
 const {
   buildPaymentConfirmBody,
   loadPhases,
+  modularRoutingConfig,
   remainingFixtureWaitSeconds,
   run,
   selectReadyFixtures,
@@ -65,6 +66,13 @@ test("CIT confirms contain setup future usage and customer acceptance", () => {
 test("modular CIT session confirmation includes customer acceptance", () => {
   const source = fs.readFileSync(require.resolve("../k6/workload.js"), "utf8");
   assert.match(source, /if \(input\.plan\.setupFutureUsage\) \{\s*pmSessionConfirmBody\.customer_acceptance = customerAcceptance\(\);/);
+});
+
+test("managed modular routing uses Router's canonical Superposition key", () => {
+  const config = modularRoutingConfig("org_123", true);
+  assert.equal(config.defaultConfig.key, "system.should_call_pm_modular_service");
+  assert.deepEqual(config.context.override, { "system.should_call_pm_modular_service": true });
+  assert.deepEqual(config.context.context, { organization_id: "org_123" });
 });
 
 test("load phases ramp once and own their request count", () => {

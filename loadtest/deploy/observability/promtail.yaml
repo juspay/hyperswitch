@@ -9,9 +9,9 @@ clients:
   - url: http://127.0.0.1:3100/loki/api/v1/push
 
 scrape_configs:
-  - job_name: podman
+  - job_name: docker
     docker_sd_configs:
-      - host: unix:///run/podman/podman.sock
+      - host: unix:///var/run/docker.sock
         refresh_interval: 2s
     relabel_configs:
       - source_labels: [__meta_docker_container_label_io_hyperswitch_loadtest_managed]
