@@ -65,6 +65,7 @@ use crate::{consts, types::payment_methods as pm_types};
 #[cfg(feature = "v1")]
 #[derive(Default)]
 pub struct PaymentMethodFetchData {
+    pub payment_intent: Option<storage::PaymentIntent>,
     pub payment_method_info: Option<domain::PaymentMethod>,
     pub payment_method_with_raw_data: Option<PaymentMethodWithRawData>,
     pub token_data: Option<storage::PaymentTokenData>,
@@ -74,6 +75,7 @@ pub struct PaymentMethodFetchData {
 impl PaymentMethodFetchData {
     pub fn from_modular(payment_method_with_raw_data: PaymentMethodWithRawData) -> Self {
         Self {
+            payment_intent: None,
             payment_method_info: Some(payment_method_with_raw_data.payment_method.clone()),
             payment_method_with_raw_data: Some(payment_method_with_raw_data),
             token_data: None,
@@ -85,6 +87,7 @@ impl PaymentMethodFetchData {
         token_data: Option<storage::PaymentTokenData>,
     ) -> Self {
         Self {
+            payment_intent: None,
             payment_method_info: Some(payment_method_info),
             payment_method_with_raw_data: None,
             token_data,
@@ -1035,6 +1038,9 @@ impl
                 payment_method_data::PaymentMethodsData::NetworkToken(_) => {
                     todo!()
                 }
+                payment_method_data::PaymentMethodsData::BankRedirect(_) => {
+                    todo!()
+                }
             });
 
         let payment_method_billing = item
@@ -1139,6 +1145,9 @@ impl
                     }
                 }
                 payment_method_data::PaymentMethodsData::NetworkToken(_) => {
+                    todo!()
+                }
+                payment_method_data::PaymentMethodsData::BankRedirect(_) => {
                     todo!()
                 }
             });
@@ -1395,7 +1404,8 @@ pub async fn call_modular_payment_method_update(
         &state.conf.trace_header.header_name,
     );
 
-    UpdatePaymentMethod::call(
+    let start = std::time::Instant::now();
+    let result = UpdatePaymentMethod::call(
         state,
         &client,
         UpdatePaymentMethodV1Request {
@@ -1404,8 +1414,17 @@ pub async fn call_modular_payment_method_update(
             modular_service_prefix: state.conf.micro_services.payment_methods_prefix.0.clone(),
         },
     )
-    .await
-    .map_err(|err| {
+    .await;
+    if let Some(context) = state.payment_metrics_context {
+        routes::metrics::record_microservice_call(
+            &result,
+            start.elapsed(),
+            "payment_method",
+            "update",
+            context,
+        );
+    }
+    result.map_err(|err| {
         logger::error!(error=?err, "modular payment method update failed");
         ::payment_methods::errors::ModularPaymentMethodError::UpdateFailed
     })?;
@@ -1543,6 +1562,7 @@ impl DomainPaymentMethodWrapper {
             network_tokenization_data: None,
             storage_type: response.storage_type,
             compatibility_updated_at: Some(current_time),
+            connector_payment_method_details: None,
         }))
     }
 
@@ -1666,6 +1686,7 @@ impl DomainPaymentMethodWrapper {
             network_tokenization_data: None,
             storage_type: response.storage_type,
             compatibility_updated_at: Some(current_time),
+            connector_payment_method_details: None,
         }))
     }
 }
@@ -1853,6 +1874,7 @@ impl TryFrom<CreatePaymentMethodResponse> for DomainPaymentMethodWrapper {
             network_tokenization_data: None,
             storage_type: response.storage_type,
             compatibility_updated_at: Some(current_time),
+            connector_payment_method_details: None,
         }))
     }
 }
@@ -2034,14 +2056,24 @@ pub async fn retrieve_pm_modular_service_call(
     );
 
     //Modular service call
-    let pm_response =
-        pm_client::RetrievePaymentMethod::call(state, &client, payment_method_fetch_req)
-            .await
-            .map_err(|err| {
-                logger::debug!("Error in retrieving payment method: {:?}", err);
-                errors::ApiErrorResponse::InternalServerError
-            })
-            .attach_printable("Failed to retrieve payment method from modular service")?;
+    let start = std::time::Instant::now();
+    let result =
+        pm_client::RetrievePaymentMethod::call(state, &client, payment_method_fetch_req).await;
+    if let Some(context) = state.payment_metrics_context {
+        routes::metrics::record_microservice_call(
+            &result,
+            start.elapsed(),
+            "payment_method",
+            "retrieve",
+            context,
+        );
+    }
+    let pm_response = result
+        .map_err(|err| {
+            logger::debug!("Error in retrieving payment method: {:?}", err);
+            errors::ApiErrorResponse::InternalServerError
+        })
+        .attach_printable("Failed to retrieve payment method from modular service")?;
 
     Ok(pm_response)
 }
@@ -2279,14 +2311,24 @@ pub async fn create_pm_modular_service_call(
     );
 
     //Modular service call
-    let pm_response =
-        pm_client::CreatePaymentMethod::call(state, &client, payment_method_create_req)
-            .await
-            .map_err(|err| {
-                logger::debug!("Error in creating payment method: {:?}", err);
-                errors::ApiErrorResponse::InternalServerError
-            })
-            .attach_printable("Failed to create payment method in modular service")?;
+    let start = std::time::Instant::now();
+    let result =
+        pm_client::CreatePaymentMethod::call(state, &client, payment_method_create_req).await;
+    if let Some(context) = state.payment_metrics_context {
+        routes::metrics::record_microservice_call(
+            &result,
+            start.elapsed(),
+            "payment_method",
+            "create",
+            context,
+        );
+    }
+    let pm_response = result
+        .map_err(|err| {
+            logger::debug!("Error in creating payment method: {:?}", err);
+            errors::ApiErrorResponse::InternalServerError
+        })
+        .attach_printable("Failed to create payment method in modular service")?;
 
     Ok(pm_response)
 }

@@ -126,6 +126,7 @@ fn build_ucs_order_details(
                         .as_ref()
                         .map(|value| value.get_percentage()),
                     discount_type: detail.discount_type.clone(),
+                    product_link: None,
                 })
                 .collect()
         })
@@ -3948,6 +3949,36 @@ impl ForeignFrom<common_enums::CardNetwork> for payments_grpc::CardNetwork {
     }
 }
 
+impl transformers::ForeignTryFrom<payments_grpc::CardNetwork> for common_enums::CardNetwork {
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(card_network: payments_grpc::CardNetwork) -> Result<Self, Self::Error> {
+        match card_network {
+            payments_grpc::CardNetwork::Visa => Ok(Self::Visa),
+            payments_grpc::CardNetwork::Mastercard => Ok(Self::Mastercard),
+            payments_grpc::CardNetwork::Amex => Ok(Self::AmericanExpress),
+            payments_grpc::CardNetwork::Discover => Ok(Self::Discover),
+            payments_grpc::CardNetwork::Jcb => Ok(Self::JCB),
+            payments_grpc::CardNetwork::Diners => Ok(Self::DinersClub),
+            payments_grpc::CardNetwork::Unionpay => Ok(Self::UnionPay),
+            payments_grpc::CardNetwork::Maestro => Ok(Self::Maestro),
+            payments_grpc::CardNetwork::CartesBancaires => Ok(Self::CartesBancaires),
+            payments_grpc::CardNetwork::Rupay => Ok(Self::RuPay),
+            payments_grpc::CardNetwork::InteracCard => Ok(Self::Interac),
+            payments_grpc::CardNetwork::Star => Ok(Self::Star),
+            payments_grpc::CardNetwork::Pulse => Ok(Self::Pulse),
+            payments_grpc::CardNetwork::Accel => Ok(Self::Accel),
+            payments_grpc::CardNetwork::Nyce => Ok(Self::Nyce),
+            payments_grpc::CardNetwork::Prop => Ok(Self::Prop),
+            payments_grpc::CardNetwork::PrivateLabel => Ok(Self::PrivateLabel),
+            payments_grpc::CardNetwork::Dinacard => Ok(Self::Dinacard),
+            payments_grpc::CardNetwork::Unspecified => {
+                Err(UnifiedConnectorServiceError::ResponseDeserializationFailed)?
+            }
+        }
+    }
+}
+
 impl transformers::ForeignTryFrom<hyperswitch_domain_models::payment_method_data::UpiSource>
     for payments_grpc::UpiSource
 {
@@ -5392,7 +5423,13 @@ impl ForeignFrom<common_enums::PaymentMethodType> for payments_grpc::PaymentMeth
             common_enums::PaymentMethodType::InstantBankTransfer => Self::InstantBankTransfer,
             common_enums::PaymentMethodType::RevolutPay => Self::RevolutPay,
             // Variants that don't have direct proto equivalents
-            _ => Self::Unspecified,
+            _ => {
+                tracing::warn!(
+                    payment_method_type = ?value,
+                    "PaymentMethodType does not have a direct proto equivalent, mapping to Unspecified"
+                );
+                Self::Unspecified
+            }
         }
     }
 }
@@ -6807,7 +6844,13 @@ impl transformers::ForeignTryFrom<&RouterData<Execute, RefundsData, RefundsRespo
                 .as_ref()
                 .map(|id| id.get_string_repr().to_string()),
             merchant_request_id: None,
-            connector_order_id: None,
+            // Connector-side identifier of the original payment this refund targets. Mirrors how
+            // Capture/Void send `merchant_capture_id`/`merchant_void_id`: the reference the
+            // original attempt was sent to the connector with.
+            connector_order_id: router_data
+                .request
+                .payment_connector_request_reference_id
+                .clone(),
             payment_method: None,
         })
     }
@@ -6882,7 +6925,11 @@ impl transformers::ForeignTryFrom<&RouterData<RSync, RefundsData, RefundsRespons
             payment_method_type,
             connector_feature_data: None,
             merchant_request_id: None,
-            connector_order_id: None,
+            // Connector-side identifier of the original payment this refund sync targets.
+            connector_order_id: router_data
+                .request
+                .payment_connector_request_reference_id
+                .clone(),
         })
     }
 }
@@ -7600,6 +7647,10 @@ impl
             customer: Some(customer),
             access_token: router_data.access_token.clone().map(|at| at.token),
             connector_payout_id: router_data.request.connector_payout_id.clone(),
+            connector_eligibility_reference_id: router_data
+                .request
+                .connector_eligibility_reference_id
+                .clone(),
             payout_method_data,
             connector_quote_id: router_data.quote_id.clone(),
             priority: router_data
@@ -7909,6 +7960,7 @@ macro_rules! impl_ucs_payout_response_transformation {
                         error_code: None,
                         error_message: None,
                         payout_connector_metadata: None,
+                        connector_eligibility_reference_id: None,
                     })
                 };
 
@@ -7939,70 +7991,31 @@ impl
             common_enums::PayoutStatus,
         ),
     ) -> Result<Self, Self::Error> {
-        let status_code = convert_connector_service_status_code(response.status_code)?;
         let status = common_enums::PayoutStatus::foreign_try_from(response.payout_status())
             .unwrap_or(prev_status);
 
-        let router_response = if let Some(error_info) = response.error {
-            Err(ErrorResponse {
-                code: error_info
-                    .connector_details
-                    .as_ref()
-                    .and_then(|cd| cd.code.clone())
-                    .ok_or(
-                        error_stack::Report::new(
-                            UnifiedConnectorServiceError::ResponseDeserializationFailed,
-                        )
-                        .attach_printable("Missing error code in UCS response ErrorInfo"),
-                    )?,
-                message: error_info
-                    .connector_details
-                    .as_ref()
-                    .and_then(|cd| cd.message.clone())
-                    .ok_or(
-                        error_stack::Report::new(
-                            UnifiedConnectorServiceError::ResponseDeserializationFailed,
-                        )
-                        .attach_printable("Missing error message in UCS response ErrorInfo"),
-                    )?,
-                reason: error_info
-                    .connector_details
-                    .as_ref()
-                    .and_then(|cd| cd.reason.clone()),
-                status_code,
-                attempt_status: None,
-                connector_transaction_id: response.connector_payout_id.clone(),
-                connector_response_reference_id: response.merchant_payout_id.clone(),
-                network_decline_code: error_info.issuer_details.as_ref().and_then(|id| {
-                    id.network_details
-                        .as_ref()
-                        .and_then(|nd| nd.decline_code.clone())
-                }),
-                network_advice_code: error_info.issuer_details.as_ref().and_then(|id| {
-                    id.network_details
-                        .as_ref()
-                        .and_then(|nd| nd.advice_code.clone())
-                }),
-                network_error_message: error_info.issuer_details.as_ref().and_then(|id| {
-                    id.network_details
-                        .as_ref()
-                        .and_then(|nd| nd.error_message.clone())
-                }),
-                connector_metadata: None,
-            })
-        } else {
-            Ok(PayoutsResponseData {
-                status: Some(status),
-                connector_payout_id: response.connector_payout_id,
-                payout_eligible: response.payout_eligible,
-                should_add_next_step_to_process_tracker: false,
-                error_code: None,
-                error_message: None,
-                payout_connector_metadata: None,
-            })
-        };
+        let connector_details = response
+            .error
+            .as_ref()
+            .and_then(|error_info| error_info.connector_details.as_ref());
 
-        Ok(router_response)
+        Ok(Ok(PayoutsResponseData {
+            status: Some(status),
+            connector_payout_id: response.connector_payout_id,
+            payout_eligible: response.payout_eligible,
+            should_add_next_step_to_process_tracker: false,
+            error_code: connector_details.and_then(|details| details.code.clone()),
+            error_message: connector_details.and_then(|details| details.message.clone()),
+            payout_connector_metadata: response
+                .connector_metadata
+                .as_ref()
+                .and_then(|metadata| {
+                    serde_json::from_str::<serde_json::Value>(metadata.peek()).ok()
+                })
+                .filter(|value| value.as_object().is_some_and(|details| !details.is_empty()))
+                .map(Secret::new),
+            connector_eligibility_reference_id: response.connector_eligibility_reference_id,
+        }))
     }
 }
 #[cfg(feature = "payouts")]
@@ -8419,6 +8432,7 @@ impl transformers::ForeignTryFrom<&api_models::payouts::Passthrough>
         Ok(Self {
             psp_token: item.psp_token.clone().expose(),
             token_type: payments_grpc::PaymentMethodType::foreign_from(item.token_type).into(),
+            psp_customer_id: item.psp_customer_id.clone(),
         })
     }
 }
