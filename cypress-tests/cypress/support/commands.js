@@ -3316,7 +3316,10 @@ Cypress.Commands.add(
                 }
               }
               for (const key in resData.body) {
-                if (key === "payment_method_data" && globalState.get("connectorId") === "checkout") {
+                if (
+                  key === "payment_method_data" &&
+                  globalState.get("connectorId") === "checkout"
+                ) {
                   expect(response.body[key], [key]).to.not.be.empty;
                   expect(
                     response.body[key]?.card?.auth_code,
@@ -3352,7 +3355,10 @@ Cypress.Commands.add(
                 );
               }
               for (const key in resData.body) {
-                if (key === "payment_method_data" && globalState.get("connectorId") === "checkout") {
+                if (
+                  key === "payment_method_data" &&
+                  globalState.get("connectorId") === "checkout"
+                ) {
                   expect(response.body[key], [key]).to.not.be.empty;
                   expect(
                     response.body[key]?.card?.auth_code,
@@ -3418,7 +3424,10 @@ Cypress.Commands.add(
                 }
               }
               for (const key in resData.body) {
-                if (key === "payment_method_data" && globalState.get("connectorId") === "checkout") {
+                if (
+                  key === "payment_method_data" &&
+                  globalState.get("connectorId") === "checkout"
+                ) {
                   expect(response.body[key], [key]).to.not.be.empty;
                   expect(
                     response.body[key]?.card?.auth_code,
@@ -3443,7 +3452,10 @@ Cypress.Commands.add(
                 globalState.set("nextActionType", "redirect_to_url");
               }
               for (const key in resData.body) {
-                if (key === "payment_method_data" && globalState.get("connectorId") === "checkout") {
+                if (
+                  key === "payment_method_data" &&
+                  globalState.get("connectorId") === "checkout"
+                ) {
                   expect(response.body[key], [key]).to.not.be.empty;
                   expect(
                     response.body[key]?.card?.auth_code,
@@ -4121,7 +4133,10 @@ Cypress.Commands.add(
                 }
               }
               for (const key in resData.body) {
-                if (key === "payment_method_data" && globalState.get("connectorId") === "checkout") {
+                if (
+                  key === "payment_method_data" &&
+                  globalState.get("connectorId") === "checkout"
+                ) {
                   expect(response.body[key], [key]).to.not.be.empty;
                   expect(
                     response.body[key]?.card?.auth_code,
@@ -4135,7 +4150,10 @@ Cypress.Commands.add(
               }
             } else if (response.body.authentication_type === "no_three_ds") {
               for (const key in resData.body) {
-                if (key === "payment_method_data" && globalState.get("connectorId") === "checkout") {
+                if (
+                  key === "payment_method_data" &&
+                  globalState.get("connectorId") === "checkout"
+                ) {
                   expect(response.body[key], [key]).to.not.be.empty;
                   expect(
                     response.body[key]?.card?.auth_code,
@@ -4182,7 +4200,10 @@ Cypress.Commands.add(
                 }
               }
               for (const key in resData.body) {
-                if (key === "payment_method_data" && globalState.get("connectorId") === "checkout") {
+                if (
+                  key === "payment_method_data" &&
+                  globalState.get("connectorId") === "checkout"
+                ) {
                   expect(response.body[key], [key]).to.not.be.empty;
                   expect(
                     response.body[key]?.card?.auth_code,
@@ -4196,7 +4217,10 @@ Cypress.Commands.add(
               }
             } else if (response.body.authentication_type === "no_three_ds") {
               for (const key in resData.body) {
-                if (key === "payment_method_data" && globalState.get("connectorId") === "checkout") {
+                if (
+                  key === "payment_method_data" &&
+                  globalState.get("connectorId") === "checkout"
+                ) {
                   expect(response.body[key], [key]).to.not.be.empty;
                   expect(
                     response.body[key]?.card?.auth_code,
@@ -4325,7 +4349,10 @@ Cypress.Commands.add(
               }
             } else if (response.body.authentication_type === "no_three_ds") {
               for (const key in resData.body) {
-                if (key === "payment_method_data" && globalState.get("connectorId") === "checkout") {
+                if (
+                  key === "payment_method_data" &&
+                  globalState.get("connectorId") === "checkout"
+                ) {
                   expect(response.body[key], [key]).to.not.be.empty;
                   expect(
                     response.body[key]?.card?.auth_code,
@@ -4382,7 +4409,10 @@ Cypress.Commands.add(
               );
             } else if (response.body.authentication_type === "no_three_ds") {
               for (const key in resData.body) {
-                if (key === "payment_method_data" && globalState.get("connectorId") === "checkout") {
+                if (
+                  key === "payment_method_data" &&
+                  globalState.get("connectorId") === "checkout"
+                ) {
                   expect(response.body[key], [key]).to.not.be.empty;
                   expect(
                     response.body[key]?.card?.auth_code,
@@ -4459,7 +4489,10 @@ Cypress.Commands.add(
         if (response.body.capture_method !== undefined) {
           expect(response.body.payment_id).to.equal(paymentId);
           for (const key in resData.body) {
-            if (key === "payment_method_data" && globalState.get("connectorId") === "checkout") {
+            if (
+              key === "payment_method_data" &&
+              globalState.get("connectorId") === "checkout"
+            ) {
               expect(response.body[key], [key]).to.not.be.empty;
               expect(
                 response.body[key]?.card?.auth_code,
@@ -5106,7 +5139,10 @@ Cypress.Commands.add(
               // Response body key comparison runs for all three_ds paths, including succeeded status
               // — the redirect URL is extracted above when status !== succeeded, but all response keys are verified here
               for (const key in resData.body) {
-                if (key === "payment_method_data" && globalState.get("connectorId") === "checkout") {
+                if (
+                  key === "payment_method_data" &&
+                  globalState.get("connectorId") === "checkout"
+                ) {
                   expect(response.body[key], [key]).to.not.be.empty;
                   expect(
                     response.body[key]?.card?.auth_code,
@@ -5187,7 +5223,10 @@ Cypress.Commands.add(
               // Response body key comparison runs for all three_ds paths, including succeeded status
               // — the redirect URL is extracted above when status !== succeeded, but all response keys are verified here
               for (const key in resData.body) {
-                if (key === "payment_method_data" && globalState.get("connectorId") === "checkout") {
+                if (
+                  key === "payment_method_data" &&
+                  globalState.get("connectorId") === "checkout"
+                ) {
                   expect(response.body[key], [key]).to.not.be.empty;
                   expect(
                     response.body[key]?.card?.auth_code,
@@ -7824,6 +7863,7 @@ Cypress.Commands.add(
   (requestBody, cardBin, globalState) => {
     const apiKey = globalState.get("apiKey");
     const baseUrl = globalState.get("baseUrl");
+    const profileId = globalState.get("profileId");
     const url = `${baseUrl}/blocklist`;
 
     const body = {
@@ -7838,6 +7878,7 @@ Cypress.Commands.add(
       headers: {
         "Content-Type": "application/json",
         "api-key": apiKey,
+        "X-Profile-Id": profileId,
       },
       body: body,
       failOnStatusCode: false,
@@ -7867,6 +7908,7 @@ Cypress.Commands.add(
 Cypress.Commands.add("blocklistDeleteRule", (type, data, globalState) => {
   const apiKey = globalState.get("apiKey");
   const baseUrl = globalState.get("baseUrl");
+  const profileId = globalState.get("profileId");
   const url = `${baseUrl}/blocklist`;
 
   const body = {
@@ -7880,6 +7922,7 @@ Cypress.Commands.add("blocklistDeleteRule", (type, data, globalState) => {
     headers: {
       "Content-Type": "application/json",
       "api-key": apiKey,
+      "X-Profile-Id": profileId,
     },
     body: body,
     failOnStatusCode: false,

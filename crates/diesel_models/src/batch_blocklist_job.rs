@@ -6,8 +6,6 @@ use time::PrimitiveDateTime;
 
 use crate::schema::batch_blocklist_jobs;
 
-// `profile_id` is read-only for now: the column exists and is selected, but
-// nothing writes or filters on it until the profile-scoping change lands.
 #[derive(Clone, Debug, Identifiable, Queryable, Selectable, Deserialize, Serialize)]
 #[diesel(table_name = batch_blocklist_jobs, primary_key(id), check_for_backend(diesel::pg::Pg))]
 pub struct BatchBlocklistJob {
@@ -33,6 +31,7 @@ pub struct BatchBlocklistJobNew {
     pub failed_rows: i32,
     pub created_at: PrimitiveDateTime,
     pub updated_at: PrimitiveDateTime,
+    pub profile_id: id_type::ProfileId,
 }
 
 #[derive(Clone, Debug, AsChangeset)]
