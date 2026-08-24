@@ -4145,6 +4145,131 @@
         ]
       }
     },
+    "/payments/{payment_id}/payment_methods": {
+      "get": {
+        "tags": [
+          "Payment Methods"
+        ],
+        "summary": "List payment methods for a Payment (server-to-server)",
+        "description": "Server-to-server endpoint. Returns a unified response combining\nmerchant-enabled payment methods and customer saved payment methods,\nfiltered via Euclid constraint graph and session flow routing — identical\nto the client SDK endpoint, but authenticated with the merchant API key.",
+        "operationId": "List Payment Methods for a Payment",
+        "parameters": [
+          {
+            "name": "payment_id",
+            "in": "path",
+            "description": "The identifier for the payment",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "accepted_countries",
+            "in": "query",
+            "description": "The two-letter ISO currency code",
+            "required": false,
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/CountryAlpha2"
+              },
+              "nullable": true
+            }
+          },
+          {
+            "name": "accepted_currencies",
+            "in": "query",
+            "description": "The three-letter ISO currency code",
+            "required": false,
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/Currency"
+              },
+              "nullable": true
+            }
+          },
+          {
+            "name": "amount",
+            "in": "query",
+            "description": "The amount accepted for processing by the particular payment method.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "nullable": true
+            }
+          },
+          {
+            "name": "recurring_enabled",
+            "in": "query",
+            "description": "Indicates whether the payment method is eligible for recurring payments",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "nullable": true
+            }
+          },
+          {
+            "name": "installment_payment_enabled",
+            "in": "query",
+            "description": "Indicates whether the payment method is eligible for installment payments",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "nullable": true
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Indicates the limit of last used payment methods",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "nullable": true
+            }
+          },
+          {
+            "name": "card_networks",
+            "in": "query",
+            "description": "Indicates whether the payment method is eligible for card netwotks",
+            "required": false,
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/CardNetwork"
+              },
+              "nullable": true
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Payment Methods retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClientPaymentMethodsListResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid Data"
+          },
+          "404": {
+            "description": "Payment Methods does not exist in records"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
     "/{customer_id}/payment_methods/{payment_method_id}/default": {
       "post": {
         "tags": [
