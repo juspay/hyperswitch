@@ -384,6 +384,85 @@ export const connectorDetails = {
         },
       },
     },
+    L2L3Data: {
+      // Stripe L2/L3 data: Level 2 (tax/shipping) and Level 3 (line items) for payment processing
+      // Amount must equal sum of order_details excluding shipping_cost
+      Request: {
+        currency: "USD",
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        // amount must equal sum of order_details line items only (excluding shipping_cost)
+        amount: 6000,
+        order_tax_amount: null,
+        shipping_cost: 1000,
+        shipping: {
+          address: {
+            city: "SANTA MARIA",
+            country: "US",
+            line1: "ewwe",
+            line2: "wer",
+            zip: "123342",
+            state: "we",
+            first_name: "were",
+            last_name: "wer",
+            // Merchant origin for tax/shipping calculation; null when not location-dependent
+            origin_zip: null,
+          },
+        },
+        merchant_order_reference_id: "stripe-l2l3-order-reference",
+        // Single item design prevents amount_details accumulation during test retries
+        order_details: [
+          {
+            product_name: "Test Product Bundle",
+            quantity: 1,
+            amount: 6000,
+            requires_shipping: true,
+          },
+        ],
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          // Confirm endpoint returns only status; L2/L3 data verified via retrieve response
+          status: "succeeded",
+        },
+      },
+    },
+    L2L3DataRetrieve: {
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          shipping_cost: 1000,
+          merchant_order_reference_id: "stripe-l2l3-order-reference",
+          order_details: [
+            {
+              product_name: "Test Product Bundle",
+              quantity: 1,
+              amount: 6000,
+              requires_shipping: true,
+            },
+          ],
+          shipping: {
+            address: {
+              line1: "ewwe",
+              line2: "wer",
+              city: "SANTA MARIA",
+              state: "we",
+              zip: "123342",
+              country: "US",
+              first_name: "were",
+              last_name: "wer",
+            },
+          },
+        },
+      },
+    },
     No3DSFailPayment: {
       Request: {
         payment_method: "card",

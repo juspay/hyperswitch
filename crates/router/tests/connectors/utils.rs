@@ -411,6 +411,7 @@ pub trait ConnectorActions: Connector {
                 merchant_config_currency: None,
                 capture_method: None,
                 additional_payment_method_data: None,
+                payment_connector_request_reference_id: None,
             }),
             payment_info,
         );
@@ -454,6 +455,7 @@ pub trait ConnectorActions: Connector {
     ) -> RouterData<Flow, types::PayoutsData, Res> {
         self.generate_data(
             types::PayoutsData {
+                connector_eligibility_reference_id: None,
                 payout_id: common_utils::id_type::PayoutId::generate(),
                 amount: 1,
                 minor_amount: MinorUnit::new(1),
@@ -1131,6 +1133,7 @@ impl Default for PaymentRefundType {
             merchant_config_currency: None,
             capture_method: None,
             additional_payment_method_data: None,
+            payment_connector_request_reference_id: None,
         };
         Self(data)
     }

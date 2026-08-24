@@ -33,6 +33,8 @@ pub struct BlocklistResponse {
     pub data_kind: enums::BlocklistDataKind,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: time::PrimitiveDateTime,
+    #[schema(value_type = Option<String>, example = "pro_abcdefghijklmnop")]
+    pub profile_id: Option<common_utils::id_type::ProfileId>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
