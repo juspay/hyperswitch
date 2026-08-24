@@ -1,6 +1,7 @@
 use async_bb8_diesel::AsyncRunQueryDsl;
 use diesel::{associations::HasTable, ExpressionMethods, QueryDsl};
 use error_stack::ResultExt;
+use hyperswitch_masking::Secret;
 
 use super::generics;
 use crate::{
@@ -25,7 +26,7 @@ impl RevenueRecoveryRetryStats {
     pub async fn update_stats(
         conn: &PgPooledConn,
         cluster_key: String,
-        stats: serde_json::Value,
+        stats: Secret<serde_json::Value>,
     ) -> StorageResult<Self> {
         diesel::update(<Self as HasTable>::table().filter(dsl::cluster_key.eq(cluster_key)))
             .set(dsl::stats.eq(stats))

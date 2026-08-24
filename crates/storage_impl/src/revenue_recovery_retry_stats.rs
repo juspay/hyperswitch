@@ -1,3 +1,4 @@
+use common_enums::StandardisedCode;
 use common_utils::{
     errors::{CustomResult, ValidationError},
     types::keymanager,
@@ -10,7 +11,7 @@ use hyperswitch_domain_models::revenue_recovery::{
     retry_stats::RevenueRecoveryRetryStats as DomainRevenueRecoveryRetryStats,
     retry_stats_cluster_key::RetryStatsClusterKey, retry_stats_document::StatsDocument,
 };
-use hyperswitch_masking::Secret;
+use hyperswitch_masking::{PeekInterface, Secret};
 use router_env::{instrument, tracing};
 
 use crate::{
@@ -36,7 +37,7 @@ fn domain_from_diesel_row(
             ),
         })
     })?;
-    let stats = StatsDocument::from_json(&item.stats).map_err(|error| {
+    let stats = StatsDocument::from_json(item.stats.peek()).map_err(|error| {
         report!(ValidationError::InvalidValue {
             message: format!("revenue_recovery_retry_stats: unparseable stats document: {error}"),
         })
@@ -57,7 +58,7 @@ impl Conversion for DomainRevenueRecoveryRetryStats {
     async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
         Ok(RevenueRecoveryRetryStats {
             cluster_key: self.cluster_key.as_db_string(),
-            stats: self.stats.to_json(),
+            stats: Secret::new(self.stats.to_json()),
         })
     }
 
@@ -73,7 +74,7 @@ impl Conversion for DomainRevenueRecoveryRetryStats {
     async fn construct_new(self) -> CustomResult<Self::NewDstType, ValidationError> {
         Ok(RevenueRecoveryRetryStatsNew {
             cluster_key: self.cluster_key.as_db_string(),
-            stats: self.stats.to_json(),
+            stats: Secret::new(self.stats.to_json()),
         })
     }
 }
@@ -90,6 +91,19 @@ pub trait RevenueRecoveryRetryStatsInterface: Send + Sync {
         &self,
         cluster_key: &RetryStatsClusterKey,
     ) -> CustomResult<Option<DomainRevenueRecoveryRetryStats>, Self::Error>;
+
+    /// Fetch the stats recorded against an error code alone. While only the error_code
+    /// dimension is populated, leaves are stored under `error_code/UNK/UNK`
+    /// ([`RetryStatsClusterKey::from_error_code`]); this queries that exact key.
+    async fn find_revenue_recovery_retry_stats_by_error_code(
+        &self,
+        error_code: StandardisedCode,
+    ) -> CustomResult<Option<DomainRevenueRecoveryRetryStats>, Self::Error> {
+        self.find_revenue_recovery_retry_stats_by_cluster_key(
+            &RetryStatsClusterKey::from_error_code(error_code),
+        )
+        .await
+    }
 
     /// Insert a new stats document for a key that does not yet exist. Takes the domain
     /// model and serializes both columns internally.
@@ -134,7 +148,7 @@ impl<T: DatabaseStore> RevenueRecoveryRetryStatsInterface for RouterStore<T> {
         let conn = connection::pg_connection_write(self).await?;
         let inserted = RevenueRecoveryRetryStatsNew {
             cluster_key: revenue_recovery_retry_stats.cluster_key.as_db_string(),
-            stats: revenue_recovery_retry_stats.stats.to_json(),
+            stats: Secret::new(revenue_recovery_retry_stats.stats.to_json()),
         }
         .insert(&conn)
         .await
@@ -151,7 +165,7 @@ impl<T: DatabaseStore> RevenueRecoveryRetryStatsInterface for RouterStore<T> {
         let updated = RevenueRecoveryRetryStats::update_stats(
             &conn,
             revenue_recovery_retry_stats.cluster_key.as_db_string(),
-            revenue_recovery_retry_stats.stats.to_json(),
+            Secret::new(revenue_recovery_retry_stats.stats.to_json()),
         )
         .await
         .map_err(|error| report!(StorageError::from(error)))?;

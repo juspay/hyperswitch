@@ -1,4 +1,5 @@
 use diesel::{Identifiable, Queryable, Selectable};
+use hyperswitch_masking::Secret;
 
 use crate::schema_v2::revenue_recovery_retry_stats;
 
@@ -9,12 +10,12 @@ use crate::schema_v2::revenue_recovery_retry_stats;
 #[diesel(primary_key(cluster_key))]
 pub struct RevenueRecoveryRetryStats {
     pub cluster_key: String,
-    pub stats: serde_json::Value,
+    pub stats: Secret<serde_json::Value>,
 }
 
 #[derive(Clone, Debug, diesel::Insertable, serde::Serialize, serde::Deserialize)]
 #[diesel(table_name = revenue_recovery_retry_stats)]
 pub struct RevenueRecoveryRetryStatsNew {
     pub cluster_key: String,
-    pub stats: serde_json::Value,
+    pub stats: Secret<serde_json::Value>,
 }
