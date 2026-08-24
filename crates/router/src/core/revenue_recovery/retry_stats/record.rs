@@ -1,8 +1,8 @@
 use common_utils::errors::CustomResult;
-use diesel_models::revenue_recovery_retry_stats::RevenueRecoveryRetryStatsNew;
 use error_stack::ResultExt;
-use hyperswitch_domain_models::revenue_recovery::retry_stats_document::{
-    merge_stats, StatsDocument,
+use hyperswitch_domain_models::revenue_recovery::{
+    retry_stats::RevenueRecoveryRetryStats as DomainRevenueRecoveryRetryStats,
+    retry_stats_document::merge_stats,
 };
 use redis_interface::SetnxReply;
 use router_env::{instrument, logger, tracing};
@@ -157,39 +157,38 @@ async fn merge_and_write(
     db_key: &str,
     event: &RetryOutcomeEvent,
 ) -> CustomResult<(), StorageError> {
-    let existing_row = store
-        .find_revenue_recovery_retry_stats_by_key(db_key.to_string())
-        .await?;
-    let row_exists = existing_row.is_some();
+    // Resolve the current document and whether a row already exists. A row whose
+    // stored document is corrupt (`DeserializationFailed`) is treated as
+    // present-but-empty and rebuilt, rather than dropping the event.
+    let (current_doc, row_exists) = match store
+        .find_revenue_recovery_retry_stats_by_cluster_key(&event.key)
+        .await
+    {
+        Ok(Some(row)) => (Some(row.stats), true),
+        Ok(None) => (None, false),
+        Err(error) if matches!(error.current_context(), StorageError::DeserializationFailed) => {
+            logger::error!(
+                cluster_key = %db_key,
+                ?error,
+                "revenue_recovery_retry_stats: stored document is corrupt, rebuilding from empty"
+            );
+            // The row exists but is unreadable, so overwrite it rather than insert.
+            (None, true)
+        }
+        Err(error) => return Err(error),
+    };
 
-    // Treat an unparseable stored document as empty rather than dropping the event.
-    let current_doc = existing_row.and_then(|row| {
-        StatsDocument::from_json(&row.stats)
-            .map_err(|error| {
-                logger::error!(
-                    cluster_key = %db_key,
-                    ?error,
-                    "revenue_recovery_retry_stats: stored document is corrupt, rebuilding from empty"
-                );
-            })
-            .ok()
-    });
-
-    let stats = merge_stats(current_doc.as_ref(), &event.delta).to_json();
+    let record = DomainRevenueRecoveryRetryStats {
+        cluster_key: event.key.clone(),
+        stats: merge_stats(current_doc.as_ref(), &event.delta),
+    };
 
     // The per-key redis lock plus the read above tell us whether the row exists, so we
     // insert on first sight and update thereafter — no DB-level upsert/conflict handling.
     if row_exists {
-        store
-            .update_revenue_recovery_retry_stats(db_key.to_string(), stats)
-            .await?;
+        store.update_revenue_recovery_retry_stats(record).await?;
     } else {
-        store
-            .insert_revenue_recovery_retry_stats(RevenueRecoveryRetryStatsNew {
-                cluster_key: db_key.to_string(),
-                stats,
-            })
-            .await?;
+        store.insert_revenue_recovery_retry_stats(record).await?;
     }
 
     Ok(())

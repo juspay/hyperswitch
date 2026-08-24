@@ -1,3 +1,4 @@
+pub mod retry_stats;
 pub mod retry_stats_cluster_key;
 pub mod retry_stats_document;
 
