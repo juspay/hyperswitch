@@ -6576,6 +6576,18 @@
           "Blocklist"
         ],
         "operationId": "Unblock a Fingerprint",
+        "parameters": [
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "The business profile to unblock this entry from. Only entries belonging to that profile, or entries with no profile, are removed - an entry blocked under a different profile is not affected and the request returns 404. Resolution follows the same rules as blocking.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -6598,7 +6610,10 @@
             }
           },
           "400": {
-            "description": "Invalid Data"
+            "description": "Invalid Data, or no profile could be resolved"
+          },
+          "404": {
+            "description": "No entry for this fingerprint under the resolved profile"
           }
         },
         "security": [
@@ -6620,6 +6635,16 @@
             "required": true,
             "schema": {
               "$ref": "#/components/schemas/BlocklistDataKind"
+            }
+          },
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Restricts the listing to entries belonging to this business profile, plus entries with no profile. When no profile can be resolved - as with publishable-key authentication - all of the merchant's entries are returned, as before.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
             }
           }
         ],
@@ -6649,6 +6674,18 @@
           "Blocklist"
         ],
         "operationId": "Block a Fingerprint",
+        "parameters": [
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "The business profile to block this entry under. Ignored when authenticating with a JWT, which carries its own profile. If omitted, the merchant's default profile is used; merchants with more than one profile have no default and will receive an error asking for this header.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -6671,7 +6708,7 @@
             }
           },
           "400": {
-            "description": "Invalid Data"
+            "description": "Invalid Data, or no profile could be resolved"
           }
         },
         "security": [
@@ -6726,6 +6763,18 @@
           "Blocklist"
         ],
         "operationId": "Upload a batch blocklist CSV",
+        "parameters": [
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "The business profile every entry in this upload is blocked under. Resolution follows the same rules as blocking a single entry.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            }
+          }
+        ],
         "requestBody": {
           "description": "A multipart/form-data request with a `file` field containing a UTF-8 CSV (max 5 MiB). The CSV must have a header row: `type,data,metadata`. `type`: one of `card_bin` (6 digits), `extended_card_bin` (8 digits), `fingerprint`. `metadata`: optional, `key=value` pairs separated by `;` (e.g. `reason=fraud;source=manual`). Maximum 100,000 data rows.",
           "content": {
@@ -6749,7 +6798,7 @@
             }
           },
           "400": {
-            "description": "CSV validation error or file exceeds 5 MiB limit"
+            "description": "CSV validation error, file exceeds 5 MiB limit, or no profile could be resolved"
           }
         },
         "security": [
@@ -14992,6 +15041,11 @@
           "created_at": {
             "type": "string",
             "format": "date-time"
+          },
+          "profile_id": {
+            "type": "string",
+            "example": "pro_abcdefghijklmnop",
+            "nullable": true
           }
         }
       },
@@ -37066,6 +37120,12 @@
             "type": "string",
             "description": "Underlying processor's payout resource ID",
             "example": "S3FC9G9M2MVFDXT5",
+            "nullable": true
+          },
+          "connector_eligibility_reference_id": {
+            "type": "string",
+            "description": "Underlying processor's reference ID for the payout eligibility check",
+            "example": "8ad8bf30-5789-52be-a80a-72908abf5f9d",
             "nullable": true
           },
           "priority": {

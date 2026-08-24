@@ -9518,6 +9518,24 @@
             "description": "Card Issuer",
             "example": "JP MORGAN CHASE",
             "nullable": true
+          },
+          "card_type": {
+            "type": "string",
+            "description": "Funding type of the card, `credit` or `debit`, enriched from the card bin",
+            "example": "credit",
+            "nullable": true
+          },
+          "card_issuing_country": {
+            "type": "string",
+            "description": "Country in which the card was issued, enriched from the card bin",
+            "example": "INDIA",
+            "nullable": true
+          },
+          "card_isin": {
+            "type": "string",
+            "description": "Issuer identification number of the card, retained so that any further card details can\nbe looked up from it later",
+            "example": "424242",
+            "nullable": true
           }
         }
       },
@@ -9677,6 +9695,11 @@
           "created_at": {
             "type": "string",
             "format": "date-time"
+          },
+          "profile_id": {
+            "type": "string",
+            "example": "pro_abcdefghijklmnop",
+            "nullable": true
           }
         }
       },
@@ -26176,6 +26199,12 @@
             "type": "string",
             "description": "Underlying processor's payout resource ID",
             "example": "S3FC9G9M2MVFDXT5",
+            "nullable": true
+          },
+          "connector_eligibility_reference_id": {
+            "type": "string",
+            "description": "Underlying processor's reference ID for the payout eligibility check",
+            "example": "8ad8bf30-5789-52be-a80a-72908abf5f9d",
             "nullable": true
           },
           "priority": {

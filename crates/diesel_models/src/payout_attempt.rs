@@ -43,6 +43,7 @@ pub struct PayoutAttempt {
     pub created_by: Option<String>,
     pub source_bank_data_token: Option<String>,
     pub additional_source_bank_data: Option<payout_method_utils::BankAdditionalData>,
+    pub connector_eligibility_reference_id: Option<String>,
 }
 
 #[derive(
@@ -88,6 +89,7 @@ pub struct PayoutAttemptNew {
     pub created_by: Option<String>,
     pub source_bank_data_token: Option<String>,
     pub additional_source_bank_data: Option<payout_method_utils::BankAdditionalData>,
+    pub connector_eligibility_reference_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -101,6 +103,7 @@ pub enum PayoutAttemptUpdate {
         unified_code: Option<UnifiedCode>,
         unified_message: Option<UnifiedMessage>,
         payout_connector_metadata: Option<pii::SecretSerdeValue>,
+        connector_eligibility_reference_id: Option<String>,
     },
     PayoutTokenUpdate {
         payout_token: String,
@@ -156,6 +159,7 @@ pub struct PayoutAttemptUpdateInternal {
     pub payout_connector_metadata: Option<pii::SecretSerdeValue>,
     pub source_bank_data_token: Option<String>,
     pub additional_source_bank_data: Option<payout_method_utils::BankAdditionalData>,
+    pub connector_eligibility_reference_id: Option<String>,
 }
 
 impl Default for PayoutAttemptUpdateInternal {
@@ -182,6 +186,7 @@ impl Default for PayoutAttemptUpdateInternal {
             payout_connector_metadata: None,
             source_bank_data_token: None,
             additional_source_bank_data: None,
+            connector_eligibility_reference_id: None,
         }
     }
 }
@@ -202,6 +207,7 @@ impl From<PayoutAttemptUpdate> for PayoutAttemptUpdateInternal {
                 unified_code,
                 unified_message,
                 payout_connector_metadata,
+                connector_eligibility_reference_id,
             } => Self {
                 connector_payout_id,
                 status: Some(status),
@@ -211,6 +217,7 @@ impl From<PayoutAttemptUpdate> for PayoutAttemptUpdateInternal {
                 unified_code,
                 unified_message,
                 payout_connector_metadata,
+                connector_eligibility_reference_id,
                 ..Default::default()
             },
             PayoutAttemptUpdate::BusinessUpdate {
