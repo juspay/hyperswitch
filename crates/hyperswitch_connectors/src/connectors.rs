@@ -145,6 +145,7 @@ pub mod wise;
 pub mod worldline;
 pub mod worldpay;
 pub mod worldpaymodular;
+pub mod worldpayraft;
 pub mod worldpayvantiv;
 pub mod worldpayxml;
 pub mod xendit;
@@ -190,6 +191,7 @@ pub use self::{
     tsys::Tsys, tsys_transit::TsysTransit,
     unified_authentication_service::UnifiedAuthenticationService, vgs::Vgs, volt::Volt,
     wellsfargo::Wellsfargo, wellsfargopayout::Wellsfargopayout, wise::Wise, worldline::Worldline,
-    worldpay::Worldpay, worldpaymodular::Worldpaymodular, worldpayvantiv::Worldpayvantiv,
-    worldpayxml::Worldpayxml, xendit::Xendit, zen::Zen, zift::Zift, zsl::Zsl,
+    worldpay::Worldpay, worldpaymodular::Worldpaymodular, worldpayraft::Worldpayraft,
+    worldpayvantiv::Worldpayvantiv, worldpayxml::Worldpayxml, xendit::Xendit, zen::Zen, zift::Zift,
+    zsl::Zsl,
 };

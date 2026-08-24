@@ -9055,3 +9055,24 @@ payment_method_type = "Discover"
 payment_method_type = "DinersClub"
 [[ilixium.debit]]
 payment_method_type = "UnionPay"
+
+[worldpayraft]
+[[worldpayraft.credit]]
+  payment_method_type = "Visa"
+[[worldpayraft.credit]]
+  payment_method_type = "Mastercard"
+[[worldpayraft.credit]]
+  payment_method_type = "AmericanExpress"
+[[worldpayraft.credit]]
+  payment_method_type = "DinersClub"
+[[worldpayraft.debit]]
+  payment_method_type = "Visa"
+[[worldpayraft.debit]]
+  payment_method_type = "Mastercard"
+[[worldpayraft.debit]]
+  payment_method_type = "AmericanExpress"
+[[worldpayraft.debit]]
+  payment_method_type = "DinersClub"
+[worldpayraft.connector_auth.BodyKey]
+api_key = "Worldpay License"
+key1 = "Worldpay Merchant ID"
