@@ -1890,11 +1890,6 @@ impl<F> TryFrom<&types::PayoutsRouterData<F>> for NuveiPayoutRequest {
             date_time::format_date(date_time::now(), date_time::DateFormat::YYYYMMDDHHmmss)
                 .change_context(errors::ConnectorError::RequestEncodingFailed)?;
 
-        let client_unique_id = get_valid_client_unique_id(
-            item.connector_request_reference_id.clone(),
-            "client_unique_id",
-        )?;
-
         let checksum = encode_payload(&[
             connector_auth.merchant_id.peek(),
             connector_auth.merchant_site_id.peek(),
@@ -1919,7 +1914,7 @@ impl<F> TryFrom<&types::PayoutsRouterData<F>> for NuveiPayoutRequest {
             merchant_id: connector_auth.merchant_id,
             merchant_site_id: connector_auth.merchant_site_id,
             client_request_id: item.connector_request_reference_id.clone(),
-            client_unique_id,
+            client_unique_id: item.connector_request_reference_id.clone(),
             amount,
             currency: item.request.destination_currency.to_string(),
             user_token_id: customer_details.customer_id.clone().ok_or(
