@@ -1,5 +1,5 @@
 use common_utils::DbConnectionParams;
-use diesel::PgConnection;
+use diesel_models::DejaPgConnection;
 use storage_impl::database::store::{DatabaseConnectionWithContext, PgPool};
 
 use crate::{settings::Database, Settings};
@@ -22,7 +22,7 @@ pub async fn diesel_make_pg_pool(
     schema: &str,
 ) -> PgPool {
     let database_url = database.get_database_url(schema);
-    let manager = async_bb8_diesel::ConnectionManager::<PgConnection>::new(database_url);
+    let manager = async_bb8_diesel::ConnectionManager::<DejaPgConnection>::new(database_url);
     let pool = bb8::Pool::builder()
         .max_size(database.pool_size)
         .connection_timeout(std::time::Duration::from_secs(database.connection_timeout));

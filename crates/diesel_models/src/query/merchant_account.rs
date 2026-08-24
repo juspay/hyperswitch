@@ -20,7 +20,7 @@ impl MerchantAccountNew {
         self,
         conn: &DatabaseConnectionWithContext<'_>,
     ) -> StorageResult<MerchantAccount> {
-        generics::generic_insert(conn, self).await
+        Box::pin(generics::generic_insert(conn, self)).await
     }
 }
 
@@ -31,11 +31,12 @@ impl MerchantAccount {
         conn: &DatabaseConnectionWithContext<'_>,
         merchant_account: MerchantAccountUpdateInternal,
     ) -> StorageResult<Self> {
-        match generics::generic_update_by_id::<<Self as HasTable>::Table, _, _, _>(
-            conn,
-            self.get_id().to_owned(),
-            merchant_account,
-        )
+        match Box::pin(generics::generic_update_by_id::<
+            <Self as HasTable>::Table,
+            _,
+            _,
+            _,
+        >(conn, self.get_id().to_owned(), merchant_account))
         .await
         {
             Err(error) => match error.current_context() {
@@ -51,7 +52,7 @@ impl MerchantAccount {
         identifier: &common_utils::id_type::MerchantId,
         merchant_account: MerchantAccountUpdateInternal,
     ) -> StorageResult<Self> {
-        generics::generic_update_with_unique_predicate_get_result::<
+        Box::pin(generics::generic_update_with_unique_predicate_get_result::<
             <Self as HasTable>::Table,
             _,
             _,
@@ -60,7 +61,7 @@ impl MerchantAccount {
             conn,
             dsl::merchant_id.eq(identifier.to_owned()),
             merchant_account,
-        )
+        ))
         .await
     }
 
@@ -161,11 +162,14 @@ impl MerchantAccount {
         conn: &DatabaseConnectionWithContext<'_>,
         merchant_account: MerchantAccountUpdateInternal,
     ) -> StorageResult<Vec<Self>> {
-        generics::generic_update_with_results::<<Self as HasTable>::Table, _, _, _>(
-            conn,
-            dsl::merchant_id.ne_all(vec![""]),
-            merchant_account,
-        )
+        Box::pin(generics::generic_update_with_results::<
+            <Self as HasTable>::Table,
+            _,
+            _,
+            _,
+        >(
+            conn, dsl::merchant_id.ne_all(vec![""]), merchant_account
+        ))
         .await
     }
 }

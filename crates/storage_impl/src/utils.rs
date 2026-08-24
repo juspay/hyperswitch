@@ -1,7 +1,7 @@
 #[cfg(feature = "deja")]
 use bb8::PooledConnection;
 #[cfg(feature = "deja")]
-use diesel::PgConnection;
+use diesel_models::DejaPgConnection;
 use error_stack::ResultExt;
 
 use crate::{
@@ -25,7 +25,7 @@ use crate::{
 #[cfg(feature = "deja")]
 #[allow(clippy::panic)]
 pub(crate) async fn deja_route_replay_schema<T: DatabaseStore>(
-    conn: &mut PooledConnection<'_, async_bb8_diesel::ConnectionManager<PgConnection>>,
+    conn: &mut PooledConnection<'_, async_bb8_diesel::ConnectionManager<DejaPgConnection>>,
     store: &T,
 ) {
     use async_bb8_diesel::AsyncConnection;

@@ -29,6 +29,7 @@ pub mod hyperswitch_ai_interaction;
 pub mod invoice;
 #[cfg(feature = "kv_store")]
 pub mod kv;
+pub mod list;
 pub mod locker_mock_up;
 pub mod mandate;
 pub mod merchant_account;
@@ -73,7 +74,18 @@ use diesel_impl::{DieselArray, OptionalDieselArray};
 use diesel_impl::{RequiredFromNullable, RequiredFromNullableWithDefault};
 
 pub type StorageResult<T> = error_stack::Result<T, errors::DatabaseError>;
-pub type RawPgConnection = async_bb8_diesel::Connection<diesel::PgConnection>;
+
+/// The concrete diesel connection type every pg pool in the workspace is built
+/// over. Under `deja` it is a delegating wrapper that captures each result
+/// row's wire bytes before `FromSql` consumes them; feature-off it is exactly
+/// `diesel::PgConnection`.
+#[cfg(feature = "deja")]
+pub type DejaPgConnection = deja::DejaLoadConnection<diesel::PgConnection>;
+#[cfg(not(feature = "deja"))]
+pub type DejaPgConnection = diesel::PgConnection;
+
+pub type RawPgConnection = async_bb8_diesel::Connection<DejaPgConnection>;
+pub type PgPooledConn = async_bb8_diesel::Connection<DejaPgConnection>;
 
 /// A connection leased from a database pool, along with the request context that queries run on
 /// it are attributed to. The connection is returned to the pool when this value is dropped.
@@ -85,7 +97,7 @@ pub type RawPgConnection = async_bb8_diesel::Connection<diesel::PgConnection>;
 /// cannot outlive that pool. The pool lifetime is carried through query signatures in this crate.
 pub struct DatabaseConnectionWithContext<'pool> {
     connection:
-        bb8::PooledConnection<'pool, async_bb8_diesel::ConnectionManager<diesel::PgConnection>>,
+        bb8::PooledConnection<'pool, async_bb8_diesel::ConnectionManager<DejaPgConnection>>,
     request_id: Option<String>,
     event_emitter: Arc<dyn ExternalServiceEventEmitter>,
 }
@@ -94,7 +106,7 @@ impl<'pool> DatabaseConnectionWithContext<'pool> {
     pub fn new(
         connection: bb8::PooledConnection<
             'pool,
-            async_bb8_diesel::ConnectionManager<diesel::PgConnection>,
+            async_bb8_diesel::ConnectionManager<DejaPgConnection>,
         >,
         request_id: Option<String>,
         event_emitter: Arc<dyn ExternalServiceEventEmitter>,

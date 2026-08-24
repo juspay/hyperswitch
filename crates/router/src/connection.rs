@@ -2,13 +2,12 @@
 use bb8::PooledConnection;
 use common_utils::request_context::RequestContext;
 #[cfg(feature = "deja")]
-use diesel::PgConnection;
+use diesel_models::DejaPgConnection;
 pub use diesel_models::DatabaseConnectionWithContext;
 use error_stack::ResultExt;
 use storage_impl::{errors as storage_errors, DatabaseStore};
 
 use crate::errors;
-
 // Deja replay (R1): the minimal replay DB routing hook. On a just-leased pg
 // connection during replay, route it to the active correlation's schema so
 // per-test-case reads/writes stay isolated. The correlation is read from the
@@ -20,7 +19,7 @@ use crate::errors;
 // built by the library (`deja::replay_search_path_sql_for`).
 #[cfg(feature = "deja")]
 async fn deja_route_replay_schema<T: DatabaseStore>(
-    conn: &mut PooledConnection<'_, async_bb8_diesel::ConnectionManager<PgConnection>>,
+    conn: &mut PooledConnection<'_, async_bb8_diesel::ConnectionManager<DejaPgConnection>>,
     store: &T,
 ) {
     use async_bb8_diesel::AsyncConnection;

@@ -34,7 +34,7 @@ impl Authentication {
         authentication_id: &common_utils::id_type::AuthenticationId,
         authentication_update: AuthenticationUpdateInternal,
     ) -> StorageResult<Self> {
-        match generics::generic_update_with_unique_predicate_get_result::<
+        match Box::pin(generics::generic_update_with_unique_predicate_get_result::<
             <Self as HasTable>::Table,
             _,
             _,
@@ -45,7 +45,7 @@ impl Authentication {
                 .eq(processor_merchant_id.to_owned())
                 .and(dsl::authentication_id.eq(authentication_id.to_owned())),
             authentication_update,
-        )
+        ))
         .await
         {
             Err(error) => match error.current_context() {
@@ -73,7 +73,7 @@ impl Authentication {
         authentication_id: &common_utils::id_type::AuthenticationId,
         authentication_update: AuthenticationUpdateInternal,
     ) -> StorageResult<Self> {
-        match generics::generic_update_with_unique_predicate_get_result::<
+        match Box::pin(generics::generic_update_with_unique_predicate_get_result::<
             <Self as HasTable>::Table,
             _,
             _,
@@ -84,7 +84,7 @@ impl Authentication {
                 .eq(merchant_id.to_owned())
                 .and(dsl::authentication_id.eq(authentication_id.to_owned())),
             authentication_update,
-        )
+        ))
         .await
         {
             Err(error) => match error.current_context() {

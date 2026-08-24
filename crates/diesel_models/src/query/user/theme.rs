@@ -134,7 +134,7 @@ impl Theme {
         conn: &DatabaseConnectionWithContext<'_>,
         lineage: ThemeLineage,
     ) -> StorageResult<Self> {
-        let query = <Self as HasTable>::table().into_boxed();
+        let query = crate::list::into_boxed_list(<Self as HasTable>::table());
 
         let query =
             lineage
@@ -225,7 +225,7 @@ impl Theme {
     ) -> StorageResult<Vec<Self>> {
         let filter = Self::lineage_hierarchy_filter(lineage);
 
-        let query = <Self as HasTable>::table().filter(filter).into_boxed();
+        let query = crate::list::into_boxed_list(<Self as HasTable>::table().filter(filter));
 
         logger::debug!(query = %debug_query::<Pg,_>(&query).to_string());
 

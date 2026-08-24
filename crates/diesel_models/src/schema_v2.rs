@@ -202,6 +202,8 @@ diesel::table! {
         failed_rows -> Int4,
         created_at -> Timestamp,
         updated_at -> Timestamp,
+        #[max_length = 64]
+        profile_id -> Nullable<Varchar>,
     }
 }
 
@@ -221,6 +223,8 @@ diesel::table! {
         processor_merchant_id -> Nullable<Varchar>,
         #[max_length = 255]
         created_by -> Nullable<Varchar>,
+        #[max_length = 64]
+        profile_id -> Nullable<Varchar>,
     }
 }
 
@@ -1427,6 +1431,7 @@ diesel::table! {
         compatibility_updated_at -> Nullable<Timestamp>,
         #[max_length = 64]
         auxiliary_fingerprint_id -> Nullable<Varchar>,
+        connector_payment_method_details -> Nullable<Jsonb>,
         external_vault_token_data -> Nullable<Bytea>,
     }
 }

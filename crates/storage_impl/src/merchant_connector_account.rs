@@ -871,7 +871,7 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
         #[cfg(feature = "accounts_cache")]
         {
             // Redact all caches as any of might be used because of backwards compatibility
-            cache::publish_and_redact_multiple(
+            Box::pin(cache::publish_and_redact_multiple(
                 self,
                 [
                     cache::CacheKind::Accounts(
@@ -903,7 +903,7 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
                     ),
                 ],
                 update_call,
-            )
+            ))
             .await
         }
 
@@ -953,7 +953,7 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
         #[cfg(feature = "accounts_cache")]
         {
             // Redact all caches as any of might be used because of backwards compatibility
-            cache::publish_and_redact_multiple(
+            Box::pin(cache::publish_and_redact_multiple(
                 self,
                 [
                     cache::CacheKind::Accounts(
@@ -980,7 +980,7 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
                     ),
                 ],
                 update_call,
-            )
+            ))
             .await
         }
 

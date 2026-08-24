@@ -12,7 +12,6 @@ use api_models::{
     },
 };
 use error_stack::ResultExt;
-use hyperswitch_domain_models::platform::MerchantKeyStore;
 use payment_methods::core::errors::ApiErrorResponse;
 use router_env::{
     tracing::{self, instrument},
@@ -25,11 +24,9 @@ use crate::{
         payments::routing::utils::{DecisionEngineApiHandler, EuclidApiClient},
         routing, surcharge_decision_config,
     },
-    db::errors::StorageErrorExt,
     routes::AppState,
     services,
     services::{api as oss_api, authentication as auth, authorization::permissions::Permission},
-    types::domain,
 };
 
 /// Dashboard routing entry: returns the profile's routing source and, with `?target`, a DE deep-link.
@@ -47,23 +44,21 @@ pub async fn routing_entry(
         state,
         &req,
         (),
-        move |state, auth: auth::AuthenticationData, _, _| {
+        // The user is carried alongside so the handoff can be scoped to what their Hyperswitch role
+        // actually reaches.
+        move |state, (auth, user): auth::AuthenticationDataWithUser, _, _| {
             let platform = auth.platform;
             let profile_id = auth.profile.map(|profile| profile.get_id().clone());
-            routing::routing_entry(state, platform, profile_id, target)
+            routing::routing_entry(state, platform, user, profile_id, target)
         },
-        auth::auth_type(
-            &auth::HeaderAuth(auth::ApiKeyAuth {
-                allow_connected_scope_operation: true,
-                allow_platform_self_operation: false,
-            }),
-            &auth::JWTAuth {
-                permission: Permission::ProfileRoutingRead,
-                allow_connected: true,
-                allow_platform: false,
-            },
-            req.headers(),
-        ),
+        // Dashboard-only: the response is a deep link for a browser to follow, so there is no
+        // API-key caller to serve — and the handoff is scoped by the user's role, which a service
+        // credential does not have.
+        &auth::JWTAuth {
+            permission: Permission::ProfileRoutingRead,
+            allow_connected: true,
+            allow_platform: false,
+        },
         api_locking::LockAction::NotApplicable,
     ))
     .await
@@ -1711,11 +1706,36 @@ pub async fn evaluate_routing_rule(
 }
 
 use actix_web::HttpResponse;
-#[instrument(skip_all, fields(flow = ?Flow::DecisionEngineRuleMigration))]
-pub async fn migrate_routing_rules_for_profile(
+
+/// Where every profile holding a routing rule stands in the migration, a page at a time.
+/// Read-only; paging bounds the work.
+#[instrument(skip_all, fields(flow = ?Flow::DecisionEngineMigrationStatus))]
+pub async fn routing_migration_status(
     state: web::Data<AppState>,
     req: HttpRequest,
-    query: web::Query<routing_types::RuleMigrationQuery>,
+    query: web::Query<routing_types::RoutingMigrationStatusQuery>,
+) -> impl Responder {
+    let flow = Flow::DecisionEngineMigrationStatus;
+    Box::pin(oss_api::server_wrap(
+        flow,
+        state,
+        &req,
+        query.into_inner(),
+        |state, _, query_params, _| async move {
+            let res = Box::pin(routing::routing_migration_status(state, query_params)).await?;
+            Ok(services::ApplicationResponse::Json(res))
+        },
+        &auth::AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[instrument(skip_all, fields(flow = ?Flow::DecisionEngineRuleMigration))]
+pub async fn migrate_routing_rules(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<routing_types::RuleMigrationRequest>,
 ) -> HttpResponse {
     let flow = Flow::DecisionEngineRuleMigration;
 
@@ -1723,23 +1743,9 @@ pub async fn migrate_routing_rules_for_profile(
         flow,
         state,
         &req,
-        query.into_inner(),
-        |state, _, query_params, _| async move {
-            let merchant_id = query_params.merchant_id.clone();
-            let (key_store, merchant_account) = get_merchant_account(&state, &merchant_id).await?;
-            let platform = domain::Platform::new(
-                merchant_account.clone(),
-                key_store.clone(),
-                merchant_account,
-                key_store,
-                None,
-            );
-            let res = Box::pin(routing::migrate_rules_for_profile(
-                state,
-                platform.get_processor().clone(),
-                query_params,
-            ))
-            .await?;
+        json_payload.into_inner(),
+        |state, _, payload, _| async move {
+            let res = Box::pin(routing::migrate_rules_for_profiles(state, payload)).await?;
             Ok(services::ApplicationResponse::Json(res))
         },
         &auth::AdminApiAuth,
@@ -1766,28 +1772,6 @@ pub async fn reset_decision_engine_diff_counter(
         api_locking::LockAction::NotApplicable,
     ))
     .await
-}
-
-async fn get_merchant_account(
-    state: &super::SessionState,
-    merchant_id: &common_utils::id_type::MerchantId,
-) -> common_utils::errors::CustomResult<(MerchantKeyStore, domain::MerchantAccount), ApiErrorResponse>
-{
-    let key_store = state
-        .store
-        .get_merchant_key_store_by_merchant_id(
-            merchant_id,
-            &state.store.get_master_key().to_vec().into(),
-        )
-        .await
-        .to_not_found_response(ApiErrorResponse::MerchantAccountNotFound)?;
-
-    let merchant_account = state
-        .store
-        .find_merchant_account_by_merchant_id(merchant_id, &key_store)
-        .await
-        .to_not_found_response(ApiErrorResponse::MerchantAccountNotFound)?;
-    Ok((key_store, merchant_account))
 }
 
 #[cfg(all(feature = "olap", feature = "v1", feature = "dynamic_routing"))]
