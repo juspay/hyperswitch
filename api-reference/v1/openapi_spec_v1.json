@@ -4013,7 +4013,7 @@
           "Payment Methods"
         ],
         "summary": "List payment methods for a Payment",
-        "description": "Client SDK endpoint. Returns a unified response combining merchant-enabled\npayment methods and customer saved payment methods, filtered via Euclid\nconstraint graph and session flow routing.\n\nSupported client auth:\n- SDK auth via `Authorization`.\n- Publishable-key auth via `api-key: pk_...` and `client_secret` query param.\n\nMerchant secret-key auth is intentionally not supported for this endpoint.",
+        "description": "Client SDK endpoint. Returns a unified response combining merchant-enabled\npayment methods and customer saved payment methods, filtered via Euclid\nconstraint graph and session flow routing.\n\nSupported auth:\n- SDK auth via `Authorization`.\n- Publishable-key auth via `api-key: pk_...` and `client_secret` query param.\n- Merchant API-key auth via `api-key: <api_key>`.",
         "operationId": "List Payment Methods for a Payment via Client SDK",
         "parameters": [
           {
@@ -4138,6 +4138,9 @@
         "security": [
           {
             "publishable_key": []
+          },
+          {
+            "api_key": []
           }
         ]
       }
@@ -6573,6 +6576,18 @@
           "Blocklist"
         ],
         "operationId": "Unblock a Fingerprint",
+        "parameters": [
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "The business profile to unblock this entry from. Only entries belonging to that profile, or entries with no profile, are removed - an entry blocked under a different profile is not affected and the request returns 404. Resolution follows the same rules as blocking.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -6595,7 +6610,10 @@
             }
           },
           "400": {
-            "description": "Invalid Data"
+            "description": "Invalid Data, or no profile could be resolved"
+          },
+          "404": {
+            "description": "No entry for this fingerprint under the resolved profile"
           }
         },
         "security": [
@@ -6617,6 +6635,16 @@
             "required": true,
             "schema": {
               "$ref": "#/components/schemas/BlocklistDataKind"
+            }
+          },
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Restricts the listing to entries belonging to this business profile, plus entries with no profile. When no profile can be resolved - as with publishable-key authentication - all of the merchant's entries are returned, as before.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
             }
           }
         ],
@@ -6646,6 +6674,18 @@
           "Blocklist"
         ],
         "operationId": "Block a Fingerprint",
+        "parameters": [
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "The business profile to block this entry under. Ignored when authenticating with a JWT, which carries its own profile. If omitted, the merchant's default profile is used; merchants with more than one profile have no default and will receive an error asking for this header.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -6668,7 +6708,7 @@
             }
           },
           "400": {
-            "description": "Invalid Data"
+            "description": "Invalid Data, or no profile could be resolved"
           }
         },
         "security": [
@@ -6723,6 +6763,18 @@
           "Blocklist"
         ],
         "operationId": "Upload a batch blocklist CSV",
+        "parameters": [
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "The business profile every entry in this upload is blocked under. Resolution follows the same rules as blocking a single entry.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true
+            }
+          }
+        ],
         "requestBody": {
           "description": "A multipart/form-data request with a `file` field containing a UTF-8 CSV (max 5 MiB). The CSV must have a header row: `type,data,metadata`. `type`: one of `card_bin` (6 digits), `extended_card_bin` (8 digits), `fingerprint`. `metadata`: optional, `key=value` pairs separated by `;` (e.g. `reason=fraud;source=manual`). Maximum 100,000 data rows.",
           "content": {
@@ -6746,7 +6798,7 @@
             }
           },
           "400": {
-            "description": "CSV validation error or file exceeds 5 MiB limit"
+            "description": "CSV validation error, file exceeds 5 MiB limit, or no profile could be resolved"
           }
         },
         "security": [
@@ -14989,6 +15041,11 @@
           "created_at": {
             "type": "string",
             "format": "date-time"
+          },
+          "profile_id": {
+            "type": "string",
+            "example": "pro_abcdefghijklmnop",
+            "nullable": true
           }
         }
       },
@@ -17312,6 +17369,7 @@
           "interpayments",
           "inespay",
           "iatapay",
+          "ilixium",
           "imerchantsolutions",
           "itaubank",
           "jpmorgan",
@@ -19692,6 +19750,17 @@
             "properties": {
               "bank_debit": {
                 "$ref": "#/components/schemas/BankDebitDataForClient"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "bank_redirect"
+            ],
+            "properties": {
+              "bank_redirect": {
+                "$ref": "#/components/schemas/MaskedBankDetails"
               }
             }
           }
@@ -29971,12 +30040,7 @@
             "nullable": true
           },
           "limit": {
-            "type": "integer",
-            "format": "int32",
-            "description": "limit on the number of objects to return",
-            "default": 10,
-            "maximum": 100,
-            "minimum": 0
+            "$ref": "#/components/schemas/common_utils.types.list.PageSize"
           },
           "created": {
             "type": "string",
@@ -30355,6 +30419,17 @@
             "properties": {
               "wallet": {
                 "$ref": "#/components/schemas/WalletDetail"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "bank_redirect"
+            ],
+            "properties": {
+              "bank_redirect": {
+                "$ref": "#/components/schemas/BankRedirectData"
               }
             }
           }
@@ -37215,12 +37290,7 @@
                 "nullable": true
               },
               "limit": {
-                "type": "integer",
-                "format": "int32",
-                "description": "limit on the number of objects to return",
-                "default": 10,
-                "maximum": 100,
-                "minimum": 0
+                "$ref": "#/components/schemas/common_utils.types.list.PageSize"
               },
               "created": {
                 "type": "string",
@@ -37277,17 +37347,10 @@
                 "nullable": true
               },
               "limit": {
-                "type": "integer",
-                "format": "int32",
-                "description": "The limit on the number of objects. The default limit is 10 and max limit is 20",
-                "minimum": 0
+                "$ref": "#/components/schemas/common_utils.types.list.PageSize"
               },
               "offset": {
-                "type": "integer",
-                "format": "int32",
-                "description": "The starting point within a list of objects",
-                "nullable": true,
-                "minimum": 0
+                "$ref": "#/components/schemas/common_utils.types.list.PageOffset"
               },
               "connector": {
                 "type": "array",
@@ -40719,16 +40782,15 @@
                 "nullable": true
               },
               "limit": {
-                "type": "integer",
-                "format": "int64",
-                "description": "Limit on the number of objects to return",
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/common_utils.types.list.PageSize"
+                  }
+                ],
                 "nullable": true
               },
               "offset": {
-                "type": "integer",
-                "format": "int64",
-                "description": "The starting point within a list of objects",
-                "nullable": true
+                "$ref": "#/components/schemas/common_utils.types.list.PageOffset"
               },
               "amount_filter": {
                 "allOf": [
@@ -42086,6 +42148,7 @@
           "helcim",
           "hyperpg",
           "iatapay",
+          "ilixium",
           "imerchantsolutions",
           "inespay",
           "interpayments",
@@ -47186,6 +47249,18 @@
           }
         },
         "additionalProperties": false
+      },
+      "common_utils.types.list.PageOffset": {
+        "type": "integer",
+        "format": "int32",
+        "maximum": 20000,
+        "minimum": 0
+      },
+      "common_utils.types.list.PageSize": {
+        "type": "integer",
+        "format": "int32",
+        "maximum": 100,
+        "minimum": 1
       }
     },
     "securitySchemes": {

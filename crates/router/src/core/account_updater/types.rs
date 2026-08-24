@@ -112,7 +112,8 @@ impl From<&settings::AccountUpdaterConfig> for ResolvedAccountUpdaterConfig {
     }
 }
 
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, thiserror::Error, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
 pub enum AccountUpdaterError {
     #[error("Account Updater application config is missing or invalid")]
     MissingApplicationConfig,
