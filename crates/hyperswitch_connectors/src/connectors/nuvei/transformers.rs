@@ -703,7 +703,7 @@ fn get_valid_client_unique_id(
     error_field_name: &str,
 ) -> Result<String, error_stack::Report<errors::ConnectorError>> {
     if id.len() <= MAX_CLIENT_UNIQUE_ID_LENGTH {
-        Ok(id.clone())
+        Ok(id)
     } else {
         Err(errors::ConnectorError::MaxFieldLengthViolated {
             connector: "Nuvei".to_string(),
