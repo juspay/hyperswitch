@@ -3,8 +3,8 @@ use api_models::payouts::{PayoutMethodData, Wallet as WalletPayout};
 use api_models::{
     enums,
     payments::{
-        NextActionCall, PaypalCaptureMethod, PaypalSessionTokenResponse, SdkNextAction,
-        SessionToken,
+        NextActionCall, PaypalCaptureMethod, PaypalRiskData, PaypalSessionTokenResponse,
+        SdkNextAction, SessionToken,
     },
     webhooks::IncomingWebhookEvent,
 };
@@ -2513,6 +2513,43 @@ fn split_customer_name(customer_name: Option<String>) -> (Option<String>, Option
         .unwrap_or((None, None))
 }
 
+/// Gets the customer name as a (first_name, last_name) pair, falling back in order:
+/// 1. Transaction context sender name, if the first name is present
+/// 2. Split of the payment request's `customer_name`, if both first and last name are found
+/// 3. Billing address name, if both first and last name are present
+fn get_customer_name(
+    router_data: &PaymentsPreAuthenticateRouterData,
+    transaction_context: Option<&PaypalRiskData>,
+) -> (Option<Secret<String>>, Option<Secret<String>>) {
+    let transaction_context_name = match transaction_context {
+        Some(transaction_context) => (
+            transaction_context.sender_first_name.clone(),
+            transaction_context.sender_last_name.clone(),
+        ),
+        None => (None, None),
+    };
+    let customer_name = split_customer_name(
+        router_data
+            .request
+            .customer_name
+            .clone()
+            .map(|name| name.expose()),
+    );
+    let billing_name = (
+        router_data.get_optional_billing_first_name(),
+        router_data.get_optional_billing_last_name(),
+    );
+
+    match (transaction_context_name, customer_name, billing_name) {
+        ((Some(first_name), last_name), _, _) => (Some(first_name), last_name),
+        (_, (Some(first_name), Some(last_name)), _) => {
+            (Some(first_name.into()), Some(last_name.into()))
+        }
+        (_, _, (Some(first_name), last_name)) => (Some(first_name), last_name),
+        _ => (None, None),
+    }
+}
+
 impl PaypalSetTransactionContextRequest {
     pub fn build(
         router_data: &PaymentsPreAuthenticateRouterData,
@@ -2524,14 +2561,6 @@ impl PaypalSetTransactionContextRequest {
             .and_then(|connector_metadata| connector_metadata.paypal.as_ref())
             .and_then(|paypal_metadata| paypal_metadata.transaction_context.as_ref());
 
-        let (customer_first_name, customer_last_name) = split_customer_name(
-            router_data
-                .request
-                .customer_name
-                .clone()
-                .map(|name| name.expose()),
-        );
-
         let sender_account_id = transaction_context
             .and_then(|transaction_context| transaction_context.sender_account_id.clone())
             .or_else(|| {
@@ -2540,24 +2569,8 @@ impl PaypalSetTransactionContextRequest {
                     .clone()
                     .map(|customer_id| customer_id.get_string_repr().to_string())
             });
-        let sender_first_name = transaction_context
-            .and_then(|transaction_context| transaction_context.sender_first_name.clone())
-            .map(|name| name.expose())
-            .or(customer_first_name)
-            .or_else(|| {
-                router_data
-                    .get_optional_billing_first_name()
-                    .map(|name| name.expose())
-            });
-        let sender_last_name = transaction_context
-            .and_then(|transaction_context| transaction_context.sender_last_name.clone())
-            .map(|name| name.expose())
-            .or(customer_last_name)
-            .or_else(|| {
-                router_data
-                    .get_optional_billing_last_name()
-                    .map(|name| name.expose())
-            });
+        let (sender_first_name, sender_last_name) =
+            get_customer_name(router_data, transaction_context);
         let sender_email = transaction_context
             .and_then(|transaction_context| transaction_context.sender_email.clone())
             .or_else(|| router_data.request.email.clone())
@@ -2585,8 +2598,14 @@ impl PaypalSetTransactionContextRequest {
             }
         };
         push(STC_SENDER_ACCOUNT_ID, sender_account_id);
-        push(STC_SENDER_FIRST_NAME, sender_first_name);
-        push(STC_SENDER_LAST_NAME, sender_last_name);
+        push(
+            STC_SENDER_FIRST_NAME,
+            sender_first_name.map(|name| name.peek().clone()),
+        );
+        push(
+            STC_SENDER_LAST_NAME,
+            sender_last_name.map(|name| name.peek().clone()),
+        );
         push(
             STC_SENDER_EMAIL,
             sender_email.map(|email| email.peek().clone()),
