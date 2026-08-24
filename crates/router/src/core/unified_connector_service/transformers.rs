@@ -7415,7 +7415,11 @@ impl
             .request
             .customer_details
             .as_ref()
-            .map(payments_grpc::Customer::foreign_from);
+            .map(payments_grpc::Customer::foreign_from)
+            .map(|mut customer| {
+                customer.connector_customer_id = router_data.connector_customer.clone();
+                customer
+            });
 
         let priority = router_data
             .request
@@ -7622,6 +7626,10 @@ impl
             .customer_details
             .as_ref()
             .map(payments_grpc::Customer::foreign_from)
+            .map(|mut customer| {
+                customer.connector_customer_id = router_data.connector_customer.clone();
+                customer
+            })
             .ok_or(
                 error_stack::Report::new(UnifiedConnectorServiceError::MissingRequiredField {
                     field_name: "customer",
