@@ -302,6 +302,7 @@ pub struct ConnectorConfig {
     #[cfg(feature = "payouts")]
     pub cybersource_payout: Option<ConnectorTomlConfig>,
     pub iatapay: Option<ConnectorTomlConfig>,
+    pub ilixium: Option<ConnectorTomlConfig>,
     pub imerchantsolutions: Option<ConnectorTomlConfig>,
     pub itaubank: Option<ConnectorTomlConfig>,
     #[cfg(feature = "payouts")]
@@ -425,6 +426,7 @@ pub struct ConnectorConfig {
     pub worldline: Option<ConnectorTomlConfig>,
     pub worldpay: Option<ConnectorTomlConfig>,
     pub worldpaymodular: Option<ConnectorTomlConfig>,
+    pub worldpayraft: Option<ConnectorTomlConfig>,
     #[cfg(feature = "payouts")]
     pub worldpay_payout: Option<ConnectorTomlConfig>,
     pub worldpayvantiv: Option<ConnectorTomlConfig>,
@@ -685,6 +687,7 @@ impl ConnectorConfig {
             Connector::Worldline => Ok(connector_data.worldline),
             Connector::Worldpay => Ok(connector_data.worldpay),
             Connector::Worldpaymodular => Ok(connector_data.worldpaymodular),
+            Connector::Worldpayraft => Ok(connector_data.worldpayraft),
             Connector::Worldpayvantiv => Ok(connector_data.worldpayvantiv),
             Connector::Worldpayxml => Ok(connector_data.worldpayxml),
             Connector::Zen => Ok(connector_data.zen),
@@ -714,6 +717,7 @@ impl ConnectorConfig {
             Connector::Payjustnow => Ok(connector_data.payjustnow),
             Connector::Payjustnowinstore => Ok(connector_data.payjustnowinstore),
             Connector::Imerchantsolutions => Ok(connector_data.imerchantsolutions),
+            Connector::Ilixium => Ok(connector_data.ilixium),
             Connector::Givepayments => Ok(connector_data.givepayments),
         }
     }
