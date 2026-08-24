@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.08.19.0-hotfix1
+
+### Revert
+
+- "fix(connector): [CYBERSOURCE] Commerce Indicator Mapping For Externally Authenticated Transactions" ([#13807](https://github.com/juspay/hyperswitch/pull/13807)) ([`d67d5be`](https://github.com/juspay/hyperswitch/commit/d67d5bebcde1bdd51c939ba7eb74d1c4f1840090))
+
+**Full Changelog:** [`2026.08.19.0...2026.08.19.0-hotfix1`](https://github.com/juspay/hyperswitch/compare/2026.08.19.0...2026.08.19.0-hotfix1)
+
+- - -
+
 ## 2026.08.19.0
 
 ### Features
