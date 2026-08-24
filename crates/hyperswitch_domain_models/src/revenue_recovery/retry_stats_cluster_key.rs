@@ -20,7 +20,7 @@ const SEGMENT_COUNT: usize = 3;
 /// value (`StandardisedCode` for the error code, `CardType` for the funding type,
 /// `String` for the free-text issuer) so a value of the wrong kind cannot be placed
 /// in the wrong slot at construction time. `Unknown` marks a value we could not
-/// resolve; `Any` is the wildcard used by ancestor (root/mid) roll-up nodes.
+/// resolve; `Any` is the wildcard placeholder used by ancestor roll-up nodes.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Dim<T> {
     Val(T),
@@ -108,13 +108,6 @@ pub struct RetryStatsClusterKey {
     pub issuer: Dim<String>,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum NodeDepth {
-    Root,
-    Mid,
-    Leaf,
-}
-
 impl RetryStatsClusterKey {
     /// Assemble a fully-qualified (leaf) key from already-resolved dimensions.
     pub fn leaf(
@@ -150,38 +143,6 @@ impl RetryStatsClusterKey {
             error_code: Dim::Val(error_code),
             card_type: Dim::Any,
             issuer: Dim::Any,
-        }
-    }
-
-    pub fn root(&self) -> Self {
-        Self {
-            error_code: self.error_code.clone(),
-            card_type: Dim::Any,
-            issuer: Dim::Any,
-        }
-    }
-
-    pub fn mid(&self) -> Self {
-        Self {
-            error_code: self.error_code.clone(),
-            card_type: self.card_type.clone(),
-            issuer: Dim::Any,
-        }
-    }
-
-    pub fn depth(&self) -> NodeDepth {
-        match (&self.card_type, &self.issuer) {
-            (Dim::Any, Dim::Any) => NodeDepth::Root,
-            (_, Dim::Any) => NodeDepth::Mid,
-            _ => NodeDepth::Leaf,
-        }
-    }
-
-    pub fn chain(&self) -> Vec<Self> {
-        match self.depth() {
-            NodeDepth::Leaf => vec![self.root(), self.mid(), self.clone()],
-            NodeDepth::Mid => vec![self.root(), self.clone()],
-            NodeDepth::Root => vec![self.clone()],
         }
     }
 
@@ -246,27 +207,6 @@ mod tests {
     }
 
     #[test]
-    fn chain_is_root_mid_leaf() {
-        let chain =
-            RetryStatsClusterKey::new(StandardisedCode::DoNotHonor, CardType::Credit, "HDFC")
-                .chain();
-        assert_eq!(chain.len(), 3);
-        assert_eq!(chain[0].depth(), NodeDepth::Root);
-        assert_eq!(chain[1].depth(), NodeDepth::Mid);
-        assert_eq!(chain[2].depth(), NodeDepth::Leaf);
-        assert_eq!(chain[0].as_db_string(), "v1|do_not_honor/*/*");
-        assert_eq!(chain[1].as_db_string(), "v1|do_not_honor/CREDIT/*");
-        assert_eq!(chain[2].as_db_string(), "v1|do_not_honor/CREDIT/HDFC");
-    }
-
-    #[test]
-    fn root_from_error_code_wildcards_the_rest() {
-        let key = RetryStatsClusterKey::root_from_error_code(StandardisedCode::InsufficientFunds);
-        assert_eq!(key.depth(), NodeDepth::Root);
-        assert_eq!(key.as_db_string(), "v1|insufficient_funds/*/*");
-    }
-
-    #[test]
     fn issuer_delimiters_and_stars_are_percent_escaped() {
         let key =
             RetryStatsClusterKey::new(StandardisedCode::DoNotHonor, CardType::Debit, "H|D*F/C");
@@ -278,12 +218,15 @@ mod tests {
     }
 
     #[test]
+    fn root_from_error_code_wildcards_the_rest() {
+        let key = RetryStatsClusterKey::root_from_error_code(StandardisedCode::InsufficientFunds);
+        assert_eq!(key.as_db_string(), "v1|insufficient_funds/*/*");
+    }
+
+    #[test]
     fn from_db_rejects_foreign_versions_and_wildcards() {
         assert!(RetryStatsClusterKey::from_db_string("v2|a/b/c").is_none());
-        assert_eq!(
-            RetryStatsClusterKey::from_db_string("v1|do_not_honor/*/*").map(|k| k.depth()),
-            Some(NodeDepth::Root)
-        );
+        assert!(RetryStatsClusterKey::from_db_string("v1|do_not_honor/*/*").is_some());
     }
 
     #[test]
