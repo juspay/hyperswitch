@@ -37,12 +37,10 @@ impl RetryOutcomeEvent {
         }
     }
 
-    /// The retry's fate (`success`) and event time
-    /// come from the freshly-resolved `payment_attempt`, while the cluster dims
-    /// (error_code, card_type, issuer) are read from `prev_attempt`, the failed
-    /// attempt that triggered this retry. A retry outcome is only meaningful
-    /// relative to a prior attempt, so `prev_attempt` is required — callers that
-    /// have no previous attempt do not record.
+    /// The retry's fate (`success`) and event time come from the freshly resolved
+    /// `payment_attempt`, while the cluster dimensions are read from `prev_attempt`,
+    /// the failed attempt that triggered this retry. Callers with no previous attempt
+    /// do not record.
     pub async fn from_attempt(
         state: &SessionState,
         payment_attempt: &PaymentAttempt,

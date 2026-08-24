@@ -77,13 +77,6 @@ impl EventSlots {
     ///
     /// Hyperswitch persists `created_at` as a **UTC** `PrimitiveDateTime`, but that
     /// type carries no offset, so we make the timezone explicit via `assume_utc()`.
-    /// This anchors every bucket to a single, unambiguous timezone — no local-time
-    /// or DST drift can skew which day/hour an event lands in.
-    ///
-    /// Each derived index is then validated against its family's statically-fixed
-    /// bucket count. A value that lands outside the range (which is impossible for a
-    /// well-formed timestamp) is logged as an error and left for [`StatsDocument::merge`]
-    /// to drop, so a malformed/mis-zoned timestamp can never write to the wrong bucket.
     pub fn from_utc(ts: PrimitiveDateTime) -> Self {
         let utc = ts.assume_utc();
         Self {
@@ -96,7 +89,7 @@ impl EventSlots {
 
 /// Guard a derived slot index against its family's static bucket count. Returns the
 /// index unchanged, but logs an error for any out-of-range value so the anomaly is
-/// visible; [`StatsDocument::merge`] then drops out-of-range indices instead of misfiling them.
+/// visible
 fn validate_slot(family: SlotFamily, slot: u8, ts: PrimitiveDateTime) -> u8 {
     if usize::from(slot) >= family.slot_count() {
         logger::error!(

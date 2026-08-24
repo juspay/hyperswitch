@@ -27,8 +27,6 @@ impl RetryOutcomeEvent {
     /// affects the payment/recovery flow that invoked it.
     #[instrument(skip_all)]
     pub async fn record(&self, state: &SessionState) {
-        // Runtime killswitch: when the global superposition `retry_stats_enabled`
-        // config is `false`, skip all retry-stats recording (best-effort, no error).
         let dimensions: dimension_state::DimensionsGlobal = dimension_state::Dimensions::new();
         let enabled = dimensions
             .get_revrec_retry_stats_enabled(
@@ -37,6 +35,7 @@ impl RetryOutcomeEvent {
                 None,
             )
             .await;
+
         if !enabled {
             logger::info!("revenue_recovery_retry_stats: recording disabled via config");
             return;
