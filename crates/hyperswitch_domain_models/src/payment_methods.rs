@@ -348,6 +348,7 @@ pub struct PaymentMethodUpdate {
     pub network_tokenization: Option<common_types::payment_methods::NetworkTokenization>,
     pub source_payment_method_data: Option<crate::vault::PaymentMethodVaultingData>,
     pub status: Option<common_enums::PaymentMethodStatus>,
+    pub storage_type: Option<common_enums::StorageType>,
 }
 
 #[cfg(feature = "v2")]
@@ -361,6 +362,7 @@ impl From<payment_methods::PaymentMethodUpdate> for PaymentMethodUpdate {
             network_tokenization: None,
             source_payment_method_data: None,
             status: value.acknowledgement_status.map(|ack| ack.into()),
+            storage_type: value.storage_type,
         }
     }
 }
@@ -448,6 +450,7 @@ impl
             network_tokenization: req.network_tokenization.clone(),
             source_payment_method_data: Some(source_payment_method_data),
             status: None,
+            storage_type: None,
         }
     }
 }

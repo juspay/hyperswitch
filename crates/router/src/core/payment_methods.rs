@@ -1772,7 +1772,16 @@ pub async fn create_payment_method_core(
 ) -> RouterResult<(api::PaymentMethodResponse, domain::PaymentMethod)> {
     match req.storage_type {
         common_enums::StorageType::Volatile => {
-            create_volatile_payment_method_core(state, _request_state, req, platform, profile).await
+            create_volatile_payment_method_core(
+                state,
+                _request_state,
+                req,
+                platform,
+                profile,
+                None,
+                true,
+            )
+            .await
         }
         common_enums::StorageType::Persistent => {
             create_persistent_payment_method_core(state, _request_state, req, platform, profile)
@@ -1900,6 +1909,8 @@ pub async fn create_volatile_payment_method_core(
     req: api::PaymentMethodCreate,
     platform: &domain::Platform,
     profile: &domain::Profile,
+    customer_acceptance: Option<common_utils::pii::SecretSerdeValue>,
+    validate_customer: bool,
 ) -> RouterResult<(api::PaymentMethodResponse, domain::PaymentMethod)> {
     req.validate()?;
 
@@ -1908,15 +1919,17 @@ pub async fn create_volatile_payment_method_core(
     let customer_id = req.customer_id.to_owned();
     let key_manager_state = &(state).into();
 
-    if let Some(ref customer_id) = customer_id {
-        db.find_customer_by_global_id_merchant_id_without_encrypted(
-            customer_id,
-            platform.get_provider().get_account().get_id(),
-            platform.get_provider().get_account().storage_scheme,
-        )
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
-        .attach_printable("Customer not found for the payment method")?;
+    if validate_customer {
+        if let Some(ref customer_id) = customer_id {
+            db.find_customer_by_global_id_merchant_id_without_encrypted(
+                customer_id,
+                platform.get_provider().get_account().get_id(),
+                platform.get_provider().get_account().storage_scheme,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
+            .attach_printable("Customer not found for the payment method")?;
+        }
     }
 
     let payment_method_billing_address = req
@@ -1957,6 +1970,7 @@ pub async fn create_volatile_payment_method_core(
                 &customer_id,
                 payment_method_id,
                 payment_method_billing_address,
+                customer_acceptance,
             ))
             .await
         }
@@ -3231,12 +3245,12 @@ pub async fn create_generic_volatile_payment_method(
     profile: &domain::Profile,
     merchant_id: &id_type::MerchantId,
     customer_id: &Option<id_type::GlobalCustomerId>,
-    payment_method_id: id_type::GlobalPaymentMethodId,
+    mut payment_method_id: id_type::GlobalPaymentMethodId,
     payment_method_billing_address: Option<
         Encryptable<hyperswitch_domain_models::address::Address>,
     >,
+    customer_acceptance: Option<common_utils::pii::SecretSerdeValue>,
 ) -> RouterResult<(api::PaymentMethodResponse, domain::PaymentMethod)> {
-    let db = &*state.store;
     let keymanager_state = &(state).into();
     let merchant_key_store = platform.get_provider().get_key_store();
 
@@ -3249,6 +3263,54 @@ pub async fn create_generic_volatile_payment_method(
         .or(req.payment_method_subtype);
     let payment_method_data = bin_enriched_payment_method_data.data;
 
+    let fingerprint_details = match (
+        &payment_method_data,
+        customer_id,
+        customer_acceptance.is_some(),
+    ) {
+        (domain::PaymentMethodVaultingData::Card(_), Some(customer_id), true) => {
+            let resolution = GenericLocker
+                .resolve_payment_method(
+                    state,
+                    platform,
+                    customer_id,
+                    &req,
+                    payment_method_data.clone(),
+                )
+                .await
+                .map_err(|error| {
+                    metrics::PAYMENT_METHOD_STORAGE_PROMOTION.add(
+                        1,
+                        router_env::metric_attributes!(("outcome", "fingerprint_failed")),
+                    );
+                    logger::error!(?error, "Failed to resolve accepted volatile card");
+                    error
+                })?;
+
+            match resolution.0 {
+                PaymentMethodResolution::Get(existing_payment_method) => {
+                    payment_method_id = existing_payment_method.id;
+                    None
+                }
+                PaymentMethodResolution::Update {
+                    fingerprint_id,
+                    payment_method_id: existing_payment_method_id,
+                    ..
+                } => {
+                    payment_method_id = existing_payment_method_id;
+                    Some(FingerprintDetails {
+                        fingerprint_id,
+                        auxiliary_fingerprint_id: None,
+                    })
+                }
+                PaymentMethodResolution::Create {
+                    fingerprint_details, ..
+                } => fingerprint_details,
+            }
+        }
+        _ => None,
+    };
+
     let vaulting_result = vault_payment_method_in_volatile_storage(
         state,
         &payment_method_data,
@@ -3256,6 +3318,9 @@ pub async fn create_generic_volatile_payment_method(
         profile,
         None,
         customer_id,
+        fingerprint_details
+            .as_ref()
+            .and_then(|details| details.fingerprint_id.clone()),
     )
     .await;
 
@@ -3269,7 +3334,7 @@ pub async fn create_generic_volatile_payment_method(
             external_vault_source,
         )) => {
             let locker_id = Some(vault_id.clone());
-            let payment_method = construct_payment_method_object(
+            let mut payment_method = construct_payment_method_object(
                 req.metadata.clone(),
                 customer_id,
                 payment_method_id,
@@ -3286,12 +3351,18 @@ pub async fn create_generic_volatile_payment_method(
                 platform.get_initiator(),
             )
             .await
-            .attach_printable("failed to construct payment method")?
-            .convert()
-            .await
-            .change_context(errors::StorageError::EncryptionError)
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to convert payment method")?; //Convert to storage model payment method to store in redis
+            .attach_printable("failed to construct payment method")?;
+
+            payment_method.auxiliary_fingerprint_id = fingerprint_details
+                .and_then(|details| details.auxiliary_fingerprint_id);
+            payment_method.customer_acceptance = customer_acceptance;
+
+            let payment_method = payment_method
+                .convert()
+                .await
+                .change_context(errors::StorageError::EncryptionError)
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to convert payment method")?; //Convert to storage model payment method to store in redis
 
             let redis_connection = state
                 .store
@@ -5495,6 +5566,7 @@ pub async fn vault_payment_method_in_volatile_storage(
     _profile: &domain::Profile,
     _existing_vault_id: Option<domain::VaultId>,
     customer_id: &Option<id_type::GlobalCustomerId>,
+    fingerprint_id: Option<String>,
 ) -> RouterResult<(
     pm_types::AddVaultResponse,
     Option<id_type::MerchantConnectorAccountId>,
@@ -5536,7 +5608,7 @@ pub async fn vault_payment_method_in_volatile_storage(
         pm_types::AddVaultResponse {
             entity_id: None,
             vault_id,
-            fingerprint_id: None,
+            fingerprint_id,
         },
         None,
     ))
@@ -6097,7 +6169,7 @@ pub async fn fetch_payment_method_by_storage(
             Ok((storage_type, volatile_payment_method))
         }
         common_enums::StorageType::Persistent => {
-            logger::debug!("Fetching persistent payment method with fallback");
+            logger::debug!("Fetching persistent payment method");
             // In S2S calls, id passed in the request could be payment method id as well
             // If a temporary token is passed after the redis expiration it will also be treated as
             // a persistent GlobalPaymentMethodId, but for temp tokens GlobalPaymentMethodId will fail
@@ -6113,48 +6185,11 @@ pub async fn fetch_payment_method_by_storage(
                 )),
             }?;
 
-            fetch_payment_method_with_fallback(state, provider, &pm_id, storage_type)
+            let payment_method = fetch_payment_method(state, provider, &pm_id)
                 .await
-                .attach_printable("Failed to get payment method with fallback")
-        }
-    }
-}
+                .attach_printable("Failed to get persistent payment method")?;
 
-#[cfg(feature = "v2")]
-pub async fn fetch_payment_method_with_fallback(
-    state: &SessionState,
-    provider: &domain::Provider,
-    pm_id: &id_type::GlobalPaymentMethodId,
-    storage_type: common_enums::StorageType,
-) -> RouterResult<(common_enums::StorageType, domain::PaymentMethod)> {
-    let volatile_payment_method = fetch_volatile_payment_method_record(
-        state,
-        provider.get_key_store(),
-        pm_id.get_string_repr(),
-    )
-    .await
-    .attach_printable("Failed to get volatile payment method record");
-
-    match volatile_payment_method {
-        Ok(payment_method) => Ok((common_enums::StorageType::Volatile, payment_method)),
-        Err(err) => {
-            logger::warn!("Volatile payment method not found, falling back to persistent storage",);
-
-            when(
-                !matches!(
-                    err.current_context(),
-                    errors::ApiErrorResponse::GenericNotFoundError { .. }
-                ),
-                || Err(err),
-            )?;
-
-            logger::debug!("Redis lookup failed, falling back to DB");
-
-            let persistent_payment_method = fetch_payment_method(state, provider, pm_id)
-                .await
-                .attach_printable("Failed to get payment method record from DB")?;
-
-            Ok((storage_type, persistent_payment_method))
+            Ok((storage_type, payment_method))
         }
     }
 }
@@ -6597,34 +6632,307 @@ pub async fn update_payment_method_core(
     existing_payment_method: Option<domain::PaymentMethod>,
     network_tokenization_resp: Option<NetworkTokenPaymentMethodDetails>,
 ) -> RouterResult<(api::PaymentMethodResponse, domain::PaymentMethod)> {
-    let mut handler = match existing_payment_method {
-        Some(payment_method) => {
-            let handler = pm_types::PaymentMethodUpdateHandler {
+    match (existing_payment_method, request.storage_type) {
+        (None, Some(common_enums::StorageType::Persistent)) => {
+            update_or_promote_payment_method(
+                state,
                 platform,
                 profile,
                 request,
-                payment_method,
-                state,
-            };
-            handler.validate()?;
-            handler
+                payment_method_id,
+                network_tokenization_resp,
+            )
+            .await
         }
-        None => pm_types::PaymentMethodUpdateHandler::generate(
-            state,
-            platform,
-            profile,
-            request,
-            payment_method_id,
-        )
-        .await
-        .attach_printable("Failed to generate PaymentMethodUpdateHandler")?,
-    };
+        (None, Some(common_enums::StorageType::Volatile)) => {
+            let payment_method = fetch_volatile_payment_method_record(
+                state,
+                platform.get_provider().get_key_store(),
+                payment_method_id.get_string_repr(),
+            )
+            .await?;
+            let response = generate_update_response(
+                &payment_method,
+                common_enums::StorageType::Volatile,
+                request.acknowledgement_status,
+            )?;
+            Ok((response, payment_method))
+        }
+        (existing_payment_method, _) => {
+            let mut handler = match existing_payment_method {
+                Some(payment_method) => {
+                    let handler = pm_types::PaymentMethodUpdateHandler {
+                        platform,
+                        profile,
+                        request,
+                        payment_method,
+                        state,
+                    };
+                    handler.validate()?;
+                    handler
+                }
+                None => pm_types::PaymentMethodUpdateHandler::generate(
+                    state,
+                    platform,
+                    profile,
+                    request,
+                    payment_method_id,
+                )
+                .await
+                .attach_printable("Failed to generate PaymentMethodUpdateHandler")?,
+            };
 
-    Box::pin(execute_payment_method_update_handler(
-        &mut handler,
-        network_tokenization_resp,
+            Box::pin(execute_payment_method_update_handler(
+                &mut handler,
+                network_tokenization_resp,
+            ))
+            .await
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
+fn generate_update_response(
+    payment_method: &domain::PaymentMethod,
+    storage_type: common_enums::StorageType,
+    acknowledgement_status: Option<common_enums::AcknowledgementStatus>,
+) -> RouterResult<api::PaymentMethodResponse> {
+    pm_transforms::generate_payment_method_response(
+        payment_method,
+        &None,
+        storage_type,
+        None,
+        payment_method.customer_id.clone(),
+        None,
+        payment_method
+            .payment_method_billing_address
+            .clone()
+            .map(|billing| billing.get_inner().clone().into()),
+        acknowledgement_status,
+    )
+}
+
+#[cfg(feature = "v2")]
+#[instrument(skip_all)]
+async fn update_or_promote_payment_method(
+    state: &SessionState,
+    platform: &domain::Platform,
+    profile: &domain::Profile,
+    request: DomainPaymentMethodUpdate,
+    payment_method_id: &id_type::GlobalPaymentMethodId,
+    network_tokenization_resp: Option<NetworkTokenPaymentMethodDetails>,
+) -> RouterResult<(api::PaymentMethodResponse, domain::PaymentMethod)> {
+    let payment_method = fetch_volatile_payment_method_record(
+        state,
+        platform.get_provider().get_key_store(),
+        payment_method_id.get_string_repr(),
+    )
+    .await
+    .map_err(|error| {
+        metrics::PAYMENT_METHOD_STORAGE_PROMOTION.add(
+            1,
+            router_env::metric_attributes!(("outcome", "redis_miss")),
+        );
+        error
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to fetch volatile payment method for promotion")
+    })?;
+
+    if payment_method.customer_acceptance.is_none() {
+        generate_update_response(
+            &payment_method,
+            common_enums::StorageType::Volatile,
+            request.acknowledgement_status,
+        )
+        .map(|response| (response, payment_method))
+    } else {
+        when(
+            !matches!(
+                payment_method.payment_method_type,
+                Some(common_enums::PaymentMethod::Card)
+            ),
+            || {
+                Err(errors::ApiErrorResponse::NotSupported {
+                    message: "Only card payment methods can be promoted from volatile storage"
+                        .to_string(),
+                })
+            },
+        )?;
+
+        let persistent_payment_method = state
+            .store
+            .find_payment_method(
+                platform.get_provider().get_key_store(),
+                payment_method_id,
+                platform.get_provider().get_account().storage_scheme,
+            )
+            .await;
+
+        match persistent_payment_method {
+            Ok(payment_method) => Box::pin(update_payment_method_core(
+                state,
+                platform,
+                profile,
+                request,
+                payment_method_id,
+                Some(payment_method),
+                network_tokenization_resp,
+            ))
+            .await,
+            Err(error) if error.current_context().is_db_not_found() => {
+                let payment_method_data = vault::retrieve_volatile_payment_method_from_redis(
+                    state,
+                    platform.get_provider().get_key_store(),
+                    &payment_method,
+                )
+                .await
+                .map_err(|error| {
+                    metrics::PAYMENT_METHOD_STORAGE_PROMOTION.add(
+                        1,
+                        router_env::metric_attributes!(("outcome", "redis_miss")),
+                    );
+                    error
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable(
+                            "Failed to fetch volatile card data for payment method promotion",
+                        )
+                })?
+                .data;
+
+                use router_env::tracing::Instrument;
+
+                let response = generate_update_response(
+                    &payment_method,
+                    common_enums::StorageType::Persistent,
+                    request.acknowledgement_status,
+                )?;
+                let response_payment_method = payment_method.clone();
+                let state = state.clone();
+                let platform = platform.clone();
+                let profile = profile.clone();
+
+                tokio::spawn(
+                    (async move {
+                        match persist_volatile_payment_method(
+                            &state,
+                            &platform,
+                            &profile,
+                            request,
+                            payment_method,
+                            payment_method_data,
+                        )
+                        .await
+                        {
+                            Ok(()) => metrics::PAYMENT_METHOD_STORAGE_PROMOTION.add(
+                                1,
+                                router_env::metric_attributes!(("outcome", "completed")),
+                            ),
+                            Err(error) => {
+                                metrics::PAYMENT_METHOD_STORAGE_PROMOTION.add(
+                                    1,
+                                    router_env::metric_attributes!(("outcome", "failed")),
+                                );
+                                let error = error
+                                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                                    .attach_printable(
+                                        "Failed to promote volatile payment method asynchronously",
+                                    );
+                                logger::error!(
+                                    ?error,
+                                    "Failed to promote volatile payment method asynchronously"
+                                );
+                            }
+                        }
+                    })
+                    .in_current_span(),
+                );
+
+                metrics::PAYMENT_METHOD_STORAGE_PROMOTION.add(
+                    1,
+                    router_env::metric_attributes!(("outcome", "scheduled")),
+                );
+
+                Ok((response, response_payment_method))
+            }
+            Err(error) => Err(error)
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to fetch persistent payment method for update"),
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
+#[instrument(skip_all)]
+async fn persist_volatile_payment_method(
+    state: &SessionState,
+    platform: &domain::Platform,
+    profile: &domain::Profile,
+    request: DomainPaymentMethodUpdate,
+    mut payment_method: domain::PaymentMethod,
+    payment_method_data: domain::PaymentMethodVaultingData,
+) -> RouterResult<()> {
+    let customer_id = payment_method
+        .customer_id
+        .clone()
+        .get_required_value("customer_id")?;
+
+    let fingerprint_id = payment_method
+        .locker_fingerprint_id
+        .clone()
+        .get_required_value("locker_fingerprint_id")?;
+    let auxiliary_fingerprint_id = payment_method
+        .auxiliary_fingerprint_id
+        .clone()
+        .get_required_value("auxiliary_fingerprint_id")?;
+
+    let existing_vault_id = payment_method.locker_id.clone();
+    let (vault_response, external_vault_source) = Box::pin(vault_payment_method(
+        state,
+        &payment_method_data,
+        platform,
+        profile,
+        existing_vault_id,
+        Some(fingerprint_id.clone()),
+        &customer_id,
+        Some(pm_types::WriteMode::Upsert),
     ))
     .await
+    .attach_printable("Failed to vault volatile payment method during promotion")?;
+
+    payment_method.locker_id = Some(vault_response.vault_id);
+    payment_method.locker_fingerprint_id = vault_response.fingerprint_id.or(Some(fingerprint_id));
+    payment_method.auxiliary_fingerprint_id = Some(auxiliary_fingerprint_id);
+    payment_method.external_vault_source = external_vault_source;
+    payment_method.status = request.status.unwrap_or(payment_method.status);
+    payment_method.network_transaction_id = request
+        .network_transaction_id
+        .clone()
+        .map(|network_transaction_id| network_transaction_id.expose());
+    payment_method.connector_mandate_details = request
+        .connector_token_details
+        .clone()
+        .map(|token| create_connector_token_details_update(token, &payment_method));
+    payment_method.last_modified = common_utils::date_time::now();
+    payment_method.last_modified_by = platform
+        .get_initiator()
+        .and_then(|initiator| initiator.to_created_by());
+
+    state
+        .store
+        .insert_payment_method(
+            platform.get_provider().get_key_store(),
+            payment_method,
+            platform.get_provider().get_account().storage_scheme,
+            Some(payment_method_modular_backward_compat_action(
+                state,
+                &platform.get_provider().get_account().organization_id,
+            )),
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to persist promoted payment method")?;
+
+    Ok(())
 }
 
 #[cfg(feature = "v2")]
@@ -7535,6 +7843,15 @@ pub async fn payment_methods_session_confirm(
 
     request.validate(&payment_method_session)?;
 
+    let customer_acceptance = request
+        .customer_acceptance
+        .clone()
+        .map(|customer_acceptance| customer_acceptance.encode_to_value())
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to encode payment method customer acceptance")?
+        .map(Secret::new);
+
     let payment_method_session_billing = payment_method_session
         .billing
         .clone()
@@ -7551,13 +7868,20 @@ pub async fn payment_methods_session_confirm(
         })
         .or_else(|| payment_method_session_billing.clone());
 
-    // The session's storage_type carries the merchant's intent (persistent when
-    // setup_future_usage and a customer are present at session create). The customer's
-    // acceptance at confirm makes the save final: without it the payment method is
-    // created as volatile even when the session asked for persistent storage.
+    // Honor persistent storage on directly-created PM sessions only when acceptance is present.
+    // Payments-created sessions are always volatile and are promoted after authorization.
     let storage_type = if request.customer_acceptance.is_some() {
         payment_method_session.storage_type
     } else {
+        if matches!(
+            payment_method_session.storage_type,
+            common_enums::StorageType::Persistent
+        ) {
+            logger::debug!(
+                payment_method_session_id = %payment_method_session_id.get_string_repr(),
+                "Degrading persistent payment method session to volatile storage because customer acceptance is absent"
+            );
+        }
         common_enums::StorageType::Volatile
     };
 
@@ -7576,14 +7900,30 @@ pub async fn payment_methods_session_confirm(
     )
     .attach_printable("Failed to create payment method request")?;
 
-    let (payment_method_response, payment_method) = Box::pin(create_payment_method_core(
-        &state,
-        &req_state,
-        create_payment_method_request.clone(),
-        &platform,
-        &profile,
-    ))
-    .await?;
+    let (payment_method_response, payment_method) = match storage_type {
+        common_enums::StorageType::Volatile => {
+            Box::pin(create_volatile_payment_method_core(
+                &state,
+                &req_state,
+                create_payment_method_request.clone(),
+                &platform,
+                &profile,
+                customer_acceptance,
+                false,
+            ))
+            .await?
+        }
+        common_enums::StorageType::Persistent => {
+            Box::pin(create_persistent_payment_method_core(
+                &state,
+                &req_state,
+                create_payment_method_request.clone(),
+                &platform,
+                &profile,
+            ))
+            .await?
+        }
+    };
 
     let parent_payment_method_token = generate_id(consts::ID_LENGTH, "token");
 

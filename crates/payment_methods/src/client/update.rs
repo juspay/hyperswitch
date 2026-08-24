@@ -41,6 +41,8 @@ pub struct UpdatePaymentMethodV1Payload {
     pub network_transaction_id: Option<Secret<String>>,
 
     pub acknowledgement_status: Option<common_enums::AcknowledgementStatus>,
+
+    pub storage_type: Option<StorageType>,
 }
 
 /// Modular service update request payload.
@@ -54,6 +56,8 @@ pub struct ModularPMUpdateRequest {
     pub network_transaction_id: Option<Secret<String>>,
 
     pub acknowledgement_status: Option<common_enums::AcknowledgementStatus>,
+
+    pub storage_type: Option<StorageType>,
 }
 
 /// Payment method update data.
@@ -128,6 +132,7 @@ impl TryFrom<&UpdatePaymentMethodV1Request> for ModularPMUpdateRequest {
             connector_token_details: value.payload.connector_token_details.clone(),
             network_transaction_id: value.payload.network_transaction_id.clone(),
             acknowledgement_status: value.payload.acknowledgement_status,
+            storage_type: value.payload.storage_type,
         })
     }
 }
