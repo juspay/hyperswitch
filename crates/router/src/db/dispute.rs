@@ -16,6 +16,16 @@ pub trait DisputeInterface {
         storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<storage::Dispute, errors::StorageError>;
 
+    #[cfg(feature = "v2")]
+    async fn find_by_processor_merchant_id_payment_id_connector_dispute_id(
+        &self,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
+        payment_id: &common_utils::id_type::GlobalPaymentId,
+        connector_dispute_id: &str,
+        storage_scheme: enums::MerchantStorageScheme,
+    ) -> CustomResult<Option<storage::Dispute>, errors::StorageError>;
+
+    #[cfg(feature = "v1")]
     async fn find_by_processor_merchant_id_payment_id_connector_dispute_id(
         &self,
         processor_merchant_id: &common_utils::id_type::MerchantId,
@@ -31,6 +41,7 @@ pub trait DisputeInterface {
         storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<storage::Dispute, errors::StorageError>;
 
+    #[cfg(feature = "v1")]
     async fn find_disputes_by_constraints(
         &self,
         processor_merchant_id: &common_utils::id_type::MerchantId,
@@ -38,6 +49,7 @@ pub trait DisputeInterface {
         storage_scheme: enums::MerchantStorageScheme,
     ) -> CustomResult<Vec<storage::Dispute>, errors::StorageError>;
 
+    #[cfg(feature = "v1")]
     async fn find_disputes_by_processor_merchant_id_payment_id(
         &self,
         processor_merchant_id: &common_utils::id_type::MerchantId,
@@ -91,6 +103,27 @@ mod storage_impl {
         }
 
         #[instrument(skip_all)]
+        #[cfg(feature = "v2")]
+        async fn find_by_processor_merchant_id_payment_id_connector_dispute_id(
+            &self,
+            processor_merchant_id: &common_utils::id_type::MerchantId,
+            payment_id: &common_utils::id_type::GlobalPaymentId,
+            connector_dispute_id: &str,
+            _storage_scheme: enums::MerchantStorageScheme,
+        ) -> CustomResult<Option<storage_types::Dispute>, errors::StorageError> {
+            let conn = connection::pg_connection_read(self).await?;
+            storage_types::Dispute::find_optional_by_processor_merchant_id_payment_id_connector_dispute_id(
+                &conn,
+                processor_merchant_id,
+                payment_id,
+                connector_dispute_id,
+            )
+            .await
+            .map_err(|error| report!(errors::StorageError::from(error)))
+        }
+
+        #[instrument(skip_all)]
+        #[cfg(feature = "v1")]
         async fn find_by_processor_merchant_id_payment_id_connector_dispute_id(
             &self,
             processor_merchant_id: &common_utils::id_type::MerchantId,
@@ -161,6 +194,7 @@ mod storage_impl {
         }
 
         #[instrument(skip_all)]
+        #[cfg(feature = "v1")]
         async fn find_disputes_by_processor_merchant_id_payment_id(
             &self,
             processor_merchant_id: &common_utils::id_type::MerchantId,
@@ -178,6 +212,7 @@ mod storage_impl {
         }
 
         #[instrument(skip_all)]
+        #[cfg(feature = "v1")]
         async fn find_disputes_by_constraints(
             &self,
             processor_merchant_id: &common_utils::id_type::MerchantId,
@@ -252,7 +287,23 @@ mod storage_impl {
 
     #[async_trait::async_trait]
     impl DisputeInterface for Store {
+        // v2 disputes are not stored in KV.
         #[instrument(skip_all)]
+        #[cfg(feature = "v2")]
+        async fn insert_dispute(
+            &self,
+            dispute: storage_types::DisputeNew,
+            _storage_scheme: enums::MerchantStorageScheme,
+        ) -> CustomResult<storage_types::Dispute, errors::StorageError> {
+            let conn = connection::pg_connection_write(self).await?;
+            dispute
+                .insert(&conn)
+                .await
+                .map_err(|error| report!(errors::StorageError::from(error)))
+        }
+
+        #[instrument(skip_all)]
+        #[cfg(feature = "v1")]
         async fn insert_dispute(
             &self,
             dispute: storage_types::DisputeNew,
@@ -373,7 +424,29 @@ mod storage_impl {
             }
         }
 
+        // v2 disputes are not stored in KV, so this reads the database directly.
         #[instrument(skip_all)]
+        #[cfg(feature = "v2")]
+        async fn find_by_processor_merchant_id_payment_id_connector_dispute_id(
+            &self,
+            processor_merchant_id: &common_utils::id_type::MerchantId,
+            payment_id: &common_utils::id_type::GlobalPaymentId,
+            connector_dispute_id: &str,
+            _storage_scheme: enums::MerchantStorageScheme,
+        ) -> CustomResult<Option<storage_types::Dispute>, errors::StorageError> {
+            let conn = connection::pg_connection_read(self).await?;
+            storage_types::Dispute::find_optional_by_processor_merchant_id_payment_id_connector_dispute_id(
+                &conn,
+                processor_merchant_id,
+                payment_id,
+                connector_dispute_id,
+            )
+            .await
+            .map_err(|error| report!(errors::StorageError::from(error)))
+        }
+
+        #[instrument(skip_all)]
+        #[cfg(feature = "v1")]
         async fn find_by_processor_merchant_id_payment_id_connector_dispute_id(
             &self,
             processor_merchant_id: &common_utils::id_type::MerchantId,
@@ -524,6 +597,7 @@ mod storage_impl {
         }
 
         #[instrument(skip_all)]
+        #[cfg(feature = "v1")]
         async fn find_disputes_by_processor_merchant_id_payment_id(
             &self,
             processor_merchant_id: &common_utils::id_type::MerchantId,
@@ -573,6 +647,7 @@ mod storage_impl {
         }
 
         #[instrument(skip_all)]
+        #[cfg(feature = "v1")]
         async fn find_disputes_by_constraints(
             &self,
             processor_merchant_id: &common_utils::id_type::MerchantId,
@@ -589,7 +664,23 @@ mod storage_impl {
             .map_err(|error| report!(errors::StorageError::from(error)))
         }
 
+        // v2 disputes are not stored in KV.
         #[instrument(skip_all)]
+        #[cfg(feature = "v2")]
+        async fn update_dispute(
+            &self,
+            this: storage_types::Dispute,
+            dispute: storage_types::DisputeUpdate,
+            _storage_scheme: enums::MerchantStorageScheme,
+        ) -> CustomResult<storage_types::Dispute, errors::StorageError> {
+            let conn = connection::pg_connection_write(self).await?;
+            this.update(&conn, dispute)
+                .await
+                .map_err(|error| report!(errors::StorageError::from(error)))
+        }
+
+        #[instrument(skip_all)]
+        #[cfg(feature = "v1")]
         async fn update_dispute(
             &self,
             this: storage_types::Dispute,
@@ -740,6 +831,28 @@ impl DisputeInterface for MockDb {
         Ok(new_dispute)
     }
 
+    #[cfg(feature = "v2")]
+    async fn find_by_processor_merchant_id_payment_id_connector_dispute_id(
+        &self,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
+        payment_id: &common_utils::id_type::GlobalPaymentId,
+        connector_dispute_id: &str,
+        _storage_scheme: enums::MerchantStorageScheme,
+    ) -> CustomResult<Option<storage::Dispute>, errors::StorageError> {
+        Ok(self
+            .disputes
+            .lock()
+            .await
+            .iter()
+            .find(|d| {
+                d.processor_merchant_id.as_ref() == Some(processor_merchant_id)
+                    && d.payment_id == *payment_id
+                    && d.connector_dispute_id == connector_dispute_id
+            })
+            .cloned())
+    }
+
+    #[cfg(feature = "v1")]
     async fn find_by_processor_merchant_id_payment_id_connector_dispute_id(
         &self,
         processor_merchant_id: &common_utils::id_type::MerchantId,
@@ -779,6 +892,7 @@ impl DisputeInterface for MockDb {
             .into())
     }
 
+    #[cfg(feature = "v1")]
     async fn find_disputes_by_processor_merchant_id_payment_id(
         &self,
         processor_merchant_id: &common_utils::id_type::MerchantId,
@@ -799,6 +913,7 @@ impl DisputeInterface for MockDb {
             .collect())
     }
 
+    #[cfg(feature = "v1")]
     async fn find_disputes_by_constraints(
         &self,
         processor_merchant_id: &common_utils::id_type::MerchantId,
@@ -994,7 +1109,7 @@ impl DisputeInterface for MockDb {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "v1"))]
 mod tests {
     mod mockdb_dispute_interface {
         use std::borrow::Cow;

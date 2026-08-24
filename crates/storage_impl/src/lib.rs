@@ -525,6 +525,7 @@ impl KvSupportedEntity for diesel_models::Capture {
     }
 }
 
+#[cfg(feature = "v1")]
 impl KvSupportedEntity for diesel_models::Dispute {
     fn get_partition_key(&self) -> kv_store::PartitionKey<'_> {
         kv_store::PartitionKey::MerchantIdPaymentId {

@@ -2,7 +2,11 @@ use async_bb8_diesel::AsyncRunQueryDsl;
 use common_utils::errors::CustomResult;
 use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods, QueryDsl};
 pub use diesel_models::dispute::{Dispute, DisputeNew, DisputeUpdate};
-use diesel_models::{errors, query::generics::db_metrics, schema::dispute::dsl};
+#[cfg(feature = "v1")]
+use diesel_models::schema::dispute::dsl;
+#[cfg(feature = "v2")]
+use diesel_models::schema_v2::dispute::dsl;
+use diesel_models::{errors, query::generics::db_metrics};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::disputes;
 
@@ -10,6 +14,7 @@ use crate::{connection::PgPooledConn, logger};
 
 #[async_trait::async_trait]
 pub trait DisputeDbExt: Sized {
+    #[cfg(feature = "v1")]
     async fn filter_by_constraints(
         conn: &PgPooledConn,
         processor_merchant_id: &common_utils::id_type::MerchantId,
@@ -26,6 +31,7 @@ pub trait DisputeDbExt: Sized {
 
 #[async_trait::async_trait]
 impl DisputeDbExt for Dispute {
+    #[cfg(feature = "v1")]
     async fn filter_by_constraints(
         conn: &PgPooledConn,
         processor_merchant_id: &common_utils::id_type::MerchantId,

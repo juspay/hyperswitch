@@ -16,8 +16,14 @@ pub struct KafkaDispute<'a> {
     pub currency: storage_enums::Currency,
     pub dispute_stage: &'a storage_enums::DisputeStage,
     pub dispute_status: &'a storage_enums::DisputeStatus,
+    #[cfg(feature = "v1")]
     pub payment_id: &'a id_type::PaymentId,
+    #[cfg(feature = "v2")]
+    pub payment_id: &'a id_type::GlobalPaymentId,
+    #[cfg(feature = "v1")]
     pub attempt_id: &'a String,
+    #[cfg(feature = "v2")]
+    pub attempt_id: &'a id_type::GlobalAttemptId,
     pub merchant_id: &'a id_type::MerchantId,
     pub connector_status: &'a String,
     pub connector_dispute_id: &'a String,
