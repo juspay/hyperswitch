@@ -24,10 +24,13 @@ impl SlotCounter {
 /// constants, so `dow`/`dom`/`hod` can never carry the wrong number of items.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct StatsDocument {
+    /// `dow` = day of week: one bucket per weekday (Monday..=Sunday).
     #[serde(default)]
     pub dow: [SlotCounter; SlotFamily::DOW_SLOT_COUNT],
+    /// `dom` = day of month: one bucket per calendar day (1..=31).
     #[serde(default)]
     pub dom: [SlotCounter; SlotFamily::DOM_SLOT_COUNT],
+    /// `hod` = hour of day: one bucket per hour (0..=23).
     #[serde(default)]
     pub hod: [SlotCounter; SlotFamily::HOD_SLOT_COUNT],
 }
@@ -56,8 +59,11 @@ impl StatsDocument {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct EventSlots {
+    /// `dow` = day of week: bucket index 0..=6 (Monday..=Sunday).
     pub dow: u8,
+    /// `dom` = day of month: bucket index 0..=30 (calendar day 1..=31 minus 1).
     pub dom: u8,
+    /// `hod` = hour of day: bucket index 0..=23.
     pub hod: u8,
 }
 

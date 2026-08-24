@@ -1,6 +1,7 @@
 use std::{fmt, str::FromStr};
 
 use common_enums::{CardType, StandardisedCode};
+use router_env::logger;
 
 /// Layout version prefixed to every persisted cluster key. Bump this whenever
 /// the key layout changes (segment order, segment count, escaping rules) so
@@ -82,20 +83,27 @@ fn escape_segment(raw: &str) -> String {
     out
 }
 
+/// Reverse [`escape_segment`]. Percent-decoding is **byte-oriented**: a `%XX`
+/// escape contributes one raw byte and literal characters contribute their UTF-8
+/// bytes, then the whole buffer is validated as UTF-8 in one shot. This keeps the
+/// decoder compatible with standard percent-encoding — a `%`-escaped multi-byte
+/// UTF-8 sequence (e.g. `%C3%BC`) reassembles into the original character instead
+/// of being mangled into one Latin-1 char per byte. Malformed escapes (short or
+/// non-hex) and byte sequences that are not valid UTF-8 both yield `None`.
 fn unescape_segment(encoded: &str) -> Option<String> {
-    let mut out = String::with_capacity(encoded.len());
-    let mut chars = encoded.chars().peekable();
+    let mut bytes = Vec::with_capacity(encoded.len());
+    let mut chars = encoded.chars();
     while let Some(ch) = chars.next() {
         if ch == '%' {
             let hi = chars.next()?;
             let lo = chars.next()?;
-            let byte = u8::from_str_radix(&format!("{hi}{lo}"), 16).ok()?;
-            out.push(char::from(byte));
+            bytes.push(u8::from_str_radix(&format!("{hi}{lo}"), 16).ok()?);
         } else {
-            out.push(ch);
+            let mut buf = [0u8; 4];
+            bytes.extend_from_slice(ch.encode_utf8(&mut buf).as_bytes());
         }
     }
-    Some(out)
+    String::from_utf8(bytes).ok()
 }
 
 /// The three-dimensional key a retry outcome is recorded under. `error_code` and
@@ -178,18 +186,54 @@ impl RetryStatsClusterKey {
     /// rejected as `None` rather than silently truncated or padded, so a
     /// miswritten row can never resolve to the wrong cluster.
     pub fn from_db_string(raw: &str) -> Option<Self> {
-        let (version, rest) = raw.split_once(KEY_SEPARATOR)?;
+        let Some((version, rest)) = raw.split_once(KEY_SEPARATOR) else {
+            logger::error!(
+                cluster_key = raw,
+                "revenue_recovery_retry_stats: cluster key has no version separator"
+            );
+            return None;
+        };
         if version != RETRY_STATS_KEY_VERSION {
+            logger::error!(
+                cluster_key = raw,
+                version,
+                expected_version = RETRY_STATS_KEY_VERSION,
+                "revenue_recovery_retry_stats: cluster key written under an unsupported layout version"
+            );
             return None;
         }
-        let [error_code, card_type, issuer] =
-            <[&str; SEGMENT_COUNT]>::try_from(rest.split(SEGMENT_SEPARATOR).collect::<Vec<_>>())
-                .ok()?;
+        let segments = rest.split(SEGMENT_SEPARATOR).collect::<Vec<_>>();
+        let Ok([error_code, card_type, issuer]) = <[&str; SEGMENT_COUNT]>::try_from(segments)
+        else {
+            logger::error!(
+                cluster_key = raw,
+                expected_segments = SEGMENT_COUNT,
+                "revenue_recovery_retry_stats: cluster key has the wrong number of segments"
+            );
+            return None;
+        };
         Some(Self {
-            error_code: Dim::<StandardisedCode>::parse_segment(error_code)?,
-            card_type: Dim::<CardType>::parse_segment(card_type)?,
-            issuer: Dim::<String>::parse_segment(issuer)?,
+            error_code: Dim::<StandardisedCode>::parse_segment(error_code)
+                .or_else(|| Self::log_segment_failure(raw, "error_code", error_code))?,
+            card_type: Dim::<CardType>::parse_segment(card_type)
+                .or_else(|| Self::log_segment_failure(raw, "card_type", card_type))?,
+            issuer: Dim::<String>::parse_segment(issuer)
+                .or_else(|| Self::log_segment_failure(raw, "issuer", issuer))?,
         })
+    }
+
+    /// Log a segment that could not be decoded back into a `Dim` and propagate the
+    /// failure as `None`. Only reachable when `unescape_segment` rejects malformed
+    /// percent-escaping — parse failures on a strictly-typed value degrade to
+    /// `Dim::Unknown` inside `parse_segment` rather than surfacing here.
+    fn log_segment_failure<T>(raw: &str, field: &str, segment: &str) -> Option<T> {
+        logger::error!(
+            cluster_key = raw,
+            field,
+            segment,
+            "revenue_recovery_retry_stats: cluster key segment failed to decode"
+        );
+        None
     }
 }
 
@@ -215,6 +259,34 @@ mod tests {
         assert!(raw.contains("%2A"));
         assert!(raw.contains("%2F"));
         assert_eq!(RetryStatsClusterKey::from_db_string(&raw), Some(key));
+    }
+
+    #[test]
+    fn non_ascii_issuer_roundtrips() {
+        // Non-ASCII issuer names ride through escaping literally and must survive
+        // a full serialize -> parse cycle without corruption.
+        let key =
+            RetryStatsClusterKey::new(StandardisedCode::DoNotHonor, CardType::Credit, "Zürich");
+        assert_eq!(
+            RetryStatsClusterKey::from_db_string(&key.as_db_string()),
+            Some(key)
+        );
+    }
+
+    #[test]
+    fn standard_percent_encoded_utf8_decodes_correctly() {
+        // A `%`-escaped multi-byte UTF-8 sequence (standard percent-encoding of "ü")
+        // must reassemble into the original character, not one Latin-1 char per byte.
+        let key = RetryStatsClusterKey::from_db_string("v1|do_not_honor/CREDIT/Z%C3%BCrich")
+            .expect("valid key");
+        assert_eq!(key.issuer, Dim::Val("Zürich".to_string()));
+    }
+
+    #[test]
+    fn invalid_utf8_percent_sequence_is_rejected() {
+        // A lone continuation byte is not valid UTF-8, so the segment must fail to
+        // decode rather than producing a mojibake issuer.
+        assert!(RetryStatsClusterKey::from_db_string("v1|do_not_honor/CREDIT/%FF").is_none());
     }
 
     #[test]

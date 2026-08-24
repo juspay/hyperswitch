@@ -60,7 +60,6 @@ impl RetryOutcomeEvent {
         // metadata's payment method subtype.
         let card_network = card_details.and_then(|card| card.card_network.clone());
 
-        let dim_source = prev_attempt;
         // The middle dimension is the card funding type (credit/debit), read from the
         // revenue recovery metadata's payment method subtype (the original billing
         // payment method). Only the two card funding subtypes map onto a `CardType`;
@@ -72,12 +71,12 @@ impl RetryOutcomeEvent {
         };
 
         let error_code_dim =
-            resolve_error_code_dim_from_attempt(state, dim_source, card_network).await;
+            resolve_error_code_dim_from_attempt(state, prev_attempt, card_network).await;
 
         // The card ISIN is stored inside the attempt's `payment_method_data` for card
         // payments. Read it the same way `PaymentAttempt::extract_card_network` reads the
         // network, then resolve the issuer from it via the `cards_info` lookup.
-        let card_isin = dim_source
+        let card_isin = prev_attempt
             .get_payment_method_data()
             .ok()
             .flatten()
@@ -100,20 +99,19 @@ impl RetryOutcomeEvent {
 /// do not fall back to any webhook-provided issuer. A missing ISIN, no matching
 /// `cards_info` row, or a lookup error all yield `Unknown`.
 async fn resolve_issuer_dim(state: &SessionState, card_isin: Option<&str>) -> Dim<String> {
-    let Some(isin) = card_isin.map(str::trim).filter(|v| !v.is_empty()) else {
-        return Dim::Unknown;
-    };
-
-    match state.store.get_card_info(isin).await {
-        Ok(Some(card_info)) => Dim::from_event_value(card_info.card_issuer.as_deref()),
-        Ok(None) => Dim::Unknown,
-        Err(error) => {
-            logger::warn!(
-                ?error,
-                "revenue_recovery_retry_stats: issuer lookup by isin failed"
-            );
-            Dim::Unknown
-        }
+    match card_isin.map(str::trim).filter(|v| !v.is_empty()) {
+        None => Dim::Unknown,
+        Some(isin) => match state.store.get_card_info(isin).await {
+            Ok(Some(card_info)) => Dim::from_event_value(card_info.card_issuer.as_deref()),
+            Ok(None) => Dim::Unknown,
+            Err(error) => {
+                logger::warn!(
+                    ?error,
+                    "revenue_recovery_retry_stats: issuer lookup by isin failed"
+                );
+                Dim::Unknown
+            }
+        },
     }
 }
 
@@ -121,40 +119,53 @@ fn standardised_code_dim(code: Option<StandardisedCode>) -> Option<Dim<Standardi
     code.map(Dim::Val)
 }
 
-/// Resolve the error-code dimension for Scenario 2a / 2b.
+/// Resolve the error-code dimension.
 ///
-/// The standardised code is resolved **live** from the GSM table using the attempt's
-/// connector + error code, keyed on the Payment/Authorize flow. v2 does not (yet)
-/// persist `standardised_code` onto the attempt — see
-/// `docs/revenue-recovery-v2-standardised-code-propagation.md` for the shelved
-/// persistence design and how to switch back to reading it off the attempt. When no
-/// GSM record matches, the strictly-typed dimension is `Unknown` (the raw connector
-/// error code is not a `StandardisedCode`).
+/// The standardised code is resolved from the GSM table using the attempt's
+/// connector + error code, keyed on the Payment/Authorize flow. When no GSM record matches,
+/// the strictly-typed dimension is `Unknown`.
 async fn resolve_error_code_dim_from_attempt(
     state: &SessionState,
     payment_attempt: &PaymentAttempt,
     card_network: Option<CardNetwork>,
 ) -> Dim<StandardisedCode> {
-    let Some(error) = payment_attempt.error.as_ref() else {
-        return Dim::Unknown;
-    };
+    match (
+        payment_attempt.error.as_ref(),
+        payment_attempt.connector.clone(),
+    ) {
+        (Some(error), Some(connector)) => {
+            let gsm_record = helpers::get_gsm_record(
+                state,
+                connector,
+                consts::PAYMENT_FLOW_STR,
+                consts::AUTHORIZE_FLOW_STR,
+                Some(error.code.clone()),
+                Some(error.message.clone()),
+                error.network_decline_code.clone(),
+                card_network,
+            )
+            .await;
 
-    let Some(connector) = payment_attempt.connector.clone() else {
-        return Dim::Unknown;
-    };
-
-    let gsm_record = helpers::get_gsm_record(
-        state,
-        connector,
-        consts::PAYMENT_FLOW_STR,
-        consts::AUTHORIZE_FLOW_STR,
-        Some(error.code.clone()),
-        Some(error.message.clone()),
-        None, // issuer_error_code
-        card_network,
-    )
-    .await;
-
-    standardised_code_dim(gsm_record.and_then(|record| record.standardised_code))
-        .unwrap_or(Dim::Unknown)
+            match standardised_code_dim(gsm_record.and_then(|record| record.standardised_code)) {
+                Some(dim) => dim,
+                None => {
+                    logger::warn!(
+                        connector_error_code = error.code,
+                        "revenue_recovery_retry_stats: no standardised code resolved from GSM for \
+                         the attempt's error; recording error_code dimension as Unknown"
+                    );
+                    Dim::Unknown
+                }
+            }
+        }
+        _ => {
+            logger::warn!(
+                has_error = payment_attempt.error.is_some(),
+                has_connector = payment_attempt.connector.is_some(),
+                "revenue_recovery_retry_stats: attempt is missing error and/or connector; \
+                 recording error_code dimension as Unknown"
+            );
+            Dim::Unknown
+        }
+    }
 }

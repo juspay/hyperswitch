@@ -430,9 +430,7 @@ pub mod superposition {
         "pt_mapping_outgoing_connector_webhooks";
     /// PCR (Revenue Recovery) payments retry process tracker mapping key
     pub const PT_MAPPING_PCR_RETRIES: &str = "process_tracker.pt_mapping_pcr_retries";
-    /// Revenue Recovery retry-stats master gate key: boolean, `true` (default) enables
-    /// recording of retry outcome stats; set `false` as a runtime killswitch to stop all
-    /// such logging across the deployment.
+    /// Revenue Recovery retry-stats key. Enables recording of retry outcome stats
     pub const REVREC_RETRY_STATS_ENABLED: &str = "revenue_recovery.retry_stats.enabled";
     /// Payment sync (psync) retry process tracker mapping key
     pub const PT_MAPPING_PAYMENT_SYNC: &str = "process_tracker.pt_mapping_payment_sync";
