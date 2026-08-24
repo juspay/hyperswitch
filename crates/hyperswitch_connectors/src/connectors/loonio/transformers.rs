@@ -668,6 +668,7 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, LoonioPayoutFulfillResponse>>
                 error_code: None,
                 error_message: None,
                 payout_connector_metadata: None,
+                connector_eligibility_reference_id: None,
             }),
             ..item.data
         })
@@ -696,6 +697,7 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, LoonioPayoutSyncResponse>> for Payo
                 error_code: None,
                 error_message: None,
                 payout_connector_metadata: None,
+                connector_eligibility_reference_id: None,
             }),
             ..item.data
         })

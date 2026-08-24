@@ -694,6 +694,7 @@ pub struct PayoutsResponseData {
     pub error_code: Option<String>,
     pub error_message: Option<String>,
     pub payout_connector_metadata: Option<pii::SecretSerdeValue>,
+    pub connector_eligibility_reference_id: Option<String>,
 }
 
 #[derive(Debug, Clone)]
