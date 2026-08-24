@@ -211,27 +211,6 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
-    blocklist (merchant_id, fingerprint_id) {
-        #[max_length = 64]
-        merchant_id -> Varchar,
-        #[max_length = 64]
-        fingerprint_id -> Varchar,
-        data_kind -> BlocklistDataKind,
-        metadata -> Nullable<Jsonb>,
-        created_at -> Timestamp,
-        #[max_length = 64]
-        processor_merchant_id -> Nullable<Varchar>,
-        #[max_length = 255]
-        created_by -> Nullable<Varchar>,
-        #[max_length = 64]
-        profile_id -> Nullable<Varchar>,
-    }
-}
-
-diesel::table! {
-    use diesel::sql_types::*;
-    use crate::enums::diesel_exports::*;
-
     blocklist_fingerprint (id) {
         id -> Int4,
         #[max_length = 64]
@@ -1955,7 +1934,6 @@ diesel::allow_tables_to_appear_in_same_query!(
     api_keys,
     authentication,
     batch_blocklist_jobs,
-    blocklist,
     blocklist_fingerprint,
     blocklist_lookup,
     business_profile,

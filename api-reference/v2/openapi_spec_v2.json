@@ -9677,6 +9677,11 @@
           "created_at": {
             "type": "string",
             "format": "date-time"
+          },
+          "profile_id": {
+            "type": "string",
+            "example": "pro_abcdefghijklmnop",
+            "nullable": true
           }
         }
       },
