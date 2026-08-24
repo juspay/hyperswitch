@@ -340,7 +340,7 @@ impl PaymentMethod {
         .await
     }
 
-    pub async fn update_with_id(
+    pub async fn update_with_id_and_locker_fingerprint_id(
         self,
         conn: &PgPooledConn,
         payment_method: payment_method::PaymentMethodUpdateInternal,

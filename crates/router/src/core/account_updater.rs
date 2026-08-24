@@ -6,6 +6,7 @@ pub mod types;
 
 use api_models::payment_methods::RawPaymentMethodData;
 use common_utils::errors::CustomResult;
+use error_stack::report;
 use router_env::{instrument, logger, tracing};
 
 pub use self::store::apply_card_refresh_result;
@@ -28,7 +29,7 @@ pub async fn run_account_updater<D>(
     payment_method: &domain::PaymentMethod,
     raw_payment_method_data: Option<&RawPaymentMethodData>,
     dimensions: &D,
-) -> Option<RefreshResult>
+) -> CustomResult<RefreshResult, AccountUpdaterError>
 where
     D: dimension_state::DimensionsBase,
 {
@@ -36,11 +37,11 @@ where
         Ok(Some(config)) => config,
         Ok(None) => {
             logger::debug!("Account Updater is not enabled for these dimensions");
-            return None;
+            return Err(report!(AccountUpdaterError::NotEnabled));
         }
         Err(error) => {
             logger::warn!(?error, "Account Updater config could not be resolved");
-            return None;
+            return Err(error);
         }
     };
 
@@ -56,12 +57,8 @@ where
     )
     .await;
 
-    match &refresh_result {
-        Ok(RefreshResult::Card(card_result)) => logger::info!(
-            account_updater_outcome = card_result.outcome.as_str_name(),
-            "Account Updater refresh completed"
-        ),
-        Err(error) => logger::warn!(?error, "Account Updater refresh did not complete"),
+    if let Err(error) = &refresh_result {
+        logger::warn!(?error, "Account Updater refresh did not complete");
     }
 
     let event = account_updater_events::KafkaAccountUpdaterEvent::new(
@@ -75,7 +72,7 @@ where
 
     state.event_handler.log_event(&event);
 
-    refresh_result.ok()
+    refresh_result
 }
 
 async fn refresh_stored_payment_method(

@@ -4999,7 +4999,7 @@ pub async fn create_pm_additional_data_update(
         network_token_locker_id: nt_data.clone().map(|data| data.network_token_locker_id),
         network_token_payment_method_data: nt_data.map(|data| data.network_token_pmd.into()),
         connector_mandate_details: Box::new(connector_mandate_details_update),
-        locker_fingerprint_id: vault_fingerprint_id,
+        locker_fingerprint_id: vault_fingerprint_id.map(Some),
         external_vault_source,
         network_transaction_id,
         network_transaction_link_id: None,
@@ -5963,6 +5963,7 @@ pub async fn retrieve_payment_method(
                 &account_updater_dimensions,
             ))
             .await
+            .ok()
         }
         RawPaymentMethodFetchAccess::Denied => None,
     };
@@ -5999,18 +6000,13 @@ pub async fn retrieve_payment_method(
             .await
             .attach_printable("Failed to get raw payment method data")?;
 
-            raw_payment_method_data = match (updated_raw_data, raw_payment_method_data) {
+            match (updated_raw_data, &mut raw_payment_method_data) {
                 (
-                    Some(payment_methods::RawPaymentMethodData::Card(card_details)),
-                    Some(payment_methods::RawPaymentMethodData::CardWithNT(previous)),
-                ) => Some(payment_methods::RawPaymentMethodData::CardWithNT(
-                    payment_methods::RawCardWithNTDetails {
-                        card_details,
-                        network_token_details: previous.network_token_details,
-                    },
-                )),
-                (updated_raw_data, _) => updated_raw_data,
-            };
+                    Some(payment_methods::RawPaymentMethodData::Card(updated_card)),
+                    Some(payment_methods::RawPaymentMethodData::CardWithNT(existing)),
+                ) => existing.card_details = updated_card,
+                (updated_raw_data, existing) => *existing = updated_raw_data,
+            }
 
             updated_payment_method
         }

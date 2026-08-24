@@ -2,11 +2,12 @@ use common_enums::{connector_enums::Connector, ExecutionMode};
 use common_utils::errors::CustomResult;
 use error_stack::{report, ResultExt};
 use external_services::grpc_client::LineageIds;
-use router_env::{instrument, logger, tracing};
+use router_env::{instrument, tracing};
 use unified_connector_service_client::payments as payments_grpc;
 
 use super::types::{
-    AccountUpdaterError, CardRefreshResult, RefreshResult, ResolvedAccountUpdaterConfig,
+    AccountUpdaterError, CardOutcome, CardRefreshedData, RefreshResult,
+    ResolvedAccountUpdaterConfig,
 };
 use crate::{
     core::unified_connector_service::build_unified_connector_service_auth_metadata_without_mca,
@@ -85,36 +86,32 @@ pub async fn request_account_updater_refresh(
 
     match result {
         payments_grpc::refresh_result::Result::Card(card) => Ok(RefreshResult::Card(
-            build_card_refresh_result(card, config.service()),
+            build_card_refreshed_data(card, config.service())?,
         )),
     }
 }
 
-fn build_card_refresh_result(
+fn build_card_refreshed_data(
     card_result: payments_grpc::CardRefreshResult,
     service: Connector,
-) -> CardRefreshResult {
-    let outcome = payments_grpc::CardRefreshOutcome::try_from(card_result.outcome)
-        .unwrap_or(payments_grpc::CardRefreshOutcome::Unspecified);
+) -> CustomResult<CardRefreshedData, AccountUpdaterError> {
+    use payments_grpc::CardRefreshOutcome as Outcome;
 
-    let refreshed_card = match outcome {
-        payments_grpc::CardRefreshOutcome::CardRefreshAccountUpdated
-        | payments_grpc::CardRefreshOutcome::CardRefreshExpiryUpdated => {
-            if card_result.card.is_none() {
-                logger::warn!("Account Updater reported a card change but returned no card");
-            }
-            card_result.card
+    let reported_outcome = card_result.outcome();
+
+    let outcome = match (reported_outcome, card_result.card) {
+        (Outcome::CardRefreshAccountUpdated, Some(card)) => CardOutcome::AccountUpdated(card),
+        (Outcome::CardRefreshExpiryUpdated, Some(card)) => CardOutcome::ExpiryUpdated(card),
+        (Outcome::CardRefreshAccountUpdated | Outcome::CardRefreshExpiryUpdated, None) => {
+            return Err(report!(AccountUpdaterError::RefreshReturnedError)
+                .attach_printable("Account Updater reported a card change but returned no card"))
         }
-        payments_grpc::CardRefreshOutcome::Unspecified
-        | payments_grpc::CardRefreshOutcome::CardRefreshNoChange
-        | payments_grpc::CardRefreshOutcome::CardRefreshClosed
-        | payments_grpc::CardRefreshOutcome::CardRefreshNotFound
-        | payments_grpc::CardRefreshOutcome::CardRefreshContactIssuer => None,
+        (Outcome::CardRefreshClosed, _) => CardOutcome::Closed,
+        (Outcome::CardRefreshNoChange, _) => CardOutcome::NoChange,
+        (Outcome::CardRefreshNotFound, _) => CardOutcome::NotFound,
+        (Outcome::CardRefreshContactIssuer, _) => CardOutcome::ContactIssuer,
+        (Outcome::Unspecified, _) => CardOutcome::Unspecified,
     };
 
-    CardRefreshResult {
-        outcome,
-        refreshed_card,
-        service,
-    }
+    Ok(CardRefreshedData { outcome, service })
 }

@@ -121,20 +121,64 @@ impl From<&settings::AccountUpdaterConfig> for ResolvedAccountUpdaterConfig {
 }
 
 pub enum RefreshResult {
-    Card(CardRefreshResult),
+    Card(CardRefreshedData),
 }
 
-pub struct CardRefreshResult {
-    pub outcome: payments_grpc::CardRefreshOutcome,
-    /// Carries a card only on the outcomes that supersede the stored one.
-    pub refreshed_card: Option<payments_grpc::CardDetailsWithNoCvc>,
-    /// The service that reported the change, attributed on the rows written to apply it.
+pub struct CardRefreshedData {
+    pub outcome: CardOutcome,
     pub service: Connector,
+}
+
+pub enum CardOutcome {
+    AccountUpdated(payments_grpc::CardDetailsWithNoCvc),
+    ExpiryUpdated(payments_grpc::CardDetailsWithNoCvc),
+    Closed,
+    NoChange,
+    NotFound,
+    ContactIssuer,
+    Unspecified,
+}
+
+pub enum RefreshedCard {
+    CardOpen(payments_grpc::CardDetailsWithNoCvc),
+    CardClosed,
+}
+
+impl CardOutcome {
+    pub fn as_str_name(&self) -> &'static str {
+        match self {
+            Self::AccountUpdated(_) => {
+                payments_grpc::CardRefreshOutcome::CardRefreshAccountUpdated.as_str_name()
+            }
+            Self::ExpiryUpdated(_) => {
+                payments_grpc::CardRefreshOutcome::CardRefreshExpiryUpdated.as_str_name()
+            }
+            Self::Closed => payments_grpc::CardRefreshOutcome::CardRefreshClosed.as_str_name(),
+            Self::NoChange => payments_grpc::CardRefreshOutcome::CardRefreshNoChange.as_str_name(),
+            Self::NotFound => payments_grpc::CardRefreshOutcome::CardRefreshNotFound.as_str_name(),
+            Self::ContactIssuer => {
+                payments_grpc::CardRefreshOutcome::CardRefreshContactIssuer.as_str_name()
+            }
+            Self::Unspecified => payments_grpc::CardRefreshOutcome::Unspecified.as_str_name(),
+        }
+    }
+
+    pub fn get_new_card_details(self) -> Option<RefreshedCard> {
+        match self {
+            Self::AccountUpdated(card) | Self::ExpiryUpdated(card) => {
+                Some(RefreshedCard::CardOpen(card))
+            }
+            Self::Closed => Some(RefreshedCard::CardClosed),
+            Self::NoChange | Self::NotFound | Self::ContactIssuer | Self::Unspecified => None,
+        }
+    }
 }
 
 #[derive(Debug, thiserror::Error, serde::Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum AccountUpdaterError {
+    #[error("Account Updater is not enabled for these dimensions")]
+    NotEnabled,
     #[error("Account Updater application config is missing or invalid")]
     MissingApplicationConfig,
     #[error("Payment method is not a card")]

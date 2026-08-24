@@ -1,5 +1,3 @@
-//! Writes a refreshed card as a new payment method row under the same id, then redacts the existing row
-
 use std::str::FromStr;
 
 use common_enums::connector_enums::Connector;
@@ -7,13 +5,14 @@ use common_utils::{
     errors::CustomResult,
     ext_traits::{OptionExt, ValueExt},
     id_type, type_name,
+    types::CreatedBy,
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::payment_method_data::CardDetailsPaymentMethod;
 use router_env::{instrument, logger, tracing};
 use unified_connector_service_client::payments as payments_grpc;
 
-use super::types::{AccountUpdaterError, CardRefreshResult};
+use super::types::{AccountUpdaterError, CardRefreshedData, RefreshedCard};
 use crate::{
     core::{
         payment_methods::{self as pm_core, vault, PaymentMethodExt},
@@ -29,17 +28,13 @@ pub async fn apply_card_refresh_result(
     platform: &domain::Platform,
     profile: &domain::Profile,
     payment_method: &domain::PaymentMethod,
-    card_result: CardRefreshResult,
+    card_result: CardRefreshedData,
 ) -> CustomResult<Option<domain::PaymentMethod>, AccountUpdaterError> {
-    let CardRefreshResult {
-        outcome,
-        refreshed_card,
-        service,
-    } = card_result;
+    let CardRefreshedData { outcome, service } = card_result;
 
-    let refreshed_card = match refreshed_card {
-        Some(refreshed_card) => refreshed_card,
-        None if matches!(outcome, payments_grpc::CardRefreshOutcome::CardRefreshClosed) => {
+    let refreshed_card = match outcome.get_new_card_details() {
+        Some(RefreshedCard::CardOpen(refreshed_card)) => refreshed_card,
+        Some(RefreshedCard::CardClosed) => {
             return update_payment_method_status(
                 state,
                 platform,
@@ -147,7 +142,7 @@ pub async fn apply_card_refresh_result(
     .change_context(AccountUpdaterError::StoreFailed)
     .attach_printable("Failed to delete the superseded payment method")?;
 
-    update_payment_method_status(
+    let activated_payment_method = update_payment_method_status(
         state,
         platform,
         service,
@@ -161,8 +156,9 @@ pub async fn apply_card_refresh_result(
             "Account Updater stored the refreshed card but could not activate the row"
         )
     })
-    .or(Ok(inserted_payment_method))
-    .map(Some)
+    .unwrap_or(inserted_payment_method);
+
+    Ok(Some(activated_payment_method))
 }
 
 fn build_new_card(
@@ -223,7 +219,12 @@ async fn update_payment_method_status(
 ) -> CustomResult<domain::PaymentMethod, AccountUpdaterError> {
     let update = storage::PaymentMethodUpdate::StatusUpdate {
         status: Some(status),
-        last_modified_by: Some(account_updater_created_by(service).to_string()),
+        last_modified_by: Some(
+            CreatedBy::AccountUpdater {
+                service: service.to_string(),
+            }
+            .to_string(),
+        ),
     };
 
     state
@@ -237,12 +238,6 @@ async fn update_payment_method_status(
         )
         .await
         .change_context(AccountUpdaterError::StoreFailed)
-}
-
-fn account_updater_created_by(service: Connector) -> common_utils::types::CreatedBy {
-    common_utils::types::CreatedBy::AccountUpdater {
-        service: service.to_string(),
-    }
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -259,7 +254,9 @@ async fn build_refreshed_payment_method(
     payment_method_subtype: Option<common_enums::PaymentMethodType>,
 ) -> CustomResult<domain::PaymentMethod, AccountUpdaterError> {
     let now = common_utils::date_time::now();
-    let created_by = account_updater_created_by(service);
+    let created_by = CreatedBy::AccountUpdater {
+        service: service.to_string(),
+    };
     let created_by_string = created_by.to_string();
 
     let encrypted_payment_method_data = core_utils::create_encrypted_data(
@@ -276,22 +273,40 @@ async fn build_refreshed_payment_method(
     .attach_printable("Failed to parse the encrypted refreshed card")?;
 
     Ok(domain::PaymentMethod {
-        payment_method_data: Some(encrypted_payment_method_data),
-        locker_id,
-        locker_fingerprint_id: Some(locker_fingerprint_id),
-        auxiliary_fingerprint_id: Some(auxiliary_fingerprint_id),
+        id: payment_method.id.clone(),
+        customer_id: payment_method.customer_id.clone(),
+        merchant_id: payment_method.merchant_id.clone(),
         external_vault_source,
-        status: common_enums::PaymentMethodStatus::New,
         created_at: now,
         last_modified: now,
-        last_modified_by: Some(created_by),
-        updated_by: Some(created_by_string),
+        payment_method_type: payment_method.payment_method_type,
         payment_method_subtype: payment_method_subtype.or(payment_method.payment_method_subtype),
-
+        payment_method_data: Some(encrypted_payment_method_data),
+        locker_id,
+        last_used_at: now,
         connector_mandate_details: None,
+        customer_acceptance: payment_method.customer_acceptance.clone(),
+        status: common_enums::PaymentMethodStatus::New,
+        network_transaction_id: payment_method.network_transaction_id.clone(),
+        network_transaction_link_id: payment_method.network_transaction_link_id.clone(),
         client_secret: None,
-
-        ..payment_method.clone()
+        payment_method_billing_address: payment_method.payment_method_billing_address.clone(),
+        updated_by: Some(created_by_string),
+        locker_fingerprint_id: Some(locker_fingerprint_id),
+        auxiliary_fingerprint_id: Some(auxiliary_fingerprint_id),
+        version: payment_method.version,
+        network_token_requestor_reference_id: payment_method
+            .network_token_requestor_reference_id
+            .clone(),
+        network_token_locker_id: payment_method.network_token_locker_id.clone(),
+        network_token_payment_method_data: payment_method.network_token_payment_method_data.clone(),
+        external_vault_token_data: payment_method.external_vault_token_data.clone(),
+        vault_type: payment_method.vault_type,
+        created_by: Some(created_by.clone()),
+        last_modified_by: Some(created_by),
+        customer_details: payment_method.customer_details.clone(),
+        network_tokenization_data: payment_method.network_tokenization_data.clone(),
+        compatibility_updated_at: None,
     })
 }
 
