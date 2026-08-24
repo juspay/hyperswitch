@@ -517,6 +517,46 @@ impl RevenueRecoveryAttempt {
             },
         )
     }
+    /// Billing connectors send the card bin but not the issuer level details of the card, those
+    /// have to be looked up locally from the `card_info` table using the bin. This enriches the
+    /// attempt's card info in place, so that every consumer built from it, the payment attempt,
+    /// the payment intent's feature metadata and the payment processor token in redis, sees the
+    /// same enriched data. Details already sent by the billing connector are left untouched, and
+    /// a webhook without a bin is left as is instead of being failed.
+    async fn enrich_card_info_using_card_bin(&mut self, state: &SessionState) {
+        let card_bin_info = self
+            .0
+            .card_info
+            .card_isin
+            .clone()
+            .async_and_then(|card_isin| async move {
+                state
+                    .store
+                    .get_card_info(card_isin.as_str())
+                    .await
+                    .map_err(|error| services::logger::warn!(card_info_error=?error))
+                    .ok()
+            })
+            .await
+            .flatten();
+
+        if let Some(card_bin_info) = card_bin_info {
+            let card_info = &mut self.0.card_info;
+            card_info.card_issuer = card_info.card_issuer.take().or(card_bin_info.card_issuer);
+            card_info.card_network = card_info.card_network.take().or(card_bin_info.card_network);
+            card_info.card_type = card_info.card_type.take().or(card_bin_info.card_type);
+            card_info.card_issuing_country = card_info
+                .card_issuing_country
+                .take()
+                .or(card_bin_info.card_issuing_country);
+            card_info.card_issuing_country_code = card_info
+                .card_issuing_country_code
+                .take()
+                .or(card_bin_info.country_code);
+            card_info.bank_code = card_info.bank_code.take().or(card_bin_info.bank_code);
+        }
+    }
+
     pub fn get_revenue_recovery_attempt(
         payment_intent: &domain_payments::PaymentIntent,
         revenue_recovery_metadata: &api_payments::PaymentRevenueRecoveryMetadata,
@@ -851,12 +891,17 @@ impl RevenueRecoveryAttempt {
     > {
         let payment_attempt_with_recovery_intent = match is_recovery_transaction_event {
             true => {
-                let invoice_transaction_details = Self::get_recovery_invoice_transaction_details(
-                    connector_enum,
-                    request_details,
-                    billing_connector_payment_details,
-                    invoice_details,
-                )?;
+                let mut invoice_transaction_details =
+                    Self::get_recovery_invoice_transaction_details(
+                        connector_enum,
+                        request_details,
+                        billing_connector_payment_details,
+                        invoice_details,
+                    )?;
+
+                // Boxed to keep this future off the enclosing state machine, the recovery webhook
+                // chain is deep enough that inlining it can overflow the worker thread's stack.
+                Box::pin(invoice_transaction_details.enrich_card_info_using_card_bin(state)).await;
 
                 // Find the payment merchant connector ID at the top level to avoid multiple DB calls.
                 let payment_merchant_connector_account = invoice_transaction_details

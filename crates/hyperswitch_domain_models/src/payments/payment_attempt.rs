@@ -1650,6 +1650,32 @@ impl PaymentAttempt {
         todo!()
     }
 
+    /// Funding type of the card, as stored on the attempt's payment method data.
+    pub fn extract_card_type(&self) -> Option<String> {
+        self.extract_additional_card_info()
+            .and_then(|card_info| card_info.card_type)
+    }
+
+    /// Country in which the card was issued, as stored on the attempt's payment method data.
+    pub fn extract_card_issuing_country(&self) -> Option<String> {
+        self.extract_additional_card_info()
+            .and_then(|card_info| card_info.card_issuing_country)
+    }
+
+    /// Issuer identification number of the card, as stored on the attempt's payment method data.
+    pub fn extract_card_isin(&self) -> Option<String> {
+        self.extract_additional_card_info()
+            .and_then(|card_info| card_info.card_isin)
+    }
+
+    /// The card details recorded on the attempt, if the payment method data holds a card.
+    fn extract_additional_card_info(&self) -> Option<api_models::payments::AdditionalCardInfo> {
+        self.get_payment_method_data()
+            .ok()
+            .flatten()
+            .and_then(|data| data.get_additional_card_info())
+    }
+
     fn get_connector_metadata_value(&self) -> Option<&Value> {
         self.connector_metadata
             .as_ref()
@@ -3662,5 +3688,60 @@ impl From<DieselPaymentAttemptFeatureMetadata> for PaymentAttemptFeatureMetadata
                     charge_id: recovery_data.charge_id,
                 });
         Self { revenue_recovery }
+    }
+}
+
+#[cfg(all(test, feature = "v2"))]
+mod card_info_extraction_tests {
+    use api_models::payments::{AdditionalCardInfo, AdditionalPaymentData};
+    use common_utils::ext_traits::{Encode, ValueExt};
+
+    /// The enriched card details are stored on the attempt's `payment_method_data` and read back
+    /// from there when the payment intent's feature metadata is built, so the fields have to
+    /// survive that json round trip.
+    #[test]
+    fn enriched_card_details_survive_the_payment_method_data_round_trip() {
+        let card_info = AdditionalCardInfo {
+            card_issuer: Some("JP MORGAN CHASE".to_string()),
+            card_type: Some("credit".to_string()),
+            card_issuing_country: Some("UNITED STATES".to_string()),
+            card_isin: Some("424242".to_string()),
+            ..Default::default()
+        };
+
+        let stored_value = AdditionalPaymentData::Card(Box::new(card_info))
+            .encode_to_value()
+            .expect("additional payment data should serialize");
+
+        let parsed = stored_value
+            .parse_value::<AdditionalPaymentData>("AdditionalPaymentData")
+            .expect("additional payment data should deserialize")
+            .get_additional_card_info()
+            .expect("card details should be present");
+
+        assert_eq!(parsed.card_type.as_deref(), Some("credit"));
+        assert_eq!(
+            parsed.card_issuing_country.as_deref(),
+            Some("UNITED STATES")
+        );
+        assert_eq!(parsed.card_issuer.as_deref(), Some("JP MORGAN CHASE"));
+        assert_eq!(parsed.card_isin.as_deref(), Some("424242"));
+    }
+
+    /// A webhook without a card bin leaves the enriched fields empty rather than failing.
+    #[test]
+    fn missing_card_details_round_trip_as_none() {
+        let stored_value = AdditionalPaymentData::Card(Box::default())
+            .encode_to_value()
+            .expect("additional payment data should serialize");
+
+        let parsed = stored_value
+            .parse_value::<AdditionalPaymentData>("AdditionalPaymentData")
+            .expect("additional payment data should deserialize")
+            .get_additional_card_info()
+            .expect("card details should be present");
+
+        assert_eq!(parsed.card_type, None);
+        assert_eq!(parsed.card_issuing_country, None);
     }
 }

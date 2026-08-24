@@ -893,6 +893,9 @@ impl ApiModelToDieselModelConvertor<ApiBillingConnectorAdditionalCardInfo>
         Self {
             card_issuer: from.card_issuer,
             card_network: from.card_network,
+            card_type: from.card_type,
+            card_issuing_country: from.card_issuing_country,
+            card_isin: from.card_isin,
         }
     }
 
@@ -900,6 +903,9 @@ impl ApiModelToDieselModelConvertor<ApiBillingConnectorAdditionalCardInfo>
         ApiBillingConnectorAdditionalCardInfo {
             card_issuer: self.card_issuer,
             card_network: self.card_network,
+            card_type: self.card_type,
+            card_issuing_country: self.card_issuing_country,
+            card_isin: self.card_isin,
         }
     }
 }
