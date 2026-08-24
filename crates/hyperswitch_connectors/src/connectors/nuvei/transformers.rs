@@ -1952,6 +1952,7 @@ impl TryFrom<PayoutsResponseRouterData<PoFulfill, NuveiPayoutResponse>>
                     error_code: None,
                     error_message: None,
                     payout_connector_metadata: None,
+                    connector_eligibility_reference_id: None,
                 }),
                 ..item.data
             }),
@@ -1966,6 +1967,7 @@ impl TryFrom<PayoutsResponseRouterData<PoFulfill, NuveiPayoutResponse>>
                     error_code: Some(error_response_data.err_code.to_string()),
                     error_message: error_response_data.reason.clone(),
                     payout_connector_metadata: None,
+                    connector_eligibility_reference_id: None,
                 }),
                 ..item.data
             }),
