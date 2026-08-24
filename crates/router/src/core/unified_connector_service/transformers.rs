@@ -4956,9 +4956,7 @@ impl transformers::ForeignTryFrom<common_enums::BankNames> for payments_grpc::Ba
             common_enums::BankNames::BancaTerreEtruscheEDiMaremma => {
                 Ok(Self::BancaTerreEtruscheEDiMaremma)
             }
-            common_enums::BankNames::BancaTerritoriDelMonviso => {
-                Ok(Self::BancaTerritoriDelMonviso)
-            }
+            common_enums::BankNames::BancaTerritoriDelMonviso => Ok(Self::BancaTerritoriDelMonviso),
             common_enums::BankNames::BancaValsabbina => Ok(Self::BancaValsabbina),
             common_enums::BankNames::BancaVeroneseCcDiConcamarise => {
                 Ok(Self::BancaVeroneseCcDiConcamarise)
@@ -5017,30 +5015,22 @@ impl transformers::ForeignTryFrom<common_enums::BankNames> for payments_grpc::Ba
             }
             common_enums::BankNames::BccCentroCalabria => Ok(Self::BccCentroCalabria),
             common_enums::BankNames::BccConversano => Ok(Self::BccConversano),
-            common_enums::BankNames::BccDegliUliviTerraDiBari => {
-                Ok(Self::BccDegliUliviTerraDiBari)
-            }
+            common_enums::BankNames::BccDegliUliviTerraDiBari => Ok(Self::BccDegliUliviTerraDiBari),
             common_enums::BankNames::BccDeiCastelliEDegliIblei => {
                 Ok(Self::BccDeiCastelliEDegliIblei)
             }
             common_enums::BankNames::BccDeiColliAlbani => Ok(Self::BccDeiColliAlbani),
-            common_enums::BankNames::BccDelCirceoEPrivernate => {
-                Ok(Self::BccDelCirceoEPrivernate)
-            }
+            common_enums::BankNames::BccDelCirceoEPrivernate => Ok(Self::BccDelCirceoEPrivernate),
             common_enums::BankNames::BccDelGarda => Ok(Self::BccDelGarda),
             common_enums::BankNames::BccDelMetauro => Ok(Self::BccDelMetauro),
             common_enums::BankNames::BccDelVelino => Ok(Self::BccDelVelino),
             common_enums::BankNames::BccDellAltaMurgia => Ok(Self::BccDellAltaMurgia),
-            common_enums::BankNames::BccDellaProvinciaRomana => {
-                Ok(Self::BccDellaProvinciaRomana)
-            }
+            common_enums::BankNames::BccDellaProvinciaRomana => Ok(Self::BccDellaProvinciaRomana),
             common_enums::BankNames::BccDellaRomagnaOccidentale => {
                 Ok(Self::BccDellaRomagnaOccidentale)
             }
             common_enums::BankNames::BccDelleMadonie => Ok(Self::BccDelleMadonie),
-            common_enums::BankNames::BccDiAltofonteECaccamo => {
-                Ok(Self::BccDiAltofonteECaccamo)
-            }
+            common_enums::BankNames::BccDiAltofonteECaccamo => Ok(Self::BccDiAltofonteECaccamo),
             common_enums::BankNames::BccDiAquara => Ok(Self::BccDiAquara),
             common_enums::BankNames::BccDiArborea => Ok(Self::BccDiArborea),
             common_enums::BankNames::BccDiBari => Ok(Self::BccDiBari),
@@ -5063,9 +5053,7 @@ impl transformers::ForeignTryFrom<common_enums::BankNames> for payments_grpc::Ba
             common_enums::BankNames::BccDiFilottrano => Ok(Self::BccDiFilottrano),
             common_enums::BankNames::BccDiFlumeri => Ok(Self::BccDiFlumeri),
             common_enums::BankNames::BccDiGambatesa => Ok(Self::BccDiGambatesa),
-            common_enums::BankNames::BccDiGaudianoDiLavello => {
-                Ok(Self::BccDiGaudianoDiLavello)
-            }
+            common_enums::BankNames::BccDiGaudianoDiLavello => Ok(Self::BccDiGaudianoDiLavello),
             common_enums::BankNames::BccDiLeverano => Ok(Self::BccDiLeverano),
             common_enums::BankNames::BccDiLocorotondo => Ok(Self::BccDiLocorotondo),
             common_enums::BankNames::BccDiMontepaone => Ok(Self::BccDiMontepaone),
@@ -5073,26 +5061,18 @@ impl transformers::ForeignTryFrom<common_enums::BankNames> for payments_grpc::Ba
             common_enums::BankNames::BccDiOstraEMorroDAlba => Ok(Self::BccDiOstraEMorroDAlba),
             common_enums::BankNames::BccDiOstuni => Ok(Self::BccDiOstuni),
             common_enums::BankNames::BccDiPachino => Ok(Self::BccDiPachino),
-            common_enums::BankNames::BccDiPergolaECorinaldo => {
-                Ok(Self::BccDiPergolaECorinaldo)
-            }
+            common_enums::BankNames::BccDiPergolaECorinaldo => Ok(Self::BccDiPergolaECorinaldo),
             common_enums::BankNames::BccDiPianfeiERoccaDeBaldi => {
                 Ok(Self::BccDiPianfeiERoccaDeBaldi)
             }
             common_enums::BankNames::BccDiPontassieve => Ok(Self::BccDiPontassieve),
-            common_enums::BankNames::BccDiRecanatiEColmurano => {
-                Ok(Self::BccDiRecanatiEColmurano)
-            }
+            common_enums::BankNames::BccDiRecanatiEColmurano => Ok(Self::BccDiRecanatiEColmurano),
             common_enums::BankNames::BccDiRoma => Ok(Self::BccDiRoma),
-            common_enums::BankNames::BccDiSanGiovanniRotondo => {
-                Ok(Self::BccDiSanGiovanniRotondo)
-            }
+            common_enums::BankNames::BccDiSanGiovanniRotondo => Ok(Self::BccDiSanGiovanniRotondo),
             common_enums::BankNames::BccDiSanMarzanoDiSanGiuseppe => {
                 Ok(Self::BccDiSanMarzanoDiSanGiuseppe)
             }
-            common_enums::BankNames::BccDiSanteramoInColle => {
-                Ok(Self::BccDiSanteramoInColle)
-            }
+            common_enums::BankNames::BccDiSanteramoInColle => Ok(Self::BccDiSanteramoInColle),
             common_enums::BankNames::BccDiSarsina => Ok(Self::BccDiSarsina),
             common_enums::BankNames::BccDiScafatiECetara => Ok(Self::BccDiScafatiECetara),
             common_enums::BankNames::BccDiSmarcoDeiCavoti => Ok(Self::BccDiSmarcoDeiCavoti),
@@ -5381,13 +5361,9 @@ impl transformers::ForeignTryFrom<common_enums::BankNames> for payments_grpc::Ba
             common_enums::BankNames::RaiffeisenUltimospancrlaur => {
                 Ok(Self::RaiffeisenUltimospancrlaur)
             }
-            common_enums::BankNames::RaiffeisenUntereisacktal => {
-                Ok(Self::RaiffeisenUntereisacktal)
-            }
+            common_enums::BankNames::RaiffeisenUntereisacktal => Ok(Self::RaiffeisenUntereisacktal),
             common_enums::BankNames::RaiffeisenUnterland => Ok(Self::RaiffeisenUnterland),
-            common_enums::BankNames::RaiffeisenUntervinschgau => {
-                Ok(Self::RaiffeisenUntervinschgau)
-            }
+            common_enums::BankNames::RaiffeisenUntervinschgau => Ok(Self::RaiffeisenUntervinschgau),
             common_enums::BankNames::RaiffeisenValBadia => Ok(Self::RaiffeisenValBadia),
             common_enums::BankNames::RaiffeisenValGardena => Ok(Self::RaiffeisenValGardena),
             common_enums::BankNames::RaiffeisenValPassiria => Ok(Self::RaiffeisenValPassiria),
@@ -5413,9 +5389,7 @@ impl transformers::ForeignTryFrom<common_enums::BankNames> for payments_grpc::Ba
             common_enums::BankNames::SuedtirolerVolksbank => Ok(Self::SuedtirolerVolksbank),
             common_enums::BankNames::Unicredit => Ok(Self::Unicredit),
             common_enums::BankNames::UnicreditOnlineBanking => Ok(Self::UnicreditOnlineBanking),
-            common_enums::BankNames::UnicreditUniwebCorporate => {
-                Ok(Self::UnicreditUniwebCorporate)
-            }
+            common_enums::BankNames::UnicreditUniwebCorporate => Ok(Self::UnicreditUniwebCorporate),
             common_enums::BankNames::ValpolicellaBenacoBanca => Ok(Self::ValpolicellaBenacoBanca),
             common_enums::BankNames::Volksbank => Ok(Self::Volksbank),
             common_enums::BankNames::VolksbankBancaPopolare => Ok(Self::VolksbankBancaPopolare),

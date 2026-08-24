@@ -1181,7 +1181,9 @@ impl ForeignTryFrom<payments_grpc::BankNames> for common_enums::BankNames {
             payments_grpc::BankNames::BancaDiUdineCreditoCoop => Ok(Self::BancaDiUdineCreditoCoop),
             payments_grpc::BankNames::BancaDonRizzo => Ok(Self::BancaDonRizzo),
             payments_grpc::BankNames::BancaFideuram => Ok(Self::BancaFideuram),
-            payments_grpc::BankNames::BancaFinnatEuramericaSpa => Ok(Self::BancaFinnatEuramericaSpa),
+            payments_grpc::BankNames::BancaFinnatEuramericaSpa => {
+                Ok(Self::BancaFinnatEuramericaSpa)
+            }
             payments_grpc::BankNames::BancaGeneraliSpa => Ok(Self::BancaGeneraliSpa),
             payments_grpc::BankNames::BancaLazioNord => Ok(Self::BancaLazioNord),
             payments_grpc::BankNames::BancaMalatestiana => Ok(Self::BancaMalatestiana),
@@ -1285,23 +1287,17 @@ impl ForeignTryFrom<payments_grpc::BankNames> for common_enums::BankNames {
                 Ok(Self::BccDeiCastelliEDegliIblei)
             }
             payments_grpc::BankNames::BccDeiColliAlbani => Ok(Self::BccDeiColliAlbani),
-            payments_grpc::BankNames::BccDelCirceoEPrivernate => {
-                Ok(Self::BccDelCirceoEPrivernate)
-            }
+            payments_grpc::BankNames::BccDelCirceoEPrivernate => Ok(Self::BccDelCirceoEPrivernate),
             payments_grpc::BankNames::BccDelGarda => Ok(Self::BccDelGarda),
             payments_grpc::BankNames::BccDelMetauro => Ok(Self::BccDelMetauro),
             payments_grpc::BankNames::BccDelVelino => Ok(Self::BccDelVelino),
             payments_grpc::BankNames::BccDellAltaMurgia => Ok(Self::BccDellAltaMurgia),
-            payments_grpc::BankNames::BccDellaProvinciaRomana => {
-                Ok(Self::BccDellaProvinciaRomana)
-            }
+            payments_grpc::BankNames::BccDellaProvinciaRomana => Ok(Self::BccDellaProvinciaRomana),
             payments_grpc::BankNames::BccDellaRomagnaOccidentale => {
                 Ok(Self::BccDellaRomagnaOccidentale)
             }
             payments_grpc::BankNames::BccDelleMadonie => Ok(Self::BccDelleMadonie),
-            payments_grpc::BankNames::BccDiAltofonteECaccamo => {
-                Ok(Self::BccDiAltofonteECaccamo)
-            }
+            payments_grpc::BankNames::BccDiAltofonteECaccamo => Ok(Self::BccDiAltofonteECaccamo),
             payments_grpc::BankNames::BccDiAquara => Ok(Self::BccDiAquara),
             payments_grpc::BankNames::BccDiArborea => Ok(Self::BccDiArborea),
             payments_grpc::BankNames::BccDiBari => Ok(Self::BccDiBari),
@@ -1324,9 +1320,7 @@ impl ForeignTryFrom<payments_grpc::BankNames> for common_enums::BankNames {
             payments_grpc::BankNames::BccDiFilottrano => Ok(Self::BccDiFilottrano),
             payments_grpc::BankNames::BccDiFlumeri => Ok(Self::BccDiFlumeri),
             payments_grpc::BankNames::BccDiGambatesa => Ok(Self::BccDiGambatesa),
-            payments_grpc::BankNames::BccDiGaudianoDiLavello => {
-                Ok(Self::BccDiGaudianoDiLavello)
-            }
+            payments_grpc::BankNames::BccDiGaudianoDiLavello => Ok(Self::BccDiGaudianoDiLavello),
             payments_grpc::BankNames::BccDiLeverano => Ok(Self::BccDiLeverano),
             payments_grpc::BankNames::BccDiLocorotondo => Ok(Self::BccDiLocorotondo),
             payments_grpc::BankNames::BccDiMontepaone => Ok(Self::BccDiMontepaone),
@@ -1334,26 +1328,18 @@ impl ForeignTryFrom<payments_grpc::BankNames> for common_enums::BankNames {
             payments_grpc::BankNames::BccDiOstraEMorroDAlba => Ok(Self::BccDiOstraEMorroDAlba),
             payments_grpc::BankNames::BccDiOstuni => Ok(Self::BccDiOstuni),
             payments_grpc::BankNames::BccDiPachino => Ok(Self::BccDiPachino),
-            payments_grpc::BankNames::BccDiPergolaECorinaldo => {
-                Ok(Self::BccDiPergolaECorinaldo)
-            }
+            payments_grpc::BankNames::BccDiPergolaECorinaldo => Ok(Self::BccDiPergolaECorinaldo),
             payments_grpc::BankNames::BccDiPianfeiERoccaDeBaldi => {
                 Ok(Self::BccDiPianfeiERoccaDeBaldi)
             }
             payments_grpc::BankNames::BccDiPontassieve => Ok(Self::BccDiPontassieve),
-            payments_grpc::BankNames::BccDiRecanatiEColmurano => {
-                Ok(Self::BccDiRecanatiEColmurano)
-            }
+            payments_grpc::BankNames::BccDiRecanatiEColmurano => Ok(Self::BccDiRecanatiEColmurano),
             payments_grpc::BankNames::BccDiRoma => Ok(Self::BccDiRoma),
-            payments_grpc::BankNames::BccDiSanGiovanniRotondo => {
-                Ok(Self::BccDiSanGiovanniRotondo)
-            }
+            payments_grpc::BankNames::BccDiSanGiovanniRotondo => Ok(Self::BccDiSanGiovanniRotondo),
             payments_grpc::BankNames::BccDiSanMarzanoDiSanGiuseppe => {
                 Ok(Self::BccDiSanMarzanoDiSanGiuseppe)
             }
-            payments_grpc::BankNames::BccDiSanteramoInColle => {
-                Ok(Self::BccDiSanteramoInColle)
-            }
+            payments_grpc::BankNames::BccDiSanteramoInColle => Ok(Self::BccDiSanteramoInColle),
             payments_grpc::BankNames::BccDiSarsina => Ok(Self::BccDiSarsina),
             payments_grpc::BankNames::BccDiScafatiECetara => Ok(Self::BccDiScafatiECetara),
             payments_grpc::BankNames::BccDiSmarcoDeiCavoti => Ok(Self::BccDiSmarcoDeiCavoti),
@@ -1362,7 +1348,9 @@ impl ForeignTryFrom<payments_grpc::BankNames> for common_enums::BankNames {
             payments_grpc::BankNames::BccFelsinea => Ok(Self::BccFelsinea),
             payments_grpc::BankNames::BccGTonioloDiSanCataldo => Ok(Self::BccGTonioloDiSanCataldo),
             payments_grpc::BankNames::BccGranSassoDItalia => Ok(Self::BccGranSassoDItalia),
-            payments_grpc::BankNames::BccLaRiscossaDiRegalbuto => Ok(Self::BccLaRiscossaDiRegalbuto),
+            payments_grpc::BankNames::BccLaRiscossaDiRegalbuto => {
+                Ok(Self::BccLaRiscossaDiRegalbuto)
+            }
             payments_grpc::BankNames::BccLodi => Ok(Self::BccLodi),
             payments_grpc::BankNames::BccMilano => Ok(Self::BccMilano),
             payments_grpc::BankNames::BccMontePruno => Ok(Self::BccMontePruno),
@@ -1558,9 +1546,7 @@ impl ForeignTryFrom<payments_grpc::BankNames> for common_enums::BankNames {
             payments_grpc::BankNames::RaiffeisenFunes => Ok(Self::RaiffeisenFunes),
             payments_grpc::BankNames::RaiffeisenGadertal => Ok(Self::RaiffeisenGadertal),
             payments_grpc::BankNames::RaiffeisenGroeden => Ok(Self::RaiffeisenGroeden),
-            payments_grpc::BankNames::RaiffeisenHochpustertal => {
-                Ok(Self::RaiffeisenHochpustertal)
-            }
+            payments_grpc::BankNames::RaiffeisenHochpustertal => Ok(Self::RaiffeisenHochpustertal),
             payments_grpc::BankNames::RaiffeisenKastelruthstulrich => {
                 Ok(Self::RaiffeisenKastelruthstulrich)
             }
@@ -1656,9 +1642,7 @@ impl ForeignTryFrom<payments_grpc::BankNames> for common_enums::BankNames {
             payments_grpc::BankNames::RaiffeisenValBadia => Ok(Self::RaiffeisenValBadia),
             payments_grpc::BankNames::RaiffeisenValGardena => Ok(Self::RaiffeisenValGardena),
             payments_grpc::BankNames::RaiffeisenValPassiria => Ok(Self::RaiffeisenValPassiria),
-            payments_grpc::BankNames::RaiffeisenValSarentino => {
-                Ok(Self::RaiffeisenValSarentino)
-            }
+            payments_grpc::BankNames::RaiffeisenValSarentino => Ok(Self::RaiffeisenValSarentino),
             payments_grpc::BankNames::RaiffeisenValleIsarco => Ok(Self::RaiffeisenValleIsarco),
             payments_grpc::BankNames::RaiffeisenVandoies => Ok(Self::RaiffeisenVandoies),
             payments_grpc::BankNames::RaiffeisenVillabassa => Ok(Self::RaiffeisenVillabassa),
@@ -1683,9 +1667,7 @@ impl ForeignTryFrom<payments_grpc::BankNames> for common_enums::BankNames {
             payments_grpc::BankNames::UnicreditUniwebCorporate => {
                 Ok(Self::UnicreditUniwebCorporate)
             }
-            payments_grpc::BankNames::ValpolicellaBenacoBanca => {
-                Ok(Self::ValpolicellaBenacoBanca)
-            }
+            payments_grpc::BankNames::ValpolicellaBenacoBanca => Ok(Self::ValpolicellaBenacoBanca),
             payments_grpc::BankNames::Volksbank => Ok(Self::Volksbank),
             payments_grpc::BankNames::VolksbankBancaPopolare => Ok(Self::VolksbankBancaPopolare),
             payments_grpc::BankNames::Widiba => Ok(Self::Widiba),
