@@ -199,6 +199,7 @@ impl ForeignTryFrom<api_enums::Connector> for euclid::enums::RoutableConnectors 
             api_enums::Connector::Worldline => Self::Worldline,
             api_enums::Connector::Worldpay => Self::Worldpay,
             api_enums::Connector::Worldpaymodular => Self::Worldpaymodular,
+            api_enums::Connector::Worldpayraft => Self::Worldpayraft,
             api_enums::Connector::Worldpayvantiv => Self::Worldpayvantiv,
             api_enums::Connector::Worldpayxml => Self::Worldpayxml,
             api_enums::Connector::Xendit => Self::Xendit,

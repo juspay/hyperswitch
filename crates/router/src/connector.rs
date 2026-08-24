@@ -55,7 +55,7 @@ pub use hyperswitch_connectors::connectors::{
     unified_authentication_service::UnifiedAuthenticationService, vgs, vgs::Vgs, volt, volt::Volt,
     wellsfargo, wellsfargo::Wellsfargo, wellsfargopayout, wellsfargopayout::Wellsfargopayout, wise,
     wise::Wise, worldline, worldline::Worldline, worldpay, worldpay::Worldpay, worldpaymodular,
-    worldpaymodular::Worldpaymodular, worldpayvantiv, worldpayvantiv::Worldpayvantiv, worldpayxml,
-    worldpayxml::Worldpayxml, xendit, xendit::Xendit, zen, zen::Zen, zift, zift::Zift, zsl,
-    zsl::Zsl,
+    worldpaymodular::Worldpaymodular, worldpayraft, worldpayraft::Worldpayraft, worldpayvantiv,
+    worldpayvantiv::Worldpayvantiv, worldpayxml, worldpayxml::Worldpayxml, xendit, xendit::Xendit,
+    zen, zen::Zen, zift, zift::Zift, zsl, zsl::Zsl,
 };
