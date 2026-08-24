@@ -563,6 +563,11 @@ pub enum ConnectorSpecificConfig {
         key: Secret<String>,
         merchant_id: Secret<String>,
     },
+    /// Payhound connector configuration
+    Payhound {
+        api_key: Secret<String>,
+        api_secret: Secret<String>,
+    },
     /// Barclaycard connector configuration
     Barclaycard {
         api_key: Secret<String>,
@@ -1425,6 +1430,21 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                     merchant_id: key2.clone(),
                 }),
                 _ => Err(err("Paybox requires MultiAuthKey auth type")),
+            },
+            Connector::Payhound => match auth {
+                ConnectorAuthType::SignatureKey {
+                    api_key,
+                    key1: _,
+                    api_secret,
+                } => Ok(Self::Payhound {
+                    api_key: api_key.clone(),
+                    api_secret: api_secret.clone(),
+                }),
+                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Payhound {
+                    api_key: api_key.clone(),
+                    api_secret: key1.clone(),
+                }),
+                _ => Err(err("Payhound requires SignatureKey auth type")),
             },
             Connector::Paytm => match auth {
                 ConnectorAuthType::SignatureKey {

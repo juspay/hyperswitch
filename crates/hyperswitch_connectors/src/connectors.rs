@@ -91,6 +91,7 @@ pub mod opennode;
 pub mod paybox;
 pub mod payconex;
 pub mod payeezy;
+pub mod payhound;
 pub mod payjustnow;
 pub mod payjustnowinstore;
 pub mod payload;
@@ -174,9 +175,9 @@ pub use self::{
     mifinity::Mifinity, mollie::Mollie, moneris::Moneris, mpgs::Mpgs, multisafepay::Multisafepay,
     netcetera::Netcetera, nexinets::Nexinets, nexixpay::Nexixpay, nmi::Nmi, nomupay::Nomupay,
     noon::Noon, nordea::Nordea, novalnet::Novalnet, nuvei::Nuvei, opayo::Opayo, opennode::Opennode,
-    paybox::Paybox, payconex::Payconex, payeezy::Payeezy, payjustnow::Payjustnow,
-    payjustnowinstore::Payjustnowinstore, payload::Payload, payme::Payme, payone::Payone,
-    paypal::Paypal, paysafe::Paysafe, paystack::Paystack, paytm::Paytm, payu::Payu,
+    paybox::Paybox, payconex::Payconex, payeezy::Payeezy, payhound::Payhound,
+    payjustnow::Payjustnow, payjustnowinstore::Payjustnowinstore, payload::Payload, payme::Payme,
+    payone::Payone, paypal::Paypal, paysafe::Paysafe, paystack::Paystack, paytm::Paytm, payu::Payu,
     peachpayments::Peachpayments, phonepe::Phonepe, placetopay::Placetopay, plaid::Plaid,
     powertranz::Powertranz, prophetpay::Prophetpay, rapyd::Rapyd, razorpay::Razorpay,
     recurly::Recurly, redsys::Redsys, revolv3::Revolv3, riskified::Riskified, santander::Santander,
