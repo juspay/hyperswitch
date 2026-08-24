@@ -1,5 +1,7 @@
 use api_models::payments::PaymentRevenueRecoveryMetadata;
-use common_enums::{CardNetwork, CardType, PaymentMethodType, StandardisedCode};
+// NOTE: `PaymentMethodType` is dropped from this import while the card_type dimension is
+// disabled; restore it when the commented `card_type_dim` block in `from_attempt` returns.
+use common_enums::{CardNetwork, CardType, StandardisedCode};
 use hyperswitch_domain_models::{
     payments::payment_attempt::PaymentAttempt,
     revenue_recovery::{
@@ -55,20 +57,23 @@ impl RetryOutcomeEvent {
             .as_ref()
             .and_then(|details| details.get_billing_connector_card_info());
 
-        // `card_network` is only needed for the live GSM lookup; the middle dimension is
-        // the card funding type (credit/debit), taken from the revenue recovery
-        // metadata's payment method subtype.
+        // `card_network` is needed for the live GSM lookup that resolves the error code.
         let card_network = card_details.and_then(|card| card.card_network.clone());
 
+        // INTERIM: only the error_code dimension is populated for now; `card_type` and
+        // `issuer` are recorded as `Unknown`, so the leaf key becomes `error_code/UNK/UNK`.
+        // The resolution code for both dimensions is kept below, commented out, to be
+        // re-enabled later. (Re-enabling `card_type` also needs the `PaymentMethodType`
+        // import restored.)
+        //
         // The middle dimension is the card funding type (credit/debit), read from the
-        // revenue recovery metadata's payment method subtype (the original billing
-        // payment method). Only the two card funding subtypes map onto a `CardType`;
-        // anything else is `Unknown`.
-        let card_type_dim = match revenue_recovery_metadata.payment_method_subtype {
-            PaymentMethodType::Credit => Dim::Val(CardType::Credit),
-            PaymentMethodType::Debit => Dim::Val(CardType::Debit),
-            _ => Dim::Unknown,
-        };
+        // revenue recovery metadata's payment method subtype. Only the two card funding
+        // subtypes map onto a `CardType`; anything else is `Unknown`.
+        // let card_type_dim = match revenue_recovery_metadata.payment_method_subtype {
+        //     PaymentMethodType::Credit => Dim::Val(CardType::Credit),
+        //     PaymentMethodType::Debit => Dim::Val(CardType::Debit),
+        //     _ => Dim::Unknown,
+        // };
 
         let error_code_dim =
             resolve_error_code_dim_from_attempt(state, prev_attempt, card_network).await;
@@ -76,18 +81,20 @@ impl RetryOutcomeEvent {
         // The card ISIN is stored inside the attempt's `payment_method_data` for card
         // payments. Read it the same way `PaymentAttempt::extract_card_network` reads the
         // network, then resolve the issuer from it via the `cards_info` lookup.
-        let card_isin = prev_attempt
-            .get_payment_method_data()
-            .ok()
-            .flatten()
-            .and_then(|data| data.get_additional_card_info())
-            .and_then(|card| card.card_isin);
-        let issuer_dim = resolve_issuer_dim(state, card_isin.as_deref()).await;
+        // let card_isin = prev_attempt
+        //     .get_payment_method_data()
+        //     .ok()
+        //     .flatten()
+        //     .and_then(|data| data.get_additional_card_info())
+        //     .and_then(|card| card.card_isin);
+        // let issuer_dim = resolve_issuer_dim(state, card_isin.as_deref()).await;
 
         Self::build(
             error_code_dim,
-            card_type_dim,
-            issuer_dim,
+            // card_type_dim, // TODO: re-enable the card_type dimension
+            Dim::Unknown,
+            // issuer_dim, // TODO: re-enable the issuer dimension
+            Dim::Unknown,
             success,
             payment_attempt.created_at,
         )
@@ -98,6 +105,9 @@ impl RetryOutcomeEvent {
 /// lookup table — the single source of truth for the issuer name. We deliberately
 /// do not fall back to any webhook-provided issuer. A missing ISIN, no matching
 /// `cards_info` row, or a lookup error all yield `Unknown`.
+// INTERIM: unused while the issuer dimension is disabled (see `from_attempt`); kept so it
+// can be wired back in without rewriting the resolution logic.
+#[allow(dead_code)]
 async fn resolve_issuer_dim(state: &SessionState, card_isin: Option<&str>) -> Dim<String> {
     match card_isin.map(str::trim).filter(|v| !v.is_empty()) {
         None => Dim::Unknown,

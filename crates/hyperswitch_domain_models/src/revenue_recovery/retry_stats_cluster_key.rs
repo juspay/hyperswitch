@@ -144,14 +144,20 @@ impl RetryStatsClusterKey {
         }
     }
 
-    /// Build a root node keyed on the error code alone (card_type and issuer
-    /// wildcarded). This is the granularity reads currently fetch at.
+    /// Build the interim error-code-only key: keyed on the error code with `card_type`
+    /// and `issuer` left `Unknown`, serializing to `error_code/UNK/UNK`. While those two
+    /// dimensions are not being populated, this is exactly what the write path stores,
+    /// so reads use it for an exact-key match.
     pub fn from_error_code(error_code: StandardisedCode) -> Self {
         Self {
             error_code: Dim::Val(error_code),
-            card_type: Dim::Any,
-            issuer: Dim::Any,
+            card_type: Dim::Unknown,
+            issuer: Dim::Unknown,
         }
+        // TODO(revenue-recovery roll-up): once card_type/issuer are populated again, the
+        // ancestor node keyed on the error code alone should instead wildcard the
+        // sub-dimensions (`error_code/*/*`) so it rolls up all leaves under that code:
+        //     Self { error_code: Dim::Val(error_code), card_type: Dim::Any, issuer: Dim::Any }
     }
 
     /// The key's dimension segments in persisted order. This array is the
@@ -290,9 +296,9 @@ mod tests {
     }
 
     #[test]
-    fn from_error_code_wildcards_the_rest() {
+    fn from_error_code_uses_unknown_sub_dims() {
         let key = RetryStatsClusterKey::from_error_code(StandardisedCode::InsufficientFunds);
-        assert_eq!(key.as_db_string(), "v1|insufficient_funds/*/*");
+        assert_eq!(key.as_db_string(), "v1|insufficient_funds/UNK/UNK");
     }
 
     #[test]
