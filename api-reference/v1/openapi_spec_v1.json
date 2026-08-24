@@ -17618,6 +17618,14 @@
               }
             ],
             "nullable": true
+          },
+          "paypal": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaypalConnectorMetadata"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -38310,12 +38318,35 @@
           "propertyName": "field_type"
         }
       },
+      "PaypalBonusEligibility": {
+        "type": "string",
+        "description": "Identifier whether the transaction is eligible for bonus, serialized as a string\nflag (\"0\" means ineligible, \"1\" means eligible) in the STC sender profile data",
+        "enum": [
+          "0",
+          "1"
+        ]
+      },
       "PaypalCaptureMethod": {
         "type": "string",
         "enum": [
           "capture",
           "authorize"
         ]
+      },
+      "PaypalConnectorMetadata": {
+        "type": "object",
+        "description": "PayPal connector specific metadata passed at the payment level (`connector_metadata.paypal`).\nActs as an extensible container for PayPal-specific features; the sender profile data\ndictionary sent to PayPal's Risk-as-a-Service Set Transaction Context (STC) API for\nfraud risk assessment is nested under `transaction_context`.",
+        "properties": {
+          "transaction_context": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaypalRiskData"
+              }
+            ],
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
       },
       "PaypalFlow": {
         "type": "string",
@@ -38332,6 +38363,70 @@
             "example": "johntest@test.com",
             "nullable": true,
             "maxLength": 255
+          }
+        }
+      },
+      "PaypalRiskData": {
+        "type": "object",
+        "description": "Sender profile information sent to PayPal's Risk-as-a-Service\nSet Transaction Context (STC) API for fraud risk assessment.",
+        "properties": {
+          "sender_account_id": {
+            "type": "string",
+            "description": "Unique identifier of the buyer account on the partner/merchant platform",
+            "example": "A12345N343",
+            "nullable": true
+          },
+          "sender_first_name": {
+            "type": "string",
+            "description": "First name registered with the buyer's partner/merchant account",
+            "example": "John",
+            "nullable": true
+          },
+          "sender_last_name": {
+            "type": "string",
+            "description": "Last name registered with the buyer's partner/merchant account",
+            "example": "Smith",
+            "nullable": true
+          },
+          "sender_email": {
+            "type": "string",
+            "description": "Email address registered with the buyer's partner/merchant account",
+            "example": "john@sample.com",
+            "nullable": true
+          },
+          "sender_phone": {
+            "type": "string",
+            "description": "Phone number registered with the buyer's partner/merchant account",
+            "example": "(042) 1123 4567",
+            "nullable": true
+          },
+          "sender_country_code": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CountryAlpha2"
+              }
+            ],
+            "nullable": true
+          },
+          "sender_create_date": {
+            "type": "string",
+            "description": "Date of creation of the buyer's account on the partner/merchant platform (ISO 8601 date format)",
+            "example": "2012-12-09T19:14:55.277-0:00",
+            "nullable": true
+          },
+          "cd_string_one": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaypalBonusEligibility"
+              }
+            ],
+            "nullable": true
+          },
+          "first_interaction_date": {
+            "type": "string",
+            "description": "Date when the customer made the very first payment with the partner/merchant platform (ISO 8601 date format)",
+            "example": "2022-01-03T17:16:54.433-0:00",
+            "nullable": true
           }
         }
       },
