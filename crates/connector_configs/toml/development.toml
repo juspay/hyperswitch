@@ -9048,3 +9048,36 @@ payment_method_type = "UnionPay"
 [citigate.connector_auth.BodyKey]
 api_key = "Merchant Name"
 key1 = "Merchant Password"
+[ilixium]
+[ilixium.connector_auth.SignatureKey]
+api_key = "Digest Calculation Password"
+key1 = "Merchant Id"
+api_secret = "Account Id"
+[[ilixium.credit]]
+payment_method_type = "Mastercard"
+[[ilixium.credit]]
+payment_method_type = "Visa"
+[[ilixium.credit]]
+payment_method_type = "AmericanExpress"
+[[ilixium.credit]]
+payment_method_type = "JCB"
+[[ilixium.credit]]
+payment_method_type = "Discover"
+[[ilixium.credit]]
+payment_method_type = "DinersClub"
+[[ilixium.credit]]
+payment_method_type = "UnionPay"
+[[ilixium.debit]]
+payment_method_type = "Mastercard"
+[[ilixium.debit]]
+payment_method_type = "Visa"
+[[ilixium.debit]]
+payment_method_type = "AmericanExpress"
+[[ilixium.debit]]
+payment_method_type = "JCB"
+[[ilixium.debit]]
+payment_method_type = "Discover"
+[[ilixium.debit]]
+payment_method_type = "DinersClub"
+[[ilixium.debit]]
+payment_method_type = "UnionPay"

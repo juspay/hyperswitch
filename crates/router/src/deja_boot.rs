@@ -25,19 +25,99 @@ fn non_empty(value: Option<&str>) -> Option<&str> {
     value.map(str::trim).filter(|value| !value.is_empty())
 }
 
-fn fallback_run_id() -> String {
-    let now_ns = std::time::SystemTime::now()
+/// The id a recording is known by when nothing configured one:
+/// `rec-<short sha>-<MMDDhhmm>-<instance>`, e.g. `rec-dcb9f9e-07291352-a3`.
+/// Without a known revision it falls back to the bare-timestamp form (with a
+/// warning) rather than claiming a provenance it does not have.
+fn fallback_run_id(settings: &DejaSettings) -> String {
+    let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or(std::time::Duration::ZERO)
-        .as_nanos();
-    format!("run-{now_ns}")
+        .unwrap_or(std::time::Duration::ZERO);
+    match resolved_code_sha(settings) {
+        Some(sha) => format!(
+            "rec-{}-{}-{}",
+            short_revision(&sha),
+            recording_stamp(now.as_secs()),
+            instance_discriminator(&resolved_instance_id(settings)),
+        ),
+        None => {
+            router_env::logger::warn!(
+                "deja: recording without a code revision — its id will carry no provenance. \
+                 Set deja.identity.code_sha, or build with VERGEN_GIT_SHA."
+            );
+            format!("run-{}", now.as_nanos())
+        }
+    }
+}
+
+/// A git sha shortened to the length git itself uses for a short sha.
+fn short_revision(sha: &str) -> String {
+    sha.chars()
+        .filter(char::is_ascii_alphanumeric)
+        .take(7)
+        .collect::<String>()
+        .to_ascii_lowercase()
+}
+
+/// `MMDDhhmm` UTC; the instance discriminator separates recorders that start
+/// in the same minute.
+fn recording_stamp(unix_secs: u64) -> String {
+    let (month, day) = civil_month_day(unix_secs / 86_400);
+    let today = unix_secs % 86_400;
+    format!(
+        "{month:02}{day:02}{:02}{:02}",
+        today / 3600,
+        (today % 3600) / 60
+    )
+}
+
+/// Two characters standing for the instance, so two pods that start in the
+/// same minute do not share a recording id.
+fn instance_discriminator(instance_id: &str) -> String {
+    // FNV-1a, so the same pod is always the same two characters.
+    let mut hash: u64 = 0xcbf2_9ce4_8422_2325;
+    for byte in instance_id.as_bytes() {
+        hash ^= u64::from(*byte);
+        hash = hash.wrapping_mul(0x100_0000_01b3);
+    }
+    const ALPHABET: &[u8] = b"0123456789abcdefghijklmnopqrstuvwxyz";
+    // `n % 36` always indexes the 36-byte alphabet; spelled out instead of
+    // asserted because a boot-time naming helper must not panic.
+    let pick = |n: u64| {
+        usize::try_from(n % 36)
+            .ok()
+            .and_then(|i| ALPHABET.get(i))
+            .map_or('0', |byte| char::from(*byte))
+    };
+    let a = pick(hash);
+    let b = pick(hash / 36);
+    format!("{a}{b}")
+}
+
+/// Days since the epoch to (month, day), civil-from-days.
+fn civil_month_day(days_since_epoch: u64) -> (i64, i64) {
+    // An impossible clock degrades to a valid date instead of panicking.
+    let Some(z) = i64::try_from(days_since_epoch)
+        .ok()
+        .and_then(|days| days.checked_add(719_468))
+    else {
+        return (1, 1);
+    };
+    let era = z.div_euclid(146_097);
+    let doe = z - era * 146_097;
+    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let d = doy - (153 * mp + 2) / 5 + 1;
+    let m = if mp < 10 { mp + 3 } else { mp - 9 };
+    (m, d)
 }
 
 fn configured_run_id(settings: &DejaSettings) -> String {
     settings
         .effective_run_id()
         .map(str::to_owned)
-        .unwrap_or_else(fallback_run_id)
+        .unwrap_or_else(|| fallback_run_id(settings))
 }
 
 fn configured_value(value: Option<&str>) -> Option<String> {
@@ -67,7 +147,7 @@ fn resolved_code_sha(settings: &DejaSettings) -> Option<String> {
     configured_value(settings.identity.code_sha.as_deref())
         .or_else(|| env_value_named(&settings.identity.git_sha_env))
         .or_else(|| option_env!("VERGEN_GIT_SHA").map(str::to_owned))
-        .or_else(|| Some("unknown".to_owned()))
+    // No "unknown" placeholder: absence is a fact worth being able to observe.
 }
 
 fn writer_config(settings: &DejaSettings) -> deja::WriterConfig {

@@ -297,7 +297,9 @@ fn reconstruct_from_recorded(
     recorded: serde_json::Value,
 ) -> deja::__private::Reconstructed<Result<http::Response<TonicBody>, BoxError>> {
     let Ok(envelope) = serde_json::from_value::<GrpcResultEnvelope>(recorded) else {
-        return deja::__private::Reconstructed::Failed;
+        return deja::__private::Reconstructed::Failed(::std::string::String::from(
+            "recorded value is not a `GrpcResultEnvelope`",
+        ));
     };
     match &envelope {
         GrpcResultEnvelope::Response { .. } => {
@@ -305,7 +307,10 @@ fn reconstruct_from_recorded(
                 Some(response) => {
                     deja::__private::Reconstructed::Value(Ok(response.map(TonicBody::new)))
                 }
-                None => deja::__private::Reconstructed::Failed,
+                None => deja::__private::Reconstructed::Failed(::std::string::String::from(
+                    "recorded gRPC response could not be rebuilt into an http::Response \
+                     (status line, headers or body frame missing from the envelope)",
+                )),
             }
         }
         GrpcResultEnvelope::TransportError { error } => deja::__private::Reconstructed::Value(Err(

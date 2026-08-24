@@ -71,6 +71,8 @@ pub trait RoutingAlgorithmInterface {
         )>,
     >;
 
+    /// Each profile's rules, with the merchant that **owns the profile** — the rule's
+    /// `processor_merchant_id` where a platform wrote it, its `merchant_id` otherwise.
     async fn find_rule_ids_for_profiles(
         &self,
         profile_ids: &[common_utils::id_type::ProfileId],

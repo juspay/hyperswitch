@@ -28,7 +28,7 @@ impl<T: DatabaseStore> InvoiceInterface for RouterStore<T> {
             .await
             .change_context(StorageError::DecryptionError)?;
         let conn = connection::pg_connection_write(self).await?;
-        self.call_database(key_store, inv_new.insert(&conn)).await
+        Box::pin(self.call_database(key_store, inv_new.insert(&conn))).await
     }
 
     #[instrument(skip_all)]

@@ -13,8 +13,14 @@ pub mod metrics;
 /// request module
 pub mod request;
 
+/// Boundary capture/replay for the outgoing HTTP client.
+///
+/// Public so the tape-conformance gate can reconstruct a recorded response
+/// through the SAME codec replay runs, rather than reimplementing what that
+/// codec accepts — a second copy of the rule is free to drift from the one that
+/// actually decides whether a worker lives.
 #[cfg(feature = "deja")]
-mod boundary;
+pub mod boundary;
 
 use std::{error::Error, time::Duration};
 

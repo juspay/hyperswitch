@@ -3420,9 +3420,21 @@ where
     let jwekey = state.conf.jwekey.get_inner();
     let response_type_name = type_name!(T);
 
-    let response = services::call_connector_api(state, request, flow_name, None)
-        .await
-        .change_context(errors::VaultError::ApiError)?;
+    let start = std::time::Instant::now();
+    let response_result = services::call_connector_api(state, request, flow_name, None).await;
+    if let Some(context) = state.payment_metrics_context {
+        let operation = match flow_name {
+            router_consts::LOCKER_ADD_CARD_PATH => "store",
+            router_consts::LOCKER_RETRIEVE_CARD_PATH => "retrieve",
+            router_consts::LOCKER_DELETE_CARD_PATH => "delete",
+            _ => "other",
+        };
+        let succeeded = response_result
+            .as_ref()
+            .is_ok_and(|response| response.is_ok());
+        metrics::record_vault_call(start.elapsed(), operation, succeeded, context);
+    }
+    let response = response_result.change_context(errors::VaultError::ApiError)?;
 
     let is_locker_call_succeeded = response.is_ok();
 

@@ -1,7 +1,9 @@
 pub mod bg_metrics_collector;
 pub mod request;
 
-use router_env::{counter_metric, global_meter, histogram_metric_f64};
+use std::time::Duration;
+
+use router_env::{counter_metric, global_meter, histogram_metric_f64, metric_attributes};
 
 global_meter!(GLOBAL_METER, "ROUTER_API");
 
@@ -11,6 +13,111 @@ counter_metric!(KV_MISS, GLOBAL_METER); // No. of KV misses
 // API Level Metrics
 counter_metric!(REQUESTS_RECEIVED, GLOBAL_METER);
 histogram_metric_f64!(REQUEST_TIME, GLOBAL_METER);
+
+histogram_metric_f64!(
+    PAYMENT_OPERATION_DURATION,
+    GLOBAL_METER,
+    name: "payment.operation.duration",
+    description: "Duration of completed payment domain operations",
+    unit: "s",
+);
+histogram_metric_f64!(
+    MICROSERVICE_CLIENT_CALL_DURATION,
+    GLOBAL_METER,
+    name: "microservice.client.call.duration",
+    description: "Duration of completed internal microservice call attempts",
+    unit: "s",
+);
+histogram_metric_f64!(
+    VAULT_CALL_DURATION,
+    GLOBAL_METER,
+    name: "vault.call.duration",
+    description: "Duration of completed legacy vault call attempts",
+    unit: "s",
+);
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, strum::IntoStaticStr)]
+#[strum(serialize_all = "snake_case")]
+pub enum MerchantMode {
+    Modular,
+    NonModular,
+}
+
+impl MerchantMode {
+    pub const fn from_modular_enabled(enabled: bool) -> Self {
+        if enabled {
+            Self::Modular
+        } else {
+            Self::NonModular
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct PaymentMetricsContext {
+    pub merchant_mode: MerchantMode,
+}
+
+impl PaymentMetricsContext {
+    pub const fn payments_confirm(merchant_mode: MerchantMode) -> Self {
+        Self { merchant_mode }
+    }
+}
+
+pub fn record_payment_confirm<T, E>(
+    result: &Result<T, E>,
+    duration: Duration,
+    context: PaymentMetricsContext,
+) {
+    let outcome = if result.is_ok() { "success" } else { "failure" };
+    let merchant_mode: &'static str = context.merchant_mode.into();
+    let attributes = metric_attributes!(
+        ("operation", "confirm"),
+        ("merchant_mode", merchant_mode),
+        ("outcome", outcome),
+    );
+
+    PAYMENT_OPERATION_DURATION.record(duration.as_secs_f64(), attributes);
+}
+
+pub fn record_microservice_call<T, E>(
+    result: &Result<T, E>,
+    duration: Duration,
+    service: &'static str,
+    operation: &'static str,
+    context: PaymentMetricsContext,
+) {
+    let merchant_mode: &'static str = context.merchant_mode.into();
+    MICROSERVICE_CLIENT_CALL_DURATION.record(
+        duration.as_secs_f64(),
+        metric_attributes!(
+            ("service", service),
+            ("operation", operation),
+            ("merchant_mode", merchant_mode),
+            (
+                "outcome",
+                if result.is_ok() { "success" } else { "failure" }
+            ),
+        ),
+    );
+}
+
+pub fn record_vault_call(
+    duration: Duration,
+    operation: &'static str,
+    succeeded: bool,
+    context: PaymentMetricsContext,
+) {
+    let merchant_mode: &'static str = context.merchant_mode.into();
+    VAULT_CALL_DURATION.record(
+        duration.as_secs_f64(),
+        metric_attributes!(
+            ("operation", operation),
+            ("merchant_mode", merchant_mode),
+            ("outcome", if succeeded { "success" } else { "failure" }),
+        ),
+    );
+}
 
 // Operation Level Metrics
 counter_metric!(PAYMENT_OPS_COUNT, GLOBAL_METER);

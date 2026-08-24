@@ -212,6 +212,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_capture",
+          payment_method_data: {},
         },
       },
     },
@@ -228,6 +229,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
+          payment_method_data: {},
         },
       },
     },
