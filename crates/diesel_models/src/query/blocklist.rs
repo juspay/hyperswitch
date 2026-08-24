@@ -62,7 +62,7 @@ impl Blocklist {
     // Rows written before profile scoping have a NULL profile_id and block the whole merchant,
     // so they must keep matching every profile.
     pub async fn find_by_processor_merchant_id_profile_id_fingerprint_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         profile_id: &common_utils::id_type::ProfileId,
         fingerprint_id: &str,
@@ -97,7 +97,7 @@ impl Blocklist {
     }
 
     pub async fn find_by_merchant_id_profile_id_fingerprint_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         profile_id: &common_utils::id_type::ProfileId,
         fingerprint_id: &str,
@@ -139,7 +139,7 @@ impl Blocklist {
     }
 
     pub async fn list_by_processor_merchant_id_profile_id_data_kind(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         profile_id: &common_utils::id_type::ProfileId,
         data_kind: common_enums::BlocklistDataKind,
@@ -184,7 +184,7 @@ impl Blocklist {
     }
 
     pub async fn get_count_by_processor_merchant_id_profile_id_data_kind(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         profile_id: &common_utils::id_type::ProfileId,
         data_kind: common_enums::BlocklistDataKind,
@@ -239,7 +239,7 @@ impl Blocklist {
     }
 
     pub async fn delete_by_processor_merchant_id_profile_id_fingerprint_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         profile_id: &common_utils::id_type::ProfileId,
         fingerprint_id: &str,
@@ -274,7 +274,7 @@ impl Blocklist {
     }
 
     pub async fn delete_by_merchant_id_profile_id_fingerprint_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         profile_id: &common_utils::id_type::ProfileId,
         fingerprint_id: &str,
