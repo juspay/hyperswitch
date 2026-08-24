@@ -21,15 +21,8 @@ fn lock_key_for(cluster_key: &str) -> String {
 }
 
 impl RetryOutcomeEvent {
-    /// Record this outcome into `revenue_recovery_retry_stats` (the leaf node / the
-    /// fully-qualified key), under a per-key Redis lock so concurrent writers don't
-    /// lose updates in the read-merge-write.
-    ///
-    /// Only the leaf is written here. The `chain()`/`root()`/`mid()` cluster-key
-    /// helpers are reserved for a future background roll-up job that will walk
-    /// leaf rows and maintain ancestor aggregations out-of-band; they are
-    /// intentionally not used on this hot path.
-    ///
+    /// Record this outcome into `revenue_recovery_retry_stats` under a per-key
+    /// Redis lock so concurrent writers don't lose updates in the read-merge-write.
     /// Recording is best-effort: any failure is logged and swallowed so it never
     /// affects the payment/recovery flow that invoked it.
     #[instrument(skip_all)]
@@ -62,8 +55,7 @@ impl RetryOutcomeEvent {
         let store = state.store.get_revenue_recovery_retry_stats_store();
 
         let db_key = self.key.as_db_string();
-        // Mirror the API-lock retry budget so a briefly contended key is waited on
-        // rather than immediately dropped.
+
         let lock_retries = state.conf().lock_settings.lock_retries;
         let delay_between_retries_in_milliseconds = state
             .conf()
@@ -105,8 +97,6 @@ async fn persist_node(
     let lock_key = lock_key_for(db_key);
     let lock_token = uuid::Uuid::new_v4().to_string();
 
-    // Wait for the per-key lock like the API-lock path does, so a briefly held
-    // lock doesn't cause this update to be silently dropped.
     let wait_duration =
         std::time::Duration::from_millis(u64::from(delay_between_retries_in_milliseconds));
     let mut acquired = false;

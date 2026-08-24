@@ -19,10 +19,7 @@ use crate::{
     DatabaseStore, MockDb, RouterStore,
 };
 
-/// Parse a diesel row into the strongly-typed domain model. This is the single place
-/// `cluster_key` is parsed via `RetryStatsClusterKey::from_db_string` and `stats` via
-/// `StatsDocument::from_json`, shared by the [`Conversion`] impl and the
-/// cluster-key-typed interface methods below.
+/// Parse a diesel row into the strongly-typed domain model.
 fn domain_from_diesel_row(
     item: RevenueRecoveryRetryStats,
 ) -> CustomResult<DomainRevenueRecoveryRetryStats, ValidationError> {
@@ -45,11 +42,6 @@ fn domain_from_diesel_row(
     Ok(DomainRevenueRecoveryRetryStats { cluster_key, stats })
 }
 
-/// Bridges the strongly-typed domain [`DomainRevenueRecoveryRetryStats`] to its
-/// diesel row. This is the single place `cluster_key` is serialized/parsed via
-/// `RetryStatsClusterKey` and `stats` via `StatsDocument`, so callers work in domain
-/// types instead of hand-rolling `as_db_string` / `from_json`. The key-manager
-/// parameters are unused: this row carries no encrypted fields.
 #[async_trait::async_trait]
 impl Conversion for DomainRevenueRecoveryRetryStats {
     type DstType = RevenueRecoveryRetryStats;
@@ -86,7 +78,7 @@ pub trait RevenueRecoveryRetryStatsInterface: Send + Sync {
 
     /// Fetch the stored stats document for a single cluster key (`None` when absent).
     /// Takes a [`RetryStatsClusterKey`] (serializing it internally) and returns the
-    /// parsed domain model, so callers never touch `as_db_string` / `from_json`.
+    /// parsed domain model.
     async fn find_revenue_recovery_retry_stats_by_cluster_key(
         &self,
         cluster_key: &RetryStatsClusterKey,
