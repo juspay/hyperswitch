@@ -82,8 +82,8 @@ impl EventSlots {
     ///
     /// Each derived index is then validated against its family's statically-fixed
     /// bucket count. A value that lands outside the range (which is impossible for a
-    /// well-formed timestamp) is logged as an error and left for `merge_stats` to
-    /// drop, so a malformed/mis-zoned timestamp can never write to the wrong bucket.
+    /// well-formed timestamp) is logged as an error and left for [`StatsDocument::merge`]
+    /// to drop, so a malformed/mis-zoned timestamp can never write to the wrong bucket.
     pub fn from_utc(ts: PrimitiveDateTime) -> Self {
         let utc = ts.assume_utc();
         Self {
@@ -96,7 +96,7 @@ impl EventSlots {
 
 /// Guard a derived slot index against its family's static bucket count. Returns the
 /// index unchanged, but logs an error for any out-of-range value so the anomaly is
-/// visible; `merge_stats` then drops out-of-range indices instead of misfiling them.
+/// visible; [`StatsDocument::merge`] then drops out-of-range indices instead of misfiling them.
 fn validate_slot(family: SlotFamily, slot: u8, ts: PrimitiveDateTime) -> u8 {
     if usize::from(slot) >= family.slot_count() {
         logger::error!(
@@ -185,21 +185,25 @@ impl SlotFamily {
     }
 }
 
-pub fn merge_stats(current: Option<&StatsDocument>, delta: &StatsDelta) -> StatsDocument {
-    let mut doc = current.cloned().unwrap_or_default();
-    for (family, update) in &delta.updates {
-        let slots: &mut [SlotCounter] = match family {
-            SlotFamily::Dow => &mut doc.dow,
-            SlotFamily::Dom => &mut doc.dom,
-            SlotFamily::Hod => &mut doc.hod,
-        };
-        // Out-of-range slots are dropped rather than panicking; valid time-derived
-        // slots always fall within the statically-sized bucket range.
-        if let Some(counter) = slots.get_mut(usize::from(update.slot)) {
-            counter.record(update.success);
+impl StatsDocument {
+    /// Fold a [`StatsDelta`] into this document, returning the updated document. Takes
+    /// `self` by value so calls chain fluently (`doc.merge(&d1).merge(&d2)`); start
+    /// from `StatsDocument::default()` when there is no existing document.
+    pub fn merge(mut self, delta: &StatsDelta) -> Self {
+        for (family, update) in &delta.updates {
+            let slots: &mut [SlotCounter] = match family {
+                SlotFamily::Dow => &mut self.dow,
+                SlotFamily::Dom => &mut self.dom,
+                SlotFamily::Hod => &mut self.hod,
+            };
+            // Out-of-range slots are dropped rather than panicking; valid time-derived
+            // slots always fall within the statically-sized bucket range.
+            if let Some(counter) = slots.get_mut(usize::from(update.slot)) {
+                counter.record(update.success);
+            }
         }
+        self
     }
-    doc
 }
 
 #[cfg(test)]
@@ -254,7 +258,7 @@ mod tests {
 
     #[test]
     fn merge_into_empty_creates_entries() {
-        let doc = merge_stats(None, &delta(&[(SlotFamily::Dow, 3, true)]));
+        let doc = StatsDocument::default().merge(&delta(&[(SlotFamily::Dow, 3, true)]));
         assert_eq!(doc.dow[3], SlotCounter { n: 1, k: 1 });
         assert!(is_empty(&doc.dom));
         assert!(is_empty(&doc.hod));
@@ -265,8 +269,7 @@ mod tests {
         let d1 = delta(&[(SlotFamily::Hod, 9, true)]);
         let d2 = delta(&[(SlotFamily::Hod, 9, false)]);
         let d3 = delta(&[(SlotFamily::Hod, 10, true)]);
-        let doc = merge_stats(Some(&merge_stats(None, &d1)), &d2);
-        let doc = merge_stats(Some(&doc), &d3);
+        let doc = StatsDocument::default().merge(&d1).merge(&d2).merge(&d3);
         assert_eq!(doc.hod[9], SlotCounter { n: 2, k: 1 });
         assert_eq!(doc.hod[10], SlotCounter { n: 1, k: 1 });
     }
@@ -276,18 +279,18 @@ mod tests {
         let d1 = delta(&[(SlotFamily::Dom, 9, true)]);
         let d2 = delta(&[(SlotFamily::Dom, 9, false)]);
         let d3 = delta(&[(SlotFamily::Dom, 9, true)]);
-        let left = merge_stats(Some(&merge_stats(Some(&merge_stats(None, &d1)), &d2)), &d3);
+        let left = StatsDocument::default().merge(&d1).merge(&d2).merge(&d3);
         let mut combined = StatsDelta { updates: vec![] };
         combined.updates.extend(d2.updates.clone());
         combined.updates.extend(d3.updates.clone());
-        let right = merge_stats(Some(&merge_stats(None, &d1)), &combined);
+        let right = StatsDocument::default().merge(&d1).merge(&combined);
         assert_eq!(left.dom[9], right.dom[9]);
     }
 
     #[test]
     fn out_of_range_slot_is_ignored() {
         // day-of-month index 31 is out of range (valid 0..=30) and must not panic.
-        let doc = merge_stats(None, &delta(&[(SlotFamily::Dom, 31, true)]));
+        let doc = StatsDocument::default().merge(&delta(&[(SlotFamily::Dom, 31, true)]));
         assert!(is_empty(&doc.dom));
     }
 
@@ -298,7 +301,7 @@ mod tests {
             (SlotFamily::Dom, 5, true),
             (SlotFamily::Hod, 9, true),
         ]);
-        let doc = merge_stats(None, &d);
+        let doc = StatsDocument::default().merge(&d);
         let sum = |m: &[SlotCounter]| m.iter().map(|c| c.n).sum::<u64>();
         assert_eq!(sum(&doc.dow), sum(&doc.dom));
         assert_eq!(sum(&doc.dom), sum(&doc.hod));

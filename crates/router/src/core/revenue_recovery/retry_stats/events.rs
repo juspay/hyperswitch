@@ -115,10 +115,6 @@ async fn resolve_issuer_dim(state: &SessionState, card_isin: Option<&str>) -> Di
     }
 }
 
-fn standardised_code_dim(code: Option<StandardisedCode>) -> Option<Dim<StandardisedCode>> {
-    code.map(Dim::Val)
-}
-
 /// Resolve the error-code dimension.
 ///
 /// The standardised code is resolved from the GSM table using the attempt's
@@ -146,8 +142,8 @@ async fn resolve_error_code_dim_from_attempt(
             )
             .await;
 
-            match standardised_code_dim(gsm_record.and_then(|record| record.standardised_code)) {
-                Some(dim) => dim,
+            match gsm_record.and_then(|record| record.standardised_code) {
+                Some(code) => Dim::Val(code),
                 None => {
                     logger::warn!(
                         connector_error_code = error.code,

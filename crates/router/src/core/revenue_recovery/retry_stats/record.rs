@@ -1,9 +1,6 @@
 use common_utils::errors::CustomResult;
 use error_stack::ResultExt;
-use hyperswitch_domain_models::revenue_recovery::{
-    retry_stats::RevenueRecoveryRetryStats as DomainRevenueRecoveryRetryStats,
-    retry_stats_document::merge_stats,
-};
+use hyperswitch_domain_models::revenue_recovery::retry_stats::RevenueRecoveryRetryStats as DomainRevenueRecoveryRetryStats;
 use redis_interface::SetnxReply;
 use router_env::{instrument, logger, tracing};
 use storage_impl::{
@@ -180,7 +177,7 @@ async fn merge_and_write(
 
     let record = DomainRevenueRecoveryRetryStats {
         cluster_key: event.key.clone(),
-        stats: merge_stats(current_doc.as_ref(), &event.delta),
+        stats: current_doc.unwrap_or_default().merge(&event.delta),
     };
 
     // The per-key redis lock plus the read above tell us whether the row exists, so we

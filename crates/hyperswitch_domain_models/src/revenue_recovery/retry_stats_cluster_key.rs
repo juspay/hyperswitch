@@ -146,7 +146,7 @@ impl RetryStatsClusterKey {
 
     /// Build a root node keyed on the error code alone (card_type and issuer
     /// wildcarded). This is the granularity reads currently fetch at.
-    pub fn root_from_error_code(error_code: StandardisedCode) -> Self {
+    pub fn from_error_code(error_code: StandardisedCode) -> Self {
         Self {
             error_code: Dim::Val(error_code),
             card_type: Dim::Any,
@@ -290,8 +290,8 @@ mod tests {
     }
 
     #[test]
-    fn root_from_error_code_wildcards_the_rest() {
-        let key = RetryStatsClusterKey::root_from_error_code(StandardisedCode::InsufficientFunds);
+    fn from_error_code_wildcards_the_rest() {
+        let key = RetryStatsClusterKey::from_error_code(StandardisedCode::InsufficientFunds);
         assert_eq!(key.as_db_string(), "v1|insufficient_funds/*/*");
     }
 
