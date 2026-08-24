@@ -9783,7 +9783,7 @@ pub enum BankNames {
     Yoursafe,
     N26,
     NationaleNederlanden,
-    // Eurpoean banks
+    // European banks
     AibBusiness,
     Aktia,
     Alandsbanken,
@@ -10219,7 +10219,7 @@ impl BankNames {
     }
 
     /// Overrides for banks whose correct display casing/formatting cannot be derived from the enum variant's PascalCase name alone
-    fn display_name_override(&self) -> Option<&'static str> {
+    fn display_name_override(self) -> Option<&'static str> {
         Some(match self {
             Self::AbnAmro => "ABN Amro",
             Self::Aib => "AIB",
