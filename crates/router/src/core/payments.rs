@@ -73,6 +73,7 @@ use hyperswitch_domain_models::{
     payments::{self, payment_intent::CustomerData, ClickToPayMetaData},
     router_data::{AccessToken, FeatureData},
 };
+use hyperswitch_interfaces::api::ConnectorSpecifications;
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 #[cfg(feature = "v2")]
 use operations::ValidateStatusForOperation;
@@ -859,6 +860,7 @@ where
 
     let mut connector_http_status_code = None;
     let mut external_latency = None;
+    let mut current_flow_info_for_recurrence_webhook = None;
     if let Some(connector_details) = connector {
         // Fetch and check FRM configs
         #[cfg(feature = "frm")]
@@ -1117,6 +1119,7 @@ where
 
                     connector_http_status_code = router_data.connector_http_status_code;
                     external_latency = router_data.external_latency;
+                    current_flow_info_for_recurrence_webhook = router_data.current_flow_info();
                     //add connector http status code metrics
                     add_connector_http_status_code_metrics(connector_http_status_code);
 
@@ -1342,6 +1345,7 @@ where
                     let operation = Box::new(PaymentResponse);
                     connector_http_status_code = router_data.connector_http_status_code;
                     external_latency = router_data.external_latency;
+                    current_flow_info_for_recurrence_webhook = router_data.current_flow_info();
                     //add connector http status code metrics
                     add_connector_http_status_code_metrics(connector_http_status_code);
 
@@ -1544,16 +1548,42 @@ where
         )
         .await?;
 
-    utils::trigger_payments_webhook(
-        platform,
-        business_profile,
-        cloned_payment_data,
-        state,
-        operation,
-    )
-    .await
-    .map_err(|error| logger::warn!(payments_outgoing_webhook_error=?error))
-    .ok();
+    let should_delay_webhook_for_recurring_payment = current_flow_info_for_recurrence_webhook
+        .is_some()
+        && payment_data
+            .get_payment_attempt_connector()
+            .and_then(|connector_name| {
+                api::ConnectorData::get_connector_by_name(
+                    &state.conf.connectors,
+                    connector_name,
+                    api::GetToken::Connector,
+                    None,
+                )
+                .ok()
+            })
+            .and_then(|connector_data| {
+                let setup_future_usage = payment_data.get_payment_intent().setup_future_usage;
+                connector_data
+                    .connector
+                    .is_payment_recurrence_operation_needed(
+                        setup_future_usage,
+                        current_flow_info_for_recurrence_webhook,
+                    )
+            })
+            .unwrap_or(false);
+
+    if !should_delay_webhook_for_recurring_payment {
+        utils::trigger_payments_webhook(
+            platform,
+            business_profile,
+            cloned_payment_data,
+            state,
+            operation,
+        )
+        .await
+        .map_err(|error| logger::warn!(payments_outgoing_webhook_error=?error))
+        .ok();
+    }
 
     Ok((
         payment_data,
@@ -9719,7 +9749,8 @@ async fn set_payment_method_from_token_for_modular_payment_method_flow<F, D>(
             | storage::PaymentTokenData::PermanentCard(_)
             | storage::PaymentTokenData::AuthBankDebit(_)
             | storage::PaymentTokenData::WalletToken(_)
-            | storage::PaymentTokenData::BankDebit(_),
+            | storage::PaymentTokenData::BankDebit(_)
+            | storage::PaymentTokenData::BankRedirect(_),
         )
         | None => {
             logger::debug!(
@@ -10270,7 +10301,8 @@ impl PaymentEligibilityData {
             | storage::PaymentTokenData::Permanent(_)
             | storage::PaymentTokenData::AuthBankDebit(_)
             | storage::PaymentTokenData::WalletToken(_)
-            | storage::PaymentTokenData::BankDebit(_) => None,
+            | storage::PaymentTokenData::BankDebit(_)
+            | storage::PaymentTokenData::BankRedirect(_) => None,
         };
 
         Ok(payment_method_data)
@@ -10545,7 +10577,6 @@ pub async fn list_payments(
     profile_id_list: Option<Vec<id_type::ProfileId>>,
     constraints: api::PaymentListConstraints,
 ) -> RouterResponse<api::PaymentListResponse> {
-    helpers::validate_payment_list_request(&constraints)?;
     let processor_merchant_id = platform.get_processor().get_account().get_id();
     let db = state.store.as_ref();
     let payment_intents = helpers::filter_by_constraints(
@@ -10622,8 +10653,6 @@ pub async fn list_payments(
 ) -> RouterResponse<payments_api::PaymentListResponse> {
     common_utils::metrics::utils::record_operation_time(
         async {
-            let limit = &constraints.limit;
-            helpers::validate_payment_list_request_for_joins(*limit)?;
             let db: &dyn StorageInterface = state.store.as_ref();
             let fetch_constraints = constraints.clone().into();
             let list: Vec<(storage::PaymentIntent, Option<storage::PaymentAttempt>)> = db
@@ -10699,8 +10728,7 @@ pub async fn revenue_recovery_list_payments(
 ) -> RouterResponse<payments_api::RecoveryPaymentListResponse> {
     common_utils::metrics::utils::record_operation_time(
         async {
-            let limit = &constraints.limit;
-            helpers::validate_payment_list_request_for_joins(*limit)?;
+            // `limit` is a `PageSize`, already validated at deserialize; no extra check needed.
             let db: &dyn StorageInterface = state.store.as_ref();
             let fetch_constraints = constraints.clone().into();
             let list: Vec<(storage::PaymentIntent, Option<storage::PaymentAttempt>)> = db
@@ -10836,19 +10864,17 @@ pub async fn revenue_recovery_list_payments(
 pub async fn apply_filters_on_payments(
     state: SessionState,
     platform: domain::Platform,
-    profile_id_list: Option<Vec<id_type::ProfileId>>,
+    _profile_id_list: Option<Vec<id_type::ProfileId>>,
     constraints: api::PaymentListFilterConstraints,
 ) -> RouterResponse<api::PaymentListResponseV2> {
     common_utils::metrics::utils::record_operation_time(
         async {
-            let limit = &constraints.limit;
-            helpers::validate_payment_list_request_for_joins(*limit)?;
             let db: &dyn StorageInterface = state.store.as_ref();
-            let pi_fetch_constraints = (constraints.clone(), profile_id_list.clone()).try_into()?;
+            let fetch_constraints = constraints.clone().into();
             let list: Vec<(storage::PaymentIntent, storage::PaymentAttempt)> = db
                 .get_filtered_payment_intents_attempt(
                     platform.get_processor().get_account().get_id(),
-                    &pi_fetch_constraints,
+                    &fetch_constraints,
                     platform.get_processor().get_key_store(),
                     platform.get_processor().get_account().storage_scheme,
                 )
@@ -10860,7 +10886,7 @@ pub async fn apply_filters_on_payments(
             let active_attempt_ids = db
                 .get_filtered_active_attempt_ids_for_total_count(
                     platform.get_processor().get_account().get_id(),
-                    &pi_fetch_constraints,
+                    &fetch_constraints,
                     platform.get_processor().get_account().storage_scheme,
                 )
                 .await
@@ -13407,7 +13433,7 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
     } else {
         false
     };
-    let authentication_response = if is_external_vault_payment {
+    let authentication_response_result = if is_external_vault_payment {
         Box::pin(authentication_core::perform_authentication_proxy(
             &state,
             &platform,
@@ -13423,7 +13449,7 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
             req.device_channel,
             req.sdk_information,
         ))
-        .await?
+        .await
     } else if helpers::is_merchant_eligible_authentication_service(platform.get_processor(), &state)
         .await?
     {
@@ -13502,7 +13528,7 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
         .attach_printable("Error while updating the payment_attempt")?;
 
-        let authentication_response = authentication::AuthenticationResponse {
+        Ok(authentication::AuthenticationResponse {
             trans_status: response
                 .transaction_status
                 .unwrap_or(common_enums::TransactionStatus::VerificationNotPerformed),
@@ -13514,22 +13540,7 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
             acs_signed_content: response.acs_signed_content,
             challenge_request_key: None,
             error_message: response.error_message,
-        };
-
-        let failure_attempt_status: Option<storage_enums::AttemptStatus> =
-            authentication_response.trans_status.clone().into();
-        if failure_attempt_status == Some(storage_enums::AttemptStatus::AuthenticationFailed) {
-            update_payment_status_for_failed_external_authentication(
-                &state,
-                &platform,
-                payment_intent,
-                &payment_attempt,
-                &authentication_connector,
-            )
-            .await?;
-        }
-
-        authentication_response
+        })
     } else {
         let authentication = db
             .find_authentication_by_processor_merchant_id_authentication_id(
@@ -13556,7 +13567,7 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
         .await?
         .ok_or(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("missing payment_method_details")?;
-        let authentication_response = match Box::pin(authentication_core::perform_authentication(
+        Box::pin(authentication_core::perform_authentication(
             &state,
             business_profile.merchant_id,
             authentication_connector.clone(),
@@ -13589,42 +13600,34 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
             storage_scheme,
         ))
         .await
-        {
-            Ok(response) => response,
-            Err(error) => {
-                if let Err(update_err) = update_payment_status_for_external_authentication_failure(
-                    &state,
-                    &platform,
-                    payment_intent.clone(),
-                    &payment_attempt,
-                    &authentication_connector,
-                )
-                .await
-                {
-                    logger::error!(
-                        ?update_err,
-                        "failed to update payment status after external auth failure"
-                    );
-                }
-                return Err(error);
-            }
-        };
-
-        let failure_attempt_status: Option<storage_enums::AttemptStatus> =
-            authentication_response.trans_status.clone().into();
-        if failure_attempt_status == Some(storage_enums::AttemptStatus::AuthenticationFailed) {
-            update_payment_status_for_failed_external_authentication(
-                &state,
-                &platform,
-                payment_intent,
-                &payment_attempt,
-                &authentication_connector,
-            )
-            .await?;
-        }
-
-        authentication_response
     };
+
+    // Mark the payment as failed if the external authentication failed, once for all flows
+    let update_result = update_payment_status_on_external_authentication_failure(
+        &state,
+        &platform,
+        payment_intent,
+        &payment_attempt,
+        &authentication_connector,
+    )
+    .await;
+
+    let authentication_response = match authentication_response_result {
+        Ok(response) => {
+            update_result?;
+            response
+        }
+        Err(error) => {
+            if let Err(update_err) = update_result {
+                logger::error!(
+                    ?update_err,
+                    "failed to update payment status after external auth failure"
+                );
+            }
+            return Err(error);
+        }
+    };
+
     Ok(services::ApplicationResponse::Json(
         api_models::payments::PaymentsExternalAuthenticationResponse {
             transaction_status: authentication_response.trans_status,
@@ -13648,7 +13651,7 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
     ))
 }
 
-async fn update_payment_status_for_external_authentication_failure(
+async fn update_payment_status_on_external_authentication_failure(
     state: &SessionState,
     platform: &domain::Platform,
     payment_intent: storage::PaymentIntent,
@@ -13675,67 +13678,49 @@ async fn update_payment_status_for_external_authentication_failure(
         .attach_printable("Error while fetching authentication record")?;
 
     if authentication.authentication_status.is_failed() {
-        update_payment_status_for_failed_external_authentication(
-            state,
-            platform,
-            payment_intent,
-            payment_attempt,
-            authentication_connector,
-        )
-        .await?;
+        let storage_scheme = platform.get_processor().get_account().storage_scheme;
+        let attempt_update = storage::PaymentAttemptUpdate::AuthenticationUpdate {
+            status: storage_enums::AttemptStatus::AuthenticationFailed,
+            external_three_ds_authentication_attempted: Some(true),
+            external_threeds_authentication_type: payment_attempt
+                .external_threeds_authentication_type,
+            authentication_connector: Some(authentication_connector.to_string()),
+            authentication_id: payment_attempt.authentication_id.clone(),
+            updated_by: storage_scheme.to_string(),
+        };
+        state
+            .store
+            .update_payment_attempt_with_attempt_id(
+                payment_attempt.clone(),
+                attempt_update,
+                storage_scheme,
+                platform.get_processor().get_key_store(),
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
+            .attach_printable(
+                "Error while updating payment_attempt after external authentication failure",
+            )?;
+
+        let intent_update = storage::PaymentIntentUpdate::ManualUpdate {
+            status: Some(storage_enums::IntentStatus::Failed),
+            updated_by: storage_scheme.to_string(),
+            amount_captured: None,
+        };
+        state
+            .store
+            .update_payment_intent(
+                payment_intent,
+                intent_update,
+                platform.get_processor().get_key_store(),
+                storage_scheme,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
+            .attach_printable(
+                "Error while updating payment_intent after external authentication failure",
+            )?;
     }
-
-    Ok(())
-}
-
-async fn update_payment_status_for_failed_external_authentication(
-    state: &SessionState,
-    platform: &domain::Platform,
-    payment_intent: storage::PaymentIntent,
-    payment_attempt: &storage::PaymentAttempt,
-    authentication_connector: &str,
-) -> RouterResult<()> {
-    let storage_scheme = platform.get_processor().get_account().storage_scheme;
-    let attempt_update = storage::PaymentAttemptUpdate::AuthenticationUpdate {
-        status: storage_enums::AttemptStatus::AuthenticationFailed,
-        external_three_ds_authentication_attempted: Some(true),
-        external_threeds_authentication_type: payment_attempt.external_threeds_authentication_type,
-        authentication_connector: Some(authentication_connector.to_string()),
-        authentication_id: payment_attempt.authentication_id.clone(),
-        updated_by: storage_scheme.to_string(),
-    };
-    state
-        .store
-        .update_payment_attempt_with_attempt_id(
-            payment_attempt.clone(),
-            attempt_update,
-            storage_scheme,
-            platform.get_processor().get_key_store(),
-        )
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
-        .attach_printable(
-            "Error while updating payment_attempt after external authentication failure",
-        )?;
-
-    let intent_update = storage::PaymentIntentUpdate::ManualUpdate {
-        status: Some(storage_enums::IntentStatus::Failed),
-        updated_by: storage_scheme.to_string(),
-        amount_captured: None,
-    };
-    state
-        .store
-        .update_payment_intent(
-            payment_intent,
-            intent_update,
-            platform.get_processor().get_key_store(),
-            storage_scheme,
-        )
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
-        .attach_printable(
-            "Error while updating payment_intent after external authentication failure",
-        )?;
 
     Ok(())
 }
@@ -14981,6 +14966,7 @@ pub async fn payments_submit_eligibility(
     let offer_card_type = offer_card.and_then(|card| card.card_type.clone());
     let offer_bank_code = offer_card.and_then(|card| card.bank_code.clone());
     let offer_card_country = offer_card.and_then(|card| card.card_issuing_country.clone());
+    let offer_card_number = offer_card.map(|card| card.card_number.clone());
     let offer_payment_method_type = eligibility_req
         .payment_method_type
         .to_string()
@@ -15023,6 +15009,7 @@ pub async fn payments_submit_eligibility(
         offer_card_type,
         offer_bank_code,
         offer_card_country,
+        offer_card_number,
     )
     .await?;
 
@@ -15062,6 +15049,7 @@ async fn resolve_offer_eligibility_details(
     card_type: Option<String>,
     bank_code: Option<String>,
     card_country: Option<String>,
+    card_number: Option<::cards::CardNumber>,
 ) -> RouterResult<(
     Option<api_models::payments::EligibilityAmountDetails>,
     Option<api_models::payments::EligibilityOfferDetails>,
@@ -15091,6 +15079,25 @@ async fn resolve_offer_eligibility_details(
     match offer_context {
         None => Ok((None, None)),
         Some((offer_config, currency)) => {
+            let card_alias = match card_number.as_ref() {
+                Some(card_number) => match offer_engine::velocity::generate_card_alias(
+                    state,
+                    processor.get_account(),
+                    card_number,
+                )
+                .await
+                {
+                    Ok(alias) => Some(alias),
+                    Err(error) => {
+                        logger::warn!(
+                            ?error,
+                            "offer velocity: card_alias unavailable; treating offers as unavailable"
+                        );
+                        return Ok((None, None));
+                    }
+                },
+                None => None,
+            };
             let ctx = offer_engine::eligibility::OfferEligibilityContext {
                 payment_id: payment_id.clone(),
                 order_amount,
@@ -15103,6 +15110,7 @@ async fn resolve_offer_eligibility_details(
                 card_type,
                 bank_code,
                 card_country,
+                card_alias,
             };
 
             // A `/list` failure while Offer Engine is enabled fails eligibility.
