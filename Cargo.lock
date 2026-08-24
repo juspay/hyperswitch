@@ -562,7 +562,7 @@ dependencies = [
  "memchr",
  "proc-macro2",
  "quote",
- "rustc-hash 2.1.1",
+ "rustc-hash 2.1.3",
  "serde",
  "serde_derive",
  "syn 2.0.101",
@@ -1559,13 +1559,13 @@ dependencies = [
  "bitflags 2.9.0",
  "cexpr",
  "clang-sys",
- "itertools 0.11.0",
+ "itertools 0.10.5",
  "log 0.4.27",
  "prettyplease",
  "proc-macro2",
  "quote",
  "regex",
- "rustc-hash 2.1.1",
+ "rustc-hash 2.1.3",
  "shlex",
  "syn 2.0.101",
 ]
@@ -2284,7 +2284,7 @@ dependencies = [
 [[package]]
 name = "config_patch_derive"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?branch=gotyme_sanlam#635f0d9412d4979ded217736c994d1a49eec50c4"
+source = "git+https://github.com/juspay/connector-service?branch=gotyme_sanlam#06d9c0e609b9ad6b1be42d9ccbdf5a242f4d598e"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -4156,7 +4156,7 @@ checksum = "32619942b8be646939eaf3db0602b39f5229b74575b67efc897811ded1db4e57"
 [[package]]
 name = "grpc-api-types"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?branch=gotyme_sanlam#635f0d9412d4979ded217736c994d1a49eec50c4"
+source = "git+https://github.com/juspay/connector-service?branch=gotyme_sanlam#06d9c0e609b9ad6b1be42d9ccbdf5a242f4d598e"
 dependencies = [
  "axum 0.8.4",
  "bytes 1.10.1",
@@ -6699,7 +6699,7 @@ dependencies = [
  "phf 0.11.2",
  "phf_codegen 0.11.2",
  "precomputed-hash",
- "rustc-hash 2.1.1",
+ "rustc-hash 2.1.3",
  "smallvec 1.15.0",
 ]
 
@@ -7430,8 +7430,8 @@ version = "0.14.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "343d3bd7056eda839b03204e68deff7d1b13aba7af2b2fd16890697274262ee7"
 dependencies = [
- "heck 0.5.0",
- "itertools 0.11.0",
+ "heck 0.4.1",
+ "itertools 0.10.5",
  "log 0.4.27",
  "multimap",
  "petgraph",
@@ -7452,7 +7452,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8a56d757972c98b346a9b766e3f02746cde6dd1cd1d1d563472929fdd74bec4d"
 dependencies = [
  "anyhow",
- "itertools 0.11.0",
+ "itertools 0.10.5",
  "proc-macro2",
  "quote",
  "syn 2.0.101",
@@ -7465,7 +7465,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "27c6023962132f4b30eb4c172c91ce92d933da334c59c23cddee82358ddafb0b"
 dependencies = [
  "anyhow",
- "itertools 0.11.0",
+ "itertools 0.10.5",
  "proc-macro2",
  "quote",
  "syn 2.0.101",
@@ -7602,7 +7602,7 @@ dependencies = [
  "pin-project-lite",
  "quinn-proto",
  "quinn-udp",
- "rustc-hash 2.1.1",
+ "rustc-hash 2.1.3",
  "rustls 0.23.27",
  "socket2 0.5.10",
  "thiserror 2.0.12",
@@ -7622,7 +7622,7 @@ dependencies = [
  "lru-slab",
  "rand 0.9.2",
  "ring 0.17.14",
- "rustc-hash 2.1.1",
+ "rustc-hash 2.1.3",
  "rustls 0.23.27",
  "rustls-pki-types",
  "slab",
@@ -8473,7 +8473,7 @@ dependencies = [
 [[package]]
 name = "rust-grpc-client"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?branch=gotyme_sanlam#635f0d9412d4979ded217736c994d1a49eec50c4"
+source = "git+https://github.com/juspay/connector-service?branch=gotyme_sanlam#06d9c0e609b9ad6b1be42d9ccbdf5a242f4d598e"
 dependencies = [
  "grpc-api-types",
 ]
@@ -8563,9 +8563,9 @@ checksum = "08d43f7aa6b08d49f382cde6a7982047c3426db949b1424bc4b7ec9ae12c6ce2"
 
 [[package]]
 name = "rustc-hash"
-version = "2.1.1"
+version = "2.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "357703d41365b4b27c590e3ed91eabb1b663f07c4c084095e60cbed4362dff0d"
+checksum = "6b1e7f9a428571be2dc5bc0505c13fb6bf936822b894ec87abf8a08a4e51742d"
 
 [[package]]
 name = "rustc_version"
@@ -10077,6 +10077,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "symlink"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a7973cce6668464ea31f176d85b13c7ab3bba2cb3b77a2ed26abd7801688010a"
+
+[[package]]
 name = "syn"
 version = "1.0.109"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -11117,12 +11123,13 @@ dependencies = [
 
 [[package]]
 name = "tracing-appender"
-version = "0.2.3"
+version = "0.2.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3566e8ce28cc0a3fe42519fc80e6b4c943cc4c8cef275620eb8dac2d3d4e06cf"
+checksum = "050686193eb999b4bb3bc2acfa891a13da00f79734704c4b8b4ef1a10b368a3c"
 dependencies = [
  "crossbeam-channel",
- "thiserror 1.0.69",
+ "symlink",
+ "thiserror 2.0.12",
  "time 0.3.41",
  "tracing-subscriber",
 ]
@@ -11327,7 +11334,7 @@ checksum = "ed646292ffc8188ef8ea4d1e0e0150fb15a5c2e12ad9b8fc191ae7a8a7f3c4b9"
 [[package]]
 name = "ucs_cards"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?branch=gotyme_sanlam#635f0d9412d4979ded217736c994d1a49eec50c4"
+source = "git+https://github.com/juspay/connector-service?branch=gotyme_sanlam#06d9c0e609b9ad6b1be42d9ccbdf5a242f4d598e"
 dependencies = [
  "bytes 1.10.1",
  "error-stack 0.4.1",
@@ -11343,7 +11350,7 @@ dependencies = [
 [[package]]
 name = "ucs_common_enums"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?branch=gotyme_sanlam#635f0d9412d4979ded217736c994d1a49eec50c4"
+source = "git+https://github.com/juspay/connector-service?branch=gotyme_sanlam#06d9c0e609b9ad6b1be42d9ccbdf5a242f4d598e"
 dependencies = [
  "serde",
  "strum 0.26.3",
@@ -11354,7 +11361,7 @@ dependencies = [
 [[package]]
 name = "ucs_common_utils"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?branch=gotyme_sanlam#635f0d9412d4979ded217736c994d1a49eec50c4"
+source = "git+https://github.com/juspay/connector-service?branch=gotyme_sanlam#06d9c0e609b9ad6b1be42d9ccbdf5a242f4d598e"
 dependencies = [
  "anyhow",
  "base64 0.21.7",

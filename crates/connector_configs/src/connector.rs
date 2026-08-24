@@ -338,6 +338,8 @@ pub struct ConnectorConfig {
     pub globepay: Option<ConnectorTomlConfig>,
     pub gocardless: Option<ConnectorTomlConfig>,
     pub gotyme_sanlam: Option<ConnectorTomlConfig>,
+    #[cfg(feature = "payouts")]
+    pub gotyme_sanlam_payout: Option<ConnectorTomlConfig>,
     pub gpayments: Option<ConnectorTomlConfig>,
     pub hipay: Option<ConnectorTomlConfig>,
     pub hyperpg: Option<ConnectorTomlConfig>,
@@ -488,6 +490,7 @@ impl ConnectorConfig {
             PayoutConnectors::Envoy => Ok(connector_data.envoy_payout),
             PayoutConnectors::Itaubank => Ok(connector_data.itaubank_payout),
             PayoutConnectors::Santander => Ok(connector_data.santander_payout),
+            PayoutConnectors::GotymeSanlam => Ok(connector_data.gotyme_sanlam_payout),
         }
     }
 

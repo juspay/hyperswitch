@@ -949,7 +949,9 @@ impl Vaultable for api::BankPayout {
                 bank_branch: None,
                 bank_country_code: None,
                 ispb: None,
-                payout_method_type: Some(PaymentMethodType::OpenBanking),
+                bank_code: None,
+                bank_account_type: None,
+                payout_method_type: Some(PaymentMethodType::Payshap),
             },
             Self::PayshapProxy(_) => TokenizedBankInsensitiveValues {
                 customer_id,
@@ -960,25 +962,7 @@ impl Vaultable for api::BankPayout {
                 ispb: None,
                 bank_code: None,
                 bank_account_type: None,
-                payout_method_type: Some(PaymentMethodType::OpenBanking),
-            },
-            Self::Payshap(_) => TokenizedBankInsensitiveValues {
-                customer_id,
-                bank_name: None,
-                bank_city: None,
-                bank_branch: None,
-                bank_country_code: None,
-                ispb: None,
-                payout_method_type: Some(PaymentMethodType::OpenBanking),
-            },
-            Self::PayshapProxy(_) => TokenizedBankInsensitiveValues {
-                customer_id,
-                bank_name: None,
-                bank_city: None,
-                bank_branch: None,
-                bank_country_code: None,
-                ispb: None,
-                payout_method_type: Some(PaymentMethodType::OpenBanking),
+                payout_method_type: Some(PaymentMethodType::PayshapProxy),
             },
         };
 
@@ -1347,6 +1331,8 @@ impl Vaultable for api::BankTransferPayout {
                 bank_city: None,
                 bank_branch: None,
                 ispb: None,
+                bank_code: None,
+                bank_account_type: None,
                 payout_method_type: Some(PaymentMethodType::Payshap),
             },
             Self::PayshapProxy(_) => TokenizedBankInsensitiveValues {
@@ -1356,6 +1342,8 @@ impl Vaultable for api::BankTransferPayout {
                 bank_city: None,
                 bank_branch: None,
                 ispb: None,
+                bank_code: None,
+                bank_account_type: None,
                 payout_method_type: Some(PaymentMethodType::PayshapProxy),
             },
         };

@@ -126,6 +126,7 @@ fn build_ucs_order_details(
                         .as_ref()
                         .map(|value| value.get_percentage()),
                     discount_type: detail.discount_type.clone(),
+                    product_link: None,
                 })
                 .collect()
         })
@@ -7617,6 +7618,7 @@ impl
                 .map(payments_grpc::SourceBankData::foreign_try_from)
                 .transpose()?,
             description: router_data.description.clone(),
+            connector_eligibility_reference_id: None,
         })
     }
 }
@@ -7909,33 +7911,69 @@ impl
         let status = common_enums::PayoutStatus::foreign_try_from(response.payout_status())
             .unwrap_or(prev_status);
 
-                let router_response = if let Some(error_info) = response.error {
-                    Err(ErrorResponse {
-                        code: error_info
-                            .connector_details
-                            .as_ref()
-                            .and_then(|cd| cd.code.clone()),
-                        error_message: error_info
-                            .connector_details
-                            .as_ref()
-                            .and_then(|cd| cd.message.clone()),
-                        payout_connector_metadata: None,
-                    })
-                } else {
-                    Ok(PayoutsResponseData {
-                        status: Some(status),
-                        connector_payout_id: response.connector_payout_id,
-                        payout_eligible: None,
-                        should_add_next_step_to_process_tracker: false,
-                        error_code: None,
-                        error_message: None,
-                        payout_connector_metadata: None,
-                    })
-                };
+        let router_response = if let Some(error_info) = response.error {
+            Err(ErrorResponse {
+                code: error_info
+                    .connector_details
+                    .as_ref()
+                    .and_then(|cd| cd.code.clone())
+                    .ok_or(
+                        error_stack::Report::new(
+                            UnifiedConnectorServiceError::ResponseDeserializationFailed,
+                        )
+                        .attach_printable("Missing error code in UCS response ErrorInfo"),
+                    )?,
+                message: error_info
+                    .connector_details
+                    .as_ref()
+                    .and_then(|cd| cd.message.clone())
+                    .ok_or(
+                        error_stack::Report::new(
+                            UnifiedConnectorServiceError::ResponseDeserializationFailed,
+                        )
+                        .attach_printable("Missing error message in UCS response ErrorInfo"),
+                    )?,
+                reason: error_info
+                    .connector_details
+                    .as_ref()
+                    .and_then(|cd| cd.reason.clone()),
+                status_code,
+                attempt_status: None,
+                connector_transaction_id: response.connector_payout_id.clone(),
+                connector_response_reference_id: response.merchant_payout_id.clone(),
+                network_decline_code: error_info.issuer_details.as_ref().and_then(|id| {
+                    id.network_details
+                        .as_ref()
+                        .and_then(|nd| nd.decline_code.clone())
+                }),
+                network_advice_code: error_info.issuer_details.as_ref().and_then(|id| {
+                    id.network_details
+                        .as_ref()
+                        .and_then(|nd| nd.advice_code.clone())
+                }),
+                network_error_message: error_info.issuer_details.as_ref().and_then(|id| {
+                    id.network_details
+                        .as_ref()
+                        .and_then(|nd| nd.error_message.clone())
+                }),
+                connector_metadata: None,
+            })
+        } else {
+            Ok(PayoutsResponseData {
+                status: Some(status),
+                connector_payout_id: response.connector_payout_id,
+                payout_eligible: response.payout_eligible,
+                should_add_next_step_to_process_tracker: false,
+                error_code: None,
+                error_message: None,
+                payout_connector_metadata: None,
+            })
+        };
 
         Ok(router_response)
     }
 }
+
 #[cfg(feature = "payouts")]
 impl_ucs_payout_response_transformation!(
     payments_grpc::PayoutServiceTransferResponse,
@@ -8315,39 +8353,6 @@ impl transformers::ForeignTryFrom<&api_models::payouts::PayshapProxyBankTransfer
 }
 
 #[cfg(feature = "payouts")]
-impl transformers::ForeignTryFrom<&api_models::payouts::PayshapBankTransfer>
-    for payments_grpc::PayshapBankTransferPayout
-{
-    type Error = error_stack::Report<UnifiedConnectorServiceError>;
-
-    fn foreign_try_from(
-        item: &api_models::payouts::PayshapBankTransfer,
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            bank_name: item.bank_name.map(payments_grpc::BankNames::foreign_try_from).transpose()?.map(|bn| bn.into()),
-            bank_account_number: Some(item.bank_account_number.clone()),
-            account_holder_name: item.account_holder_name.clone(),
-        })
-    }
-}
-
-#[cfg(feature = "payouts")]
-impl transformers::ForeignTryFrom<&api_models::payouts::PayshapProxyBankTransfer>
-    for payments_grpc::PayshapProxyBankTransferPayout
-{
-    type Error = error_stack::Report<UnifiedConnectorServiceError>;
-
-    fn foreign_try_from(
-        item: &api_models::payouts::PayshapProxyBankTransfer,
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            shap_id: item.shap_id.clone(),
-            cellphone: item.cellphone.clone(),
-        })
-    }
-}
-
-#[cfg(feature = "payouts")]
 impl transformers::ForeignTryFrom<&api_models::payouts::ApplePayDecrypt>
     for payments_grpc::ApplePayDecrypt
 {
@@ -8436,6 +8441,7 @@ impl transformers::ForeignTryFrom<&api_models::payouts::Passthrough>
         Ok(Self {
             psp_token: item.psp_token.clone().expose(),
             token_type: payments_grpc::PaymentMethodType::foreign_from(item.token_type).into(),
+            psp_customer_id: None,
         })
     }
 }
