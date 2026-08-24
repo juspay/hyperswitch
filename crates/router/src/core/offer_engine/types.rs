@@ -19,6 +19,7 @@ use super::amount;
 pub enum OfferEngineCredentialSource {
     None,
     Application,
+    Merchant,
 }
 
 #[derive(Debug, Clone)]
@@ -32,6 +33,8 @@ pub struct ResolvedOfferEngineConfig {
 pub enum OfferEngineError {
     #[error("Offer Engine application config is missing or invalid: {0}")]
     MissingApplicationConfig(String),
+    #[error("Offer Engine merchant config is missing or invalid: {0}")]
+    MissingMerchantConfig(String),
     #[error("Offer Engine request failed")]
     RequestFailed,
     #[error("Failed to parse Offer Engine response")]

@@ -1005,6 +1005,7 @@ diesel::table! {
         network_tokenization_credentials -> Nullable<Bytea>,
         #[max_length = 128]
         fingerprint_secret -> Nullable<Varchar>,
+        offer_engine_config -> Nullable<Bytea>,
     }
 }
 

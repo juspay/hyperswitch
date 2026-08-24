@@ -19,7 +19,8 @@ offer_engine_enabled = { value = false, schema = { type = "boolean" }, descripti
 offer_engine_credential_source = { value = "none", schema = { type = "string", enum = [
     "none",
     "application",
-] }, description = "Source of Offer Engine credentials once offer_engine_enabled is true: 'none' skips Offer Engine; 'application' uses the static offer_engine application config. Future org/merchant/profile sources will extend the enum alongside their credential storage.", change_reason = "Offer Engine credential source is a string enum: 'none' disables, 'application' enables; extensible to org/merchant/profile sources" }
+    "merchant",
+] }, description = "Source of Offer Engine credentials once offer_engine_enabled is true: 'none' skips Offer Engine; 'application' uses the static offer_engine application config; 'merchant' uses the per-merchant credentials stored on the merchant account. Future org/profile sources will extend the enum alongside their credential storage.", change_reason = "Offer Engine credential source is a string enum: 'none' disables, 'application' uses app config, 'merchant' uses merchant-account credentials; extensible to org/profile sources" }
 "account_updater.enabled" = { value = false, schema = { type = "boolean" }, description = "Master gate for the Account Updater integration. When false (default) Account Updater is never called, regardless of account_updater.credential_source. Set true (per tenant/env override) to allow Account Updater calls.", change_reason = "Account Updater disabled by default; enable via Superposition override" }
 "account_updater.credential_source" = { value = "none", schema = { type = "string", enum = [
     "none",

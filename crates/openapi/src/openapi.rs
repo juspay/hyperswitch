@@ -383,6 +383,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::admin::CardTestingGuardConfig,
         api_models::admin::CardTestingGuardStatus,
         api_models::admin::NetworkTokeizationProviderCredentials,
+        api_models::admin::OfferEngineMerchantConfig,
         api_models::admin::InternalNetworkTokenizationCredentials,
         api_models::admin::PaymentMethodBlockingConfig,
         api_models::admin::CardBlockingConfig,

@@ -14965,11 +14965,15 @@ async fn resolve_offer_eligibility_details(
             .with_processor_merchant_id(processor.get_processor_merchant_id())
             .with_organization_id(processor.get_account().get_org_id().clone())
             .with_profile_id(profile_id.clone());
-        offer_engine::resolve_offer_engine_config(state, &offer_dimensions)
-            .await
-            .ok()
-            .flatten()
-            .zip(currency)
+        offer_engine::resolve_offer_engine_config(
+            state,
+            &offer_dimensions,
+            processor.get_account().get_offer_engine_config(),
+        )
+        .await
+        .ok()
+        .flatten()
+        .zip(currency)
     };
 
     match offer_context {
