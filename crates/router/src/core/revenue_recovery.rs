@@ -553,36 +553,6 @@ pub async fn perform_payments_sync(
     Ok(())
 }
 
-/// Look up the failed attempt that motivated this retry chain by reading it
-/// out of the EXECUTE task's tracking data. `finish_process` only updates
-/// status fields, so the tracking payload remains readable after the EXECUTE
-/// task completes. Best-effort: any miss yields `None` and the recorder falls
-/// back to the dims of the attempt being resolved.
-async fn fetch_prev_attempt_from_execute_tracking_data(
-    db: &dyn StorageInterface,
-    payment_id: &GlobalPaymentId,
-    key_store: &hyperswitch_domain_models::merchant_key_store::MerchantKeyStore,
-    storage_scheme: common_enums::MerchantStorageScheme,
-) -> Option<PaymentAttempt> {
-    let process_tracker_id = payment_id.get_execute_revenue_recovery_id(
-        EXECUTE_WORKFLOW,
-        storage::ProcessTrackerRunner::PassiveRecoveryWorkflow,
-    );
-    let execute_task_process = db
-        .as_scheduler()
-        .find_process_by_id(&process_tracker_id)
-        .await
-        .ok()
-        .flatten()?;
-    let tracking_data = execute_task_process
-        .tracking_data
-        .parse_value::<pcr::RevenueRecoveryWorkflowTrackingData>("PCRWorkflowTrackingData")
-        .ok()?;
-    db.find_payment_attempt_by_id(key_store, &tracking_data.payment_attempt_id, storage_scheme)
-        .await
-        .ok()
-}
-
 pub async fn perform_calculate_workflow(
     state: &SessionState,
     process: &storage::ProcessTracker,
