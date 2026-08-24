@@ -10202,6 +10202,9 @@ pub enum BankNames {
 
 impl BankNames {
     pub fn to_display_name(&self) -> String {
+        if let Some(name) = self.display_name_override() {
+            return name.to_string();
+        }
         self.to_string()
             .split('_')
             .map(|word| {
@@ -10213,6 +10216,75 @@ impl BankNames {
             })
             .collect::<Vec<_>>()
             .join(" ")
+    }
+
+    /// Overrides for banks whose correct display casing/formatting cannot be derived from the enum variant's PascalCase name alone
+    fn display_name_override(&self) -> Option<&'static str> {
+        Some(match self {
+            Self::AbnAmro => "ABN Amro",
+            Self::Aib => "AIB",
+            Self::AibBusiness => "AIB Business",
+            Self::Asn => "ASN",
+            Self::AxaBanque => "AXA Banque",
+            Self::BawagPsk => "BAWAG P.S.K.",
+            Self::Bbva => "BBVA",
+            Self::Bnl => "BNL",
+            Self::BnpParibas => "BNP Paribas",
+            Self::BnpParibasFortis => "BNP Paribas Fortis",
+            Self::Bpe => "BPE",
+            Self::BperBanca => "BPER Banca",
+            Self::Banca360CreditoCooperativoFvg => "Banca 360 Credito Cooperativo Fvg",
+            Self::BancaDelCilentoDiSassanoEV => "Banca Del Cilento Di Sassano E V",
+            Self::BancaMonteDeiPaschiDiSiena => "Banca Monte dei Paschi di Siena",
+            Self::BancaPopolareDiSondrio => "Banca Popolare di Sondrio",
+            Self::BancoBpmWeBank => "Banco BPM WeBank",
+            Self::BancoBpmYouWeb => "Banco BPM YouWeb",
+            Self::BancoDeSabadell => "Banco de Sabadell",
+            Self::BancoDiSardegna => "Banco di Sardegna",
+            Self::BankOfIreland => "Bank of Ireland",
+            Self::BankOfIrelandBusiness => "Bank of Ireland Business",
+            Self::BankOfIrelandUk => "Bank of Ireland UK",
+            Self::BankOfScotland => "Bank of Scotland",
+            Self::BankOfScotlandBusiness => "Bank of Scotland Business",
+            Self::BiBanca => "BiBanca",
+            Self::BoursoBank => "BoursoBank",
+            Self::CbcBanque => "CBC Banque",
+            Self::Cic => "CIC",
+            Self::CaisseDEpargne => "Caisse d'Epargne",
+            Self::CastagnetoBanca1910 => "Castagneto Banca 1910",
+            Self::CreditMutuelDeBretagne => "Credit Mutuel de Bretagne",
+            Self::CreditMutuelDuSudOuest => "Credit Mutuel du Sud Ouest",
+            Self::Dkb => "DKB",
+            Self::Ebs => "EBS",
+            Self::EasyBank => "EasyBank",
+            Self::Hsbc => "HSBC",
+            Self::HsbcBusiness => "HSBC Business",
+            Self::HypoVereinsbank => "HypoVereinsbank",
+            Self::Ing => "ING",
+            Self::Kbc => "KBC",
+            Self::KbcBrussels => "KBC Brussels",
+            Self::Lcl => "LCL",
+            Self::MSBank => "M&S Bank",
+            Self::Mbna => "MBNA",
+            Self::NatWest => "NatWest",
+            Self::NatWestBankline => "NatWest Bankline",
+            Self::Op => "OP",
+            Self::OmaSp => "Oma SP",
+            Self::PopPankki => "POP Pankki",
+            Self::Ptsb => "PTSB",
+            Self::PostBank => "Postbank",
+            Self::PostePayEvolution => "PostePay Evolution",
+            Self::Regiobank => "RegioBank",
+            Self::RoyalBankOfScotland => "Royal Bank of Scotland",
+            Self::RoyalBankOfScotlandBankline => "Royal Bank of Scotland Bankline",
+            Self::SPankki => "S-Pankki",
+            Self::Seb => "SEB",
+            Self::Sns => "SNS",
+            Self::Tsb => "TSB",
+            Self::VirginMoneyMerged => "Virgin Money (Merged)",
+            Self::FirstDirect => "first direct",
+            _ => return None,
+        })
     }
 }
 
