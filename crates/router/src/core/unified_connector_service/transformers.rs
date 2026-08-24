@@ -7679,6 +7679,11 @@ impl
                 .transpose()?,
             description: router_data.description.clone(),
             connector_eligibility_reference_id: None,
+            payout_connector_metadata: router_data
+                .request
+                .payout_connector_metadata
+                .clone()
+                .map(|secret| Secret::new(secret.expose().to_string())),
         })
     }
 }
@@ -7962,6 +7967,15 @@ impl
                 .connector_customer
                 .clone()
                 .or_else(|| router_data.request.connector_transfer_method_id.clone()),
+            customer: Some(payments_grpc::Customer {
+                connector_customer_id: router_data.connector_customer.clone(),
+                ..router_data
+                    .request
+                    .customer_details
+                    .as_ref()
+                    .map(payments_grpc::Customer::foreign_from)
+                    .unwrap_or_default()
+            }),
             // Debtor account for connectors that need it to perform a status enquiry
             source_bank_data: router_data
                 .request
