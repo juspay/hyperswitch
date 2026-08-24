@@ -12,10 +12,6 @@ pub const KEY_SEPARATOR: char = '|';
 pub const SEGMENT_SEPARATOR: char = '/';
 pub const WILDCARD_SEGMENT: &str = "*";
 pub const UNKNOWN_SEGMENT: &str = "UNK";
-/// Number of dimension segments in a key: `error_code` / `card_type` / `issuer`.
-/// Adding or removing a dimension is a layout change — bump
-/// [`RETRY_STATS_KEY_VERSION`] together with this count.
-const SEGMENT_COUNT: usize = 3;
 
 /// A single cluster-key dimension. Generic over the strict type of its resolved
 /// value (`StandardisedCode` for the error code, `CardType` for the funding type,
@@ -106,126 +102,170 @@ fn unescape_segment(encoded: &str) -> Option<String> {
     String::from_utf8(bytes).ok()
 }
 
-/// The three-dimensional key a retry outcome is recorded under. `error_code` and
-/// `card_type` are strictly typed; `issuer` is a free-text bank name resolved from
-/// the card ISIN.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct RetryStatsClusterKey {
-    pub error_code: Dim<StandardisedCode>,
-    pub card_type: Dim<CardType>,
-    pub issuer: Dim<String>,
+/// Compile-time guard invoked once per generated key: asserts the dimension
+/// indices are exactly `0, 1, 2, …` in declaration order. This is what turns the
+/// explicit position numbers in [`define_retry_stats_key!`] from decoration into
+/// an enforced invariant — a reorder, a gap, or a duplicated index makes this
+/// `assert!` fail at compile time rather than silently shifting the wire layout.
+#[allow(clippy::indexing_slicing)]
+const fn assert_contiguous_indices(indices: &[usize]) {
+    let mut i = 0;
+    while i < indices.len() {
+        assert!(
+            indices[i] == i,
+            "retry-stats cluster key: dimension indices must be 0, 1, 2, … in \
+             declaration order. Do NOT reorder or insert dimensions — only append \
+             a new one with the next index, and bump RETRY_STATS_KEY_VERSION."
+        );
+        i += 1;
+    }
+}
+
+/// Declares the cluster key's dimensions **once**, in persisted order, and
+/// generates the struct plus the entire serialize/deserialize surface from that
+/// single ordered list: the `Dim<_>` fields, `SEGMENT_COUNT`, `segments`,
+/// `leaf`/`new`, and the exact-mirror `as_db_string` / `from_db_string` pair.
+///
+/// Each dimension carries an explicit `<index> =>` position. The index is not
+/// cosmetic: [`assert_contiguous_indices`] enforces at compile time that the
+/// indices run `0, 1, 2, …` in the order the fields are written, so the hazards
+/// called out at the invocation site turn into build failures instead of silent
+/// data corruption.
+macro_rules! define_retry_stats_key {
+    (
+        $(#[$struct_meta:meta])*
+        $vis:vis struct $name:ident {
+            $(
+                $(#[$field_meta:meta])*
+                $idx:literal => $field:ident : $ty:ty
+            ),* $(,)?
+        }
+    ) => {
+        $(#[$struct_meta])*
+        #[derive(Clone, Debug, PartialEq, Eq)]
+        $vis struct $name {
+            $(
+                $(#[$field_meta])*
+                pub $field: Dim<$ty>,
+            )*
+        }
+
+        /// Number of dimension segments in a key, derived from the dimension list
+        /// so it can never drift from the number of fields.
+        const SEGMENT_COUNT: usize = [$( $idx ),*].len();
+
+        // Compile-time check that the declared indices are `0, 1, 2, ...` in order.
+        const _: () = assert_contiguous_indices(&[$( $idx ),*]);
+
+        impl $name {
+            /// Assemble a fully-qualified (leaf) key from already-resolved dimensions.
+            pub fn leaf($($field: Dim<$ty>),*) -> Self {
+                Self { $($field),* }
+            }
+
+            /// Convenience constructor for callers (e.g. a retry algorithm) that
+            /// already hold concrete dimension values rather than `Dim`s.
+            pub fn new($($field: impl Into<$ty>),*) -> Self {
+                Self { $($field: Dim::Val($field.into())),* }
+            }
+
+            /// The key's dimension segments in persisted order. Generated straight
+            /// from the dimension list, so it is the same order `from_db_string`
+            /// consumes them in — the two can never disagree by hand.
+            fn segments(&self) -> [String; SEGMENT_COUNT] {
+                [ $( self.$field.as_segment() ),* ]
+            }
+
+            /// Serialize to the persisted `cluster_key`. Generated as the exact
+            /// mirror of `from_db_string`: both walk the dimension list in the same
+            /// order, so a stored row decodes iff the layout is unchanged.
+            pub fn as_db_string(&self) -> String {
+                let mut out = String::new();
+                out.push_str(RETRY_STATS_KEY_VERSION);
+                out.push(KEY_SEPARATOR);
+                out.push_str(&self.segments().join(&SEGMENT_SEPARATOR.to_string()));
+                out
+            }
+
+            /// Parse a persisted `cluster_key`. Generated as the exact mirror of
+            /// `as_db_string`. Parsing is strict about arity (exactly
+            /// [`SEGMENT_COUNT`] segments): a key with extra or missing segments is
+            /// rejected as `None` rather than silently truncated or padded, so a
+            /// miswritten row can never resolve to the wrong cluster.
+            pub fn from_db_string(raw: &str) -> Option<Self> {
+                let Some((version, rest)) = raw.split_once(KEY_SEPARATOR) else {
+                    logger::error!(
+                        cluster_key = raw,
+                        "revenue_recovery_retry_stats: cluster key has no version separator"
+                    );
+                    return None;
+                };
+                if version != RETRY_STATS_KEY_VERSION {
+                    logger::error!(
+                        cluster_key = raw,
+                        version,
+                        expected_version = RETRY_STATS_KEY_VERSION,
+                        "revenue_recovery_retry_stats: cluster key written under an unsupported layout version"
+                    );
+                    return None;
+                }
+                let segments = rest.split(SEGMENT_SEPARATOR).collect::<Vec<_>>();
+                let Ok([$($field),*]) = <[&str; SEGMENT_COUNT]>::try_from(segments) else {
+                    logger::error!(
+                        cluster_key = raw,
+                        expected_segments = SEGMENT_COUNT,
+                        "revenue_recovery_retry_stats: cluster key has the wrong number of segments"
+                    );
+                    return None;
+                };
+                Some(Self {
+                    $(
+                        $field: Dim::<$ty>::parse_segment($field)
+                            .or_else(|| Self::log_segment_failure(raw, stringify!($field), $field))?,
+                    )*
+                })
+            }
+        }
+    };
+}
+
+// The cluster key's single source of truth.
+//
+// ⚠️  ORDER IS A PERSISTENCE CONTRACT. The `<index> =>` position of each
+//     dimension below is the exact segment position it occupies in every row
+//     already stored in the database. Because serialization is positional:
+//
+//       • REORDERING two dimensions silently swaps the meaning of every stored
+//         segment. For same-typed dimensions (e.g. two `String`s) the generated
+//         code stays byte-identical and even the roundtrip tests still pass — the
+//         corruption is invisible to both the type checker and the tests.
+//       • INSERTING a dimension anywhere but the end shifts every following
+//         segment by one, so old rows decode into the wrong fields.
+//
+//     The explicit indices exist to make both mistakes a COMPILE ERROR:
+//     `assert_contiguous_indices` requires them to stay `0, 1, 2, …` in written
+//     order, so a reorder or a mid-list insert fails the build.
+//
+//     The ONLY safe change is to APPEND a new dimension with the next index.
+//     Never edit the index of an existing dimension.
+define_retry_stats_key! {
+    /// The dimensional key a retry outcome is recorded under
+    pub struct RetryStatsClusterKey {
+        0 => error_code: StandardisedCode,
+        1 => card_type: CardType,
+        2 => issuer: String,
+    }
 }
 
 impl RetryStatsClusterKey {
-    /// Assemble a fully-qualified (leaf) key from already-resolved dimensions.
-    pub fn leaf(
-        error_code: Dim<StandardisedCode>,
-        card_type: Dim<CardType>,
-        issuer: Dim<String>,
-    ) -> Self {
-        Self {
-            error_code,
-            card_type,
-            issuer,
-        }
-    }
-
-    /// Convenience constructor for callers (e.g. a retry algorithm) that already
-    /// hold concrete dimension values rather than `Dim`s.
-    pub fn new(
-        error_code: StandardisedCode,
-        card_type: CardType,
-        issuer: impl Into<String>,
-    ) -> Self {
-        Self {
-            error_code: Dim::Val(error_code),
-            card_type: Dim::Val(card_type),
-            issuer: Dim::Val(issuer.into()),
-        }
-    }
-
-    /// Build the interim error-code-only key: keyed on the error code with `card_type`
-    /// and `issuer` left `Unknown`, serializing to `error_code/UNK/UNK`. While those two
-    /// dimensions are not being populated, this is exactly what the write path stores,
-    /// so reads use it for an exact-key match.
+    /// Build an error-code-only key: keyed on the error code with `card_type`
+    /// and `issuer` left `Unknown`, serializing to `error_code/UNK/UNK`
     pub fn from_error_code(error_code: StandardisedCode) -> Self {
         Self {
             error_code: Dim::Val(error_code),
             card_type: Dim::Unknown,
             issuer: Dim::Unknown,
         }
-        // TODO(revenue-recovery roll-up): once card_type/issuer are populated again, the
-        // ancestor node keyed on the error code alone should instead wildcard the
-        // sub-dimensions (`error_code/*/*`) so it rolls up all leaves under that code:
-        //     Self { error_code: Dim::Val(error_code), card_type: Dim::Any, issuer: Dim::Any }
-    }
-
-    /// The key's dimension segments in persisted order. This array is the
-    /// single source of truth for the layout shared by `as_db_string` and `from_db_string`:
-    /// always edit the order HERE, never in either function by hand, and treat
-    /// any order change as a breaking layout change (bump
-    /// [`RETRY_STATS_KEY_VERSION`]) — existing rows are keyed by the old order.
-    fn segments(&self) -> [String; SEGMENT_COUNT] {
-        [
-            self.error_code.as_segment(),
-            self.card_type.as_segment(),
-            self.issuer.as_segment(),
-        ]
-    }
-
-    /// Serialize to the persisted `cluster_key`. CRITICAL: must remain the
-    /// exact mirror of `from_db_string` — every segment position written here is
-    /// positional, and rows already stored under a given layout decode only if
-    /// both sides agree on the order in [`Self::segments`].
-    pub fn as_db_string(&self) -> String {
-        let mut out = String::new();
-        out.push_str(RETRY_STATS_KEY_VERSION);
-        out.push(KEY_SEPARATOR);
-        out.push_str(&self.segments().join(&SEGMENT_SEPARATOR.to_string()));
-        out
-    }
-
-    /// Parse a persisted `cluster_key`. CRITICAL: must remain the exact mirror
-    /// of `as_db_string` — segment positions are bound to field names only by the
-    /// order in [`Self::segments`]. Parsing is strict about arity (exactly
-    /// [`SEGMENT_COUNT`] segments): a key with extra or missing segments is
-    /// rejected as `None` rather than silently truncated or padded, so a
-    /// miswritten row can never resolve to the wrong cluster.
-    pub fn from_db_string(raw: &str) -> Option<Self> {
-        let Some((version, rest)) = raw.split_once(KEY_SEPARATOR) else {
-            logger::error!(
-                cluster_key = raw,
-                "revenue_recovery_retry_stats: cluster key has no version separator"
-            );
-            return None;
-        };
-        if version != RETRY_STATS_KEY_VERSION {
-            logger::error!(
-                cluster_key = raw,
-                version,
-                expected_version = RETRY_STATS_KEY_VERSION,
-                "revenue_recovery_retry_stats: cluster key written under an unsupported layout version"
-            );
-            return None;
-        }
-        let segments = rest.split(SEGMENT_SEPARATOR).collect::<Vec<_>>();
-        let Ok([error_code, card_type, issuer]) = <[&str; SEGMENT_COUNT]>::try_from(segments)
-        else {
-            logger::error!(
-                cluster_key = raw,
-                expected_segments = SEGMENT_COUNT,
-                "revenue_recovery_retry_stats: cluster key has the wrong number of segments"
-            );
-            return None;
-        };
-        Some(Self {
-            error_code: Dim::<StandardisedCode>::parse_segment(error_code)
-                .or_else(|| Self::log_segment_failure(raw, "error_code", error_code))?,
-            card_type: Dim::<CardType>::parse_segment(card_type)
-                .or_else(|| Self::log_segment_failure(raw, "card_type", card_type))?,
-            issuer: Dim::<String>::parse_segment(issuer)
-                .or_else(|| Self::log_segment_failure(raw, "issuer", issuer))?,
-        })
     }
 
     /// Log a segment that could not be decoded back into a `Dim` and propagate the
@@ -254,6 +294,14 @@ mod tests {
         let raw = key.as_db_string();
         assert_eq!(raw, "v1|do_not_honor/CREDIT/HDFC");
         assert_eq!(RetryStatsClusterKey::from_db_string(&raw), Some(key));
+    }
+
+    #[test]
+    fn segment_count_matches_declared_dimensions() {
+        // Pins the generated arity: this is `error_code / card_type / issuer`.
+        // If this changes you added or removed a dimension — a layout change that
+        // must bump RETRY_STATS_KEY_VERSION and migrate existing rows.
+        assert_eq!(SEGMENT_COUNT, 3);
     }
 
     #[test]
