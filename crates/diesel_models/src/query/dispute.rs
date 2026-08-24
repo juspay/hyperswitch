@@ -2,11 +2,13 @@ use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods, T
 use error_stack::ResultExt;
 
 use super::generics;
+#[cfg(feature = "v1")]
+use crate::schema::dispute::dsl;
+#[cfg(feature = "v2")]
+use crate::schema_v2::dispute::dsl;
 use crate::{
     dispute::{Dispute, DisputeNew, DisputeUpdate, DisputeUpdateInternal},
-    errors, kv,
-    schema::dispute::dsl,
-    PgPooledConn, StorageResult,
+    errors, kv, PgPooledConn, StorageResult,
 };
 
 impl DisputeNew {
@@ -25,6 +27,24 @@ impl DisputeNew {
 }
 
 impl Dispute {
+    #[cfg(feature = "v2")]
+    pub async fn find_optional_by_processor_merchant_id_payment_id_connector_dispute_id(
+        conn: &PgPooledConn,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
+        payment_id: &common_utils::id_type::GlobalPaymentId,
+        connector_dispute_id: &str,
+    ) -> StorageResult<Option<Self>> {
+        generics::generic_find_one_optional::<<Self as HasTable>::Table, _, _>(
+            conn,
+            dsl::processor_merchant_id
+                .eq(processor_merchant_id.to_owned())
+                .and(dsl::payment_id.eq(payment_id.to_owned()))
+                .and(dsl::connector_dispute_id.eq(connector_dispute_id.to_owned())),
+        )
+        .await
+    }
+
+    #[cfg(feature = "v1")]
     pub async fn find_optional_by_processor_merchant_id_payment_id_connector_dispute_id(
         conn: &PgPooledConn,
         processor_merchant_id: &common_utils::id_type::MerchantId,
@@ -55,6 +75,7 @@ impl Dispute {
         .await
     }
 
+    #[cfg(feature = "v1")]
     pub async fn find_by_processor_merchant_id_payment_id(
         conn: &PgPooledConn,
         processor_merchant_id: &common_utils::id_type::MerchantId,
@@ -81,6 +102,7 @@ impl Dispute {
     }
 
     // Fallback function for stagger release - finds by merchant_id when processor_merchant_id is NULL
+    #[cfg(feature = "v1")]
     pub async fn find_optional_by_merchant_id_payment_id_connector_dispute_id(
         conn: &PgPooledConn,
         processor_merchant_id: &common_utils::id_type::MerchantId,
@@ -113,6 +135,7 @@ impl Dispute {
     }
 
     // Fallback function for stagger release - finds by merchant_id when processor_merchant_id is NULL
+    #[cfg(feature = "v1")]
     pub async fn find_by_merchant_id_payment_id(
         conn: &PgPooledConn,
         processor_merchant_id: &common_utils::id_type::MerchantId,

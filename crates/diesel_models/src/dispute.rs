@@ -7,8 +7,13 @@ use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
-use crate::{enums as storage_enums, schema::dispute};
+use crate::enums as storage_enums;
+#[cfg(feature = "v1")]
+use crate::schema::dispute;
+#[cfg(feature = "v2")]
+use crate::schema_v2::dispute;
 
+#[cfg(feature = "v1")]
 #[derive(Clone, Debug, Insertable, router_derive::DebugAsDisplay)]
 #[diesel(table_name = dispute)]
 pub struct DisputeNew {
@@ -40,6 +45,39 @@ pub struct DisputeNew {
     pub modified_at: PrimitiveDateTime,
 }
 
+#[cfg(feature = "v2")]
+#[derive(Clone, Debug, Insertable, router_derive::DebugAsDisplay)]
+#[diesel(table_name = dispute)]
+pub struct DisputeNew {
+    pub dispute_id: String,
+    pub amount: StringMinorUnit,
+    pub currency: String,
+    pub dispute_stage: storage_enums::DisputeStage,
+    pub dispute_status: storage_enums::DisputeStatus,
+    pub payment_id: common_utils::id_type::GlobalPaymentId,
+    pub attempt_id: common_utils::id_type::GlobalAttemptId,
+    pub merchant_id: common_utils::id_type::MerchantId,
+    pub connector_status: String,
+    pub connector_dispute_id: String,
+    pub connector_reason: Option<String>,
+    pub connector_reason_code: Option<String>,
+    pub challenge_required_by: Option<PrimitiveDateTime>,
+    pub connector_created_at: Option<PrimitiveDateTime>,
+    pub connector_updated_at: Option<PrimitiveDateTime>,
+    pub connector: String,
+    pub evidence: Secret<serde_json::Value>,
+    pub profile_id: Option<common_utils::id_type::ProfileId>,
+    pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
+    pub dispute_amount: MinorUnit,
+    pub organization_id: common_utils::id_type::OrganizationId,
+    pub dispute_currency: Option<storage_enums::Currency>,
+    pub processor_merchant_id: Option<common_utils::id_type::MerchantId>,
+    pub created_by: Option<String>,
+    pub created_at: PrimitiveDateTime,
+    pub modified_at: PrimitiveDateTime,
+}
+
+#[cfg(feature = "v1")]
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Identifiable, Queryable, Selectable)]
 #[diesel(table_name = dispute, primary_key(dispute_id), check_for_backend(diesel::pg::Pg))]
 pub struct Dispute {
@@ -50,6 +88,43 @@ pub struct Dispute {
     pub dispute_status: storage_enums::DisputeStatus,
     pub payment_id: common_utils::id_type::PaymentId,
     pub attempt_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
+    pub connector_status: String,
+    pub connector_dispute_id: String,
+    pub connector_reason: Option<String>,
+    pub connector_reason_code: Option<String>,
+    #[serde(with = "custom_serde::iso8601::option")]
+    pub challenge_required_by: Option<PrimitiveDateTime>,
+    #[serde(with = "custom_serde::iso8601::option")]
+    pub connector_created_at: Option<PrimitiveDateTime>,
+    #[serde(with = "custom_serde::iso8601::option")]
+    pub connector_updated_at: Option<PrimitiveDateTime>,
+    #[serde(with = "custom_serde::iso8601")]
+    pub created_at: PrimitiveDateTime,
+    #[serde(with = "custom_serde::iso8601")]
+    pub modified_at: PrimitiveDateTime,
+    pub connector: String,
+    pub evidence: Secret<serde_json::Value>,
+    pub profile_id: Option<common_utils::id_type::ProfileId>,
+    pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
+    pub dispute_amount: MinorUnit,
+    pub organization_id: common_utils::id_type::OrganizationId,
+    pub dispute_currency: Option<storage_enums::Currency>,
+    pub processor_merchant_id: Option<common_utils::id_type::MerchantId>,
+    pub created_by: Option<String>,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Identifiable, Queryable, Selectable)]
+#[diesel(table_name = dispute, primary_key(dispute_id), check_for_backend(diesel::pg::Pg))]
+pub struct Dispute {
+    pub dispute_id: String,
+    pub amount: StringMinorUnit,
+    pub currency: String,
+    pub dispute_stage: storage_enums::DisputeStage,
+    pub dispute_status: storage_enums::DisputeStatus,
+    pub payment_id: common_utils::id_type::GlobalPaymentId,
+    pub attempt_id: common_utils::id_type::GlobalAttemptId,
     pub merchant_id: common_utils::id_type::MerchantId,
     pub connector_status: String,
     pub connector_dispute_id: String,
@@ -92,6 +167,7 @@ impl Dispute {
         format!("dispute_{}_{}", merchant_id.get_string_repr(), dispute_id)
     }
 
+    #[cfg(feature = "v1")]
     pub fn generate_lookup_merchant_id_payment_id_connector_dispute_id(
         merchant_id: &common_utils::id_type::MerchantId,
         payment_id: &common_utils::id_type::PaymentId,
