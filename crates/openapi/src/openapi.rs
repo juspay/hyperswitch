@@ -301,6 +301,7 @@ Never share your secret api keys. Keep them guarded and secure.
         common_types::connector_webhook_configuration::WebhookConfigType,
         common_types::payments::GpayTokenizationData,
         common_types::payments::GPayPredecryptData,
+        api_models::enums::GooglePayAuthMethod,
         common_types::payments::GpayEcryptedTokenizationData,
         common_types::payments::ApplePayPaymentData,
         common_types::payments::ApplePayPredecryptData,

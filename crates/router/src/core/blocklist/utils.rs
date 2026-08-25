@@ -813,29 +813,29 @@ pub async fn generate_payment_fingerprint(
             _ => None,
         });
 
-    Ok(if let Some((pan, fingerprint_type)) = fingerprint_source {
-        let fingerprint_id = generate_fingerprint_and_get_id(
-            state,
-            StrongSecret::new(pan.get_card_no()),
-            StrongSecret::new(merchant_fingerprint_secret),
-        )
-        .await
-        .attach_printable("error in pm fingerprint creation")
-        .map_or_else(
-            |error| {
-                logger::error!(?error);
-                None
-            },
-            Some,
-        )
-        .map(|payload| payload.fingerprint_id);
+    let (fingerprint_id, fingerprint_type) = match fingerprint_source {
+        Some((pan, fingerprint_type)) => {
+            let fingerprint_id = generate_fingerprint_and_get_id(
+                state,
+                StrongSecret::new(pan.get_card_no()),
+                StrongSecret::new(merchant_fingerprint_secret),
+            )
+            .await
+            .attach_printable("error in pm fingerprint creation")
+            .inspect_err(|error| logger::error!(?error))
+            .ok()
+            .map(|payload| payload.fingerprint_id);
 
-        let fingerprint_type = fingerprint_id.is_some().then_some(fingerprint_type);
-        (fingerprint_id, fingerprint_type)
-    } else {
-        logger::debug!("payment method does not contain a PAN that can be fingerprinted");
-        (None, None)
-    })
+            let fingerprint_type = fingerprint_id.is_some().then_some(fingerprint_type);
+            (fingerprint_id, fingerprint_type)
+        }
+        None => {
+            logger::debug!("payment method does not contain a PAN that can be fingerprinted");
+            (None, None)
+        }
+    };
+
+    Ok((fingerprint_id, fingerprint_type))
 }
 
 #[cfg(test)]
