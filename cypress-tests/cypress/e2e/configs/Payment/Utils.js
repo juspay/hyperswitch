@@ -565,7 +565,7 @@ export const CONNECTOR_LISTS = {
       "mifinity",
       "tsys_transit",
     ],
-    SAVE_CARD: ["helcim", "givepayments"],
+    SAVE_CARD: ["helcim"],
     // fiservcommercehub's RSA card-encryption block requires
     // card_holder_name, which the external vault proxy flow (VGS) never
     // supplies (it only vaults PAN/expiry) — and unlike most connectors,

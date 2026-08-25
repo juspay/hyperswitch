@@ -33,15 +33,16 @@ const billingWithEmail = (email) => ({
   email,
 });
 
-// givepayments' real, confirmed rejection for flows it doesn't support at
-// all (manual capture, unsupported payment methods) — a generic UCS_400
-// "Payment failed during authorization with connector. Retry payment".
-const authorizationFailedError = {
+// givepayments only supports automatic capture — confirmed live via
+// 06-NoThreeDSManualCapture.cy.js: router rejects manual capture before
+// ever reaching the connector (ConnectorError::NotImplemented -> IR_00),
+// not a connector-side authorization failure.
+const captureMethodNotSupportedError = {
   error: {
     type: "invalid_request",
     message:
-      "Payment failed during authorization with connector. Retry payment",
-    code: "CE_01",
+      "Capture method not supported. Givepayments connector supports Automatic capture method. is not implemented",
+    code: "IR_00",
   },
 };
 
@@ -125,22 +126,9 @@ export const connectorDetails = {
         },
       },
     },
-    // givepayments doesn't implement 3DS at all (connector-service
-    // field_probe: authenticate/pre_authenticate/post_authenticate are all
-    // "not_supported", redirection_data is hardcoded None on every
-    // Authorize response), so a "3DS" card just processes as a normal
-    // frictionless payment with no challenge — confirmed live via the
-    // off-session 3DS save-card flow, which returns "succeeded" directly
-    // rather than requires_customer_action or an error.
+    // givepayments doesn't implement 3DS at all, so a "3DS" card just processes as a normal frictionless payment with no challenge — confirmed live.
     "3DSAutoCapture": {
-      // Confirm returns "processing" synchronously — givepayments settles
-      // async, shortly after — confirmed live. There's no real redirect
-      // (givepayments never sets next_action), so the subsequent "handle
-      // redirection" step in 05/16 can never complete; confirmCallTest
-      // doesn't honor TRIGGER_SKIP so this Response is still asserted for
-      // real, but TRIGGER_SKIP makes should_continue_further correctly
-      // skip the doomed redirection step afterward (same mechanism
-      // 3DSManualCapture gets for free via its real body.error).
+      // TRIGGER_SKIP lets should_continue_further skip the doomed redirection step, since givepayments never sets next_action — confirmed live.
       Configs: {
         TRIGGER_SKIP: true,
       },
@@ -165,18 +153,7 @@ export const connectorDetails = {
         },
       },
     },
-    // manual capture is rejected regardless of 3DS (see No3DSManualCapture)
-    // — this hits the same capture_method restriction, not a 3DS-specific
-    // rejection.
-    // givepayments only supports automatic capture — confirmCallTest and
-    // createConfirmPaymentTest don't honor TRIGGER_SKIP, so this asserts
-    // the connector's real, confirmed rejection instead of skipping (same
-    // pattern Helcim uses for its always-failing refunds). Note: a
-    // separate confirmCallTest-only run (create-then-confirm, not
-    // combined) observed a 501 "Capture method not supported..." instead
-    // — the two flows apparently hit different validation paths in UCS.
-    // This uses the combined create+confirm result since that's the more
-    // common flow shape in this file.
+    // manual capture is rejected regardless of 3DS — confirmed live, same as No3DSManualCapture.
     "3DSManualCapture": {
       Request: {
         payment_method: "card",
@@ -191,8 +168,8 @@ export const connectorDetails = {
         billing: billingWithEmail(generateGivepaymentsEmail()),
       },
       Response: {
-        status: 400,
-        body: authorizationFailedError,
+        status: 501,
+        body: captureMethodNotSupportedError,
       },
     },
     No3DSManualCapture: {
@@ -209,8 +186,8 @@ export const connectorDetails = {
         billing: billingWithEmail(generateGivepaymentsEmail()),
       },
       Response: {
-        status: 400,
-        body: authorizationFailedError,
+        status: 501,
+        body: captureMethodNotSupportedError,
       },
     },
     // givepayments 400s a refund attempted while the payment is still
@@ -315,10 +292,8 @@ export const connectorDetails = {
         },
       },
     },
+    // manual capture is rejected regardless of mandate — confirmed live, same as No3DSManualCapture.
     MandateSingleUseNo3DSManualCapture: {
-      Configs: {
-        TRIGGER_SKIP: true, // givepayments only supports automatic capture
-      },
       Request: {
         payment_method: "card",
         payment_method_type: "credit",
@@ -331,10 +306,8 @@ export const connectorDetails = {
         billing: billingWithEmail(generateGivepaymentsEmail()),
       },
       Response: {
-        status: 200,
-        body: {
-          status: "requires_capture",
-        },
+        status: 501,
+        body: captureMethodNotSupportedError,
       },
     },
     MandateMultiUseNo3DSAutoCapture: {
@@ -360,10 +333,8 @@ export const connectorDetails = {
         },
       },
     },
+    // manual capture is rejected regardless of mandate — confirmed live, same as No3DSManualCapture.
     MandateMultiUseNo3DSManualCapture: {
-      Configs: {
-        TRIGGER_SKIP: true, // givepayments only supports automatic capture
-      },
       Request: {
         payment_method: "card",
         payment_method_type: "credit",
@@ -376,10 +347,8 @@ export const connectorDetails = {
         billing: billingWithEmail(generateGivepaymentsEmail()),
       },
       Response: {
-        status: 200,
-        body: {
-          status: "requires_capture",
-        },
+        status: 501,
+        body: captureMethodNotSupportedError,
       },
     },
     MITAutoCapture: {
@@ -413,16 +382,12 @@ export const connectorDetails = {
         },
       },
     },
+    // manual capture is rejected regardless of MIT — confirmed live, same as No3DSManualCapture.
     MITManualCapture: {
-      Configs: {
-        TRIGGER_SKIP: true, // givepayments only supports automatic capture
-      },
       Request: {},
       Response: {
-        status: 200,
-        body: {
-          status: "requires_capture",
-        },
+        status: 501,
+        body: captureMethodNotSupportedError,
       },
     },
     PaymentMethodIdMandateNo3DSAutoCapture: {
@@ -452,10 +417,8 @@ export const connectorDetails = {
         },
       },
     },
+    // manual capture is rejected regardless of mandate — confirmed live, same as No3DSManualCapture.
     PaymentMethodIdMandateNo3DSManualCapture: {
-      Configs: {
-        TRIGGER_SKIP: true, // givepayments only supports automatic capture
-      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -468,10 +431,8 @@ export const connectorDetails = {
         billing: billingWithEmail(generateGivepaymentsEmail()),
       },
       Response: {
-        status: 200,
-        body: {
-          status: "requires_capture",
-        },
+        status: 501,
+        body: captureMethodNotSupportedError,
       },
     },
     // givepayments does not support 3DS at all (connector metadata:
@@ -517,6 +478,50 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_capture",
+        },
+      },
+    },
+    // NOT independently confirmed live (unlike the rest of this file) — modeled on the async-settlement
+    // pattern the other auto-capture confirms in this file exhibit (see No3DSAutoCapture). Verify against
+    // the sandbox before relying on this for CI; adjust `status` here if it turns out to differ.
+    SaveCardUseNo3DSAutoCapture: {
+      Request: {
+        payment_method: "card",
+        payment_method_type: "credit",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        setup_future_usage: "on_session",
+        customer_acceptance: customerAcceptance,
+        email: generateGivepaymentsEmail(),
+        billing: billingWithEmail(generateGivepaymentsEmail()),
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
+        },
+      },
+    },
+    // NOT independently confirmed live — see SaveCardUseNo3DSAutoCapture.
+    SaveCardUseNo3DSAutoCaptureOffSession: {
+      Request: {
+        payment_method: "card",
+        payment_method_type: "credit",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        setup_future_usage: "off_session",
+        customer_acceptance: customerAcceptance,
+        email: generateGivepaymentsEmail(),
+        billing: billingWithEmail(generateGivepaymentsEmail()),
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
         },
       },
     },
