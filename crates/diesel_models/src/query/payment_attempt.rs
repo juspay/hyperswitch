@@ -75,12 +75,14 @@ impl PaymentAttempt {
         conn: &PgPooledConn,
         payment_attempt: PaymentAttemptUpdateInternal,
     ) -> StorageResult<Self> {
-        match generics::generic_update_with_unique_predicate_get_result::<
+        match Box::pin(generics::generic_update_with_unique_predicate_get_result::<
             <Self as HasTable>::Table,
             _,
             _,
             _,
-        >(conn, dsl::id.eq(self.id.to_owned()), payment_attempt)
+        >(
+            conn, dsl::id.eq(self.id.to_owned()), payment_attempt
+        ))
         .await
         {
             Err(error) => match error.current_context() {
