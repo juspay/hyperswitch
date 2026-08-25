@@ -2,16 +2,20 @@ use std::{marker::PhantomData, str::FromStr};
 
 use api_models::webhooks::{self, WebhookResponseTracker};
 use common_utils::{
-    errors::ReportSwitchExt, events::ApiEventsType, types::keymanager::KeyManagerState,
+    errors::ReportSwitchExt,
+    events::ApiEventsType,
+    types::{keymanager::KeyManagerState, AmountConvertor, StringMinorUnitForConnector},
 };
-use error_stack::ResultExt;
+use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
     api::{IncomingWebhookEventMetadata, WebhookResponse},
-    payments::{HeaderPayload, PaymentStatusData},
+    payments::{payment_attempt::PaymentAttempt, HeaderPayload, PaymentStatusData},
     router_request_types::VerifyWebhookSourceRequestData,
     router_response_types::{VerifyWebhookSourceResponseData, VerifyWebhookStatus},
 };
-use hyperswitch_interfaces::webhooks::{IncomingWebhookRequestDetails, WebhookResourceData};
+use hyperswitch_interfaces::webhooks::{
+    IncomingWebhookRequestDetails, WebhookContext, WebhookResourceData,
+};
 use hyperswitch_masking::Secret;
 use router_env::{instrument, tracing};
 
@@ -19,6 +23,7 @@ use super::{types, utils, MERCHANT_ID};
 #[cfg(feature = "revenue_recovery")]
 use crate::core::webhooks::recovery_incoming;
 use crate::{
+    consts,
     core::{
         api_locking,
         configs::dimension_state,
@@ -28,6 +33,7 @@ use crate::{
             self,
             transformers::{GenerateResponse, ToResponse},
         },
+        utils as core_utils,
         webhooks::{
             create_event_and_trigger_outgoing_webhook, utils::construct_webhook_router_data,
         },
@@ -40,8 +46,9 @@ use crate::{
         api::{self, ConnectorData, GetToken, IncomingWebhook},
         domain,
         storage::enums,
-        transformers::ForeignInto,
+        transformers::{ForeignInto, ForeignTryFrom},
     },
+    utils::generate_id,
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -331,7 +338,19 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
 
                     api::WebhookFlow::Refund => todo!(),
 
-                    api::WebhookFlow::Dispute => todo!(),
+                    api::WebhookFlow::Dispute => Box::pin(disputes_incoming_webhook_flow(
+                        state.clone(),
+                        platform,
+                        profile,
+                        webhook_details,
+                        source_verified,
+                        &connector,
+                        &request_details,
+                        event_type,
+                        &connector_name,
+                    ))
+                    .await
+                    .attach_printable("Incoming webhook flow for disputes failed")?,
 
                     api::WebhookFlow::BankTransfer => todo!(),
 
@@ -566,6 +585,211 @@ async fn payments_incoming_webhook_flow(
         _ => Err(errors::ApiErrorResponse::WebhookProcessingFailure)
             .attach_printable("received non-json response from payments core")?,
     }
+}
+
+/// Pull the connector transaction id out of a dispute webhook's object reference.
+///
+/// v2 can only look a payment attempt up by connector transaction id, so every other variant is
+/// rejected here rather than silently mishandled.
+fn connector_transaction_id_from_object_reference_id(
+    object_reference_id: &webhooks::ObjectReferenceId,
+) -> CustomResult<&str, errors::ApiErrorResponse> {
+    match object_reference_id {
+        api::ObjectReferenceId::PaymentId(api::PaymentIdType::ConnectorTransactionId(id)) => {
+            Ok(id.as_str())
+        }
+        _ => Err(errors::ApiErrorResponse::WebhookProcessingFailure).attach_printable(
+            "received an unsupported object reference id for retrieving payment attempt",
+        ),
+    }
+}
+
+/// Resolve the payment attempt that a dispute webhook refers to.
+///
+/// The lookup is keyed on the profile resolved by the dispatcher, not on the merchant id.
+async fn get_payment_attempt_from_object_reference_id(
+    state: &SessionState,
+    object_reference_id: &webhooks::ObjectReferenceId,
+    platform: &domain::Platform,
+    profile: &domain::Profile,
+) -> CustomResult<PaymentAttempt, errors::ApiErrorResponse> {
+    let connector_transaction_id =
+        connector_transaction_id_from_object_reference_id(object_reference_id)?;
+    state
+        .store
+        .find_payment_attempt_by_profile_id_connector_transaction_id(
+            platform.get_processor().get_key_store(),
+            profile.get_id(),
+            connector_transaction_id,
+            platform.get_processor().get_account().storage_scheme,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::WebhookResourceNotFound)
+}
+
+#[allow(clippy::too_many_arguments)]
+async fn get_or_update_dispute_object(
+    state: &SessionState,
+    option_dispute: Option<diesel_models::dispute::Dispute>,
+    dispute_details: api::disputes::DisputePayload,
+    platform: &domain::Platform,
+    payment_attempt: &PaymentAttempt,
+    dispute_status: common_enums::DisputeStatus,
+    business_profile: &domain::Profile,
+    connector_name: &str,
+) -> CustomResult<diesel_models::dispute::Dispute, errors::ApiErrorResponse> {
+    let db = &*state.store;
+    match option_dispute {
+        None => {
+            metrics::INCOMING_DISPUTE_WEBHOOK_NEW_RECORD_METRIC.add(1, &[]);
+            let dispute_id = generate_id(consts::ID_LENGTH, "dp");
+            let new_dispute = diesel_models::dispute::DisputeNew {
+                dispute_id,
+                amount: dispute_details.amount.clone(),
+                currency: dispute_details.currency.to_string(),
+                dispute_stage: dispute_details.dispute_stage,
+                dispute_status,
+                payment_id: payment_attempt.payment_id.to_owned(),
+                attempt_id: payment_attempt.get_id().to_owned(),
+                merchant_id: platform.get_provider().get_account().get_id().to_owned(),
+                connector_status: dispute_details.connector_status,
+                connector_dispute_id: dispute_details.connector_dispute_id,
+                connector_reason: dispute_details.connector_reason,
+                connector_reason_code: dispute_details.connector_reason_code,
+                challenge_required_by: dispute_details.challenge_required_by,
+                connector_created_at: dispute_details.created_at,
+                connector_updated_at: dispute_details.updated_at,
+                connector: connector_name.to_owned(),
+                evidence: Secret::new(serde_json::json!({})),
+                profile_id: Some(business_profile.get_id().to_owned()),
+                merchant_connector_id: payment_attempt.merchant_connector_id.clone(),
+                dispute_amount: StringMinorUnitForConnector::convert_back(
+                    &StringMinorUnitForConnector,
+                    dispute_details.amount,
+                    dispute_details.currency,
+                )
+                .change_context(errors::ApiErrorResponse::AmountConversionFailed {
+                    amount_type: "MinorUnit",
+                })?,
+                organization_id: platform
+                    .get_processor()
+                    .get_account()
+                    .organization_id
+                    .clone(),
+                dispute_currency: Some(dispute_details.currency),
+                processor_merchant_id: Some(
+                    platform.get_processor().get_account().get_id().to_owned(),
+                ),
+                created_by: payment_attempt
+                    .created_by
+                    .as_ref()
+                    .map(|created_by| created_by.to_string()),
+                created_at: common_utils::date_time::now(),
+                modified_at: common_utils::date_time::now(),
+            };
+            db.insert_dispute(
+                new_dispute,
+                platform.get_processor().get_account().storage_scheme,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::WebhookResourceNotFound)
+        }
+        Some(dispute) => {
+            logger::info!("Dispute Already exists, Updating the dispute details");
+            metrics::INCOMING_DISPUTE_WEBHOOK_UPDATE_RECORD_METRIC.add(1, &[]);
+            core_utils::validate_dispute_stage_and_dispute_status(
+                dispute.dispute_stage,
+                dispute.dispute_status,
+                dispute_details.dispute_stage,
+                dispute_status,
+            )
+            .change_context(errors::ApiErrorResponse::WebhookBadRequest)
+            .attach_printable("dispute stage and status validation failed")?;
+            let update_dispute = diesel_models::dispute::DisputeUpdate::Update {
+                dispute_stage: dispute_details.dispute_stage,
+                dispute_status,
+                connector_status: dispute_details.connector_status,
+                connector_reason: dispute_details.connector_reason,
+                connector_reason_code: dispute_details.connector_reason_code,
+                challenge_required_by: dispute_details.challenge_required_by,
+                connector_updated_at: dispute_details.updated_at,
+            };
+            db.update_dispute(
+                dispute,
+                update_dispute,
+                platform.get_processor().get_account().storage_scheme,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::WebhookResourceNotFound)
+        }
+    }
+}
+
+#[instrument(skip_all)]
+async fn disputes_incoming_webhook_flow(
+    state: SessionState,
+    platform: domain::Platform,
+    business_profile: domain::Profile,
+    webhook_details: api::IncomingWebhookDetails,
+    source_verified: bool,
+    connector: &ConnectorEnum,
+    request_details: &IncomingWebhookRequestDetails<'_>,
+    event_type: webhooks::IncomingWebhookEvent,
+    connector_name: &str,
+) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
+    metrics::INCOMING_DISPUTE_WEBHOOK_METRIC.add(1, &[]);
+    if !source_verified {
+        metrics::INCOMING_DISPUTE_WEBHOOK_SIGNATURE_FAILURE_METRIC.add(1, &[]);
+        return Err(report!(
+            errors::ApiErrorResponse::WebhookAuthenticationFailed
+        ));
+    }
+    let db = &*state.store;
+    let payment_attempt = get_payment_attempt_from_object_reference_id(
+        &state,
+        &webhook_details.object_reference_id,
+        &platform,
+        &business_profile,
+    )
+    .await?;
+    let resource_data = WebhookResourceData::Payment {
+        payment_attempt: payment_attempt.clone(),
+    };
+    let dispute_details = connector
+        .get_dispute_details(request_details, Some(&WebhookContext::from(&resource_data)))
+        .switch()?;
+
+    let option_dispute = db
+        .find_by_processor_merchant_id_payment_id_connector_dispute_id(
+            platform.get_processor().get_account().get_id(),
+            &payment_attempt.payment_id,
+            &dispute_details.connector_dispute_id,
+            platform.get_processor().get_account().storage_scheme,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::WebhookResourceNotFound)?;
+
+    let dispute_status = common_enums::DisputeStatus::foreign_try_from(event_type)
+        .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
+        .attach_printable("event type to dispute status mapping failed")?;
+
+    let dispute_object = get_or_update_dispute_object(
+        &state,
+        option_dispute,
+        dispute_details,
+        &platform,
+        &payment_attempt,
+        dispute_status,
+        &business_profile,
+        connector_name,
+    )
+    .await?;
+
+    Ok(WebhookResponseTracker::Dispute {
+        dispute_id: dispute_object.dispute_id,
+        payment_id: dispute_object.payment_id,
+        status: dispute_object.dispute_status,
+    })
 }
 
 async fn get_trackers_response_for_payment_get_operation<F>(
@@ -809,4 +1033,84 @@ async fn fetch_mca_and_connector(
         get_connector_by_connector_name(state, &connector_enum.to_string(), Some(mca.get_id()))?;
 
     Ok((mca, connector, connector_enum, connector_name))
+}
+
+#[cfg(test)]
+mod dispute_webhook_tests {
+    use super::*;
+
+    #[test]
+    fn connector_transaction_id_is_extracted() {
+        let object_reference_id = api::ObjectReferenceId::PaymentId(
+            api::PaymentIdType::ConnectorTransactionId("txn_1234".to_string()),
+        );
+
+        assert_eq!(
+            connector_transaction_id_from_object_reference_id(&object_reference_id).unwrap(),
+            "txn_1234"
+        );
+    }
+
+    #[test]
+    fn unsupported_object_reference_is_rejected() {
+        let unsupported = [
+            api::ObjectReferenceId::PaymentId(api::PaymentIdType::PaymentAttemptId(
+                "attempt_1234".to_string(),
+            )),
+            api::ObjectReferenceId::PaymentId(api::PaymentIdType::PreprocessingId(
+                "pre_1234".to_string(),
+            )),
+            api::ObjectReferenceId::RefundId(webhooks::RefundIdType::ConnectorRefundId(
+                "ref_1234".to_string(),
+            )),
+        ];
+
+        for object_reference_id in unsupported {
+            assert!(connector_transaction_id_from_object_reference_id(&object_reference_id).is_err());
+        }
+    }
+
+    #[test]
+    fn every_dispute_event_maps_to_a_status() {
+        let expected = [
+            (
+                webhooks::IncomingWebhookEvent::DisputeOpened,
+                common_enums::DisputeStatus::DisputeOpened,
+            ),
+            (
+                webhooks::IncomingWebhookEvent::DisputeExpired,
+                common_enums::DisputeStatus::DisputeExpired,
+            ),
+            (
+                webhooks::IncomingWebhookEvent::DisputeAccepted,
+                common_enums::DisputeStatus::DisputeAccepted,
+            ),
+            (
+                webhooks::IncomingWebhookEvent::DisputeCancelled,
+                common_enums::DisputeStatus::DisputeCancelled,
+            ),
+            (
+                webhooks::IncomingWebhookEvent::DisputeChallenged,
+                common_enums::DisputeStatus::DisputeChallenged,
+            ),
+            (
+                webhooks::IncomingWebhookEvent::DisputeWon,
+                common_enums::DisputeStatus::DisputeWon,
+            ),
+            (
+                webhooks::IncomingWebhookEvent::DisputeLost,
+                common_enums::DisputeStatus::DisputeLost,
+            ),
+        ];
+
+        for (event, status) in expected {
+            // Every event routed to the dispute flow must have a status, otherwise the flow
+            // rejects a webhook the dispatcher already committed to handling.
+            assert_eq!(api::WebhookFlow::from(event), api::WebhookFlow::Dispute);
+            assert_eq!(
+                common_enums::DisputeStatus::foreign_try_from(event).unwrap(),
+                status
+            );
+        }
+    }
 }
