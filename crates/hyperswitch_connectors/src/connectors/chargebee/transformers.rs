@@ -1200,6 +1200,14 @@ impl TryFrom<enums::AttemptStatus> for ChargebeeRecordStatus {
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct ChargebeeRecordbackResponse {
     pub invoice: ChargebeeRecordbackInvoice,
+    /// Chargebee creates a transaction for the recorded payment and returns it alongside
+    /// the invoice. Its id is the only handle `record_refund` accepts.
+    pub transaction: Option<ChargebeeRecordbackTransaction>,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct ChargebeeRecordbackTransaction {
+    pub id: String,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -1212,9 +1220,11 @@ convert_connector_response_to_domain_response!(
     InvoiceRecordBackResponse,
     |item: ResponseRouterData<_, ChargebeeRecordbackResponse, _, _>| {
         let merchant_reference_id = item.response.invoice.id;
+        let connector_transaction_id = item.response.transaction.map(|txn| txn.id);
         Ok(Self {
             response: Ok(InvoiceRecordBackResponse {
                 merchant_reference_id,
+                connector_transaction_id,
             }),
             ..item.data
         })
@@ -1773,3 +1783,35 @@ convert_connector_response_to_domain_response!(
         })
     }
 );
+
+#[cfg(all(test, feature = "v2", feature = "revenue_recovery"))]
+mod chargebee_recordback_tests {
+    use super::ChargebeeRecordbackResponse;
+
+    #[test]
+    fn parses_a_response_carrying_both_invoice_and_transaction() {
+        let body = r#"{
+            "invoice": {"id": "inv_123"},
+            "transaction": {"id": "txn_456"}
+        }"#;
+
+        let parsed: ChargebeeRecordbackResponse = serde_json::from_str(body).unwrap();
+
+        assert_eq!(parsed.invoice.id.get_string_repr(), "inv_123");
+        assert_eq!(
+            parsed.transaction.map(|txn| txn.id).as_deref(),
+            Some("txn_456")
+        );
+    }
+
+    #[test]
+    fn parses_a_response_with_no_transaction() {
+        // Defensive: a missing transaction must not fail an otherwise successful
+        // record-back.
+        let body = r#"{"invoice": {"id": "inv_123"}}"#;
+
+        let parsed: ChargebeeRecordbackResponse = serde_json::from_str(body).unwrap();
+
+        assert!(parsed.transaction.is_none());
+    }
+}
