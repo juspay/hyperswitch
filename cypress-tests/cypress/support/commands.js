@@ -11965,6 +11965,66 @@ Cypress.Commands.add(
   }
 );
 
+// Context for `payments.blocklist_guard`, which is resolved from
+// DimensionsWithProcessorAndProviderMerchantId (see dimension_config.rs).
+const blocklistGuardContext = (globalState) => ({
+  provider_merchant_id: globalState.get("merchantId"),
+  processor_merchant_id: globalState.get("merchantId"),
+});
+
+// Enable/disable the blocklist guard for a merchant.
+// `POST /blocklist/toggle` still writes the legacy `guard_blocklist_for_{merchant}`
+// db config, but reads resolve from superposition first and the seeded default is
+// `false`, so the db value is never reached. The guard has to be set here instead.
+Cypress.Commands.add("setBlocklistGuardConfig", (globalState, value) => {
+  cy.createSuperpositionConfig(
+    globalState,
+    "payments.blocklist_guard",
+    value,
+    blocklistGuardContext(globalState)
+  );
+});
+
+// Delete the blocklist guard override so the config falls back to its default.
+Cypress.Commands.add("deleteBlocklistGuardConfig", (globalState) => {
+  cy.deleteSuperpositionContext(
+    globalState,
+    blocklistGuardContext(globalState)
+  );
+});
+
+// Context for `payments.step_up_enabled`, which is resolved from
+// DimensionsWithProcessorAndProviderMerchantIdAndConnector (see dimension_config.rs).
+const stepUpEnabledContext = (globalState, connector) => ({
+  provider_merchant_id: globalState.get("merchantId"),
+  processor_merchant_id: globalState.get("merchantId"),
+  connector: connector || globalState.get("connectorId"),
+});
+
+// Enable/disable step-up retry for a merchant + connector.
+// The legacy `step_up_enabled_{merchant}` db config held the list of connectors
+// step-up was enabled for; in superposition it is a boolean scoped by the
+// `connector` dimension, so one call configures one connector.
+Cypress.Commands.add(
+  "setStepUpEnabledConfig",
+  (globalState, value, connector) => {
+    cy.createSuperpositionConfig(
+      globalState,
+      "payments.step_up_enabled",
+      value,
+      stepUpEnabledContext(globalState, connector)
+    );
+  }
+);
+
+// Delete the step-up override so the config falls back to its default (false).
+Cypress.Commands.add("deleteStepUpEnabledConfig", (globalState, connector) => {
+  cy.deleteSuperpositionContext(
+    globalState,
+    stepUpEnabledContext(globalState, connector)
+  );
+});
+
 Cypress.Commands.add("resetRedirectReadCount", (testIdHash) => {
   resetMitmRedirectSeq(testIdHash);
 });

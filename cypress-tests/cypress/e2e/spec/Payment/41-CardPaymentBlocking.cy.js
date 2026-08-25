@@ -5,23 +5,30 @@ import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
 let globalState;
 
 describe("Business Profile Payment Method Blocking", () => {
-  before("seed global state", () => {
+  // `POST /blocklist/toggle` still writes the legacy `guard_blocklist_for_{merchant}`
+  // db config, but the guard is now read from superposition first, where the seeded
+  // default is `false`. The override below is what actually turns the guard on; the
+  // toggle call is kept so the endpoint itself stays covered.
+  before("seed global state and enable blocklist", () => {
     cy.task("getGlobalState").then((state) => {
       globalState = new State(state);
+
+      cy.blocklistToggle("true", globalState);
+      cy.setBlocklistGuardConfig(globalState, true);
     });
   });
 
-  after("flush global state", () => {
+  // Cleaned up in the hook rather than in the last test so that a failure part way
+  // through the spec does not leave the guard enabled for the specs that follow.
+  after("disable blocklist and flush global state", () => {
+    cy.blocklistToggle("false", globalState);
+    cy.deleteBlocklistGuardConfig(globalState);
     cy.task("setGlobalState", globalState.data);
   });
 
   context("Card Issuing Country Blocking", () => {
     it("should block payment when card issuing country is blocked", () => {
       let shouldContinue = true;
-
-      cy.step("Enable blocklist", () => {
-        cy.blocklistToggle("true", globalState);
-      });
 
       cy.step("Update business profile to block issuing country", () => {
         const updateBusinessProfileBody = {
@@ -266,10 +273,6 @@ describe("Business Profile Payment Method Blocking", () => {
           );
         }
       );
-
-      cy.step("Disable blocklist", () => {
-        cy.blocklistToggle("false", globalState);
-      });
     });
   });
 });
