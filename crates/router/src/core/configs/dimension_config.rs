@@ -818,7 +818,7 @@ config! {
 }
 
 impl DatabaseBackedConfig for OfferEngineEnabled {
-    const KEY: &'static str = "offer_engine_enabled";
+    const KEY: &'static str = "offer_engine.enabled";
 }
 
 config! {
@@ -831,7 +831,7 @@ config! {
 }
 
 impl DatabaseBackedConfig for OfferEngineCredentialSource {
-    const KEY: &'static str = "offer_engine_credential_source";
+    const KEY: &'static str = "offer_engine.credential_source";
 }
 
 #[cfg(feature = "v2")]

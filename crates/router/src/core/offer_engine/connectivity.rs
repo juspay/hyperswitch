@@ -38,7 +38,7 @@ pub async fn check_offer_engine_connectivity(
             reachable: None,
             status_code: None,
             detail: "Offer Engine is not enabled in global config \
-                (offer_engine_enabled is false or credential source is none)"
+                (offer_engine.enabled is false or credential source is none)"
                 .to_string(),
         },
         Ok(Some(config)) => {
