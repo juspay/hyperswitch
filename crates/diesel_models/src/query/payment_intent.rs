@@ -1,4 +1,5 @@
 use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
+use error_stack::ResultExt;
 
 use super::generics;
 #[cfg(feature = "v1")]
@@ -20,7 +21,9 @@ impl PaymentIntentNew {
         self,
         conn: &mut PgPooledConn,
     ) -> StorageResult<kv::SerializableQuery> {
-        kv::generate_insert_query(conn, self).await
+        kv::generate_insert_query(conn, self)
+            .await
+            .attach_printable("Failed to generate insert query for payment intent")
     }
 }
 
@@ -61,13 +64,18 @@ impl PaymentIntent {
         conn: &PgPooledConn,
         payment_intent: payment_intent::PaymentIntentUpdate,
     ) -> StorageResult<Self> {
-        match generics::generic_update_with_results::<<Self as HasTable>::Table, _, _, _>(
+        match Box::pin(generics::generic_update_with_results::<
+            <Self as HasTable>::Table,
+            _,
+            _,
+            _,
+        >(
             conn,
             dsl::payment_id
                 .eq(self.payment_id.to_owned())
                 .and(dsl::processor_merchant_id.eq(self.processor_merchant_id.to_owned())),
             payment_intent::PaymentIntentUpdateInternal::from(payment_intent),
-        )
+        ))
         .await
         {
             Err(error) => match error.current_context() {
@@ -174,6 +182,7 @@ impl payment_intent::PaymentIntentUpdate {
             payment_intent::PaymentIntentUpdateInternal::from(self),
         )
         .await
+        .attach_printable("Failed to generate update query for payment intent")
     }
 }
 
@@ -186,5 +195,6 @@ impl payment_intent::PaymentIntentUpdateInternal {
     ) -> StorageResult<kv::SerializableQuery> {
         kv::generate_update_query_by_id::<<PaymentIntent as HasTable>::Table, _, _>(conn, id, self)
             .await
+            .attach_printable("Failed to generate update query for payment intent")
     }
 }

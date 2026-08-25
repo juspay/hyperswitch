@@ -80,6 +80,7 @@ use crate::{
     SessionState,
 };
 
+#[derive(serde::Serialize, serde::Deserialize)]
 pub enum CachedAlgorithm {
     Single(Box<routing_types::RoutableConnectorChoice>),
     Priority(Vec<routing_types::RoutableConnectorChoice>),
@@ -1602,7 +1603,19 @@ pub async fn perform_hybrid_routing_if_enabled(
     // skipped on the premise that it only ever runs for cut-over profiles).
     let is_decision_engine_cutover_enabled =
         utils::is_decision_engine_routing_effective(state, dimensions).await;
+    let has_active_routing_algorithm = business_profile
+        .routing_algorithm
+        .clone()
+        .and_then(|ra| {
+            ra.parse_value::<api::routing::RoutingAlgorithmRef>("RoutingAlgorithmRef")
+                .ok()
+        })
+        .and_then(|algorithm_ref| algorithm_ref.algorithm_id)
+        .is_some();
 
+    // A cut-over profile's rules live on the Decision Engine, so a missing Hyperswitch
+    // algorithm is the normal state and must not skip evaluation; for every other profile
+    // there is nothing to evaluate against, so the DE call is skipped.
     if is_decision_engine_cutover_enabled {
         let hybrid_stage_outcome = stage
             .route(input)
@@ -1632,6 +1645,18 @@ pub async fn perform_hybrid_routing_if_enabled(
             static_connectors,
             static_approach,
         )
+    } else if !has_active_routing_algorithm {
+        logger::debug!(
+            business_profile_id=?business_profile.get_id(),
+            "decision_engine_euclid: no active routing algorithm, skipping DE evaluation"
+        );
+        logger::info!(
+            business_profile_id=?business_profile.get_id(),
+            routing_source = "hyperswitch_static",
+            "decision_engine_euclid: selected routing source after hybrid stage"
+        );
+
+        (static_connectors.to_vec(), static_approach)
     } else {
         logger::debug!(
             business_profile_id=?business_profile.get_id(),
