@@ -930,6 +930,7 @@ pub async fn get_sdk_next_action_for_payment_method_list(
     dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
     customer_id: Option<&common_utils::id_type::CustomerId>,
     has_surcharge_processor: bool,
+    offers_enabled: bool,
 ) -> api_models::payments::SdkNextAction {
     let should_perform_eligibility = dimensions
         .get_should_perform_eligibility(
@@ -942,7 +943,7 @@ pub async fn get_sdk_next_action_for_payment_method_list(
     if should_perform_eligibility {
         api_models::payments::SdkNextAction {
             next_action: api_models::payments::NextActionCall::EligibilityCheck,
-            should_block_confirm: Some(has_surcharge_processor),
+            should_block_confirm: Some(has_surcharge_processor || offers_enabled),
         }
     } else {
         api_models::payments::SdkNextAction {

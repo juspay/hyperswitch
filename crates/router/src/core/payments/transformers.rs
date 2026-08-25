@@ -7604,6 +7604,9 @@ impl ForeignFrom<&diesel_models::types::BillingConnectorPaymentMethodDetails>
                 Self::Card(api_models::payments::BillingConnectorAdditionalCardInfo {
                     card_issuer: card_details.card_issuer.clone(),
                     card_network: card_details.card_network.clone(),
+                    card_type: card_details.card_type.clone(),
+                    card_issuing_country: card_details.card_issuing_country.clone(),
+                    card_isin: card_details.card_isin.clone(),
                 })
             }
         }
@@ -7778,6 +7781,7 @@ impl ForeignFrom<api_models::admin::PaymentLinkConfigRequest>
             is_setup_mandate_flow: config.is_setup_mandate_flow,
             color_icon_card_cvc_error: config.color_icon_card_cvc_error,
             show_merchant_name: config.show_merchant_name,
+            payment_methods_separator_text: config.payment_methods_separator_text,
         }
     }
 }
@@ -7856,6 +7860,7 @@ impl ForeignFrom<diesel_models::PaymentLinkConfigRequestForPayments>
             is_setup_mandate_flow: config.is_setup_mandate_flow,
             color_icon_card_cvc_error: config.color_icon_card_cvc_error,
             show_merchant_name: config.show_merchant_name,
+            payment_methods_separator_text: config.payment_methods_separator_text,
         }
     }
 }

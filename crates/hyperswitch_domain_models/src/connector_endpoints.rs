@@ -160,6 +160,7 @@ pub struct Connectors {
     pub worldline: ConnectorParams,
     pub worldpay: ConnectorParams,
     pub worldpaymodular: ConnectorParams,
+    pub worldpayraft: ConnectorParams,
     pub worldpayvantiv: ConnectorParamsWithThreeUrls,
     pub worldpayxml: ConnectorParamsWithSecondaryBaseUrl,
     pub xendit: ConnectorParams,

@@ -12741,6 +12741,7 @@ pub struct PaymentLinkDetails {
     pub setup_future_usage_applied: Option<common_enums::FutureUsage>,
     pub color_icon_card_cvc_error: Option<String>,
     pub show_merchant_name: Option<bool>,
+    pub payment_methods_separator_text: Option<String>,
 }
 
 #[derive(Debug, serde::Serialize, Clone)]
@@ -12764,6 +12765,7 @@ pub struct SecurePaymentLinkDetails {
     pub payment_form_label_type: Option<api_enums::PaymentLinkSdkLabelType>,
     pub show_card_terms: Option<api_enums::PaymentLinkShowSdkTerms>,
     pub color_icon_card_cvc_error: Option<String>,
+    pub payment_methods_separator_text: Option<String>,
 }
 
 #[derive(Debug, serde::Serialize)]
@@ -13685,6 +13687,16 @@ pub struct BillingConnectorAdditionalCardInfo {
     #[schema(value_type = Option<String>, example = "JP MORGAN CHASE")]
     /// Card Issuer
     pub card_issuer: Option<String>,
+    /// Funding type of the card, `credit` or `debit`, enriched from the card bin
+    #[schema(value_type = Option<String>, example = "credit")]
+    pub card_type: Option<String>,
+    /// Country in which the card was issued, enriched from the card bin
+    #[schema(value_type = Option<String>, example = "INDIA")]
+    pub card_issuing_country: Option<String>,
+    /// Issuer identification number of the card, retained so that any further card details can
+    /// be looked up from it later
+    #[schema(value_type = Option<String>, example = "424242")]
+    pub card_isin: Option<String>,
 }
 
 #[cfg(feature = "v2")]
