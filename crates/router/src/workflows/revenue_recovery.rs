@@ -53,8 +53,6 @@ use scheduler::{types::process_data, utils as scheduler_utils};
 use storage_impl::errors as storage_errors;
 #[cfg(feature = "v2")]
 use storage_impl::revenue_recovery_retry_stats::RevenueRecoveryRetryStatsInterface;
-#[cfg(feature = "v2")]
-use time::{Date, OffsetDateTime, Time};
 
 #[cfg(feature = "v2")]
 use crate::core::payments::operations;
@@ -463,7 +461,7 @@ async fn should_force_schedule_due_to_missed_slots(
                 .max_retry_count_for_thirty_day;
 
         // Calculate time difference since last retry and compare with threshold
-        (OffsetDateTime::now_utc() - most_recent_date.assume_utc()).whole_hours()
+        (time::OffsetDateTime::now_utc() - most_recent_date.assume_utc()).whole_hours()
             > threshold_hours.into()
     })
     // Default to false if no valid retry history found (either none exists or all have retry_count = 0)
@@ -582,7 +580,7 @@ struct TokenProcessResult {
 
 #[cfg(feature = "v2")]
 pub fn calculate_difference_in_seconds(scheduled_time: time::PrimitiveDateTime) -> i64 {
-    let now_utc = OffsetDateTime::now_utc();
+    let now_utc = time::OffsetDateTime::now_utc();
 
     let scheduled_offset_dt = scheduled_time.assume_utc();
     let difference = scheduled_offset_dt - now_utc;
@@ -972,7 +970,7 @@ pub async fn calculate_smart_retry_time(
     token_with_retry_info: &PaymentProcessorTokenWithRetryInfo,
 ) -> Result<(Option<RetryDecision>, bool), errors::ProcessTrackerError> {
     let wait_hours = token_with_retry_info.retry_wait_time_hours;
-    let current_time = OffsetDateTime::now_utc();
+    let current_time = time::OffsetDateTime::now_utc();
     let future_time = current_time + time::Duration::hours(wait_hours);
 
     // Timestamp after which retry can be done without penalty
@@ -1006,7 +1004,8 @@ pub async fn calculate_smart_retry_time(
             .revenue_recovery
             .recovery_timestamp
             .unretried_invoice_schedule_time_offset_seconds;
-        let scheduled_time = OffsetDateTime::now_utc() + time::Duration::seconds(schedule_offset);
+        let scheduled_time =
+            time::OffsetDateTime::now_utc() + time::Duration::seconds(schedule_offset);
         logger::info!(
             "Skipping Decider call, forcing a schedule for the token:- '{:?}' to time:- {}",
             masked_token,
@@ -1096,7 +1095,7 @@ pub async fn call_decider_for_payment_processor_tokens_select_closest_time(
                 .token_status
                 .payment_processor_token_details;
 
-            let utc_schedule_time = OffsetDateTime::now_utc() + time::Duration::minutes(1);
+            let utc_schedule_time = time::OffsetDateTime::now_utc() + time::Duration::minutes(1);
             let schedule_time =
                 time::PrimitiveDateTime::new(utc_schedule_time.date(), utc_schedule_time.time());
 
@@ -1480,7 +1479,7 @@ fn softmax(xs: &[f64]) -> Vec<f64> {
 #[cfg(feature = "v2")]
 #[allow(clippy::indexing_slicing)]
 fn combine_day_weight(
-    dates: &[Date],
+    dates: &[time::Date],
     dow: &BTreeMap<u8, f64>,
     dom: &BTreeMap<u8, f64>,
 ) -> (Vec<f64>, Vec<&'static str>) {
@@ -1535,7 +1534,7 @@ pub fn compute_mathmodel_retry_time(
     stats: &StatsDocument,
     budget: u32,
     grace_days: u32,
-) -> Option<OffsetDateTime> {
+) -> Option<time::OffsetDateTime> {
     // `grace_days` COUNTS the failure day (today), which we never retry on — so the retriable window
     // is the `grace_days - 1` future days [failure_day + 1 .. failure_day + grace_days - 1]. When that
     // is empty (grace_days <= 1: no grace, or grace covers only today) there is no in-grace future day.
@@ -1545,7 +1544,7 @@ pub fn compute_mathmodel_retry_time(
     if future_days == 0 {
         return None;
     }
-    let now = OffsetDateTime::now_utc();
+    let now = time::OffsetDateTime::now_utc();
     let dow_scores = slot_scores(&stats.dow);
     let dom_scores = slot_scores(&stats.dom);
 
@@ -1572,7 +1571,7 @@ pub fn compute_mathmodel_retry_time(
     let (day_weights, winners) = combine_day_weight(&dates, &dow_scores, &dom_scores);
     let (day_idx, pick_driver) = pick_index(&day_weights, budget);
     let hour = pick_hour(&stats.hod);
-    let time = Time::from_hms(hour, 0, 0).unwrap_or(Time::MIDNIGHT);
+    let time = time::Time::from_hms(hour, 0, 0).unwrap_or(time::Time::MIDNIGHT);
 
     // Observability for a later recovery back-test: which signal drove the pick and how strong it was.
     // Guard-forced and budget-exhausted picks attribute to themselves (NOT the uninvolved softmax
@@ -1609,7 +1608,7 @@ pub async fn compute_adaptive_retry_time(
     error_code: common_enums::StandardisedCode,
     remaining_grace_days: u32,
     remaining_budget: u32,
-) -> Option<OffsetDateTime> {
+) -> Option<time::OffsetDateTime> {
     // Fetch the stats recorded against this error code. The store builds the cluster key and
     // parses the stored document internally; `None` when the cluster has no recorded history yet.
     let record = state
@@ -1679,8 +1678,8 @@ mod mathmodel_retry_time_tests {
         // Exercises the indexing contract (dow index = number_days_from_monday), not just the
         // `time` crate: give Monday (0) a dominant score, no month-day signal, and assert the Monday
         // date in the window wins the weight. Deterministic — combine_day_weight uses no RNG.
-        let start =
-            Date::from_calendar_date(2026, time::Month::August, 17).expect("valid calendar date"); // a Monday
+        let start = time::Date::from_calendar_date(2026, time::Month::August, 17)
+            .expect("valid calendar date"); // a Monday
         let mut dates = vec![start];
         while dates.len() < 7 {
             dates.push(
@@ -1724,7 +1723,7 @@ mod mathmodel_retry_time_tests {
         let grace: u32 = 14;
         for stats in [sample(), StatsDocument::default()] {
             for _ in 0..200 {
-                let before = OffsetDateTime::now_utc();
+                let before = time::OffsetDateTime::now_utc();
                 let dt = compute_mathmodel_retry_time(&stats, 3, grace).expect("grace > 1 => Some");
                 let last = (before + time::Duration::days(i64::from(grace) + 1)).date();
                 assert!(
@@ -1741,7 +1740,7 @@ mod mathmodel_retry_time_tests {
     fn window_starts_next_day() {
         // Failure day is excluded: the earliest candidate is tomorrow. grace COUNTS today, so grace 2
         // = today + 1 future day (tomorrow) — assert the pick is that next day, not the failure day.
-        let before = OffsetDateTime::now_utc();
+        let before = time::OffsetDateTime::now_utc();
         let dt = compute_mathmodel_retry_time(&sample(), 3, 2).expect("grace 2 => Some");
         assert!(
             dt.date() > before.date(),
@@ -1795,7 +1794,7 @@ mod mathmodel_retry_time_tests {
         // Every slot corrupt (k > n) on all three axes -> all dropped -> uniform -> still a valid
         // in-window datetime, never a panic or a skipped retry.
         let corrupt = doc_with(&[(0, 1, 100), (3, 2, 50)], &[(5, 1, 80)], &[(9, 1, 30)]);
-        let before = OffsetDateTime::now_utc();
+        let before = time::OffsetDateTime::now_utc();
         for _ in 0..50 {
             let dt = compute_mathmodel_retry_time(&corrupt, 3, 14).expect("grace > 1 => Some");
             assert!(dt.date() > before.date() && dt.hour() < 24);
@@ -1812,7 +1811,7 @@ mod mathmodel_retry_time_tests {
 
     #[test]
     fn grace_is_capped_at_max() {
-        let before = OffsetDateTime::now_utc();
+        let before = time::OffsetDateTime::now_utc();
         let dt = compute_mathmodel_retry_time(&sample(), 3, 365).expect("grace > 1 => Some");
         let last = (before + time::Duration::days(i64::from(MAX_GRACE_DAYS) + 1)).date();
         assert!(
