@@ -256,6 +256,8 @@ Never share your secret api keys. Keep them guarded and secure.
         common_types::payments::ExternalSurchargeDetails,
         common_types::three_ds_decision_rule_engine::ThreeDSDecisionRule,
         common_types::three_ds_decision_rule_engine::ThreeDSDecision,
+        common_utils::types::list::PageSize,
+        common_utils::types::list::PageOffset,
         api_models::payments::CartesBancairesParams,
         api_models::payments::NetworkParams,
         api_models::payments::Cryptogram,
