@@ -682,33 +682,24 @@ pub fn transform_de_output_for_router(
     de_output: Vec<ConnectorInfo>,
     de_evaluated_output: Vec<RoutableConnectorChoice>,
 ) -> RoutingResult<Vec<RoutableConnectorChoice>> {
+    // Keyed on the full (connector, merchant_connector_id) pair rather than the connector name
+    // alone: a merchant can hold several MCAs for the same connector, and a rule that spans two
+    // of them (e.g. a volume split across two paypal MCAs) must keep both.
     let mut seen = HashSet::new();
 
     // evaluated connectors on top, to ensure the fallback is based on other connectors.
     let mut ordered = Vec::with_capacity(de_output.len() + de_evaluated_output.len());
     for eval_conn in de_evaluated_output {
-        if seen.insert(eval_conn.connector) {
+        if seen.insert((eval_conn.connector, eval_conn.merchant_connector_id.clone())) {
             ordered.push(eval_conn);
         }
     }
 
     // Add remaining connectors from de_output (only if not already seen), for fallback
     for conn in de_output {
-        let connector_name = conn.gateway_name.clone();
-        let key = RoutableConnectors::from_str(&connector_name).map_err(|error| {
-            logger::error!(
-                error=?error,
-                connector_name = %connector_name,
-                "euclid: failed to parse connector name from decision engine output"
-            );
-            errors::RoutingError::GenericConversionError {
-                from: "String".to_string(),
-                to: "RoutableConnectors".to_string(),
-            }
-        })?;
-        if seen.insert(key) {
-            let de_choice = DeRoutableConnectorChoice::try_from(conn)?;
-            ordered.push(RoutableConnectorChoice::from(de_choice));
+        let choice = RoutableConnectorChoice::from(DeRoutableConnectorChoice::try_from(conn)?);
+        if seen.insert((choice.connector, choice.merchant_connector_id.clone())) {
+            ordered.push(choice);
         }
     }
     Ok(ordered)
@@ -2894,4 +2885,93 @@ pub fn perform_pre_routing(
     let pm_allowed = allowed_pm_for_pre_routing.contains(payment_method);
     let pmt_allowed = allowed_pmt_for_pre_routing.contains(payment_method_type);
     (pm_allowed || pmt_allowed) && !should_skip_prerouting
+}
+
+#[cfg(test)]
+mod transform_de_output_tests {
+    use super::*;
+
+    fn mca(id: &str) -> id_type::MerchantConnectorAccountId {
+        id_type::MerchantConnectorAccountId::wrap(id.to_string()).unwrap()
+    }
+
+    fn choice(connector: RoutableConnectors, id: &str) -> RoutableConnectorChoice {
+        RoutableConnectorChoice {
+            choice_kind: api_routing::RoutableChoiceKind::FullStruct,
+            connector,
+            merchant_connector_id: Some(mca(id)),
+        }
+    }
+
+    fn info(name: &str, id: &str) -> ConnectorInfo {
+        ConnectorInfo {
+            gateway_name: name.to_string(),
+            gateway_id: Some(id.to_string()),
+        }
+    }
+
+    // The regression this PR fixes: two MCAs of the SAME connector must both survive.
+    #[test]
+    fn keeps_both_mcas_of_the_same_connector() {
+        let out = transform_de_output_for_router(
+            vec![
+                info("paypal", "mca_9pE8yl5LFwGLe3fA2xNZ"),
+                info("paypal", "mca_XLx05llokfkj8Tsb7nMa"),
+            ],
+            vec![choice(
+                RoutableConnectors::Paypal,
+                "mca_XLx05llokfkj8Tsb7nMa",
+            )],
+        )
+        .unwrap();
+
+        assert_eq!(out.len(), 2, "second paypal MCA was dropped");
+        // volume-split winner stays at the front, loser follows as fallback
+        let mca_order = out
+            .iter()
+            .map(|c| c.merchant_connector_id.clone())
+            .collect::<Vec<_>>();
+        assert_eq!(
+            mca_order,
+            vec![
+                Some(mca("mca_XLx05llokfkj8Tsb7nMa")),
+                Some(mca("mca_9pE8yl5LFwGLe3fA2xNZ")),
+            ]
+        );
+    }
+
+    // Guard against the opposite failure: a true duplicate must still collapse.
+    #[test]
+    fn still_dedups_exact_duplicates() {
+        let out = transform_de_output_for_router(
+            vec![
+                info("paypal", "mca_9pE8yl5LFwGLe3fA2xNZ"),
+                info("paypal", "mca_9pE8yl5LFwGLe3fA2xNZ"),
+            ],
+            vec![choice(
+                RoutableConnectors::Paypal,
+                "mca_9pE8yl5LFwGLe3fA2xNZ",
+            )],
+        )
+        .unwrap();
+
+        assert_eq!(out.len(), 1);
+    }
+
+    // Pre-existing behaviour for distinct connectors must be untouched.
+    #[test]
+    fn preserves_evaluated_first_ordering_for_distinct_connectors() {
+        let out = transform_de_output_for_router(
+            vec![info("adyen", "mca_ady"), info("stripe", "mca_strp")],
+            vec![choice(RoutableConnectors::Stripe, "mca_strp")],
+        )
+        .unwrap();
+
+        assert_eq!(out.len(), 2);
+        let connector_order = out.iter().map(|c| c.connector).collect::<Vec<_>>();
+        assert_eq!(
+            connector_order,
+            vec![RoutableConnectors::Stripe, RoutableConnectors::Adyen]
+        );
+    }
 }

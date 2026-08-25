@@ -426,6 +426,7 @@ pub struct ConnectorConfig {
     pub worldline: Option<ConnectorTomlConfig>,
     pub worldpay: Option<ConnectorTomlConfig>,
     pub worldpaymodular: Option<ConnectorTomlConfig>,
+    pub worldpayraft: Option<ConnectorTomlConfig>,
     #[cfg(feature = "payouts")]
     pub worldpay_payout: Option<ConnectorTomlConfig>,
     pub worldpayvantiv: Option<ConnectorTomlConfig>,
@@ -686,6 +687,7 @@ impl ConnectorConfig {
             Connector::Worldline => Ok(connector_data.worldline),
             Connector::Worldpay => Ok(connector_data.worldpay),
             Connector::Worldpaymodular => Ok(connector_data.worldpaymodular),
+            Connector::Worldpayraft => Ok(connector_data.worldpayraft),
             Connector::Worldpayvantiv => Ok(connector_data.worldpayvantiv),
             Connector::Worldpayxml => Ok(connector_data.worldpayxml),
             Connector::Zen => Ok(connector_data.zen),
