@@ -7781,6 +7781,7 @@ impl ForeignFrom<api_models::admin::PaymentLinkConfigRequest>
             is_setup_mandate_flow: config.is_setup_mandate_flow,
             color_icon_card_cvc_error: config.color_icon_card_cvc_error,
             show_merchant_name: config.show_merchant_name,
+            payment_methods_separator_text: config.payment_methods_separator_text,
         }
     }
 }
@@ -7859,6 +7860,7 @@ impl ForeignFrom<diesel_models::PaymentLinkConfigRequestForPayments>
             is_setup_mandate_flow: config.is_setup_mandate_flow,
             color_icon_card_cvc_error: config.color_icon_card_cvc_error,
             show_merchant_name: config.show_merchant_name,
+            payment_methods_separator_text: config.payment_methods_separator_text,
         }
     }
 }
