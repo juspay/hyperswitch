@@ -431,16 +431,19 @@ async fn fetch_enabled_payment_methods(
 
     let customer_acceptance_support_config = &state.conf.customer_acceptance_support;
 
-    let mut flat_pms =
-        merchant_enabled_pms_context.payment_experience_pms_for_client(customer_acceptance_support_config);
+    let mut flat_pms = merchant_enabled_pms_context
+        .payment_experience_pms_for_client(customer_acceptance_support_config);
     flat_pms.extend(
-        merchant_enabled_pms_context.card_network_pms_for_client(customer_acceptance_support_config),
+        merchant_enabled_pms_context
+            .card_network_pms_for_client(customer_acceptance_support_config),
     );
     flat_pms.extend(merchant_enabled_pms_context.bank_redirect_pms_for_client(state)?);
-    flat_pms
-        .extend(merchant_enabled_pms_context.bank_debit_pms_for_client(customer_acceptance_support_config));
     flat_pms.extend(
-        merchant_enabled_pms_context.bank_transfer_pms_for_client(customer_acceptance_support_config),
+        merchant_enabled_pms_context.bank_debit_pms_for_client(customer_acceptance_support_config),
+    );
+    flat_pms.extend(
+        merchant_enabled_pms_context
+            .bank_transfer_pms_for_client(customer_acceptance_support_config),
     );
 
     Ok(EnabledPmsResult {
