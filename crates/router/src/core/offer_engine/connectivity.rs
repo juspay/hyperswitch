@@ -24,8 +24,6 @@ pub async fn check_offer_engine_connectivity(
     state: SessionState,
 ) -> RouterResponse<OfferEngineConnectivityResponse> {
     let dimensions: dimension_state::DimensionsGlobal = dimension_state::Dimensions::new();
-    // Connectivity is a global/application check with no merchant context, so no
-    // merchant-level Offer Engine config is available.
     let response = match resolve_offer_engine_config(&state, &dimensions, None).await {
         Err(err) => OfferEngineConnectivityResponse {
             enabled: false,

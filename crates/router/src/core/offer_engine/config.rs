@@ -8,14 +8,6 @@ use crate::{
     routes::SessionState,
 };
 
-/// Resolve the Offer Engine config for the given dimensions. Generic over the
-/// dimension so callers can target at any level (connectivity uses the global
-/// dimension; payments pass merchant/org/profile for superposition targeting).
-///
-/// `merchant_offer_config` is the decrypted merchant-level Offer Engine config
-/// read from the merchant account. It is only consulted when the resolved
-/// credential source is `merchant`; callers without a merchant context (e.g.
-/// connectivity) pass `None`.
 pub async fn resolve_offer_engine_config<D>(
     state: &SessionState,
     dimensions: &D,
@@ -76,12 +68,6 @@ fn resolve_application_config(
     })
 }
 
-/// Resolve merchant-level Offer Engine config: the `api_key` and Offer Engine
-/// `merchant_id` come from the merchant account (Offer Engine issues one account
-/// per merchant), while the shared `base_url` continues to come from the
-/// application config. An explicitly `merchant` source with missing or invalid
-/// credentials is a misconfiguration and errors here (mirrors the `application`
-/// source when its app config is unset).
 fn resolve_merchant_config(
     state: &SessionState,
     merchant_offer_config: Option<&common_utils::pii::SecretSerdeValue>,
