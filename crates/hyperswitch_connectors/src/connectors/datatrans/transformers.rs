@@ -506,13 +506,12 @@ fn create_card_details(
         // we ask for 3DS at all, is what encodes "force a challenge" (e.g. a new card) vs
         // "no preference" (e.g. a previously used card, letting Datatrans/the issuer decide
         // frictionless vs challenge).
-        let three_ds_requestor_challenge_ind = if item.router_data.request.force_3ds_challenge
-            == Some(true)
-        {
-            None
-        } else {
-            Some(ThreeDSRequestorChallengeIndicator::NoPreference)
-        };
+        let three_ds_requestor_challenge_ind =
+            if item.router_data.request.force_3ds_challenge == Some(true) {
+                None
+            } else {
+                Some(ThreeDSRequestorChallengeIndicator::NoPreference)
+            };
         details.three_ds = Some(ThreeDSecureData::Cardholder(ThreedsInfo {
             cardholder: CardHolder {
                 cardholder_name: item.router_data.get_billing_full_name()?,
