@@ -17437,6 +17437,7 @@
           "wise",
           "worldline",
           "worldpay",
+          "worldpayraft",
           "worldpayvantiv",
           "worldpayxml",
           "worldpaymodular",
@@ -29754,6 +29755,11 @@
             "type": "boolean",
             "description": "Flag to display the merchant name in the payment link",
             "nullable": true
+          },
+          "payment_methods_separator_text": {
+            "type": "string",
+            "description": "Custom text for the separator shown between wallet and card payment method sections",
+            "nullable": true
           }
         }
       },
@@ -29942,6 +29948,13 @@
             "default": true,
             "example": true,
             "nullable": true
+          },
+          "payment_methods_separator_text": {
+            "type": "string",
+            "description": "Custom text for the separator shown between wallet and card payment method sections",
+            "example": "Or pay with",
+            "nullable": true,
+            "maxLength": 64
           }
         }
       },
@@ -37148,6 +37161,12 @@
             "example": "S3FC9G9M2MVFDXT5",
             "nullable": true
           },
+          "connector_eligibility_reference_id": {
+            "type": "string",
+            "description": "Underlying processor's reference ID for the payout eligibility check",
+            "example": "8ad8bf30-5789-52be-a80a-72908abf5f9d",
+            "nullable": true
+          },
           "priority": {
             "allOf": [
               {
@@ -42240,6 +42259,7 @@
           "worldline",
           "worldpay",
           "worldpaymodular",
+          "worldpayraft",
           "worldpayvantiv",
           "worldpayxml",
           "xendit",
