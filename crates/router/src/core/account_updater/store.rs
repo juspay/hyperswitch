@@ -32,23 +32,40 @@ pub async fn apply_card_refresh_result(
 ) -> CustomResult<Option<domain::PaymentMethod>, AccountUpdaterError> {
     let CardRefreshedData { outcome, service } = card_result;
 
-    let refreshed_card = match outcome.get_new_card_details() {
-        Some(RefreshedCard::CardOpen(refreshed_card)) => refreshed_card,
-        Some(RefreshedCard::CardClosed) => {
-            return update_payment_method_status(
+    match outcome.get_new_card_details() {
+        Some(RefreshedCard::CardOpen(refreshed_card)) => {
+            write_refreshed_card(
                 state,
                 platform,
+                profile,
+                payment_method,
                 service,
-                payment_method.clone(),
-                common_enums::PaymentMethodStatus::Inactive,
+                refreshed_card,
             )
             .await
-            .attach_printable("Failed to deactivate the closed payment method")
-            .map(Some);
         }
-        None => return Ok(None),
-    };
+        Some(RefreshedCard::CardClosed) => update_payment_method_status(
+            state,
+            platform,
+            service,
+            payment_method.clone(),
+            common_enums::PaymentMethodStatus::Inactive,
+        )
+        .await
+        .attach_printable("Failed to deactivate the closed payment method")
+        .map(Some),
+        None => Ok(None),
+    }
+}
 
+async fn write_refreshed_card(
+    state: &SessionState,
+    platform: &domain::Platform,
+    profile: &domain::Profile,
+    payment_method: &domain::PaymentMethod,
+    service: Connector,
+    refreshed_card: payments_grpc::CardDetailsWithNoCvc,
+) -> CustomResult<Option<domain::PaymentMethod>, AccountUpdaterError> {
     let stored_card = payment_method
         .payment_method_data
         .as_ref()

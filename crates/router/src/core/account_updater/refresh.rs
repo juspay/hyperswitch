@@ -3,7 +3,9 @@ use common_utils::errors::CustomResult;
 use error_stack::{report, ResultExt};
 use external_services::grpc_client::LineageIds;
 use router_env::{instrument, tracing};
-use unified_connector_service_client::payments as payments_grpc;
+use unified_connector_service_client::payments::{
+    self as payments_grpc, refresh_result, CardRefreshOutcome as Outcome,
+};
 
 use super::types::{
     AccountUpdaterError, CardOutcome, CardRefreshedData, RefreshResult,
@@ -85,9 +87,10 @@ pub async fn request_account_updater_refresh(
         .attach_printable("UCS returned neither a result nor an error")?;
 
     match result {
-        payments_grpc::refresh_result::Result::Card(card) => Ok(RefreshResult::Card(
-            build_card_refreshed_data(card, config.service())?,
-        )),
+        refresh_result::Result::Card(card) => Ok(RefreshResult::Card(build_card_refreshed_data(
+            card,
+            config.service(),
+        )?)),
     }
 }
 
@@ -95,8 +98,6 @@ fn build_card_refreshed_data(
     card_result: payments_grpc::CardRefreshResult,
     service: Connector,
 ) -> CustomResult<CardRefreshedData, AccountUpdaterError> {
-    use payments_grpc::CardRefreshOutcome as Outcome;
-
     let reported_outcome = card_result.outcome();
 
     let outcome = match (reported_outcome, card_result.card) {
