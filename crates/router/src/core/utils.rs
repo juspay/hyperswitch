@@ -2101,6 +2101,32 @@ pub fn get_connector_request_reference_id(
     Ok(connector_request_reference_id)
 }
 
+#[cfg(feature = "frm")]
+pub fn get_gateway_frm_metadata(
+    conf: &Settings,
+    payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
+) -> CustomResult<Option<common_utils::pii::SecretSerdeValue>, errors::ApiErrorResponse> {
+    match &payment_attempt.connector {
+        Some(connector_name) => {
+            let connector_data = api::ConnectorData::get_connector_by_name(
+                &conf.connectors,
+                connector_name,
+                api::GetToken::Connector,
+                payment_attempt.merchant_connector_id.clone(),
+            )
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable_lazy(|| "Failed to construct connector data")?;
+
+            connector_data
+                .connector
+                .get_frm_metadata(payment_attempt)
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable_lazy(|| "Failed to construct FRM gateway metadata")
+        }
+        None => Ok(None),
+    }
+}
+
 // TODO: Based on the connector configuration, the connector_request_reference_id should be generated
 #[cfg(feature = "v2")]
 pub fn get_connector_request_reference_id(

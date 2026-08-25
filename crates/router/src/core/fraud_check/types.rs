@@ -19,6 +19,7 @@ use utoipa::ToSchema;
 
 use super::operation::BoxedFraudCheckOperation;
 use crate::types::{
+    api::routing::FrmRoutingAlgorithm,
     domain::MerchantAccount,
     storage::{enums as storage_enums, fraud_check::FraudCheck},
     PaymentAddress,
@@ -91,6 +92,16 @@ pub struct FrmConfigsObject {
     pub frm_enabled_pm: Option<PaymentMethod>,
     pub frm_enabled_gateway: Option<api_models::enums::Connector>,
     pub frm_preferred_flow_type: api_enums::FrmPreferredFlowTypes,
+}
+
+#[derive(Debug, Clone)]
+pub enum FrmEligibility {
+    NotApplicable,
+    Applicable {
+        frm_routing_algorithm: FrmRoutingAlgorithm,
+        profile_id: common_utils::id_type::ProfileId,
+        frm_configs: FrmConfigsObject,
+    },
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, ToSchema)]

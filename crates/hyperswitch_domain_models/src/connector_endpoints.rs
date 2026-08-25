@@ -131,6 +131,7 @@ pub struct Connectors {
     pub revolv3: ConnectorParams,
     pub riskified: ConnectorParams,
     pub santander: ConnectorParams,
+    pub sanlam_payshield: ConnectorParams,
     pub shift4: ConnectorParams,
     pub sift: ConnectorParams,
     pub silverflow: ConnectorParams,
