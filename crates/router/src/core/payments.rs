@@ -12115,8 +12115,8 @@ where
     let is_volatile_payment_method = payment_data
         .get_payment_method_info()
         .is_some_and(domain::PaymentMethod::is_pm_volatile);
-    let is_token_data_present = has_token_data
-        || (is_payment_method_modular_allowed && !is_volatile_payment_method);
+    let is_token_data_present =
+        has_token_data || (is_payment_method_modular_allowed && !is_volatile_payment_method);
 
     match (
         payment_data.get_payment_intent().setup_future_usage,

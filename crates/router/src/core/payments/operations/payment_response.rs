@@ -229,9 +229,7 @@ where
             .is_some();
 
         match (is_volatile, payment_method_id) {
-            (Some(is_volatile), Some(pm_id))
-                if !is_volatile || should_promote_volatile_card =>
-            {
+            (Some(is_volatile), Some(pm_id)) if !is_volatile || should_promote_volatile_card => {
                 let should_update = resp.status.should_update_payment_method();
 
                 let payment_method_type = payment_data
@@ -354,8 +352,7 @@ where
                         network_transaction_id: network_transaction_id
                             .map(hyperswitch_masking::Secret::new),
                         acknowledgement_status,
-                        storage_type: is_volatile
-                            .then_some(common_enums::StorageType::Persistent),
+                        storage_type: is_volatile.then_some(common_enums::StorageType::Persistent),
                     };
 
                     // #3 - Execute the modular payment-method update call if there is something to be updated

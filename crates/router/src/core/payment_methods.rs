@@ -1772,15 +1772,8 @@ pub async fn create_payment_method_core(
 ) -> RouterResult<(api::PaymentMethodResponse, domain::PaymentMethod)> {
     match req.storage_type {
         common_enums::StorageType::Volatile => {
-            create_volatile_payment_method_core(
-                state,
-                _request_state,
-                req,
-                platform,
-                profile,
-                None,
-            )
-            .await
+            create_volatile_payment_method_core(state, _request_state, req, platform, profile, None)
+                .await
         }
         common_enums::StorageType::Persistent => {
             create_persistent_payment_method_core(
@@ -3313,7 +3306,8 @@ pub async fn create_generic_volatile_payment_method(
                     })
                 }
                 PaymentMethodResolution::Create {
-                    fingerprint_details, ..
+                    fingerprint_details,
+                    ..
                 } => fingerprint_details,
             }
         }
@@ -3362,8 +3356,8 @@ pub async fn create_generic_volatile_payment_method(
             .await
             .attach_printable("failed to construct payment method")?;
 
-            payment_method.auxiliary_fingerprint_id = fingerprint_details
-                .and_then(|details| details.auxiliary_fingerprint_id);
+            payment_method.auxiliary_fingerprint_id =
+                fingerprint_details.and_then(|details| details.auxiliary_fingerprint_id);
             payment_method.customer_acceptance = customer_acceptance;
 
             let payment_method = payment_method
@@ -6793,14 +6787,15 @@ async fn update_or_promote_payment_method(
     )
     .await
     .map_err(|error| {
-        metrics::PAYMENT_METHOD_STORAGE_PROMOTION.add(
-            1,
-            router_env::metric_attributes!(("outcome", "redis_miss")),
-        );
+        metrics::PAYMENT_METHOD_STORAGE_PROMOTION
+            .add(1, router_env::metric_attributes!(("outcome", "redis_miss")));
         let error = error
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to fetch volatile payment method for promotion");
-        logger::error!(?error, "Failed to fetch volatile payment method for promotion");
+        logger::error!(
+            ?error,
+            "Failed to fetch volatile payment method for promotion"
+        );
         error
     })?;
 
@@ -6835,16 +6830,18 @@ async fn update_or_promote_payment_method(
             .await;
 
         match persistent_payment_method {
-            Ok(payment_method) => Box::pin(update_payment_method_core(
-                state,
-                platform,
-                profile,
-                request,
-                payment_method_id,
-                Some(payment_method),
-                network_tokenization_resp,
-            ))
-            .await,
+            Ok(payment_method) => {
+                Box::pin(update_payment_method_core(
+                    state,
+                    platform,
+                    profile,
+                    request,
+                    payment_method_id,
+                    Some(payment_method),
+                    network_tokenization_resp,
+                ))
+                .await
+            }
             Err(error) if error.current_context().is_db_not_found() => {
                 let payment_method_data = vault::retrieve_volatile_payment_method_from_redis(
                     state,
@@ -6853,10 +6850,8 @@ async fn update_or_promote_payment_method(
                 )
                 .await
                 .map_err(|error| {
-                    metrics::PAYMENT_METHOD_STORAGE_PROMOTION.add(
-                        1,
-                        router_env::metric_attributes!(("outcome", "redis_miss")),
-                    );
+                    metrics::PAYMENT_METHOD_STORAGE_PROMOTION
+                        .add(1, router_env::metric_attributes!(("outcome", "redis_miss")));
                     let error = error
                         .change_context(errors::ApiErrorResponse::InternalServerError)
                         .attach_printable(
@@ -6894,15 +6889,11 @@ async fn update_or_promote_payment_method(
                         )
                         .await
                         {
-                            Ok(()) => metrics::PAYMENT_METHOD_STORAGE_PROMOTION.add(
-                                1,
-                                router_env::metric_attributes!(("outcome", "completed")),
-                            ),
+                            Ok(()) => metrics::PAYMENT_METHOD_STORAGE_PROMOTION
+                                .add(1, router_env::metric_attributes!(("outcome", "completed"))),
                             Err(error) => {
-                                metrics::PAYMENT_METHOD_STORAGE_PROMOTION.add(
-                                    1,
-                                    router_env::metric_attributes!(("outcome", "failed")),
-                                );
+                                metrics::PAYMENT_METHOD_STORAGE_PROMOTION
+                                    .add(1, router_env::metric_attributes!(("outcome", "failed")));
                                 let error = error
                                     .change_context(errors::ApiErrorResponse::InternalServerError)
                                     .attach_printable(
@@ -6918,10 +6909,8 @@ async fn update_or_promote_payment_method(
                     .in_current_span(),
                 );
 
-                metrics::PAYMENT_METHOD_STORAGE_PROMOTION.add(
-                    1,
-                    router_env::metric_attributes!(("outcome", "scheduled")),
-                );
+                metrics::PAYMENT_METHOD_STORAGE_PROMOTION
+                    .add(1, router_env::metric_attributes!(("outcome", "scheduled")));
 
                 Ok((response, response_payment_method))
             }
