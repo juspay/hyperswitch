@@ -29729,6 +29729,11 @@
             "type": "boolean",
             "description": "Flag to display the merchant name in the payment link",
             "nullable": true
+          },
+          "payment_methods_separator_text": {
+            "type": "string",
+            "description": "Custom text for the separator shown between wallet and card payment method sections",
+            "nullable": true
           }
         }
       },
@@ -29917,6 +29922,13 @@
             "default": true,
             "example": true,
             "nullable": true
+          },
+          "payment_methods_separator_text": {
+            "type": "string",
+            "description": "Custom text for the separator shown between wallet and card payment method sections",
+            "example": "Or pay with",
+            "nullable": true,
+            "maxLength": 64
           }
         }
       },
