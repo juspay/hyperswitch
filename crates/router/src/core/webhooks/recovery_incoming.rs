@@ -263,8 +263,7 @@ async fn handle_schedule_failed_payment(
     let (recovery_attempt_from_payment_attempt, recovery_intent_from_payment_attempt) =
         payment_attempt_with_recovery_intent;
 
-    // When intent_retry_count is strictly less than threshold, billing connector
-    // hasn't retried enough times yet — let it handle retries and wait.
+    // When intent_retry_count is strictly less than threshold, billing connector didnt complete its configured retry attempts
     (intent_retry_count < mca_retry_threshold)
         .then(|| {
             logger::info!(
