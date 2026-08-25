@@ -1508,6 +1508,10 @@ impl DomainPaymentMethodWrapper {
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to serialize connector mandate details")?;
 
+        let acknowledgement_status = response
+            .acknowledgement_status
+            .unwrap_or(common_enums::AcknowledgementStatus::Authenticated);
+
         let current_time = common_utils::date_time::now();
 
         Ok(Self(domain::PaymentMethod {
@@ -1540,7 +1544,7 @@ impl DomainPaymentMethodWrapper {
                 .unwrap_or_else(common_utils::date_time::now),
             connector_mandate_details,
             customer_acceptance: None,
-            status: common_enums::PaymentMethodStatus::Active, //should be sent from PM service
+            status: common_enums::PaymentMethodStatus::from(acknowledgement_status),
             network_transaction_id: response.network_transaction_id.clone(),
             network_transaction_link_id: None,
             client_secret: None,
@@ -1632,6 +1636,10 @@ impl DomainPaymentMethodWrapper {
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to serialize connector mandate details")?;
 
+        let acknowledgement_status = response
+            .acknowledgement_status
+            .unwrap_or(common_enums::AcknowledgementStatus::Authenticated);
+
         let current_time = common_utils::date_time::now();
 
         Ok(Self(domain::PaymentMethod {
@@ -1664,7 +1672,7 @@ impl DomainPaymentMethodWrapper {
                 .unwrap_or_else(common_utils::date_time::now),
             connector_mandate_details,
             customer_acceptance: None,
-            status: common_enums::PaymentMethodStatus::Active, //should be sent from PM service
+            status: common_enums::PaymentMethodStatus::from(acknowledgement_status),
             network_transaction_id: None,
             network_transaction_link_id: None,
             client_secret: None,
@@ -1824,6 +1832,10 @@ impl
 impl TryFrom<CreatePaymentMethodResponse> for DomainPaymentMethodWrapper {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
     fn try_from(response: CreatePaymentMethodResponse) -> Result<Self, Self::Error> {
+        let acknowledgement_status = response
+            .acknowledgement_status
+            .unwrap_or(common_enums::AcknowledgementStatus::Authenticated);
+
         let current_time = common_utils::date_time::now();
 
         Ok(Self(domain::PaymentMethod {
@@ -1856,7 +1868,7 @@ impl TryFrom<CreatePaymentMethodResponse> for DomainPaymentMethodWrapper {
                 .unwrap_or_else(common_utils::date_time::now),
             connector_mandate_details: None,
             customer_acceptance: None,
-            status: common_enums::PaymentMethodStatus::Active, //should be sent from PM service
+            status: common_enums::PaymentMethodStatus::from(acknowledgement_status),
             network_transaction_id: None,
             network_transaction_link_id: None,
             client_secret: None,
