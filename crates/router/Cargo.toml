@@ -215,6 +215,7 @@ http = "0.2.12"
 infer = "0.15.0"
 josekit = "0.8.7"
 jsonwebtoken = "9.3.1"
+libm = "0.2"
 maud = { version = "0.26.0", features = ["actix-web"] }
 mimalloc = { version = "0.1", optional = true }
 paste = "1.0.15"

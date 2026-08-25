@@ -1314,23 +1314,20 @@ fn se(c: SlotCounter) -> f64 {
     (p * (1.0 - p) / (c.n as f64 + 3.0)).sqrt()
 }
 
-/// Standard normal CDF via erf (Abramowitz & Stegun 7.1.26, max err ~1.5e-7).
+/// Standard normal cumulative distribution function: `Φ(x) = P(Z ≤ x)` for a standard normal
+/// `Z ~ N(0, 1)` — the probability a bell-curve draw falls at or below `x`.
+///
+/// This is how [`slot_scores`] turns a rate gap into a confidence. Given two slots' Laplace rates
+/// (`p̂ᵢ`, `p̂ⱼ`) and standard errors (`SEᵢ`, `SEⱼ`), `Φ((p̂ᵢ − p̂ⱼ) / √(SEᵢ² + SEⱼ²))` is the
+/// probability that slot *i*'s TRUE success rate exceeds slot *j*'s — a big, well-separated lead
+/// approaches 1, a shaky lead sits near 0.5. So it measures how *confidently* one slot beats
+/// another, not just whether its point estimate is higher.
+///
+/// Uses the standard identity `Φ(x) = ½·(1 + erf(x/√2))` with `libm::erf` — a full-precision,
+/// Rust-team-maintained error function (`std` has no stable `erf`).
 #[cfg(feature = "v2")]
 fn normal_cdf(x: f64) -> f64 {
-    0.5 * (1.0 + erf(x / std::f64::consts::SQRT_2))
-}
-
-#[cfg(feature = "v2")]
-fn erf(x: f64) -> f64 {
-    let sign = if x < 0.0 { -1.0 } else { 1.0 };
-    let x = x.abs();
-    let t = 1.0 / (1.0 + 0.327_591_1 * x);
-    let y = 1.0
-        - (((((1.061_405_429 * t - 1.453_152_027) * t) + 1.421_413_741) * t - 0.284_496_736) * t
-            + 0.254_829_592)
-            * t
-            * (-x * x).exp();
-    sign * y
+    0.5 * (1.0 + libm::erf(x / std::f64::consts::SQRT_2))
 }
 
 #[cfg(feature = "v2")]
