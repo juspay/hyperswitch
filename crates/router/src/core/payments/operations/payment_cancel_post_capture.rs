@@ -225,12 +225,14 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCancelPo
         payment_data: &mut PaymentData<F>,
         _business_profile: &domain::Profile,
     ) -> RouterResult<()> {
-        let is_post_capture_void_attempted = payment_data.payment_intent.is_post_capture_void_attempted();
+        let is_post_capture_void_attempted =
+            payment_data.payment_intent.is_post_capture_void_attempted();
 
         crate::utils::when(is_post_capture_void_attempted, || {
             Err(error_stack::report!(
                 errors::ApiErrorResponse::PreconditionFailed {
-                    message: "Multiple post capture void requests are not allowed for a payment".into()
+                    message: "Multiple post capture void requests are not allowed for a payment"
+                        .into()
                 }
             ))
         })?;
