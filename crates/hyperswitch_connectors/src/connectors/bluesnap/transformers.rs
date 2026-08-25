@@ -794,6 +794,8 @@ pub enum BluesnapTxnType {
     AuthReversal,
     Capture,
     Refund,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -808,6 +810,8 @@ pub enum BluesnapProcessingStatus {
     Fail,
     #[serde(alias = "pending_merchant_review")]
     PendingMerchantReview,
+    #[serde(other)]
+    Unknown,
 }
 
 impl ForeignTryFrom<(BluesnapTxnType, BluesnapProcessingStatus)> for enums::AttemptStatus {
@@ -822,11 +826,13 @@ impl ForeignTryFrom<(BluesnapTxnType, BluesnapProcessingStatus)> for enums::Atte
                 BluesnapTxnType::AuthReversal => Self::Voided,
                 BluesnapTxnType::AuthCapture | BluesnapTxnType::Capture => Self::Charged,
                 BluesnapTxnType::Refund => Self::Charged,
+                BluesnapTxnType::Unknown => Self::Pending,
             },
             BluesnapProcessingStatus::Pending | BluesnapProcessingStatus::PendingMerchantReview => {
                 Self::Pending
             }
             BluesnapProcessingStatus::Fail => Self::Failure,
+            BluesnapProcessingStatus::Unknown => Self::Pending,
         })
     }
 }
@@ -838,6 +844,7 @@ impl From<BluesnapProcessingStatus> for enums::RefundStatus {
             BluesnapProcessingStatus::Pending => Self::Pending,
             BluesnapProcessingStatus::PendingMerchantReview => Self::ManualReview,
             BluesnapProcessingStatus::Fail => Self::Failure,
+            BluesnapProcessingStatus::Unknown => Self::Pending,
         }
     }
 }
@@ -847,6 +854,7 @@ impl From<BluesnapRefundStatus> for enums::RefundStatus {
         match item {
             BluesnapRefundStatus::Success => Self::Success,
             BluesnapRefundStatus::Pending => Self::Pending,
+            BluesnapRefundStatus::Unknown => Self::Pending,
         }
     }
 }
@@ -862,15 +870,8 @@ pub struct BluesnapPaymentsResponse {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BluesnapWalletTokenResponse {
-    wallet_type: String,
+    wallet_type: Option<Secret<String>>,
     wallet_token: Secret<String>,
-}
-
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct Refund {
-    refund_transaction_id: String,
-    amount: StringMajorUnit,
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
@@ -888,27 +889,37 @@ impl<F, T> TryFrom<ResponseRouterData<F, BluesnapPaymentsResponse, T, PaymentsRe
     fn try_from(
         item: ResponseRouterData<F, BluesnapPaymentsResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            status: enums::AttemptStatus::foreign_try_from((
-                item.response.card_transaction_type,
-                item.response.processing_info.processing_status,
-            ))?,
-            response: Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::ConnectorTransactionId(
-                    item.response.transaction_id.clone(),
-                ),
-                redirection_data: Box::new(None),
-                mandate_reference: Box::new(None),
-                connector_metadata: None,
-                network_txn_id: None,
-                network_txn_link_id: None,
-                connector_response_reference_id: Some(item.response.transaction_id),
-                incremental_authorization_allowed: None,
-                authentication_data: None,
-                charges: None,
+        match (
+            item.response.card_transaction_type.clone(),
+            item.response.processing_info.processing_status.clone(),
+        ) {
+            (BluesnapTxnType::Unknown, _) | (_, BluesnapProcessingStatus::Unknown) => {
+                router_env::logger::warn!(
+                    "Received unknown bluesnap transaction type {:?} or processing status {:?}, preserving existing state",
+                    item.response.card_transaction_type,
+                    item.response.processing_info.processing_status
+                );
+                Ok(item.data)
+            }
+            (txn_type, processing_status) => Ok(Self {
+                status: enums::AttemptStatus::foreign_try_from((txn_type, processing_status))?,
+                response: Ok(PaymentsResponseData::TransactionResponse {
+                    resource_id: ResponseId::ConnectorTransactionId(
+                        item.response.transaction_id.clone(),
+                    ),
+                    redirection_data: Box::new(None),
+                    mandate_reference: Box::new(None),
+                    connector_metadata: None,
+                    network_txn_id: None,
+                    network_txn_link_id: None,
+                    connector_response_reference_id: Some(item.response.transaction_id),
+                    incremental_authorization_allowed: None,
+                    authentication_data: None,
+                    charges: None,
+                }),
+                ..item.data
             }),
-            ..item.data
-        })
+        }
     }
 }
 
@@ -936,6 +947,8 @@ pub enum BluesnapRefundStatus {
     Success,
     #[default]
     Pending,
+    #[serde(other)]
+    Unknown,
 }
 #[derive(Default, Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -1010,6 +1023,8 @@ pub enum BluesnapChargebackStatus {
     CompletedPending,
     #[serde(alias = "Completed_Won")]
     CompletedWon,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1046,6 +1061,7 @@ impl TryFrom<BluesnapWebhookObjectEventType> for IncomingWebhookEvent {
                     BluesnapChargebackStatus::CompletedLost => Ok(Self::DisputeLost),
                     BluesnapChargebackStatus::CompletedPending => Ok(Self::DisputeChallenged),
                     BluesnapChargebackStatus::CompletedWon => Ok(Self::DisputeWon),
+                    BluesnapChargebackStatus::Unknown => Ok(Self::EventNotSupported),
                 }
             }
             BluesnapWebhookEvents::Unknown => Ok(Self::EventNotSupported),
