@@ -132,7 +132,6 @@ impl ConstructFlowSpecificData<RecordReturn, FraudCheckRecordReturnData, FraudCh
             connector_mandate_request_reference_id: None,
             authentication_id: None,
             psd2_sca_exemption_type: None,
-            force_3ds_challenge: None,
             raw_connector_response: None,
             is_payment_id_from_merchant: None,
             l2_l3_data: None,

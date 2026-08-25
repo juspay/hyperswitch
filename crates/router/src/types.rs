@@ -1422,6 +1422,7 @@ impl ForeignFrom<&SetupMandateRouterData> for PaymentsAuthorizeData {
             request_extended_authorization: None,
             authentication_data: None,
             ucs_authentication_data: None,
+            force_3ds_challenge: None,
             customer_acceptance: data.request.customer_acceptance.clone(),
             split_payments: None, // TODO: allow charges on mandates?
             guest_customer: None,
@@ -1511,7 +1512,6 @@ impl<F1, F2, T1, T2> ForeignFrom<(&RouterData<F1, T1, PaymentsResponseData>, T2)
                 .clone(),
             authentication_id: data.authentication_id.clone(),
             psd2_sca_exemption_type: data.psd2_sca_exemption_type,
-            force_3ds_challenge: None,
             raw_connector_response: data.raw_connector_response.clone(),
             is_payment_id_from_merchant: data.is_payment_id_from_merchant,
             l2_l3_data: data.l2_l3_data.clone(),
@@ -1587,7 +1587,6 @@ impl<F1, F2>
             header_payload: data.header_payload.clone(),
             authentication_id: None,
             psd2_sca_exemption_type: None,
-            force_3ds_challenge: None,
             additional_merchant_data: data.additional_merchant_data.clone(),
             connector_mandate_request_reference_id: None,
             raw_connector_response: None,
