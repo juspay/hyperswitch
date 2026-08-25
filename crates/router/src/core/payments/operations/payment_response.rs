@@ -374,7 +374,6 @@ where
                                 logger::info!("Successfully called modular payment method update");
                             }
                             Err(err) => {
-                                metrics::PAYMENT_METHOD_MODULAR_UPDATE_FAILURE.add(1, &[]);
                                 let error = err
                                     .change_context(errors::ApiErrorResponse::InternalServerError)
                                     .attach_printable(
