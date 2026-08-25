@@ -114,6 +114,8 @@ pub struct RouterData<Flow, Request, Response> {
     pub authentication_id: Option<id_type::AuthenticationId>,
     /// Contains the type of sca exemption required for the transaction
     pub psd2_sca_exemption_type: Option<common_enums::ScaExemptionType>,
+    /// Indicates whether a 3DS challenge must be forced for the transaction
+    pub force_3ds_challenge: Option<bool>,
 
     /// Contains stringified connector raw response body
     pub raw_connector_response: Option<Secret<String>>,
