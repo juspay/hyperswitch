@@ -3255,6 +3255,7 @@ impl TryFrom<PayoutsResponseRouterData<PoFulfill, PayoutResponse>>
                             error_code: None,
                             error_message: None,
                             payout_connector_metadata: None,
+                            connector_eligibility_reference_id: None,
                         }),
                         ..item.data
                     }),
@@ -3268,6 +3269,7 @@ impl TryFrom<PayoutsResponseRouterData<PoFulfill, PayoutResponse>>
                             error_code: Some(error.code),
                             error_message: Some(error.message),
                             payout_connector_metadata: None,
+                            connector_eligibility_reference_id: None,
                         }),
                         ..item.data
                     }),
@@ -3359,6 +3361,7 @@ impl TryFrom<PayoutsResponseRouterData<PoSync, PaymentService>> for PayoutsRoute
                             error_code: None,
                             error_message: None,
                             payout_connector_metadata: None,
+                            connector_eligibility_reference_id: None,
                         }),
                         ..item.data
                     }),
@@ -3372,6 +3375,7 @@ impl TryFrom<PayoutsResponseRouterData<PoSync, PaymentService>> for PayoutsRoute
                             error_code: None,
                             error_message: None,
                             payout_connector_metadata: None,
+                            connector_eligibility_reference_id: None,
                         }),
                         ..item.data
                     }),
@@ -3444,6 +3448,7 @@ impl TryFrom<PayoutsResponseRouterData<PoCancel, PayoutResponse>> for PayoutsRou
                     error_code: Some(error.code),
                     error_message: Some(error.message),
                     payout_connector_metadata: None,
+                    connector_eligibility_reference_id: None,
                 }),
                 ..item.data
             }),
@@ -3463,6 +3468,7 @@ impl TryFrom<PayoutsResponseRouterData<PoCancel, PayoutResponse>> for PayoutsRou
                         error_code: None,
                         error_message: None,
                         payout_connector_metadata: None,
+                        connector_eligibility_reference_id: None,
                     }),
                     ..item.data
                 })
