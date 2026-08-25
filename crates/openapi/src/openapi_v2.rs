@@ -215,7 +215,7 @@ Never share your secret api keys. Keep them guarded and secure.
         common_utils::payout_method_utils::OpenBankingUkAdditionalData,
         common_utils::payout_method_utils::OpenBankingAdditionalData,
         common_utils::payout_method_utils::PayshapBankTransferAdditionalData,
-        common_utils::payout_method_utils::PayshapProxyBankTransferAdditionalData,        
+        common_utils::payout_method_utils::PayshapProxyBankTransferAdditionalData,
         common_utils::payout_method_utils::VenmoAdditionalData,
         common_utils::payout_method_utils::ApplePayDecryptAdditionalData,
         common_utils::payout_method_utils::GooglePayDecryptAdditionalData,
