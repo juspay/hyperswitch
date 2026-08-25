@@ -1691,13 +1691,15 @@ pub async fn evaluate_routing_rule(
                 .change_context(ApiErrorResponse::InvalidRequestData {
                     message: "created_by is not a valid profile id".to_string(),
                 })?;
+            // A profile outside the caller's merchant surfaces as ProfileNotFound; report it
+            // as the ownership failure it is rather than leaking a lookup error.
             crate::core::utils::validate_and_get_business_profile(
                 state.store.as_ref(),
                 auth.platform.get_processor(),
                 Some(&profile_id),
             )
-            .await?
-            .ok_or(ApiErrorResponse::InvalidRequestData {
+            .await
+            .change_context(ApiErrorResponse::InvalidRequestData {
                 message: "created_by does not belong to the authenticated merchant".to_string(),
             })?;
 
