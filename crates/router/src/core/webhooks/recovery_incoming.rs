@@ -29,6 +29,7 @@ use crate::{
         self, admin,
         errors::{self, CustomResult},
         payments::{self, helpers},
+        revenue_recovery::retry_stats,
     },
     db::{errors::RevenueRecoveryError, StorageInterface},
     routes::{app::ReqState, metrics, SessionState},
@@ -637,15 +638,18 @@ impl RevenueRecoveryAttempt {
                     });
                 let payment_attempt = match final_attempt {
                     Some(res) => {
-                        let standardised_error_code = core::revenue_recovery::retry_stats::events::resolve_standardised_error_code(
-                            state,
-                            res.connector.clone(),
-                            res.error.as_ref().map(|e| e.code.clone()),
-                            res.error.as_ref().map(|e| e.message.clone()),
-                            res.error.as_ref().and_then(|e| e.network_decline_code.clone()),
-                            self.0.card_info.card_network.clone(),
-                        )
-                        .await;
+                        let standardised_error_code =
+                            retry_stats::events::resolve_standardised_error_code(
+                                state,
+                                res.connector.clone(),
+                                res.error.as_ref().map(|e| e.code.clone()),
+                                res.error.as_ref().map(|e| e.message.clone()),
+                                res.error
+                                    .as_ref()
+                                    .and_then(|e| e.network_decline_code.clone()),
+                                self.0.card_info.card_network.clone(),
+                            )
+                            .await;
                         Some(revenue_recovery::RecoveryPaymentAttempt {
                             attempt_id: res.id.to_owned(),
                             attempt_status: res.status.to_owned(),
@@ -725,27 +729,26 @@ impl RevenueRecoveryAttempt {
 
         let (recovery_attempt, updated_recovery_intent) = match attempt_response {
             Ok(services::ApplicationResponse::JsonWithHeaders((attempt_response, _))) => {
-                let standardised_error_code =
-                    core::revenue_recovery::retry_stats::events::resolve_standardised_error_code(
-                        state,
-                        payment_connector_name
-                            .as_ref()
-                            .map(|connector| connector.to_string()),
-                        attempt_response
-                            .error_details
-                            .as_ref()
-                            .map(|error| error.code.clone()),
-                        attempt_response
-                            .error_details
-                            .as_ref()
-                            .map(|error| error.message.clone()),
-                        attempt_response
-                            .error_details
-                            .as_ref()
-                            .and_then(|error| error.network_decline_code.clone()),
-                        self.0.card_info.card_network.clone(),
-                    )
-                    .await;
+                let standardised_error_code = retry_stats::events::resolve_standardised_error_code(
+                    state,
+                    payment_connector_name
+                        .as_ref()
+                        .map(|connector| connector.to_string()),
+                    attempt_response
+                        .error_details
+                        .as_ref()
+                        .map(|error| error.code.clone()),
+                    attempt_response
+                        .error_details
+                        .as_ref()
+                        .map(|error| error.message.clone()),
+                    attempt_response
+                        .error_details
+                        .as_ref()
+                        .and_then(|error| error.network_decline_code.clone()),
+                    self.0.card_info.card_network.clone(),
+                )
+                .await;
                 Ok((
                     revenue_recovery::RecoveryPaymentAttempt {
                         attempt_id: attempt_response.id.clone(),
