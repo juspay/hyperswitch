@@ -71,6 +71,7 @@ impl<O: ClientOperation> TransformedRequest<O> {
         parent_headers: Headers,
         trace_header: &RequestIdentifier,
         service_name: &str,
+        should_forward_tenant: bool,
     ) -> Result<Executed<O>, MicroserviceClientError> {
         let operation = std::any::type_name::<O>();
         // Step 1: Build path and URL.
@@ -121,11 +122,13 @@ impl<O: ClientOperation> TransformedRequest<O> {
                 Maskable::Normal(trace_id.to_string()),
             ));
 
-            let tenant_id = state.get_tenant().tenant_id.get_string_repr().to_string();
-            if !tenant_id.is_empty() {
-                http_request
-                    .headers
-                    .insert((TENANT_HEADER.to_string(), Maskable::Normal(tenant_id)));
+            if should_forward_tenant {
+                let tenant_id = state.get_tenant().tenant_id.get_string_repr().to_string();
+                if !tenant_id.is_empty() {
+                    http_request
+                        .headers
+                        .insert((TENANT_HEADER.to_string(), Maskable::Normal(tenant_id)));
+                }
             }
         }
 
@@ -259,6 +262,7 @@ pub async fn execute_microservice_operation<O: ClientOperation>(
             client.parent_headers().clone(),
             client.trace(),
             client.service_name(),
+            client.should_forward_tenant_header(),
         )
         .await?;
     Ok(executed.into_transformed_response()?.output)

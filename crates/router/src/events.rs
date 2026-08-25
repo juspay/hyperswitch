@@ -15,6 +15,8 @@ use crate::{
     services::kafka::{KafkaMessage, KafkaSettings},
 };
 
+#[cfg(feature = "v2")]
+pub mod account_updater;
 pub mod api_logs;
 pub mod audit_events;
 pub mod connector_api_logs;
@@ -42,6 +44,7 @@ pub enum EventType {
     RoutingApiLogs,
     RevenueRecovery,
     ExternalServiceCall,
+    AccountUpdater,
     MicroserviceApiLogs,
 }
 

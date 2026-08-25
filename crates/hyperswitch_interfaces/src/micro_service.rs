@@ -57,6 +57,12 @@ pub trait MicroserviceClient {
     fn parent_headers(&self) -> &Headers;
     /// Trace identifier configuration.
     fn trace(&self) -> &RequestIdentifier;
+    /// Whether the caller's tenant id (`x-tenant-id`) should be forwarded to the
+    /// service. Internal microservices rely on it; external third-party services
+    /// that do their own tenant resolution (e.g. from the API key) return `false`.
+    fn should_forward_tenant_header(&self) -> bool {
+        true
+    }
     /// Logical service name, stamped on the API event emitted for each call.
     fn service_name(&self) -> &'static str {
         "microservice"

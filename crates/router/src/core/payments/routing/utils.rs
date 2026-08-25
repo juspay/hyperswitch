@@ -176,7 +176,7 @@ pub async fn build_and_send_decision_engine_http_request<Req, Res, ErrRes>(
     http_method: services::Method,
     path: &str,
     request_body: Option<Req>,
-    _timeout: Option<u64>,
+    timeout: Option<u64>,
     context_message: &str,
     events_wrapper: Option<RoutingEventsWrapper<Req>>,
 ) -> RoutingResult<RoutingEventsResponse<Res>>
@@ -211,7 +211,6 @@ where
     }
 
     let http_request = request_builder.build();
-    logger::info!(?http_request, decision_engine_request_path = %path, "decision_engine: Constructed Decision Engine API request details ({})", context_message);
     let should_parse_response = events_wrapper
         .as_ref()
         .map(|wrapper| wrapper.parse_response)
@@ -232,7 +231,7 @@ where
     let closure = || async {
         let request_start = std::time::Instant::now();
         let response =
-            services::call_connector_api(state, http_request, "Decision Engine API call", None)
+            services::call_connector_api(state, http_request, "Decision Engine API call", timeout)
                 .await
                 .change_context(errors::RoutingError::OpenRouterCallFailed)?;
 
@@ -252,11 +251,6 @@ where
 
         match response {
             Ok(resp) => {
-                logger::debug!(
-                    "decision_engine: Received response from Decision Engine API ({:?})",
-                    String::from_utf8_lossy(&resp.response) // For logging
-                );
-
                 let resp = should_parse_response
                     .then(|| {
                         if std::any::TypeId::of::<Res>() == std::any::TypeId::of::<String>()
@@ -358,15 +352,14 @@ impl DecisionEngineApiHandler for EuclidApiClient {
         )
         .await?;
 
-        let parsed_response =
-            event_response
-                .response
-                .as_ref()
-                .ok_or(errors::RoutingError::OpenRouterError(
-                    "Response from decision engine API is empty".to_string(),
-                ))?;
+        // Reject an empty DE response even though the parsed value itself is unused here.
+        event_response
+            .response
+            .as_ref()
+            .ok_or(errors::RoutingError::OpenRouterError(
+                "Response from decision engine API is empty".to_string(),
+            ))?;
 
-        logger::debug!(parsed_response = ?parsed_response, response_type = %std::any::type_name::<Res>(), euclid_request_path = %path, "decision_engine_euclid: Successfully parsed response from Euclid API");
         Ok(event_response)
     }
 }
@@ -679,7 +672,6 @@ pub async fn perform_decision_euclid_routing(
     routing_event.set_routable_connectors(euclid_response.evaluated_output.clone());
     state.event_handler.log_event(&routing_event);
 
-    logger::debug!(decision_engine_euclid_response=?euclid_response,"decision_engine_euclid");
     logger::debug!(decision_engine_euclid_selected_connector=?euclid_response.evaluated_output,"decision_engine_euclid");
     Ok(euclid_response)
 }
@@ -690,33 +682,24 @@ pub fn transform_de_output_for_router(
     de_output: Vec<ConnectorInfo>,
     de_evaluated_output: Vec<RoutableConnectorChoice>,
 ) -> RoutingResult<Vec<RoutableConnectorChoice>> {
+    // Keyed on the full (connector, merchant_connector_id) pair rather than the connector name
+    // alone: a merchant can hold several MCAs for the same connector, and a rule that spans two
+    // of them (e.g. a volume split across two paypal MCAs) must keep both.
     let mut seen = HashSet::new();
 
     // evaluated connectors on top, to ensure the fallback is based on other connectors.
     let mut ordered = Vec::with_capacity(de_output.len() + de_evaluated_output.len());
     for eval_conn in de_evaluated_output {
-        if seen.insert(eval_conn.connector) {
+        if seen.insert((eval_conn.connector, eval_conn.merchant_connector_id.clone())) {
             ordered.push(eval_conn);
         }
     }
 
     // Add remaining connectors from de_output (only if not already seen), for fallback
     for conn in de_output {
-        let connector_name = conn.gateway_name.clone();
-        let key = RoutableConnectors::from_str(&connector_name).map_err(|error| {
-            logger::error!(
-                error=?error,
-                connector_name = %connector_name,
-                "euclid: failed to parse connector name from decision engine output"
-            );
-            errors::RoutingError::GenericConversionError {
-                from: "String".to_string(),
-                to: "RoutableConnectors".to_string(),
-            }
-        })?;
-        if seen.insert(key) {
-            let de_choice = DeRoutableConnectorChoice::try_from(conn)?;
-            ordered.push(RoutableConnectorChoice::from(de_choice));
+        let choice = RoutableConnectorChoice::from(DeRoutableConnectorChoice::try_from(conn)?);
+        if seen.insert((choice.connector, choice.merchant_connector_id.clone())) {
+            ordered.push(choice);
         }
     }
     Ok(ordered)
@@ -1071,14 +1054,14 @@ impl DeDiffReason {
 impl DeComparisonResult {
     /// Why this comparison counts toward the kill switch, if it does (empty DE result => `Unresponsive`).
     fn diff_reason(self) -> Option<DeDiffReason> {
-        if !self.is_equal {
-            Some(DeDiffReason::ResultMismatch)
-        } else if self.is_equal_length {
+        if self.is_equal {
             None
         } else if self.is_de_result_empty {
             Some(DeDiffReason::Unresponsive)
-        } else {
+        } else if !self.is_equal_length {
             Some(DeDiffReason::LengthMismatch)
+        } else {
+            Some(DeDiffReason::ResultMismatch)
         }
     }
 }
@@ -1090,22 +1073,21 @@ pub fn compare_and_log_result<T: RoutingEq<T> + Serialize>(
     is_volume: bool,
 ) -> DeComparisonResult {
     let is_de_result_empty = de_result.is_empty();
-    let is_equal = if is_de_result_empty && result.is_empty() {
-        true
-    } else {
-        de_result
+    let is_equal_in_length = de_result.len() == result.len();
+    // Equal means identical: same length AND same elements in order — an empty or
+    // prefix-only DE result is not equal (zip alone would be vacuously true).
+    let is_equal = is_equal_in_length
+        && de_result
             .iter()
             .zip(result.iter())
-            .all(|(a, b)| T::is_equal(a, b))
-    };
-
-    let is_equal_in_length = de_result.len() == result.len();
+            .all(|(a, b)| T::is_equal(a, b));
 
     router_env::logger::debug!(
         routing_flow=?flow,
         is_equal=?is_equal,
         is_equal_length=?is_equal_in_length,
         is_volume=?is_volume,
+        is_de_result_empty=?is_de_result_empty,
         de_response=?to_json_string(&de_result),
         hs_response=?to_json_string(&result),
         "decision_engine_euclid"
@@ -2903,4 +2885,93 @@ pub fn perform_pre_routing(
     let pm_allowed = allowed_pm_for_pre_routing.contains(payment_method);
     let pmt_allowed = allowed_pmt_for_pre_routing.contains(payment_method_type);
     (pm_allowed || pmt_allowed) && !should_skip_prerouting
+}
+
+#[cfg(test)]
+mod transform_de_output_tests {
+    use super::*;
+
+    fn mca(id: &str) -> id_type::MerchantConnectorAccountId {
+        id_type::MerchantConnectorAccountId::wrap(id.to_string()).unwrap()
+    }
+
+    fn choice(connector: RoutableConnectors, id: &str) -> RoutableConnectorChoice {
+        RoutableConnectorChoice {
+            choice_kind: api_routing::RoutableChoiceKind::FullStruct,
+            connector,
+            merchant_connector_id: Some(mca(id)),
+        }
+    }
+
+    fn info(name: &str, id: &str) -> ConnectorInfo {
+        ConnectorInfo {
+            gateway_name: name.to_string(),
+            gateway_id: Some(id.to_string()),
+        }
+    }
+
+    // The regression this PR fixes: two MCAs of the SAME connector must both survive.
+    #[test]
+    fn keeps_both_mcas_of_the_same_connector() {
+        let out = transform_de_output_for_router(
+            vec![
+                info("paypal", "mca_9pE8yl5LFwGLe3fA2xNZ"),
+                info("paypal", "mca_XLx05llokfkj8Tsb7nMa"),
+            ],
+            vec![choice(
+                RoutableConnectors::Paypal,
+                "mca_XLx05llokfkj8Tsb7nMa",
+            )],
+        )
+        .unwrap();
+
+        assert_eq!(out.len(), 2, "second paypal MCA was dropped");
+        // volume-split winner stays at the front, loser follows as fallback
+        let mca_order = out
+            .iter()
+            .map(|c| c.merchant_connector_id.clone())
+            .collect::<Vec<_>>();
+        assert_eq!(
+            mca_order,
+            vec![
+                Some(mca("mca_XLx05llokfkj8Tsb7nMa")),
+                Some(mca("mca_9pE8yl5LFwGLe3fA2xNZ")),
+            ]
+        );
+    }
+
+    // Guard against the opposite failure: a true duplicate must still collapse.
+    #[test]
+    fn still_dedups_exact_duplicates() {
+        let out = transform_de_output_for_router(
+            vec![
+                info("paypal", "mca_9pE8yl5LFwGLe3fA2xNZ"),
+                info("paypal", "mca_9pE8yl5LFwGLe3fA2xNZ"),
+            ],
+            vec![choice(
+                RoutableConnectors::Paypal,
+                "mca_9pE8yl5LFwGLe3fA2xNZ",
+            )],
+        )
+        .unwrap();
+
+        assert_eq!(out.len(), 1);
+    }
+
+    // Pre-existing behaviour for distinct connectors must be untouched.
+    #[test]
+    fn preserves_evaluated_first_ordering_for_distinct_connectors() {
+        let out = transform_de_output_for_router(
+            vec![info("adyen", "mca_ady"), info("stripe", "mca_strp")],
+            vec![choice(RoutableConnectors::Stripe, "mca_strp")],
+        )
+        .unwrap();
+
+        assert_eq!(out.len(), 2);
+        let connector_order = out.iter().map(|c| c.connector).collect::<Vec<_>>();
+        assert_eq!(
+            connector_order,
+            vec![RoutableConnectors::Stripe, RoutableConnectors::Adyen]
+        );
+    }
 }
