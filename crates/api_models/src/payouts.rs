@@ -916,6 +916,10 @@ pub struct PayoutCreateResponse {
     #[schema(value_type = Option<String>, example = "S3FC9G9M2MVFDXT5")]
     pub connector_transaction_id: Option<String>,
 
+    /// Underlying processor's reference ID for the payout eligibility check
+    #[schema(value_type = Option<String>, example = "8ad8bf30-5789-52be-a80a-72908abf5f9d")]
+    pub connector_eligibility_reference_id: Option<String>,
+
     /// Payout's send priority (if applicable)
     #[schema(value_type = Option<PayoutSendPriority>, example = "instant")]
     pub priority: Option<api_enums::PayoutSendPriority>,
