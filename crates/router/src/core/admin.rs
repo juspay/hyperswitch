@@ -4478,6 +4478,31 @@ pub async fn update_profile(
             id: profile_id.get_string_repr().to_owned(),
         })?;
 
+    // DE-cut-over profiles manage routing via the routing APIs; direct writes would diverge the engines.
+    #[cfg(feature = "v1")]
+    if request.routing_algorithm.is_some() || request.payout_routing_algorithm.is_some() {
+        // No Platform here; cutover rules are keyed on profile_id, so the auth merchant id serves both dims.
+        let dimensions = crate::core::configs::dimension_state::Dimensions::new()
+            .with_processor_merchant_id(
+                hyperswitch_domain_models::platform::ProcessorMerchantId::from(merchant_id.clone()),
+            )
+            .with_provider_merchant_id(
+                hyperswitch_domain_models::platform::ProviderMerchantId::new(merchant_id.clone()),
+            )
+            .with_profile_id(profile_id.clone());
+        if crate::core::payments::routing::utils::is_decision_engine_routing_effective(
+            &state,
+            &dimensions,
+        )
+        .await
+        {
+            return Err(errors::ApiErrorResponse::InvalidRequestData {
+                message: "routing_algorithm cannot be set directly for a profile routed by the Decision Engine; use the routing APIs".to_string(),
+            }
+            .into());
+        }
+    }
+
     let profile_update = request
         .get_update_profile_object(&state, &key_store, &business_profile)
         .await?;

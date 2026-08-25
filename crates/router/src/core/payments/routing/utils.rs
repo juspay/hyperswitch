@@ -464,6 +464,7 @@ pub fn build_static_routing_request_for_hybrid(
         Some(payment_id),
         input,
         convert_fallback_to_de_choices(fallback_output),
+        TransactionType::Payment,
     )
 }
 
@@ -629,6 +630,7 @@ pub async fn perform_decision_euclid_routing(
     payment_id: String,
     events_wrapper: RoutingEventsWrapper<RoutingEvaluateRequest>,
     fallback_output: Vec<RoutableConnectorChoice>,
+    algorithm_for: TransactionType,
 ) -> RoutingResult<RoutingEvaluateResponse> {
     logger::debug!("decision_engine_euclid: evaluate api call for euclid routing evaluation");
 
@@ -640,6 +642,7 @@ pub async fn perform_decision_euclid_routing(
         Some(payment_id),
         input,
         fallback_output,
+        algorithm_for,
     )?;
     events_wrapper.set_request_body(routing_request.clone());
 
@@ -720,6 +723,7 @@ pub async fn decision_engine_routing(
     business_profile: &domain::Profile,
     payment_id: String,
     merchant_fallback_config: Vec<RoutableConnectorChoice>,
+    algorithm_for: TransactionType,
 ) -> RoutingResult<Vec<RoutableConnectorChoice>> {
     let routing_events_wrapper = RoutingEventsWrapper::new(
         state.tenant.tenant_id.clone(),
@@ -740,6 +744,7 @@ pub async fn decision_engine_routing(
         payment_id,
         routing_events_wrapper,
         merchant_fallback_config,
+        algorithm_for,
     )
     .await;
 
@@ -978,28 +983,89 @@ pub async fn link_de_euclid_routing_algorithm(
     Ok(())
 }
 
-pub async fn list_de_euclid_routing_algorithms(
+pub async fn deactivate_de_euclid_routing_algorithm(
     state: &SessionState,
-    routing_list_request: ListRountingAlgorithmsRequest,
-) -> RoutingResult<Vec<api_routing::RoutingDictionaryRecord>> {
-    logger::debug!("decision_engine_euclid: list api call for euclid routing algorithms");
-    let created_by = routing_list_request.created_by;
+    routing_request: DeactivateRoutingConfigRequest,
+) -> RoutingResult<()> {
+    logger::debug!("decision_engine_euclid: deactivate api call for euclid routing algorithm");
+
+    EuclidApiClient::send_decision_engine_request::<_, String>(
+        state,
+        services::Method::Post,
+        "routing/deactivate",
+        Some(routing_request.clone()),
+        Some(EUCLID_API_TIMEOUT),
+        None,
+    )
+    .await?;
+
+    logger::debug!(decision_engine_euclid_deactivated=?routing_request, "decision_engine_euclid: deactivate_de_euclid_routing_algorithm completed");
+    Ok(())
+}
+
+/// Fetches DE rules for a profile as raw JSON records (no HS-representability filter).
+pub async fn fetch_de_euclid_routing_records_raw(
+    state: &SessionState,
+    created_by: String,
+    active_only: bool,
+) -> RoutingResult<Vec<serde_json::Value>> {
+    let path = if active_only {
+        format!("routing/list/active/{created_by}")
+    } else {
+        format!("routing/list/{created_by}")
+    };
     let events_response = EuclidApiClient::send_decision_engine_request(
         state,
         services::Method::Post,
-        format!("routing/list/{created_by}").as_str(),
+        path.as_str(),
         None::<()>,
         Some(EUCLID_API_TIMEOUT),
         None,
     )
     .await?;
 
-    let euclid_response: Vec<RoutingAlgorithmRecord> =
-        events_response
-            .response
-            .ok_or(errors::RoutingError::OpenRouterError(
-                "Response from decision engine API is empty".to_string(),
-            ))?;
+    events_response
+        .response
+        .ok_or(errors::RoutingError::OpenRouterError(
+            "Response from decision engine API is empty".to_string(),
+        ))
+        .map_err(error_stack::Report::from)
+}
+
+/// Parses a raw DE record; None (with a log) for rules HS cannot represent (e.g. `ab_test`).
+pub fn parse_de_euclid_routing_record(raw: serde_json::Value) -> Option<RoutingAlgorithmRecord> {
+    serde_json::from_value::<RoutingAlgorithmRecord>(raw)
+        .map_err(|error| {
+            logger::warn!(
+                ?error,
+                "decision_engine_euclid: skipping DE routing record not representable in Hyperswitch"
+            );
+        })
+        .ok()
+}
+
+/// Fetches DE rules for a profile, skipping records HS cannot represent.
+pub async fn fetch_de_euclid_routing_records(
+    state: &SessionState,
+    created_by: String,
+    active_only: bool,
+) -> RoutingResult<Vec<RoutingAlgorithmRecord>> {
+    Ok(
+        fetch_de_euclid_routing_records_raw(state, created_by, active_only)
+            .await?
+            .into_iter()
+            .filter_map(parse_de_euclid_routing_record)
+            .collect(),
+    )
+}
+
+pub async fn list_de_euclid_routing_algorithms(
+    state: &SessionState,
+    routing_list_request: ListRountingAlgorithmsRequest,
+) -> RoutingResult<Vec<api_routing::RoutingDictionaryRecord>> {
+    logger::debug!("decision_engine_euclid: list api call for euclid routing algorithms");
+    let euclid_response =
+        fetch_de_euclid_routing_records(state, routing_list_request.created_by, false).await?;
 
     Ok(euclid_response
         .into_iter()
@@ -1013,19 +1079,7 @@ pub async fn list_de_euclid_active_routing_algorithm(
     created_by: String,
 ) -> RoutingResult<Vec<api_routing::RoutingDictionaryRecord>> {
     logger::debug!("decision_engine_euclid: list api call for euclid active routing algorithm");
-    let response: Vec<RoutingAlgorithmRecord> = EuclidApiClient::send_decision_engine_request(
-        state,
-        services::Method::Post,
-        format!("routing/list/active/{created_by}").as_str(),
-        None::<()>,
-        Some(EUCLID_API_TIMEOUT),
-        None,
-    )
-    .await?
-    .response
-    .ok_or(errors::RoutingError::OpenRouterError(
-        "Response from decision engine API is empty".to_string(),
-    ))?;
+    let response = fetch_de_euclid_routing_records(state, created_by, true).await?;
 
     Ok(response
         .into_iter()
@@ -1260,7 +1314,7 @@ pub async fn shadow_decision_engine_routing(
     is_volume: bool,
 ) {
     let de_result =
-        decision_engine_routing(&state, backend_input, &business_profile, payment_id, fallback_config)
+        decision_engine_routing(&state, backend_input, &business_profile, payment_id, fallback_config, TransactionType::Payment)
             .await
             .map_err(|err| {
                 logger::error!(shadow_decision_engine_error=?err, "decision_engine_euclid: error in shadow evaluation of rule")
@@ -1326,6 +1380,12 @@ pub struct ActivateRoutingConfigRequest {
 }
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+pub struct DeactivateRoutingConfigRequest {
+    pub created_by: String,
+    pub routing_algorithm_id: String,
+}
+
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct ListRountingAlgorithmsRequest {
     pub created_by: String,
 }
@@ -1336,6 +1396,7 @@ pub fn convert_backend_input_to_routing_eval(
     payment_id: Option<String>,
     input: BackendInput,
     fallback_output: Vec<DeRoutableConnectorChoice>,
+    algorithm_for: TransactionType,
 ) -> RoutingResult<RoutingEvaluateRequest> {
     let mut params: HashMap<String, Option<ValueType>> = HashMap::new();
 
@@ -1506,6 +1567,7 @@ pub fn convert_backend_input_to_routing_eval(
         payment_id,
         parameters: params,
         fallback_output,
+        algorithm_for: Some(algorithm_for),
     })
 }
 
@@ -2129,6 +2191,19 @@ pub async fn get_routing_result_source(
     } else {
         source
     }
+}
+
+/// Effective cutover: routing_result_source is DecisionEngine AND the global
+/// static_routing_enabled flag is on — the flag always wins, for APIs and payment paths alike.
+pub async fn is_decision_engine_routing_effective(
+    state: &SessionState,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+) -> bool {
+    state.conf.open_router.static_routing_enabled
+        && matches!(
+            get_routing_result_source(state, dimensions).await,
+            api_routing::RoutingResultSource::DecisionEngine
+        )
 }
 pub async fn select_routing_result<T>(
     state: &SessionState,

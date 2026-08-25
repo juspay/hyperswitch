@@ -1545,27 +1545,14 @@ impl RoutingStage for HybridRoutingStage {
                     utils::HybridRoutingOutcome::empty()
                 });
 
-                // Keep legacy diff/selection logs for dashboard compatibility.
-                // Routing behavior remains hybrid-first; this is logging-only parity.
-                let comparison = utils::compare_and_log_result(
+                // Diff logging only — no kill-switch counting: this stage runs solely for
+                // cut-over profiles, whose DE-only writes make the HS baseline stale by design.
+                utils::compare_and_log_result(
                     hybrid_outcome.connectors.clone(),
                     input.static_connectors.to_vec(),
                     "evaluate_routing".to_string(),
                     input.static_is_volume_split,
                 );
-
-                // Dynamic DE selections legitimately reorder connectors; count static
-                // outcomes, plus empty ones so an unresponsive DE feeds the kill switch.
-                if hybrid_outcome.routing_approach.is_de_static_result()
-                    || comparison.is_de_result_empty
-                {
-                    utils::record_de_diff_and_maybe_trip_kill_switch(
-                        input.state,
-                        input.business_profile.get_id(),
-                        comparison,
-                    )
-                    .await;
-                }
 
                 RoutingConnectorOutcomeWithApproach {
                     connectors: hybrid_outcome.connectors,
@@ -1763,31 +1750,48 @@ pub async fn perform_static_routing_v1(
 
     let fallback_config = get_merchant_fallback_config().await?;
 
-    let algorithm_id = if let Some(id) = algorithm_id {
-        id
-    } else {
-        logger::debug!("euclid_routing: active algorithm isn't present, default falling back");
-        return Ok((fallback_config, None));
-    };
+    // A cut-over profile may have rules only on the DE, so a missing HS algorithm must not skip DE evaluation.
+    let de_routing_effective = utils::is_decision_engine_routing_effective(state, dimensions).await;
 
-    let cached_algorithm = match ensure_algorithm_cached_v1(
-        state,
-        merchant_id,
-        algorithm_id,
-        business_profile.get_id(),
-        &api_enums::TransactionType::from(transaction_data),
-    )
-    .await
-    {
-        Ok(algo) => algo,
-        Err(err) => {
-            logger::error!(
-                error=?err,
-                "euclid_routing: ensure_algorithm_cached failed, falling back to merchant default connectors"
+    let algorithm_id = match algorithm_id {
+        Some(id) => Some(id),
+        None if de_routing_effective => {
+            logger::debug!(
+                "decision_engine_euclid: no active HS algorithm, profile is cut over; evaluating on DE"
             );
-
+            None
+        }
+        None => {
+            logger::debug!("euclid_routing: active algorithm isn't present, default falling back");
             return Ok((fallback_config, None));
         }
+    };
+
+    let cached_algorithm = match algorithm_id {
+        Some(algorithm_id) => match ensure_algorithm_cached_v1(
+            state,
+            merchant_id,
+            algorithm_id,
+            business_profile.get_id(),
+            &api_enums::TransactionType::from(transaction_data),
+        )
+        .await
+        {
+            Ok(algo) => Some(algo),
+            Err(err) => {
+                logger::error!(
+                    error=?err,
+                    "euclid_routing: ensure_algorithm_cached failed, falling back to merchant default connectors"
+                );
+
+                if de_routing_effective {
+                    None
+                } else {
+                    return Ok((fallback_config, None));
+                }
+            }
+        },
+        None => None,
     };
 
     let payment_id = match transaction_data {
@@ -1813,49 +1817,57 @@ pub async fn perform_static_routing_v1(
         routing::TransactionData::Payout(payout_data) => make_dsl_input_for_payouts(payout_data),
     };
 
-    let (routable_connectors, routing_approach, is_volume_split, de_evaluated_connector) =
-        match backend_input {
-            Err(err) => {
-                logger::error!(error=?err, "euclid_routing: failed to build routing input, falling back to merchant default connectors");
-                (fallback_config.clone(), None, false, Vec::default())
-            }
-            Ok(backend_input) => {
-                // Decision engine evaluation is diagnostic only; errors degrade to an empty result.
-                let de_evaluated_connector = if !state.conf.open_router.static_routing_enabled {
-                    logger::debug!("decision_engine_euclid: decision_engine routing not enabled");
-                    Vec::default()
-                } else {
-                    utils::decision_engine_routing(
+    let (
+        routable_connectors,
+        routing_approach,
+        is_volume_split,
+        de_evaluated_connector,
+        hs_eval_succeeded,
+    ) = match backend_input {
+        Err(err) => {
+            logger::error!(error=?err, "euclid_routing: failed to build routing input, falling back to merchant default connectors");
+            (fallback_config.clone(), None, false, Vec::default(), false)
+        }
+        Ok(backend_input) => {
+            // Decision engine evaluation is diagnostic only; errors degrade to an empty result.
+            let de_evaluated_connector = if !state.conf.open_router.static_routing_enabled {
+                logger::debug!("decision_engine_euclid: decision_engine routing not enabled");
+                Vec::default()
+            } else {
+                utils::decision_engine_routing(
                         state,
                         backend_input.clone(),
                         business_profile,
                         payment_id,
                         fallback_config.clone(),
+                        api_enums::TransactionType::from(transaction_data),
                     )
                     .await
                     .map_err(|e| logger::error!(decision_engine_euclid_evaluate_error=?e, "decision_engine_euclid: error in evaluation of rule"))
                     .unwrap_or_default()
-                };
+            };
 
-                let evaluated = (|| -> RoutingResult<(
+            let evaluated = (|| -> RoutingResult<(
                     Vec<routing_types::RoutableConnectorChoice>,
                     Option<common_enums::RoutingApproach>,
                     bool,
                 )> {
-                    Ok(match cached_algorithm.as_ref() {
-                        CachedAlgorithm::Single(conn) => (
+                    Ok(match cached_algorithm.as_deref() {
+                        // No HS algorithm (cut-over profile): HS side is the fallback list.
+                        None => (fallback_config.clone(), None, false),
+                        Some(CachedAlgorithm::Single(conn)) => (
                             vec![(**conn).clone()],
                             Some(common_enums::RoutingApproach::StraightThroughRouting),
                             false,
                         ),
-                        CachedAlgorithm::Priority(plist) => (plist.clone(), None, false),
-                        CachedAlgorithm::VolumeSplit(splits) => (
+                        Some(CachedAlgorithm::Priority(plist)) => (plist.clone(), None, false),
+                        Some(CachedAlgorithm::VolumeSplit(splits)) => (
                             perform_volume_split(splits.to_vec())
                                 .change_context(errors::RoutingError::ConnectorSelectionFailed)?,
                             Some(common_enums::RoutingApproach::VolumeBasedRouting),
                             true,
                         ),
-                        CachedAlgorithm::Advanced(interpreter) => {
+                        Some(CachedAlgorithm::Advanced(interpreter)) => {
                             let dsl_output = execute_dsl_v1(backend_input, interpreter)?;
                             let is_volume_split = matches!(
                                 dsl_output,
@@ -1870,31 +1882,40 @@ pub async fn perform_static_routing_v1(
                     })
                 })();
 
-                let (routable_connectors, routing_approach, is_volume_split) = evaluated
+            let hs_eval_succeeded = evaluated.is_ok();
+            let (routable_connectors, routing_approach, is_volume_split) = evaluated
                     .unwrap_or_else(|err| {
                         logger::error!(error=?err, "euclid_routing: algorithm evaluation failed, falling back to merchant default connectors");
                         (fallback_config.clone(), None, false)
                     });
 
-                (
-                    routable_connectors,
-                    routing_approach,
-                    is_volume_split,
-                    de_evaluated_connector,
-                )
-            }
-        };
+            (
+                routable_connectors,
+                routing_approach,
+                is_volume_split,
+                de_evaluated_connector,
+                hs_eval_succeeded,
+            )
+        }
+    };
 
-    // Diff-logged (is_equal / is_equal_length / is_volume) and fed to the kill switch.
-    let comparison = utils::compare_and_log_result(
-        de_evaluated_connector.clone(),
-        routable_connectors.clone(),
-        "evaluate_routing".to_string(),
-        is_volume_split,
-    );
+    // Feed the kill switch only from a successfully evaluated HS algorithm on a
+    // non-cut-over profile; under DE-only writes the HS baseline is stale by design.
+    if cached_algorithm.is_some() && hs_eval_succeeded && !de_routing_effective {
+        let comparison = utils::compare_and_log_result(
+            de_evaluated_connector.clone(),
+            routable_connectors.clone(),
+            "evaluate_routing".to_string(),
+            is_volume_split,
+        );
 
-    utils::record_de_diff_and_maybe_trip_kill_switch(state, business_profile.get_id(), comparison)
+        utils::record_de_diff_and_maybe_trip_kill_switch(
+            state,
+            business_profile.get_id(),
+            comparison,
+        )
         .await;
+    }
 
     Ok((
         utils::select_routing_result(

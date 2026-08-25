@@ -592,6 +592,9 @@ pub struct RoutingPayloadWrapper {
 pub enum RoutingAlgorithmWrapper {
     Static(StaticRoutingAlgorithm),
     Dynamic(DynamicRoutingAlgorithm),
+    /// Algorithm body served verbatim in the DE's own serialization (no euclid AST).
+    /// Must stay the last variant so the untagged deserializer prefers the typed shapes.
+    DecisionEngine(serde_json::Value),
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
@@ -1987,6 +1990,12 @@ pub struct RoutingEvaluateRequest {
     /// ]
     /// ```
     pub fallback_output: Vec<DeRoutableConnectorChoice>,
+
+    /// Transaction type whose active rule should be evaluated; absent keeps the
+    /// DE's legacy type-blind lookup.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[schema(value_type = Option<TransactionType>)]
+    pub algorithm_for: Option<TransactionType>,
 }
 impl common_utils::events::ApiEventMetric for RoutingEvaluateRequest {}
 

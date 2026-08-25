@@ -85,11 +85,8 @@ pub async fn routing_entry(
         .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
         .with_profile_id(profile_id.clone());
 
-    let routing_source = get_routing_result_source(&state, &dimensions).await;
-    let is_cutover = matches!(
-        routing_source,
-        routing_types::RoutingResultSource::DecisionEngine
-    );
+    // Flag-gated like every other cutover consumer, so the dashboard matches payment-path behavior.
+    let is_cutover = is_decision_engine_routing_effective(&state, &dimensions).await;
 
     // Mint a fresh one-time code only when a card was clicked (`target`) on a cut-over profile.
     let redirect_url = match (is_cutover, target) {
@@ -133,6 +130,229 @@ pub async fn routing_entry(
             redirect_url,
         },
     ))
+}
+
+/// Effective cutover for this profile (per-profile source AND the global static flag).
+#[cfg(feature = "v1")]
+async fn is_profile_cutover_effective(
+    state: &SessionState,
+    platform: &domain::Platform,
+    profile_id: common_utils::id_type::ProfileId,
+) -> bool {
+    let dimensions = dimension_state::Dimensions::new()
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+        .with_profile_id(profile_id);
+    is_decision_engine_routing_effective(state, &dimensions).await
+}
+
+/// DE 4xx becomes an actionable InvalidRequestData with the DE's message; anything else stays a 500.
+#[cfg(feature = "v1")]
+fn map_de_write_error(
+    error: error_stack::Report<errors::RoutingError>,
+    printable: &'static str,
+) -> error_stack::Report<errors::ApiErrorResponse> {
+    let client_error_message = match error.current_context() {
+        errors::RoutingError::RoutingEventsError {
+            message,
+            status_code,
+        } if (400u16..500).contains(status_code) => Some(message.clone()),
+        _ => None,
+    };
+    match client_error_message {
+        Some(message) => error.change_context(errors::ApiErrorResponse::InvalidRequestData {
+            message: format!("Decision Engine rejected the request: {message}"),
+        }),
+        None => error
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable(printable),
+    }
+}
+
+/// Converts to the DE shape; None for kinds the DE cannot host (3DS) or unconvertible programs.
+#[cfg(feature = "v1")]
+fn convert_euclid_algorithm_to_de_static(
+    algorithm: routing_types::StaticRoutingAlgorithm,
+) -> Option<StaticRoutingAlgorithm> {
+    match algorithm {
+        routing_types::StaticRoutingAlgorithm::Advanced(program) => match program.try_into() {
+            Ok(internal_program) => Some(StaticRoutingAlgorithm::Advanced(internal_program)),
+            Err(e) => {
+                router_env::logger::error!(decision_engine_error = ?e, "decision_engine_euclid");
+                None
+            }
+        },
+        routing_types::StaticRoutingAlgorithm::Single(conn) => {
+            Some(StaticRoutingAlgorithm::Single(Box::new((*conn).into())))
+        }
+        routing_types::StaticRoutingAlgorithm::Priority(connectors) => Some(
+            StaticRoutingAlgorithm::Priority(connectors.into_iter().map(Into::into).collect()),
+        ),
+        routing_types::StaticRoutingAlgorithm::VolumeSplit(splits) => Some(
+            StaticRoutingAlgorithm::VolumeSplit(splits.into_iter().map(Into::into).collect()),
+        ),
+        routing_types::StaticRoutingAlgorithm::ThreeDsDecisionRule(_) => {
+            router_env::logger::error!(
+                "decision_engine_euclid: ThreeDsDecisionRules are not yet implemented"
+            );
+            None
+        }
+    }
+}
+
+/// Mirrors the "already active" precondition on DE state; best-effort so a failed
+/// listing never blocks the idempotent DE activation.
+#[cfg(feature = "v1")]
+async fn ensure_de_rule_not_already_active(
+    state: &SessionState,
+    profile_id: &common_utils::id_type::ProfileId,
+    transaction_type: &enums::TransactionType,
+    de_rule_id: &str,
+) -> RouterResult<()> {
+    let active_records =
+        fetch_de_euclid_routing_records(state, profile_id.get_string_repr().to_string(), true)
+            .await
+            .map_err(|error| {
+                router_env::logger::warn!(
+            ?error,
+            "decision_engine_euclid: failed to list active DE rules for the already-active check"
+        );
+            })
+            .unwrap_or_default();
+    utils::when(
+        active_records.iter().any(|record| {
+            &record.algorithm_for == transaction_type && record.id.get_string_repr() == de_rule_id
+        }),
+        || {
+            Err(errors::ApiErrorResponse::PreconditionFailed {
+                message: "Algorithm is already active".to_string(),
+            })
+        },
+    )?;
+    Ok(())
+}
+
+/// Finds a DE-only rule (no HS row) in the caller's profile, else the merchant's cut-over profiles.
+#[cfg(feature = "v1")]
+async fn find_de_record_for_algorithm(
+    state: &SessionState,
+    platform: &domain::Platform,
+    authentication_profile_id: Option<common_utils::id_type::ProfileId>,
+    algorithm_id: &common_utils::id_type::RoutingId,
+) -> RouterResult<Option<(domain::Profile, RoutingAlgorithmRecord)>> {
+    let db = state.store.as_ref();
+    let processor = platform.get_processor();
+
+    let candidate_profiles = match authentication_profile_id {
+        Some(profile_id) => {
+            core_utils::validate_and_get_business_profile(db, processor, Some(&profile_id))
+                .await?
+                .map(|profile| vec![profile])
+                .unwrap_or_default()
+        }
+        None => db
+            .list_profile_by_merchant_id(
+                processor.get_key_store(),
+                processor.get_account().get_id(),
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("failed to list profiles while resolving a DE-only rule id")?,
+    };
+
+    for business_profile in candidate_profiles {
+        if !is_profile_cutover_effective(state, platform, business_profile.get_id().clone()).await {
+            continue;
+        }
+        // Propagated: a DE outage must not turn an existing DE-only rule into a 404.
+        let records = fetch_de_euclid_routing_records(
+            state,
+            business_profile.get_id().get_string_repr().to_string(),
+            false,
+        )
+        .await
+        .map_err(|error| {
+            map_de_write_error(
+                error,
+                "decision_engine_euclid: failed to list DE rules while resolving a rule id",
+            )
+        })?;
+
+        if let Some(record) = records
+            .into_iter()
+            .find(|record| &record.id == algorithm_id)
+        {
+            return Ok(Some((business_profile, record)));
+        }
+    }
+    Ok(None)
+}
+
+/// Single/priority/volume-split map to api shapes; advanced programs are returned
+/// verbatim in DE serialization (no reverse AST conversion exists).
+#[cfg(feature = "v1")]
+fn de_record_to_merchant_routing_algorithm(
+    record: RoutingAlgorithmRecord,
+) -> RouterResult<routing_types::MerchantRoutingAlgorithm> {
+    let algorithm = match record.algorithm_data {
+        StaticRoutingAlgorithm::Single(conn) => {
+            routing_types::DeRoutableConnectorChoice::try_from(*conn)
+                .map(|choice| {
+                    routing_types::RoutingAlgorithmWrapper::Static(
+                        routing_types::StaticRoutingAlgorithm::Single(Box::new(choice.into())),
+                    )
+                })
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("failed to convert DE single connector to api shape")?
+        }
+        StaticRoutingAlgorithm::Priority(connectors) => connectors
+            .into_iter()
+            .map(|conn| routing_types::DeRoutableConnectorChoice::try_from(conn).map(Into::into))
+            .collect::<Result<Vec<_>, _>>()
+            .map(|choices| {
+                routing_types::RoutingAlgorithmWrapper::Static(
+                    routing_types::StaticRoutingAlgorithm::Priority(choices),
+                )
+            })
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("failed to convert DE priority connectors to api shape")?,
+        StaticRoutingAlgorithm::VolumeSplit(splits) => splits
+            .into_iter()
+            .map(|split| {
+                routing_types::DeRoutableConnectorChoice::try_from(split.output).map(|choice| {
+                    routing_types::ConnectorVolumeSplit {
+                        connector: choice.into(),
+                        split: split.split,
+                    }
+                })
+            })
+            .collect::<Result<Vec<_>, _>>()
+            .map(|splits| {
+                routing_types::RoutingAlgorithmWrapper::Static(
+                    routing_types::StaticRoutingAlgorithm::VolumeSplit(splits),
+                )
+            })
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("failed to convert DE volume split to api shape")?,
+        advanced @ StaticRoutingAlgorithm::Advanced(_) => {
+            routing_types::RoutingAlgorithmWrapper::DecisionEngine(
+                serde_json::to_value(advanced)
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("failed to serialize DE advanced algorithm")?,
+            )
+        }
+    };
+
+    Ok(routing_types::MerchantRoutingAlgorithm {
+        id: record.id,
+        profile_id: record.created_by,
+        name: record.name,
+        description: record.description.unwrap_or_default(),
+        algorithm,
+        created_at: record.created_at.assume_utc().unix_timestamp(),
+        modified_at: record.modified_at.assume_utc().unix_timestamp(),
+        algorithm_for: record.algorithm_for,
+    })
 }
 
 pub enum TransactionData<'a> {
@@ -247,15 +467,49 @@ pub async fn retrieve_merchant_routing_dictionary(
         routing_metadata,
     );
 
-    let mut result = routing_metadata
+    let mut result: Vec<routing_types::RoutingDictionaryRecord> = routing_metadata
         .into_iter()
         .map(ForeignInto::foreign_into)
         .collect::<Vec<_>>();
+
+    // Merchant-level listing enumerates profiles so cut-over profiles' DE rules appear;
+    // with the flag off (or enumeration failing) the HS-only listing is preserved exactly.
+    let expanded_from_merchant_level = profile_id_list.is_none();
+    let profile_id_list = match profile_id_list {
+        Some(profile_ids) => Some(profile_ids),
+        None if state.conf.open_router.static_routing_enabled => state
+            .store
+            .list_profile_by_merchant_id(
+                platform.get_processor().get_key_store(),
+                platform.get_processor().get_account().get_id(),
+            )
+            .await
+            .map(|profiles| {
+                profiles
+                    .into_iter()
+                    .map(|profile| profile.get_id().clone())
+                    .collect::<Vec<_>>()
+            })
+            .map_err(|error| {
+                router_env::logger::error!(
+                    ?error,
+                    "decision_engine_euclid: failed to list profiles for merchant-level routing list"
+                );
+            })
+            .ok(),
+        None => None,
+    };
 
     if let Some(profile_ids) = profile_id_list {
         let mut de_result: Vec<routing_types::RoutingDictionaryRecord> = vec![];
         // DE_TODO: need to replace this with batch API call to reduce the number of network calls
         for profile_id in &profile_ids {
+            // Only cut-over profiles warrant a DE call on the enumerated merchant-level path.
+            if expanded_from_merchant_level
+                && !is_profile_cutover_effective(&state, &platform, profile_id.clone()).await
+            {
+                continue;
+            }
             let list_request = ListRountingAlgorithmsRequest {
                 created_by: profile_id.get_string_repr().to_string(),
             };
@@ -266,28 +520,38 @@ pub async fn retrieve_merchant_routing_dictionary(
                 })
                 .ok() // Avoid throwing error if Decision Engine is not available or other errors
                 .map(|mut de_routing| de_result.append(&mut de_routing));
-            // filter de_result based on transaction type
-            de_result.retain(|record| record.algorithm_for == Some(transaction_type));
-            // append dynamic routing algorithms to de_result
-            de_result.append(
-                &mut result
-                    .clone()
-                    .into_iter()
-                    .filter(|record: &routing_types::RoutingDictionaryRecord| {
-                        record.kind == routing_types::RoutingAlgorithmKind::Dynamic
-                    })
-                    .collect::<Vec<_>>(),
-            );
         }
+        // filter de_result based on transaction type
+        de_result.retain(|record| record.algorithm_for == Some(transaction_type));
+        // append dynamic routing algorithms to de_result once (DE cannot represent them)
+        de_result.extend(
+            result
+                .iter()
+                .filter(|record| record.kind == routing_types::RoutingAlgorithmKind::Dynamic)
+                .cloned(),
+        );
         compare_and_log_result(
             de_result.clone(),
             result.clone(),
             "list_routing".to_string(),
             false,
         );
-        result =
+        let listed_profiles: HashSet<_> = profile_ids.iter().cloned().collect();
+        let mut merged =
             build_list_routing_result(&state, platform, &result, &de_result, profile_ids.clone())
                 .await?;
+        // Keep records whose profile is not in the enumerated list (e.g. deleted profiles).
+        merged.extend(
+            result
+                .iter()
+                .filter(|record| !listed_profiles.contains(&record.profile_id))
+                .cloned(),
+        );
+        if expanded_from_merchant_level {
+            // Restore the DB ordering the merchant-level listing always had.
+            merged.sort_by_key(|record| std::cmp::Reverse(record.modified_at));
+        }
+        result = merged;
     }
 
     metrics::ROUTING_MERCHANT_DICTIONARY_RETRIEVE_SUCCESS_RESPONSE.add(1, &[]);
@@ -309,17 +573,26 @@ async fn build_list_routing_result(
         let by_profile =
             |rec: &&routing_types::RoutingDictionaryRecord| &rec.profile_id == profile_id;
         let de_result_for_profile = de_results.iter().filter(by_profile).cloned().collect();
-        let hs_result_for_profile = hs_results.iter().filter(by_profile).cloned().collect();
-        let business_profile = core_utils::validate_and_get_business_profile(
+        let mut hs_result_for_profile: Vec<routing_types::RoutingDictionaryRecord> =
+            hs_results.iter().filter(by_profile).cloned().collect();
+        let business_profile = match core_utils::validate_and_get_business_profile(
             db,
             platform.get_processor(),
             Some(profile_id),
         )
-        .await?
-        .get_required_value("Profile")
-        .change_context(errors::ApiErrorResponse::ProfileNotFound {
-            id: profile_id.get_string_repr().to_owned(),
-        })?;
+        .await
+        {
+            Ok(Some(business_profile)) => business_profile,
+            // A missing profile must not fail the listing; serve its HS records.
+            Ok(None) | Err(_) => {
+                router_env::logger::warn!(
+                    profile_id = %profile_id.get_string_repr(),
+                    "decision_engine_euclid: profile unavailable during routing list merge, serving HS records"
+                );
+                list_result.append(&mut hs_result_for_profile);
+                continue;
+            }
+        };
 
         let dimensions = dimension_state::Dimensions::new()
             .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
@@ -475,78 +748,85 @@ pub async fn create_routing_algorithm_under_profile(
         .await?;
     }
 
-    let mut decision_engine_routing_id: Option<String> = None;
+    let is_three_ds_rule = matches!(algorithm, EuclidAlgorithm::ThreeDsDecisionRule(_));
+    // 3DS decision rules cannot live on the DE, so they follow the HS path even under cutover.
+    let de_routing_effective = !is_three_ds_rule
+        && is_profile_cutover_effective(&state, &platform, profile_id.clone()).await;
 
-    if let Some(euclid_algorithm) = request.algorithm.clone() {
-        let maybe_static_algorithm: Option<StaticRoutingAlgorithm> = match euclid_algorithm {
-            EuclidAlgorithm::Advanced(program) => match program.try_into() {
-                Ok(internal_program) => Some(StaticRoutingAlgorithm::Advanced(internal_program)),
-                Err(e) => {
-                    router_env::logger::error!(decision_engine_error = ?e, "decision_engine_euclid");
-                    None
-                }
-            },
-            EuclidAlgorithm::Single(conn) => {
-                Some(StaticRoutingAlgorithm::Single(Box::new(conn.into())))
-            }
-            EuclidAlgorithm::Priority(connectors) => {
-                let converted: Vec<ConnectorInfo> =
-                    connectors.into_iter().map(Into::into).collect();
-                Some(StaticRoutingAlgorithm::Priority(converted))
-            }
-            EuclidAlgorithm::VolumeSplit(splits) => {
-                let converted: Vec<VolumeSplit<ConnectorInfo>> =
-                    splits.into_iter().map(Into::into).collect();
-                Some(StaticRoutingAlgorithm::VolumeSplit(converted))
-            }
-            EuclidAlgorithm::ThreeDsDecisionRule(_) => {
-                router_env::logger::error!(
-                    "decision_engine_euclid: ThreeDsDecisionRules are not yet implemented"
-                );
-                None
-            }
+    let maybe_static_algorithm = convert_euclid_algorithm_to_de_static(algorithm.clone());
+
+    let build_routing_rule = |static_algorithm: StaticRoutingAlgorithm| RoutingRule {
+        rule_id: Some(algorithm_id.clone().get_string_repr().to_owned()),
+        name: name.to_string(),
+        description: Some(description.clone()),
+        created_by: profile_id.get_string_repr().to_string(),
+        algorithm: static_algorithm,
+        algorithm_for: transaction_type.into(),
+        metadata: Some(RoutingMetadata {
+            kind: algorithm.get_kind().foreign_into(),
+        }),
+    };
+
+    if de_routing_effective {
+        // DE-only write: hard-fail on DE errors; nothing is written to Hyperswitch.
+        let static_algorithm =
+            maybe_static_algorithm.ok_or(errors::ApiErrorResponse::InvalidRequestData {
+                message: "This algorithm cannot be represented on the Decision Engine".to_string(),
+            })?;
+        let routing_rule = build_routing_rule(static_algorithm);
+
+        let de_routing_id = create_de_euclid_routing_algo(&state, &routing_rule)
+            .await
+            .map_err(|error| map_de_write_error(error, "decision_engine_euclid: rule creation failed on the Decision Engine for a cut-over profile"))?;
+
+        let timestamp = common_utils::date_time::now_unix_timestamp();
+        let record = routing_types::RoutingDictionaryRecord {
+            id: algorithm_id,
+            profile_id,
+            name: name.to_string(),
+            kind: algorithm.get_kind(),
+            description: description.clone(),
+            created_at: timestamp,
+            modified_at: timestamp,
+            algorithm_for: Some(transaction_type.to_owned()),
+            decision_engine_routing_id: Some(de_routing_id),
         };
 
-        if let Some(static_algorithm) = maybe_static_algorithm {
-            let routing_rule = RoutingRule {
-                rule_id: Some(algorithm_id.clone().get_string_repr().to_owned()),
-                name: name.to_string(),
-                description: Some(description.clone()),
-                created_by: profile_id.get_string_repr().to_string(),
-                algorithm: static_algorithm,
-                algorithm_for: transaction_type.into(),
-                metadata: Some(RoutingMetadata {
-                    kind: algorithm.get_kind().foreign_into(),
-                }),
-            };
+        metrics::ROUTING_CREATE_SUCCESS_RESPONSE.add(1, &[]);
+        return Ok(service_api::ApplicationResponse::Json(record));
+    }
 
-            match create_de_euclid_routing_algo(&state, &routing_rule).await {
-                Ok(id) => {
-                    decision_engine_routing_id = Some(id);
-                }
-                Err(e)
-                    if matches!(
-                        e.current_context(),
-                        errors::RoutingError::DecisionEngineValidationError(_)
-                    ) =>
+    let mut decision_engine_routing_id: Option<String> = None;
+
+    if let Some(static_algorithm) = maybe_static_algorithm {
+        let routing_rule = build_routing_rule(static_algorithm);
+
+        match create_de_euclid_routing_algo(&state, &routing_rule).await {
+            Ok(id) => {
+                decision_engine_routing_id = Some(id);
+            }
+            Err(e)
+                if matches!(
+                    e.current_context(),
+                    errors::RoutingError::DecisionEngineValidationError(_)
+                ) =>
+            {
+                if let errors::RoutingError::DecisionEngineValidationError(msg) =
+                    e.current_context()
                 {
-                    if let errors::RoutingError::DecisionEngineValidationError(msg) =
-                        e.current_context()
-                    {
-                        router_env::logger::error!(
-                            decision_engine_euclid_error = ?msg,
-                            decision_engine_euclid_request = ?routing_rule,
-                            "failed to create rule in decision_engine with validation error"
-                        );
-                    }
-                }
-                Err(e) => {
                     router_env::logger::error!(
-                        decision_engine_euclid_error = ?e,
+                        decision_engine_euclid_error = ?msg,
                         decision_engine_euclid_request = ?routing_rule,
-                        "failed to create rule in decision_engine"
+                        "failed to create rule in decision_engine with validation error"
                     );
                 }
+            }
+            Err(e) => {
+                router_env::logger::error!(
+                    decision_engine_euclid_error = ?e,
+                    decision_engine_euclid_request = ?routing_rule,
+                    "failed to create rule in decision_engine"
+                );
             }
         }
     }
@@ -656,21 +936,74 @@ pub async fn link_routing_config_under_profile(
 #[cfg(feature = "v1")]
 pub async fn link_routing_config(
     state: SessionState,
-    processor: domain::Processor,
+    platform: domain::Platform,
     authentication_profile_id: Option<common_utils::id_type::ProfileId>,
     algorithm_id: common_utils::id_type::RoutingId,
     transaction_type: enums::TransactionType,
 ) -> RouterResponse<routing_types::RoutingDictionaryRecord> {
     metrics::ROUTING_LINK_CONFIG.add(1, &[]);
     let db = state.store.as_ref();
+    let processor = platform.get_processor().clone();
 
-    let routing_algorithm = db
+    let routing_algorithm = match db
         .find_routing_algorithm_by_algorithm_id_processor_merchant_id(
             &algorithm_id,
             processor.get_account().get_id(),
         )
         .await
-        .change_context(errors::ApiErrorResponse::ResourceIdNotFound)?;
+    {
+        Ok(routing_algorithm) => routing_algorithm,
+        Err(error) => {
+            // DE-only rule ids (e.g. created on the DE dashboard) activate directly on the DE.
+            if let Some((business_profile, record)) = find_de_record_for_algorithm(
+                &state,
+                &platform,
+                authentication_profile_id.clone(),
+                &algorithm_id,
+            )
+            .await?
+            {
+                utils::when(record.algorithm_for != transaction_type, || {
+                    Err(errors::ApiErrorResponse::PreconditionFailed {
+                        message: format!(
+                            "Cannot use {}'s routing algorithm for {} operation",
+                            record.algorithm_for, transaction_type
+                        ),
+                    })
+                })?;
+
+                ensure_de_rule_not_already_active(
+                    &state,
+                    business_profile.get_id(),
+                    &transaction_type,
+                    record.id.get_string_repr(),
+                )
+                .await?;
+
+                link_de_euclid_routing_algorithm(
+                    &state,
+                    ActivateRoutingConfigRequest {
+                        created_by: business_profile.get_id().get_string_repr().to_string(),
+                        routing_algorithm_id: record.id.get_string_repr().to_string(),
+                    },
+                )
+                .await
+                .map_err(|error| {
+                    map_de_write_error(
+                        error,
+                        "decision_engine_euclid: rule activation failed on the Decision Engine",
+                    )
+                })?;
+
+                metrics::ROUTING_LINK_CONFIG_SUCCESS_RESPONSE.add(1, &[]);
+                return Ok(service_api::ApplicationResponse::Json(
+                    diesel_models::routing_algorithm::RoutingProfileMetadata::from(record)
+                        .foreign_into(),
+                ));
+            }
+            return Err(error).change_context(errors::ApiErrorResponse::ResourceIdNotFound);
+        }
+    };
 
     let business_profile = core_utils::validate_and_get_business_profile(
         db,
@@ -918,6 +1251,104 @@ pub async fn link_routing_config(
                 })
             })?;
 
+            // 3DS decision rules stay HS-managed even under cutover.
+            let de_routing_effective = !matches!(
+                routing_algorithm.kind,
+                diesel_models::enums::RoutingAlgorithmKind::ThreeDsDecisionRule
+            ) && is_profile_cutover_effective(
+                &state,
+                &platform,
+                business_profile.get_id().clone(),
+            )
+            .await;
+
+            if de_routing_effective {
+                // Activate on the DE (hard-fail), leaving HS state untouched; rules the
+                // DE doesn't know yet are created on it first.
+                let de_rule_id = match routing_algorithm.decision_engine_routing_id.clone() {
+                    Some(id) => id,
+                    None => {
+                        let profile_id_str =
+                            business_profile.get_id().get_string_repr().to_string();
+                        let existing_records =
+                            fetch_de_euclid_routing_records(&state, profile_id_str.clone(), false)
+                                .await
+                                .map_err(|error| {
+                                    map_de_write_error(
+                                error,
+                                "decision_engine_euclid: failed to list DE rules during activation",
+                            )
+                                })?;
+
+                        if existing_records
+                            .iter()
+                            .any(|record| record.id == algorithm_id)
+                        {
+                            // Migrated rules carry the HS algorithm id on the DE side.
+                            algorithm_id.get_string_repr().to_string()
+                        } else {
+                            let api_algorithm: routing_types::StaticRoutingAlgorithm =
+                                routing_algorithm
+                                    .algorithm_data
+                                    .clone()
+                                    .parse_value("StaticRoutingAlgorithm")
+                                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                                    .attach_printable("unable to parse routing algorithm data")?;
+                            let static_algorithm = convert_euclid_algorithm_to_de_static(
+                                api_algorithm,
+                            )
+                            .ok_or(errors::ApiErrorResponse::InvalidRequestData {
+                                message:
+                                    "This algorithm cannot be represented on the Decision Engine"
+                                        .to_string(),
+                            })?;
+                            let routing_rule = RoutingRule {
+                                rule_id: Some(algorithm_id.get_string_repr().to_owned()),
+                                name: routing_algorithm.name.clone(),
+                                description: routing_algorithm.description.clone(),
+                                created_by: profile_id_str,
+                                algorithm: static_algorithm,
+                                algorithm_for: routing_algorithm.algorithm_for.into(),
+                                metadata: Some(RoutingMetadata {
+                                    kind: routing_algorithm.kind,
+                                }),
+                            };
+                            create_de_euclid_routing_algo(&state, &routing_rule)
+                                .await
+                                .map_err(|error| map_de_write_error(error, "decision_engine_euclid: rule creation failed on the Decision Engine during activation"))?
+                        }
+                    }
+                };
+
+                ensure_de_rule_not_already_active(
+                    &state,
+                    business_profile.get_id(),
+                    &transaction_type,
+                    &de_rule_id,
+                )
+                .await?;
+
+                link_de_euclid_routing_algorithm(
+                    &state,
+                    ActivateRoutingConfigRequest {
+                        created_by: business_profile.get_id().get_string_repr().to_string(),
+                        routing_algorithm_id: de_rule_id,
+                    },
+                )
+                .await
+                .map_err(|error| {
+                    map_de_write_error(
+                        error,
+                        "decision_engine_euclid: rule activation failed on the Decision Engine",
+                    )
+                })?;
+
+                metrics::ROUTING_LINK_CONFIG_SUCCESS_RESPONSE.add(1, &[]);
+                return Ok(service_api::ApplicationResponse::Json(
+                    routing_algorithm.foreign_into(),
+                ));
+            }
+
             utils::when(
                 routing_ref.algorithm_id == Some(algorithm_id.clone()),
                 || {
@@ -1022,20 +1453,39 @@ pub async fn retrieve_routing_algorithm_from_algorithm_id(
 #[cfg(feature = "v1")]
 pub async fn retrieve_routing_algorithm_from_algorithm_id(
     state: SessionState,
-    processor: domain::Processor,
+    platform: domain::Platform,
     authentication_profile_id: Option<common_utils::id_type::ProfileId>,
     algorithm_id: common_utils::id_type::RoutingId,
 ) -> RouterResponse<routing_types::MerchantRoutingAlgorithm> {
     metrics::ROUTING_RETRIEVE_CONFIG.add(1, &[]);
     let db = state.store.as_ref();
+    let processor = platform.get_processor().clone();
 
-    let routing_algorithm = db
+    let routing_algorithm = match db
         .find_routing_algorithm_by_algorithm_id_processor_merchant_id(
             &algorithm_id,
             processor.get_account().get_id(),
         )
         .await
-        .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?;
+    {
+        Ok(routing_algorithm) => routing_algorithm,
+        Err(error) => {
+            // DE-only rules have no HS row; serve them from the DE.
+            if let Some((_business_profile, record)) = find_de_record_for_algorithm(
+                &state,
+                &platform,
+                authentication_profile_id.clone(),
+                &algorithm_id,
+            )
+            .await?
+            {
+                let response = de_record_to_merchant_routing_algorithm(record)?;
+                metrics::ROUTING_RETRIEVE_CONFIG_SUCCESS_RESPONSE.add(1, &[]);
+                return Ok(service_api::ApplicationResponse::Json(response));
+            }
+            return Err(error).to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound);
+        }
+    };
 
     let business_profile = core_utils::validate_and_get_business_profile(
         db,
@@ -1109,7 +1559,7 @@ pub async fn unlink_routing_config_under_profile(
 #[cfg(feature = "v1")]
 pub async fn unlink_routing_config(
     state: SessionState,
-    processor: domain::Processor,
+    platform: domain::Platform,
     request: routing_types::RoutingConfigRequest,
     authentication_profile_id: Option<common_utils::id_type::ProfileId>,
     transaction_type: enums::TransactionType,
@@ -1117,6 +1567,7 @@ pub async fn unlink_routing_config(
     metrics::ROUTING_UNLINK_CONFIG.add(1, &[]);
 
     let db = state.store.as_ref();
+    let processor = platform.get_processor().clone();
 
     let profile_id = request
         .profile_id
@@ -1135,6 +1586,58 @@ pub async fn unlink_routing_config(
                 authentication_profile_id,
                 &business_profile,
             )?;
+
+            // 3DS decision rules stay HS-managed even under cutover.
+            let de_routing_effective = transaction_type
+                != enums::TransactionType::ThreeDsAuthentication
+                && is_profile_cutover_effective(&state, &platform, profile_id.clone()).await;
+
+            if de_routing_effective {
+                // Deactivate on the DE (hard-fail), leaving HS state untouched. Raw records
+                // so an unrepresentable active rule errors instead of "already inactive".
+                let profile_id_str = profile_id.get_string_repr().to_string();
+                let raw_active_record = fetch_de_euclid_routing_records_raw(
+                    &state,
+                    profile_id_str.clone(),
+                    true,
+                )
+                .await
+                .map_err(|error| map_de_write_error(error, "decision_engine_euclid: failed to list active DE rules during deactivation"))?
+                .into_iter()
+                .find(|record| {
+                    record.get("algorithm_for").and_then(|value| value.as_str())
+                        == Some(transaction_type.to_string().as_str())
+                })
+                .ok_or(errors::ApiErrorResponse::PreconditionFailed {
+                    message: "Algorithm is already inactive".to_string(),
+                })?;
+                let active_record = parse_de_euclid_routing_record(raw_active_record).ok_or(
+                    errors::ApiErrorResponse::InvalidRequestData {
+                        message: "The active rule on the Decision Engine cannot be managed through Hyperswitch; deactivate it from the Decision Engine dashboard".to_string(),
+                    },
+                )?;
+
+                deactivate_de_euclid_routing_algorithm(
+                    &state,
+                    DeactivateRoutingConfigRequest {
+                        created_by: profile_id_str,
+                        routing_algorithm_id: active_record.id.get_string_repr().to_string(),
+                    },
+                )
+                .await
+                .map_err(|error| {
+                    map_de_write_error(
+                        error,
+                        "decision_engine_euclid: rule deactivation failed on the Decision Engine",
+                    )
+                })?;
+
+                metrics::ROUTING_UNLINK_CONFIG_SUCCESS_RESPONSE.add(1, &[]);
+                return Ok(service_api::ApplicationResponse::Json(
+                    diesel_models::routing_algorithm::RoutingProfileMetadata::from(active_record)
+                        .foreign_into(),
+                ));
+            }
             let routing_algo_ref: routing_types::RoutingAlgorithmRef = match transaction_type {
                 enums::TransactionType::Payment => business_profile.routing_algorithm.clone(),
                 #[cfg(feature = "payouts")]
@@ -1473,16 +1976,28 @@ pub async fn retrieve_linked_routing_config(
         .attach_printable("unable to deserialize routing algorithm ref from merchant account")?
         .unwrap_or_default();
 
-        if let Some(algorithm_id) = routing_ref.algorithm_id {
-            let record = db
-                .find_routing_algorithm_metadata_by_algorithm_id_profile_id(
-                    &algorithm_id,
-                    profile_id,
-                )
-                .await
-                .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?;
-            let hs_records: Vec<routing_types::RoutingDictionaryRecord> =
-                vec![record.foreign_into()];
+        let hs_records: Vec<routing_types::RoutingDictionaryRecord> = match routing_ref.algorithm_id
+        {
+            Some(algorithm_id) => {
+                let record = db
+                    .find_routing_algorithm_metadata_by_algorithm_id_profile_id(
+                        &algorithm_id,
+                        profile_id,
+                    )
+                    .await
+                    .to_not_found_response(errors::ApiErrorResponse::ResourceIdNotFound)?;
+                vec![record.foreign_into()]
+            }
+            None => Vec::new(),
+        };
+
+        // A cut-over profile can be active only on the DE with no HS ref, so consult
+        // the DE even when HS has nothing. 3DS rules never live on the DE.
+        let de_routing_effective = transaction_type
+            != enums::TransactionType::ThreeDsAuthentication
+            && is_profile_cutover_effective(&state, &platform, profile_id.clone()).await;
+
+        if !hs_records.is_empty() || de_routing_effective {
             let de_records = retrieve_decision_engine_active_rules(
                 &state,
                 &transaction_type,
@@ -2595,6 +3110,21 @@ pub async fn migrate_rules_for_profile(
     let mut response_list = Vec::new();
     let mut error_list = Vec::new();
 
+    // Skip rules the DE already holds; re-runs still re-link the HS-active rule so a
+    // migration that crashed between create and activate completes.
+    let existing_de_rule_ids: HashSet<common_utils::id_type::RoutingId> =
+        fetch_de_euclid_routing_records(&state, profile_id.get_string_repr().to_string(), false)
+            .await
+            .map_err(|error| {
+                map_de_write_error(
+                    error,
+                    "decision_engine_euclid: failed to list DE rules before migration",
+                )
+            })?
+            .into_iter()
+            .map(|record| record.id)
+            .collect();
+
     let mut push_error = |algorithm_id, msg: String| {
         error_list.push(RuleMigrationError {
             profile_id: profile_id.clone(),
@@ -2605,6 +3135,31 @@ pub async fn migrate_rules_for_profile(
 
     for routing_metadata in routing_metadatas {
         let algorithm_id = routing_metadata.algorithm_id.clone();
+        if existing_de_rule_ids.contains(&algorithm_id) {
+            router_env::logger::info!(
+                ?algorithm_id,
+                "decision_engine_euclid: rule already exists on the Decision Engine, skipping creation"
+            );
+            if active_payment_routing_ids.contains(&Some(algorithm_id.clone())) {
+                link_de_euclid_routing_algorithm(
+                    &state,
+                    ActivateRoutingConfigRequest {
+                        created_by: profile_id.get_string_repr().to_string(),
+                        routing_algorithm_id: algorithm_id.get_string_repr().to_string(),
+                    },
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("unable to link active routing algorithm")?;
+                response_list.push(RuleMigrationResponse {
+                    profile_id: profile_id.clone(),
+                    euclid_algorithm_id: algorithm_id.clone(),
+                    decision_engine_algorithm_id: algorithm_id.get_string_repr().to_string(),
+                    is_active_rule: true,
+                });
+            }
+            continue;
+        }
         let algorithm = match db
             .find_routing_algorithm_by_profile_id_algorithm_id(&profile_id, &algorithm_id)
             .await
