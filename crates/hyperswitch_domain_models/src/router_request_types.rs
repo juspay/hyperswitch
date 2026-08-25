@@ -1506,6 +1506,13 @@ pub struct RefundsData {
     pub merchant_config_currency: Option<storage_enums::Currency>,
     pub capture_method: Option<storage_enums::CaptureMethod>,
     pub additional_payment_method_data: Option<AdditionalPaymentData>,
+    /// The `connector_request_reference_id` that was sent to the connector for the *original
+    /// payment* this refund targets.
+    ///
+    /// `RouterData::connector_request_reference_id` identifies the refund itself, and
+    /// `connector_transaction_id` holds the connector-generated identifier, so neither can be used
+    /// by connectors that bind a refund to the merchant-side reference of the original payment.
+    pub payment_connector_request_reference_id: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize)]
@@ -1773,6 +1780,7 @@ pub struct PayoutsData {
     pub additional_payout_method_data: Option<payout_method_utils::AdditionalPayoutMethodData>,
     pub source_bank_data: Option<api_models::payouts::BankTransfer>,
     pub billing_descriptor: Option<common_types::payouts::PayoutsBillingDescriptor>,
+    pub connector_eligibility_reference_id: Option<String>,
 }
 
 #[derive(Debug, Default, Clone, Serialize)]
