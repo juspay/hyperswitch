@@ -712,20 +712,26 @@ async fn merge_de_routing_records(
         return Ok(hs_result);
     }
 
-    let mut de_result: Vec<routing_types::RoutingDictionaryRecord> = vec![];
-    // DE_TODO: need to replace this with batch API call to reduce the number of network calls
-    for profile_id in &cutover_profiles {
-        let list_request = ListRountingAlgorithmsRequest {
-            created_by: profile_id.get_string_repr().to_string(),
-        };
-        list_de_euclid_routing_algorithms(state, list_request)
-            .await
-            .map_err(|e| {
-                router_env::logger::error!(decision_engine_error=?e, "decision_engine_euclid");
-            })
-            .ok() // Avoid throwing error if Decision Engine is not available or other errors
-            .map(|mut de_routing| de_result.append(&mut de_routing));
-    }
+    // Issued concurrently: the Decision Engine lists one profile per call, so a serial loop
+    // would cost N round trips (each up to the 5s client timeout) in wall-clock time.
+    // DE_TODO: a batch list endpoint on the Decision Engine would also cut the call count.
+    let mut de_result: Vec<routing_types::RoutingDictionaryRecord> =
+        futures::future::join_all(cutover_profiles.iter().map(|profile_id| async move {
+            let list_request = ListRountingAlgorithmsRequest {
+                created_by: profile_id.get_string_repr().to_string(),
+            };
+            list_de_euclid_routing_algorithms(state, list_request)
+                .await
+                .map_err(|e| {
+                    router_env::logger::error!(decision_engine_error=?e, "decision_engine_euclid");
+                })
+                .ok() // Avoid throwing error if Decision Engine is not available or other errors
+                .unwrap_or_default()
+        }))
+        .await
+        .into_iter()
+        .flatten()
+        .collect();
     // filter de_result based on transaction type
     de_result.retain(|record| record.algorithm_for == Some(transaction_type));
     // append dynamic routing algorithms to de_result once (DE cannot represent them)
