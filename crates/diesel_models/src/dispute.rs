@@ -152,7 +152,8 @@ pub struct Dispute {
 }
 
 impl Dispute {
-    /// Returns true if the dispute_status is either DisputeLost, or the option is None
+    /// Returns true if the dispute is not yet lost — either the stored status is
+    /// something other than DisputeLost, or there is no stored dispute at all.
     pub fn is_not_lost_or_none(option: &Option<Self>) -> bool {
         option
             .as_ref()

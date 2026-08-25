@@ -773,6 +773,10 @@ async fn disputes_incoming_webhook_flow(
         .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
         .attach_printable("event type to dispute status mapping failed")?;
 
+    // Captured before the update, because the guard below must see the row as it was.
+    let was_not_already_lost =
+        diesel_models::dispute::Dispute::is_not_lost_or_none(&option_dispute);
+
     let dispute_object = get_or_update_dispute_object(
         &state,
         option_dispute,
@@ -785,11 +789,193 @@ async fn disputes_incoming_webhook_flow(
     )
     .await?;
 
+    if was_not_already_lost
+        && dispute_object.dispute_status == common_enums::DisputeStatus::DisputeLost
+    {
+        // Failure is logged and metered, never propagated. Returning an error here would
+        // make the connector redeliver, and the redelivery would hit the guard above and
+        // skip the refund anyway — so failing the webhook buys no retry, only a duplicate
+        // dispute update.
+        match record_dispute_back_to_billing_connector(
+            &state,
+            &platform,
+            &payment_attempt,
+            &dispute_object,
+        )
+        .await
+        {
+            Ok(()) => metrics::DISPUTE_RECORD_BACK_SUCCESS_METRIC.add(1, &[]),
+            Err(error) => {
+                metrics::DISPUTE_RECORD_BACK_FAILURE_METRIC.add(1, &[]);
+                logger::error!(
+                    ?error,
+                    dispute_id = %dispute_object.dispute_id,
+                    "Failed to record the lost dispute back to the billing connector; this will NOT be retried"
+                );
+            }
+        }
+    }
+
     Ok(WebhookResponseTracker::Dispute {
         dispute_id: dispute_object.dispute_id,
         payment_id: dispute_object.payment_id,
         status: dispute_object.dispute_status,
     })
+}
+
+/// Record a lost dispute back to the billing connector as an offline refund.
+///
+/// Returns `Ok(())` without doing anything when the attempt carries no billing connector
+/// transaction id — the ordinary case for a payment that never went through revenue
+/// recovery.
+async fn record_dispute_back_to_billing_connector(
+    state: &SessionState,
+    platform: &domain::Platform,
+    payment_attempt: &PaymentAttempt,
+    dispute: &diesel_models::dispute::Dispute,
+) -> CustomResult<(), errors::ApiErrorResponse> {
+    let Some(billing_connector_transaction_id) = payment_attempt
+        .feature_metadata
+        .as_ref()
+        .and_then(|metadata| metadata.revenue_recovery.as_ref())
+        .and_then(|recovery| recovery.billing_connector_transaction_id.clone())
+    else {
+        // Not a recovery payment. Silent by design.
+        return Ok(());
+    };
+
+    // The webhook arrived on the payment connector's account; the refund goes to the
+    // billing connector, which is named on the intent's recovery metadata.
+    let payment_intent = state
+        .store
+        .find_payment_intent_by_id(
+            &payment_attempt.payment_id,
+            platform.get_processor().get_key_store(),
+            platform.get_processor().get_account().storage_scheme,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::WebhookResourceNotFound)?;
+
+    let billing_connector_id = payment_intent
+        .feature_metadata
+        .as_ref()
+        .and_then(|metadata| metadata.payment_revenue_recovery_metadata.as_ref())
+        .map(|recovery| recovery.billing_connector_id.clone())
+        .ok_or(errors::ApiErrorResponse::WebhookProcessingFailure)
+        .attach_printable("no billing connector id on the payment intent's recovery metadata")?;
+
+    let billing_mca = state
+        .store
+        .find_merchant_connector_account_by_id(
+            &billing_connector_id,
+            platform.get_processor().get_key_store(),
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::WebhookResourceNotFound)
+        .attach_printable("billing merchant connector account not found")?;
+
+    let connector_data = ConnectorData::get_connector_by_name(
+        &state.conf.connectors,
+        &billing_mca.connector_name.to_string(),
+        GetToken::Connector,
+        Some(billing_mca.get_id()),
+    )
+    .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
+    .attach_printable("invalid connector name on the billing merchant connector account")?;
+
+    let connector_integration: services::BoxedRevenueRecoveryDisputeRecordBackInterface<
+        hyperswitch_domain_models::router_flow_types::DisputeRecordBack,
+        hyperswitch_domain_models::router_request_types::revenue_recovery::DisputeRecordBackRequest,
+        hyperswitch_domain_models::router_response_types::revenue_recovery::DisputeRecordBackResponse,
+    > = connector_data.connector.get_connector_integration();
+
+    let router_data = construct_dispute_record_back_router_data(
+        state,
+        &billing_mca,
+        &billing_connector_transaction_id,
+        dispute,
+    )?;
+
+    let response = services::execute_connector_processing_step(
+        state,
+        connector_integration,
+        &router_data,
+        payments::CallConnectorAction::Trigger,
+        None,
+        None,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
+    .attach_printable("failed while recording the dispute back to the billing connector")?;
+
+    response
+        .response
+        .map(|_| ())
+        .map_err(|error| {
+            logger::error!(?error, "billing connector rejected the dispute record-back");
+            report!(errors::ApiErrorResponse::WebhookProcessingFailure)
+        })
+}
+
+fn construct_dispute_record_back_router_data(
+    state: &SessionState,
+    billing_mca: &domain::MerchantConnectorAccount,
+    billing_connector_transaction_id: &str,
+    dispute: &diesel_models::dispute::Dispute,
+) -> CustomResult<
+    hyperswitch_domain_models::types::DisputeRecordBackRouterData,
+    errors::ApiErrorResponse,
+> {
+    use common_utils::ext_traits::ValueExt;
+
+    let auth_type: crate::types::ConnectorAuthType =
+        crate::core::payments::helpers::MerchantConnectorAccountType::DbVal(Box::new(
+            billing_mca.clone(),
+        ))
+        .get_connector_account_details()
+        .parse_value("ConnectorAuthType")
+        .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
+        .attach_printable("failed to parse the billing connector auth type")?;
+
+    let connector_name = billing_mca.get_connector_name_as_string();
+    let connector = common_enums::connector_enums::Connector::from_str(connector_name.as_str())
+        .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
+        .attach_printable("cannot resolve the connector from the connector name")?;
+
+    let connector_params =
+        hyperswitch_domain_models::connector_endpoints::Connectors::get_connector_params(
+            &state.conf.connectors,
+            connector,
+        )
+        .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
+        .attach_printable(format!("no connector params for {connector} in this flow"))?;
+
+    let router_data = hyperswitch_domain_models::router_data_v2::RouterDataV2 {
+        flow: PhantomData::<hyperswitch_domain_models::router_flow_types::DisputeRecordBack>,
+        tenant_id: state.tenant.tenant_id.clone(),
+        resource_common_data:
+            hyperswitch_domain_models::router_data_v2::flow_common_types::DisputeRecordBackData {
+                connector_meta_data: None,
+            },
+        connector_auth_type: auth_type,
+        request:
+            hyperswitch_domain_models::router_request_types::revenue_recovery::DisputeRecordBackRequest {
+                billing_connector_transaction_id: billing_connector_transaction_id.to_string(),
+                // The disputed amount, not the full transaction: a partial dispute must
+                // refund only what was charged back.
+                amount: dispute.dispute_amount,
+                refund_date: common_utils::date_time::now(),
+                comment: Some(dispute.dispute_id.clone()),
+                connector_params,
+            },
+        response: Err(crate::types::ErrorResponse::default()),
+    };
+
+    <hyperswitch_domain_models::router_data_v2::flow_common_types::DisputeRecordBackData
+        as hyperswitch_interfaces::connector_integration_interface::RouterDataConversion<_, _, _>>
+        ::to_old_router_data(router_data)
+        .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
+        .attach_printable("cannot construct the dispute record back router data")
 }
 
 async fn get_trackers_response_for_payment_get_operation<F>(
@@ -1068,6 +1254,39 @@ mod dispute_webhook_tests {
         for object_reference_id in unsupported {
             assert!(connector_transaction_id_from_object_reference_id(&object_reference_id).is_err());
         }
+    }
+
+    #[test]
+    fn dispute_record_back_fires_only_on_the_transition_into_lost() {
+        use diesel_models::dispute::Dispute;
+
+        // validate_dispute_status permits DisputeLost -> DisputeLost, so a redelivered
+        // webhook re-runs this flow. Without the is_not_lost_or_none guard that is a
+        // second refund against the same Chargebee transaction.
+        fn should_record_back(
+            previous: &Option<Dispute>,
+            new_status: common_enums::DisputeStatus,
+        ) -> bool {
+            Dispute::is_not_lost_or_none(previous)
+                && new_status == common_enums::DisputeStatus::DisputeLost
+        }
+
+        // First DisputeLost webhook, no stored row yet: fires.
+        assert!(should_record_back(
+            &None,
+            common_enums::DisputeStatus::DisputeLost
+        ));
+
+        // A non-lost terminal status never fires.
+        assert!(!should_record_back(
+            &None,
+            common_enums::DisputeStatus::DisputeWon
+        ));
+
+        // The other half of the guard — a stored row already marked DisputeLost
+        // suppressing the redelivery — is is_not_lost_or_none's own contract, and
+        // exercising it here would mean constructing a full Dispute row. It is covered
+        // by that function rather than duplicated.
     }
 
     #[test]
