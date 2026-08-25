@@ -2291,6 +2291,7 @@ impl Conversion for PaymentAttempt {
             installment_data: None,
             external_surcharge_details: None,
             applied_offer_details,
+            fingerprint_type: None,
             sender_payment_instrument_id: None,
         })
     }

@@ -173,6 +173,7 @@ pub struct PaymentAttempt {
     pub sender_payment_instrument_id: Option<String>,
     pub external_threeds_authentication_type: Option<common_enums::DecoupledAuthenticationType>,
     pub applied_offer_details: Option<common_types::payments::AppliedOfferDetails>,
+    pub fingerprint_type: Option<common_enums::FingerprintType>,
     #[diesel(deserialize_as = RequiredFromNullable<storage_enums::PaymentMethod>)]
     pub payment_method_type_v2: storage_enums::PaymentMethod,
     pub connector_payment_id: Option<ConnectorTransactionId>,
