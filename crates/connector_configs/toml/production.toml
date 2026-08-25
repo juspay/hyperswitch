@@ -2848,7 +2848,7 @@ api_secret = "Merchant Id"
   placeholder="Enter Payment Processing Details At"
   required=true
   type="Radio"
-  options=["Connector"]
+  options=["Hyperswitch"]
 [[moneris.metadata.google_pay]]
   name = "merchant_name"
   label = "Google Pay Merchant Name"
