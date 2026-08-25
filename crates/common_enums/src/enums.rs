@@ -10555,6 +10555,30 @@ pub enum GooglePayAuthMethod {
 
 #[derive(
     Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    SmithyModel,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub enum FingerprintType {
+    /// Device PAN used by tokenized wallets such as Apple Pay and Google Pay.
+    Dpan,
+    /// Funding PAN used by a directly supplied card.
+    Fpan,
+}
+
+#[derive(
+    Clone,
     Debug,
     Eq,
     PartialEq,
