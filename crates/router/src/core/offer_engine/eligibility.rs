@@ -33,6 +33,8 @@ pub struct OfferEligibilityContext {
     pub bank_code: Option<String>,
     /// Card issuing country, if available.
     pub card_country: Option<String>,
+    /// Card fingerprint for once-per-card offer velocity, if available.
+    pub card_alias: Option<String>,
 }
 
 impl OfferEligibilityContext {
@@ -45,6 +47,7 @@ impl OfferEligibilityContext {
             card_type: self.card_type.clone(),
             bank_code: self.bank_code.clone(),
             card_country: self.card_country.clone(),
+            card_alias: self.card_alias.clone(),
         }
     }
 

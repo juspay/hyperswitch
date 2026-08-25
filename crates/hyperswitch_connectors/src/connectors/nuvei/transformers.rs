@@ -81,6 +81,8 @@ fn to_boolean(string: String) -> bool {
 const CHALLENGE_WINDOW_SIZE: &str = "05";
 // The challenge preference for the challenge flow.
 const CHALLENGE_PREFERENCE: &str = "01";
+// The maximum length of the client unique ID field in the Nuvei API request.
+pub const MAX_CLIENT_UNIQUE_ID_LENGTH: usize = 45;
 
 #[serde_with::skip_serializing_none]
 #[derive(Debug, Serialize, Default)]
@@ -140,13 +142,17 @@ impl TryFrom<(&types::PaymentsPreAuthenticateRouterData, String)>
         };
 
         let billing_address = item.get_billing().ok().map(|billing| billing.into());
+        let client_unique_id = get_valid_client_unique_id(
+            item.connector_request_reference_id.clone(),
+            "client_unique_id",
+        )?;
 
         Ok(Self {
             session_token: session_token.into(),
             merchant_id: connector_auth.merchant_id,
             merchant_site_id: connector_auth.merchant_site_id,
             client_request_id: item.connector_request_reference_id.clone().into(),
-            client_unique_id: item.connector_request_reference_id.clone(),
+            client_unique_id,
             amount,
             currency,
             payment_option: CardPaymentOption {
@@ -205,13 +211,17 @@ impl TryFrom<(&types::PaymentsPreProcessingRouterData, String)> for NuveiThreeDS
         };
 
         let billing_address = item.get_billing().ok().map(|billing| billing.into());
+        let client_unique_id = get_valid_client_unique_id(
+            item.connector_request_reference_id.clone(),
+            "client_unique_id",
+        )?;
 
         Ok(Self {
             session_token: session_token.into(),
             merchant_id: connector_auth.merchant_id,
             merchant_site_id: connector_auth.merchant_site_id,
             client_request_id: item.connector_request_reference_id.clone().into(),
-            client_unique_id: item.connector_request_reference_id.clone(),
+            client_unique_id,
             amount,
             currency,
             payment_option: CardPaymentOption {
@@ -375,11 +385,13 @@ where
             ),
             _ => (None, None),
         };
+        let client_unique_id =
+            get_valid_client_unique_id(client_request_id.clone(), "client_unique_id")?;
         Ok(Self {
             merchant_id: auth.merchant_id.clone(),
             merchant_site_id: auth.merchant_site_id.clone(),
             client_request_id: Secret::new(client_request_id.clone()),
-            client_unique_id: client_request_id.clone(),
+            client_unique_id,
             time_stamp: time_stamp.clone(),
             session_token: Secret::new(session_token),
             user_token_id,
@@ -424,6 +436,7 @@ pub struct NuveiPaymentsRequest {
     pub external_scheme_details: Option<ExternalSchemeDetails>,
     pub is_moto: Option<bool>,
     pub url_details: Option<UrlDetails>,
+    pub transaction_link_id: Option<String>,
 }
 
 /// Handles payment request for capture, void and refund flows
@@ -683,6 +696,23 @@ pub fn encode_payload(
         .change_context(errors::ConnectorError::RequestEncodingFailed)
         .attach_printable("error encoding nuvie payload")?;
     Ok(hex::encode(digest))
+}
+
+fn get_valid_client_unique_id(
+    id: String,
+    error_field_name: &str,
+) -> Result<String, error_stack::Report<errors::ConnectorError>> {
+    if id.len() <= MAX_CLIENT_UNIQUE_ID_LENGTH {
+        Ok(id)
+    } else {
+        Err(errors::ConnectorError::MaxFieldLengthViolated {
+            connector: "Nuvei".to_string(),
+            field_name: error_field_name.to_string(),
+            max_length: MAX_CLIENT_UNIQUE_ID_LENGTH,
+            received_length: id.len(),
+        }
+        .into())
+    }
 }
 
 impl From<NuveiPaymentSyncResponse> for NuveiTransactionSyncResponse {
@@ -1074,7 +1104,7 @@ where
         Some(card_type) => NuveiCardType::try_from(card_type)?,
         None => NuveiCardType::try_from(&data.get_card_issuer()?)?,
     };
-
+    let transaction_link_id = router_data.request.get_tlid();
     let external_scheme_details = Some(ExternalSchemeDetails {
         transaction_id: router_data
             .request
@@ -1097,6 +1127,7 @@ where
     Ok(NuveiPaymentsRequest {
         external_scheme_details,
         payment_option,
+        transaction_link_id,
         ..Default::default()
     })
 }
@@ -1502,9 +1533,13 @@ pub struct NuveiPaymentRequestData {
 impl TryFrom<&types::PaymentsCaptureRouterData> for NuveiPaymentFlowRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsCaptureRouterData) -> Result<Self, Self::Error> {
+        let client_unique_id = get_valid_client_unique_id(
+            item.connector_request_reference_id.clone(),
+            "client_unique_id",
+        )?;
         Self::try_from(NuveiPaymentRequestData {
             client_request_id: item.connector_request_reference_id.clone(),
-            client_unique_id: item.connector_request_reference_id.clone(),
+            client_unique_id,
             connector_auth_type: item.connector_auth_type.clone(),
             amount: item
                 .request
@@ -1519,9 +1554,13 @@ impl TryFrom<&types::PaymentsCaptureRouterData> for NuveiPaymentFlowRequest {
 impl TryFrom<&types::RefundExecuteRouterData> for NuveiPaymentFlowRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::RefundExecuteRouterData) -> Result<Self, Self::Error> {
+        let client_unique_id = get_valid_client_unique_id(
+            item.connector_request_reference_id.clone(),
+            "client_unique_id",
+        )?;
         Self::try_from(NuveiPaymentRequestData {
             client_request_id: item.connector_request_reference_id.clone(),
-            client_unique_id: item.connector_request_reference_id.clone(),
+            client_unique_id,
             connector_auth_type: item.connector_auth_type.clone(),
             amount: item
                 .request
@@ -1544,7 +1583,10 @@ impl TryFrom<&types::PaymentsSyncRouterData> for NuveiPaymentSyncRequest {
         let time_stamp =
             date_time::format_date(date_time::now(), date_time::DateFormat::YYYYMMDDHHmmss)
                 .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        let client_unique_id = value.connector_request_reference_id.clone();
+        let client_unique_id = get_valid_client_unique_id(
+            value.connector_request_reference_id.clone(),
+            "client_unique_id",
+        )?;
         let transaction_id = value
             .request
             .connector_transaction_id
@@ -1583,7 +1625,10 @@ impl TryFrom<&types::PaymentsCancelPostCaptureSyncRouterData> for NuveiPaymentSy
         let time_stamp =
             date_time::format_date(date_time::now(), date_time::DateFormat::YYYYMMDDHHmmss)
                 .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        let client_unique_id = value.connector_request_reference_id.clone();
+        let client_unique_id = get_valid_client_unique_id(
+            value.connector_request_reference_id.clone(),
+            "client_unique_id",
+        )?;
         let transaction_id = value
             .request
             .connector_post_capture_void_transaction_id
@@ -1627,7 +1672,10 @@ impl TryFrom<&types::PaymentsCancelPostCaptureRouterData> for NuveiVoidRequest {
         let merchant_id = connector_meta.merchant_id.clone();
         let merchant_site_id = connector_meta.merchant_site_id.clone();
         let merchant_secret = connector_meta.merchant_secret.clone();
-        let client_unique_id = item.connector_request_reference_id.clone();
+        let client_unique_id = get_valid_client_unique_id(
+            item.connector_request_reference_id.clone(),
+            "client_unique_id",
+        )?;
         let related_transaction_id = item.request.connector_transaction_id.clone();
         let client_request_id = item.connector_request_reference_id.clone();
         let time_stamp =
@@ -1662,9 +1710,13 @@ impl TryFrom<&types::PaymentsCancelPostCaptureRouterData> for NuveiVoidRequest {
 impl TryFrom<&types::PaymentsCancelRouterData> for NuveiPaymentFlowRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &types::PaymentsCancelRouterData) -> Result<Self, Self::Error> {
+        let client_unique_id = get_valid_client_unique_id(
+            item.connector_request_reference_id.clone(),
+            "client_unique_id",
+        )?;
         Self::try_from(NuveiPaymentRequestData {
             client_request_id: item.connector_request_reference_id.clone(),
-            client_unique_id: item.connector_request_reference_id.clone(),
+            client_unique_id,
             connector_auth_type: item.connector_auth_type.clone(),
             amount: item
                 .request
@@ -3995,6 +4047,9 @@ trait NuveiAuthorizePreprocessingCommon {
     fn get_ntid(&self) -> Option<String> {
         None
     }
+    fn get_tlid(&self) -> Option<String> {
+        None
+    }
     fn get_connector_mandate_id(&self) -> Option<String> {
         None
     }
@@ -4170,6 +4225,9 @@ impl NuveiAuthorizePreprocessingCommon for PaymentsAuthorizeData {
     }
     fn get_ntid(&self) -> Option<String> {
         self.get_optional_network_transaction_id()
+    }
+    fn get_tlid(&self) -> Option<String> {
+        self.get_optional_transaction_link_id()
     }
     fn get_related_transaction_id(&self) -> Option<String> {
         self.related_transaction_id.clone()
