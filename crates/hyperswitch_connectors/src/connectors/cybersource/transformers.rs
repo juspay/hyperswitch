@@ -388,7 +388,7 @@ impl TryFrom<&SetupMandateRouterData> for CybersourceZeroMandateRequest {
                             },
                         )),
                         Some(PaymentSolution::GooglePay),
-                        Some(google_pay_data.info.card_network.clone()),
+                        None,
                         None,
                     ),
                     WalletData::SamsungPay(samsung_pay_data) => (
@@ -473,14 +473,7 @@ impl TryFrom<&SetupMandateRouterData> for CybersourceZeroMandateRequest {
                     )
                 })
             })
-            .unwrap_or_else(|| {
-                solution
-                    .as_ref()
-                    .map(|pm_solution| {
-                        get_wallet_commerce_indicator(pm_solution, network.as_deref()).to_string()
-                    })
-                    .unwrap_or_else(|| "internet".to_string())
-            });
+            .unwrap_or_else(|| "internet".to_string());
 
         let processing_information = ProcessingInformation {
             capture: Some(false),
@@ -1311,42 +1304,6 @@ fn get_commerce_indicator_for_external_authentication(
         }
     }
     .to_string()
-}
-
-fn get_wallet_commerce_indicator(
-    payment_solution: &PaymentSolution,
-    card_network: Option<&str>,
-) -> &'static str {
-    let card_network = normalize_cybersource_card_network(card_network);
-    match payment_solution {
-        PaymentSolution::ApplePay => match card_network {
-            Some("amex") => "aesk",
-            Some("discover") => "dipb",
-            Some("jcb") => "js",
-            Some("mastercard") => "spa",
-            Some("maestro") => "spa",
-            Some("visa") => "vbv",
-            _ => "internet",
-        },
-        PaymentSolution::SamsungPay => match card_network {
-            Some("diners") => "pb",
-            Some("mastercard") => "spa",
-            Some("maestro") => "spa",
-            Some("amex") => "aesk",
-            Some("visa") => "vbv",
-            _ => "internet",
-        },
-        PaymentSolution::GooglePay => match card_network {
-            Some("diners") => "pb",
-            Some("mastercard") => "spa",
-            Some("maestro") => "spa",
-            Some("visa") => "vbv",
-            Some("amex") => "aesk",
-            Some("discover") => "dipb",
-            Some("jcb") => "js",
-            _ => "internet",
-        },
-    }
 }
 
 fn normalize_cybersource_card_network(card_network: Option<&str>) -> Option<&'static str> {
