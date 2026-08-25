@@ -36,7 +36,6 @@ const OFFER_ENGINE_NOTIFY_RUNNER: diesel_models::ProcessTrackerRunner =
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 #[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
 pub enum OfferEngineNotificationType {
-    Charged,
     Failure,
     Refunded,
     PartiallyRefunded,
@@ -46,7 +45,6 @@ pub enum OfferEngineNotificationType {
 impl OfferEngineNotificationType {
     fn txn_status(self) -> OfferTxnStatus {
         match self {
-            Self::Charged => OfferTxnStatus::Charged,
             Self::Failure => OfferTxnStatus::Failure,
             Self::Refunded => OfferTxnStatus::Refunded,
             Self::PartiallyRefunded => OfferTxnStatus::PartiallyRefunded,
@@ -56,7 +54,6 @@ impl OfferEngineNotificationType {
 
     fn offer_status(self) -> OfferNotifyStatus {
         match self {
-            Self::Charged => OfferNotifyStatus::Availed,
             Self::Failure => OfferNotifyStatus::Failed,
             Self::PartiallyRefunded => OfferNotifyStatus::Revoked,
             Self::Refunded | Self::AutoRefunded => OfferNotifyStatus::Refunded,
@@ -98,17 +95,18 @@ fn attempt_notification_type(
 ) -> Option<OfferEngineNotificationType> {
     use common_enums::AttemptStatus;
     match status {
-        AttemptStatus::Charged | AttemptStatus::PartialCharged => {
-            Some(OfferEngineNotificationType::Charged)
-        }
         AttemptStatus::AutoRefunded => Some(OfferEngineNotificationType::AutoRefunded),
         AttemptStatus::Failure
         | AttemptStatus::AuthenticationFailed
         | AttemptStatus::AuthorizationFailed
         | AttemptStatus::RouterDeclined
         | AttemptStatus::Voided
+        | AttemptStatus::VoidFailed
+        | AttemptStatus::CaptureFailed
         | AttemptStatus::Expired => Some(OfferEngineNotificationType::Failure),
-        AttemptStatus::Started
+        AttemptStatus::Charged
+        | AttemptStatus::PartialCharged
+        | AttemptStatus::Started
         | AttemptStatus::AuthenticationPending
         | AttemptStatus::AuthenticationSuccessful
         | AttemptStatus::Authorized
@@ -117,8 +115,6 @@ fn attempt_notification_type(
         | AttemptStatus::VoidedPostCharge
         | AttemptStatus::VoidInitiated
         | AttemptStatus::CaptureInitiated
-        | AttemptStatus::CaptureFailed
-        | AttemptStatus::VoidFailed
         | AttemptStatus::PartiallyAuthorized
         | AttemptStatus::PartialChargedAndChargeable
         | AttemptStatus::Unresolved

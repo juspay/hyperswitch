@@ -288,8 +288,6 @@ impl OfferApplyResponse {
 /// Transaction status reported to Offer Engine for a durable outcome.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 pub enum OfferTxnStatus {
-    #[serde(rename = "CHARGED")]
-    Charged,
     #[serde(rename = "FAILURE")]
     Failure,
     #[serde(rename = "REFUNDED")]
@@ -303,8 +301,6 @@ pub enum OfferTxnStatus {
 /// Per-offer status reported alongside a notification.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 pub enum OfferNotifyStatus {
-    #[serde(rename = "AVAILED")]
-    Availed,
     #[serde(rename = "FAILED")]
     Failed,
     #[serde(rename = "REFUNDED")]
