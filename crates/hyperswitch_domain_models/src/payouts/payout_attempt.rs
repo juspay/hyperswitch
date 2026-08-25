@@ -112,6 +112,7 @@ pub struct PayoutAttempt {
     pub created_by: Option<types::CreatedBy>,
     pub source_bank_data_token: Option<String>,
     pub additional_source_bank_data: Option<payout_method_utils::BankAdditionalData>,
+    pub connector_eligibility_reference_id: Option<String>,
     pub connector_request_reference_id: Option<String>,
 }
 
@@ -168,6 +169,7 @@ pub struct PayoutAttemptNew {
     pub created_by: Option<types::CreatedBy>,
     pub source_bank_data_token: Option<String>,
     pub additional_source_bank_data: Option<payout_method_utils::BankAdditionalData>,
+    pub connector_eligibility_reference_id: Option<String>,
     pub connector_request_reference_id: Option<String>,
 }
 
@@ -183,6 +185,7 @@ pub enum PayoutAttemptUpdate {
         unified_code: Option<UnifiedCode>,
         unified_message: Option<UnifiedMessage>,
         payout_connector_metadata: Option<pii::SecretSerdeValue>,
+        connector_eligibility_reference_id: Option<String>,
     },
     PayoutTokenUpdate {
         payout_token: String,
@@ -236,6 +239,7 @@ pub struct PayoutAttemptUpdateInternal {
     pub payout_connector_metadata: Option<pii::SecretSerdeValue>,
     pub source_bank_data_token: Option<String>,
     pub additional_source_bank_data: Option<payout_method_utils::BankAdditionalData>,
+    pub connector_eligibility_reference_id: Option<String>,
 }
 
 impl From<PayoutAttemptUpdate> for PayoutAttemptUpdateInternal {
@@ -254,6 +258,7 @@ impl From<PayoutAttemptUpdate> for PayoutAttemptUpdateInternal {
                 unified_code,
                 unified_message,
                 payout_connector_metadata,
+                connector_eligibility_reference_id,
             } => Self {
                 connector_payout_id,
                 status: Some(status),
@@ -263,6 +268,7 @@ impl From<PayoutAttemptUpdate> for PayoutAttemptUpdateInternal {
                 unified_code,
                 unified_message,
                 payout_connector_metadata,
+                connector_eligibility_reference_id,
                 ..Default::default()
             },
             PayoutAttemptUpdate::BusinessUpdate {
