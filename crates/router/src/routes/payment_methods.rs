@@ -2224,14 +2224,12 @@ pub async fn list_payment_methods_for_payments_client(
         allow_platform_self_operation: true,
     };
 
-    let sdk_client_secret = auth::get_header_value_by_key(
-        headers::AUTHORIZATION.to_string(),
-        req.headers(),
-    )
-    .ok()
-    .flatten()
-    .and_then(|header| SdkAuthorization::decode(header).ok())
-    .map(|sdk_auth| sdk_auth.client_secret);
+    let sdk_client_secret =
+        auth::get_header_value_by_key(headers::AUTHORIZATION.to_string(), req.headers())
+            .ok()
+            .flatten()
+            .and_then(|header| SdkAuthorization::decode(header).ok())
+            .map(|sdk_auth| sdk_auth.client_secret);
 
     let payload = payment_methods::PaymentMethodListRequest {
         client_secret: payload.client_secret.or(sdk_client_secret),
