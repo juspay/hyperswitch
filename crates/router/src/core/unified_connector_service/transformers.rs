@@ -7668,7 +7668,6 @@ impl
                 .map(payments_grpc::SourceBankData::foreign_try_from)
                 .transpose()?,
             description: router_data.description.clone(),
-            connector_eligibility_reference_id: None,
         })
     }
 }
@@ -7917,6 +7916,7 @@ macro_rules! impl_ucs_payout_response_transformation {
                             .as_ref()
                             .and_then(|cd| cd.message.clone()),
                         payout_connector_metadata: None,
+                        connector_eligibility_reference_id: None,
                     })
                 } else {
                     Ok(PayoutsResponseData {
