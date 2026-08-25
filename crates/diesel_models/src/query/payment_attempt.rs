@@ -345,6 +345,29 @@ impl PaymentAttempt {
     }
 
     #[cfg(feature = "v1")]
+    pub async fn find_by_processor_merchant_id_payment_method_id(
+        conn: &PgPooledConn,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
+        payment_method_id: &str,
+    ) -> StorageResult<Vec<Self>> {
+        generics::generic_filter::<
+            <Self as HasTable>::Table,
+            _,
+            <<Self as HasTable>::Table as Table>::PrimaryKey,
+            _,
+        >(
+            conn,
+            dsl::processor_merchant_id
+                .eq(processor_merchant_id.to_owned())
+                .and(dsl::payment_method_id.eq(Some(payment_method_id.to_string()))),
+            None,
+            None,
+            None,
+        )
+        .await
+    }
+
+    #[cfg(feature = "v1")]
     pub async fn get_filters_for_payments(
         conn: &PgPooledConn,
         pi: &[PaymentIntent],

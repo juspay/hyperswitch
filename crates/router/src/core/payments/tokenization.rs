@@ -1903,6 +1903,7 @@ pub fn add_connector_mandate_details_in_payment_method(
     merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
     connector_mandate_id: Option<String>,
     mandate_metadata: Option<Secret<serde_json::Value>>,
+    connector_mandate_status: ConnectorMandateStatus,
     connector_mandate_request_reference_id: Option<String>,
 ) -> Option<CommonMandateReference> {
     let mut mandate_details = HashMap::new();
@@ -1918,7 +1919,7 @@ pub fn add_connector_mandate_details_in_payment_method(
                 original_payment_authorized_amount: authorized_amount,
                 original_payment_authorized_currency: authorized_currency,
                 mandate_metadata,
-                connector_mandate_status: Some(ConnectorMandateStatus::Active),
+                connector_mandate_status: Some(connector_mandate_status),
                 connector_mandate_request_reference_id,
                 connector_customer_id: None,
             },
@@ -1942,6 +1943,7 @@ pub fn update_connector_mandate_details(
     merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
     connector_mandate_id: Option<String>,
     mandate_metadata: Option<Secret<serde_json::Value>>,
+    connector_mandate_status: ConnectorMandateStatus,
     connector_mandate_request_reference_id: Option<String>,
 ) -> RouterResult<Option<CommonMandateReference>> {
     let mandate_reference = match mandate_details
@@ -1958,7 +1960,7 @@ pub fn update_connector_mandate_details(
                     original_payment_authorized_amount: authorized_amount,
                     original_payment_authorized_currency: authorized_currency,
                     mandate_metadata: mandate_metadata.clone(),
-                    connector_mandate_status: Some(ConnectorMandateStatus::Active),
+                    connector_mandate_status: Some(connector_mandate_status),
                     connector_mandate_request_reference_id: connector_mandate_request_reference_id
                         .clone(),
                     connector_customer_id: None,
@@ -1973,7 +1975,7 @@ pub fn update_connector_mandate_details(
                         original_payment_authorized_amount: authorized_amount,
                         original_payment_authorized_currency: authorized_currency,
                         mandate_metadata: mandate_metadata.clone(),
-                        connector_mandate_status: Some(ConnectorMandateStatus::Active),
+                        connector_mandate_status: Some(connector_mandate_status),
                         connector_mandate_request_reference_id,
                         connector_customer_id: None,
                     });
@@ -1995,6 +1997,7 @@ pub fn update_connector_mandate_details(
             merchant_connector_id,
             connector_mandate_id,
             mandate_metadata,
+            connector_mandate_status,
             connector_mandate_request_reference_id,
         ),
     };

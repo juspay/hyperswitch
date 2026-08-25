@@ -204,6 +204,15 @@ pub trait PaymentAttemptInterface {
         merchant_key_store: &MerchantKeyStore,
     ) -> error_stack::Result<Vec<PaymentAttempt>, Self::Error>;
 
+    #[cfg(feature = "v1")]
+    async fn find_payment_attempts_by_processor_merchant_id_payment_method_id(
+        &self,
+        processor_merchant_id: &id_type::MerchantId,
+        payment_method_id: &str,
+        storage_scheme: storage_enums::MerchantStorageScheme,
+        merchant_key_store: &MerchantKeyStore,
+    ) -> error_stack::Result<Vec<PaymentAttempt>, Self::Error>;
+
     #[cfg(all(feature = "v1", feature = "olap"))]
     async fn get_filters_for_payments(
         &self,

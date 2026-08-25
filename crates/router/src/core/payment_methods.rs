@@ -2833,7 +2833,7 @@ pub async fn create_payment_method_bank_redirect_core(
         }
         None => {
             logger::debug!("Payment method is new, creating a new payment method record");
-            let payment_method = create_payment_method_for_confirm(
+            create_payment_method_for_confirm(
                 state,
                 customer_id,
                 payment_method_id,
@@ -2851,9 +2851,7 @@ pub async fn create_payment_method_bank_redirect_core(
                 platform.get_initiator(),
                 enums::PaymentMethodStatus::New,
             )
-            .await?;
-
-            payment_method
+            .await?
         }
     };
 

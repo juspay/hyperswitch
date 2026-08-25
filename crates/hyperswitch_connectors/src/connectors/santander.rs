@@ -4,15 +4,20 @@ pub mod transformers;
 
 use std::sync::LazyLock;
 
-use api_models::merchant_connector_webhook_management::{Scope, ScopeIdentifier};
+use api_models::{
+    merchant_connector_webhook_management::{Scope, ScopeIdentifier},
+    payments::PaymentIdType,
+    webhooks::{IncomingWebhookEvent, MandateIdType, ObjectReferenceId},
+};
 use common_enums::enums;
 use common_utils::{
+    crypto,
     errors::CustomResult,
-    ext_traits::{BytesExt, ValueExt},
+    ext_traits::{ByteSliceExt, BytesExt, ValueExt},
     request::{Method, Request, RequestBuilder, RequestContent},
     types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector},
 };
-use error_stack::{report, ResultExt};
+use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     router_data::{AccessToken, ErrorResponse, RouterData},
     router_flow_types::{
@@ -66,7 +71,7 @@ use hyperswitch_interfaces::{
     types::{self, ConnectorWebhookRegisterType, RefreshTokenType, Response},
     webhooks,
 };
-use hyperswitch_masking::{Maskable, PeekInterface};
+use hyperswitch_masking::{Maskable, PeekInterface, Secret};
 
 use crate::{
     connectors::santander::{
@@ -78,12 +83,15 @@ use crate::{
             SantanderSetupMandateRequest, SantanderWebhookRegisterRequest,
         },
         responses::{
-            SanatanderAccessTokenResponse, SantanderBoletoWebhookRegisterResponse,
-            SantanderCreatePixPayloadLocationResponse, SantanderEmptyResponse,
-            SantanderErrorResponse, SantanderGenericErrorResponse, SantanderPaymentsResponse,
-            SantanderPaymentsSyncResponse, SantanderPixAutomaticRecResponse,
-            SantanderPixAutomaticSolicitationResponse, SantanderPixWebhookRegisterResponse,
+            SanatanderAccessTokenResponse, SantanderBoletoEventType,
+            SantanderBoletoWebhookRegisterResponse, SantanderCreatePixPayloadLocationResponse,
+            SantanderEmptyResponse, SantanderErrorResponse, SantanderGenericErrorResponse,
+            SantanderPaymentsResponse, SantanderPaymentsSyncResponse,
+            SantanderPixAutomaticRecResponse, SantanderPixAutomaticSolicitationResponse,
+            SantanderPixAutomaticoCobrWebhookBody, SantanderPixAutomaticoRecWebhookBody,
+            SantanderPixEmvWebhookBody, SantanderPixWebhookRegisterResponse,
             SantanderRefundResponse, SantanderUpdateResponse, SantanderVoidResponse,
+            SantanderWebhookBody,
         },
     },
     constants::headers,
@@ -1498,6 +1506,12 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for San
             SantanderPaymentsSyncResponse::PixQRCode(ref pix_data) => {
                 pix_data.valor.original.clone()
             }
+            SantanderPaymentsSyncResponse::PixQrWebhook(_)
+            | SantanderPaymentsSyncResponse::PixAutomaticoCobrWebhook(_) => convert_amount(
+                self.amount_converter,
+                data.request.amount,
+                data.request.currency,
+            )?,
             // No amount is sent back in Boleto response
             SantanderPaymentsSyncResponse::Boleto(_) => convert_amount(
                 self.amount_converter,
@@ -2055,27 +2069,249 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Santander
 
 #[async_trait::async_trait]
 impl webhooks::IncomingWebhook for Santander {
-    fn get_webhook_object_reference_id(
+    async fn verify_webhook_source(
         &self,
         _request: &webhooks::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        _merchant_id: &common_utils::id_type::MerchantId,
+        _connector_webhook_details: Option<common_utils::pii::SecretSerdeValue>,
+        _connector_account_details: crypto::Encryptable<Secret<serde_json::Value>>,
+        _connector_name: &str,
+    ) -> CustomResult<bool, errors::ConnectorError> {
+        // Source verification for Santander is MTLS which is handled at the transport layer. No additional verification is needed here in application side
+        Ok(true)
+    }
+
+    fn get_webhook_object_reference_id(
+        &self,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<ObjectReferenceId, errors::ConnectorError> {
+        // Santander sends an empty-body request (typically GET) to validate the
+        // webhook URL during registration. There is no object reference in such
+        // probe requests.
+        if request.body.is_empty() {
+            return Err(errors::ConnectorError::WebhookReferenceIdNotFound.into());
+        }
+
+        let body: SantanderWebhookBody = request
+            .body
+            .parse_struct("SantanderWebhookBody")
+            .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
+
+        match body {
+            SantanderWebhookBody::PixEmv(SantanderPixEmvWebhookBody { pix }) => {
+                let txid = pix
+                    .first()
+                    .map(|entry| entry.txid.peek().to_owned())
+                    .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?;
+                Ok(ObjectReferenceId::PaymentId(
+                    PaymentIdType::ConnectorTransactionId(txid),
+                ))
+            }
+            SantanderWebhookBody::Cobr(SantanderPixAutomaticoCobrWebhookBody { cobsr }) => {
+                let entry = cobsr
+                    .first()
+                    .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?;
+
+                // Santander sends a dummy webhook with "TESTE" in idRec during
+                // webhook registration, skip DB lookups for these.
+                if transformers::is_dummy_webhook(&entry.id_rec) {
+                    return Err(errors::ConnectorError::WebhookReferenceIdNotFound.into());
+                }
+
+                Ok(ObjectReferenceId::PaymentId(
+                    PaymentIdType::ConnectorTransactionId(entry.txid.clone()),
+                ))
+            }
+            SantanderWebhookBody::Recurrence(SantanderPixAutomaticoRecWebhookBody { recs }) => {
+                let entry = recs
+                    .first()
+                    .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?;
+
+                // Santander sends a dummy webhook with "TESTE" in idRec during
+                // webhook registration, skip DB lookups for these.
+                if transformers::is_dummy_webhook(&entry.id_rec) {
+                    return Err(errors::ConnectorError::WebhookReferenceIdNotFound.into());
+                }
+                Ok(ObjectReferenceId::MandateId(
+                    MandateIdType::ConnectorMandateId(entry.id_rec.clone()),
+                ))
+            }
+            SantanderWebhookBody::Boleto(body) => Ok(ObjectReferenceId::PaymentId(
+                PaymentIdType::ConnectorTransactionId(body.bank_number),
+            )),
+        }
+    }
+
+    fn get_mandate_webhook_error_message(
+        &self,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<Option<String>, errors::ConnectorError> {
+        let body: SantanderWebhookBody = request
+            .body
+            .parse_struct("SantanderWebhookBody")
+            .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
+
+        match body {
+            SantanderWebhookBody::Recurrence(SantanderPixAutomaticoRecWebhookBody { recs }) => {
+                let entry = recs
+                    .first()
+                    .ok_or(errors::ConnectorError::WebhookEventTypeNotFound)?;
+
+                if transformers::is_dummy_webhook(&entry.id_rec) {
+                    return Ok(None);
+                }
+
+                Ok(entry.encerramento.as_ref().and_then(|encerramento| {
+                    encerramento
+                        .cancelamento
+                        .as_ref()
+                        .and_then(|cancelamento| cancelamento.descricao.clone())
+                        .or_else(|| {
+                            encerramento
+                                .rejeicao
+                                .as_ref()
+                                .and_then(|rejeicao| rejeicao.descricao.clone())
+                        })
+                }))
+            }
+            _ => Ok(None),
+        }
     }
 
     fn get_webhook_event_type(
         &self,
-        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
         _context: Option<&webhooks::WebhookContext>,
-    ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+    ) -> CustomResult<IncomingWebhookEvent, errors::ConnectorError> {
+        // Santander sends an empty-body request (typically GET) to validate the
+        // webhook URL during registration. Acknowledge these probe requests
+        // without further processing.
+        if request.body.is_empty() {
+            return Ok(IncomingWebhookEvent::EndpointVerification);
+        }
+
+        let body: SantanderWebhookBody = request
+            .body
+            .parse_struct("SantanderWebhookBody")
+            .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
+
+        match body {
+            SantanderWebhookBody::PixEmv(SantanderPixEmvWebhookBody { pix }) => {
+                // The presence of `endToEndId` inside the pix entries indicates the payment was received successfully.
+                let is_payment_successful = pix
+                    .first()
+                    .is_some_and(|entry| !entry.end_to_end_id.peek().is_empty());
+
+                if is_payment_successful {
+                    Ok(IncomingWebhookEvent::PaymentIntentSuccess)
+                } else {
+                    Ok(IncomingWebhookEvent::PaymentIntentFailure)
+                }
+            }
+            SantanderWebhookBody::Cobr(SantanderPixAutomaticoCobrWebhookBody { cobsr }) => {
+                let entry = cobsr
+                    .first()
+                    .ok_or(errors::ConnectorError::WebhookEventTypeNotFound)?;
+
+                // Santander sends a dummy webhook with "TESTE" in idRec during
+                // webhook registration. Acknowledge without processing.
+                if transformers::is_dummy_webhook(&entry.id_rec) {
+                    return Ok(IncomingWebhookEvent::EventNotSupported);
+                }
+
+                let is_payment_successful = entry
+                    .pix
+                    .as_ref()
+                    .and_then(|pix_list| pix_list.first())
+                    .is_some_and(|pix| !pix.end_to_end_id.peek().is_empty());
+
+                match entry.status {
+                    responses::SantanderPixAutomaticoCobrStatus::Concluida => {
+                        if is_payment_successful {
+                            Ok(IncomingWebhookEvent::PaymentIntentSuccess)
+                        } else {
+                            Ok(IncomingWebhookEvent::PaymentIntentFailure)
+                        }
+                    }
+                    responses::SantanderPixAutomaticoCobrStatus::Expirada
+                    | responses::SantanderPixAutomaticoCobrStatus::Rejeitada
+                    | responses::SantanderPixAutomaticoCobrStatus::Cancelada => {
+                        Ok(IncomingWebhookEvent::PaymentIntentFailure)
+                    }
+                    _ => Ok(IncomingWebhookEvent::EventNotSupported),
+                }
+            }
+            SantanderWebhookBody::Recurrence(SantanderPixAutomaticoRecWebhookBody { recs }) => {
+                let entry = recs
+                    .first()
+                    .ok_or(errors::ConnectorError::WebhookEventTypeNotFound)?;
+
+                if transformers::is_dummy_webhook(&entry.id_rec) {
+                    return Ok(IncomingWebhookEvent::EventNotSupported);
+                }
+
+                match entry.status {
+                    responses::RecurrenceStatus::Aprovada => {
+                        Ok(IncomingWebhookEvent::MandateActive)
+                    }
+                    responses::RecurrenceStatus::Criada => {
+                        Ok(IncomingWebhookEvent::MandateActionRequired)
+                    }
+                    responses::RecurrenceStatus::Rejeitada
+                    | responses::RecurrenceStatus::Expirada
+                    | responses::RecurrenceStatus::Cancelada => {
+                        Ok(IncomingWebhookEvent::MandateRevoked)
+                    }
+                    _ => Ok(IncomingWebhookEvent::EventNotSupported),
+                }
+            }
+            SantanderWebhookBody::Boleto(body) => match body.function {
+                SantanderBoletoEventType::Pagamento => {
+                    Ok(IncomingWebhookEvent::PaymentIntentSuccess)
+                }
+            },
+        }
     }
 
     fn get_webhook_resource_object(
         &self,
-        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, errors::ConnectorError>
     {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        let body: SantanderWebhookBody = request
+            .body
+            .parse_struct("SantanderWebhookBody")
+            .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
+        Ok(Box::new(body))
+    }
+
+    fn get_mandate_details(
+        &self,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<
+        Option<hyperswitch_domain_models::router_flow_types::ConnectorMandateDetails>,
+        errors::ConnectorError,
+    > {
+        let body: SantanderWebhookBody = request
+            .body
+            .parse_struct("SantanderWebhookBody")
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+
+        let connector_mandate_id = match body {
+            SantanderWebhookBody::Recurrence(SantanderPixAutomaticoRecWebhookBody { recs }) => {
+                recs.first().map(|entry| entry.id_rec.clone())
+            }
+            SantanderWebhookBody::Cobr(SantanderPixAutomaticoCobrWebhookBody { cobsr }) => {
+                cobsr.first().map(|entry| entry.id_rec.clone())
+            }
+            SantanderWebhookBody::PixEmv(_) | SantanderWebhookBody::Boleto(_) => None,
+        };
+
+        Ok(connector_mandate_id.map(|id| {
+            hyperswitch_domain_models::router_flow_types::ConnectorMandateDetails {
+                connector_mandate_id: Secret::new(id),
+            }
+        }))
     }
 }
 

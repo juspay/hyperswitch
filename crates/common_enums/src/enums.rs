@@ -10268,6 +10268,44 @@ impl ConnectorMandateStatus {
     }
 }
 
+impl TryFrom<AttemptStatus> for ConnectorMandateStatus {
+    type Error = ();
+
+    fn try_from(attempt_status: AttemptStatus) -> Result<Self, Self::Error> {
+        Ok(match attempt_status {
+            AttemptStatus::Charged
+            | AttemptStatus::Authorized
+            | AttemptStatus::PartiallyAuthorized => Self::Active,
+            AttemptStatus::Started
+            | AttemptStatus::AuthenticationFailed
+            | AttemptStatus::RouterDeclined
+            | AttemptStatus::AuthenticationPending
+            | AttemptStatus::AuthenticationSuccessful
+            | AttemptStatus::AuthorizationFailed
+            | AttemptStatus::Authorizing
+            | AttemptStatus::CodInitiated
+            | AttemptStatus::Voided
+            | AttemptStatus::VoidedPostCharge
+            | AttemptStatus::VoidInitiated
+            | AttemptStatus::CaptureInitiated
+            | AttemptStatus::CaptureFailed
+            | AttemptStatus::VoidFailed
+            | AttemptStatus::AutoRefunded
+            | AttemptStatus::PartialCharged
+            | AttemptStatus::PartialChargedAndChargeable
+            | AttemptStatus::Unresolved
+            | AttemptStatus::Pending
+            | AttemptStatus::Failure
+            | AttemptStatus::PaymentMethodAwaited
+            | AttemptStatus::ConfirmationAwaited
+            | AttemptStatus::DeviceDataCollectionPending
+            | AttemptStatus::IntegrityFailure
+            | AttemptStatus::Expired
+            | AttemptStatus::CaptureReview => Self::Inactive,
+        })
+    }
+}
+
 /// Connector Mandate Status
 #[derive(
     Clone, Copy, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, strum::Display,
