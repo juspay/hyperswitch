@@ -410,6 +410,9 @@ where
             let return_raw_connector_response_clone = return_raw_connector_response;
             let context_clone = context;
             let connector_name = router_data.connector.clone();
+            let merchant_id = router_data.merchant_id.clone();
+            let payment_method = router_data.payment_method;
+            let payment_method_type = router_data.payment_method_type;
             tokio::spawn(
                 async move {
                     let gateway: Box<
@@ -429,7 +432,12 @@ where
                         .attach_printable("Gateway execution failed");
 
                     if let Err(e) = &ucs_shadow_result {
-                        logger::error!(error=?e, "UCS shadow execution failed");
+                        logger::warn!(
+                            error=?e,
+                            execution_mode="shadow",
+                            primary_impact=false,
+                            "UCS shadow execution failed; primary execution result is unaffected"
+                        );
                     }
 
                     let ucs_for_compare = match ucs_shadow_result {
@@ -442,6 +450,9 @@ where
                         connector_name,
                         direct_for_compare,
                         ucs_for_compare,
+                        Some(&merchant_id),
+                        Some(payment_method),
+                        payment_method_type,
                     )
                     .await;
                 }
@@ -544,6 +555,9 @@ where
             let return_raw_connector_response_clone = return_raw_connector_response;
             let context_clone = context;
             let connector_name = router_data.connector.clone();
+            let merchant_id = router_data.merchant_id.clone();
+            let payment_method = router_data.payment_method;
+            let payment_method_type = router_data.payment_method_type;
             tokio::spawn(
                 async move {
                     let gateway: Box<
@@ -563,7 +577,12 @@ where
                         .attach_printable("Gateway execution failed");
 
                     if let Err(e) = &ucs_shadow_result {
-                        logger::error!(error=?e, "UCS shadow execution failed");
+                        logger::warn!(
+                            error=?e,
+                            execution_mode="shadow",
+                            primary_impact=false,
+                            "UCS shadow execution failed; primary execution result is unaffected"
+                        );
                     }
 
                     let ucs_for_compare = match ucs_shadow_result {
@@ -576,6 +595,9 @@ where
                         connector_name,
                         direct_for_compare,
                         ucs_for_compare,
+                        Some(&merchant_id),
+                        Some(payment_method),
+                        payment_method_type,
                     )
                     .await;
                 }

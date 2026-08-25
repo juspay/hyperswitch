@@ -17,6 +17,8 @@ use diesel_models::fraud_check::FraudCheck;
 use crate::{events::EventType, services::kafka::fraud_check_event::KafkaFraudCheckEvent};
 mod authentication;
 mod authentication_event;
+#[cfg(feature = "deja")]
+pub mod deja_record_sink;
 mod dispute;
 mod dispute_event;
 mod fraud_check;
@@ -164,9 +166,32 @@ pub struct KafkaSettings {
     routing_logs_topic: String,
     revenue_recovery_topic: String,
     external_service_call_topic: String,
+    account_updater_topic: String,
+}
+
+/// Base rdkafka client configuration for this deployment's Kafka cluster.
+///
+/// Cluster-level settings (bootstrap servers, and any future deployment-wide
+/// security options) live here so every producer in the process points at the
+/// same provisioned cluster. The analytics producer uses it as-is; the Deja
+/// recording sink layers its own delivery-guarantee overrides on top while
+/// remaining a separate client with its own queue and delivery thread.
+pub(crate) fn base_client_config(brokers: &[String]) -> rdkafka::ClientConfig {
+    let mut config = rdkafka::ClientConfig::new();
+    config.set("bootstrap.servers", brokers.join(","));
+    config
 }
 
 impl KafkaSettings {
+    /// Brokers of the provisioned Kafka cluster this deployment's analytics
+    /// events use. The Deja recording sink inherits these when
+    /// `deja.recording.kafka.brokers` is left empty, so both producers share
+    /// cluster provisioning without sharing a client.
+    #[cfg(feature = "deja")]
+    pub fn brokers(&self) -> &[String] {
+        &self.brokers
+    }
+
     pub fn validate(&self) -> Result<(), crate::core::errors::ApplicationError> {
         use common_utils::ext_traits::ConfigExt;
 
@@ -257,6 +282,12 @@ impl KafkaSettings {
             ))
         })?;
 
+        common_utils::fp_utils::when(self.account_updater_topic.is_default_or_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "Kafka Account Updater topic must not be empty".into(),
+            ))
+        })?;
+
         Ok(())
     }
 
@@ -298,6 +329,7 @@ pub struct KafkaProducer {
     routing_logs_topic: String,
     revenue_recovery_topic: String,
     external_service_call_topic: String,
+    account_updater_topic: String,
 }
 
 struct RdKafkaProducer(ThreadedProducer<DefaultProducerContext>);
@@ -327,10 +359,8 @@ impl KafkaProducer {
     pub async fn create(conf: &KafkaSettings) -> MQResult<Self> {
         Ok(Self {
             producer: Arc::new(RdKafkaProducer(
-                ThreadedProducer::from_config(
-                    rdkafka::ClientConfig::new().set("bootstrap.servers", conf.brokers.join(",")),
-                )
-                .change_context(KafkaError::InitializationError)?,
+                ThreadedProducer::from_config(&base_client_config(&conf.brokers))
+                    .change_context(KafkaError::InitializationError)?,
             )),
 
             fraud_check_analytics_topic: conf.fraud_check_analytics_topic.clone(),
@@ -350,6 +380,7 @@ impl KafkaProducer {
             routing_logs_topic: conf.routing_logs_topic.clone(),
             revenue_recovery_topic: conf.revenue_recovery_topic.clone(),
             external_service_call_topic: conf.external_service_call_topic.clone(),
+            account_updater_topic: conf.account_updater_topic.clone(),
         })
     }
 
@@ -690,6 +721,7 @@ impl KafkaProducer {
             EventType::RoutingApiLogs => &self.routing_logs_topic,
             EventType::RevenueRecovery => &self.revenue_recovery_topic,
             EventType::ExternalServiceCall => &self.external_service_call_topic,
+            EventType::AccountUpdater => &self.account_updater_topic,
         }
     }
 }

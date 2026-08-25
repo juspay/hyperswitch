@@ -262,6 +262,7 @@ pub async fn modify_trackers(
     );
 
     let payout_attempt_req = storage::PayoutAttemptNew {
+        connector_eligibility_reference_id: None,
         payout_attempt_id: payout_attempt_id.to_string(),
         payout_id: payout_id.to_owned(),
         merchant_order_reference_id: payout_data
@@ -348,6 +349,7 @@ impl GsmValidation for PayoutData {
             | common_enums::PayoutStatus::Reversed
             | common_enums::PayoutStatus::Expired
             | common_enums::PayoutStatus::Ineligible
+            | common_enums::PayoutStatus::NotPermitted
             | common_enums::PayoutStatus::RequiresCreation
             | common_enums::PayoutStatus::RequiresPayoutMethodData
             | common_enums::PayoutStatus::RequiresVendorAccountCreation

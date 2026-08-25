@@ -414,6 +414,7 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, OnboardSubAccountResponse>> for Pay
                 error_code: None,
                 error_message: None,
                 payout_connector_metadata: None,
+                connector_eligibility_reference_id: None,
             }),
             ..item.data
         })
@@ -481,6 +482,7 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, OnboardTransferMethodResponse>>
                 error_code: None,
                 error_message: None,
                 payout_connector_metadata: None,
+                connector_eligibility_reference_id: None,
             }),
             ..item.data
         })
@@ -528,6 +530,7 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, NomupayPaymentResponse>> for Payout
                 error_code: None,
                 error_message: None,
                 payout_connector_metadata: None,
+                connector_eligibility_reference_id: None,
             }),
             ..item.data
         })

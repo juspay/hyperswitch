@@ -1,3 +1,4 @@
+pub mod consts;
 pub mod css_generator;
 pub mod js_generator;
 pub mod meta_tags;

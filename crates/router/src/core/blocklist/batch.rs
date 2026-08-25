@@ -9,7 +9,10 @@ use scheduler::utils as pt_utils;
 use serde::Deserialize;
 
 use crate::{
-    core::errors::{self, RouterResult, StorageErrorExt},
+    core::{
+        errors::{self, RouterResult, StorageErrorExt},
+        utils as core_utils,
+    },
     logger,
     routes::SessionState,
     types::{domain, storage},
@@ -305,9 +308,19 @@ fn validate_csv(csv_bytes: &[u8]) -> RouterResult<Vec<BlocklistRow>> {
 pub async fn initiate_batch_blocklist_upload(
     state: &SessionState,
     platform: &domain::Platform,
+    profile_id: Option<id_type::ProfileId>,
     csv_bytes: bytes::Bytes,
 ) -> RouterResult<api_blocklist::BatchBlocklistUploadResponse> {
     let processor_merchant_id = platform.get_processor().get_account().get_id();
+    let profile_id = core_utils::get_profile_id_from_business_details(
+        None,
+        None,
+        platform.get_processor(),
+        profile_id.as_ref(),
+        &*state.store,
+        true,
+    )
+    .await?;
     let created_by = platform
         .get_initiator()
         .and_then(|initiator| initiator.to_created_by())
@@ -381,6 +394,7 @@ pub async fn initiate_batch_blocklist_upload(
         failed_rows: 0,
         created_at: now,
         updated_at: now,
+        profile_id: profile_id.clone(),
     };
 
     state
@@ -396,6 +410,7 @@ pub async fn initiate_batch_blocklist_upload(
         chunk_total_count,
         completed_chunks: Vec::new(),
         created_by: created_by.clone(),
+        profile_id: Some(profile_id),
     };
 
     let runner = storage::ProcessTrackerRunner::BatchBlocklistUpload;
@@ -447,6 +462,7 @@ pub(crate) async fn process_chunk(
     state: &SessionState,
     merchant_id: &id_type::MerchantId,
     processor_merchant_id: Option<&id_type::MerchantId>,
+    profile_id: Option<&id_type::ProfileId>,
     chunk_idx: u32,
     chunk_rows: Vec<BlocklistRow>,
     created_by: Option<String>,
@@ -462,6 +478,7 @@ pub(crate) async fn process_chunk(
             created_at: now,
             processor_merchant_id: processor_merchant_id.map(|id| id.to_owned()),
             created_by: created_by.clone(),
+            profile_id: profile_id.map(|id| id.to_owned()),
         })
         .collect();
 

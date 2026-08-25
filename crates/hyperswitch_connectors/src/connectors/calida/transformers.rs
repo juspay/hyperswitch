@@ -375,7 +375,7 @@ impl TryFrom<RefundsResponseRouterData<RSync, RefundResponse>> for RefundsRouter
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
 pub struct CalidaErrorResponse {
     pub message: String,
-    pub context_data: HashMap<String, Value>,
+    pub context_data: Option<HashMap<String, Value>>,
 }
 
 pub(crate) fn get_calida_webhook_event(

@@ -33,6 +33,7 @@ where
                 state,
                 request,
                 "execute_connector_processing_step",
+                None,
             )
             .await;
             logger::debug!(connector_response=?response);

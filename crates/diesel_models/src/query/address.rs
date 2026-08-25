@@ -1,4 +1,5 @@
 use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods};
+use error_stack::ResultExt;
 
 use super::generics;
 use crate::{
@@ -17,7 +18,9 @@ impl AddressNew {
         self,
         conn: &mut PgPooledConn,
     ) -> StorageResult<kv::SerializableQuery> {
-        kv::generate_insert_query(conn, self).await
+        kv::generate_insert_query(conn, self)
+            .await
+            .attach_printable("Failed to generate insert query for address")
     }
 }
 
@@ -161,5 +164,6 @@ impl AddressUpdateInternal {
             self,
         )
         .await
+        .attach_printable("Failed to generate update query for address")
     }
 }

@@ -523,6 +523,9 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
                         config: config.to_string(),
                     }
                 }
+                errors::ConnectorError::InvalidDataFormat { field_name } => {
+                    errors::ApiErrorResponse::InvalidDataValue { field_name }
+                }
                 _ => errors::ApiErrorResponse::InternalServerError,
             };
             err.change_context(error)

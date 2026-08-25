@@ -120,9 +120,10 @@ impl Role {
         entity_type: Option<EntityType>,
         limit: Option<u32>,
     ) -> StorageResult<Vec<Self>> {
-        let mut query = <Self as HasTable>::table()
-            .filter(dsl::tenant_id.eq(tenant_id).and(dsl::org_id.eq(org_id)))
-            .into_boxed();
+        let mut query = crate::list::into_boxed_list(
+            <Self as HasTable>::table()
+                .filter(dsl::tenant_id.eq(tenant_id).and(dsl::org_id.eq(org_id))),
+        );
 
         if let Some(merchant_id) = merchant_id {
             query = query.filter(
@@ -166,8 +167,7 @@ impl Role {
         tenant_id: id_type::TenantId,
         org_id: id_type::OrganizationId,
     ) -> StorageResult<Vec<Self>> {
-        let mut query = <Self as HasTable>::table()
-            .into_boxed()
+        let mut query = crate::list::into_boxed_list(<Self as HasTable>::table())
             .filter(dsl::tenant_id.eq(tenant_id))
             .filter(dsl::org_id.eq(org_id));
 

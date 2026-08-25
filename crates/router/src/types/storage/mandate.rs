@@ -25,10 +25,11 @@ impl MandateDbExt for Mandate {
         merchant_id: &common_utils::id_type::MerchantId,
         mandate_list_constraints: api_models::mandates::MandateListConstraints,
     ) -> CustomResult<Vec<Self>, errors::DatabaseError> {
-        let mut filter = <Self as HasTable>::table()
-            .filter(dsl::merchant_id.eq(merchant_id.to_owned()))
-            .order(dsl::created_at.desc())
-            .into_boxed();
+        let mut filter = diesel_models::list::into_boxed_list(
+            <Self as HasTable>::table()
+                .filter(dsl::merchant_id.eq(merchant_id.to_owned()))
+                .order(dsl::created_at.desc()),
+        );
 
         if let Some(created_time) = mandate_list_constraints.created_time {
             filter = filter.filter(dsl::created_at.eq(created_time));

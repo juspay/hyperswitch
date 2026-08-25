@@ -36,11 +36,12 @@ use crate::{
 };
 
 #[cfg(feature = "v1")]
-#[derive(Clone, Debug, router_derive::ToEncryption)]
+#[derive(Clone, Debug, router_derive::ToEncryption, serde::Serialize, serde::Deserialize)]
 pub struct MerchantConnectorAccount {
     pub merchant_id: id_type::MerchantId,
     pub connector_name: String,
     #[encrypt]
+    #[serde(with = "common_utils::crypto::encryptable_exact")]
     pub connector_account_details: Encryptable<Secret<Value>>,
     pub test_mode: Option<bool>,
     pub disabled: Option<bool>,
@@ -61,8 +62,10 @@ pub struct MerchantConnectorAccount {
     pub pm_auth_config: Option<pii::SecretSerdeValue>,
     pub status: enums::ConnectorStatus,
     #[encrypt]
+    #[serde(with = "common_utils::crypto::encryptable_exact::optional")]
     pub connector_wallets_details: Option<Encryptable<Secret<Value>>>,
     #[encrypt]
+    #[serde(with = "common_utils::crypto::encryptable_exact::optional")]
     pub additional_merchant_data: Option<Encryptable<Secret<Value>>>,
     pub version: common_enums::ApiVersion,
     pub connector_webhook_registration_details: Option<Value>,
@@ -228,12 +231,13 @@ impl MerchantConnectorAccountTypeDetails {
 }
 
 #[cfg(feature = "v2")]
-#[derive(Clone, Debug, router_derive::ToEncryption)]
+#[derive(Clone, Debug, router_derive::ToEncryption, serde::Serialize, serde::Deserialize)]
 pub struct MerchantConnectorAccount {
     pub id: id_type::MerchantConnectorAccountId,
     pub merchant_id: id_type::MerchantId,
     pub connector_name: common_enums::connector_enums::Connector,
     #[encrypt]
+    #[serde(with = "common_utils::crypto::encryptable_exact")]
     pub connector_account_details: Encryptable<Secret<Value>>,
     pub disabled: Option<bool>,
     pub payment_methods_enabled: Option<Vec<common_types::payment_methods::PaymentMethodsEnabled>>,
@@ -249,8 +253,10 @@ pub struct MerchantConnectorAccount {
     pub pm_auth_config: Option<pii::SecretSerdeValue>,
     pub status: enums::ConnectorStatus,
     #[encrypt]
+    #[serde(with = "common_utils::crypto::encryptable_exact::optional")]
     pub connector_wallets_details: Option<Encryptable<Secret<Value>>>,
     #[encrypt]
+    #[serde(with = "common_utils::crypto::encryptable_exact::optional")]
     pub additional_merchant_data: Option<Encryptable<Secret<Value>>>,
     pub version: common_enums::ApiVersion,
     pub feature_metadata: Option<MerchantConnectorAccountFeatureMetadata>,
@@ -348,13 +354,13 @@ pub struct PaymentMethodsEnabledForConnector {
 }
 
 #[cfg(feature = "v2")]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct MerchantConnectorAccountFeatureMetadata {
     pub revenue_recovery: Option<RevenueRecoveryMetadata>,
 }
 
 #[cfg(feature = "v2")]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct RevenueRecoveryMetadata {
     pub max_retry_count: u16,
     pub billing_connector_retry_threshold: u16,
@@ -367,7 +373,7 @@ pub struct ExternalVaultConnectorMetadata {
     pub certificate: Secret<String>,
 }
 #[cfg(feature = "v2")]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct AccountReferenceMap {
     pub recovery_to_billing: HashMap<id_type::MerchantConnectorAccountId, String>,
     pub billing_to_recovery: HashMap<String, id_type::MerchantConnectorAccountId>,
@@ -498,6 +504,7 @@ pub enum MerchantConnectorAccountUpdate {
     ConnectorWebhookRegisterationUpdate {
         connector_webhook_registration_details: Option<Value>,
         connector_webhook_details: Option<pii::SecretSerdeValue>,
+        metadata: Option<pii::SecretSerdeValue>,
     },
 }
 
@@ -848,6 +855,7 @@ impl From<MerchantConnectorAccountUpdate> for MerchantConnectorAccountUpdateInte
             MerchantConnectorAccountUpdate::ConnectorWebhookRegisterationUpdate {
                 connector_webhook_registration_details,
                 connector_webhook_details,
+                metadata,
             } => Self {
                 connector_type: None,
                 connector_name: None,
@@ -858,7 +866,7 @@ impl From<MerchantConnectorAccountUpdate> for MerchantConnectorAccountUpdateInte
                 merchant_connector_id: None,
                 payment_methods_enabled: None,
                 frm_configs: None,
-                metadata: None,
+                metadata,
                 modified_at: None,
                 connector_webhook_details,
                 frm_config: None,
@@ -936,31 +944,7 @@ common_utils::create_list_wrapper!(
     MerchantConnectorAccounts,
     MerchantConnectorAccount,
     impl_functions: {
-        fn filter_and_map<'a, T>(
-            &'a self,
-            filter: impl Fn(&'a MerchantConnectorAccount) -> bool,
-            func: impl Fn(&'a MerchantConnectorAccount) -> T,
-        ) -> rustc_hash::FxHashSet<T>
-        where
-            T: std::hash::Hash + Eq,
-        {
-            self.0
-                .iter()
-                .filter(|mca| filter(mca))
-                .map(func)
-                .collect::<rustc_hash::FxHashSet<_>>()
-        }
 
-        pub fn filter_by_profile<'a, T>(
-            &'a self,
-            profile_id: &'a id_type::ProfileId,
-            func: impl Fn(&'a MerchantConnectorAccount) -> T,
-        ) -> rustc_hash::FxHashSet<T>
-        where
-            T: std::hash::Hash + Eq,
-        {
-            self.filter_and_map(|mca| mca.profile_id == *profile_id, func)
-        }
         #[cfg(feature = "v2")]
         pub fn get_connector_and_supporting_payment_method_type_for_session_call(
             &self,
@@ -984,26 +968,13 @@ common_utils::create_list_wrapper!(
             }).collect();
             connector_and_supporting_payment_method_type
         }
-        pub fn filter_based_on_profile_and_connector_type(
-            self,
-            profile_id: &id_type::ProfileId,
-            connector_type: common_enums::ConnectorType,
-        ) -> Self {
-            self.into_iter()
-                .filter(|mca| &mca.profile_id == profile_id && mca.connector_type == connector_type)
-                .collect()
-        }
+
         pub fn is_merchant_connector_account_id_in_connector_mandate_details(
             &self,
-            profile_id: Option<&id_type::ProfileId>,
             connector_mandate_details: &CommonMandateReference,
         ) -> bool {
             let mca_ids = self
                 .iter()
-                .filter(|mca| {
-                    mca.disabled.is_some_and(|disabled| !disabled)
-                        && profile_id.is_some_and(|profile_id| *profile_id == mca.profile_id)
-                })
                 .map(|mca| mca.get_id())
                 .collect::<std::collections::HashSet<_>>();
 
@@ -1179,31 +1150,7 @@ common_utils::create_list_wrapper!(
     MerchantConnectorAccountsWithoutEncrypted,
     MerchantConnectorAccountWithoutEncrypted,
     impl_functions: {
-        fn filter_and_map<'a, T>(
-            &'a self,
-            filter: impl Fn(&'a MerchantConnectorAccountWithoutEncrypted) -> bool,
-            func: impl Fn(&'a MerchantConnectorAccountWithoutEncrypted) -> T,
-        ) -> rustc_hash::FxHashSet<T>
-        where
-            T: std::hash::Hash + Eq,
-        {
-            self.0
-                .iter()
-                .filter(|mca| filter(mca))
-                .map(func)
-                .collect::<rustc_hash::FxHashSet<_>>()
-        }
 
-        pub fn filter_by_profile<'a, T>(
-            &'a self,
-            profile_id: &'a id_type::ProfileId,
-            func: impl Fn(&'a MerchantConnectorAccountWithoutEncrypted) -> T,
-        ) -> rustc_hash::FxHashSet<T>
-        where
-            T: std::hash::Hash + Eq,
-        {
-            self.filter_and_map(|mca| mca.profile_id == *profile_id, func)
-        }
         #[cfg(feature = "v2")]
         pub fn get_connector_and_supporting_payment_method_type_for_session_call(
             &self,
@@ -1227,26 +1174,24 @@ common_utils::create_list_wrapper!(
             }).collect();
             connector_and_supporting_payment_method_type
         }
-        pub fn filter_based_on_profile_and_connector_type(
+
+        pub fn filter_by_connector_type(
             self,
-            profile_id: &id_type::ProfileId,
             connector_type: common_enums::ConnectorType,
         ) -> Self {
             self.into_iter()
-                .filter(|mca| &mca.profile_id == profile_id && mca.connector_type == connector_type)
+                .filter(|mca| mca.connector_type == connector_type)
                 .collect()
+        }
+        pub fn get_ids(&self) -> std::collections::HashSet<id_type::MerchantConnectorAccountId> {
+            self.iter().map(|mca| mca.get_id()).collect()
         }
         pub fn is_merchant_connector_account_id_in_connector_mandate_details(
             &self,
-            profile_id: Option<&id_type::ProfileId>,
             connector_mandate_details: &CommonMandateReference,
         ) -> bool {
             let mca_ids = self
                 .iter()
-                .filter(|mca| {
-                    mca.disabled.is_some_and(|disabled| !disabled)
-                        && profile_id.is_some_and(|profile_id| *profile_id == mca.profile_id)
-                })
                 .map(|mca| mca.get_id())
                 .collect::<std::collections::HashSet<_>>();
 
@@ -1373,6 +1318,24 @@ where
         &self,
         merchant_id: &id_type::MerchantId,
         get_disabled: bool,
+    ) -> CustomResult<MerchantConnectorAccountsWithoutEncrypted, Self::Error>;
+
+    /// Like [`Self::find_merchant_connector_account_without_encrypted_by_merchant_id_and_disabled_list`],
+    /// but additionally filters by `profile_id` at the database level, avoiding
+    /// the need to fetch all MCAs for the merchant and then filter in memory.
+    /// Returns all MCAs including disabled ones.
+    async fn list_merchant_connector_accounts_without_encrypted_including_disabled_by_merchant_id_profile_id(
+        &self,
+        merchant_id: &id_type::MerchantId,
+        profile_id: &id_type::ProfileId,
+    ) -> CustomResult<MerchantConnectorAccountsWithoutEncrypted, Self::Error>;
+
+    /// Like [`Self::list_merchant_connector_accounts_without_encrypted_including_disabled_by_merchant_id_profile_id`], but
+    /// only returns enabled (non-disabled) MCAs.
+    async fn list_enabled_merchant_connector_accounts_without_encrypted_by_merchant_id_profile_id(
+        &self,
+        merchant_id: &id_type::MerchantId,
+        profile_id: &id_type::ProfileId,
     ) -> CustomResult<MerchantConnectorAccountsWithoutEncrypted, Self::Error>;
 
     #[cfg(all(feature = "olap", feature = "v2"))]

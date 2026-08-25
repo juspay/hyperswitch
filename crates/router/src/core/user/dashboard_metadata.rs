@@ -48,13 +48,12 @@ pub async fn get_multiple_metadata(
     let mut response = Vec::with_capacity(metadata_keys.len());
     for key in metadata_keys {
         let data = metadata.iter().find(|ele| ele.data_key == key);
-        let resp;
-        if data.is_none() && utils::is_backfill_required(key) {
+        let resp = if data.is_none() && utils::is_backfill_required(key) {
             let backfill_data = backfill_metadata(&state, &user, &key).await?;
-            resp = into_response(backfill_data.as_ref(), key)?;
+            into_response(backfill_data.as_ref(), key)?
         } else {
-            resp = into_response(data, key)?;
-        }
+            into_response(data, key)?
+        };
         response.push(resp);
     }
 
@@ -123,6 +122,10 @@ fn parse_set_request(data_enum: api::SetMetaDataRequest) -> UserResult<types::Me
         api::SetMetaDataRequest::PaymentViews(operation) => {
             Ok(types::MetaData::PaymentViews(operation))
         }
+        #[cfg(feature = "v1")]
+        api::SetMetaDataRequest::PaymentAdvancedViews(operation) => {
+            Ok(types::MetaData::PaymentAdvancedViews(operation))
+        }
     }
 }
 
@@ -154,6 +157,8 @@ fn parse_get_request(data_enum: api::GetMetaDataRequest) -> DBEnum {
         api::GetMetaDataRequest::ReconStatus => DBEnum::ReconStatus,
         #[cfg(feature = "v1")]
         api::GetMetaDataRequest::PaymentViews => DBEnum::PaymentViews,
+        #[cfg(feature = "v1")]
+        api::GetMetaDataRequest::PaymentAdvancedViews => DBEnum::PaymentAdvancedViews,
     }
 }
 
@@ -258,6 +263,14 @@ fn into_response(
                     })
                     .collect()
             })))
+        }
+        #[cfg(feature = "v1")]
+        DBEnum::PaymentAdvancedViews => {
+            let resp: Option<types::PaymentAdvancedViewsValue> =
+                utils::deserialize_to_response(data)?;
+            Ok(api::GetMetaDataResponse::PaymentAdvancedViews(
+                resp.map(|d| d.views.into_iter().map(Into::into).collect()),
+            ))
         }
     }
 }
@@ -682,6 +695,11 @@ async fn insert_metadata(
         #[cfg(feature = "v1")]
         types::MetaData::PaymentViews(operation) => {
             utils::handle_saved_view_operations(state, user, metadata_key, *operation).await
+        }
+        #[cfg(feature = "v1")]
+        types::MetaData::PaymentAdvancedViews(operation) => {
+            utils::handle_payment_advanced_view_operations(state, user, metadata_key, *operation)
+                .await
         }
     }
 }

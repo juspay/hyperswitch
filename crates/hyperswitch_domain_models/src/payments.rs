@@ -1609,11 +1609,16 @@ where
                 },
             );
 
+        // The bin derived details are enriched onto the attempt's payment method data rather than
+        // being sent by the billing connector, so they are read back from there.
         let billing_connector_payment_method_details = Some(
             diesel_models::types::BillingConnectorPaymentMethodDetails::Card(
                 diesel_models::types::BillingConnectorAdditionalCardInfo {
                     card_network: self.revenue_recovery_data.card_network.clone(),
                     card_issuer: self.revenue_recovery_data.card_issuer.clone(),
+                    card_type: self.payment_attempt.extract_card_type(),
+                    card_issuing_country: self.payment_attempt.extract_card_issuing_country(),
+                    card_isin: self.payment_attempt.extract_card_isin(),
                 },
             ),
         );

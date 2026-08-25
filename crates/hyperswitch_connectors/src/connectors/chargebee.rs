@@ -836,7 +836,14 @@ impl webhooks::IncomingWebhook for Chargebee {
     ) -> CustomResult<revenue_recovery::RevenueRecoveryAttemptData, errors::ConnectorError> {
         let webhook =
             transformers::ChargebeeWebhookBody::get_webhook_object_from_body(request.body)?;
-        revenue_recovery::RevenueRecoveryAttemptData::try_from(webhook)
+        let attempt_data = revenue_recovery::RevenueRecoveryAttemptData::try_from(webhook)?;
+        // Log the Chargebee gateway ID to verify that it is configured on the billing connector.
+        router_env::logger::info!(
+            connector_account_reference_id = %attempt_data.connector_account_reference_id,
+            invoice_id = ?attempt_data.merchant_reference_id,
+            "chargebee revenue recovery attempt data"
+        );
+        Ok(attempt_data)
     }
     #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
     fn get_revenue_recovery_invoice_details(

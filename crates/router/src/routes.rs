@@ -29,6 +29,7 @@ pub mod hypersense;
 pub mod lock_utils;
 pub mod mandates;
 pub mod metrics;
+pub mod offer_engine;
 pub mod oidc;
 #[cfg(feature = "v1")]
 pub mod payment_link;
@@ -58,6 +59,8 @@ pub mod superposition_proxy;
 pub mod superposition_sdk_config;
 pub mod three_ds_decision_rule;
 pub mod tokenization;
+#[cfg(feature = "olap")]
+pub mod unified_connector_service;
 #[cfg(feature = "olap")]
 pub mod user;
 #[cfg(feature = "olap")]
@@ -93,12 +96,15 @@ pub use self::app::{
     ApiKeys, AppState, ApplePayCertificatesMigration, Authentication, Cache, CardIssuers, Cards,
     Chat, Configs, ConnectorOnboarding, Customers, Disputes, Embedded, EphemeralKey, FeatureMatrix,
     Files, Forex, Gsm, Health, Hypersense, Mandates, MerchantAccount, MerchantConnectorAccount,
-    Oidc, PaymentLink, PaymentMethods, Payments, Poll, ProcessTracker, ProcessTrackerDeprecated,
-    Profile, ProfileAcquirer, ProfileNew, Refunds, Relay, RelayWebhooks, SdkConfig, SessionState,
-    SuperpositionProxy, ThreeDsDecisionRule, User, UserDeprecated, Webhooks,
+    OfferEngine, Oidc, PaymentLink, PaymentMethods, Payments, Poll, ProcessTracker,
+    ProcessTrackerDeprecated, Profile, ProfileAcquirer, ProfileNew, Refunds, Relay, RelayWebhooks,
+    SdkConfig, SessionState, SuperpositionProxy, ThreeDsDecisionRule, User, UserDeprecated,
+    Webhooks,
 };
 #[cfg(feature = "olap")]
-pub use self::app::{Blocklist, Organization, Routing, Subscription, Verify, WebhookEvents};
+pub use self::app::{
+    Blocklist, Organization, Routing, Subscription, UnifiedConnectorService, Verify, WebhookEvents,
+};
 #[cfg(feature = "payouts")]
 pub use self::app::{PayoutLink, Payouts};
 #[cfg(feature = "v2")]

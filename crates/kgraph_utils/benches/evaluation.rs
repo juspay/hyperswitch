@@ -76,29 +76,9 @@ fn build_test_data(
     // };
 
     #[cfg(feature = "v1")]
-    let stripe_account = MerchantConnectorResponse {
-        connector_type: api_enums::ConnectorType::FizOperations,
+    let stripe_account = MCACGraphData {
         connector_name: "stripe".to_string(),
-        merchant_connector_id:
-            common_utils::generate_merchant_connector_account_id_of_default_length(),
-        connector_account_details: hyperswitch_masking::Secret::new(serde_json::json!({})),
-        test_mode: None,
-        disabled: None,
-        metadata: None,
         payment_methods_enabled: Some(pms_enabled),
-        business_country: Some(api_enums::CountryAlpha2::US),
-        business_label: Some("hello".to_string()),
-        connector_label: Some("something".to_string()),
-        business_sub_label: Some("something".to_string()),
-        frm_configs: None,
-        connector_webhook_details: None,
-        profile_id,
-        applepay_verified_domains: None,
-        pm_auth_config: None,
-        status: api_enums::ConnectorStatus::Inactive,
-        additional_merchant_data: None,
-        connector_wallets_details: None,
-        webhook_setup_capabilities: None,
     };
     let config = CountryCurrencyFilter {
         connector_configs: HashMap::new(),

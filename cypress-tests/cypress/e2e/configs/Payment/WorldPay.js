@@ -77,7 +77,7 @@ const paymentMethodDataThreeDsResponse = {
     last4: "1091",
     card_type: "CREDIT",
     card_network: "Visa",
-    card_issuer: "Intl Hdqtrs Center Owned",
+    card_issuer: "INTL HDQTRS CENTER OWNED",
     card_issuing_country: "UNITED STATES OF AMERICA",
     card_isin: "400000",
     card_extended_bin: null,
@@ -553,6 +553,24 @@ export const connectorDetails = {
         },
       },
     },
+    MITAutoCaptureWithCustomerAcceptance: {
+      Request: {
+        customer_acceptance: {
+          acceptance_type: "offline",
+          accepted_at: "1963-05-03T04:07:52.723Z",
+          online: {
+            ip_address: "127.0.0.1",
+            user_agent: "amet irure esse",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
     MITManualCapture: {
       Request: {},
       Response: {
@@ -669,8 +687,8 @@ export const connectorDetails = {
           status: "failed",
           error_code: "13",
           error_message: "INVALID AMOUNT",
-          unified_code: "UE_9000",
-          unified_message: "Something went wrong",
+          unified_code: "UE_1000",
+          unified_message: "Issue with Payment Method details",
         },
       },
     },
@@ -909,6 +927,20 @@ export const connectorDetails = {
           message:
             "You cannot confirm this payment using `manual_retry` because the allowed duration has expired",
           code: "IR_16",
+        },
+      },
+    },
+    PaymentIntentPartialAuth: {
+      Request: {
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+        amount: 1706,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
         },
       },
     },

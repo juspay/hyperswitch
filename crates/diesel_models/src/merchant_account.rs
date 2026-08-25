@@ -1,5 +1,6 @@
 use common_utils::{encryption::Encryption, pii};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
+use hyperswitch_masking::Secret;
 
 use crate::enums as storage_enums;
 #[cfg(feature = "v1")]
@@ -56,6 +57,7 @@ pub struct MerchantAccount {
     pub product_type: Option<common_enums::MerchantProductType>,
     pub merchant_account_type: Option<common_enums::MerchantAccountType>,
     pub network_tokenization_credentials: Option<Encryption>,
+    pub fingerprint_secret: Option<Secret<String>>,
 }
 
 #[cfg(feature = "v1")]
@@ -92,6 +94,7 @@ pub struct MerchantAccountSetter {
     pub product_type: Option<common_enums::MerchantProductType>,
     pub merchant_account_type: common_enums::MerchantAccountType,
     pub network_tokenization_credentials: Option<Encryption>,
+    pub fingerprint_secret: Option<Secret<String>>,
 }
 
 #[cfg(feature = "v1")]
@@ -131,6 +134,7 @@ impl From<MerchantAccountSetter> for MerchantAccount {
             product_type: item.product_type,
             merchant_account_type: Some(item.merchant_account_type),
             network_tokenization_credentials: item.network_tokenization_credentials,
+            fingerprint_secret: item.fingerprint_secret,
         }
     }
 }
@@ -166,6 +170,7 @@ pub struct MerchantAccount {
     pub product_type: Option<common_enums::MerchantProductType>,
     pub merchant_account_type: Option<common_enums::MerchantAccountType>,
     pub network_tokenization_credentials: Option<Encryption>,
+    pub fingerprint_secret: Option<Secret<String>>,
 }
 
 #[cfg(feature = "v2")]
@@ -187,6 +192,7 @@ impl From<MerchantAccountSetter> for MerchantAccount {
             product_type: item.product_type,
             merchant_account_type: Some(item.merchant_account_type),
             network_tokenization_credentials: None, // need to check if we can have this column in v2
+            fingerprint_secret: item.fingerprint_secret,
         }
     }
 }
@@ -207,6 +213,7 @@ pub struct MerchantAccountSetter {
     pub is_platform_account: bool,
     pub product_type: Option<common_enums::MerchantProductType>,
     pub merchant_account_type: common_enums::MerchantAccountType,
+    pub fingerprint_secret: Option<Secret<String>>,
 }
 
 impl MerchantAccount {
@@ -259,6 +266,7 @@ pub struct MerchantAccountNew {
     pub product_type: Option<common_enums::MerchantProductType>,
     pub merchant_account_type: common_enums::MerchantAccountType,
     pub network_tokenization_credentials: Option<Encryption>,
+    pub fingerprint_secret: Option<Secret<String>>,
 }
 
 #[cfg(feature = "v2")]
@@ -279,6 +287,7 @@ pub struct MerchantAccountNew {
     pub is_platform_account: bool,
     pub product_type: Option<common_enums::MerchantProductType>,
     pub merchant_account_type: common_enums::MerchantAccountType,
+    pub fingerprint_secret: Option<Secret<String>>,
 }
 
 #[cfg(feature = "v2")]

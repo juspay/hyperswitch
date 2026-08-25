@@ -28,16 +28,17 @@ impl PaymentLinkDbExt for PaymentLink {
         processor_merchant_id: &common_utils::id_type::MerchantId,
         payment_link_list_constraints: api_models::payments::PaymentLinkListConstraints,
     ) -> CustomResult<Vec<Self>, errors::DatabaseError> {
-        let mut filter = <Self as HasTable>::table()
-            .filter(
-                dsl::processor_merchant_id
-                    .eq(processor_merchant_id.to_owned())
-                    .or(dsl::processor_merchant_id
-                        .is_null()
-                        .and(dsl::merchant_id.eq(processor_merchant_id.to_owned()))),
-            )
-            .order(dsl::created_at.desc())
-            .into_boxed();
+        let mut filter = diesel_models::list::into_boxed_list(
+            <Self as HasTable>::table()
+                .filter(
+                    dsl::processor_merchant_id
+                        .eq(processor_merchant_id.to_owned())
+                        .or(dsl::processor_merchant_id
+                            .is_null()
+                            .and(dsl::merchant_id.eq(processor_merchant_id.to_owned()))),
+                )
+                .order(dsl::created_at.desc()),
+        );
 
         if let Some(created_time) = payment_link_list_constraints.created {
             filter = filter.filter(dsl::created_at.eq(created_time));

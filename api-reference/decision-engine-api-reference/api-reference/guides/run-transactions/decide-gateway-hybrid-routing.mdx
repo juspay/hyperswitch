@@ -1,0 +1,53 @@
+---
+title: "Decide Gateway: Network + SR Hybrid"
+description: "Curl example for /decide-gateway using NTW_SR_HYBRID_ROUTING."
+---
+
+# Decide Gateway: Network + SR Hybrid
+
+`NTW_SR_HYBRID_ROUTING` combines debit/network metadata with SR-based gateway scoring.
+
+```bash
+curl --location "$BASE_URL/decide-gateway" \
+  --header "$AUTH_HEADER" \
+  --header "Content-Type: application/json" \
+  --data '{
+    "merchantId": "merchant_demo",
+    "eligibleGatewayList": ["stripe", "adyen"],
+    "rankingAlgorithm": "NTW_SR_HYBRID_ROUTING",
+    "eliminationEnabled": false,
+    "enableMultiObjective": false,
+    "paymentInfo": {
+      "paymentId": "hybrid_001",
+      "amount": 1000,
+      "currency": "USD",
+      "paymentType": "ORDER_PAYMENT",
+      "paymentMethodType": "CARD",
+      "paymentMethod": "DEBIT",
+      "authType": "THREE_DS",
+      "metadata": "{\"merchant_category_code\":\"merchant_category_code_0001\",\"acquirer_country\":\"US\",\"co_badged_card_data\":{\"co_badged_card_networks\":[\"VISA\",\"NYCE\",\"PULSE\",\"STAR\"],\"issuer_country\":\"US\",\"is_regulated\":false,\"regulated_name\":null,\"card_type\":\"debit\"}}"
+    }
+  }'
+```
+
+```json
+{
+  "decided_gateway": "stripe",
+  "routing_approach": "NTW_BASED_ROUTING",
+  "debit_routing_output": {
+    "co_badged_card_networks_info": [
+      { "network": "NYCE", "saving_percentage": 1.2 },
+      { "network": "PULSE", "saving_percentage": 0.9 }
+    ],
+    "issuer_country": "US",
+    "is_regulated": false,
+    "regulated_name": null,
+    "card_type": "debit"
+  },
+  "multi_objective_info": null
+}
+```
+
+## Multi-Objective Option
+
+When multi-objective routing is enabled (request field `enableMultiObjective`, or the `multi_objective_routing_enabled` merchant feature flag), a cost-aware post-step may re-rank the SR result and the response gains a `multi_objective_info` block. Details and examples: [Multi-objective routing](/decision-engine-api-reference/api-reference/guides/run-transactions/decide-gateway-multi-objective).

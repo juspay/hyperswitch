@@ -3,6 +3,9 @@ use diesel::{Identifiable, Insertable, Queryable, Selectable};
 use crate::schema::locker_mock_up;
 
 #[derive(Clone, Debug, Eq, Identifiable, Queryable, Selectable, PartialEq)]
+// deja-only: this row embeds raw card_number/card_cvc, so the serde impls that
+// the db boundary needs for record/replay must never exist in default builds.
+#[cfg_attr(feature = "deja", derive(serde::Serialize, serde::Deserialize))]
 #[diesel(table_name = locker_mock_up, primary_key(card_id), check_for_backend(diesel::pg::Pg))]
 pub struct LockerMockUp {
     pub card_id: String,

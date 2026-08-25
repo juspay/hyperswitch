@@ -23,7 +23,9 @@ impl PayoutsNew {
         self,
         conn: &mut PgPooledConn,
     ) -> StorageResult<kv::SerializableQuery> {
-        kv::generate_insert_query(conn, self).await
+        kv::generate_insert_query(conn, self)
+            .await
+            .attach_printable("Failed to generate insert query for payouts")
     }
 }
 impl Payouts {
@@ -111,12 +113,15 @@ impl Payouts {
         status: Option<Vec<enums::PayoutStatus>>,
         payout_type: Option<Vec<enums::PayoutType>>,
     ) -> StorageResult<i64> {
-        let mut filter = <Self as HasTable>::table()
-            .inner_join(payout_attempt::table.on(payout_attempt::dsl::payout_id.eq(dsl::payout_id)))
-            .count()
-            .filter(dsl::merchant_id.eq(merchant_id.to_owned()))
-            .filter(dsl::payout_id.eq_any(active_payout_ids.to_vec()))
-            .into_boxed();
+        let mut filter = crate::list::into_boxed_list(
+            <Self as HasTable>::table()
+                .inner_join(
+                    payout_attempt::table.on(payout_attempt::dsl::payout_id.eq(dsl::payout_id)),
+                )
+                .count()
+                .filter(dsl::merchant_id.eq(merchant_id.to_owned()))
+                .filter(dsl::payout_id.eq_any(active_payout_ids.to_vec())),
+        );
 
         if let Some(connector) = connector {
             filter = filter.filter(payout_attempt::dsl::connector.eq_any(connector));
@@ -160,5 +165,6 @@ impl PayoutsUpdate {
             PayoutsUpdateInternal::from(self),
         )
         .await
+        .attach_printable("Failed to generate update query for payouts")
     }
 }

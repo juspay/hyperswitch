@@ -6,6 +6,19 @@ use crate::{
     types::{AnalyticsCollection, AnalyticsDataSource},
 };
 
+fn country_code_to_numeric(country_code: &str) -> String {
+    country_code
+        .to_ascii_uppercase()
+        .parse::<common_enums::CountryAlpha2>()
+        .map(|alpha2| {
+            format!(
+                "{:03}",
+                common_enums::Country::from_alpha2(alpha2).to_numeric()
+            )
+        })
+        .unwrap_or_else(|_| country_code.to_string())
+}
+
 impl<T> QueryFilter<T> for AuthEventFilters
 where
     T: AnalyticsDataSource,
@@ -80,10 +93,15 @@ where
                 .attach_printable("Failed to add currency filter")?;
         }
         if !self.merchant_country.is_empty() {
+            let merchant_countries = self
+                .merchant_country
+                .iter()
+                .map(|country| country_code_to_numeric(country))
+                .collect::<Vec<_>>();
             builder
                 .add_filter_in_range_clause(
                     AuthEventDimensions::MerchantCountry,
-                    &self.merchant_country,
+                    &merchant_countries,
                 )
                 .attach_printable("Failed to add merchant country filter")?;
         }
@@ -104,11 +122,13 @@ where
                 .attach_printable("Failed to add shipping country filter")?;
         }
         if !self.issuer_country.is_empty() {
+            let issuer_countries = self
+                .issuer_country
+                .iter()
+                .map(|country| country_code_to_numeric(country))
+                .collect::<Vec<_>>();
             builder
-                .add_filter_in_range_clause(
-                    AuthEventDimensions::IssuerCountry,
-                    &self.issuer_country,
-                )
+                .add_filter_in_range_clause(AuthEventDimensions::IssuerCountry, &issuer_countries)
                 .attach_printable("Failed to add issuer country filter")?;
         }
         if !self.earliest_supported_version.is_empty() {
@@ -127,31 +147,10 @@ where
                 )
                 .attach_printable("Failed to add latest supported version filter")?;
         }
-        if !self.whitelist_decision.is_empty() {
-            builder
-                .add_filter_in_range_clause(
-                    AuthEventDimensions::WhitelistDecision,
-                    &self.whitelist_decision,
-                )
-                .attach_printable("Failed to add whitelist decision filter")?;
-        }
-        if !self.device_manufacturer.is_empty() {
-            builder
-                .add_filter_in_range_clause(
-                    AuthEventDimensions::DeviceManufacturer,
-                    &self.device_manufacturer,
-                )
-                .attach_printable("Failed to add device manufacturer filter")?;
-        }
         if !self.device_type.is_empty() {
             builder
                 .add_filter_in_range_clause(AuthEventDimensions::DeviceType, &self.device_type)
                 .attach_printable("Failed to add device type filter")?;
-        }
-        if !self.device_brand.is_empty() {
-            builder
-                .add_filter_in_range_clause(AuthEventDimensions::DeviceBrand, &self.device_brand)
-                .attach_printable("Failed to add device brand filter")?;
         }
         if !self.device_os.is_empty() {
             builder
@@ -165,19 +164,6 @@ where
                     &self.device_display,
                 )
                 .attach_printable("Failed to add device display filter")?;
-        }
-        if !self.browser_name.is_empty() {
-            builder
-                .add_filter_in_range_clause(AuthEventDimensions::BrowserName, &self.browser_name)
-                .attach_printable("Failed to add browser name filter")?;
-        }
-        if !self.browser_version.is_empty() {
-            builder
-                .add_filter_in_range_clause(
-                    AuthEventDimensions::BrowserVersion,
-                    &self.browser_version,
-                )
-                .attach_printable("Failed to add browser version filter")?;
         }
         if !self.issuer_id.is_empty() {
             builder

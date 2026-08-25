@@ -24,6 +24,8 @@ urlencoding = "2.1.3"
 error-stack = "0.4.1"
 thiserror = "1.0.69"
 wasm-bindgen = { version = "0.2", optional = true }
+lightningcss = "1.0.0-alpha.71"
+tracing = { workspace = true }
 
 # First party crates
 api_models = { path = "../api_models", default-features = false }

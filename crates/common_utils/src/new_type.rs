@@ -83,6 +83,18 @@ fn apply_mask(val: &str, unmasked_char_count: usize, min_masked_char_count: usiz
         })
 }
 
+/// Masks a sensitive field by taking the last N characters.
+pub fn mask_sensitive_field(secret_value: &str, visible_chars: usize) -> String {
+    secret_value
+        .chars()
+        .rev()
+        .take(visible_chars)
+        .collect::<String>()
+        .chars()
+        .rev()
+        .collect::<String>()
+}
+
 /// Masked sort code
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct MaskedSortCode(Secret<String>);

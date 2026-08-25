@@ -376,6 +376,9 @@ impl IntoDirValue for api_enums::CardNetwork {
             Self::Accel => Ok(dirval!(CardNetwork = Accel)),
             Self::Pulse => Ok(dirval!(CardNetwork = Pulse)),
             Self::Nyce => Ok(dirval!(CardNetwork = Nyce)),
+            Self::Prop => Ok(dirval!(CardNetwork = Prop)),
+            Self::PrivateLabel => Ok(dirval!(CardNetwork = PrivateLabel)),
+            Self::Dinacard => Ok(dirval!(CardNetwork = Dinacard)),
         }
     }
 }

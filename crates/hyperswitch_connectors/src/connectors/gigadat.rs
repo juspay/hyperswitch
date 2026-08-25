@@ -362,12 +362,30 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Gig
             .response
             .parse_struct("gigadat PaymentsSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        let response_integrity_object =
+            if let (Some(amount), Some(currency)) = (response.amount, response.currency) {
+                Some(utils::get_sync_integrity_object(
+                    self.amount_converter,
+                    amount,
+                    currency.to_string(),
+                )?)
+            } else {
+                None
+            };
+
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
         RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
+        })
+        .map(|mut router_data| {
+            if let Some(integrity_object) = response_integrity_object {
+                router_data.request.integrity_object = Some(integrity_object);
+            }
+            router_data
         })
     }
 
@@ -544,12 +562,30 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Gigadat
             .response
             .parse_struct("gigadat RefundResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        let response_integrity_object =
+            if let (Some(amount), Some(currency)) = (response.amount, response.currency) {
+                Some(utils::get_refund_integrity_object(
+                    self.amount_converter,
+                    amount,
+                    currency.to_string(),
+                )?)
+            } else {
+                None
+            };
+
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
         RouterData::try_from(ResponseRouterData {
             response,
             data: data.clone(),
             http_code: res.status_code,
+        })
+        .map(|mut router_data| {
+            if let Some(integrity_object) = response_integrity_object {
+                router_data.request.integrity_object = Some(integrity_object);
+            }
+            router_data
         })
     }
 

@@ -266,6 +266,9 @@ pub enum CardNetworkLowercase {
     Pulse,
     Accel,
     Nyce,
+    Prop,
+    PrivateLabel,
+    Dinacard,
 }
 
 impl From<common_enums::CardNetwork> for CardNetworkLowercase {
@@ -286,6 +289,9 @@ impl From<common_enums::CardNetwork> for CardNetworkLowercase {
             common_enums::CardNetwork::Pulse => Self::Pulse,
             common_enums::CardNetwork::Accel => Self::Accel,
             common_enums::CardNetwork::Nyce => Self::Nyce,
+            common_enums::CardNetwork::Prop => Self::Prop,
+            common_enums::CardNetwork::PrivateLabel => Self::PrivateLabel,
+            common_enums::CardNetwork::Dinacard => Self::Dinacard,
         }
     }
 }

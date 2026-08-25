@@ -11,11 +11,28 @@ pub struct Database {
     pub host: String,
     pub port: u16,
     pub dbname: String,
-    pub pool_size: u32,
+    #[serde(alias = "pool_size")]
+    pub max_pool_size: u32,
     pub connection_timeout: u64,
     pub queue_strategy: QueueStrategy,
-    pub min_idle: Option<u32>,
-    pub max_lifetime: Option<u64>,
+    #[serde(alias = "min_idle", default = "default_min_idle_pool_size")]
+    pub min_idle_pool_size: u32,
+    #[serde(default = "default_max_lifetime")]
+    pub max_lifetime: u64,
+    #[serde(default = "default_idle_timeout")]
+    pub idle_timeout: u64,
+}
+
+const fn default_min_idle_pool_size() -> u32 {
+    2
+}
+
+const fn default_max_lifetime() -> u64 {
+    1800
+}
+
+const fn default_idle_timeout() -> u64 {
+    300
 }
 
 impl DbConnectionParams for Database {
@@ -61,11 +78,12 @@ impl Default for Database {
             host: "localhost".into(),
             port: 5432,
             dbname: String::new(),
-            pool_size: 5,
+            max_pool_size: 5,
             connection_timeout: 10,
             queue_strategy: QueueStrategy::default(),
-            min_idle: None,
-            max_lifetime: None,
+            min_idle_pool_size: default_min_idle_pool_size(),
+            max_lifetime: default_max_lifetime(),
+            idle_timeout: default_idle_timeout(),
         }
     }
 }

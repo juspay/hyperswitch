@@ -102,7 +102,7 @@ pub async fn list_initial_delivery_attempts(
                     .is_none_or(|pid| event.business_profile_id.as_ref() == Some(pid));
                 matches_initiator
                     && matches_profile
-                    && event.initial_attempt_id.as_deref() == Some(&event.event_id)
+                    && event.initial_attempt_id.as_deref() == Some(event.event_id.as_str())
             });
 
             let (events, total_count) = event_opt.map_or((vec![], 0), |event| (vec![event], 1));

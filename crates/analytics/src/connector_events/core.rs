@@ -26,5 +26,9 @@ pub async fn connector_events_core(
         }
     }
     .switch()?;
-    Ok(data)
+
+    Ok(data
+        .into_iter()
+        .filter(|event| !event.is_shadow())
+        .collect())
 }

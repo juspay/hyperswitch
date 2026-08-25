@@ -24,6 +24,7 @@ pub struct DynamicRoutingStatsNew {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Identifiable, Queryable, Selectable, Insertable)]
+#[cfg_attr(feature = "deja", derive(serde::Serialize, serde::Deserialize))]
 #[diesel(table_name = dynamic_routing_stats, primary_key(attempt_id, merchant_id), check_for_backend(diesel::pg::Pg))]
 pub struct DynamicRoutingStats {
     pub payment_id: common_utils::id_type::PaymentId,

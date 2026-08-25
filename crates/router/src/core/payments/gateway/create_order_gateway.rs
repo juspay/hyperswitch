@@ -117,13 +117,19 @@ where
             header_payload,
             unified_connector_service_execution_mode,
             |mut router_data, create_order_request, grpc_headers| async move {
-                let response = Box::pin(client.payment_create_order(
+                let response = match Box::pin(client.payment_create_order(
                     create_order_request,
                     connector_auth_metadata,
                     grpc_headers,
                 ))
                 .await
-                .attach_printable("Failed to create order")?;
+                {
+                    Ok(response) => response,
+                    // UCS connector errors are handled by the wrapper — see `ucs_logging_wrapper_granular`.
+                    Err(report) => {
+                        return Err(report.attach_printable("Failed to create order"));
+                    }
+                };
 
                 let create_order_response = response.into_inner();
 
@@ -155,7 +161,7 @@ where
         ))
         .await
         .map(|(router_data, _)| router_data)
-        .change_context(ConnectorError::ResponseHandlingFailed)
+        .map_err(super::convert_ucs_error_to_connector_error)
     }
 }
 

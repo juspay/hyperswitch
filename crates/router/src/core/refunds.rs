@@ -637,6 +637,9 @@ async fn execute_refund_execute_via_direct_with_ucs_shadow(
         Err(e) => Err(format!("{:?}", e)),
     };
     let connector_name = router_data.connector.clone();
+    let merchant_id = router_data.merchant_id.clone();
+    let payment_method = router_data.payment_method;
+    let payment_method_type = router_data.payment_method_type;
 
     tokio::spawn(
         (async move {
@@ -661,6 +664,9 @@ async fn execute_refund_execute_via_direct_with_ucs_shadow(
                     connector_name,
                     direct_for_compare,
                     ucs_for_compare,
+                    Some(&merchant_id),
+                    Some(payment_method),
+                    payment_method_type,
                 ),
             )
             .await;
@@ -814,20 +820,14 @@ fn should_call_refund(
     force_sync: bool,
     all_keys_required: bool,
 ) -> bool {
-    // This implies, we cannot perform a refund sync & `the connector_refund_id`
-    // doesn't exist
-    let predicate1 = refund.connector_refund_id.is_some();
-
     // This allows refund sync at connector level if all_keys_required or force_sync is enabled for non terminal refund statuses (i.e. not success or failure)
-    let predicate2 = all_keys_required
+    all_keys_required
         || (force_sync
             && !matches!(
                 refund.refund_status,
                 diesel_models::enums::RefundStatus::Failure
                     | diesel_models::enums::RefundStatus::Success
-            ));
-
-    predicate1 && predicate2
+            ))
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -1189,6 +1189,9 @@ async fn execute_refund_sync_via_direct_with_ucs_shadow(
         Err(e) => Err(format!("{:?}", e)),
     };
     let connector_name = router_data.connector.clone();
+    let merchant_id = router_data.merchant_id.clone();
+    let payment_method = router_data.payment_method;
+    let payment_method_type = router_data.payment_method_type;
 
     tokio::spawn(
         (async move {
@@ -1213,6 +1216,9 @@ async fn execute_refund_sync_via_direct_with_ucs_shadow(
                     connector_name,
                     direct_for_compare,
                     ucs_for_compare,
+                    Some(&merchant_id),
+                    Some(payment_method),
+                    payment_method_type,
                 ),
             )
             .await;
@@ -1504,8 +1510,8 @@ pub async fn refund_list(
     req: api_models::refunds::RefundListRequest,
 ) -> RouterResponse<api_models::refunds::RefundListResponse> {
     let db = state.store;
-    let limit = validator::validate_refund_list(req.limit)?;
-    let offset = req.offset.unwrap_or_default();
+    let limit = req.limit.unwrap_or_default();
+    let offset = req.offset;
 
     let refund_list = db
         .filter_refund_by_constraints(
@@ -1663,6 +1669,7 @@ pub async fn refund_manual_update(
         .await
         .to_not_found_response(errors::ApiErrorResponse::RefundNotFound)?;
     let refund_update = diesel_refund::RefundUpdate::ManualUpdate {
+        connector_refund_id: req.connector_refund_id.map(ConnectorTransactionId::from),
         refund_status: req.status.map(common_enums::RefundStatus::from),
         refund_error_message: req.error_message.map(|msg| match msg {
             api_enums::SetOrUnset::Set(value) => Some(value),
@@ -1989,12 +1996,13 @@ pub async fn sync_refund_with_gateway_workflow(
     })?;
 
     let platform = core_utils::build_platform_from_refund_core(state, &refund_core).await?;
+    let storage_scheme = platform.get_processor().get_account().storage_scheme;
 
     let response = Box::pin(refund_retrieve_core_with_internal_reference_id(
         state.clone(),
         platform,
         None,
-        refund_core.refund_internal_reference_id,
+        refund_core.refund_internal_reference_id.clone(),
         Some(true),
     ))
     .await?;
@@ -2019,15 +2027,55 @@ pub async fn sync_refund_with_gateway_workflow(
                 .processor_merchant_id
                 .clone()
                 .unwrap_or(response.merchant_id);
-            _ = retry_refund_sync_task(
+            let is_last_retry = retry_refund_sync_task(
                 &*state.store,
                 state.superposition_service.as_ref(),
-                response.connector,
-                processor_merchant_id,
+                response.connector.clone(),
+                processor_merchant_id.clone(),
                 Some(refund_core.payment_id.clone()),
                 refund_tracker.to_owned(),
             )
             .await?;
+
+            // If the refund status is still pending and there is no connector_refund_id
+            // then move the refund status to manual review if all retries exceeded
+            if is_last_retry
+                && response.refund_status == enums::RefundStatus::Pending
+                && response.connector_refund_id.is_none()
+            {
+                let processor_merchant_id = refund_core
+                    .processor_merchant_id
+                    .clone()
+                    .unwrap_or_else(|| refund_core.merchant_id.clone());
+
+                let refund = state
+                    .store
+                    .find_refund_by_internal_reference_id_processor_merchant_id(
+                        &refund_core.refund_internal_reference_id,
+                        &processor_merchant_id,
+                        storage_scheme,
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::RefundNotFound)
+                    .attach_printable("Failed to fetch refund for failure update")?;
+
+                let refund_update = diesel_refund::RefundUpdate::StatusUpdate {
+                    connector_refund_id: None,
+                    sent_to_gateway: response.sent_to_gateway,
+                    refund_status: enums::RefundStatus::ManualReview,
+                    updated_by: refund.updated_by.clone(),
+                    processor_refund_data: refund.processor_refund_data.clone(),
+                };
+
+                state
+                    .store
+                    .update_refund(refund, refund_update, storage_scheme)
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable(
+                        "Failed to update refund status to Failure after retries exhausted",
+                    )?;
+            }
         }
     }
 

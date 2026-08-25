@@ -58,10 +58,11 @@ use crate::{
     core::{
         configs::dimension_state,
         errors::{self, RouterResult, StorageErrorExt},
+        payment_methods,
         payments::PaymentData,
     },
     db::StorageInterface,
-    routes::SessionState,
+    routes::{metrics::MerchantMode, SessionState},
     types::{
         self, api, domain,
         storage::{self, enums},
@@ -96,6 +97,15 @@ pub async fn get_feature_config(
     platform: &domain::Platform,
     dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
 ) -> FeatureConfig {
+    if let Some(context) = state.payment_metrics_context {
+        return FeatureConfig {
+            is_payment_method_modular_allowed: matches!(
+                context.merchant_mode,
+                MerchantMode::Modular
+            ),
+        };
+    }
+
     let dimensions = dimensions
         .with_organization_id(
             platform
@@ -104,14 +114,10 @@ pub async fn get_feature_config(
                 .organization_id
                 .clone(),
         )
-        .without_provider_merchant_id()
         .without_processor_merchant_id();
 
-    let is_payment_method_modular_allowed = crate::core::payment_methods::utils::get_organization_eligibility_config_for_pm_modular_service(
-        state,
-        &dimensions,
-    )
-    .await;
+    let is_payment_method_modular_allowed =
+        payment_methods::utils::get_should_call_pm_modular_service(state, &dimensions, None).await;
     FeatureConfig {
         is_payment_method_modular_allowed,
     }
@@ -125,18 +131,29 @@ pub async fn validate_legacy_endpoint_access<E>(
 where
     E: From<errors::ApiErrorResponse> + error_stack::Context,
 {
+    // The dashboard authenticates via JWT and still relies on these legacy
+    // endpoints, so only merchant (API key) traffic is blocked from deprecated
+    // routes.
+    let is_dashboard_access = matches!(
+        platform.get_initiator(),
+        Some(domain::Initiator::Jwt { .. })
+    );
+
     let dimensions = dimension_state::Dimensions::new()
         .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
         .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
 
     let feature_config = get_feature_config(state, platform, &dimensions).await;
-    common_utils::fp_utils::when(feature_config.is_payment_method_modular_allowed, || {
-        Err(error_stack::report!(E::from(
-            errors::ApiErrorResponse::AccessForbidden {
-                resource: "Deprecated route".to_string(),
-            },
-        )))
-    })?;
+    common_utils::fp_utils::when(
+        feature_config.is_payment_method_modular_allowed && !is_dashboard_access,
+        || {
+            Err(error_stack::report!(E::from(
+                errors::ApiErrorResponse::AccessForbidden {
+                    resource: "Deprecated route".to_string(),
+                },
+            )))
+        },
+    )?;
     Ok(())
 }
 
@@ -275,6 +292,9 @@ pub async fn construct_payout_router_data<'a, F>(
             amount: payouts.amount.get_amount_as_i64(),
             minor_amount: payouts.amount,
             connector_payout_id: payout_attempt.connector_payout_id.clone(),
+            connector_eligibility_reference_id: payout_attempt
+                .connector_eligibility_reference_id
+                .clone(),
             destination_currency: payouts.destination_currency,
             source_currency: payouts.source_currency,
             entity_type: payouts.entity_type.to_owned(),
@@ -298,6 +318,7 @@ pub async fn construct_payout_router_data<'a, F>(
             payout_connector_metadata: payout_attempt.payout_connector_metadata.to_owned(),
             additional_payout_method_data: payout_attempt.additional_payout_method_data.to_owned(),
             source_bank_data: payout_data.source_bank_data.clone(),
+            billing_descriptor: payouts.billing_descriptor.clone(),
         },
         response: Ok(types::PayoutsResponseData::default()),
         access_token: None,
@@ -334,6 +355,7 @@ pub async fn construct_payout_router_data<'a, F>(
         customer_document_details: None,
         feature_data: None,
         sender_payment_instrument_id: None,
+        connector_returned_payment_method_details: None,
     };
 
     Ok(router_data)
@@ -466,6 +488,9 @@ pub async fn construct_refund_router_data<'a, F>(
             refund_connector_metadata: refund.metadata.clone(),
             capture_method: Some(capture_method),
             additional_payment_method_data: None,
+            payment_connector_request_reference_id: payment_attempt
+                .connector_request_reference_id
+                .clone(),
         },
 
         response: Ok(types::RefundsResponseData {
@@ -513,6 +538,7 @@ pub async fn construct_refund_router_data<'a, F>(
         customer_document_details: None,
         feature_data: None,
         sender_payment_instrument_id: None,
+        connector_returned_payment_method_details: None,
     };
 
     Ok(router_data)
@@ -665,6 +691,9 @@ pub async fn construct_refund_router_data<'a, F>(
             merchant_config_currency,
             capture_method,
             additional_payment_method_data,
+            payment_connector_request_reference_id: payment_attempt
+                .connector_request_reference_id
+                .clone(),
         },
 
         response: Ok(types::RefundsResponseData {
@@ -711,6 +740,7 @@ pub async fn construct_refund_router_data<'a, F>(
             .attach_printable("Failed to extract customer document details from payment_intent")?,
         feature_data: None,
         sender_payment_instrument_id: None,
+        connector_returned_payment_method_details: None,
     };
 
     Ok(router_data)
@@ -1079,7 +1109,10 @@ pub fn validate_dispute_status(
             matches!(dispute_status, DisputeStatus::DisputeExpired)
         }
         DisputeStatus::DisputeAccepted => {
-            matches!(dispute_status, DisputeStatus::DisputeAccepted)
+            matches!(
+                dispute_status,
+                DisputeStatus::DisputeAccepted | DisputeStatus::DisputeLost
+            )
         }
         DisputeStatus::DisputeCancelled => {
             matches!(dispute_status, DisputeStatus::DisputeCancelled)
@@ -1229,6 +1262,7 @@ pub async fn construct_accept_dispute_router_data<'a>(
             .attach_printable("Failed to extract customer document details from payment_intent")?,
         feature_data: None,
         sender_payment_instrument_id: None,
+        connector_returned_payment_method_details: None,
     };
     Ok(router_data)
 }
@@ -1341,6 +1375,7 @@ pub async fn construct_submit_evidence_router_data<'a>(
             .attach_printable("Failed to extract customer document details from payment_intent")?,
         feature_data: None,
         sender_payment_instrument_id: None,
+        connector_returned_payment_method_details: None,
     };
     Ok(router_data)
 }
@@ -1459,6 +1494,7 @@ pub async fn construct_upload_file_router_data<'a>(
         customer_document_details: None,
         feature_data: None,
         sender_payment_instrument_id: None,
+        connector_returned_payment_method_details: None,
     };
     Ok(router_data)
 }
@@ -1538,6 +1574,7 @@ pub async fn construct_dispute_list_router_data<'a>(
         customer_document_details: None,
         feature_data: None,
         sender_payment_instrument_id: None,
+        connector_returned_payment_method_details: None,
     })
 }
 
@@ -1652,6 +1689,7 @@ pub async fn construct_dispute_sync_router_data<'a>(
             .attach_printable("Failed to extract customer document details from payment_intent")?,
         feature_data: None,
         sender_payment_instrument_id: None,
+        connector_returned_payment_method_details: None,
     };
     Ok(router_data)
 }
@@ -1789,6 +1827,7 @@ pub async fn construct_payments_dynamic_tax_calculation_router_data<F: Clone>(
             .attach_printable("Failed to extract customer document details from payment_intent")?,
         feature_data: None,
         sender_payment_instrument_id: None,
+        connector_returned_payment_method_details: None,
     };
     Ok(router_data)
 }
@@ -1904,6 +1943,7 @@ pub async fn construct_defend_dispute_router_data<'a>(
             .attach_printable("Failed to extract customer document details from payment_intent")?,
         feature_data: None,
         sender_payment_instrument_id: None,
+        connector_returned_payment_method_details: None,
     };
     Ok(router_data)
 }
@@ -2009,6 +2049,7 @@ pub async fn construct_retrieve_file_router_data<'a>(
         customer_document_details: None,
         feature_data: None,
         sender_payment_instrument_id: None,
+        connector_returned_payment_method_details: None,
     };
     Ok(router_data)
 }

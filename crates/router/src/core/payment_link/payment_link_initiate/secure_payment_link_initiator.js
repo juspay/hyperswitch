@@ -82,13 +82,18 @@ if (!isFramed) {
 
     var enableSavedPaymentMethod = paymentDetails.enabled_saved_payment_method;
     var hideCardNicknameField = paymentDetails.hide_card_nickname_field;
+    var layoutOptions = {
+      type: type, //accordion , tabs, spaced accordion
+      spacedAccordionItems: paymentDetails.sdk_layout === "spaced_accordion",
+    };
+    var paymentMethodsSeparatorText = paymentDetails.payment_methods_separator_text;
+    if (paymentMethodsSeparatorText !== null && typeof paymentMethodsSeparatorText === "string") {
+      layoutOptions.separatorText = paymentMethodsSeparatorText;
+    }
     var unifiedCheckoutOptions = {
       displaySavedPaymentMethodsCheckbox: enableSavedPaymentMethod,
       displaySavedPaymentMethods: enableSavedPaymentMethod,
-      layout: {
-        type: type, //accordion , tabs, spaced accordion
-        spacedAccordionItems: paymentDetails.sdk_layout === "spaced_accordion",
-      },
+      layout: layoutOptions,
       branding: "never",
       wallets: {
         walletReturnUrl: paymentDetails.return_url,

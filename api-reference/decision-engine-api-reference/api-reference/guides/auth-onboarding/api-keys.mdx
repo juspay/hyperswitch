@@ -1,0 +1,45 @@
+---
+title: "API Keys"
+description: "Curl examples for creating, listing, and revoking Decision Engine API keys."
+---
+
+# API Keys
+
+API keys are intended for service-to-service traffic. Use the returned `api_key` value as `x-api-key` for protected endpoints.
+
+## Create API Key
+
+```bash
+curl --location "$BASE_URL/api-key/create" \
+  --header "$AUTH_HEADER" \
+  --header "Content-Type: application/json" \
+  --data '{
+    "merchant_id": "merchant_demo",
+    "description": "backend integration key"
+  }'
+```
+
+```json
+{
+  "key_id": "018f...",
+  "api_key": "DE_...",
+  "key_prefix": "DE_abcd",
+  "merchant_id": "merchant_demo",
+  "description": "backend integration key",
+  "created_at": "2026-04-25 10:00:00"
+}
+```
+
+## List API Keys
+
+```bash
+curl "$BASE_URL/api-key/list/merchant_demo" \
+  --header "$AUTH_HEADER"
+```
+
+## Revoke API Key
+
+```bash
+curl --request DELETE "$BASE_URL/api-key/018f-key-id" \
+  --header "$AUTH_HEADER"
+```

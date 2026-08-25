@@ -12,7 +12,7 @@ use crate::{
 
 impl ProfileNew {
     pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<Profile> {
-        generics::generic_insert(conn, self).await
+        Box::pin(generics::generic_insert(conn, self)).await
     }
 }
 
@@ -22,11 +22,12 @@ impl Profile {
         conn: &PgPooledConn,
         business_profile: ProfileUpdateInternal,
     ) -> StorageResult<Self> {
-        match generics::generic_update_by_id::<<Self as HasTable>::Table, _, _, _>(
-            conn,
-            self.get_id().to_owned(),
-            business_profile,
-        )
+        match Box::pin(generics::generic_update_by_id::<
+            <Self as HasTable>::Table,
+            _,
+            _,
+            _,
+        >(conn, self.get_id().to_owned(), business_profile))
         .await
         {
             Err(error) => match error.current_context() {

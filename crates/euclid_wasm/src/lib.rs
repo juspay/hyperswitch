@@ -37,9 +37,8 @@ use api_models::payment_methods::CountryCodeWithName;
 #[cfg(feature = "payouts")]
 use common_enums::PayoutStatus;
 use common_enums::{
-    CardSubtype, CardType, CountryAlpha2, DisputeStatus, EventClass, EventType, IntentStatus,
-    MandateStatus, MerchantCategoryCode, MerchantCategoryCodeWithName, RefundStatus,
-    SubscriptionStatus,
+    CardType, CountryAlpha2, DisputeStatus, EventClass, EventType, IntentStatus, MandateStatus,
+    MerchantCategoryCode, MerchantCategoryCodeWithName, RefundStatus, SubscriptionStatus,
 };
 use strum::IntoEnumIterator;
 
@@ -170,7 +169,14 @@ pub fn seed_knowledge_graph(mcas: JsValue) -> JsResult {
         connector_configs: HashMap::new(),
         default_configs: Some(pm_filter),
     };
-    let mca_graph = kgraph_utils::mca::make_mca_graph(mcas, &config).err_to_js()?;
+    let mca_graph_data = mcas
+        .iter()
+        .map(|mca| api_models::admin::MCACGraphData {
+            connector_name: mca.connector_name.clone(),
+            payment_methods_enabled: mca.payment_methods_enabled.clone(),
+        })
+        .collect::<Vec<_>>();
+    let mca_graph = kgraph_utils::mca::make_mca_graph(mca_graph_data, &config).err_to_js()?;
     let analysis_graph = hyperswitch_constraint_graph::ConstraintGraph::combine(
         &mca_graph,
         &dssa::truth::ANALYSIS_GRAPH,
@@ -536,8 +542,10 @@ pub fn get_payout_description_category() -> JsResult {
 
 #[wasm_bindgen(js_name = getCardSubtypeValues)]
 pub fn get_card_subtype_values() -> JsResult {
-    let subtypes: Vec<CardSubtype> = CardSubtype::iter().collect();
-    Ok(serde_wasm_bindgen::to_value(&subtypes)?)
+    let config = card_metadata::CardMetadataConfig::load()
+        .map_err(|error| error.to_string())
+        .err_to_js()?;
+    Ok(serde_wasm_bindgen::to_value(&config.card_subtypes)?)
 }
 
 #[wasm_bindgen(js_name = getCardTypeValues)]

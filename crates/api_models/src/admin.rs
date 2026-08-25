@@ -327,21 +327,44 @@ pub struct CardBlockingConfig {
     #[schema(value_type = Option<Vec<CardType>>)]
     pub card_types: Option<HashSet<common_enums::CardType>>,
     /// Set of card subtypes to block
-    #[schema(value_type = Option<Vec<CardSubtype>>)]
-    pub card_subtypes: Option<HashSet<common_enums::CardSubtype>>,
+    #[schema(value_type = Option<Vec<String>>)]
+    pub card_subtypes: Option<HashSet<String>>,
     /// Set of card issuer IDs to block
     pub issuers: Option<HashSet<String>>,
     /// Whether to block if BIN is provided but no matching record found in cards_info table.
     /// Defaults to false (allow payment if BIN not found in database).
     pub block_if_bin_info_unavailable: Option<bool>,
+    /// Set of card networks to block
+    #[schema(value_type = Option<Vec<CardNetwork>>)]
+    pub card_networks: Option<HashSet<common_enums::CardNetwork>>,
+    /// Set of card funding sources to block
+    #[schema(value_type = Option<Vec<FundingSource>>)]
+    pub funding_sources: Option<HashSet<common_enums::FundingSource>>,
+    /// Set of card segment types to block
+    #[schema(value_type = Option<Vec<CardSegmentType>>)]
+    pub card_segment_types: Option<HashSet<common_enums::CardSegmentType>>,
+    /// Whether virtual cards should be blocked
+    pub block_virtual_cards: Option<bool>,
+    /// Whether non-reloadable prepaid cards should be blocked
+    pub block_non_reloadable_prepaid_cards: Option<bool>,
+    /// Whether cards from BINs marked for gambling should be blocked
+    pub gambling_blocked: Option<bool>,
 }
 
 /// Wallet-specific blocking configuration for Apple Pay and Google Pay
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
 pub struct WalletBlockingConfig {
-    /// Set of card types to block for wallet payments (e.g., ["Credit", "Debit"])
-    #[schema(value_type = Option<Vec<CardType>>)]
+    /// Set of card types to block for all wallet payments (e.g., ["Credit", "Debit"]).
+    ///
+    /// Deprecated: this applies one rule to every wallet, so a card type cannot be blocked on
+    /// Apple Pay without also blocking it on Google Pay. Use `apple_pay.card_types` and
+    /// `google_pay.card_types` instead, which are evaluated per wallet against that wallet's decrypted card.
+    #[schema(value_type = Option<Vec<CardType>>, deprecated)]
     pub card_types: Option<HashSet<common_enums::CardType>>,
+    /// Apple Pay-specific blocking configuration
+    pub apple_pay: Option<CardBlockingConfig>,
+    /// Google Pay-specific blocking configuration
+    pub google_pay: Option<CardBlockingConfig>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -1632,7 +1655,7 @@ pub struct MerchantConnectorResponse {
     pub connector_wallets_details: Option<ConnectorWalletDetails>,
 
     /// Details about the connector’s webhook configuration
-    #[schema(value_type = Option<WebhookSetupCapabilities>)]
+    #[schema(value_type = Option<WebhookSetupCapabilities>, deprecated)]
     pub webhook_setup_capabilities:
         Option<common_types::connector_webhook_configuration::WebhookSetupCapabilities>,
 }
@@ -2213,7 +2236,7 @@ pub struct MerchantConnectorDetailsWrap {
     #[schema(value_type = Option<MerchantConnectorDetails>, example = r#"{
        "connector_account_details": {
             "auth_type": "HeaderKey",
-            "api_key":"sk_test_xxxxxexamplexxxxxx12345"
+            "api_key":"<stripe_test_secret_key>"
         },
         "metadata": {
             "user_defined_field_1": "sample_1",
@@ -3600,10 +3623,8 @@ pub struct PaymentLinkConfigRequest {
     /// Custom background colour for the payment link
     pub background_colour: Option<String>,
     /// SDK configuration rules
-    #[xss_clean(recurse)]
     pub sdk_ui_rules: Option<HashMap<String, HashMap<String, String>>>,
     /// Payment link configuration rules
-    #[xss_clean(recurse)]
     pub payment_link_ui_rules: Option<HashMap<String, HashMap<String, String>>>,
     /// Flag to enable the button only when the payment form is ready for submission
     pub enable_button_only_on_form_ready: Option<bool>,
@@ -3622,6 +3643,9 @@ pub struct PaymentLinkConfigRequest {
     /// Flag to display the merchant name in the payment link
     #[schema(default = true, example = true)]
     pub show_merchant_name: Option<bool>,
+    /// Custom text for the separator shown between wallet and card payment method sections
+    #[schema(value_type = Option<String>, max_length = 64, example = "Or pay with")]
+    pub payment_methods_separator_text: Option<String>,
 }
 
 impl PaymentLinkConfigRequest {
@@ -3736,10 +3760,8 @@ pub struct PaymentLinkConfig {
     /// Custom background colour for the payment link
     pub background_colour: Option<String>,
     /// SDK configuration rules
-    #[xss_clean(recurse)]
     pub sdk_ui_rules: Option<HashMap<String, HashMap<String, String>>>,
     /// Payment link configuration rules
-    #[xss_clean(recurse)]
     pub payment_link_ui_rules: Option<HashMap<String, HashMap<String, String>>>,
     /// Flag to enable the button only when the payment form is ready for submission
     pub enable_button_only_on_form_ready: bool,
@@ -3757,6 +3779,8 @@ pub struct PaymentLinkConfig {
     pub color_icon_card_cvc_error: Option<String>,
     /// Flag to display the merchant name in the payment link
     pub show_merchant_name: Option<bool>,
+    /// Custom text for the separator shown between wallet and card payment method sections
+    pub payment_methods_separator_text: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
@@ -3820,6 +3844,20 @@ impl std::ops::Deref for TtlForExtendedCardInfo {
     }
 }
 
+#[cfg(feature = "v2")]
+#[derive(Debug)]
+pub struct MCACGraphData {
+    pub connector_name: common_enums::connector_enums::Connector,
+    pub payment_methods_enabled: Option<Vec<common_types::payment_methods::PaymentMethodsEnabled>>,
+}
+
+#[cfg(feature = "v1")]
+#[derive(Debug, Deserialize)]
+pub struct MCACGraphData {
+    pub connector_name: String,
+    pub payment_methods_enabled: Option<Vec<PaymentMethodsEnabled>>,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -3855,6 +3893,7 @@ mod tests {
             is_setup_mandate_flow: None,
             color_icon_card_cvc_error: None,
             show_merchant_name: None,
+            payment_methods_separator_text: None,
         };
         assert!(safe_request.validate().is_ok());
 

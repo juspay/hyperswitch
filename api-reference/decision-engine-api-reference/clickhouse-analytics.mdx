@@ -1,0 +1,130 @@
+---
+title: "ClickHouse Analytics"
+description: "ClickHouse setup notes for analytics"
+---
+
+## Overview
+
+Decision Engine uses a Kafka to ClickHouse analytics pipeline:
+
+- API server captures full request and response bodies for API analytics events
+- API server publishes analytics events to Kafka
+- ClickHouse Kafka engine queue tables consume Kafka and materialized views fan into the raw tables
+
+ClickHouse remains the analytics read store for:
+
+- business-domain analytics events
+- raw API request and response events
+
+The analytics read path uses the two raw tables:
+
+- `analytics_domain_events`
+- `analytics_api_events`
+
+The ingestion path is explicit in ClickHouse too:
+
+- `analytics_domain_events_queue`
+- `analytics_api_events_queue`
+- `analytics_payment_audit_summary_buckets`
+- `analytics_domain_events_mv`
+- `analytics_api_events_mv`
+- `analytics_payment_audit_summary_buckets_mv`
+
+Payment Audit and Preview Trace now use a two-layer read shape:
+
+- raw event timelines still read from `analytics_domain_events`
+- summary lists read from the pre-aggregated `analytics_payment_audit_summary_buckets`
+
+The correlation key for those reads is the write-time `lookup_key`:
+
+- `payment_id` when present
+- otherwise `request_id`
+
+## Local Bring-Up
+
+Start the local analytics stack:
+
+```bash
+COMPOSE_PROFILES= docker compose --profile analytics-clickhouse up -d
+```
+
+That profile now includes ClickHouse, Kafka, and topic creation. The full runtime profiles use the same ClickHouse-native ingestion path. There is no separate Rust worker process anymore.
+
+Local Compose versions:
+
+- ClickHouse: `clickhouse/clickhouse-server:26.1`
+- Kafka: `apache/kafka:3.8.1`
+- ClickHouse database: `default`
+
+The bootstrap DDL now lives in:
+
+- `clickhouse/scripts/`
+
+ClickHouse loads those shell scripts on first boot through `/docker-entrypoint-initdb.d`. They create the raw tables, recreate the Kafka queue tables and materialized views, create the payment-audit summary bucket table, and bind the queue tables to the configured Kafka brokers and topics.
+
+The analytics data volume is persistent, so normal restarts keep historical data.
+
+If you need a clean reset:
+
+```bash
+make reset-analytics-clickhouse
+```
+
+## Config
+
+Relevant config lives under:
+
+```toml
+[analytics]
+enabled = true
+
+[analytics.capture]
+details_max_bytes = 65536
+
+[analytics.kafka]
+# container-to-container traffic uses the internal listener
+brokers = "kafka:19092"
+client_id = "decision-engine"
+api_topic = "api"
+domain_topic = "domain"
+acks = "all"
+compression = "lz4"
+message_timeout_ms = 5000
+queue_capacity = 250
+
+[analytics.clickhouse]
+url = "http://clickhouse:8123"
+database = "default"
+user = "decision_engine"
+password = "decision_engine"
+```
+
+There is no direct API-server write path to ClickHouse anymore. ClickHouse owns Kafka consumption through the queue tables and materialized views.
+
+## Retention
+
+The raw analytics tables retain data for 18 months:
+
+- `analytics_api_events`
+- `analytics_domain_events`
+
+Custom query windows are normalized to the same 18-month lookback horizon.
+
+## Troubleshooting
+
+Useful checks when ingestion looks stalled:
+
+```sql
+SHOW TABLES FROM default;
+SELECT * FROM system.kafka_consumers WHERE database = 'default';
+SELECT count() FROM default.analytics_api_events;
+SELECT count() FROM default.analytics_domain_events;
+SELECT count() FROM default.analytics_payment_audit_summary_buckets;
+SELECT name, engine FROM system.tables WHERE database = 'default' AND name LIKE 'analytics_%';
+```
+
+## Related Docs
+
+- [Analytics](/decision-engine-api-reference/analytics) — the operator-facing view built on this pipeline.
+- [Payment Audit](/decision-engine-api-reference/payment-audit) — single-payment timeline lookups against these tables.
+- [Local Setup Guide](/decision-engine-api-reference/local-setup) — bringing up the `analytics-clickhouse` profile.

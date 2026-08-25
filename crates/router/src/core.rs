@@ -1,3 +1,5 @@
+#[cfg(feature = "v2")]
+pub mod account_updater;
 pub mod admin;
 pub mod api_keys;
 pub mod api_locking;
@@ -35,6 +37,7 @@ pub mod health_check;
 pub mod mandate;
 pub mod merchant_connector_webhook_management;
 pub mod metrics;
+pub mod offer_engine;
 pub mod payment_link;
 #[cfg(feature = "v2")]
 pub mod payment_method_balance;

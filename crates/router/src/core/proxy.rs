@@ -92,7 +92,7 @@ async fn execute_proxy_request(
         .set_body(request::RequestContent::Json(Box::new(processed_body)))
         .build();
 
-    let response = services::call_connector_api(state, request, "proxy")
+    let response = services::call_connector_api(state, request, "proxy", None)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to call the destination");

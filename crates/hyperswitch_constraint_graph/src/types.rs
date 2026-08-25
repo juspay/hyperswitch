@@ -22,13 +22,17 @@ pub trait NodeViz {
     fn viz(&self) -> String;
 }
 
-#[derive(Debug, Clone, Copy, serde::Serialize, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize, PartialEq, Eq, Hash)]
 #[serde(transparent)]
 pub struct NodeId(usize);
 
 impl_entity!(NodeId);
 
-#[derive(Debug)]
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+#[serde(bound(
+    serialize = "V: serde::Serialize, <V as ValueNode>::Key: serde::Serialize",
+    deserialize = "V: serde::de::DeserializeOwned, <V as ValueNode>::Key: serde::de::DeserializeOwned"
+))]
 pub struct Node<V: ValueNode> {
     pub node_type: NodeType<V>,
     pub preds: Vec<EdgeId>,
@@ -45,7 +49,11 @@ impl<V: ValueNode> Node<V> {
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(bound(
+    serialize = "V: serde::Serialize, <V as ValueNode>::Key: serde::Serialize",
+    deserialize = "V: serde::de::DeserializeOwned, <V as ValueNode>::Key: serde::de::DeserializeOwned"
+))]
 pub enum NodeType<V: ValueNode> {
     AllAggregator,
     AnyAggregator,
@@ -53,8 +61,12 @@ pub enum NodeType<V: ValueNode> {
     Value(NodeValue<V>),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 #[serde(tag = "type", content = "value", rename_all = "snake_case")]
+#[serde(bound(
+    serialize = "V: serde::Serialize, <V as ValueNode>::Key: serde::Serialize",
+    deserialize = "V: serde::de::DeserializeOwned, <V as ValueNode>::Key: serde::de::DeserializeOwned"
+))]
 pub enum NodeValue<V: ValueNode> {
     Key(<V as ValueNode>::Key),
     Value(V),
@@ -66,13 +78,23 @@ impl<V: ValueNode> From<V> for NodeValue<V> {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct EdgeId(usize);
 
 impl_entity!(EdgeId);
 
 #[derive(
-    Debug, Clone, Copy, serde::Serialize, PartialEq, Eq, Hash, strum::Display, PartialOrd, Ord,
+    Debug,
+    Clone,
+    Copy,
+    serde::Serialize,
+    serde::Deserialize,
+    PartialEq,
+    Eq,
+    Hash,
+    strum::Display,
+    PartialOrd,
+    Ord,
 )]
 pub enum Strength {
     Weak,
@@ -86,7 +108,9 @@ impl Strength {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, strum::Display, serde::Serialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, strum::Display, serde::Serialize, serde::Deserialize,
+)]
 #[serde(rename_all = "snake_case")]
 pub enum Relation {
     Positive,
@@ -125,7 +149,7 @@ impl RelationResolution {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Edge {
     pub strength: Strength,
     pub relation: Relation,
@@ -134,12 +158,12 @@ pub struct Edge {
     pub domain: Option<DomainId>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct DomainId(usize);
 
 impl_entity!(DomainId);
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct DomainIdentifier(String);
 
 impl DomainIdentifier {
@@ -158,7 +182,7 @@ impl From<String> for DomainIdentifier {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct DomainInfo {
     pub domain_identifier: DomainIdentifier,
     pub domain_description: String,

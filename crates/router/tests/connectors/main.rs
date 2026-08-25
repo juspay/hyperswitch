@@ -55,6 +55,7 @@ mod flexiti;
 mod forte;
 mod getnet;
 mod gigadat;
+mod givepayments;
 mod globalpay;
 mod globepay;
 mod gocardless;

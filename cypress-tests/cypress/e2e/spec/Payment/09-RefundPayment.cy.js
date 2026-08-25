@@ -15,6 +15,76 @@ describe("Card - Refund flow - No 3DS", () => {
     cy.task("setGlobalState", globalState.data);
   });
 
+  context("Bluesnap - warm up account balance", () => {
+    it("Create and Confirm 5 payments of 100000 so the sandbox account has enough settled balance for refunds", () => {
+      if (globalState.get("connectorId") !== "bluesnap") {
+        return;
+      }
+
+      const baseData = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["No3DSAutoCapture"];
+      const warmupData = {
+        ...baseData,
+        Request: { ...baseData.Request, amount: 100000 },
+        Response: {
+          ...baseData.Response,
+          body: { ...baseData.Response.body, amount: 100000 },
+        },
+      };
+
+      cy.step("Warm up transaction 1", () => {
+        cy.createConfirmPaymentTest(
+          fixtures.createConfirmPaymentBody,
+          warmupData,
+          "no_three_ds",
+          "automatic",
+          globalState
+        );
+      });
+
+      cy.step("Warm up transaction 2", () => {
+        cy.createConfirmPaymentTest(
+          fixtures.createConfirmPaymentBody,
+          warmupData,
+          "no_three_ds",
+          "automatic",
+          globalState
+        );
+      });
+
+      cy.step("Warm up transaction 3", () => {
+        cy.createConfirmPaymentTest(
+          fixtures.createConfirmPaymentBody,
+          warmupData,
+          "no_three_ds",
+          "automatic",
+          globalState
+        );
+      });
+
+      cy.step("Warm up transaction 4", () => {
+        cy.createConfirmPaymentTest(
+          fixtures.createConfirmPaymentBody,
+          warmupData,
+          "no_three_ds",
+          "automatic",
+          globalState
+        );
+      });
+
+      cy.step("Warm up transaction 5", () => {
+        cy.createConfirmPaymentTest(
+          fixtures.createConfirmPaymentBody,
+          warmupData,
+          "no_three_ds",
+          "automatic",
+          globalState
+        );
+      });
+    });
+  });
+
   context("Card - Full Refund flow test for No-3DS", () => {
     it("Create Payment Intent -> Payment Methods Call -> Confirm Payment Intent -> Retrieve Payment after Confirmation -> Refund Payment -> Sync Refund Payment", () => {
       let shouldContinue = true;

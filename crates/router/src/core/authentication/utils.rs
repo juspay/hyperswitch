@@ -238,6 +238,10 @@ pub async fn update_trackers<F: Clone, Req>(
 
                 let authentication_status =
                     common_enums::AuthenticationStatus::foreign_from(trans_status.clone());
+                let exemption_accepted = authentication
+                    .psd2_sca_exemption_type
+                    .as_ref()
+                    .map(|_| matches!(&trans_status, common_enums::TransactionStatus::Success));
 
                 authentication::AuthenticationUpdate::AuthenticationUpdate {
                     trans_status,
@@ -272,6 +276,8 @@ pub async fn update_trackers<F: Clone, Req>(
                         .device_details
                         .as_ref()
                         .and_then(|device_details| device_details.device_display.clone()),
+                    platform: authentication_info.platform,
+                    exemption_accepted,
                     updated_by: storage_scheme.to_string(),
                 }
             }
@@ -375,7 +381,7 @@ pub async fn create_new_authentication(
     merchant_id: common_utils::id_type::MerchantId,
     authentication_connector: String,
     token: String,
-    profile_id: common_utils::id_type::ProfileId,
+    business_profile: &domain::Profile,
     payment_id: common_utils::id_type::PaymentId,
     merchant_connector_id: common_utils::id_type::MerchantConnectorAccountId,
     organization_id: common_utils::id_type::OrganizationId,
@@ -383,6 +389,13 @@ pub async fn create_new_authentication(
     psd2_sca_exemption_type: Option<common_enums::ScaExemptionType>,
     processor: &domain::Processor,
     initiator: Option<&domain::Initiator>,
+    card: &hyperswitch_domain_models::payment_method_data::Card,
+    browser_info: Option<&router_request_types::BrowserInformation>,
+    acquirer_details: Option<&super::types::AcquirerDetails>,
+    billing_address: Option<&hyperswitch_domain_models::address::Address>,
+    shipping_address: Option<&hyperswitch_domain_models::address::Address>,
+    amount: Option<common_utils::types::MinorUnit>,
+    currency: Option<common_enums::Currency>,
 ) -> RouterResult<authentication::Authentication> {
     let authentication_id = common_utils::id_type::AuthenticationId::generate_authentication_id(
         consts::AUTHENTICATION_ID_PREFIX,
@@ -395,6 +408,41 @@ pub async fn create_new_authentication(
     let key_manager_state = (state).into();
 
     let current_time = common_utils::date_time::now();
+
+    let issuer_country = card
+        .card_issuing_country_code
+        .clone()
+        .or(card.card_issuing_country.clone());
+    let device_type = browser_info.and_then(|info| info.device_model.clone());
+    let device_os = browser_info.and_then(|info| match (&info.os_type, &info.os_version) {
+        (Some(os_type), Some(os_version)) => Some(format!("{os_type}-{os_version}")),
+        (Some(os_type), None) => Some(os_type.clone()),
+        (None, Some(os_version)) => Some(os_version.clone()),
+        (None, None) => None,
+    });
+    let device_display =
+        browser_info.and_then(|info| match (info.screen_width, info.screen_height) {
+            (Some(width), Some(height)) => Some(format!("{width}x{height}")),
+            _ => None,
+        });
+    let browser_info = browser_info
+        .map(common_utils::ext_traits::Encode::encode_to_value)
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InvalidDataValue {
+            field_name: "browser_information",
+        })?;
+    let billing_country = billing_address.and_then(|billing| {
+        billing
+            .address
+            .as_ref()
+            .and_then(|address| address.country.map(|country| country.to_string()))
+    });
+    let shipping_country = shipping_address.and_then(|shipping| {
+        shipping
+            .address
+            .as_ref()
+            .and_then(|address| address.country.map(|country| country.to_string()))
+    });
 
     let new_authentication = authentication::Authentication {
         authentication_id: authentication_id.clone(),
@@ -418,8 +466,8 @@ pub async fn create_new_authentication(
         message_version: None,
         eci: None,
         trans_status: None,
-        acquirer_bin: None,
-        acquirer_merchant_id: None,
+        acquirer_bin: acquirer_details.map(|details| details.acquirer_bin.clone()),
+        acquirer_merchant_id: acquirer_details.map(|details| details.acquirer_merchant_id.clone()),
         three_ds_method_data: None,
         three_ds_method_url: None,
         acs_url: None,
@@ -427,31 +475,35 @@ pub async fn create_new_authentication(
         acs_reference_number: None,
         acs_trans_id: None,
         acs_signed_content: None,
-        profile_id,
+        profile_id: business_profile.get_id().to_owned(),
         payment_id: Some(payment_id),
         merchant_connector_id: Some(merchant_connector_id),
         ds_trans_id: None,
         directory_server_id: None,
-        acquirer_country_code: None,
+        acquirer_country_code: acquirer_details
+            .and_then(|details| details.acquirer_country_code.clone()),
         organization_id,
-        mcc: None,
-        amount: None,
-        currency: None,
-        billing_country: None,
-        shipping_country: None,
-        issuer_country: None,
+        mcc: business_profile.merchant_category_code.clone(),
+        amount,
+        currency,
+        billing_country,
+        shipping_country,
+        issuer_country,
         earliest_supported_version: None,
         latest_supported_version: None,
         platform: None,
-        device_type: None,
+        device_type,
         device_brand: None,
-        device_os: None,
-        device_display: None,
+        device_os,
+        device_display,
         browser_name: None,
         browser_version: None,
-        issuer_id: None,
-        scheme_name: None,
-        exemption_requested: None,
+        issuer_id: card
+            .card_issuer
+            .as_ref()
+            .map(|issuer_id| issuer_id.replace(' ', "")),
+        scheme_name: card.card_network.as_ref().map(ToString::to_string),
+        exemption_requested: psd2_sca_exemption_type.map(|_| true),
         exemption_accepted: None,
         service_details: None,
         authentication_client_secret,
@@ -460,7 +512,7 @@ pub async fn create_new_authentication(
         return_url: None,
         billing_address: None,
         shipping_address: None,
-        browser_info: None,
+        browser_info,
         email: None,
         profile_acquirer_id: None,
         challenge_code: None,
@@ -469,7 +521,10 @@ pub async fn create_new_authentication(
         message_extension: None,
         challenge_request_key: None,
         customer_details: None,
-        merchant_country_code: None,
+        merchant_country_code: business_profile
+            .merchant_country_code
+            .as_ref()
+            .map(|country_code| country_code.get_country_code()),
         processor_merchant_id: Some(processor.get_account().get_id().clone()),
         created_by: initiator.and_then(|initiator| initiator.to_created_by()),
         // Seed with the configured scheme; the insert layer overwrites with the decided one.

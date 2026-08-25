@@ -1,0 +1,150 @@
+---
+title: "Auth And Onboarding"
+description: "Curl examples for dashboard auth, merchant selection, and merchant onboarding."
+---
+
+# Auth And Onboarding
+
+## Sign Up
+
+```bash
+curl --location "$BASE_URL/auth/signup" \
+  --header "Content-Type: application/json" \
+  --data '{
+    "email": "operator@example.com",
+    "password": "StrongPass#123",
+    "merchant_id": "merchant_demo"
+  }'
+```
+
+## Login
+
+```bash
+curl --location "$BASE_URL/auth/login" \
+  --header "Content-Type: application/json" \
+  --data '{
+    "email": "operator@example.com",
+    "password": "StrongPass#123"
+  }'
+```
+
+Response contains a dashboard JWT:
+
+```json
+{
+  "token": "eyJ...",
+  "user_id": "user_123",
+  "email": "operator@example.com",
+  "merchant_id": "merchant_demo",
+  "role": "admin",
+  "merchants": []
+}
+```
+
+## Current User
+
+```bash
+curl "$BASE_URL/auth/me" \
+  --header "$AUTH_HEADER"
+```
+
+## List User Merchants
+
+```bash
+curl "$BASE_URL/auth/merchants" \
+  --header "$AUTH_HEADER"
+```
+
+## Switch Merchant
+
+```bash
+curl --location "$BASE_URL/auth/switch-merchant" \
+  --header "$AUTH_HEADER" \
+  --header "Content-Type: application/json" \
+  --data '{ "merchant_id": "merchant_demo" }'
+```
+
+## Create Merchant From Dashboard
+
+```bash
+curl --location "$BASE_URL/onboarding/merchant" \
+  --header "$AUTH_HEADER" \
+  --header "Content-Type: application/json" \
+  --data '{ "merchant_name": "Demo Merchant" }'
+```
+
+## Logout
+
+```bash
+curl --location "$BASE_URL/auth/logout" \
+  --header "$AUTH_HEADER" \
+  --request POST
+```
+
+## Verify Email
+
+Public route — the link sent by the signup email-verification flow calls this with the token from the email.
+
+```bash
+curl "$BASE_URL/auth/verify-email?token=vf_9f21a6c0..."
+```
+
+```json
+{ "message": "Email verified successfully." }
+```
+
+## Change Password
+
+```bash
+curl --location "$BASE_URL/auth/change-password" \
+  --header "$AUTH_HEADER" \
+  --header "Content-Type: application/json" \
+  --data '{
+    "current_password": "StrongPass#123",
+    "new_password": "EvenStrongerPass#456"
+  }'
+```
+
+```json
+{ "message": "Password updated successfully." }
+```
+
+## Team Management
+
+Invite and manage members on the authenticated merchant account. Inviting requires the caller's JWT to carry the `admin` role.
+
+### List Members
+
+```bash
+curl "$BASE_URL/merchant/members" \
+  --header "$AUTH_HEADER"
+```
+
+```json
+[
+  { "user_id": "user_123", "email": "operator@example.com", "role": "admin" },
+  { "user_id": "user_456", "email": "teammate@example.com", "role": "member" }
+]
+```
+
+### Invite A Member
+
+```bash
+curl --location "$BASE_URL/merchant/members/invite" \
+  --header "$AUTH_HEADER" \
+  --header "Content-Type: application/json" \
+  --data '{ "email": "teammate@example.com", "role": "member" }'
+```
+
+`role` is optional and defaults to `"member"`; the only other accepted value is `"admin"`.
+
+```json
+{
+  "email": "teammate@example.com",
+  "is_new_user": true,
+  "password": "TempPass#8821",
+  "role": "member"
+}
+```
+
+`password` is only present when the invite creates a brand-new user account — share it out of band so they can log in and change it. Inviting an email that's already a user omits `password` and just adds the membership.

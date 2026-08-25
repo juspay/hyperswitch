@@ -117,13 +117,19 @@ where
             header_payload,
             unified_connector_service_execution_mode,
             |mut router_data, granular_authorize_request, grpc_headers| async move {
-                let response = Box::pin(client.payment_authorize(
+                let response = match Box::pin(client.payment_authorize(
                     granular_authorize_request,
                     connector_auth_metadata,
                     grpc_headers,
                 ))
                 .await
-                .attach_printable("Failed to get payment")?;
+                {
+                    Ok(response) => response,
+                    // UCS connector errors are handled by the wrapper — see `ucs_logging_wrapper_granular`.
+                    Err(report) => {
+                        return Err(report.attach_printable("Failed to get payment"));
+                    }
+                };
 
                 let payment_authorize_response = response.into_inner();
 
@@ -169,7 +175,7 @@ where
         ))
         .await
         .map(|(router_data, _)| router_data)
-        .change_context(ConnectorError::ResponseHandlingFailed)
+        .map_err(super::convert_ucs_error_to_connector_error)
     }
 }
 

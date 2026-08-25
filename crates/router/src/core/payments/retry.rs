@@ -410,7 +410,7 @@ where
     .await?;
 
     let (merchant_connector_account, router_data, tokenization_action) =
-        payments::call_connector_service_prerequisites(
+        Box::pin(payments::call_connector_service_prerequisites(
             state,
             platform,
             connector.clone(),
@@ -421,7 +421,7 @@ where
             should_retry_with_pan,
             routing_decision,
             feature_config,
-        )
+        ))
         .await?;
 
     let connector_customer_map = customer
@@ -876,6 +876,8 @@ pub fn make_new_auto_retry_payment_attempt(
         retry_type: Some(storage_enums::RetryType::AutoRetry),
         installment_data: Default::default(),
         external_surcharge_details: Default::default(),
+        // Carry the offer forward so the auto-retry keeps the same offer-reduced amount.
+        applied_offer_details: old_payment_attempt.applied_offer_details,
         sender_payment_instrument_id: Default::default(),
     }
 }

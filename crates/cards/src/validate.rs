@@ -85,7 +85,7 @@ impl CardNumber {
         let mut no_of_supported_card_networks = 0;
 
         let card_number_str = self.get_card_no();
-        for (_, regex) in CARD_NETWORK_REGEX.iter() {
+        for regex in CARD_NETWORK_REGEX.values() {
             let card_regex = match regex.as_ref() {
                 Ok(regex) => Ok(regex),
                 Err(_) => Err(report!(ValidationError::InvalidValue {

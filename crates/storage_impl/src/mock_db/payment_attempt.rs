@@ -254,6 +254,7 @@ impl PaymentAttemptInterface for MockDb {
             retry_type: payment_attempt.retry_type,
             installment_data: payment_attempt.installment_data,
             external_surcharge_details: payment_attempt.external_surcharge_details,
+            applied_offer_details: payment_attempt.applied_offer_details,
             sender_payment_instrument_id: payment_attempt.sender_payment_instrument_id,
         };
         payment_attempts.push(payment_attempt.clone());
