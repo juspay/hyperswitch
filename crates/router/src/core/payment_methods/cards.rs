@@ -4919,7 +4919,12 @@ pub async fn build_merchant_enabled_pms_context(
     };
 
     let offers_enabled = matches!(
-        offer_engine::resolve_offer_engine_config(state, &dimensions).await,
+        offer_engine::resolve_offer_engine_config(
+            state,
+            &dimensions,
+            platform.get_processor().get_account().get_offer_engine_config(),
+        )
+        .await,
         Ok(Some(_))
     );
 
