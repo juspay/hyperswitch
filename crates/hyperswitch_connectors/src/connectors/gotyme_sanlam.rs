@@ -92,7 +92,7 @@ impl ConnectorCommon for GotymeSanlam {
     }
 
     fn get_currency_unit(&self) -> api::CurrencyUnit {
-        api::CurrencyUnit::Minor
+        api::CurrencyUnit::Base
     }
 
     fn common_get_content_type(&self) -> &'static str {
