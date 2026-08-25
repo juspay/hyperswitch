@@ -13,11 +13,15 @@ use crate::{
     routes::{app::SessionStateInfo, SessionState},
 };
 
-fn lock_key_for(cluster_key: &str) -> String {
-    format!("revenue_recovery_retry_stats_lock:{cluster_key}")
-}
-
 impl RetryOutcomeEvent {
+    /// Redis key of the per-cluster-key lock guarding this event's read-merge-write.
+    fn get_redis_locking_key(&self) -> String {
+        format!(
+            "revenue_recovery_retry_stats_lock:{}",
+            self.key.as_db_string()
+        )
+    }
+
     /// Record this outcome into `revenue_recovery_retry_stats` under a per-key
     /// Redis lock so concurrent writers don't lose updates in the read-merge-write.
     /// Recording is best-effort: any failure is logged and swallowed so it never
@@ -61,7 +65,6 @@ impl RetryOutcomeEvent {
         match persist_node(
             store.as_ref(),
             &redis_conn,
-            &db_key,
             self,
             lock_retries,
             delay_between_retries_in_milliseconds,
@@ -88,13 +91,13 @@ impl RetryOutcomeEvent {
 async fn persist_node(
     store: &dyn RevenueRecoveryRetryStatsInterface<Error = StorageError>,
     redis_conn: &redis_interface::RedisConnectionWithContext,
-    db_key: &str,
     event: &RetryOutcomeEvent,
     lock_retries: u32,
     delay_between_retries_in_milliseconds: u32,
     redis_lock_expiry_seconds: u32,
 ) -> CustomResult<(), StorageError> {
-    let lock_key = lock_key_for(db_key);
+    let db_key = event.key.as_db_string();
+    let lock_key = event.get_redis_locking_key();
     let lock_token = uuid::Uuid::new_v4().to_string();
 
     let wait_duration =
@@ -132,7 +135,7 @@ async fn persist_node(
         return Ok(());
     }
 
-    let result = merge_and_write(store, db_key, event).await;
+    let result = merge_and_write(store, event).await;
 
     release_lock(redis_conn, &lock_key, &lock_token).await;
 
@@ -141,7 +144,6 @@ async fn persist_node(
 
 async fn merge_and_write(
     store: &dyn RevenueRecoveryRetryStatsInterface<Error = StorageError>,
-    db_key: &str,
     event: &RetryOutcomeEvent,
 ) -> CustomResult<(), StorageError> {
     // Resolve the current document and whether a row already exists. A row whose
@@ -155,7 +157,7 @@ async fn merge_and_write(
         Ok(None) => (None, false),
         Err(error) if matches!(error.current_context(), StorageError::DeserializationFailed) => {
             logger::error!(
-                cluster_key = %db_key,
+                cluster_key = %event.key.as_db_string(),
                 ?error,
                 "revenue_recovery_retry_stats: stored document is corrupt, rebuilding from empty"
             );
