@@ -2276,7 +2276,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                         .change_context(errors::ApiErrorResponse::InternalServerError)
                         .attach_printable("Failed to call authentication sync flow")?
                     } else {
-                        crate::core::unified_authentication_service::authentication_sync_core(
+                        let resp = crate::core::unified_authentication_service::authentication_sync_core(
                             state.clone(),
                             platform.clone(),
                             services::api::AuthFlow::Merchant,
@@ -2285,13 +2285,15 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                         .await?
                         .get_json_body()
                         .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Failed to get json body from authentication sync response")?
-                    }
-                } else {
-                    return Err(errors::ApiErrorResponse::InternalServerError).attach_printable("Pull mechanism disabled or terminal status during post-authentication sync")?;
-                };
+                        .attach_printable("Failed to get json body from authentication sync response")?;
+                    router_env::logger::info!("Authentication Microservice Sync Response is : {:#?}", resp);
+                    resp
+                }
+            } else {
+                return Err(errors::ApiErrorResponse::InternalServerError).attach_printable("Pull mechanism disabled or terminal status during post-authentication sync")?;
+            };
 
-                let updated_authentication_status = sync_response.status;
+            let updated_authentication_status = sync_response.status;
 
                  let authentication_domain_model = authentication::transformers::construct_authentication_domain_model(
                     (
@@ -3251,6 +3253,21 @@ async fn apply_selected_offer<F: Clone + Send + Sync>(
         .as_ref()
         .and_then(|payment_method_data| payment_method_data.get_card_data());
 
+    let card_alias = match offer_card.map(|card| &card.card_number) {
+        Some(card_number) => Some(
+            offer_engine::velocity::generate_card_alias(
+                state,
+                processor.get_account(),
+                card_number,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::PreconditionFailed {
+                message: "Cannot apply offer: card velocity key unavailable".to_string(),
+            })?,
+        ),
+        None => None,
+    };
+
     let ctx = offer_engine::apply::OfferApplyContext {
         payment_id,
         attempt_id: payment_data.payment_attempt.attempt_id.clone(),
@@ -3270,6 +3287,7 @@ async fn apply_selected_offer<F: Clone + Send + Sync>(
         card_type: offer_card.and_then(|card| card.card_type.clone()),
         bank_code: offer_card.and_then(|card| card.bank_code.clone()),
         card_country: offer_card.and_then(|card| card.card_issuing_country.clone()),
+        card_alias,
     };
 
     let applied = Box::pin(offer_engine::apply::run_offer_apply(

@@ -2851,6 +2851,17 @@ impl PaymentMethod {
         }
     }
 
+    pub fn should_persist_locker_id_for_saved_payment_method(
+        &self,
+        should_check_for_customer_pm: bool,
+    ) -> bool {
+        match self {
+            Self::Card | Self::BankDebit | Self::BankRedirect => true,
+            Self::Wallet => !should_check_for_customer_pm,
+            _ => false,
+        }
+    }
+
     pub fn is_additional_payment_method_data_sensitive(&self) -> bool {
         match self {
             Self::BankTransfer | Self::BankRedirect => true,
