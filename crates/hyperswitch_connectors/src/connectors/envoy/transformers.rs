@@ -666,6 +666,7 @@ impl TryFrom<PayoutsResponseRouterData<PoFulfill, EnvoyPayoutSoapResponse>>
                     error_code,
                     error_message,
                     payout_connector_metadata: None,
+                    connector_eligibility_reference_id: None,
                 }),
                 ..item.data
             })
@@ -679,6 +680,7 @@ impl TryFrom<PayoutsResponseRouterData<PoFulfill, EnvoyPayoutSoapResponse>>
                     error_code: Some(payment_account_v3_result.status_code.clone().to_string()),
                     error_message: payment_account_v3_result.status_message.clone(),
                     payout_connector_metadata: None,
+                    connector_eligibility_reference_id: None,
                 }),
                 ..item.data
             })

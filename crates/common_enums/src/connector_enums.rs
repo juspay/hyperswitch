@@ -129,6 +129,7 @@ pub enum Connector {
     Interpayments,
     Inespay,
     Iatapay,
+    Ilixium,
     Imerchantsolutions,
     Itaubank,
     Jpmorgan,
@@ -202,6 +203,7 @@ pub enum Connector {
     Wise,
     Worldline,
     Worldpay,
+    Worldpayraft,
     Worldpayvantiv,
     Worldpayxml,
     Worldpaymodular,
@@ -461,10 +463,12 @@ impl Connector {
             | Self::Paytm
             | Self::Payconex
             | Self::Citigate
+            | Self::Worldpayraft
             | Self::Payjustnow
             | Self::Payjustnowinstore
             | Self::Phonepe
             | Self::Imerchantsolutions
+            | Self::Ilixium
             | Self::Givepayments => false,
             Self::Stripe | Self::Checkout | Self::Zift | Self::Nmi | Self::Braintree|
             Self::Cybersource | Self::Archipel | Self::Nuvei | Self::Adyen => true,
