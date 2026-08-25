@@ -179,13 +179,7 @@ pub async fn recovery_incoming_webhook_flow(
         action: RecoveryAction::get_action(event_type, attempt_triggered_by),
     };
 
-    // Return early, before the retry threshold is fetched below. Events mapping to `InvalidAction`
-    // are not revenue recovery events at all, so they must not fail the webhook when the billing
-    // connector account has no revenue recovery config (and hence no retry threshold) set up.
-    if matches!(
-        recovery_action.action,
-        common_types::payments::RecoveryAction::InvalidAction
-    ) {
+    if recovery_action.is_invalid_action() {
         logger::info!("No recovery action needed for this event type");
         return Ok(webhooks::WebhookResponseTracker::NoEffect);
     }
@@ -1558,6 +1552,13 @@ impl RecoveryAction {
                 common_types::payments::RecoveryAction::CancelInvoice
             }
         }
+    }
+
+    pub fn is_invalid_action(&self) -> bool {
+        matches!(
+            self.action,
+            common_types::payments::RecoveryAction::InvalidAction
+        )
     }
 
     #[allow(clippy::too_many_arguments)]
