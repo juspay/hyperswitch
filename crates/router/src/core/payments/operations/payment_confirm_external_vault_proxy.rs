@@ -747,16 +747,31 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsRequest, PaymentData<F>>
                 .attach_printable("could not resolve a payment_method_id from the payment_token")?;
 
                 // 2. Retrieve the external vault tokens for that payment method from the modular PM
-                //    service.
-                let profile_id = platform
-                    .get_processor()
-                    .get_account()
-                    .get_default_profile()
+                //    service, under the profile the payment intent actually belongs to (this runs
+                //    before `get_trackers`, so the intent is loaded here the same way the regular
+                //    confirm operation's `fetch_payment_method` does).
+                let payment_id = req
+                    .payment_id
+                    .as_ref()
+                    .get_required_value("payment_id")?
+                    .get_payment_intent_id()
+                    .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
+                let payment_intent = state
+                    .store
+                    .find_payment_intent_by_payment_id_processor_merchant_id(
+                        &payment_id,
+                        platform.get_processor().get_account().get_id(),
+                        platform.get_processor().get_key_store(),
+                        platform.get_processor().get_account().storage_scheme,
+                    )
+                    .await
+                    .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+                let profile_id = payment_intent
+                    .profile_id
                     .clone()
                     .get_required_value("profile_id")
-                    .attach_printable(
-                        "profile_id is required to fetch external vault tokens from the modular service",
-                    )?;
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("'profile_id' not set in payment intent")?;
 
                 let payment_method_with_raw_data =
                     pm_transformers::fetch_payment_method_from_modular_service(
