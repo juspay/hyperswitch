@@ -1032,6 +1032,28 @@ pub async fn fetch_de_euclid_routing_records_raw(
         .map_err(error_stack::Report::from)
 }
 
+/// Rule ids from raw DE records, including rules HS cannot represent. Existence and
+/// already-active checks must use this rather than the lenient parse, or an
+/// unrepresentable rule reads as absent.
+pub fn de_euclid_routing_record_ids(raw_records: &[serde_json::Value]) -> Vec<String> {
+    raw_records
+        .iter()
+        .filter_map(|record| {
+            record
+                .get("id")
+                .and_then(|id| id.as_str())
+                .map(|id| id.to_string())
+        })
+        .collect()
+}
+
+/// Transaction type of a raw DE record, for callers that must not drop unrepresentable rules.
+pub fn de_euclid_routing_record_algorithm_for(raw: &serde_json::Value) -> Option<TransactionType> {
+    raw.get("algorithm_for")
+        .and_then(|value| value.as_str())
+        .and_then(|value| serde_json::from_value(serde_json::Value::String(value.to_string())).ok())
+}
+
 /// Parses a raw DE record; None (with a log) for rules HS cannot represent (e.g. `ab_test`).
 pub fn parse_de_euclid_routing_record(raw: serde_json::Value) -> Option<RoutingAlgorithmRecord> {
     serde_json::from_value::<RoutingAlgorithmRecord>(raw)
@@ -2215,7 +2237,13 @@ pub async fn select_routing_result<T>(
 where
     T: Clone + IntoIterator,
 {
-    let routing_result_source = get_routing_result_source(state, dimensions).await;
+    // Same predicate as every other consumer: with the global flag off the profile is
+    // Hyperswitch-routed, so reads must not serve DE records the payment path ignores.
+    let routing_result_source = if is_decision_engine_routing_effective(state, dimensions).await {
+        api_routing::RoutingResultSource::DecisionEngine
+    } else {
+        api_routing::RoutingResultSource::HyperswitchRouting
+    };
 
     match routing_result_source {
         api_routing::RoutingResultSource::DecisionEngine => {

@@ -200,6 +200,63 @@ fn convert_euclid_algorithm_to_de_static(
     }
 }
 
+/// Clears the Hyperswitch active-algorithm ref for a profile the DE now owns. Without
+/// this the ref is unreachable (the profile PATCH gate rejects direct writes) yet still
+/// served by `select_routing_result` whenever the DE result is empty.
+#[cfg(feature = "v1")]
+async fn clear_hs_active_algorithm_ref(
+    state: &SessionState,
+    processor: &domain::Processor,
+    business_profile: &domain::Profile,
+    transaction_type: &enums::TransactionType,
+) -> RouterResult<()> {
+    let current_ref: routing_types::RoutingAlgorithmRef = match transaction_type {
+        enums::TransactionType::Payment => business_profile.routing_algorithm.clone(),
+        #[cfg(feature = "payouts")]
+        enums::TransactionType::Payout => business_profile.payout_routing_algorithm.clone(),
+        enums::TransactionType::ThreeDsAuthentication => {
+            business_profile.three_ds_decision_rule_algorithm.clone()
+        }
+    }
+    .map(|val| val.parse_value("RoutingAlgorithmRef"))
+    .transpose()
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("unable to deserialize routing algorithm ref from business profile")?
+    .unwrap_or_default();
+
+    if current_ref.algorithm_id.is_none() {
+        return Ok(());
+    }
+
+    let cleared_ref = routing_types::RoutingAlgorithmRef {
+        algorithm_id: None,
+        timestamp: common_utils::date_time::now_unix_timestamp(),
+        config_algo_id: current_ref.config_algo_id.clone(),
+        surcharge_config_algo_id: current_ref.surcharge_config_algo_id.clone(),
+    };
+    helpers::update_profile_active_algorithm_ref(
+        state.store.as_ref(),
+        processor.get_key_store(),
+        business_profile.clone(),
+        cleared_ref,
+        transaction_type,
+    )
+    .await?;
+
+    helpers::redact_cgraph_cache(
+        state,
+        processor.get_account().get_id(),
+        business_profile.get_id(),
+    )
+    .await?;
+    helpers::redact_routing_cache(
+        state,
+        processor.get_account().get_id(),
+        business_profile.get_id(),
+    )
+    .await
+}
+
 /// Mirrors the "already active" precondition on DE state; best-effort so a failed
 /// listing never blocks the idempotent DE activation.
 #[cfg(feature = "v1")]
@@ -210,7 +267,8 @@ async fn ensure_de_rule_not_already_active(
     de_rule_id: &str,
 ) -> RouterResult<()> {
     let active_records =
-        fetch_de_euclid_routing_records(state, profile_id.get_string_repr().to_string(), true)
+        // Raw records: a rule HS cannot represent is still active on the DE.
+        fetch_de_euclid_routing_records_raw(state, profile_id.get_string_repr().to_string(), true)
             .await
             .map_err(|error| {
                 router_env::logger::warn!(
@@ -221,7 +279,8 @@ async fn ensure_de_rule_not_already_active(
             .unwrap_or_default();
     utils::when(
         active_records.iter().any(|record| {
-            &record.algorithm_for == transaction_type && record.id.get_string_repr() == de_rule_id
+            de_euclid_routing_record_algorithm_for(record).as_ref() == Some(transaction_type)
+                && record.get("id").and_then(|id| id.as_str()) == Some(de_rule_id)
         }),
         || {
             Err(errors::ApiErrorResponse::PreconditionFailed {
@@ -260,23 +319,32 @@ async fn find_de_record_for_algorithm(
             .attach_printable("failed to list profiles while resolving a DE-only rule id")?,
     };
 
+    // One profile's DE failure must not abort the scan (a later profile may hold the rule)
+    // nor turn an unknown id into anything but a not-found; but if nothing matched and the
+    // DE did fail, surface that instead of claiming the rule does not exist.
+    let mut de_lookup_error = None;
     for business_profile in candidate_profiles {
         if !is_profile_cutover_effective(state, platform, business_profile.get_id().clone()).await {
             continue;
         }
-        // Propagated: a DE outage must not turn an existing DE-only rule into a 404.
-        let records = fetch_de_euclid_routing_records(
+        let records = match fetch_de_euclid_routing_records(
             state,
             business_profile.get_id().get_string_repr().to_string(),
             false,
         )
         .await
-        .map_err(|error| {
-            map_de_write_error(
-                error,
-                "decision_engine_euclid: failed to list DE rules while resolving a rule id",
-            )
-        })?;
+        {
+            Ok(records) => records,
+            Err(error) => {
+                router_env::logger::warn!(
+                    ?error,
+                    profile_id = %business_profile.get_id().get_string_repr(),
+                    "decision_engine_euclid: failed to list DE rules while resolving a rule id"
+                );
+                de_lookup_error = Some(error);
+                continue;
+            }
+        };
 
         if let Some(record) = records
             .into_iter()
@@ -285,7 +353,14 @@ async fn find_de_record_for_algorithm(
             return Ok(Some((business_profile, record)));
         }
     }
-    Ok(None)
+
+    match de_lookup_error {
+        Some(error) => Err(map_de_write_error(
+            error,
+            "decision_engine_euclid: failed to list DE rules while resolving a rule id",
+        )),
+        None => Ok(None),
+    }
 }
 
 /// Single/priority/volume-split map to api shapes; advanced programs are returned
@@ -335,11 +410,11 @@ fn de_record_to_merchant_routing_algorithm(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("failed to convert DE volume split to api shape")?,
         advanced @ StaticRoutingAlgorithm::Advanced(_) => {
-            routing_types::RoutingAlgorithmWrapper::DecisionEngine(
-                serde_json::to_value(advanced)
+            routing_types::RoutingAlgorithmWrapper::DecisionEngine {
+                decision_engine_algorithm: serde_json::to_value(advanced)
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("failed to serialize DE advanced algorithm")?,
-            )
+            }
         }
     };
 
@@ -467,97 +542,95 @@ pub async fn retrieve_merchant_routing_dictionary(
         routing_metadata,
     );
 
-    let mut result: Vec<routing_types::RoutingDictionaryRecord> = routing_metadata
+    let result: Vec<routing_types::RoutingDictionaryRecord> = routing_metadata
         .into_iter()
         .map(ForeignInto::foreign_into)
         .collect::<Vec<_>>();
 
-    // Merchant-level listing enumerates profiles so cut-over profiles' DE rules appear;
-    // with the flag off (or enumeration failing) the HS-only listing is preserved exactly.
-    let expanded_from_merchant_level = profile_id_list.is_none();
-    let profile_id_list = match profile_id_list {
-        Some(profile_ids) => Some(profile_ids),
-        None if state.conf.open_router.static_routing_enabled => state
-            .store
-            .list_profile_by_merchant_id(
-                platform.get_processor().get_key_store(),
-                platform.get_processor().get_account().get_id(),
-            )
-            .await
-            .map(|profiles| {
-                profiles
-                    .into_iter()
-                    .map(|profile| profile.get_id().clone())
-                    .collect::<Vec<_>>()
-            })
-            .map_err(|error| {
-                router_env::logger::error!(
-                    ?error,
-                    "decision_engine_euclid: failed to list profiles for merchant-level routing list"
-                );
-            })
-            .ok(),
-        None => None,
-    };
-
-    if let Some(profile_ids) = profile_id_list {
-        let mut de_result: Vec<routing_types::RoutingDictionaryRecord> = vec![];
-        // DE_TODO: need to replace this with batch API call to reduce the number of network calls
-        for profile_id in &profile_ids {
-            // Only cut-over profiles warrant a DE call on the enumerated merchant-level path.
-            if expanded_from_merchant_level
-                && !is_profile_cutover_effective(&state, &platform, profile_id.clone()).await
-            {
-                continue;
-            }
-            let list_request = ListRountingAlgorithmsRequest {
-                created_by: profile_id.get_string_repr().to_string(),
-            };
-            list_de_euclid_routing_algorithms(&state, list_request)
-                .await
-                .map_err(|e| {
-                    router_env::logger::error!(decision_engine_error=?e, "decision_engine_euclid");
-                })
-                .ok() // Avoid throwing error if Decision Engine is not available or other errors
-                .map(|mut de_routing| de_result.append(&mut de_routing));
-        }
-        // filter de_result based on transaction type
-        de_result.retain(|record| record.algorithm_for == Some(transaction_type));
-        // append dynamic routing algorithms to de_result once (DE cannot represent them)
-        de_result.extend(
-            result
-                .iter()
-                .filter(|record| record.kind == routing_types::RoutingAlgorithmKind::Dynamic)
-                .cloned(),
-        );
-        compare_and_log_result(
-            de_result.clone(),
-            result.clone(),
-            "list_routing".to_string(),
-            false,
-        );
-        let listed_profiles: HashSet<_> = profile_ids.iter().cloned().collect();
-        let mut merged =
-            build_list_routing_result(&state, platform, &result, &de_result, profile_ids.clone())
-                .await?;
-        // Keep records whose profile is not in the enumerated list (e.g. deleted profiles).
-        merged.extend(
-            result
-                .iter()
-                .filter(|record| !listed_profiles.contains(&record.profile_id))
-                .cloned(),
-        );
-        if expanded_from_merchant_level {
-            // Restore the DB ordering the merchant-level listing always had.
-            merged.sort_by_key(|record| std::cmp::Reverse(record.modified_at));
-        }
-        result = merged;
-    }
+    // The merchant-level listing (no profile filter) stays Hyperswitch-only: the DE list
+    // API is unpaginated, so merging it into a limit/offset page would break paging.
+    // DE-backed rules are served by the profile-scoped listing below.
+    #[cfg(feature = "v1")]
+    let result =
+        merge_de_routing_records(&state, &platform, result, profile_id_list, transaction_type)
+            .await?;
 
     metrics::ROUTING_MERCHANT_DICTIONARY_RETRIEVE_SUCCESS_RESPONSE.add(1, &[]);
     Ok(service_api::ApplicationResponse::Json(
         routing_types::RoutingKind::RoutingAlgorithm(result),
     ))
+}
+
+/// Merges DE-held rules into a profile-scoped listing, per profile and only for profiles
+/// effectively cut over. Profiles served by Hyperswitch keep the HS records untouched.
+#[cfg(feature = "v1")]
+async fn merge_de_routing_records(
+    state: &SessionState,
+    platform: &domain::Platform,
+    hs_result: Vec<routing_types::RoutingDictionaryRecord>,
+    profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
+    transaction_type: enums::TransactionType,
+) -> RouterResult<Vec<routing_types::RoutingDictionaryRecord>> {
+    let Some(profile_ids) = profile_id_list else {
+        return Ok(hs_result);
+    };
+
+    let mut cutover_profiles = Vec::new();
+    for profile_id in &profile_ids {
+        if is_profile_cutover_effective(state, platform, profile_id.clone()).await {
+            cutover_profiles.push(profile_id.clone());
+        }
+    }
+    if cutover_profiles.is_empty() {
+        return Ok(hs_result);
+    }
+
+    let mut de_result: Vec<routing_types::RoutingDictionaryRecord> = vec![];
+    // DE_TODO: need to replace this with batch API call to reduce the number of network calls
+    for profile_id in &cutover_profiles {
+        let list_request = ListRountingAlgorithmsRequest {
+            created_by: profile_id.get_string_repr().to_string(),
+        };
+        list_de_euclid_routing_algorithms(state, list_request)
+            .await
+            .map_err(|e| {
+                router_env::logger::error!(decision_engine_error=?e, "decision_engine_euclid");
+            })
+            .ok() // Avoid throwing error if Decision Engine is not available or other errors
+            .map(|mut de_routing| de_result.append(&mut de_routing));
+    }
+    // filter de_result based on transaction type
+    de_result.retain(|record| record.algorithm_for == Some(transaction_type));
+    // append dynamic routing algorithms to de_result once (DE cannot represent them)
+    de_result.extend(
+        hs_result
+            .iter()
+            .filter(|record| record.kind == routing_types::RoutingAlgorithmKind::Dynamic)
+            .cloned(),
+    );
+    compare_and_log_result(
+        de_result.clone(),
+        hs_result.clone(),
+        "list_routing".to_string(),
+        false,
+    );
+
+    let mut merged = build_list_routing_result(
+        state,
+        platform.clone(),
+        &hs_result,
+        &de_result,
+        cutover_profiles.clone(),
+    )
+    .await?;
+    // Profiles not cut over keep their Hyperswitch records verbatim.
+    let cutover: HashSet<_> = cutover_profiles.into_iter().collect();
+    merged.extend(
+        hs_result
+            .into_iter()
+            .filter(|record| !cutover.contains(&record.profile_id)),
+    );
+    Ok(merged)
 }
 
 async fn build_list_routing_result(
@@ -748,8 +821,11 @@ pub async fn create_routing_algorithm_under_profile(
         .await?;
     }
 
-    let is_three_ds_rule = matches!(algorithm, EuclidAlgorithm::ThreeDsDecisionRule(_));
-    // 3DS decision rules cannot live on the DE, so they follow the HS path even under cutover.
+    // 3DS decision rules cannot live on the DE, so they follow the HS path even under
+    // cutover. Kind and transaction_type are independent request fields, so both must
+    // exclude — otherwise a rule is written on one engine and read back from the other.
+    let is_three_ds_rule = matches!(algorithm, EuclidAlgorithm::ThreeDsDecisionRule(_))
+        || transaction_type == enums::TransactionType::ThreeDsAuthentication;
     let de_routing_effective = !is_three_ds_rule
         && is_profile_cutover_effective(&state, &platform, profile_id.clone()).await;
 
@@ -994,6 +1070,16 @@ pub async fn link_routing_config(
                         "decision_engine_euclid: rule activation failed on the Decision Engine",
                     )
                 })?;
+
+                // The DE now owns this profile's active rule; a leftover HS ref would
+                // still be served whenever the DE result comes back empty.
+                clear_hs_active_algorithm_ref(
+                    &state,
+                    &processor,
+                    &business_profile,
+                    &transaction_type,
+                )
+                .await?;
 
                 metrics::ROUTING_LINK_CONFIG_SUCCESS_RESPONSE.add(1, &[]);
                 return Ok(service_api::ApplicationResponse::Json(
@@ -1251,16 +1337,20 @@ pub async fn link_routing_config(
                 })
             })?;
 
-            // 3DS decision rules stay HS-managed even under cutover.
+            // 3DS decision rules stay HS-managed even under cutover; kind and
+            // transaction_type must agree here and in create/unlink/list, or a rule is
+            // written on one engine and read back from the other.
             let de_routing_effective = !matches!(
                 routing_algorithm.kind,
                 diesel_models::enums::RoutingAlgorithmKind::ThreeDsDecisionRule
-            ) && is_profile_cutover_effective(
-                &state,
-                &platform,
-                business_profile.get_id().clone(),
-            )
-            .await;
+            ) && transaction_type
+                != enums::TransactionType::ThreeDsAuthentication
+                && is_profile_cutover_effective(
+                    &state,
+                    &platform,
+                    business_profile.get_id().clone(),
+                )
+                .await;
 
             if de_routing_effective {
                 // Activate on the DE (hard-fail), leaving HS state untouched; rules the
@@ -1342,6 +1432,16 @@ pub async fn link_routing_config(
                         "decision_engine_euclid: rule activation failed on the Decision Engine",
                     )
                 })?;
+
+                // The DE now owns this profile's active rule; a leftover HS ref would
+                // still be served whenever the DE result comes back empty.
+                clear_hs_active_algorithm_ref(
+                    &state,
+                    &processor,
+                    &business_profile,
+                    &transaction_type,
+                )
+                .await?;
 
                 metrics::ROUTING_LINK_CONFIG_SUCCESS_RESPONSE.add(1, &[]);
                 return Ok(service_api::ApplicationResponse::Json(
@@ -1593,8 +1693,8 @@ pub async fn unlink_routing_config(
                 && is_profile_cutover_effective(&state, &platform, profile_id.clone()).await;
 
             if de_routing_effective {
-                // Deactivate on the DE (hard-fail), leaving HS state untouched. Raw records
-                // so an unrepresentable active rule errors instead of "already inactive".
+                // Deactivate on the DE (hard-fail). Raw records so an unrepresentable
+                // active rule errors instead of reporting "already inactive".
                 let profile_id_str = profile_id.get_string_repr().to_string();
                 let raw_active_record = fetch_de_euclid_routing_records_raw(
                     &state,
@@ -1605,8 +1705,7 @@ pub async fn unlink_routing_config(
                 .map_err(|error| map_de_write_error(error, "decision_engine_euclid: failed to list active DE rules during deactivation"))?
                 .into_iter()
                 .find(|record| {
-                    record.get("algorithm_for").and_then(|value| value.as_str())
-                        == Some(transaction_type.to_string().as_str())
+                    de_euclid_routing_record_algorithm_for(record) == Some(transaction_type)
                 })
                 .ok_or(errors::ApiErrorResponse::PreconditionFailed {
                     message: "Algorithm is already inactive".to_string(),
@@ -1631,6 +1730,18 @@ pub async fn unlink_routing_config(
                         "decision_engine_euclid: rule deactivation failed on the Decision Engine",
                     )
                 })?;
+
+                // Clear any leftover Hyperswitch ref too. It is otherwise unreachable (the
+                // profile PATCH gate rejects direct writes) yet still served whenever the
+                // DE returns an empty result, so a deactivated profile would keep routing
+                // by a frozen pre-cutover rule.
+                clear_hs_active_algorithm_ref(
+                    &state,
+                    &processor,
+                    &business_profile,
+                    &transaction_type,
+                )
+                .await?;
 
                 metrics::ROUTING_UNLINK_CONFIG_SUCCESS_RESPONSE.add(1, &[]);
                 return Ok(service_api::ApplicationResponse::Json(
@@ -3111,19 +3222,25 @@ pub async fn migrate_rules_for_profile(
     let mut error_list = Vec::new();
 
     // Skip rules the DE already holds; re-runs still re-link the HS-active rule so a
-    // migration that crashed between create and activate completes.
-    let existing_de_rule_ids: HashSet<common_utils::id_type::RoutingId> =
-        fetch_de_euclid_routing_records(&state, profile_id.get_string_repr().to_string(), false)
-            .await
-            .map_err(|error| {
-                map_de_write_error(
-                    error,
-                    "decision_engine_euclid: failed to list DE rules before migration",
-                )
-            })?
-            .into_iter()
-            .map(|record| record.id)
-            .collect();
+    // migration that crashed between create and activate completes. Listing failures are
+    // non-fatal: a profile the DE does not know yet is exactly the one migration exists to
+    // bootstrap. Raw ids are used so rules HS cannot represent still count as existing.
+    let existing_de_rule_ids: HashSet<String> = fetch_de_euclid_routing_records_raw(
+        &state,
+        profile_id.get_string_repr().to_string(),
+        false,
+    )
+    .await
+    .map_err(|error| {
+        router_env::logger::warn!(
+            ?error,
+            "decision_engine_euclid: could not list DE rules before migration, treating as empty"
+        );
+    })
+    .map(|records| de_euclid_routing_record_ids(&records))
+    .unwrap_or_default()
+    .into_iter()
+    .collect();
 
     let mut push_error = |algorithm_id, msg: String| {
         error_list.push(RuleMigrationError {
@@ -3135,13 +3252,15 @@ pub async fn migrate_rules_for_profile(
 
     for routing_metadata in routing_metadatas {
         let algorithm_id = routing_metadata.algorithm_id.clone();
-        if existing_de_rule_ids.contains(&algorithm_id) {
+        if existing_de_rule_ids.contains(algorithm_id.get_string_repr()) {
             router_env::logger::info!(
                 ?algorithm_id,
                 "decision_engine_euclid: rule already exists on the Decision Engine, skipping creation"
             );
             if active_payment_routing_ids.contains(&Some(algorithm_id.clone())) {
-                link_de_euclid_routing_algorithm(
+                // Per-rule failure, like every other outcome in this loop: re-activating an
+                // already-active rule must not void the whole migration.
+                match link_de_euclid_routing_algorithm(
                     &state,
                     ActivateRoutingConfigRequest {
                         created_by: profile_id.get_string_repr().to_string(),
@@ -3149,14 +3268,18 @@ pub async fn migrate_rules_for_profile(
                     },
                 )
                 .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("unable to link active routing algorithm")?;
-                response_list.push(RuleMigrationResponse {
-                    profile_id: profile_id.clone(),
-                    euclid_algorithm_id: algorithm_id.clone(),
-                    decision_engine_algorithm_id: algorithm_id.get_string_repr().to_string(),
-                    is_active_rule: true,
-                });
+                {
+                    Ok(()) => response_list.push(RuleMigrationResponse {
+                        profile_id: profile_id.clone(),
+                        euclid_algorithm_id: algorithm_id.clone(),
+                        decision_engine_algorithm_id: algorithm_id.get_string_repr().to_string(),
+                        is_active_rule: true,
+                    }),
+                    Err(err) => push_error(
+                        algorithm_id.clone(),
+                        format!("Re-activation error: {err:?}"),
+                    ),
+                }
             }
             continue;
         }

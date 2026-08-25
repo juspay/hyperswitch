@@ -590,11 +590,15 @@ pub struct RoutingPayloadWrapper {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 #[serde(untagged)]
 pub enum RoutingAlgorithmWrapper {
+    /// Algorithm body served verbatim in the DE's own serialization (no euclid AST).
+    /// Discriminated by its wrapper key: an untagged bare `Value` would both shadow the
+    /// typed variants and be shadowed by `Dynamic`, whose arms accept any JSON object.
+    DecisionEngine {
+        #[schema(value_type = Object)]
+        decision_engine_algorithm: serde_json::Value,
+    },
     Static(StaticRoutingAlgorithm),
     Dynamic(DynamicRoutingAlgorithm),
-    /// Algorithm body served verbatim in the DE's own serialization (no euclid AST).
-    /// Must stay the last variant so the untagged deserializer prefers the typed shapes.
-    DecisionEngine(serde_json::Value),
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]

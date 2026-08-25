@@ -447,7 +447,7 @@ pub fn make_dsl_input(
                 | domain::PaymentMethodData::OpenBanking(_)
                 | domain::PaymentMethodData::MobilePayment(_) => None,
             }),
-        card_discovery: None,
+        card_discovery: payments_dsl_input.payment_attempt.card_discovery,
     };
 
     let issuer_data_input = dsl_inputs::IssuerDataInput {
@@ -1597,10 +1597,11 @@ pub async fn perform_hybrid_routing_if_enabled(
         static_is_volume_split,
     };
 
-    let is_decision_engine_cutover_enabled = matches!(
-        utils::get_routing_result_source(state, dimensions).await,
-        api_models::routing::RoutingResultSource::DecisionEngine
-    );
+    // Flag-aware like every other consumer: with static_routing_enabled off the profile is
+    // Hyperswitch-routed, so this stage must not run (the kill-switch counting below is
+    // skipped on the premise that it only ever runs for cut-over profiles).
+    let is_decision_engine_cutover_enabled =
+        utils::is_decision_engine_routing_effective(state, dimensions).await;
 
     if is_decision_engine_cutover_enabled {
         let hybrid_stage_outcome = stage
@@ -1899,16 +1900,17 @@ pub async fn perform_static_routing_v1(
         }
     };
 
-    // Feed the kill switch only from a successfully evaluated HS algorithm on a
-    // non-cut-over profile; under DE-only writes the HS baseline is stale by design.
-    if cached_algorithm.is_some() && hs_eval_succeeded && !de_routing_effective {
-        let comparison = utils::compare_and_log_result(
-            de_evaluated_connector.clone(),
-            routable_connectors.clone(),
-            "evaluate_routing".to_string(),
-            is_volume_split,
-        );
+    // Always diff-log (dashboards consume this for cut-over profiles too), but feed the
+    // kill switch only from a successfully evaluated HS algorithm on a non-cut-over
+    // profile — under DE-only writes the HS baseline is stale by design.
+    let comparison = utils::compare_and_log_result(
+        de_evaluated_connector.clone(),
+        routable_connectors.clone(),
+        "evaluate_routing".to_string(),
+        is_volume_split,
+    );
 
+    if cached_algorithm.is_some() && hs_eval_succeeded && !de_routing_effective {
         utils::record_de_diff_and_maybe_trip_kill_switch(
             state,
             business_profile.get_id(),

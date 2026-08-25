@@ -4458,6 +4458,7 @@ pub async fn update_profile(
     merchant_id: id_type::MerchantId,
     key_store: domain::MerchantKeyStore,
     request: api::ProfileUpdate,
+    provider_merchant_id: Option<hyperswitch_domain_models::platform::ProviderMerchantId>,
 ) -> RouterResponse<api::ProfileResponse> {
     let db = state.store.as_ref();
 
@@ -4481,14 +4482,16 @@ pub async fn update_profile(
     // DE-cut-over profiles manage routing via the routing APIs; direct writes would diverge the engines.
     #[cfg(feature = "v1")]
     if request.routing_algorithm.is_some() || request.payout_routing_algorithm.is_some() {
-        // No Platform here; cutover rules are keyed on profile_id, so the auth merchant id serves both dims.
+        // The provider merchant is a real superposition dimension and differs from the
+        // processor under connected-account auth, so it must match what the routing and
+        // payment paths resolve; fall back to the auth merchant only when unavailable.
         let dimensions = crate::core::configs::dimension_state::Dimensions::new()
             .with_processor_merchant_id(
                 hyperswitch_domain_models::platform::ProcessorMerchantId::from(merchant_id.clone()),
             )
-            .with_provider_merchant_id(
-                hyperswitch_domain_models::platform::ProviderMerchantId::new(merchant_id.clone()),
-            )
+            .with_provider_merchant_id(provider_merchant_id.unwrap_or_else(|| {
+                hyperswitch_domain_models::platform::ProviderMerchantId::new(merchant_id.clone())
+            }))
             .with_profile_id(profile_id.clone());
         if crate::core::payments::routing::utils::is_decision_engine_routing_effective(
             &state,

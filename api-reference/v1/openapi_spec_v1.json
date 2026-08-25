@@ -42178,6 +42178,18 @@
       "RoutingAlgorithmWrapper": {
         "oneOf": [
           {
+            "type": "object",
+            "description": "Algorithm body served verbatim in the DE's own serialization (no euclid AST).\nDiscriminated by its wrapper key: an untagged bare `Value` would both shadow the\ntyped variants and be shadowed by `Dynamic`, whose arms accept any JSON object.",
+            "required": [
+              "decision_engine_algorithm"
+            ],
+            "properties": {
+              "decision_engine_algorithm": {
+                "type": "object"
+              }
+            }
+          },
+          {
             "$ref": "#/components/schemas/StaticRoutingAlgorithm"
           },
           {
@@ -42346,6 +42358,14 @@
               "$ref": "#/components/schemas/DeRoutableConnectorChoice"
             },
             "description": "Fallback connectors used if routing rule evaluation fails.\n\nThese connectors will be returned if no rule matches.\n\nExample:\n```json\n[\n{\n\"gateway_name\": \"stripe\",\n\"gateway_id\": \"mca_123\"\n}\n]\n```"
+          },
+          "algorithm_for": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TransactionType"
+              }
+            ],
+            "nullable": true
           }
         }
       },
