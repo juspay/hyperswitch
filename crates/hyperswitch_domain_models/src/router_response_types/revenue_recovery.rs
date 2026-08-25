@@ -43,6 +43,12 @@ pub struct InvoiceRecordBackResponse {
 }
 
 #[derive(Debug, Clone)]
+pub struct DisputeRecordBackResponse {
+    /// Id of the refund transaction created at the billing connector.
+    pub connector_refund_id: String,
+}
+
+#[derive(Debug, Clone)]
 pub struct BillingConnectorInvoiceSyncResponse {
     /// transaction amount against invoice, accepted in minor unit.
     pub amount: MinorUnit,

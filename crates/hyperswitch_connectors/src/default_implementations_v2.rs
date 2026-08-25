@@ -4,7 +4,8 @@ use hyperswitch_domain_models::{
         flow_common_types::{
             BillingConnectorInvoiceSyncFlowData, BillingConnectorPaymentsSyncFlowData,
             ConnectorWebhookConfigurationFlowData, DisputesFlowData, GiftCardBalanceCheckFlowData,
-            InvoiceRecordBackData, MandateRevokeFlowData, PaymentFlowData, RefundFlowData,
+            DisputeRecordBackData, InvoiceRecordBackData, MandateRevokeFlowData, PaymentFlowData,
+            RefundFlowData,
             WebhookSourceVerifyData,
         },
         AccessTokenFlowData, AuthenticationTokenFlowData, ExternalAuthenticationFlowData,
@@ -31,7 +32,8 @@ use hyperswitch_domain_models::{
         },
         refunds::{Execute, RSync},
         revenue_recovery::{
-            BillingConnectorInvoiceSync, BillingConnectorPaymentsSync, InvoiceRecordBack,
+            BillingConnectorInvoiceSync, BillingConnectorPaymentsSync, DisputeRecordBack,
+            InvoiceRecordBack,
         },
         unified_authentication_service::{Authenticate, PostAuthenticate, PreAuthenticate},
         webhooks::VerifyWebhookSource,
@@ -45,6 +47,7 @@ use hyperswitch_domain_models::{
         },
         revenue_recovery::{
             BillingConnectorInvoiceSyncRequest, BillingConnectorPaymentsSyncRequest,
+            DisputeRecordBackRequest,
             InvoiceRecordBackRequest,
         },
         AcceptDisputeRequestData, AccessTokenAuthenticationRequestData, AccessTokenRequestData,
@@ -71,6 +74,7 @@ use hyperswitch_domain_models::{
         },
         revenue_recovery::{
             BillingConnectorInvoiceSyncResponse, BillingConnectorPaymentsSyncResponse,
+            DisputeRecordBackResponse,
             InvoiceRecordBackResponse,
         },
         AcceptDisputeResponse, AuthenticationResponseData, CompleteRefundSurchrgeResponseData,
@@ -140,7 +144,7 @@ use hyperswitch_interfaces::{
         refunds_v2::{RefundExecuteV2, RefundSyncV2, RefundV2},
         revenue_recovery_v2::{
             BillingConnectorInvoiceSyncIntegrationV2, BillingConnectorPaymentsSyncIntegrationV2,
-            RevenueRecoveryRecordBackV2, RevenueRecoveryV2,
+            RevenueRecoveryDisputeRecordBackV2, RevenueRecoveryRecordBackV2, RevenueRecoveryV2,
         },
         vault_v2::{
             ExternalVaultCreateV2, ExternalVaultDeleteV2, ExternalVaultInsertV2,
@@ -4914,6 +4918,7 @@ macro_rules! default_imp_for_new_connector_integration_revenue_recovery {
         $(  impl RevenueRecoveryV2 for $path::$connector {}
             impl BillingConnectorPaymentsSyncIntegrationV2 for $path::$connector {}
             impl RevenueRecoveryRecordBackV2 for $path::$connector {}
+            impl RevenueRecoveryDisputeRecordBackV2 for $path::$connector {}
             impl BillingConnectorInvoiceSyncIntegrationV2 for $path::$connector {}
             impl
             ConnectorIntegrationV2<
@@ -4921,6 +4926,14 @@ macro_rules! default_imp_for_new_connector_integration_revenue_recovery {
                 InvoiceRecordBackData,
                 InvoiceRecordBackRequest,
                 InvoiceRecordBackResponse,
+                > for $path::$connector
+            {}
+            impl
+            ConnectorIntegrationV2<
+                DisputeRecordBack,
+                DisputeRecordBackData,
+                DisputeRecordBackRequest,
+                DisputeRecordBackResponse,
                 > for $path::$connector
             {}
             impl

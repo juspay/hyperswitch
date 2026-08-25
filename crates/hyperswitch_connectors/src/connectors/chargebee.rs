@@ -23,7 +23,7 @@ use hyperswitch_domain_models::{
         access_token_auth::AccessTokenAuth,
         payments::{Authorize, Capture, PSync, PaymentMethodToken, Session, SetupMandate, Void},
         refunds::{Execute, RSync},
-        revenue_recovery::InvoiceRecordBack,
+        revenue_recovery::{DisputeRecordBack, InvoiceRecordBack},
         subscriptions::{
             GetSubscriptionEstimate, GetSubscriptionItemPrices, GetSubscriptionItems,
             SubscriptionCancel, SubscriptionCreate, SubscriptionPause, SubscriptionResume,
@@ -31,7 +31,7 @@ use hyperswitch_domain_models::{
         CreateConnectorCustomer,
     },
     router_request_types::{
-        revenue_recovery::InvoiceRecordBackRequest,
+        revenue_recovery::{DisputeRecordBackRequest, InvoiceRecordBackRequest},
         subscriptions::{
             GetSubscriptionEstimateRequest, GetSubscriptionItemPricesRequest,
             GetSubscriptionItemsRequest, SubscriptionCancelRequest, SubscriptionCreateRequest,
@@ -42,7 +42,7 @@ use hyperswitch_domain_models::{
         PaymentsSyncData, RefundsData, SetupMandateRequestData,
     },
     router_response_types::{
-        revenue_recovery::InvoiceRecordBackResponse,
+        revenue_recovery::{DisputeRecordBackResponse, InvoiceRecordBackResponse},
         subscriptions::{
             GetSubscriptionEstimateResponse, GetSubscriptionItemPricesResponse,
             GetSubscriptionItemsResponse, SubscriptionCancelResponse, SubscriptionCreateResponse,
@@ -53,7 +53,8 @@ use hyperswitch_domain_models::{
     types::{
         ConnectorCustomerRouterData, GetSubscriptionEstimateRouterData,
         GetSubscriptionItemsRouterData, GetSubscriptionPlanPricesRouterData,
-        InvoiceRecordBackRouterData, PaymentsAuthorizeRouterData, PaymentsCaptureRouterData,
+        DisputeRecordBackRouterData, InvoiceRecordBackRouterData, PaymentsAuthorizeRouterData,
+        PaymentsCaptureRouterData,
         PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData,
         SubscriptionCancelRouterData, SubscriptionCreateRouterData, SubscriptionPauseRouterData,
         SubscriptionResumeRouterData,
@@ -501,6 +502,16 @@ fn build_connector_customer_request_body(
     Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
 }
 
+fn build_dispute_record_back_request_body(
+    _connector: &Chargebee,
+    req: &DisputeRecordBackRouterData,
+) -> CustomResult<RequestContent, errors::ConnectorError> {
+    // The dispute amount is already in minor units, which is what Chargebee wants, so
+    // there is nothing to convert.
+    let connector_req = chargebee::ChargebeeRecordRefundRequest::try_from(req)?;
+    Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
+}
+
 fn build_invoice_record_back_request_body(
     connector: &Chargebee,
     req: &InvoiceRecordBackRouterData,
@@ -571,6 +582,20 @@ impl_chargebee_integration!(
     url_path: |req| Some(format!("v2/invoices/{}/record_payment", req.request.merchant_reference_id.get_string_repr())),
     method: Method::Post,
     request_body: build_invoice_record_back_request_body
+);
+
+impl api::revenue_recovery::RevenueRecoveryDisputeRecordBack for Chargebee {}
+
+impl_chargebee_integration!(
+    flow: DisputeRecordBack,
+    flow_type: types::DisputeRecordBackType,
+    request: DisputeRecordBackRequest,
+    response: DisputeRecordBackResponse,
+    router_data: DisputeRecordBackRouterData,
+    connector_response: chargebee::ChargebeeRecordRefundResponse,
+    url_path: |req| Some(format!("v2/transactions/{}/record_refund", req.request.billing_connector_transaction_id)),
+    method: Method::Post,
+    request_body: build_dispute_record_back_request_body
 );
 
 fn get_chargebee_subscription_items_query_params(

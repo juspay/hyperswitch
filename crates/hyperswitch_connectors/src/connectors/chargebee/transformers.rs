@@ -19,7 +19,7 @@ use hyperswitch_domain_models::{
     router_flow_types::refunds::{Execute, RSync},
     router_request_types::{subscriptions::SubscriptionAutoCollection, ResponseId},
     router_response_types::{
-        revenue_recovery::InvoiceRecordBackResponse,
+        revenue_recovery::{DisputeRecordBackResponse, InvoiceRecordBackResponse},
         subscriptions::{
             self, GetSubscriptionEstimateResponse, GetSubscriptionItemPricesResponse,
             GetSubscriptionItemsResponse, SubscriptionCancelResponse, SubscriptionCreateResponse,
@@ -29,7 +29,8 @@ use hyperswitch_domain_models::{
         ConnectorCustomerResponseData, PaymentsResponseData, RefundsResponseData,
     },
     types::{
-        GetSubscriptionEstimateRouterData, InvoiceRecordBackRouterData,
+        DisputeRecordBackRouterData, GetSubscriptionEstimateRouterData,
+        InvoiceRecordBackRouterData,
         PaymentsAuthorizeRouterData, RefundsRouterData, SubscriptionCancelRouterData,
         SubscriptionPauseRouterData, SubscriptionResumeRouterData,
     },
@@ -1210,6 +1211,65 @@ pub struct ChargebeeRecordbackTransaction {
     pub id: String,
 }
 
+/// Body for `POST v2/transactions/{id}/record_refund`.
+///
+/// Unlike `record_payment`, whose parameters Chargebee documents nested under
+/// `transaction[...]`, `record_refund` takes them flat.
+#[derive(Debug, Serialize, Clone)]
+pub struct ChargebeeRecordRefundRequest {
+    pub amount: MinorUnit,
+    pub payment_method: ChargebeeRefundPaymentMethod,
+    /// Chargebee expects a UTC unix timestamp in seconds.
+    pub date: i64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub comment: Option<String>,
+}
+
+#[derive(Debug, Serialize, Clone, Copy)]
+#[serde(rename_all = "snake_case")]
+pub enum ChargebeeRefundPaymentMethod {
+    /// A lost dispute is literally a chargeback, so Chargebee's own reporting attributes
+    /// the refund correctly rather than lumping it under "other".
+    Chargeback,
+}
+
+impl TryFrom<&DisputeRecordBackRouterData> for ChargebeeRecordRefundRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &DisputeRecordBackRouterData) -> Result<Self, Self::Error> {
+        let req = &item.request;
+        Ok(Self {
+            // Already in minor units, which is what Chargebee wants; no conversion needed.
+            amount: req.amount,
+            payment_method: ChargebeeRefundPaymentMethod::Chargeback,
+            date: req.refund_date.assume_utc().unix_timestamp(),
+            comment: req.comment.clone(),
+        })
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct ChargebeeRecordRefundResponse {
+    pub transaction: ChargebeeRefundTransaction,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct ChargebeeRefundTransaction {
+    pub id: String,
+}
+
+convert_connector_response_to_domain_response!(
+    ChargebeeRecordRefundResponse,
+    DisputeRecordBackResponse,
+    |item: ResponseRouterData<_, ChargebeeRecordRefundResponse, _, _>| {
+        Ok(Self {
+            response: Ok(DisputeRecordBackResponse {
+                connector_refund_id: item.response.transaction.id,
+            }),
+            ..item.data
+        })
+    }
+);
+
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct ChargebeeRecordbackInvoice {
     pub id: common_utils::id_type::PaymentReferenceId,
@@ -1813,5 +1873,46 @@ mod chargebee_recordback_tests {
         let parsed: ChargebeeRecordbackResponse = serde_json::from_str(body).unwrap();
 
         assert!(parsed.transaction.is_none());
+    }
+}
+
+#[cfg(all(test, feature = "v2", feature = "revenue_recovery"))]
+mod chargebee_dispute_record_back_tests {
+    use common_utils::types::MinorUnit;
+
+    use super::{ChargebeeRecordRefundRequest, ChargebeeRefundPaymentMethod};
+
+    #[test]
+    fn serializes_with_chargeback_payment_method_and_unix_date() {
+        let date = time::macros::datetime!(2026-08-25 12:00:00);
+        let request = ChargebeeRecordRefundRequest {
+            amount: MinorUnit::new(1500),
+            payment_method: ChargebeeRefundPaymentMethod::Chargeback,
+            date: date.assume_utc().unix_timestamp(),
+            comment: Some("dp_abc123".to_string()),
+        };
+
+        // serde_json rather than serde_urlencoded: the field names and the enum's wire
+        // spelling are what matter here, and serde_json is already a dependency.
+        let encoded = serde_json::to_value(&request).unwrap();
+
+        assert_eq!(encoded["payment_method"], "chargeback");
+        assert_eq!(encoded["amount"], 1500);
+        assert_eq!(encoded["comment"], "dp_abc123");
+    }
+
+    #[test]
+    fn omits_an_absent_comment() {
+        let date = time::macros::datetime!(2026-08-25 12:00:00);
+        let request = ChargebeeRecordRefundRequest {
+            amount: MinorUnit::new(1500),
+            payment_method: ChargebeeRefundPaymentMethod::Chargeback,
+            date: date.assume_utc().unix_timestamp(),
+            comment: None,
+        };
+
+        let encoded = serde_json::to_value(&request).unwrap();
+
+        assert!(encoded.get("comment").is_none());
     }
 }

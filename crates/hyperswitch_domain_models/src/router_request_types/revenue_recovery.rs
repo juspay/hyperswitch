@@ -22,6 +22,19 @@ pub struct InvoiceRecordBackRequest {
 }
 
 #[derive(Debug, Clone)]
+pub struct DisputeRecordBackRequest {
+    /// Transaction id at the billing connector, captured at record-back time.
+    pub billing_connector_transaction_id: String,
+    /// The disputed amount, in minor units.
+    pub amount: common_utils::types::MinorUnit,
+    /// When the refund occurred.
+    pub refund_date: time::PrimitiveDateTime,
+    /// Free-text note stored against the billing connector's record.
+    pub comment: Option<String>,
+    pub connector_params: connector_endpoints::ConnectorParams,
+}
+
+#[derive(Debug, Clone)]
 pub struct BillingConnectorInvoiceSyncRequest {
     /// Invoice id
     pub billing_connector_invoice_id: String,

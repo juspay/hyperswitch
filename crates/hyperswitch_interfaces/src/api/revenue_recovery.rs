@@ -2,15 +2,16 @@
 
 use hyperswitch_domain_models::{
     router_flow_types::{
-        BillingConnectorInvoiceSync, BillingConnectorPaymentsSync, InvoiceRecordBack,
+        BillingConnectorInvoiceSync, BillingConnectorPaymentsSync, DisputeRecordBack,
+        InvoiceRecordBack,
     },
     router_request_types::revenue_recovery::{
         BillingConnectorInvoiceSyncRequest, BillingConnectorPaymentsSyncRequest,
-        InvoiceRecordBackRequest,
+        DisputeRecordBackRequest, InvoiceRecordBackRequest,
     },
     router_response_types::revenue_recovery::{
         BillingConnectorInvoiceSyncResponse, BillingConnectorPaymentsSyncResponse,
-        InvoiceRecordBackResponse,
+        DisputeRecordBackResponse, InvoiceRecordBackResponse,
     },
 };
 
@@ -24,6 +25,7 @@ pub trait RevenueRecovery:
     ConnectorCommon
     + BillingConnectorPaymentsSyncIntegration
     + RevenueRecoveryRecordBack
+    + RevenueRecoveryDisputeRecordBack
     + BillingConnectorInvoiceSyncIntegration
 {
 }
@@ -41,6 +43,12 @@ pub trait BillingConnectorPaymentsSyncIntegration:
 /// trait RevenueRecoveryRecordBack
 pub trait RevenueRecoveryRecordBack:
     ConnectorIntegration<InvoiceRecordBack, InvoiceRecordBackRequest, InvoiceRecordBackResponse>
+{
+}
+
+/// trait RevenueRecoveryDisputeRecordBack
+pub trait RevenueRecoveryDisputeRecordBack:
+    ConnectorIntegration<DisputeRecordBack, DisputeRecordBackRequest, DisputeRecordBackResponse>
 {
 }
 
