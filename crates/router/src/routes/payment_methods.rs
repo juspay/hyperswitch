@@ -15,7 +15,8 @@ use diesel_models::enums::IntentStatus;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     bulk_tokenization::CardNetworkTokenizeRequest, merchant_key_store::MerchantKeyStore,
-    payment_methods::PaymentMethodCustomerMigrate, transformers::ForeignTryFrom,
+    payment_methods::PaymentMethodCustomerMigrate, sdk_auth::SdkAuthorization,
+    transformers::ForeignTryFrom,
 };
 #[cfg(feature = "v1")]
 pub use migrate::modular_migrate_payment_methods;
@@ -37,6 +38,7 @@ use crate::{
         errors::{self, utils::StorageErrorExt},
         payment_methods::{self as payment_methods_routes, cards, migration as update_migration},
     },
+    headers,
     services::{self, api, authentication as auth, authorization::permissions::Permission},
     types::{
         api::payment_methods::{self, PaymentMethodId},
@@ -2220,6 +2222,20 @@ pub async fn list_payment_methods_for_payments_client(
     let api_auth = auth::ApiKeyAuth {
         allow_connected_scope_operation: true,
         allow_platform_self_operation: true,
+    };
+
+    let sdk_client_secret = auth::get_header_value_by_key(
+        headers::AUTHORIZATION.to_string(),
+        req.headers(),
+    )
+    .ok()
+    .flatten()
+    .and_then(|header| SdkAuthorization::decode(header).ok())
+    .map(|sdk_auth| sdk_auth.client_secret);
+
+    let payload = payment_methods::PaymentMethodListRequest {
+        client_secret: payload.client_secret.or(sdk_client_secret),
+        ..payload
     };
 
     match auth::check_sdk_auth_or_client_secret_auth(req.headers(), &payload, api_auth) {
