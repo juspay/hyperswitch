@@ -1300,6 +1300,8 @@ const MAX_GRACE_DAYS: u32 = 31;
 /// `slot_scores` DROPS corrupt `k > n` slots before this runs, so p̂ ∈ (0,1) strictly and `se` never
 /// takes the sqrt of a negative. (Do NOT clamp k→n here — that reads as "all succeeded" and would make
 /// a corrupt slot the best in the cluster; dropping degrades it to "no data" instead.)
+// `u64 -> f64` has no lossless or checked conversion in std (no `From`/`TryFrom` for floats), so `as`
+// is the only option — and it is EXACT for counts up to 2^53 (~9e15), far beyond any real retry tally.
 #[cfg(feature = "v2")]
 #[allow(clippy::as_conversions)]
 fn p_hat(c: SlotCounter) -> f64 {
@@ -1307,8 +1309,8 @@ fn p_hat(c: SlotCounter) -> f64 {
 }
 
 /// Beta-posterior standard deviation: SE = sqrt(p̂(1-p̂)/(n+3)).
-#[allow(clippy::as_conversions)]
 #[cfg(feature = "v2")]
+#[allow(clippy::as_conversions)]
 fn se(c: SlotCounter) -> f64 {
     let p = p_hat(c);
     (p * (1.0 - p) / (c.n as f64 + 3.0)).sqrt()
@@ -1390,38 +1392,90 @@ fn slot_scores(slots: &[SlotCounter]) -> BTreeMap<u8, f64> {
     out
 }
 
-/// Why `pick_index` landed on the index it returned — so the caller can attribute the pick honestly
-/// (a forced or exhausted pick must NOT be logged as if the weights drove it).
+/// Which signal won the softmax `max` for a candidate day. Carried through the pick so the log can
+/// name it without re-deriving. `Tie` = both axes equal (e.g. a cold cluster: both uniform).
 #[cfg(feature = "v2")]
-#[derive(Clone, Copy)]
-enum PickDriver {
-    Weights,     // the weights drove the choice (normal, model-driven case)
+#[derive(Clone, Copy, Debug)]
+enum DayAxis {
+    Dow,
+    Dom,
+    Tie,
+}
+
+#[cfg(feature = "v2")]
+impl DayAxis {
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::Dow => "dow",
+            Self::Dom => "dom",
+            Self::Tie => "tie",
+        }
+    }
+}
+
+/// Why `pick_index` landed on the index it returned — so the caller can attribute the pick honestly
+/// (a forced or exhausted pick must NOT be logged as if the weights drove it). `Weights` carries the
+/// chosen item's tag (for the day pick, its `DayAxis`), resolved AT pick time so the caller never
+/// re-indexes to find it.
+#[cfg(feature = "v2")]
+#[derive(Clone, Copy, Debug)]
+enum PickDriver<T> {
+    Weights(T),  // the weights drove the choice; carries the chosen item's tag
     RunwayGuard, // forced because budget >= days remaining
     Exhausted,   // nothing fired (budget 0) — fell through to the last index
+}
+
+#[cfg(feature = "v2")]
+impl PickDriver<DayAxis> {
+    /// Log label: the winning axis when the weights drove the pick, else the forced-pick reason.
+    fn label(self) -> &'static str {
+        match self {
+            Self::Weights(axis) => axis.as_str(),
+            Self::RunwayGuard => "runway_guard",
+            Self::Exhausted => "exhausted",
+        }
+    }
 }
 
 /// Per-tick probabilistic pick over an ordered list of non-negative WEIGHTS, with the runway guard.
 /// Fires index k with probability `min(budget · weight_k / remaining_weight, 1)` (remaining_weight
 /// via a suffix-sum); `budget >= remaining` forces a fire. Weights need not be normalized — only
-/// their ratios matter. Always returns an index, plus WHY (see `PickDriver`).
+/// their ratios matter. `tags` runs parallel to `weights`; the chosen index's tag rides back inside
+/// `PickDriver::Weights`, so the caller never re-indexes to recover it. Always returns an index, plus
+/// WHY (see `PickDriver`).
 #[cfg(feature = "v2")]
-#[allow(clippy::as_conversions, clippy::indexing_slicing)]
-fn pick_index(weights: &[f64], budget: u32) -> (usize, PickDriver) {
+fn pick_index<T: Copy>(weights: &[f64], tags: &[T], budget: u32) -> (usize, PickDriver<T>) {
     let n = weights.len();
     if n == 0 {
         return (0, PickDriver::Exhausted);
     }
-    let mut suffix = vec![0.0_f64; n + 1];
-    for k in (0..n).rev() {
-        suffix[k] = suffix[k + 1] + weights[k];
-    }
-    for k in 0..n {
+    // suffix[k] = weights[k] + … + weights[n-1], accumulated over the reversed slice (no indexing).
+    let suffix: Vec<f64> = {
+        let mut acc = 0.0;
+        let mut sums: Vec<f64> = weights
+            .iter()
+            .rev()
+            .map(|&w| {
+                acc += w;
+                acc
+            })
+            .collect();
+        sums.reverse();
+        sums
+    };
+    let budget_slots = usize::try_from(budget).unwrap_or(usize::MAX);
+    for (k, ((&w, &s), &tag)) in weights
+        .iter()
+        .zip(suffix.iter())
+        .zip(tags.iter())
+        .enumerate()
+    {
         let remaining = n - k;
-        let guard = (budget as usize) >= remaining; // runway guard forces the fire
+        let guard = budget_slots >= remaining; // runway guard forces the fire
         let p = if guard {
             1.0
         } else {
-            (f64::from(budget) * weights[k] / suffix[k]).min(1.0)
+            (f64::from(budget) * w / s).min(1.0)
         };
         if rand::random::<f64>() < p {
             return (
@@ -1429,7 +1483,7 @@ fn pick_index(weights: &[f64], budget: u32) -> (usize, PickDriver) {
                 if guard {
                     PickDriver::RunwayGuard
                 } else {
-                    PickDriver::Weights
+                    PickDriver::Weights(tag)
                 },
             );
         }
@@ -1442,16 +1496,19 @@ fn pick_index(weights: &[f64], budget: u32) -> (usize, PickDriver) {
 /// guard on the SCORED slots, not the raw counters, so all-corrupt counters still fall back (an
 /// all-zero array yields empty scores too, so this one check covers all no-data shapes).
 #[cfg(feature = "v2")]
-#[allow(clippy::as_conversions)]
 fn pick_hour(hod: &[SlotCounter]) -> u8 {
     let scores = slot_scores(hod);
     if scores.is_empty() {
         return DEFAULT_RETRY_HOUR;
     }
-    let weights: Vec<f64> = (0u8..24)
-        .map(|h| scores.get(&h).copied().unwrap_or(0.0).exp())
+    let hours: Vec<u8> = (0u8..24).collect();
+    let weights: Vec<f64> = hours
+        .iter()
+        .map(|&h| scores.get(&h).copied().unwrap_or(0.0).exp())
         .collect();
-    pick_index(&weights, 1).0 as u8
+    let (idx, _) = pick_index(&weights, &hours, 1);
+    // `hours[idx]` IS the hour (already a u8); fetched via `get` so there's no cast and no panic.
+    hours.get(idx).copied().unwrap_or(DEFAULT_RETRY_HOUR)
 }
 
 /// Softmax `xs` (numerically stabilized by subtracting the max). `xs` is non-empty here.
@@ -1474,12 +1531,11 @@ fn softmax(xs: &[f64]) -> Vec<f64> {
 ///
 /// Returns per-day `(weight, winning_axis)`; the winner lets the caller log which signal drove a pick.
 #[cfg(feature = "v2")]
-#[allow(clippy::indexing_slicing)]
 fn combine_day_weight(
     dates: &[time::Date],
     dow: &BTreeMap<u8, f64>,
     dom: &BTreeMap<u8, f64>,
-) -> (Vec<f64>, Vec<&'static str>) {
+) -> (Vec<f64>, Vec<DayAxis>) {
     let dow_sc: Vec<f64> = dates
         .iter()
         .map(|d| {
@@ -1494,15 +1550,16 @@ fn combine_day_weight(
         .collect();
     let p_dow = softmax(&dow_sc);
     let p_dom = softmax(&dom_sc);
-    (0..dates.len())
-        .map(|i| {
-            let (pw, pm) = (p_dow[i], p_dom[i]);
+    p_dow
+        .iter()
+        .zip(p_dom.iter())
+        .map(|(&pw, &pm)| {
             let winner = if pm > pw {
-                "dom"
+                DayAxis::Dom
             } else if pw > pm {
-                "dow"
+                DayAxis::Dow
             } else {
-                "tie" // both axes equal (e.g. a cold cluster: both uniform) — neither "won"
+                DayAxis::Tie // both axes equal (e.g. a cold cluster: both uniform) — neither "won"
             };
             (pw.max(pm), winner)
         })
@@ -1524,7 +1581,6 @@ fn combine_day_weight(
 /// V1 LIMITATION: a grace of 1 (today only) with retries still available is treated as "no retry"; a
 /// later version will handle that edge (e.g. a same-day retry after a delay). Uses real randomness
 /// (no seed). The caller `min()`s the result with the static schedule time.
-#[allow(clippy::as_conversions, clippy::indexing_slicing)]
 #[cfg(feature = "v2")]
 #[instrument(skip_all)]
 pub fn compute_mathmodel_retry_time(
@@ -1555,37 +1611,41 @@ pub fn compute_mathmodel_retry_time(
             "mathmodel: grace window capped"
         );
     }
-    let window_len = future_days.min(MAX_GRACE_DAYS) as usize;
+    // future_days is capped at MAX_GRACE_DAYS (31), so this always fits usize; 0 is an unreachable
+    // safe floor (would just leave the single seeded `start` day).
+    let window_len = usize::try_from(future_days.min(MAX_GRACE_DAYS)).unwrap_or(0);
     let start = now.date().next_day().unwrap_or(now.date());
     let mut dates = vec![start];
     while dates.len() < window_len {
-        match dates[dates.len() - 1].next_day() {
+        match dates.last().and_then(|d| d.next_day()) {
             Some(next) => dates.push(next),
             None => break,
         }
     }
 
     let (day_weights, winners) = combine_day_weight(&dates, &dow_scores, &dom_scores);
-    let (day_idx, pick_driver) = pick_index(&day_weights, budget);
+    // `winners` rides into pick_index and comes back inside `pick_driver` (PickDriver::Weights), so the
+    // chosen day's winning axis is resolved AT pick time — no re-indexing here.
+    let (day_idx, pick_driver) = pick_index(&day_weights, &winners, budget);
     let hour = pick_hour(&stats.hod);
     let time = time::Time::from_hms(hour, 0, 0).unwrap_or(time::Time::MIDNIGHT);
 
-    // Observability for a later recovery back-test: which signal drove the pick and how strong it was.
-    // Guard-forced and budget-exhausted picks attribute to themselves (NOT the uninvolved softmax
-    // winner), so the back-test never counts a non-model pick as a model pick.
-    let driver = match pick_driver {
-        PickDriver::Weights => winners[day_idx], // "dow" / "dom" / "tie"
-        PickDriver::RunwayGuard => "runway_guard",
-        PickDriver::Exhausted => "exhausted",
-    };
+    // day_idx comes from pick_index over these same vectors, so `.get` always hits — but stays
+    // panic-free (no `[]`), degrading to None (→ caller's static ladder) in the impossible miss.
+    let chosen_date = *dates.get(day_idx)?;
+    let chosen_weight = day_weights.get(day_idx).copied().unwrap_or(0.0);
+
+    // Observability for a later recovery back-test. Guard-forced and budget-exhausted picks attribute
+    // to themselves (via `label`), NOT the uninvolved softmax winner, so the back-test never counts a
+    // non-model pick as a model pick.
     logger::debug!(
-        chosen_day = %dates[day_idx],
-        driver = driver,
-        weight = day_weights[day_idx],
+        chosen_day = %chosen_date,
+        driver = pick_driver.label(),
+        weight = chosen_weight,
         "mathmodel: day pick"
     );
 
-    Some(dates[day_idx].with_time(time).assume_offset(now.offset()))
+    Some(chosen_date.with_time(time).assume_offset(now.offset()))
 }
 
 /// Adaptive retry time for a failed invoice: fetch the cluster's success stats by the
@@ -1623,7 +1683,6 @@ pub async fn compute_adaptive_retry_time(
 }
 
 #[cfg(all(test, feature = "v2"))]
-#[allow(clippy::indexing_slicing)]
 mod mathmodel_retry_time_tests {
     use super::*;
 
@@ -1638,13 +1697,19 @@ mod mathmodel_retry_time_tests {
     ) -> StatsDocument {
         let mut doc = StatsDocument::default();
         for &(i, n, k) in dow {
-            doc.dow[i] = ctr(n, k);
+            if let Some(slot) = doc.dow.get_mut(i) {
+                *slot = ctr(n, k);
+            }
         }
         for &(i, n, k) in dom {
-            doc.dom[i] = ctr(n, k);
+            if let Some(slot) = doc.dom.get_mut(i) {
+                *slot = ctr(n, k);
+            }
         }
         for &(i, n, k) in hod {
-            doc.hod[i] = ctr(n, k);
+            if let Some(slot) = doc.hod.get_mut(i) {
+                *slot = ctr(n, k);
+            }
         }
         doc
     }
@@ -1665,9 +1730,10 @@ mod mathmodel_retry_time_tests {
     fn scores_match_hand_math() {
         let doc = sample();
         let sc = slot_scores(&doc.dow);
-        assert!(approx(sc[&4], 9.2103, 0.1), "score_4={}", sc[&4]);
-        assert!(approx(sc[&0], -2.73, 0.1), "score_0={}", sc[&0]);
-        assert!(approx(sc[&6], -6.48, 0.1), "score_6={}", sc[&6]);
+        let score = |slot: u8| sc.get(&slot).copied().expect("slot was scored");
+        assert!(approx(score(4), 9.2103, 0.1), "score_4={}", score(4));
+        assert!(approx(score(0), -2.73, 0.1), "score_0={}", score(0));
+        assert!(approx(score(6), -6.48, 0.1), "score_6={}", score(6));
     }
 
     #[test]
@@ -1679,27 +1745,27 @@ mod mathmodel_retry_time_tests {
             .expect("valid calendar date"); // a Monday
         let mut dates = vec![start];
         while dates.len() < 7 {
-            dates.push(
-                dates[dates.len() - 1]
-                    .next_day()
-                    .expect("next calendar day exists"),
-            );
+            let next = dates
+                .last()
+                .and_then(|d| d.next_day())
+                .expect("next calendar day exists");
+            dates.push(next);
         }
         let dow = BTreeMap::from([(0u8, 5.0)]); // Monday dominant
         let dom = BTreeMap::<u8, f64>::new(); // no month-day signal
         let (weights, _) = combine_day_weight(&dates, &dow, &dom);
-        let argmax = (0..dates.len())
-            .max_by(|&a, &b| {
-                weights[a]
-                    .partial_cmp(&weights[b])
-                    .unwrap_or(std::cmp::Ordering::Equal)
-            })
+        let argmax = weights
+            .iter()
+            .enumerate()
+            .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
+            .map(|(i, _)| i)
             .unwrap_or(0);
+        let winning_date = dates.get(argmax).copied().expect("argmax within window");
         assert_eq!(
-            dates[argmax], start,
+            winning_date, start,
             "Monday's dominant score must make the Monday date win"
         );
-        assert_eq!(dates[argmax].weekday().number_days_from_monday(), 0);
+        assert_eq!(winning_date.weekday().number_days_from_monday(), 0);
     }
 
     #[test]
@@ -1821,7 +1887,7 @@ mod mathmodel_retry_time_tests {
     #[test]
     fn runway_guard_is_attributed() {
         // budget >= number of slots => the guard forces index 0 and reports itself (not "weights").
-        let (idx, driver) = pick_index(&[1.0, 1.0, 1.0], 5);
+        let (idx, driver) = pick_index(&[1.0, 1.0, 1.0], &[DayAxis::Tie; 3], 5);
         assert_eq!(idx, 0);
         assert!(matches!(driver, PickDriver::RunwayGuard));
     }
