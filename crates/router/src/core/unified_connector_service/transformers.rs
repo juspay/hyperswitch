@@ -8063,6 +8063,18 @@ impl transformers::ForeignTryFrom<&api_models::payouts::PayoutMethodData>
                             .to_string(),
                     ),
                 ))?,
+                api_models::payouts::Bank::Payshap(_) => Err(error_stack::Report::new(
+                    UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
+                        "Payshap bank transfer not supported for Unified Connector Service"
+                            .to_string(),
+                    ),
+                ))?,
+                api_models::payouts::Bank::PayshapProxy(_) => Err(error_stack::Report::new(
+                    UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
+                        "PayshapProxy bank transfer not supported for Unified Connector Service"
+                            .to_string(),
+                    ),
+                ))?,
             },
             api_models::payouts::PayoutMethodData::BankTransfer(bank_transfer) => {
                 match bank_transfer {
@@ -8112,6 +8124,18 @@ impl transformers::ForeignTryFrom<&api_models::payouts::PayoutMethodData>
                             ),
                         ))?
                     }
+                    api_models::payouts::BankTransfer::Payshap(_) => Err(error_stack::Report::new(
+                        UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
+                            "Payshap bank transfer not supported for Unified Connector Service"
+                                .to_string(),
+                        ),
+                    ))?,
+                    api_models::payouts::BankTransfer::PayshapProxy(_) => Err(error_stack::Report::new(
+                        UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
+                            "PayshapProxy bank transfer not supported for Unified Connector Service"
+                                .to_string(),
+                        ),
+                    ))?,
                 }
             }
             api_models::payouts::PayoutMethodData::Wallet(wallet) => match wallet {
