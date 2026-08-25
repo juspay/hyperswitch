@@ -455,6 +455,7 @@ pub trait ConnectorActions: Connector {
     ) -> RouterData<Flow, types::PayoutsData, Res> {
         self.generate_data(
             types::PayoutsData {
+                connector_eligibility_reference_id: None,
                 payout_id: common_utils::id_type::PayoutId::generate(),
                 amount: 1,
                 minor_amount: MinorUnit::new(1),

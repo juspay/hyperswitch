@@ -1776,6 +1776,7 @@ pub struct PayoutsData {
     pub additional_payout_method_data: Option<payout_method_utils::AdditionalPayoutMethodData>,
     pub source_bank_data: Option<api_models::payouts::BankTransfer>,
     pub billing_descriptor: Option<common_types::payouts::PayoutsBillingDescriptor>,
+    pub connector_eligibility_reference_id: Option<String>,
 }
 
 #[derive(Debug, Default, Clone, Serialize)]
