@@ -181,7 +181,24 @@ export const connectorDetails = {
         },
       },
     },
+    IncrementalAuth: {
+      Request: {
+        amount: 8000,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          amount: 8000,
+          amount_capturable: 8000,
+          amount_received: 0,
+        },
+      },
+    },
     Capture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         amount_to_capture: 6000,
       },
