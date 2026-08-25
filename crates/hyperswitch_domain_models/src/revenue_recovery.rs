@@ -111,6 +111,7 @@ pub struct RecoveryPaymentAttempt {
     pub network_decline_code: Option<String>,
     pub error_code: Option<String>,
     pub created_at: PrimitiveDateTime,
+    pub standardised_error_code: Option<common_enums::StandardisedCode>,
 }
 
 impl RecoveryPaymentAttempt {
@@ -328,6 +329,7 @@ impl From<&payments::payment_attempt::PaymentAttempt> for RecoveryPaymentAttempt
                 .as_ref()
                 .map(|error| error.code.clone()),
             created_at: payment_attempt.created_at,
+            standardised_error_code: None,
         }
     }
 }

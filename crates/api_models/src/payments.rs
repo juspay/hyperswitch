@@ -13734,6 +13734,15 @@ impl PaymentRevenueRecoveryMetadata {
             .connector_customer_id
             .to_owned()
     }
+
+    /// Card network of the recovery card, from the billing-connector payment method
+    /// details
+    pub fn get_card_network(&self) -> Option<common_enums::enums::CardNetwork> {
+        self.billing_connector_payment_method_details
+            .as_ref()
+            .and_then(|details| details.get_billing_connector_card_info())
+            .and_then(|card| card.card_network.clone())
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]

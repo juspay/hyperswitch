@@ -72,6 +72,7 @@ pub async fn upsert_calculate_pcr_task(
     business_profile: &domain::Profile,
     intent_retry_count: u16,
     payment_attempt_id: Option<id_type::GlobalAttemptId>,
+    prev_attempt_error_code: Option<common_enums::StandardisedCode>,
     runner: storage::ProcessTrackerRunner,
     revenue_recovery_retry: diesel_enum::RevenueRecoveryAlgorithmType,
 ) -> CustomResult<webhooks::WebhookResponseTracker, errors::RevenueRecoveryError> {
@@ -125,7 +126,7 @@ pub async fn upsert_calculate_pcr_task(
                 global_payment_id: payment_id.clone(),
                 merchant_id: platform.get_processor().get_account().get_id().to_owned(),
                 profile_id: business_profile.get_id().to_owned(),
-                prev_attempt_id: Some(payment_attempt_id.clone()),
+                prev_attempt_error_code,
                 payment_attempt_id,
                 revenue_recovery_retry,
                 invoice_scheduled_time: None,
@@ -190,28 +191,8 @@ pub async fn record_internal_attempt_and_execute_payment(
 ) -> Result<(), sch_errors::ProcessTrackerError> {
     let db = &*state.store;
 
-    // The attempt whose failure triggered this execute task — used by the
-    // retry-stats recorder for cluster dimensions (NOT the new attempt that
-    // `record_internal_attempt_api` is about to create). Absent it, there is no
-    // prior outcome to attribute this retry to and retry-stats are not recorded.
-    let prev_attempt = match tracking_data.prev_attempt_id.as_ref() {
-        Some(prev_attempt_id) => db
-            .find_payment_attempt_by_id(
-                platform.get_processor().get_key_store(),
-                prev_attempt_id,
-                platform.get_processor().get_account().storage_scheme,
-            )
-            .await
-            .ok(),
-        None => {
-            logger::error!(
-                process_id = %execute_task_process.id,
-                attempt_id = %tracking_data.payment_attempt_id.get_string_repr(),
-                "prev_attempt_id missing in EXECUTE tracking data; retry-stats will not be recorded"
-            );
-            None
-        }
-    };
+    // Standardised error code for the attempt whose failure triggered this execute task,
+    let prev_attempt_error_code = tracking_data.prev_attempt_error_code;
 
     let card_info = api_models::payments::AdditionalCardInfo::foreign_from(payment_processor_token);
 
@@ -249,7 +230,7 @@ pub async fn record_internal_attempt_and_execute_payment(
                 execute_task_process,
                 revenue_recovery_payment_data,
                 revenue_recovery_metadata,
-                prev_attempt.as_ref(),
+                prev_attempt_error_code,
             ))
             .await?;
         }
@@ -343,6 +324,9 @@ pub async fn perform_execute_payment(
                         payment_intent,
                         revenue_recovery_payment_data,
                         &tracking_data.payment_attempt_id,
+                        // No new attempt was made (no token), so the chain's failed attempt
+                        // is unchanged — carry its already-resolved code forward.
+                        tracking_data.prev_attempt_error_code,
                     ))
                     .await?;
                     // Unlock the customer status only if all tokens are hard declined and payment intent is in Failed status
@@ -409,10 +393,7 @@ pub async fn perform_execute_payment(
                         payment_intent.get_id().clone(),
                         revenue_recovery_payment_data.profile.get_id().clone(),
                         attempt_id.clone(),
-                        // The EXECUTE tracking row's prev attempt is the failed attempt
-                        // that triggered this retry — carry it into PSYNC so it need not
-                        // re-derive it from the EXECUTE task later.
-                        tracking_data.prev_attempt_id.clone(),
+                        tracking_data.prev_attempt_error_code,
                         storage::ProcessTrackerRunner::PassiveRecoveryWorkflow,
                         tracking_data.revenue_recovery_retry,
                         state.conf.application_source,
@@ -485,7 +466,7 @@ async fn insert_psync_pcr_task_to_pt(
     payment_id: GlobalPaymentId,
     profile_id: id_type::ProfileId,
     payment_attempt_id: id_type::GlobalAttemptId,
-    prev_attempt_id: Option<id_type::GlobalAttemptId>,
+    prev_attempt_error_code: Option<common_enums::StandardisedCode>,
     runner: storage::ProcessTrackerRunner,
     revenue_recovery_retry: diesel_enum::RevenueRecoveryAlgorithmType,
     application_source: common_enums::ApplicationSource,
@@ -499,7 +480,7 @@ async fn insert_psync_pcr_task_to_pt(
         merchant_id,
         profile_id,
         payment_attempt_id,
-        prev_attempt_id,
+        prev_attempt_error_code,
         revenue_recovery_retry,
         invoice_scheduled_time: Some(schedule_time),
     };
@@ -540,31 +521,8 @@ pub async fn perform_payments_sync(
     revenue_recovery_payment_data: &pcr::RevenueRecoveryPaymentData,
     payment_intent: &PaymentIntent,
 ) -> Result<(), errors::ProcessTrackerError> {
-    let db = &*state.store;
-
-    // The failed attempt that motivated this retry chain. Once the Psync returns
-    // a terminal status, the error details of this attempt are used to update the
-    // retry_stats
-    let prev_attempt = match tracking_data.prev_attempt_id.as_ref() {
-        Some(prev_attempt_id) => db
-            .find_payment_attempt_by_id(
-                &revenue_recovery_payment_data.key_store,
-                prev_attempt_id,
-                revenue_recovery_payment_data
-                    .merchant_account
-                    .storage_scheme,
-            )
-            .await
-            .ok(),
-        None => {
-            logger::error!(
-                process_id = %process.id,
-                attempt_id = %tracking_data.payment_attempt_id.get_string_repr(),
-                "prev_attempt_id missing in PSYNC tracking data; retry-stats will not be recorded"
-            );
-            None
-        }
-    };
+    // Standardised error code for the failed attempt that motivated this retry chain,
+    let prev_attempt_error_code = tracking_data.prev_attempt_error_code;
 
     let psync_data = api::call_psync_api(
         state,
@@ -600,7 +558,7 @@ pub async fn perform_payments_sync(
             new_revenue_recovery_payment_data,
             payment_attempt,
             &mut revenue_recovery_metadata,
-            prev_attempt.as_ref(),
+            prev_attempt_error_code,
         ),
     )
     .await?;
@@ -720,6 +678,7 @@ pub async fn perform_calculate_workflow(
                 payment_intent,
                 &tracking_data.profile_id,
                 &tracking_data.payment_attempt_id,
+                tracking_data.prev_attempt_error_code,
                 storage::ProcessTrackerRunner::PassiveRecoveryWorkflow,
                 retry_algorithm_type,
                 scheduled_time,
@@ -932,6 +891,7 @@ async fn insert_execute_pcr_task_to_pt(
     payment_intent: &PaymentIntent,
     profile_id: &id_type::ProfileId,
     payment_attempt_id: &id_type::GlobalAttemptId,
+    prev_attempt_error_code: Option<common_enums::StandardisedCode>,
     runner: storage::ProcessTrackerRunner,
     revenue_recovery_retry: diesel_enum::RevenueRecoveryAlgorithmType,
     schedule_time: time::PrimitiveDateTime,
@@ -1041,7 +1001,7 @@ async fn insert_execute_pcr_task_to_pt(
                 merchant_id: merchant_id.clone(),
                 profile_id: profile_id.clone(),
                 payment_attempt_id: payment_attempt_id.clone(),
-                prev_attempt_id: Some(payment_attempt_id.clone()),
+                prev_attempt_error_code,
                 revenue_recovery_retry,
                 invoice_scheduled_time: Some(schedule_time),
             };

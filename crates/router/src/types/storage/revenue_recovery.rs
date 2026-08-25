@@ -23,9 +23,9 @@ pub struct RevenueRecoveryWorkflowTrackingData {
     pub billing_mca_id: id_type::MerchantConnectorAccountId,
     pub revenue_recovery_retry: enums::RevenueRecoveryAlgorithmType,
     pub invoice_scheduled_time: Option<time::PrimitiveDateTime>,
-    /// The failed attempt that motivated the current retry chain
+    /// Standardised error code for the failed attempt that motivated this retry chain,
     #[serde(default)]
-    pub prev_attempt_id: Option<id_type::GlobalAttemptId>,
+    pub prev_attempt_error_code: Option<enums::StandardisedCode>,
 }
 
 #[derive(Debug, Clone)]
