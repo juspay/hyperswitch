@@ -798,55 +798,49 @@ pub async fn perform_calculate_workflow(
 }
 
 /// Finish the CALCULATE_WORKFLOW row, carrying any updated adaptive scheduling state.
-/// The row is reopened rather than recreated on the next failure, so its tracking data is
-/// where the ladder position survives between attempts.
 async fn finish_calculate_workflow_with_progress(
     db: &dyn StorageInterface,
     process: &storage::ProcessTracker,
     next_static_ladder_progress: Option<schedule::StaticLadderProgress>,
 ) -> Result<(), sch_errors::ProcessTrackerError> {
-    // `None` on every non-adaptive path — nothing to persist, so nothing extra is written.
-    if let Some(static_ladder_progress) = next_static_ladder_progress {
-        let mut tracking_data: pcr::RevenueRecoveryWorkflowTrackingData =
-            serde_json::from_value(process.tracking_data.clone())
+    let pt_update = match next_static_ladder_progress {
+        // The adaptive path has a ladder position to carry, so the consumed rung and the finish
+        // go out in one write rather than leaving a window where one landed without the other.
+        Some(static_ladder_progress) => {
+            let mut tracking_data: pcr::RevenueRecoveryWorkflowTrackingData =
+                serde_json::from_value(process.tracking_data.clone())
+                    .change_context(errors::RecoveryError::ValueNotFound)
+                    .attach_printable(
+                        "Failed to deserialize the tracking data from process tracker",
+                    )?;
+
+            tracking_data.static_ladder_progress = static_ladder_progress;
+
+            let tracking_data = serde_json::to_value(tracking_data)
                 .change_context(errors::RecoveryError::ValueNotFound)
-                .attach_printable("Failed to deserialize the tracking data from process tracker")?;
+                .attach_printable("Failed to serialize the tracking data for process tracker")?;
 
-        tracking_data.static_ladder_progress = static_ladder_progress;
-
-        let tracking_data = serde_json::to_value(tracking_data)
-            .change_context(errors::RecoveryError::ValueNotFound)
-            .attach_printable("Failed to serialize the tracking data for process tracker")?;
-
-        // Only the tracking data — status and business status are left to the finish below.
-        let pt_update = storage::ProcessTrackerUpdate::Update {
-            name: None,
-            retry_count: None,
-            schedule_time: None,
-            tracking_data: Some(tracking_data),
-            business_status: None,
-            status: None,
-            updated_at: Some(common_utils::date_time::now()),
-        };
-
-        db.as_scheduler()
-            .update_process(process.clone(), pt_update)
-            .await
-            .map_err(|error| {
-                logger::error!(
-                    process_id = %process.id,
-                    error = ?error,
-                    "Failed to persist recovery schedule on CALCULATE_WORKFLOW"
-                );
-                sch_errors::ProcessTrackerError::ProcessUpdateFailed
-            })?;
-    }
+            storage::ProcessTrackerUpdate::Update {
+                name: None,
+                retry_count: None,
+                schedule_time: None,
+                tracking_data: Some(tracking_data),
+                business_status: Some(String::from(
+                    business_status::CALCULATE_WORKFLOW_SCHEDULED,
+                )),
+                status: Some(ProcessTrackerStatus::Finish),
+                updated_at: Some(common_utils::date_time::now()),
+            }
+        }
+        // Nothing to persist - the same status-only write this row has always taken.
+        None => storage::ProcessTrackerUpdate::StatusUpdate {
+            status: ProcessTrackerStatus::Finish,
+            business_status: Some(String::from(business_status::CALCULATE_WORKFLOW_SCHEDULED)),
+        },
+    };
 
     db.as_scheduler()
-        .finish_process_with_business_status(
-            process.clone(),
-            business_status::CALCULATE_WORKFLOW_SCHEDULED,
-        )
+        .finish_process_with_update(process.clone(), pt_update)
         .await
         .map_err(|error| {
             logger::error!(
