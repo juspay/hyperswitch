@@ -1401,6 +1401,23 @@ pub fn convert_backend_input_to_routing_eval(
             Some(ValueType::EnumVariant(sfu.to_string())),
         );
     }
+    if let Some(surcharge_amount) = input.payment.surcharge_amount {
+        params.insert(
+            "surcharge_amount".to_string(),
+            Some(ValueType::Number(
+                surcharge_amount
+                    .get_amount_as_i64()
+                    .try_into()
+                    .unwrap_or_default(),
+            )),
+        );
+    }
+    if let Some(transaction_initiator) = input.payment.transaction_initiator {
+        params.insert(
+            "transaction_initiator".to_string(),
+            Some(ValueType::EnumVariant(transaction_initiator.to_string())),
+        );
+    }
 
     // PaymentMethod
     if let Some(pm) = input.payment_method.payment_method {
@@ -1432,6 +1449,12 @@ pub fn convert_backend_input_to_routing_eval(
             Some(ValueType::EnumVariant(network.to_string())),
         );
     }
+    if let Some(card_discovery) = input.payment_method.card_discovery {
+        params.insert(
+            "card_discovery".to_string(),
+            Some(ValueType::EnumVariant(card_discovery.to_string())),
+        );
+    }
 
     // Mandate
     if let Some(pt) = input.mandate.payment_type {
@@ -1450,6 +1473,18 @@ pub fn convert_backend_input_to_routing_eval(
         params.insert(
             "mandate_acceptance_type".to_string(),
             Some(ValueType::EnumVariant(mat.to_string())),
+        );
+    }
+
+    // Issuer
+    if let Some(country) = input
+        .issuer_data
+        .as_ref()
+        .and_then(|data| data.country.as_ref())
+    {
+        params.insert(
+            "issuer_country".to_string(),
+            Some(ValueType::EnumVariant(country.to_string())),
         );
     }
 
@@ -1484,9 +1519,16 @@ fn insert_dirvalue_param(params: &mut HashMap<String, Option<ValueType>>, dv: di
             );
         }
         dir::DirValue::CardType(v) => {
+            // Dashboard-authored rules use `card_type`; `card` is retained for rules
+            // created under the older key name.
+            let card_type = v.to_string();
             params.insert(
                 "card".to_string(),
-                Some(ValueType::EnumVariant(v.to_string())),
+                Some(ValueType::EnumVariant(card_type.clone())),
+            );
+            params.insert(
+                "card_type".to_string(),
+                Some(ValueType::EnumVariant(card_type)),
             );
         }
         dir::DirValue::PayLaterType(v) => {
