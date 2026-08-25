@@ -674,12 +674,14 @@ pub enum StripePaymentMethodData {
 impl StripePaymentMethodData {
     fn get_stripe_ntid_card_token_data(
         payment_method_data: &payment_method_data::CardDetailsForNetworkTransactionId,
+        billing_address: StripeBillingAddressCardToken,
     ) -> Result<Self, error_stack::Report<ConnectorError>> {
         Ok(Self::NtidCardToken(StripeNtidCardToken {
             payment_method_type: Some(StripePaymentMethodType::Card),
             token_card_number: payment_method_data.card_number.clone(),
             token_card_exp_month: payment_method_data.card_exp_month.clone(),
             token_card_exp_year: payment_method_data.card_exp_year.clone(),
+            billing: billing_address,
         }))
     }
 }
@@ -712,6 +714,8 @@ pub struct StripeNtidCardToken {
     pub token_card_exp_month: Secret<String>,
     #[serde(rename = "card[exp_year]")]
     pub token_card_exp_year: Secret<String>,
+    #[serde(flatten)]
+    pub billing: StripeBillingAddressCardToken,
 }
 
 // Struct to call the Stripe tokens API to create a PSP token for the card details provided
@@ -1543,7 +1547,7 @@ fn create_stripe_payment_method(
             Ok((
                 wallet_specific_data,
                 pm_type,
-                StripeBillingAddress::default(),
+                payment_request_details.billing_address,
             ))
         }
         PaymentMethodData::BankDebit(bank_debit_data) => {
@@ -1566,7 +1570,7 @@ fn create_stripe_payment_method(
                     }),
                 )),
                 None,
-                StripeBillingAddress::default(),
+                payment_request_details.billing_address,
             )),
             payment_method_data::BankTransferData::MultibancoBankTransfer {} => Ok((
                 StripePaymentMethodData::BankTransfer(
@@ -2870,7 +2874,10 @@ impl TryFrom<&TokenizationRouterData> for TokenRequest {
                 })
             }
             PaymentMethodData::CardDetailsForNetworkTransactionId(card_details) => {
-                StripePaymentMethodData::get_stripe_ntid_card_token_data(card_details)?
+                StripePaymentMethodData::get_stripe_ntid_card_token_data(
+                    card_details,
+                    billing_address,
+                )?
             }
             _ => {
                 create_stripe_payment_method(
@@ -2879,7 +2886,17 @@ impl TryFrom<&TokenizationRouterData> for TokenRequest {
                         auth_type: item.auth_type,
                         payment_method_token: item.payment_method_token.clone(),
                         is_customer_initiated_mandate_payment: None,
-                        billing_address: StripeBillingAddress::default(),
+                        billing_address: StripeBillingAddress {
+                            city: item.get_optional_billing_city(),
+                            country: item.get_optional_billing_country(),
+                            address_line1: item.get_optional_billing_line1(),
+                            address_line2: item.get_optional_billing_line2(),
+                            zip_code: item.get_optional_billing_zip(),
+                            state: item.get_optional_billing_state(),
+                            name: item.get_optional_billing_full_name(),
+                            email: item.get_optional_billing_email(),
+                            phone: item.get_optional_billing_phone_number(),
+                        },
                         request_incremental_authorization: false,
                         request_extended_authorization: None,
                         request_overcapture: None,
