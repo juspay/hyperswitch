@@ -200,6 +200,9 @@ impl FeatureMatrixConnectorData {
                 enums::Connector::Gigadat => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Gigadat::new())))
                 }
+                enums::Connector::Ilixium => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Ilixium::new())))
+                }
                 enums::Connector::Givepayments => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Givepayments::new())))
                 }
@@ -289,6 +292,12 @@ impl FeatureMatrixConnectorData {
                 }
                 enums::Connector::Payconex => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Payconex::new())))
+                }
+                enums::Connector::Citigate => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Citigate::new())))
+                }
+                enums::Connector::Worldpayraft => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Worldpayraft::new())))
                 }
                 // "payeezy" => Ok(ConnectorIntegrationEnum::Old(Box::new(&connector::Payeezy)), As psync and rsync are not supported by this connector, it is added as template code for future usage
                 // enums::Connector::Payload => {
@@ -460,7 +469,7 @@ impl FeatureMatrixConnectorData {
                 enums::Connector::Interpayments => Ok(ConnectorEnum::Old(Box::new(
                     connector::Interpayments::new(),
                 ))),
-                enums::Connector::Cardinal => {
+                enums::Connector::Cardinal | enums::Connector::Juspay => {
                     Err(report!(errors::ConnectorError::InvalidConnectorName)
                         .attach_printable(format!("invalid connector name: {connector_name}")))
                     .change_context(errors::ApiErrorResponse::InternalServerError)

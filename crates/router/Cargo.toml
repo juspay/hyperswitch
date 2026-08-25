@@ -46,6 +46,11 @@ encryption_service = [
     "payment_methods/encryption_service",
 ]
 km_forward_x_request_id = ["common_utils/km_forward_x_request_id"]
+# Emits structured latency logs for downstream calls and propagates request IDs for correlation.
+ext_services_latency = [
+    "common_utils/ext_services_latency",
+    "hyperswitch_interfaces/ext_services_latency",
+]
 frm = [
     "api_models/frm",
     "hyperswitch_domain_models/frm",
@@ -235,8 +240,8 @@ rust_decimal = { version = "1.37.1", features = [
 ] }
 rust-i18n = { git = "https://github.com/kashif-m/rust-i18n", rev = "f2d8096aaaff7a87a847c35a5394c269f75e077a" }
 
-unified-connector-service-client = { git = "https://github.com/juspay/connector-service", tag = "2026.07.28.0", package = "rust-grpc-client" }
-unified-connector-service-cards = { git = "https://github.com/juspay/connector-service", tag = "2026.07.28.0", package = "ucs_cards" }
+unified-connector-service-client = { git = "https://github.com/juspay/connector-service", tag = "2026.08.18.0", package = "rust-grpc-client" }
+unified-connector-service-cards = { git = "https://github.com/juspay/connector-service", tag = "2026.08.18.0", package = "ucs_cards" }
 rustc-hash = "1.1.0"
 rustls = "0.22"
 rustls-pemfile = "2"
@@ -288,8 +293,8 @@ common_utils = { version = "0.1.0", path = "../common_utils", features = [
     "keymanager",
 ] }
 common_types = { version = "0.1.0", path = "../common_types" }
-deja = { git = "https://github.com/juspay/deja", rev = "2c3a795ef4d8d2a5eebc47bbe7134984b75be6b3", optional = true, default-features = false }
-deja-core = { git = "https://github.com/juspay/deja", rev = "2c3a795ef4d8d2a5eebc47bbe7134984b75be6b3", optional = true }
+deja = { git = "https://github.com/juspay/deja", rev = "337181ebfd74b7e571a63a9cce515ff3c9309db7", optional = true, default-features = false }
+deja-core = { git = "https://github.com/juspay/deja", rev = "337181ebfd74b7e571a63a9cce515ff3c9309db7", optional = true }
 connector_configs = { version = "0.1.0", path = "../connector_configs" }
 currency_conversion = { version = "0.1.0", path = "../currency_conversion" }
 diesel_models = { version = "0.1.0", path = "../diesel_models", features = [
@@ -331,6 +336,7 @@ rand = "0.8.5"
 serial_test = "3.2.0"
 time = { version = "0.3.41", features = ["macros"] }
 tokio = "1.48.0"
+tracing-subscriber = { version = "0.3.19", default-features = false, features = ["registry"] }
 wiremock = "0.6.3"
 
 # First party dev-dependencies

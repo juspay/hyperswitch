@@ -1,3 +1,14 @@
+#[cfg(feature = "v1")]
+use std::time::Instant;
+
+#[cfg(feature = "v1")]
+use common_utils::types::keymanager::KeyManagerState;
+
+#[cfg(feature = "v1")]
+use crate::{
+    core::utils::get_feature_config,
+    routes::metrics::{record_payment_confirm, MerchantMode, PaymentMetricsContext},
+};
 use crate::{
     core::{
         api_locking::{self, GetLockingInput},
@@ -126,6 +137,95 @@ pub async fn payments_create(
         state,
         &req,
         payload,
+        |mut state, auth: auth::AuthenticationData, req, req_state| {
+            let header_payload = header_payload.clone();
+            async move {
+                let metrics_start = req
+                    .confirm
+                    .is_some_and(|confirm| confirm)
+                    .then(Instant::now);
+                let metrics_context = if metrics_start.is_some() {
+                    Some(set_payment_confirm_metrics_context(&mut state, &auth.platform).await)
+                } else {
+                    None
+                };
+                let result = Box::pin(authorize_verify_select::<_>(
+                    payments::PaymentCreate,
+                    state,
+                    req_state,
+                    auth.platform,
+                    auth.profile.map(|profile| profile.get_id().clone()),
+                    header_payload,
+                    req,
+                    api::AuthFlow::Client,
+                ))
+                .await;
+
+                if let (Some(start), Some(context)) = (metrics_start, metrics_context) {
+                    record_payment_confirm(&result, start.elapsed(), context);
+                }
+
+                result
+            }
+        },
+        auth_type,
+        locking_action,
+    ))
+    .await
+}
+
+#[cfg(feature = "v1")]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentLinkCreate, payment_id))]
+pub async fn payment_link_create(
+    state: web::Data<app::AppState>,
+    req: actix_web::HttpRequest,
+    json_payload: web::Json<payment_types::PaymentsRequest>,
+) -> impl Responder {
+    let flow = Flow::PaymentLinkCreate;
+    let mut payload = json_payload.into_inner().for_payment_link();
+
+    if let Err(err) = payload
+        .validate()
+        .map_err(|message| errors::ApiErrorResponse::InvalidRequestData { message })
+    {
+        return api::log_and_return_error_response(err.into());
+    };
+
+    if let Some(api_enums::CaptureMethod::Scheduled) = payload.capture_method {
+        return http_not_implemented();
+    };
+
+    if let Err(err) = get_or_generate_payment_id(&mut payload) {
+        return api::log_and_return_error_response(err);
+    }
+
+    let header_payload = match HeaderPayload::foreign_try_from(req.headers()) {
+        Ok(headers) => headers,
+        Err(err) => {
+            return api::log_and_return_error_response(err);
+        }
+    };
+
+    tracing::Span::current().record(
+        "payment_id",
+        payload
+            .payment_id
+            .as_ref()
+            .map(|payment_id_type| payment_id_type.get_payment_intent_id())
+            .transpose()
+            .unwrap_or_default()
+            .as_ref()
+            .map(|id| id.get_string_repr())
+            .unwrap_or_default(),
+    );
+
+    let locking_action = payload.get_locking_input(flow.clone());
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
         |state, auth: auth::AuthenticationData, req, req_state| {
             authorize_verify_select::<_>(
                 payments::PaymentCreate,
@@ -138,7 +238,11 @@ pub async fn payments_create(
                 api::AuthFlow::Client,
             )
         },
-        auth_type,
+        &auth::InternalMerchantIdProfileIdAuth(auth::JWTAuth {
+            permission: Permission::ProfilePaymentWrite,
+            allow_connected: true,
+            allow_platform: false,
+        }),
         locking_action,
     ))
     .await
@@ -1041,8 +1145,10 @@ pub async fn payments_confirm(
         }
     };
 
-    if let Err(err) = helpers::populate_browser_info(&req, &mut payload, &header_payload) {
-        return api::log_and_return_error_response(err);
+    if payload.retry_action != Some(api_enums::RetryAction::ManualRetry) {
+        if let Err(err) = helpers::populate_browser_info(&req, &mut payload, &header_payload) {
+            return api::log_and_return_error_response(err);
+        }
     }
 
     let payment_id = path.into_inner();
@@ -1072,22 +1178,33 @@ pub async fn payments_confirm(
         state,
         &req,
         payload,
-        |state, auth: auth::AuthenticationData, mut req, req_state| {
-            // If client_secret is provided via SDK authorization header, use it
-            if let Some(client_secret) = auth.client_secret {
-                req.client_secret = Some(client_secret);
-            }
+        |mut state, auth: auth::AuthenticationData, mut req, req_state| {
+            let header_payload = header_payload.clone();
+            async move {
+                let metrics_start = Instant::now();
+                let metrics_context =
+                    set_payment_confirm_metrics_context(&mut state, &auth.platform).await;
 
-            authorize_verify_select::<_>(
-                payments::PaymentConfirm,
-                state,
-                req_state,
-                auth.platform,
-                auth.profile.map(|profile| profile.get_id().clone()),
-                header_payload.clone(),
-                req,
-                auth_flow,
-            )
+                // If client_secret is provided via SDK authorization header, use it
+                if let Some(client_secret) = auth.client_secret {
+                    req.client_secret = Some(client_secret);
+                }
+
+                let result = Box::pin(authorize_verify_select::<_>(
+                    payments::PaymentConfirm,
+                    state,
+                    req_state,
+                    auth.platform,
+                    auth.profile.map(|profile| profile.get_id().clone()),
+                    header_payload,
+                    req,
+                    auth_flow,
+                ))
+                .await;
+
+                record_payment_confirm(&result, metrics_start.elapsed(), metrics_context);
+                result
+            }
         },
         &*auth_type,
         locking_action,
@@ -2498,6 +2615,27 @@ pub async fn payments_reject(
 }
 
 #[cfg(feature = "v1")]
+async fn set_payment_confirm_metrics_context(
+    state: &mut app::SessionState,
+    platform: &domain::Platform,
+) -> PaymentMetricsContext {
+    let dimensions = dimension_state::Dimensions::new()
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
+    let feature_config = get_feature_config(state, platform, &dimensions).await;
+    let context = PaymentMetricsContext::payments_confirm(MerchantMode::from_modular_enabled(
+        feature_config.is_payment_method_modular_allowed,
+    ));
+
+    state.payment_metrics_context = Some(context);
+    state
+        .store
+        .set_key_manager_state(KeyManagerState::from(&*state));
+
+    context
+}
+
+#[cfg(feature = "v1")]
 #[allow(clippy::too_many_arguments)]
 async fn authorize_verify_select<Op>(
     operation: Op,
@@ -2676,11 +2814,10 @@ where
                             GetToken::Connector,
                             None,
                         )?;
+                        let setup_future_usage = payment_data.payment_intent.setup_future_usage;
                         let should_continue_further = connector_data
                             .connector
-                            .is_payment_recurrence_operation_needed(
-                                &payment_data.payment_intent.clone(),
-                            )
+                            .is_payment_recurrence_operation_needed(setup_future_usage, None)
                             .unwrap_or(false);
                         if should_continue_further {
                             logger::info!(

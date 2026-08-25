@@ -1,5 +1,5 @@
 use bb8::PooledConnection;
-use diesel::PgConnection;
+use diesel_models::DejaPgConnection;
 use error_stack::ResultExt;
 
 use crate::{
@@ -22,7 +22,7 @@ use crate::{
 #[cfg(feature = "deja")]
 #[allow(clippy::panic)]
 pub(crate) async fn deja_route_replay_schema<T: DatabaseStore>(
-    conn: &mut PooledConnection<'_, async_bb8_diesel::ConnectionManager<PgConnection>>,
+    conn: &mut PooledConnection<'_, async_bb8_diesel::ConnectionManager<DejaPgConnection>>,
     store: &T,
 ) {
     use async_bb8_diesel::AsyncConnection;
@@ -129,7 +129,7 @@ fn deja_replay_route_warn_no_correlation() {
 pub async fn pg_connection_read<T: DatabaseStore>(
     store: &T,
 ) -> error_stack::Result<
-    PooledConnection<'_, async_bb8_diesel::ConnectionManager<PgConnection>>,
+    PooledConnection<'_, async_bb8_diesel::ConnectionManager<DejaPgConnection>>,
     StorageError,
 > {
     // If only OLAP is enabled get replica pool.
@@ -160,7 +160,7 @@ pub async fn pg_connection_read<T: DatabaseStore>(
 pub async fn pg_connection_write<T: DatabaseStore>(
     store: &T,
 ) -> error_stack::Result<
-    PooledConnection<'_, async_bb8_diesel::ConnectionManager<PgConnection>>,
+    PooledConnection<'_, async_bb8_diesel::ConnectionManager<DejaPgConnection>>,
     StorageError,
 > {
     // Since all writes should happen to master DB only choose master DB.
@@ -179,7 +179,7 @@ pub async fn pg_connection_write<T: DatabaseStore>(
 pub async fn pg_accounts_connection_read<T: DatabaseStore>(
     store: &T,
 ) -> error_stack::Result<
-    PooledConnection<'_, async_bb8_diesel::ConnectionManager<PgConnection>>,
+    PooledConnection<'_, async_bb8_diesel::ConnectionManager<DejaPgConnection>>,
     StorageError,
 > {
     // If only OLAP is enabled get replica pool.
@@ -210,7 +210,7 @@ pub async fn pg_accounts_connection_read<T: DatabaseStore>(
 pub async fn pg_accounts_connection_write<T: DatabaseStore>(
     store: &T,
 ) -> error_stack::Result<
-    PooledConnection<'_, async_bb8_diesel::ConnectionManager<PgConnection>>,
+    PooledConnection<'_, async_bb8_diesel::ConnectionManager<DejaPgConnection>>,
     StorageError,
 > {
     // Since all writes should happen to master DB only choose master DB.

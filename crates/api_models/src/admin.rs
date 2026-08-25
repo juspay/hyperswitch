@@ -355,8 +355,11 @@ pub struct CardBlockingConfig {
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
 pub struct WalletBlockingConfig {
     /// Set of card types to block for all wallet payments (e.g., ["Credit", "Debit"]).
-    /// Retained for backwards compatibility with existing configurations.
-    #[schema(value_type = Option<Vec<CardType>>)]
+    ///
+    /// Deprecated: this applies one rule to every wallet, so a card type cannot be blocked on
+    /// Apple Pay without also blocking it on Google Pay. Use `apple_pay.card_types` and
+    /// `google_pay.card_types` instead, which are evaluated per wallet against that wallet's decrypted card.
+    #[schema(value_type = Option<Vec<CardType>>, deprecated)]
     pub card_types: Option<HashSet<common_enums::CardType>>,
     /// Apple Pay-specific blocking configuration
     pub apple_pay: Option<CardBlockingConfig>,
@@ -3640,6 +3643,9 @@ pub struct PaymentLinkConfigRequest {
     /// Flag to display the merchant name in the payment link
     #[schema(default = true, example = true)]
     pub show_merchant_name: Option<bool>,
+    /// Custom text for the separator shown between wallet and card payment method sections
+    #[schema(value_type = Option<String>, max_length = 64, example = "Or pay with")]
+    pub payment_methods_separator_text: Option<String>,
 }
 
 impl PaymentLinkConfigRequest {
@@ -3773,6 +3779,8 @@ pub struct PaymentLinkConfig {
     pub color_icon_card_cvc_error: Option<String>,
     /// Flag to display the merchant name in the payment link
     pub show_merchant_name: Option<bool>,
+    /// Custom text for the separator shown between wallet and card payment method sections
+    pub payment_methods_separator_text: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
@@ -3885,6 +3893,7 @@ mod tests {
             is_setup_mandate_flow: None,
             color_icon_card_cvc_error: None,
             show_merchant_name: None,
+            payment_methods_separator_text: None,
         };
         assert!(safe_request.validate().is_ok());
 

@@ -412,7 +412,8 @@ pub struct SantanderPix {
     // Transaction amount
     pub valor: String,
     // Timestamp when the transaction occurred
-    pub horario: String,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub horario: PrimitiveDateTime,
     // Optional information provided by the payer
     pub info_pagador: Option<String>,
 }
@@ -465,7 +466,8 @@ pub struct SantanderCobrSyncPix {
     /// Value information
     pub valor: serde_json::Value,
     /// Timestamp when the Pix was processed
-    pub horario: String,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub horario: PrimitiveDateTime,
     /// Optional payer info
     #[serde(skip_serializing_if = "Option::is_none")]
     pub info_pagador: Option<String>,
@@ -898,7 +900,8 @@ pub struct SantanderPaymentDetails {
     pub deduction_value: Option<StringMajorUnit>,
     pub rebate_value: Option<StringMajorUnit>,
     pub iof_value: Option<StringMajorUnit>,
-    pub date: Option<String>,
+    #[serde(with = "common_utils::custom_serde::iso8601::option")]
+    pub date: Option<PrimitiveDateTime>,
     #[serde(rename = "type")]
     pub bank_type: Option<String>,
     pub bank_code: Option<String>,
@@ -975,7 +978,8 @@ pub struct SantanderPixAutomaticoAtualizacao {
     /// Status of the recurrence at the time of update
     pub status: Option<RecurrenceStatus>,
     /// Date when the status update occurred
-    pub data: String,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub data: PrimitiveDateTime,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1291,7 +1295,8 @@ pub struct RecurrenceStatusUpdate {
     /// Status of the recurrence
     pub status: Option<RecurrenceStatus>,
     /// Date/time of this status update
-    pub data: String,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub data: PrimitiveDateTime,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

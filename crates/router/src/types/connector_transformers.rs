@@ -39,6 +39,7 @@ impl ForeignTryFrom<api_enums::Connector> for euclid::enums::RoutableConnectors 
             api_enums::Connector::Chargebee => Self::Chargebee,
             api_enums::Connector::Checkbook => Self::Checkbook,
             api_enums::Connector::Checkout => Self::Checkout,
+            api_enums::Connector::Citigate => Self::Citigate,
             api_enums::Connector::Coinbase => Self::Coinbase,
             api_enums::Connector::Coingate => Self::Coingate,
             api_enums::Connector::Cryptopay => Self::Cryptopay,
@@ -72,6 +73,7 @@ impl ForeignTryFrom<api_enums::Connector> for euclid::enums::RoutableConnectors 
             api_enums::Connector::Forte => Self::Forte,
             api_enums::Connector::Getnet => Self::Getnet,
             api_enums::Connector::Gigadat => Self::Gigadat,
+            api_enums::Connector::Ilixium => Self::Ilixium,
             api_enums::Connector::Givepayments => Self::Givepayments,
             api_enums::Connector::Globalpay => Self::Globalpay,
             api_enums::Connector::Globepay => Self::Globepay,
@@ -95,6 +97,11 @@ impl ForeignTryFrom<api_enums::Connector> for euclid::enums::RoutableConnectors 
             api_enums::Connector::Interpayments => Self::Interpayments,
             api_enums::Connector::Itaubank => Self::Itaubank,
             api_enums::Connector::Jpmorgan => Self::Jpmorgan,
+            api_enums::Connector::Juspay => {
+                Err(common_utils::errors::ValidationError::InvalidValue {
+                    message: "juspay is not a routable connector".to_string(),
+                })?
+            }
             api_enums::Connector::Juspaythreedsserver => {
                 Err(common_utils::errors::ValidationError::InvalidValue {
                     message: "juspaythreedsserver is not a routable connector".to_string(),
@@ -193,6 +200,7 @@ impl ForeignTryFrom<api_enums::Connector> for euclid::enums::RoutableConnectors 
             api_enums::Connector::Worldline => Self::Worldline,
             api_enums::Connector::Worldpay => Self::Worldpay,
             api_enums::Connector::Worldpaymodular => Self::Worldpaymodular,
+            api_enums::Connector::Worldpayraft => Self::Worldpayraft,
             api_enums::Connector::Worldpayvantiv => Self::Worldpayvantiv,
             api_enums::Connector::Worldpayxml => Self::Worldpayxml,
             api_enums::Connector::Xendit => Self::Xendit,

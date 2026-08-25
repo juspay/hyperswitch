@@ -61,6 +61,7 @@ async fn run_batch_job(
             state,
             merchant_id_obj,
             tracking_data.processor_merchant_id.as_ref(),
+            tracking_data.profile_id.as_ref(),
             chunk_idx,
             chunk_rows,
             tracking_data.created_by.clone(),

@@ -884,6 +884,23 @@ pub async fn get_should_trigger_backwards_compatibility_inline(
         .await
 }
 
+/// Timeout (in seconds) for fetching a network token from the tokenization service during a
+/// payment, resolved from superposition with database fallback (global key
+/// `network_token_fetch_timeout_in_secs`, default 4).
+pub async fn get_network_token_fetch_timeout_in_secs(state: &SessionState) -> u64 {
+    let dimensions = dimension_state::Dimensions::new();
+
+    let timeout_in_secs = dimensions
+        .get_network_token_fetch_timeout_in_secs(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            None,
+        )
+        .await;
+
+    u64::from(timeout_in_secs)
+}
+
 pub async fn get_should_trigger_fingerprint_migration(
     state: &SessionState,
     customer_id: Option<&common_utils::id_type::CustomerId>,
@@ -913,6 +930,7 @@ pub async fn get_sdk_next_action_for_payment_method_list(
     dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
     customer_id: Option<&common_utils::id_type::CustomerId>,
     has_surcharge_processor: bool,
+    offers_enabled: bool,
 ) -> api_models::payments::SdkNextAction {
     let should_perform_eligibility = dimensions
         .get_should_perform_eligibility(
@@ -925,7 +943,7 @@ pub async fn get_sdk_next_action_for_payment_method_list(
     if should_perform_eligibility {
         api_models::payments::SdkNextAction {
             next_action: api_models::payments::NextActionCall::EligibilityCheck,
-            should_block_confirm: Some(has_surcharge_processor),
+            should_block_confirm: Some(has_surcharge_processor || offers_enabled),
         }
     } else {
         api_models::payments::SdkNextAction {

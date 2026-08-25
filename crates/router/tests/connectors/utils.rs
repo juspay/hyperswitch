@@ -411,6 +411,7 @@ pub trait ConnectorActions: Connector {
                 merchant_config_currency: None,
                 capture_method: None,
                 additional_payment_method_data: None,
+                payment_connector_request_reference_id: None,
             }),
             payment_info,
         );
@@ -454,15 +455,16 @@ pub trait ConnectorActions: Connector {
     ) -> RouterData<Flow, types::PayoutsData, Res> {
         self.generate_data(
             types::PayoutsData {
+                connector_eligibility_reference_id: None,
                 payout_id: common_utils::id_type::PayoutId::generate(),
                 amount: 1,
                 minor_amount: MinorUnit::new(1),
                 connector_payout_id,
                 destination_currency: payment_info.to_owned().map_or(enums::Currency::EUR, |pi| {
-                    pi.currency.map_or(enums::Currency::EUR, |c| c)
+                    pi.currency.unwrap_or(enums::Currency::EUR)
                 }),
                 source_currency: payment_info.to_owned().map_or(enums::Currency::EUR, |pi| {
-                    pi.currency.map_or(enums::Currency::EUR, |c| c)
+                    pi.currency.unwrap_or(enums::Currency::EUR)
                 }),
                 entity_type: enums::PayoutEntityType::Individual,
                 payout_type: Some(payout_type),
@@ -511,8 +513,7 @@ pub trait ConnectorActions: Connector {
             auth_type: info
                 .clone()
                 .map_or(enums::AuthenticationType::NoThreeDs, |a| {
-                    a.auth_type
-                        .map_or(enums::AuthenticationType::NoThreeDs, |a| a)
+                    a.auth_type.unwrap_or(enums::AuthenticationType::NoThreeDs)
                 }),
             payment_method: enums::PaymentMethod::Card,
             payment_method_type: None,
@@ -573,6 +574,7 @@ pub trait ConnectorActions: Connector {
             customer_document_details: None,
             feature_data: None,
             sender_payment_instrument_id: None,
+            connector_returned_payment_method_details: None,
         }
     }
 
@@ -1130,6 +1132,7 @@ impl Default for PaymentRefundType {
             merchant_config_currency: None,
             capture_method: None,
             additional_payment_method_data: None,
+            payment_connector_request_reference_id: None,
         };
         Self(data)
     }
