@@ -782,7 +782,10 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
         }
     }
 
-    Ok((payment_processor_token_response, next_static_ladder_progress))
+    Ok((
+        payment_processor_token_response,
+        next_static_ladder_progress,
+    ))
 }
 
 /// Check the invoice's payment processor token against a schedule time already decided.

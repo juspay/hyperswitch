@@ -1,6 +1,5 @@
 use time::PrimitiveDateTime;
 
-
 #[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct StaticLadderProgress {
     /// Static ladder positions consumed so far.

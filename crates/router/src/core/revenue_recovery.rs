@@ -675,7 +675,8 @@ pub async fn perform_calculate_workflow(
             )
             .await?;
 
-            finish_calculate_workflow_with_progress(db, process, next_static_ladder_progress).await?;
+            finish_calculate_workflow_with_progress(db, process, next_static_ladder_progress)
+                .await?;
 
             logger::info!(
                 process_id = %process.id,
@@ -825,9 +826,7 @@ async fn finish_calculate_workflow_with_progress(
                 retry_count: None,
                 schedule_time: None,
                 tracking_data: Some(tracking_data),
-                business_status: Some(String::from(
-                    business_status::CALCULATE_WORKFLOW_SCHEDULED,
-                )),
+                business_status: Some(String::from(business_status::CALCULATE_WORKFLOW_SCHEDULED)),
                 status: Some(ProcessTrackerStatus::Finish),
                 updated_at: Some(common_utils::date_time::now()),
             }
