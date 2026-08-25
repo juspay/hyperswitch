@@ -17437,6 +17437,7 @@
           "wise",
           "worldline",
           "worldpay",
+          "worldpayraft",
           "worldpayvantiv",
           "worldpayxml",
           "worldpaymodular",
@@ -37122,6 +37123,12 @@
             "example": "S3FC9G9M2MVFDXT5",
             "nullable": true
           },
+          "connector_eligibility_reference_id": {
+            "type": "string",
+            "description": "Underlying processor's reference ID for the payout eligibility check",
+            "example": "8ad8bf30-5789-52be-a80a-72908abf5f9d",
+            "nullable": true
+          },
           "priority": {
             "allOf": [
               {
@@ -42214,6 +42221,7 @@
           "worldline",
           "worldpay",
           "worldpaymodular",
+          "worldpayraft",
           "worldpayvantiv",
           "worldpayxml",
           "xendit",
