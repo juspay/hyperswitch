@@ -34,14 +34,14 @@ pub async fn apply_card_refresh_result(
 
     match outcome.get_new_card_details() {
         Some(RefreshedCard::CardOpen(refreshed_card)) => {
-            write_refreshed_card(
+            Box::pin(write_refreshed_card(
                 state,
                 platform,
                 profile,
                 payment_method,
                 service,
-                refreshed_card,
-            )
+                *refreshed_card,
+            ))
             .await
         }
         Some(RefreshedCard::CardClosed) => update_payment_method_status(
@@ -109,9 +109,36 @@ async fn write_refreshed_card(
         logger::info!(
             "Account Updater reported a change whose fingerprint matches the stored card; nothing written"
         );
-        return Ok(None);
+        Ok(None)
+    } else {
+        Box::pin(store_refreshed_card(
+            state,
+            platform,
+            profile,
+            payment_method,
+            service,
+            vaulting_data,
+            customer_id,
+            locker_fingerprint_id,
+            auxiliary_fingerprint_id,
+        ))
+        .await
+        .map(Some)
     }
+}
 
+#[allow(clippy::too_many_arguments)]
+async fn store_refreshed_card(
+    state: &SessionState,
+    platform: &domain::Platform,
+    profile: &domain::Profile,
+    payment_method: &domain::PaymentMethod,
+    service: Connector,
+    vaulting_data: domain::PaymentMethodVaultingData,
+    customer_id: id_type::GlobalCustomerId,
+    locker_fingerprint_id: String,
+    auxiliary_fingerprint_id: String,
+) -> CustomResult<domain::PaymentMethod, AccountUpdaterError> {
     let bin_enriched = vaulting_data
         .populate_bin_details_for_payment_method(state)
         .await;
@@ -148,22 +175,22 @@ async fn write_refreshed_card(
     let inserted_payment_method =
         insert_refreshed_payment_method(state, platform, refreshed_payment_method).await?;
 
-    pm_core::delete_payment_method_by_record(
+    Box::pin(pm_core::delete_payment_method_by_record(
         state.store.as_ref(),
         state,
         platform,
         profile,
         payment_method.clone(),
-    )
+    ))
     .await
     .change_context(AccountUpdaterError::StoreFailed)
     .attach_printable("Failed to delete the superseded payment method")?;
 
-    let activated_payment_method = update_payment_method_status(
+    update_payment_method_status(
         state,
         platform,
         service,
-        inserted_payment_method.clone(),
+        inserted_payment_method,
         common_enums::PaymentMethodStatus::Active,
     )
     .await
@@ -173,9 +200,6 @@ async fn write_refreshed_card(
             "Account Updater stored the refreshed card but could not activate the row"
         )
     })
-    .unwrap_or(inserted_payment_method);
-
-    Ok(Some(activated_payment_method))
 }
 
 fn build_new_card(

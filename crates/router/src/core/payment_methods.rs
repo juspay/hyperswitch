@@ -6791,6 +6791,7 @@ pub async fn delete_payment_method_by_record(
     let pm_update = storage::PaymentMethodUpdate::StatusAndFingerprintUpdate {
         status: Some(enums::PaymentMethodStatus::Redacted),
         last_modified_by,
+        // Some(None) sets the locker_fingerprint_id to null
         locker_fingerprint_id: Some(None),
     };
 

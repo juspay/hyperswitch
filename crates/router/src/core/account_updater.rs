@@ -37,11 +37,11 @@ where
         Ok(Some(config)) => config,
         Ok(None) => {
             logger::debug!("Account Updater is not enabled for these dimensions");
-            return Err(report!(AccountUpdaterError::NotEnabled));
+            Err(report!(AccountUpdaterError::NotEnabled))?
         }
         Err(error) => {
             logger::warn!(?error, "Account Updater config could not be resolved");
-            return Err(error);
+            Err(error)?
         }
     };
 

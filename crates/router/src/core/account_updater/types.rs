@@ -140,7 +140,7 @@ pub enum CardOutcome {
 }
 
 pub enum RefreshedCard {
-    CardOpen(payments_grpc::CardDetailsWithNoCvc),
+    CardOpen(Box<payments_grpc::CardDetailsWithNoCvc>),
     CardClosed,
 }
 
@@ -166,7 +166,7 @@ impl CardOutcome {
     pub fn get_new_card_details(self) -> Option<RefreshedCard> {
         match self {
             Self::AccountUpdated(card) | Self::ExpiryUpdated(card) => {
-                Some(RefreshedCard::CardOpen(card))
+                Some(RefreshedCard::CardOpen(Box::new(card)))
             }
             Self::Closed => Some(RefreshedCard::CardClosed),
             Self::NoChange | Self::NotFound | Self::ContactIssuer | Self::Unspecified => None,
