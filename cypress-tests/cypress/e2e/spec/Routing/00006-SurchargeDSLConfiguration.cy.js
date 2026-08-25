@@ -5,9 +5,31 @@ let globalState;
 
 describe("Surcharge DSL Configuration Test", () => {
   before("seed global state", () => {
-    cy.task("getGlobalState").then((state) => {
-      globalState = new State(state);
-    });
+    cy.task("getGlobalState")
+      .then((state) => {
+        globalState = new State(state);
+        return globalState;
+      })
+      .then(() => {
+        // Populate profileId and MCA info via prerequisite call
+        cy.ListMcaByMid(globalState);
+      });
+  });
+
+  beforeEach(function () {
+    // Surcharge DSL endpoints require JWT auth in release builds (integ/sandbox).
+    // Skip these tests on environments where api-key auth is not accepted.
+    const baseUrl = globalState.get("baseUrl") || "";
+    if (
+      baseUrl.includes("integ") ||
+      baseUrl.includes("sandbox") ||
+      baseUrl.includes("prod")
+    ) {
+      cy.log(
+        "SKIPPED: Surcharge DSL tests require JWT authentication on this environment (release build)."
+      );
+      this.skip();
+    }
   });
 
   afterEach("flush global state", () => {
@@ -18,35 +40,40 @@ describe("Surcharge DSL Configuration Test", () => {
     it("create-surcharge-dsl-config-rate", () => {
       const data =
         utils.getConnectorDetails("common")["SurchargeDecisionManager"][
-          "Create"
+          "CreateRate"
         ];
       const surchargeBody = {
         name: "surcharge_config_rate",
         merchant_surcharge_configs: {},
         algorithm: {
-          type: "rate",
-          rate: 2.5,
           defaultSelection: {
-            surcharge_type: "rate",
-            rate: 2.5,
+            surcharge_details: {
+              surcharge: {
+                type: "rate",
+                value: {
+                  percentage: 2.5,
+                },
+              },
+            },
           },
           rules: [],
+          metadata: {},
         },
       };
 
       cy.createSurchargeDSLConfig(surchargeBody, data, globalState);
     });
 
-    it("retrieve-surcharge-dsl-config", () => {
+    it("retrieve-surcharge-dsl-config-rate", () => {
       const data =
         utils.getConnectorDetails("common")["SurchargeDecisionManager"][
-          "Retrieve"
+          "RetrieveRate"
         ];
 
       cy.retrieveSurchargeDSLConfig(data, globalState);
     });
 
-    it("delete-surcharge-dsl-config", () => {
+    it("delete-surcharge-dsl-config-rate", () => {
       const data =
         utils.getConnectorDetails("common")["SurchargeDecisionManager"][
           "Delete"
@@ -58,10 +85,10 @@ describe("Surcharge DSL Configuration Test", () => {
     it("verify-delete-by-retrieve-empty", () => {
       const data =
         utils.getConnectorDetails("common")["SurchargeDecisionManager"][
-          "Retrieve"
+          "RetrieveDeleted"
         ];
 
-      cy.retrieveSurchargeDSLConfig(data, globalState);
+      cy.verifySurchargeDSLConfigDeleted(data, globalState);
     });
   });
 
@@ -69,19 +96,24 @@ describe("Surcharge DSL Configuration Test", () => {
     it("create-surcharge-dsl-config-fixed", () => {
       const data =
         utils.getConnectorDetails("common")["SurchargeDecisionManager"][
-          "Create"
+          "CreateFixed"
         ];
       const surchargeBody = {
         name: "surcharge_config_fixed",
         merchant_surcharge_configs: {},
         algorithm: {
-          type: "fixed",
-          amount: 100,
           defaultSelection: {
-            surcharge_type: "fixed",
-            amount: 100,
+            surcharge_details: {
+              surcharge: {
+                type: "fixed",
+                value: {
+                  amount: 100,
+                },
+              },
+            },
           },
           rules: [],
+          metadata: {},
         },
       };
 
@@ -91,7 +123,7 @@ describe("Surcharge DSL Configuration Test", () => {
     it("retrieve-surcharge-dsl-config-fixed", () => {
       const data =
         utils.getConnectorDetails("common")["SurchargeDecisionManager"][
-          "Retrieve"
+          "RetrieveFixed"
         ];
 
       cy.retrieveSurchargeDSLConfig(data, globalState);
@@ -111,24 +143,37 @@ describe("Surcharge DSL Configuration Test", () => {
     it("create-surcharge-dsl-config-with-rules", () => {
       const data =
         utils.getConnectorDetails("common")["SurchargeDecisionManager"][
-          "Create"
+          "CreateConditional"
         ];
       const surchargeBody = {
-        name: "surcharge_config_rules",
-        merchant_surcharge_configs: {},
+        name: "surcharge_config_complex",
+        merchant_surcharge_configs: {
+          show_surcharge_breakup_screen: true,
+        },
         algorithm: {
-          type: "rate",
-          rate: 2.5,
           defaultSelection: {
-            surcharge_type: "rate",
-            rate: 2.5,
+            surcharge_details: {
+              surcharge: {
+                type: "rate",
+                value: {
+                  percentage: 2.5,
+                },
+              },
+            },
           },
           rules: [
             {
-              name: "card_surcharge_rule",
-              surcharge_value: {
-                surcharge_type: "rate",
-                rate: 3.0,
+              name: "Card Rule",
+              connectorSelection: {
+                surcharge_details: {
+                  surcharge: {
+                    type: "rate",
+                    value: {
+                      percentage: 3.0,
+                    },
+                  },
+                  tax_on_surcharge: null,
+                },
               },
               statements: [
                 {
@@ -143,10 +188,44 @@ describe("Surcharge DSL Configuration Test", () => {
                       metadata: {},
                     },
                   ],
+                  nested: null,
+                },
+              ],
+            },
+            {
+              name: "Pay Later Rule",
+              connectorSelection: {
+                surcharge_details: {
+                  surcharge: {
+                    type: "fixed",
+                    value: {
+                      amount: 200,
+                    },
+                  },
+                  tax_on_surcharge: null,
+                },
+              },
+              statements: [
+                {
+                  condition: [
+                    {
+                      lhs: "payment_method",
+                      comparison: "equal",
+                      value: {
+                        type: "enum_variant",
+                        value: "pay_later",
+                      },
+                      metadata: {},
+                    },
+                  ],
+                  nested: null,
                 },
               ],
             },
           ],
+          metadata: {
+            description: "Complex surcharge with payment method conditions",
+          },
         },
       };
 
@@ -156,7 +235,7 @@ describe("Surcharge DSL Configuration Test", () => {
     it("retrieve-surcharge-dsl-config-with-rules", () => {
       const data =
         utils.getConnectorDetails("common")["SurchargeDecisionManager"][
-          "Retrieve"
+          "RetrieveConditional"
         ];
 
       cy.retrieveSurchargeDSLConfig(data, globalState);
