@@ -13,9 +13,6 @@ use crate::{
     routes::{app::SessionStateInfo, SessionState},
 };
 
-/// Short TTL on the per-key lock so a crashed writer never wedges a key.
-const LOCK_TTL_SECONDS: i64 = 10;
-
 fn lock_key_for(cluster_key: &str) -> String {
     format!("revenue_recovery_retry_stats_lock:{cluster_key}")
 }
@@ -55,11 +52,11 @@ impl RetryOutcomeEvent {
 
         let db_key = self.key.as_db_string();
 
-        let lock_retries = state.conf().lock_settings.lock_retries;
-        let delay_between_retries_in_milliseconds = state
-            .conf()
-            .lock_settings
-            .delay_between_retries_in_milliseconds;
+        let lock_settings = state.conf().lock_settings;
+        let lock_retries = lock_settings.lock_retries;
+        let delay_between_retries_in_milliseconds =
+            lock_settings.delay_between_retries_in_milliseconds;
+        let redis_lock_expiry_seconds = lock_settings.redis_lock_expiry_seconds;
 
         match persist_node(
             store.as_ref(),
@@ -68,6 +65,7 @@ impl RetryOutcomeEvent {
             self,
             lock_retries,
             delay_between_retries_in_milliseconds,
+            redis_lock_expiry_seconds,
         )
         .await
         {
@@ -85,6 +83,8 @@ impl RetryOutcomeEvent {
     }
 }
 
+/// Serialize the read-merge-write for a cluster key under a per-key Redis lock (SETNX
+/// with expiry) so concurrent recorders don't lose updates
 async fn persist_node(
     store: &dyn RevenueRecoveryRetryStatsInterface<Error = StorageError>,
     redis_conn: &redis_interface::RedisConnectionWithContext,
@@ -92,6 +92,7 @@ async fn persist_node(
     event: &RetryOutcomeEvent,
     lock_retries: u32,
     delay_between_retries_in_milliseconds: u32,
+    redis_lock_expiry_seconds: u32,
 ) -> CustomResult<(), StorageError> {
     let lock_key = lock_key_for(db_key);
     let lock_token = uuid::Uuid::new_v4().to_string();
@@ -104,7 +105,7 @@ async fn persist_node(
             .set_key_if_not_exists_with_expiry(
                 &lock_key.as_str().into(),
                 lock_token.clone(),
-                Some(LOCK_TTL_SECONDS),
+                Some(i64::from(redis_lock_expiry_seconds)),
             )
             .await
         {
