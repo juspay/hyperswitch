@@ -65,48 +65,56 @@ const UPI_WAIT_SCREEN_DISPLAY_DURATION_MINUTES: i64 = 5;
 const UPI_POLL_DELAY_IN_SECS: u16 = 5;
 const UPI_POLL_FREQUENCY: u16 = 60;
 
-fn convert_additional_connector_details(
+/// Builds the currency conversion payload UCS forwards to the connector.
+///
+/// Today the only source is the Datatrans multi-currency pricing (MCP) block the
+/// merchant supplies in the payment intent's `connector_metadata`. UCS models MCP
+/// as a currency conversion quote, so the Datatrans-specific fields are mapped
+/// onto the generic quote here.
+fn convert_currency_conversion_data(
     connector_intent_metadata: Option<&api_models::payments::ConnectorMetadata>,
 ) -> Result<
-    Option<payments_grpc::AdditionalConnectorDetails>,
+    Option<payments_grpc::CurrencyConversionData>,
     error_stack::Report<UnifiedConnectorServiceError>,
 > {
     connector_intent_metadata
-        .map(|metadata| {
-            let datatrans = metadata
-                .datatrans
-                .as_ref()
-                .map(
-                    |datatrans| -> Result<
-                        payments_grpc::DatatransAdditionalInformation,
-                        error_stack::Report<UnifiedConnectorServiceError>,
-                    > {
-                        let currency = <payments_grpc::Currency as transformers::ForeignTryFrom<
-                            _,
-                        >>::foreign_try_from(
-                            datatrans.currency
-                        )?;
-                        Ok(payments_grpc::DatatransAdditionalInformation {
-                            amount: Some(payments_grpc::Money {
-                                minor_amount: datatrans.amount.get_amount_as_i64(),
-                                currency: currency.into(),
-                            }),
-                            conversion_rate: datatrans.conversion_rate,
-                            transaction_date: datatrans
-                                .transaction_date
-                                .map(|dt| dt.assume_utc().unix_timestamp()),
-                            retrieval_reference_number: datatrans
-                                .retrieval_reference_number
-                                .clone(),
-                            user_id: datatrans.user_id.clone(),
-                            provider: datatrans.provider.clone(),
-                            reason_indicator: datatrans.reason_indicator.clone(),
-                        })
-                    },
-                )
-                .transpose()?;
-            Ok(payments_grpc::AdditionalConnectorDetails { datatrans })
-        })
+        .and_then(|metadata| metadata.datatrans.as_ref())
+        .map(
+            |datatrans| -> Result<
+                payments_grpc::CurrencyConversionData,
+                error_stack::Report<UnifiedConnectorServiceError>,
+            > {
+                let currency =
+                    <payments_grpc::Currency as transformers::ForeignTryFrom<_>>::foreign_try_from(
+                        datatrans.currency,
+                    )?;
+                Ok(payments_grpc::CurrencyConversionData {
+                    decision: payments_grpc::CurrencyConversionDecision::NotApplicable.into(),
+                    quote: Some(payments_grpc::CurrencyConversionQuote {
+                        merchant_order_amount: Some(payments_grpc::Money {
+                            minor_amount: datatrans.amount.get_amount_as_i64(),
+                            currency: currency.into(),
+                        }),
+                        exchange_rate: datatrans.conversion_rate.map(|rate| rate.to_string()),
+                        exchange_rate_id: datatrans.retrieval_reference_number.clone(),
+                        provider: Some(datatrans.provider.clone()),
+                        currency_conversion_type: Some(
+                            payments_grpc::CurrencyConversionType::Mcp.into(),
+                        ),
+                        quoted_at: datatrans
+                            .transaction_date
+                            .map(|dt| dt.assume_utc().unix_timestamp()),
+                        conversion_reason_code: Some(datatrans.reason_indicator.clone()),
+                        user_id: Some(datatrans.user_id.clone()),
+                        connector_quote_id: None,
+                        rate_source: None,
+                        markup_percentage: None,
+                        markup_amount: None,
+                        expires_at: None,
+                    }),
+                })
+            },
+        )
         .transpose()
 }
 
@@ -475,7 +483,7 @@ impl
             .access_token
             .as_ref()
             .map(ConnectorState::foreign_from);
-        let additional_connector_details = convert_additional_connector_details(
+        let currency_conversion_data = convert_currency_conversion_data(
             router_data.request.connector_intent_metadata.as_ref(),
         )?;
         let order_details = build_ucs_order_details(router_data.request.order_details.as_deref());
@@ -589,7 +597,6 @@ impl
                 .transpose()?
                 .map(|payment_channel| payment_channel.into()),
             connector_feature_data: None,
-            additional_connector_details,
             locale: router_data.request.locale.clone(),
             continue_redirection_url: router_data.request.complete_authorize_url.clone(),
             redirection_response: None,
@@ -620,8 +627,7 @@ impl
                         }
                     }),
                 }),
-            // TODO: Populate currency_conversion_data when Dynamic Currency Conversion (DCC) is implemented
-            currency_conversion_data: None,
+            currency_conversion_data,
         })
     }
 }
@@ -755,7 +761,7 @@ impl
             .access_token
             .as_ref()
             .map(ConnectorState::foreign_from);
-        let additional_connector_details = convert_additional_connector_details(
+        let currency_conversion_data = convert_currency_conversion_data(
             router_data.request.connector_intent_metadata.as_ref(),
         )?;
 
@@ -832,7 +838,6 @@ impl
                 .transpose()
                 .change_context(UnifiedConnectorServiceError::RequestEncodingFailed)?
                 .map(|s| s.into()),
-            additional_connector_details,
             enable_partial_authorization: None,
             payment_channel: None,
             billing_descriptor: None,
@@ -861,8 +866,7 @@ impl
             connector_order_id: router_data.request.connector_transaction_id.clone(),
             merchant_request_id: None,
             partner_merchant_identifier_details: None,
-            // TODO: Populate currency_conversion_data when Dynamic Currency Conversion (DCC) is implemented
-            currency_conversion_data: None,
+            currency_conversion_data,
         })
     }
 }
@@ -1828,7 +1832,7 @@ impl transformers::ForeignTryFrom<&RouterData<Capture, PaymentsCaptureData, Paym
             .as_ref()
             .map(ConnectorState::foreign_from);
 
-        let additional_connector_details = convert_additional_connector_details(
+        let currency_conversion_data = convert_currency_conversion_data(
             router_data.request.connector_intent_metadata.as_ref(),
         )?;
 
@@ -1867,7 +1871,7 @@ impl transformers::ForeignTryFrom<&RouterData<Capture, PaymentsCaptureData, Paym
                 .transpose()
                 .change_context(UnifiedConnectorServiceError::RequestEncodingFailed)?
                 .map(|s| s.into()),
-            additional_connector_details,
+            currency_conversion_data,
             test_mode: router_data.test_mode,
             merchant_order_id: router_data.request.merchant_order_reference_id.clone(),
             merchant_request_id: None,
@@ -1952,7 +1956,7 @@ impl
             .clone()
             .map(payments_grpc::AuthenticationData::foreign_try_from)
             .transpose()?;
-        let additional_connector_details = convert_additional_connector_details(
+        let currency_conversion_data = convert_currency_conversion_data(
             router_data.request.connector_intent_metadata.as_ref(),
         )?;
 
@@ -2024,7 +2028,6 @@ impl
             statement_descriptor_suffix: None,
             order_details: vec![],
             connector_feature_data: None,
-            additional_connector_details,
             enable_partial_authorization: None,
             payment_channel: None,
             tokenization_strategy: router_data
@@ -2039,8 +2042,7 @@ impl
             l2_l3_data: None,
             merchant_request_id: None,
             partner_merchant_identifier_details: None,
-            // TODO: Populate currency_conversion_data when Dynamic Currency Conversion (DCC) is implemented
-            currency_conversion_data: None,
+            currency_conversion_data,
         })
     }
 }
@@ -2113,7 +2115,7 @@ impl
             .access_token
             .as_ref()
             .map(ConnectorState::foreign_from);
-        let additional_connector_details = convert_additional_connector_details(
+        let currency_conversion_data = convert_currency_conversion_data(
             router_data.request.connector_intent_metadata.as_ref(),
         )?;
         let order_details = build_ucs_order_details(router_data.request.order_details.as_deref());
@@ -2210,7 +2212,6 @@ impl
                 .and_then(|descriptor| descriptor.statement_descriptor_suffix.clone()),
             order_details,
             connector_feature_data: None,
-            additional_connector_details,
             enable_partial_authorization: router_data
                 .request
                 .enable_partial_authorization
@@ -2240,8 +2241,7 @@ impl
             l2_l3_data,
             merchant_request_id: None,
             partner_merchant_identifier_details: None,
-            // TODO: Populate currency_conversion_data when Dynamic Currency Conversion (DCC) is implemented
-            currency_conversion_data: None,
+            currency_conversion_data,
         })
     }
 }
@@ -2405,7 +2405,6 @@ impl
             statement_descriptor_suffix: router_data.request.statement_descriptor_suffix.clone(),
             order_details: vec![],
             connector_feature_data: None,
-            additional_connector_details: None,
             enable_partial_authorization: None,
             payment_channel: None,
             tokenization_strategy: None,
@@ -2887,7 +2886,7 @@ impl
                 .map(payments_grpc::PaymentChannel::foreign_try_from)
                 .transpose()?
                 .map(|payment_channel| payment_channel.into()),
-            additional_connector_details: convert_additional_connector_details(
+            currency_conversion_data: convert_currency_conversion_data(
                 router_data.request.connector_intent_metadata.as_ref(),
             )?,
         })
