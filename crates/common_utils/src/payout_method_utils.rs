@@ -256,7 +256,7 @@ pub struct PayshapBankTransferAdditionalData {
     pub account_holder_name: Option<Secret<String>>,
 
     /// Bank name.
-    #[schema(value_type = Option<common_enums::BankNames>, example = "absa")]
+    #[schema(value_type = Option<BankNames>, example = "absa")]
     pub bank_name: Option<common_enums::BankNames>,
 }
 
