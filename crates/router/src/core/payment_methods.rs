@@ -1779,7 +1779,6 @@ pub async fn create_payment_method_core(
                 platform,
                 profile,
                 None,
-                true,
             )
             .await
         }
@@ -1791,7 +1790,6 @@ pub async fn create_payment_method_core(
                 platform,
                 profile,
                 None,
-                true,
             )
             .await
         }
@@ -1807,7 +1805,6 @@ pub async fn create_persistent_payment_method_core(
     platform: &domain::Platform,
     profile: &domain::Profile,
     customer_acceptance: Option<common_utils::pii::SecretSerdeValue>,
-    validate_customer: bool,
 ) -> RouterResult<(api::PaymentMethodResponse, domain::PaymentMethod)> {
     req.validate()?;
 
@@ -1819,16 +1816,14 @@ pub async fn create_persistent_payment_method_core(
         .get_required_value("customer_id")?;
     let key_manager_state = &(state).into();
 
-    if validate_customer {
-        db.find_customer_by_global_id_merchant_id_without_encrypted(
-            &customer_id,
-            platform.get_provider().get_account().get_id(),
-            platform.get_provider().get_account().storage_scheme,
-        )
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
-        .attach_printable("Customer not found for the payment method")?;
-    }
+    db.find_customer_by_global_id_merchant_id_without_encrypted(
+        &customer_id,
+        platform.get_provider().get_account().get_id(),
+        platform.get_provider().get_account().storage_scheme,
+    )
+    .await
+    .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
+    .attach_printable("Customer not found for the payment method")?;
 
     let payment_method_billing_address = req
         .billing
@@ -1923,7 +1918,6 @@ pub async fn create_volatile_payment_method_core(
     platform: &domain::Platform,
     profile: &domain::Profile,
     customer_acceptance: Option<common_utils::pii::SecretSerdeValue>,
-    validate_customer: bool,
 ) -> RouterResult<(api::PaymentMethodResponse, domain::PaymentMethod)> {
     req.validate()?;
 
@@ -1932,17 +1926,15 @@ pub async fn create_volatile_payment_method_core(
     let customer_id = req.customer_id.to_owned();
     let key_manager_state = &(state).into();
 
-    if validate_customer {
-        if let Some(ref customer_id) = customer_id {
-            db.find_customer_by_global_id_merchant_id_without_encrypted(
-                customer_id,
-                platform.get_provider().get_account().get_id(),
-                platform.get_provider().get_account().storage_scheme,
-            )
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
-            .attach_printable("Customer not found for the payment method")?;
-        }
+    if let Some(ref customer_id) = customer_id {
+        db.find_customer_by_global_id_merchant_id_without_encrypted(
+            customer_id,
+            platform.get_provider().get_account().get_id(),
+            platform.get_provider().get_account().storage_scheme,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
+        .attach_printable("Customer not found for the payment method")?;
     }
 
     let payment_method_billing_address = req
@@ -6188,7 +6180,7 @@ pub async fn fetch_payment_method_by_storage(
             Ok((storage_type, volatile_payment_method))
         }
         common_enums::StorageType::Persistent => {
-            logger::debug!("Fetching persistent payment method");
+            logger::debug!("Fetching persistent payment method with fallback");
             // In S2S calls, id passed in the request could be payment method id as well
             // If a temporary token is passed after the redis expiration it will also be treated as
             // a persistent GlobalPaymentMethodId, but for temp tokens GlobalPaymentMethodId will fail
@@ -6204,11 +6196,48 @@ pub async fn fetch_payment_method_by_storage(
                 )),
             }?;
 
-            let payment_method = fetch_payment_method(state, provider, &pm_id)
+            fetch_payment_method_with_fallback(state, provider, &pm_id, storage_type)
                 .await
-                .attach_printable("Failed to get persistent payment method")?;
+                .attach_printable("Failed to get payment method with fallback")
+        }
+    }
+}
 
-            Ok((storage_type, payment_method))
+#[cfg(feature = "v2")]
+pub async fn fetch_payment_method_with_fallback(
+    state: &SessionState,
+    provider: &domain::Provider,
+    pm_id: &id_type::GlobalPaymentMethodId,
+    storage_type: common_enums::StorageType,
+) -> RouterResult<(common_enums::StorageType, domain::PaymentMethod)> {
+    let volatile_payment_method = fetch_volatile_payment_method_record(
+        state,
+        provider.get_key_store(),
+        pm_id.get_string_repr(),
+    )
+    .await
+    .attach_printable("Failed to get volatile payment method record");
+
+    match volatile_payment_method {
+        Ok(payment_method) => Ok((common_enums::StorageType::Volatile, payment_method)),
+        Err(err) => {
+            logger::warn!("Volatile payment method not found, falling back to persistent storage",);
+
+            when(
+                !matches!(
+                    err.current_context(),
+                    errors::ApiErrorResponse::GenericNotFoundError { .. }
+                ),
+                || Err(err),
+            )?;
+
+            logger::debug!("Redis lookup failed, falling back to DB");
+
+            let persistent_payment_method = fetch_payment_method(state, provider, pm_id)
+                .await
+                .attach_printable("Failed to get payment method record from DB")?;
+
+            Ok((storage_type, persistent_payment_method))
         }
     }
 }
@@ -7962,7 +7991,6 @@ pub async fn payment_methods_session_confirm(
                 &platform,
                 &profile,
                 customer_acceptance,
-                false,
             ))
             .await?
         }
@@ -7974,7 +8002,6 @@ pub async fn payment_methods_session_confirm(
                 &platform,
                 &profile,
                 customer_acceptance,
-                false,
             ))
             .await?
         }
