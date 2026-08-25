@@ -2,6 +2,7 @@
 
 use common_utils::errors::ValidationError;
 use cpf_cnpj::{cnpj, cpf};
+use smithy::SmithyModel;
 use utoipa::ToSchema;
 /// HashMap containing MerchantConnectorAccountId and corresponding customer id
 #[cfg(feature = "v2")]
@@ -44,8 +45,18 @@ impl std::ops::DerefMut for ConnectorCustomerMap {
 
 /// Represents the type of identification document used for validation.
 #[derive(
-    Clone, Copy, Debug, Eq, Hash, PartialEq, serde::Deserialize, serde::Serialize, ToSchema,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    ToSchema,
+    SmithyModel,
 )]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
 #[serde(rename_all = "snake_case")]
 pub enum DocumentKind {
     /// Cadastro de Pessoas Físicas - The Brazilian individual taxpayer identifier.
