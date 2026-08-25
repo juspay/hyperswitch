@@ -117,7 +117,8 @@ where
                         granular_payout_get_request,
                         connector_auth_metadata,
                         grpc_headers,
-                    )).await
+                    ))
+                    .await
                     {
                         Ok(resp) => resp,
                         Err(report) => {

@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use cards::CardNumber;
-use common_enums::{CardNetwork, BankNames};
+use common_enums::{BankNames, CardNetwork};
 use common_types::payouts::PayoutsBillingDescriptor;
 #[cfg(feature = "v2")]
 use common_utils::types::BrowserInformation;
@@ -627,7 +627,6 @@ pub struct PayshapProxyBankTransfer {
     #[schema(value_type = Option<String>, example = "21e3123")]
     pub shap_id: Option<Secret<String>>,
 }
-
 
 #[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
@@ -1443,15 +1442,14 @@ impl From<Bank> for payout_method_utils::BankAdditionalData {
                     bank_name,
                 },
             )),
-            Bank::PayshapProxy(PayshapProxyBankTransfer {
-                cellphone,
-                shap_id,
-            }) => Self::PayshapProxy(Box::new(
-                payout_method_utils::PayshapProxyBankTransferAdditionalData {
-                    cellphone: cellphone.map(From::from),
-                    shap_id: shap_id.map(From::from),
-                },
-            )),
+            Bank::PayshapProxy(PayshapProxyBankTransfer { cellphone, shap_id }) => {
+                Self::PayshapProxy(Box::new(
+                    payout_method_utils::PayshapProxyBankTransferAdditionalData {
+                        cellphone: cellphone.map(From::from),
+                        shap_id: shap_id.map(From::from),
+                    },
+                ))
+            }
         }
     }
 }
@@ -1593,15 +1591,14 @@ impl From<BankTransfer> for payout_method_utils::BankAdditionalData {
                     bank_name,
                 },
             )),
-            BankTransfer::PayshapProxy(PayshapProxyBankTransfer {
-                cellphone,
-                shap_id,
-            }) => Self::PayshapProxy(Box::new(
-                payout_method_utils::PayshapProxyBankTransferAdditionalData {
-                    cellphone: cellphone.map(From::from),
-                    shap_id: shap_id.map(From::from),
-                },
-            )),
+            BankTransfer::PayshapProxy(PayshapProxyBankTransfer { cellphone, shap_id }) => {
+                Self::PayshapProxy(Box::new(
+                    payout_method_utils::PayshapProxyBankTransferAdditionalData {
+                        cellphone: cellphone.map(From::from),
+                        shap_id: shap_id.map(From::from),
+                    },
+                ))
+            }
         }
     }
 }

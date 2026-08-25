@@ -9,8 +9,11 @@
 
 use async_trait::async_trait;
 use common_enums::{CallConnectorAction, ExecutionMode, ExecutionPath};
-use common_utils::{errors::{CustomResult, ErrorSwitch}, request::Request};
-use error_stack::{ResultExt, Report};
+use common_utils::{
+    errors::{CustomResult, ErrorSwitch},
+    request::Request,
+};
+use error_stack::{Report, ResultExt};
 use hyperswitch_domain_models::router_data::RouterData;
 use router_env::{logger, tracing::Instrument};
 
