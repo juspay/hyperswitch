@@ -4,13 +4,6 @@ use time::PrimitiveDateTime;
 #[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct StaticLadderProgress {
     /// Static ladder positions consumed so far.
-    ///
-    /// Deliberately **not** `process_tracker.retry_count`, which counts every attempt with
-    /// adaptive insertions included: the ladder has far fewer entries than the invoice has
-    /// attempts, so feeding it `retry_count` would run off the end early.
-    ///
-    /// Defaults to `0` — including on rows written before this field existed — so the ladder
-    /// always starts at position 1.
     #[serde(default)]
     pub consumed_rungs: i32,
 }

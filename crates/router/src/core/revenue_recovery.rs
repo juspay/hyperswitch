@@ -798,14 +798,8 @@ pub async fn perform_calculate_workflow(
 }
 
 /// Finish the CALCULATE_WORKFLOW row, carrying any updated adaptive scheduling state.
-///
 /// The row is reopened rather than recreated on the next failure, so its tracking data is
 /// where the ladder position survives between attempts.
-///
-/// State is persisted *before* the row is finished, and the finish itself goes through
-/// `finish_process_with_business_status` unchanged — so every path ends the row exactly the
-/// same way. The ordering also means a crash between the two writes leaves the row `Pending`
-/// and the workflow simply runs again; finishing first would end the row with the state lost.
 async fn finish_calculate_workflow_with_progress(
     db: &dyn StorageInterface,
     process: &storage::ProcessTracker,

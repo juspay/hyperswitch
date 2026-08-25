@@ -786,10 +786,7 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
 }
 
 /// Check the invoice's payment processor token against a schedule time already decided.
-///
-/// Shared by the cascading and adaptive paths so both gate on the same conditions: a hard
-/// declined token terminates, a token still inside its wait window defers, a missing token
-/// reschedules the CALCULATE job, and anything else accepts `scheduled_time` as-is.
+/// Shared by the cascading and adaptive paths so both gate on the same conditions
 #[cfg(feature = "v2")]
 async fn get_token_availability_for_schedule_time(
     state: &SessionState,
