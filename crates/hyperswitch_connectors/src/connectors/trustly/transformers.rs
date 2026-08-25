@@ -631,6 +631,7 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, RegisterAccountResponse>> for Payou
                         error_code: None,
                         error_message: None,
                         payout_connector_metadata,
+                        connector_eligibility_reference_id: None,
                     }),
                     ..item.data
                 })
@@ -826,6 +827,7 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, AccountPayoutResponse>> for Payouts
                         error_code: None,
                         error_message: None,
                         payout_connector_metadata: None,
+                        connector_eligibility_reference_id: None,
                     }),
                     ..item.data
                 })
@@ -988,6 +990,7 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, TrustlyPayoutSyncResponse>> for Pay
                             error_code: None,
                             error_message: None,
                             payout_connector_metadata: None,
+                            connector_eligibility_reference_id: None,
                         }),
                         ..item.data
                     })
@@ -1001,6 +1004,7 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, TrustlyPayoutSyncResponse>> for Pay
                             error_code: None,
                             error_message: None,
                             payout_connector_metadata: None,
+                            connector_eligibility_reference_id: None,
                         }),
                         ..item.data
                     })
@@ -1025,6 +1029,7 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, TrustlyPayoutSyncResponse>> for Pay
                         error_code: webhook_body.params.data.errorcode,
                         error_message: webhook_body.params.data.errormessage,
                         payout_connector_metadata: None,
+                        connector_eligibility_reference_id: None,
                     }),
                     ..item.data
                 })

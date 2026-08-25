@@ -1942,7 +1942,7 @@ label = "Payment Processing Details At"
 placeholder = "Enter Payment Processing Details At"
 required = true
 type = "Radio"
-options = ["Connector"]
+options = ["Connector", "Hyperswitch"]
 
 [[checkout.metadata.google_pay]]
 name = "merchant_name"
@@ -8997,6 +8997,85 @@ payment_method_type = "Discover"
 payment_method_type = "DinersClub"
 [[givepayments.debit]]
 payment_method_type = "UnionPay"
+
+[citigate]
+[[citigate.credit]]
+  payment_method_type = "Visa"
+[[citigate.credit]]
+  payment_method_type = "Mastercard"
+[[citigate.credit]]
+  payment_method_type = "AmericanExpress"
+[[citigate.credit]]
+  payment_method_type = "DinersClub"
+[[citigate.credit]]
+  payment_method_type = "Maestro"
+[[citigate.debit]]
+  payment_method_type = "Visa"
+[[citigate.debit]]
+  payment_method_type = "Mastercard"
+[[citigate.debit]]
+  payment_method_type = "AmericanExpress"
+[[citigate.debit]]
+  payment_method_type = "DinersClub"
+[[citigate.debit]]
+  payment_method_type = "Maestro"
+[citigate.connector_auth.BodyKey]
+api_key = "Merchant Name"
+key1 = "Merchant Password"
+[ilixium]
+[ilixium.connector_auth.SignatureKey]
+api_key = "Digest Calculation Password"
+key1 = "Merchant Id"
+api_secret = "Account Id"
+[[ilixium.credit]]
+payment_method_type = "Mastercard"
+[[ilixium.credit]]
+payment_method_type = "Visa"
+[[ilixium.credit]]
+payment_method_type = "AmericanExpress"
+[[ilixium.credit]]
+payment_method_type = "JCB"
+[[ilixium.credit]]
+payment_method_type = "Discover"
+[[ilixium.credit]]
+payment_method_type = "DinersClub"
+[[ilixium.credit]]
+payment_method_type = "UnionPay"
+[[ilixium.debit]]
+payment_method_type = "Mastercard"
+[[ilixium.debit]]
+payment_method_type = "Visa"
+[[ilixium.debit]]
+payment_method_type = "AmericanExpress"
+[[ilixium.debit]]
+payment_method_type = "JCB"
+[[ilixium.debit]]
+payment_method_type = "Discover"
+[[ilixium.debit]]
+payment_method_type = "DinersClub"
+[[ilixium.debit]]
+payment_method_type = "UnionPay"
+
+[worldpayraft]
+[[worldpayraft.credit]]
+  payment_method_type = "Visa"
+[[worldpayraft.credit]]
+  payment_method_type = "Mastercard"
+[[worldpayraft.credit]]
+  payment_method_type = "AmericanExpress"
+[[worldpayraft.credit]]
+  payment_method_type = "DinersClub"
+[[worldpayraft.debit]]
+  payment_method_type = "Visa"
+[[worldpayraft.debit]]
+  payment_method_type = "Mastercard"
+[[worldpayraft.debit]]
+  payment_method_type = "AmericanExpress"
+[[worldpayraft.debit]]
+  payment_method_type = "DinersClub"
+[worldpayraft.connector_auth.BodyKey]
+api_key = "Worldpay License"
+key1 = "Worldpay Merchant ID"
 
 [gotyme_sanlam_payout.connector_auth.BodyKey]
 api_key = "API Key"

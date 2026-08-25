@@ -253,6 +253,7 @@ pub enum RoutableConnectors {
     Custombilling,
     Checkbook,
     Checkout,
+    Citigate,
     Coinbase,
     Coingate,
     Cryptopay,
@@ -285,6 +286,7 @@ pub enum RoutableConnectors {
     Helcim,
     Hyperpg,
     Iatapay,
+    Ilixium,
     Imerchantsolutions,
     Inespay,
     Interpayments,
@@ -358,6 +360,7 @@ pub enum RoutableConnectors {
     Worldline,
     Worldpay,
     Worldpaymodular,
+    Worldpayraft,
     Worldpayvantiv,
     Worldpayxml,
     Xendit,
@@ -422,6 +425,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Chargebee => Ok(Self::Chargebee),
             Connector::Checkbook => Ok(Self::Checkbook),
             Connector::Checkout => Ok(Self::Checkout),
+            Connector::Citigate => Ok(Self::Citigate),
             Connector::Coinbase => Ok(Self::Coinbase),
             Connector::Coingate => Ok(Self::Coingate),
             Connector::Cryptopay => Ok(Self::Cryptopay),
@@ -452,6 +456,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Helcim => Ok(Self::Helcim),
             Connector::Hyperpg => Ok(Self::Hyperpg),
             Connector::Iatapay => Ok(Self::Iatapay),
+            Connector::Ilixium => Ok(Self::Ilixium),
             Connector::Imerchantsolutions => Ok(Self::Imerchantsolutions),
             Connector::Interpayments => Ok(Self::Interpayments),
             Connector::Itaubank => Ok(Self::Itaubank),
@@ -508,6 +513,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Worldline => Ok(Self::Worldline),
             Connector::Worldpay => Ok(Self::Worldpay),
             Connector::Worldpaymodular => Ok(Self::Worldpaymodular),
+            Connector::Worldpayraft => Ok(Self::Worldpayraft),
             Connector::Worldpayvantiv => Ok(Self::Worldpayvantiv),
             Connector::Worldpayxml => Ok(Self::Worldpayxml),
             Connector::Xendit => Ok(Self::Xendit),
@@ -530,6 +536,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::CtpMastercard
             | Connector::Gpayments
             | Connector::HyperswitchVault
+            | Connector::Juspay
             | Connector::Juspaythreedsserver
             | Connector::Netcetera
             | Connector::Taxjar
@@ -590,6 +597,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Custombilling => Self::Custombilling,
             RoutableConnectors::Checkbook => Self::Checkbook,
             RoutableConnectors::Checkout => Self::Checkout,
+            RoutableConnectors::Citigate => Self::Citigate,
             RoutableConnectors::Coinbase => Self::Coinbase,
             RoutableConnectors::Cryptopay => Self::Cryptopay,
             RoutableConnectors::Cybersource => Self::Cybersource,
@@ -620,6 +628,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Helcim => Self::Helcim,
             RoutableConnectors::Hyperpg => Self::Hyperpg,
             RoutableConnectors::Iatapay => Self::Iatapay,
+            RoutableConnectors::Ilixium => Self::Ilixium,
             RoutableConnectors::Imerchantsolutions => Self::Imerchantsolutions,
             RoutableConnectors::Interpayments => Self::Interpayments,
             RoutableConnectors::Itaubank => Self::Itaubank,
@@ -681,6 +690,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Worldline => Self::Worldline,
             RoutableConnectors::Worldpay => Self::Worldpay,
             RoutableConnectors::Worldpaymodular => Self::Worldpaymodular,
+            RoutableConnectors::Worldpayraft => Self::Worldpayraft,
             RoutableConnectors::Worldpayvantiv => Self::Worldpayvantiv,
             RoutableConnectors::Worldpayxml => Self::Worldpayxml,
             RoutableConnectors::Zen => Self::Zen,

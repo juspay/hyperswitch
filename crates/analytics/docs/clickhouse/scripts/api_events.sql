@@ -360,3 +360,98 @@ FROM
     api_events_queue
 WHERE
     length(_error) = 0;
+
+CREATE TABLE api_events_payment_method_audit (
+    `merchant_id` LowCardinality(String),
+    `payment_method_id` String,
+    `payment_id` Nullable(String),
+    `payment_method` Nullable(String),
+    `payment_method_type` Nullable(String),
+    `customer_id` Nullable(String),
+    `user_id` Nullable(String),
+    `auth_user_id` Nullable(String),
+    `connector` Nullable(String),
+    `request_id` String,
+    `flow_type` LowCardinality(String),
+    `api_flow` LowCardinality(String),
+    `api_auth_type` LowCardinality(String),
+    `request` String,
+    `response` Nullable(String),
+    `error` Nullable(String),
+    `authentication_data` Nullable(String),
+    `status_code` UInt32,
+    `created_at` DateTime64(3),
+    `inserted_at` DateTime DEFAULT now() CODEC(T64, LZ4),
+    `latency` UInt128,
+    `user_agent` String,
+    `ip_addr` String,
+    `hs_latency` Nullable(UInt128),
+    `http_method` LowCardinality(Nullable(String)),
+    `url_path` Nullable(String),
+    `masked_response` Nullable(String)
+) ENGINE = MergeTree PARTITION BY merchant_id
+ORDER BY
+    (merchant_id, payment_method_id) TTL inserted_at + toIntervalMonth(18) SETTINGS index_granularity = 8192;
+
+CREATE MATERIALIZED VIEW api_events_payment_method_audit_mv TO api_events_payment_method_audit (
+    `merchant_id` String,
+    `payment_method_id` String,
+    `payment_id` Nullable(String),
+    `payment_method` Nullable(String),
+    `payment_method_type` Nullable(String),
+    `customer_id` Nullable(String),
+    `user_id` Nullable(String),
+    `auth_user_id` Nullable(String),
+    `connector` Nullable(String),
+    `request_id` String,
+    `flow_type` LowCardinality(String),
+    `api_flow` LowCardinality(String),
+    `api_auth_type` LowCardinality(String),
+    `request` String,
+    `response` Nullable(String),
+    `error` Nullable(String),
+    `authentication_data` Nullable(String),
+    `status_code` UInt32,
+    `created_at` DateTime64(3),
+    `inserted_at` DateTime DEFAULT now() CODEC(T64, LZ4),
+    `latency` UInt128,
+    `user_agent` String,
+    `ip_addr` String,
+    `hs_latency` Nullable(UInt128),
+    `http_method` LowCardinality(Nullable(String)),
+    `url_path` Nullable(String),
+    `masked_response` Nullable(String)
+) AS
+SELECT
+    merchant_id,
+    payment_method_id,
+    payment_id,
+    payment_method,
+    payment_method_type,
+    customer_id,
+    user_id,
+    auth_user_id,
+    connector,
+    request_id,
+    flow_type,
+    api_flow,
+    api_auth_type,
+    request,
+    response,
+    error,
+    authentication_data,
+    status_code,
+    created_at_timestamp AS created_at,
+    now() AS inserted_at,
+    latency,
+    user_agent,
+    ip_addr,
+    hs_latency,
+    http_method,
+    url_path,
+    response AS masked_response
+FROM
+    api_events_queue
+WHERE
+    (length(_error) = 0)
+    AND (payment_method_id IS NOT NULL);
