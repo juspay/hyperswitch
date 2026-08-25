@@ -430,6 +430,25 @@ export const payment_methods_enabled = [
         recurring_enabled: true,
         installment_payment_enabled: true,
       },
+      {
+        payment_method_type: "pix_automatico_qr",
+        minimum_amount: 0,
+        maximum_amount: 68607706,
+        recurring_enabled: true,
+        installment_payment_enabled: true,
+      },
+    ],
+  },
+  {
+    payment_method: "voucher",
+    payment_method_types: [
+      {
+        payment_method_type: "boleto",
+        minimum_amount: 0,
+        maximum_amount: 68607706,
+        recurring_enabled: false,
+        installment_payment_enabled: true,
+      },
     ],
   },
   {
@@ -1042,8 +1061,8 @@ export const payment_methods_enabled = [
 
 export const connectorDetails = {
   bank_transfer_pm: {
-    PaymentIntent: (paymentMethodType) =>
-      getCustomExchange({
+    PaymentIntent: (paymentMethodType) => {
+      return getCustomExchange({
         Request: {
           currency: getCurrency(paymentMethodType),
         },
@@ -1053,7 +1072,8 @@ export const connectorDetails = {
             status: "requires_payment_method",
           },
         },
-      }),
+      });
+    },
 
     Pix: getCustomExchange({
       Request: {
@@ -1153,6 +1173,56 @@ export const connectorDetails = {
           },
         },
         currency: "PLN",
+      },
+    }),
+    Boleto: getCustomExchange({
+      Request: {
+        payment_method: "voucher",
+        payment_method_type: "boleto",
+        payment_method_data: {
+          voucher: {
+            boleto: {},
+          },
+        },
+        billing: {
+          address: {
+            line1: "Rua Augusta",
+            line2: "2000",
+            line3: "Consolação",
+            city: "São Paulo",
+            state: "SP",
+            zip: "01412-000",
+            country: "BR",
+            first_name: "joseph",
+            last_name: "Doe",
+          },
+        },
+        currency: "BRL",
+      },
+    }),
+    PixAutomatico: getCustomExchange({
+      Request: {
+        payment_method: "bank_transfer",
+        payment_method_type: "pix_automatico_qr",
+        payment_method_data: {
+          bank_transfer: {
+            pix_automatico_qr: {},
+          },
+        },
+        billing: {
+          address: {
+            line1: "Rua Augusta",
+            line2: "2000",
+            line3: "Consolação",
+            city: "São Paulo",
+            state: "SP",
+            zip: "01412-000",
+            country: "BR",
+            first_name: "joseph",
+            last_name: "Doe",
+          },
+        },
+        currency: "BRL",
       },
     }),
   },
