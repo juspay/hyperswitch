@@ -4,6 +4,25 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.08.25.0
+
+### Features
+
+- **blocklist:** Scope blocklist entries to the business profile ([#13774](https://github.com/juspay/hyperswitch/pull/13774)) ([`f140e97`](https://github.com/juspay/hyperswitch/commit/f140e97df485aecb7637f04436346385ac0f7191))
+- **connector:** Add Worldpay Raft ucs only connector ([#13742](https://github.com/juspay/hyperswitch/pull/13742)) ([`b9c17f1`](https://github.com/juspay/hyperswitch/commit/b9c17f1fee932b27ab2b74761d465933baa480d3))
+- **connectors:** [Nuvei] pass TLID in proxy and NTID flows and add client unique ID length validation ([#13754](https://github.com/juspay/hyperswitch/pull/13754)) ([`f7d7ec8`](https://github.com/juspay/hyperswitch/commit/f7d7ec8f38a7a462194a0720dcad7a059c5de8c5))
+- **offers:** Once-per-card velocity via card_alias ([#13766](https://github.com/juspay/hyperswitch/pull/13766)) ([`fccb303`](https://github.com/juspay/hyperswitch/commit/fccb30306613dbe2b85883ef5939551cd1dc9c03))
+- **payouts:** Surface vop response, store VOP ([#13586](https://github.com/juspay/hyperswitch/pull/13586)) ([`6fbb6df`](https://github.com/juspay/hyperswitch/commit/6fbb6df7479488f6ad097f8acf29451e14a37d9d))
+
+### Bug Fixes
+
+- **configs:** [tsys_transit] add mandate config ([#13826](https://github.com/juspay/hyperswitch/pull/13826)) ([`cde4904`](https://github.com/juspay/hyperswitch/commit/cde4904ab04de6ffec62682e427aa2eece389cf0))
+- **rev-rec:** Add card data in payment intent ([#13778](https://github.com/juspay/hyperswitch/pull/13778)) ([`661db36`](https://github.com/juspay/hyperswitch/commit/661db36e0488e684292a5fe49930d129fe06dd9b))
+
+**Full Changelog:** [`2026.08.21.0...2026.08.25.0`](https://github.com/juspay/hyperswitch/compare/2026.08.21.0...2026.08.25.0)
+
+- - -
+
 ## 2026.08.21.0
 
 ### Features
