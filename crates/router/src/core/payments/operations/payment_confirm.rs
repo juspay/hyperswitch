@@ -2778,7 +2778,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
         let m_error_code = error_code.clone();
         let m_error_message = error_message.clone();
         let m_fingerprint_id = payment_data.payment_attempt.fingerprint_id.clone();
-        let m_fingerprint_type = payment_data.payment_attempt.fingerprint_type.clone();
+        let m_fingerprint_type = payment_data.payment_attempt.fingerprint_type;
         let m_db = state.clone().store;
         let surcharge_amount = payment_data
             .payment_attempt
