@@ -1282,10 +1282,7 @@ mod crypto_tests {
     fn test_md5_digest() {
         let message = "abcdefghijklmnopqrstuvwxyz".as_bytes();
         assert_eq!(
-            format!(
-                "{}",
-                hex::encode(super::Md5.generate_digest(message).expect("Digest"))
-            ),
+            hex::encode(super::Md5.generate_digest(message).expect("Digest")),
             "c3fcd3d76192e4007dfb496cca67e13b"
         );
     }
