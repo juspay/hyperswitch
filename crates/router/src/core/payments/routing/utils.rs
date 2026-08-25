@@ -1594,16 +1594,9 @@ fn insert_dirvalue_param(params: &mut HashMap<String, Option<ValueType>>, dv: di
             );
         }
         dir::DirValue::CardType(v) => {
-            // Dashboard-authored rules use `card_type`; `card` is retained for rules
-            // created under the older key name.
-            let card_type = v.to_string();
-            params.insert(
-                "card".to_string(),
-                Some(ValueType::EnumVariant(card_type.clone())),
-            );
             params.insert(
                 "card_type".to_string(),
-                Some(ValueType::EnumVariant(card_type)),
+                Some(ValueType::EnumVariant(v.to_string())),
             );
         }
         dir::DirValue::PayLaterType(v) => {
