@@ -4602,9 +4602,63 @@ pub struct PaymentAttemptRecoveryData {
     pub attempt_triggered_by: common_enums::TriggeredBy,
     // stripe specific field used to identify duplicate attempts.
     pub charge_id: Option<String>,
+    /// Transaction id returned by the billing connector when the payment was recorded
+    /// back to it. Used to issue an offline refund if a dispute is later lost.
+    pub billing_connector_transaction_id: Option<String>,
 }
 #[cfg(feature = "v2")]
 common_utils::impl_to_sql_from_sql_json!(PaymentAttemptFeatureMetadata);
+
+#[cfg(all(test, feature = "v2"))]
+mod recovery_data_tests {
+    use super::PaymentAttemptRecoveryData;
+
+    #[test]
+    fn deserializes_json_written_before_the_billing_transaction_id_existed() {
+        // A feature_metadata blob persisted before this field was added. It must load
+        // as None rather than erroring, otherwise every pre-existing recovery attempt
+        // becomes unreadable.
+        let old = r#"{"attempt_triggered_by":"internal","charge_id":"ch_123"}"#;
+
+        let parsed: PaymentAttemptRecoveryData =
+            serde_json::from_str(old).expect("old feature_metadata must still deserialize");
+
+        assert_eq!(parsed.charge_id.as_deref(), Some("ch_123"));
+        assert_eq!(parsed.billing_connector_transaction_id, None);
+    }
+
+    #[test]
+    fn round_trips_the_billing_transaction_id() {
+        let json = r#"{"attempt_triggered_by":"internal","charge_id":null,"billing_connector_transaction_id":"txn_abc"}"#;
+
+        let parsed: PaymentAttemptRecoveryData = serde_json::from_str(json).unwrap();
+
+        assert_eq!(
+            parsed.billing_connector_transaction_id.as_deref(),
+            Some("txn_abc")
+        );
+    }
+
+    #[test]
+    fn merging_the_billing_transaction_id_preserves_the_other_recovery_fields() {
+        let existing = r#"{"attempt_triggered_by":"internal","charge_id":"ch_123"}"#;
+        let mut data: PaymentAttemptRecoveryData = serde_json::from_str(existing).unwrap();
+
+        // This mirrors what persist_billing_connector_transaction_id does: mutate the
+        // one field on the existing struct rather than building a fresh one.
+        data.billing_connector_transaction_id = Some("txn_456".to_string());
+
+        assert_eq!(data.charge_id.as_deref(), Some("ch_123"));
+        assert_eq!(
+            data.attempt_triggered_by,
+            common_enums::TriggeredBy::Internal
+        );
+        assert_eq!(
+            data.billing_connector_transaction_id.as_deref(),
+            Some("txn_456")
+        );
+    }
+}
 
 mod tests {
 

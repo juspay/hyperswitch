@@ -1228,6 +1228,9 @@ impl PaymentAttempt {
                             .as_ref()
                             .and_then(|data| data.charge_id.clone())
                     }),
+                    // Populated later, when the payment is recorded back to the
+                    // billing connector.
+                    billing_connector_transaction_id: None,
                 }
             }),
         };
@@ -3636,6 +3639,8 @@ pub struct PaymentAttemptRevenueRecoveryData {
     pub attempt_triggered_by: common_enums::TriggeredBy,
     // stripe specific field used to identify duplicate attempts.
     pub charge_id: Option<String>,
+    /// Transaction id returned by the billing connector at record-back time.
+    pub billing_connector_transaction_id: Option<String>,
 }
 
 #[cfg(feature = "v2")]
@@ -3647,6 +3652,9 @@ impl From<&PaymentAttemptFeatureMetadata> for DieselPaymentAttemptFeatureMetadat
                 .map(|recovery_data| DieselPassiveChurnRecoveryData {
                     attempt_triggered_by: recovery_data.attempt_triggered_by,
                     charge_id: recovery_data.charge_id.clone(),
+                    billing_connector_transaction_id: recovery_data
+                        .billing_connector_transaction_id
+                        .clone(),
                 });
         Self { revenue_recovery }
     }
@@ -3660,6 +3668,8 @@ impl From<DieselPaymentAttemptFeatureMetadata> for PaymentAttemptFeatureMetadata
                 .map(|recovery_data| PaymentAttemptRevenueRecoveryData {
                     attempt_triggered_by: recovery_data.attempt_triggered_by,
                     charge_id: recovery_data.charge_id,
+                    billing_connector_transaction_id: recovery_data
+                        .billing_connector_transaction_id,
                 });
         Self { revenue_recovery }
     }
