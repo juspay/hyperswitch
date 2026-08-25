@@ -2257,12 +2257,34 @@ impl LockerOperations for GenericLocker {
     ) -> RouterResult<PaymentMethodResolver> {
         let db = &*state.store;
 
-        let (fingerprint_id_result, auxiliary_fingerprint_id_result) = tokio::join!(
-            vault::get_fingerprint_id_for_payment_method(
-                state,
-                &payment_method_data,
-                customer_id.get_string_repr().to_owned(),
-            ),
+        // The deduplication lookup only needs the primary fingerprint, so it runs in the
+        // same branch as that call rather than after both have returned. The auxiliary
+        // fingerprint is consumed only when no existing payment method is found.
+        let (primary_result, auxiliary_fingerprint_id_result) = tokio::join!(
+            async {
+                let fingerprint_id = vault::get_fingerprint_id_for_payment_method(
+                    state,
+                    &payment_method_data,
+                    customer_id.get_string_repr().to_owned(),
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable(
+                    "Failed to get fingerprint_id from vault using generic strategy",
+                )?;
+
+                let existing_payment_method = db
+                    .find_payment_method_by_fingerprint_id(
+                        platform.get_provider().get_key_store(),
+                        &fingerprint_id,
+                    )
+                    .await;
+
+                Ok::<_, error_stack::Report<errors::ApiErrorResponse>>((
+                    fingerprint_id,
+                    existing_payment_method,
+                ))
+            },
             vault::get_auxiliary_fingerprint_id_for_payment_method(
                 state,
                 &payment_method_data,
@@ -2270,17 +2292,9 @@ impl LockerOperations for GenericLocker {
             ),
         );
 
-        let fingerprint_id = fingerprint_id_result
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to get fingerprint_id from vault using generic strategy")?;
+        let (fingerprint_id, existing_payment_method) = primary_result?;
 
-        match db
-            .find_payment_method_by_fingerprint_id(
-                platform.get_provider().get_key_store(),
-                &fingerprint_id,
-            )
-            .await
-        {
+        match existing_payment_method {
             Ok(existing_pm) => match existing_pm.status {
                 enums::PaymentMethodStatus::New | enums::PaymentMethodStatus::Inactive => {
                     logger::info!(
