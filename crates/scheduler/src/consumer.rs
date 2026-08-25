@@ -182,9 +182,12 @@ pub async fn consumer_operations<T: SchedulerSessionState + 'static>(
         match result {
             Ok(Ok(_)) => (),
             Ok(Err(error)) => {
-                logger::error!(?error, "Workflow execution failed");
+                // start_workflow already logs the error, but we add a metric here for visibility
+                metrics::TASK_FAILED.add(1, &[]);
+                logger::error!(?error, "Workflow execution failed at consumer level");
             }
             Err(error) => {
+                metrics::TASK_FAILED.add(1, &[]);
                 logger::error!(?error, "Workflow task panicked or was cancelled");
             }
         }
