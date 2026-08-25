@@ -2474,7 +2474,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                     429 => router_data.status,
                                     _ => enums::AttemptStatus::Failure,
                                 }
-                            } else if sub_flow == "CancelPostCapture" {
+                            } else if sub_flow == "Void" || sub_flow == "CancelPostCapture" {
                                 router_data.status
                             } else {
                                 match err.status_code {
