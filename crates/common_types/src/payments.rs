@@ -1121,7 +1121,7 @@ impl PaymentIntentStateMetadata {
 
     /// Check if post capture void is issued for the payment intent
     pub fn is_post_capture_void_issued(&self) -> bool {
-        self.post_capture_void.is_some()
+        self.is_post_capture_void_pending() || self.is_post_capture_void_successful()
     }
 
     /// Check if post capture void is applied for the payment intent
