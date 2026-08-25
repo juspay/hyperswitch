@@ -1479,6 +1479,11 @@ reopen_workflow_buffer_time_in_seconds = 3600  # time in seconds to be added in 
 max_random_schedule_delay_in_seconds = 300  # max random delay in seconds to schedule the payment for Revenue Recovery
 redis_ttl_buffer_in_seconds= 300 # buffer time in seconds to be added to redis ttl for Revenue Recovery
 
+# Redis lock configuration guarding the retry-stats read-merge-write
+[revenue_recovery.retry_stats_lock]
+redis_lock_expiry_seconds = 10              # Seconds before redis lock expires
+delay_between_retries_in_milliseconds = 100 # Wait between attempts to acquire a contended lock
+
 [clone_connector_allowlist]
 connector_names = "connector_names"     # Comma-separated list of cloneable connector names
 

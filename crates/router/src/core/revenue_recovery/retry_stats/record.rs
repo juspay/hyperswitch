@@ -56,11 +56,11 @@ impl RetryOutcomeEvent {
 
         let db_key = self.key.as_db_string();
 
-        let lock_settings = state.conf().lock_settings;
-        let lock_retries = lock_settings.lock_retries;
+        let retry_stats_lock = state.conf().revenue_recovery.retry_stats_lock;
+        let lock_retries = retry_stats_lock.lock_retries();
         let delay_between_retries_in_milliseconds =
-            lock_settings.delay_between_retries_in_milliseconds;
-        let redis_lock_expiry_seconds = lock_settings.redis_lock_expiry_seconds;
+            retry_stats_lock.delay_between_retries_in_milliseconds;
+        let redis_lock_expiry_seconds = retry_stats_lock.redis_lock_expiry_seconds;
 
         match persist_node(
             store.as_ref(),
@@ -120,26 +120,24 @@ async fn persist_node(
                 actix_web::rt::time::sleep(wait_duration).await;
             }
             Err(error) => {
-                return Err(error).change_context(StorageError::KVError);
+                Err(error).change_context(StorageError::KVError)?;
             }
         }
     }
 
-    if !acquired {
+    if acquired {
+        let result = merge_and_write(store, event).await;
+        release_lock(redis_conn, &lock_key, &lock_token).await;
+        result
+    } else {
         // Lock was still contended after the retry budget; dropping this update is
         // acceptable for best-effort stats.
         logger::warn!(
             cluster_key = %db_key,
             "revenue_recovery_retry_stats: lock contended after retries, skipping this update"
         );
-        return Ok(());
+        Ok(())
     }
-
-    let result = merge_and_write(store, event).await;
-
-    release_lock(redis_conn, &lock_key, &lock_token).await;
-
-    result
 }
 
 async fn merge_and_write(

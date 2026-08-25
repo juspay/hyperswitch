@@ -93,6 +93,36 @@ pub struct RevenueRecoverySettings {
     pub recovery_timestamp: RecoveryTimestamp,
     pub card_config: RetryLimitsConfig,
     pub redis_ttl_in_seconds: i64,
+    #[serde(default)]
+    pub retry_stats_lock: RetryStatsLockSettings,
+}
+
+/// Redis distributed-lock settings for revenue-recovery retry-stats recording
+#[derive(Debug, Clone, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct RetryStatsLockSettings {
+    /// TTL on the per-cluster-key lock
+    pub redis_lock_expiry_seconds: u32,
+    /// Delay between successive attempts to acquire a contended lock.
+    pub delay_between_retries_in_milliseconds: u32,
+}
+
+impl Default for RetryStatsLockSettings {
+    fn default() -> Self {
+        Self {
+            redis_lock_expiry_seconds: 10,
+            delay_between_retries_in_milliseconds: 100,
+        }
+    }
+}
+
+impl RetryStatsLockSettings {
+    pub fn lock_retries(&self) -> u32 {
+        self.redis_lock_expiry_seconds
+            .saturating_mul(1000)
+            .checked_div(self.delay_between_retries_in_milliseconds)
+            .unwrap_or(1)
+    }
 }
 
 #[derive(Debug, serde::Deserialize, Clone)]
