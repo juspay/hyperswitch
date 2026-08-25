@@ -395,7 +395,10 @@ pub struct AtomeData {
 
 #[derive(Debug, Serialize)]
 pub struct AtomeDetails {
+    shopper_name: Secret<String>,
+    shopper_email: Email,
     shopper_phone: Secret<String>,
+    billing: Option<Billing>,
 }
 
 #[derive(Debug, Serialize)]
@@ -807,6 +810,16 @@ fn get_paylater_details(
         PayLaterData::AtomeRedirect {} => {
             AirwallexPaymentMethod::PayLater(AirwallexPayLaterData::Atome(AtomeData {
                 atome: AtomeDetails {
+                    shopper_name: item.router_data.get_billing_full_name().map_err(|_| {
+                        errors::ConnectorError::MissingRequiredField {
+                            field_name: "shopper_name",
+                        }
+                    })?,
+                    shopper_email: item.router_data.get_billing_email().map_err(|_| {
+                        errors::ConnectorError::MissingRequiredField {
+                            field_name: "shopper_email",
+                        }
+                    })?,
                     shopper_phone: item
                         .router_data
                         .get_billing_phone()
@@ -817,6 +830,19 @@ fn get_paylater_details(
                         .map_err(|_| errors::ConnectorError::MissingRequiredField {
                             field_name: "country_code",
                         })?,
+                    billing: Some(Billing {
+                        date_of_birth: None,
+                        first_name: item.router_data.get_optional_billing_first_name(),
+                        last_name: item.router_data.get_optional_billing_last_name(),
+                        email: item.router_data.get_optional_billing_email(),
+                        phone_number: item.router_data.get_optional_billing_phone_number(),
+                        address: Some(AddressAirwallex {
+                            country_code: item.router_data.get_optional_billing_country(),
+                            city: item.router_data.get_optional_billing_city(),
+                            street: item.router_data.get_optional_billing_line1(),
+                            postcode: item.router_data.get_optional_billing_zip(),
+                        }),
+                    }),
                 },
                 payment_method_type: AirwallexPaymentType::Atome,
             }))
