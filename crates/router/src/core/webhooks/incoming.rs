@@ -1291,6 +1291,7 @@ async fn payout_incoming_webhook_update_status(
     // if status is failure then update the error_code and error_message as well
     let payout_attempt_update = if status.is_payout_failure() {
         PayoutAttemptUpdate::StatusUpdate {
+            connector_eligibility_reference_id: None,
             connector_payout_id: payout_attempt.connector_payout_id.clone(),
             status,
             error_message: payout_webhook_details.error_message,
@@ -1302,6 +1303,7 @@ async fn payout_incoming_webhook_update_status(
         }
     } else {
         PayoutAttemptUpdate::StatusUpdate {
+            connector_eligibility_reference_id: None,
             connector_payout_id: payout_attempt.connector_payout_id.clone(),
             status,
             error_message: None,

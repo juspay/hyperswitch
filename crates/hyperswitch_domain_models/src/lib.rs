@@ -893,6 +893,9 @@ impl ApiModelToDieselModelConvertor<ApiBillingConnectorAdditionalCardInfo>
         Self {
             card_issuer: from.card_issuer,
             card_network: from.card_network,
+            card_type: from.card_type,
+            card_issuing_country: from.card_issuing_country,
+            card_isin: from.card_isin,
         }
     }
 
@@ -900,6 +903,9 @@ impl ApiModelToDieselModelConvertor<ApiBillingConnectorAdditionalCardInfo>
         ApiBillingConnectorAdditionalCardInfo {
             card_issuer: self.card_issuer,
             card_network: self.card_network,
+            card_type: self.card_type,
+            card_issuing_country: self.card_issuing_country,
+            card_isin: self.card_isin,
         }
     }
 }
@@ -1149,6 +1155,7 @@ impl ApiModelToDieselModelConvertor<api_models::admin::PaymentLinkConfigRequest>
             is_setup_mandate_flow: item.is_setup_mandate_flow,
             color_icon_card_cvc_error: item.color_icon_card_cvc_error,
             show_merchant_name: item.show_merchant_name,
+            payment_methods_separator_text: item.payment_methods_separator_text,
         }
     }
     fn convert_back(self) -> api_models::admin::PaymentLinkConfigRequest {
@@ -1180,6 +1187,7 @@ impl ApiModelToDieselModelConvertor<api_models::admin::PaymentLinkConfigRequest>
             is_setup_mandate_flow,
             color_icon_card_cvc_error,
             show_merchant_name,
+            payment_methods_separator_text,
         } = self;
         api_models::admin::PaymentLinkConfigRequest {
             theme,
@@ -1215,6 +1223,7 @@ impl ApiModelToDieselModelConvertor<api_models::admin::PaymentLinkConfigRequest>
             is_setup_mandate_flow,
             color_icon_card_cvc_error,
             show_merchant_name,
+            payment_methods_separator_text,
         }
     }
 }
