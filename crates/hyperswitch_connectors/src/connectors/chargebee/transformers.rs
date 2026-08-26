@@ -30,9 +30,8 @@ use hyperswitch_domain_models::{
     },
     types::{
         DisputeRecordBackRouterData, GetSubscriptionEstimateRouterData,
-        InvoiceRecordBackRouterData,
-        PaymentsAuthorizeRouterData, RefundsRouterData, SubscriptionCancelRouterData,
-        SubscriptionPauseRouterData, SubscriptionResumeRouterData,
+        InvoiceRecordBackRouterData, PaymentsAuthorizeRouterData, RefundsRouterData,
+        SubscriptionCancelRouterData, SubscriptionPauseRouterData, SubscriptionResumeRouterData,
     },
 };
 use hyperswitch_interfaces::errors;

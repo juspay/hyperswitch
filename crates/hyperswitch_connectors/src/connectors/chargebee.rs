@@ -51,13 +51,12 @@ use hyperswitch_domain_models::{
         ConnectorInfo, PaymentsResponseData, RefundsResponseData,
     },
     types::{
-        ConnectorCustomerRouterData, GetSubscriptionEstimateRouterData,
-        GetSubscriptionItemsRouterData, GetSubscriptionPlanPricesRouterData,
-        DisputeRecordBackRouterData, InvoiceRecordBackRouterData, PaymentsAuthorizeRouterData,
-        PaymentsCaptureRouterData,
-        PaymentsSyncRouterData, RefundSyncRouterData, RefundsRouterData,
-        SubscriptionCancelRouterData, SubscriptionCreateRouterData, SubscriptionPauseRouterData,
-        SubscriptionResumeRouterData,
+        ConnectorCustomerRouterData, DisputeRecordBackRouterData,
+        GetSubscriptionEstimateRouterData, GetSubscriptionItemsRouterData,
+        GetSubscriptionPlanPricesRouterData, InvoiceRecordBackRouterData,
+        PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
+        RefundSyncRouterData, RefundsRouterData, SubscriptionCancelRouterData,
+        SubscriptionCreateRouterData, SubscriptionPauseRouterData, SubscriptionResumeRouterData,
     },
 };
 use hyperswitch_interfaces::{

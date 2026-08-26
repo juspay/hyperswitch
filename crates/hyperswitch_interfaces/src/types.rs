@@ -42,8 +42,7 @@ use hyperswitch_domain_models::{
         },
         revenue_recovery::{
             BillingConnectorInvoiceSyncRequest, BillingConnectorPaymentsSyncRequest,
-            DisputeRecordBackRequest,
-            InvoiceRecordBackRequest,
+            DisputeRecordBackRequest, InvoiceRecordBackRequest,
         },
         subscriptions::{
             GetSubscriptionEstimateRequest, GetSubscriptionItemPricesRequest,
@@ -78,8 +77,7 @@ use hyperswitch_domain_models::{
         },
         revenue_recovery::{
             BillingConnectorInvoiceSyncResponse, BillingConnectorPaymentsSyncResponse,
-            DisputeRecordBackResponse,
-            InvoiceRecordBackResponse,
+            DisputeRecordBackResponse, InvoiceRecordBackResponse,
         },
         subscriptions::{
             GetSubscriptionEstimateResponse, GetSubscriptionItemPricesResponse,
