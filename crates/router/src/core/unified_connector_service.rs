@@ -213,6 +213,16 @@ impl ForeignTryFrom<payments_grpc::PaymentMethod> for domain_pm::PaymentMethodDa
                         .additional_details
                         .and_then(|details| serde_json::from_str(details.peek()).ok())
                         .map(Secret::new),
+                    bank_name: open_banking
+                        .bank_name
+                        .map(parse_grpc_enum::<payments_grpc::BankNames>)
+                        .transpose()?
+                        .map(
+                            <common_enums::BankNames as interface_helpers::ForeignTryFrom<
+                                payments_grpc::BankNames,
+                            >>::foreign_try_from,
+                        )
+                        .transpose()?,
                 },
             )),
             PaymentMethod::Ideal(ideal) => {
@@ -1608,6 +1618,7 @@ pub fn build_unified_connector_service_payment_method(
                 iban,
                 account_holder_name,
                 additional_details,
+                bank_name: _,
             } => {
                 let open_banking = payments_grpc::OpenBanking {
                     account_number: account_number.map(|v| v.expose().into()),
@@ -1617,6 +1628,7 @@ pub fn build_unified_connector_service_payment_method(
                     additional_details: additional_details
                         .and_then(|v| serde_json::to_string(v.peek()).ok())
                         .map(Secret::new),
+                    bank_name: None,
                 };
 
                 Ok(payments_grpc::PaymentMethod {
