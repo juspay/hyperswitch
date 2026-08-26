@@ -418,6 +418,41 @@ async fn ensure_de_rule_not_already_active(
     Ok(())
 }
 
+/// Looks for `algorithm_id` on the Decision Engine under a single profile.
+///
+/// `Ok(None)` means the profile is not cut over, or the DE simply has no such rule.
+/// `Err` is reserved for the DE call itself failing, so callers can tell "no such rule"
+/// apart from "could not ask".
+#[cfg(feature = "v1")]
+async fn find_de_record_in_profile(
+    state: &SessionState,
+    platform: &domain::Platform,
+    business_profile: &domain::Profile,
+    algorithm_id: &common_utils::id_type::RoutingId,
+) -> Result<Option<RoutingAlgorithmRecord>, error_stack::Report<errors::RoutingError>> {
+    if !is_profile_cutover_effective(state, platform, business_profile.get_id().clone()).await {
+        return Ok(None);
+    }
+
+    let records = fetch_de_euclid_routing_records(
+        state,
+        business_profile.get_id().get_string_repr().to_string(),
+        false,
+    )
+    .await
+    .inspect_err(|error| {
+        router_env::logger::warn!(
+            ?error,
+            profile_id = %business_profile.get_id().get_string_repr(),
+            "decision_engine_euclid: failed to list DE rules while resolving a rule id"
+        );
+    })?;
+
+    Ok(records
+        .into_iter()
+        .find(|record| &record.id == algorithm_id))
+}
+
 /// Finds a DE-only rule (no HS row) in the caller's profile, else the merchant's cut-over profiles.
 #[cfg(feature = "v1")]
 async fn find_de_record_for_algorithm(
@@ -451,33 +486,13 @@ async fn find_de_record_for_algorithm(
     // DE did fail, surface that instead of claiming the rule does not exist.
     let mut de_lookup_error = None;
     for business_profile in candidate_profiles {
-        if !is_profile_cutover_effective(state, platform, business_profile.get_id().clone()).await {
-            continue;
-        }
-        let records = match fetch_de_euclid_routing_records(
-            state,
-            business_profile.get_id().get_string_repr().to_string(),
-            false,
-        )
-        .await
-        {
-            Ok(records) => records,
+        match find_de_record_in_profile(state, platform, &business_profile, algorithm_id).await {
+            Ok(Some(record)) => return Ok(Some((business_profile, record))),
+            Ok(None) => continue,
             Err(error) => {
-                router_env::logger::warn!(
-                    ?error,
-                    profile_id = %business_profile.get_id().get_string_repr(),
-                    "decision_engine_euclid: failed to list DE rules while resolving a rule id"
-                );
                 de_lookup_error = Some(error);
                 continue;
             }
-        };
-
-        if let Some(record) = records
-            .into_iter()
-            .find(|record| &record.id == algorithm_id)
-        {
-            return Ok(Some((business_profile, record)));
         }
     }
 
@@ -490,8 +505,8 @@ async fn find_de_record_for_algorithm(
     }
 }
 
-/// Single/priority/volume-split map to api shapes; advanced programs are returned
-/// verbatim in DE serialization (no reverse AST conversion exists).
+/// Maps a DE rule record onto the same api shape a Hyperswitch-authored rule returns,
+/// converting an advanced program back into the euclid AST.
 #[cfg(feature = "v1")]
 fn de_record_to_merchant_routing_algorithm(
     record: RoutingAlgorithmRecord,
@@ -1764,6 +1779,24 @@ pub async fn retrieve_routing_algorithm_from_algorithm_id(
     .change_context(errors::ApiErrorResponse::ResourceIdNotFound)?;
 
     core_utils::validate_profile_id_from_auth_layer(authentication_profile_id, &business_profile)?;
+
+    // Cut-over first: the profile's rules live on the DE, which can edit a rule in place,
+    // so an HS row for a migrated rule may be stale. Serve the DE copy when it has one and
+    // keep the HS row as the fallback. A DE failure degrades to the HS row rather than
+    // failing a read.
+    match find_de_record_in_profile(&state, &platform, &business_profile, &algorithm_id).await {
+        Ok(Some(record)) => {
+            let response = de_record_to_merchant_routing_algorithm(record)?;
+            metrics::ROUTING_RETRIEVE_CONFIG_SUCCESS_RESPONSE.add(1, &[]);
+            return Ok(service_api::ApplicationResponse::Json(response));
+        }
+        Ok(None) => (),
+        Err(error) => router_env::logger::warn!(
+            ?error,
+            profile_id = %business_profile.get_id().get_string_repr(),
+            "decision_engine_euclid: DE lookup failed on retrieve, serving the Hyperswitch row"
+        ),
+    }
 
     let response = routing_types::MerchantRoutingAlgorithm::foreign_try_from(routing_algorithm)
         .change_context(errors::ApiErrorResponse::InternalServerError)
