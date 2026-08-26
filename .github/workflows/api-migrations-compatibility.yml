@@ -66,7 +66,6 @@ jobs:
           if oasdiff breaking \
             --fail-on ERR \
             --warn-ignore .github/api-migration-compatibility/.oasdiff-warn-ignore.yaml \
-            --severity-levels .github/api-migration-compatibility/.oasdiff-severity-overrides.txt \
             base-v1-schema.json pr-v1-schema.json > v1-breaking-report.txt 2>&1; then
             echo "V1 API is backward compatible" > v1-breaking-status.txt
           else
@@ -78,7 +77,6 @@ jobs:
           if oasdiff breaking \
             --fail-on ERR \
             --warn-ignore .github/api-migration-compatibility/.oasdiff-warn-ignore.yaml \
-            --severity-levels .github/api-migration-compatibility/.oasdiff-severity-overrides.txt \
             base-v2-schema.json pr-v2-schema.json > v2-breaking-report.txt 2>&1; then
             echo "V2 API is backward compatible" > v2-breaking-status.txt
           else
