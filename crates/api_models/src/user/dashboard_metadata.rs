@@ -1,6 +1,9 @@
 use common_enums::{CountryAlpha2, MerchantProductType};
 use common_types::primitive_wrappers::SafeString;
-use common_utils::{id_type, pii};
+use common_utils::{
+    id_type, pii,
+    types::list::{PageOffset, PageSize},
+};
 use hyperswitch_masking::Secret;
 use strum::EnumString;
 
@@ -225,7 +228,7 @@ pub enum GetMetaDataResponse {
 #[serde(tag = "entity", content = "filters")]
 #[serde(rename_all = "snake_case")]
 pub enum SavedViewFiltersV1 {
-    PaymentViews(PaymentListFilterConstraintsV1),
+    PaymentViews(Box<PaymentListFilterConstraintsV1>),
     RefundViews(RefundViewFilterConstraintsV1),
     DisputeViews(DisputeViewFilterConstraintsV1),
 }
@@ -238,9 +241,9 @@ pub struct PaymentListFilterConstraintsV1 {
     pub profile_id: Option<id_type::ProfileId>,
     pub customer_id: Option<id_type::CustomerId>,
     #[serde(default)]
-    pub limit: common_utils::types::list::PageSize,
+    pub limit: PageSize,
     #[serde(default)]
-    pub offset: Option<common_utils::types::list::PageOffset>,
+    pub offset: Option<PageOffset>,
     pub amount_filter: Option<payments::AmountFilter>,
     #[serde(flatten)]
     pub time_range: Option<common_utils::types::TimeRange>,
@@ -275,9 +278,9 @@ pub struct RefundViewFilterConstraintsV1 {
     pub refund_id: Option<String>,
     pub profile_id: Option<id_type::ProfileId>,
     #[serde(default)]
-    pub limit: Option<common_utils::types::list::PageSize>,
+    pub limit: Option<PageSize>,
     #[serde(default)]
-    pub offset: Option<common_utils::types::list::PageOffset>,
+    pub offset: Option<PageOffset>,
     #[serde(flatten)]
     pub time_range: Option<common_utils::types::TimeRange>,
     pub amount_filter: Option<payments::AmountFilter>,
@@ -294,9 +297,9 @@ pub struct DisputeViewFilterConstraintsV1 {
     pub payment_id: Option<id_type::PaymentId>,
     pub profile_id: Option<id_type::ProfileId>,
     #[serde(default)]
-    pub limit: Option<common_utils::types::list::PageSize>,
+    pub limit: Option<PageSize>,
     #[serde(default)]
-    pub offset: Option<common_utils::types::list::PageOffset>,
+    pub offset: Option<PageOffset>,
     pub dispute_status: Option<Vec<enums::DisputeStatus>>,
     pub dispute_stage: Option<Vec<enums::DisputeStage>>,
     pub reason: Option<String>,
@@ -378,9 +381,9 @@ pub struct PaymentAdvancedViewFilterConstraints {
     pub profile_id: Option<id_type::ProfileId>,
     pub customer_id: Option<id_type::CustomerId>,
     #[serde(default)]
-    pub limit: common_utils::types::list::PageSize,
+    pub limit: PageSize,
     #[serde(default)]
-    pub offset: Option<common_utils::types::list::PageOffset>,
+    pub offset: Option<PageOffset>,
     pub amount_filter: Option<payments::AmountFilter>,
     #[serde(flatten)]
     pub time_range: Option<common_utils::types::TimeRange>,

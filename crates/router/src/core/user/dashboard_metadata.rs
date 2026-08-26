@@ -269,7 +269,7 @@ fn into_response(
                         view_id: v.view_id,
                         view_name: v.view_name,
                         data: api::SavedViewFilters::V1(api::SavedViewFiltersV1::PaymentViews(
-                            v.filters,
+                            Box::new(v.filters),
                         )),
                         created_at: v.created_at.to_string(),
                         updated_at: v.updated_at.to_string(),
@@ -288,38 +288,16 @@ fn into_response(
         #[cfg(feature = "v1")]
         DBEnum::RefundViews => {
             let resp: Option<types::RefundViewsValue> = utils::deserialize_to_response(data)?;
-            Ok(api::GetMetaDataResponse::RefundViews(resp.map(|d| {
-                d.views
-                    .into_iter()
-                    .map(|v| api::SavedViewResponse {
-                        view_id: v.view_id,
-                        view_name: v.view_name,
-                        data: api::SavedViewFilters::V1(api::SavedViewFiltersV1::RefundViews(
-                            v.filters,
-                        )),
-                        created_at: v.created_at.to_string(),
-                        updated_at: v.updated_at.to_string(),
-                    })
-                    .collect()
-            })))
+            Ok(api::GetMetaDataResponse::RefundViews(
+                resp.map(|d| d.views.into_iter().map(Into::into).collect()),
+            ))
         }
         #[cfg(feature = "v1")]
         DBEnum::DisputeViews => {
             let resp: Option<types::DisputeViewsValue> = utils::deserialize_to_response(data)?;
-            Ok(api::GetMetaDataResponse::DisputeViews(resp.map(|d| {
-                d.views
-                    .into_iter()
-                    .map(|v| api::SavedViewResponse {
-                        view_id: v.view_id,
-                        view_name: v.view_name,
-                        data: api::SavedViewFilters::V1(api::SavedViewFiltersV1::DisputeViews(
-                            v.filters,
-                        )),
-                        created_at: v.created_at.to_string(),
-                        updated_at: v.updated_at.to_string(),
-                    })
-                    .collect()
-            })))
+            Ok(api::GetMetaDataResponse::DisputeViews(
+                resp.map(|d| d.views.into_iter().map(Into::into).collect()),
+            ))
         }
     }
 }
