@@ -1166,6 +1166,7 @@ impl PaymentUpdate {
             amount_to_capture,
             capture_method,
             fingerprint_id: None,
+            fingerprint_type: None,
             payment_method_billing_address_id,
             updated_by: storage_scheme.to_string(),
             network_transaction_id,

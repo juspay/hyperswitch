@@ -23196,6 +23196,13 @@
           }
         }
       },
+      "FingerprintType": {
+        "type": "string",
+        "enum": [
+          "dpan",
+          "fpan"
+        ]
+      },
       "FinixAdditionalDetails": {
         "type": "object",
         "properties": {
@@ -23389,6 +23396,14 @@
           "eci_indicator"
         ],
         "properties": {
+          "auth_method": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/GooglePayAuthMethod"
+              }
+            ],
+            "nullable": true
+          },
           "card_exp_month": {
             "type": "string",
             "description": "The card's expiry month"
@@ -23681,6 +23696,13 @@
             "description": "indicates that identification and verifications (ID&V) was performed"
           }
         }
+      },
+      "GooglePayAuthMethod": {
+        "type": "string",
+        "enum": [
+          "PAN_ONLY",
+          "CRYPTOGRAM_3DS"
+        ]
       },
       "GooglePayCardFundingSource": {
         "type": "string",
@@ -34154,6 +34176,14 @@
             "description": "Payment Fingerprint, to identify a particular card.\nIt is a 20 character long alphanumeric code.",
             "nullable": true
           },
+          "fingerprint_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FingerprintType"
+              }
+            ],
+            "nullable": true
+          },
           "browser_info": {
             "allOf": [
               {
@@ -35973,6 +36003,14 @@
           "fingerprint": {
             "type": "string",
             "description": "Payment Fingerprint, to identify a particular card.\nIt is a 20 character long alphanumeric code.",
+            "nullable": true
+          },
+          "fingerprint_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FingerprintType"
+              }
+            ],
             "nullable": true
           },
           "browser_info": {
