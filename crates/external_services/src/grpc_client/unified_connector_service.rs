@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use common_enums::{connector_enums::Connector, enums::ExecutionMode, ConnectorType};
+use common_enums::{connector_enums::Connector, ConnectorType};
 use common_utils::{consts as common_utils_consts, errors::CustomResult, types::Url};
 use error_stack::ResultExt;
 pub use hyperswitch_interfaces::unified_connector_service::transformers::UnifiedConnectorServiceError;
@@ -88,22 +88,11 @@ pub struct UnifiedConnectorServiceClientConfig {
     #[serde(default, deserialize_with = "deserialize_hashset")]
     pub ucs_blacklisted_connectors: HashSet<Connector>,
 
-    /// Default execution mode when no rollout config is found.
-    /// Controls what happens when UCS is enabled but no specific rollout config matches.
-    /// Defaults to NotApplicable (direct HS path). Can be set to "primary" to make UCS
-    /// the default path, using rollout overrides to exclude specific connectors/merchants.
-    #[serde(default = "default_execution_mode")]
-    pub default_execution_mode: ExecutionMode,
-
     /// Controls where UCS configuration (ucs_enabled, rollout config) is read from.
     /// Set to "database" (default) to use the configs table, or "superposition" to use
     /// the Superposition service. Allows runtime switching without redeployment.
     #[serde(default = "default_config_source")]
     pub config_source: UcsConfigSource,
-}
-
-fn default_execution_mode() -> ExecutionMode {
-    ExecutionMode::NotApplicable
 }
 
 /// Controls where UCS configuration (ucs_enabled, rollout config) is read from.

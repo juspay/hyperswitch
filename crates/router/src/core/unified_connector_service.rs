@@ -460,7 +460,6 @@ where
         &rollout_result,
         connector_integration_type,
         previous_gateway,
-        state,
     )?;
 
     let session_state =
@@ -529,7 +528,6 @@ where
         &rollout_result,
         connector_integration_type,
         previous_gateway,
-        state,
     )?;
 
     let session_state =
@@ -642,7 +640,6 @@ fn resolve_cutover_execution_path(
     rollout_result: &crate::core::payments::helpers::RolloutExecutionResult,
     connector_integration_type: ConnectorIntegrationType,
     previous_gateway: Option<GatewaySystem>,
-    state: &SessionState,
 ) -> RouterResult<(GatewaySystem, ExecutionPath)> {
     match ucs_availability {
         UcsAvailability::Disabled => resolve_path_when_ucs_disabled(call_connector_action),
@@ -654,7 +651,6 @@ fn resolve_cutover_execution_path(
                 connector_integration_type,
                 previous_gateway,
                 ucs_availability,
-                state,
             )
         }
     }
@@ -690,7 +686,6 @@ fn resolve_path_when_ucs_available(
     connector_integration_type: ConnectorIntegrationType,
     previous_gateway: Option<GatewaySystem>,
     ucs_availability: UcsAvailability,
-    state: &SessionState,
 ) -> RouterResult<(GatewaySystem, ExecutionPath)> {
     match call_connector_action {
         CallConnectorAction::UCSConsumeResponse(_) => {
@@ -721,7 +716,7 @@ fn resolve_path_when_ucs_available(
                 false => ExecutionMode::NotApplicable,
             };
 
-            let execution_mode = resolve_execution_mode(state, execution_mode, ucs_availability);
+            let execution_mode = resolve_execution_mode(execution_mode, ucs_availability);
 
             decide_execution_path(connector_integration_type, previous_gateway, execution_mode)
         }
@@ -783,37 +778,17 @@ fn create_updated_session_state_with_proxy(
 
 /// Resolves the effective execution mode by applying the shadow kill switch.
 /// If the resolved mode is Shadow and ucs_enabled is "shadow_killed",
-/// falls back to the default_execution_mode from env config.
+/// falls back to NotApplicable (Direct path).
 fn resolve_execution_mode(
-    state: &SessionState,
     execution_mode: ExecutionMode,
     ucs_availability: UcsAvailability,
 ) -> ExecutionMode {
-    let default_mode = state
-        .conf
-        .grpc_client
-        .unified_connector_service
-        .as_ref()
-        .map(|c| c.default_execution_mode)
-        .unwrap_or(ExecutionMode::NotApplicable);
-
-    let execution_mode = if !matches!(execution_mode, ExecutionMode::NotApplicable) {
-        execution_mode
-    } else {
-        router_env::logger::debug!(
-            ?default_mode,
-            "Rollout not selected, using default execution mode from env config"
-        );
-        default_mode
-    };
-
     if execution_mode == ExecutionMode::Shadow && ucs_availability == UcsAvailability::ShadowKilled
     {
         router_env::logger::info!(
-            ?default_mode,
-            "UCS shadow kill switch is enabled, falling back to env default"
+            "UCS shadow kill switch is enabled, falling back to Direct"
         );
-        default_mode
+        ExecutionMode::NotApplicable
     } else {
         execution_mode
     }
@@ -1211,7 +1186,6 @@ pub async fn should_call_unified_connector_service_for_webhooks(
         (GatewaySystem::Direct, ExecutionPath::Direct)
     } else {
         let execution_mode = resolve_execution_mode(
-            state,
             rollout_result.rollout_execution_result.execution_mode,
             ucs_availability,
         );
