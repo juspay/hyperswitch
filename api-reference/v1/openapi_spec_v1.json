@@ -12476,6 +12476,12 @@
           },
           {
             "$ref": "#/components/schemas/OpenBanking"
+          },
+          {
+            "$ref": "#/components/schemas/PayshapBankTransfer"
+          },
+          {
+            "$ref": "#/components/schemas/PayshapProxyBankTransfer"
           }
         ],
         "description": "Deprecated - Use `BankTransfer` instead"
@@ -12499,6 +12505,12 @@
           },
           {
             "$ref": "#/components/schemas/OpenBankingAdditionalData"
+          },
+          {
+            "$ref": "#/components/schemas/PayshapBankTransferAdditionalData"
+          },
+          {
+            "$ref": "#/components/schemas/PayshapProxyBankTransferAdditionalData"
           }
         ],
         "description": "Masked payout method details for bank payout method"
@@ -14339,6 +14351,48 @@
                     "type": "string",
                     "enum": [
                       "open_banking"
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PayshapBankTransfer"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "payout_method_type"
+                ],
+                "properties": {
+                  "payout_method_type": {
+                    "type": "string",
+                    "enum": [
+                      "payshap"
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PayshapProxyBankTransfer"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "payout_method_type"
+                ],
+                "properties": {
+                  "payout_method_type": {
+                    "type": "string",
+                    "enum": [
+                      "payshap_proxy"
                     ]
                   }
                 }
@@ -17775,6 +17829,7 @@
           "globalpay",
           "globepay",
           "gocardless",
+          "gotyme_sanlam",
           "gpayments",
           "hipay",
           "helcim",
@@ -19720,6 +19775,15 @@
           }
         },
         "additionalProperties": false
+      },
+      "CustomerAcceptanceSupport": {
+        "type": "string",
+        "description": "Returned in the payment method list response so the SDK,\ncan help decide whether to show the \"save my details\" checkbox and how to word it.",
+        "enum": [
+          "supported",
+          "partially_supported",
+          "unsupported"
+        ]
       },
       "CustomerDefaultPaymentMethodResponse": {
         "type": "object",
@@ -23196,6 +23260,13 @@
           }
         }
       },
+      "FingerprintType": {
+        "type": "string",
+        "enum": [
+          "dpan",
+          "fpan"
+        ]
+      },
       "FinixAdditionalDetails": {
         "type": "object",
         "properties": {
@@ -23389,6 +23460,14 @@
           "eci_indicator"
         ],
         "properties": {
+          "auth_method": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/GooglePayAuthMethod"
+              }
+            ],
+            "nullable": true
+          },
           "card_exp_month": {
             "type": "string",
             "description": "The card's expiry month"
@@ -23681,6 +23760,13 @@
             "description": "indicates that identification and verifications (ID&V) was performed"
           }
         }
+      },
+      "GooglePayAuthMethod": {
+        "type": "string",
+        "enum": [
+          "PAN_ONLY",
+          "CRYPTOGRAM_3DS"
+        ]
       },
       "GooglePayCardFundingSource": {
         "type": "string",
@@ -32111,7 +32197,9 @@
           "revolut_pay",
           "indonesian_bank_transfer",
           "open_banking",
-          "network_token"
+          "network_token",
+          "payshap",
+          "payshap_proxy"
         ]
       },
       "PaymentMethodUpdate": {
@@ -34154,6 +34242,14 @@
             "description": "Payment Fingerprint, to identify a particular card.\nIt is a 20 character long alphanumeric code.",
             "nullable": true
           },
+          "fingerprint_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FingerprintType"
+              }
+            ],
+            "nullable": true
+          },
           "browser_info": {
             "allOf": [
               {
@@ -35975,6 +36071,14 @@
             "description": "Payment Fingerprint, to identify a particular card.\nIt is a 20 character long alphanumeric code.",
             "nullable": true
           },
+          "fingerprint_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FingerprintType"
+              }
+            ],
+            "nullable": true
+          },
           "browser_info": {
             "allOf": [
               {
@@ -37303,6 +37407,7 @@
           "deutschebank",
           "ebanx",
           "gigadat",
+          "gotyme_sanlam",
           "loonio",
           "nomupay",
           "nuvei",
@@ -38848,6 +38953,96 @@
       },
       "PayseraData": {
         "type": "object"
+      },
+      "PayshapBankTransfer": {
+        "type": "object",
+        "required": [
+          "bank_account_number"
+        ],
+        "properties": {
+          "bank_account_number": {
+            "type": "string",
+            "description": "Bank account number is a unique identifier assigned by a bank to a customer.",
+            "example": "1234567890"
+          },
+          "account_holder_name": {
+            "type": "string",
+            "description": "Bank account holder name. Required for interbank transfers.",
+            "example": "John Doe",
+            "nullable": true
+          },
+          "bank_name": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BankNames"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "PayshapBankTransferAdditionalData": {
+        "type": "object",
+        "description": "Masked payout method details for PayShap bank transfer payout method",
+        "required": [
+          "bank_account_number"
+        ],
+        "properties": {
+          "bank_account_number": {
+            "type": "string",
+            "description": "Bank account number is a unique identifier assigned by a bank to a customer.",
+            "example": "**** 67890"
+          },
+          "account_holder_name": {
+            "type": "string",
+            "description": "Bank account holder name.",
+            "example": "John Doe",
+            "nullable": true
+          },
+          "bank_name": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BankNames"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "PayshapProxyBankTransfer": {
+        "type": "object",
+        "properties": {
+          "cellphone": {
+            "type": "string",
+            "description": "Cellphone proxy. Required when proxy_type is cellphone.",
+            "example": "+27821234567",
+            "nullable": true
+          },
+          "shap_id": {
+            "type": "string",
+            "description": "Shap ID proxy. Required when proxy_type is shap_id.",
+            "example": "21e3123",
+            "nullable": true
+          }
+        }
+      },
+      "PayshapProxyBankTransferAdditionalData": {
+        "type": "object",
+        "description": "Masked payout method details for PayShap proxy bank transfer payout method",
+        "properties": {
+          "cellphone": {
+            "type": "string",
+            "description": "Cellphone proxy.",
+            "example": "******* 4567",
+            "nullable": true
+          },
+          "shap_id": {
+            "type": "string",
+            "description": "Shap ID proxy.",
+            "example": "**** 3123",
+            "nullable": true
+          }
+        }
       },
       "PazeSessionTokenResponse": {
         "type": "object",
@@ -42070,7 +42265,8 @@
       "ResponsePaymentMethodTypes": {
         "type": "object",
         "required": [
-          "payment_method_type"
+          "payment_method_type",
+          "customer_acceptance_support"
         ],
         "properties": {
           "payment_method_type": {
@@ -42137,6 +42333,9 @@
             "type": "string",
             "description": "auth service connector label for this payment method type, if exists",
             "nullable": true
+          },
+          "customer_acceptance_support": {
+            "$ref": "#/components/schemas/CustomerAcceptanceSupport"
           }
         }
       },
@@ -42173,7 +42372,8 @@
             "type": "object",
             "required": [
               "payment_method",
-              "payment_method_type"
+              "payment_method_type",
+              "customer_acceptance_support"
             ],
             "properties": {
               "payment_method": {
@@ -42199,6 +42399,9 @@
                 "type": "boolean",
                 "description": "Whether to collect billing details from the wallet connector (null for non-wallet)",
                 "nullable": true
+              },
+              "customer_acceptance_support": {
+                "$ref": "#/components/schemas/CustomerAcceptanceSupport"
               }
             }
           }
@@ -42585,6 +42788,7 @@
           "globalpay",
           "globepay",
           "gocardless",
+          "gotyme_sanlam",
           "hipay",
           "helcim",
           "hyperpg",

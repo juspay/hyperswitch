@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.08.26.1
+
+### Features
+
+- **core:** Return bank name and account holder name for saved bank redirect payment methods in PML ([#13813](https://github.com/juspay/hyperswitch/pull/13813)) ([`c4ec3a6`](https://github.com/juspay/hyperswitch/commit/c4ec3a6a33397b35baf1f17f79bdd1fdafa44c23))
+
+**Full Changelog:** [`2026.08.26.0...2026.08.26.1`](https://github.com/juspay/hyperswitch/compare/2026.08.26.0...2026.08.26.1)
+
+- - -
+
 ## 2026.08.26.0
 
 ### Features

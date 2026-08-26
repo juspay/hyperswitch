@@ -269,6 +269,7 @@ hash_key = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 # Note: These are not optional attributes. hyperswitch request can fail due to invalid/empty values.
 [connectors]
 absa_sanlam.base_url = "dev"
+gotyme_sanlam.base_url = "dev"
 aci.base_url = "https://eu-test.oppwa.com/"
 adyen.base_url = "https://checkout-test.adyen.com/"
 adyen.payout_base_url = "https://pal-test.adyen.com/"
@@ -449,6 +450,14 @@ zen.secondary_base_url = "https://secure.zen-test.com/"
 #Payment Method Filters Based on Country and Currency
 [pm_filters.default]
 apple_pay = { country = "AU,CN,HK,JP,MO,MY,NZ,SG,TW,AM,AT,AZ,BY,BE,BG,HR,CY,CZ,DK,EE,FO,FI,FR,GE,DE,GR,GL,GG,HU,IS,IE,IM,IT,KZ,JE,LV,LI,LT,LU,MT,MD,MC,ME,NL,NO,PL,PT,RO,SM,RS,SK,SI,ES,SE,CH,UA,GB,AR,CO,CR,BR,MX,PE,BH,IL,JO,KW,PS,QA,SA,AE,CA,UM,US,KR,VN,MA,ZA,VA,CL,SV,GT,HN,PA", currency = "AED,AUD,CHF,CAD,EUR,GBP,HKD,SGD,USD" }
+
+# Whether saving a payment method is supported by all, some, or none of the connectors
+# eligible for it. Returned in the PML response so the SDK can decide whether to show the
+# "save my details" checkbox ("supported" | "partially_supported" | "unsupported").
+[customer_acceptance_support]
+card.credit = "supported"
+card.debit = "supported"
+bank_redirect.open_banking = "partially_supported"
 
 # Bank redirect configs for allowed banks through online_banking_czech_republic payment method
 [bank_config.online_banking_czech_republic]

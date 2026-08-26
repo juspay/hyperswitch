@@ -309,6 +309,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 gocardless::transformers::GocardlessAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
+            api_enums::Connector::GotymeSanlam => {
+                gotyme_sanlam::transformers::GotymeSanlamAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
             api_enums::Connector::Gpayments => {
                 gpayments::transformers::GpaymentsAuthType::try_from(self.auth_type)?;
                 gpayments::transformers::GpaymentsMetaData::try_from(self.connector_meta_data)?;

@@ -70,6 +70,7 @@ pub struct Connectors {
     pub globalpay: ConnectorParams,
     pub globepay: ConnectorParams,
     pub gocardless: ConnectorParams,
+    pub gotyme_sanlam: ConnectorParams,
     pub gpayments: ConnectorParams,
     pub helcim: ConnectorParams,
     pub hipay: ConnectorParamsWithThreeUrls,

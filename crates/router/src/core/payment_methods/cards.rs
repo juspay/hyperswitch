@@ -4119,7 +4119,10 @@ impl MerchantEnabledPmsContext {
     }
 
     /// Converts `payment_experiences_consolidated_hm` → client PM entries (wallet, pay_later, upi, …)
-    pub fn payment_experience_pms_for_client(&self) -> Vec<ResponsePaymentMethodsEnabledForClient> {
+    pub fn payment_experience_pms_for_client(
+        &self,
+        customer_acceptance_support_config: &settings::CustomerAcceptanceSupportConfig,
+    ) -> Vec<ResponsePaymentMethodsEnabledForClient> {
         let mut out = vec![];
         for (payment_method, pmt_map) in &self.payment_experiences_consolidated_hm {
             for (payment_method_type, pe_map) in pmt_map {
@@ -4140,6 +4143,8 @@ impl MerchantEnabledPmsContext {
                     collect_billing_details_from_wallets: is_wallet
                         .then_some(self.collect_billing_details_from_wallets)
                         .flatten(),
+                    customer_acceptance_support: customer_acceptance_support_config
+                        .get_customer_acceptance_support(*payment_method, *payment_method_type),
                 });
             }
         }
@@ -4147,7 +4152,10 @@ impl MerchantEnabledPmsContext {
     }
 
     /// Converts `card_networks_consolidated_hm` → client PM entries (card, card_redirect)
-    pub fn card_network_pms_for_client(&self) -> Vec<ResponsePaymentMethodsEnabledForClient> {
+    pub fn card_network_pms_for_client(
+        &self,
+        customer_acceptance_support_config: &settings::CustomerAcceptanceSupportConfig,
+    ) -> Vec<ResponsePaymentMethodsEnabledForClient> {
         let mut out = vec![];
         for (payment_method, pmt_map) in &self.card_networks_consolidated_hm {
             for (payment_method_type, card_network_hashmap) in pmt_map {
@@ -4161,6 +4169,8 @@ impl MerchantEnabledPmsContext {
                     payment_experience: None,
                     collect_shipping_details_from_wallets: None,
                     collect_billing_details_from_wallets: None,
+                    customer_acceptance_support: customer_acceptance_support_config
+                        .get_customer_acceptance_support(*payment_method, *payment_method_type),
                 });
             }
         }
@@ -4193,13 +4203,23 @@ impl MerchantEnabledPmsContext {
                 payment_experience: None,
                 collect_shipping_details_from_wallets: None,
                 collect_billing_details_from_wallets: None,
+                customer_acceptance_support: state
+                    .conf
+                    .customer_acceptance_support
+                    .get_customer_acceptance_support(
+                        api_enums::PaymentMethod::BankRedirect,
+                        *payment_method_type,
+                    ),
             });
         }
         Ok(out)
     }
 
     /// Converts `bank_debits_consolidated_hm` → client PM entries (bank_debit)
-    pub fn bank_debit_pms_for_client(&self) -> Vec<ResponsePaymentMethodsEnabledForClient> {
+    pub fn bank_debit_pms_for_client(
+        &self,
+        customer_acceptance_support_config: &settings::CustomerAcceptanceSupportConfig,
+    ) -> Vec<ResponsePaymentMethodsEnabledForClient> {
         self.bank_debits_consolidated_hm
             .keys()
             .map(
@@ -4210,13 +4230,21 @@ impl MerchantEnabledPmsContext {
                     payment_experience: None,
                     collect_shipping_details_from_wallets: None,
                     collect_billing_details_from_wallets: None,
+                    customer_acceptance_support: customer_acceptance_support_config
+                        .get_customer_acceptance_support(
+                            api_enums::PaymentMethod::BankDebit,
+                            *payment_method_type,
+                        ),
                 },
             )
             .collect()
     }
 
     /// Converts `bank_transfer_consolidated_hm` → client PM entries (bank_transfer)
-    pub fn bank_transfer_pms_for_client(&self) -> Vec<ResponsePaymentMethodsEnabledForClient> {
+    pub fn bank_transfer_pms_for_client(
+        &self,
+        customer_acceptance_support_config: &settings::CustomerAcceptanceSupportConfig,
+    ) -> Vec<ResponsePaymentMethodsEnabledForClient> {
         self.bank_transfer_consolidated_hm
             .keys()
             .map(
@@ -4227,6 +4255,11 @@ impl MerchantEnabledPmsContext {
                     payment_experience: None,
                     collect_shipping_details_from_wallets: None,
                     collect_billing_details_from_wallets: None,
+                    customer_acceptance_support: customer_acceptance_support_config
+                        .get_customer_acceptance_support(
+                            api_enums::PaymentMethod::BankTransfer,
+                            *payment_method_type,
+                        ),
                 },
             )
             .collect()
@@ -5103,6 +5136,8 @@ pub async fn list_payment_methods(
     ))
     .await?;
 
+    let customer_acceptance_support_config = &state.conf.customer_acceptance_support;
+
     let mut payment_method_responses: Vec<ResponsePaymentMethodsEnabled> = vec![];
     for key in pms_ctx.payment_experiences_consolidated_hm.iter() {
         let mut payment_method_types = vec![];
@@ -5134,6 +5169,8 @@ pub async fn list_payment_methods(
                     .get(key.0)
                     .and_then(|pm_map| pm_map.get(payment_method_types_hm.0))
                     .cloned(),
+                customer_acceptance_support: customer_acceptance_support_config
+                    .get_customer_acceptance_support(*key.0, *payment_method_types_hm.0),
             })
         }
 
@@ -5174,6 +5211,8 @@ pub async fn list_payment_methods(
                     .get(key.0)
                     .and_then(|pm_map| pm_map.get(payment_method_types_hm.0))
                     .cloned(),
+                customer_acceptance_support: customer_acceptance_support_config
+                    .get_customer_acceptance_support(*key.0, *payment_method_types_hm.0),
             })
         }
 
@@ -5209,6 +5248,11 @@ pub async fn list_payment_methods(
                     .get(&enums::PaymentMethod::BankRedirect)
                     .and_then(|pm_map| pm_map.get(key.0))
                     .cloned(),
+                customer_acceptance_support: customer_acceptance_support_config
+                    .get_customer_acceptance_support(
+                        api_enums::PaymentMethod::BankRedirect,
+                        payment_method_type,
+                    ),
             }
         })
     }
@@ -5247,6 +5291,11 @@ pub async fn list_payment_methods(
                     .get(&enums::PaymentMethod::BankDebit)
                     .and_then(|pm_map| pm_map.get(key.0))
                     .cloned(),
+                customer_acceptance_support: customer_acceptance_support_config
+                    .get_customer_acceptance_support(
+                        api_enums::PaymentMethod::BankDebit,
+                        payment_method_type,
+                    ),
             }
         })
     }
@@ -5285,6 +5334,11 @@ pub async fn list_payment_methods(
                     .get(&enums::PaymentMethod::BankTransfer)
                     .and_then(|pm_map| pm_map.get(key.0))
                     .cloned(),
+                customer_acceptance_support: customer_acceptance_support_config
+                    .get_customer_acceptance_support(
+                        api_enums::PaymentMethod::BankTransfer,
+                        payment_method_type,
+                    ),
             }
         })
     }

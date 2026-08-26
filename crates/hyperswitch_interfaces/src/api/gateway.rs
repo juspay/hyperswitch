@@ -9,8 +9,11 @@
 
 use async_trait::async_trait;
 use common_enums::{CallConnectorAction, ExecutionMode, ExecutionPath};
-use common_utils::{errors::CustomResult, request::Request};
-use error_stack::ResultExt;
+use common_utils::{
+    errors::{CustomResult, ErrorSwitch},
+    request::Request,
+};
+use error_stack::{Report, ResultExt};
 use hyperswitch_domain_models::router_data::RouterData;
 use router_env::{logger, tracing::Instrument};
 
@@ -19,6 +22,7 @@ use crate::{
     connector_integration_interface::{BoxedConnectorIntegrationInterface, RouterDataConversion},
     errors::ConnectorError,
     helpers,
+    unified_connector_service::transformers::UnifiedConnectorServiceError,
 };
 
 /// Minimal trait that gateway context must implement
@@ -606,4 +610,15 @@ where
             direct_result
         }
     }
+}
+
+/// Converts a `Report<UnifiedConnectorServiceError>` into a `Report<ConnectorError>`
+/// using the `ErrorSwitch` trait for consistent, exhaustive mapping.
+///
+/// Shared by all payment gateway files (authorize, psync, capture, void) to avoid duplication.
+pub fn convert_ucs_error_to_connector_error(
+    report: Report<UnifiedConnectorServiceError>,
+) -> Report<ConnectorError> {
+    let connector_error = report.current_context().switch();
+    report.change_context(connector_error)
 }

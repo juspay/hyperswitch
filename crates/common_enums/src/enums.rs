@@ -2446,6 +2446,34 @@ pub enum PaymentExperience {
     CollectOtp,
 }
 
+/// Returned in the payment method list response so the SDK,
+/// can help decide whether to show the "save my details" checkbox and how to word it.
+#[derive(
+    Eq,
+    PartialEq,
+    Hash,
+    Copy,
+    Clone,
+    Debug,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+    Default,
+)]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+pub enum CustomerAcceptanceSupport {
+    /// Every eligible connector supports saving this payment method.
+    Supported,
+    /// Only some of the eligible connectors support saving this payment method
+    PartiallySupported,
+    /// No eligible connector supports saving this payment method
+    #[default]
+    Unsupported,
+}
+
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, strum::Display)]
 #[serde(rename_all = "lowercase")]
 pub enum SamsungPayCardBrand {
@@ -2605,6 +2633,8 @@ pub enum PaymentMethodType {
     IndonesianBankTransfer,
     OpenBanking,
     NetworkToken,
+    Payshap,
+    PayshapProxy,
 }
 
 /// Indicates whether a wallet token is decrypted .
@@ -2757,6 +2787,8 @@ impl PaymentMethodType {
             Self::IndonesianBankTransfer => "Indonesian Bank Transfer",
             Self::OpenBanking => "Open Banking",
             Self::NetworkToken => "Network Token",
+            Self::Payshap => "PayShap",
+            Self::PayshapProxy => "PayShap Proxy",
         };
         display_name.to_string()
     }
@@ -11059,6 +11091,30 @@ pub enum GooglePayAuthMethod {
 
 #[derive(
     Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    SmithyModel,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub enum FingerprintType {
+    /// Device PAN used by tokenized wallets such as Apple Pay and Google Pay.
+    Dpan,
+    /// Funding PAN used by a directly supplied card.
+    Fpan,
+}
+
+#[derive(
+    Clone,
     Debug,
     Eq,
     PartialEq,
@@ -11899,4 +11955,28 @@ pub enum BatchBlocklistJobStatus {
     Processing,
     Completed,
     Failed,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    SmithyModel,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+    Default,
+)]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub enum PayshapProxyType {
+    Cellphone,
+    #[default]
+    ShapId,
 }
