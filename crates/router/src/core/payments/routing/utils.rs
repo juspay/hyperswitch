@@ -1604,7 +1604,14 @@ pub async fn shadow_decision_engine_routing_batch(
         .map(|entry| entry.backend_input.clone())
         .collect::<Vec<_>>();
 
-    let de_results = decision_engine_routing_batch_with_fallback(
+    // No single-call fallback here, deliberately: the events layer surfaces every
+    // engine failure without a status code, so "endpoint absent" cannot be told apart
+    // from "this merchant has no active rule" -- and for the latter, N single calls
+    // fail identically to the batch. A failed shadow batch just logs empty diffs.
+    // The load-bearing cut-over path keeps the fallback, which is what protects the
+    // window where the engine predates the batch endpoint.
+    let entry_count = entries.len();
+    let de_results = decision_engine_routing_batch(
         &state,
         backend_inputs,
         &business_profile,
@@ -1613,7 +1620,14 @@ pub async fn shadow_decision_engine_routing_batch(
         algorithm_for,
         routing_flow,
     )
-    .await;
+    .await
+    .map_err(|error| {
+        logger::warn!(
+            ?error,
+            "decision_engine_euclid: shadow batch evaluate failed"
+        );
+    })
+    .unwrap_or_else(|_| vec![Vec::new(); entry_count]);
 
     for (entry, de_result) in entries.into_iter().zip(de_results) {
         compare_and_log_result(
