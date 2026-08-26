@@ -127,6 +127,7 @@ opennode.base_url = "https://api.opennode.com"
 paybox.base_url = "https://ppps.paybox.com/PPPS.php"
 paybox.secondary_base_url="https://tpeweb.paybox.com/"
 payeezy.base_url = "https://api.payeezy.com/"
+payhound.base_url = "https://api.payhound.com"
 payjustnow.base_url = "https://checkout.payjustnow.io/v2"
 payjustnowinstore.base_url = "https://api.payjustnow.com/api"
 payload.base_url = "https://api.payload.com"
@@ -1043,7 +1044,7 @@ click_to_pay = {connector_list = "adyen, cybersource, trustpay"}
 connector_list = "juspaythreedsserver, ctp_mastercard, ctp_visa"
 
 [grpc_client.unified_connector_service]
-ucs_only_connectors = "imerchantsolutions, paytm, phonepe, hyperpg, revolv3, fiservcommercehub, absa_sanlam, interpayments, payconex, dlocal, barclaycard, jpmorgan, datatrans, tsys_transit, givepayments, citigate, moneris, elavon, worldpayraft"    # Comma-separated list of connectors that use UCS only
+ucs_only_connectors = "imerchantsolutions, paytm, phonepe, hyperpg, revolv3, fiservcommercehub, absa_sanlam, interpayments, payconex, dlocal, barclaycard, jpmorgan, datatrans, tsys_transit, givepayments, citigate, moneris, elavon, worldpayraft, payhound"    # Comma-separated list of connectors that use UCS only
 ucs_psync_disabled_connectors = "cashtocode, trustly"    # Comma-separated list of connectors to disable UCS PSync call
 
 # Merchant Advice Code Configuration

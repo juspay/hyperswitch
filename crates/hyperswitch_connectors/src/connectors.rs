@@ -93,6 +93,7 @@ pub mod opennode;
 pub mod paybox;
 pub mod payconex;
 pub mod payeezy;
+pub mod payhound;
 pub mod payjustnow;
 pub mod payjustnowinstore;
 pub mod payload;
@@ -178,7 +179,7 @@ pub use self::{
     moneris::Moneris, mpgs::Mpgs, multisafepay::Multisafepay, netcetera::Netcetera,
     nexinets::Nexinets, nexixpay::Nexixpay, nmi::Nmi, nomupay::Nomupay, noon::Noon, nordea::Nordea,
     novalnet::Novalnet, nuvei::Nuvei, opayo::Opayo, opennode::Opennode, paybox::Paybox,
-    payconex::Payconex, payeezy::Payeezy, payjustnow::Payjustnow,
+    payconex::Payconex, payeezy::Payeezy, payhound::Payhound, payjustnow::Payjustnow,
     payjustnowinstore::Payjustnowinstore, payload::Payload, payme::Payme, payone::Payone,
     paypal::Paypal, paysafe::Paysafe, paystack::Paystack, paytm::Paytm, payu::Payu,
     peachpayments::Peachpayments, phonepe::Phonepe, placetopay::Placetopay, plaid::Plaid,

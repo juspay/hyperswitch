@@ -153,6 +153,7 @@ pub enum Connector {
     // Opayo, added as template code for future usage
     Opennode,
     Paybox,
+    Payhound,
     // Payeezy, As psync and rsync are not supported by this connector, it is added as template code for future usage
     Payload,
     Payme,
@@ -469,6 +470,7 @@ impl Connector {
             | Self::Phonepe
             | Self::Imerchantsolutions
             | Self::Ilixium
+            | Self::Payhound
             | Self::Givepayments => false,
             Self::Stripe | Self::Checkout | Self::Zift | Self::Nmi | Self::Braintree|
             Self::Cybersource | Self::Archipel | Self::Nuvei | Self::Adyen => true,
