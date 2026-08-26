@@ -8001,7 +8001,7 @@ impl
         let access_token = router_data.access_token.as_ref().map(|t| t.token.clone());
 
         Ok(Self {
-            merchant_payout_id: Some(router_data.connector_request_reference_id.clone()),
+            merchant_payout_id: router_data.payout_id.clone(),
             address,
             connector_feature_data,
             payout_method_data,
@@ -8053,7 +8053,7 @@ impl
             .map(|secret| Secret::new(secret.expose().to_string()));
 
         Ok(Self {
-            merchant_payout_id: Some(router_data.connector_request_reference_id.clone()),
+            merchant_payout_id: router_data.payout_id.clone(),
             address: Some(address),
             connector_feature_data,
             connector_payout_id: router_data.request.connector_payout_id.clone(),
@@ -8190,7 +8190,7 @@ impl
             .transpose()?;
 
         Ok(Self {
-            merchant_payout_id: Some(router_data.connector_request_reference_id.clone()),
+            merchant_payout_id: router_data.payout_id.clone(),
             address: Some(address),
             amount: Some(money),
             destination_currency: destination_currency.into(),
@@ -8329,7 +8329,7 @@ impl
         };
 
         Ok(Self {
-            merchant_payout_id: Some(router_data.connector_request_reference_id.clone()),
+            merchant_payout_id: router_data.payout_id.clone(),
             address,
             customer: Some(customer),
             access_token: router_data.access_token.clone().map(|at| at.token),
@@ -8394,7 +8394,7 @@ impl
             )?;
 
         Ok(Self {
-            merchant_payout_id: Some(router_data.connector_request_reference_id.clone()),
+            merchant_payout_id: router_data.payout_id.clone(),
             address,
             payout_method_data,
             amount: Some(money),
@@ -8424,7 +8424,7 @@ impl
         >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            merchant_payout_id: Some(router_data.connector_request_reference_id.clone()),
+            merchant_payout_id: router_data.payout_id.clone(),
             connector_payout_id: router_data.request.connector_payout_id.clone(),
             access_token: router_data.access_token.clone().map(|at| at.token),
             // Debtor account for connectors that need it to perform a status enquiry
