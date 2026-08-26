@@ -287,14 +287,12 @@ impl OfferApplyResponse {
     }
 }
 
-/// Transaction status reported to Offer Engine when revoking an applied offer.
+/// Transaction status reported to Offer Engine when revoking an applied offer; currently always `FAILURE`, the only valid revoke transition from the post-`/apply` `PENDING` state.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize)]
 pub enum OfferTxnStatus {
     #[default]
     #[serde(rename = "FAILURE")]
     Failure,
-    #[serde(rename = "AUTO_REFUNDED")]
-    AutoRefunded,
 }
 
 /// Per-offer status reported alongside a notification; `/apply` already availed the offer, so this only ever revokes.
@@ -302,13 +300,6 @@ pub enum OfferTxnStatus {
 pub enum OfferNotifyStatus {
     #[serde(rename = "REVOKED")]
     Revoked,
-}
-
-/// Notification origin. Hyperswitch always reports `JUSPAY`.
-#[derive(Debug, Clone, Copy, serde::Serialize)]
-pub enum OfferNotifyOrigin {
-    #[serde(rename = "JUSPAY")]
-    Juspay,
 }
 
 /// A single offer's outcome inside a notification.
@@ -327,7 +318,6 @@ pub struct OfferNotifyRequest {
     pub txn_id: String,
     pub txn_status: OfferTxnStatus,
     pub merchant_id: String,
-    pub origin: OfferNotifyOrigin,
     pub offers: Vec<OfferNotifyOffer>,
     pub refund_id: Option<String>,
 }

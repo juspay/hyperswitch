@@ -6,9 +6,7 @@ use scheduler::{consumer::types::process_data, utils as pt_utils};
 use super::{
     client::OfferEngineClient,
     config::resolve_offer_engine_credentials,
-    types::{
-        OfferNotifyOffer, OfferNotifyOrigin, OfferNotifyRequest, OfferNotifyStatus, OfferTxnStatus,
-    },
+    types::{OfferNotifyOffer, OfferNotifyRequest, OfferNotifyStatus, OfferTxnStatus},
 };
 use crate::{
     core::{configs::dimension_state, errors},
@@ -52,8 +50,8 @@ fn notify_attributes() -> [router_env::opentelemetry::KeyValue; 1] {
 fn attempt_notify_status(status: common_enums::AttemptStatus) -> Option<OfferTxnStatus> {
     use common_enums::AttemptStatus;
     match status {
-        AttemptStatus::AutoRefunded => Some(OfferTxnStatus::AutoRefunded),
-        AttemptStatus::Failure
+        AttemptStatus::AutoRefunded
+        | AttemptStatus::Failure
         | AttemptStatus::AuthenticationFailed
         | AttemptStatus::AuthorizationFailed
         | AttemptStatus::RouterDeclined
@@ -220,7 +218,6 @@ pub async fn execute_notification(
                         txn_id: applied.offer_engine_txn_id.clone(),
                         txn_status: tracking_data.txn_status,
                         merchant_id: applied.offer_engine_merchant_id.clone(),
-                        origin: OfferNotifyOrigin::Juspay,
                         offers: vec![OfferNotifyOffer {
                             offer_id: applied.offer_id.clone(),
                             status: OfferNotifyStatus::Revoked,
