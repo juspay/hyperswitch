@@ -27,8 +27,6 @@ pub async fn check_offer_engine_connectivity(
     state: SessionState,
 ) -> RouterResponse<OfferEngineConnectivityResponse> {
     let dimensions: dimension_state::DimensionsGlobal = dimension_state::Dimensions::new();
-    // The connectivity check runs at global scope, so there is no merchant account
-    // to source credentials from; only the application source can be resolved here.
     let resolved_config = match resolve_offer_engine_credential_source(&state, &dimensions).await {
         OfferEngineCredentialSource::None => None,
         OfferEngineCredentialSource::Application => {
