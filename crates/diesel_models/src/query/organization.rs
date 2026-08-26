@@ -5,17 +5,20 @@ use diesel::{associations::HasTable, ExpressionMethods};
 use crate::schema::organization::dsl::org_id as dsl_identifier;
 #[cfg(feature = "v2")]
 use crate::schema_v2::organization::dsl::id as dsl_identifier;
-use crate::{organization::*, query::generics, PgPooledConn, StorageResult};
+use crate::{organization::*, query::generics, DatabaseConnectionWithContext, StorageResult};
 
 impl OrganizationNew {
-    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<Organization> {
+    pub async fn insert(
+        self,
+        conn: &DatabaseConnectionWithContext<'_>,
+    ) -> StorageResult<Organization> {
         generics::generic_insert(conn, self).await
     }
 }
 
 impl Organization {
     pub async fn find_by_org_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         org_id: id_type::OrganizationId,
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
@@ -26,7 +29,7 @@ impl Organization {
     }
 
     pub async fn update_by_org_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         org_id: id_type::OrganizationId,
         update: OrganizationUpdate,
     ) -> StorageResult<Self> {
