@@ -357,6 +357,7 @@ wise.base_url = "https://api.wise-sandbox.com/"
 worldline.base_url = "https://eu.sandbox.api-ingenico.com/"
 worldpay.base_url = "https://try.access.worldpay.com/"
 worldpaymodular.base_url = "https://try.access.worldpay.com/"
+worldpayraft.base_url = "https://ws-cert.vantiv.com/merchant/servicing/apitransactions/NativeRaftApi/v1"
 worldpayvantiv.base_url = "https://transact.vantivprelive.com/vap/communicator/online"
 worldpayvantiv.secondary_base_url = "https://onlinessr.vantivprelive.com"
 worldpayvantiv.third_base_url = "https://services.vantivprelive.com"
@@ -1149,6 +1150,14 @@ payjustnow = { country = "ZA", currency = "ZAR" }
 
 [pm_filters.payjustnowinstore]
 payjustnow = { country = "ZA", currency = "ZAR" }
+
+# Whether saving a payment method is supported by all, some, or none of the connectors
+# eligible for it. Returned in the PML response so the SDK can decide whether to show the
+# "save my details" checkbox ("supported" | "partially_supported" | "unsupported").
+[customer_acceptance_support]
+card.credit = "supported"
+card.debit = "supported"
+bank_redirect.open_banking = "partially_supported"
 
 [bank_config.online_banking_fpx]
 adyen.banks = "affin_bank,agro_bank,alliance_bank,am_bank,bank_islam,bank_muamalat,bank_rakyat,bank_simpanan_nasional,cimb_bank,hong_leong_bank,hsbc_bank,kuwait_finance_house,maybank,ocbc_bank,public_bank,rhb_bank,standard_chartered_bank,uob_bank"

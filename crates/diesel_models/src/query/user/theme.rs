@@ -19,11 +19,11 @@ use crate::{
     },
     schema::themes::dsl,
     user::theme::{Theme, ThemeNew, ThemeUpdate, ThemeUpdateInternal},
-    PgPooledConn, StorageResult,
+    DatabaseConnectionWithContext, StorageResult,
 };
 
 impl ThemeNew {
-    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<Theme> {
+    pub async fn insert(self, conn: &DatabaseConnectionWithContext<'_>) -> StorageResult<Theme> {
         generics::generic_insert(conn, self).await
     }
 }
@@ -119,7 +119,10 @@ impl Theme {
         }
     }
 
-    pub async fn find_by_theme_id(conn: &PgPooledConn, theme_id: String) -> StorageResult<Self> {
+    pub async fn find_by_theme_id(
+        conn: &DatabaseConnectionWithContext<'_>,
+        theme_id: String,
+    ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
             dsl::theme_id.eq(theme_id),
@@ -128,7 +131,7 @@ impl Theme {
     }
 
     pub async fn find_most_specific_theme_in_lineage(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         lineage: ThemeLineage,
     ) -> StorageResult<Self> {
         let query = crate::list::into_boxed_list(<Self as HasTable>::table());
@@ -145,8 +148,10 @@ impl Theme {
         logger::debug!(query = %debug_query::<Pg,_>(&query).to_string());
 
         let data: Vec<Self> = match track_database_call::<Self, _, _>(
-            query.get_results_async(conn),
+            conn.request_id(),
+            conn.event_emitter(),
             DatabaseOperation::Filter,
+            query.get_results_async(conn.raw_connection()),
         )
         .await
         {
@@ -163,7 +168,7 @@ impl Theme {
     }
 
     pub async fn find_by_lineage(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         lineage: ThemeLineage,
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
@@ -174,7 +179,7 @@ impl Theme {
     }
 
     pub async fn update_by_theme_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         theme_id: String,
         update: ThemeUpdate,
     ) -> StorageResult<Self> {
@@ -191,7 +196,7 @@ impl Theme {
     }
 
     pub async fn delete_by_theme_id_and_lineage(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         theme_id: String,
         lineage: ThemeLineage,
     ) -> StorageResult<Self> {
@@ -203,7 +208,10 @@ impl Theme {
         )
         .await
     }
-    pub async fn delete_by_theme_id(conn: &PgPooledConn, theme_id: String) -> StorageResult<Self> {
+    pub async fn delete_by_theme_id(
+        conn: &DatabaseConnectionWithContext<'_>,
+        theme_id: String,
+    ) -> StorageResult<Self> {
         generics::generic_delete_one_with_result::<<Self as HasTable>::Table, _, _>(
             conn,
             dsl::theme_id.eq(theme_id),
@@ -212,7 +220,7 @@ impl Theme {
     }
     /// Finds all themes that match the specified lineage hierarchy.
     pub async fn find_all_by_lineage_hierarchy(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         lineage: ThemeLineage,
     ) -> StorageResult<Vec<Self>> {
         let filter = Self::lineage_hierarchy_filter(lineage);
@@ -222,8 +230,10 @@ impl Theme {
         logger::debug!(query = %debug_query::<Pg,_>(&query).to_string());
 
         match track_database_call::<Self, _, _>(
-            query.get_results_async(conn),
+            conn.request_id(),
+            conn.event_emitter(),
             DatabaseOperation::Filter,
+            query.get_results_async(conn.raw_connection()),
         )
         .await
         {

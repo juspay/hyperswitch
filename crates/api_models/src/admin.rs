@@ -3643,6 +3643,9 @@ pub struct PaymentLinkConfigRequest {
     /// Flag to display the merchant name in the payment link
     #[schema(default = true, example = true)]
     pub show_merchant_name: Option<bool>,
+    /// Custom text for the separator shown between wallet and card payment method sections
+    #[schema(value_type = Option<String>, max_length = 64, example = "Or pay with")]
+    pub payment_methods_separator_text: Option<String>,
 }
 
 impl PaymentLinkConfigRequest {
@@ -3776,6 +3779,8 @@ pub struct PaymentLinkConfig {
     pub color_icon_card_cvc_error: Option<String>,
     /// Flag to display the merchant name in the payment link
     pub show_merchant_name: Option<bool>,
+    /// Custom text for the separator shown between wallet and card payment method sections
+    pub payment_methods_separator_text: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
@@ -3888,6 +3893,7 @@ mod tests {
             is_setup_mandate_flow: None,
             color_icon_card_cvc_error: None,
             show_merchant_name: None,
+            payment_methods_separator_text: None,
         };
         assert!(safe_request.validate().is_ok());
 

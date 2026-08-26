@@ -10,19 +10,19 @@ use diesel_models::{errors, query::generics::db_metrics};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::disputes;
 
-use crate::{connection::PgPooledConn, logger};
+use crate::{connection::DatabaseConnectionWithContext, logger};
 
 #[async_trait::async_trait]
 pub trait DisputeDbExt: Sized {
     #[cfg(feature = "v1")]
     async fn filter_by_constraints(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         dispute_list_constraints: &disputes::DisputeListConstraints,
     ) -> CustomResult<Vec<Self>, errors::DatabaseError>;
 
     async fn get_dispute_status_with_count(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
         time_range: &common_utils::types::TimeRange,
@@ -33,7 +33,7 @@ pub trait DisputeDbExt: Sized {
 impl DisputeDbExt for Dispute {
     #[cfg(feature = "v1")]
     async fn filter_by_constraints(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         dispute_list_constraints: &disputes::DisputeListConstraints,
     ) -> CustomResult<Vec<Self>, errors::DatabaseError> {
@@ -111,8 +111,10 @@ impl DisputeDbExt for Dispute {
         logger::debug!(query = %diesel::debug_query::<diesel::pg::Pg, _>(&filter).to_string());
 
         db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
-            filter.get_results_async(conn),
+            conn.request_id(),
+            conn.event_emitter(),
             db_metrics::DatabaseOperation::Filter,
+            filter.get_results_async(conn.raw_connection()),
         )
         .await
         .change_context(errors::DatabaseError::NotFound)
@@ -120,7 +122,7 @@ impl DisputeDbExt for Dispute {
     }
 
     async fn get_dispute_status_with_count(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         processor_merchant_id: &common_utils::id_type::MerchantId,
         profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
         time_range: &common_utils::types::TimeRange,
@@ -152,8 +154,10 @@ impl DisputeDbExt for Dispute {
         logger::debug!(query = %diesel::debug_query::<diesel::pg::Pg,_>(&query).to_string());
 
         db_metrics::track_database_call::<<Self as HasTable>::Table, _, _>(
-            query.get_results_async::<(common_enums::DisputeStatus, i64)>(conn),
+            conn.request_id(),
+            conn.event_emitter(),
             db_metrics::DatabaseOperation::Count,
+            query.get_results_async::<(common_enums::DisputeStatus, i64)>(conn.raw_connection()),
         )
         .await
         .change_context(errors::DatabaseError::NotFound)
