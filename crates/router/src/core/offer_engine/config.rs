@@ -41,7 +41,6 @@ where
 }
 
 impl OfferEngineCredentialSource {
-    /// Resolve the Offer Engine config entirely from the application configuration.
     pub fn resolve_application_offer_config(
         state: &SessionState,
     ) -> CustomResult<ResolvedOfferEngineConfig, OfferEngineError> {
@@ -63,8 +62,6 @@ impl OfferEngineCredentialSource {
         })
     }
 
-    /// Resolve the Offer Engine config from the merchant account's merchant-level
-    /// config, taking only the shared base URL from the application configuration.
     #[cfg(feature = "v1")]
     pub fn resolve_merchant_offer_config(
         state: &SessionState,
