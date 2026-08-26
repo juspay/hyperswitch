@@ -2850,18 +2850,16 @@ pub async fn should_execute_based_on_rollout_with_precedence_from_superposition(
         .get_config_value::<serde_json::Value>(superposition_key, context.as_ref(), None)
         .await
     {
-        Ok(json_value) => {
-            Ok(serde_json::from_value::<RolloutConfig>(json_value)
-                .map(RolloutExecutionResult::from)
-                .map_err(|err| {
-                    logger::error!(
-                        error = ?err,
-                        "Failed to parse superposition rollout config. Defaulting to not execute."
-                    );
-                    RolloutExecutionResult::default()
-                })
-                .unwrap_or_default())
-        }
+        Ok(json_value) => Ok(serde_json::from_value::<RolloutConfig>(json_value)
+            .map(RolloutExecutionResult::from)
+            .map_err(|err| {
+                logger::error!(
+                    error = ?err,
+                    "Failed to parse superposition rollout config. Defaulting to not execute."
+                );
+                RolloutExecutionResult::default()
+            })
+            .unwrap_or_default()),
         Err(err) => {
             logger::error!(
                 error = ?err,

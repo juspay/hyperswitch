@@ -1199,12 +1199,11 @@ pub async fn should_call_unified_connector_service_for_webhooks(
     // For webhooks, there is no previous gateway system to consider (webhooks are stateless)
     let previous_gateway = None;
 
-    let rollout_result =
-        should_execute_based_on_rollout::<WebhookRolloutConfig, WebhookRolloutExecutionResult>(
-            state,
-            &rollout_key,
-        )
-        .await?;
+    let rollout_result = should_execute_based_on_rollout::<
+        WebhookRolloutConfig,
+        WebhookRolloutExecutionResult,
+    >(state, &rollout_key)
+    .await?;
 
     // Use the same decision logic as payments, with no call_connector_action to consider
     let (gateway_system, execution_path) = if ucs_availability == UcsAvailability::Disabled {
