@@ -1441,7 +1441,12 @@ impl PickDriver<DayAxis> {
 /// `PickDriver::Weights`, so the caller never re-indexes to recover it. Always returns an index, plus
 /// WHY (see `PickDriver`).
 #[cfg(feature = "v2")]
-fn pick_index<T: Copy>(weights: &[f64], tags: &[T], budget: u32) -> (usize, PickDriver<T>) {
+fn pick_index<T: Copy + std::fmt::Debug>(
+    weights: &[f64],
+    tags: &[T],
+    budget: u32,
+    context: &'static str,
+) -> (usize, PickDriver<T>) {
     let n = weights.len();
     if n == 0 {
         return (0, PickDriver::Exhausted);
@@ -1474,7 +1479,22 @@ fn pick_index<T: Copy>(weights: &[f64], tags: &[T], budget: u32) -> (usize, Pick
         } else {
             (f64::from(budget) * w / s).min(1.0)
         };
-        if rand::random::<f64>() < p {
+        // Draw the (unseeded) random value into a variable so the per-step decision is fully logged.
+        let draw = rand::random::<f64>();
+        let fired = draw < p;
+        logger::debug!(
+            context = context,
+            index = k,
+            tag = ?tag,
+            weight = w,
+            remaining_weight = s,
+            guard = guard,
+            fire_probability = p,
+            rand_draw = draw,
+            fired = fired,
+            "mathmodel: pick step"
+        );
+        if fired {
             return (
                 k,
                 if guard {
@@ -1485,6 +1505,10 @@ fn pick_index<T: Copy>(weights: &[f64], tags: &[T], budget: u32) -> (usize, Pick
             );
         }
     }
+    logger::debug!(
+        context = context,
+        "mathmodel: pick exhausted — no step fired, falling through to the last index"
+    );
     (n - 1, PickDriver::Exhausted)
 }
 
@@ -1503,7 +1527,7 @@ fn pick_hour(hod: &[SlotCounter], default_hour: u8) -> u8 {
         .iter()
         .map(|&h| scores.get(&h).copied().unwrap_or(0.0).exp())
         .collect();
-    let (idx, _) = pick_index(&weights, &hours, 1);
+    let (idx, _) = pick_index(&weights, &hours, 1, "hour");
     // `hours[idx]` IS the hour (already a u8); fetched via `get` so there's no cast and no panic.
     hours.get(idx).copied().unwrap_or(default_hour)
 }
@@ -1623,25 +1647,62 @@ pub fn compute_mathmodel_retry_time(
         }
     }
 
+    logger::debug!(
+        budget = budget,
+        grace_days = grace_days,
+        window_len = window_len,
+        window_start = %start,
+        default_hour = default_hour,
+        "mathmodel: decision start"
+    );
+
     let (day_weights, winners) = combine_day_weight(&dates, &dow_scores, &dom_scores);
+
+    // Per-candidate-day scores: the day-of-week and day-of-month signals plus the combined weight the
+    // pick is about to run on. Zipped (not indexed) over the parallel vectors.
+    for ((date, &weight), &winner) in dates.iter().zip(&day_weights).zip(&winners) {
+        let dow_score = dow_scores
+            .get(&date.weekday().number_days_from_monday())
+            .copied()
+            .unwrap_or(0.0);
+        let dom_score = dom_scores
+            .get(&date.day().saturating_sub(1))
+            .copied()
+            .unwrap_or(0.0);
+        logger::debug!(
+            date = %date,
+            weekday = date.weekday().number_days_from_monday(),
+            day_of_month = date.day(),
+            dow_score = dow_score,
+            dom_score = dom_score,
+            combined_weight = weight,
+            winning_axis = winner.as_str(),
+            "mathmodel: candidate day score"
+        );
+    }
+
     // winners ride along so the winning axis returns inside pick_driver — no re-indexing afterwards.
-    let (day_idx, pick_driver) = pick_index(&day_weights, &winners, budget);
+    let (day_idx, pick_driver) = pick_index(&day_weights, &winners, budget, "day");
     let hour = pick_hour(&stats.hod, default_hour);
     let time = time::Time::from_hms(hour, 0, 0).unwrap_or(time::Time::MIDNIGHT);
 
     // day_idx is always in range (from pick_index over these vecs); `.get` keeps it panic-free.
     let chosen_date = *dates.get(day_idx)?;
     let chosen_weight = day_weights.get(day_idx).copied().unwrap_or(0.0);
+    let retry_at = chosen_date.with_time(time).assume_offset(now.offset());
 
-    // Forced/exhausted picks label themselves (not the softmax winner) for honest back-test attribution.
+    // Final decision. Forced/exhausted picks label themselves (not the softmax winner) for honest
+    // back-test attribution.
     logger::debug!(
         chosen_day = %chosen_date,
+        chosen_hour = hour,
+        retry_at = %retry_at,
         driver = pick_driver.label(),
         weight = chosen_weight,
-        "mathmodel: day pick"
+        "mathmodel: decision final"
     );
 
-    Some(chosen_date.with_time(time).assume_offset(now.offset()))
+    Some(retry_at)
 }
 
 /// Adaptive retry time for a failed invoice: fetch the cluster's success stats by the
@@ -1673,6 +1734,13 @@ pub async fn compute_adaptive_retry_time(
             logger::error!(?error, ?error_code, "adaptive retry: failed to fetch stats");
         })
         .ok()??;
+
+    logger::debug!(
+        ?error_code,
+        remaining_grace_days,
+        remaining_budget,
+        "adaptive retry: stats fetched — running mathmodel"
+    );
 
     // A configured hour outside 0..=23 is a misconfiguration; warn (so it's visible) and fall back to
     // noon UTC rather than letting it silently degrade to midnight downstream.
@@ -1910,7 +1978,7 @@ mod mathmodel_retry_time_tests {
     #[test]
     fn runway_guard_is_attributed() {
         // budget >= number of slots => the guard forces index 0 and reports itself (not "weights").
-        let (idx, driver) = pick_index(&[1.0, 1.0, 1.0], &[DayAxis::Tie; 3], 5);
+        let (idx, driver) = pick_index(&[1.0, 1.0, 1.0], &[DayAxis::Tie; 3], 5, "test");
         assert_eq!(idx, 0);
         assert!(matches!(driver, PickDriver::RunwayGuard));
     }
