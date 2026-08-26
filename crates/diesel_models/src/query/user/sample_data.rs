@@ -14,7 +14,7 @@ use crate::schema_v2::{
     payment_intent::dsl as payment_intent_dsl, refund::dsl as refund_dsl,
 };
 use crate::{
-    errors, schema::dispute::dsl as dispute_dsl, DatabaseConnectionWithContext, Dispute,
+    errors, DatabaseConnectionWithContext, Dispute,
     DisputeNew, PaymentAttempt, PaymentIntent, Refund, RefundNew, StorageResult,
 };
 #[cfg(feature = "v1")]
