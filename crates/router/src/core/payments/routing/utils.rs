@@ -2443,9 +2443,13 @@ where
 
             let is_de_result_empty = de_result.clone().into_iter().next().is_none();
             if is_de_result_empty {
-                logger::debug!(
+                // Warn, not debug: this is a cut-over profile being routed by Hyperswitch
+                // because the engine returned nothing -- unreachable, or the profile's rules
+                // are not migrated yet. Under DE-only writes the Hyperswitch rule is frozen
+                // at the moment of cutover, so this needs to be visible rather than silent.
+                logger::warn!(
                     business_profile_id=?business_profile.get_id(),
-                    "decision_engine_euclid: DE result empty, falling back to Hyperswitch result"
+                    "decision_engine_euclid: DE result empty for a cut-over profile, serving the Hyperswitch result"
                 );
                 hyperswitch_result
             } else {

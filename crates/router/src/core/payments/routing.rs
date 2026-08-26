@@ -959,10 +959,7 @@ impl RoutingStage for SessionRoutingStage {
                 Vec<routing_types::SessionRoutingChoice>,
             > = FxHashMap::default();
 
-            // Both are independent of payment method type, so they are resolved once
-            // rather than per iteration.
-            let de_routing_effective =
-                utils::is_decision_engine_routing_effective(input.state, input.dimensions).await;
+            // Independent of payment method type, so resolved once rather than per iteration.
             let de_evaluation_enabled = input.state.conf.open_router.static_routing_enabled;
 
             for (pm_type, allowed_connectors) in pm_type_map {
@@ -978,27 +975,21 @@ impl RoutingStage for SessionRoutingStage {
                     }
                 };
 
-                // Under cutover the DE owns routing, so the Hyperswitch ref is ignored
-                // rather than evaluated -- a stale rule would otherwise be served every
-                // time the DE result came back empty. It is left in place so that turning
-                // cutover off restores the previous behaviour by itself.
-                let cached_algorithm = if de_routing_effective {
-                    None
-                } else {
-                    algorithm_id
-                        .clone()
-                        .async_and_then(|algorithm_id| async move {
-                            try_ensure_algorithm_cached_v1(
-                                input.state,
-                                &input.business_profile.merchant_id,
-                                &algorithm_id,
-                                input.business_profile.get_id(),
-                                input.transaction_type,
-                            )
-                            .await
-                        })
+                // Evaluated even under cutover, so an empty DE result falls back to the
+                // merchant's own rule rather than the flat fallback list.
+                let cached_algorithm = algorithm_id
+                    .clone()
+                    .async_and_then(|algorithm_id| async move {
+                        try_ensure_algorithm_cached_v1(
+                            input.state,
+                            &input.business_profile.merchant_id,
+                            &algorithm_id,
+                            input.business_profile.get_id(),
+                            input.transaction_type,
+                        )
                         .await
-                };
+                    })
+                    .await;
 
                 let static_input = StaticRoutingInput {
                     backend_input: input.backend_input,
@@ -1851,18 +1842,17 @@ pub async fn perform_static_routing_v1(
     let de_routing_effective = utils::is_decision_engine_routing_effective(state, dimensions).await;
 
     let algorithm_id = match algorithm_id {
-        // Under cutover the DE owns this profile's routing, so the Hyperswitch ref is
-        // ignored rather than evaluated -- a stale rule would otherwise be served every
-        // time the DE result came back empty. It is deliberately left in place: turning
-        // cutover back off must restore the previous behaviour without an operator having
-        // to remember and re-activate the rule id by hand.
-        _ if de_routing_effective => {
+        // Evaluated even under cutover. The DE result is still preferred, but when it comes
+        // back empty -- the engine is unreachable, or the profile's rules have not been
+        // migrated yet -- the merchant's own rule is a far better answer than the flat
+        // fallback list. The ref is never cleared, so cutover stays a reversible config flip.
+        Some(id) => Some(id),
+        None if de_routing_effective => {
             logger::debug!(
-                "decision_engine_euclid: profile is cut over; ignoring the Hyperswitch algorithm ref"
+                "decision_engine_euclid: no active HS algorithm, profile is cut over; evaluating on DE"
             );
             None
         }
-        Some(id) => Some(id),
         None => {
             logger::debug!("euclid_routing: active algorithm isn't present, default falling back");
             return Ok((fallback_config, None));
@@ -3019,10 +3009,6 @@ pub async fn perform_session_flow_routing(
         get_active_mca_ids_for_session(session_input.state, session_input.key_store, &profile_id)
             .await;
 
-    // Independent of payment method type, so resolved once rather than per iteration.
-    let de_routing_effective =
-        utils::is_decision_engine_routing_effective(session_input.state, dimensions).await;
-
     for (pm_type, allowed_connectors) in pm_type_map {
         let euclid_pmt: euclid_enums::PaymentMethodType = pm_type;
         let euclid_pm: euclid_enums::PaymentMethod = euclid_pmt.into();
@@ -3052,7 +3038,6 @@ pub async fn perform_session_flow_routing(
                 transaction_type,
                 business_profile,
                 &active_mca_ids,
-                de_routing_effective,
             )
             .await?;
 
@@ -3096,7 +3081,6 @@ async fn perform_session_routing_for_pm_type(
     transaction_type: &api_enums::TransactionType,
     business_profile: &domain::Profile,
     active_mca_ids: &std::collections::HashSet<common_utils::id_type::MerchantConnectorAccountId>,
-    de_routing_effective: bool,
 ) -> RoutingResult<(
     Option<Vec<api_models::routing::RoutableConnectorChoice>>,
     Option<common_enums::RoutingApproach>,
@@ -3110,7 +3094,6 @@ async fn perform_session_routing_for_pm_type(
     // Needed both as the no-algorithm result and as the fallback the DE echoes back when
     // no rule matches, so it is resolved once up front and only when one of those applies.
     let fallback_config = if algorithm_id.is_none()
-        || de_routing_effective
         || session_pm_input
             .state
             .conf
@@ -3128,11 +3111,9 @@ async fn perform_session_routing_for_pm_type(
         Vec::new()
     };
 
-    // Under cutover the DE owns routing, so the Hyperswitch ref is ignored rather than
-    // evaluated; it is left in place so turning cutover off restores previous behaviour.
-    let hs_algorithm_id = algorithm_id.as_ref().filter(|_| !de_routing_effective);
-
-    let (chosen_connectors, routing_approach) = if let Some(algorithm_id) = hs_algorithm_id {
+    // Evaluated even under cutover, so an empty DE result falls back to the merchant's own
+    // rule rather than the flat fallback list.
+    let (chosen_connectors, routing_approach) = if let Some(ref algorithm_id) = algorithm_id {
         let cached_algorithm = ensure_algorithm_cached_v1(
             &session_pm_input.state.clone(),
             merchant_id,
