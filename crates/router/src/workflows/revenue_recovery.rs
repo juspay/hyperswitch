@@ -1273,8 +1273,10 @@ pub fn add_random_delay_to_schedule_time(
 // probabilistic firing (real randomness, no seed) with a runway guard. The caller `min()`s this
 // with the Superposition static-schedule time (MathModel can only make a retry happen SOONER).
 //
-// ALWAYS returns a date (never None): Laplace smoothing gives every slot a defined estimate and the
-// runway guard guarantees a pick even for sparse/empty stats.
+// Returns `Some(datetime)` whenever the grace window has at least one retriable day, and `None` only
+// when the window is empty (`grace_days <= 1` — no future day to retry on). WITHIN a non-empty window
+// the pick never fails: Laplace smoothing gives every slot a defined estimate and the runway guard
+// guarantees a pick even for sparse/empty stats.
 //
 // INDEXING (must match `retry_stats_document::EventSlots::from_utc`, which is how the stats are
 // recorded):
@@ -1361,7 +1363,7 @@ fn slot_scores(slots: &[SlotCounter]) -> BTreeMap<u8, f64> {
     if !corrupt.is_empty() {
         logger::debug!(
             slots = ?corrupt,
-            "cluster_stats: corrupt slot counters (k > n) excluded from scoring"
+            "retry_stats: corrupt slot counters (k > n) excluded from scoring"
         );
     }
     let scored: Vec<(u8, f64, f64)> = slots
@@ -1418,7 +1420,7 @@ impl DayAxis {
 #[derive(Clone, Copy, Debug)]
 enum PickDriver<T> {
     Weights(T),  // the weights drove the choice; carries the chosen item's tag
-    RunwayGuard, // forced because budget >= days remaining
+    RunwayGuard, // forced fire: budget >= remaining candidates (spends the budget before the window ends)
     Exhausted,   // nothing fired (budget 0) — fell through to the last index
 }
 
@@ -1589,7 +1591,7 @@ fn combine_day_weight(
 
 /// Predict the retry datetime from cluster stats.
 ///
-/// * `stats`      the cluster JSON (dow/dom/hod `{n,k}` counters)
+/// * `stats`      the cluster's parsed success stats (dow/dom/hod `{n,k}` counters)
 /// * `budget`     retries remaining (drives the runway guard)
 /// * `grace_days` grace period, in days, COUNTING the failure day (today). Retriable window = the
 ///                `grace_days - 1` future days, capped at 31.
