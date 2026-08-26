@@ -785,9 +785,7 @@ fn resolve_execution_mode(
 ) -> ExecutionMode {
     if execution_mode == ExecutionMode::Shadow && ucs_availability == UcsAvailability::ShadowKilled
     {
-        router_env::logger::info!(
-            "UCS shadow kill switch is enabled, falling back to Direct"
-        );
+        router_env::logger::info!("UCS shadow kill switch is enabled, falling back to Direct");
         ExecutionMode::NotApplicable
     } else {
         execution_mode
