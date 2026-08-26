@@ -11,6 +11,7 @@ const DEFAULT_BATCH_LIST_LIMIT: u8 = 10;
 pub enum BlocklistRequest {
     CardBin(String),
     Fingerprint(String),
+    #[deprecated(note = "use CardBin, which accepts 6 to 10 digits")]
     ExtendedCardBin(String),
 }
 

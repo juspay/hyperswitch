@@ -23,6 +23,11 @@ use crate::{
     types::{domain, storage, transformers::ForeignInto},
 };
 
+const CARD_BIN_MIN_LEN: usize = 6;
+const CARD_BIN_MAX_LEN: usize = 10;
+pub(super) const CARD_BIN_EXPECTED_FORMAT: &str = "a 6 to 10 digit number";
+
+#[allow(deprecated)]
 pub async fn delete_entry_from_blocklist(
     state: &SessionState,
     processor: &domain::Processor,
@@ -41,13 +46,9 @@ pub async fn delete_entry_from_blocklist(
     .await?;
 
     let blocklist_entry = match request {
-        api_blocklist::DeleteFromBlocklistRequest::CardBin(bin) => {
+        api_blocklist::DeleteFromBlocklistRequest::CardBin(bin)
+        | api_blocklist::DeleteFromBlocklistRequest::ExtendedCardBin(bin) => {
             delete_card_bin_blocklist_entry(state, &bin, processor_merchant_id, &profile_id).await?
-        }
-
-        api_blocklist::DeleteFromBlocklistRequest::ExtendedCardBin(xbin) => {
-            delete_card_bin_blocklist_entry(state, &xbin, processor_merchant_id, &profile_id)
-                .await?
         }
 
         api_blocklist::DeleteFromBlocklistRequest::Fingerprint(fingerprint_id) => state
@@ -152,30 +153,21 @@ pub async fn list_blocklist_entries_for_merchant(
     })
 }
 
-fn validate_card_bin(bin: &str) -> RouterResult<()> {
-    if bin.len() == 6 && bin.chars().all(|c| c.is_ascii_digit()) {
+pub(super) fn validate_card_bin(bin: &str) -> RouterResult<()> {
+    if (CARD_BIN_MIN_LEN..=CARD_BIN_MAX_LEN).contains(&bin.len())
+        && bin.chars().all(|c| c.is_ascii_digit())
+    {
         Ok(())
     } else {
         Err(errors::ApiErrorResponse::InvalidDataFormat {
             field_name: "data".to_string(),
-            expected_format: "a 6 digit number".to_string(),
+            expected_format: CARD_BIN_EXPECTED_FORMAT.to_string(),
         }
         .into())
     }
 }
 
-fn validate_extended_card_bin(bin: &str) -> RouterResult<()> {
-    if bin.len() == 8 && bin.chars().all(|c| c.is_ascii_digit()) {
-        Ok(())
-    } else {
-        Err(errors::ApiErrorResponse::InvalidDataFormat {
-            field_name: "data".to_string(),
-            expected_format: "an 8 digit number".to_string(),
-        }
-        .into())
-    }
-}
-
+#[allow(deprecated)]
 pub async fn insert_entry_into_blocklist(
     state: &SessionState,
     platform: &domain::Platform,
@@ -194,7 +186,8 @@ pub async fn insert_entry_into_blocklist(
     .await?;
 
     let blocklist_entry = match &to_block {
-        api_blocklist::AddToBlocklistRequest::CardBin(bin) => {
+        api_blocklist::AddToBlocklistRequest::CardBin(bin)
+        | api_blocklist::AddToBlocklistRequest::ExtendedCardBin(bin) => {
             validate_card_bin(bin)?;
             duplicate_check_insert_bin(
                 bin,
@@ -202,18 +195,6 @@ pub async fn insert_entry_into_blocklist(
                 platform,
                 &profile_id,
                 common_enums::BlocklistDataKind::CardBin,
-            )
-            .await?
-        }
-
-        api_blocklist::AddToBlocklistRequest::ExtendedCardBin(bin) => {
-            validate_extended_card_bin(bin)?;
-            duplicate_check_insert_bin(
-                bin,
-                state,
-                platform,
-                &profile_id,
-                common_enums::BlocklistDataKind::ExtendedCardBin,
             )
             .await?
         }
@@ -422,26 +403,18 @@ pub async fn should_payment_be_blocked(
             None
         };
 
-    // Hashed Cardbin to check whether or not this payment should be blocked.
-    let card_bin_fingerprint = payment_method_data
+    let card_bin_prefixes = payment_method_data
         .as_ref()
         .and_then(|pm_data| match pm_data {
-            domain::EligibilityPaymentMethodData::Card(card) => {
-                Some(card.card_number.get_card_isin())
-            }
+            domain::EligibilityPaymentMethodData::Card(card) => Some(&card.card_number),
             _ => None,
-        });
-
-    // Hashed Extended Cardbin to check whether or not this payment should be blocked.
-    let extended_card_bin_fingerprint =
-        payment_method_data
-            .as_ref()
-            .and_then(|pm_data| match pm_data {
-                domain::EligibilityPaymentMethodData::Card(card) => {
-                    Some(card.card_number.get_extended_card_bin())
-                }
-                _ => None,
-            });
+        })
+        .map(|card_number| {
+            (CARD_BIN_MIN_LEN..=CARD_BIN_MAX_LEN)
+                .map(|len| card_number.get_bin_prefix(len))
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
 
     // Extended bin of the wallet's decrypted token, to check whether or not this payment should be blocked.
     let decrypted_token_extended_bin = payment_method_data
@@ -449,56 +422,25 @@ pub async fn should_payment_be_blocked(
         .and_then(|pm_data| pm_data.get_decrypted_token_extended_bin());
 
     //validating the payment method.
-    let mut blocklist_futures = Vec::new();
     let profile_id = business_profile.get_id();
-
-    if let Some(card_number_fingerprint) = card_number_fingerprint.as_ref() {
-        blocklist_futures.push(
-            db.find_blocklist_entry_by_processor_merchant_id_profile_id_fingerprint_id(
-                processor_merchant_id,
-                profile_id,
-                card_number_fingerprint,
-            ),
-        );
-    }
-
-    if let Some(card_bin_fingerprint) = card_bin_fingerprint.as_ref() {
-        blocklist_futures.push(
-            db.find_blocklist_entry_by_processor_merchant_id_profile_id_fingerprint_id(
-                processor_merchant_id,
-                profile_id,
-                card_bin_fingerprint,
-            ),
-        );
-    }
-
-    if let Some(extended_card_bin_fingerprint) = extended_card_bin_fingerprint.as_ref() {
-        blocklist_futures.push(
-            db.find_blocklist_entry_by_processor_merchant_id_profile_id_fingerprint_id(
-                processor_merchant_id,
-                profile_id,
-                extended_card_bin_fingerprint,
-            ),
-        );
-    }
-
-    if let Some(decrypted_token_extended_bin) = decrypted_token_extended_bin.as_ref() {
-        blocklist_futures.push(
-            db.find_blocklist_entry_by_processor_merchant_id_profile_id_fingerprint_id(
-                processor_merchant_id,
-                profile_id,
-                decrypted_token_extended_bin,
-            ),
-        );
-    }
-
-    let blocklist_lookups = futures::future::join_all(blocklist_futures).await;
+    let fingerprint_ids = card_number_fingerprint
+        .into_iter()
+        .chain(card_bin_prefixes)
+        .chain(decrypted_token_extended_bin)
+        .collect::<Vec<_>>();
 
     let mut block_reason: Option<BlockReason> = None;
-    for lookup in blocklist_lookups {
-        match lookup {
-            Ok(_) => {
-                block_reason = Some(BlockReason::BlockedBin);
+    if !fingerprint_ids.is_empty() {
+        match db
+            .find_blocklist_entries_by_processor_merchant_id_profile_id_fingerprint_ids(
+                processor_merchant_id,
+                profile_id,
+                fingerprint_ids,
+            )
+            .await
+        {
+            Ok(entry) => {
+                block_reason = entry.is_some().then_some(BlockReason::BlockedBin);
             }
             Err(e) => {
                 logger::error!(blocklist_db_error=?e, "failed db operations for blocklist");

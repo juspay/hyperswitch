@@ -84,10 +84,10 @@ impl BlocklistRow {
         }
     }
 
+    // `extended_card_bin` is deprecated - it is accepted so existing CSVs keep working, but it is stored as a card bin
     fn parse_kind(kind: &str) -> Option<common_enums::BlocklistDataKind> {
         match kind {
-            "card_bin" => Some(common_enums::BlocklistDataKind::CardBin),
-            "extended_card_bin" => Some(common_enums::BlocklistDataKind::ExtendedCardBin),
+            "card_bin" | "extended_card_bin" => Some(common_enums::BlocklistDataKind::CardBin),
             "fingerprint" => Some(common_enums::BlocklistDataKind::PaymentMethod),
             _ => None,
         }
@@ -121,19 +121,11 @@ impl BlocklistRow {
         }
 
         let format_error = match parsed_kind {
-            common_enums::BlocklistDataKind::CardBin => {
-                if data.len() == 6 && data.chars().all(|c| c.is_ascii_digit()) {
-                    None
-                } else {
-                    Some("card_bin must be exactly 6 digits")
-                }
-            }
-            common_enums::BlocklistDataKind::ExtendedCardBin => {
-                if data.len() == 8 && data.chars().all(|c| c.is_ascii_digit()) {
-                    None
-                } else {
-                    Some("extended_card_bin must be exactly 8 digits")
-                }
+            common_enums::BlocklistDataKind::CardBin
+            | common_enums::BlocklistDataKind::ExtendedCardBin => {
+                super::utils::validate_card_bin(&data)
+                    .is_err()
+                    .then_some(super::utils::CARD_BIN_EXPECTED_FORMAT)
             }
             common_enums::BlocklistDataKind::PaymentMethod => None,
         };
@@ -227,8 +219,8 @@ fn rows_to_csv_bytes(rows: &[BlocklistRow]) -> RouterResult<Vec<u8>> {
             })
             .unwrap_or_default();
         let type_str = match row.data_kind {
-            common_enums::BlocklistDataKind::CardBin => "card_bin",
-            common_enums::BlocklistDataKind::ExtendedCardBin => "extended_card_bin",
+            common_enums::BlocklistDataKind::CardBin
+            | common_enums::BlocklistDataKind::ExtendedCardBin => "card_bin",
             common_enums::BlocklistDataKind::PaymentMethod => "fingerprint",
         };
         writer
