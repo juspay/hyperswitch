@@ -2501,29 +2501,9 @@ pub fn decide_payment_method_retrieval_action(
     }
 }
 
-pub async fn get_ucs_enabled_mode(state: &SessionState, config_key: &str) -> UcsAvailability {
-    // Try superposition first
-    match state
-        .superposition_service
-        .get_config_value::<String>(consts::superposition::UCS_ENABLED, None, None)
-        .await
-    {
-        Ok(value) => {
-            return value
-                .parse::<UcsAvailability>()
-                .unwrap_or(UcsAvailability::Disabled)
-        }
-        Err(err) => {
-            logger::debug!(
-                error = ?err,
-                "Failed to fetch UCS enabled from superposition, falling back to DB."
-            );
-        }
-    }
-
-    // Database fallback
+pub async fn is_config_flag_enabled(state: &SessionState, config_key: &str) -> bool {
     let db = state.store.as_ref();
-    db.find_config_by_key_unwrap_or(config_key, Some("disabled".to_string()))
+    db.find_config_by_key_unwrap_or(config_key, Some("false".to_string()))
         .await
         .inspect_err(|error| {
             logger::error!(?error, "Failed to fetch `{config_key}` config from DB");
@@ -2532,13 +2512,46 @@ pub async fn get_ucs_enabled_mode(state: &SessionState, config_key: &str) -> Ucs
         .and_then(|config| {
             config
                 .config
-                .parse::<UcsAvailability>()
+                .parse::<bool>()
                 .inspect_err(|error| {
                     logger::error!(?error, "Failed to parse `{config_key}` config");
                 })
                 .ok()
         })
-        .unwrap_or(UcsAvailability::Disabled)
+        .unwrap_or(false)
+}
+
+/// Reads UCS enabled mode purely from Superposition service (no DB fallback).
+pub async fn get_ucs_enabled_mode_from_superposition(state: &SessionState) -> UcsAvailability {
+    match state
+        .superposition_service
+        .get_config_value::<String>(consts::superposition::UCS_ENABLED, None, None)
+        .await
+    {
+        Ok(value) => value
+            .parse::<UcsAvailability>()
+            .unwrap_or(UcsAvailability::Disabled),
+        Err(err) => {
+            logger::error!(
+                error = ?err,
+                "Failed to fetch UCS enabled from superposition. Defaulting to Disabled."
+            );
+            UcsAvailability::Disabled
+        }
+    }
+}
+
+/// Reads the UCS config source setting from the application config.
+pub fn get_ucs_config_source(
+    state: &SessionState,
+) -> external_services::grpc_client::unified_connector_service::UcsConfigSource {
+    state
+        .conf
+        .grpc_client
+        .unified_connector_service
+        .as_ref()
+        .map(|c| c.config_source)
+        .unwrap_or_default()
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -2721,44 +2734,15 @@ impl From<WebhookRolloutConfig> for WebhookRolloutExecutionResult {
 
 pub async fn should_execute_based_on_rollout<C, R>(
     state: &SessionState,
-    superposition_key: &str,
-    context: Option<external_services::superposition::ConfigContext>,
-    db_key: &str,
+    config_key: &str,
 ) -> RouterResult<R>
 where
     C: DeserializeOwned,
     R: From<C> + Default,
 {
-    // Try superposition first, fall back to database
-    match state
-        .superposition_service
-        .get_config_value::<serde_json::Value>(superposition_key, context.as_ref(), None)
-        .await
-    {
-        Ok(json_value) => {
-            return Ok(serde_json::from_value::<C>(json_value)
-                .map(R::from)
-                .map_err(|err| {
-                    logger::error!(
-                        error = ?err,
-                        "Failed to parse superposition rollout config. Defaulting to not execute."
-                    );
-                    R::default()
-                })
-                .unwrap_or_default());
-        }
-        Err(err) => {
-            logger::debug!(
-                error = ?err,
-                "Failed to fetch rollout config from superposition, falling back to DB."
-            );
-        }
-    }
-
-    // Database fallback path
     let db = state.store.as_ref();
 
-    match db.find_config_by_key(db_key).await {
+    match db.find_config_by_key(config_key).await {
         Ok(rollout_config) => {
             // Parse as JSON - log error if it fails but don't propagate
             Ok(serde_json::from_str::<C>(&rollout_config.config)
@@ -2809,38 +2793,9 @@ where
 /// The future is boxed (`Box::pin`) to keep stack frames small under high concurrency.
 pub async fn should_execute_based_on_rollout_with_precedence(
     state: &SessionState,
-    superposition_key: &str,
-    context: Option<external_services::superposition::ConfigContext>,
     // Keys in ascending precedence order (lowest first, highest last)
     keys: &[String],
 ) -> RouterResult<RolloutExecutionResult> {
-    // Try superposition first — dimensions handle precedence via context
-    match state
-        .superposition_service
-        .get_config_value::<serde_json::Value>(superposition_key, context.as_ref(), None)
-        .await
-    {
-        Ok(json_value) => {
-            return Ok(serde_json::from_value::<RolloutConfig>(json_value)
-                .map(RolloutExecutionResult::from)
-                .map_err(|err| {
-                    logger::error!(
-                        error = ?err,
-                        "Failed to parse superposition rollout config. Defaulting to not execute."
-                    );
-                    RolloutExecutionResult::default()
-                })
-                .unwrap_or_default());
-        }
-        Err(err) => {
-            logger::debug!(
-                error = ?err,
-                "Failed to fetch rollout config from superposition, falling back to DB."
-            );
-        }
-    }
-
-    // Database fallback path
     // Iterate highest → lowest (reverse of the input order)
     for key in keys.iter().rev() {
         // Box the future to avoid large stack frames from nested async in debug builds
@@ -2881,6 +2836,40 @@ pub async fn should_execute_based_on_rollout_with_precedence(
     // No key found at any level — caller will apply default execution mode
     logger::debug!("No rollout config found at any precedence level, using default execution mode");
     Ok(RolloutExecutionResult::default())
+}
+
+/// Reads rollout config purely from Superposition — dimensions handle precedence via context.
+/// No DB fallback.
+pub async fn should_execute_based_on_rollout_with_precedence_from_superposition(
+    state: &SessionState,
+    superposition_key: &str,
+    context: Option<external_services::superposition::ConfigContext>,
+) -> RouterResult<RolloutExecutionResult> {
+    match state
+        .superposition_service
+        .get_config_value::<serde_json::Value>(superposition_key, context.as_ref(), None)
+        .await
+    {
+        Ok(json_value) => {
+            Ok(serde_json::from_value::<RolloutConfig>(json_value)
+                .map(RolloutExecutionResult::from)
+                .map_err(|err| {
+                    logger::error!(
+                        error = ?err,
+                        "Failed to parse superposition rollout config. Defaulting to not execute."
+                    );
+                    RolloutExecutionResult::default()
+                })
+                .unwrap_or_default())
+        }
+        Err(err) => {
+            logger::error!(
+                error = ?err,
+                "Failed to fetch rollout config from superposition. Defaulting to not execute."
+            );
+            Ok(RolloutExecutionResult::default())
+        }
+    }
 }
 
 pub fn determine_standard_vault_action(

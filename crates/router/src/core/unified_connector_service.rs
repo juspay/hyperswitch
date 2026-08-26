@@ -17,13 +17,12 @@ use common_utils::{
 };
 use diesel_models::types::FeatureMetadata;
 use error_stack::ResultExt;
-use external_services::{
-    grpc_client::{
-        unified_connector_service::{ConnectorAuthMetadata, UnifiedConnectorServiceError},
-        LineageIds,
-    },
-    superposition,
+use external_services::grpc_client::{
+    unified_connector_service::{ConnectorAuthMetadata, UnifiedConnectorServiceError},
+    LineageIds,
 };
+#[cfg(feature = "ucs_cutover")]
+use external_services::superposition;
 use hyperswitch_connectors::utils::CardData;
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccountTypeDetails;
@@ -45,7 +44,9 @@ use unified_connector_service_client::payments::{
 
 #[cfg(feature = "ucs_cutover")]
 use crate::core::payments::helpers::{
-    should_execute_based_on_rollout_with_precedence, ProxyOverride,
+    get_ucs_config_source, get_ucs_enabled_mode_from_superposition,
+    should_execute_based_on_rollout_with_precedence,
+    should_execute_based_on_rollout_with_precedence_from_superposition, ProxyOverride,
 };
 use crate::{
     consts,
@@ -53,7 +54,7 @@ use crate::{
         errors::{self, RouterResult},
         payments::{
             helpers::{
-                get_ucs_enabled_mode, is_googlepay_predecrypted_flow_supported,
+                is_config_flag_enabled, is_googlepay_predecrypted_flow_supported,
                 should_execute_based_on_rollout, MerchantConnectorAccountType,
                 WebhookRolloutConfig, WebhookRolloutExecutionResult,
             },
@@ -242,11 +243,40 @@ type UnifiedConnectorServiceCreateOrderResult = CustomResult<
     UnifiedConnectorServiceError,
 >;
 
-/// Checks if the Unified Connector Service (UCS) is available for use
+/// Checks if the Unified Connector Service (UCS) is available for use.
+/// Reads from DB only (original behavior).
 async fn check_ucs_availability(state: &SessionState) -> UcsAvailability {
     let is_client_available = state.grpc_client.unified_connector_service_client.is_some();
 
-    let ucs_mode = get_ucs_enabled_mode(state, consts::UCS_ENABLED).await;
+    let is_enabled = is_config_flag_enabled(state, consts::UCS_ENABLED).await;
+
+    match (is_client_available, is_enabled) {
+        (true, true) => {
+            router_env::logger::debug!("UCS is available and enabled");
+            UcsAvailability::Enabled
+        }
+        _ => {
+            router_env::logger::debug!(
+                "UCS client is {} and UCS is {} in configuration",
+                if is_client_available {
+                    "available"
+                } else {
+                    "not available"
+                },
+                if is_enabled { "enabled" } else { "not enabled" }
+            );
+            UcsAvailability::Disabled
+        }
+    }
+}
+
+/// Checks UCS availability reading purely from Superposition (no DB fallback).
+/// Supports three-value UcsAvailability: Enabled, Disabled, ShadowKilled.
+#[cfg(feature = "ucs_cutover")]
+async fn check_ucs_availability_from_superposition(state: &SessionState) -> UcsAvailability {
+    let is_client_available = state.grpc_client.unified_connector_service_client.is_some();
+
+    let ucs_mode = get_ucs_enabled_mode_from_superposition(state).await;
 
     match (is_client_available, &ucs_mode) {
         (true, UcsAvailability::Enabled) => {
@@ -348,10 +378,45 @@ where
     Ok((execution_path, state.clone()))
 }
 
-/// Cutover path: Uses rollout-based routing with shadow mode, stickiness,
-/// and percentage-based traffic splitting for gradual UCS migration.
+/// Cutover path: Reads config_source from env/toml and dispatches to
+/// the DB-based (legacy) or Superposition-based implementation.
 #[cfg(feature = "ucs_cutover")]
 pub async fn should_call_unified_connector_service<F: Clone, T, R>(
+    state: &SessionState,
+    processor: &Processor,
+    router_data: &RouterData<F, T, R>,
+    previous_gateway: Option<GatewaySystem>,
+    call_connector_action: CallConnectorAction,
+    shadow_ucs_call_connector_action: Option<CallConnectorAction>,
+    transaction_type: common_enums::TransactionType,
+) -> RouterResult<(ExecutionPath, SessionState)>
+where
+    R: Send + Sync + Clone,
+{
+    let config_source = get_ucs_config_source(state);
+
+    match config_source {
+        external_services::grpc_client::unified_connector_service::UcsConfigSource::Superposition => {
+            should_call_ucs_via_superposition(
+                state, processor, router_data, previous_gateway,
+                call_connector_action, shadow_ucs_call_connector_action,
+                transaction_type,
+            ).await
+        }
+        external_services::grpc_client::unified_connector_service::UcsConfigSource::Database => {
+            should_call_ucs_via_db(
+                state, processor, router_data, previous_gateway,
+                call_connector_action, shadow_ucs_call_connector_action,
+                transaction_type,
+            ).await
+        }
+    }
+}
+
+/// Legacy DB-based implementation: reads UCS config from the configs database table.
+/// No superposition involved.
+#[cfg(feature = "ucs_cutover")]
+async fn should_call_ucs_via_db<F: Clone, T, R>(
     state: &SessionState,
     processor: &Processor,
     router_data: &RouterData<F, T, R>,
@@ -373,7 +438,7 @@ where
 
     let ucs_availability = check_ucs_availability(state).await;
 
-    let (rollout_keys, superposition_context) = build_rollout_context_for_transaction(
+    let (rollout_keys, _superposition_context) = build_rollout_context_for_transaction(
         transaction_type,
         org_id,
         merchant_id,
@@ -385,11 +450,75 @@ where
     let connector_integration_type =
         determine_connector_integration_type(state, connector_enum).await?;
 
-    let rollout_result = should_execute_based_on_rollout_with_precedence(
+    let rollout_result =
+        should_execute_based_on_rollout_with_precedence(state, &rollout_keys).await?;
+
+    let (gateway_system, mut execution_path) = resolve_cutover_execution_path(
+        ucs_availability,
+        call_connector_action,
+        shadow_ucs_call_connector_action.as_ref(),
+        &rollout_result,
+        connector_integration_type,
+        previous_gateway,
+        state,
+    )?;
+
+    let session_state =
+        build_session_state_for_execution_path(&mut execution_path, state, &rollout_result);
+
+    router_env::logger::info!(
+        "Payment gateway decision (DB): gateway={:?}, execution_path={:?} - merchant_id={}, connector={}, flow={}",
+        gateway_system,
+        execution_path,
+        merchant_id,
+        connector_name,
+        flow_name
+    );
+
+    Ok((execution_path, session_state))
+}
+
+/// Superposition-based implementation: reads all UCS config purely from Superposition
+/// with dimensional context. No DB fallback.
+#[cfg(feature = "ucs_cutover")]
+async fn should_call_ucs_via_superposition<F: Clone, T, R>(
+    state: &SessionState,
+    processor: &Processor,
+    router_data: &RouterData<F, T, R>,
+    previous_gateway: Option<GatewaySystem>,
+    call_connector_action: CallConnectorAction,
+    shadow_ucs_call_connector_action: Option<CallConnectorAction>,
+    transaction_type: common_enums::TransactionType,
+) -> RouterResult<(ExecutionPath, SessionState)>
+where
+    R: Send + Sync + Clone,
+{
+    let merchant_id = processor.get_account().get_id().get_string_repr();
+    let org_id = processor.get_account().get_org_id().get_string_repr();
+
+    let connector_name = &router_data.connector;
+    let connector_enum = parse_connector_name(connector_name)?;
+
+    let flow_name = get_flow_name::<F>()?;
+
+    let ucs_availability = check_ucs_availability_from_superposition(state).await;
+
+    let (_rollout_keys, superposition_context) = build_rollout_context_for_transaction(
+        transaction_type,
+        org_id,
+        merchant_id,
+        connector_name,
+        &flow_name,
+        router_data,
+    );
+
+    let connector_integration_type =
+        determine_connector_integration_type(state, connector_enum).await?;
+
+    let rollout_result = should_execute_based_on_rollout_with_precedence_from_superposition(
         state,
         consts::superposition::UCS_ROLLOUT_CONFIG,
         Some(superposition_context),
-        &rollout_keys,
     )
     .await?;
 
@@ -407,7 +536,7 @@ where
         build_session_state_for_execution_path(&mut execution_path, state, &rollout_result);
 
     router_env::logger::info!(
-        "Payment gateway decision: gateway={:?}, execution_path={:?} - merchant_id={}, connector={}, flow={}",
+        "Payment gateway decision (Superposition): gateway={:?}, execution_path={:?} - merchant_id={}, connector={}, flow={}",
         gateway_system,
         execution_path,
         merchant_id,
@@ -1067,20 +1196,12 @@ pub async fn should_call_unified_connector_service_for_webhooks(
         flow_name
     );
 
-    // Build context for Superposition (webhooks don't use payment method)
-    let superposition_context = superposition::ConfigContext::new()
-        .with("provider_merchant_id", merchant_id)
-        .with("connector", connector_name)
-        .with("flow_name", flow_name);
-
     // For webhooks, there is no previous gateway system to consider (webhooks are stateless)
     let previous_gateway = None;
 
     let rollout_result =
         should_execute_based_on_rollout::<WebhookRolloutConfig, WebhookRolloutExecutionResult>(
             state,
-            consts::superposition::UCS_ROLLOUT_CONFIG,
-            Some(superposition_context),
             &rollout_key,
         )
         .await?;
