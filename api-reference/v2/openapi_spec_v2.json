@@ -13357,6 +13357,15 @@
         },
         "additionalProperties": false
       },
+      "CustomerAcceptanceSupport": {
+        "type": "string",
+        "description": "Returned in the payment method list response so the SDK,\ncan help decide whether to show the \"save my details\" checkbox and how to word it.",
+        "enum": [
+          "supported",
+          "partially_supported",
+          "unsupported"
+        ]
+      },
       "CustomerDefaultPaymentMethodResponse": {
         "type": "object",
         "required": [
@@ -29965,7 +29974,8 @@
             "required": [
               "payment_method_type",
               "payment_method_subtype",
-              "required_fields"
+              "required_fields",
+              "customer_acceptance_support"
             ],
             "properties": {
               "payment_method_type": {
@@ -29980,6 +29990,9 @@
                   "$ref": "#/components/schemas/RequiredFieldInfo"
                 },
                 "description": "Required fields for the payment_method_type.\nThis is the union of all the required fields for the payment method type enabled in all the connectors."
+              },
+              "customer_acceptance_support": {
+                "$ref": "#/components/schemas/CustomerAcceptanceSupport"
               }
             }
           }

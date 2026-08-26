@@ -19721,6 +19721,15 @@
         },
         "additionalProperties": false
       },
+      "CustomerAcceptanceSupport": {
+        "type": "string",
+        "description": "Returned in the payment method list response so the SDK,\ncan help decide whether to show the \"save my details\" checkbox and how to word it.",
+        "enum": [
+          "supported",
+          "partially_supported",
+          "unsupported"
+        ]
+      },
       "CustomerDefaultPaymentMethodResponse": {
         "type": "object",
         "required": [
@@ -42070,7 +42079,8 @@
       "ResponsePaymentMethodTypes": {
         "type": "object",
         "required": [
-          "payment_method_type"
+          "payment_method_type",
+          "customer_acceptance_support"
         ],
         "properties": {
           "payment_method_type": {
@@ -42137,6 +42147,9 @@
             "type": "string",
             "description": "auth service connector label for this payment method type, if exists",
             "nullable": true
+          },
+          "customer_acceptance_support": {
+            "$ref": "#/components/schemas/CustomerAcceptanceSupport"
           }
         }
       },
@@ -42173,7 +42186,8 @@
             "type": "object",
             "required": [
               "payment_method",
-              "payment_method_type"
+              "payment_method_type",
+              "customer_acceptance_support"
             ],
             "properties": {
               "payment_method": {
@@ -42199,6 +42213,9 @@
                 "type": "boolean",
                 "description": "Whether to collect billing details from the wallet connector (null for non-wallet)",
                 "nullable": true
+              },
+              "customer_acceptance_support": {
+                "$ref": "#/components/schemas/CustomerAcceptanceSupport"
               }
             }
           }
