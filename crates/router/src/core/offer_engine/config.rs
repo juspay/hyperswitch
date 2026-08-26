@@ -10,14 +10,6 @@ use crate::{
     routes::SessionState,
 };
 
-/// Resolve which Offer Engine credential source applies for the given dimensions.
-///
-/// Returns [`OfferEngineCredentialSource::None`] when Offer Engine is disabled or
-/// no source is configured. Callers match on the result and resolve the concrete
-/// config via the per-source resolvers on [`OfferEngineCredentialSource`], so a
-/// caller only loads the credentials the resolved source actually needs (e.g. the
-/// merchant account is read only for the `Merchant` arm). The match can be
-/// extended with profile/org sources later.
 pub async fn resolve_offer_engine_credential_source<D>(
     state: &SessionState,
     dimensions: &D,
