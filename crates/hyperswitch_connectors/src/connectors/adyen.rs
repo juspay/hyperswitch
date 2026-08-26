@@ -354,6 +354,8 @@ impl ConnectorValidation for Adyen {
                 | PaymentMethodType::SevenEleven
                 | PaymentMethodType::OpenBankingUk
                 | PaymentMethodType::OnlineBankingCzechRepublic
+                | PaymentMethodType::Payshap
+                | PaymentMethodType::PayshapProxy
                 | PaymentMethodType::PermataBankTransfer => match capture_method {
                     enums::CaptureMethod::Automatic | enums::CaptureMethod::SequentialAutomatic => {
                         Ok(())

@@ -78,6 +78,7 @@ impl ForeignTryFrom<api_enums::Connector> for euclid::enums::RoutableConnectors 
             api_enums::Connector::Globalpay => Self::Globalpay,
             api_enums::Connector::Globepay => Self::Globepay,
             api_enums::Connector::Gocardless => Self::Gocardless,
+            api_enums::Connector::GotymeSanlam => Self::GotymeSanlam,
             api_enums::Connector::Gpayments => {
                 Err(common_utils::errors::ValidationError::InvalidValue {
                     message: "gpayments is not a routable connector".to_string(),
@@ -199,6 +200,7 @@ impl ForeignTryFrom<api_enums::Connector> for euclid::enums::RoutableConnectors 
             api_enums::Connector::Worldline => Self::Worldline,
             api_enums::Connector::Worldpay => Self::Worldpay,
             api_enums::Connector::Worldpaymodular => Self::Worldpaymodular,
+            api_enums::Connector::Worldpayraft => Self::Worldpayraft,
             api_enums::Connector::Worldpayvantiv => Self::Worldpayvantiv,
             api_enums::Connector::Worldpayxml => Self::Worldpayxml,
             api_enums::Connector::Xendit => Self::Xendit,
