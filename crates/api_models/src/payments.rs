@@ -7725,6 +7725,11 @@ pub struct PaymentsResponse {
     #[smithy(value_type = "Option<String>")]
     pub network_transaction_id: Option<String>,
 
+    /// Payment Account Reference (PAR) returned by the connector for the underlying card, used to link tokenized and non-tokenized transactions for the same card.
+    #[schema(example = "V001428640638148739")]
+    #[smithy(value_type = "Option<String>")]
+    pub payment_account_reference: Option<String>,
+
     /// The Mastercard Transaction Link Identifier (TLID) for this payment. Returned on CITs that set up
     /// stored credentials. External-vault merchants should persist this and echo it back on subsequent
     /// MIT requests. Mandatory for Mastercard recurring/MIT (no static fallback).

@@ -1221,6 +1221,7 @@ pub fn get_connector_metadata(
             incremental_authorization_allowed: _,
             authentication_data: None,
             charges: _,
+            payment_account_reference: _,
         }) => connector_metadata,
         _ => None,
     }

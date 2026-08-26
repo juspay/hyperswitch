@@ -1974,6 +1974,7 @@ where
         network_txn_id: None,
         network_txn_link_id: None,
         connector_response_reference_id: None,
+        payment_account_reference: None,
         incremental_authorization_allowed: None,
         authentication_data: None,
         charges: None,
@@ -4382,6 +4383,7 @@ where
             browser_info: payment_attempt.browser_info,
             payment_method_id: payment_attempt.payment_method_id,
             network_transaction_id: payment_attempt.network_transaction_id,
+            payment_account_reference: payment_attempt.payment_account_reference.clone(),
             network_transaction_link_id: payment_attempt.network_transaction_link_id,
             payment_method_status: payment_data
                 .get_payment_method_info()
@@ -4706,6 +4708,7 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             merchant_connector_id: pa.merchant_connector_id,
             payment_method_data,
             merchant_order_reference_id: pi.merchant_order_reference_id,
+            payment_account_reference: pa.payment_account_reference,
             customer: pi.customer_details.and_then(|customer_details|
                 match customer_details.into_inner().expose().parse_value::<CustomerData>("CustomerData"){
                     Ok(parsed_data) => Some(

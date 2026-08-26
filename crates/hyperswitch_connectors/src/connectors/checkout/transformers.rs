@@ -1314,6 +1314,7 @@ pub struct Source {
     id: Option<String>,
     avs_check: Option<String>,
     cvv_check: Option<String>,
+    payment_account_reference: Option<String>,
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
@@ -1461,6 +1462,11 @@ impl TryFrom<PaymentsResponseRouterData<PaymentsResponse>> for PaymentsAuthorize
             connector_response_reference_id: Some(
                 item.response.reference.unwrap_or(item.response.id),
             ),
+            payment_account_reference: item
+                .response
+                .source
+                .as_ref()
+                .and_then(|source| source.payment_account_reference.clone()),
             incremental_authorization_allowed: None,
             authentication_data: None,
             charges: None,
@@ -1585,6 +1591,11 @@ impl
             connector_response_reference_id: Some(
                 item.response.reference.unwrap_or(item.response.id),
             ),
+            payment_account_reference: item
+                .response
+                .source
+                .as_ref()
+                .and_then(|source| source.payment_account_reference.clone()),
             incremental_authorization_allowed: None,
             authentication_data: None,
             charges: None,
@@ -1678,6 +1689,11 @@ impl TryFrom<PaymentsSyncResponseRouterData<PaymentsResponse>> for PaymentsSyncR
             connector_response_reference_id: Some(
                 item.response.reference.unwrap_or(item.response.id),
             ),
+            payment_account_reference: item
+                .response
+                .source
+                .as_ref()
+                .and_then(|source| source.payment_account_reference.clone()),
             incremental_authorization_allowed: None,
             authentication_data: None,
             charges: None,
@@ -1757,6 +1773,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<PaymentVoidResponse>> for Payments
                 network_txn_id: item.response.scheme_id.clone(),
                 network_txn_link_id: None,
                 connector_response_reference_id: None,
+                payment_account_reference: None,
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
@@ -1861,6 +1878,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<PaymentCaptureResponse>>
                 network_txn_id: item.response.scheme_id.clone(),
                 network_txn_link_id: None,
                 connector_response_reference_id: item.response.reference,
+                payment_account_reference: None,
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
@@ -2374,6 +2392,10 @@ impl TryFrom<&webhooks::IncomingWebhookRequestDetails<'_>> for PaymentsResponse 
                 id: details.source.clone().and_then(|src| src.id),
                 avs_check: details.source.clone().and_then(|src| src.avs_check),
                 cvv_check: details.source.clone().and_then(|src| src.cvv_check),
+                payment_account_reference: details
+                    .source
+                    .clone()
+                    .and_then(|src| src.payment_account_reference),
             }),
             scheme_id: None,
             processing: None,
