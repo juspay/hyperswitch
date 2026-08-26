@@ -1383,6 +1383,248 @@ pub async fn shadow_decision_engine_routing(
     );
 }
 
+/// One evaluation in a batch request: the parameters that differ per call.
+/// Everything shared (`created_by`, fallback, transaction type) lives on the
+/// enclosing request, matching the Decision Engine's `/routing/evaluate/batch`.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct RoutingEvaluateBatchEntry {
+    pub payment_id: Option<String>,
+    pub parameters: HashMap<String, Option<ValueType>>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct RoutingEvaluateBatchRequest {
+    pub created_by: String,
+    pub fallback_output: Vec<DeRoutableConnectorChoice>,
+    pub algorithm_for: TransactionType,
+    pub requests: Vec<RoutingEvaluateBatchEntry>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct RoutingEvaluateBatchResponse {
+    pub results: Vec<RoutingEvaluateResponse>,
+}
+
+/// Evaluates one rule against several parameter sets in a single Decision Engine
+/// round trip. The engine fetches and parses the active algorithm once, so a session
+/// request with N wallet types costs one call and one rule lookup instead of N each.
+///
+/// Results come back positionally: `results[i]` answers `backend_inputs[i]`. An entry
+/// the engine could not evaluate is an empty list, mirroring how callers of the
+/// single-call path treat a failed evaluation.
+pub async fn decision_engine_routing_batch(
+    state: &SessionState,
+    backend_inputs: Vec<BackendInput>,
+    business_profile: &domain::Profile,
+    payment_id: String,
+    merchant_fallback_config: Vec<RoutableConnectorChoice>,
+    algorithm_for: TransactionType,
+    routing_flow: RoutingFlow,
+) -> RoutingResult<Vec<Vec<RoutableConnectorChoice>>> {
+    let expected_len = backend_inputs.len();
+    let created_by = business_profile.get_id().get_string_repr().to_string();
+    let fallback_output = convert_fallback_to_de_choices(merchant_fallback_config);
+
+    let requests = backend_inputs
+        .into_iter()
+        .map(|backend_input| {
+            convert_backend_input_to_routing_eval(
+                created_by.clone(),
+                Some(payment_id.clone()),
+                backend_input,
+                fallback_output.clone(),
+                algorithm_for,
+            )
+            .map(|request| RoutingEvaluateBatchEntry {
+                payment_id: request.payment_id,
+                parameters: request.parameters,
+            })
+        })
+        .collect::<RoutingResult<Vec<_>>>()?;
+
+    let batch_request = RoutingEvaluateBatchRequest {
+        created_by,
+        fallback_output,
+        algorithm_for,
+        requests,
+    };
+
+    let mut events_wrapper: RoutingEventsWrapper<RoutingEvaluateBatchRequest> =
+        RoutingEventsWrapper::new(
+            state.tenant.tenant_id.clone(),
+            state.request_id.clone(),
+            payment_id,
+            business_profile.get_id().to_owned(),
+            business_profile.merchant_id.to_owned(),
+            routing_flow.event_name(),
+            None,
+            true,
+            false,
+        );
+    events_wrapper.set_request_body(batch_request.clone());
+
+    let event_response = EuclidApiClient::send_decision_engine_request::<
+        RoutingEvaluateBatchRequest,
+        RoutingEvaluateBatchResponse,
+    >(
+        state,
+        services::Method::Post,
+        "routing/evaluate/batch",
+        Some(batch_request),
+        Some(EUCLID_API_TIMEOUT),
+        Some(events_wrapper),
+    )
+    .await?;
+
+    let batch_response = event_response
+        .response
+        .ok_or(errors::RoutingError::OpenRouterError(
+            "Response from decision engine batch API is empty".to_string(),
+        ))?;
+
+    if batch_response.results.len() != expected_len {
+        return Err(errors::RoutingError::OpenRouterError(format!(
+            "decision engine batch returned {} results for {} requests",
+            batch_response.results.len(),
+            expected_len
+        ))
+        .into());
+    }
+
+    let transformed = batch_response
+        .results
+        .into_iter()
+        .map(|entry| {
+            // A per-entry failure is an empty list rather than a batch failure: one
+            // wallet type falling back must not take the others down with it.
+            if entry.status == "error" {
+                return Vec::new();
+            }
+            extract_de_output_connectors(entry.output)
+                .and_then(|output| transform_de_output_for_router(output, entry.evaluated_output))
+                .map_err(|error| {
+                    logger::error!(
+                        ?error,
+                        "decision_engine_euclid: failed to transform a batch entry"
+                    );
+                })
+                .unwrap_or_default()
+        })
+        .collect::<Vec<_>>();
+
+    if let Some(mut routing_event) = event_response.event {
+        routing_event.set_routing_approach(RoutingApproach::StaticRouting.to_string());
+        routing_event
+            .set_routable_connectors(transformed.iter().flatten().cloned().collect::<Vec<_>>());
+        state.event_handler.log_event(&routing_event);
+    }
+
+    Ok(transformed)
+}
+
+/// The batch call, degrading to concurrent single evaluations when the engine does
+/// not expose the batch endpoint yet. Lets Hyperswitch deploy ahead of the engine:
+/// against an old engine every batch call fails once and the singles carry the
+/// request, and once the engine ships the endpoint the fallback stops firing.
+pub async fn decision_engine_routing_batch_with_fallback(
+    state: &SessionState,
+    backend_inputs: Vec<BackendInput>,
+    business_profile: &domain::Profile,
+    payment_id: String,
+    merchant_fallback_config: Vec<RoutableConnectorChoice>,
+    algorithm_for: TransactionType,
+    routing_flow: RoutingFlow,
+) -> Vec<Vec<RoutableConnectorChoice>> {
+    match decision_engine_routing_batch(
+        state,
+        backend_inputs.clone(),
+        business_profile,
+        payment_id.clone(),
+        merchant_fallback_config.clone(),
+        algorithm_for,
+        routing_flow,
+    )
+    .await
+    {
+        Ok(results) => results,
+        Err(error) => {
+            logger::warn!(
+                ?error,
+                "decision_engine_euclid: batch evaluate failed, falling back to single evaluations"
+            );
+            futures::future::join_all(backend_inputs.into_iter().map(|backend_input| {
+                decision_engine_routing(
+                    state,
+                    backend_input,
+                    business_profile,
+                    payment_id.clone(),
+                    merchant_fallback_config.clone(),
+                    algorithm_for,
+                    routing_flow,
+                )
+            }))
+            .await
+            .into_iter()
+            .map(|result| {
+                result
+                    .inspect_err(|error| {
+                        logger::error!(
+                            ?error,
+                            "decision_engine_euclid: single evaluation failed in batch fallback"
+                        );
+                    })
+                    .unwrap_or_default()
+            })
+            .collect()
+        }
+    }
+}
+
+/// One shadow comparison: the per-type input and the Hyperswitch result to diff against.
+pub struct ShadowBatchEntry {
+    pub backend_input: BackendInput,
+    pub hs_connectors: Vec<RoutableConnectorChoice>,
+    pub is_volume: bool,
+}
+
+/// Shadow-evaluates a whole session/PML request in one batch call and logs one diff
+/// per payment method type. Observation only; never feeds the kill switch.
+#[allow(clippy::too_many_arguments)]
+pub async fn shadow_decision_engine_routing_batch(
+    state: SessionState,
+    business_profile: domain::Profile,
+    payment_id: String,
+    entries: Vec<ShadowBatchEntry>,
+    fallback_config: Vec<RoutableConnectorChoice>,
+    algorithm_for: TransactionType,
+    routing_flow: RoutingFlow,
+) {
+    let backend_inputs = entries
+        .iter()
+        .map(|entry| entry.backend_input.clone())
+        .collect::<Vec<_>>();
+
+    let de_results = decision_engine_routing_batch_with_fallback(
+        &state,
+        backend_inputs,
+        &business_profile,
+        payment_id,
+        fallback_config,
+        algorithm_for,
+        routing_flow,
+    )
+    .await;
+
+    for (entry, de_result) in entries.into_iter().zip(de_results) {
+        compare_and_log_result(
+            de_result,
+            entry.hs_connectors,
+            routing_flow.as_str().to_string(),
+            entry.is_volume,
+        );
+    }
+}
+
 pub trait RoutingEq<T> {
     fn is_equal(a: &T, b: &T) -> bool;
 }

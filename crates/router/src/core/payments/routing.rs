@@ -905,22 +905,19 @@ pub async fn perform_static_routing_locally(
     Ok((static_connectors, static_approach, is_volume_split))
 }
 
-/// Shadow-evaluates the DE for a session/pre-routing flow off the request path.
+/// Spawns one batch shadow evaluation for a whole session/pre-routing request.
 ///
-/// These flows run per payment method type, so evaluating inline would add one round trip
-/// per wallet type to session token generation and payment method list. The result is only
-/// load-bearing for a cut-over profile; for everyone else it exists purely for the diff, so
-/// it is spawned and the request never waits on it.
+/// These flows evaluate per payment method type; the batch keeps that off the request
+/// path and down to a single engine round trip. The result is only load-bearing for a
+/// cut-over profile -- for everyone else it exists purely for the diff, so the request
+/// never waits on it.
 #[cfg(feature = "v1")]
-#[allow(clippy::too_many_arguments)]
-fn spawn_session_shadow_evaluation(
+fn spawn_session_shadow_batch_evaluation(
     state: &SessionState,
     business_profile: &domain::Profile,
     payment_id: String,
-    backend_input: backend::BackendInput,
+    entries: Vec<utils::ShadowBatchEntry>,
     fallback_config: Vec<routing_types::RoutableConnectorChoice>,
-    hs_connectors: Vec<routing_types::RoutableConnectorChoice>,
-    is_volume: bool,
     transaction_type: api_enums::TransactionType,
     routing_flow: utils::RoutingFlow,
 ) {
@@ -932,6 +929,7 @@ fn spawn_session_shadow_evaluation(
         "shadow_decision_engine_routing",
         de_shadow = true,
         routing_flow = routing_flow.as_str(),
+        entry_count = entries.len(),
         profile_id = %business_profile.get_id().get_string_repr(),
         merchant_id = %business_profile.merchant_id.get_string_repr(),
         payment_id = %payment_id,
@@ -939,14 +937,12 @@ fn spawn_session_shadow_evaluation(
 
     tokio::spawn(
         async move {
-            utils::shadow_decision_engine_routing(
+            utils::shadow_decision_engine_routing_batch(
                 shadow_state,
                 shadow_profile,
                 payment_id,
-                backend_input,
+                entries,
                 fallback_config,
-                hs_connectors,
-                is_volume,
                 transaction_type,
                 routing_flow,
             )
@@ -1032,37 +1028,30 @@ impl RoutingStage for SessionRoutingStage {
                 })
                 .collect::<Vec<_>>();
 
-            // One round trip's latency for a cut-over profile instead of one per wallet
-            // type. Not cut over, the result is shadow-only and is spawned further down.
+            // One batch call for a cut-over profile: the engine fetches the rule once and
+            // evaluates every wallet type's parameters in a single round trip. Against an
+            // engine without the batch endpoint this degrades to concurrent single calls.
+            // Not cut over, the result is shadow-only and is spawned after the loop.
             let de_results: Vec<Vec<routing_types::RoutableConnectorChoice>> =
                 if de_routing_effective {
-                    futures::future::join_all(pm_entries.iter().map(|(_, _, backend_input)| {
-                        utils::decision_engine_routing(
-                            input.state,
-                            backend_input.clone(),
-                            input.business_profile,
-                            input.payment_id.clone(),
-                            input.default_config.clone(),
-                            *input.transaction_type,
-                            utils::RoutingFlow::SessionToken,
-                        )
-                    }))
+                    utils::decision_engine_routing_batch_with_fallback(
+                        input.state,
+                        pm_entries
+                            .iter()
+                            .map(|(_, _, backend_input)| backend_input.clone())
+                            .collect(),
+                        input.business_profile,
+                        input.payment_id.clone(),
+                        input.default_config.clone(),
+                        *input.transaction_type,
+                        utils::RoutingFlow::SessionToken,
+                    )
                     .await
-                    .into_iter()
-                    .map(|result| {
-                        result
-                            .inspect_err(|error| {
-                                logger::error!(
-                                    ?error,
-                                    "decision_engine_euclid: session routing evaluation failed"
-                                );
-                            })
-                            .unwrap_or_default()
-                    })
-                    .collect()
                 } else {
                     vec![Vec::new(); pm_entries.len()]
                 };
+
+            let mut shadow_entries: Vec<utils::ShadowBatchEntry> = Vec::new();
 
             for ((pm_type, allowed_connectors, backend_input), de_connectors) in
                 pm_entries.into_iter().zip(de_results)
@@ -1158,17 +1147,11 @@ impl RoutingStage for SessionRoutingStage {
                     .await
                 } else {
                     if shadow_evaluation_enabled {
-                        spawn_session_shadow_evaluation(
-                            input.state,
-                            input.business_profile,
-                            input.payment_id.clone(),
-                            backend_input.clone(),
-                            input.default_config.clone(),
-                            chosen_connectors.clone(),
-                            is_volume_split,
-                            *input.transaction_type,
-                            utils::RoutingFlow::SessionToken,
-                        );
+                        shadow_entries.push(utils::ShadowBatchEntry {
+                            backend_input: backend_input.clone(),
+                            hs_connectors: chosen_connectors.clone(),
+                            is_volume: is_volume_split,
+                        });
                     }
                     chosen_connectors
                 };
@@ -1239,6 +1222,21 @@ impl RoutingStage for SessionRoutingStage {
                     }
                 }
             }
+
+            // One spawned batch evaluation for the whole request, replacing a spawned
+            // call per wallet type. Off the request path; diff logging only.
+            if !shadow_entries.is_empty() {
+                spawn_session_shadow_batch_evaluation(
+                    input.state,
+                    input.business_profile,
+                    input.payment_id.clone(),
+                    shadow_entries,
+                    input.default_config.clone(),
+                    *input.transaction_type,
+                    utils::RoutingFlow::SessionToken,
+                );
+            }
+
             Ok(RoutingConnectorOutcomeForSessionRouting {
                 session_output: result,
                 routing_approach: final_routing_approach,
@@ -3131,8 +3129,13 @@ pub async fn perform_session_flow_routing(
         })
         .collect::<Vec<_>>();
 
+    // Not cut over, the evaluation is shadow-only and off the request path.
+    let collect_shadow_entries = !de_routing_effective
+        && session_input.state.conf.open_router.static_routing_enabled
+        && session_input.state.conf.open_router.shadow_routing_enabled;
+
     // Same list for every wallet type, so it is fetched once rather than per iteration.
-    let de_fallback_config = if de_routing_effective {
+    let de_fallback_config = if de_routing_effective || collect_shadow_entries {
         routing::helpers::get_merchant_default_config(
             &*session_input.state.clone().store,
             profile_id.get_string_repr(),
@@ -3144,36 +3147,28 @@ pub async fn perform_session_flow_routing(
         Vec::new()
     };
 
-    // One round trip's latency for a cut-over profile instead of one per wallet type.
-    // Not cut over, the result is shadow-only and is spawned inside the loop below.
+    // One batch call for a cut-over profile: the engine fetches the rule once and
+    // evaluates every wallet type's parameters in a single round trip. Against an engine
+    // without the batch endpoint this degrades to concurrent single calls.
     let de_results: Vec<Vec<routing_types::RoutableConnectorChoice>> = if de_routing_effective {
-        futures::future::join_all(pm_entries.iter().map(|(_, _, backend_input)| {
-            utils::decision_engine_routing(
-                session_input.state,
-                backend_input.clone(),
-                business_profile,
-                payment_id.clone(),
-                de_fallback_config.clone(),
-                *transaction_type,
-                utils::RoutingFlow::PaymentMethodList,
-            )
-        }))
+        utils::decision_engine_routing_batch_with_fallback(
+            session_input.state,
+            pm_entries
+                .iter()
+                .map(|(_, _, backend_input)| backend_input.clone())
+                .collect(),
+            business_profile,
+            payment_id.clone(),
+            de_fallback_config.clone(),
+            *transaction_type,
+            utils::RoutingFlow::PaymentMethodList,
+        )
         .await
-        .into_iter()
-        .map(|result| {
-            result
-                .inspect_err(|error| {
-                    logger::error!(
-                        ?error,
-                        "decision_engine_euclid: payment method list pre-routing evaluation failed"
-                    );
-                })
-                .unwrap_or_default()
-        })
-        .collect()
     } else {
         vec![Vec::new(); pm_entries.len()]
     };
+
+    let mut shadow_entries: Vec<utils::ShadowBatchEntry> = Vec::new();
 
     for ((pm_type, allowed_connectors, backend_input), de_connectors) in
         pm_entries.into_iter().zip(de_results)
@@ -3190,7 +3185,7 @@ pub async fn perform_session_flow_routing(
             payment_id: payment_id.clone(),
         };
 
-        let (routable_connector_choice_option, routing_approach) =
+        let (routable_connector_choice_option, routing_approach, shadow_entry) =
             perform_session_routing_for_pm_type(
                 &session_pm_input,
                 transaction_type,
@@ -3198,8 +3193,13 @@ pub async fn perform_session_flow_routing(
                 &active_mca_ids,
                 de_routing_effective,
                 de_connectors,
+                collect_shadow_entries,
             )
             .await?;
+
+        if let Some(entry) = shadow_entry {
+            shadow_entries.push(entry);
+        }
 
         final_routing_approach = routing_approach;
 
@@ -3232,10 +3232,25 @@ pub async fn perform_session_flow_routing(
         }
     }
 
+    // One spawned batch evaluation for the whole request, replacing a spawned call per
+    // wallet type. Off the request path; diff logging only.
+    if !shadow_entries.is_empty() {
+        spawn_session_shadow_batch_evaluation(
+            session_input.state,
+            business_profile,
+            payment_id,
+            shadow_entries,
+            de_fallback_config,
+            *transaction_type,
+            utils::RoutingFlow::PaymentMethodList,
+        );
+    }
+
     Ok((result, final_routing_approach))
 }
 
 #[cfg(feature = "v1")]
+#[allow(clippy::too_many_arguments)]
 async fn perform_session_routing_for_pm_type(
     session_pm_input: &SessionRoutingPmTypeInput<'_>,
     transaction_type: &api_enums::TransactionType,
@@ -3243,9 +3258,11 @@ async fn perform_session_routing_for_pm_type(
     active_mca_ids: &std::collections::HashSet<common_utils::id_type::MerchantConnectorAccountId>,
     de_routing_effective: bool,
     de_connectors: Vec<api_models::routing::RoutableConnectorChoice>,
+    collect_shadow_entry: bool,
 ) -> RoutingResult<(
     Option<Vec<api_models::routing::RoutableConnectorChoice>>,
     Option<common_enums::RoutingApproach>,
+    Option<utils::ShadowBatchEntry>,
 )> {
     let merchant_id = &session_pm_input.key_store.merchant_id;
 
@@ -3253,15 +3270,9 @@ async fn perform_session_routing_for_pm_type(
         MerchantAccountRoutingAlgorithm::V1(algorithm_ref) => &algorithm_ref.algorithm_id,
     };
 
-    // Needed both as the no-algorithm result and as the fallback the DE echoes back when
-    // no rule matches, so it is resolved once up front and only when one of those applies.
-    let fallback_config = if algorithm_id.is_none()
-        || session_pm_input
-            .state
-            .conf
-            .open_router
-            .static_routing_enabled
-    {
+    // The Decision Engine call moved to the caller (one batch per request), so the
+    // fallback list is only needed here as the no-algorithm result.
+    let fallback_config = if algorithm_id.is_none() {
         routing::helpers::get_merchant_default_config(
             &*session_pm_input.state.clone().store,
             session_pm_input.profile_id.get_string_repr(),
@@ -3337,31 +3348,16 @@ async fn perform_session_routing_for_pm_type(
         )
         .await
     } else {
-        if session_pm_input
-            .state
-            .conf
-            .open_router
-            .static_routing_enabled
-            && session_pm_input
-                .state
-                .conf
-                .open_router
-                .shadow_routing_enabled
-        {
-            spawn_session_shadow_evaluation(
-                session_pm_input.state,
-                business_profile,
-                session_pm_input.payment_id.clone(),
-                session_pm_input.backend_input.clone(),
-                fallback_config.clone(),
-                chosen_connectors.clone(),
-                is_volume_split,
-                *transaction_type,
-                utils::RoutingFlow::PaymentMethodList,
-            );
-        }
         chosen_connectors
     };
+
+    // Handed back to the caller, which shadow-evaluates the whole request in one
+    // spawned batch instead of one task per wallet type.
+    let shadow_entry = collect_shadow_entry.then(|| utils::ShadowBatchEntry {
+        backend_input: session_pm_input.backend_input.clone(),
+        hs_connectors: chosen_connectors.clone(),
+        is_volume: is_volume_split,
+    });
 
     let mut final_selection = perform_cgraph_filtering(
         &session_pm_input.state.clone(),
@@ -3398,9 +3394,9 @@ async fn perform_session_routing_for_pm_type(
     }
 
     if final_selection.is_empty() {
-        Ok((None, routing_approach))
+        Ok((None, routing_approach, shadow_entry))
     } else {
-        Ok((Some(final_selection), routing_approach))
+        Ok((Some(final_selection), routing_approach, shadow_entry))
     }
 }
 
