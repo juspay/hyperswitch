@@ -15962,6 +15962,14 @@
           "eci_indicator"
         ],
         "properties": {
+          "auth_method": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/GooglePayAuthMethod"
+              }
+            ],
+            "nullable": true
+          },
           "card_exp_month": {
             "type": "string",
             "description": "The card's expiry month"
@@ -16244,6 +16252,13 @@
             "description": "indicates that identification and verifications (ID&V) was performed"
           }
         }
+      },
+      "GooglePayAuthMethod": {
+        "type": "string",
+        "enum": [
+          "PAN_ONLY",
+          "CRYPTOGRAM_3DS"
+        ]
       },
       "GooglePayCardFundingSource": {
         "type": "string",
