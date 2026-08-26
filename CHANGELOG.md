@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.08.26.1-hotfix1
+
+### Features
+
+- **core:** Return customer_acceptance_support in the payment method list response ([#13863](https://github.com/juspay/hyperswitch/pull/13863)) ([`4bdb521`](https://github.com/juspay/hyperswitch/commit/4bdb521c968e068e9510a9046f5746e39c769e5b))
+
+**Full Changelog:** [`2026.08.26.1...2026.08.26.1-hotfix1`](https://github.com/juspay/hyperswitch/compare/2026.08.26.1...2026.08.26.1-hotfix1)
+
+- - -
+
 ## 2026.08.26.1
 
 ### Features
