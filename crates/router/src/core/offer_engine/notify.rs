@@ -19,47 +19,9 @@ use crate::{
 
 const OFFER_ENGINE_NOTIFY_NAME: &str = "OFFER_ENGINE_NOTIFY";
 const OFFER_ENGINE_NOTIFY_TAG: &str = "OFFER_ENGINE";
+const OFFER_ENGINE_NOTIFY_FLOW: &str = "OfferEngineNotify";
 const OFFER_ENGINE_NOTIFY_RUNNER: diesel_models::ProcessTrackerRunner =
     diesel_models::ProcessTrackerRunner::OfferEngineNotifyWorkflow;
-
-#[derive(
-    Debug,
-    Clone,
-    Copy,
-    PartialEq,
-    Eq,
-    serde::Serialize,
-    serde::Deserialize,
-    strum::Display,
-    strum::EnumString,
-)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-#[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
-pub enum OfferEngineNotificationType {
-    Failure,
-    Refunded,
-    PartiallyRefunded,
-    AutoRefunded,
-}
-
-impl OfferEngineNotificationType {
-    fn txn_status(self) -> OfferTxnStatus {
-        match self {
-            Self::Failure => OfferTxnStatus::Failure,
-            Self::Refunded => OfferTxnStatus::Refunded,
-            Self::PartiallyRefunded => OfferTxnStatus::PartiallyRefunded,
-            Self::AutoRefunded => OfferTxnStatus::AutoRefunded,
-        }
-    }
-
-    fn offer_status(self) -> OfferNotifyStatus {
-        match self {
-            Self::Failure => OfferNotifyStatus::Failed,
-            Self::PartiallyRefunded => OfferNotifyStatus::Revoked,
-            Self::Refunded | Self::AutoRefunded => OfferNotifyStatus::Refunded,
-        }
-    }
-}
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct OfferEngineNotifyTrackingData {
@@ -67,35 +29,30 @@ pub struct OfferEngineNotifyTrackingData {
     pub payment_attempt_id: String,
     pub processor_merchant_id: id_type::MerchantId,
     pub refund_id: Option<String>,
-    pub notification_type: OfferEngineNotificationType,
+    #[serde(default)]
+    pub txn_status: OfferTxnStatus,
 }
 
-fn payment_task_id(attempt_id: &str, notification_type: OfferEngineNotificationType) -> String {
-    format!("offer_engine_notify_payment_{attempt_id}_{notification_type}")
+fn payment_task_id(attempt_id: &str) -> String {
+    format!("offer_engine_notify_payment_{attempt_id}")
 }
 
-fn refund_task_id(refund_id: &str, notification_type: OfferEngineNotificationType) -> String {
-    format!("offer_engine_notify_refund_{refund_id}_{notification_type}")
+fn refund_task_id(refund_id: &str) -> String {
+    format!("offer_engine_notify_refund_{refund_id}")
 }
 
-fn notify_attributes(
-    notification_type: OfferEngineNotificationType,
-) -> [router_env::opentelemetry::KeyValue; 2] {
-    [
-        router_env::opentelemetry::KeyValue::new("flow", "OfferEngineNotify"),
-        router_env::opentelemetry::KeyValue::new(
-            "notification_type",
-            notification_type.to_string(),
-        ),
-    ]
+fn notify_attributes() -> [router_env::opentelemetry::KeyValue; 1] {
+    [router_env::opentelemetry::KeyValue::new(
+        "flow",
+        OFFER_ENGINE_NOTIFY_FLOW,
+    )]
 }
 
-fn attempt_notification_type(
-    status: common_enums::AttemptStatus,
-) -> Option<OfferEngineNotificationType> {
+/// Offer Engine txn status to report for an attempt, or `None` when it must not notify.
+fn attempt_notify_status(status: common_enums::AttemptStatus) -> Option<OfferTxnStatus> {
     use common_enums::AttemptStatus;
     match status {
-        AttemptStatus::AutoRefunded => Some(OfferEngineNotificationType::AutoRefunded),
+        AttemptStatus::AutoRefunded => Some(OfferTxnStatus::AutoRefunded),
         AttemptStatus::Failure
         | AttemptStatus::AuthenticationFailed
         | AttemptStatus::AuthorizationFailed
@@ -103,7 +60,7 @@ fn attempt_notification_type(
         | AttemptStatus::Voided
         | AttemptStatus::VoidFailed
         | AttemptStatus::CaptureFailed
-        | AttemptStatus::Expired => Some(OfferEngineNotificationType::Failure),
+        | AttemptStatus::Expired => Some(OfferTxnStatus::Failure),
         AttemptStatus::Charged
         | AttemptStatus::PartialCharged
         | AttemptStatus::Started
@@ -131,27 +88,19 @@ pub async fn schedule_payment_notification_for_attempt(
     state: &SessionState,
     payment_attempt: &storage::PaymentAttempt,
 ) {
-    if let Some(notification_type) = attempt_notification_type(payment_attempt.status)
+    if let Some(txn_status) = attempt_notify_status(payment_attempt.status)
         .filter(|_| payment_attempt.applied_offer_details.is_some())
     {
-        schedule_payment_notification(state, payment_attempt, notification_type).await;
+        let tracking_data = OfferEngineNotifyTrackingData {
+            payment_id: payment_attempt.payment_id.clone(),
+            payment_attempt_id: payment_attempt.attempt_id.clone(),
+            processor_merchant_id: payment_attempt.processor_merchant_id.clone(),
+            refund_id: None,
+            txn_status,
+        };
+        let task_id = payment_task_id(&payment_attempt.attempt_id);
+        insert_notification_task(state, task_id, tracking_data).await;
     }
-}
-
-async fn schedule_payment_notification(
-    state: &SessionState,
-    payment_attempt: &storage::PaymentAttempt,
-    notification_type: OfferEngineNotificationType,
-) {
-    let tracking_data = OfferEngineNotifyTrackingData {
-        payment_id: payment_attempt.payment_id.clone(),
-        payment_attempt_id: payment_attempt.attempt_id.clone(),
-        processor_merchant_id: payment_attempt.processor_merchant_id.clone(),
-        refund_id: None,
-        notification_type,
-    };
-    let task_id = payment_task_id(&payment_attempt.attempt_id, notification_type);
-    insert_notification_task(state, task_id, tracking_data, notification_type).await;
 }
 
 pub async fn schedule_refund_notification(
@@ -160,21 +109,15 @@ pub async fn schedule_refund_notification(
     refund: &diesel_models::refund::Refund,
 ) {
     if payment_attempt.applied_offer_details.is_some() {
-        let notification_type = if refund.refund_amount >= refund.total_amount {
-            OfferEngineNotificationType::Refunded
-        } else {
-            OfferEngineNotificationType::PartiallyRefunded
-        };
-
         let tracking_data = OfferEngineNotifyTrackingData {
             payment_id: refund.payment_id.clone(),
             payment_attempt_id: refund.attempt_id.clone(),
             processor_merchant_id: payment_attempt.processor_merchant_id.clone(),
             refund_id: Some(refund.refund_id.clone()),
-            notification_type,
+            txn_status: OfferTxnStatus::Failure,
         };
-        let task_id = refund_task_id(&refund.refund_id, notification_type);
-        insert_notification_task(state, task_id, tracking_data, notification_type).await;
+        let task_id = refund_task_id(&refund.refund_id);
+        insert_notification_task(state, task_id, tracking_data).await;
     }
 }
 
@@ -182,7 +125,6 @@ async fn insert_notification_task(
     state: &SessionState,
     task_id: String,
     tracking_data: OfferEngineNotifyTrackingData,
-    notification_type: OfferEngineNotificationType,
 ) {
     let schedule_time = common_utils::date_time::now();
     match storage::ProcessTrackerNew::new(
@@ -198,22 +140,19 @@ async fn insert_notification_task(
     ) {
         Err(err) => {
             logger::error!(?err, %task_id, "Failed to construct offer engine notify task");
-            metrics::OFFER_ENGINE_NOTIFY_SCHEDULE_FAILURES
-                .add(1, &notify_attributes(notification_type));
+            metrics::OFFER_ENGINE_NOTIFY_SCHEDULE_FAILURES.add(1, &notify_attributes());
         }
         Ok(entry) => match state.store.insert_process(entry).await {
             Ok(_) => {
-                logger::info!(%task_id, ?notification_type, "Scheduled offer engine notify task");
-                metrics::OFFER_ENGINE_NOTIFY_TASKS_SCHEDULED
-                    .add(1, &notify_attributes(notification_type));
+                logger::info!(%task_id, "Scheduled offer engine notify task");
+                metrics::OFFER_ENGINE_NOTIFY_TASKS_SCHEDULED.add(1, &notify_attributes());
             }
             Err(err) if err.current_context().is_db_unique_violation() => {
                 logger::info!(%task_id, "Offer engine notify task already scheduled; suppressing duplicate");
             }
             Err(err) => {
                 logger::error!(?err, %task_id, "Failed to schedule offer engine notify task");
-                metrics::OFFER_ENGINE_NOTIFY_SCHEDULE_FAILURES
-                    .add(1, &notify_attributes(notification_type));
+                metrics::OFFER_ENGINE_NOTIFY_SCHEDULE_FAILURES.add(1, &notify_attributes());
             }
         },
     }
@@ -227,8 +166,7 @@ pub async fn execute_notification(
         .tracking_data
         .clone()
         .parse_value("OfferEngineNotifyTrackingData")?;
-    let notification_type = tracking_data.notification_type;
-    let attributes = notify_attributes(notification_type);
+    let attributes = notify_attributes();
 
     let db = &*state.store;
     let key_store = db
@@ -255,7 +193,6 @@ pub async fn execute_notification(
                 payment_id = %tracking_data.payment_id.get_string_repr(),
                 payment_attempt_id = %tracking_data.payment_attempt_id,
                 refund_id = ?tracking_data.refund_id,
-                ?notification_type,
                 process_tracker_id = %process.id,
                 "applied_offer_details missing; terminating offer engine notify task"
             );
@@ -281,12 +218,12 @@ pub async fn execute_notification(
                     let request = OfferNotifyRequest {
                         order_id: tracking_data.payment_id.get_string_repr().to_string(),
                         txn_id: applied.offer_engine_txn_id.clone(),
-                        txn_status: notification_type.txn_status(),
+                        txn_status: tracking_data.txn_status,
                         merchant_id: applied.offer_engine_merchant_id.clone(),
                         origin: OfferNotifyOrigin::Juspay,
                         offers: vec![OfferNotifyOffer {
                             offer_id: applied.offer_id.clone(),
-                            status: notification_type.offer_status(),
+                            status: OfferNotifyStatus::Revoked,
                             error_code: None,
                             error_message: None,
                         }],
@@ -301,7 +238,6 @@ pub async fn execute_notification(
                                 payment_id = %tracking_data.payment_id.get_string_repr(),
                                 payment_attempt_id = %tracking_data.payment_attempt_id,
                                 refund_id = ?tracking_data.refund_id,
-                                txn_status = ?notification_type.txn_status(),
                                 offer_id = %applied.offer_id,
                                 process_tracker_id = %process.id,
                                 attempt = process.retry_count,
