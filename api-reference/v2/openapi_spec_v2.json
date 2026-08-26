@@ -10137,7 +10137,8 @@
                 ]
               },
               "data": {
-                "type": "string"
+                "type": "string",
+                "deprecated": true
               }
             }
           }
