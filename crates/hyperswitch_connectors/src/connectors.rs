@@ -57,6 +57,7 @@ pub mod givepayments;
 pub mod globalpay;
 pub mod globepay;
 pub mod gocardless;
+pub mod gotyme_sanlam;
 pub mod gpayments;
 pub mod helcim;
 pub mod hipay;
@@ -169,16 +170,16 @@ pub use self::{
     ebanx::Ebanx, elavon::Elavon, envoy::Envoy, facilitapay::Facilitapay, finix::Finix,
     fiserv::Fiserv, fiservcommercehub::Fiservcommercehub, fiservemea::Fiservemea, fiuu::Fiuu,
     flexiti::Flexiti, forte::Forte, getnet::Getnet, gigadat::Gigadat, givepayments::Givepayments,
-    globalpay::Globalpay, globepay::Globepay, gocardless::Gocardless, gpayments::Gpayments,
-    helcim::Helcim, hipay::Hipay, hyperpg::Hyperpg, hyperswitch_vault::HyperswitchVault,
-    hyperwallet::Hyperwallet, iatapay::Iatapay, ilixium::Ilixium,
-    imerchantsolutions::Imerchantsolutions, inespay::Inespay, interpayments::Interpayments,
-    itaubank::Itaubank, jpmorgan::Jpmorgan, juspaythreedsserver::Juspaythreedsserver,
-    katapult::Katapult, klarna::Klarna, loonio::Loonio, mifinity::Mifinity, mollie::Mollie,
-    moneris::Moneris, mpgs::Mpgs, multisafepay::Multisafepay, netcetera::Netcetera,
-    nexinets::Nexinets, nexixpay::Nexixpay, nmi::Nmi, nomupay::Nomupay, noon::Noon, nordea::Nordea,
-    novalnet::Novalnet, nuvei::Nuvei, opayo::Opayo, opennode::Opennode, paybox::Paybox,
-    payconex::Payconex, payeezy::Payeezy, payjustnow::Payjustnow,
+    globalpay::Globalpay, globepay::Globepay, gocardless::Gocardless, gotyme_sanlam::GotymeSanlam,
+    gpayments::Gpayments, helcim::Helcim, hipay::Hipay, hyperpg::Hyperpg,
+    hyperswitch_vault::HyperswitchVault, hyperwallet::Hyperwallet, iatapay::Iatapay,
+    ilixium::Ilixium, imerchantsolutions::Imerchantsolutions, inespay::Inespay,
+    interpayments::Interpayments, itaubank::Itaubank, jpmorgan::Jpmorgan,
+    juspaythreedsserver::Juspaythreedsserver, katapult::Katapult, klarna::Klarna, loonio::Loonio,
+    mifinity::Mifinity, mollie::Mollie, moneris::Moneris, mpgs::Mpgs, multisafepay::Multisafepay,
+    netcetera::Netcetera, nexinets::Nexinets, nexixpay::Nexixpay, nmi::Nmi, nomupay::Nomupay,
+    noon::Noon, nordea::Nordea, novalnet::Novalnet, nuvei::Nuvei, opayo::Opayo, opennode::Opennode,
+    paybox::Paybox, payconex::Payconex, payeezy::Payeezy, payjustnow::Payjustnow,
     payjustnowinstore::Payjustnowinstore, payload::Payload, payme::Payme, payone::Payone,
     paypal::Paypal, paysafe::Paysafe, paystack::Paystack, paytm::Paytm, payu::Payu,
     peachpayments::Peachpayments, phonepe::Phonepe, placetopay::Placetopay, plaid::Plaid,

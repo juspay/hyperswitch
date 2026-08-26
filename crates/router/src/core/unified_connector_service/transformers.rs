@@ -8449,58 +8449,25 @@ macro_rules! impl_ucs_payout_response_transformation {
             fn foreign_try_from(
                 (response, prev_status): ($response_type, common_enums::PayoutStatus),
             ) -> Result<Self, Self::Error> {
-                let status_code = convert_connector_service_status_code(response.status_code)?;
                 let status = common_enums::PayoutStatus::foreign_try_from(response.payout_status())
                     .unwrap_or(prev_status);
 
                 let router_response = if let Some(error_info) = response.error {
-                    Err(ErrorResponse {
-                        code: error_info
+                    Ok(PayoutsResponseData {
+                        status: Some(status),
+                        connector_payout_id: response.connector_payout_id,
+                        payout_eligible: None,
+                        should_add_next_step_to_process_tracker: false,
+                        error_code: error_info
                             .connector_details
                             .as_ref()
-                            .and_then(|cd| cd.code.clone())
-                            .ok_or(
-                                error_stack::Report::new(
-                                    UnifiedConnectorServiceError::ResponseDeserializationFailed,
-                                )
-                                .attach_printable("Missing error code in UCS response ErrorInfo"),
-                            )?,
-                        message: error_info
+                            .and_then(|cd| cd.code.clone()),
+                        error_message: error_info
                             .connector_details
                             .as_ref()
-                            .and_then(|cd| cd.message.clone())
-                            .ok_or(
-                                error_stack::Report::new(
-                                    UnifiedConnectorServiceError::ResponseDeserializationFailed,
-                                )
-                                .attach_printable(
-                                    "Missing error message in UCS response ErrorInfo",
-                                ),
-                            )?,
-                        reason: error_info
-                            .connector_details
-                            .as_ref()
-                            .and_then(|cd| cd.reason.clone()),
-                        status_code,
-                        attempt_status: None,
-                        connector_transaction_id: response.connector_payout_id.clone(),
-                        connector_response_reference_id: response.$merchant_id_field.clone(),
-                        network_decline_code: error_info.issuer_details.as_ref().and_then(|id| {
-                            id.network_details
-                                .as_ref()
-                                .and_then(|nd| nd.decline_code.clone())
-                        }),
-                        network_advice_code: error_info.issuer_details.as_ref().and_then(|id| {
-                            id.network_details
-                                .as_ref()
-                                .and_then(|nd| nd.advice_code.clone())
-                        }),
-                        network_error_message: error_info.issuer_details.as_ref().and_then(|id| {
-                            id.network_details
-                                .as_ref()
-                                .and_then(|nd| nd.error_message.clone())
-                        }),
-                        connector_metadata: None,
+                            .and_then(|cd| cd.message.clone()),
+                        payout_connector_metadata: None,
+                        connector_eligibility_reference_id: None,
                     })
                 } else {
                     Ok(PayoutsResponseData {
@@ -8569,6 +8536,7 @@ impl
         }))
     }
 }
+
 #[cfg(feature = "payouts")]
 impl_ucs_payout_response_transformation!(
     payments_grpc::PayoutServiceTransferResponse,
@@ -8646,6 +8614,18 @@ impl transformers::ForeignTryFrom<&api_models::payouts::PayoutMethodData>
                             .to_string(),
                     ),
                 ))?,
+                api_models::payouts::Bank::Payshap(_) => Err(error_stack::Report::new(
+                    UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
+                        "Payshap bank transfer not supported for Unified Connector Service"
+                            .to_string(),
+                    ),
+                ))?,
+                api_models::payouts::Bank::PayshapProxy(_) => Err(error_stack::Report::new(
+                    UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
+                        "PayshapProxy bank transfer not supported for Unified Connector Service"
+                            .to_string(),
+                    ),
+                ))?,
             },
             api_models::payouts::PayoutMethodData::BankTransfer(bank_transfer) => {
                 match bank_transfer {
@@ -8695,6 +8675,18 @@ impl transformers::ForeignTryFrom<&api_models::payouts::PayoutMethodData>
                             ),
                         ))?
                     }
+                    api_models::payouts::BankTransfer::Payshap(_) => Err(error_stack::Report::new(
+                        UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
+                            "Payshap bank transfer not supported for Unified Connector Service"
+                                .to_string(),
+                        ),
+                    ))?,
+                    api_models::payouts::BankTransfer::PayshapProxy(_) => Err(error_stack::Report::new(
+                        UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
+                            "PayshapProxy bank transfer not supported for Unified Connector Service"
+                                .to_string(),
+                        ),
+                    ))?,
                 }
             }
             api_models::payouts::PayoutMethodData::Wallet(wallet) => match wallet {
@@ -9034,6 +9026,12 @@ impl transformers::ForeignTryFrom<&api_models::payouts::BankTransfer>
                 UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
                     "OpenBanking bank transfer not supported for Unified Connector Service"
                         .to_string(),
+                ),
+            ))?,
+            api_models::payouts::BankTransfer::Payshap(_)
+            | api_models::payouts::BankTransfer::PayshapProxy(_) => Err(error_stack::Report::new(
+                UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
+                    "PayShap bank transfer not supported for Unified Connector Service".to_string(),
                 ),
             ))?,
         };
