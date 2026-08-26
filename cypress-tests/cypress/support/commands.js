@@ -5836,9 +5836,6 @@ Cypress.Commands.add("listMandateCallTest", (globalState) => {
     );
     return;
   }
-    );
-    return;
-  }
 
   const customerId = globalState.get("customerId");
   cy.request({
