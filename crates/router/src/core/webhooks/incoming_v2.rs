@@ -668,9 +668,11 @@ async fn get_or_update_dispute_object(
                     dispute_details.amount,
                     dispute_details.currency,
                 )
-                .change_context(errors::ApiErrorResponse::AmountConversionFailed {
-                    amount_type: "MinorUnit",
-                })?,
+                .change_context(
+                    errors::ApiErrorResponse::AmountConversionFailed {
+                        amount_type: "MinorUnit",
+                    },
+                )?,
                 organization_id: platform
                     .get_processor()
                     .get_account()
@@ -804,7 +806,11 @@ async fn disputes_incoming_webhook_flow(
         )
         .await
         {
-            Ok(()) => metrics::DISPUTE_RECORD_BACK_SUCCESS_METRIC.add(1, &[]),
+            Ok(DisputeRecordBackOutcome::Recorded) => {
+                metrics::DISPUTE_RECORD_BACK_SUCCESS_METRIC.add(1, &[])
+            }
+            // Nothing was sent, so this is neither a success nor a failure.
+            Ok(DisputeRecordBackOutcome::Skipped) => (),
             Err(error) => {
                 metrics::DISPUTE_RECORD_BACK_FAILURE_METRIC.add(1, &[]);
                 logger::error!(
@@ -823,17 +829,29 @@ async fn disputes_incoming_webhook_flow(
     })
 }
 
+/// Whether a dispute record-back actually reached the billing connector.
+///
+/// Kept distinct from `Result` so that the two "nothing to do" paths — a non-recovery
+/// payment and a connector that does not support the call — are not counted as successes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum DisputeRecordBackOutcome {
+    /// The request was sent and the billing connector accepted it.
+    Recorded,
+    /// No request was sent.
+    Skipped,
+}
+
 /// Record a lost dispute back to the billing connector as an offline refund.
 ///
-/// Returns `Ok(())` without doing anything when the attempt carries no billing connector
-/// transaction id — the ordinary case for a payment that never went through revenue
-/// recovery.
+/// Skips without doing anything when the attempt carries no billing connector transaction
+/// id — the ordinary case for a payment that never went through revenue recovery — or when
+/// the billing connector is not configured as supporting the call.
 async fn record_dispute_back_to_billing_connector(
     state: &SessionState,
     platform: &domain::Platform,
     payment_attempt: &PaymentAttempt,
     dispute: &diesel_models::dispute::Dispute,
-) -> CustomResult<(), errors::ApiErrorResponse> {
+) -> CustomResult<DisputeRecordBackOutcome, errors::ApiErrorResponse> {
     let Some(billing_connector_transaction_id) = payment_attempt
         .feature_metadata
         .as_ref()
@@ -841,7 +859,7 @@ async fn record_dispute_back_to_billing_connector(
         .and_then(|recovery| recovery.billing_connector_transaction_id.clone())
     else {
         // Not a recovery payment. Silent by design.
-        return Ok(());
+        return Ok(DisputeRecordBackOutcome::Skipped);
     };
 
     // The webhook arrived on the payment connector's account; the refund goes to the
@@ -873,6 +891,23 @@ async fn record_dispute_back_to_billing_connector(
         .await
         .to_not_found_response(errors::ApiErrorResponse::WebhookResourceNotFound)
         .attach_printable("billing merchant connector account not found")?;
+
+    // Only some billing connectors expose an offline-refund API. Calling one that does not
+    // would fail on the default unimplemented flow impl and be metered as a failure, so the
+    // supported set is configured rather than inferred.
+    if !state
+        .conf
+        .billing_connectors_dispute_record_back
+        .billing_connectors_which_requires_dispute_record_back_call
+        .contains(&billing_mca.connector_name)
+    {
+        logger::debug!(
+            billing_connector = %billing_mca.connector_name,
+            dispute_id = %dispute.dispute_id,
+            "billing connector is not configured for dispute record back; skipping"
+        );
+        return Ok(DisputeRecordBackOutcome::Skipped);
+    }
 
     let connector_data = ConnectorData::get_connector_by_name(
         &state.conf.connectors,
@@ -910,7 +945,7 @@ async fn record_dispute_back_to_billing_connector(
 
     response
         .response
-        .map(|_| ())
+        .map(|_| DisputeRecordBackOutcome::Recorded)
         .map_err(|error| {
             logger::error!(?error, "billing connector rejected the dispute record-back");
             report!(errors::ApiErrorResponse::WebhookProcessingFailure)
@@ -1252,7 +1287,9 @@ mod dispute_webhook_tests {
         ];
 
         for object_reference_id in unsupported {
-            assert!(connector_transaction_id_from_object_reference_id(&object_reference_id).is_err());
+            assert!(
+                connector_transaction_id_from_object_reference_id(&object_reference_id).is_err()
+            );
         }
     }
 
