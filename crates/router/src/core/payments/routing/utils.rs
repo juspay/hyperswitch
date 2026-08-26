@@ -708,6 +708,43 @@ pub fn transform_de_output_for_router(
     Ok(ordered)
 }
 
+/// Which call site produced a Decision Engine evaluation.
+///
+/// Carried into the routing event and the Hyperswitch/DE diff log so the three flows
+/// can be told apart -- previously all three logged under the same name, which made a
+/// session-flow discrepancy indistinguishable from a payment one.
+#[derive(Debug, Clone, Copy)]
+pub enum RoutingFlow {
+    Payment,
+    SessionToken,
+    PaymentMethodList,
+}
+
+impl RoutingFlow {
+    /// Label used in the HS/DE diff log. `Payment` keeps its historical value so
+    /// existing queries over that log keep working.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Payment => "evaluate_routing",
+            Self::SessionToken => "session_token_routing",
+            Self::PaymentMethodList => "payment_method_list_pre_routing",
+        }
+    }
+
+    /// Name recorded on the routing event. `Payment` is unchanged for the same reason.
+    fn event_name(self) -> String {
+        match self {
+            Self::Payment => "DecisionEngine: Euclid Static Routing".to_string(),
+            Self::SessionToken => {
+                "DecisionEngine: Euclid Static Routing (session tokens)".to_string()
+            }
+            Self::PaymentMethodList => {
+                "DecisionEngine: Euclid Static Routing (payment method list)".to_string()
+            }
+        }
+    }
+}
+
 pub async fn decision_engine_routing(
     state: &SessionState,
     backend_input: BackendInput,
@@ -715,6 +752,7 @@ pub async fn decision_engine_routing(
     payment_id: String,
     merchant_fallback_config: Vec<RoutableConnectorChoice>,
     algorithm_for: TransactionType,
+    routing_flow: RoutingFlow,
 ) -> RoutingResult<Vec<RoutableConnectorChoice>> {
     let routing_events_wrapper = RoutingEventsWrapper::new(
         state.tenant.tenant_id.clone(),
@@ -722,7 +760,7 @@ pub async fn decision_engine_routing(
         payment_id.clone(),
         business_profile.get_id().to_owned(),
         business_profile.merchant_id.to_owned(),
-        "DecisionEngine: Euclid Static Routing".to_string(),
+        routing_flow.event_name(),
         None,
         true,
         false,
@@ -1327,7 +1365,7 @@ pub async fn shadow_decision_engine_routing(
     is_volume: bool,
 ) {
     let de_result =
-        decision_engine_routing(&state, backend_input, &business_profile, payment_id, fallback_config, TransactionType::Payment)
+        decision_engine_routing(&state, backend_input, &business_profile, payment_id, fallback_config, TransactionType::Payment, RoutingFlow::Payment)
             .await
             .map_err(|err| {
                 logger::error!(shadow_decision_engine_error=?err, "decision_engine_euclid: error in shadow evaluation of rule")

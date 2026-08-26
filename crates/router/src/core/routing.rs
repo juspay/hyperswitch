@@ -327,63 +327,6 @@ fn convert_euclid_algorithm_to_de_static(
     }
 }
 
-/// Clears the Hyperswitch active-algorithm ref for a profile the DE now owns. Without
-/// this the ref is unreachable (the profile PATCH gate rejects direct writes) yet still
-/// served by `select_routing_result` whenever the DE result is empty.
-#[cfg(feature = "v1")]
-async fn clear_hs_active_algorithm_ref(
-    state: &SessionState,
-    processor: &domain::Processor,
-    business_profile: &domain::Profile,
-    transaction_type: &enums::TransactionType,
-) -> RouterResult<()> {
-    let current_ref: routing_types::RoutingAlgorithmRef = match transaction_type {
-        enums::TransactionType::Payment => business_profile.routing_algorithm.clone(),
-        #[cfg(feature = "payouts")]
-        enums::TransactionType::Payout => business_profile.payout_routing_algorithm.clone(),
-        enums::TransactionType::ThreeDsAuthentication => {
-            business_profile.three_ds_decision_rule_algorithm.clone()
-        }
-    }
-    .map(|val| val.parse_value("RoutingAlgorithmRef"))
-    .transpose()
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("unable to deserialize routing algorithm ref from business profile")?
-    .unwrap_or_default();
-
-    if current_ref.algorithm_id.is_none() {
-        return Ok(());
-    }
-
-    let cleared_ref = routing_types::RoutingAlgorithmRef {
-        algorithm_id: None,
-        timestamp: common_utils::date_time::now_unix_timestamp(),
-        config_algo_id: current_ref.config_algo_id.clone(),
-        surcharge_config_algo_id: current_ref.surcharge_config_algo_id.clone(),
-    };
-    helpers::update_profile_active_algorithm_ref(
-        state.store.as_ref(),
-        processor.get_key_store(),
-        business_profile.clone(),
-        cleared_ref,
-        transaction_type,
-    )
-    .await?;
-
-    helpers::redact_cgraph_cache(
-        state,
-        processor.get_account().get_id(),
-        business_profile.get_id(),
-    )
-    .await?;
-    helpers::redact_routing_cache(
-        state,
-        processor.get_account().get_id(),
-        business_profile.get_id(),
-    )
-    .await
-}
-
 /// Mirrors the "already active" precondition on DE state; best-effort so a failed
 /// listing never blocks the idempotent DE activation.
 #[cfg(feature = "v1")]
@@ -1253,16 +1196,6 @@ pub async fn link_routing_config(
                     )
                 })?;
 
-                // The DE now owns this profile's active rule; a leftover HS ref would
-                // still be served whenever the DE result comes back empty.
-                clear_hs_active_algorithm_ref(
-                    &state,
-                    &processor,
-                    &business_profile,
-                    &transaction_type,
-                )
-                .await?;
-
                 metrics::ROUTING_LINK_CONFIG_SUCCESS_RESPONSE.add(1, &[]);
                 return Ok(service_api::ApplicationResponse::Json(
                     diesel_models::routing_algorithm::RoutingProfileMetadata::from(record)
@@ -1615,16 +1548,6 @@ pub async fn link_routing_config(
                     )
                 })?;
 
-                // The DE now owns this profile's active rule; a leftover HS ref would
-                // still be served whenever the DE result comes back empty.
-                clear_hs_active_algorithm_ref(
-                    &state,
-                    &processor,
-                    &business_profile,
-                    &transaction_type,
-                )
-                .await?;
-
                 metrics::ROUTING_LINK_CONFIG_SUCCESS_RESPONSE.add(1, &[]);
                 return Ok(service_api::ApplicationResponse::Json(
                     routing_algorithm.foreign_into(),
@@ -1930,18 +1853,6 @@ pub async fn unlink_routing_config(
                         "decision_engine_euclid: rule deactivation failed on the Decision Engine",
                     )
                 })?;
-
-                // Clear any leftover Hyperswitch ref too. It is otherwise unreachable (the
-                // profile PATCH gate rejects direct writes) yet still served whenever the
-                // DE returns an empty result, so a deactivated profile would keep routing
-                // by a frozen pre-cutover rule.
-                clear_hs_active_algorithm_ref(
-                    &state,
-                    &processor,
-                    &business_profile,
-                    &transaction_type,
-                )
-                .await?;
 
                 metrics::ROUTING_UNLINK_CONFIG_SUCCESS_RESPONSE.add(1, &[]);
                 return Ok(service_api::ApplicationResponse::Json(
