@@ -8161,7 +8161,7 @@ key1 = "Worldpay Merchant ID"
 
 [gotyme_sanlam_payout.connector_auth.BodyKey]
 api_key = "API Key"
-profile_id = "Profile Id"
+key1 = "Profile Id"
 [[gotyme_sanlam_payout.bank_transfer]]
 payment_method_type = "payshap"
 [[gotyme_sanlam_payout.bank_transfer]]
