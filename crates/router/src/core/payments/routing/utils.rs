@@ -2162,7 +2162,6 @@ fn stringify_choice(c: RoutableConnectorChoice) -> ConnectorInfo {
     )
 }
 
-
 // Reverse of the transformers above: rebuilds a euclid AST from a Decision Engine
 // program, so a rule authored on the DE can be served through the same typed
 // response shape as a Hyperswitch-authored one.
@@ -2315,14 +2314,12 @@ fn convert_output_back(output: Output) -> RoutingResult<ConnectorSelection> {
                 })
                 .collect::<RoutingResult<Vec<_>>>()?,
         )),
-        Output::VolumeSplitPriority(_) => {
-            Err(errors::RoutingError::GenericConversionError {
-                from: "Output::VolumeSplitPriority".to_string(),
-                to: "ConnectorSelection".to_string(),
-            })
-            .map_err(error_stack::Report::from)
-            .attach_printable("euclid has no volume-split-priority connector selection")
-        }
+        Output::VolumeSplitPriority(_) => Err(errors::RoutingError::GenericConversionError {
+            from: "Output::VolumeSplitPriority".to_string(),
+            to: "ConnectorSelection".to_string(),
+        })
+        .map_err(error_stack::Report::from)
+        .attach_printable("euclid has no volume-split-priority connector selection"),
     }
 }
 
@@ -3344,10 +3341,7 @@ mod de_program_round_trip_tests {
                         comparison("label", ast::ValueType::StrValue("vip".to_string())),
                         comparison(
                             "amounts",
-                            ast::ValueType::NumberArray(vec![
-                                MinorUnit::new(1),
-                                MinorUnit::new(2),
-                            ]),
+                            ast::ValueType::NumberArray(vec![MinorUnit::new(1), MinorUnit::new(2)]),
                         ),
                         comparison(
                             "band",
