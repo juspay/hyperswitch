@@ -1036,7 +1036,9 @@ pub async fn create_routing_algorithm_under_profile(
 
     let mut decision_engine_routing_id: Option<String> = None;
 
-    if let Some(static_algorithm) = maybe_static_algorithm {
+    // No scope on the DE means the dual-write would attach the rule to a merchant account
+    // that does not exist; skip it and let the reconciliation report surface it as pending.
+    if let Some(static_algorithm) = maybe_static_algorithm.filter(|_| de_scope_provisioned) {
         let routing_rule = build_routing_rule(static_algorithm);
 
         match create_de_euclid_routing_algo(&state, &routing_rule).await {
@@ -2228,6 +2230,52 @@ pub async fn retrieve_linked_routing_config(
         )
     };
 
+    // Prefetch the Decision Engine's active rules for every eligible profile at once. The
+    // engine lists one profile per call, so issuing them inside the loop cost one serial
+    // round trip per profile, each up to the 5s client timeout. A profile is eligible if
+    // Hyperswitch has an active ref (the pre-existing behaviour) or it is cut over (where
+    // the rule can live only on the engine). Absent from the map means "do not consult".
+    let de_active_by_profile: HashMap<
+        common_utils::id_type::ProfileId,
+        Vec<routing_types::RoutingDictionaryRecord>,
+    > = futures::future::join_all(business_profiles.iter().map(|business_profile| {
+        let profile_id = business_profile.get_id().clone();
+        // Parsed leniently only to decide eligibility; the loop below still parses
+        // authoritatively and surfaces a malformed ref as an error.
+        let has_hs_ref = match transaction_type {
+            enums::TransactionType::Payment => &business_profile.routing_algorithm,
+            #[cfg(feature = "payouts")]
+            enums::TransactionType::Payout => &business_profile.payout_routing_algorithm,
+            enums::TransactionType::ThreeDsAuthentication => {
+                &business_profile.three_ds_decision_rule_algorithm
+            }
+        }
+        .clone()
+        .and_then(|val| {
+            val.parse_value::<routing_types::RoutingAlgorithmRef>("RoutingAlgorithmRef")
+                .ok()
+        })
+        .and_then(|routing_ref| routing_ref.algorithm_id)
+        .is_some();
+        let state = &state;
+        let platform = &platform;
+        async move {
+            // 3DS rules never live on the DE.
+            let de_routing_effective = transaction_type
+                != enums::TransactionType::ThreeDsAuthentication
+                && is_profile_cutover_effective(state, platform, profile_id.clone()).await;
+            if !has_hs_ref && !de_routing_effective {
+                return None;
+            }
+            let records = fetch_decision_engine_active_rules(state, &profile_id).await;
+            Some((profile_id, records))
+        }
+    }))
+    .await
+    .into_iter()
+    .flatten()
+    .collect();
+
     let mut active_algorithms = Vec::new();
 
     for business_profile in business_profiles {
@@ -2264,20 +2312,14 @@ pub async fn retrieve_linked_routing_config(
             None => Vec::new(),
         };
 
-        // A cut-over profile can be active only on the DE with no HS ref, so consult
-        // the DE even when HS has nothing. 3DS rules never live on the DE.
-        let de_routing_effective = transaction_type
-            != enums::TransactionType::ThreeDsAuthentication
-            && is_profile_cutover_effective(&state, &platform, profile_id.clone()).await;
-
-        if !hs_records.is_empty() || de_routing_effective {
-            let de_records = retrieve_decision_engine_active_rules(
-                &state,
+        // Prefetched above: present only for profiles that have an HS ref or are cut over
+        // (a cut-over profile can be active only on the DE, with no HS ref at all).
+        if let Some(de_prefetched) = de_active_by_profile.get(profile_id).cloned() {
+            let de_records = merge_decision_engine_active_rules(
+                de_prefetched,
                 &transaction_type,
-                profile_id.clone(),
                 hs_records.clone(),
-            )
-            .await;
+            );
             compare_and_log_result(
                 de_records.clone(),
                 hs_records.clone(),
@@ -2358,14 +2400,32 @@ pub async fn retrieve_decision_engine_active_rules(
     profile_id: common_utils::id_type::ProfileId,
     hs_records: Vec<routing_types::RoutingDictionaryRecord>,
 ) -> Vec<routing_types::RoutingDictionaryRecord> {
-    let mut de_records =
-        list_de_euclid_active_routing_algorithm(state, profile_id.get_string_repr().to_owned())
-            .await
-            .map_err(|e| {
-                router_env::logger::error!(?e, "Failed to list DE Euclid active routing algorithm");
-            })
-            .ok() // Avoid throwing error if Decision Engine is not available or other errors thrown
-            .unwrap_or_default();
+    let de_records = fetch_decision_engine_active_rules(state, &profile_id).await;
+    merge_decision_engine_active_rules(de_records, transaction_type, hs_records)
+}
+
+/// The network half of the active-rules lookup, split out so callers listing several
+/// profiles can issue the per-profile calls concurrently instead of serially.
+pub async fn fetch_decision_engine_active_rules(
+    state: &SessionState,
+    profile_id: &common_utils::id_type::ProfileId,
+) -> Vec<routing_types::RoutingDictionaryRecord> {
+    list_de_euclid_active_routing_algorithm(state, profile_id.get_string_repr().to_owned())
+        .await
+        .map_err(|e| {
+            router_env::logger::error!(?e, "Failed to list DE Euclid active routing algorithm");
+        })
+        .ok() // Avoid throwing error if Decision Engine is not available or other errors thrown
+        .unwrap_or_default()
+}
+
+/// The pure half: splice in the Hyperswitch dynamic algorithms the DE cannot represent and
+/// keep only the requested transaction type.
+pub fn merge_decision_engine_active_rules(
+    mut de_records: Vec<routing_types::RoutingDictionaryRecord>,
+    transaction_type: &enums::TransactionType,
+    hs_records: Vec<routing_types::RoutingDictionaryRecord>,
+) -> Vec<routing_types::RoutingDictionaryRecord> {
     // Use Hs records to list the dynamic algorithms as DE is not supporting dynamic algorithms in HS standard
     let mut dynamic_algos = hs_records
         .into_iter()
