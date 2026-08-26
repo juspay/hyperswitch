@@ -536,12 +536,15 @@ fn de_record_to_merchant_routing_algorithm(
             })
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("failed to convert DE volume split to api shape")?,
-        advanced @ StaticRoutingAlgorithm::Advanced(_) => {
-            routing_types::RoutingAlgorithmWrapper::DecisionEngine {
-                decision_engine_algorithm: serde_json::to_value(advanced)
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("failed to serialize DE advanced algorithm")?,
-            }
+        StaticRoutingAlgorithm::Advanced(program) => {
+            euclid::frontend::ast::Program::try_from(program)
+                .map(|program| {
+                    routing_types::RoutingAlgorithmWrapper::Static(
+                        routing_types::StaticRoutingAlgorithm::Advanced(program),
+                    )
+                })
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("failed to convert DE advanced algorithm to euclid AST")?
         }
     };
 

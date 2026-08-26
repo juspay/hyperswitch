@@ -14,7 +14,7 @@ use api_models::{
 };
 use async_trait::async_trait;
 use common_enums::TransactionType;
-use common_utils::{ext_traits::BytesExt, id_type};
+use common_utils::{ext_traits::BytesExt, id_type, types::MinorUnit};
 use diesel_models::{enums, routing_algorithm};
 use error_stack::ResultExt;
 use euclid::{
@@ -2162,6 +2162,174 @@ fn stringify_choice(c: RoutableConnectorChoice) -> ConnectorInfo {
     )
 }
 
+
+// Reverse of the transformers above: rebuilds a euclid AST from a Decision Engine
+// program, so a rule authored on the DE can be served through the same typed
+// response shape as a Hyperswitch-authored one.
+impl TryFrom<Program> for ast::Program<ConnectorSelection> {
+    type Error = error_stack::Report<errors::RoutingError>;
+
+    fn try_from(p: Program) -> Result<Self, Self::Error> {
+        if !p.globals.is_empty() {
+            // Globals are only reachable through `ValueType::GlobalRef`, which
+            // `convert_value_back` rejects, so an unreferenced map is safe to drop.
+            logger::debug!("euclid: dropping unreferenced globals while converting DE program");
+        }
+
+        Ok(Self {
+            default_selection: convert_output_back(p.default_selection)?,
+            rules: p
+                .rules
+                .into_iter()
+                .map(convert_rule_back)
+                .collect::<RoutingResult<Vec<_>>>()?,
+            metadata: p.metadata.unwrap_or_default(),
+        })
+    }
+}
+
+fn convert_rule_back(rule: Rule) -> RoutingResult<ast::Rule<ConnectorSelection>> {
+    Ok(ast::Rule {
+        name: rule.name,
+        // `routing_type` carries no information the output does not already hold.
+        connector_selection: convert_output_back(rule.output)?,
+        statements: rule
+            .statements
+            .into_iter()
+            .map(convert_if_stmt_back)
+            .collect::<RoutingResult<Vec<_>>>()?,
+    })
+}
+
+fn convert_if_stmt_back(stmt: IfStatement) -> RoutingResult<ast::IfStatement> {
+    Ok(ast::IfStatement {
+        condition: stmt
+            .condition
+            .into_iter()
+            .map(convert_comparison_back)
+            .collect::<RoutingResult<Vec<_>>>()?,
+        nested: stmt
+            .nested
+            .map(|v| {
+                v.into_iter()
+                    .map(convert_if_stmt_back)
+                    .collect::<RoutingResult<Vec<_>>>()
+            })
+            .transpose()?,
+    })
+}
+
+fn convert_comparison_back(c: Comparison) -> RoutingResult<ast::Comparison> {
+    Ok(ast::Comparison {
+        lhs: c.lhs,
+        comparison: convert_comparison_type_back(c.comparison),
+        value: convert_value_back(c.value)?,
+        metadata: c.metadata,
+    })
+}
+
+fn convert_comparison_type_back(ct: ComparisonType) -> ast::ComparisonType {
+    match ct {
+        ComparisonType::Equal => ast::ComparisonType::Equal,
+        ComparisonType::NotEqual => ast::ComparisonType::NotEqual,
+        ComparisonType::LessThan => ast::ComparisonType::LessThan,
+        ComparisonType::LessThanEqual => ast::ComparisonType::LessThanEqual,
+        ComparisonType::GreaterThan => ast::ComparisonType::GreaterThan,
+        ComparisonType::GreaterThanEqual => ast::ComparisonType::GreaterThanEqual,
+    }
+}
+
+/// DE amounts are `u64`; euclid's `MinorUnit` is `i64`. Anything above `i64::MAX`
+/// would wrap to a negative amount, so it is rejected rather than silently mangled.
+fn de_number_to_minor_unit(n: u64) -> RoutingResult<MinorUnit> {
+    i64::try_from(n)
+        .map(MinorUnit::new)
+        .map_err(|error| {
+            logger::error!(
+                error = ?error,
+                value = %n,
+                "euclid: DE number does not fit in MinorUnit"
+            );
+            errors::RoutingError::GenericConversionError {
+                from: "u64".to_string(),
+                to: "MinorUnit".to_string(),
+            }
+        })
+        .map_err(error_stack::Report::from)
+        .attach_printable("DE number out of range for MinorUnit")
+}
+
+fn convert_value_back(v: ValueType) -> RoutingResult<ast::ValueType> {
+    match v {
+        ValueType::Number(n) => Ok(ast::ValueType::Number(de_number_to_minor_unit(n)?)),
+        ValueType::EnumVariant(e) => Ok(ast::ValueType::EnumVariant(e)),
+        ValueType::MetadataVariant(m) => Ok(ast::ValueType::MetadataVariant(ast::MetadataValue {
+            key: m.key,
+            value: m.value,
+        })),
+        ValueType::StrValue(s) => Ok(ast::ValueType::StrValue(s)),
+        ValueType::NumberArray(arr) => Ok(ast::ValueType::NumberArray(
+            arr.into_iter()
+                .map(de_number_to_minor_unit)
+                .collect::<RoutingResult<Vec<_>>>()?,
+        )),
+        ValueType::EnumVariantArray(arr) => Ok(ast::ValueType::EnumVariantArray(arr)),
+        ValueType::NumberComparisonArray(arr) => Ok(ast::ValueType::NumberComparisonArray(
+            arr.into_iter()
+                .map(|nc| {
+                    Ok(ast::NumberComparison {
+                        comparison_type: convert_comparison_type_back(nc.comparison_type),
+                        number: de_number_to_minor_unit(nc.number)?,
+                    })
+                })
+                .collect::<RoutingResult<Vec<_>>>()?,
+        )),
+        // Euclid's AST has no global-reference form.
+        ValueType::GlobalRef(name) => Err(errors::RoutingError::GenericConversionError {
+            from: "ValueType::GlobalRef".to_string(),
+            to: "euclid ValueType".to_string(),
+        })
+        .map_err(error_stack::Report::from)
+        .attach_printable_lazy(|| format!("unsupported global reference {name} in DE program")),
+    }
+}
+
+fn convert_output_back(output: Output) -> RoutingResult<ConnectorSelection> {
+    match output {
+        // Euclid has no single-connector output; a one-element priority list is equivalent.
+        Output::Single(info) => Ok(ConnectorSelection::Priority(vec![parse_choice(info)?])),
+        Output::Priority(infos) => Ok(ConnectorSelection::Priority(
+            infos
+                .into_iter()
+                .map(parse_choice)
+                .collect::<RoutingResult<Vec<_>>>()?,
+        )),
+        Output::VolumeSplit(splits) => Ok(ConnectorSelection::VolumeSplit(
+            splits
+                .into_iter()
+                .map(|vs| {
+                    Ok(ConnectorVolumeSplit {
+                        connector: parse_choice(vs.output)?,
+                        split: vs.split,
+                    })
+                })
+                .collect::<RoutingResult<Vec<_>>>()?,
+        )),
+        Output::VolumeSplitPriority(_) => {
+            Err(errors::RoutingError::GenericConversionError {
+                from: "Output::VolumeSplitPriority".to_string(),
+                to: "ConnectorSelection".to_string(),
+            })
+            .map_err(error_stack::Report::from)
+            .attach_printable("euclid has no volume-split-priority connector selection")
+        }
+    }
+}
+
+fn parse_choice(info: ConnectorInfo) -> RoutingResult<RoutableConnectorChoice> {
+    DeRoutableConnectorChoice::try_from(info).map(RoutableConnectorChoice::from)
+}
+
 pub async fn get_routing_result_source(
     state: &SessionState,
     dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
@@ -3111,5 +3279,211 @@ mod transform_de_output_tests {
             connector_order,
             vec![RoutableConnectors::Stripe, RoutableConnectors::Adyen]
         );
+    }
+}
+
+#[cfg(test)]
+mod de_program_round_trip_tests {
+    use super::*;
+
+    fn mca_id(id: &str) -> id_type::MerchantConnectorAccountId {
+        id_type::MerchantConnectorAccountId::wrap(id.to_string()).unwrap()
+    }
+
+    fn choice(connector: RoutableConnectors, id: &str) -> RoutableConnectorChoice {
+        RoutableConnectorChoice {
+            choice_kind: api_routing::RoutableChoiceKind::FullStruct,
+            connector,
+            merchant_connector_id: Some(mca_id(id)),
+        }
+    }
+
+    fn comparison(lhs: &str, value: ast::ValueType) -> ast::Comparison {
+        ast::Comparison {
+            lhs: lhs.to_string(),
+            comparison: ast::ComparisonType::Equal,
+            value,
+            metadata: HashMap::new(),
+        }
+    }
+
+    /// A program exercising nesting and every value type euclid and the DE share.
+    fn sample_program() -> ast::Program<ConnectorSelection> {
+        ast::Program {
+            default_selection: ConnectorSelection::Priority(vec![choice(
+                RoutableConnectors::Stripe,
+                "mca_default0000000000000",
+            )]),
+            rules: vec![ast::Rule {
+                name: "cards_to_adyen".to_string(),
+                connector_selection: ConnectorSelection::Priority(vec![
+                    choice(RoutableConnectors::Adyen, "mca_adyen00000000000000000"),
+                    choice(RoutableConnectors::Stripe, "mca_stripe0000000000000000"),
+                ]),
+                statements: vec![ast::IfStatement {
+                    condition: vec![
+                        comparison(
+                            "payment_method",
+                            ast::ValueType::EnumVariant("card".to_string()),
+                        ),
+                        comparison("amount", ast::ValueType::Number(MinorUnit::new(1000))),
+                        comparison(
+                            "currency",
+                            ast::ValueType::EnumVariantArray(vec![
+                                "USD".to_string(),
+                                "EUR".to_string(),
+                            ]),
+                        ),
+                        comparison(
+                            "udf",
+                            ast::ValueType::MetadataVariant(ast::MetadataValue {
+                                key: "tier".to_string(),
+                                value: "gold".to_string(),
+                            }),
+                        ),
+                        comparison("label", ast::ValueType::StrValue("vip".to_string())),
+                        comparison(
+                            "amounts",
+                            ast::ValueType::NumberArray(vec![
+                                MinorUnit::new(1),
+                                MinorUnit::new(2),
+                            ]),
+                        ),
+                        comparison(
+                            "band",
+                            ast::ValueType::NumberComparisonArray(vec![ast::NumberComparison {
+                                comparison_type: ast::ComparisonType::GreaterThan,
+                                number: MinorUnit::new(500),
+                            }]),
+                        ),
+                    ],
+                    nested: Some(vec![ast::IfStatement {
+                        condition: vec![comparison(
+                            "card_network",
+                            ast::ValueType::EnumVariant("visa".to_string()),
+                        )],
+                        nested: None,
+                    }]),
+                }],
+            }],
+            metadata: HashMap::new(),
+        }
+    }
+
+    fn round_trip(program: ast::Program<ConnectorSelection>) -> ast::Program<ConnectorSelection> {
+        let de: Program = program.try_into().expect("euclid -> DE failed");
+        de.try_into().expect("DE -> euclid failed")
+    }
+
+    /// The property that lets the DE-authored rule be served as a normal typed
+    /// response: converting out and back must not change the program.
+    #[test]
+    fn round_trip_is_lossless() {
+        let original = sample_program();
+        let expected = serde_json::to_value(&original).unwrap();
+        let actual = serde_json::to_value(round_trip(original)).unwrap();
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn round_trip_is_lossless_for_volume_split() {
+        let original = ast::Program {
+            default_selection: ConnectorSelection::VolumeSplit(vec![
+                ConnectorVolumeSplit {
+                    connector: choice(RoutableConnectors::Stripe, "mca_stripe0000000000000000"),
+                    split: 70,
+                },
+                ConnectorVolumeSplit {
+                    connector: choice(RoutableConnectors::Adyen, "mca_adyen00000000000000000"),
+                    split: 30,
+                },
+            ]),
+            rules: vec![],
+            metadata: HashMap::new(),
+        };
+        let expected = serde_json::to_value(&original).unwrap();
+        let actual = serde_json::to_value(round_trip(original)).unwrap();
+        assert_eq!(expected, actual);
+    }
+
+    /// The DE can express a bare single connector; euclid cannot, so it widens to
+    /// a one-element priority list, which routes identically.
+    #[test]
+    fn single_output_widens_to_priority_of_one() {
+        let de = Program {
+            globals: HashMap::new(),
+            default_selection: Output::Single(ConnectorInfo::new(
+                "stripe".to_string(),
+                Some("mca_stripe0000000000000000".to_string()),
+            )),
+            rules: vec![],
+            metadata: None,
+        };
+        let converted = ast::Program::try_from(de).expect("single output should convert");
+        match converted.default_selection {
+            ConnectorSelection::Priority(choices) => {
+                assert_eq!(choices.len(), 1);
+                assert_eq!(choices[0].connector, RoutableConnectors::Stripe);
+            }
+            other => panic!("expected priority, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn missing_metadata_becomes_empty_not_an_error() {
+        let de = Program {
+            globals: HashMap::new(),
+            default_selection: Output::Priority(vec![ConnectorInfo::new(
+                "stripe".to_string(),
+                None,
+            )]),
+            rules: vec![],
+            metadata: None,
+        };
+        assert!(ast::Program::try_from(de).unwrap().metadata.is_empty());
+    }
+
+    // Everything below is a DE construct euclid cannot represent. Each must fail
+    // loudly rather than round-trip into a rule that routes differently.
+
+    #[test]
+    fn rejects_volume_split_priority_output() {
+        let de = Program {
+            globals: HashMap::new(),
+            default_selection: Output::VolumeSplitPriority(vec![]),
+            rules: vec![],
+            metadata: None,
+        };
+        assert!(ast::Program::try_from(de).is_err());
+    }
+
+    #[test]
+    fn rejects_global_ref_value() {
+        assert!(convert_value_back(ValueType::GlobalRef("g".to_string())).is_err());
+    }
+
+    #[test]
+    fn rejects_number_that_would_wrap_negative() {
+        // u64::MAX as i64 would be -1, silently inverting the comparison.
+        assert!(convert_value_back(ValueType::Number(u64::MAX)).is_err());
+        assert!(de_number_to_minor_unit(i64::MAX as u64 + 1).is_err());
+        assert_eq!(
+            de_number_to_minor_unit(i64::MAX as u64).unwrap(),
+            MinorUnit::new(i64::MAX)
+        );
+    }
+
+    #[test]
+    fn rejects_unknown_connector_name() {
+        let de = Program {
+            globals: HashMap::new(),
+            default_selection: Output::Priority(vec![ConnectorInfo::new(
+                "not_a_real_connector".to_string(),
+                None,
+            )]),
+            rules: vec![],
+            metadata: None,
+        };
+        assert!(ast::Program::try_from(de).is_err());
     }
 }

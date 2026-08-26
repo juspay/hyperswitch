@@ -30116,18 +30116,6 @@
       "RoutingAlgorithmWrapper": {
         "oneOf": [
           {
-            "type": "object",
-            "description": "Algorithm body served verbatim in the DE's own serialization (no euclid AST).\nDiscriminated by its wrapper key: an untagged bare `Value` would both shadow the\ntyped variants and be shadowed by `Dynamic`, whose arms accept any JSON object.",
-            "required": [
-              "decision_engine_algorithm"
-            ],
-            "properties": {
-              "decision_engine_algorithm": {
-                "type": "object"
-              }
-            }
-          },
-          {
             "$ref": "#/components/schemas/StaticRoutingAlgorithm"
           },
           {
