@@ -1355,6 +1355,7 @@ async fn is_de_diff_threshold_exceeded(
 }
 
 /// Shadow-evaluates the DE rule off the payment path and logs the DE-vs-HS diff (observation-only, never feeds the kill switch).
+#[allow(clippy::too_many_arguments)]
 pub async fn shadow_decision_engine_routing(
     state: SessionState,
     business_profile: domain::Profile,
@@ -1363,9 +1364,11 @@ pub async fn shadow_decision_engine_routing(
     fallback_config: Vec<RoutableConnectorChoice>,
     hs_connectors: Vec<RoutableConnectorChoice>,
     is_volume: bool,
+    algorithm_for: TransactionType,
+    routing_flow: RoutingFlow,
 ) {
     let de_result =
-        decision_engine_routing(&state, backend_input, &business_profile, payment_id, fallback_config, TransactionType::Payment, RoutingFlow::Payment)
+        decision_engine_routing(&state, backend_input, &business_profile, payment_id, fallback_config, algorithm_for, routing_flow)
             .await
             .map_err(|err| {
                 logger::error!(shadow_decision_engine_error=?err, "decision_engine_euclid: error in shadow evaluation of rule")
@@ -1375,7 +1378,7 @@ pub async fn shadow_decision_engine_routing(
     compare_and_log_result(
         de_result,
         hs_connectors,
-        "evaluate_routing".to_string(),
+        routing_flow.as_str().to_string(),
         is_volume,
     );
 }
