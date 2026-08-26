@@ -2284,11 +2284,12 @@ fn convert_value_back(v: ValueType) -> RoutingResult<ast::ValueType> {
                 .collect::<RoutingResult<Vec<_>>>()?,
         )),
         // Euclid's AST has no global-reference form.
-        ValueType::GlobalRef(name) => Err(errors::RoutingError::GenericConversionError {
-            from: "ValueType::GlobalRef".to_string(),
-            to: "euclid ValueType".to_string(),
-        })
-        .map_err(error_stack::Report::from)
+        ValueType::GlobalRef(name) => Err(error_stack::Report::from(
+            errors::RoutingError::GenericConversionError {
+                from: "ValueType::GlobalRef".to_string(),
+                to: "euclid ValueType".to_string(),
+            },
+        ))
         .attach_printable_lazy(|| format!("unsupported global reference {name} in DE program")),
     }
 }
@@ -2314,11 +2315,12 @@ fn convert_output_back(output: Output) -> RoutingResult<ConnectorSelection> {
                 })
                 .collect::<RoutingResult<Vec<_>>>()?,
         )),
-        Output::VolumeSplitPriority(_) => Err(errors::RoutingError::GenericConversionError {
-            from: "Output::VolumeSplitPriority".to_string(),
-            to: "ConnectorSelection".to_string(),
-        })
-        .map_err(error_stack::Report::from)
+        Output::VolumeSplitPriority(_) => Err(error_stack::Report::from(
+            errors::RoutingError::GenericConversionError {
+                from: "Output::VolumeSplitPriority".to_string(),
+                to: "ConnectorSelection".to_string(),
+            },
+        ))
         .attach_printable("euclid has no volume-split-priority connector selection"),
     }
 }
@@ -3417,7 +3419,10 @@ mod de_program_round_trip_tests {
         match converted.default_selection {
             ConnectorSelection::Priority(choices) => {
                 assert_eq!(choices.len(), 1);
-                assert_eq!(choices[0].connector, RoutableConnectors::Stripe);
+                assert_eq!(
+                    choices.first().map(|c| c.connector.to_string()),
+                    Some("stripe".to_string())
+                );
             }
             other => panic!("expected priority, got {other:?}"),
         }
@@ -3460,9 +3465,10 @@ mod de_program_round_trip_tests {
     fn rejects_number_that_would_wrap_negative() {
         // u64::MAX as i64 would be -1, silently inverting the comparison.
         assert!(convert_value_back(ValueType::Number(u64::MAX)).is_err());
-        assert!(de_number_to_minor_unit(i64::MAX as u64 + 1).is_err());
+        let max_i64 = u64::try_from(i64::MAX).unwrap_or(u64::MAX);
+        assert!(de_number_to_minor_unit(max_i64 + 1).is_err());
         assert_eq!(
-            de_number_to_minor_unit(i64::MAX as u64).unwrap(),
+            de_number_to_minor_unit(max_i64).unwrap(),
             MinorUnit::new(i64::MAX)
         );
     }
