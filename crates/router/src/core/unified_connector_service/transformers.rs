@@ -1600,6 +1600,10 @@ impl
             .transpose()
             .change_context(UnifiedConnectorServiceError::RequestEncodingFailed)?
             .map(|s| s.into());
+        let state = router_data
+            .access_token
+            .as_ref()
+            .map(ConnectorState::foreign_from);
 
         Ok(Self {
             merchant_order_id: Some(router_data.connector_request_reference_id.clone()),
@@ -1633,7 +1637,7 @@ impl
             metadata,
             return_url: router_data.request.router_return_url.clone(),
             continue_redirection_url: router_data.request.complete_authorize_url.clone(),
-            state: None,
+            state,
             browser_info: router_data
                 .request
                 .browser_info
