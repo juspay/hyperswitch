@@ -9,5 +9,5 @@ pub mod types;
 pub mod velocity;
 
 pub use client::OfferEngineClient;
-pub use config::resolve_offer_engine_config;
+pub use config::resolve_offer_engine_credential_source;
 pub use types::{OfferEngineCredentialSource, OfferEngineError, ResolvedOfferEngineConfig};

@@ -14968,15 +14968,26 @@ async fn resolve_offer_eligibility_details(
             .with_processor_merchant_id(processor.get_processor_merchant_id())
             .with_organization_id(processor.get_account().get_org_id().clone())
             .with_profile_id(profile_id.clone());
-        offer_engine::resolve_offer_engine_config(
-            state,
-            &offer_dimensions,
-            processor.get_account().get_offer_engine_config(),
-        )
-        .await
-        .ok()
-        .flatten()
-        .zip(currency)
+        let resolved_config =
+            match offer_engine::resolve_offer_engine_credential_source(state, &offer_dimensions)
+                .await
+            {
+                offer_engine::OfferEngineCredentialSource::None => None,
+                offer_engine::OfferEngineCredentialSource::Application => {
+                    offer_engine::OfferEngineCredentialSource::resolve_application_offer_config(
+                        state,
+                    )
+                    .ok()
+                }
+                offer_engine::OfferEngineCredentialSource::Merchant => {
+                    offer_engine::OfferEngineCredentialSource::resolve_merchant_offer_config(
+                        state,
+                        processor.get_account(),
+                    )
+                    .ok()
+                }
+            };
+        resolved_config.zip(currency)
     };
 
     match offer_context {

@@ -1220,7 +1220,14 @@ impl MerchantAccountUpdateBridge for api::MerchantAccountUpdate {
 
         let offer_engine_config = self
             .offer_engine_config
-            .async_map(|value| cards::create_encrypted_data(key_manager_state, key_store, value))
+            .async_map(|value| {
+                core_utils::create_encrypted_data(
+                    key_manager_state,
+                    key_store,
+                    value,
+                    type_name!(storage::MerchantAccount),
+                )
+            })
             .await
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)
