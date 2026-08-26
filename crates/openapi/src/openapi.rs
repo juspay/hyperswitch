@@ -475,6 +475,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::enums::TaxStatus,
         api_models::enums::MandateStatus,
         api_models::enums::PaymentExperience,
+        api_models::enums::CustomerAcceptanceSupport,
         api_models::enums::BankNames,
         api_models::enums::BankType,
         api_models::enums::BankHolderType,

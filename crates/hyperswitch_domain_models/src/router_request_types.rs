@@ -130,6 +130,8 @@ pub struct PaymentsAuthorizeData {
     pub metadata: Option<serde_json::Value>,
     pub authentication_data: Option<AuthenticationData>,
     pub ucs_authentication_data: Option<UcsAuthenticationData>,
+    /// Indicates whether a 3DS challenge must be forced for the transaction
+    pub force_3ds_challenge: Option<bool>,
     pub request_extended_authorization:
         Option<common_types::primitive_wrappers::RequestExtendedAuthorizationBool>,
     pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,

@@ -474,6 +474,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         metadata: payment_data.payment_intent.metadata.expose_option(),
         authentication_data: None,
         ucs_authentication_data: None,
+        force_3ds_challenge: payment_data.payment_intent.force_3ds_challenge,
         customer_acceptance: None,
         split_payments: None,
         guest_customer: None,
@@ -5181,6 +5182,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
                 .map(|m| m.expose()),
             authentication_data: None,
             ucs_authentication_data: None,
+            force_3ds_challenge: payment_data.payment_intent.force_3ds_challenge,
             request_extended_authorization: None,
             split_payments: None,
             guest_customer: None,
@@ -5448,6 +5450,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
                 .as_ref()
                 .map(UcsAuthenticationData::foreign_try_from)
                 .transpose()?,
+            force_3ds_challenge: payment_data.payment_intent.force_3ds_challenge,
             customer_acceptance: payment_data.customer_acceptance,
             request_extended_authorization: attempt.request_extended_authorization,
             split_payments,

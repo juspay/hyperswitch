@@ -179,6 +179,23 @@ pub struct MandateDetails {
 #[derive(Serialize, Clone, Debug)]
 pub struct ThreedsInfo {
     cardholder: CardHolder,
+    #[serde(skip_serializing_if = "Option::is_none", rename = "threeDSRequestor")]
+    three_ds_requestor: Option<ThreeDSRequestor>,
+}
+
+#[derive(Serialize, Clone, Debug)]
+pub struct ThreeDSRequestor {
+    #[serde(rename = "threeDSRequestorChallengeInd")]
+    three_ds_requestor_challenge_ind: ThreeDSRequestorChallengeIndicator,
+}
+
+// EMVCo 3DS `threeDSRequestorChallengeInd` codes (only the values we send).
+#[derive(Serialize, Clone, Debug)]
+pub enum ThreeDSRequestorChallengeIndicator {
+    #[serde(rename = "01")]
+    NoPreference,
+    #[serde(rename = "04")]
+    ChallengeRequestedMandate,
 }
 
 #[derive(Serialize, Clone, Debug)]
@@ -297,6 +314,7 @@ impl TryFrom<&types::SetupMandateRouterData> for DatatransPaymentsRequest {
                             cardholder_name: item.get_billing_full_name()?,
                             email: item.get_billing_email()?,
                         },
+                        three_ds_requestor: None,
                     })),
                 }),
                 refno: item.connector_request_reference_id.clone(),
@@ -484,11 +502,24 @@ fn create_card_details(
             authentication_response: "Y".to_string(),
         }));
     } else if item.router_data.is_three_ds() {
+        // Always run 3DS when the decision calls for it. The challenge indicator, not whether
+        // we ask for 3DS at all, is what encodes "force a challenge" (e.g. a new card) vs
+        // "no preference" (e.g. a previously used card, letting Datatrans/the issuer decide
+        // frictionless vs challenge).
+        let three_ds_requestor_challenge_ind =
+            if item.router_data.request.force_3ds_challenge == Some(true) {
+                None
+            } else {
+                Some(ThreeDSRequestorChallengeIndicator::NoPreference)
+            };
         details.three_ds = Some(ThreeDSecureData::Cardholder(ThreedsInfo {
             cardholder: CardHolder {
                 cardholder_name: item.router_data.get_billing_full_name()?,
                 email: item.router_data.get_billing_email()?,
             },
+            three_ds_requestor: three_ds_requestor_challenge_ind.map(|val| ThreeDSRequestor {
+                three_ds_requestor_challenge_ind: val,
+            }),
         }));
     }
     Ok(DataTransPaymentDetails::Cards(details))
