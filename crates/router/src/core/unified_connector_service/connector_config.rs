@@ -701,6 +701,11 @@ pub enum ConnectorSpecificConfig {
         api_key: Secret<String>,
         merchant_id: String,
     },
+    /// GotymeSanlam connector configuration
+    GotymeSanlam {
+        api_key: Secret<String>,
+        profile_id: String,
+    },
     /// InterPayments surcharge connector configuration
     Interpayments {
         api_key: Secret<String>,
@@ -1765,6 +1770,13 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                     merchant_id: key1.peek().clone(),
                 }),
                 _ => Err(err("AbsaSanlam requires BodyKey auth type")),
+            },
+            Connector::GotymeSanlam => match auth {
+                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::GotymeSanlam {
+                    api_key: api_key.clone(),
+                    profile_id: key1.peek().clone(),
+                }),
+                _ => Err(err("GotymeSanlam requires BodyKey auth type")),
             },
             Connector::Payconex => match auth {
                 ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Payconex {

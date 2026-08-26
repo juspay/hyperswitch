@@ -378,6 +378,7 @@ pub async fn generate_sample_data(
             mandate_data: None,
             payment_method_billing_address_id: None,
             fingerprint_id: None,
+            fingerprint_type: None,
             charge_id: None,
             client_source: None,
             client_version: None,

@@ -1265,135 +1265,9 @@ impl TryFrom<&common_enums::BankNames> for OpenBankingUKIssuer {
             common_enums::BankNames::TsbBank => Ok(Self::TsbBank),
             common_enums::BankNames::TescoBank => Ok(Self::TescoBank),
             common_enums::BankNames::UlsterBank => Ok(Self::UlsterBank),
-            common_enums::BankNames::AmericanExpress
-            | common_enums::BankNames::AffinBank
-            | common_enums::BankNames::AgroBank
-            | common_enums::BankNames::AllianceBank
-            | common_enums::BankNames::AmBank
-            | common_enums::BankNames::BankOfAmerica
-            | common_enums::BankNames::BankOfChina
-            | common_enums::BankNames::BankIslam
-            | common_enums::BankNames::BankMuamalat
-            | common_enums::BankNames::BankRakyat
-            | common_enums::BankNames::BankSimpananNasional
-            | common_enums::BankNames::BlikPSP
-            | common_enums::BankNames::CapitalOne
-            | common_enums::BankNames::Chase
-            | common_enums::BankNames::Citi
-            | common_enums::BankNames::CimbBank
-            | common_enums::BankNames::Discover
-            | common_enums::BankNames::NavyFederalCreditUnion
-            | common_enums::BankNames::PentagonFederalCreditUnion
-            | common_enums::BankNames::SynchronyBank
-            | common_enums::BankNames::WellsFargo
-            | common_enums::BankNames::AbnAmro
-            | common_enums::BankNames::AsnBank
-            | common_enums::BankNames::Bunq
-            | common_enums::BankNames::Handelsbanken
-            | common_enums::BankNames::HongLeongBank
-            | common_enums::BankNames::Ing
-            | common_enums::BankNames::Knab
-            | common_enums::BankNames::KuwaitFinanceHouse
-            | common_enums::BankNames::Moneyou
-            | common_enums::BankNames::Rabobank
-            | common_enums::BankNames::Regiobank
-            | common_enums::BankNames::SnsBank
-            | common_enums::BankNames::TriodosBank
-            | common_enums::BankNames::VanLanschot
-            | common_enums::BankNames::ArzteUndApothekerBank
-            | common_enums::BankNames::AustrianAnadiBankAg
-            | common_enums::BankNames::BankAustria
-            | common_enums::BankNames::Bank99Ag
-            | common_enums::BankNames::BankhausCarlSpangler
-            | common_enums::BankNames::BankhausSchelhammerUndSchatteraAg
-            | common_enums::BankNames::BankMillennium
-            | common_enums::BankNames::BankPEKAOSA
-            | common_enums::BankNames::BawagPskAg
-            | common_enums::BankNames::BksBankAg
-            | common_enums::BankNames::BrullKallmusBankAg
-            | common_enums::BankNames::BtvVierLanderBank
-            | common_enums::BankNames::CapitalBankGraweGruppeAg
-            | common_enums::BankNames::CeskaSporitelna
-            | common_enums::BankNames::Dolomitenbank
-            | common_enums::BankNames::EasybankAg
-            | common_enums::BankNames::EPlatbyVUB
-            | common_enums::BankNames::ErsteBankUndSparkassen
-            | common_enums::BankNames::FrieslandBank
-            | common_enums::BankNames::HypoAlpeadriabankInternationalAg
-            | common_enums::BankNames::HypoNoeLbFurNiederosterreichUWien
-            | common_enums::BankNames::HypoOberosterreichSalzburgSteiermark
-            | common_enums::BankNames::HypoTirolBankAg
-            | common_enums::BankNames::HypoVorarlbergBankAg
-            | common_enums::BankNames::HypoBankBurgenlandAktiengesellschaft
-            | common_enums::BankNames::KomercniBanka
-            | common_enums::BankNames::MBank
-            | common_enums::BankNames::MarchfelderBank
-            | common_enums::BankNames::Maybank
-            | common_enums::BankNames::OberbankAg
-            | common_enums::BankNames::OsterreichischeArzteUndApothekerbank
-            | common_enums::BankNames::OcbcBank
-            | common_enums::BankNames::PayWithING
-            | common_enums::BankNames::PlaceZIPKO
-            | common_enums::BankNames::PlatnoscOnlineKartaPlatnicza
-            | common_enums::BankNames::PosojilnicaBankEGen
-            | common_enums::BankNames::PostovaBanka
-            | common_enums::BankNames::PublicBank
-            | common_enums::BankNames::RaiffeisenBankengruppeOsterreich
-            | common_enums::BankNames::RhbBank
-            | common_enums::BankNames::SchelhammerCapitalBankAg
-            | common_enums::BankNames::StandardCharteredBank
-            | common_enums::BankNames::SchoellerbankAg
-            | common_enums::BankNames::SpardaBankWien
-            | common_enums::BankNames::SporoPay
-            | common_enums::BankNames::TatraPay
-            | common_enums::BankNames::Viamo
-            | common_enums::BankNames::VolksbankGruppe
-            | common_enums::BankNames::VolkskreditbankAg
-            | common_enums::BankNames::VrBankBraunau
-            | common_enums::BankNames::UobBank
-            | common_enums::BankNames::PayWithAliorBank
-            | common_enums::BankNames::BankiSpoldzielcze
-            | common_enums::BankNames::PayWithInteligo
-            | common_enums::BankNames::BNPParibasPoland
-            | common_enums::BankNames::BankNowySA
-            | common_enums::BankNames::CreditAgricole
-            | common_enums::BankNames::PayWithBOS
-            | common_enums::BankNames::PayWithCitiHandlowy
-            | common_enums::BankNames::PayWithPlusBank
-            | common_enums::BankNames::ToyotaBank
-            | common_enums::BankNames::VeloBank
-            | common_enums::BankNames::ETransferPocztowy24
-            | common_enums::BankNames::PlusBank
-            | common_enums::BankNames::EtransferPocztowy24
-            | common_enums::BankNames::BankiSpbdzielcze
-            | common_enums::BankNames::BankNowyBfgSa
-            | common_enums::BankNames::GetinBank
-            | common_enums::BankNames::Blik
-            | common_enums::BankNames::NoblePay
-            | common_enums::BankNames::IdeaBank
-            | common_enums::BankNames::EnveloBank
-            | common_enums::BankNames::NestPrzelew
-            | common_enums::BankNames::MbankMtransfer
-            | common_enums::BankNames::Inteligo
-            | common_enums::BankNames::PbacZIpko
-            | common_enums::BankNames::BnpParibas
-            | common_enums::BankNames::BankPekaoSa
-            | common_enums::BankNames::VolkswagenBank
-            | common_enums::BankNames::AliorBank
-            | common_enums::BankNames::Boz
-            | common_enums::BankNames::BangkokBank
-            | common_enums::BankNames::KrungsriBank
-            | common_enums::BankNames::KrungThaiBank
-            | common_enums::BankNames::TheSiamCommercialBank
-            | common_enums::BankNames::Yoursafe
-            | common_enums::BankNames::N26
-            | common_enums::BankNames::Absa
-            | common_enums::BankNames::NationaleNederlanden
-            | common_enums::BankNames::KasikornBank => {
-                Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("Adyen"),
-                ))?
-            }
+            _ => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("Adyen"),
+            ))?,
         }
     }
 }
@@ -6499,6 +6373,13 @@ impl<F> TryFrom<&AdyenRouterData<&PayoutsRouterData<F>>> for AdyenPayoutCreateRe
                     payouts::BankTransfer::OpenBanking(..) => {
                         Err(errors::ConnectorError::NotSupported {
                             message: "Bank transfer via OpenBanking is not supported".to_string(),
+                            connector: "Adyen",
+                        })?
+                    }
+                    payouts::BankTransfer::Payshap(..)
+                    | payouts::BankTransfer::PayshapProxy(..) => {
+                        Err(errors::ConnectorError::NotSupported {
+                            message: "Bank transfer via PayShap is not supported".to_string(),
                             connector: "Adyen",
                         })?
                     }

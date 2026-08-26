@@ -1869,6 +1869,8 @@ impl From<PaymentMethodType> for PaymentMethod {
             PaymentMethodType::PixEmv | PaymentMethodType::PixQr => Self::BankTransfer,
             PaymentMethodType::PixAutomaticoPush => Self::BankTransfer,
             PaymentMethodType::PixAutomaticoQr => Self::BankTransfer,
+            PaymentMethodType::Payshap => Self::BankTransfer,
+            PaymentMethodType::PayshapProxy => Self::BankTransfer,
             PaymentMethodType::Pse => Self::BankTransfer,
             PaymentMethodType::LocalBankTransfer => Self::BankTransfer,
             PaymentMethodType::PayBright => Self::PayLater,

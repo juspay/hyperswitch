@@ -580,6 +580,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, PaymentsRequest>
                         .payment_method_billing_address_id
                         .clone(),
                     fingerprint_id: payment_data.payment_attempt.fingerprint_id.clone(),
+                    fingerprint_type: payment_data.payment_attempt.fingerprint_type,
                     payment_method_id: payment_data.payment_attempt.payment_method_id.clone(),
                     client_source: None,
                     client_version: None,

@@ -197,257 +197,283 @@ impl TryFrom<&SetupMandateRouterData> for CybersourceZeroMandateRequest {
             code: Some(item.connector_request_reference_id.clone()),
         };
 
-        let (payment_information, solution, consumer_authentication_information) = match item
-            .request
-            .payment_method_data
-            .clone()
-        {
-            PaymentMethodData::Card(ccard) => {
-                let card_type = match ccard
-                    .card_network
-                    .clone()
-                    .and_then(get_cybersource_card_type)
-                {
-                    Some(card_network) => Some(card_network.to_string()),
-                    None => ccard.get_card_issuer().ok().map(String::from),
-                };
+        let (payment_information, solution, network, consumer_authentication_information) =
+            match item.request.payment_method_data.clone() {
+                PaymentMethodData::Card(ccard) => {
+                    let card_type = match ccard
+                        .card_network
+                        .clone()
+                        .and_then(get_cybersource_card_type)
+                    {
+                        Some(card_network) => Some(card_network.to_string()),
+                        None => ccard.get_card_issuer().ok().map(String::from),
+                    };
 
-                // For all card payments, we are explicitly setting `pares_status` to `AuthenticationSuccessful`
-                // to indicate that the Payer Authentication was successful, regardless of actual ACS response.
-                // This is a default behavior and may be adjusted based on future integration requirements.
-                let pares_status = Some(CybersourceParesStatus::AuthenticationSuccessful);
+                    // For all card payments, we are explicitly setting `pares_status` to `AuthenticationSuccessful`
+                    // to indicate that the Payer Authentication was successful, regardless of actual ACS response.
+                    // This is a default behavior and may be adjusted based on future integration requirements.
+                    let pares_status = Some(CybersourceParesStatus::AuthenticationSuccessful);
 
-                let consumer_authentication_information =
-                    item.request.authentication_data.as_ref().map(|authn_data| {
-                        let effective_authentication_type =
-                            authn_data.authentication_type.map(Into::into);
-                        let (ucaf_authentication_data, cavv, ucaf_collection_indicator) =
-                            if ccard.card_network == Some(common_enums::CardNetwork::Mastercard) {
-                                (Some(authn_data.cavv.clone()), None, Some("2".to_string()))
-                            } else {
-                                (None, Some(authn_data.cavv.clone()), None)
-                            };
-                        let authentication_date = date_time::format_date(
-                            authn_data.created_at,
-                            date_time::DateFormat::YYYYMMDDHHmmss,
-                        )
-                        .ok();
-                        let network_score = (ccard.card_network
-                            == Some(common_enums::CardNetwork::CartesBancaires))
-                        .then_some(authn_data.message_extension.as_ref())
-                        .flatten()
-                        .map(|secret| secret.clone().expose())
-                        .and_then(|exposed| {
-                            serde_json::from_value::<Vec<MessageExtensionAttribute>>(exposed)
-                                .map_err(|err| {
-                                    router_env::logger::error!(
-                                        "Failed to deserialize message_extension: {:?}",
-                                        err
-                                    );
-                                })
-                                .ok()
-                                .and_then(|exts| extract_score_id(&exts))
+                    let consumer_authentication_information =
+                        item.request.authentication_data.as_ref().map(|authn_data| {
+                            let effective_authentication_type =
+                                authn_data.authentication_type.map(Into::into);
+                            let (ucaf_authentication_data, cavv, ucaf_collection_indicator) =
+                                if ccard.card_network == Some(common_enums::CardNetwork::Mastercard)
+                                {
+                                    (Some(authn_data.cavv.clone()), None, Some("2".to_string()))
+                                } else {
+                                    (None, Some(authn_data.cavv.clone()), None)
+                                };
+                            let authentication_date = date_time::format_date(
+                                authn_data.created_at,
+                                date_time::DateFormat::YYYYMMDDHHmmss,
+                            )
+                            .ok();
+                            let network_score = (ccard.card_network
+                                == Some(common_enums::CardNetwork::CartesBancaires))
+                            .then_some(authn_data.message_extension.as_ref())
+                            .flatten()
+                            .map(|secret| secret.clone().expose())
+                            .and_then(|exposed| {
+                                serde_json::from_value::<Vec<MessageExtensionAttribute>>(exposed)
+                                    .map_err(|err| {
+                                        router_env::logger::error!(
+                                            "Failed to deserialize message_extension: {:?}",
+                                            err
+                                        );
+                                    })
+                                    .ok()
+                                    .and_then(|exts| extract_score_id(&exts))
+                            });
+
+                            let cavv_algorithm = Some("2".to_string());
+
+                            CybersourceConsumerAuthInformation {
+                                pares_status,
+                                ucaf_collection_indicator,
+                                cavv,
+                                ucaf_authentication_data,
+                                xid: None,
+                                directory_server_transaction_id: authn_data
+                                    .ds_trans_id
+                                    .clone()
+                                    .map(Secret::new),
+                                specification_version: authn_data.message_version.clone(),
+                                pa_specification_version: authn_data.message_version.clone(),
+                                veres_enrolled: Some("Y".to_string()),
+                                eci_raw: authn_data.eci.clone(),
+                                authentication_date,
+                                effective_authentication_type,
+                                challenge_code: authn_data.challenge_code.clone(),
+                                signed_pares_status_reason: authn_data
+                                    .challenge_code_reason
+                                    .clone(),
+                                challenge_cancel_code: authn_data.challenge_cancel.clone(),
+                                network_score,
+                                acs_transaction_id: authn_data.acs_trans_id.clone(),
+                                cavv_algorithm,
+                            }
                         });
 
-                        let cavv_algorithm = Some("2".to_string());
+                    let network = card_type.clone();
 
-                        CybersourceConsumerAuthInformation {
-                            pares_status,
-                            ucaf_collection_indicator,
-                            cavv,
-                            ucaf_authentication_data,
-                            xid: None,
-                            directory_server_transaction_id: authn_data
-                                .ds_trans_id
-                                .clone()
-                                .map(Secret::new),
-                            specification_version: authn_data.message_version.clone(),
-                            pa_specification_version: authn_data.message_version.clone(),
-                            veres_enrolled: Some("Y".to_string()),
-                            eci_raw: authn_data.eci.clone(),
-                            authentication_date,
-                            effective_authentication_type,
-                            challenge_code: authn_data.challenge_code.clone(),
-                            signed_pares_status_reason: authn_data.challenge_code_reason.clone(),
-                            challenge_cancel_code: authn_data.challenge_cancel.clone(),
-                            network_score,
-                            acs_transaction_id: authn_data.acs_trans_id.clone(),
-                            cavv_algorithm,
-                        }
-                    });
-
-                (
-                    PaymentInformation::Cards(Box::new(CardPaymentInformation {
-                        card: Card {
-                            number: ccard.card_number,
-                            expiration_month: ccard.card_exp_month,
-                            expiration_year: ccard.card_exp_year,
-                            security_code: get_optional_security_code(ccard.card_cvc),
-                            card_type,
-                            type_selection_indicator: Some("1".to_owned()),
+                    (
+                        PaymentInformation::Cards(Box::new(CardPaymentInformation {
+                            card: Card {
+                                number: ccard.card_number,
+                                expiration_month: ccard.card_exp_month,
+                                expiration_year: ccard.card_exp_year,
+                                security_code: get_optional_security_code(ccard.card_cvc),
+                                card_type,
+                                type_selection_indicator: Some("1".to_owned()),
+                            },
+                        })),
+                        None,
+                        network,
+                        consumer_authentication_information,
+                    )
+                }
+                PaymentMethodData::Wallet(wallet_data) => match wallet_data {
+                    WalletData::ApplePay(apple_pay_data) => match item.payment_method_token.clone()
+                    {
+                        Some(payment_method_token) => match payment_method_token {
+                            PaymentMethodToken::ApplePayDecrypt(decrypt_data) => {
+                                let expiration_month = decrypt_data
+                                    .get_expiry_month()
+                                    .change_context(errors::ConnectorError::InvalidDataFormat {
+                                        field_name: "expiration_month",
+                                    })?;
+                                let expiration_year = decrypt_data.get_four_digit_expiry_year();
+                                (
+                                    PaymentInformation::ApplePay(Box::new(
+                                        ApplePayPaymentInformation {
+                                            tokenized_card: TokenizedCard {
+                                                number: decrypt_data
+                                                    .application_primary_account_number,
+                                                cryptogram: Some(
+                                                    decrypt_data
+                                                        .payment_data
+                                                        .online_payment_cryptogram,
+                                                ),
+                                                transaction_type: TransactionType::InApp,
+                                                expiration_year,
+                                                expiration_month,
+                                            },
+                                        },
+                                    )),
+                                    Some(PaymentSolution::ApplePay),
+                                    None,
+                                    None,
+                                )
+                            }
+                            PaymentMethodToken::Token(_) => Err(unimplemented_payment_method!(
+                                "Apple Pay",
+                                "Manual",
+                                "Cybersource"
+                            ))?,
+                            PaymentMethodToken::PazeDecrypt(_) => {
+                                Err(unimplemented_payment_method!("Paze", "Cybersource"))?
+                            }
+                            PaymentMethodToken::GooglePayDecrypt(_) => {
+                                Err(unimplemented_payment_method!("Google Pay", "Cybersource"))?
+                            }
                         },
-                    })),
-                    None,
-                    consumer_authentication_information,
-                )
-            }
-            PaymentMethodData::Wallet(wallet_data) => match wallet_data {
-                WalletData::ApplePay(apple_pay_data) => match item.payment_method_token.clone() {
-                    Some(payment_method_token) => match payment_method_token {
-                        PaymentMethodToken::ApplePayDecrypt(decrypt_data) => {
-                            let expiration_month = decrypt_data.get_expiry_month().change_context(
-                                errors::ConnectorError::InvalidDataFormat {
-                                    field_name: "expiration_month",
-                                },
-                            )?;
-                            let expiration_year = decrypt_data.get_four_digit_expiry_year();
+                        None => {
+                            let apple_pay_encrypted_data = apple_pay_data
+                                .payment_data
+                                .get_encrypted_apple_pay_payment_data_mandatory()
+                                .change_context(errors::ConnectorError::MissingRequiredField {
+                                    field_name: "Apple pay encrypted data",
+                                })?;
                             (
-                                PaymentInformation::ApplePay(Box::new(
-                                    ApplePayPaymentInformation {
-                                        tokenized_card: TokenizedCard {
-                                            number: decrypt_data.application_primary_account_number,
-                                            cryptogram: Some(
-                                                decrypt_data.payment_data.online_payment_cryptogram,
-                                            ),
+                                PaymentInformation::ApplePayToken(Box::new(
+                                    ApplePayTokenPaymentInformation {
+                                        fluid_data: FluidData {
+                                            value: Secret::from(apple_pay_encrypted_data.clone()),
+                                            descriptor: Some(FLUID_DATA_DESCRIPTOR.to_string()),
+                                        },
+                                        tokenized_card: ApplePayTokenizedCard {
                                             transaction_type: TransactionType::InApp,
-                                            expiration_year,
-                                            expiration_month,
                                         },
                                     },
                                 )),
                                 Some(PaymentSolution::ApplePay),
                                 None,
+                                None,
                             )
                         }
-                        PaymentMethodToken::Token(_) => Err(unimplemented_payment_method!(
-                            "Apple Pay",
-                            "Manual",
-                            "Cybersource"
-                        ))?,
-                        PaymentMethodToken::PazeDecrypt(_) => {
-                            Err(unimplemented_payment_method!("Paze", "Cybersource"))?
-                        }
-                        PaymentMethodToken::GooglePayDecrypt(_) => {
-                            Err(unimplemented_payment_method!("Google Pay", "Cybersource"))?
-                        }
                     },
-                    None => {
-                        let apple_pay_encrypted_data = apple_pay_data
-                            .payment_data
-                            .get_encrypted_apple_pay_payment_data_mandatory()
-                            .change_context(errors::ConnectorError::MissingRequiredField {
-                                field_name: "Apple pay encrypted data",
-                            })?;
-                        (
-                            PaymentInformation::ApplePayToken(Box::new(
-                                ApplePayTokenPaymentInformation {
-                                    fluid_data: FluidData {
-                                        value: Secret::from(apple_pay_encrypted_data.clone()),
-                                        descriptor: Some(FLUID_DATA_DESCRIPTOR.to_string()),
-                                    },
-                                    tokenized_card: ApplePayTokenizedCard {
-                                        transaction_type: TransactionType::InApp,
-                                    },
-                                },
-                            )),
-                            Some(PaymentSolution::ApplePay),
-                            None,
-                        )
-                    }
-                },
-                WalletData::GooglePay(google_pay_data) => (
-                    PaymentInformation::GooglePayToken(Box::new(
-                        GooglePayTokenPaymentInformation {
-                            fluid_data: FluidData {
-                                value: Secret::from(
-                                    consts::BASE64_ENGINE.encode(
-                                        google_pay_data
-                                            .tokenization_data
-                                            .get_encrypted_google_pay_token()
-                                            .change_context(
-                                                errors::ConnectorError::MissingRequiredField {
-                                                    field_name: "gpay wallet_token",
-                                                },
-                                            )?,
+                    WalletData::GooglePay(google_pay_data) => (
+                        PaymentInformation::GooglePayToken(Box::new(
+                            GooglePayTokenPaymentInformation {
+                                fluid_data: FluidData {
+                                    value: Secret::from(
+                                        consts::BASE64_ENGINE.encode(
+                                            google_pay_data
+                                                .tokenization_data
+                                                .get_encrypted_google_pay_token()
+                                                .change_context(
+                                                    errors::ConnectorError::MissingRequiredField {
+                                                        field_name: "gpay wallet_token",
+                                                    },
+                                                )?,
+                                        ),
                                     ),
-                                ),
-                                descriptor: None,
+                                    descriptor: None,
+                                },
+                                tokenized_card: GooglePayTokenizedCard {
+                                    transaction_type: TransactionType::InApp,
+                                },
                             },
-                            tokenized_card: GooglePayTokenizedCard {
-                                transaction_type: TransactionType::InApp,
-                            },
-                        },
-                    )),
-                    Some(PaymentSolution::GooglePay),
-                    None,
-                ),
-                WalletData::SamsungPay(samsung_pay_data) => (
-                    (get_samsung_pay_payment_information(&samsung_pay_data)
-                        .attach_printable("Failed to get samsung pay payment information")?),
-                    Some(PaymentSolution::SamsungPay),
-                    None,
-                ),
-                WalletData::AliPayQr(_)
-                | WalletData::AliPayRedirect(_)
-                | WalletData::AliPayHkRedirect(_)
-                | WalletData::AmazonPayRedirect(_)
-                | WalletData::Paysera(_)
-                | WalletData::Skrill(_)
-                | WalletData::BluecodeRedirect {}
-                | WalletData::MomoRedirect(_)
-                | WalletData::KakaoPayRedirect(_)
-                | WalletData::GoPayRedirect(_)
-                | WalletData::GcashRedirect(_)
-                | WalletData::ApplePayRedirect(_)
-                | WalletData::ApplePayThirdPartySdk(_)
-                | WalletData::DanaRedirect {}
-                | WalletData::GooglePayRedirect(_)
-                | WalletData::GooglePayThirdPartySdk(_)
-                | WalletData::MbWayRedirect(_)
-                | WalletData::MobilePayRedirect(_)
-                | WalletData::PaypalRedirect(_)
-                | WalletData::PaypalSdk(_)
-                | WalletData::Paze(_)
-                | WalletData::AmazonPay(_)
-                | WalletData::TwintRedirect {}
-                | WalletData::VippsRedirect {}
-                | WalletData::TouchNGoRedirect(_)
-                | WalletData::WeChatPayRedirect(_)
-                | WalletData::WeChatPayQr(_)
-                | WalletData::CashappQr(_)
-                | WalletData::SwishQr(_)
-                | WalletData::Mifinity(_)
-                | WalletData::RevolutPay(_) => Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("Cybersource"),
-                ))?,
-            },
-            PaymentMethodData::CardRedirect(_)
-            | PaymentMethodData::PayLater(_)
-            | PaymentMethodData::BankRedirect(_)
-            | PaymentMethodData::BankDebit(_)
-            | PaymentMethodData::BankTransfer(_)
-            | PaymentMethodData::Crypto(_)
-            | PaymentMethodData::MandatePayment
-            | PaymentMethodData::Reward
-            | PaymentMethodData::RealTimePayment(_)
-            | PaymentMethodData::MobilePayment(_)
-            | PaymentMethodData::Upi(_)
-            | PaymentMethodData::Voucher(_)
-            | PaymentMethodData::GiftCard(_)
-            | PaymentMethodData::OpenBanking(_)
-            | PaymentMethodData::CardToken(_)
-            | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
-            | PaymentMethodData::NetworkToken(_)
-            | PaymentMethodData::CardWithOptionalCVC(_)
-            | PaymentMethodData::CardWithNetworkTokenDetails(_)
-            | PaymentMethodData::CardWithLimitedDetails(_)
-            | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
-            | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
-                Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("Cybersource"),
-                ))?
-            }
-        };
+                        )),
+                        Some(PaymentSolution::GooglePay),
+                        None,
+                        None,
+                    ),
+                    WalletData::SamsungPay(samsung_pay_data) => (
+                        (get_samsung_pay_payment_information(&samsung_pay_data)
+                            .attach_printable("Failed to get samsung pay payment information")?),
+                        Some(PaymentSolution::SamsungPay),
+                        None,
+                        None,
+                    ),
+                    WalletData::AliPayQr(_)
+                    | WalletData::AliPayRedirect(_)
+                    | WalletData::AliPayHkRedirect(_)
+                    | WalletData::AmazonPayRedirect(_)
+                    | WalletData::Paysera(_)
+                    | WalletData::Skrill(_)
+                    | WalletData::BluecodeRedirect {}
+                    | WalletData::MomoRedirect(_)
+                    | WalletData::KakaoPayRedirect(_)
+                    | WalletData::GoPayRedirect(_)
+                    | WalletData::GcashRedirect(_)
+                    | WalletData::ApplePayRedirect(_)
+                    | WalletData::ApplePayThirdPartySdk(_)
+                    | WalletData::DanaRedirect {}
+                    | WalletData::GooglePayRedirect(_)
+                    | WalletData::GooglePayThirdPartySdk(_)
+                    | WalletData::MbWayRedirect(_)
+                    | WalletData::MobilePayRedirect(_)
+                    | WalletData::PaypalRedirect(_)
+                    | WalletData::PaypalSdk(_)
+                    | WalletData::Paze(_)
+                    | WalletData::AmazonPay(_)
+                    | WalletData::TwintRedirect {}
+                    | WalletData::VippsRedirect {}
+                    | WalletData::TouchNGoRedirect(_)
+                    | WalletData::WeChatPayRedirect(_)
+                    | WalletData::WeChatPayQr(_)
+                    | WalletData::CashappQr(_)
+                    | WalletData::SwishQr(_)
+                    | WalletData::Mifinity(_)
+                    | WalletData::RevolutPay(_) => Err(errors::ConnectorError::NotImplemented(
+                        utils::get_unimplemented_payment_method_error_message("Cybersource"),
+                    ))?,
+                },
+                PaymentMethodData::CardRedirect(_)
+                | PaymentMethodData::PayLater(_)
+                | PaymentMethodData::BankRedirect(_)
+                | PaymentMethodData::BankDebit(_)
+                | PaymentMethodData::BankTransfer(_)
+                | PaymentMethodData::Crypto(_)
+                | PaymentMethodData::MandatePayment
+                | PaymentMethodData::Reward
+                | PaymentMethodData::RealTimePayment(_)
+                | PaymentMethodData::MobilePayment(_)
+                | PaymentMethodData::Upi(_)
+                | PaymentMethodData::Voucher(_)
+                | PaymentMethodData::GiftCard(_)
+                | PaymentMethodData::OpenBanking(_)
+                | PaymentMethodData::CardToken(_)
+                | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+                | PaymentMethodData::NetworkToken(_)
+                | PaymentMethodData::CardWithOptionalCVC(_)
+                | PaymentMethodData::CardWithNetworkTokenDetails(_)
+                | PaymentMethodData::CardWithLimitedDetails(_)
+                | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
+                | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
+                    Err(errors::ConnectorError::NotImplemented(
+                        utils::get_unimplemented_payment_method_error_message("Cybersource"),
+                    ))?
+                }
+            };
+
+        let commerce_indicator = item
+            .request
+            .authentication_data
+            .as_ref()
+            .and_then(|authn_data| {
+                authn_data.eci.clone().map(|eci| {
+                    get_commerce_indicator_for_external_authentication(
+                        network.clone(),
+                        eci,
+                        authn_data.transaction_status.as_ref(),
+                    )
+                })
+            })
+            .unwrap_or_else(|| "internet".to_string());
 
         let processing_information = ProcessingInformation {
             capture: Some(false),
@@ -455,7 +481,7 @@ impl TryFrom<&SetupMandateRouterData> for CybersourceZeroMandateRequest {
             action_list,
             action_token_types,
             authorization_options,
-            commerce_indicator: String::from("internet"),
+            commerce_indicator,
             payment_solution: solution.map(String::from),
         };
         Ok(Self {
@@ -1186,10 +1212,13 @@ impl
             .authentication_data
             .as_ref()
             .and_then(|authn_data| {
-                authn_data
-                    .eci
-                    .clone()
-                    .map(|eci| get_commerce_indicator_for_external_authentication(network, eci))
+                authn_data.eci.clone().map(|eci| {
+                    get_commerce_indicator_for_external_authentication(
+                        network,
+                        eci,
+                        authn_data.transaction_status.as_ref(),
+                    )
+                })
             });
 
         Ok(Self {
@@ -1211,51 +1240,98 @@ impl
 fn get_commerce_indicator_for_external_authentication(
     card_network: Option<String>,
     eci: String,
+    transaction_status: Option<&common_enums::TransactionStatus>,
 ) -> String {
-    let card_network_lower_case = card_network
-        .as_ref()
-        .map(|card_network| card_network.to_lowercase());
-    match eci.as_str() {
-        "00" | "01" | "02" => {
-            if matches!(
-                card_network_lower_case.as_deref(),
-                Some("mastercard") | Some("maestro")
-            ) {
-                "spa"
-            } else {
-                "internet"
-            }
+    let card_network = normalize_cybersource_card_network(card_network.as_deref());
+    let is_mastercard_or_maestro = matches!(card_network, Some("mastercard") | Some("maestro"));
+    let is_mastercard_identity_check_failure = is_mastercard_or_maestro
+        && transaction_status.is_some_and(|status| {
+            matches!(
+                status,
+                common_enums::TransactionStatus::Failure
+                    | common_enums::TransactionStatus::Rejected
+            )
+        });
+
+    if is_mastercard_identity_check_failure {
+        "spa_failure"
+    } else {
+        match eci.as_str() {
+            // Mastercard/Maestro only
+            // 00 = internet/not authenticated,
+            // 01 = attempted authentication
+            // 02 = authenticated.
+            // CyberSource expects `spa` for Mastercard/Maestro
+            // authenticated or attempted transactions.
+            "00" | "01" | "02" => match card_network {
+                Some("mastercard") => "spa",
+                Some("maestro") => "spa",
+                _ => "internet",
+            },
+            // 05 = successful 3DS authentication for Visa, Amex, Discover,
+            // Diners, China UnionPay, JCB, and RuPay.
+            "05" => match card_network {
+                Some("amex") => "aesk",
+                Some("discover") => "dipb",
+                Some("diners") => "pb",
+                Some("unionpay") => "up3ds",
+                Some("visa") => "vbv",
+                Some("jcb") => "js",
+                Some("rupay") => "oci",
+                _ => "internet",
+            },
+            // 06 = attempted authentication for most networks. For
+            // Mastercard/Maestro, CyberSource documents ECI 06 as an
+            // authentication exemption or a network token without 3DS,
+            // and maps it to `spa`.
+            "06" => match card_network {
+                Some("amex") => "aesk_attempted",
+                Some("discover") => "dipb_attempted",
+                Some("diners") => "pb_attempted",
+                Some("unionpay") => "up3ds_attempted",
+                Some("visa") => "vbv_attempted",
+                Some("jcb") => "js_attempted",
+                Some("rupay") => "oci_attempted",
+                Some("mastercard") => "spa",
+                Some("maestro") => "spa",
+                _ => "internet",
+            },
+            // 07 = failed/not authenticated for most non-Mastercard/Maestro networks.
+            // For Mastercard/Maestro, CyberSource maps ECI 07 to authenticated
+            // merchant-initiated transaction (`spa`). Actual Mastercard/Maestro
+            // Identity Check failure is handled above through transaction_status.
+            "07" => match card_network {
+                Some("amex") => "internet",
+                Some("discover") => "internet",
+                Some("diners") => "internet",
+                Some("unionpay") => "up3ds_failure",
+                Some("visa") => "vbv_failure",
+                Some("jcb") => "js_failure",
+                Some("rupay") => "oci_failure",
+                Some("mastercard") => "spa",
+                Some("maestro") => "spa",
+                _ => "internet",
+            },
+            _ => "internet",
         }
-        "05" => match card_network_lower_case.as_deref() {
-            Some("amex") => "aesk",
-            Some("discover") => "dipb",
-            Some("mastercard") => "spa",
-            Some("visa") => "vbv",
-            Some("diners") => "pb",
-            Some("upi") => "up3ds",
-            _ => "internet",
-        },
-        "06" => match card_network_lower_case.as_deref() {
-            Some("amex") => "aesk_attempted",
-            Some("discover") => "dipb_attempted",
-            Some("mastercard") => "spa",
-            Some("visa") => "vbv_attempted",
-            Some("diners") => "pb_attempted",
-            Some("upi") => "up3ds_attempted",
-            _ => "internet",
-        },
-        "07" => match card_network_lower_case.as_deref() {
-            Some("amex") => "internet",
-            Some("discover") => "internet",
-            Some("mastercard") => "spa",
-            Some("visa") => "vbv_failure",
-            Some("diners") => "internet",
-            Some("upi") => "up3ds_failure",
-            _ => "internet",
-        },
-        _ => "vbv_failure",
     }
     .to_string()
+}
+
+fn normalize_cybersource_card_network(card_network: Option<&str>) -> Option<&'static str> {
+    card_network.and_then(|network| match network.to_lowercase().as_str() {
+        "001" | "visa" => Some("visa"),
+        "002" | "mastercard" => Some("mastercard"),
+        "024" | "042" | "maestro" => Some("maestro"),
+        "003" | "amex" | "americanexpress" => Some("amex"),
+        "004" | "discover" => Some("discover"),
+        "005" | "diners" | "dinersclub" => Some("diners"),
+        "007" | "jcb" => Some("jcb"),
+        "036" | "cartesbancaires" => Some("cartesbancaires"),
+        "rupay" => Some("rupay"),
+        "062" | "unionpay" => Some("unionpay"),
+        _ => None,
+    })
 }
 
 impl
@@ -1627,11 +1703,8 @@ impl
             },
         }));
 
-        let processing_information = ProcessingInformation::try_from((
-            item,
-            None,
-            raw_card_type.map(|network| network.to_string()),
-        ))?;
+        let processing_information =
+            ProcessingInformation::try_from((item, None, card_type.clone()))?;
         let client_reference_information = ClientReferenceInformation::from(item);
         let merchant_defined_information = convert_metadata_to_merchant_defined_info(
             item.router_data.request.metadata.clone(),

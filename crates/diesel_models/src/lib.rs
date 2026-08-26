@@ -66,6 +66,9 @@ pub mod user_authentication_method;
 pub mod user_key_store;
 pub mod user_role;
 
+use std::sync::Arc;
+
+use common_utils::external_service::ExternalServiceEventEmitter;
 use diesel_impl::{DieselArray, OptionalDieselArray};
 #[cfg(feature = "v2")]
 use diesel_impl::{RequiredFromNullable, RequiredFromNullableWithDefault};
@@ -81,7 +84,52 @@ pub type DejaPgConnection = deja::DejaLoadConnection<diesel::PgConnection>;
 #[cfg(not(feature = "deja"))]
 pub type DejaPgConnection = diesel::PgConnection;
 
+pub type RawPgConnection = async_bb8_diesel::Connection<DejaPgConnection>;
 pub type PgPooledConn = async_bb8_diesel::Connection<DejaPgConnection>;
+
+/// A connection leased from a database pool, along with the request context that queries run on
+/// it are attributed to. The connection is returned to the pool when this value is dropped.
+///
+/// Every query in this crate is issued through this type, so a query cannot be run without first
+/// stating whether a request context exists for it.
+///
+/// The lease borrows the pool it was acquired from through `bb8::Pool::get`, so this wrapper
+/// cannot outlive that pool. The pool lifetime is carried through query signatures in this crate.
+pub struct DatabaseConnectionWithContext<'pool> {
+    connection: bb8::PooledConnection<'pool, async_bb8_diesel::ConnectionManager<DejaPgConnection>>,
+    request_id: Option<String>,
+    event_emitter: Arc<dyn ExternalServiceEventEmitter>,
+}
+
+impl<'pool> DatabaseConnectionWithContext<'pool> {
+    pub fn new(
+        connection: bb8::PooledConnection<
+            'pool,
+            async_bb8_diesel::ConnectionManager<DejaPgConnection>,
+        >,
+        request_id: Option<String>,
+        event_emitter: Arc<dyn ExternalServiceEventEmitter>,
+    ) -> Self {
+        Self {
+            connection,
+            request_id,
+            event_emitter,
+        }
+    }
+
+    pub fn raw_connection(&self) -> &RawPgConnection {
+        &self.connection
+    }
+
+    pub fn request_id(&self) -> Option<&str> {
+        self.request_id.as_deref()
+    }
+
+    pub fn event_emitter(&self) -> &dyn ExternalServiceEventEmitter {
+        self.event_emitter.as_ref()
+    }
+}
+
 pub use self::{
     address::*, api_keys::*, callback_mapper::*, capture::*, cards_info::*, configs::*,
     customers::*, dispute::*, ephemeral_key::*, events::*, file::*, generic_link::*,
