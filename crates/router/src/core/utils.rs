@@ -327,7 +327,10 @@ pub async fn construct_payout_router_data<'a, F>(
         payment_method_token: None,
         recurring_mandate_payment_data: None,
         preprocessing_id: None,
-        connector_request_reference_id: payout_attempt.payout_attempt_id.clone(),
+        connector_request_reference_id: get_payout_connector_request_reference_id(
+            connector_data,
+            payout_attempt,
+        ),
         payout_method_data: payout_data.payout_method_data.to_owned(),
         quote_id: None,
         test_mode,
@@ -2099,6 +2102,21 @@ pub fn get_connector_request_reference_id(
             is_config_enabled_to_send_payment_id_as_connector_request_id,
         );
     Ok(connector_request_reference_id)
+}
+
+#[cfg(feature = "payouts")]
+pub fn get_payout_connector_request_reference_id(
+    connector_data: &api::ConnectorData,
+    payout_attempt: &hyperswitch_domain_models::payouts::payout_attempt::PayoutAttempt,
+) -> String {
+    // If there's already a connector_request_reference_id stored in the payout_attempt,
+    // reuse it to maintain consistency across multiple connector calls
+    match &payout_attempt.connector_request_reference_id {
+        Some(id) => id.clone(),
+        None => connector_data
+            .connector
+            .generate_payout_connector_request_reference_id(payout_attempt),
+    }
 }
 
 // TODO: Based on the connector configuration, the connector_request_reference_id should be generated
