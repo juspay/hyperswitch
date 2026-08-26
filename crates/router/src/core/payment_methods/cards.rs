@@ -3093,6 +3093,7 @@ pub async fn prepare_bank_redirect_payment_method_update(
             sort_code,
             account_holder_name,
             additional_details,
+            bank_name,
         } => {
             // Use the standardized helper function to build PaymentMethodCreate request
             let pm_create_req = get_payment_method_create_request(
@@ -3134,6 +3135,7 @@ pub async fn prepare_bank_redirect_payment_method_update(
                     masked_iban,
                     masked_sort_code,
                     account_holder_name,
+                    bank_name,
                 },
             );
 
@@ -6670,19 +6672,29 @@ pub async fn get_masked_bank_details(
             domain::PaymentMethodsData::Card(_) => Ok(None),
             domain::PaymentMethodsData::BankDetails(bank_details) => Ok(Some(MaskedBankDetails {
                 mask: bank_details.mask,
+                account_holder_name: None,
+                bank_name: None,
             })),
             domain::PaymentMethodsData::BankRedirect(
                 domain::BankRedirectDetailsPaymentMethod::OpenBanking {
                     masked_account_number,
                     masked_iban,
+                    account_holder_name,
+                    bank_name,
                     ..
                 },
             ) => {
                 let mask = masked_account_number
                     .map(|number| number.to_owned())
                     .or_else(|| masked_iban.map(|iban| iban.to_owned()));
+                let account_holder_name = account_holder_name.map(|name| name.expose());
+                let bank_name = bank_name.map(|name| name.to_display_name());
 
-                Ok(mask.map(|mask| MaskedBankDetails { mask }))
+                Ok(mask.map(|mask| MaskedBankDetails {
+                    mask,
+                    account_holder_name,
+                    bank_name,
+                }))
             }
             domain::PaymentMethodsData::BankDebit(
                 domain::BankDebitDetailsPaymentMethod::AchBankDebit {
@@ -6691,6 +6703,8 @@ pub async fn get_masked_bank_details(
                 },
             ) => Ok(Some(MaskedBankDetails {
                 mask: masked_account_number,
+                account_holder_name: None,
+                bank_name: None,
             })),
             domain::PaymentMethodsData::WalletDetails(_) => Ok(None),
             _ => Ok(None),
@@ -6709,6 +6723,8 @@ pub async fn get_masked_bank_details(
                 domain::PaymentMethodsData::BankDetails(bank_details) => {
                     Ok(Some(MaskedBankDetails {
                         mask: bank_details.mask,
+                        account_holder_name: None,
+                        bank_name: None,
                     }))
                 }
                 domain::PaymentMethodsData::WalletDetails(_) => Ok(None),

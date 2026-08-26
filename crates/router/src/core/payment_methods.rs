@@ -1240,7 +1240,7 @@ pub async fn retrieve_payment_method_with_token(
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("PaymentMethod not found")?;
 
-            let db_account_holder_name =
+            let (db_account_holder_name, db_bank_name) =
                 if let Some(domain::PaymentMethodsData::BankRedirect(bank_redirect_data)) =
                     payment_method.get_payment_methods_data()
                 {
@@ -1250,7 +1250,8 @@ pub async fn retrieve_payment_method_with_token(
                             masked_iban: _,
                             masked_sort_code: _,
                             account_holder_name,
-                        } => account_holder_name.clone(),
+                            bank_name,
+                        } => (account_holder_name.clone(), bank_name),
                     }
                 } else {
                     return Err(report!(errors::ApiErrorResponse::InternalServerError)
@@ -1277,6 +1278,7 @@ pub async fn retrieve_payment_method_with_token(
                         sort_code: vault_sort_code,
                         account_holder_name: db_account_holder_name,
                         additional_details: connector_payment_method_details.map(Secret::new),
+                        bank_name: db_bank_name,
                     },
                 )),
                 payment_method_id: Some(bank_redirect.payment_method_id.clone()),
@@ -1637,6 +1639,7 @@ pub(crate) async fn get_payment_method_create_request(
                         sort_code,
                         account_holder_name,
                         additional_details: _,
+                        bank_name,
                     }) => {
                         let payment_method_request = payment_methods::PaymentMethodCreate {
                             payment_method: Some(payment_method),
@@ -1661,6 +1664,7 @@ pub(crate) async fn get_payment_method_create_request(
                                         iban: iban.clone(),
                                         sort_code: sort_code.clone(),
                                         account_holder_name: account_holder_name.clone(),
+                                        bank_name: *bank_name,
                                     },
                                 ),
                             ),
