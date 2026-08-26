@@ -10404,7 +10404,9 @@ pub struct GooglePayTokenizationParameters {
     pub private_key: Option<Secret<String>>,
     pub recipient_id: Option<Secret<String>>,
     pub gateway_merchant_id: Option<Secret<String>>,
+    #[serde(rename = "stripe:publishableKey", alias = "stripe_publishable_key")]
     pub stripe_publishable_key: Option<Secret<String>>,
+    #[serde(rename = "stripe:version", alias = "stripe_version")]
     pub stripe_version: Option<Secret<String>>,
 }
 
