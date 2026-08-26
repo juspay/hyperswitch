@@ -1,16 +1,37 @@
+#[cfg(feature = "payouts")]
+use api_models::payouts::{BankTransfer, PayoutMethodData};
+#[cfg(feature = "payouts")]
+use common_enums::PayoutStatus;
+use common_utils::types::StringMajorUnit;
+use hyperswitch_domain_models::router_data::ConnectorAuthType;
+#[cfg(feature = "payouts")]
 use hyperswitch_domain_models::{
-    router_data::{ConnectorAuthType, ErrorResponse, RouterData},
-    router_request_types::ResponseId,
-    router_response_types::PaymentsResponseData,
+    router_response_types::PayoutsResponseData, types::PayoutsRouterData,
 };
-use hyperswitch_interfaces::{
-    consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
-    errors,
-};
+use hyperswitch_interfaces::errors;
 use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 
-use crate::{types::ResponseRouterData, utils};
+#[cfg(feature = "payouts")]
+use crate::{
+    types::PayoutsResponseRouterData,
+    utils::{get_unimplemented_payment_method_error_message, RouterData as RouterDataTrait},
+};
+
+//TODO: Fill the struct with respective fields
+pub struct GotymeSanlamRouterData<T> {
+    pub amount: StringMajorUnit, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
+    pub router_data: T,
+}
+
+impl<T> From<(StringMajorUnit, T)> for GotymeSanlamRouterData<T> {
+    fn from((amount, item): (StringMajorUnit, T)) -> Self {
+        Self {
+            amount,
+            router_data: item,
+        }
+    }
+}
 
 pub struct GotymeSanlamAuthType {
     pub(super) api_key: Secret<String>,
@@ -30,116 +51,232 @@ impl TryFrom<&ConnectorAuthType> for GotymeSanlamAuthType {
     }
 }
 
-#[derive(Debug, Deserialize, Serialize)]
-#[serde(untagged)]
-pub enum GotymeSanlamWebhookEvent {
-    Payment(GotymeSanlamPaymentWebhookEvent),
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-pub struct GotymeSanlamPaymentWebhookEvent {
-    pub event_type: GotymeSanlamWebhookEventType,
-    pub payment: GotymeSanlamWebhookPayment,
-    pub error: Option<GotymeSanlamWebhookError>,
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-pub struct GotymeSanlamWebhookError {
-    pub code: Option<String>,
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GotymeSanlamErrorResponse {
+    pub error_code: Option<String>,
+    pub error_title: Option<String>,
+    pub error_message: Option<String>,
     pub message: Option<String>,
-    pub reason: Option<String>,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
-pub enum GotymeSanlamWebhookEventType {
-    #[serde(rename = "payment.succeeded")]
-    PaymentSucceeded,
-    #[serde(rename = "payment.failed")]
-    PaymentFailed,
-    #[serde(rename = "dispute.opened")]
-    DisputeOpened,
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GotymeSanlamPayoutTransferPayload {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub account_name: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sa_id: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub account_number: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub bank_name: Option<GotymeSanlamBankNames>,
+    pub amount: StringMajorUnit,
+    pub idempotency_key: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
-pub struct GotymeSanlamWebhookPayment {
-    pub user_reference: String,
-    pub status: GotymeSanlamPaymentStatus,
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GotymeSanlamPayoutTransferRequest {
+    pub flow: GotymeSanlamPayoutFlow,
+    pub payload: GotymeSanlamPayoutTransferPayload,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
-#[serde(rename_all = "snake_case")]
-pub enum GotymeSanlamPaymentStatus {
-    Success,
-    Failure,
-    Dispute,
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GotymeSanlamPayoutGetPayload {
+    pub idempotency_key: String,
 }
 
-impl<F, T> TryFrom<ResponseRouterData<F, GotymeSanlamWebhookEvent, T, PaymentsResponseData>>
-    for RouterData<F, T, PaymentsResponseData>
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GotymeSanlamPayoutGetRequest {
+    pub flow: GotymeSanlamPayoutFlow,
+    pub payload: GotymeSanlamPayoutGetPayload,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum GotymeSanlamPayoutFlow {
+    PayoutCreate,
+    PayoutSync,
+}
+
+#[cfg(feature = "payouts")]
+impl<F> TryFrom<&GotymeSanlamRouterData<&PayoutsRouterData<F>>>
+    for GotymeSanlamPayoutTransferRequest
 {
     type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &GotymeSanlamRouterData<&PayoutsRouterData<F>>) -> Result<Self, Self::Error> {
+        let payload =
+            GotymeSanlamPayoutTransferPayload::try_from((item.router_data, item.amount.clone()))?;
+
+        Ok(Self {
+            flow: GotymeSanlamPayoutFlow::PayoutCreate,
+            payload,
+        })
+    }
+}
+
+impl<F> TryFrom<(&PayoutsRouterData<F>, StringMajorUnit)> for GotymeSanlamPayoutTransferPayload {
+    type Error = error_stack::Report<errors::ConnectorError>;
+
     fn try_from(
-        item: ResponseRouterData<F, GotymeSanlamWebhookEvent, T, PaymentsResponseData>,
+        (router_data, amount): (&PayoutsRouterData<F>, StringMajorUnit),
     ) -> Result<Self, Self::Error> {
-        match item.response {
-            GotymeSanlamWebhookEvent::Payment(payment_event) => {
-                let status = common_enums::AttemptStatus::try_from(&payment_event.payment.status)?;
-                let response = if utils::is_payment_failure(status) {
-                    Err(ErrorResponse {
-                        code: payment_event
-                            .error
-                            .as_ref()
-                            .and_then(|e| e.code.clone())
-                            .unwrap_or(NO_ERROR_CODE.to_string()),
-                        message: payment_event
-                            .error
-                            .as_ref()
-                            .and_then(|e| e.message.clone())
-                            .unwrap_or(NO_ERROR_MESSAGE.to_string()),
-                        reason: payment_event.error.as_ref().and_then(|e| e.reason.clone()),
-                        attempt_status: None,
-                        connector_transaction_id: None,
-                        connector_response_reference_id: None,
-                        status_code: item.http_code,
-                        network_advice_code: None,
-                        network_decline_code: None,
-                        network_error_message: None,
-                        connector_metadata: None,
-                    })
-                } else {
-                    Ok(PaymentsResponseData::TransactionResponse {
-                        resource_id: ResponseId::NoResponseId,
-                        redirection_data: Box::new(None),
-                        mandate_reference: Box::new(None),
-                        connector_metadata: None,
-                        network_txn_id: None,
-                        network_txn_link_id: None,
-                        connector_response_reference_id: None,
-                        incremental_authorization_allowed: None,
-                        authentication_data: None,
-                        charges: None,
-                    })
-                };
+        let idempotency_key = router_data.connector_request_reference_id.clone();
+
+        match router_data.get_payout_method_data()? {
+            PayoutMethodData::BankTransfer(BankTransfer::Payshap(payshap)) => {
+                let bank_name = payshap
+                    .bank_name
+                    .as_ref()
+                    .map(GotymeSanlamBankNames::try_from)
+                    .transpose()?;
 
                 Ok(Self {
-                    status,
-                    response,
-                    ..item.data
+                    account_name: payshap.account_holder_name.clone(),
+                    sa_id: None,
+                    account_number: Some(payshap.bank_account_number.clone()),
+                    bank_name,
+                    amount,
+                    idempotency_key: idempotency_key.clone(),
+                    description: router_data.description.clone(),
                 })
             }
+            PayoutMethodData::BankTransfer(BankTransfer::PayshapProxy(payshap_proxy)) => {
+                let sa_id = payshap_proxy
+                    .shap_id
+                    .as_ref()
+                    .ok_or(errors::ConnectorError::MissingRequiredField {
+                        field_name: "payshap_proxy.shap_id",
+                    })?
+                    .to_owned();
+
+                Ok(Self {
+                    account_name: None,
+                    sa_id: Some(sa_id),
+                    account_number: None,
+                    bank_name: None,
+                    amount,
+                    idempotency_key,
+                    description: router_data.description.clone(),
+                })
+            }
+            _ => Err(errors::ConnectorError::NotImplemented(
+                get_unimplemented_payment_method_error_message("GotymeSanlam"),
+            ))?,
         }
     }
 }
 
-impl TryFrom<&GotymeSanlamPaymentStatus> for common_enums::AttemptStatus {
+#[cfg(feature = "payouts")]
+impl<F> TryFrom<&PayoutsRouterData<F>> for GotymeSanlamPayoutGetRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &GotymeSanlamPaymentStatus) -> Result<Self, Self::Error> {
-        match item {
-            GotymeSanlamPaymentStatus::Success => Ok(Self::Charged),
-            GotymeSanlamPaymentStatus::Failure => Ok(Self::Failure),
-            GotymeSanlamPaymentStatus::Dispute => {
-                Err(errors::ConnectorError::ResponseDeserializationFailed)?
-            }
+
+    fn try_from(item: &PayoutsRouterData<F>) -> Result<Self, Self::Error> {
+        Ok(Self {
+            flow: GotymeSanlamPayoutFlow::PayoutSync,
+            payload: GotymeSanlamPayoutGetPayload {
+                idempotency_key: item.connector_request_reference_id.clone(),
+            },
+        })
+    }
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum GotymeSanlamBankNames {
+    Absa,
+}
+
+impl TryFrom<&common_enums::BankNames> for GotymeSanlamBankNames {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(bank_name: &common_enums::BankNames) -> Result<Self, Self::Error> {
+        match bank_name {
+            common_enums::BankNames::Absa => Ok(Self::Absa),
+            _ => Err(errors::ConnectorError::NotImplemented(
+                get_unimplemented_payment_method_error_message("GotymeSanlam"),
+            ))?,
         }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum GotymeSanlamPayoutStatus {
+    Pending,
+    Successful,
+    Failed,
+    Reversed,
+}
+
+impl From<GotymeSanlamPayoutStatus> for PayoutStatus {
+    fn from(status: GotymeSanlamPayoutStatus) -> Self {
+        match status {
+            GotymeSanlamPayoutStatus::Pending => Self::Initiated,
+            GotymeSanlamPayoutStatus::Successful => Self::Success,
+            GotymeSanlamPayoutStatus::Failed => Self::Failed,
+            GotymeSanlamPayoutStatus::Reversed => Self::Reversed,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GotymeSanlamPayoutResponse {
+    pub id: Option<String>,
+    pub idempotency_key: String,
+    pub status: GotymeSanlamPayoutStatus,
+    pub created_at: Option<String>,
+    pub payment_processor_txn_id: Option<String>,
+    pub reason: Option<GotymeSanlamPayoutReason>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GotymeSanlamPayoutReason {
+    pub error_code: Option<String>,
+    pub error_title: Option<String>,
+    pub error_message: Option<String>,
+}
+
+#[cfg(feature = "payouts")]
+impl<F> TryFrom<PayoutsResponseRouterData<F, GotymeSanlamPayoutResponse>> for PayoutsRouterData<F> {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: PayoutsResponseRouterData<F, GotymeSanlamPayoutResponse>,
+    ) -> Result<Self, Self::Error> {
+        let status = PayoutStatus::from(item.response.status);
+        let connector_payout_id = item.response.payment_processor_txn_id.clone();
+        let response = match item.response.reason {
+            Some(reason) => Ok(PayoutsResponseData {
+                status: Some(status),
+                connector_payout_id,
+                error_code: reason.error_code,
+                error_message: reason.error_message,
+                payout_eligible: None,
+                should_add_next_step_to_process_tracker: false,
+                payout_connector_metadata: None,
+                connector_eligibility_reference_id: None,
+            }),
+            None => Ok(PayoutsResponseData {
+                status: Some(status),
+                connector_payout_id,
+                payout_eligible: None,
+                should_add_next_step_to_process_tracker: false,
+                error_code: None,
+                error_message: None,
+                payout_connector_metadata: None,
+                connector_eligibility_reference_id: None,
+            }),
+        };
+
+        Ok(Self {
+            response,
+            ..item.data
+        })
     }
 }

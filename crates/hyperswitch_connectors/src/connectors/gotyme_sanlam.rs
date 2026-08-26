@@ -3,10 +3,15 @@ pub mod transformers;
 use std::sync::LazyLock;
 
 use common_enums::enums;
-use common_utils::{crypto, errors::CustomResult, ext_traits::ByteSliceExt, request::Request};
+use common_utils::{
+    errors::CustomResult,
+    ext_traits::ByteSliceExt,
+    request::{Method, Request, RequestBuilder, RequestContent},
+    types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector},
+};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
-    router_data::{AccessToken, ConnectorAuthType, RouterData},
+    router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
         payments::{Authorize, Capture, PSync, PaymentMethodToken, Session, SetupMandate, Void},
@@ -28,12 +33,22 @@ use hyperswitch_domain_models::{
         TokenizationRouterData,
     },
 };
+#[cfg(feature = "payouts")]
+use hyperswitch_domain_models::{
+    router_flow_types::payouts::{PoFulfill, PoSync},
+    router_request_types::PayoutsData,
+    router_response_types::PayoutsResponseData,
+    types::PayoutsRouterData,
+};
+#[cfg(feature = "payouts")]
+use hyperswitch_interfaces::types::{PayoutFulfillType, PayoutSyncType};
 use hyperswitch_interfaces::{
     api::{
         self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorSpecifications,
         ConnectorValidation,
     },
     configs::Connectors,
+    consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     errors,
     events::connector_api_logs::ConnectorEvent,
     types::Response,
@@ -42,14 +57,20 @@ use hyperswitch_interfaces::{
 use hyperswitch_masking::{Mask, PeekInterface};
 use transformers as gotyme_sanlam;
 
-use crate::{constants::headers, types::ResponseRouterData, utils::get_header_key_value};
+use crate::{constants::headers, types::ResponseRouterData, utils};
 
 #[derive(Clone)]
-pub struct GotymeSanlam {}
+pub struct GotymeSanlam {
+    #[cfg(feature = "payouts")]
+    amount_converter: &'static (dyn AmountConvertor<Output = StringMajorUnit> + Sync),
+}
 
 impl GotymeSanlam {
     pub fn new() -> &'static Self {
-        &Self {}
+        &Self {
+            #[cfg(feature = "payouts")]
+            amount_converter: &StringMajorUnitForConnector,
+        }
     }
 }
 
@@ -120,6 +141,208 @@ impl ConnectorCommon for GotymeSanlam {
                 auth.profile_id.peek().to_owned().into(),
             ),
         ])
+    }
+
+    fn build_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        let response: gotyme_sanlam::GotymeSanlamErrorResponse = res
+            .response
+            .parse_struct("GotymeSanlamErrorResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
+        Ok(ErrorResponse {
+            status_code: res.status_code,
+            code: response
+                .error_code
+                .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
+            message: response
+                .error_message
+                .or(response.message)
+                .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
+            reason: None,
+            attempt_status: None,
+            connector_transaction_id: None,
+            connector_response_reference_id: None,
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
+            connector_metadata: None,
+        })
+    }
+}
+
+#[cfg(feature = "payouts")]
+impl api::Payouts for GotymeSanlam {}
+#[cfg(feature = "payouts")]
+impl api::PayoutFulfill for GotymeSanlam {}
+#[cfg(feature = "payouts")]
+impl api::PayoutSync for GotymeSanlam {}
+
+#[cfg(feature = "payouts")]
+impl ConnectorIntegration<PoFulfill, PayoutsData, PayoutsResponseData> for GotymeSanlam {
+    fn get_url(
+        &self,
+        _req: &PayoutsRouterData<PoFulfill>,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!(
+            "{}/meep-tymebank/invoke",
+            self.base_url(connectors)
+        ))
+    }
+
+    fn get_headers(
+        &self,
+        req: &PayoutsRouterData<PoFulfill>,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_request_body(
+        &self,
+        req: &PayoutsRouterData<PoFulfill>,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let amount = utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_amount,
+            req.request.source_currency,
+        )?;
+
+        let connector_router_data = gotyme_sanlam::GotymeSanlamRouterData::from((amount, req));
+        let connector_req =
+            gotyme_sanlam::GotymeSanlamPayoutTransferRequest::try_from(&connector_router_data)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
+    }
+
+    fn build_request(
+        &self,
+        req: &PayoutsRouterData<PoFulfill>,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        let request = RequestBuilder::new()
+            .method(Method::Post)
+            .url(&PayoutFulfillType::get_url(self, req, connectors)?)
+            .attach_default_headers()
+            .headers(PayoutFulfillType::get_headers(self, req, connectors)?)
+            .set_body(PayoutFulfillType::get_request_body(self, req, connectors)?)
+            .build();
+
+        Ok(Some(request))
+    }
+
+    fn handle_response(
+        &self,
+        data: &PayoutsRouterData<PoFulfill>,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<PayoutsRouterData<PoFulfill>, errors::ConnectorError> {
+        let response: gotyme_sanlam::GotymeSanlamPayoutResponse = res
+            .response
+            .parse_struct("GotymeSanlamPayoutResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+}
+
+#[cfg(feature = "payouts")]
+impl ConnectorIntegration<PoSync, PayoutsData, PayoutsResponseData> for GotymeSanlam {
+    fn get_url(
+        &self,
+        _req: &PayoutsRouterData<PoSync>,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!(
+            "{}/meep-tymebank/invoke",
+            self.base_url(connectors)
+        ))
+    }
+
+    fn get_headers(
+        &self,
+        req: &PayoutsRouterData<PoSync>,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
+        self.build_headers(req, connectors)
+    }
+
+    fn build_request(
+        &self,
+        req: &PayoutsRouterData<PoSync>,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        let request = RequestBuilder::new()
+            .method(Method::Post)
+            .url(&PayoutSyncType::get_url(self, req, connectors)?)
+            .attach_default_headers()
+            .headers(PayoutSyncType::get_headers(self, req, connectors)?)
+            .set_body(PayoutSyncType::get_request_body(self, req, connectors)?)
+            .build();
+
+        Ok(Some(request))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &PayoutsRouterData<PoSync>,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req = gotyme_sanlam::GotymeSanlamPayoutGetRequest::try_from(req)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
+    }
+
+    fn handle_response(
+        &self,
+        data: &PayoutsRouterData<PoSync>,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<PayoutsRouterData<PoSync>, errors::ConnectorError> {
+        let response: gotyme_sanlam::GotymeSanlamPayoutResponse = res
+            .response
+            .parse_struct("GotymeSanlamPayoutResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
     }
 }
 
@@ -221,25 +444,6 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Got
         }
         .into())
     }
-
-    fn handle_response(
-        &self,
-        data: &PaymentsSyncRouterData,
-        event_builder: Option<&mut ConnectorEvent>,
-        res: Response,
-    ) -> CustomResult<PaymentsSyncRouterData, errors::ConnectorError> {
-        let response: gotyme_sanlam::GotymeSanlamWebhookEvent = res
-            .response
-            .parse_struct("GotymeSanlamWebhookEvent")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
-        event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
-        RouterData::try_from(ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
-    }
 }
 
 impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> for GotymeSanlam {
@@ -298,96 +502,28 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for GotymeSan
     }
 }
 
-#[async_trait::async_trait]
 impl webhooks::IncomingWebhook for GotymeSanlam {
-    fn get_webhook_source_verification_algorithm(
-        &self,
-        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Box<dyn crypto::VerifySignature + Send>, errors::ConnectorError> {
-        Ok(Box::new(crypto::HmacSha256))
-    }
-
-    fn get_webhook_source_verification_signature(
-        &self,
-        request: &webhooks::IncomingWebhookRequestDetails<'_>,
-        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
-    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let signature = get_header_key_value("X-Signature", request.headers)?;
-        hex::decode(signature)
-            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
-    }
-
-    fn get_webhook_source_verification_message(
-        &self,
-        request: &webhooks::IncomingWebhookRequestDetails<'_>,
-        _merchant_id: &common_utils::id_type::MerchantId,
-        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
-    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
-        let message = std::str::from_utf8(request.body)
-            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
-        Ok(message.to_string().into_bytes())
-    }
-
     fn get_webhook_object_reference_id(
         &self,
-        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        let details: gotyme_sanlam::GotymeSanlamWebhookEvent = request
-            .body
-            .parse_struct("GotymeSanlamWebhookEvent")
-            .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
-
-        let id = match details {
-            gotyme_sanlam::GotymeSanlamWebhookEvent::Payment(ref event) => {
-                api_models::webhooks::ObjectReferenceId::PaymentId(
-                    api_models::payments::PaymentIdType::PaymentAttemptId(
-                        event.payment.user_reference.clone(),
-                    ),
-                )
-            }
-        };
-
-        Ok(id)
+        Err(errors::ConnectorError::WebhooksNotImplemented.into())
     }
 
     fn get_webhook_event_type(
         &self,
-        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
         _context: Option<&webhooks::WebhookContext>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
-        let details: gotyme_sanlam::GotymeSanlamWebhookEvent = request
-            .body
-            .parse_struct("GotymeSanlamWebhookEvent")
-            .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
-
-        let event_type = match details {
-            gotyme_sanlam::GotymeSanlamWebhookEvent::Payment(ref event) => match event.event_type {
-                gotyme_sanlam::GotymeSanlamWebhookEventType::PaymentSucceeded => {
-                    api_models::webhooks::IncomingWebhookEvent::PaymentIntentSuccess
-                }
-                gotyme_sanlam::GotymeSanlamWebhookEventType::PaymentFailed => {
-                    api_models::webhooks::IncomingWebhookEvent::PaymentIntentFailure
-                }
-                gotyme_sanlam::GotymeSanlamWebhookEventType::DisputeOpened => {
-                    api_models::webhooks::IncomingWebhookEvent::DisputeOpened
-                }
-            },
-        };
-
-        Ok(event_type)
+        Err(errors::ConnectorError::WebhooksNotImplemented.into())
     }
 
     fn get_webhook_resource_object(
         &self,
-        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, errors::ConnectorError>
     {
-        let details: gotyme_sanlam::GotymeSanlamWebhookEvent = request
-            .body
-            .parse_struct("GotymeSanlamWebhookEvent")
-            .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
-
-        Ok(Box::new(details))
+        Err(errors::ConnectorError::WebhooksNotImplemented.into())
     }
 }
 
@@ -430,5 +566,14 @@ impl ConnectorSpecifications for GotymeSanlam {
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
         Some(&GOTYME_SANLAM_SUPPORTED_WEBHOOK_FLOWS)
+    }
+
+    #[cfg(feature = "payouts")]
+    /// Generate connector request reference ID for payout flows
+    fn generate_payout_connector_request_reference_id(
+        &self,
+        _payout_attempt: &hyperswitch_domain_models::payouts::payout_attempt::PayoutAttempt,
+    ) -> String {
+        uuid::Uuid::new_v4().to_string()
     }
 }
