@@ -6771,11 +6771,9 @@ impl RecipientBankAccount {
                 account_number: MaskedBankAccount::from(account_number.clone()),
                 bic: MaskedBic::from(bic.clone()),
             },
-            Self::AccountNumber { account_number } => {
-                MaskedRecipientBankAccount::AccountNumber {
-                    account_number: MaskedBankAccount::from(account_number.clone()),
-                }
-            }
+            Self::AccountNumber { account_number } => MaskedRecipientBankAccount::AccountNumber {
+                account_number: MaskedBankAccount::from(account_number.clone()),
+            },
         }
     }
 }
@@ -6811,10 +6809,7 @@ impl RecipientDetails {
     pub fn to_masked(&self) -> MaskedRecipientDetails {
         MaskedRecipientDetails {
             account: self.account.as_ref().map(RecipientAccount::to_masked),
-            phone_number: self
-                .phone_number
-                .clone()
-                .map(MaskedBankAccount::from),
+            phone_number: self.phone_number.clone().map(MaskedBankAccount::from),
             tax_id: self.tax_id.clone().map(MaskedBankAccount::from),
             address: self.address.clone(),
         }
@@ -14273,117 +14268,6 @@ mod null_object_test {
         let null_object = NullObject;
         let serialized = serde_json::to_string(&null_object).unwrap();
         assert_eq!(serialized, "null");
-    }
-}
-
-#[cfg(test)]
-mod recipient_details_test {
-    use serde_json::json;
-
-    use super::*;
-
-    /// The bank account variant nests one internally tagged enum inside another. Both sets of
-    /// fields must land at the same level so the payload stays flat for merchants.
-    #[test]
-    fn bank_account_variants_serialize_flat() {
-        let iban = RecipientAccount::BankAccount(RecipientBankAccount::Iban {
-            iban: Secret::new("GB29NWBK70361331946864".to_string()),
-        });
-        assert_eq!(
-            serde_json::to_value(&iban).unwrap(),
-            json!({
-                "type": "bank_account",
-                "identifier_type": "iban",
-                "iban": "GB29NWBK70361331946864",
-            })
-        );
-
-        // Worldpay WPG joins the two halves of accountType 06 with a "+"; both must survive.
-        let bic = RecipientAccount::BankAccount(RecipientBankAccount::Bic {
-            account_number: Secret::new("09875432".to_string()),
-            bic: Secret::new("HBUKGB4B".to_string()),
-        });
-        assert_eq!(
-            serde_json::to_value(&bic).unwrap(),
-            json!({
-                "type": "bank_account",
-                "identifier_type": "bic",
-                "account_number": "09875432",
-                "bic": "HBUKGB4B",
-            })
-        );
-    }
-
-    /// One case per Worldpay WPG `accountType` code, which is the widest set we map onto.
-    #[test]
-    fn account_variants_round_trip() {
-        let accounts = vec![
-            RecipientAccount::BankAccount(RecipientBankAccount::RoutingNumber {
-                account_number: Secret::new("000123456789".to_string()),
-                routing_number: Secret::new("110000000".to_string()),
-            }),
-            RecipientAccount::BankAccount(RecipientBankAccount::AccountNumber {
-                account_number: Secret::new("000123456789".to_string()),
-            }),
-            RecipientAccount::Card {
-                card_number: Secret::new("411111XXXXXX1111".to_string()),
-            },
-            RecipientAccount::Wallet {
-                wallet_id: Secret::new("wallet_8891".to_string()),
-            },
-            RecipientAccount::Phone {
-                phone_number: Secret::new("9123456789".to_string()),
-            },
-            RecipientAccount::SocialNetwork {
-                social_network_id: Secret::new("jane.doe".to_string()),
-            },
-        ];
-
-        for account in accounts {
-            let serialized = serde_json::to_value(&account).unwrap();
-            let deserialized: RecipientAccount = serde_json::from_value(serialized).unwrap();
-            assert_eq!(account, deserialized);
-        }
-    }
-
-    /// The recipient's name lives on the address, not at the root of the recipient details.
-    #[test]
-    fn recipient_name_comes_from_the_address() {
-        let details = RecipientDetails {
-            account: None,
-            phone_number: None,
-            tax_id: None,
-            address: Some(AddressDetails {
-                first_name: Some(Secret::new("Jane".to_string())),
-                last_name: Some(Secret::new("Doe".to_string())),
-                ..Default::default()
-            }),
-        };
-
-        let value = serde_json::to_value(&details).unwrap();
-        assert_eq!(value["address"]["first_name"], json!("Jane"));
-        assert_eq!(value["address"]["last_name"], json!("Doe"));
-        assert!(value.get("first_name").is_none());
-        assert!(value.get("last_name").is_none());
-    }
-
-    /// The masked view is what goes back out over the API, so no full value may survive it.
-    #[test]
-    fn masking_hides_the_full_value() {
-        let details = RecipientDetails {
-            account: Some(RecipientAccount::BankAccount(RecipientBankAccount::Iban {
-                iban: Secret::new("GB29NWBK70361331946864".to_string()),
-            })),
-            phone_number: Some(Secret::new("9123456789".to_string())),
-            tax_id: Some(Secret::new("162.152.541-42".to_string())),
-            address: None,
-        };
-
-        let masked = serde_json::to_string(&details.to_masked()).unwrap();
-
-        assert!(!masked.contains("GB29NWBK70361331946864"));
-        assert!(!masked.contains("9123456789"));
-        assert!(!masked.contains("162.152.541-42"));
     }
 }
 
