@@ -1286,9 +1286,6 @@ pub fn add_random_delay_to_schedule_time(
 /// Clip C_ij to [CLIP, 1-CLIP] so near-certain comparisons don't send logit to +/- infinity.
 #[cfg(feature = "v2")]
 const CLIP: f64 = 1e-4;
-/// Fallback hour when the cluster has no hour-of-day data at all.
-#[cfg(feature = "v2")]
-const DEFAULT_RETRY_HOUR: u8 = 12;
 /// Max candidate-window length. Beyond ~a month the window only repeats weekday/month-day slots that
 /// are already represented (all 7 weekdays — and all month-days except when the window spans February),
 /// so a longer grace adds little new signal; this caps the work and guards a config typo. NOTE: the cap
@@ -1492,14 +1489,14 @@ fn pick_index<T: Copy>(weights: &[f64], tags: &[T], budget: u32) -> (usize, Pick
 }
 
 /// Pick the hour the SAME way as days: per-tick over hours 0..23 with budget 1 (exactly one hour).
-/// Missing hours score 0. Falls back to `DEFAULT_RETRY_HOUR` when there is no USABLE hour data —
-/// guard on the SCORED slots, not the raw counters, so all-corrupt counters still fall back (an
-/// all-zero array yields empty scores too, so this one check covers all no-data shapes).
+/// Missing hours score 0. Falls back to the caller-supplied `default_hour` when there is no USABLE
+/// hour data — guard on the SCORED slots, not the raw counters, so all-corrupt counters still fall
+/// back (an all-zero array yields empty scores too, so this one check covers all no-data shapes).
 #[cfg(feature = "v2")]
-fn pick_hour(hod: &[SlotCounter]) -> u8 {
+fn pick_hour(hod: &[SlotCounter], default_hour: u8) -> u8 {
     let scores = slot_scores(hod);
     if scores.is_empty() {
-        return DEFAULT_RETRY_HOUR;
+        return default_hour;
     }
     let hours: Vec<u8> = (0u8..24).collect();
     let weights: Vec<f64> = hours
@@ -1508,7 +1505,7 @@ fn pick_hour(hod: &[SlotCounter]) -> u8 {
         .collect();
     let (idx, _) = pick_index(&weights, &hours, 1);
     // `hours[idx]` IS the hour (already a u8); fetched via `get` so there's no cast and no panic.
-    hours.get(idx).copied().unwrap_or(DEFAULT_RETRY_HOUR)
+    hours.get(idx).copied().unwrap_or(default_hour)
 }
 
 /// Softmax `xs` (numerically stabilized by subtracting the max). `xs` is non-empty here.
@@ -1572,6 +1569,8 @@ fn combine_day_weight(
 /// * `budget`     retries remaining (drives the runway guard)
 /// * `grace_days` grace period, in days, COUNTING the failure day (today). Retriable window = the
 ///                `grace_days - 1` future days, capped at 31.
+/// * `default_hour` fallback hour-of-day (UTC) used when the cluster has no usable hour history
+///                (from `revenue_recovery.default_retry_hour_utc` config).
 ///
 /// The window starts on the **NEXT day** (failure day + 1), never on the failure day itself — the
 /// charge just failed today, so a same-day retry is low value. The min-gap / past-time guard rails
@@ -1587,6 +1586,7 @@ pub fn compute_mathmodel_retry_time(
     stats: &StatsDocument,
     budget: u32,
     grace_days: u32,
+    default_hour: u8,
 ) -> Option<time::OffsetDateTime> {
     // `grace_days` COUNTS the failure day (today), which we never retry on — so the retriable window
     // is the `grace_days - 1` future days [failure_day + 1 .. failure_day + grace_days - 1]. When that
@@ -1624,20 +1624,16 @@ pub fn compute_mathmodel_retry_time(
     }
 
     let (day_weights, winners) = combine_day_weight(&dates, &dow_scores, &dom_scores);
-    // `winners` rides into pick_index and comes back inside `pick_driver` (PickDriver::Weights), so the
-    // chosen day's winning axis is resolved AT pick time — no re-indexing here.
+    // winners ride along so the winning axis returns inside pick_driver — no re-indexing afterwards.
     let (day_idx, pick_driver) = pick_index(&day_weights, &winners, budget);
-    let hour = pick_hour(&stats.hod);
+    let hour = pick_hour(&stats.hod, default_hour);
     let time = time::Time::from_hms(hour, 0, 0).unwrap_or(time::Time::MIDNIGHT);
 
-    // day_idx comes from pick_index over these same vectors, so `.get` always hits — but stays
-    // panic-free (no `[]`), degrading to None (→ caller's static ladder) in the impossible miss.
+    // day_idx is always in range (from pick_index over these vecs); `.get` keeps it panic-free.
     let chosen_date = *dates.get(day_idx)?;
     let chosen_weight = day_weights.get(day_idx).copied().unwrap_or(0.0);
 
-    // Observability for a later recovery back-test. Guard-forced and budget-exhausted picks attribute
-    // to themselves (via `label`), NOT the uninvolved softmax winner, so the back-test never counts a
-    // non-model pick as a model pick.
+    // Forced/exhausted picks label themselves (not the softmax winner) for honest back-test attribution.
     logger::debug!(
         chosen_day = %chosen_date,
         driver = pick_driver.label(),
@@ -1678,13 +1674,33 @@ pub async fn compute_adaptive_retry_time(
         })
         .ok()??;
 
-    // Hand the resolved inputs to the math model. Its output is already UTC.
-    compute_mathmodel_retry_time(&record.stats, remaining_budget, remaining_grace_days)
+    // A configured hour outside 0..=23 is a misconfiguration; warn (so it's visible) and fall back to
+    // noon UTC rather than letting it silently degrade to midnight downstream.
+    let configured_hour = state.conf.revenue_recovery.default_retry_hour_utc.0;
+    let default_hour = if configured_hour <= 23 {
+        configured_hour
+    } else {
+        logger::warn!(
+            configured_hour,
+            "adaptive retry: revenue_recovery.default_retry_hour_utc is out of range (0-23); using noon UTC"
+        );
+        12
+    };
+    compute_mathmodel_retry_time(
+        &record.stats,
+        remaining_budget,
+        remaining_grace_days,
+        default_hour,
+    )
 }
 
 #[cfg(all(test, feature = "v2"))]
 mod mathmodel_retry_time_tests {
     use super::*;
+
+    // The default retry hour the production config supplies (see `default_retry_hour_utc`); passed
+    // explicitly here so the tests don't depend on config plumbing.
+    const DEFAULT_RETRY_HOUR: u8 = 12;
 
     fn ctr(n: u64, k: u64) -> SlotCounter {
         SlotCounter { n, k }
@@ -1773,9 +1789,12 @@ mod mathmodel_retry_time_tests {
         // No seed now, so assert only the invariant: a valid hour; no usable hour data -> default.
         let doc = sample();
         for _ in 0..100 {
-            assert!(pick_hour(&doc.hod) < 24);
+            assert!(pick_hour(&doc.hod, DEFAULT_RETRY_HOUR) < 24);
         }
-        assert_eq!(pick_hour(&[SlotCounter::default(); 24]), DEFAULT_RETRY_HOUR);
+        assert_eq!(
+            pick_hour(&[SlotCounter::default(); 24], DEFAULT_RETRY_HOUR),
+            DEFAULT_RETRY_HOUR
+        );
     }
 
     #[test]
@@ -1787,7 +1806,8 @@ mod mathmodel_retry_time_tests {
         for stats in [sample(), StatsDocument::default()] {
             for _ in 0..200 {
                 let before = time::OffsetDateTime::now_utc();
-                let dt = compute_mathmodel_retry_time(&stats, 3, grace).expect("grace > 1 => Some");
+                let dt = compute_mathmodel_retry_time(&stats, 3, grace, DEFAULT_RETRY_HOUR)
+                    .expect("grace > 1 => Some");
                 let last = (before + time::Duration::days(i64::from(grace) + 1)).date();
                 assert!(
                     dt.date() > before.date() && dt.date() <= last,
@@ -1804,7 +1824,8 @@ mod mathmodel_retry_time_tests {
         // Failure day is excluded: the earliest candidate is tomorrow. grace COUNTS today, so grace 2
         // = today + 1 future day (tomorrow) — assert the pick is that next day, not the failure day.
         let before = time::OffsetDateTime::now_utc();
-        let dt = compute_mathmodel_retry_time(&sample(), 3, 2).expect("grace 2 => Some");
+        let dt = compute_mathmodel_retry_time(&sample(), 3, 2, DEFAULT_RETRY_HOUR)
+            .expect("grace 2 => Some");
         assert!(
             dt.date() > before.date(),
             "expected next day, got {} (today {})",
@@ -1817,8 +1838,8 @@ mod mathmodel_retry_time_tests {
     #[test]
     fn grace_zero_and_one_return_none() {
         // grace COUNTS today; grace 0 = no grace, grace 1 = today only -> no future day -> None (v1).
-        assert!(compute_mathmodel_retry_time(&sample(), 3, 0).is_none());
-        assert!(compute_mathmodel_retry_time(&sample(), 3, 1).is_none());
+        assert!(compute_mathmodel_retry_time(&sample(), 3, 0, DEFAULT_RETRY_HOUR).is_none());
+        assert!(compute_mathmodel_retry_time(&sample(), 3, 1, DEFAULT_RETRY_HOUR).is_none());
     }
 
     #[test]
@@ -1859,7 +1880,8 @@ mod mathmodel_retry_time_tests {
         let corrupt = doc_with(&[(0, 1, 100), (3, 2, 50)], &[(5, 1, 80)], &[(9, 1, 30)]);
         let before = time::OffsetDateTime::now_utc();
         for _ in 0..50 {
-            let dt = compute_mathmodel_retry_time(&corrupt, 3, 14).expect("grace > 1 => Some");
+            let dt = compute_mathmodel_retry_time(&corrupt, 3, 14, DEFAULT_RETRY_HOUR)
+                .expect("grace > 1 => Some");
             assert!(dt.date() > before.date() && dt.hour() < 24);
         }
     }
@@ -1869,13 +1891,14 @@ mod mathmodel_retry_time_tests {
         // All-corrupt hour counters -> no usable scores -> deterministic noon, not a
         // uniform-random hour.
         let doc = doc_with(&[], &[], &[(9, 1, 30)]);
-        assert_eq!(pick_hour(&doc.hod), DEFAULT_RETRY_HOUR);
+        assert_eq!(pick_hour(&doc.hod, DEFAULT_RETRY_HOUR), DEFAULT_RETRY_HOUR);
     }
 
     #[test]
     fn grace_is_capped_at_max() {
         let before = time::OffsetDateTime::now_utc();
-        let dt = compute_mathmodel_retry_time(&sample(), 3, 365).expect("grace > 1 => Some");
+        let dt = compute_mathmodel_retry_time(&sample(), 3, 365, DEFAULT_RETRY_HOUR)
+            .expect("grace > 1 => Some");
         let last = (before + time::Duration::days(i64::from(MAX_GRACE_DAYS) + 1)).date();
         assert!(
             dt.date() <= last,
