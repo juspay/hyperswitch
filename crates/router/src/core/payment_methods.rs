@@ -4277,7 +4277,10 @@ pub async fn list_payment_methods_for_session(
         hyperswitch_domain_models::merchant_connector_account::FlattenedPaymentMethodsEnabled::from_payment_connectors_list(payment_connector_accounts)
             .perform_filtering()
             .get_required_fields(RequiredFieldsInput::new(state.conf.required_fields.clone()))
-            .generate_response_for_session(customer_payment_methods);
+            .generate_response_for_session(
+                customer_payment_methods,
+                &state.conf.customer_acceptance_support,
+            );
 
     Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
         response,
@@ -4527,6 +4530,7 @@ impl RequiredFieldsForEnabledPaymentMethodTypes {
     fn generate_response_for_session(
         self,
         customer_payment_methods: Vec<payment_methods::CustomerPaymentMethodResponseItem>,
+        customer_acceptance_support_config: &settings::CustomerAcceptanceSupportConfig,
     ) -> payment_methods::PaymentMethodListResponseForSession {
         let response_payment_methods = self
             .0
@@ -4537,6 +4541,11 @@ impl RequiredFieldsForEnabledPaymentMethodTypes {
                     payment_method_subtype: payment_methods_enabled.payment_method_subtype,
                     required_fields: payment_methods_enabled.required_fields,
                     extra_information: None,
+                    customer_acceptance_support: customer_acceptance_support_config
+                        .get_customer_acceptance_support(
+                            payment_methods_enabled.payment_method_type,
+                            payment_methods_enabled.payment_method_subtype,
+                        ),
                 },
             )
             .collect();

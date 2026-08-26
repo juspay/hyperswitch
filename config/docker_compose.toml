@@ -1148,6 +1148,14 @@ payjustnow = { country = "ZA", currency = "ZAR" }
 [pm_filters.payjustnowinstore]
 payjustnow = { country = "ZA", currency = "ZAR" }
 
+# Whether saving a payment method is supported by all, some, or none of the connectors
+# eligible for it. Returned in the PML response so the SDK can decide whether to show the
+# "save my details" checkbox ("supported" | "partially_supported" | "unsupported").
+[customer_acceptance_support]
+card.credit = "supported"
+card.debit = "supported"
+bank_redirect.open_banking = "partially_supported"
+
 [bank_config.online_banking_fpx]
 adyen.banks = "affin_bank,agro_bank,alliance_bank,am_bank,bank_islam,bank_muamalat,bank_rakyat,bank_simpanan_nasional,cimb_bank,hong_leong_bank,hsbc_bank,kuwait_finance_house,maybank,ocbc_bank,public_bank,rhb_bank,standard_chartered_bank,uob_bank"
 fiuu.banks = "affin_bank,agro_bank,alliance_bank,am_bank,bank_of_china,bank_islam,bank_muamalat,bank_rakyat,bank_simpanan_nasional,cimb_bank,hong_leong_bank,hsbc_bank,kuwait_finance_house,maybank,ocbc_bank,public_bank,rhb_bank,standard_chartered_bank,uob_bank"

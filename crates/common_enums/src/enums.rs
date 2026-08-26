@@ -2446,6 +2446,34 @@ pub enum PaymentExperience {
     CollectOtp,
 }
 
+/// Returned in the payment method list response so the SDK,
+/// can help decide whether to show the "save my details" checkbox and how to word it.
+#[derive(
+    Eq,
+    PartialEq,
+    Hash,
+    Copy,
+    Clone,
+    Debug,
+    serde::Serialize,
+    serde::Deserialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+    Default,
+)]
+#[strum(serialize_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+pub enum CustomerAcceptanceSupport {
+    /// Every eligible connector supports saving this payment method.
+    Supported,
+    /// Only some of the eligible connectors support saving this payment method
+    PartiallySupported,
+    /// No eligible connector supports saving this payment method
+    #[default]
+    Unsupported,
+}
+
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, strum::Display)]
 #[serde(rename_all = "lowercase")]
 pub enum SamsungPayCardBrand {
