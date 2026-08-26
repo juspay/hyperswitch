@@ -14,9 +14,10 @@ use crate::{
 pub async fn add_entry_to_blocklist(
     state: SessionState,
     platform: domain::Platform,
+    profile_id: Option<common_utils::id_type::ProfileId>,
     body: api_blocklist::AddToBlocklistRequest,
 ) -> RouterResponse<api_blocklist::AddToBlocklistResponse> {
-    utils::insert_entry_into_blocklist(&state, &platform, body)
+    utils::insert_entry_into_blocklist(&state, &platform, profile_id, body)
         .await
         .map(services::ApplicationResponse::Json)
 }
@@ -24,9 +25,10 @@ pub async fn add_entry_to_blocklist(
 pub async fn remove_entry_from_blocklist(
     state: SessionState,
     processor: domain::Processor,
+    profile_id: Option<common_utils::id_type::ProfileId>,
     body: api_blocklist::DeleteFromBlocklistRequest,
 ) -> RouterResponse<api_blocklist::DeleteFromBlocklistResponse> {
-    utils::delete_entry_from_blocklist(&state, processor.get_account().get_id(), body)
+    utils::delete_entry_from_blocklist(&state, &processor, profile_id, body)
         .await
         .map(services::ApplicationResponse::Json)
 }
@@ -34,11 +36,17 @@ pub async fn remove_entry_from_blocklist(
 pub async fn list_blocklist_entries(
     state: SessionState,
     processor: domain::Processor,
+    profile_id: Option<common_utils::id_type::ProfileId>,
     query: api_blocklist::ListBlocklistQuery,
 ) -> RouterResponse<api_blocklist::ListBlocklistResponse> {
-    utils::list_blocklist_entries_for_merchant(&state, processor.get_account().get_id(), query)
-        .await
-        .map(services::ApplicationResponse::Json)
+    utils::list_blocklist_entries_for_merchant(
+        &state,
+        processor.get_account().get_id(),
+        profile_id.as_ref(),
+        query,
+    )
+    .await
+    .map(services::ApplicationResponse::Json)
 }
 
 pub async fn toggle_blocklist_guard(
@@ -54,9 +62,10 @@ pub async fn toggle_blocklist_guard(
 pub async fn upload_batch_blocklist(
     state: SessionState,
     platform: domain::Platform,
+    profile_id: Option<common_utils::id_type::ProfileId>,
     csv_bytes: bytes::Bytes,
 ) -> RouterResponse<api_blocklist::BatchBlocklistUploadResponse> {
-    batch::initiate_batch_blocklist_upload(&state, &platform, csv_bytes)
+    batch::initiate_batch_blocklist_upload(&state, &platform, profile_id, csv_bytes)
         .await
         .map(services::ApplicationResponse::Json)
 }
