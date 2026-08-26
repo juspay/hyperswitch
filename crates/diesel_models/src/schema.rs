@@ -202,6 +202,8 @@ diesel::table! {
         failed_rows -> Int4,
         created_at -> Timestamp,
         updated_at -> Timestamp,
+        #[max_length = 64]
+        profile_id -> Nullable<Varchar>,
     }
 }
 
@@ -221,6 +223,8 @@ diesel::table! {
         processor_merchant_id -> Nullable<Varchar>,
         #[max_length = 255]
         created_by -> Nullable<Varchar>,
+        #[max_length = 64]
+        profile_id -> Nullable<Varchar>,
     }
 }
 
@@ -1253,6 +1257,8 @@ diesel::table! {
         #[max_length = 64]
         external_threeds_authentication_type -> Nullable<Varchar>,
         applied_offer_details -> Nullable<Jsonb>,
+        #[max_length = 10]
+        fingerprint_type -> Nullable<Varchar>,
     }
 }
 
@@ -1488,6 +1494,7 @@ diesel::table! {
         compatibility_updated_at -> Nullable<Timestamp>,
         #[max_length = 64]
         auxiliary_fingerprint_id -> Nullable<Varchar>,
+        connector_payment_method_details -> Nullable<Jsonb>,
     }
 }
 
@@ -1542,6 +1549,10 @@ diesel::table! {
         #[max_length = 64]
         source_bank_data_token -> Nullable<Varchar>,
         additional_source_bank_data -> Nullable<Jsonb>,
+        #[max_length = 128]
+        connector_eligibility_reference_id -> Nullable<Varchar>,
+        #[max_length = 255]
+        connector_request_reference_id -> Nullable<Varchar>,
     }
 }
 

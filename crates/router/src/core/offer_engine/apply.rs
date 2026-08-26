@@ -40,6 +40,8 @@ pub struct OfferApplyContext {
     pub bank_code: Option<String>,
     /// Card issuing country, if available.
     pub card_country: Option<String>,
+    /// Card fingerprint for once-per-card offer velocity, if available.
+    pub card_alias: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -82,6 +84,7 @@ pub async fn run_offer_apply(
             card_type: ctx.card_type.clone(),
             bank_code: ctx.bank_code.clone(),
             card_country: ctx.card_country.clone(),
+            card_alias: ctx.card_alias.clone(),
         },
         customer: ctx.customer_id.map(|id| OfferCustomer {
             id: id.get_string_repr().to_string(),

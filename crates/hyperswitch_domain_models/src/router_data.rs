@@ -128,6 +128,9 @@ pub struct RouterData<Flow, Request, Response> {
     pub feature_data: Option<FeatureData>,
     /// A connector-specific identifier representing the stored payment instrument
     pub sender_payment_instrument_id: Option<String>,
+
+    /// Payment method details returned by the connector
+    pub connector_returned_payment_method_details: Option<payment_method_data::PaymentMethodData>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -571,6 +574,7 @@ impl TryFrom<ApplePayPredecryptDataInternal> for common_payment_types::ApplePayP
 impl From<GooglePayPredecryptDataInternal> for common_payment_types::GPayPredecryptData {
     fn from(data: GooglePayPredecryptDataInternal) -> Self {
         Self {
+            auth_method: Some(data.payment_method_details.auth_method),
             card_exp_month: Secret::new(data.payment_method_details.expiration_month.two_digits()),
             card_exp_year: Secret::new(data.payment_method_details.expiration_year.four_digits()),
             application_primary_account_number: data.payment_method_details.pan.clone(),
