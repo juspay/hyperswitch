@@ -3073,7 +3073,7 @@ pub async fn perform_session_flow_routing(
         .attach_printable("Unable to parse routing_parameters from metadata of payment_intent")
         .unwrap_or(None);
 
-    let mut backend_input = dsl_inputs::BackendInput {
+    let backend_input = dsl_inputs::BackendInput {
         metadata,
         payment: payment_input,
         payment_method: payment_method_input,
