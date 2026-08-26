@@ -8989,6 +8989,7 @@ default_imp_for_revenue_recovery_dispute_record_back!(
     connectors::Worldpay,
     connectors::Worldpaymodular,
     connectors::Worldpayvantiv,
+    connectors::Worldpayraft,
     connectors::Worldpayxml,
     connectors::Wellsfargo,
     connectors::Wellsfargopayout,
