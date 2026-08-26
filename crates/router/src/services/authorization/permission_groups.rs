@@ -30,7 +30,8 @@ impl PermissionGroupExt for PermissionGroup {
             | Self::ReconSourcesView
             | Self::ReconTransactionsView
             | Self::ReconExceptionsView
-            | Self::ReconRulesView => PermissionScope::Read,
+            | Self::ReconRulesView
+            | Self::OffersView => PermissionScope::Read,
 
             Self::OperationsManage
             | Self::ConnectorsManage
@@ -45,7 +46,8 @@ impl PermissionGroupExt for PermissionGroup {
             | Self::ReconSourcesManage
             | Self::ReconExceptionsManage
             | Self::ReconTransactionsManage
-            | Self::ReconRulesManage => PermissionScope::Write,
+            | Self::ReconRulesManage
+            | Self::OffersManage => PermissionScope::Write,
         }
     }
 
@@ -69,6 +71,7 @@ impl PermissionGroupExt for PermissionGroup {
                 ParentGroup::ReconTransactions
             }
             Self::ReconRulesView | Self::ReconRulesManage => ParentGroup::ReconRules,
+            Self::OffersView | Self::OffersManage => ParentGroup::Offers,
         }
     }
 
@@ -157,6 +160,9 @@ impl PermissionGroupExt for PermissionGroup {
                 Self::ReconRulesView,
                 Self::ReconTransactionsView,
             ],
+
+            Self::OffersView => vec![Self::OffersView],
+            Self::OffersManage => vec![Self::OffersView, Self::OffersManage],
         }
     }
 
@@ -183,7 +189,9 @@ impl PermissionGroupExt for PermissionGroup {
             | Self::ThemeView
             | Self::ThemeManage
             | Self::ConfigurationsView
-            | Self::ConfigurationsManage => RoleProductCategory::Orchestration,
+            | Self::ConfigurationsManage
+            | Self::OffersView
+            | Self::OffersManage => RoleProductCategory::Orchestration,
 
             // Recon-only groups.
             Self::ReconSourcesView
@@ -225,6 +233,7 @@ impl ParentGroupExt for ParentGroup {
             Self::ReconExceptions => RECON_EXCEPTIONS.to_vec(),
             Self::ReconTransactions => RECON_TRANSACTIONS.to_vec(),
             Self::ReconRules => RECON_RULES.to_vec(),
+            Self::Offers => OFFERS.to_vec(),
         }
     }
 
@@ -316,3 +325,5 @@ pub static RECON_TRANSACTIONS: [Resource; 3] = [
 ];
 
 pub static RECON_RULES: [Resource; 2] = [Resource::ReconRule, Resource::Account];
+
+pub static OFFERS: [Resource; 1] = [Resource::Offers];

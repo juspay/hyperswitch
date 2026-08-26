@@ -19,6 +19,7 @@ pub mod disputes;
 #[cfg(feature = "dummy_connector")]
 pub mod dummy_connector;
 pub mod ephemeral_key;
+pub mod external_service_auth;
 pub mod feature_matrix;
 pub mod files;
 #[cfg(feature = "frm")]
@@ -94,12 +95,12 @@ pub use self::app::PaymentMethodSession;
 pub use self::app::Proxy;
 pub use self::app::{
     ApiKeys, AppState, ApplePayCertificatesMigration, Authentication, Cache, CardIssuers, Cards,
-    Chat, Configs, ConnectorOnboarding, Customers, Disputes, Embedded, EphemeralKey, FeatureMatrix,
-    Files, Forex, Gsm, Health, Hypersense, Mandates, MerchantAccount, MerchantConnectorAccount,
-    OfferEngine, Oidc, PaymentLink, PaymentMethods, Payments, Poll, ProcessTracker,
-    ProcessTrackerDeprecated, Profile, ProfileAcquirer, ProfileNew, Refunds, Relay, RelayWebhooks,
-    SdkConfig, SessionState, SuperpositionProxy, ThreeDsDecisionRule, User, UserDeprecated,
-    Webhooks,
+    Chat, Configs, ConnectorOnboarding, Customers, Disputes, Embedded, EphemeralKey,
+    ExternalService, FeatureMatrix, Files, Forex, Gsm, Health, Hypersense, Mandates,
+    MerchantAccount, MerchantConnectorAccount, OfferEngine, Oidc, PaymentLink, PaymentMethods,
+    Payments, Poll, ProcessTracker, ProcessTrackerDeprecated, Profile, ProfileAcquirer, ProfileNew,
+    Refunds, Relay, RelayWebhooks, SdkConfig, SessionState, SuperpositionProxy,
+    ThreeDsDecisionRule, User, UserDeprecated, Webhooks,
 };
 #[cfg(feature = "olap")]
 pub use self::app::{

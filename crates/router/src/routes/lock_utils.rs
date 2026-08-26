@@ -43,6 +43,7 @@ pub enum ApiIdentifier {
     Documentation,
     CardNetworkTokenization,
     Hypersense,
+    ExternalServiceAuth,
     PaymentMethodSession,
     ProcessTracker,
     Authentication,
@@ -378,6 +379,7 @@ impl From<Flow> for ApiIdentifier {
             Flow::HypersenseTokenRequest
             | Flow::HypersenseVerifyToken
             | Flow::HypersenseSignoutToken => Self::Hypersense,
+            Flow::ExternalServiceValidateToken => Self::ExternalServiceAuth,
             Flow::PaymentMethodSessionCreate
             | Flow::PaymentMethodSessionRetrieve
             | Flow::PaymentMethodSessionConfirm
