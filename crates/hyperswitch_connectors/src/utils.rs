@@ -7843,6 +7843,8 @@ pub(crate) fn convert_setup_mandate_router_data_to_authorize_router_data(
         feature_metadata: None,
         installment_details: None,
         connector_intent_metadata: None,
+        is_account_funded_transaction: data.request.is_account_funded_transaction,
+        recipient_details: data.request.recipient_details.clone(),
     }
 }
 

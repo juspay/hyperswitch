@@ -1313,6 +1313,8 @@ diesel::table! {
         active_attempts_group_id -> Nullable<Varchar>,
         #[max_length = 16]
         active_attempt_id_type -> Nullable<Varchar>,
+        is_account_funded_transaction -> Nullable<Bool>,
+        recipient_details -> Nullable<Bytea>,
     }
 }
 
