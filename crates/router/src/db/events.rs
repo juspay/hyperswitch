@@ -2179,6 +2179,7 @@ mod tests {
             external_3ds_authentication_attempted: None,
             expires_on: None,
             fingerprint: None,
+            fingerprint_type: None,
             browser_info: None,
             payment_method_id: None,
             payment_method_status: None,
