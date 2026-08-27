@@ -359,9 +359,6 @@ export const connectorDetails = {
       },
     },
     ZeroAuthConfirmPaymentManual: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_type: "setup_mandate",
         payment_method: "card",
@@ -381,14 +378,13 @@ export const connectorDetails = {
       },
     },
     MITManualCapture: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {},
       Response: {
-        status: 200,
+        status: 501,
         body: {
-          status: "requires_capture",
+          error: {
+            type: "invalid_request",
+          },
         },
       },
     },
