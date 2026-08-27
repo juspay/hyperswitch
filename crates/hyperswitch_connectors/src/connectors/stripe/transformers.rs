@@ -4837,6 +4837,7 @@ pub struct ChargeSyncResponse {
     pub failure_code: Option<String>,
     pub failure_message: Option<String>,
     pub outcome: Option<StripeChargeOutcome>,
+    pub payment_method_details: Option<StripePaymentMethodDetailsResponse>,
 }
 
 impl<F, T> TryFrom<ResponseRouterData<F, ChargeSyncResponse, T, PaymentsResponseData>>
@@ -4879,6 +4880,17 @@ impl<F, T> TryFrom<ResponseRouterData<F, ChargeSyncResponse, T, PaymentsResponse
                 connector_metadata: None,
             })
         } else {
+            let payment_account_reference =
+                item.response
+                    .payment_method_details
+                    .as_ref()
+                    .and_then(|payment_method_details| match payment_method_details {
+                        StripePaymentMethodDetailsResponse::Card { card } => {
+                            card.payment_account_reference.clone()
+                        }
+                        _ => None,
+                    });
+
             Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(resource_id.clone()),
                 redirection_data: Box::new(None),
@@ -4887,6 +4899,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, ChargeSyncResponse, T, PaymentsResponse
                 network_txn_id: None,
                 network_txn_link_id: None,
                 connector_response_reference_id: Some(resource_id.clone()),
+                payment_account_reference,
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
