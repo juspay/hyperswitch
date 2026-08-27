@@ -446,7 +446,6 @@ impl KafkaProducer {
         attempt: &PaymentAttempt,
         old_attempt: Option<PaymentAttempt>,
         tenant_id: TenantID,
-        infra_values: Option<Value>,
     ) -> MQResult<()> {
         if let Some(negative_event) = old_attempt {
             self.log_event(&KafkaEvent::old(
@@ -467,7 +466,7 @@ impl KafkaProducer {
         .attach_printable_lazy(|| format!("Failed to add positive attempt event {attempt:?}"))?;
 
         self.log_event(&KafkaConsolidatedEvent::new(
-            &KafkaPaymentAttemptEvent::from_storage(attempt, infra_values),
+            &KafkaPaymentAttemptEvent::from_storage(attempt),
             tenant_id.clone(),
         ))
         .attach_printable_lazy(|| format!("Failed to add consolidated attempt event {attempt:?}"))

@@ -46,7 +46,6 @@ use scheduler::{
     SchedulerInterface,
 };
 use serde::Serialize;
-use serde_json::Value;
 use storage_impl::redis::kv_store::RedisConnInterface;
 use time::PrimitiveDateTime;
 
@@ -106,7 +105,6 @@ pub struct KafkaStore {
     pub kafka_producer: KafkaProducer,
     pub diesel_store: Store,
     pub tenant_id: TenantID,
-    pub infra_values: Option<Value>,
 }
 
 impl KafkaStore {
@@ -115,14 +113,12 @@ impl KafkaStore {
         mut kafka_producer: KafkaProducer,
         tenant_id: TenantID,
         tenant_config: &dyn TenantConfig,
-        infra_values: Option<Value>,
     ) -> Self {
         kafka_producer.set_tenancy(tenant_config);
         Self {
             kafka_producer,
             diesel_store: store,
             tenant_id,
-            infra_values,
         }
     }
 }
@@ -1725,12 +1721,7 @@ impl PaymentAttemptInterface for KafkaStore {
 
         if let Err(er) = self
             .kafka_producer
-            .log_payment_attempt(
-                &attempt,
-                None,
-                self.tenant_id.clone(),
-                self.infra_values.clone(),
-            )
+            .log_payment_attempt(&attempt, None, self.tenant_id.clone())
             .await
         {
             logger::error!(message="Failed to log analytics event for payment attempt {attempt:?}", error_message=?er)
@@ -1753,12 +1744,7 @@ impl PaymentAttemptInterface for KafkaStore {
 
         if let Err(er) = self
             .kafka_producer
-            .log_payment_attempt(
-                &attempt,
-                None,
-                self.tenant_id.clone(),
-                self.infra_values.clone(),
-            )
+            .log_payment_attempt(&attempt, None, self.tenant_id.clone())
             .await
         {
             logger::error!(message="Failed to log analytics event for payment attempt {attempt:?}", error_message=?er)
@@ -1790,12 +1776,7 @@ impl PaymentAttemptInterface for KafkaStore {
         attempt.set_debit_routing_savings(debit_routing_savings);
         if let Err(er) = self
             .kafka_producer
-            .log_payment_attempt(
-                &attempt,
-                Some(this),
-                self.tenant_id.clone(),
-                self.infra_values.clone(),
-            )
+            .log_payment_attempt(&attempt, Some(this), self.tenant_id.clone())
             .await
         {
             logger::error!(message="Failed to log analytics event for payment attempt {attempt:?}", error_message=?er)
@@ -1824,12 +1805,7 @@ impl PaymentAttemptInterface for KafkaStore {
 
         if let Err(er) = self
             .kafka_producer
-            .log_payment_attempt(
-                &attempt,
-                Some(this),
-                self.tenant_id.clone(),
-                self.infra_values.clone(),
-            )
+            .log_payment_attempt(&attempt, Some(this), self.tenant_id.clone())
             .await
         {
             logger::error!(message="Failed to log analytics event for payment attempt {attempt:?}", error_message=?er)
@@ -4085,12 +4061,7 @@ impl BatchSampleDataInterface for KafkaStore {
         for payment_attempt in payment_attempts_list.iter() {
             let _ = self
                 .kafka_producer
-                .log_payment_attempt(
-                    payment_attempt,
-                    None,
-                    self.tenant_id.clone(),
-                    state.infra_values.clone(),
-                )
+                .log_payment_attempt(payment_attempt, None, self.tenant_id.clone())
                 .await;
         }
         Ok(payment_attempts_list)
