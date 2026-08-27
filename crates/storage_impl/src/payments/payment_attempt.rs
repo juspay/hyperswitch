@@ -778,6 +778,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                         .payment_method_billing_address_id
                         .clone(),
                     fingerprint_id: payment_attempt.fingerprint_id.clone(),
+                    fingerprint_type: payment_attempt.fingerprint_type,
                     client_source: payment_attempt.client_source.clone(),
                     client_version: payment_attempt.client_version.clone(),
                     customer_acceptance: payment_attempt.customer_acceptance.clone(),
@@ -2283,6 +2284,7 @@ impl Conversion for PaymentAttempt {
             installment_data: None,
             external_surcharge_details: None,
             applied_offer_details,
+            fingerprint_type: None,
             sender_payment_instrument_id: None,
         })
     }

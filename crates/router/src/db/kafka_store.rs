@@ -2969,6 +2969,15 @@ impl ProcessTrackerInterface for KafkaStore {
             .finish_process_with_business_status(this, business_status)
             .await
     }
+    async fn finish_process_with_update(
+        &self,
+        this: storage::ProcessTracker,
+        update: storage::ProcessTrackerUpdate,
+    ) -> CustomResult<(), errors::StorageError> {
+        self.diesel_store
+            .finish_process_with_update(this, update)
+            .await
+    }
     async fn find_processes_by_time_status(
         &self,
         time_lower_limit: PrimitiveDateTime,

@@ -110,6 +110,7 @@ pub struct Settings<S: SecretState> {
     pub jwekey: SecretStateContainer<Jwekey, S>,
     pub webhooks: WebhooksSettings,
     pub pm_filters: ConnectorFilters,
+    pub customer_acceptance_support: CustomerAcceptanceSupportConfig,
     pub bank_config: BankRedirectConfig,
     pub api_keys: SecretStateContainer<ApiKeys, S>,
     pub file_storage: FileStorageConfig,
@@ -963,6 +964,32 @@ pub struct PaymentMethodFilters(pub HashMap<PaymentMethodFilterKey, CurrencyCoun
 pub enum PaymentMethodFilterKey {
     PaymentMethodType(enums::PaymentMethodType),
     CardNetwork(enums::CardNetwork),
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(transparent)]
+pub struct CustomerAcceptanceSupportConfig(
+    pub HashMap<enums::PaymentMethod, PaymentMethodTypeCustomerAcceptanceSupport>,
+);
+
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(transparent)]
+pub struct PaymentMethodTypeCustomerAcceptanceSupport(
+    pub HashMap<enums::PaymentMethodType, common_enums::CustomerAcceptanceSupport>,
+);
+
+impl CustomerAcceptanceSupportConfig {
+    pub fn get_customer_acceptance_support(
+        &self,
+        payment_method: enums::PaymentMethod,
+        payment_method_type: enums::PaymentMethodType,
+    ) -> common_enums::CustomerAcceptanceSupport {
+        self.0
+            .get(&payment_method)
+            .and_then(|pm_types| pm_types.0.get(&payment_method_type))
+            .copied()
+            .unwrap_or_default()
+    }
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
