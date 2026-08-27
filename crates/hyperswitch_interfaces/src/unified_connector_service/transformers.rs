@@ -2094,9 +2094,7 @@ impl UnifiedConnectorServiceError {
     /// | NotImplemented          | NotImplemented                  | IR_00 |
     /// | FailedToObtainAuthType  | InvalidConnectorConfiguration  | IR_30 |
     /// | RequestEncodingFailed   | InternalServerError             | HE_00 |
-    fn integration_error_code_to_variant(
-        ie: &payments_grpc::IntegrationError,
-    ) -> Option<Self> {
+    fn integration_error_code_to_variant(ie: &payments_grpc::IntegrationError) -> Option<Self> {
         use UcsIntegrationErrorCode as Code;
 
         UcsIntegrationErrorCode::parse(&ie.error_code).map(|code| match code {
@@ -2208,7 +2206,7 @@ impl ErrorSwitch<ConnectorError> for UnifiedConnectorServiceError {
                     field_name: Cow::Owned(message.clone()),
                 },
                 _ => ConnectorError::ResponseHandlingFailed,
-            }
+            },
             // Connector errors — serialize the details into ProcessingStepFailed so
             // downstream handlers (to_payment_failed_response) can surface them instead
             // of producing a bare InternalServerError.
