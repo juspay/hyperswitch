@@ -504,7 +504,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         installment_details: None,
         connector_intent_metadata: None,
         is_account_funded_transaction: payment_data.payment_intent.is_account_funded_transaction,
-        recipient_details: None,
+        recipient_details: payment_data.payment_intent.recipient_details,
     };
     let connector_mandate_request_reference_id = payment_data
         .payment_attempt
@@ -1822,7 +1822,7 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
         merchant_order_reference_id: None,
         mit_category: None,
         is_account_funded_transaction: payment_data.payment_intent.is_account_funded_transaction,
-        recipient_details: None,
+        recipient_details: payment_data.payment_intent.recipient_details,
     };
     let connector_mandate_request_reference_id = payment_data
         .payment_attempt
@@ -2930,7 +2930,7 @@ where
             .get_recipient_details()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to parse recipient details")?
-            .map(|recipient_details| recipient_details.to_masked());
+            .map(api_models::payments::MaskedRecipientDetails::from);
 
         Ok(services::ApplicationResponse::JsonWithHeaders((
             Self {
@@ -4289,7 +4289,7 @@ where
             .get_recipient_details()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to parse recipient details")?
-            .map(|recipient_details| recipient_details.to_masked());
+            .map(api_models::payments::MaskedRecipientDetails::from);
         let payments_response = api::PaymentsResponse {
             payment_id: payment_intent.payment_id,
             merchant_id: payment_intent.merchant_id,
@@ -4700,7 +4700,7 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             })
             .ok()
             .flatten()
-            .map(|recipient_details| recipient_details.to_masked());
+            .map(api_models::payments::MaskedRecipientDetails::from);
         Self {
             connector_response_metadata: pa.get_connector_response_metadata_from_attempt_metadata(),
             applied_offer: applied_offer_response(pa.applied_offer_details.clone()),

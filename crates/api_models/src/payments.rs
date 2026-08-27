@@ -5,6 +5,7 @@ use std::{
     num::{NonZeroI64, NonZeroU8},
 };
 pub mod additional_info;
+pub mod recipient;
 pub mod trait_impls;
 use cards::{CardNumber, NetworkToken};
 #[cfg(feature = "v2")]
@@ -26,12 +27,16 @@ use common_utils::{
     ext_traits::{ConfigExt, Encode, ValueExt},
     hashing::HashedString,
     id_type,
-    new_type::{MaskedBankAccount, MaskedBic, MaskedIban, MaskedRoutingNumber},
+    new_type::MaskedBankAccount,
     pii::{self, Email},
     types::{AmountConvertor, MinorUnit, Percentage, SemanticVersion, StringMajorUnit},
 };
 use error_stack::ResultExt;
 
+pub use self::recipient::{
+    MaskedRecipientAccount, MaskedRecipientBankAccount, MaskedRecipientDetails, RecipientAccount,
+    RecipientBankAccount, RecipientDetails,
+};
 use crate::customers::CustomerDocumentDetails;
 #[cfg(feature = "v2")]
 fn parse_comma_separated<'de, D, T>(v: D) -> Result<Option<Vec<T>>, D::Error>
@@ -6589,283 +6594,6 @@ pub struct AddressDetailsWithPhone {
     pub address: Option<AddressDetails>,
     pub phone_number: Option<Secret<String>>,
     pub email: Option<Email>,
-}
-
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
-#[serde(tag = "identifier_type", rename_all = "snake_case")]
-pub enum RecipientBankAccount {
-    /// An International Bank Account Number.
-    Iban {
-        /// The recipient's IBAN.
-        #[schema(value_type = String, example = "GB29NWBK70361331946864")]
-        iban: Secret<String>,
-    },
-    /// A bank account number paired with the routing number of the holding bank.
-    RoutingNumber {
-        /// The recipient's bank account number.
-        #[schema(value_type = String, example = "000123456789")]
-        account_number: Secret<String>,
-        /// The routing number of the recipient's bank.
-        #[schema(value_type = String, example = "110000000")]
-        routing_number: Secret<String>,
-    },
-    /// A bank account number paired with the BIC of the holding bank.
-    Bic {
-        /// The recipient's bank account number.
-        #[schema(value_type = String, example = "09875432")]
-        account_number: Secret<String>,
-        /// The Bank Identification Code of the recipient's bank.
-        #[schema(value_type = String, example = "HBUKGB4B")]
-        bic: Secret<String>,
-    },
-    /// A bare bank account number, where the scheme does not require a bank identifier.
-    AccountNumber {
-        /// The recipient's bank account number.
-        #[schema(value_type = String, example = "000123456789")]
-        account_number: Secret<String>,
-    },
-    /// A truncated primary account number, made up of the first six and last four digits.
-    TruncatedPan {
-        /// The first six digits of the recipient's PAN.
-        #[schema(value_type = String, max_length = 6, example = "411111")]
-        card_isin: Secret<String>,
-        /// The last four digits of the recipient's PAN.
-        #[schema(value_type = String, max_length = 4, example = "1111")]
-        last4: Secret<String>,
-    },
-}
-
-/// The account that receives the funds in an account funded transaction.
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
-#[serde(tag = "type", rename_all = "snake_case")]
-pub enum RecipientAccount {
-    /// Funds are credited to a bank account.
-    BankAccount(RecipientBankAccount),
-    /// Funds are credited to a card.
-    Card {
-        /// The recipient's card number.
-        #[schema(value_type = String, example = "4111111111111111")]
-        card_number: Secret<String>,
-    },
-    /// Funds are credited to a wallet held for the recipient.
-    Wallet {
-        /// The identifier of the recipient's wallet.
-        #[schema(value_type = String, example = "wallet_8891")]
-        wallet_id: Secret<String>,
-    },
-    /// The recipient's account is identified by their email address.
-    Email {
-        /// The email address that identifies the recipient's account.
-        #[schema(value_type = String, example = "jane.doe@example.com")]
-        email: Email,
-    },
-    /// The recipient's account is identified by their phone number.
-    Phone {
-        /// The phone number that identifies the recipient's account.
-        #[schema(value_type = String, example = "9123456789")]
-        phone_number: Secret<String>,
-    },
-    /// The recipient's account is identified by a social network handle.
-    SocialNetwork {
-        /// The social network identifier of the recipient.
-        #[schema(value_type = String, example = "jane.doe")]
-        social_network_id: Secret<String>,
-    },
-}
-
-/// Details of the party receiving the funds in an account funded transaction.
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
-pub struct RecipientDetails {
-    /// The account the funds are credited to.
-    #[schema(value_type = Option<RecipientAccount>)]
-    pub account: Option<RecipientAccount>,
-
-    /// The recipient's phone number.
-    #[schema(value_type = Option<String>, max_length = 20, example = "9123456789")]
-    pub phone_number: Option<Secret<String>>,
-
-    /// The recipient's tax identifier. Some connectors require this for recipients in Brazil
-    /// (CPF or CNPJ) and Argentina.
-    #[schema(value_type = Option<String>, max_length = 25, example = "162.152.541-42")]
-    pub tax_id: Option<Secret<String>>,
-
-    /// The recipient's address.
-    #[schema(value_type = Option<AddressDetails>)]
-    pub address: Option<AddressDetails>,
-}
-
-/// A partially masked view of `RecipientBankAccount`, safe to return in API responses.
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
-#[serde(tag = "identifier_type", rename_all = "snake_case")]
-pub enum MaskedRecipientBankAccount {
-    /// A partially masked International Bank Account Number.
-    Iban {
-        /// The recipient's partially masked IBAN.
-        #[schema(value_type = String, example = "GB29N************46864")]
-        iban: MaskedIban,
-    },
-    /// A partially masked account number and routing number.
-    RoutingNumber {
-        /// The recipient's partially masked bank account number.
-        #[schema(value_type = String, example = "0001****6789")]
-        account_number: MaskedBankAccount,
-        /// The partially masked routing number of the recipient's bank.
-        #[schema(value_type = String, example = "110***000")]
-        routing_number: MaskedRoutingNumber,
-    },
-    /// A partially masked account number and BIC.
-    Bic {
-        /// The recipient's partially masked bank account number.
-        #[schema(value_type = String, example = "0987****5432")]
-        account_number: MaskedBankAccount,
-        /// The partially masked Bank Identification Code of the recipient's bank.
-        #[schema(value_type = String, example = "HBU***4B")]
-        bic: MaskedBic,
-    },
-    /// A partially masked bare bank account number.
-    AccountNumber {
-        /// The recipient's partially masked bank account number.
-        #[schema(value_type = String, example = "0001****6789")]
-        account_number: MaskedBankAccount,
-    },
-    /// A truncated primary account number. This is already the industry standard truncated form,
-    /// so it is returned as supplied.
-    TruncatedPan {
-        /// The first six digits of the recipient's PAN.
-        #[schema(value_type = String, example = "411111")]
-        card_isin: Secret<String>,
-        /// The last four digits of the recipient's PAN.
-        #[schema(value_type = String, example = "1111")]
-        last4: Secret<String>,
-    },
-}
-
-/// A partially masked view of `RecipientAccount`, safe to return in API responses.
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
-#[serde(tag = "type", rename_all = "snake_case")]
-pub enum MaskedRecipientAccount {
-    /// A partially masked bank account.
-    BankAccount(MaskedRecipientBankAccount),
-    /// A partially masked card.
-    Card {
-        /// The recipient's partially masked card number.
-        #[schema(value_type = String, example = "4111****1111")]
-        card_number: MaskedBankAccount,
-    },
-    /// A partially masked wallet.
-    Wallet {
-        /// The partially masked identifier of the recipient's wallet.
-        #[schema(value_type = String, example = "wall****8891")]
-        wallet_id: MaskedBankAccount,
-    },
-    /// A masked email address.
-    Email {
-        /// The email address that identifies the recipient's account.
-        #[schema(value_type = String, example = "jane.doe@example.com")]
-        email: Email,
-    },
-    /// A partially masked phone number.
-    Phone {
-        /// The phone number that identifies the recipient's account.
-        #[schema(value_type = String, example = "9123****6789")]
-        phone_number: MaskedBankAccount,
-    },
-    /// A partially masked social network handle.
-    SocialNetwork {
-        /// The social network identifier of the recipient.
-        #[schema(value_type = String, example = "jane****.doe")]
-        social_network_id: MaskedBankAccount,
-    },
-}
-
-/// A partially masked view of `RecipientDetails`, safe to return in API responses.
-#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
-pub struct MaskedRecipientDetails {
-    /// The partially masked account the funds are credited to.
-    #[schema(value_type = Option<MaskedRecipientAccount>)]
-    pub account: Option<MaskedRecipientAccount>,
-
-    /// The recipient's partially masked phone number.
-    #[schema(value_type = Option<String>, example = "9123****6789")]
-    pub phone_number: Option<MaskedBankAccount>,
-
-    /// The recipient's partially masked tax identifier.
-    #[schema(value_type = Option<String>, example = "162.****41-42")]
-    pub tax_id: Option<MaskedBankAccount>,
-
-    /// The recipient's address.
-    #[schema(value_type = Option<AddressDetails>)]
-    pub address: Option<AddressDetails>,
-}
-
-impl RecipientBankAccount {
-    /// Build a partially masked view of the bank account.
-    pub fn to_masked(&self) -> MaskedRecipientBankAccount {
-        match self {
-            Self::Iban { iban } => MaskedRecipientBankAccount::Iban {
-                iban: MaskedIban::from(iban.clone()),
-            },
-            Self::RoutingNumber {
-                account_number,
-                routing_number,
-            } => MaskedRecipientBankAccount::RoutingNumber {
-                account_number: MaskedBankAccount::from(account_number.clone()),
-                routing_number: MaskedRoutingNumber::from(routing_number.clone()),
-            },
-            Self::Bic {
-                account_number,
-                bic,
-            } => MaskedRecipientBankAccount::Bic {
-                account_number: MaskedBankAccount::from(account_number.clone()),
-                bic: MaskedBic::from(bic.clone()),
-            },
-            Self::AccountNumber { account_number } => MaskedRecipientBankAccount::AccountNumber {
-                account_number: MaskedBankAccount::from(account_number.clone()),
-            },
-            Self::TruncatedPan { card_isin, last4 } => MaskedRecipientBankAccount::TruncatedPan {
-                card_isin: card_isin.clone(),
-                last4: last4.clone(),
-            },
-        }
-    }
-}
-
-impl RecipientAccount {
-    /// Build a partially masked view of the account.
-    pub fn to_masked(&self) -> MaskedRecipientAccount {
-        match self {
-            Self::BankAccount(bank_account) => {
-                MaskedRecipientAccount::BankAccount(bank_account.to_masked())
-            }
-            Self::Card { card_number } => MaskedRecipientAccount::Card {
-                card_number: MaskedBankAccount::from(card_number.clone()),
-            },
-            Self::Wallet { wallet_id } => MaskedRecipientAccount::Wallet {
-                wallet_id: MaskedBankAccount::from(wallet_id.clone()),
-            },
-            Self::Email { email } => MaskedRecipientAccount::Email {
-                email: email.clone(),
-            },
-            Self::Phone { phone_number } => MaskedRecipientAccount::Phone {
-                phone_number: MaskedBankAccount::from(phone_number.clone()),
-            },
-            Self::SocialNetwork { social_network_id } => MaskedRecipientAccount::SocialNetwork {
-                social_network_id: MaskedBankAccount::from(social_network_id.clone()),
-            },
-        }
-    }
-}
-
-impl RecipientDetails {
-    /// Build a partially masked view of the recipient details, for returning in API responses.
-    pub fn to_masked(&self) -> MaskedRecipientDetails {
-        MaskedRecipientDetails {
-            account: self.account.as_ref().map(RecipientAccount::to_masked),
-            phone_number: self.phone_number.clone().map(MaskedBankAccount::from),
-            tax_id: self.tax_id.clone().map(MaskedBankAccount::from),
-            address: self.address.clone(),
-        }
-    }
 }
 
 pub struct EncryptableAddressDetails {
