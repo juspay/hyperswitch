@@ -192,6 +192,7 @@ hash_key = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 
 [connectors]
 absa_sanlam.base_url = "dev"
+gotyme_sanlam.base_url = "dev"
 aci.base_url = "https://eu-test.oppwa.com/"
 adyen.base_url = "https://checkout-test.adyen.com/"
 adyenplatform.base_url = "https://balanceplatform-api-test.adyen.com/"
@@ -1147,6 +1148,14 @@ payjustnow = { country = "ZA", currency = "ZAR" }
 
 [pm_filters.payjustnowinstore]
 payjustnow = { country = "ZA", currency = "ZAR" }
+
+# Whether saving a payment method is supported by all, some, or none of the connectors
+# eligible for it. Returned in the PML response so the SDK can decide whether to show the
+# "save my details" checkbox ("supported" | "partially_supported" | "unsupported").
+[customer_acceptance_support]
+card.credit = "supported"
+card.debit = "supported"
+bank_redirect.open_banking = "partially_supported"
 
 [bank_config.online_banking_fpx]
 adyen.banks = "affin_bank,agro_bank,alliance_bank,am_bank,bank_islam,bank_muamalat,bank_rakyat,bank_simpanan_nasional,cimb_bank,hong_leong_bank,hsbc_bank,kuwait_finance_house,maybank,ocbc_bank,public_bank,rhb_bank,standard_chartered_bank,uob_bank"

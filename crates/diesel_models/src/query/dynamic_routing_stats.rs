@@ -8,18 +8,21 @@ use crate::{
     },
     errors,
     schema::dynamic_routing_stats::dsl,
-    PgPooledConn, StorageResult,
+    DatabaseConnectionWithContext, StorageResult,
 };
 
 impl DynamicRoutingStatsNew {
-    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<DynamicRoutingStats> {
+    pub async fn insert(
+        self,
+        conn: &DatabaseConnectionWithContext<'_>,
+    ) -> StorageResult<DynamicRoutingStats> {
         generics::generic_insert(conn, self).await
     }
 }
 
 impl DynamicRoutingStats {
     pub async fn find_optional_by_attempt_id_merchant_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         attempt_id: String,
         merchant_id: &common_utils::id_type::MerchantId,
     ) -> StorageResult<Option<Self>> {
@@ -33,7 +36,7 @@ impl DynamicRoutingStats {
     }
 
     pub async fn update(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         attempt_id: String,
         merchant_id: &common_utils::id_type::MerchantId,
         dynamic_routing_stat: DynamicRoutingStatsUpdate,

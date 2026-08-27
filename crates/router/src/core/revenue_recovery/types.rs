@@ -1381,6 +1381,7 @@ pub async fn reopen_calculate_workflow_on_payment_failure(
         global_payment_id: old_tracking_data.global_payment_id.clone(),
         billing_mca_id: old_tracking_data.billing_mca_id.clone(),
         invoice_scheduled_time: old_tracking_data.invoice_scheduled_time,
+        static_ladder_progress: old_tracking_data.static_ladder_progress,
     };
 
     let tracking_data = serde_json::to_value(new_tracking_data)
@@ -1630,7 +1631,7 @@ pub fn construct_invoice_record_back_router_data(
         flow: PhantomData::<router_flow_types::InvoiceRecordBack>,
         tenant_id: state.tenant.tenant_id.clone(),
         resource_common_data: flow_common_types::InvoiceRecordBackData {
-            connector_meta_data: None,
+            connector_meta_data: billing_mca.metadata.clone(),
         },
         connector_auth_type: auth_type,
         request: revenue_recovery_request::InvoiceRecordBackRequest {
