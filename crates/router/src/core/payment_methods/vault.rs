@@ -1466,7 +1466,7 @@ impl Vaultable for api::BankTransferPayout {
             Some(PaymentMethodType::Payshap) => Self::Payshap(payouts::PayshapBankTransfer {
                 bank_account_number: bank_sensitive_data.bank_account_number.ok_or(
                     errors::VaultError::MissingRequiredField {
-                        field_name: "bank_account_number",
+                        field_name: "bank_account_number".into(),
                     },
                 )?,
                 account_holder_name: bank_sensitive_data.account_holder_name,
