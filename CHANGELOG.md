@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.08.26.1-hotfix2
+
+### Bug Fixes
+
+- **routing:** Send all dashboard routing dimensions to the Decision Engine ([#13875](https://github.com/juspay/hyperswitch/pull/13875)) ([`6efe66d`](https://github.com/juspay/hyperswitch/commit/6efe66db43df574e0431cf4b606df378b3f40260))
+
+**Full Changelog:** [`2026.08.26.1-hotfix1...2026.08.26.1-hotfix2`](https://github.com/juspay/hyperswitch/compare/2026.08.26.1-hotfix1...2026.08.26.1-hotfix2)
+
+- - -
+
 ## 2026.08.26.1-hotfix1
 
 ### Features
