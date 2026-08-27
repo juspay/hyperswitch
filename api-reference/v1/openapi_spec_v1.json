@@ -10006,12 +10006,6 @@
           "email": {
             "type": "string",
             "nullable": true
-          },
-          "date_of_birth": {
-            "type": "string",
-            "format": "date",
-            "example": "1990-01-31",
-            "nullable": true
           }
         }
       },
@@ -19908,6 +19902,13 @@
                 "$ref": "#/components/schemas/CustomerDocumentDetails"
               }
             ],
+            "nullable": true
+          },
+          "date_of_birth": {
+            "type": "string",
+            "format": "date",
+            "description": "The customer's date of birth",
+            "example": "1990-01-31",
             "nullable": true
           }
         }
