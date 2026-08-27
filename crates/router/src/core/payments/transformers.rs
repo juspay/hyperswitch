@@ -430,6 +430,12 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
             .and_then(|noon| noon.order_category.clone())
     });
 
+    let recipient_details = payment_data
+        .payment_intent
+        .get_recipient_details()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to parse recipient details")?;
+
     // TODO: few fields are repeated in both routerdata and request
     let request = types::PaymentsAuthorizeData {
         payment_method_data: payment_data
@@ -504,11 +510,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         installment_details: None,
         connector_intent_metadata: None,
         is_account_funded_transaction: payment_data.payment_intent.is_account_funded_transaction,
-        recipient_details: payment_data
-            .payment_intent
-            .get_recipient_details()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to parse recipient details")?,
+        recipient_details,
     };
     let connector_mandate_request_reference_id = payment_data
         .payment_attempt
@@ -1774,6 +1776,12 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
         .clone()
         .map(types::BrowserInformation::from);
 
+    let recipient_details = payment_data
+        .payment_intent
+        .get_recipient_details()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to parse recipient details")?;
+
     // TODO: few fields are repeated in both routerdata and request
     let request = types::SetupMandateRequestData {
         currency: payment_data.payment_intent.amount_details.currency,
@@ -1826,11 +1834,7 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
         merchant_order_reference_id: None,
         mit_category: None,
         is_account_funded_transaction: payment_data.payment_intent.is_account_funded_transaction,
-        recipient_details: payment_data
-            .payment_intent
-            .get_recipient_details()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to parse recipient details")?,
+        recipient_details,
     };
     let connector_mandate_request_reference_id = payment_data
         .payment_attempt
