@@ -1421,7 +1421,6 @@ impl DayAxis {
 enum PickDriver<T> {
     Weights(T),  // the weights drove the choice; carries the chosen item's tag
     RunwayGuard, // forced fire: budget >= remaining candidates (spends the budget before the window ends)
-    Exhausted,   // nothing fired (budget 0) — fell through to the last index
 }
 
 #[cfg(feature = "v2")]
@@ -1431,7 +1430,6 @@ impl PickDriver<DayAxis> {
         match self {
             Self::Weights(axis) => axis.as_str(),
             Self::RunwayGuard => "runway_guard",
-            Self::Exhausted => "exhausted",
         }
     }
 }
@@ -1440,18 +1438,20 @@ impl PickDriver<DayAxis> {
 /// Fires index k with probability `min(budget · weight_k / remaining_weight, 1)` (remaining_weight
 /// via a suffix-sum); `budget >= remaining` forces a fire. Weights need not be normalized — only
 /// their ratios matter. `tags` runs parallel to `weights`; the chosen index's tag rides back inside
-/// `PickDriver::Weights`, so the caller never re-indexes to recover it. Always returns an index, plus
-/// WHY (see `PickDriver`).
+/// `PickDriver::Weights`, so the caller never re-indexes to recover it. Returns the chosen index and
+/// WHY (see `PickDriver`), or `None` when nothing fires — an empty list, or a run where every tick
+/// missed. With `budget >= 1` the runway guard forces the last index to fire, so `None` means "no
+/// candidate to schedule" (empty list or `budget == 0`); the caller treats it as "don't schedule".
 #[cfg(feature = "v2")]
 fn pick_index<T: Copy + std::fmt::Debug>(
     weights: &[f64],
     tags: &[T],
     budget: u32,
     context: &'static str,
-) -> (usize, PickDriver<T>) {
+) -> Option<(usize, PickDriver<T>)> {
     let n = weights.len();
     if n == 0 {
-        return (0, PickDriver::Exhausted);
+        return None;
     }
     // suffix[k] = weights[k] + … + weights[n-1], accumulated over the reversed slice (no indexing).
     let suffix: Vec<f64> = {
@@ -1497,21 +1497,21 @@ fn pick_index<T: Copy + std::fmt::Debug>(
             "mathmodel: pick step"
         );
         if fired {
-            return (
+            return Some((
                 k,
                 if guard {
                     PickDriver::RunwayGuard
                 } else {
                     PickDriver::Weights(tag)
                 },
-            );
+            ));
         }
     }
     logger::debug!(
         context = context,
-        "mathmodel: pick exhausted — no step fired, falling through to the last index"
+        "mathmodel: pick exhausted — no step fired (budget 0); no candidate to schedule"
     );
-    (n - 1, PickDriver::Exhausted)
+    None
 }
 
 /// Pick the hour the SAME way as days: per-tick over hours 0..23 with budget 1 (exactly one hour).
@@ -1529,9 +1529,11 @@ fn pick_hour(hod: &[SlotCounter], default_hour: u8) -> u8 {
         .iter()
         .map(|&h| scores.get(&h).copied().unwrap_or(0.0).exp())
         .collect();
-    let (idx, _) = pick_index(&weights, &hours, 1, "hour");
-    // `hours[idx]` IS the hour (already a u8); fetched via `get` so there's no cast and no panic.
-    hours.get(idx).copied().unwrap_or(default_hour)
+    // budget 1 over a non-empty list => the runway guard always fires (never None); the fallback to
+    // default_hour is a defensive floor. `hours[idx]` IS the hour (a u8), fetched via `get` — no cast.
+    pick_index(&weights, &hours, 1, "hour")
+        .and_then(|(idx, _)| hours.get(idx).copied())
+        .unwrap_or(default_hour)
 }
 
 /// Softmax `xs` (numerically stabilized by subtracting the max). `xs` is non-empty here.
@@ -1602,7 +1604,8 @@ fn combine_day_weight(
 /// charge just failed today, so a same-day retry is low value. The min-gap / past-time guard rails
 /// are applied by the CALLER on the returned time (per the MathModel design).
 ///
-/// Returns `None` when `grace_days <= 1` (no future day inside the grace period); otherwise `Some`.
+/// Returns `None` when `budget == 0` (no retries left to schedule) or `grace_days <= 1` (no future
+/// day inside the grace period); otherwise `Some`.
 /// V1 LIMITATION: a grace of 1 (today only) with retries still available is treated as "no retry"; a
 /// later version will handle that edge (e.g. a same-day retry after a delay). Uses real randomness
 /// (no seed). The caller `min()`s the result with the static schedule time.
@@ -1621,6 +1624,22 @@ pub fn compute_mathmodel_retry_time(
     // retry after a delay) rather than skipping.
     let future_days = grace_days.saturating_sub(1);
     if future_days == 0 {
+        logger::debug!(
+            budget = budget,
+            grace_days = grace_days,
+            "mathmodel: declined — no future day inside the grace window (grace_days <= 1)"
+        );
+        return None;
+    }
+    // No retries remaining: there is nothing to schedule. `pick_index` also returns None on budget 0
+    // (nothing fires), so this is really an early-out — it short-circuits before building the window
+    // and emitting the per-day trace, and states the "no budget -> no retry" contract explicitly.
+    if budget == 0 {
+        logger::debug!(
+            budget = budget,
+            grace_days = grace_days,
+            "mathmodel: declined — no retry budget remaining"
+        );
         return None;
     }
     let now = time::OffsetDateTime::now_utc();
@@ -1684,7 +1703,8 @@ pub fn compute_mathmodel_retry_time(
     }
 
     // winners ride along so the winning axis returns inside pick_driver — no re-indexing afterwards.
-    let (day_idx, pick_driver) = pick_index(&day_weights, &winners, budget, "day");
+    // `None` means no candidate fired (no budget / empty window) -> nothing to schedule -> return None.
+    let (day_idx, pick_driver) = pick_index(&day_weights, &winners, budget, "day")?;
     let hour = pick_hour(&stats.hod, default_hour);
     let time = time::Time::from_hms(hour, 0, 0).unwrap_or(time::Time::MIDNIGHT);
 
@@ -1693,7 +1713,7 @@ pub fn compute_mathmodel_retry_time(
     let chosen_weight = day_weights.get(day_idx).copied().unwrap_or(0.0);
     let retry_at = chosen_date.with_time(time).assume_offset(now.offset());
 
-    // Final decision. Forced/exhausted picks label themselves (not the softmax winner) for honest
+    // Final decision. A forced (runway-guard) pick labels itself (not the softmax winner) for honest
     // back-test attribution.
     logger::debug!(
         chosen_day = %chosen_date,
@@ -1913,6 +1933,17 @@ mod mathmodel_retry_time_tests {
     }
 
     #[test]
+    fn zero_budget_returns_none() {
+        // No retries left: the model must NOT hand back a date (pick_index with budget 0 would
+        // otherwise fall through to the last grace day). Guard holds for any grace / stats shape.
+        assert!(compute_mathmodel_retry_time(&sample(), 0, 14, DEFAULT_RETRY_HOUR).is_none());
+        assert!(
+            compute_mathmodel_retry_time(&StatsDocument::default(), 0, 30, DEFAULT_RETRY_HOUR)
+                .is_none()
+        );
+    }
+
+    #[test]
     fn corrupt_counter_is_excluded_not_promoted() {
         // k > n is untrustworthy: the slot is DROPPED (not clamped to a perfect record), so it can't
         // dominate.
@@ -1980,7 +2011,8 @@ mod mathmodel_retry_time_tests {
     #[test]
     fn runway_guard_is_attributed() {
         // budget >= number of slots => the guard forces index 0 and reports itself (not "weights").
-        let (idx, driver) = pick_index(&[1.0, 1.0, 1.0], &[DayAxis::Tie; 3], 5, "test");
+        let (idx, driver) = pick_index(&[1.0, 1.0, 1.0], &[DayAxis::Tie; 3], 5, "test")
+            .expect("guard forces a fire");
         assert_eq!(idx, 0);
         assert!(matches!(driver, PickDriver::RunwayGuard));
     }
