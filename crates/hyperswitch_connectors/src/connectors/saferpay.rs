@@ -40,7 +40,7 @@ use hyperswitch_interfaces::{
 use hyperswitch_masking::{Mask, PeekInterface};
 use transformers as saferpay;
 
-use crate::constants::headers;
+use crate::{constants::headers, utils::PaymentsAuthorizeRequestData};
 
 /// Saferpay (SIX Payment Services).
 ///
@@ -353,6 +353,32 @@ static SAFERPAY_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
 static SAFERPAY_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];
 
 impl ConnectorSpecifications for Saferpay {
+    /// Saferpay runs 3-D Secure itself: `Transaction/Initialize` returns a redirect to
+    /// its own hosted DCC + 3DS pages. That opening call is the PreAuthenticate leg, so
+    /// it must fire on Authorize for any 3DS card attempt. Without this the connector
+    /// would fall through to `AuthorizeDirect`, which never authenticates.
+    fn is_pre_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo) -> bool {
+        match current_flow {
+            api::CurrentFlowInfo::Authorize {
+                request_data,
+                auth_type,
+            } => auth_type == common_enums::AuthenticationType::ThreeDs && request_data.is_card(),
+            api::CurrentFlowInfo::CompleteAuthorize { .. }
+            | api::CurrentFlowInfo::SetupMandate { .. }
+            | api::CurrentFlowInfo::Psync { .. }
+            | api::CurrentFlowInfo::UpdatePostConfirm { .. }
+            | api::CurrentFlowInfo::ConnectorWebhookRegister { .. } => false,
+        }
+    }
+
+    /// Both authenticate legs stay off. They exist to hand `AuthenticationData` to a
+    /// following Authorize; Saferpay's second call *is* the authorization, so it runs as
+    /// the complete-authorize Authorize instead. Leaving `is_post_authentication_flow_required`
+    /// at its `false` default is what lets the return go straight there.
+    fn is_authentication_flow_required(&self, _current_flow: api::CurrentFlowInfo) -> bool {
+        false
+    }
+
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
         Some(&SAFERPAY_CONNECTOR_INFO)
     }
