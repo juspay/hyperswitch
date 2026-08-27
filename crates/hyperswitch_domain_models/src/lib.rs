@@ -1155,6 +1155,7 @@ impl ApiModelToDieselModelConvertor<api_models::admin::PaymentLinkConfigRequest>
             is_setup_mandate_flow: item.is_setup_mandate_flow,
             color_icon_card_cvc_error: item.color_icon_card_cvc_error,
             show_merchant_name: item.show_merchant_name,
+            payment_methods_separator_text: item.payment_methods_separator_text,
         }
     }
     fn convert_back(self) -> api_models::admin::PaymentLinkConfigRequest {
@@ -1186,6 +1187,7 @@ impl ApiModelToDieselModelConvertor<api_models::admin::PaymentLinkConfigRequest>
             is_setup_mandate_flow,
             color_icon_card_cvc_error,
             show_merchant_name,
+            payment_methods_separator_text,
         } = self;
         api_models::admin::PaymentLinkConfigRequest {
             theme,
@@ -1221,6 +1223,7 @@ impl ApiModelToDieselModelConvertor<api_models::admin::PaymentLinkConfigRequest>
             is_setup_mandate_flow,
             color_icon_card_cvc_error,
             show_merchant_name,
+            payment_methods_separator_text,
         }
     }
 }

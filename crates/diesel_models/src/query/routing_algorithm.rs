@@ -9,16 +9,16 @@ use crate::{
     query::generics,
     routing_algorithm::{RoutingAlgorithm, RoutingProfileMetadata},
     schema::routing_algorithm::dsl,
-    PgPooledConn, StorageResult,
+    DatabaseConnectionWithContext, StorageResult,
 };
 
 impl RoutingAlgorithm {
-    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<Self> {
+    pub async fn insert(self, conn: &DatabaseConnectionWithContext<'_>) -> StorageResult<Self> {
         generics::generic_insert(conn, self).await
     }
 
     pub async fn find_by_algorithm_id_merchant_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         algorithm_id: &common_utils::id_type::RoutingId,
         merchant_id: &common_utils::id_type::MerchantId,
     ) -> StorageResult<Self> {
@@ -32,7 +32,7 @@ impl RoutingAlgorithm {
     }
 
     pub async fn find_by_algorithm_id_processor_merchant_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         algorithm_id: &common_utils::id_type::RoutingId,
         processor_merchant_id: &common_utils::id_type::MerchantId,
     ) -> StorageResult<Self> {
@@ -46,7 +46,7 @@ impl RoutingAlgorithm {
     }
 
     pub async fn find_by_algorithm_id_profile_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         algorithm_id: &common_utils::id_type::RoutingId,
         profile_id: &common_utils::id_type::ProfileId,
     ) -> StorageResult<Self> {
@@ -60,7 +60,7 @@ impl RoutingAlgorithm {
     }
 
     pub async fn find_metadata_by_algorithm_id_profile_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         algorithm_id: &common_utils::id_type::RoutingId,
         profile_id: &common_utils::id_type::ProfileId,
     ) -> StorageResult<RoutingProfileMetadata> {
@@ -90,7 +90,7 @@ impl RoutingAlgorithm {
                 PrimitiveDateTime,
                 PrimitiveDateTime,
                 enums::TransactionType,
-            )>(conn)
+            )>(conn.raw_connection())
             .await
             .change_context(DatabaseError::Others)?
             .into_iter()
@@ -122,7 +122,7 @@ impl RoutingAlgorithm {
     }
 
     pub async fn list_metadata_by_profile_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         profile_id: &common_utils::id_type::ProfileId,
         limit: i64,
         offset: i64,
@@ -153,7 +153,7 @@ impl RoutingAlgorithm {
                 PrimitiveDateTime,
                 PrimitiveDateTime,
                 enums::TransactionType,
-            )>(conn)
+            )>(conn.raw_connection())
             .await
             .change_context(DatabaseError::Others)?
             .into_iter()
@@ -184,7 +184,7 @@ impl RoutingAlgorithm {
     }
 
     pub async fn list_metadata_by_merchant_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         merchant_id: &common_utils::id_type::MerchantId,
         limit: i64,
         offset: i64,
@@ -220,7 +220,7 @@ impl RoutingAlgorithm {
                 PrimitiveDateTime,
                 PrimitiveDateTime,
                 enums::TransactionType,
-            )>(conn)
+            )>(conn.raw_connection())
             .await
             .change_context(DatabaseError::Others)?
             .into_iter()
@@ -251,7 +251,7 @@ impl RoutingAlgorithm {
     }
 
     pub async fn list_metadata_by_merchant_id_transaction_type(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         merchant_id: &common_utils::id_type::MerchantId,
         transaction_type: &enums::TransactionType,
         limit: i64,
@@ -289,7 +289,7 @@ impl RoutingAlgorithm {
                 PrimitiveDateTime,
                 PrimitiveDateTime,
                 enums::TransactionType,
-            )>(conn)
+            )>(conn.raw_connection())
             .await
             .change_context(DatabaseError::Others)?
             .into_iter()
@@ -330,7 +330,7 @@ impl RoutingAlgorithm {
     /// profile under what this returns, and under the provider there is no such profile. The
     /// column is null on rules written before platform support, where the two are the same.
     pub async fn rule_ids_for_profiles(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         profile_ids: &[common_utils::id_type::ProfileId],
     ) -> StorageResult<
         Vec<(
@@ -356,7 +356,7 @@ impl RoutingAlgorithm {
                 common_utils::id_type::MerchantId,
                 common_utils::id_type::RoutingId,
                 enums::RoutingAlgorithmKind,
-            )>(conn)
+            )>(conn.raw_connection())
             .await
             .change_context(DatabaseError::Others)
             .map(|rows| {
@@ -378,7 +378,7 @@ impl RoutingAlgorithm {
     /// A page of the profiles that hold routing rules. Grouped so the page is of profiles —
     /// paginating per rule would split one across pages. Ordered so paging is stable.
     pub async fn list_scope_page(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         limit: i64,
         offset: i64,
     ) -> StorageResult<
@@ -396,7 +396,7 @@ impl RoutingAlgorithm {
             .load_async::<(
                 common_utils::id_type::ProfileId,
                 common_utils::id_type::MerchantId,
-            )>(conn)
+            )>(conn.raw_connection())
             .await
             .change_context(DatabaseError::Others)
     }
