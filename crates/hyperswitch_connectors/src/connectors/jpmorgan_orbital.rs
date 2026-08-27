@@ -67,11 +67,7 @@ const ORBITAL_CONNECTION_USERNAME: &str = "orbitalConnectionUsername";
 const ORBITAL_CONNECTION_PASSWORD: &str = "orbitalConnectionPassword";
 const ORBITAL_MERCHANT_ID: &str = "merchantID";
 
-use crate::{
-    constants::headers,
-    types::ResponseRouterData,
-    utils::{self, PaymentsAuthorizeRequestData},
-};
+use crate::{constants::headers, types::ResponseRouterData, utils};
 
 #[derive(Clone)]
 pub struct JpmorganOrbital {
@@ -731,17 +727,15 @@ impl ConnectorSpecifications for JpmorganOrbital {
         Some(&JPMORGAN_ORBITAL_SUPPORTED_WEBHOOK_FLOWS)
     }
 
-    fn is_pre_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo) -> bool {
-        match current_flow {
-            api::CurrentFlowInfo::Authorize {
-                auth_type,
-                request_data,
-            } => auth_type.is_three_ds() && request_data.is_card(),
-            api::CurrentFlowInfo::CompleteAuthorize { .. }
-            | api::CurrentFlowInfo::SetupMandate { .. }
-            | api::CurrentFlowInfo::Psync { .. }
-            | api::CurrentFlowInfo::UpdatePostConfirm { .. }
-            | api::CurrentFlowInfo::ConnectorWebhookRegister { .. } => false,
-        }
-    }
+    // `is_pre_authentication_flow_required` is deliberately NOT overridden.
+    //
+    // JP Morgan Orbital's 3-D Secure is **external passthrough only**: the challenge
+    // happens in the merchant's own MPI before Hyperswitch is called, and the CAVV/ECI
+    // are forwarded verbatim on the single synchronous Authorize (`cryptogram` /
+    // `additionalAuthInfo`). The gateway exposes no pre-authentication, authentication
+    // or post-authentication endpoint, and the UCS connector marks `PreAuthenticate`,
+    // `Authenticate` and `PostAuthenticate` as not-supported. Claiming a pre-auth leg
+    // is required for `authentication_type = three_ds` made every 3DS card payment fail
+    // with `Unimplemented - pre_authenticate flow not supported by jpmorganorbital`
+    // before Authorize was ever attempted. The trait default (`false`) is correct.
 }
