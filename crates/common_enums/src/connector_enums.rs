@@ -120,6 +120,7 @@ pub enum Connector {
     Globalpay,
     Globepay,
     Gocardless,
+    GotymeSanlam,
     Gpayments,
     Hipay,
     Helcim,
@@ -203,6 +204,7 @@ pub enum Connector {
     Wise,
     Worldline,
     Worldpay,
+    Worldpayraft,
     Worldpayvantiv,
     Worldpayxml,
     Worldpaymodular,
@@ -228,6 +230,7 @@ impl Connector {
                 | (Self::Loonio, _)
                 | (Self::Truelayer, _)
                 | (Self::Trustly, _)
+                | (Self::GotymeSanlam, _)
                 | (Self::Worldpay, Some(PayoutType::Wallet))
                 | (Self::Worldpayxml, Some(PayoutType::Wallet))
                 | (Self::Itaubank, Some(PayoutType::Bank))
@@ -376,6 +379,7 @@ impl Connector {
             | Self::Globalpay
             | Self::Globepay
             | Self::Gocardless
+            | Self::GotymeSanlam
             | Self::Gpayments
             | Self::Hipay
             | Self::Helcim
@@ -462,6 +466,7 @@ impl Connector {
             | Self::Paytm
             | Self::Payconex
             | Self::Citigate
+            | Self::Worldpayraft
             | Self::Payjustnow
             | Self::Payjustnowinstore
             | Self::Phonepe

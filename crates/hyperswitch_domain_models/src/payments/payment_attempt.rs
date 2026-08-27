@@ -1401,6 +1401,7 @@ pub struct PaymentAttempt {
     pub mandate_data: Option<MandateDetails>,
     pub payment_method_billing_address_id: Option<String>,
     pub fingerprint_id: Option<String>,
+    pub fingerprint_type: Option<common_enums::FingerprintType>,
     pub charge_id: Option<String>,
     pub client_source: Option<String>,
     pub client_version: Option<String>,
@@ -1648,6 +1649,32 @@ impl PaymentAttempt {
 
     pub fn extract_card_network(&self) -> Option<common_enums::CardNetwork> {
         todo!()
+    }
+
+    /// Funding type of the card, as stored on the attempt's payment method data.
+    pub fn extract_card_type(&self) -> Option<String> {
+        self.extract_additional_card_info()
+            .and_then(|card_info| card_info.card_type)
+    }
+
+    /// Country in which the card was issued, as stored on the attempt's payment method data.
+    pub fn extract_card_issuing_country(&self) -> Option<String> {
+        self.extract_additional_card_info()
+            .and_then(|card_info| card_info.card_issuing_country)
+    }
+
+    /// Issuer identification number of the card, as stored on the attempt's payment method data.
+    pub fn extract_card_isin(&self) -> Option<String> {
+        self.extract_additional_card_info()
+            .and_then(|card_info| card_info.card_isin)
+    }
+
+    /// The card details recorded on the attempt, if the payment method data holds a card.
+    fn extract_additional_card_info(&self) -> Option<api_models::payments::AdditionalCardInfo> {
+        self.get_payment_method_data()
+            .ok()
+            .flatten()
+            .and_then(|data| data.get_additional_card_info())
     }
 
     fn get_connector_metadata_value(&self) -> Option<&Value> {
@@ -1971,6 +1998,7 @@ pub enum PaymentAttemptUpdate {
         amount_to_capture: Option<MinorUnit>,
         capture_method: Option<storage_enums::CaptureMethod>,
         fingerprint_id: Option<String>,
+        fingerprint_type: Option<common_enums::FingerprintType>,
         payment_method_billing_address_id: Option<String>,
         updated_by: String,
         network_transaction_id: Option<String>,
@@ -2019,6 +2047,7 @@ pub enum PaymentAttemptUpdate {
         authentication_id: Option<id_type::AuthenticationId>,
         payment_method_billing_address_id: Option<String>,
         fingerprint_id: Option<String>,
+        fingerprint_type: Option<common_enums::FingerprintType>,
         payment_method_id: Option<String>,
         client_source: Option<String>,
         client_version: Option<String>,
@@ -2234,6 +2263,7 @@ impl PaymentAttemptUpdate {
                 amount_to_capture,
                 capture_method,
                 fingerprint_id,
+                fingerprint_type,
                 network_transaction_id,
                 network_transaction_link_id,
                 payment_method_billing_address_id,
@@ -2256,6 +2286,7 @@ impl PaymentAttemptUpdate {
                 surcharge_amount: net_amount.get_surcharge_amount(),
                 tax_amount: net_amount.get_tax_on_surcharge(),
                 fingerprint_id,
+                fingerprint_type,
                 payment_method_billing_address_id,
                 network_transaction_id,
                 network_transaction_link_id,
@@ -2345,6 +2376,7 @@ impl PaymentAttemptUpdate {
                 error_code,
                 error_message,
                 fingerprint_id,
+                fingerprint_type,
                 updated_by,
                 merchant_connector_id: connector_id,
                 payment_method_id,
@@ -2388,6 +2420,7 @@ impl PaymentAttemptUpdate {
                 surcharge_amount: net_amount.get_surcharge_amount(),
                 tax_amount: net_amount.get_tax_on_surcharge(),
                 fingerprint_id,
+                fingerprint_type,
                 updated_by,
                 merchant_connector_id: connector_id,
                 payment_method_id,
@@ -3006,6 +3039,7 @@ impl behaviour::Conversion for PaymentAttempt {
             authentication_id: self.authentication_id,
             mandate_data: self.mandate_data.map(Into::into),
             fingerprint_id: self.fingerprint_id,
+            fingerprint_type: self.fingerprint_type,
             payment_method_billing_address_id: self.payment_method_billing_address_id,
             charge_id: self.charge_id,
             client_source: self.client_source,
@@ -3150,6 +3184,7 @@ impl behaviour::Conversion for PaymentAttempt {
                 mandate_data: storage_model.mandate_data.map(Into::into),
                 payment_method_billing_address_id: storage_model.payment_method_billing_address_id,
                 fingerprint_id: storage_model.fingerprint_id,
+                fingerprint_type: storage_model.fingerprint_type,
                 charge_id: storage_model.charge_id,
                 client_source: storage_model.client_source,
                 client_version: storage_model.client_version,
@@ -3262,6 +3297,7 @@ impl behaviour::Conversion for PaymentAttempt {
             authentication_id: self.authentication_id,
             mandate_data: self.mandate_data.map(Into::into),
             fingerprint_id: self.fingerprint_id,
+            fingerprint_type: self.fingerprint_type,
             payment_method_billing_address_id: self.payment_method_billing_address_id,
             client_source: self.client_source,
             client_version: self.client_version,
@@ -3662,5 +3698,60 @@ impl From<DieselPaymentAttemptFeatureMetadata> for PaymentAttemptFeatureMetadata
                     charge_id: recovery_data.charge_id,
                 });
         Self { revenue_recovery }
+    }
+}
+
+#[cfg(all(test, feature = "v2"))]
+mod card_info_extraction_tests {
+    use api_models::payments::{AdditionalCardInfo, AdditionalPaymentData};
+    use common_utils::ext_traits::{Encode, ValueExt};
+
+    /// The enriched card details are stored on the attempt's `payment_method_data` and read back
+    /// from there when the payment intent's feature metadata is built, so the fields have to
+    /// survive that json round trip.
+    #[test]
+    fn enriched_card_details_survive_the_payment_method_data_round_trip() {
+        let card_info = AdditionalCardInfo {
+            card_issuer: Some("JP MORGAN CHASE".to_string()),
+            card_type: Some("credit".to_string()),
+            card_issuing_country: Some("UNITED STATES".to_string()),
+            card_isin: Some("424242".to_string()),
+            ..Default::default()
+        };
+
+        let stored_value = AdditionalPaymentData::Card(Box::new(card_info))
+            .encode_to_value()
+            .expect("additional payment data should serialize");
+
+        let parsed = stored_value
+            .parse_value::<AdditionalPaymentData>("AdditionalPaymentData")
+            .expect("additional payment data should deserialize")
+            .get_additional_card_info()
+            .expect("card details should be present");
+
+        assert_eq!(parsed.card_type.as_deref(), Some("credit"));
+        assert_eq!(
+            parsed.card_issuing_country.as_deref(),
+            Some("UNITED STATES")
+        );
+        assert_eq!(parsed.card_issuer.as_deref(), Some("JP MORGAN CHASE"));
+        assert_eq!(parsed.card_isin.as_deref(), Some("424242"));
+    }
+
+    /// A webhook without a card bin leaves the enriched fields empty rather than failing.
+    #[test]
+    fn missing_card_details_round_trip_as_none() {
+        let stored_value = AdditionalPaymentData::Card(Box::default())
+            .encode_to_value()
+            .expect("additional payment data should serialize");
+
+        let parsed = stored_value
+            .parse_value::<AdditionalPaymentData>("AdditionalPaymentData")
+            .expect("additional payment data should deserialize")
+            .get_additional_card_info()
+            .expect("card details should be present");
+
+        assert_eq!(parsed.card_type, None);
+        assert_eq!(parsed.card_issuing_country, None);
     }
 }

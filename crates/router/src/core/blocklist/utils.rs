@@ -10,7 +10,7 @@ use diesel_models::{
 use error_stack::ResultExt;
 use hyperswitch_masking::{PeekInterface, StrongSecret};
 
-use super::{errors, transformers::generate_fingerprint, SessionState};
+use super::{errors, transformers::generate_fingerprint_and_get_id, SessionState};
 use crate::{
     core::{
         configs::dimension_state,
@@ -403,7 +403,7 @@ pub async fn should_payment_be_blocked(
     // Hashed Fingerprint to check whether or not this payment should be blocked.
     let card_number_fingerprint =
         if let Some(domain::EligibilityPaymentMethodData::Card(card)) = payment_method_data {
-            generate_fingerprint(
+            generate_fingerprint_and_get_id(
                 state,
                 StrongSecret::new(card.card_number.get_card_no()),
                 StrongSecret::new(merchant_fingerprint_secret.clone()),
@@ -590,12 +590,14 @@ where
         }
         .into())
     } else {
-        payment_data.payment_attempt.fingerprint_id = generate_payment_fingerprint(
+        let (fingerprint_id, fingerprint_type) = generate_payment_fingerprint(
             state,
             processor.get_account(),
             payment_data.payment_method_data.clone(),
         )
         .await?;
+        payment_data.payment_attempt.fingerprint_id = fingerprint_id;
+        payment_data.payment_attempt.fingerprint_type = fingerprint_type;
         Ok(false)
     }
 }
@@ -772,32 +774,68 @@ pub async fn generate_payment_fingerprint(
     state: &SessionState,
     merchant_account: &domain::MerchantAccount,
     payment_method_data: Option<domain::PaymentMethodData>,
-) -> CustomResult<Option<String>, errors::ApiErrorResponse> {
+) -> CustomResult<(Option<String>, Option<common_enums::FingerprintType>), errors::ApiErrorResponse>
+{
     let merchant_fingerprint_secret =
         get_merchant_fingerprint_secret(state, merchant_account).await?;
 
-    Ok(
-        if let Some(domain::PaymentMethodData::Card(card)) = payment_method_data.as_ref() {
-            generate_fingerprint(
+    let fingerprint_source = payment_method_data
+        .as_ref()
+        .and_then(|payment_method_data| match payment_method_data {
+            domain::PaymentMethodData::Card(card) => {
+                Some((&card.card_number, common_enums::FingerprintType::Fpan))
+            }
+            domain::PaymentMethodData::Wallet(domain::WalletData::ApplePay(apple_pay)) => apple_pay
+                .payment_data
+                .get_decrypted_apple_pay_payment_data_optional()
+                .map(|decrypted_data| {
+                    (
+                        &decrypted_data.application_primary_account_number,
+                        common_enums::FingerprintType::Dpan,
+                    )
+                }),
+            domain::PaymentMethodData::Wallet(domain::WalletData::GooglePay(google_pay)) => {
+                google_pay
+                    .tokenization_data
+                    .get_decrypted_google_pay_payment_data_optional()
+                    .and_then(|decrypted_data| match decrypted_data.auth_method {
+                        Some(common_enums::GooglePayAuthMethod::PanOnly) => Some((
+                            &decrypted_data.application_primary_account_number,
+                            common_enums::FingerprintType::Fpan,
+                        )),
+                        Some(common_enums::GooglePayAuthMethod::Cryptogram) => Some((
+                            &decrypted_data.application_primary_account_number,
+                            common_enums::FingerprintType::Dpan,
+                        )),
+                        None => None,
+                    })
+            }
+            _ => None,
+        });
+
+    let (fingerprint_id, fingerprint_type) = match fingerprint_source {
+        Some((pan, fingerprint_type)) => {
+            let fingerprint_id = generate_fingerprint_and_get_id(
                 state,
-                StrongSecret::new(card.card_number.get_card_no()),
+                StrongSecret::new(pan.get_card_no()),
                 StrongSecret::new(merchant_fingerprint_secret),
             )
             .await
             .attach_printable("error in pm fingerprint creation")
-            .map_or_else(
-                |error| {
-                    logger::error!(?error);
-                    None
-                },
-                Some,
-            )
-            .map(|payload| payload.fingerprint_id)
-        } else {
-            logger::error!("failed to retrieve card fingerprint");
-            None
-        },
-    )
+            .inspect_err(|error| logger::error!(?error))
+            .ok()
+            .map(|payload| payload.fingerprint_id);
+
+            let fingerprint_type = fingerprint_id.is_some().then_some(fingerprint_type);
+            (fingerprint_id, fingerprint_type)
+        }
+        None => {
+            logger::debug!("payment method does not contain a PAN that can be fingerprinted");
+            (None, None)
+        }
+    };
+
+    Ok((fingerprint_id, fingerprint_type))
 }
 
 #[cfg(test)]

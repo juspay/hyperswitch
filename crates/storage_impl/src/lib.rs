@@ -112,6 +112,7 @@ where
         tenant_config: &dyn TenantConfig,
         test_transaction: bool,
         key_manager_state: Option<KeyManagerState>,
+        event_emitter: Arc<dyn ExternalServiceEventEmitter>,
     ) -> error_stack::Result<Self, StorageError> {
         let (db_conf, cache_conf, encryption_key, cache_error_signal, inmemory_cache_stream) =
             config;
@@ -122,6 +123,7 @@ where
                 &cache_conf,
                 encryption_key,
                 key_manager_state,
+                event_emitter,
             )
             .await
             .attach_printable("failed to create test router store")
@@ -134,6 +136,7 @@ where
                     .await?,
                 inmemory_cache_stream,
                 key_manager_state,
+                event_emitter,
             )
             .await
             .attach_printable("failed to create store")
@@ -175,8 +178,16 @@ impl<T: DatabaseStore> RouterStore<T> {
         cache_store: Arc<RedisStore>,
         inmemory_cache_stream: &str,
         key_manager_state: Option<KeyManagerState>,
+        event_emitter: Arc<dyn ExternalServiceEventEmitter>,
     ) -> error_stack::Result<Self, StorageError> {
-        let db_store = T::new(db_conf, tenant_config, false, key_manager_state.clone()).await?;
+        let db_store = T::new(
+            db_conf,
+            tenant_config,
+            false,
+            key_manager_state.clone(),
+            event_emitter,
+        )
+        .await?;
         let cache_store = Arc::new(
             cache_store
                 .clone()
@@ -419,9 +430,17 @@ impl<T: DatabaseStore> RouterStore<T> {
         cache_conf: &redis_interface::RedisSettings,
         encryption_key: StrongSecret<Vec<u8>>,
         key_manager_state: Option<KeyManagerState>,
+        event_emitter: Arc<dyn ExternalServiceEventEmitter>,
     ) -> error_stack::Result<Self, StorageError> {
         // TODO: create an error enum and return proper error here
-        let db_store = T::new(db_conf, tenant_config, true, key_manager_state.clone()).await?;
+        let db_store = T::new(
+            db_conf,
+            tenant_config,
+            true,
+            key_manager_state.clone(),
+            event_emitter,
+        )
+        .await?;
         let cache_store = RedisStore::new_without_event_emitter(cache_conf)
             .await
             .change_context(StorageError::InitializationError)
