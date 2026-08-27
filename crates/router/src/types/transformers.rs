@@ -400,6 +400,8 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::PixKey
             | api_enums::PaymentMethodType::PixEmv
             | api_enums::PaymentMethodType::PixQr
+            | api_enums::PaymentMethodType::Payshap
+            | api_enums::PaymentMethodType::PayshapProxy
             | api_enums::PaymentMethodType::Pix => Self::BankTransfer,
             api_enums::PaymentMethodType::Givex
             | api_enums::PaymentMethodType::PaySafeCard
@@ -1489,6 +1491,8 @@ impl ForeignFrom<&api_models::payouts::Bank> for api_enums::PaymentMethodType {
             api_models::payouts::Bank::Pix(_) => Self::Pix,
             api_models::payouts::Bank::Trustly(_) => Self::Trustly,
             api_models::payouts::Bank::OpenBanking(_) => Self::OpenBanking,
+            api_models::payouts::Bank::Payshap(_) => Self::Payshap,
+            api_models::payouts::Bank::PayshapProxy(_) => Self::PayshapProxy,
         }
     }
 }
@@ -1505,6 +1509,8 @@ impl ForeignFrom<&api_models::payouts::BankTransfer> for api_enums::PaymentMetho
             api_models::payouts::BankTransfer::PixEmv(_) => Self::PixEmv,
             api_models::payouts::BankTransfer::Trustly(_) => Self::Trustly,
             api_models::payouts::BankTransfer::OpenBanking(_) => Self::OpenBanking,
+            api_models::payouts::BankTransfer::Payshap(_) => Self::Payshap,
+            api_models::payouts::BankTransfer::PayshapProxy(_) => Self::PayshapProxy,
         }
     }
 }

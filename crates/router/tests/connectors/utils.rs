@@ -1014,6 +1014,7 @@ impl Default for PaymentAuthorizeType {
             metadata: None,
             authentication_data: None,
             ucs_authentication_data: None,
+            force_3ds_challenge: None,
             customer_acceptance: None,
             split_payments: None,
             guest_customer: None,

@@ -1220,15 +1220,25 @@ pub async fn call_connector_payout(
         payout_data.merchant_connector_account = Some(merchant_connector_account);
     }
 
-    // update connector_name
+    let connector_request_reference_id = core_utils::get_payout_connector_request_reference_id(
+        connector_data,
+        &payout_data.payout_attempt,
+    );
+
+    // Update routing and persist the request reference ID before calling the connector.
     if payout_data.payout_attempt.connector.is_none()
         || payout_data.payout_attempt.connector != Some(connector_data.connector_name.to_string())
+        || payout_data
+            .payout_attempt
+            .connector_request_reference_id
+            .is_none()
     {
         payout_data.payout_attempt.connector = Some(connector_data.connector_name.to_string());
         let updated_payout_attempt = storage::PayoutAttemptUpdate::UpdateRouting {
             connector: connector_data.connector_name.to_string(),
             routing_info: payout_data.payout_attempt.routing_info.clone(),
             merchant_connector_id: payout_data.payout_attempt.merchant_connector_id.clone(),
+            connector_request_reference_id,
         };
         let db = &*state.store;
         payout_data.payout_attempt = db
@@ -3296,6 +3306,7 @@ pub async fn payout_create_db_entries(
             .and_then(|initiator| initiator.to_created_by()),
         source_bank_data_token,
         additional_source_bank_data,
+        connector_request_reference_id: None,
     };
     let payout_attempt = db
         .insert_payout_attempt(
