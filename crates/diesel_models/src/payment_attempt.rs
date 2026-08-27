@@ -174,6 +174,8 @@ pub struct PaymentAttempt {
     pub external_threeds_authentication_type: Option<common_enums::DecoupledAuthenticationType>,
     pub applied_offer_details: Option<common_types::payments::AppliedOfferDetails>,
     pub fingerprint_type: Option<common_enums::FingerprintType>,
+    /// Payment Account Reference (PAR) returned by the connector for the underlying payment method
+    pub payment_account_reference: Option<String>,
     #[diesel(deserialize_as = RequiredFromNullable<storage_enums::PaymentMethod>)]
     pub payment_method_type_v2: storage_enums::PaymentMethod,
     pub connector_payment_id: Option<ConnectorTransactionId>,
@@ -200,8 +202,6 @@ pub struct PaymentAttempt {
     pub attempts_group_id: Option<id_type::GlobalAttemptGroupId>,
     /// Amount captured for this payment attempt
     pub amount_captured: Option<MinorUnit>,
-    /// Payment Account Reference (PAR) returned by the connector for the underlying payment method
-    pub payment_account_reference: Option<String>,
 }
 
 #[cfg(feature = "v1")]

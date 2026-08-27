@@ -1178,6 +1178,8 @@ diesel::table! {
         applied_offer_details -> Nullable<Jsonb>,
         #[max_length = 10]
         fingerprint_type -> Nullable<Varchar>,
+        #[max_length = 255]
+        payment_account_reference -> Nullable<Varchar>,
         payment_method_type_v2 -> Nullable<Varchar>,
         #[max_length = 128]
         connector_payment_id -> Nullable<Varchar>,
@@ -1203,8 +1205,6 @@ diesel::table! {
         #[max_length = 64]
         attempts_group_id -> Nullable<Varchar>,
         amount_captured -> Nullable<Int8>,
-        #[max_length = 255]
-        payment_account_reference -> Nullable<Varchar>,
     }
 }
 
