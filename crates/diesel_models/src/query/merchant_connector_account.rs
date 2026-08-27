@@ -262,7 +262,7 @@ impl MerchantConnectorAccount {
     }
 
     pub async fn find_by_merchant_id_merchant_connector_id(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         merchant_id: &common_utils::id_type::MerchantId,
         merchant_connector_id: &common_utils::id_type::MerchantConnectorAccountId,
     ) -> StorageResult<Self> {
