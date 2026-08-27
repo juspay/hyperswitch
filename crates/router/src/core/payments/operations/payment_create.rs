@@ -1707,6 +1707,7 @@ impl PaymentCreate {
                 unified_code: None,
                 unified_message: None,
                 fingerprint_id: None,
+                fingerprint_type: None,
                 authentication_connector: None,
                 authentication_id: None,
                 client_source: None,

@@ -1257,6 +1257,8 @@ diesel::table! {
         #[max_length = 64]
         external_threeds_authentication_type -> Nullable<Varchar>,
         applied_offer_details -> Nullable<Jsonb>,
+        #[max_length = 10]
+        fingerprint_type -> Nullable<Varchar>,
     }
 }
 

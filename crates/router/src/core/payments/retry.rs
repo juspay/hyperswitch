@@ -846,6 +846,7 @@ pub fn make_new_auto_retry_payment_attempt(
         mandate_data: Default::default(),
         payment_method_billing_address_id: Default::default(),
         fingerprint_id: Default::default(),
+        fingerprint_type: Default::default(),
         customer_acceptance: Default::default(),
         connector_mandate_detail: Default::default(),
         request_extended_authorization: Default::default(),
