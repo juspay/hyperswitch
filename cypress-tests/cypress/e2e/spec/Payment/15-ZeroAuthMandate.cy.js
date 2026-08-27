@@ -299,7 +299,7 @@ describe("Card - SingleUse Mandates flow test", () => {
       it("Confirm No 3DS CIT", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
-        ]["ZeroAuthConfirmPayment"];
+        ]["ZeroAuthConfirmPaymentManual"];
 
         cy.citForMandatesCallTest(
           fixtures.citConfirmBody,
@@ -311,10 +311,7 @@ describe("Card - SingleUse Mandates flow test", () => {
           globalState
         );
 
-        cy.then(() => {
-          if (shouldContinue)
-            shouldContinue = utils.should_continue_further(data);
-        });
+        if (shouldContinue) shouldContinue = utils.should_continue_further(data);
       });
 
       it("retrieve-payment-call-test", () => {
@@ -339,10 +336,7 @@ describe("Card - SingleUse Mandates flow test", () => {
           globalState
         );
 
-        cy.then(() => {
-          if (shouldContinue)
-            shouldContinue = utils.should_continue_further(data);
-        });
+        if (shouldContinue) shouldContinue = utils.should_continue_further(data);
       });
 
       it("mit-capture-call-test", () => {

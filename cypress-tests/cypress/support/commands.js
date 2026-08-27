@@ -4999,9 +4999,8 @@ Cypress.Commands.add(
     const {
       Configs: configs = {},
       Request: reqData,
-      ResponseManual: resManualData,
+      Response: resData,
     } = data || {};
-    let { Response: resData } = data || {};
 
     const validatedConfigs = validateConfig(configs);
     if (validatedConfigs?.TRIGGER_SKIP) {
@@ -5053,11 +5052,6 @@ Cypress.Commands.add(
       body: requestBody,
     }).then((response) => {
       logRequestId(response.headers["x-request-id"]);
-
-      if (capture_method === "manual" && resManualData) {
-        resData = resManualData;
-        data.Response = resManualData;
-      }
 
       cy.wrap(response).then(() => {
         expect(response.headers["content-type"]).to.include("application/json");

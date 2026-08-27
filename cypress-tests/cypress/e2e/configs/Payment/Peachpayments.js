@@ -357,7 +357,22 @@ export const connectorDetails = {
           },
         },
       },
-      ResponseManual: {
+    },
+    ZeroAuthConfirmPaymentManual: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_type: "setup_mandate",
+        payment_method: "card",
+        payment_method_type: "credit",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        mandate_data: null,
+        customer_acceptance: customerAcceptance,
+      },
+      Response: {
         status: 200,
         body: {
           status: "succeeded",
