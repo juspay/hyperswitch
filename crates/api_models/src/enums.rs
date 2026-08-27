@@ -200,6 +200,9 @@ pub enum FrmConnectors {
     Signifyd,
     Riskified,
     Cybersourcedecisionmanager,
+    /// nSure.ai. Executed via the Unified Connector Service, not in-process.
+    /// Official docs: https://docs.nsure.ai/
+    Nsure,
 }
 
 #[derive(
