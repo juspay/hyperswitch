@@ -2197,14 +2197,11 @@ impl ErrorSwitch<ConnectorError> for UnifiedConnectorServiceError {
                 }
                 tonic::Code::Unimplemented => ConnectorError::NotImplemented(message.clone()),
                 tonic::Code::Unauthenticated => ConnectorError::FailedToObtainAuthType,
-                tonic::Code::InvalidArgument
-                | tonic::Code::FailedPrecondition
-                | tonic::Code::OutOfRange
-                | tonic::Code::NotFound
-                | tonic::Code::AlreadyExists
-                | tonic::Code::PermissionDenied => ConnectorError::MissingRequiredField {
-                    field_name: Cow::Owned(message.clone()),
-                },
+                // All other codes (InvalidArgument, FailedPrecondition, NotFound,
+                // AlreadyExists, PermissionDenied, OutOfRange, etc.) land here when
+                // decode_integration_error could not extract a structured error_code.
+                // Without the proto details we cannot classify them correctly, so we
+                // surface them as an internal error rather than risk a misleading IR code.
                 _ => ConnectorError::ResponseHandlingFailed,
             },
             // Connector errors — serialize the details into ProcessingStepFailed so
