@@ -130,6 +130,8 @@ pub struct PaymentsAuthorizeData {
     pub metadata: Option<serde_json::Value>,
     pub authentication_data: Option<AuthenticationData>,
     pub ucs_authentication_data: Option<UcsAuthenticationData>,
+    /// Indicates whether a 3DS challenge must be forced for the transaction
+    pub force_3ds_challenge: Option<bool>,
     pub request_extended_authorization:
         Option<common_types::primitive_wrappers::RequestExtendedAuthorizationBool>,
     pub split_payments: Option<common_types::payments::SplitPaymentsRequest>,
@@ -1776,6 +1778,7 @@ pub struct PayoutsData {
     pub additional_payout_method_data: Option<payout_method_utils::AdditionalPayoutMethodData>,
     pub source_bank_data: Option<api_models::payouts::BankTransfer>,
     pub billing_descriptor: Option<common_types::payouts::PayoutsBillingDescriptor>,
+    pub connector_eligibility_reference_id: Option<String>,
 }
 
 #[derive(Debug, Default, Clone, Serialize)]

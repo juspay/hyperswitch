@@ -674,12 +674,14 @@ pub enum StripePaymentMethodData {
 impl StripePaymentMethodData {
     fn get_stripe_ntid_card_token_data(
         payment_method_data: &payment_method_data::CardDetailsForNetworkTransactionId,
+        billing_address: StripeBillingAddressCardToken,
     ) -> Result<Self, error_stack::Report<ConnectorError>> {
         Ok(Self::NtidCardToken(StripeNtidCardToken {
             payment_method_type: Some(StripePaymentMethodType::Card),
             token_card_number: payment_method_data.card_number.clone(),
             token_card_exp_month: payment_method_data.card_exp_month.clone(),
             token_card_exp_year: payment_method_data.card_exp_year.clone(),
+            billing: billing_address,
         }))
     }
 }
@@ -712,6 +714,8 @@ pub struct StripeNtidCardToken {
     pub token_card_exp_month: Secret<String>,
     #[serde(rename = "card[exp_year]")]
     pub token_card_exp_year: Secret<String>,
+    #[serde(flatten)]
+    pub billing: StripeBillingAddressCardToken,
 }
 
 // Struct to call the Stripe tokens API to create a PSP token for the card details provided
@@ -983,6 +987,8 @@ impl TryFrom<enums::PaymentMethodType> for StripePaymentMethodType {
             | enums::PaymentMethodType::PixQr
             | enums::PaymentMethodType::PixAutomaticoPush
             | enums::PaymentMethodType::PixAutomaticoQr
+            | enums::PaymentMethodType::Payshap
+            | enums::PaymentMethodType::PayshapProxy
             | enums::PaymentMethodType::UpiCollect
             | enums::PaymentMethodType::UpiIntent
             | enums::PaymentMethodType::Cashapp
@@ -1543,7 +1549,7 @@ fn create_stripe_payment_method(
             Ok((
                 wallet_specific_data,
                 pm_type,
-                StripeBillingAddress::default(),
+                payment_request_details.billing_address,
             ))
         }
         PaymentMethodData::BankDebit(bank_debit_data) => {
@@ -1566,7 +1572,7 @@ fn create_stripe_payment_method(
                     }),
                 )),
                 None,
-                StripeBillingAddress::default(),
+                payment_request_details.billing_address,
             )),
             payment_method_data::BankTransferData::MultibancoBankTransfer {} => Ok((
                 StripePaymentMethodData::BankTransfer(
@@ -2870,7 +2876,10 @@ impl TryFrom<&TokenizationRouterData> for TokenRequest {
                 })
             }
             PaymentMethodData::CardDetailsForNetworkTransactionId(card_details) => {
-                StripePaymentMethodData::get_stripe_ntid_card_token_data(card_details)?
+                StripePaymentMethodData::get_stripe_ntid_card_token_data(
+                    card_details,
+                    billing_address,
+                )?
             }
             _ => {
                 create_stripe_payment_method(

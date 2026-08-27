@@ -211,27 +211,6 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
-    blocklist (merchant_id, fingerprint_id) {
-        #[max_length = 64]
-        merchant_id -> Varchar,
-        #[max_length = 64]
-        fingerprint_id -> Varchar,
-        data_kind -> BlocklistDataKind,
-        metadata -> Nullable<Jsonb>,
-        created_at -> Timestamp,
-        #[max_length = 64]
-        processor_merchant_id -> Nullable<Varchar>,
-        #[max_length = 255]
-        created_by -> Nullable<Varchar>,
-        #[max_length = 64]
-        profile_id -> Nullable<Varchar>,
-    }
-}
-
-diesel::table! {
-    use diesel::sql_types::*;
-    use crate::enums::diesel_exports::*;
-
     blocklist_fingerprint (id) {
         id -> Int4,
         #[max_length = 64]
@@ -1197,6 +1176,8 @@ diesel::table! {
         #[max_length = 64]
         external_threeds_authentication_type -> Nullable<Varchar>,
         applied_offer_details -> Nullable<Jsonb>,
+        #[max_length = 10]
+        fingerprint_type -> Nullable<Varchar>,
         payment_method_type_v2 -> Nullable<Varchar>,
         #[max_length = 128]
         connector_payment_id -> Nullable<Varchar>,
@@ -1487,6 +1468,10 @@ diesel::table! {
         #[max_length = 64]
         source_bank_data_token -> Nullable<Varchar>,
         additional_source_bank_data -> Nullable<Jsonb>,
+        #[max_length = 128]
+        connector_eligibility_reference_id -> Nullable<Varchar>,
+        #[max_length = 255]
+        connector_request_reference_id -> Nullable<Varchar>,
     }
 }
 
@@ -1955,7 +1940,6 @@ diesel::allow_tables_to_appear_in_same_query!(
     api_keys,
     authentication,
     batch_blocklist_jobs,
-    blocklist,
     blocklist_fingerprint,
     blocklist_lookup,
     business_profile,

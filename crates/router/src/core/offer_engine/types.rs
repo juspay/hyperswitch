@@ -74,6 +74,8 @@ pub struct OfferPaymentMethodInfo {
     pub bank_code: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub card_country: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub card_alias: Option<String>,
 }
 
 /// Customer sent to Offer Engine.

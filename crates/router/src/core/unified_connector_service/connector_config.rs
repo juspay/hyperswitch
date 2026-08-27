@@ -273,6 +273,12 @@ pub enum ConnectorSpecificConfig {
         key1: Secret<String>,
         base_url: Option<String>,
     },
+    /// Worldpay Native RAFT connector configuration
+    Worldpayraft {
+        license: Secret<String>,
+        merchant_id: Secret<String>,
+        base_url: Option<String>,
+    },
     /// Fiservcommercehub connector configuration
     Fiservcommercehub {
         api_key: Secret<String>,
@@ -694,6 +700,11 @@ pub enum ConnectorSpecificConfig {
     AbsaSanlam {
         api_key: Secret<String>,
         merchant_id: String,
+    },
+    /// GotymeSanlam connector configuration
+    GotymeSanlam {
+        api_key: Secret<String>,
+        profile_id: String,
     },
     /// InterPayments surcharge connector configuration
     Interpayments {
@@ -1760,6 +1771,13 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                 }),
                 _ => Err(err("AbsaSanlam requires BodyKey auth type")),
             },
+            Connector::GotymeSanlam => match auth {
+                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::GotymeSanlam {
+                    api_key: api_key.clone(),
+                    profile_id: key1.peek().clone(),
+                }),
+                _ => Err(err("GotymeSanlam requires BodyKey auth type")),
+            },
             Connector::Payconex => match auth {
                 ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Payconex {
                     api_key: api_key.clone(),
@@ -1775,6 +1793,14 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                     base_url: None,
                 }),
                 _ => Err(err("Citigate requires BodyKey auth type")),
+            },
+            Connector::Worldpayraft => match auth {
+                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Worldpayraft {
+                    license: api_key.clone(),
+                    merchant_id: key1.clone(),
+                    base_url: None,
+                }),
+                _ => Err(err("Worldpayraft requires BodyKey auth type")),
             },
             Connector::Interpayments => match auth {
                 ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Interpayments {
