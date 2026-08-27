@@ -5,7 +5,6 @@ pub struct Address {
     pub address: Option<AddressDetails>,
     pub phone: Option<PhoneDetails>,
     pub email: Option<common_utils::pii::Email>,
-    pub date_of_birth: Option<Secret<time::Date>>,
 }
 
 impl hyperswitch_masking::SerializableSecret for Address {}
@@ -30,10 +29,6 @@ impl Address {
                     .filter(|phone_details| phone_details.number.is_some())
                     .or_else(|| other.and_then(|other| other.phone.clone()))
             },
-            date_of_birth: self
-                .date_of_birth
-                .clone()
-                .or(other.and_then(|other| other.date_of_birth.clone())),
         }
     }
 }
@@ -108,7 +103,6 @@ impl From<api_models::payments::Address> for Address {
             address: address.address.map(AddressDetails::from),
             phone: address.phone.map(PhoneDetails::from),
             email: address.email,
-            date_of_birth: address.date_of_birth,
         }
     }
 }
@@ -147,7 +141,6 @@ impl From<Address> for api_models::payments::Address {
                 .map(api_models::payments::AddressDetails::from),
             phone: address.phone.map(api_models::payments::PhoneDetails::from),
             email: address.email,
-            date_of_birth: address.date_of_birth,
         }
     }
 }

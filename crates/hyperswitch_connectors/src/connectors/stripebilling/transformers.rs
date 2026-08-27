@@ -370,7 +370,6 @@ impl From<StripebillingInvoiceBillingAddress> for api_models::payments::Address 
             address: Some(api_models::payments::AddressDetails::from(item)),
             phone: None,
             email: None,
-            date_of_birth: None,
         }
     }
 }

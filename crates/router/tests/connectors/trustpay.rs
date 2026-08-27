@@ -88,7 +88,6 @@ fn get_default_payment_info() -> Option<utils::PaymentInfo> {
                 }),
                 phone: None,
                 email: None,
-                date_of_birth: None,
             }),
             None,
             None,

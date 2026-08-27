@@ -169,6 +169,11 @@ pub struct CustomerDetails {
     #[schema(value_type = Option<CustomerDocumentDetails>)]
     #[smithy(value_type = "Option<CustomerDocumentDetails>")]
     pub document_details: Option<CustomerDocumentDetails>,
+
+    /// The customer's date of birth
+    #[schema(value_type = Option<Date>, example = "1990-01-31")]
+    #[smithy(value_type = "Option<String>")]
+    pub date_of_birth: Option<Secret<Date>>,
 }
 
 #[cfg(feature = "v1")]
@@ -1926,6 +1931,7 @@ mod payments_request_test {
             phone_country_code: None,
             tax_registration_id: None,
             document_details: None,
+            date_of_birth: None,
         };
 
         let payments_request = PaymentsRequest {
@@ -1952,6 +1958,7 @@ mod payments_request_test {
             phone_country_code: None,
             tax_registration_id: None,
             document_details: None,
+            date_of_birth: None,
         };
 
         let payments_request = PaymentsRequest {
@@ -2811,7 +2818,6 @@ impl GetAddressFromPaymentMethodData for Card {
                 address: Some(address_details),
                 phone: None,
                 email: None,
-                date_of_birth: None,
             })
     }
 }
@@ -2845,7 +2851,6 @@ impl GetAddressFromPaymentMethodData for CardWithNoCVC {
                 address: Some(address_details),
                 phone: None,
                 email: None,
-                date_of_birth: None,
             })
     }
 }
@@ -3003,7 +3008,6 @@ impl GetAddressFromPaymentMethodData for PayLaterData {
                     address: Some(address_details),
                     email: billing_email.clone(),
                     phone: None,
-                    date_of_birth: None,
                 })
             }
             Self::AfterpayClearpayRedirect {
@@ -3019,7 +3023,6 @@ impl GetAddressFromPaymentMethodData for PayLaterData {
                     address: Some(address_details),
                     email: billing_email.clone(),
                     phone: None,
-                    date_of_birth: None,
                 })
             }
             Self::PayBrightRedirect {}
@@ -4549,7 +4552,6 @@ impl GetAddressFromPaymentMethodData for BankRedirectData {
                     }),
                     phone: None,
                     email: None,
-                    date_of_birth: None,
                 }),
                 (None, None) => None,
             };
@@ -4564,7 +4566,6 @@ impl GetAddressFromPaymentMethodData for BankRedirectData {
                     address: None,
                     phone: None,
                     email: Some(billing_email.clone()),
-                    date_of_birth: None,
                 }),
                 (None, None) => None,
             }
@@ -4595,7 +4596,6 @@ impl GetAddressFromPaymentMethodData for BankRedirectData {
                         }),
                         phone: None,
                         email: None,
-                        date_of_birth: None,
                     })
                 }
             }
@@ -4885,7 +4885,6 @@ impl GetAddressFromPaymentMethodData for BankRedirectBilling {
                 address: address_details,
                 phone: None,
                 email: self.email.clone(),
-                date_of_birth: None,
             })
         } else {
             None
@@ -5090,7 +5089,6 @@ impl GetAddressFromPaymentMethodData for BankTransferData {
                     address: None,
                     phone: None,
                     email: details.email.clone(),
-                    date_of_birth: None,
                 })
             }
             Self::SepaBankTransfer {
@@ -5104,7 +5102,6 @@ impl GetAddressFromPaymentMethodData for BankTransferData {
                 }),
                 phone: None,
                 email: details.email.clone(),
-                date_of_birth: None,
             }),
             Self::BacsBankTransfer { billing_details } => {
                 billing_details.as_ref().map(|details| Address {
@@ -5114,7 +5111,6 @@ impl GetAddressFromPaymentMethodData for BankTransferData {
                     }),
                     phone: None,
                     email: details.email.clone(),
-                    date_of_birth: None,
                 })
             }
             Self::MultibancoBankTransfer { billing_details } => {
@@ -5122,7 +5118,6 @@ impl GetAddressFromPaymentMethodData for BankTransferData {
                     address: None,
                     phone: None,
                     email: details.email.clone(),
-                    date_of_birth: None,
                 })
             }
             Self::PermataBankTransfer { billing_details }
@@ -5140,7 +5135,6 @@ impl GetAddressFromPaymentMethodData for BankTransferData {
                     }),
                     phone: None,
                     email: details.email.clone(),
-                    date_of_birth: None,
                 })
             }
             Self::LocalBankTransfer { .. }
@@ -5184,7 +5178,6 @@ impl GetAddressFromPaymentMethodData for BankDebitBilling {
                 address: Some(address),
                 email: self.email.clone(),
                 phone: None,
-                date_of_birth: None,
             }
         } else {
             Address {
@@ -5194,7 +5187,6 @@ impl GetAddressFromPaymentMethodData for BankDebitBilling {
                 }),
                 email: self.email.clone(),
                 phone: None,
-                date_of_birth: None,
             }
         };
 
@@ -5360,7 +5352,6 @@ impl GetAddressFromPaymentMethodData for WalletData {
                     phone: Some(phone),
                     address: None,
                     email: None,
-                    date_of_birth: None,
                 })
             }
             Self::MobilePayRedirect(_) => None,
@@ -5369,7 +5360,6 @@ impl GetAddressFromPaymentMethodData for WalletData {
                     email: Some(email),
                     address: None,
                     phone: None,
-                    date_of_birth: None,
                 })
             }
             Self::Mifinity(_)
@@ -6033,7 +6023,6 @@ impl GetAddressFromPaymentMethodData for VoucherData {
                 }),
                 phone: None,
                 email: voucher_data.email.clone(),
-                date_of_birth: None,
             }),
             Self::Indomaret(voucher_data) => Some(Address {
                 address: Some(AddressDetails {
@@ -6043,7 +6032,6 @@ impl GetAddressFromPaymentMethodData for VoucherData {
                 }),
                 phone: None,
                 email: voucher_data.email.clone(),
-                date_of_birth: None,
             }),
             Self::Lawson(voucher_data)
             | Self::MiniStop(voucher_data)
@@ -6061,7 +6049,6 @@ impl GetAddressFromPaymentMethodData for VoucherData {
                     country_code: None,
                 }),
                 email: voucher_data.email.clone(),
-                date_of_birth: None,
             }),
             Self::Boleto(_)
             | Self::Efecty
@@ -6454,10 +6441,6 @@ pub struct Address {
     #[schema(value_type = Option<String>)]
     #[smithy(value_type = "Option<String>")]
     pub email: Option<Email>,
-
-    #[schema(value_type = Option<Date>, example = "1990-01-31")]
-    #[smithy(value_type = "Option<String>")]
-    pub date_of_birth: Option<Secret<Date>>,
 }
 
 impl hyperswitch_masking::SerializableSecret for Address {}
@@ -6473,9 +6456,6 @@ impl Address {
                 .or(other_address_details.cloned()),
             email: self.email.or(other.and_then(|other| other.email.clone())),
             phone: self.phone.or(other.and_then(|other| other.phone.clone())),
-            date_of_birth: self
-                .date_of_birth
-                .or(other.and_then(|other| other.date_of_birth.clone())),
         }
     }
 }

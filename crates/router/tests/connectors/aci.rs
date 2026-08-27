@@ -63,7 +63,6 @@ fn get_default_payment_info() -> Option<PaymentInfo> {
                     country_code: Some("+1".to_string()),
                 }),
                 email: None,
-                date_of_birth: None,
             }),
             None,
             None,

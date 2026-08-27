@@ -243,6 +243,7 @@ where
         feature_data: None,
         sender_payment_instrument_id: None,
         connector_returned_payment_method_details: None,
+        customer_date_of_birth: None,
     };
     Ok(router_data)
 }
@@ -1018,6 +1019,7 @@ pub async fn construct_external_vault_proxy_payment_router_data_v1<'a>(
         feature_data: None,
         sender_payment_instrument_id: None,
         connector_returned_payment_method_details: None,
+        customer_date_of_birth: None,
     };
 
     Ok(router_data)
@@ -2258,6 +2260,12 @@ where
         feature_data,
         sender_payment_instrument_id: None,
         connector_returned_payment_method_details: None,
+        customer_date_of_birth: payment_data
+            .payment_intent
+            .get_intent_customer_details()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to parse customer details")?
+            .and_then(|customer_details| customer_details.date_of_birth),
     };
 
     Ok(router_data)
@@ -2482,6 +2490,7 @@ pub async fn construct_payment_router_data_for_update_metadata<'a>(
         feature_data: None,
         sender_payment_instrument_id: None,
         connector_returned_payment_method_details: None,
+        customer_date_of_birth: None,
     };
 
     Ok(router_data)
@@ -7502,6 +7511,7 @@ impl ForeignFrom<CustomerDetails> for router_request_types::CustomerDetails {
             phone_country_code: customer.phone_country_code,
             tax_registration_id: customer.tax_registration_id,
             document_details: customer.document_details,
+            date_of_birth: customer.date_of_birth,
         }
     }
 }
@@ -8346,6 +8356,7 @@ pub async fn construct_payment_router_data_for_update_post_confirm<'a>(
         feature_data: None,
         sender_payment_instrument_id: None,
         connector_returned_payment_method_details: None,
+        customer_date_of_birth: None,
     };
 
     Ok(router_data)

@@ -964,6 +964,7 @@ impl ForeignTryFrom<domain::Customer> for CustomerData {
                 router_env::logger::error!(error = ?report, "Failed to convert customer document details");
                 errors::ApiErrorResponse::InternalServerError
             })?,
+            date_of_birth: None,
         })
     }
 }

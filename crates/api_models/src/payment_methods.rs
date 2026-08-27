@@ -4173,7 +4173,6 @@ impl PaymentMethodRecord {
                 address,
                 phone,
                 email: self.email.clone(),
-                date_of_birth: None,
             })
         } else {
             None

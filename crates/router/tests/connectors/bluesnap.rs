@@ -56,7 +56,6 @@ fn get_payment_info() -> Option<PaymentInfo> {
                 }),
                 phone: None,
                 email: None,
-                date_of_birth: None,
             }),
             None,
             None,

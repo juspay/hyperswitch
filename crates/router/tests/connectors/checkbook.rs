@@ -47,7 +47,6 @@ fn get_default_payment_info() -> Option<utils::PaymentInfo> {
                 }),
                 phone: None,
                 email: Some(Email::from_str("abc@gmail.com").unwrap()),
-                date_of_birth: None,
             }),
             None,
         )),

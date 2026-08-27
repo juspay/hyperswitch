@@ -55,7 +55,6 @@ impl From<StripeBillingDetails> for payments::Address {
                 last_name: None,
                 origin_zip: None,
             }),
-            date_of_birth: None,
         }
     }
 }
@@ -209,7 +208,6 @@ impl From<Shipping> for payments::Address {
                 last_name: None,
                 origin_zip: None,
             }),
-            date_of_birth: None,
         }
     }
 }

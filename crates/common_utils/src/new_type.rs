@@ -162,16 +162,24 @@ impl From<Secret<String>> for MaskedBankAccount {
     }
 }
 
-/// A generically masked value, for identifiers that have no more specific masked type
+/// A generically masked value, for identifiers that have no more specific masked type.
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
-pub struct MaskedValue(Secret<String>);
-impl From<String> for MaskedValue {
+pub struct MaskedValue<const UNMASKED_CHAR_COUNT: usize = 4, const MIN_MASKED_CHAR_COUNT: usize = 4>(
+    Secret<String>,
+);
+
+impl<const UNMASKED_CHAR_COUNT: usize, const MIN_MASKED_CHAR_COUNT: usize> From<String>
+    for MaskedValue<UNMASKED_CHAR_COUNT, MIN_MASKED_CHAR_COUNT>
+{
     fn from(src: String) -> Self {
-        let masked_value = apply_mask(src.as_ref(), 4, 4);
+        let masked_value = apply_mask(src.as_ref(), UNMASKED_CHAR_COUNT, MIN_MASKED_CHAR_COUNT);
         Self(Secret::from(masked_value))
     }
 }
-impl From<Secret<String>> for MaskedValue {
+
+impl<const UNMASKED_CHAR_COUNT: usize, const MIN_MASKED_CHAR_COUNT: usize> From<Secret<String>>
+    for MaskedValue<UNMASKED_CHAR_COUNT, MIN_MASKED_CHAR_COUNT>
+{
     fn from(secret: Secret<String>) -> Self {
         Self::from(secret.expose())
     }

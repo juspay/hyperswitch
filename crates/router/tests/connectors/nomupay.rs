@@ -51,7 +51,6 @@ impl NomupayTest {
                         }),
                         phone: None,
                         email: None,
-                        date_of_birth: None,
                     }
                     .into(),
                 ),

@@ -467,7 +467,6 @@ impl
                         }),
                         phone: None,
                         email: None,
-                        date_of_birth: None,
                     }),
                     created_at: item.response.line_items.first().map(|line| line.start_date),
                     ends_at: item.response.line_items.first().map(|line| line.end_date),

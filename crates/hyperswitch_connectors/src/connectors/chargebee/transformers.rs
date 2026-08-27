@@ -1092,7 +1092,6 @@ impl From<ChargebeeInvoiceData> for api_models::payments::Address {
                 .map(api_models::payments::AddressDetails::from),
             phone: None,
             email: None,
-            date_of_birth: None,
         }
     }
 }

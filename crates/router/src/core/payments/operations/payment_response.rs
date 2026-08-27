@@ -4637,7 +4637,6 @@ impl<F: Clone + Send + Sync>
                                             address: Some(billing_address),
                                             phone: None,
                                             email: None,
-                                            date_of_birth: None,
                                         }),
                                         payment_data.payment_intent.billing_address_id.as_deref(),
                                         processor.get_account().get_id(),
@@ -4679,6 +4678,7 @@ impl<F: Clone + Send + Sync>
                                         phone_country_code: None,
                                         tax_registration_id: None,
                                         customer_document_details: Some(customer_document_details),
+                                        date_of_birth: None,
                                     });
                                 }
 
