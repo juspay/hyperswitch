@@ -31,6 +31,7 @@ pub struct GcpKmsConfig {
 }
 
 impl GcpKmsConfig {
+    /// Verifies that the [`GcpKmsConfig`] is valid.
     pub fn validate(&self) -> Result<(), &'static str> {
         use common_utils::{ext_traits::ConfigExt, fp_utils::when};
 
@@ -60,6 +61,8 @@ pub struct GcpKmsClient {
 }
 
 impl GcpKmsClient {
+    /// Constructs a new GCP KMS client with ambient credentials, targeting the KMS key
+    /// identified by the provided [`GcpKmsConfig`].
     pub async fn new(config: &GcpKmsConfig) -> CustomResult<Self, GcpKmsError> {
         let client_config = ClientConfig::default()
             .with_auth()
@@ -142,20 +145,26 @@ impl GcpKmsClient {
     }
 }
 
+/// Errors that could occur during GCP KMS operations.
 #[derive(Debug, thiserror::Error)]
 pub enum GcpKmsError {
+    /// An error occurred when base64 decoding the input data.
     #[error("Failed to base64 decode input data")]
     Base64DecodingFailed,
 
+    /// An error occurred when GCP KMS decrypting the input data.
     #[error("Failed to GCP KMS decrypt input data")]
     DecryptionFailed,
 
+    /// An error occurred when GCP KMS encrypting the input data.
     #[error("Failed to GCP KMS encrypt input data")]
     EncryptionFailed,
 
+    /// An error occurred UTF-8 decoding the GCP KMS decrypted output.
     #[error("Failed UTF-8 decode of GCP KMS decrypted output")]
     Utf8DecodingFailed,
 
+    /// An error occurred when creating the GCP KMS client.
     #[error("Failed to create GCP KMS client")]
     ClientCreationFailed,
 }
