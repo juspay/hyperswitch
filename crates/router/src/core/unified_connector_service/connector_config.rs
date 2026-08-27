@@ -738,6 +738,17 @@ pub enum ConnectorSpecificConfig {
         brand_id: Option<Secret<String>>,
         destination_account_number: Option<Secret<String>>,
     },
+    /// Saferpay (SIX Payment Services) connector configuration
+    Saferpay {
+        /// API username (HTTP Basic username)
+        api_key: Secret<String>,
+        /// API password (HTTP Basic password)
+        key1: Secret<String>,
+        /// CustomerId (RequestHeader.CustomerId)
+        api_secret: Secret<String>,
+        /// TerminalId (request body TerminalId)
+        key2: Secret<String>,
+    },
 }
 
 impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
@@ -1872,6 +1883,20 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                     })
                 }
                 _ => Err(err("Mifinity requires HeaderKey auth type")),
+            },
+            Connector::Saferpay => match auth {
+                ConnectorAuthType::MultiAuthKey {
+                    api_key,
+                    key1,
+                    api_secret,
+                    key2,
+                } => Ok(Self::Saferpay {
+                    api_key: api_key.clone(),
+                    key1: key1.clone(),
+                    api_secret: api_secret.clone(),
+                    key2: key2.clone(),
+                }),
+                _ => Err(err("Saferpay requires MultiAuthKey auth type")),
             },
             // --- Unsupported connectors ---
             _ => Err(
