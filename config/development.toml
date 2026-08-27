@@ -1607,6 +1607,11 @@ max_random_schedule_delay_in_seconds = 300
 redis_ttl_buffer_in_seconds= 300
 unretried_invoice_schedule_time_offset_seconds = 60
 
+# Redis lock configuration guarding the retry-stats read-merge-write
+[revenue_recovery.retry_stats_lock]
+redis_lock_expiry_seconds = 10              # Seconds before redis lock expires
+delay_between_retries_in_milliseconds = 100 # Wait between attempts to acquire a contended lock
+
 [revenue_recovery.card_config.amex]
 max_retries_per_day = 20
 max_retry_count_for_thirty_day = 20
