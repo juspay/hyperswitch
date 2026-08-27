@@ -1302,9 +1302,6 @@ where
         key_store: &MerchantKeyStore,
     ) -> CustomResult<MerchantConnectorAccount, Self::Error>;
 
-    /// Same lookup as `find_merchant_connector_account_by_id`, scoped to a merchant. An account
-    /// belonging to a different merchant is reported as not found, so an id taken from a request
-    /// body cannot reach another merchant's account.
     #[cfg(feature = "v2")]
     async fn find_merchant_connector_account_by_merchant_connector_id_merchant_id(
         &self,
