@@ -4,6 +4,29 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.08.27.0
+
+### Features
+
+- **connector:**
+  - Added 3ds exemption manager decision to dataTrans connector ([#13840](https://github.com/juspay/hyperswitch/pull/13840)) ([`2c034b3`](https://github.com/juspay/hyperswitch/commit/2c034b3e7be7adb731f787640fdb76336e5e859a))
+  - [GoTyme] Add gotyme_sanlam payout connector with PayShap payout support ([#13626](https://github.com/juspay/hyperswitch/pull/13626)) ([`2615a4c`](https://github.com/juspay/hyperswitch/commit/2615a4cfb40d7013c673e0e579240ee57d8425b9))
+- **core:** Return customer_acceptance_support in the payment method list response ([#13854](https://github.com/juspay/hyperswitch/pull/13854)) ([`4eff11f`](https://github.com/juspay/hyperswitch/commit/4eff11fcdf4491ea1d44f090fec0f9df98e518e3))
+- **payments:** Add fingerprint_type and generate fingerprints for wallet payment methods ([#13849](https://github.com/juspay/hyperswitch/pull/13849)) ([`02d4df1`](https://github.com/juspay/hyperswitch/commit/02d4df11835319476f2ce808bac242e5aea7e315))
+- **revenue-recovery:** Add adaptive retry scheduling for revenue recovery ([#13824](https://github.com/juspay/hyperswitch/pull/13824)) ([`4e31a5f`](https://github.com/juspay/hyperswitch/commit/4e31a5f253c4c2020b4db95552cc074d34fd6d6d))
+
+### Bug Fixes
+
+- **connector:** [stripe][stripe connect] add support to send billing data for wallets and NTID MIT flow ([#13848](https://github.com/juspay/hyperswitch/pull/13848)) ([`a79a95a`](https://github.com/juspay/hyperswitch/commit/a79a95ac7d828225afa363c985e4b7352346520e))
+- **connector-config:** Correct GoTyme payout auth key name ([#13868](https://github.com/juspay/hyperswitch/pull/13868)) ([`07e53fd`](https://github.com/juspay/hyperswitch/commit/07e53fd26837537dd1c375f46da9fb6f888ca014))
+- **domain:** Populate Connector Metadata in PaymentsAuthorizeData from SetupMandateData ([#13867](https://github.com/juspay/hyperswitch/pull/13867)) ([`377a2b6`](https://github.com/juspay/hyperswitch/commit/377a2b6eab832d39c155101d542446bf68b61d29))
+- **routing:** Send all dashboard routing dimensions to the Decision Engine ([#13846](https://github.com/juspay/hyperswitch/pull/13846)) ([`20672a1`](https://github.com/juspay/hyperswitch/commit/20672a1345372af75cbb8ea553de39d780046237))
+- **session:** [stripe] [googlepay] pass stripe publishablekey and stripe version properly ([#13865](https://github.com/juspay/hyperswitch/pull/13865)) ([`7f3142a`](https://github.com/juspay/hyperswitch/commit/7f3142a43e3927017338abc42938210765d55970))
+
+**Full Changelog:** [`2026.08.26.1...2026.08.27.0`](https://github.com/juspay/hyperswitch/compare/2026.08.26.1...2026.08.27.0)
+
+- - -
+
 ## 2026.08.26.1
 
 ### Features
