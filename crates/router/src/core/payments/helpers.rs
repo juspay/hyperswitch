@@ -5731,6 +5731,7 @@ impl AttemptType {
             external_surcharge_details: None,
             applied_offer_details: None,
             sender_payment_instrument_id: None,
+            payment_account_reference: None,
         }
     }
 
