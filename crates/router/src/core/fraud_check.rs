@@ -129,6 +129,108 @@ where
         frm_data.fraud_check.last_step = FraudCheckLastStep::TransactionOrRecordRefund
     }
 
+    // UCS-backed FRM providers (e.g. nSure) have no in-process connector: the
+    // risk evaluation is executed by the connector-service, which owns the
+    // provider-specific transformation. Only the pre-authorization risk
+    // evaluation is routed there; the notify-style flows have no UCS equivalent
+    // yet and continue down the native path below.
+    //
+    // `pre_payment_frm_core` invokes `call_frm_service` twice for a Pre flow —
+    // once for Checkout and once for Transaction — and both carry
+    // `FraudCheckType::PreFrm`. Only the first is a risk *evaluation*; the
+    // second is a notification whose result is discarded by the caller. Gating
+    // on `last_step == Processing` (set at row insert, advanced to
+    // `CheckoutOrSale` after the first call) ensures nSure is asked exactly once
+    // per payment, so the provider is not billed twice and does not see a
+    // repeated `uniqueRequestId`.
+    #[cfg(feature = "v1")]
+    if matches!(
+        frm_data.fraud_check.frm_transaction_type,
+        FraudCheckType::PreFrm
+    ) && matches!(
+        frm_data.fraud_check.last_step,
+        FraudCheckLastStep::Processing
+    ) {
+        use common_utils::ext_traits::ValueExt;
+
+        // Routed to UCS only when configuration says so (`ucs_frm_connectors`)
+        // and UCS is actually available — see
+        // `should_call_unified_connector_service_for_frm`.
+        if crate::core::unified_connector_service::frm::should_call_unified_connector_service_for_frm(
+            state,
+            &frm_data.connector_details.connector_name,
+        )
+        .await
+        {
+            let currency = frm_data.payment_attempt.currency.ok_or(
+                errors::ApiErrorResponse::MissingRequiredField {
+                    field_name: "currency",
+                },
+            )?;
+
+            // `browser_info` is stored as raw JSON on the attempt; user agent and
+            // IP are what the risk provider needs for device context.
+            let browser_info = frm_data
+                .payment_attempt
+                .browser_info
+                .clone()
+                .and_then(|value| {
+                    value
+                        .parse_value::<hyperswitch_domain_models::router_request_types::BrowserInformation>(
+                            "BrowserInformation",
+                        )
+                        .ok()
+                });
+
+            // Bearer-authenticated providers (Kount) need an OAuth token in
+            // `state.access_token`; static-key providers (nSure) get `None` and
+            // ignore it. Failure here is non-fatal — the connector surfaces a
+            // clear auth error rather than us guessing.
+            let access_token =
+                crate::core::unified_connector_service::frm::get_frm_access_token(
+                    state,
+                    platform.get_processor(),
+                    &frm_data.connector_details.connector_name,
+                    &merchant_connector_account,
+                    &frm_data.connector_details.profile_id,
+                )
+                .await
+                .unwrap_or_else(|err| {
+                    router_env::logger::warn!(
+                        error = ?err,
+                        "Failed to obtain an FRM access token; continuing without one"
+                    );
+                    None
+                });
+
+            let context = crate::core::unified_connector_service::frm::FrmPreRiskCheckContext {
+                amount: frm_data.payment_attempt.net_amount.get_total_amount(),
+                currency,
+                customer_id: frm_data.payment_intent.customer_id.as_ref(),
+                browser_info: browser_info.as_ref(),
+                address: &frm_data.address,
+                order_details: frm_data.order_details.as_ref(),
+                merchant_transaction_id: frm_data.payment_attempt.attempt_id.clone(),
+                frm_metadata: frm_data.frm_metadata.as_ref(),
+                access_token: access_token.as_ref(),
+            };
+
+            let response =
+                crate::core::unified_connector_service::frm::call_unified_connector_service_for_frm_pre_risk_check(
+                    state,
+                    platform.get_processor(),
+                    merchant_connector_account.clone(),
+                    frm_data.connector_details.connector_name.clone(),
+                    &frm_data.connector_details.profile_id,
+                    context,
+                )
+                .await?;
+
+            router_data.response = Ok(response);
+            return Ok(router_data);
+        }
+    }
+
     let connector =
         FraudCheckConnectorData::get_connector_by_name(&frm_data.connector_details.connector_name)?;
     let router_data_res = router_data
@@ -882,4 +984,120 @@ pub async fn make_fulfillment_api_call(
                 reason: err.reason,
             })?;
     Ok(services::ApplicationResponse::Json(fulfillment_response))
+}
+
+/// Notify the FRM provider that a chargeback was opened against a payment it
+/// previously scored.
+///
+/// Self-contained entry point for the dispute webhook flow: resolves the
+/// `fraud_check` row for the payment, checks the provider is UCS-backed and
+/// configured, and sends `FRM_CHARGEBACK_RECEIVED`.
+///
+/// Best-effort by design — a chargeback has already happened, so failing to
+/// inform the provider must never fail the webhook. Errors are logged and
+/// swallowed, matching how the pre-connector FRM call is treated.
+#[cfg(all(feature = "v1", feature = "frm"))]
+pub async fn notify_frm_of_chargeback(
+    state: &SessionState,
+    platform: &domain::Platform,
+    payment_id: &common_utils::id_type::PaymentId,
+    profile_id: &common_utils::id_type::ProfileId,
+    amount: common_utils::types::MinorUnit,
+    currency: common_enums::Currency,
+    connector_dispute_id: Option<String>,
+    merchant_dispute_id: Option<String>,
+    chargeback_reason: Option<String>,
+) {
+    use crate::core::unified_connector_service::frm as ucs_frm;
+
+    let processor = platform.get_processor();
+
+    // Only payments that actually went through FRM have a row to notify against.
+    let fraud_check = match state
+        .store
+        .find_fraud_check_by_payment_id_if_present(
+            payment_id.to_owned(),
+            processor.get_account().get_id().clone(),
+        )
+        .await
+    {
+        Ok(Some(fraud_check)) => fraud_check,
+        Ok(None) => {
+            logger::debug!(
+                payment_id = ?payment_id,
+                "No FRM record for this payment; skipping chargeback notification"
+            );
+            return;
+        }
+        Err(error) => {
+            logger::warn!(?error, "Failed to look up the FRM record for a chargeback");
+            return;
+        }
+    };
+
+    let connector_name = fraud_check.frm_name.clone();
+
+    if !ucs_frm::should_call_unified_connector_service_for_frm(state, &connector_name).await {
+        logger::debug!(
+            connector = %connector_name,
+            "FRM provider is not UCS-backed or not configured; skipping chargeback notification"
+        );
+        return;
+    }
+
+    let merchant_connector_account = match payments::helpers::get_merchant_connector_account(
+        state,
+        processor,
+        None,
+        profile_id,
+        &connector_name,
+        None,
+    )
+    .await
+    {
+        Ok(mca) => mca,
+        Err(error) => {
+            logger::warn!(?error, connector = %connector_name,
+                "Failed to resolve the FRM connector account for a chargeback");
+            return;
+        }
+    };
+
+    let context = ucs_frm::FrmNotificationContext {
+        amount,
+        currency,
+        connector_transaction_id: None,
+        // Correlation id from the original risk check — without it the provider
+        // cannot tie this chargeback to the transaction it scored.
+        frm_transaction_id: fraud_check.frm_transaction_id.clone(),
+        profile_id,
+    };
+
+    let notification = ucs_frm::FrmNotification::ChargebackReceived {
+        connector_dispute_id,
+        merchant_dispute_id,
+        chargeback_reason,
+    };
+
+    match ucs_frm::call_unified_connector_service_for_frm_notification(
+        state,
+        processor,
+        merchant_connector_account,
+        connector_name.clone(),
+        context,
+        notification,
+    )
+    .await
+    {
+        Ok(()) => logger::info!(
+            connector = %connector_name,
+            payment_id = ?payment_id,
+            "Notified the FRM provider of a chargeback"
+        ),
+        Err(error) => logger::warn!(
+            ?error,
+            connector = %connector_name,
+            "Failed to notify the FRM provider of a chargeback"
+        ),
+    }
 }

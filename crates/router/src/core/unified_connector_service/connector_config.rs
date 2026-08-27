@@ -1904,6 +1904,17 @@ pub fn build_connector_config_header(
     auth_type: &ConnectorAuthType,
     merchant_account_metadata: Option<&serde_json::Value>,
 ) -> RouterResult<Option<String>> {
+    // nSure is an FRM connector executed by the connector-service. The pinned
+    // `unified-connector-service-client` has no `nsure` case in the
+    // `ConnectorSpecificConfig` oneof, so there is nothing to build here.
+    // Suppressing the header makes UCS take the legacy auth-header path
+    // (`x-auth` / `x-api-key` / `x-key1`), which maps BodyKey onto
+    // `ConnectorSpecificConfig::Nsure` connector-side. Same treatment as
+    // Netcetera below.
+    if matches!(connector, Connector::Nsure) {
+        return Ok(None);
+    }
+
     let config = ConnectorSpecificConfig::foreign_try_from((
         connector,
         auth_type,

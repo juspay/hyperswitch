@@ -60,6 +60,8 @@ pub struct UnifiedConnectorServiceClient {
     pub payout_service_client: payments_grpc::payout_service_client::PayoutServiceClient<UcsChannel>,
     /// The Surcharge Service Client
     pub surcharge_service_client: payments_grpc::surcharge_service_client::SurchargeServiceClient<UcsChannel>,
+    /// The Fraud and Risk Management Service Client
+    pub frm_service_client: payments_grpc::fraud_and_risk_management_service_client::FraudAndRiskManagementServiceClient<UcsChannel>,
 }
 
 /// Contains the Unified Connector Service Client config
@@ -82,6 +84,12 @@ pub struct UnifiedConnectorServiceClientConfig {
     /// Set of connectors for which psync is disabled in unified connector service
     #[serde(default, deserialize_with = "deserialize_hashset")]
     pub ucs_psync_disabled_connectors: HashSet<Connector>,
+
+    /// Set of FRM connectors whose risk evaluation is executed by the unified
+    /// connector service rather than by an in-process connector. Empty by
+    /// default, so no FRM traffic is routed to UCS unless explicitly configured.
+    #[serde(default, deserialize_with = "deserialize_hashset")]
+    pub ucs_frm_connectors: HashSet<Connector>,
 }
 
 /// Connection timeout for the Unified Connector Service in seconds.
@@ -364,6 +372,16 @@ impl UnifiedConnectorServiceClient {
                     request_timeout
                 );
 
+                let frm_service_client = build_grpc_client!(
+                    payments_grpc::fraud_and_risk_management_service_client::FraudAndRiskManagementServiceClient<
+                        UcsChannel,
+                    >,
+                    "frm_service_client",
+                    uri,
+                    connection_timeout,
+                    request_timeout
+                );
+
                 logger::info!("Successfully connected to Unified Connector Service");
 
                 Some(Self {
@@ -378,6 +396,7 @@ impl UnifiedConnectorServiceClient {
                     payment_method_authentication_service_client,
                     payout_service_client,
                     surcharge_service_client,
+                    frm_service_client,
                 })
             }
             None => {
@@ -1491,6 +1510,39 @@ impl UnifiedConnectorServiceClient {
             })
     }
 
+    /// Performs a pre-authorization risk check via the FRM Service.
+    pub async fn frm_pre_risk_check(
+        &self,
+        pre_risk_check_request: payments_grpc::FrmServicePreRiskCheckRequest,
+        connector_auth_metadata: ConnectorAuthMetadata,
+        grpc_headers: GrpcHeadersUcs,
+    ) -> UnifiedConnectorServiceResult<tonic::Response<payments_grpc::FrmServicePreRiskCheckResponse>>
+    {
+        let mut request = tonic::Request::new(pre_risk_check_request);
+
+        let connector_name = connector_auth_metadata.connector_name.clone();
+        let metadata = build_unified_connector_service_grpc_headers_for_frm(
+            connector_auth_metadata,
+            grpc_headers,
+        )?;
+
+        *request.metadata_mut() = metadata;
+
+        self.frm_service_client
+            .clone()
+            .pre_risk_check(request)
+            .await
+            .change_context(UnifiedConnectorServiceError::FrmPreRiskCheckFailure)
+            .inspect_err(|error| {
+                logger::error!(
+                    grpc_error=?error,
+                    method="frm_pre_risk_check",
+                    connector_name=?connector_name,
+                    "UCS frm_pre_risk_check gRPC call failed"
+                )
+            })
+    }
+
     /// Performs notify connector via the Event Service
     pub async fn notify_connector(
         &self,
@@ -1555,6 +1607,9 @@ fn build_unified_connector_service_grpc_headers_for_connector_type(
         ConnectorType::PaymentProcessor => consts::UCS_HEADER_CONNECTOR,
         ConnectorType::PayoutProcessor => consts::UCS_HEADER_PAYOUT_CONNECTOR,
         ConnectorType::SurchargeProcessor => consts::UCS_HEADER_SURCHARGE_CONNECTOR,
+        // FRM providers are onboarded as `payment_vas` and are selected by
+        // `x-frm-connector`, the same way surcharge uses its own header.
+        ConnectorType::PaymentVas => consts::UCS_HEADER_FRM_CONNECTOR,
         connector_type => {
             return Err(
                 UnifiedConnectorServiceError::RequestEncodingFailedWithReason(format!(
@@ -1758,6 +1813,33 @@ pub fn build_unified_connector_service_grpc_headers_for_surcharge(
     Ok(metadata)
 }
 
+/// Build gRPC headers for a UCS FRM request.
+///
+/// FRM connectors are selected by `x-frm-connector` rather than `x-connector`,
+/// mirroring how surcharge connectors use `x-surcharge-connector`. prism routes
+/// on this header (see `frm_connector_from_composite_frm_metadata`).
+pub fn build_unified_connector_service_grpc_headers_for_frm(
+    meta: ConnectorAuthMetadata,
+    grpc_headers: GrpcHeadersUcs,
+) -> Result<MetadataMap, UnifiedConnectorServiceError> {
+    let mut metadata = build_unified_connector_service_grpc_headers(meta.clone(), grpc_headers)?;
+
+    metadata.remove(consts::UCS_HEADER_CONNECTOR);
+
+    let connector_name = meta.connector_name.clone();
+    let frm_connector_value = connector_name
+        .parse::<MetadataValue<_>>()
+        .map_err(|error| {
+            logger::error!(?error);
+            UnifiedConnectorServiceError::HeaderInjectionFailed(
+                consts::UCS_HEADER_FRM_CONNECTOR.to_string(),
+            )
+        })?;
+    metadata.append(consts::UCS_HEADER_FRM_CONNECTOR, frm_connector_value);
+
+    Ok(metadata)
+}
+
 /// Build gRPC headers for UCS notify requests.
 /// Build gRPC headers for UCS notify requests.
 /// Same as [`build_unified_connector_service_grpc_headers`] but uses
@@ -1772,11 +1854,20 @@ pub fn build_unified_connector_service_grpc_headers_for_notify_connector(
     // Remove the default connector header
     metadata.remove(consts::UCS_HEADER_CONNECTOR);
 
-    // Choose header based on event type
+    // Choose header based on event type. FRM events are routed by
+    // `x-frm-connector` (mirroring the risk-check path); surcharge events by
+    // `x-surcharge-connector`; everything else by the default `x-connector`.
     let is_surcharge_event = matches!(
         event_type,
         payments_grpc::NotifyEventType::SurchargePaymentSucceeded
             | payments_grpc::NotifyEventType::SurchargeRefundSucceeded
+    );
+    let is_frm_event = matches!(
+        event_type,
+        payments_grpc::NotifyEventType::FrmPaymentSucceeded
+            | payments_grpc::NotifyEventType::FrmPaymentFailure
+            | payments_grpc::NotifyEventType::FrmRefundProcessed
+            | payments_grpc::NotifyEventType::FrmChargebackReceived
     );
 
     let connector_name = meta.connector_name.clone();
@@ -1797,6 +1888,8 @@ pub fn build_unified_connector_service_grpc_headers_for_notify_connector(
 
     if is_surcharge_event {
         metadata.append(consts::UCS_HEADER_SURCHARGE_CONNECTOR, connector_value);
+    } else if is_frm_event {
+        metadata.append(consts::UCS_HEADER_FRM_CONNECTOR, connector_value);
     } else {
         metadata.append(consts::UCS_HEADER_CONNECTOR, connector_value);
     }
