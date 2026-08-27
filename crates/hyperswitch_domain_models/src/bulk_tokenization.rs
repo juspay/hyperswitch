@@ -137,6 +137,7 @@ impl ForeignFrom<&CardNetworkTokenizeRecord> for payments_api::Address {
                 country_code: record.billing_phone_country_code.clone(),
             }),
             email: record.billing_email.clone(),
+            date_of_birth: None,
         }
     }
 }
@@ -293,6 +294,7 @@ impl ForeignFrom<payments_api::Address> for Address {
             address: req.address.map(ForeignFrom::foreign_from),
             phone: req.phone.map(ForeignFrom::foreign_from),
             email: req.email,
+            date_of_birth: req.date_of_birth,
         }
     }
 }

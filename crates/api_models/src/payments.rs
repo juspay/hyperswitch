@@ -2806,6 +2806,7 @@ impl GetAddressFromPaymentMethodData for Card {
                 address: Some(address_details),
                 phone: None,
                 email: None,
+                date_of_birth: None,
             })
     }
 }
@@ -2839,6 +2840,7 @@ impl GetAddressFromPaymentMethodData for CardWithNoCVC {
                 address: Some(address_details),
                 phone: None,
                 email: None,
+                date_of_birth: None,
             })
     }
 }
@@ -2996,6 +2998,7 @@ impl GetAddressFromPaymentMethodData for PayLaterData {
                     address: Some(address_details),
                     email: billing_email.clone(),
                     phone: None,
+                    date_of_birth: None,
                 })
             }
             Self::AfterpayClearpayRedirect {
@@ -3011,6 +3014,7 @@ impl GetAddressFromPaymentMethodData for PayLaterData {
                     address: Some(address_details),
                     email: billing_email.clone(),
                     phone: None,
+                    date_of_birth: None,
                 })
             }
             Self::PayBrightRedirect {}
@@ -4540,6 +4544,7 @@ impl GetAddressFromPaymentMethodData for BankRedirectData {
                     }),
                     phone: None,
                     email: None,
+                    date_of_birth: None,
                 }),
                 (None, None) => None,
             };
@@ -4554,6 +4559,7 @@ impl GetAddressFromPaymentMethodData for BankRedirectData {
                     address: None,
                     phone: None,
                     email: Some(billing_email.clone()),
+                    date_of_birth: None,
                 }),
                 (None, None) => None,
             }
@@ -4584,6 +4590,7 @@ impl GetAddressFromPaymentMethodData for BankRedirectData {
                         }),
                         phone: None,
                         email: None,
+                        date_of_birth: None,
                     })
                 }
             }
@@ -4873,6 +4880,7 @@ impl GetAddressFromPaymentMethodData for BankRedirectBilling {
                 address: address_details,
                 phone: None,
                 email: self.email.clone(),
+                date_of_birth: None,
             })
         } else {
             None
@@ -5077,6 +5085,7 @@ impl GetAddressFromPaymentMethodData for BankTransferData {
                     address: None,
                     phone: None,
                     email: details.email.clone(),
+                    date_of_birth: None,
                 })
             }
             Self::SepaBankTransfer {
@@ -5090,6 +5099,7 @@ impl GetAddressFromPaymentMethodData for BankTransferData {
                 }),
                 phone: None,
                 email: details.email.clone(),
+                date_of_birth: None,
             }),
             Self::BacsBankTransfer { billing_details } => {
                 billing_details.as_ref().map(|details| Address {
@@ -5099,6 +5109,7 @@ impl GetAddressFromPaymentMethodData for BankTransferData {
                     }),
                     phone: None,
                     email: details.email.clone(),
+                    date_of_birth: None,
                 })
             }
             Self::MultibancoBankTransfer { billing_details } => {
@@ -5106,6 +5117,7 @@ impl GetAddressFromPaymentMethodData for BankTransferData {
                     address: None,
                     phone: None,
                     email: details.email.clone(),
+                    date_of_birth: None,
                 })
             }
             Self::PermataBankTransfer { billing_details }
@@ -5123,6 +5135,7 @@ impl GetAddressFromPaymentMethodData for BankTransferData {
                     }),
                     phone: None,
                     email: details.email.clone(),
+                    date_of_birth: None,
                 })
             }
             Self::LocalBankTransfer { .. }
@@ -5166,6 +5179,7 @@ impl GetAddressFromPaymentMethodData for BankDebitBilling {
                 address: Some(address),
                 email: self.email.clone(),
                 phone: None,
+                date_of_birth: None,
             }
         } else {
             Address {
@@ -5175,6 +5189,7 @@ impl GetAddressFromPaymentMethodData for BankDebitBilling {
                 }),
                 email: self.email.clone(),
                 phone: None,
+                date_of_birth: None,
             }
         };
 
@@ -5340,6 +5355,7 @@ impl GetAddressFromPaymentMethodData for WalletData {
                     phone: Some(phone),
                     address: None,
                     email: None,
+                    date_of_birth: None,
                 })
             }
             Self::MobilePayRedirect(_) => None,
@@ -5348,6 +5364,7 @@ impl GetAddressFromPaymentMethodData for WalletData {
                     email: Some(email),
                     address: None,
                     phone: None,
+                    date_of_birth: None,
                 })
             }
             Self::Mifinity(_)
@@ -6011,6 +6028,7 @@ impl GetAddressFromPaymentMethodData for VoucherData {
                 }),
                 phone: None,
                 email: voucher_data.email.clone(),
+                date_of_birth: None,
             }),
             Self::Indomaret(voucher_data) => Some(Address {
                 address: Some(AddressDetails {
@@ -6020,6 +6038,7 @@ impl GetAddressFromPaymentMethodData for VoucherData {
                 }),
                 phone: None,
                 email: voucher_data.email.clone(),
+                date_of_birth: None,
             }),
             Self::Lawson(voucher_data)
             | Self::MiniStop(voucher_data)
@@ -6037,6 +6056,7 @@ impl GetAddressFromPaymentMethodData for VoucherData {
                     country_code: None,
                 }),
                 email: voucher_data.email.clone(),
+                date_of_birth: None,
             }),
             Self::Boleto(_)
             | Self::Efecty
@@ -6429,6 +6449,10 @@ pub struct Address {
     #[schema(value_type = Option<String>)]
     #[smithy(value_type = "Option<String>")]
     pub email: Option<Email>,
+
+    #[schema(value_type = Option<Date>, example = "1990-01-31")]
+    #[smithy(value_type = "Option<String>")]
+    pub date_of_birth: Option<Secret<Date>>,
 }
 
 impl hyperswitch_masking::SerializableSecret for Address {}
@@ -6444,6 +6468,9 @@ impl Address {
                 .or(other_address_details.cloned()),
             email: self.email.or(other.and_then(|other| other.email.clone())),
             phone: self.phone.or(other.and_then(|other| other.phone.clone())),
+            date_of_birth: self
+                .date_of_birth
+                .or(other.and_then(|other| other.date_of_birth.clone())),
         }
     }
 }
@@ -6597,6 +6624,15 @@ pub enum RecipientBankAccount {
         #[schema(value_type = String, example = "000123456789")]
         account_number: Secret<String>,
     },
+    /// A truncated primary account number, made up of the first six and last four digits.
+    TruncatedPan {
+        /// The first six digits of the recipient's PAN.
+        #[schema(value_type = String, max_length = 6, example = "411111")]
+        card_isin: Secret<String>,
+        /// The last four digits of the recipient's PAN.
+        #[schema(value_type = String, max_length = 4, example = "1111")]
+        last4: Secret<String>,
+    },
 }
 
 /// The account that receives the funds in an account funded transaction.
@@ -6607,8 +6643,8 @@ pub enum RecipientAccount {
     BankAccount(RecipientBankAccount),
     /// Funds are credited to a card.
     Card {
-        /// The recipient's card number, truncated card number, or network token.
-        #[schema(value_type = String, example = "411111XXXXXX1111")]
+        /// The recipient's card number.
+        #[schema(value_type = String, example = "4111111111111111")]
         card_number: Secret<String>,
     },
     /// Funds are credited to a wallet held for the recipient.
@@ -6691,6 +6727,16 @@ pub enum MaskedRecipientBankAccount {
         /// The recipient's partially masked bank account number.
         #[schema(value_type = String, example = "0001****6789")]
         account_number: MaskedBankAccount,
+    },
+    /// A truncated primary account number. This is already the industry standard truncated form,
+    /// so it is returned as supplied.
+    TruncatedPan {
+        /// The first six digits of the recipient's PAN.
+        #[schema(value_type = String, example = "411111")]
+        card_isin: Secret<String>,
+        /// The last four digits of the recipient's PAN.
+        #[schema(value_type = String, example = "1111")]
+        last4: Secret<String>,
     },
 }
 
@@ -6775,6 +6821,10 @@ impl RecipientBankAccount {
             },
             Self::AccountNumber { account_number } => MaskedRecipientBankAccount::AccountNumber {
                 account_number: MaskedBankAccount::from(account_number.clone()),
+            },
+            Self::TruncatedPan { card_isin, last4 } => MaskedRecipientBankAccount::TruncatedPan {
+                card_isin: card_isin.clone(),
+                last4: last4.clone(),
             },
         }
     }
@@ -14290,6 +14340,141 @@ mod null_object_test {
         let null_object = NullObject;
         let serialized = serde_json::to_string(&null_object).unwrap();
         assert_eq!(serialized, "null");
+    }
+}
+
+#[cfg(test)]
+mod recipient_details_test {
+    use serde_json::json;
+
+    use super::*;
+
+    /// The bank account variant nests one internally tagged enum inside another. Both sets of
+    /// fields must land at the same level so the payload stays flat for merchants.
+    #[test]
+    fn bank_account_variants_serialize_flat() {
+        let iban = RecipientAccount::BankAccount(RecipientBankAccount::Iban {
+            iban: Secret::new("GB29NWBK70361331946864".to_string()),
+        });
+        assert_eq!(
+            serde_json::to_value(&iban).unwrap(),
+            json!({
+                "type": "bank_account",
+                "identifier_type": "iban",
+                "iban": "GB29NWBK70361331946864",
+            })
+        );
+
+        // Worldpay WPG joins the two halves of accountType 06 with a "+"; both must survive.
+        let bic = RecipientAccount::BankAccount(RecipientBankAccount::Bic {
+            account_number: Secret::new("09875432".to_string()),
+            bic: Secret::new("HBUKGB4B".to_string()),
+        });
+        assert_eq!(
+            serde_json::to_value(&bic).unwrap(),
+            json!({
+                "type": "bank_account",
+                "identifier_type": "bic",
+                "account_number": "09875432",
+                "bic": "HBUKGB4B",
+            })
+        );
+    }
+
+    /// Checkout groups a truncated PAN with the IBAN as a form of account number, so it is an
+    /// identifier type on the bank account rather than a destination type of its own.
+    #[test]
+    fn truncated_pan_serializes_flat() {
+        let truncated_pan = RecipientAccount::BankAccount(RecipientBankAccount::TruncatedPan {
+            card_isin: Secret::new("411111".to_string()),
+            last4: Secret::new("1111".to_string()),
+        });
+        assert_eq!(
+            serde_json::to_value(&truncated_pan).unwrap(),
+            json!({
+                "type": "bank_account",
+                "identifier_type": "truncated_pan",
+                "card_isin": "411111",
+                "last4": "1111",
+            })
+        );
+    }
+
+    #[test]
+    fn account_variants_round_trip() {
+        let accounts = vec![
+            RecipientAccount::BankAccount(RecipientBankAccount::Iban {
+                iban: Secret::new("GB29NWBK70361331946864".to_string()),
+            }),
+            RecipientAccount::BankAccount(RecipientBankAccount::RoutingNumber {
+                account_number: Secret::new("000123456789".to_string()),
+                routing_number: Secret::new("110000000".to_string()),
+            }),
+            RecipientAccount::BankAccount(RecipientBankAccount::AccountNumber {
+                account_number: Secret::new("000123456789".to_string()),
+            }),
+            RecipientAccount::Card {
+                card_number: Secret::new("4111111111111111".to_string()),
+            },
+            RecipientAccount::BankAccount(RecipientBankAccount::TruncatedPan {
+                card_isin: Secret::new("411111".to_string()),
+                last4: Secret::new("1111".to_string()),
+            }),
+            RecipientAccount::Wallet {
+                wallet_id: Secret::new("wallet_8891".to_string()),
+            },
+            RecipientAccount::Phone {
+                phone_number: Secret::new("9123456789".to_string()),
+            },
+            RecipientAccount::SocialNetwork {
+                social_network_id: Secret::new("jane.doe".to_string()),
+            },
+        ];
+
+        for account in accounts {
+            let serialized = serde_json::to_value(&account).unwrap();
+            let deserialized: RecipientAccount = serde_json::from_value(serialized).unwrap();
+            assert_eq!(account, deserialized);
+        }
+    }
+
+    /// The masked view is what goes back out over the API, so no full value may survive it.
+    #[test]
+    fn masking_hides_the_full_value() {
+        let details = RecipientDetails {
+            account: Some(RecipientAccount::BankAccount(RecipientBankAccount::Iban {
+                iban: Secret::new("GB29NWBK70361331946864".to_string()),
+            })),
+            phone_number: Some(Secret::new("9123456789".to_string())),
+            tax_id: Some(Secret::new("162.152.541-42".to_string())),
+            address: None,
+        };
+
+        let masked = serde_json::to_string(&details.to_masked()).unwrap();
+
+        assert!(!masked.contains("GB29NWBK70361331946864"));
+        assert!(!masked.contains("9123456789"));
+        assert!(!masked.contains("162.152.541-42"));
+    }
+
+    /// A truncated PAN is already the standard truncated form, so masking leaves it intact.
+    #[test]
+    fn masking_passes_the_truncated_pan_through() {
+        let details = RecipientDetails {
+            account: Some(RecipientAccount::BankAccount(
+                RecipientBankAccount::TruncatedPan {
+                    card_isin: Secret::new("411111".to_string()),
+                    last4: Secret::new("1111".to_string()),
+                },
+            )),
+            phone_number: None,
+            tax_id: None,
+            address: None,
+        };
+
+        let masked = serde_json::to_value(&details.to_masked()).unwrap();
+        assert_eq!(masked["account"]["card_isin"], json!("411111"));
+        assert_eq!(masked["account"]["last4"], json!("1111"));
     }
 }
 

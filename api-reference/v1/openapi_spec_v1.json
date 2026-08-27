@@ -10006,6 +10006,12 @@
           "email": {
             "type": "string",
             "nullable": true
+          },
+          "date_of_birth": {
+            "type": "string",
+            "format": "date",
+            "example": "1990-01-31",
+            "nullable": true
           }
         }
       },
@@ -25864,6 +25870,33 @@
                 ]
               }
             }
+          },
+          {
+            "type": "object",
+            "description": "A truncated primary account number. This is already the industry standard truncated form,\nso it is returned as supplied.",
+            "required": [
+              "card_isin",
+              "last4",
+              "identifier_type"
+            ],
+            "properties": {
+              "card_isin": {
+                "type": "string",
+                "description": "The first six digits of the recipient's PAN.",
+                "example": "411111"
+              },
+              "last4": {
+                "type": "string",
+                "description": "The last four digits of the recipient's PAN.",
+                "example": "1111"
+              },
+              "identifier_type": {
+                "type": "string",
+                "enum": [
+                  "truncated_pan"
+                ]
+              }
+            }
           }
         ],
         "description": "A partially masked view of `RecipientBankAccount`, safe to return in API responses.",
@@ -41553,8 +41586,8 @@
             "properties": {
               "card_number": {
                 "type": "string",
-                "description": "The recipient's card number, truncated card number, or network token.",
-                "example": "411111XXXXXX1111"
+                "description": "The recipient's card number.",
+                "example": "4111111111111111"
               },
               "type": {
                 "type": "string",
@@ -41748,6 +41781,35 @@
                 "type": "string",
                 "enum": [
                   "account_number"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "A truncated primary account number, made up of the first six and last four digits.",
+            "required": [
+              "card_isin",
+              "last4",
+              "identifier_type"
+            ],
+            "properties": {
+              "card_isin": {
+                "type": "string",
+                "description": "The first six digits of the recipient's PAN.",
+                "example": "411111",
+                "maxLength": 6
+              },
+              "last4": {
+                "type": "string",
+                "description": "The last four digits of the recipient's PAN.",
+                "example": "1111",
+                "maxLength": 4
+              },
+              "identifier_type": {
+                "type": "string",
+                "enum": [
+                  "truncated_pan"
                 ]
               }
             }

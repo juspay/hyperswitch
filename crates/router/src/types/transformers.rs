@@ -586,6 +586,7 @@ impl From<&domain::Address> for hyperswitch_domain_models::address::Address {
             address: address_details,
             phone: phone_details,
             email: address.email.clone().map(pii::Email::from),
+            date_of_birth: None,
         }
     }
 }
@@ -633,6 +634,7 @@ impl ForeignFrom<domain::Address> for api_types::Address {
             address: address_details,
             phone: phone_details,
             email: address.email.clone().map(pii::Email::from),
+            date_of_birth: None,
         }
     }
 }
