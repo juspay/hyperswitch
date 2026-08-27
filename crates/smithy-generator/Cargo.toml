@@ -14,9 +14,12 @@ v2 = ["api_models/v2", "common_utils/v2"]
 [dependencies]
 smithy-core = { path = "../smithy-core" }
 api_models = { version = "0.1.0", path = "../api_models" }
-common_enums = { version = "0.1.0", path = "../common_enums" }
-common_types = { version = "0.1.0", path = "../common_types" }
-common_utils = { version = "0.1.0", path = "../common_utils" }
+# This crate has no diesel references; decline the default features of the
+# shared crates so it does not compile the ORM. Within hyperswitch other
+# crates request the defaults and feature unification restores them.
+common_enums = { version = "0.1.0", path = "../common_enums", default-features = false }
+common_types = { version = "0.1.0", path = "../common_types", default-features = false }
+common_utils = { version = "0.1.0", path = "../common_utils", default-features = false }
 router_env = { version = "0.1.0", path = "../router_env" }
 
 [build-dependencies]

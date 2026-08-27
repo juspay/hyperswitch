@@ -5,8 +5,9 @@ use cpf_cnpj::{cnpj, cpf};
 use utoipa::ToSchema;
 /// HashMap containing MerchantConnectorAccountId and corresponding customer id
 #[cfg(feature = "v2")]
-#[derive(Clone, Debug, Default, serde::Deserialize, serde::Serialize, diesel::AsExpression)]
-#[diesel(sql_type = diesel::sql_types::Jsonb)]
+#[derive(Clone, Debug, Default, serde::Deserialize, serde::Serialize)]
+#[cfg_attr(feature = "diesel", derive(diesel::AsExpression))]
+#[cfg_attr(feature = "diesel", diesel(sql_type = diesel::sql_types::Jsonb))]
 #[serde(transparent)]
 pub struct ConnectorCustomerMap(
     std::collections::HashMap<common_utils::id_type::MerchantConnectorAccountId, String>,
@@ -22,7 +23,7 @@ impl ConnectorCustomerMap {
     }
 }
 
-#[cfg(feature = "v2")]
+#[cfg(all(feature = "v2", feature = "diesel"))]
 common_utils::impl_to_sql_from_sql_json!(ConnectorCustomerMap);
 
 #[cfg(feature = "v2")]

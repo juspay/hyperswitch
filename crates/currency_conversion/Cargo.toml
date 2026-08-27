@@ -8,7 +8,10 @@ license.workspace = true
 
 [dependencies]
 # First party crates
-common_enums = { version = "0.1.0", path = "../common_enums", package = "common_enums" }
+# This crate has no diesel references; decline the default features of the
+# shared crates so it does not compile the ORM. Within hyperswitch other
+# crates request the defaults and feature unification restores them.
+common_enums = { version = "0.1.0", path = "../common_enums", package = "common_enums", default-features = false }
 
 # Third party crates
 rust_decimal = "1.40"

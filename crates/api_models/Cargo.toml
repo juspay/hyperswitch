@@ -51,10 +51,13 @@ superposition_types = "0.115.5"
 
 # First party crates
 cards = { version = "0.1.0", path = "../cards" }
-common_enums = { version = "0.1.0", path = "../common_enums" }
-common_types = { version = "0.1.0", path = "../common_types" }
-common_utils = { version = "0.1.0", path = "../common_utils" }
-euclid = { version = "0.1.0", path = "../euclid" }
+# This crate has no diesel references; decline the default features of the
+# shared crates so it does not compile the ORM. Within hyperswitch other
+# crates request the defaults and feature unification restores them.
+common_enums = { version = "0.1.0", path = "../common_enums", default-features = false }
+common_types = { version = "0.1.0", path = "../common_types", default-features = false }
+common_utils = { version = "0.1.0", path = "../common_utils", default-features = false }
+euclid = { version = "0.1.0", path = "../euclid", default-features = false }
 hyperswitch_masking = { version = "0.0.1", default-features = false, features = [
     "alloc",
     "serde",

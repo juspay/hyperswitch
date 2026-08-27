@@ -187,7 +187,10 @@ pub enum PayoutType {
     strum::VariantNames,
     ToSchema,
 )]
-#[router_derive::diesel_enum(storage_type = "db_enum")]
+#[cfg_attr(
+    feature = "diesel",
+    router_derive::diesel_enum(storage_type = "db_enum")
+)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 /// RoutableConnectors are the subset of Connectors that are eligible for payments routing

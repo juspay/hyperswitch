@@ -13,8 +13,11 @@ v1 = ["api_models/v1", "common_utils/v1"]
 [dependencies]
 # First party crates
 api_models = { version = "0.1.0", path = "../api_models" }
-common_enums = { version = "0.1.0", path = "../common_enums" }
-common_utils = { version = "0.1.0", path = "../common_utils" }
+# This crate has no diesel references; decline the default features of the
+# shared crates so it does not compile the ORM. Within hyperswitch other
+# crates request the defaults and feature unification restores them.
+common_enums = { version = "0.1.0", path = "../common_enums", default-features = false }
+common_utils = { version = "0.1.0", path = "../common_utils", default-features = false }
 hyperswitch_masking = "0.0.1"
 
 # Third party crates
