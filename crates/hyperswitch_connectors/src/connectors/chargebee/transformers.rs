@@ -1931,4 +1931,21 @@ mod chargebee_dispute_record_back_tests {
 
         assert!(encoded.get("comment").is_none());
     }
+
+    #[test]
+    fn sends_chargeback_as_the_payment_method_on_the_wire() {
+        // serde_urlencoded is what RequestContent::FormUrlEncoded actually uses, so this
+        // asserts the bytes Chargebee receives rather than a JSON stand-in. A dispute is a
+        // chargeback, and recording it as "other" would misattribute it in their reporting.
+        let body = serde_urlencoded::to_string(request(None)).unwrap();
+
+        assert!(
+            body.contains("transaction%5Bpayment_method%5D=chargeback"),
+            "expected a chargeback payment method, got: {body}"
+        );
+        assert!(
+            !body.contains("=other"),
+            "must not record this as other: {body}"
+        );
+    }
 }
