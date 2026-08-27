@@ -1216,10 +1216,20 @@ pub struct ChargebeeRecordbackTransaction {
 /// `transaction[...]`, `record_refund` takes them flat.
 #[derive(Debug, Serialize, Clone)]
 pub struct ChargebeeRecordRefundRequest {
+    #[serde(rename = "transaction[amount]")]
     pub amount: MinorUnit,
+    #[serde(rename = "transaction[payment_method]")]
     pub payment_method: ChargebeeRefundPaymentMethod,
     /// Chargebee expects a UTC unix timestamp in seconds.
+    #[serde(rename = "transaction[date]")]
     pub date: i64,
+    /// The payment transaction this refund reverses, so the Chargebee record points back
+    /// at it. Chargebee caps this at 100 characters.
+    #[serde(
+        rename = "transaction[reference_number]",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub reference_number: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub comment: Option<String>,
 }
@@ -1241,6 +1251,7 @@ impl TryFrom<&DisputeRecordBackRouterData> for ChargebeeRecordRefundRequest {
             amount: req.amount,
             payment_method: ChargebeeRefundPaymentMethod::Chargeback,
             date: req.refund_date.assume_utc().unix_timestamp(),
+            reference_number: Some(req.billing_connector_transaction_id.clone()),
             comment: req.comment.clone(),
         })
     }
@@ -1881,36 +1892,42 @@ mod chargebee_dispute_record_back_tests {
 
     use super::{ChargebeeRecordRefundRequest, ChargebeeRefundPaymentMethod};
 
-    #[test]
-    fn serializes_with_chargeback_payment_method_and_unix_date() {
+    fn request(comment: Option<String>) -> ChargebeeRecordRefundRequest {
         let date = time::macros::datetime!(2026-08-25 12:00:00);
-        let request = ChargebeeRecordRefundRequest {
+        ChargebeeRecordRefundRequest {
             amount: MinorUnit::new(1500),
             payment_method: ChargebeeRefundPaymentMethod::Chargeback,
             date: date.assume_utc().unix_timestamp(),
-            comment: Some("dp_abc123".to_string()),
-        };
+            reference_number: Some("txn_456".to_string()),
+            comment,
+        }
+    }
 
-        // serde_json rather than serde_urlencoded: the field names and the enum's wire
-        // spelling are what matter here, and serde_json is already a dependency.
-        let encoded = serde_json::to_value(&request).unwrap();
+    #[test]
+    fn nests_every_transaction_field_under_the_transaction_key() {
+        // The invoice-level record_refund endpoint takes its transaction fields nested,
+        // exactly as record_payment does. Sending them flat is the shape the
+        // transaction-level endpoint takes, and that endpoint refunds only a payment's
+        // amount_unused — which is zero once the payment has been applied to an invoice.
+        let encoded = serde_json::to_value(request(Some("dp_abc123".to_string()))).unwrap();
 
-        assert_eq!(encoded["payment_method"], "chargeback");
-        assert_eq!(encoded["amount"], 1500);
+        assert_eq!(encoded["transaction[payment_method]"], "chargeback");
+        assert_eq!(encoded["transaction[amount]"], 1500);
+        // 2026-08-25 12:00:00 UTC as unix seconds.
+        assert_eq!(encoded["transaction[date]"], 1_787_659_200_i64);
+        assert_eq!(encoded["transaction[reference_number]"], "txn_456");
+        // `comment` is the one genuinely top-level field on this endpoint.
         assert_eq!(encoded["comment"], "dp_abc123");
+
+        // Guard against a partial rename leaving a flat duplicate behind.
+        assert!(encoded.get("amount").is_none());
+        assert!(encoded.get("payment_method").is_none());
+        assert!(encoded.get("date").is_none());
     }
 
     #[test]
     fn omits_an_absent_comment() {
-        let date = time::macros::datetime!(2026-08-25 12:00:00);
-        let request = ChargebeeRecordRefundRequest {
-            amount: MinorUnit::new(1500),
-            payment_method: ChargebeeRefundPaymentMethod::Chargeback,
-            date: date.assume_utc().unix_timestamp(),
-            comment: None,
-        };
-
-        let encoded = serde_json::to_value(&request).unwrap();
+        let encoded = serde_json::to_value(request(None)).unwrap();
 
         assert!(encoded.get("comment").is_none());
     }

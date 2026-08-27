@@ -592,7 +592,7 @@ impl_chargebee_integration!(
     response: DisputeRecordBackResponse,
     router_data: DisputeRecordBackRouterData,
     connector_response: chargebee::ChargebeeRecordRefundResponse,
-    url_path: |req| Some(format!("v2/transactions/{}/record_refund", req.request.billing_connector_transaction_id)),
+    url_path: |req| Some(format!("v2/invoices/{}/record_refund", req.request.merchant_reference_id.get_string_repr())),
     method: Method::Post,
     request_body: build_dispute_record_back_request_body
 );

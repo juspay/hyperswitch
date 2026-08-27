@@ -882,6 +882,14 @@ async fn record_dispute_back_to_billing_connector(
         .ok_or(errors::ApiErrorResponse::WebhookProcessingFailure)
         .attach_printable("no billing connector id on the payment intent's recovery metadata")?;
 
+    // The refund is recorded against the invoice the payment paid, so the invoice id is
+    // what identifies it — the same id record_back_to_billing_connector posts to.
+    let merchant_reference_id = payment_intent
+        .merchant_reference_id
+        .clone()
+        .ok_or(errors::ApiErrorResponse::WebhookProcessingFailure)
+        .attach_printable("no merchant reference id on the payment intent to refund against")?;
+
     let billing_mca = state
         .store
         .find_merchant_connector_account_by_id(
@@ -927,6 +935,7 @@ async fn record_dispute_back_to_billing_connector(
     let router_data = construct_dispute_record_back_router_data(
         state,
         &billing_mca,
+        &merchant_reference_id,
         &billing_connector_transaction_id,
         dispute,
     )?;
@@ -955,6 +964,7 @@ async fn record_dispute_back_to_billing_connector(
 fn construct_dispute_record_back_router_data(
     state: &SessionState,
     billing_mca: &domain::MerchantConnectorAccount,
+    merchant_reference_id: &common_utils::id_type::PaymentReferenceId,
     billing_connector_transaction_id: &str,
     dispute: &diesel_models::dispute::Dispute,
 ) -> CustomResult<
@@ -976,6 +986,7 @@ fn construct_dispute_record_back_router_data(
     let connector = common_enums::connector_enums::Connector::from_str(connector_name.as_str())
         .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
         .attach_printable("cannot resolve the connector from the connector name")?;
+    let connector_metadata = billing_mca.metadata.clone();
 
     let connector_params =
         hyperswitch_domain_models::connector_endpoints::Connectors::get_connector_params(
@@ -990,11 +1001,12 @@ fn construct_dispute_record_back_router_data(
         tenant_id: state.tenant.tenant_id.clone(),
         resource_common_data:
             hyperswitch_domain_models::router_data_v2::flow_common_types::DisputeRecordBackData {
-                connector_meta_data: None,
+                connector_meta_data: connector_metadata,
             },
         connector_auth_type: auth_type,
         request:
             hyperswitch_domain_models::router_request_types::revenue_recovery::DisputeRecordBackRequest {
+                merchant_reference_id: merchant_reference_id.clone(),
                 billing_connector_transaction_id: billing_connector_transaction_id.to_string(),
                 // The disputed amount, not the full transaction: a partial dispute must
                 // refund only what was charged back.
