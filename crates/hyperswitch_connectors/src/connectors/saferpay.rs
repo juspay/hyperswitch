@@ -298,11 +298,10 @@ impl webhooks::IncomingWebhook for Saferpay {
 
 static SAFERPAY_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
     LazyLock::new(|| {
-        let supported_capture_methods = vec![
-            enums::CaptureMethod::Automatic,
-            enums::CaptureMethod::Manual,
-            enums::CaptureMethod::SequentialAutomatic,
-        ];
+        // Manual only. Saferpay has no sale mode — no capture field on its authorize
+        // calls, no combined authorize+capture endpoint, and no terminal-level capture
+        // setting — so an authorization is always settled by an explicit Capture.
+        let supported_capture_methods = vec![enums::CaptureMethod::Manual];
         let supported_card_network = vec![
             common_enums::CardNetwork::AmericanExpress,
             common_enums::CardNetwork::DinersClub,
