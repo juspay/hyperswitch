@@ -40,9 +40,6 @@ pub enum ExternalVerifyTokenResponse {
         merchant_id: String,
         context: String,
         token: Secret<String>,
-        /// Rendered from the router's `Permission` enum, e.g. `ProfileOffersRead`,
-        /// `ProfileOffersWrite`. Strings rather than a typed enum because `Permission` is
-        /// generated in the `router` crate, which `api_models` cannot depend on.
         permissions: Vec<String>,
     },
 }

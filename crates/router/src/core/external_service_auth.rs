@@ -19,7 +19,6 @@ use crate::{
     SessionState,
 };
 
-/// Context reported to Offer Engine. Fixed until they confirm which values they accept.
 const OFFER_ENGINE_CONTEXT: &str = "MERCHANT";
 
 pub async fn generate_external_token(
@@ -103,16 +102,14 @@ pub async fn verify_external_token(
     ))
 }
 
-/// Validates a Hyperswitch dashboard token on behalf of an external service, and returns the
-/// identity, tenancy and permissions behind it, resolved for the requesting service.
+/// Validates a dashboard token for an external service and returns the identity and
+/// permissions behind it.
 pub async fn validate_token(
     state: SessionState,
     req: external_service_auth_api::ValidateTokenRequest,
 ) -> RouterResponse<external_service_auth_api::ExternalVerifyTokenResponse> {
     let token = req.token.expose();
 
-    // Propagated rather than mapped, so an expired token stays `ExpiredJwtToken` instead of
-    // collapsing into `InvalidJwtToken`.
     let payload = authentication::decode_jwt::<authentication::AuthToken>(&token, &state).await?;
 
     fp_utils::when(payload.check_in_blacklist(&state).await?, || {
@@ -139,10 +136,8 @@ pub async fn validate_token(
     }
 }
 
-/// Resolves the Offer Engine merchant id through the same config the payment flow uses, so the
-/// dashboard and payment paths cannot disagree on which Offer Engine merchant a Hyperswitch
-/// merchant maps to. Doubles as the enablement gate: no resolved config means Offer Engine is
-/// not enabled for this merchant.
+/// Resolves the Offer Engine merchant id from the same config the payment flow uses. An
+/// unresolved config means Offer Engine is not enabled for this merchant.
 async fn resolve_offer_engine_merchant_id(
     state: &SessionState,
     payload: &authentication::AuthToken,
@@ -154,8 +149,11 @@ async fn resolve_offer_engine_merchant_id(
 
     offer_engine::resolve_offer_engine_config(state, &dimensions)
         .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to resolve Offer Engine config")?
+        .inspect_err(|error| {
+            router_env::logger::warn!(?error, "failed to resolve Offer Engine config");
+        })
+        .ok()
+        .flatten()
         .map(|config| config.merchant_id)
         .ok_or_else(|| {
             error_stack::report!(errors::ApiErrorResponse::AccessForbidden {
@@ -164,10 +162,7 @@ async fn resolve_offer_engine_merchant_id(
         })
 }
 
-/// Reports the role's offer permissions to the requesting service, named as the `Permission`
-/// enum spells them. Unlike a route guarded by `JWTAuth`, nothing here is implied by having
-/// reached the handler, so read is asked about too. An empty result means the role has no
-/// offer access at all.
+/// Offer permissions held by the role. Empty means no offer access.
 fn offer_engine_permissions(role_info: &roles::RoleInfo) -> Vec<String> {
     Permission::iter()
         .filter(|permission| permission.resource() == Resource::Offers)
