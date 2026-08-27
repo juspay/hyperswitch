@@ -202,8 +202,6 @@ pub struct PaymentAttempt {
     pub attempts_group_id: Option<id_type::GlobalAttemptGroupId>,
     /// Amount captured for this payment attempt
     pub amount_captured: Option<MinorUnit>,
-    /// Payment Account Reference (PAR) returned by the connector for the underlying payment method
-    pub payment_account_reference: Option<String>,
 }
 
 #[cfg(feature = "v1")]

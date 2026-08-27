@@ -1314,7 +1314,6 @@ pub struct Source {
     id: Option<String>,
     avs_check: Option<String>,
     cvv_check: Option<String>,
-    payment_account_reference: Option<String>,
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
@@ -2380,10 +2379,6 @@ impl TryFrom<&webhooks::IncomingWebhookRequestDetails<'_>> for PaymentsResponse 
                 id: details.source.clone().and_then(|src| src.id),
                 avs_check: details.source.clone().and_then(|src| src.avs_check),
                 cvv_check: details.source.clone().and_then(|src| src.cvv_check),
-                payment_account_reference: details
-                    .source
-                    .clone()
-                    .and_then(|src| src.payment_account_reference),
             }),
             scheme_id: None,
             processing: None,
