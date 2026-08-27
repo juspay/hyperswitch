@@ -8,8 +8,7 @@ use crate::schema::dispute::dsl;
 use crate::schema_v2::dispute::dsl;
 use crate::{
     dispute::{Dispute, DisputeNew, DisputeUpdate, DisputeUpdateInternal},
-    errors, kv,
-    DatabaseConnectionWithContext, StorageResult,
+    errors, kv, DatabaseConnectionWithContext, StorageResult,
 };
 
 impl DisputeNew {
