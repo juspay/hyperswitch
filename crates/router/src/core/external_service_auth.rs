@@ -1,7 +1,9 @@
 use api_models::external_service_auth as external_service_auth_api;
+use common_enums::Resource;
 use common_utils::fp_utils;
 use error_stack::ResultExt;
 use hyperswitch_masking::ExposeInterface;
+use strum::IntoEnumIterator;
 
 use crate::{
     core::{
@@ -16,6 +18,9 @@ use crate::{
     },
     SessionState,
 };
+
+/// Context reported to Offer Engine. Fixed until they confirm which values they accept.
+const OFFER_ENGINE_CONTEXT: &str = "MERCHANT";
 
 pub async fn generate_external_token(
     state: SessionState,
@@ -125,7 +130,7 @@ pub async fn validate_token(
             Ok(service_api::ApplicationResponse::Json(
                 external_service_auth_api::ExternalVerifyTokenResponse::OfferEngine {
                     merchant_id,
-                    context: "MERCHANT".to_string(),
+                    context: OFFER_ENGINE_CONTEXT.to_string(),
                     token: token.into(),
                     permissions: offer_engine_permissions(&role_info),
                 },
@@ -164,12 +169,9 @@ async fn resolve_offer_engine_merchant_id(
 /// reached the handler, so read is asked about too. An empty result means the role has no
 /// offer access at all.
 fn offer_engine_permissions(role_info: &roles::RoleInfo) -> Vec<String> {
-    [
-        Permission::ProfileOffersRead,
-        Permission::ProfileOffersWrite,
-    ]
-    .into_iter()
-    .filter(|permission| role_info.check_permission_exists(*permission))
-    .map(|permission| permission.to_string())
-    .collect()
+    Permission::iter()
+        .filter(|permission| permission.resource() == Resource::Offers)
+        .filter(|permission| role_info.check_permission_exists(*permission))
+        .map(|permission| permission.to_string())
+        .collect()
 }
