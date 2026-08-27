@@ -7336,16 +7336,16 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
         ));
 
         let recipient_details = payment_data
-                .payment_intent
-                .get_recipient_details()
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to parse recipient details")?;
+            .payment_intent
+            .get_recipient_details()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to parse recipient details")?;
 
         let connector_intent_metadata = payment_data
-                .payment_intent
-                .get_connector_metadata_from_intent()
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to parse connector metadata")?;
+            .payment_intent
+            .get_connector_metadata_from_intent()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to parse connector metadata")?;
 
         Ok(Self {
             setup_future_usage: payment_data

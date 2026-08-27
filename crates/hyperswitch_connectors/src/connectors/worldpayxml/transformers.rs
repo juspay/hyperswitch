@@ -1831,7 +1831,9 @@ impl TryFrom<&WorldpayxmlRouterData<&PaymentsAuthorizeRouterData>> for PaymentSe
             .unwrap_or(false)
             .then(|| {
                 let card_number = match &item.router_data.request.payment_method_data {
-                    PaymentMethodData::Card(card) => Ok(Secret::new(card.card_number.get_card_no())),
+                    PaymentMethodData::Card(card) => {
+                        Ok(Secret::new(card.card_number.get_card_no()))
+                    }
                     _ => Err(errors::ConnectorError::NotSupported {
                         message: "account funded transactions for non-card payment methods"
                             .to_string(),
