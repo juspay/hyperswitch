@@ -10,10 +10,10 @@ use router::{
 async fn main() -> ApplicationResult<()> {
     // GCP Cloud KMS pulls in tonic, which requests the `ring` rustls backend — the only
     // thing here that disagrees with the `aws-lc-rs` backend every AWS SDK crate already
-    // uses. rustls 0.23 won't guess between two backends, so pick one explicitly.
+    // uses. rustls won't guess between two backends, so pick one explicitly.
     #[cfg(feature = "gcp_kms")]
     #[allow(clippy::expect_used)]
-    rustls_0_23::crypto::aws_lc_rs::default_provider()
+    rustls::crypto::aws_lc_rs::default_provider()
         .install_default()
         .expect("Failed to install default rustls CryptoProvider");
 

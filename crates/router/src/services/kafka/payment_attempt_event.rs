@@ -76,11 +76,16 @@ pub struct KafkaPaymentAttemptEvent<'a> {
     pub is_issuer_regulated: Option<bool>,
     pub processor_merchant_id: &'a id_type::MerchantId,
     pub created_by: Option<&'a common_utils::types::CreatedBy>,
+    #[serde(flatten)]
+    infra_values: Option<serde_json::Value>,
 }
 
 #[cfg(feature = "v1")]
 impl<'a> KafkaPaymentAttemptEvent<'a> {
-    pub fn from_storage(attempt: &'a PaymentAttempt) -> Self {
+    pub fn from_storage(
+        attempt: &'a PaymentAttempt,
+        infra_values: Option<serde_json::Value>,
+    ) -> Self {
         let card_payment_method_data = attempt
             .get_payment_method_data()
             .and_then(|data| data.get_additional_card_info());
@@ -148,6 +153,7 @@ impl<'a> KafkaPaymentAttemptEvent<'a> {
             is_issuer_regulated: card_payment_method_data.and_then(|data| data.is_regulated),
             processor_merchant_id: &attempt.processor_merchant_id,
             created_by: attempt.created_by.as_ref(),
+            infra_values,
         }
     }
 }
@@ -230,11 +236,16 @@ pub struct KafkaPaymentAttemptEvent<'a> {
     pub network_decline_code: Option<String>,
     pub network_error_message: Option<String>,
     pub connector_request_reference_id: Option<String>,
+    #[serde(flatten)]
+    infra_values: Option<serde_json::Value>,
 }
 
 #[cfg(feature = "v2")]
 impl<'a> KafkaPaymentAttemptEvent<'a> {
-    pub fn from_storage(attempt: &'a PaymentAttempt) -> Self {
+    pub fn from_storage(
+        attempt: &'a PaymentAttempt,
+        infra_values: Option<serde_json::Value>,
+    ) -> Self {
         use hyperswitch_masking::PeekInterface;
         let PaymentAttempt {
             payment_id,
@@ -394,6 +405,7 @@ impl<'a> KafkaPaymentAttemptEvent<'a> {
                 .as_ref()
                 .and_then(|details| details.network_error_message.clone()),
             connector_request_reference_id: connector_request_reference_id.clone(),
+            infra_values,
         }
     }
 }

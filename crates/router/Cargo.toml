@@ -33,7 +33,7 @@ olap = [
     "api_models/olap",
     "dep:analytics",
 ]
-tls = ["actix-web/rustls-0_22"]
+tls = ["actix-web/rustls-0_23"]
 email = ["external_services/email", "scheduler/email", "olap"]
 # keymanager_create, keymanager_mtls, encryption_service should not be removed or added to default feature. Once this features were enabled it can't be disabled as these are breaking changes.
 keymanager_create = []
@@ -58,16 +58,7 @@ frm = [
     "hyperswitch_interfaces/frm",
 ]
 stripe = []
-# google-cloud-gax (GCP Cloud KMS's transport) pulls in tonic, which requests the `ring`
-# rustls crypto backend — the only thing in this dependency graph that disagrees with
-# the `aws-lc-rs` backend every AWS SDK crate here already agrees on (via
-# aws-smithy-http-client). That makes rustls 0.23 refuse to pick one automatically and
-# panic at the first TLS setup. This feature pulls in the explicit-install fix
-# (`rustls_0_23` dep + the call in `bin/router.rs`) alongside `external_services/gcp_kms`
-# so the fix is only compiled into binaries that actually need it — verified via
-# `cargo tree`: `aws_kms`-only and default builds request `aws-lc-rs` exclusively, no
-# conflict, no fix required.
-gcp_kms = ["external_services/gcp_kms", "dep:rustls_0_23"]
+gcp_kms = ["external_services/gcp_kms"]
 release = [
     "stripe",
     "email",
@@ -254,13 +245,12 @@ rust-i18n = { git = "https://github.com/kashif-m/rust-i18n", rev = "f2d8096aaaff
 unified-connector-service-client = { git = "https://github.com/juspay/connector-service", tag = "2026.08.18.0", package = "rust-grpc-client" }
 unified-connector-service-cards = { git = "https://github.com/juspay/connector-service", tag = "2026.08.18.0", package = "ucs_cards" }
 rustc-hash = "1.1.0"
-rustls = "0.22"
-rustls-pemfile = "2"
-rustls_0_23 = { package = "rustls", version = "0.23", optional = true, default-features = false, features = [
+rustls = { version = "0.23", default-features = false, features = [
     "aws-lc-rs",
     "std",
     "tls12",
 ] }
+rustls-pemfile = "2"
 serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0.140"
 serde_path_to_error = "0.1.17"

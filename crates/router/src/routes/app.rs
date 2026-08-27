@@ -596,6 +596,7 @@ impl AppState {
             use_legacy_key_store_decryption: km_conf.use_legacy_key_store_decryption,
             metrics_context: None,
         };
+        let infra_values = key_manager_state.infra_values.clone();
         match storage_impl {
             StorageImpl::Postgresql | StorageImpl::PostgresqlTest => match event_handler {
                 EventsHandler::Kafka(kafka_client) => Box::new(
@@ -615,6 +616,7 @@ impl AppState {
                         kafka_client.clone(),
                         TenantID(tenant.get_tenant_id().get_string_repr().to_owned()),
                         tenant,
+                        infra_values,
                     )
                     .await,
                 ),
