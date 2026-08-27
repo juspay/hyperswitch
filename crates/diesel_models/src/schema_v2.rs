@@ -1288,6 +1288,8 @@ diesel::table! {
         #[max_length = 64]
         external_surcharge_strategy -> Nullable<Varchar>,
         external_surcharge_applicable -> Nullable<Bool>,
+        is_account_funded_transaction -> Nullable<Bool>,
+        recipient_details -> Nullable<Bytea>,
         #[max_length = 64]
         merchant_reference_id -> Nullable<Varchar>,
         billing_address -> Nullable<Bytea>,
@@ -1315,8 +1317,6 @@ diesel::table! {
         active_attempts_group_id -> Nullable<Varchar>,
         #[max_length = 16]
         active_attempt_id_type -> Nullable<Varchar>,
-        is_account_funded_transaction -> Nullable<Bool>,
-        recipient_details -> Nullable<Bytea>,
     }
 }
 
