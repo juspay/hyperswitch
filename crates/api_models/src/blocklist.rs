@@ -87,6 +87,44 @@ pub struct ToggleBlocklistQuery {
     pub status: bool,
 }
 
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct BlocklistCountQuery {
+    #[schema(value_type = BlocklistDataKind)]
+    pub data_kind: enums::BlocklistDataKind,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct BlocklistCountResponse {
+    #[schema(value_type = BlocklistDataKind)]
+    pub data_kind: enums::BlocklistDataKind,
+    /// The total number of blocked entries for the given data_kind
+    pub total_count: usize,
+    /// Breakdown of `total_count` by fingerprint length. Only meaningful for `card_bin`, where
+    /// fingerprint_id is the raw BIN digit string (6 to 10 digits); for `payment_method`,
+    /// fingerprints are fixed-length hashes, so this will typically show a single bucket.
+    pub counts_by_length: std::collections::BTreeMap<usize, usize>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct BlocklistLookupQuery {
+    /// The raw value to check against the blocklist, e.g. a card BIN. Limited to 20 characters,
+    /// the longest value a `fingerprint_id` can hold.
+    #[schema(value_type = String, max_length = 20)]
+    pub data: common_utils::types::BlocklistLookupData,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct BlocklistLookupResponse {
+    pub data: String,
+    /// Whether an entry matching `data` exists in the blocklist, under any data_kind
+    pub blocked: bool,
+}
+
+impl ApiEventMetric for BlocklistCountQuery {}
+impl ApiEventMetric for BlocklistCountResponse {}
+impl ApiEventMetric for BlocklistLookupQuery {}
+impl ApiEventMetric for BlocklistLookupResponse {}
+
 impl ApiEventMetric for BlocklistRequest {}
 impl ApiEventMetric for BlocklistResponse {}
 impl ApiEventMetric for ListBlocklistResponse {}
