@@ -898,7 +898,6 @@ impl TryFrom<PaymentsPreAuthenticateResponseRouterData<bytes::Bytes>>
             authentication_data: None,
             charges: None,
             payment_account_reference: None,
-            payment_account_reference: None,
         });
         Ok(Self {
             status: common_enums::AttemptStatus::DeviceDataCollectionPending,
