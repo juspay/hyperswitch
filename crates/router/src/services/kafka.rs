@@ -167,6 +167,9 @@ pub struct KafkaSettings {
     revenue_recovery_topic: String,
     external_service_call_topic: String,
     account_updater_topic: String,
+    // Defaulted rather than left empty: deployments predating this topic would otherwise
+    // deserialize it as an empty string and publish microservice events to no topic.
+    #[serde(default = "default_microservice_logs_topic")]
     microservice_logs_topic: String,
 }
 
@@ -290,6 +293,12 @@ impl KafkaSettings {
         common_utils::fp_utils::when(self.account_updater_topic.is_default_or_empty(), || {
             Err(ApplicationError::InvalidConfigurationValueError(
                 "Kafka Account Updater topic must not be empty".into(),
+            ))
+        })?;
+
+        common_utils::fp_utils::when(self.microservice_logs_topic.is_default_or_empty(), || {
+            Err(ApplicationError::InvalidConfigurationValueError(
+                "Kafka Microservice Logs topic must not be empty".into(),
             ))
         })?;
 

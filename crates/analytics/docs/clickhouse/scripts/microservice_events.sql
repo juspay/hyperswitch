@@ -37,14 +37,17 @@ CREATE TABLE microservice_events (
     `status_code` Nullable(UInt32),
     INDEX serviceIndex service_name TYPE bloom_filter GRANULARITY 1,
     INDEX flowIndex flow TYPE bloom_filter GRANULARITY 1,
-    INDEX requestIdIndex request_id TYPE bloom_filter GRANULARITY 1
+    INDEX requestIdIndex request_id TYPE bloom_filter GRANULARITY 1,
+    INDEX statusIndex status_code TYPE bloom_filter GRANULARITY 1
 ) ENGINE = MergeTree PARTITION BY toStartOfDay(created_at)
+-- `status_code` stays out of the sorting key: it is Nullable (a call that never got a
+-- response has none) and MergeTree rejects nullable sorting key columns. The bloom filter
+-- index above keeps it filterable.
 ORDER BY
     (
         created_at,
         service_name,
-        flow,
-        status_code
+        flow
     ) TTL inserted_at + toIntervalMonth(18) SETTINGS index_granularity = 8192;
 
 CREATE MATERIALIZED VIEW microservice_events_mv TO microservice_events (
