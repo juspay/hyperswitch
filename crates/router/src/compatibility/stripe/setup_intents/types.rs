@@ -618,7 +618,7 @@ impl TryFrom<StripePaymentListConstraints> for payments::PaymentListConstraints 
             customer_id: item.customer,
             starting_after: item.starting_after,
             ending_before: item.ending_before,
-            limit: item.limit,
+            limit: item.limit.into(),
             created: from_timestamp_to_datetime(item.created)?,
             created_lt: from_timestamp_to_datetime(item.created_lt)?,
             created_gt: from_timestamp_to_datetime(item.created_gt)?,

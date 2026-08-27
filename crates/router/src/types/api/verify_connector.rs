@@ -54,6 +54,7 @@ impl VerifyConnectorData {
             request_incremental_authorization: false,
             authentication_data: None,
             ucs_authentication_data: None,
+            force_3ds_challenge: None,
             customer_acceptance: None,
             split_payments: None,
             guest_customer: None,
@@ -149,6 +150,7 @@ impl VerifyConnectorData {
             customer_document_details: None,
             feature_data: None,
             sender_payment_instrument_id: None,
+            connector_returned_payment_method_details: None,
         }
     }
 }

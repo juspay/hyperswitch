@@ -7817,6 +7817,7 @@ pub(crate) fn convert_setup_mandate_router_data_to_authorize_router_data(
         metadata: None,
         authentication_data: None,
         ucs_authentication_data: None,
+        force_3ds_challenge: None,
         customer_acceptance: data.request.customer_acceptance.clone(),
         split_payments: None, // TODO: allow charges on mandates?
         guest_customer: None,
@@ -7842,7 +7843,7 @@ pub(crate) fn convert_setup_mandate_router_data_to_authorize_router_data(
             .clone(),
         feature_metadata: None,
         installment_details: None,
-        connector_intent_metadata: None,
+        connector_intent_metadata: data.request.connector_intent_metadata.clone(),
     }
 }
 
@@ -7910,6 +7911,7 @@ pub(crate) fn convert_payment_authorize_router_response<F1, F2, T1, T2>(
         customer_document_details: data.customer_document_details.clone(),
         feature_data: data.feature_data.clone(),
         sender_payment_instrument_id: None,
+        connector_returned_payment_method_details: None,
     }
 }
 

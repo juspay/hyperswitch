@@ -1,3 +1,4 @@
+#[cfg(feature = "v1")]
 use std::str::FromStr;
 
 #[cfg(feature = "v1")]
@@ -15,24 +16,24 @@ use common_types::primitive_wrappers::{
 };
 #[cfg(feature = "v2")]
 use common_utils::ext_traits::Encode;
+#[cfg(feature = "v1")]
+use common_utils::types::{
+    keymanager::{self, KeyManagerState},
+    ConnectorTransactionIdTrait,
+};
 use common_utils::{
     crypto::Encryptable,
     encryption::Encryption,
     errors::{CustomResult, ValidationError},
     ext_traits::{OptionExt, ValueExt},
     id_type, pii,
-    types::{
-        keymanager::{self, KeyManagerState, ToEncryptable},
-        ConnectorTransactionId, ConnectorTransactionIdTrait, CreatedBy, MinorUnit,
-    },
+    types::{keymanager::ToEncryptable, ConnectorTransactionId, CreatedBy, MinorUnit},
 };
 #[cfg(feature = "v1")]
 use diesel_models::{
     ConnectorMandateReferenceId, ErrorDetails as DieselErrorDetails, NetworkDetails,
-    PaymentAttemptUpdate as DieselPaymentAttemptUpdate,
-};
-use diesel_models::{
     PaymentAttempt as DieselPaymentAttempt, PaymentAttemptNew as DieselPaymentAttemptNew,
+    PaymentAttemptUpdate as DieselPaymentAttemptUpdate,
 };
 #[cfg(feature = "v2")]
 use diesel_models::{
@@ -60,17 +61,14 @@ use crate::{
     address::Address, consts, payment_method_data::PaymentMethodData, platform,
     router_response_types,
 };
-use crate::{
-    behaviour, errors,
-    merchant_key_store::MerchantKeyStore,
-    type_encryption::{crypto_operation, CryptoOperation},
-    ForeignIDRef,
-};
 #[cfg(feature = "v1")]
 use crate::{
+    behaviour,
     mandates::{MandateDataType, MandateDetails, MandateTransactionType},
     router_request_types,
+    type_encryption::{crypto_operation, CryptoOperation},
 };
+use crate::{errors, merchant_key_store::MerchantKeyStore, ForeignIDRef};
 
 #[async_trait::async_trait]
 pub trait PaymentAttemptInterface {
@@ -1403,6 +1401,7 @@ pub struct PaymentAttempt {
     pub mandate_data: Option<MandateDetails>,
     pub payment_method_billing_address_id: Option<String>,
     pub fingerprint_id: Option<String>,
+    pub fingerprint_type: Option<common_enums::FingerprintType>,
     pub charge_id: Option<String>,
     pub client_source: Option<String>,
     pub client_version: Option<String>,
@@ -1650,6 +1649,32 @@ impl PaymentAttempt {
 
     pub fn extract_card_network(&self) -> Option<common_enums::CardNetwork> {
         todo!()
+    }
+
+    /// Funding type of the card, as stored on the attempt's payment method data.
+    pub fn extract_card_type(&self) -> Option<String> {
+        self.extract_additional_card_info()
+            .and_then(|card_info| card_info.card_type)
+    }
+
+    /// Country in which the card was issued, as stored on the attempt's payment method data.
+    pub fn extract_card_issuing_country(&self) -> Option<String> {
+        self.extract_additional_card_info()
+            .and_then(|card_info| card_info.card_issuing_country)
+    }
+
+    /// Issuer identification number of the card, as stored on the attempt's payment method data.
+    pub fn extract_card_isin(&self) -> Option<String> {
+        self.extract_additional_card_info()
+            .and_then(|card_info| card_info.card_isin)
+    }
+
+    /// The card details recorded on the attempt, if the payment method data holds a card.
+    fn extract_additional_card_info(&self) -> Option<api_models::payments::AdditionalCardInfo> {
+        self.get_payment_method_data()
+            .ok()
+            .flatten()
+            .and_then(|data| data.get_additional_card_info())
     }
 
     fn get_connector_metadata_value(&self) -> Option<&Value> {
@@ -1973,6 +1998,7 @@ pub enum PaymentAttemptUpdate {
         amount_to_capture: Option<MinorUnit>,
         capture_method: Option<storage_enums::CaptureMethod>,
         fingerprint_id: Option<String>,
+        fingerprint_type: Option<common_enums::FingerprintType>,
         payment_method_billing_address_id: Option<String>,
         updated_by: String,
         network_transaction_id: Option<String>,
@@ -2021,6 +2047,7 @@ pub enum PaymentAttemptUpdate {
         authentication_id: Option<id_type::AuthenticationId>,
         payment_method_billing_address_id: Option<String>,
         fingerprint_id: Option<String>,
+        fingerprint_type: Option<common_enums::FingerprintType>,
         payment_method_id: Option<String>,
         client_source: Option<String>,
         client_version: Option<String>,
@@ -2236,6 +2263,7 @@ impl PaymentAttemptUpdate {
                 amount_to_capture,
                 capture_method,
                 fingerprint_id,
+                fingerprint_type,
                 network_transaction_id,
                 network_transaction_link_id,
                 payment_method_billing_address_id,
@@ -2258,6 +2286,7 @@ impl PaymentAttemptUpdate {
                 surcharge_amount: net_amount.get_surcharge_amount(),
                 tax_amount: net_amount.get_tax_on_surcharge(),
                 fingerprint_id,
+                fingerprint_type,
                 payment_method_billing_address_id,
                 network_transaction_id,
                 network_transaction_link_id,
@@ -2347,6 +2376,7 @@ impl PaymentAttemptUpdate {
                 error_code,
                 error_message,
                 fingerprint_id,
+                fingerprint_type,
                 updated_by,
                 merchant_connector_id: connector_id,
                 payment_method_id,
@@ -2390,6 +2420,7 @@ impl PaymentAttemptUpdate {
                 surcharge_amount: net_amount.get_surcharge_amount(),
                 tax_amount: net_amount.get_tax_on_surcharge(),
                 fingerprint_id,
+                fingerprint_type,
                 updated_by,
                 merchant_connector_id: connector_id,
                 payment_method_id,
@@ -3008,6 +3039,7 @@ impl behaviour::Conversion for PaymentAttempt {
             authentication_id: self.authentication_id,
             mandate_data: self.mandate_data.map(Into::into),
             fingerprint_id: self.fingerprint_id,
+            fingerprint_type: self.fingerprint_type,
             payment_method_billing_address_id: self.payment_method_billing_address_id,
             charge_id: self.charge_id,
             client_source: self.client_source,
@@ -3152,6 +3184,7 @@ impl behaviour::Conversion for PaymentAttempt {
                 mandate_data: storage_model.mandate_data.map(Into::into),
                 payment_method_billing_address_id: storage_model.payment_method_billing_address_id,
                 fingerprint_id: storage_model.fingerprint_id,
+                fingerprint_type: storage_model.fingerprint_type,
                 charge_id: storage_model.charge_id,
                 client_source: storage_model.client_source,
                 client_version: storage_model.client_version,
@@ -3264,6 +3297,7 @@ impl behaviour::Conversion for PaymentAttempt {
             authentication_id: self.authentication_id,
             mandate_data: self.mandate_data.map(Into::into),
             fingerprint_id: self.fingerprint_id,
+            fingerprint_type: self.fingerprint_type,
             payment_method_billing_address_id: self.payment_method_billing_address_id,
             client_source: self.client_source,
             client_version: self.client_version,
@@ -3297,504 +3331,6 @@ impl behaviour::Conversion for PaymentAttempt {
             external_surcharge_details: self.external_surcharge_details,
             applied_offer_details: self.applied_offer_details,
             sender_payment_instrument_id: self.sender_payment_instrument_id,
-        })
-    }
-}
-
-#[cfg(feature = "v2")]
-#[async_trait::async_trait]
-impl behaviour::Conversion for PaymentAttempt {
-    type DstType = DieselPaymentAttempt;
-    type NewDstType = DieselPaymentAttemptNew;
-
-    async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
-        use common_utils::encryption::Encryption;
-
-        let card_network = self
-            .payment_method_data
-            .as_ref()
-            .and_then(|data| data.peek().as_object())
-            .and_then(|card| card.get("card"))
-            .and_then(|data| data.as_object())
-            .and_then(|card| card.get("card_network"))
-            .and_then(|network| network.as_str())
-            .map(|network| network.to_string());
-
-        let Self {
-            payment_id,
-            merchant_id,
-            attempts_group_id,
-            status,
-            error,
-            amount_details,
-            authentication_type,
-            created_at,
-            modified_at,
-            last_synced,
-            cancellation_reason,
-            browser_info,
-            payment_token,
-            connector_metadata,
-            payment_experience,
-            payment_method_data,
-            routing_result,
-            preprocessing_step_id,
-            multiple_capture_count,
-            connector_response_reference_id,
-            updated_by,
-            redirection_data,
-            encoded_data,
-            merchant_connector_id,
-            external_three_ds_authentication_attempted,
-            external_threeds_authentication_type,
-            authentication_connector,
-            authentication_id,
-            fingerprint_id,
-            client_source,
-            client_version,
-            customer_acceptance,
-            profile_id,
-            organization_id,
-            payment_method_type,
-            connector_payment_id,
-            payment_method_subtype,
-            authentication_applied,
-            external_reference_id,
-            id,
-            payment_method_id,
-            payment_method_billing_address,
-            connector,
-            connector_token_details,
-            card_discovery,
-            charges,
-            feature_metadata,
-            processor_merchant_id,
-            created_by,
-            connector_request_reference_id,
-            network_transaction_id,
-            network_transaction_link_id,
-            authorized_amount,
-            external_surcharge_details,
-            applied_offer_details,
-        } = self;
-
-        let AttemptAmountDetails {
-            net_amount,
-            tax_on_surcharge,
-            surcharge_amount,
-            order_tax_amount,
-            shipping_cost,
-            amount_capturable,
-            amount_to_capture,
-            amount_captured,
-        } = amount_details;
-
-        let (connector_payment_id, connector_payment_data) = connector_payment_id
-            .map(ConnectorTransactionId::form_id_and_data)
-            .map(|(txn_id, txn_data)| (Some(txn_id), txn_data))
-            .unwrap_or((None, None));
-        let feature_metadata = feature_metadata.as_ref().map(From::from);
-
-        Ok(DieselPaymentAttempt {
-            payment_id,
-            merchant_id,
-            id,
-            status,
-            error_message: error.as_ref().map(|details| details.message.clone()),
-            payment_method_id,
-            payment_method_type_v2: payment_method_type,
-            connector_payment_id,
-            authentication_type,
-            created_at,
-            modified_at,
-            last_synced,
-            cancellation_reason,
-            amount_to_capture,
-            browser_info,
-            error_code: error.as_ref().map(|details| details.code.clone()),
-            payment_token,
-            connector_metadata,
-            payment_experience,
-            payment_method_subtype,
-            payment_method_data,
-            preprocessing_step_id,
-            error_reason: error.as_ref().and_then(|details| details.reason.clone()),
-            multiple_capture_count,
-            connector_response_reference_id,
-            amount_capturable,
-            updated_by,
-            merchant_connector_id,
-            redirection_data: redirection_data.map(From::from),
-            encoded_data,
-            unified_code: error
-                .as_ref()
-                .and_then(|details| details.unified_code.clone()),
-            unified_message: error
-                .as_ref()
-                .and_then(|details| details.unified_message.clone()),
-            net_amount,
-            external_three_ds_authentication_attempted,
-            external_threeds_authentication_type,
-            authentication_connector,
-            authentication_id,
-            fingerprint_id,
-            client_source,
-            client_version,
-            customer_acceptance,
-            profile_id,
-            organization_id,
-            card_network,
-            order_tax_amount,
-            shipping_cost,
-            routing_result,
-            authentication_applied,
-            external_reference_id,
-            connector,
-            surcharge_amount,
-            tax_on_surcharge,
-            payment_method_billing_address: payment_method_billing_address.map(Encryption::from),
-            connector_payment_data,
-            connector_token_details,
-            card_discovery,
-            request_extended_authorization: None,
-            extended_authorization_applied: None,
-            extended_authorization_last_applied_at: None,
-            capture_before: None,
-            charges,
-            feature_metadata,
-            network_advice_code: error
-                .as_ref()
-                .and_then(|details| details.network_advice_code.clone()),
-            network_decline_code: error
-                .as_ref()
-                .and_then(|details| details.network_decline_code.clone()),
-            network_error_message: error
-                .as_ref()
-                .and_then(|details| details.network_error_message.clone()),
-            processor_merchant_id: Some(processor_merchant_id),
-            created_by: created_by.map(|created_by| created_by.to_string()),
-            connector_request_reference_id,
-            network_transaction_id,
-            network_transaction_link_id,
-            is_overcapture_enabled: None,
-            network_details: None,
-            attempts_group_id,
-            is_stored_credential: None,
-            authorized_amount,
-            tokenization: None,
-            amount_captured,
-            encrypted_payment_method_data: None,
-            error_details: None,
-            retry_type: None,
-            installment_data: None,
-            external_surcharge_details: None,
-            applied_offer_details,
-            sender_payment_instrument_id: None,
-        })
-    }
-
-    async fn convert_back(
-        state: &KeyManagerState,
-        storage_model: Self::DstType,
-        key: &Secret<Vec<u8>>,
-        key_manager_identifier: keymanager::Identifier,
-    ) -> CustomResult<Self, ValidationError>
-    where
-        Self: Sized,
-    {
-        async {
-            let connector_payment_id = storage_model
-                .get_optional_connector_transaction_id()
-                .cloned();
-
-            let decrypted_data = crypto_operation(
-                state,
-                common_utils::type_name!(Self::DstType),
-                CryptoOperation::BatchDecrypt(EncryptedPaymentAttempt::to_encryptable(
-                    EncryptedPaymentAttempt {
-                        payment_method_billing_address: storage_model
-                            .payment_method_billing_address,
-                    },
-                )),
-                key_manager_identifier,
-                key.peek(),
-            )
-            .await
-            .and_then(|val| val.try_into_batchoperation())?;
-
-            let decrypted_data = EncryptedPaymentAttempt::from_encryptable(decrypted_data)
-                .change_context(common_utils::errors::CryptoError::DecodingFailed)
-                .attach_printable("Invalid batch operation data")?;
-
-            let payment_method_billing_address = decrypted_data
-                .payment_method_billing_address
-                .map(|billing| {
-                    billing.deserialize_inner_value(|value| value.parse_value("Address"))
-                })
-                .transpose()
-                .change_context(common_utils::errors::CryptoError::DecodingFailed)
-                .attach_printable("Error while deserializing Address")?;
-
-            let amount_details = AttemptAmountDetails {
-                net_amount: storage_model.net_amount,
-                tax_on_surcharge: storage_model.tax_on_surcharge,
-                surcharge_amount: storage_model.surcharge_amount,
-                order_tax_amount: storage_model.order_tax_amount,
-                shipping_cost: storage_model.shipping_cost,
-                amount_capturable: storage_model.amount_capturable,
-                amount_to_capture: storage_model.amount_to_capture,
-                amount_captured: storage_model.amount_captured,
-            };
-
-            let error = storage_model
-                .error_code
-                .zip(storage_model.error_message)
-                .map(|(error_code, error_message)| ErrorDetails {
-                    code: error_code,
-                    message: error_message,
-                    reason: storage_model.error_reason,
-                    unified_code: storage_model.unified_code,
-                    unified_message: storage_model.unified_message,
-                    network_advice_code: storage_model.network_advice_code,
-                    network_decline_code: storage_model.network_decline_code,
-                    network_error_message: storage_model.network_error_message,
-                });
-
-            Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(Self {
-                payment_id: storage_model.payment_id,
-                merchant_id: storage_model.merchant_id.clone(),
-                attempts_group_id: storage_model.attempts_group_id,
-                id: storage_model.id,
-                status: storage_model.status,
-                amount_details,
-                error,
-                payment_method_id: storage_model.payment_method_id,
-                payment_method_type: storage_model.payment_method_type_v2,
-                connector_payment_id,
-                authentication_type: storage_model.authentication_type,
-                created_at: storage_model.created_at,
-                modified_at: storage_model.modified_at,
-                last_synced: storage_model.last_synced,
-                cancellation_reason: storage_model.cancellation_reason,
-                browser_info: storage_model.browser_info,
-                payment_token: storage_model.payment_token,
-                connector_metadata: storage_model.connector_metadata,
-                payment_experience: storage_model.payment_experience,
-                payment_method_data: storage_model.payment_method_data,
-                routing_result: storage_model.routing_result,
-                preprocessing_step_id: storage_model.preprocessing_step_id,
-                multiple_capture_count: storage_model.multiple_capture_count,
-                connector_response_reference_id: storage_model.connector_response_reference_id,
-                updated_by: storage_model.updated_by,
-                redirection_data: storage_model.redirection_data.map(From::from),
-                encoded_data: storage_model.encoded_data,
-                merchant_connector_id: storage_model.merchant_connector_id,
-                external_three_ds_authentication_attempted: storage_model
-                    .external_three_ds_authentication_attempted,
-                external_threeds_authentication_type: storage_model
-                    .external_threeds_authentication_type,
-                authentication_connector: storage_model.authentication_connector,
-                authentication_id: storage_model.authentication_id,
-                fingerprint_id: storage_model.fingerprint_id,
-                charges: storage_model.charges,
-                client_source: storage_model.client_source,
-                client_version: storage_model.client_version,
-                customer_acceptance: storage_model.customer_acceptance,
-                profile_id: storage_model.profile_id,
-                organization_id: storage_model.organization_id,
-                payment_method_subtype: storage_model.payment_method_subtype,
-                authentication_applied: storage_model.authentication_applied,
-                external_reference_id: storage_model.external_reference_id,
-                external_surcharge_details: storage_model.external_surcharge_details,
-                applied_offer_details: storage_model.applied_offer_details,
-                connector: storage_model.connector,
-                payment_method_billing_address,
-                connector_token_details: storage_model.connector_token_details,
-                card_discovery: storage_model.card_discovery,
-                feature_metadata: storage_model.feature_metadata.map(From::from),
-                processor_merchant_id: storage_model
-                    .processor_merchant_id
-                    .unwrap_or(storage_model.merchant_id),
-                created_by: storage_model
-                    .created_by
-                    .and_then(|created_by| created_by.parse::<CreatedBy>().ok()),
-                connector_request_reference_id: storage_model.connector_request_reference_id,
-                network_transaction_id: storage_model.network_transaction_id,
-                network_transaction_link_id: storage_model.network_transaction_link_id,
-                authorized_amount: storage_model.authorized_amount,
-            })
-        }
-        .await
-        .change_context(ValidationError::InvalidValue {
-            message: "Failed while decrypting payment attempt".to_string(),
-        })
-    }
-
-    async fn construct_new(self) -> CustomResult<Self::NewDstType, ValidationError> {
-        use common_utils::encryption::Encryption;
-        let Self {
-            payment_id,
-            merchant_id,
-            attempts_group_id,
-            status,
-            error,
-            amount_details,
-            authentication_type,
-            created_at,
-            modified_at,
-            last_synced,
-            cancellation_reason,
-            browser_info,
-            payment_token,
-            connector_metadata,
-            payment_experience,
-            payment_method_data,
-            routing_result: _,
-            preprocessing_step_id,
-            multiple_capture_count,
-            connector_response_reference_id,
-            updated_by,
-            redirection_data,
-            encoded_data,
-            merchant_connector_id,
-            external_three_ds_authentication_attempted,
-            external_threeds_authentication_type,
-            authentication_connector,
-            authentication_id,
-            fingerprint_id,
-            client_source,
-            client_version,
-            customer_acceptance,
-            profile_id,
-            organization_id,
-            payment_method_type,
-            connector_payment_id,
-            payment_method_subtype,
-            authentication_applied: _,
-            external_reference_id: _,
-            id,
-            payment_method_id,
-            payment_method_billing_address,
-            connector,
-            connector_token_details,
-            card_discovery,
-            charges,
-            feature_metadata,
-            processor_merchant_id,
-            created_by,
-            connector_request_reference_id,
-            network_transaction_id,
-            network_transaction_link_id,
-            authorized_amount,
-            external_surcharge_details: _,
-            applied_offer_details: _,
-        } = self;
-
-        let card_network = payment_method_data
-            .as_ref()
-            .and_then(|data| data.peek().as_object())
-            .and_then(|card| card.get("card"))
-            .and_then(|data| data.as_object())
-            .and_then(|card| card.get("card_network"))
-            .and_then(|network| network.as_str())
-            .map(|network| network.to_string());
-
-        let error_details = error;
-
-        Ok(DieselPaymentAttemptNew {
-            payment_id,
-            merchant_id,
-            status,
-            network_transaction_id,
-            network_transaction_link_id,
-            error_message: error_details
-                .as_ref()
-                .map(|details| details.message.clone()),
-            surcharge_amount: amount_details.surcharge_amount,
-            tax_on_surcharge: amount_details.tax_on_surcharge,
-            payment_method_id,
-            authentication_type,
-            created_at,
-            modified_at,
-            last_synced,
-            cancellation_reason,
-            browser_info,
-            payment_token,
-            error_code: error_details.as_ref().map(|details| details.code.clone()),
-            connector_metadata,
-            payment_experience,
-            payment_method_data,
-            preprocessing_step_id,
-            error_reason: error_details
-                .as_ref()
-                .and_then(|details| details.reason.clone()),
-            connector_response_reference_id,
-            multiple_capture_count,
-            amount_capturable: amount_details.amount_capturable,
-            updated_by,
-            merchant_connector_id,
-            redirection_data: redirection_data.map(From::from),
-            encoded_data,
-            unified_code: error_details
-                .as_ref()
-                .and_then(|details| details.unified_code.clone()),
-            unified_message: error_details
-                .as_ref()
-                .and_then(|details| details.unified_message.clone()),
-            net_amount: amount_details.net_amount,
-            external_three_ds_authentication_attempted,
-            external_threeds_authentication_type,
-            authentication_connector,
-            authentication_id,
-            fingerprint_id,
-            client_source,
-            client_version,
-            customer_acceptance,
-            profile_id,
-            organization_id,
-            card_network,
-            order_tax_amount: amount_details.order_tax_amount,
-            shipping_cost: amount_details.shipping_cost,
-            amount_to_capture: amount_details.amount_to_capture,
-            payment_method_billing_address: payment_method_billing_address.map(Encryption::from),
-            payment_method_subtype,
-            connector_payment_id: connector_payment_id
-                .as_ref()
-                .map(|txn_id| ConnectorTransactionId::TxnId(txn_id.clone())),
-            payment_method_type_v2: payment_method_type,
-            id,
-            charges,
-            connector_token_details,
-            card_discovery,
-            extended_authorization_applied: None,
-            request_extended_authorization: None,
-            extended_authorization_last_applied_at: None,
-            capture_before: None,
-            feature_metadata: feature_metadata.as_ref().map(From::from),
-            connector,
-            network_advice_code: error_details
-                .as_ref()
-                .and_then(|details| details.network_advice_code.clone()),
-            network_decline_code: error_details
-                .as_ref()
-                .and_then(|details| details.network_decline_code.clone()),
-            network_error_message: error_details
-                .as_ref()
-                .and_then(|details| details.network_error_message.clone()),
-            processor_merchant_id: Some(processor_merchant_id),
-            created_by: created_by.map(|created_by| created_by.to_string()),
-            external_surcharge_details: None,
-            applied_offer_details: None,
-            connector_request_reference_id,
-            network_details: None,
-            tokenization: None,
-            attempts_group_id,
-            is_stored_credential: None,
-            authorized_amount,
-            amount_captured: amount_details.amount_captured,
-            encrypted_payment_method_data: None,
-            error_details: None,
-            retry_type: None,
         })
     }
 }
@@ -4162,5 +3698,60 @@ impl From<DieselPaymentAttemptFeatureMetadata> for PaymentAttemptFeatureMetadata
                     charge_id: recovery_data.charge_id,
                 });
         Self { revenue_recovery }
+    }
+}
+
+#[cfg(all(test, feature = "v2"))]
+mod card_info_extraction_tests {
+    use api_models::payments::{AdditionalCardInfo, AdditionalPaymentData};
+    use common_utils::ext_traits::{Encode, ValueExt};
+
+    /// The enriched card details are stored on the attempt's `payment_method_data` and read back
+    /// from there when the payment intent's feature metadata is built, so the fields have to
+    /// survive that json round trip.
+    #[test]
+    fn enriched_card_details_survive_the_payment_method_data_round_trip() {
+        let card_info = AdditionalCardInfo {
+            card_issuer: Some("JP MORGAN CHASE".to_string()),
+            card_type: Some("credit".to_string()),
+            card_issuing_country: Some("UNITED STATES".to_string()),
+            card_isin: Some("424242".to_string()),
+            ..Default::default()
+        };
+
+        let stored_value = AdditionalPaymentData::Card(Box::new(card_info))
+            .encode_to_value()
+            .expect("additional payment data should serialize");
+
+        let parsed = stored_value
+            .parse_value::<AdditionalPaymentData>("AdditionalPaymentData")
+            .expect("additional payment data should deserialize")
+            .get_additional_card_info()
+            .expect("card details should be present");
+
+        assert_eq!(parsed.card_type.as_deref(), Some("credit"));
+        assert_eq!(
+            parsed.card_issuing_country.as_deref(),
+            Some("UNITED STATES")
+        );
+        assert_eq!(parsed.card_issuer.as_deref(), Some("JP MORGAN CHASE"));
+        assert_eq!(parsed.card_isin.as_deref(), Some("424242"));
+    }
+
+    /// A webhook without a card bin leaves the enriched fields empty rather than failing.
+    #[test]
+    fn missing_card_details_round_trip_as_none() {
+        let stored_value = AdditionalPaymentData::Card(Box::default())
+            .encode_to_value()
+            .expect("additional payment data should serialize");
+
+        let parsed = stored_value
+            .parse_value::<AdditionalPaymentData>("AdditionalPaymentData")
+            .expect("additional payment data should deserialize")
+            .get_additional_card_info()
+            .expect("card details should be present");
+
+        assert_eq!(parsed.card_type, None);
+        assert_eq!(parsed.card_issuing_country, None);
     }
 }

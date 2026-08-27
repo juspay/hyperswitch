@@ -1360,6 +1360,8 @@ impl TryFrom<&PaypalRouterData<&PaymentsAuthorizeRouterData>> for PaypalPayments
                     | enums::PaymentMethodType::PixQr
                     | enums::PaymentMethodType::PixAutomaticoPush
                     | enums::PaymentMethodType::PixAutomaticoQr
+                    | enums::PaymentMethodType::Payshap
+                    | enums::PaymentMethodType::PayshapProxy
                     | enums::PaymentMethodType::PaySafeCard
                     | enums::PaymentMethodType::Przelewy24
                     | enums::PaymentMethodType::PromptPay
@@ -3242,6 +3244,7 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, PaypalFulfillResponse>> for Payouts
                 error_code: None,
                 error_message: None,
                 payout_connector_metadata: None,
+                connector_eligibility_reference_id: None,
             }),
             ..item.data
         })
@@ -3263,6 +3266,7 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, PaypalPayoutSyncResponse>> for Payo
                 error_code: None,
                 error_message: None,
                 payout_connector_metadata: None,
+                connector_eligibility_reference_id: None,
             }),
             ..item.data
         })
