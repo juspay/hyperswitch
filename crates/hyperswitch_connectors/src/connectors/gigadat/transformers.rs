@@ -555,6 +555,7 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, GigadatPayoutQuoteResponse>> for Pa
                 error_code: None,
                 error_message: None,
                 payout_connector_metadata: Some(Secret::new(connector_meta)),
+                connector_eligibility_reference_id: None,
             }),
             ..item.data
         })
@@ -584,6 +585,7 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, GigadatPayoutResponse>> for Payouts
                 error_code: None,
                 error_message: None,
                 payout_connector_metadata: None,
+                connector_eligibility_reference_id: None,
             }),
             ..item.data
         })
@@ -641,6 +643,7 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, GigadatPayoutSyncResponse>> for Pay
                 error_code: None,
                 error_message: None,
                 payout_connector_metadata: None,
+                connector_eligibility_reference_id: None,
             }),
             ..item.data
         })

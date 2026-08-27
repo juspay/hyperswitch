@@ -6,22 +6,25 @@ use crate::{
     errors,
     query::generics,
     schema::cards_info::dsl,
-    PgPooledConn, StorageResult,
+    DatabaseConnectionWithContext, StorageResult,
 };
 
 impl CardInfo {
-    pub async fn find_by_iin(conn: &PgPooledConn, card_iin: &str) -> StorageResult<Option<Self>> {
+    pub async fn find_by_iin(
+        conn: &DatabaseConnectionWithContext<'_>,
+        card_iin: &str,
+    ) -> StorageResult<Option<Self>> {
         generics::generic_find_by_id_optional::<<Self as HasTable>::Table, _, _>(
             conn,
             card_iin.to_owned(),
         )
         .await
     }
-    pub async fn insert(self, conn: &PgPooledConn) -> StorageResult<Self> {
+    pub async fn insert(self, conn: &DatabaseConnectionWithContext<'_>) -> StorageResult<Self> {
         generics::generic_insert(conn, self).await
     }
     pub async fn update(
-        conn: &PgPooledConn,
+        conn: &DatabaseConnectionWithContext<'_>,
         card_iin: String,
         data: UpdateCardInfo,
     ) -> StorageResult<Self> {

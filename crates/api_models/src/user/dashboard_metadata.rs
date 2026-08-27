@@ -223,9 +223,10 @@ pub struct PaymentListFilterConstraintsV1 {
     pub payment_id: Option<id_type::PaymentId>,
     pub profile_id: Option<id_type::ProfileId>,
     pub customer_id: Option<id_type::CustomerId>,
-    #[serde(default = "common_utils::consts::default_payments_list_limit")]
-    pub limit: u32,
-    pub offset: Option<u32>,
+    #[serde(default)]
+    pub limit: common_utils::types::list::PageSize,
+    #[serde(default)]
+    pub offset: Option<common_utils::types::list::PageOffset>,
     pub amount_filter: Option<payments::AmountFilter>,
     #[serde(flatten)]
     pub time_range: Option<common_utils::types::TimeRange>,
@@ -323,9 +324,10 @@ pub struct PaymentAdvancedViewFilterConstraints {
     pub payment_id: Option<id_type::PaymentId>,
     pub profile_id: Option<id_type::ProfileId>,
     pub customer_id: Option<id_type::CustomerId>,
-    #[serde(default = "common_utils::consts::default_payments_list_limit")]
-    pub limit: u32,
-    pub offset: Option<u32>,
+    #[serde(default)]
+    pub limit: common_utils::types::list::PageSize,
+    #[serde(default)]
+    pub offset: Option<common_utils::types::list::PageOffset>,
     pub amount_filter: Option<payments::AmountFilter>,
     #[serde(flatten)]
     pub time_range: Option<common_utils::types::TimeRange>,

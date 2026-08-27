@@ -239,6 +239,7 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, StripeConnectPayoutCreateResponse>>
                 error_code: None,
                 error_message: None,
                 payout_connector_metadata: None,
+                connector_eligibility_reference_id: None,
             }),
             ..item.data
         })
@@ -276,6 +277,7 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, StripeConnectPayoutFulfillResponse>
                 error_code: None,
                 error_message: None,
                 payout_connector_metadata: None,
+                connector_eligibility_reference_id: None,
             }),
             ..item.data
         })
@@ -309,6 +311,7 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, StripeConnectReversalResponse>>
                 error_code: None,
                 error_message: None,
                 payout_connector_metadata: None,
+                connector_eligibility_reference_id: None,
             }),
             ..item.data
         })
@@ -385,6 +388,7 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, StripeConnectRecipientCreateRespons
                 error_code: None,
                 error_message: None,
                 payout_connector_metadata: None,
+                connector_eligibility_reference_id: None,
             }),
             ..item.data
         })
@@ -512,6 +516,7 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, StripeConnectRecipientAccountCreate
                 error_code: None,
                 error_message: None,
                 payout_connector_metadata: None,
+                connector_eligibility_reference_id: None,
             }),
             ..item.data
         })

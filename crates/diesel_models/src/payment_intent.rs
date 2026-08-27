@@ -114,7 +114,17 @@ pub struct PaymentIntent {
 }
 
 #[cfg(feature = "v1")]
-#[derive(Clone, Debug, PartialEq, Identifiable, Queryable, Serialize, Deserialize, Selectable)]
+#[derive(
+    Clone,
+    Debug,
+    PartialEq,
+    Identifiable,
+    Queryable,
+    Serialize,
+    Deserialize,
+    Selectable,
+    router_derive::FromNew,
+)]
 #[diesel(table_name = payment_intent, primary_key(payment_id, merchant_id), check_for_backend(diesel::pg::Pg))]
 pub struct PaymentIntent {
     pub payment_id: common_utils::id_type::PaymentId,
@@ -266,6 +276,8 @@ pub struct PaymentLinkConfigRequestForPayments {
     pub color_icon_card_cvc_error: Option<String>,
     /// Flag to display the merchant name in the payment link
     pub show_merchant_name: Option<bool>,
+    /// Custom text for the separator shown between wallet and card payment method sections
+    pub payment_methods_separator_text: Option<String>,
 }
 
 common_utils::impl_to_sql_from_sql_json!(PaymentLinkConfigRequestForPayments);

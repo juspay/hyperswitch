@@ -112,6 +112,7 @@ where
         tenant_config: &dyn TenantConfig,
         test_transaction: bool,
         key_manager_state: Option<KeyManagerState>,
+        event_emitter: Arc<dyn ExternalServiceEventEmitter>,
     ) -> error_stack::Result<Self, StorageError> {
         let (db_conf, cache_conf, encryption_key, cache_error_signal, inmemory_cache_stream) =
             config;
@@ -122,6 +123,7 @@ where
                 &cache_conf,
                 encryption_key,
                 key_manager_state,
+                event_emitter,
             )
             .await
             .attach_printable("failed to create test router store")
@@ -134,6 +136,7 @@ where
                     .await?,
                 inmemory_cache_stream,
                 key_manager_state,
+                event_emitter,
             )
             .await
             .attach_printable("failed to create store")
@@ -175,8 +178,16 @@ impl<T: DatabaseStore> RouterStore<T> {
         cache_store: Arc<RedisStore>,
         inmemory_cache_stream: &str,
         key_manager_state: Option<KeyManagerState>,
+        event_emitter: Arc<dyn ExternalServiceEventEmitter>,
     ) -> error_stack::Result<Self, StorageError> {
-        let db_store = T::new(db_conf, tenant_config, false, key_manager_state.clone()).await?;
+        let db_store = T::new(
+            db_conf,
+            tenant_config,
+            false,
+            key_manager_state.clone(),
+            event_emitter,
+        )
+        .await?;
         let cache_store = Arc::new(
             cache_store
                 .clone()
@@ -303,6 +314,37 @@ impl<T: DatabaseStore> RouterStore<T> {
         }
     }
 
+    pub async fn find_optional_resource_new<D, R, M>(
+        &self,
+        key_store: &MerchantKeyStore,
+        execute_query_fut: R,
+    ) -> error_stack::Result<Option<D>, StorageError>
+    where
+        D: Debug + Sync + behaviour::Conversion,
+        R: futures::Future<
+                Output = error_stack::Result<Option<M>, diesel_models::errors::DatabaseError>,
+            > + Send,
+        M: behaviour::ReverseConversion<D>,
+    {
+        match execute_query_fut.await.map_err(|error| {
+            let new_err = diesel_error_to_data_error(*error.current_context());
+            error.change_context(new_err)
+        })? {
+            Some(resource) => Ok(Some(
+                resource
+                    .convert(
+                        self.get_keymanager_state()
+                            .attach_printable("Missing KeyManagerState")?,
+                        key_store.key.get_inner(),
+                        key_store.merchant_id.clone().into(),
+                    )
+                    .await
+                    .change_context(StorageError::DecryptionError)?,
+            )),
+            None => Ok(None),
+        }
+    }
+
     // TODO: This needs to be removed after the removal of diesel_models dependency from domain_models is done
     pub async fn find_resources<D, R, M>(
         &self,
@@ -388,9 +430,17 @@ impl<T: DatabaseStore> RouterStore<T> {
         cache_conf: &redis_interface::RedisSettings,
         encryption_key: StrongSecret<Vec<u8>>,
         key_manager_state: Option<KeyManagerState>,
+        event_emitter: Arc<dyn ExternalServiceEventEmitter>,
     ) -> error_stack::Result<Self, StorageError> {
         // TODO: create an error enum and return proper error here
-        let db_store = T::new(db_conf, tenant_config, true, key_manager_state.clone()).await?;
+        let db_store = T::new(
+            db_conf,
+            tenant_config,
+            true,
+            key_manager_state.clone(),
+            event_emitter,
+        )
+        .await?;
         let cache_store = RedisStore::new_without_event_emitter(cache_conf)
             .await
             .change_context(StorageError::InitializationError)

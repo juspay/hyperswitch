@@ -25,6 +25,7 @@ pub mod celero;
 pub mod chargebee;
 pub mod checkbook;
 pub mod checkout;
+pub mod citigate;
 pub mod coinbase;
 pub mod coingate;
 pub mod cryptopay;
@@ -63,6 +64,7 @@ pub mod hyperpg;
 pub mod hyperswitch_vault;
 pub mod hyperwallet;
 pub mod iatapay;
+pub mod ilixium;
 pub mod imerchantsolutions;
 pub mod inespay;
 pub mod interpayments;
@@ -143,6 +145,7 @@ pub mod wise;
 pub mod worldline;
 pub mod worldpay;
 pub mod worldpaymodular;
+pub mod worldpayraft;
 pub mod worldpayvantiv;
 pub mod worldpayxml;
 pub mod xendit;
@@ -158,8 +161,8 @@ pub use self::{
     bankofamerica::Bankofamerica, barclaycard::Barclaycard, billwerk::Billwerk, bitpay::Bitpay,
     blackhawknetwork::Blackhawknetwork, bluesnap::Bluesnap, boku::Boku, braintree::Braintree,
     breadpay::Breadpay, calida::Calida, cashtocode::Cashtocode, celero::Celero,
-    chargebee::Chargebee, checkbook::Checkbook, checkout::Checkout, coinbase::Coinbase,
-    coingate::Coingate, cryptopay::Cryptopay, ctp_mastercard::CtpMastercard,
+    chargebee::Chargebee, checkbook::Checkbook, checkout::Checkout, citigate::Citigate,
+    coinbase::Coinbase, coingate::Coingate, cryptopay::Cryptopay, ctp_mastercard::CtpMastercard,
     custombilling::Custombilling, cybersource::Cybersource,
     cybersourcedecisionmanager::Cybersourcedecisionmanager, datatrans::Datatrans,
     deutschebank::Deutschebank, digitalvirgo::Digitalvirgo, dlocal::Dlocal, dwolla::Dwolla,
@@ -168,13 +171,14 @@ pub use self::{
     flexiti::Flexiti, forte::Forte, getnet::Getnet, gigadat::Gigadat, givepayments::Givepayments,
     globalpay::Globalpay, globepay::Globepay, gocardless::Gocardless, gpayments::Gpayments,
     helcim::Helcim, hipay::Hipay, hyperpg::Hyperpg, hyperswitch_vault::HyperswitchVault,
-    hyperwallet::Hyperwallet, iatapay::Iatapay, imerchantsolutions::Imerchantsolutions,
-    inespay::Inespay, interpayments::Interpayments, itaubank::Itaubank, jpmorgan::Jpmorgan,
-    juspaythreedsserver::Juspaythreedsserver, katapult::Katapult, klarna::Klarna, loonio::Loonio,
-    mifinity::Mifinity, mollie::Mollie, moneris::Moneris, mpgs::Mpgs, multisafepay::Multisafepay,
-    netcetera::Netcetera, nexinets::Nexinets, nexixpay::Nexixpay, nmi::Nmi, nomupay::Nomupay,
-    noon::Noon, nordea::Nordea, novalnet::Novalnet, nuvei::Nuvei, opayo::Opayo, opennode::Opennode,
-    paybox::Paybox, payconex::Payconex, payeezy::Payeezy, payjustnow::Payjustnow,
+    hyperwallet::Hyperwallet, iatapay::Iatapay, ilixium::Ilixium,
+    imerchantsolutions::Imerchantsolutions, inespay::Inespay, interpayments::Interpayments,
+    itaubank::Itaubank, jpmorgan::Jpmorgan, juspaythreedsserver::Juspaythreedsserver,
+    katapult::Katapult, klarna::Klarna, loonio::Loonio, mifinity::Mifinity, mollie::Mollie,
+    moneris::Moneris, mpgs::Mpgs, multisafepay::Multisafepay, netcetera::Netcetera,
+    nexinets::Nexinets, nexixpay::Nexixpay, nmi::Nmi, nomupay::Nomupay, noon::Noon, nordea::Nordea,
+    novalnet::Novalnet, nuvei::Nuvei, opayo::Opayo, opennode::Opennode, paybox::Paybox,
+    payconex::Payconex, payeezy::Payeezy, payjustnow::Payjustnow,
     payjustnowinstore::Payjustnowinstore, payload::Payload, payme::Payme, payone::Payone,
     paypal::Paypal, paysafe::Paysafe, paystack::Paystack, paytm::Paytm, payu::Payu,
     peachpayments::Peachpayments, phonepe::Phonepe, placetopay::Placetopay, plaid::Plaid,
@@ -187,6 +191,7 @@ pub use self::{
     tsys::Tsys, tsys_transit::TsysTransit,
     unified_authentication_service::UnifiedAuthenticationService, vgs::Vgs, volt::Volt,
     wellsfargo::Wellsfargo, wellsfargopayout::Wellsfargopayout, wise::Wise, worldline::Worldline,
-    worldpay::Worldpay, worldpaymodular::Worldpaymodular, worldpayvantiv::Worldpayvantiv,
-    worldpayxml::Worldpayxml, xendit::Xendit, zen::Zen, zift::Zift, zsl::Zsl,
+    worldpay::Worldpay, worldpaymodular::Worldpaymodular, worldpayraft::Worldpayraft,
+    worldpayvantiv::Worldpayvantiv, worldpayxml::Worldpayxml, xendit::Xendit, zen::Zen, zift::Zift,
+    zsl::Zsl,
 };
