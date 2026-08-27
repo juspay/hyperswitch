@@ -688,6 +688,7 @@ impl<F> TryFrom<ResponseRouterData<F, VantivSyncResponse, PaymentsSyncData, Paym
                     incremental_authorization_allowed: None,
                     authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 }),
                 minor_amount_captured,
                 ..item.data
@@ -1632,6 +1633,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<CnpOnlineResponse>> for PaymentsC
                             incremental_authorization_allowed: None,
                             authentication_data: None,
                             charges: None,
+                            payment_account_reference: None,
                         }),
                         ..item.data
                     })
@@ -1745,6 +1747,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<CnpOnlineResponse>> for PaymentsCa
                             incremental_authorization_allowed: None,
                             authentication_data: None,
                             charges: None,
+                            payment_account_reference: None,
                         }),
                         ..item.data
                     })
@@ -2133,6 +2136,7 @@ impl<F>
                             incremental_authorization_allowed: None,
                             authentication_data: None,
                             charges: None,
+                            payment_account_reference: None,
                         }),
                         connector_response,
                         amount_captured: sale_response.approved_amount.map(MinorUnit::get_amount_as_i64),
@@ -2229,6 +2233,7 @@ impl<F>
                             incremental_authorization_allowed: None,
                             authentication_data: None,
                             charges: None,
+                            payment_account_reference: None,
                         }),
                         connector_response,
                         amount_captured: if payment_flow_type == WorldpayvantivPaymentFlow::Sale {
@@ -2381,6 +2386,7 @@ impl<F>
                             incremental_authorization_allowed: None,
                             authentication_data: None,
                             charges: None,
+                            payment_account_reference: None,
                         }),
                         connector_response,
                         ..item.data

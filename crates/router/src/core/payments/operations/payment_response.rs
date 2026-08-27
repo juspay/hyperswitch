@@ -2681,6 +2681,12 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                 .ok()
                                 .and_then(|resp| resp.get_network_transaction_link_id());
 
+                            let payment_account_reference = router_data
+                                .response
+                                .as_ref()
+                                .ok()
+                                .and_then(|resp| resp.get_payment_account_reference());
+
                             let encoded_data = payment_data.payment_attempt.encoded_data.clone();
 
                             let authentication_data = (*redirection_data)
@@ -2873,6 +2879,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                         sender_payment_instrument_id: router_data
                                             .sender_payment_instrument_id
                                             .clone(),
+                                        payment_account_reference,
                                     }),
                                 ),
                             };
