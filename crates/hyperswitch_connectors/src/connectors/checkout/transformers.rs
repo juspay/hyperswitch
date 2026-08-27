@@ -1314,6 +1314,7 @@ pub struct Source {
     id: Option<String>,
     avs_check: Option<String>,
     cvv_check: Option<String>,
+    payment_account_reference: Option<String>,
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
@@ -1461,7 +1462,11 @@ impl TryFrom<PaymentsResponseRouterData<PaymentsResponse>> for PaymentsAuthorize
             connector_response_reference_id: Some(
                 item.response.reference.unwrap_or(item.response.id),
             ),
-            payment_account_reference: None,
+            payment_account_reference: item
+                .response
+                .source
+                .as_ref()
+                .and_then(|source| source.payment_account_reference.clone()),
             incremental_authorization_allowed: None,
             authentication_data: None,
             charges: None,
@@ -1586,7 +1591,11 @@ impl
             connector_response_reference_id: Some(
                 item.response.reference.unwrap_or(item.response.id),
             ),
-            payment_account_reference: None,
+            payment_account_reference: item
+                .response
+                .source
+                .as_ref()
+                .and_then(|source| source.payment_account_reference.clone()),
             incremental_authorization_allowed: None,
             authentication_data: None,
             charges: None,
@@ -1680,7 +1689,11 @@ impl TryFrom<PaymentsSyncResponseRouterData<PaymentsResponse>> for PaymentsSyncR
             connector_response_reference_id: Some(
                 item.response.reference.unwrap_or(item.response.id),
             ),
-            payment_account_reference: None,
+            payment_account_reference: item
+                .response
+                .source
+                .as_ref()
+                .and_then(|source| source.payment_account_reference.clone()),
             incremental_authorization_allowed: None,
             authentication_data: None,
             charges: None,
@@ -2375,10 +2388,11 @@ impl TryFrom<&webhooks::IncomingWebhookRequestDetails<'_>> for PaymentsResponse 
             currency: Some(data.currency),
             processed_on: data.processed_on,
             approved: data.approved,
-            source: Some(Source {
-                id: details.source.clone().and_then(|src| src.id),
-                avs_check: details.source.clone().and_then(|src| src.avs_check),
-                cvv_check: details.source.clone().and_then(|src| src.cvv_check),
+            source: details.source.as_ref().map(|src| Source {
+                id: src.id.clone(),
+                avs_check: src.avs_check.clone(),
+                cvv_check: src.cvv_check.clone(),
+                payment_account_reference: src.payment_account_reference.clone(),
             }),
             scheme_id: None,
             processing: None,
