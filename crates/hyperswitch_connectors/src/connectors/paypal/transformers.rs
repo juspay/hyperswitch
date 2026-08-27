@@ -720,6 +720,13 @@ impl<F, T> TryFrom<ResponseRouterData<F, PaypalSetupMandatesResponse, T, Payment
 impl TryFrom<&SetupMandateRouterData> for PaypalZeroMandateRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &SetupMandateRouterData) -> Result<Self, Self::Error> {
+        if item.request.amount > 0 {
+            return Err(errors::ConnectorError::FlowNotSupported {
+                flow: "Setup Mandate with non zero amount".to_string(),
+                connector: "Paypal".to_string(),
+            }
+            .into());
+        }
         let payment_source = match item.request.payment_method_data.clone() {
             PaymentMethodData::Card(ccard) => ZeroMandateSourceItem::Card(CardMandateRequest {
                 billing_address: get_address_info(item.get_optional_billing()),
