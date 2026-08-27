@@ -1462,11 +1462,7 @@ impl TryFrom<PaymentsResponseRouterData<PaymentsResponse>> for PaymentsAuthorize
             connector_response_reference_id: Some(
                 item.response.reference.unwrap_or(item.response.id),
             ),
-            payment_account_reference: item
-                .response
-                .source
-                .as_ref()
-                .and_then(|source| source.payment_account_reference.clone()),
+            payment_account_reference: None,
             incremental_authorization_allowed: None,
             authentication_data: None,
             charges: None,
@@ -1591,11 +1587,7 @@ impl
             connector_response_reference_id: Some(
                 item.response.reference.unwrap_or(item.response.id),
             ),
-            payment_account_reference: item
-                .response
-                .source
-                .as_ref()
-                .and_then(|source| source.payment_account_reference.clone()),
+            payment_account_reference: None,
             incremental_authorization_allowed: None,
             authentication_data: None,
             charges: None,
@@ -1689,11 +1681,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<PaymentsResponse>> for PaymentsSyncR
             connector_response_reference_id: Some(
                 item.response.reference.unwrap_or(item.response.id),
             ),
-            payment_account_reference: item
-                .response
-                .source
-                .as_ref()
-                .and_then(|source| source.payment_account_reference.clone()),
+            payment_account_reference: None,
             incremental_authorization_allowed: None,
             authentication_data: None,
             charges: None,

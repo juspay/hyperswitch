@@ -679,9 +679,9 @@ bank_debit.bacs = { connector_list = "adyen" }                                  
 bank_debit.sepa = { connector_list = "gocardless,adyen" }                             # Mandate supported payment method type and connector for bank_debit
 bank_redirect.ideal = { connector_list = "stripe,adyen,globalpay" }                   # Mandate supported payment method type and connector for bank_redirect
 bank_redirect.sofort = { connector_list = "stripe,globalpay" }
-wallet.apple_pay = { connector_list = "stripe,adyen,cybersource,noon,bankofamerica,authorizedotnet,worldpayxml,payme,imerchantsolutions,datatrans" }
+wallet.apple_pay = { connector_list = "stripe,adyen,cybersource,noon,bankofamerica,authorizedotnet,worldpayxml,payme,imerchantsolutions,datatrans,moneris" }
 wallet.samsung_pay = { connector_list = "cybersource" }
-wallet.google_pay = { connector_list = "stripe,bankofamerica,authorizedotnet,cybersource,worldpayxml,imerchantsolutions,datatrans" }
+wallet.google_pay = { connector_list = "stripe,bankofamerica,authorizedotnet,cybersource,worldpayxml,imerchantsolutions,datatrans,moneris" }
 bank_redirect.giropay = { connector_list = "globalpay" }
 bank_transfer.pix_automatico_push = { connector_list = "santander" }
 bank_transfer.pix_automatico_qr = { connector_list = "santander" }
@@ -698,9 +698,9 @@ bank_debit.bacs = { connector_list = "adyen" }                                  
 bank_debit.sepa = { connector_list = "gocardless,adyen" }                             # Mandate supported payment method type and connector for bank_debit
 bank_redirect.ideal = { connector_list = "stripe,adyen,globalpay" }                   # Mandate supported payment method type and connector for bank_redirect
 bank_redirect.sofort = { connector_list = "globalpay" }
-wallet.apple_pay = { connector_list = "stripe,adyen,braintree,cybersource,noon,bankofamerica,authorizedotnet,novalnet,worldpayxml,imerchantsolutions,datatrans" }
+wallet.apple_pay = { connector_list = "stripe,adyen,braintree,cybersource,noon,bankofamerica,authorizedotnet,novalnet,worldpayxml,imerchantsolutions,datatrans,moneris" }
 wallet.samsung_pay = { connector_list = "cybersource" }
-wallet.google_pay = { connector_list = "bankofamerica,authorizedotnet,novalnet,worldpayxml,imerchantsolutions,datatrans" }
+wallet.google_pay = { connector_list = "bankofamerica,authorizedotnet,novalnet,worldpayxml,imerchantsolutions,datatrans,moneris" }
 bank_redirect.giropay = { connector_list = "globalpay" }
 network_token.network_token.connector_list = "peachpayments"
 
@@ -1131,6 +1131,12 @@ debit = { country = "AL,AD,AM,AT,AZ,BY,BE,BA,BG,CH,CY,CZ,DE,DK,EE,ES,FI,FR,GB,GE
 apple_pay = { country = "AL,AD,AM,AT,AZ,BY,BE,BA,BG,CH,CY,CZ,DE,DK,EE,ES,FI,FR,GB,GE,GR,HR,HU,IE,IS,IT,KZ,LI,LT,LU,LV,MC,MD,ME,MK,MT,NL,NO,PL,PT,RO,RU,SE,SI,SK,SM,TR,UA,VA",  currency = "BHD,BIF,CHF,DJF,EUR,GBP,GNF,IQD,ISK,JPY,JOD,KMF,KRW,KWD,LYD,OMR,PYG,RWF,TND,UGX,USD,VND,VUV,XAF,XOF,XPF" }
 google_pay = { country = "AL,AD,AM,AT,AZ,BY,BE,BA,BG,CH,CY,CZ,DE,DK,EE,ES,FI,FR,GB,GE,GR,HR,HU,IE,IS,IT,KZ,LI,LT,LU,LV,MC,MD,ME,MK,MT,NL,NO,PL,PT,RO,RU,SE,SI,SK,SM,TR,UA,VA",  currency = "BHD,BIF,CHF,DJF,EUR,GBP,GNF,IQD,ISK,JPY,JOD,KMF,KRW,KWD,LYD,OMR,PYG,RWF,TND,UGX,USD,VND,VUV,XAF,XOF,XPF" }
 
+[pm_filters.moneris]
+credit = { country = "AE, AF, AL, AO, AR, AT, AU, AW, AZ, BA, BB, BD, BE, BG, BH, BI, BM, BN, BO, BR, BT, BY, BZ, CH, CL, CN, CO, CR, CU, CV, CY, CZ, DE, DJ, DK, DO, DZ, EE, EG, ES, FI, FJ, FR, GB, GE, GI, GM, GN, GR, GT, GY, HK, HN, HR, HT, HU, ID, IE, IL, IN, IS, IT, JM, JO, JP, KE, KM, KR, KW, KY, KZ, LA, LK, LR, LS, LV, LT, LU, MA, MD, MG, MK, MO, MR, MT, MU, MV, MW, MX, MY, MZ, NA, NG, NI, NL, NO, NP, NZ, OM, PE, PG, PK, PL, PT, PY, QA, RO, RS, RU, RW, SA, SB, SC, SE, SG, SH, SI, SK, SL, SR, SV, SZ, TH, TJ, TM, TN, TR, TT, TW, TZ, UG, US, UY, UZ, VN, VU, WS, ZA, ZM", currency = "AED, AFN, ALL, ANG, AOA, ARS, AUD, AWG, AZN, BAM, BBD, BDT, BGN, BHD, BIF, BMD, BND, BOB, BRL, BTN, BYN, BZD, CHF, CLP, CNY, COP, CRC, CUP, CVE, CZK, DJF, DKK, DOP, DZD, EGP, EUR, FJD, GBP, GEL, GIP, GMD, GNF, GTQ, GYD, HKD, HNL, HRK, HTG, HUF, IDR, ILS, INR, ISK, JMD, JOD, JPY, KES, KMF, KRW, KWD, KYD, KZT, LAK, LKR, LRD, LSL, MAD, MDL, MGA, MKD, MOP, MRU, MUR, MVR, MWK, MXN, MYR, MZN, NAD, NGN, NIO, NOK, NPR, NZD, OMR, PEN, PGK, PHP, PKR, PLN, PYG, QAR, RON, RSD, RUB, RWF, SAR, SBD, SCR, SEK, SGD, SHP, SLL, SRD, SVC, SZL, THB, TJS, TMT, TND, TRY, TTD, TWD, TZS, UGX, USD, UYU, UZS, VND, VUV, WST, XCD, XOF, XPF, ZAR, ZMW" }
+debit = { country = "AE, AF, AL, AO, AR, AT, AU, AW, AZ, BA, BB, BD, BE, BG, BH, BI, BM, BN, BO, BR, BT, BY, BZ, CH, CL, CN, CO, CR, CU, CV, CY, CZ, DE, DJ, DK, DO, DZ, EE, EG, ES, FI, FJ, FR, GB, GE, GI, GM, GN, GR, GT, GY, HK, HN, HR, HT, HU, ID, IE, IL, IN, IS, IT, JM, JO, JP, KE, KM, KR, KW, KY, KZ, LA, LK, LR, LS, LV, LT, LU, MA, MD, MG, MK, MO, MR, MT, MU, MV, MW, MX, MY, MZ, NA, NG, NI, NL, NO, NP, NZ, OM, PE, PG, PK, PL, PT, PY, QA, RO, RS, RU, RW, SA, SB, SC, SE, SG, SH, SI, SK, SL, SR, SV, SZ, TH, TJ, TM, TN, TR, TT, TW, TZ, UG, US, UY, UZ, VN, VU, WS, ZA, ZM", currency = "AED, AFN, ALL, ANG, AOA, ARS, AUD, AWG, AZN, BAM, BBD, BDT, BGN, BHD, BIF, BMD, BND, BOB, BRL, BTN, BYN, BZD, CHF, CLP, CNY, COP, CRC, CUP, CVE, CZK, DJF, DKK, DOP, DZD, EGP, EUR, FJD, GBP, GEL, GIP, GMD, GNF, GTQ, GYD, HKD, HNL, HRK, HTG, HUF, IDR, ILS, INR, ISK, JMD, JOD, JPY, KES, KMF, KRW, KWD, KYD, KZT, LAK, LKR, LRD, LSL, MAD, MDL, MGA, MKD, MOP, MRU, MUR, MVR, MWK, MXN, MYR, MZN, NAD, NGN, NIO, NOK, NPR, NZD, OMR, PEN, PGK, PHP, PKR, PLN, PYG, QAR, RON, RSD, RUB, RWF, SAR, SBD, SCR, SEK, SGD, SHP, SLL, SRD, SVC, SZL, THB, TJS, TMT, TND, TRY, TTD, TWD, TZS, UGX, USD, UYU, UZS, VND, VUV, WST, XCD, XOF, XPF, ZAR, ZMW" }
+apple_pay = { country = "AE, AF, AL, AO, AR, AT, AU, AW, AZ, BA, BB, BD, BE, BG, BH, BI, BM, BN, BO, BR, BT, BY, BZ, CH, CL, CN, CO, CR, CU, CV, CY, CZ, DE, DJ, DK, DO, DZ, EE, EG, ES, FI, FJ, FR, GB, GE, GI, GM, GN, GR, GT, GY, HK, HN, HR, HT, HU, ID, IE, IL, IN, IS, IT, JM, JO, JP, KE, KM, KR, KW, KY, KZ, LA, LK, LR, LS, LV, LT, LU, MA, MD, MG, MK, MO, MR, MT, MU, MV, MW, MX, MY, MZ, NA, NG, NI, NL, NO, NP, NZ, OM, PE, PG, PK, PL, PT, PY, QA, RO, RS, RU, RW, SA, SB, SC, SE, SG, SH, SI, SK, SL, SR, SV, SZ, TH, TJ, TM, TN, TR, TT, TW, TZ, UG, US, UY, UZ, VN, VU, WS, ZA, ZM", currency = "AED, AFN, ALL, ANG, AOA, ARS, AUD, AWG, AZN, BAM, BBD, BDT, BGN, BHD, BIF, BMD, BND, BOB, BRL, BTN, BYN, BZD, CHF, CLP, CNY, COP, CRC, CUP, CVE, CZK, DJF, DKK, DOP, DZD, EGP, EUR, FJD, GBP, GEL, GIP, GMD, GNF, GTQ, GYD, HKD, HNL, HRK, HTG, HUF, IDR, ILS, INR, ISK, JMD, JOD, JPY, KES, KMF, KRW, KWD, KYD, KZT, LAK, LKR, LRD, LSL, MAD, MDL, MGA, MKD, MOP, MRU, MUR, MVR, MWK, MXN, MYR, MZN, NAD, NGN, NIO, NOK, NPR, NZD, OMR, PEN, PGK, PHP, PKR, PLN, PYG, QAR, RON, RSD, RUB, RWF, SAR, SBD, SCR, SEK, SGD, SHP, SLL, SRD, SVC, SZL, THB, TJS, TMT, TND, TRY, TTD, TWD, TZS, UGX, USD, UYU, UZS, VND, VUV, WST, XCD, XOF, XPF, ZAR, ZMW" }
+google_pay = { country = "AE, AF, AL, AO, AR, AT, AU, AW, AZ, BA, BB, BD, BE, BG, BH, BI, BM, BN, BO, BR, BT, BY, BZ, CH, CL, CN, CO, CR, CU, CV, CY, CZ, DE, DJ, DK, DO, DZ, EE, EG, ES, FI, FJ, FR, GB, GE, GI, GM, GN, GR, GT, GY, HK, HN, HR, HT, HU, ID, IE, IL, IN, IS, IT, JM, JO, JP, KE, KM, KR, KW, KY, KZ, LA, LK, LR, LS, LV, LT, LU, MA, MD, MG, MK, MO, MR, MT, MU, MV, MW, MX, MY, MZ, NA, NG, NI, NL, NO, NP, NZ, OM, PE, PG, PK, PL, PT, PY, QA, RO, RS, RU, RW, SA, SB, SC, SE, SG, SH, SI, SK, SL, SR, SV, SZ, TH, TJ, TM, TN, TR, TT, TW, TZ, UG, US, UY, UZ, VN, VU, WS, ZA, ZM", currency = "AED, AFN, ALL, ANG, AOA, ARS, AUD, AWG, AZN, BAM, BBD, BDT, BGN, BHD, BIF, BMD, BND, BOB, BRL, BTN, BYN, BZD, CHF, CLP, CNY, COP, CRC, CUP, CVE, CZK, DJF, DKK, DOP, DZD, EGP, EUR, FJD, GBP, GEL, GIP, GMD, GNF, GTQ, GYD, HKD, HNL, HRK, HTG, HUF, IDR, ILS, INR, ISK, JMD, JOD, JPY, KES, KMF, KRW, KWD, KYD, KZT, LAK, LKR, LRD, LSL, MAD, MDL, MGA, MKD, MOP, MRU, MUR, MVR, MWK, MXN, MYR, MZN, NAD, NGN, NIO, NOK, NPR, NZD, OMR, PEN, PGK, PHP, PKR, PLN, PYG, QAR, RON, RSD, RUB, RWF, SAR, SBD, SCR, SEK, SGD, SHP, SLL, SRD, SVC, SZL, THB, TJS, TMT, TND, TRY, TTD, TWD, TZS, UGX, USD, UYU, UZS, VND, VUV, WST, XCD, XOF, XPF, ZAR, ZMW" }
+
 [pm_filters.payme]
 credit = { country = "US,CA,IL,GB", currency = "ILS,USD,EUR" }
 debit = { country = "US,CA,IL,GB", currency = "ILS,USD,EUR" }
@@ -1317,18 +1323,34 @@ region = "us-east-1"    # The AWS region used by the AWS S3 for file storage
 bucket_name = "bucket1" # The AWS S3 bucket name for file storage
 
 [secrets_management]
-secrets_manager = "aws_kms" # Secrets manager client to be used
+secrets_manager = "aws_kms" # Secrets manager client to be used (no_encryption | aws_kms | hashicorp_vault | gcp_kms)
 
+# Required only if `secrets_manager` above is set to "aws_kms"
 [secrets_management.aws_kms]
 key_id = "kms_key_id" # The AWS key ID used by the KMS SDK for decrypting data.
 region = "kms_region" # The AWS region used by the KMS SDK for decrypting data.
 
-[encryption_management]
-encryption_manager = "aws_kms" # Encryption manager client to be used
+# Required only if `secrets_manager` above is set to "gcp_kms"
+[secrets_management.gcp_kms]
+project_id = "gcp_project_id"
+location_id = "gcp_kms_location_id" # e.g. "global", "us-east1"
+key_ring_id = "gcp_kms_key_ring_id"
+key_id = "gcp_kms_key_id"
 
+[encryption_management]
+encryption_manager = "aws_kms" # Encryption manager client to be used (no_encryption | aws_kms | gcp_kms)
+
+# Required only if `encryption_manager` above is set to "aws_kms"
 [encryption_management.aws_kms]
 key_id = "kms_key_id" # The AWS key ID used by the KMS SDK for decrypting data.
 region = "kms_region" # The AWS region used by the KMS SDK for decrypting data.
+
+# Required only if `encryption_manager` above is set to "gcp_kms"
+[encryption_management.gcp_kms]
+project_id = "gcp_project_id"
+location_id = "gcp_kms_location_id"
+key_ring_id = "gcp_kms_key_ring_id"
+key_id = "gcp_kms_key_id"
 
 [crm]
 crm_manager = "hubspot_proxy" # Crm manager client to be used
@@ -1487,6 +1509,11 @@ job_schedule_buffer_time_in_seconds = 3600    # buffer time in seconds to schedu
 reopen_workflow_buffer_time_in_seconds = 3600  # time in seconds to be added in scheduling for calculate workflow
 max_random_schedule_delay_in_seconds = 300  # max random delay in seconds to schedule the payment for Revenue Recovery
 redis_ttl_buffer_in_seconds= 300 # buffer time in seconds to be added to redis ttl for Revenue Recovery
+
+# Redis lock configuration guarding the retry-stats read-merge-write
+[revenue_recovery.retry_stats_lock]
+redis_lock_expiry_seconds = 10              # Seconds before redis lock expires
+delay_between_retries_in_milliseconds = 100 # Wait between attempts to acquire a contended lock
 
 [clone_connector_allowlist]
 connector_names = "connector_names"     # Comma-separated list of cloneable connector names

@@ -4474,6 +4474,7 @@ pub async fn build_merchant_enabled_pms_context(
         let (result, routing_approach) = routing::perform_session_flow_routing(
             sfr,
             business_profile,
+            &dimensions,
             &enums::TransactionType::Payment,
         )
         .await

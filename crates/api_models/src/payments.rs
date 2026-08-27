@@ -10409,7 +10409,9 @@ pub struct GooglePayTokenizationParameters {
     pub private_key: Option<Secret<String>>,
     pub recipient_id: Option<Secret<String>>,
     pub gateway_merchant_id: Option<Secret<String>>,
+    #[serde(rename = "stripe:publishableKey", alias = "stripe_publishable_key")]
     pub stripe_publishable_key: Option<Secret<String>>,
+    #[serde(rename = "stripe:version", alias = "stripe_version")]
     pub stripe_version: Option<Secret<String>>,
 }
 
@@ -13758,6 +13760,15 @@ impl PaymentRevenueRecoveryMetadata {
         self.billing_connector_payment_details
             .connector_customer_id
             .to_owned()
+    }
+
+    /// Card network of the recovery card, from the billing-connector payment method
+    /// details
+    pub fn get_card_network(&self) -> Option<common_enums::enums::CardNetwork> {
+        self.billing_connector_payment_method_details
+            .as_ref()
+            .and_then(|details| details.get_billing_connector_card_info())
+            .and_then(|card| card.card_network.clone())
     }
 }
 
