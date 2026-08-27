@@ -1330,6 +1330,7 @@ pub async fn resume_revenue_recovery_process_tracker(
                         tracking_data.global_payment_id.clone(),
                         tracking_data.profile_id.clone(),
                         active_attempt_id.clone(),
+                        tracking_data.prev_attempt_error_code,
                         runner,
                         tracking_data.revenue_recovery_retry,
                         state.conf.application_source,
