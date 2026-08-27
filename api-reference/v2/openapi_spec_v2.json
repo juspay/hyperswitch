@@ -18045,7 +18045,7 @@
               "card_number": {
                 "type": "string",
                 "description": "The recipient's partially masked card number.",
-                "example": "4111****1111"
+                "example": "411111******1111"
               },
               "type": {
                 "type": "string",
@@ -18087,7 +18087,7 @@
               "email": {
                 "type": "string",
                 "description": "The email address that identifies the recipient's account.",
-                "example": "jane.doe@example.com"
+                "example": "ja******@example.com"
               },
               "type": {
                 "type": "string",
@@ -18152,7 +18152,7 @@
             "description": "A partially masked International Bank Account Number.",
             "required": [
               "iban",
-              "identifier_type"
+              "bank_account_type"
             ],
             "properties": {
               "iban": {
@@ -18160,7 +18160,7 @@
                 "description": "The recipient's partially masked IBAN.",
                 "example": "GB29N************46864"
               },
-              "identifier_type": {
+              "bank_account_type": {
                 "type": "string",
                 "enum": [
                   "iban"
@@ -18174,7 +18174,7 @@
             "required": [
               "account_number",
               "routing_number",
-              "identifier_type"
+              "bank_account_type"
             ],
             "properties": {
               "account_number": {
@@ -18187,7 +18187,7 @@
                 "description": "The partially masked routing number of the recipient's bank.",
                 "example": "110***000"
               },
-              "identifier_type": {
+              "bank_account_type": {
                 "type": "string",
                 "enum": [
                   "routing_number"
@@ -18201,7 +18201,7 @@
             "required": [
               "account_number",
               "bic",
-              "identifier_type"
+              "bank_account_type"
             ],
             "properties": {
               "account_number": {
@@ -18214,7 +18214,7 @@
                 "description": "The partially masked Bank Identification Code of the recipient's bank.",
                 "example": "HBU***4B"
               },
-              "identifier_type": {
+              "bank_account_type": {
                 "type": "string",
                 "enum": [
                   "bic"
@@ -18227,7 +18227,7 @@
             "description": "A partially masked bare bank account number.",
             "required": [
               "account_number",
-              "identifier_type"
+              "bank_account_type"
             ],
             "properties": {
               "account_number": {
@@ -18235,7 +18235,7 @@
                 "description": "The recipient's partially masked bank account number.",
                 "example": "0001****6789"
               },
-              "identifier_type": {
+              "bank_account_type": {
                 "type": "string",
                 "enum": [
                   "account_number"
@@ -18249,7 +18249,7 @@
             "required": [
               "card_isin",
               "last4",
-              "identifier_type"
+              "bank_account_type"
             ],
             "properties": {
               "card_isin": {
@@ -18262,7 +18262,7 @@
                 "description": "The last four digits of the recipient's PAN.",
                 "example": "1111"
               },
-              "identifier_type": {
+              "bank_account_type": {
                 "type": "string",
                 "enum": [
                   "truncated_pan"
@@ -18273,7 +18273,7 @@
         ],
         "description": "A partially masked view of `RecipientBankAccount`, safe to return in API responses.",
         "discriminator": {
-          "propertyName": "identifier_type"
+          "propertyName": "bank_account_type"
         }
       },
       "MaskedRecipientDetails": {
@@ -29963,7 +29963,7 @@
             "description": "An International Bank Account Number.",
             "required": [
               "iban",
-              "identifier_type"
+              "bank_account_type"
             ],
             "properties": {
               "iban": {
@@ -29971,7 +29971,7 @@
                 "description": "The recipient's IBAN.",
                 "example": "GB29NWBK70361331946864"
               },
-              "identifier_type": {
+              "bank_account_type": {
                 "type": "string",
                 "enum": [
                   "iban"
@@ -29985,7 +29985,7 @@
             "required": [
               "account_number",
               "routing_number",
-              "identifier_type"
+              "bank_account_type"
             ],
             "properties": {
               "account_number": {
@@ -29998,7 +29998,7 @@
                 "description": "The routing number of the recipient's bank.",
                 "example": "110000000"
               },
-              "identifier_type": {
+              "bank_account_type": {
                 "type": "string",
                 "enum": [
                   "routing_number"
@@ -30012,7 +30012,7 @@
             "required": [
               "account_number",
               "bic",
-              "identifier_type"
+              "bank_account_type"
             ],
             "properties": {
               "account_number": {
@@ -30025,7 +30025,7 @@
                 "description": "The Bank Identification Code of the recipient's bank.",
                 "example": "HBUKGB4B"
               },
-              "identifier_type": {
+              "bank_account_type": {
                 "type": "string",
                 "enum": [
                   "bic"
@@ -30038,7 +30038,7 @@
             "description": "A bare bank account number, where the scheme does not require a bank identifier.",
             "required": [
               "account_number",
-              "identifier_type"
+              "bank_account_type"
             ],
             "properties": {
               "account_number": {
@@ -30046,7 +30046,7 @@
                 "description": "The recipient's bank account number.",
                 "example": "000123456789"
               },
-              "identifier_type": {
+              "bank_account_type": {
                 "type": "string",
                 "enum": [
                   "account_number"
@@ -30060,7 +30060,7 @@
             "required": [
               "card_isin",
               "last4",
-              "identifier_type"
+              "bank_account_type"
             ],
             "properties": {
               "card_isin": {
@@ -30075,7 +30075,7 @@
                 "example": "1111",
                 "maxLength": 4
               },
-              "identifier_type": {
+              "bank_account_type": {
                 "type": "string",
                 "enum": [
                   "truncated_pan"
@@ -30085,7 +30085,7 @@
           }
         ],
         "discriminator": {
-          "propertyName": "identifier_type"
+          "propertyName": "bank_account_type"
         }
       },
       "RecipientDetails": {
