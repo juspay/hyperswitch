@@ -179,17 +179,23 @@ pub async fn recovery_incoming_webhook_flow(
         action: RecoveryAction::get_action(event_type, attempt_triggered_by),
     };
 
+    if recovery_action.is_invalid_action() {
+        logger::info!("No recovery action needed for this event type");
+        return Ok(webhooks::WebhookResponseTracker::NoEffect);
+    }
+
     let mca_retry_threshold = billing_connector_account
         .get_retry_threshold()
         .ok_or(report!(
             errors::RevenueRecoveryError::BillingThresholdRetryCountFetchFailed
         ))?;
 
+    // Default to 0 for newly created payment intents that have no feature_metadata yet
     let intent_retry_count = recovery_intent_from_payment_attempt
         .feature_metadata
         .as_ref()
         .and_then(|metadata| metadata.get_retry_count())
-        .ok_or(report!(errors::RevenueRecoveryError::RetryCountFetchFailed))?;
+        .unwrap_or(0);
 
     logger::info!("Intent retry count: {:?}", intent_retry_count);
     recovery_action
@@ -257,11 +263,11 @@ async fn handle_schedule_failed_payment(
     let (recovery_attempt_from_payment_attempt, recovery_intent_from_payment_attempt) =
         payment_attempt_with_recovery_intent;
 
-    // When intent_retry_count is less than or equal to threshold
-    (intent_retry_count <= mca_retry_threshold)
+    // When intent_retry_count is strictly less than threshold, billing connector didnt complete its configured retry attempts
+    (intent_retry_count < mca_retry_threshold)
         .then(|| {
-            logger::error!(
-                "Payment retry count {} is less than threshold {}",
+            logger::info!(
+                "Payment retry count {} is less than threshold {}, waiting for billing connector",
                 intent_retry_count,
                 mca_retry_threshold
             );
@@ -1545,6 +1551,13 @@ impl RecoveryAction {
                 common_types::payments::RecoveryAction::CancelInvoice
             }
         }
+    }
+
+    pub fn is_invalid_action(&self) -> bool {
+        matches!(
+            self.action,
+            common_types::payments::RecoveryAction::InvalidAction
+        )
     }
 
     #[allow(clippy::too_many_arguments)]

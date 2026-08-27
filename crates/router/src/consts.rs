@@ -430,6 +430,13 @@ pub mod superposition {
         "pt_mapping_outgoing_connector_webhooks";
     /// PCR (Revenue Recovery) payments retry process tracker mapping key
     pub const PT_MAPPING_PCR_RETRIES: &str = "process_tracker.pt_mapping_pcr_retries";
+    /// Whether the adaptive revenue recovery retry algorithm — static ladder combined with
+    /// the smart algorithm — replaces the decider-based smart retry implementation
+    pub const ADAPTIVE_RETRY_ENABLED: &str = "revenue_recovery.adaptive_retry_enabled";
+    /// Days from the first attempt during which an invoice may still be retried
+    pub const RECOVERY_GRACE_PERIOD_DAYS: &str = "revenue_recovery.grace_period_days";
+    /// Total retries an invoice is allowed across its whole recovery lifecycle
+    pub const RECOVERY_MAX_RETRY_COUNT: &str = "revenue_recovery.max_retry_count";
     /// Payment sync (psync) retry process tracker mapping key
     pub const PT_MAPPING_PAYMENT_SYNC: &str = "process_tracker.pt_mapping_payment_sync";
     /// Refund sync retry process tracker mapping key

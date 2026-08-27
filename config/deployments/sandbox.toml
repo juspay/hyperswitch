@@ -1,3 +1,11 @@
+# Whether saving a payment method is supported by all, some, or none of the connectors
+# eligible for it. Returned in the PML response so the SDK can decide whether to show the
+# "save my details" checkbox ("supported" | "partially_supported" | "unsupported").
+[customer_acceptance_support]
+card.credit = "supported"
+card.debit = "supported"
+bank_redirect.open_banking = "partially_supported"
+
 # Bank redirect configs for allowed banks
 [bank_config]
 eps.adyen.banks = "bank_austria,bawag_psk_ag,dolomitenbank,easybank_ag,erste_bank_und_sparkassen,hypo_tirol_bank_ag,posojilnica_bank_e_gen,raiffeisen_bankengruppe_osterreich,schoellerbank_ag,sparda_bank_wien,volksbank_gruppe,volkskreditbank_ag"
@@ -87,6 +95,7 @@ givepayments.base_url = "https://api-sandbox.givepayments.com"
 globalpay.base_url = "https://apis.sandbox.globalpay.com/ucp/"
 globepay.base_url = "https://pay.globepay.co/"
 gocardless.base_url = "https://api-sandbox.gocardless.com"
+gotyme_sanlam.base_url = "sbx"
 gpayments.base_url = "https://{{merchant_endpoint_prefix}}-test.api.as1.gpayments.net"
 helcim.base_url = "https://api.helcim.com/"
 hipay.base_url = "https://stage-secure-gateway.hipay-tpp.com/rest/"
