@@ -297,7 +297,7 @@ impl TryFrom<&SetupMandateRouterData> for CybersourceZeroMandateRequest {
                         PaymentMethodToken::ApplePayDecrypt(decrypt_data) => {
                             let expiration_month = decrypt_data.get_expiry_month().change_context(
                                 errors::ConnectorError::InvalidDataFormat {
-                                    field_name: "expiration_month",
+                                    field_name: "expiration_month".into(),
                                 },
                             )?;
                             let expiration_year = decrypt_data.get_four_digit_expiry_year();
@@ -336,7 +336,7 @@ impl TryFrom<&SetupMandateRouterData> for CybersourceZeroMandateRequest {
                             .payment_data
                             .get_encrypted_apple_pay_payment_data_mandatory()
                             .change_context(errors::ConnectorError::MissingRequiredField {
-                                field_name: "Apple pay encrypted data",
+                                field_name: "Apple pay encrypted data".into(),
                             })?;
                         (
                             PaymentInformation::ApplePayToken(Box::new(
@@ -366,7 +366,7 @@ impl TryFrom<&SetupMandateRouterData> for CybersourceZeroMandateRequest {
                                             .get_encrypted_google_pay_token()
                                             .change_context(
                                                 errors::ConnectorError::MissingRequiredField {
-                                                    field_name: "gpay wallet_token",
+                                                    field_name: "gpay wallet_token".into(),
                                                 },
                                             )?,
                                     ),
@@ -1989,7 +1989,7 @@ impl
                     .split_once(' ')
                     .map(|(first, last)| (first.to_string(), last.to_string()))
                     .ok_or(errors::ConnectorError::MissingRequiredField {
-                        field_name: "billing_address.name",
+                        field_name: "billing_address.name".into(),
                     })?;
                 (Secret::from(first_name), Secret::from(last_name))
             }
@@ -2010,7 +2010,7 @@ impl
                         .billing_address
                         .state
                         .ok_or(errors::ConnectorError::MissingRequiredField {
-                            field_name: "billing_address.state",
+                            field_name: "billing_address.state".into(),
                         })?
                         .peek()
                         .to_owned(),
@@ -2104,7 +2104,7 @@ impl
             .connector_meta
             .clone()
             .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "connector_meta",
+                field_name: "connector_meta".into(),
             })?
             .parse_value("CybersourceThreeDSMetadata")
             .change_context(errors::ConnectorError::InvalidConnectorConfig {
@@ -2188,7 +2188,7 @@ impl
         let client_reference_information = ClientReferenceInformation::from(item);
         let expiration_month = apple_pay_data.get_expiry_month().change_context(
             errors::ConnectorError::InvalidDataFormat {
-                field_name: "expiration_month",
+                field_name: "expiration_month".into(),
             },
         )?;
         let expiration_year = apple_pay_data.get_four_digit_expiry_year();
@@ -2275,7 +2275,7 @@ impl
                                 .tokenization_data
                                 .get_encrypted_google_pay_token()
                                 .change_context(errors::ConnectorError::MissingRequiredField {
-                                    field_name: "gpay wallet_token",
+                                    field_name: "gpay wallet_token".into(),
                                 })?,
                         ),
                     ),
@@ -2342,12 +2342,12 @@ impl
                     expiration_year: google_pay_decrypted_data
                         .get_four_digit_expiry_year()
                         .change_context(errors::ConnectorError::InvalidDataFormat {
-                            field_name: "expiration_year",
+                            field_name: "expiration_year".into(),
                         })?,
                     expiration_month: google_pay_decrypted_data
                         .get_expiry_month()
                         .change_context(errors::ConnectorError::InvalidDataFormat {
-                            field_name: "expiration_month",
+                            field_name: "expiration_month".into(),
                         })?,
                 },
             }));
@@ -2554,7 +2554,7 @@ impl TryFrom<&CybersourceRouterData<&PaymentsAuthorizeRouterData>> for Cybersour
                                         .get_encrypted_apple_pay_payment_data_mandatory()
                                         .change_context(
                                             errors::ConnectorError::MissingRequiredField {
-                                                field_name: "Apple pay encrypted data",
+                                                field_name: "Apple pay encrypted data".into(),
                                             },
                                         )?;
                                     let payment_information = PaymentInformation::ApplePayToken(
@@ -2702,7 +2702,7 @@ impl TryFrom<&CybersourceRouterData<&PaymentsAuthorizeRouterData>> for Cybersour
                         let connector_mandate_id =
                             item.router_data.request.connector_mandate_id().ok_or(
                                 errors::ConnectorError::MissingRequiredField {
-                                    field_name: "connector_mandate_id",
+                                    field_name: "connector_mandate_id".into(),
                                 },
                             )?;
                         Self::try_from((item, connector_mandate_id))
@@ -3091,7 +3091,7 @@ impl TryFrom<&CybersourceRouterData<&PaymentsCancelRouterData>> for CybersourceV
                     total_amount: value.amount.to_owned(),
                     currency: value.router_data.request.currency.ok_or(
                         errors::ConnectorError::MissingRequiredField {
-                            field_name: "Currency",
+                            field_name: "Currency".into(),
                         },
                     )?,
                 },
@@ -3101,7 +3101,7 @@ impl TryFrom<&CybersourceRouterData<&PaymentsCancelRouterData>> for CybersourceV
                     .cancellation_reason
                     .clone()
                     .ok_or(errors::ConnectorError::MissingRequiredField {
-                        field_name: "Cancellation Reason",
+                        field_name: "Cancellation Reason".into(),
                     })?,
             },
             merchant_defined_information,
@@ -3598,7 +3598,7 @@ impl TryFrom<&CybersourceRouterData<&PaymentsPreProcessingRouterData>>
         };
         let payment_method_data = item.router_data.request.payment_method_data.clone().ok_or(
             errors::ConnectorError::MissingConnectorRedirectionPayload {
-                field_name: "payment_method_data",
+                field_name: "payment_method_data".into(),
             },
         )?;
         let payment_information = match payment_method_data {
@@ -3656,7 +3656,7 @@ impl TryFrom<&CybersourceRouterData<&PaymentsPreProcessingRouterData>>
 
         let redirect_response = item.router_data.request.redirect_response.clone().ok_or(
             errors::ConnectorError::MissingRequiredField {
-                field_name: "redirect_response",
+                field_name: "redirect_response".into(),
             },
         )?;
 
@@ -3664,7 +3664,7 @@ impl TryFrom<&CybersourceRouterData<&PaymentsPreProcessingRouterData>>
             total_amount: item.amount.clone(),
             currency: item.router_data.request.currency.ok_or(
                 errors::ConnectorError::MissingRequiredField {
-                    field_name: "currency",
+                    field_name: "currency".into(),
                 },
             )?,
         };
@@ -3676,7 +3676,7 @@ impl TryFrom<&CybersourceRouterData<&PaymentsPreProcessingRouterData>>
                     .peek()
                     .split_once('=')
                     .ok_or(errors::ConnectorError::MissingConnectorRedirectionPayload {
-                        field_name: "request.redirect_response.params.reference_id",
+                        field_name: "request.redirect_response.params.reference_id".into(),
                     })?
                     .1
                     .to_string();
@@ -3709,7 +3709,7 @@ impl TryFrom<&CybersourceRouterData<&PaymentsPreProcessingRouterData>>
                 let redirect_payload: CybersourceRedirectionAuthResponse = redirect_response
                     .payload
                     .ok_or(errors::ConnectorError::MissingConnectorRedirectionPayload {
-                        field_name: "request.redirect_response.payload",
+                        field_name: "request.redirect_response.payload".into(),
                     })?
                     .peek()
                     .clone()
@@ -3744,7 +3744,7 @@ impl TryFrom<&CybersourceRouterData<&PaymentsAuthenticateRouterData>>
         };
         let payment_method_data = item.router_data.request.payment_method_data.clone().ok_or(
             errors::ConnectorError::MissingConnectorRedirectionPayload {
-                field_name: "payment_method_data",
+                field_name: "payment_method_data".into(),
             },
         )?;
         let payment_information = match payment_method_data {
@@ -3802,7 +3802,7 @@ impl TryFrom<&CybersourceRouterData<&PaymentsAuthenticateRouterData>>
 
         let redirect_response = item.router_data.request.redirect_response.clone().ok_or(
             errors::ConnectorError::MissingRequiredField {
-                field_name: "redirect_response",
+                field_name: "redirect_response".into(),
             },
         )?;
 
@@ -3810,14 +3810,14 @@ impl TryFrom<&CybersourceRouterData<&PaymentsAuthenticateRouterData>>
             total_amount: item.amount.clone(),
             currency: item.router_data.request.currency.ok_or(
                 errors::ConnectorError::MissingRequiredField {
-                    field_name: "currency",
+                    field_name: "currency".into(),
                 },
             )?,
         };
 
         let param = redirect_response.params.ok_or(
             errors::ConnectorError::MissingConnectorRedirectionPayload {
-                field_name: "request.redirect_response.params",
+                field_name: "request.redirect_response.params".into(),
             },
         )?;
 
@@ -3827,7 +3827,7 @@ impl TryFrom<&CybersourceRouterData<&PaymentsAuthenticateRouterData>>
             .split('=')
             .next_back()
             .ok_or(errors::ConnectorError::MissingConnectorRedirectionPayload {
-                field_name: "request.redirect_response.params.reference_id",
+                field_name: "request.redirect_response.params.reference_id".into(),
             })?
             .to_string();
         let email = item.router_data.get_billing_email().or(item
@@ -3870,7 +3870,7 @@ impl TryFrom<&CybersourceRouterData<&PaymentsPostAuthenticateRouterData>>
         };
         let payment_method_data = item.router_data.request.payment_method_data.clone().ok_or(
             errors::ConnectorError::MissingConnectorRedirectionPayload {
-                field_name: "payment_method_data",
+                field_name: "payment_method_data".into(),
             },
         )?;
         let payment_information = match payment_method_data {
@@ -3928,7 +3928,7 @@ impl TryFrom<&CybersourceRouterData<&PaymentsPostAuthenticateRouterData>>
 
         let redirect_response = item.router_data.request.redirect_response.clone().ok_or(
             errors::ConnectorError::MissingRequiredField {
-                field_name: "redirect_response",
+                field_name: "redirect_response".into(),
             },
         )?;
 
@@ -3936,7 +3936,7 @@ impl TryFrom<&CybersourceRouterData<&PaymentsPostAuthenticateRouterData>>
             total_amount: item.amount.clone(),
             currency: item.router_data.request.currency.ok_or(
                 errors::ConnectorError::MissingRequiredField {
-                    field_name: "currency",
+                    field_name: "currency".into(),
                 },
             )?,
         };
@@ -3944,7 +3944,7 @@ impl TryFrom<&CybersourceRouterData<&PaymentsPostAuthenticateRouterData>>
         let redirect_payload: CybersourceRedirectionAuthResponse = redirect_response
             .payload
             .ok_or(errors::ConnectorError::MissingConnectorRedirectionPayload {
-                field_name: "request.redirect_response.payload",
+                field_name: "request.redirect_response.payload".into(),
             })?
             .peek()
             .clone()
@@ -3972,7 +3972,7 @@ impl TryFrom<&CybersourceRouterData<&PaymentsCompleteAuthorizeRouterData>>
     ) -> Result<Self, Self::Error> {
         let payment_method_data = item.router_data.request.payment_method_data.clone().ok_or(
             errors::ConnectorError::MissingRequiredField {
-                field_name: "payment_method_data",
+                field_name: "payment_method_data".into(),
             },
         )?;
         match payment_method_data {
@@ -5268,7 +5268,7 @@ impl TryFrom<(&AddressDetails, &PhoneDetails)> for CybersourceRecipientInfo {
                             .map(|state| truncate_string(state, 20)) //NOTE: Cybersource connector throws error if billing state exceeds 20 characters, so truncation is done to avoid payment failure
                     })
                     .ok_or_else(|| errors::ConnectorError::MissingRequiredField {
-                        field_name: "billing_address.state",
+                        field_name: "billing_address.state".into(),
                     })?
             },
             postal_code: billing_address.get_zip()?.to_owned(),
