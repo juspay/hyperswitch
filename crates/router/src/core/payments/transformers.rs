@@ -504,7 +504,11 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         installment_details: None,
         connector_intent_metadata: None,
         is_account_funded_transaction: payment_data.payment_intent.is_account_funded_transaction,
-        recipient_details: payment_data.payment_intent.recipient_details,
+        recipient_details: payment_data
+            .payment_intent
+            .get_recipient_details()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to parse recipient details")?,
     };
     let connector_mandate_request_reference_id = payment_data
         .payment_attempt
@@ -1822,7 +1826,11 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
         merchant_order_reference_id: None,
         mit_category: None,
         is_account_funded_transaction: payment_data.payment_intent.is_account_funded_transaction,
-        recipient_details: payment_data.payment_intent.recipient_details,
+        recipient_details: payment_data
+            .payment_intent
+            .get_recipient_details()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to parse recipient details")?,
     };
     let connector_mandate_request_reference_id = payment_data
         .payment_attempt
