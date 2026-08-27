@@ -9,7 +9,7 @@ license.workspace = true
 
 [features]
 default = ["redis-rs"]
-release = ["vergen", "external_services/aws_kms"]
+release = ["vergen", "external_services/aws_kms", "external_services/gcp_kms"]
 vergen = ["router_env/vergen"]
 v1 = ["diesel_models/v1", "external_services/v1", "hyperswitch_interfaces/v1", "common_utils/v1", "storage_impl/v1", "storage_impl/olap"]
 v2 = ["diesel_models/v2", "external_services/v2", "hyperswitch_interfaces/v2", "common_utils/v2", "storage_impl/v2"]
