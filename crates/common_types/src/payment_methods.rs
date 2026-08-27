@@ -1,5 +1,6 @@
 //! Common types to be used in payment methods
 
+#[cfg(feature = "diesel")]
 use diesel::{
     backend::Backend,
     deserialize,
@@ -17,9 +18,10 @@ use utoipa::ToSchema;
 // This is a performance optimization to avoid json validation at database level.
 // jsonb enables faster querying on json columns, but it doesn't justify here since we are not querying on this column.
 // https://docs.rs/diesel/latest/diesel/sql_types/struct.Jsonb.html
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema, AsExpression)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[cfg_attr(feature = "diesel", derive(AsExpression))]
 #[serde(deny_unknown_fields)]
-#[diesel(sql_type = Json)]
+#[cfg_attr(feature = "diesel", diesel(sql_type = Json))]
 pub struct PaymentMethodsEnabled {
     /// Type of payment method.
     #[schema(value_type = PaymentMethod,example = "card")]
@@ -30,6 +32,7 @@ pub struct PaymentMethodsEnabled {
 }
 
 // Custom FromSql implementation to handle deserialization of v1 data format
+#[cfg(feature = "diesel")]
 impl FromSql<Json, diesel::pg::Pg> for PaymentMethodsEnabled {
     fn from_sql(bytes: <diesel::pg::Pg as Backend>::RawValue<'_>) -> deserialize::Result<Self> {
         let helper: PaymentMethodsEnabledHelper = serde_json::from_slice(bytes.as_bytes())
@@ -39,6 +42,7 @@ impl FromSql<Json, diesel::pg::Pg> for PaymentMethodsEnabled {
 }
 
 // In this ToSql implementation, we are directly serializing the PaymentMethodsEnabled struct to JSON
+#[cfg(feature = "diesel")]
 impl ToSql<Json, diesel::pg::Pg> for PaymentMethodsEnabled {
     fn to_sql<'b>(
         &'b self,
@@ -234,6 +238,7 @@ pub enum AcceptedCurrencies {
     AllAccepted,
 }
 
+#[cfg(feature = "diesel")]
 impl<DB> Queryable<Jsonb, DB> for PaymentMethodsEnabled
 where
     DB: Backend,

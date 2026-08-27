@@ -7,13 +7,18 @@ rust-version.workspace = true
 license.workspace = true
 
 [features]
-default = []
+# Diesel ORM impls for these types. Default-on so hyperswitch is unaffected.
+# Must forward common_utils/diesel: the `impl_to_sql_from_sql_json!` macro this
+# crate calls 34 times is gated at its definition in common_utils, so it does
+# not exist as a symbol unless that feature is on.
+default = ["diesel"]
+diesel = ["dep:diesel", "common_utils/diesel"]
 v1 = ["common_utils/v1"]
 v2 = ["common_utils/v2"]
 tokenization_v2 = ["common_utils/tokenization_v2"]
 
 [dependencies]
-diesel = "2.2.10"
+diesel = { version = "2.2.10", features = ["postgres"], optional = true }
 serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0.140"
 utoipa = { version = "4.2.3", features = ["preserve_order", "preserve_path_order"] }
@@ -22,10 +27,10 @@ error-stack = "0.4.1"
 cpf_cnpj = "0.3"
 rust_decimal = { version = "1.37", features = ["maths"] }
 
-common_enums = { version = "0.1.0", path = "../common_enums" }
-common_utils = { version = "0.1.0", path = "../common_utils"}
+common_enums = { version = "0.1.0", path = "../common_enums", default-features = false }
+common_utils = { version = "0.1.0", path = "../common_utils", default-features = false }
 cards = { version = "0.1.0", path = "../cards"}
-euclid = { version = "0.1.0", path = "../euclid" }
+euclid = { version = "0.1.0", path = "../euclid", default-features = false }
 hyperswitch_masking = "0.0.1"
 smithy = { version = "0.1.0", path = "../smithy" }
 smithy-core = { version = "0.1.0", path = "../smithy-core" }

@@ -12,10 +12,13 @@ utoipa = { version = "4.2.3", features = ["preserve_order", "preserve_path_order
 
 # First party crates
 api_models = { version = "0.1.0", path = "../api_models", features = ["frm", "payouts", "openapi", "errors"] }
-common_utils = { version = "0.1.0", path = "../common_utils", features = ["logs"] }
-common_types = { version = "0.1.0", path = "../common_types" }
+common_utils = { version = "0.1.0", path = "../common_utils", features = ["logs"], default-features = false }
+# This crate has no diesel references; decline the default features of the
+# shared crates so it does not compile the ORM. Within hyperswitch other
+# crates request the defaults and feature unification restores them.
+common_types = { version = "0.1.0", path = "../common_types", default-features = false }
 router_env = { version = "0.1.0", path = "../router_env" }
-euclid = { version = "0.1.0", path = "../euclid" }
+euclid = { version = "0.1.0", path = "../euclid", default-features = false }
 
 [features]
 v2 = ["api_models/v2", "common_utils/v2", "api_models/tokenization_v2"]

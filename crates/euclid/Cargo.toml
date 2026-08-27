@@ -14,17 +14,21 @@ serde_json = "1.0.140"
 strum = { version = "0.26", features = ["derive"] }
 thiserror = "1.0.69"
 utoipa = { version = "4.2.3", features = ["preserve_order", "preserve_path_order"] }
-diesel = { version = "2.2.10", features = ["postgres", "128-column-tables"] }
+diesel = { version = "2.2.10", features = ["postgres", "128-column-tables"], optional = true }
 
 # First party dependencies
-common_enums = { version = "0.1.0", path = "../common_enums" }
-common_utils = { version = "0.1.0", path = "../common_utils" }
+common_enums = { version = "0.1.0", path = "../common_enums", default-features = false }
+common_utils = { version = "0.1.0", path = "../common_utils", default-features = false }
 euclid_macros = { version = "0.1.0", path = "../euclid_macros" }
 router_derive = { version = "0.1.0", path = "../router_derive" }
 hyperswitch_constraint_graph = { version = "0.1.0", path = "../hyperswitch_constraint_graph", features = ["viz"] }
 
 [features]
-default = []
+# euclid has exactly one diesel usage (the RoutableConnectors enum). Gate it so
+# consumers that never touch a database do not compile diesel. Default-on keeps
+# hyperswitch resolving exactly as before.
+default = ["diesel"]
+diesel = ["dep:diesel"]
 ast_parser = ["dep:nom"]
 valued_jit = []
 dummy_connector = []

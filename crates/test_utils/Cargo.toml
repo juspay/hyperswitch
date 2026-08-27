@@ -31,7 +31,10 @@ toml = "0.8.22"
 
 # First party crates
 hyperswitch_masking = "0.0.1"
-common_enums = { version = "0.1.0", path = "../common_enums" }
+# This crate has no diesel references; decline the default features of the
+# shared crates so it does not compile the ORM. Within hyperswitch other
+# crates request the defaults and feature unification restores them.
+common_enums = { version = "0.1.0", path = "../common_enums", default-features = false }
 
 [lints]
 workspace = true

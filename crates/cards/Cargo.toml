@@ -17,7 +17,10 @@ time = "0.3.41"
 regex = "1.11.1"
 
 # First party crates
-common_utils = { version = "0.1.0", path = "../common_utils" }
+# This crate has no diesel references; decline the default features of the
+# shared crates so it does not compile the ORM. Within hyperswitch other
+# crates request the defaults and feature unification restores them.
+common_utils = { version = "0.1.0", path = "../common_utils", default-features = false }
 hyperswitch_masking = "0.0.1"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
