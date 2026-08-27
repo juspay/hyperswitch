@@ -34276,6 +34276,12 @@
             "description": "The network transaction ID is a unique identifier for the transaction as recognized by the payment network (e.g., Visa, Mastercard), this ID can be used to reference it for future transactions or recurring payments.\nRefer `payment_method_tokenization_details` for detailed view of payment method tokenization",
             "nullable": true
           },
+          "payment_account_reference": {
+            "type": "string",
+            "description": "Payment Account Reference (PAR) returned by the connector for the underlying card, used to link tokenized and non-tokenized transactions for the same card.",
+            "example": "V001428640638148739",
+            "nullable": true
+          },
           "network_transaction_link_id": {
             "type": "string",
             "description": "The Mastercard Transaction Link Identifier (TLID) for this payment. Returned on CITs that set up\nstored credentials. External-vault merchants should persist this and echo it back on subsequent\nMIT requests. Mandatory for Mastercard recurring/MIT (no static fallback).",
@@ -36103,6 +36109,12 @@
           "network_transaction_id": {
             "type": "string",
             "description": "The network transaction ID is a unique identifier for the transaction as recognized by the payment network (e.g., Visa, Mastercard), this ID can be used to reference it for future transactions or recurring payments.\nRefer `payment_method_tokenization_details` for detailed view of payment method tokenization",
+            "nullable": true
+          },
+          "payment_account_reference": {
+            "type": "string",
+            "description": "Payment Account Reference (PAR) returned by the connector for the underlying card, used to link tokenized and non-tokenized transactions for the same card.",
+            "example": "V001428640638148739",
             "nullable": true
           },
           "network_transaction_link_id": {
