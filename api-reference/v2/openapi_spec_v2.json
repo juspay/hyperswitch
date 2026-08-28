@@ -7135,6 +7135,12 @@
           },
           {
             "$ref": "#/components/schemas/OpenBanking"
+          },
+          {
+            "$ref": "#/components/schemas/PayshapBankTransfer"
+          },
+          {
+            "$ref": "#/components/schemas/PayshapProxyBankTransfer"
           }
         ],
         "description": "Deprecated - Use `BankTransfer` instead"
@@ -7158,6 +7164,12 @@
           },
           {
             "$ref": "#/components/schemas/OpenBankingAdditionalData"
+          },
+          {
+            "$ref": "#/components/schemas/PayshapBankTransferAdditionalData"
+          },
+          {
+            "$ref": "#/components/schemas/PayshapProxyBankTransferAdditionalData"
           }
         ],
         "description": "Masked payout method details for bank payout method"
@@ -7854,7 +7866,421 @@
           "ulster_bank",
           "yoursafe",
           "n26",
-          "nationale_nederlanden"
+          "nationale_nederlanden",
+          "aib_business",
+          "aktia",
+          "alandsbanken",
+          "allianz_bank_financial_advisors_spa",
+          "allianz_banque",
+          "allied_irish_bank",
+          "allied_irish_bank_corporate",
+          "alto_adige",
+          "alto_adige_banca_suedtirol_bank",
+          "argenta",
+          "arkea_banque_entreprises_et_institutionnels",
+          "arkea_banque_privee",
+          "axa_banque",
+          "banca360_credito_cooperativo_fvg",
+          "banca_adria_colli_euganei",
+          "banca_agricola_popolare_di_ragusa",
+          "banca_alpi_marittime_cc_carru",
+          "banca_alta_toscana",
+          "banca_annia",
+          "banca_centro_emilia",
+          "banca_centro_lazio",
+          "banca_centro_toscana_umbria",
+          "banca_centropadana",
+          "banca_cesare_ponti",
+          "banca_del_catanzarese",
+          "banca_del_cilento_di_sassano_e_v",
+          "banca_del_piceno",
+          "banca_del_piemonte",
+          "banca_del_territorio_lombardo",
+          "banca_del_veneto_centrale",
+          "banca_della_marca_credcooperativo",
+          "banca_delle_terre_venete",
+          "banca_di_alba_credito_cooperativo",
+          "banca_di_anghiari_e_stia_cc",
+          "banca_di_bologna",
+          "banca_di_caraglio",
+          "banca_di_credito_popolare_scpa",
+          "banca_di_imola_spa",
+          "banca_di_pesaro",
+          "banca_di_pescia_e_cascina",
+          "banca_di_piacenza_scpa",
+          "banca_di_taranto_bcc",
+          "banca_di_udine_credito_coop",
+          "banca_don_rizzo",
+          "banca_fideuram",
+          "banca_finnat_euramerica_spa",
+          "banca_generali_spa",
+          "banca_lazio_nord",
+          "banca_malatestiana",
+          "banca_monte_dei_paschi_di_siena",
+          "banca_passadore",
+          "banca_patavina",
+          "banca_patrimoni_sella",
+          "banca_per_il_trentinoaltoadige",
+          "banca_popolare_del_lazio_scpa",
+          "banca_popolare_dell_alto_adige",
+          "banca_popolare_di_sondrio",
+          "banca_popolare_pugliese",
+          "banca_popolare_valconca_scpa",
+          "banca_san_francesco_credito_coop",
+          "banca_sella",
+          "banca_sistema_spa",
+          "banca_sviluppo_cooperaz_credito",
+          "banca_tema",
+          "banca_terre_etrusche_e_di_maremma",
+          "banca_territori_del_monviso",
+          "banca_valsabbina",
+          "banca_veronese_cc_di_concamarise",
+          "banco_azzoaglio",
+          "banco_bpm_spa_servizio_webank",
+          "banco_bpm_spa_servizio_youweb",
+          "banco_bpm_spa_youbusiness_web",
+          "banco_bpm_we_bank",
+          "banco_bpm_you_web",
+          "banco_de_sabadell",
+          "banco_desio_brianza",
+          "banco_di_sardegna",
+          "banco_marchigiano",
+          "banco_posta",
+          "banco_santander",
+          "bank_of_ireland",
+          "bank_of_ireland_business",
+          "bank_of_ireland_uk",
+          "bank_of_scotland_business",
+          "bankinter",
+          "banque_de_savoie",
+          "banque_populaire",
+          "barclaycard",
+          "barclays_business",
+          "bawag_psk",
+          "bbva",
+          "bcc_abruzzese_cappelle_sul_tavo",
+          "bcc_abruzzi_e_molise",
+          "bcc_adriatico_teramano",
+          "bcc_agro_bresciano",
+          "bcc_agro_pontino",
+          "bcc_alberobello_sammichele_monopoli",
+          "bcc_alto_tirreno_della_calabria",
+          "bcc_anagni",
+          "bcc_basilicata",
+          "bcc_bellegra",
+          "bcc_brescia",
+          "bcc_brianza_e_laghi",
+          "bcc_campania_centro",
+          "bcc_capaccio_paestum",
+          "bcc_castelli_romani_e_tuscolo",
+          "bcc_centro_calabria",
+          "bcc_conversano",
+          "bcc_degli_ulivi_terra_di_bari",
+          "bcc_dei_castelli_e_degli_iblei",
+          "bcc_dei_colli_albani",
+          "bcc_del_circeo_e_privernate",
+          "bcc_del_garda",
+          "bcc_del_metauro",
+          "bcc_del_velino",
+          "bcc_dell_alta_murgia",
+          "bcc_della_provincia_romana",
+          "bcc_della_romagna_occidentale",
+          "bcc_delle_madonie",
+          "bcc_di_altofonte_e_caccamo",
+          "bcc_di_aquara",
+          "bcc_di_arborea",
+          "bcc_di_bari",
+          "bcc_di_barlassina",
+          "bcc_di_bene_vagienna",
+          "bcc_di_binasco",
+          "bcc_di_buccino_e_comuni_cilentani",
+          "bcc_di_busto_garolfo_e_buguggiate",
+          "bcc_di_cagliari",
+          "bcc_di_canosa_loconia",
+          "bcc_di_caravaggio",
+          "bcc_di_cassano_delle_murge_e_tolve",
+          "bcc_di_cherasco",
+          "bcc_di_filottrano",
+          "bcc_di_flumeri",
+          "bcc_di_gambatesa",
+          "bcc_di_gaudiano_di_lavello",
+          "bcc_di_leverano",
+          "bcc_di_locorotondo",
+          "bcc_di_montepaone",
+          "bcc_di_napoli",
+          "bcc_di_ostra_e_morro_d_alba",
+          "bcc_di_ostuni",
+          "bcc_di_pachino",
+          "bcc_di_pergola_e_corinaldo",
+          "bcc_di_pianfei_e_rocca_de_baldi",
+          "bcc_di_pontassieve",
+          "bcc_di_recanati_e_colmurano",
+          "bcc_di_roma",
+          "bcc_di_san_giovanni_rotondo",
+          "bcc_di_san_marzano_di_san_giuseppe",
+          "bcc_di_santeramo_in_colle",
+          "bcc_di_sarsina",
+          "bcc_di_scafati_e_cetara",
+          "bcc_di_smarco_dei_cavoti",
+          "bcc_di_spello_e_del_velino",
+          "bcc_di_terra_d_otranto",
+          "bcc_felsinea",
+          "bcc_g_toniolo_di_san_cataldo",
+          "bcc_gran_sasso_d_italia",
+          "bcc_la_riscossa_di_regalbuto",
+          "bcc_lodi",
+          "bcc_milano",
+          "bcc_monte_pruno",
+          "bcc_nettuno",
+          "bcc_oglio_e_serio",
+          "bcc_pordenonese_e_monsile",
+          "bcc_pratola_peligna",
+          "bcc_prealpi_san_biagio",
+          "bcc_ravenna_forli_imola",
+          "bcc_san_giuseppe_di_mussomeli",
+          "bcc_terra_di_lavoro",
+          "bcc_triuggio_valle_del_lambro",
+          "bcc_valdarno_fiorentino",
+          "bcc_valdostana",
+          "bcc_valle_del_torto",
+          "bcc_veneta",
+          "bcc_venezia_giulia",
+          "bcc_versilia_lunigiana_e_garfagnana",
+          "bcc_vicentino_pojana_maggiore",
+          "belfius",
+          "beobank",
+          "bi_banca",
+          "blu_banca_spa",
+          "bnl",
+          "bnp_paribas_fortis",
+          "bourso_bank",
+          "bozen",
+          "bpe",
+          "bper_banca",
+          "bvr_banca_banche_venete_riunite",
+          "caisse_d_epargne",
+          "caixa",
+          "caja_rural",
+          "cajamar",
+          "cassa_centrale_banca",
+          "cassa_di_risparmio_di_bolzano",
+          "cassa_di_risparmio_di_fermo_spa",
+          "cassa_di_risparmio_di_savigliano",
+          "cassa_padana",
+          "cassa_rurale_alta_valsugana",
+          "cassa_rurale_alto_garda_rovereto",
+          "cassa_rurale_di_ledro",
+          "cassa_rurale_di_treviglio",
+          "cassa_rurale_fvg",
+          "cassa_rurale_renon",
+          "cassa_rurale_val_di_fiemme",
+          "cassa_rurale_val_di_sole",
+          "cassa_rurale_vallagarina",
+          "cassa_rurale_valsugana_e_tesino",
+          "castagneto_banca1910",
+          "cbc_banque",
+          "centromarca_banca",
+          "chiantibanca_credito_cooperativo",
+          "cic",
+          "clydesdale_bank",
+          "comdirect",
+          "commerzbank",
+          "cortinabanca",
+          "coutts",
+          "cr_val_di_non_rotaliana_e_giovo",
+          "cra_bcc_di_cantu",
+          "cra_di_borgo_san_giacomo",
+          "cra_di_boves",
+          "cra_di_paliano",
+          "credem",
+          "credifriuli",
+          "credit_mutuel",
+          "credit_mutuel_de_bretagne",
+          "credit_mutuel_du_sud_ouest",
+          "credito_cooperativo_agrigentino",
+          "credito_cooperativo_mediocrati",
+          "credito_cooperativo_romagnolo",
+          "credito_di_romagna",
+          "credito_lombardo_veneto",
+          "danske_bank_business",
+          "desio",
+          "deutsche_bank",
+          "dkb",
+          "easy_bank",
+          "ebs",
+          "emilbanca_cc",
+          "erste_bank",
+          "evo_banco",
+          "fineco",
+          "fintro",
+          "fortuneo",
+          "fpb_cassa_di_fassa_primiero_belluno",
+          "hello_bank",
+          "hsbc",
+          "hsbc_business",
+          "hype",
+          "hypo_vereinsbank",
+          "ibercaja",
+          "iccrea_banca_spa",
+          "illimity",
+          "imagin",
+          "imprebanca_spa",
+          "intesa_sanpaolo",
+          "intesa_sanpaolo_inbiz",
+          "intesa_sanpaolo_private_banking_spa",
+          "isybank",
+          "kbc",
+          "kbc_brussels",
+          "kutxabank",
+          "la_banque_postale",
+          "la_banque_postale_business",
+          "la_cassa_di_ravenna_spa",
+          "la_cassa_rurale",
+          "laboral_kutxa",
+          "lcl",
+          "lis_pay_spa",
+          "lloyds_business",
+          "lloyds_commercial",
+          "m_s_bank",
+          "mbna",
+          "mettle_bank",
+          "monabanq",
+          "mooney",
+          "mps",
+          "nat_west_bankline",
+          "nationwide",
+          "nordea",
+          "oma_sp",
+          "op",
+          "openbank",
+          "pop_pankki",
+          "post_bank",
+          "poste_pay_evolution",
+          "primacassa_fvg",
+          "ptsb",
+          "raiffeisen_algund",
+          "raiffeisen_alta_pusteria",
+          "raiffeisen_alta_venosta",
+          "raiffeisen_alto_adige",
+          "raiffeisen_bassa_atesina",
+          "raiffeisen_bassa_valle_isarco",
+          "raiffeisen_bassa_venosta",
+          "raiffeisen_bolzano",
+          "raiffeisen_bozen",
+          "raiffeisen_bruneck",
+          "raiffeisen_brunico",
+          "raiffeisen_campo_di_trens",
+          "raiffeisen_cassa_centr_alto_adige",
+          "raiffeisen_castelrottoortisei",
+          "raiffeisen_deutschnofenaldein",
+          "raiffeisen_dobbiaco",
+          "raiffeisen_eisacktal",
+          "raiffeisen_etschtal",
+          "raiffeisen_freienfeld",
+          "raiffeisen_funes",
+          "raiffeisen_gadertal",
+          "raiffeisen_groeden",
+          "raiffeisen_hochpustertal",
+          "raiffeisen_kastelruthstulrich",
+          "raiffeisen_laas",
+          "raiffeisen_laces",
+          "raiffeisen_lagundo",
+          "raiffeisen_lana",
+          "raiffeisen_landesbank_suedtirol",
+          "raiffeisen_lasa",
+          "raiffeisen_latsch",
+          "raiffeisen_marlengo",
+          "raiffeisen_marling",
+          "raiffeisen_meran",
+          "raiffeisen_merano",
+          "raiffeisen_monguelfocasiestesido",
+          "raiffeisen_niederdorf",
+          "raiffeisenbank",
+          "royal_bank_of_scotland_bankline",
+          "s_pankki",
+          "saastopankki",
+          "santander",
+          "santander_business",
+          "santander_personal",
+          "sparkasse",
+          "targo_bank",
+          "tide",
+          "triodos",
+          "tsb",
+          "ulster_bankline",
+          "unicaja",
+          "virgin_money",
+          "virgin_money_merged",
+          "volksbanken_raiffeisenbanken",
+          "wise",
+          "yorkshire_bank",
+          "zempler",
+          "raiffeisen_nova_levante",
+          "raiffeisen_nova_ponentealdino",
+          "raiffeisen_obervinschgau",
+          "raiffeisen_oltradige",
+          "raiffeisen_parcines",
+          "raiffeisen_partschins",
+          "raiffeisen_passeier",
+          "raiffeisen_pradtaufers",
+          "raiffeisen_pratotubre",
+          "raiffeisen_salorno",
+          "raiffeisen_salurn",
+          "raiffeisen_san_martino_in_passiria",
+          "raiffeisen_sarntal",
+          "raiffeisen_scena",
+          "raiffeisen_schenna",
+          "raiffeisen_schlanders",
+          "raiffeisen_schlernrosengarten",
+          "raiffeisen_silandro",
+          "raiffeisen_suedtirol",
+          "raiffeisen_taufererahrntal",
+          "raiffeisen_tesimo",
+          "raiffeisen_tirol",
+          "raiffeisen_tirolo",
+          "raiffeisen_tisens",
+          "raiffeisen_toblach",
+          "raiffeisen_turesaurina",
+          "raiffeisen_ueberetsch",
+          "raiffeisen_ultenstpankrazlaurein",
+          "raiffeisen_ultimospancrlaur",
+          "raiffeisen_untereisacktal",
+          "raiffeisen_unterland",
+          "raiffeisen_untervinschgau",
+          "raiffeisen_val_badia",
+          "raiffeisen_val_gardena",
+          "raiffeisen_val_passiria",
+          "raiffeisen_val_sarentino",
+          "raiffeisen_valle_isarco",
+          "raiffeisen_vandoies",
+          "raiffeisen_villabassa",
+          "raiffeisen_villnoess",
+          "raiffeisen_vintl",
+          "raiffeisen_welsberggsiestaisten",
+          "raiffeisen_welschnofen",
+          "raiffeisen_wipptal",
+          "raiffeisenkasse_ritten",
+          "riviera_banca",
+          "romagna_banca",
+          "sella",
+          "sicilbanca",
+          "solution_bank",
+          "suedtiroler",
+          "suedtiroler_sparkasse",
+          "suedtiroler_volksbank",
+          "unicredit",
+          "unicredit_online_banking",
+          "unicredit_uniweb_corporate",
+          "valpolicella_benaco_banca",
+          "volksbank",
+          "volksbank_banca_popolare",
+          "widiba",
+          "zkb_credcoopdi_trieste_e_gorizia",
+          "asn",
+          "sns",
+          "seb",
+          "swedbank",
+          "mock_uk_payments"
         ]
       },
       "BankRedirect": {
@@ -8627,6 +9053,48 @@
                     "type": "string",
                     "enum": [
                       "open_banking"
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PayshapBankTransfer"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "payout_method_type"
+                ],
+                "properties": {
+                  "payout_method_type": {
+                    "type": "string",
+                    "enum": [
+                      "payshap"
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PayshapProxyBankTransfer"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "payout_method_type"
+                ],
+                "properties": {
+                  "payout_method_type": {
+                    "type": "string",
+                    "enum": [
+                      "payshap_proxy"
                     ]
                   }
                 }
@@ -9518,6 +9986,24 @@
             "description": "Card Issuer",
             "example": "JP MORGAN CHASE",
             "nullable": true
+          },
+          "card_type": {
+            "type": "string",
+            "description": "Funding type of the card, `credit` or `debit`, enriched from the card bin",
+            "example": "credit",
+            "nullable": true
+          },
+          "card_issuing_country": {
+            "type": "string",
+            "description": "Country in which the card was issued, enriched from the card bin",
+            "example": "INDIA",
+            "nullable": true
+          },
+          "card_isin": {
+            "type": "string",
+            "description": "Issuer identification number of the card, retained so that any further card details can\nbe looked up from it later",
+            "example": "424242",
+            "nullable": true
           }
         }
       },
@@ -9677,6 +10163,11 @@
           "created_at": {
             "type": "string",
             "format": "date-time"
+          },
+          "profile_id": {
+            "type": "string",
+            "example": "pro_abcdefghijklmnop",
+            "nullable": true
           }
         }
       },
@@ -11466,6 +11957,7 @@
           "globalpay",
           "globepay",
           "gocardless",
+          "gotyme_sanlam",
           "gpayments",
           "hipay",
           "helcim",
@@ -11474,6 +11966,7 @@
           "interpayments",
           "inespay",
           "iatapay",
+          "ilixium",
           "imerchantsolutions",
           "itaubank",
           "jpmorgan",
@@ -11541,6 +12034,7 @@
           "wise",
           "worldline",
           "worldpay",
+          "worldpayraft",
           "worldpayvantiv",
           "worldpayxml",
           "worldpaymodular",
@@ -12918,6 +13412,15 @@
         },
         "additionalProperties": false
       },
+      "CustomerAcceptanceSupport": {
+        "type": "string",
+        "description": "Returned in the payment method list response so the SDK,\ncan help decide whether to show the \"save my details\" checkbox and how to word it.",
+        "enum": [
+          "supported",
+          "partially_supported",
+          "unsupported"
+        ]
+      },
       "CustomerDefaultPaymentMethodResponse": {
         "type": "object",
         "required": [
@@ -13043,6 +13546,13 @@
                 "$ref": "#/components/schemas/CustomerDocumentDetails"
               }
             ],
+            "nullable": true
+          },
+          "date_of_birth": {
+            "type": "string",
+            "format": "date",
+            "description": "The customer's date of birth",
+            "example": "1990-01-31",
             "nullable": true
           }
         }
@@ -15523,6 +16033,14 @@
           "eci_indicator"
         ],
         "properties": {
+          "auth_method": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/GooglePayAuthMethod"
+              }
+            ],
+            "nullable": true
+          },
           "card_exp_month": {
             "type": "string",
             "description": "The card's expiry month"
@@ -15805,6 +16323,13 @@
             "description": "indicates that identification and verifications (ID&V) was performed"
           }
         }
+      },
+      "GooglePayAuthMethod": {
+        "type": "string",
+        "enum": [
+          "PAN_ONLY",
+          "CRYPTOGRAM_3DS"
+        ]
       },
       "GooglePayCardFundingSource": {
         "type": "string",
@@ -17476,6 +18001,313 @@
         "properties": {
           "mask": {
             "type": "string"
+          },
+          "account_holder_name": {
+            "type": "string",
+            "nullable": true
+          },
+          "bank_name": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "MaskedRecipientAccount": {
+        "oneOf": [
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MaskedRecipientBankAccount"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "type"
+                ],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "bank_account"
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "type": "object",
+            "description": "A partially masked card.",
+            "required": [
+              "card_number",
+              "type"
+            ],
+            "properties": {
+              "card_number": {
+                "type": "string",
+                "description": "The recipient's partially masked card number.",
+                "example": "411111******1111"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "card"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "A partially masked wallet.",
+            "required": [
+              "wallet_id",
+              "type"
+            ],
+            "properties": {
+              "wallet_id": {
+                "type": "string",
+                "description": "The partially masked identifier of the recipient's wallet.",
+                "example": "wall****8891"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "wallet"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "A masked email address.",
+            "required": [
+              "email",
+              "type"
+            ],
+            "properties": {
+              "email": {
+                "type": "string",
+                "description": "The email address that identifies the recipient's account.",
+                "example": "ja******@example.com"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "email"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "A partially masked phone number.",
+            "required": [
+              "phone_number",
+              "type"
+            ],
+            "properties": {
+              "phone_number": {
+                "type": "string",
+                "description": "The phone number that identifies the recipient's account.",
+                "example": "9123****6789"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "phone"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "A partially masked social network handle.",
+            "required": [
+              "social_network_id",
+              "type"
+            ],
+            "properties": {
+              "social_network_id": {
+                "type": "string",
+                "description": "The social network identifier of the recipient.",
+                "example": "jane****.doe"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "social_network"
+                ]
+              }
+            }
+          }
+        ],
+        "description": "A partially masked view of `RecipientAccount`, safe to return in API responses.",
+        "discriminator": {
+          "propertyName": "type"
+        }
+      },
+      "MaskedRecipientBankAccount": {
+        "oneOf": [
+          {
+            "type": "object",
+            "description": "A partially masked International Bank Account Number.",
+            "required": [
+              "iban",
+              "bank_account_type"
+            ],
+            "properties": {
+              "iban": {
+                "type": "string",
+                "description": "The recipient's partially masked IBAN.",
+                "example": "GB29N************46864"
+              },
+              "bank_account_type": {
+                "type": "string",
+                "enum": [
+                  "iban"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "A partially masked account number and routing number.",
+            "required": [
+              "account_number",
+              "routing_number",
+              "bank_account_type"
+            ],
+            "properties": {
+              "account_number": {
+                "type": "string",
+                "description": "The recipient's partially masked bank account number.",
+                "example": "0001****6789"
+              },
+              "routing_number": {
+                "type": "string",
+                "description": "The partially masked routing number of the recipient's bank.",
+                "example": "110***000"
+              },
+              "bank_account_type": {
+                "type": "string",
+                "enum": [
+                  "routing_number"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "A partially masked account number and BIC.",
+            "required": [
+              "account_number",
+              "bic",
+              "bank_account_type"
+            ],
+            "properties": {
+              "account_number": {
+                "type": "string",
+                "description": "The recipient's partially masked bank account number.",
+                "example": "0987****5432"
+              },
+              "bic": {
+                "type": "string",
+                "description": "The partially masked Bank Identification Code of the recipient's bank.",
+                "example": "HBU***4B"
+              },
+              "bank_account_type": {
+                "type": "string",
+                "enum": [
+                  "bic"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "A partially masked bare bank account number.",
+            "required": [
+              "account_number",
+              "bank_account_type"
+            ],
+            "properties": {
+              "account_number": {
+                "type": "string",
+                "description": "The recipient's partially masked bank account number.",
+                "example": "0001****6789"
+              },
+              "bank_account_type": {
+                "type": "string",
+                "enum": [
+                  "account_number"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "A truncated primary account number. This is already the industry standard truncated form,\nso it is returned as supplied.",
+            "required": [
+              "card_isin",
+              "last4",
+              "bank_account_type"
+            ],
+            "properties": {
+              "card_isin": {
+                "type": "string",
+                "description": "The first six digits of the recipient's PAN.",
+                "example": "411111"
+              },
+              "last4": {
+                "type": "string",
+                "description": "The last four digits of the recipient's PAN.",
+                "example": "1111"
+              },
+              "bank_account_type": {
+                "type": "string",
+                "enum": [
+                  "truncated_pan"
+                ]
+              }
+            }
+          }
+        ],
+        "description": "A partially masked view of `RecipientBankAccount`, safe to return in API responses.",
+        "discriminator": {
+          "propertyName": "bank_account_type"
+        }
+      },
+      "MaskedRecipientDetails": {
+        "type": "object",
+        "description": "A partially masked view of `RecipientDetails`, safe to return in API responses.",
+        "properties": {
+          "account": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MaskedRecipientAccount"
+              }
+            ],
+            "nullable": true
+          },
+          "phone_number": {
+            "type": "string",
+            "description": "The recipient's partially masked phone number.",
+            "example": "9123****6789",
+            "nullable": true
+          },
+          "tax_id": {
+            "type": "string",
+            "description": "The recipient's partially masked tax identifier.",
+            "example": "162.****41-42",
+            "nullable": true
+          },
+          "address": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AddressDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -21524,6 +22356,11 @@
             "type": "boolean",
             "description": "Flag to display the merchant name in the payment link",
             "nullable": true
+          },
+          "payment_methods_separator_text": {
+            "type": "string",
+            "description": "Custom text for the separator shown between wallet and card payment method sections",
+            "nullable": true
           }
         }
       },
@@ -21712,6 +22549,13 @@
             "default": true,
             "example": true,
             "nullable": true
+          },
+          "payment_methods_separator_text": {
+            "type": "string",
+            "description": "Custom text for the separator shown between wallet and card payment method sections",
+            "example": "Or pay with",
+            "nullable": true,
+            "maxLength": 64
           }
         }
       },
@@ -23566,7 +24410,9 @@
           "revolut_pay",
           "indonesian_bank_transfer",
           "open_banking",
-          "network_token"
+          "network_token",
+          "payshap",
+          "payshap_proxy"
         ]
       },
       "PaymentMethodUpdate": {
@@ -24193,6 +25039,20 @@
             "description": "Allow partial authorization for this payment",
             "default": false,
             "nullable": true
+          },
+          "is_account_funded_transaction": {
+            "type": "boolean",
+            "description": "Indicates whether this payment is an account funded transaction, where funds are pulled\nfrom a card account to fund another account rather than to pay for goods or services.",
+            "example": true,
+            "nullable": true
+          },
+          "recipient_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RecipientDetails"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -24561,6 +25421,20 @@
             "type": "boolean",
             "description": "Allow partial authorization for this payment",
             "default": false,
+            "nullable": true
+          },
+          "is_account_funded_transaction": {
+            "type": "boolean",
+            "description": "Indicates whether this payment is an account funded transaction.",
+            "example": true,
+            "nullable": true
+          },
+          "recipient_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MaskedRecipientDetails"
+              }
+            ],
             "nullable": true
           }
         },
@@ -25041,6 +25915,20 @@
             "type": "string",
             "description": "The webhook endpoint URL to receive payment status notifications",
             "example": "https://merchant.example.com/webhooks/payment",
+            "nullable": true
+          },
+          "is_account_funded_transaction": {
+            "type": "boolean",
+            "description": "Indicates whether this payment is an account funded transaction, where funds are pulled\nfrom a card account to fund another account rather than to pay for goods or services.",
+            "example": true,
+            "nullable": true
+          },
+          "recipient_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RecipientDetails"
+              }
+            ],
             "nullable": true
           }
         },
@@ -25536,6 +26424,20 @@
             "description": "Allow partial authorization for this payment",
             "default": false,
             "nullable": true
+          },
+          "is_account_funded_transaction": {
+            "type": "boolean",
+            "description": "Indicates whether this payment is an account funded transaction.",
+            "example": true,
+            "nullable": true
+          },
+          "recipient_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RecipientDetails"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -25650,6 +26552,7 @@
           "deutschebank",
           "ebanx",
           "gigadat",
+          "gotyme_sanlam",
           "loonio",
           "nomupay",
           "nuvei",
@@ -26175,6 +27078,12 @@
             "type": "string",
             "description": "Underlying processor's payout resource ID",
             "example": "S3FC9G9M2MVFDXT5",
+            "nullable": true
+          },
+          "connector_eligibility_reference_id": {
+            "type": "string",
+            "description": "Underlying processor's reference ID for the payout eligibility check",
+            "example": "8ad8bf30-5789-52be-a80a-72908abf5f9d",
             "nullable": true
           },
           "priority": {
@@ -26940,6 +27849,96 @@
       },
       "PayseraData": {
         "type": "object"
+      },
+      "PayshapBankTransfer": {
+        "type": "object",
+        "required": [
+          "bank_account_number"
+        ],
+        "properties": {
+          "bank_account_number": {
+            "type": "string",
+            "description": "Bank account number is a unique identifier assigned by a bank to a customer.",
+            "example": "1234567890"
+          },
+          "account_holder_name": {
+            "type": "string",
+            "description": "Bank account holder name. Required for interbank transfers.",
+            "example": "John Doe",
+            "nullable": true
+          },
+          "bank_name": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BankNames"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "PayshapBankTransferAdditionalData": {
+        "type": "object",
+        "description": "Masked payout method details for PayShap bank transfer payout method",
+        "required": [
+          "bank_account_number"
+        ],
+        "properties": {
+          "bank_account_number": {
+            "type": "string",
+            "description": "Bank account number is a unique identifier assigned by a bank to a customer.",
+            "example": "**** 67890"
+          },
+          "account_holder_name": {
+            "type": "string",
+            "description": "Bank account holder name.",
+            "example": "John Doe",
+            "nullable": true
+          },
+          "bank_name": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BankNames"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "PayshapProxyBankTransfer": {
+        "type": "object",
+        "properties": {
+          "cellphone": {
+            "type": "string",
+            "description": "Cellphone proxy. Required when proxy_type is cellphone.",
+            "example": "+27821234567",
+            "nullable": true
+          },
+          "shap_id": {
+            "type": "string",
+            "description": "Shap ID proxy. Required when proxy_type is shap_id.",
+            "example": "21e3123",
+            "nullable": true
+          }
+        }
+      },
+      "PayshapProxyBankTransferAdditionalData": {
+        "type": "object",
+        "description": "Masked payout method details for PayShap proxy bank transfer payout method",
+        "properties": {
+          "cellphone": {
+            "type": "string",
+            "description": "Cellphone proxy.",
+            "example": "******* 4567",
+            "nullable": true
+          },
+          "shap_id": {
+            "type": "string",
+            "description": "Shap ID proxy.",
+            "example": "**** 3123",
+            "nullable": true
+          }
+        }
       },
       "PazeSessionTokenResponse": {
         "type": "object",
@@ -28824,6 +29823,308 @@
           }
         }
       },
+      "RecipientAccount": {
+        "oneOf": [
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RecipientBankAccount"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "type"
+                ],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "bank_account"
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "type": "object",
+            "description": "Funds are credited to a card.",
+            "required": [
+              "card_number",
+              "type"
+            ],
+            "properties": {
+              "card_number": {
+                "type": "string",
+                "description": "The recipient's card number.",
+                "example": "4111111111111111"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "card"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "Funds are credited to a wallet held for the recipient.",
+            "required": [
+              "wallet_id",
+              "type"
+            ],
+            "properties": {
+              "wallet_id": {
+                "type": "string",
+                "description": "The identifier of the recipient's wallet.",
+                "example": "wallet_8891"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "wallet"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "The recipient's account is identified by their email address.",
+            "required": [
+              "email",
+              "type"
+            ],
+            "properties": {
+              "email": {
+                "type": "string",
+                "description": "The email address that identifies the recipient's account.",
+                "example": "jane.doe@example.com"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "email"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "The recipient's account is identified by their phone number.",
+            "required": [
+              "phone_number",
+              "type"
+            ],
+            "properties": {
+              "phone_number": {
+                "type": "string",
+                "description": "The phone number that identifies the recipient's account.",
+                "example": "9123456789"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "phone"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "The recipient's account is identified by a social network handle.",
+            "required": [
+              "social_network_id",
+              "type"
+            ],
+            "properties": {
+              "social_network_id": {
+                "type": "string",
+                "description": "The social network identifier of the recipient.",
+                "example": "jane.doe"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "social_network"
+                ]
+              }
+            }
+          }
+        ],
+        "description": "The account that receives the funds in an account funded transaction.",
+        "discriminator": {
+          "propertyName": "type"
+        }
+      },
+      "RecipientBankAccount": {
+        "oneOf": [
+          {
+            "type": "object",
+            "description": "An International Bank Account Number.",
+            "required": [
+              "iban",
+              "bank_account_type"
+            ],
+            "properties": {
+              "iban": {
+                "type": "string",
+                "description": "The recipient's IBAN.",
+                "example": "GB29NWBK70361331946864"
+              },
+              "bank_account_type": {
+                "type": "string",
+                "enum": [
+                  "iban"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "A bank account number paired with the routing number of the holding bank.",
+            "required": [
+              "account_number",
+              "routing_number",
+              "bank_account_type"
+            ],
+            "properties": {
+              "account_number": {
+                "type": "string",
+                "description": "The recipient's bank account number.",
+                "example": "000123456789"
+              },
+              "routing_number": {
+                "type": "string",
+                "description": "The routing number of the recipient's bank.",
+                "example": "110000000"
+              },
+              "bank_account_type": {
+                "type": "string",
+                "enum": [
+                  "routing_number"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "A bank account number paired with the BIC of the holding bank.",
+            "required": [
+              "account_number",
+              "bic",
+              "bank_account_type"
+            ],
+            "properties": {
+              "account_number": {
+                "type": "string",
+                "description": "The recipient's bank account number.",
+                "example": "09875432"
+              },
+              "bic": {
+                "type": "string",
+                "description": "The Bank Identification Code of the recipient's bank.",
+                "example": "HBUKGB4B"
+              },
+              "bank_account_type": {
+                "type": "string",
+                "enum": [
+                  "bic"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "A bare bank account number, where the scheme does not require a bank identifier.",
+            "required": [
+              "account_number",
+              "bank_account_type"
+            ],
+            "properties": {
+              "account_number": {
+                "type": "string",
+                "description": "The recipient's bank account number.",
+                "example": "000123456789"
+              },
+              "bank_account_type": {
+                "type": "string",
+                "enum": [
+                  "account_number"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "A truncated primary account number, made up of the first six and last four digits.",
+            "required": [
+              "card_isin",
+              "last4",
+              "bank_account_type"
+            ],
+            "properties": {
+              "card_isin": {
+                "type": "string",
+                "description": "The first six digits of the recipient's PAN.",
+                "example": "411111",
+                "maxLength": 6
+              },
+              "last4": {
+                "type": "string",
+                "description": "The last four digits of the recipient's PAN.",
+                "example": "1111",
+                "maxLength": 4
+              },
+              "bank_account_type": {
+                "type": "string",
+                "enum": [
+                  "truncated_pan"
+                ]
+              }
+            }
+          }
+        ],
+        "discriminator": {
+          "propertyName": "bank_account_type"
+        }
+      },
+      "RecipientDetails": {
+        "type": "object",
+        "description": "Details of the party receiving the funds in an account funded transaction.",
+        "properties": {
+          "account": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RecipientAccount"
+              }
+            ],
+            "nullable": true
+          },
+          "phone_number": {
+            "type": "string",
+            "description": "The recipient's phone number.",
+            "example": "9123456789",
+            "nullable": true,
+            "maxLength": 20
+          },
+          "tax_id": {
+            "type": "string",
+            "description": "The recipient's tax identifier. Some connectors require this for recipients in Brazil\n(CPF or CNPJ) and Argentina.",
+            "example": "162.152.541-42",
+            "nullable": true,
+            "maxLength": 25
+          },
+          "address": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AddressDetails"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
       "ReconStatus": {
         "type": "string",
         "enum": [
@@ -29500,7 +30801,8 @@
             "required": [
               "payment_method_type",
               "payment_method_subtype",
-              "required_fields"
+              "required_fields",
+              "customer_acceptance_support"
             ],
             "properties": {
               "payment_method_type": {
@@ -29515,6 +30817,9 @@
                   "$ref": "#/components/schemas/RequiredFieldInfo"
                 },
                 "description": "Required fields for the payment_method_type.\nThis is the union of all the required fields for the payment method type enabled in all the connectors."
+              },
+              "customer_acceptance_support": {
+                "$ref": "#/components/schemas/CustomerAcceptanceSupport"
               }
             }
           }
@@ -29961,10 +31266,12 @@
           "globalpay",
           "globepay",
           "gocardless",
+          "gotyme_sanlam",
           "hipay",
           "helcim",
           "hyperpg",
           "iatapay",
+          "ilixium",
           "imerchantsolutions",
           "inespay",
           "interpayments",
@@ -30030,6 +31337,7 @@
           "worldline",
           "worldpay",
           "worldpaymodular",
+          "worldpayraft",
           "worldpayvantiv",
           "worldpayxml",
           "xendit",

@@ -230,6 +230,7 @@ pub struct CardSource {
     pub number: cards::CardNumber,
     pub expiry_month: Secret<String>,
     pub expiry_year: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub cvv: Option<Secret<String>>,
     pub billing_address: Option<CheckoutAddress>,
     pub account_holder: Option<CheckoutAccountHolderDetails>,
@@ -300,7 +301,7 @@ pub struct GooglePayPredecrypt {
     expiry_month: Secret<String>,
     expiry_year: Secret<String>,
     eci: String,
-    cryptogram: Option<Secret<String>>,
+    cryptogram: Secret<String>,
     pub billing_address: Option<CheckoutAddress>,
 }
 
@@ -682,18 +683,34 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
                                     field_name: "payment_method_data.card.card_exp_year",
                                 })?;
 
-                            let cryptogram = google_pay_decrypted_data.cryptogram.clone();
-
-                            PaymentSource::GooglePayPredecrypt(Box::new(GooglePayPredecrypt {
-                                _type: "network_token".to_string(),
-                                token,
-                                token_type: "googlepay".to_string(),
-                                expiry_month,
-                                expiry_year,
-                                eci: "06".to_string(),
-                                cryptogram,
-                                billing_address: billing_details,
-                            }))
+                            match (
+                                google_pay_decrypted_data.cryptogram.clone(),
+                                google_pay_decrypted_data.eci_indicator.clone(),
+                            ) {
+                                (Some(cryptogram), Some(eci)) => {
+                                    PaymentSource::GooglePayPredecrypt(Box::new(
+                                        GooglePayPredecrypt {
+                                            _type: "network_token".to_string(),
+                                            token,
+                                            token_type: "googlepay".to_string(),
+                                            expiry_month,
+                                            expiry_year,
+                                            eci,
+                                            cryptogram,
+                                            billing_address: billing_details,
+                                        },
+                                    ))
+                                }
+                                _ => PaymentSource::Card(CardSource {
+                                    source_type: CheckoutSourceTypes::Card,
+                                    number: token,
+                                    expiry_month,
+                                    expiry_year,
+                                    cvv: None,
+                                    billing_address: billing_details,
+                                    account_holder: None,
+                                }),
+                            }
                         }
                     };
                     Ok((
@@ -946,30 +963,38 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
 
         let authentication_data = item.router_data.request.authentication_data.as_ref();
 
-        let three_ds = match item.router_data.auth_type {
-            enums::AuthenticationType::ThreeDs => CheckoutThreeDS {
-                enabled: true,
-                force_3ds: true,
-                eci: authentication_data.and_then(|auth| auth.eci.clone()),
-                cryptogram: authentication_data.map(|auth| auth.cavv.clone()),
-                xid: authentication_data
-                    .and_then(|auth| auth.threeds_server_transaction_id.clone()),
-                version: authentication_data.and_then(|auth| {
-                    auth.message_version
-                        .clone()
-                        .map(|version| version.to_string())
-                }),
-                challenge_indicator,
-            },
-            enums::AuthenticationType::NoThreeDs => CheckoutThreeDS {
+        let three_ds = if let Some(auth) = authentication_data {
+            // External 3DS passthrough: merchant already authenticated, send proof without asking Checkout to re-run 3DS
+            CheckoutThreeDS {
                 enabled: false,
                 force_3ds: false,
-                eci: None,
-                cryptogram: None,
-                xid: None,
-                version: None,
+                eci: auth.eci.clone(),
+                cryptogram: Some(auth.cavv.clone()),
+                xid: auth.threeds_server_transaction_id.clone(),
+                version: auth.message_version.clone().map(|v| v.to_string()),
                 challenge_indicator: CheckoutChallengeIndicator::NoPreference,
-            },
+            }
+        } else {
+            match item.router_data.auth_type {
+                enums::AuthenticationType::ThreeDs => CheckoutThreeDS {
+                    enabled: true,
+                    force_3ds: true,
+                    eci: None,
+                    cryptogram: None,
+                    xid: None,
+                    version: None,
+                    challenge_indicator,
+                },
+                enums::AuthenticationType::NoThreeDs => CheckoutThreeDS {
+                    enabled: false,
+                    force_3ds: false,
+                    eci: None,
+                    cryptogram: None,
+                    xid: None,
+                    version: None,
+                    challenge_indicator: CheckoutChallengeIndicator::NoPreference,
+                },
+            }
         };
 
         let return_url = ReturnUrl {
@@ -1289,6 +1314,7 @@ pub struct Source {
     id: Option<String>,
     avs_check: Option<String>,
     cvv_check: Option<String>,
+    payment_account_reference: Option<String>,
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
@@ -1436,6 +1462,11 @@ impl TryFrom<PaymentsResponseRouterData<PaymentsResponse>> for PaymentsAuthorize
             connector_response_reference_id: Some(
                 item.response.reference.unwrap_or(item.response.id),
             ),
+            payment_account_reference: item
+                .response
+                .source
+                .as_ref()
+                .and_then(|source| source.payment_account_reference.clone()),
             incremental_authorization_allowed: None,
             authentication_data: None,
             charges: None,
@@ -1560,6 +1591,11 @@ impl
             connector_response_reference_id: Some(
                 item.response.reference.unwrap_or(item.response.id),
             ),
+            payment_account_reference: item
+                .response
+                .source
+                .as_ref()
+                .and_then(|source| source.payment_account_reference.clone()),
             incremental_authorization_allowed: None,
             authentication_data: None,
             charges: None,
@@ -1653,6 +1689,11 @@ impl TryFrom<PaymentsSyncResponseRouterData<PaymentsResponse>> for PaymentsSyncR
             connector_response_reference_id: Some(
                 item.response.reference.unwrap_or(item.response.id),
             ),
+            payment_account_reference: item
+                .response
+                .source
+                .as_ref()
+                .and_then(|source| source.payment_account_reference.clone()),
             incremental_authorization_allowed: None,
             authentication_data: None,
             charges: None,
@@ -1732,6 +1773,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<PaymentVoidResponse>> for Payments
                 network_txn_id: item.response.scheme_id.clone(),
                 network_txn_link_id: None,
                 connector_response_reference_id: None,
+                payment_account_reference: None,
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
@@ -1836,6 +1878,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<PaymentCaptureResponse>>
                 network_txn_id: item.response.scheme_id.clone(),
                 network_txn_link_id: None,
                 connector_response_reference_id: item.response.reference,
+                payment_account_reference: None,
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
@@ -2345,10 +2388,11 @@ impl TryFrom<&webhooks::IncomingWebhookRequestDetails<'_>> for PaymentsResponse 
             currency: Some(data.currency),
             processed_on: data.processed_on,
             approved: data.approved,
-            source: Some(Source {
-                id: details.source.clone().and_then(|src| src.id),
-                avs_check: details.source.clone().and_then(|src| src.avs_check),
-                cvv_check: details.source.clone().and_then(|src| src.cvv_check),
+            source: details.source.as_ref().map(|src| Source {
+                id: src.id.clone(),
+                avs_check: src.avs_check.clone(),
+                cvv_check: src.cvv_check.clone(),
+                payment_account_reference: src.payment_account_reference.clone(),
             }),
             scheme_id: None,
             processing: None,

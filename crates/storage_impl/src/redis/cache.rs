@@ -271,13 +271,46 @@ impl Cache {
         }
     }
 
+    // Deja: recorded args-only for population accounting; the real moka insert
+    // still runs on replay (`replay = Execute`).
+    #[cfg_attr(
+        feature = "deja",
+        deja::boundary(
+            boundary = "imc",
+            component = "storage_impl::redis::cache",
+            operation = "in_memory_push",
+            replay = Execute,
+            effect = Imc,
+            codec = SerdeCodec,
+            args = deja_in_memory_args(self.name, &key),
+        )
+    )]
     pub async fn push<T: Cacheable>(&self, key: CacheKey, val: T) {
         self.inner
             .insert(in_memory_cache_key(key), Arc::new(val))
             .await;
     }
 
-    pub async fn get_val<T: Clone + Cacheable>(&self, key: CacheKey) -> Option<T> {
+    // Deja: the L1 seam, instrumented on the method itself so no call path can
+    // bypass it. A recorded `Some(v)` substitutes on replay; a recorded `None`
+    // re-triggers the caller's fallback. The serde bound is deliberately
+    // unconditional: a type that cannot be captured cannot be cached.
+    #[cfg_attr(
+        feature = "deja",
+        deja::boundary(
+            boundary = "imc",
+            component = "storage_impl::redis::cache",
+            operation = "in_memory_get",
+            replay = Substitute,
+            effect = Imc,
+            codec = SerdeCodec,
+            args = deja_in_memory_args(self.name, &key),
+        )
+    )]
+    pub async fn get_val<T>(&self, key: CacheKey) -> Option<T>
+    where
+        T: Clone + Cacheable + serde::Serialize + serde::de::DeserializeOwned,
+    {
         let val = self.inner.get::<String>(&in_memory_cache_key(key)).await;
 
         // Add cache hit and cache miss metrics
@@ -295,10 +328,36 @@ impl Cache {
     }
 
     /// Check if a key exists in cache
+    #[cfg_attr(
+        feature = "deja",
+        deja::boundary(
+            boundary = "imc",
+            component = "storage_impl::redis::cache",
+            operation = "in_memory_exists",
+            replay = Substitute,
+            effect = Imc,
+            codec = SerdeCodec,
+            args = deja_in_memory_args(self.name, &key),
+        )
+    )]
     pub async fn exists(&self, key: CacheKey) -> bool {
         self.inner.contains_key::<String>(&in_memory_cache_key(key))
     }
 
+    // Deja: recorded args-only so a missed or extra invalidation shows up as a
+    // call divergence; the real invalidation still runs on replay.
+    #[cfg_attr(
+        feature = "deja",
+        deja::boundary(
+            boundary = "imc",
+            component = "storage_impl::redis::cache",
+            operation = "in_memory_remove",
+            replay = Execute,
+            effect = Imc,
+            codec = SerdeCodec,
+            args = deja_in_memory_args(self.name, &key),
+        )
+    )]
     pub async fn remove(&self, key: CacheKey) {
         self.inner
             .invalidate::<String>(&in_memory_cache_key(key))
@@ -372,31 +431,8 @@ where
     }
 }
 
-/// Deja boundary for the in-memory (L1) cache lookup. Captures the `Option<T>`
-/// outcome on record and Substitutes it per-correlation on replay: a recorded
-/// `Some(v)` returns the value; a recorded `None` (absence) returns `None`, so
-/// the caller re-runs the redis fallback — the same control flow as record. The
-/// `cache` handle is not serialized (args = cache name + physical key); the
-/// value round-trips through `SerdeCodec<Option<T>>`. NOT `fall_through_silent`:
-/// a novel L1 read on replay is a real divergence, and falling through would
-/// read the cross-correlation-shared moka — fail-stop is correct.
-#[cfg(feature = "deja")]
-#[deja::boundary(
-    boundary = "imc",
-    component = "storage_impl::redis::cache",
-    operation = "in_memory_get",
-    replay = Substitute,
-    effect = Imc,
-    codec = SerdeCodec,
-    args = deja_in_memory_args(cache.name, &cache_key),
-)]
-async fn deja_in_memory_get<T>(cache: &Cache, cache_key: CacheKey) -> Option<T>
-where
-    T: Clone + Cacheable + serde::Serialize + serde::de::DeserializeOwned,
-{
-    cache.get_val::<T>(cache_key).await
-}
-
+/// Recorded args for the [`Cache`] boundaries: cache name + un-namespaced
+/// physical key, so the args a replay computes match the recording's.
 #[cfg(feature = "deja")]
 fn deja_in_memory_args(cache_name: &str, key: &CacheKey) -> serde_json::Value {
     serde_json::json!({ "cache": cache_name, "key": String::from(key.clone()) })
@@ -424,18 +460,6 @@ where
         key: key.to_string(),
         prefix: redis.redis_conn.key_prefix.clone(),
     };
-    // Deja L1 seam: the in-memory (moka) lookup is a process-global cache that
-    // spans correlations. Instrument the LOOKUP itself (not the surrounding
-    // populate) so its `Option` outcome is recorded per-correlation and
-    // Substituted on replay — a recorded `Some(v)` returns the value; a recorded
-    // `None` re-triggers the (separately instrumented) redis fallback below,
-    // identically on record and replay. Because the lookup returns BEFORE redis,
-    // L1 and L2 stay sequential (not nested) → no subsumed/orphan event. Record
-    // stays a pure observer (the real moka runs); replay never reads the shared
-    // moka, so cross-correlation contamination is impossible by construction.
-    #[cfg(feature = "deja")]
-    let cache_val = deja_in_memory_get::<T>(cache, cache_key).await;
-    #[cfg(not(feature = "deja"))]
     let cache_val = cache.get_val::<T>(cache_key).await;
     if let Some(val) = cache_val {
         Ok(val)
