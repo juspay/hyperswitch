@@ -1881,6 +1881,7 @@ impl
                 }),
             customer: Some(CustomerDetails {
                 name: None,
+                date_of_birth: None,
                 email: None,
                 phone: None,
                 id: None,
