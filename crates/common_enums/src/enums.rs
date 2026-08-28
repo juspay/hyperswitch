@@ -2868,8 +2868,6 @@ impl PaymentMethod {
     ) -> bool {
         match (self, payment_method_type) {
             (Self::BankTransfer | Self::BankRedirect, _)
-            // Paypal wallet additional data contains PII (email) and a unique payer
-            // identifier, hence it is treated as sensitive
             | (Self::Wallet, Some(PaymentMethodType::Paypal)) => true,
             (
                 Self::Card
