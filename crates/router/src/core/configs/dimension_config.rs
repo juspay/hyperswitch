@@ -181,6 +181,24 @@ impl DatabaseBackedConfig for ImplicitCustomerUpdate {
     }
 }
 
+config! {
+    superposition_key = BLOCK_IMPLICIT_CUSTOMER_CREATION,
+    output = bool,
+    default = false,
+    requires = dimension_state::DimensionsWithOrgId,
+    targeting_key = id_type::CustomerId
+}
+
+impl DatabaseBackedConfig for BlockImplicitCustomerCreation {
+    const KEY: &'static str = "block_implicit_customer_creation";
+
+    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        dimensions
+            .get_organization_id()
+            .map(|id| format!("{}_{}", Self::KEY, id.get_string_repr()))
+    }
+}
+
 // Retained temporarily so merchants without a database value can fall back to
 // their existing Superposition fingerprint secret during migration.
 config! {
@@ -474,6 +492,23 @@ impl DatabaseBackedConfig for ShouldTriggerFingerprintMigration {
 }
 
 config! {
+    superposition_key = NETWORK_TOKEN_FETCH_TIMEOUT_IN_SECS,
+    output = u32,
+    default = 4,
+    requires = dimension_state::DimensionsGlobal,
+    targeting_key = id_type::CustomerId
+}
+
+impl DatabaseBackedConfig for NetworkTokenFetchTimeoutInSecs {
+    const KEY: &'static str = "network_token_fetch_timeout_in_secs";
+
+    // Global config: a single deployment-wide key, not scoped to any merchant.
+    fn db_key(_dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        Some(Self::KEY.to_string())
+    }
+}
+
+config! {
     superposition_key = SHOULD_PERFORM_SDK_VAULTING,
     output = bool,
     default = true,
@@ -629,6 +664,60 @@ impl DatabaseBackedConfig for PtMappingPcrRetries {
 }
 
 config! {
+    superposition_key = ADAPTIVE_RETRY_ENABLED,
+    output = bool,
+    default = false,
+    requires = dimension_state::DimensionsWithProcessorMerchantIdAndConnector,
+    targeting_key = id_type::PaymentId
+}
+
+impl DatabaseBackedConfig for AdaptiveRetryEnabled {
+    const KEY: &'static str = "adaptive_retry_enabled";
+
+    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        dimensions
+            .get_processor_merchant_id()
+            .map(|merchant_id| format!("{}_{}", merchant_id.get_string_repr(), Self::KEY))
+    }
+}
+
+config! {
+    superposition_key = RECOVERY_GRACE_PERIOD_DAYS,
+    output = i64,
+    default = 30,
+    requires = dimension_state::DimensionsWithProcessorMerchantIdAndConnector,
+    targeting_key = id_type::PaymentId
+}
+
+impl DatabaseBackedConfig for RecoveryGracePeriodDays {
+    const KEY: &'static str = "recovery_grace_period_days";
+
+    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        dimensions
+            .get_processor_merchant_id()
+            .map(|merchant_id| format!("{}_{}", merchant_id.get_string_repr(), Self::KEY))
+    }
+}
+
+config! {
+    superposition_key = RECOVERY_MAX_RETRY_COUNT,
+    output = i64,
+    default = 15,
+    requires = dimension_state::DimensionsWithProcessorMerchantIdAndConnector,
+    targeting_key = id_type::PaymentId
+}
+
+impl DatabaseBackedConfig for RecoveryMaxRetryCount {
+    const KEY: &'static str = "recovery_max_retry_count";
+
+    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        dimensions
+            .get_processor_merchant_id()
+            .map(|merchant_id| format!("{}_{}", merchant_id.get_string_repr(), Self::KEY))
+    }
+}
+
+config! {
     superposition_key = PT_MAPPING_PAYMENT_SYNC,
     output = scheduler::types::process_data::ConnectorPTMapping,
     default = scheduler::types::process_data::ConnectorPTMapping::default(),
@@ -650,7 +739,7 @@ impl DatabaseBackedConfig for PtMappingPaymentSync {
 config! {
     superposition_key = PT_MAPPING_REFUND_SYNC,
     output = scheduler::types::process_data::ConnectorPTMapping,
-    default = scheduler::types::process_data::ConnectorPTMapping::default(),
+    default = scheduler::types::process_data::ConnectorPTMapping::refund_default(),
     object = true,
     requires = dimension_state::DimensionsWithProcessorMerchantIdAndConnector,
     targeting_key = id_type::PaymentId
@@ -806,6 +895,18 @@ impl DatabaseBackedConfig for OfferEngineEnabled {
 }
 
 config! {
+    superposition_key = REVREC_RETRY_STATS_ENABLED,
+    output = bool,
+    default = true,
+    requires = dimension_state::DimensionsGlobal,
+    targeting_key = id_type::MerchantId
+}
+
+impl DatabaseBackedConfig for RevrecRetryStatsEnabled {
+    const KEY: &'static str = "revrec_retry_stats_enabled";
+}
+
+config! {
     superposition_key = OFFER_ENGINE_CREDENTIAL_SOURCE,
     output = crate::core::offer_engine::types::OfferEngineCredentialSource,
     default = crate::core::offer_engine::types::OfferEngineCredentialSource::None,
@@ -818,6 +919,7 @@ impl DatabaseBackedConfig for OfferEngineCredentialSource {
     const KEY: &'static str = "offer_engine_credential_source";
 }
 
+#[cfg(feature = "v2")]
 config! {
     superposition_key = ACCOUNT_UPDATER_ENABLED,
     output = bool,
@@ -826,10 +928,12 @@ config! {
     targeting_key = id_type::PaymentId
 }
 
+#[cfg(feature = "v2")]
 impl DatabaseBackedConfig for AccountUpdaterEnabled {
     const KEY: &'static str = "account_updater_enabled";
 }
 
+#[cfg(feature = "v2")]
 config! {
     superposition_key = ACCOUNT_UPDATER_CREDENTIAL_SOURCE,
     output = crate::core::account_updater::types::AccountUpdaterCredentialSource,
@@ -839,6 +943,7 @@ config! {
     targeting_key = id_type::PaymentId
 }
 
+#[cfg(feature = "v2")]
 impl DatabaseBackedConfig for AccountUpdaterCredentialSource {
     const KEY: &'static str = "account_updater_credential_source";
 }

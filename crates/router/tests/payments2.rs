@@ -134,6 +134,7 @@ async fn payments_create_core() {
 
     let expected_response = api::PaymentsResponse {
         payment_id,
+        applied_offer: None,
         status: api_enums::IntentStatus::Succeeded,
         amount: MinorUnit::new(6540),
         amount_capturable: MinorUnit::new(0),
@@ -207,6 +208,7 @@ async fn payments_create_core() {
         external_3ds_authentication_attempted: None,
         expires_on: None,
         fingerprint: None,
+        fingerprint_type: None,
         browser_info: None,
         payment_method_id: None,
         payment_method_status: None,
@@ -248,6 +250,7 @@ async fn payments_create_core() {
         connector_response_metadata: None,
         connector_customer_id: None,
         sender_payment_instrument_id: None,
+        payment_account_reference: None,
     };
 
     let expected_response =
@@ -450,6 +453,7 @@ async fn payments_create_core_adyen_no_redirect() {
     let expected_response = services::ApplicationResponse::JsonWithHeaders((
         api::PaymentsResponse {
             payment_id: payment_id.clone(),
+            applied_offer: None,
             status: api_enums::IntentStatus::Processing,
             amount: MinorUnit::new(6540),
             amount_capturable: MinorUnit::new(0),
@@ -523,6 +527,7 @@ async fn payments_create_core_adyen_no_redirect() {
             external_3ds_authentication_attempted: None,
             expires_on: None,
             fingerprint: None,
+            fingerprint_type: None,
             browser_info: None,
             payment_method_id: None,
             payment_method_status: None,
@@ -564,6 +569,7 @@ async fn payments_create_core_adyen_no_redirect() {
             network_transaction_link_id: None,
             connector_customer_id: None,
             sender_payment_instrument_id: None,
+            payment_account_reference: None,
         },
         vec![],
     ));

@@ -830,6 +830,12 @@ pub struct UcsPayoutTransferResponseData {
 }
 
 #[cfg(feature = "payouts")]
+pub struct UcsPayoutEligibilityResponseData {
+    pub router_data_response: Result<PayoutsResponseData, ErrorResponse>,
+    pub status_code: u16,
+}
+
+#[cfg(feature = "payouts")]
 pub struct UcsPayoutGetResponseData {
     pub router_data_response: Result<PayoutsResponseData, ErrorResponse>,
     pub status_code: u16,
@@ -1416,6 +1422,7 @@ impl ForeignFrom<&SetupMandateRouterData> for PaymentsAuthorizeData {
             request_extended_authorization: None,
             authentication_data: None,
             ucs_authentication_data: None,
+            force_3ds_challenge: None,
             customer_acceptance: data.request.customer_acceptance.clone(),
             split_payments: None, // TODO: allow charges on mandates?
             guest_customer: None,
@@ -1513,6 +1520,7 @@ impl<F1, F2, T1, T2> ForeignFrom<(&RouterData<F1, T1, PaymentsResponseData>, T2)
             customer_document_details: data.customer_document_details.clone(),
             feature_data: data.feature_data.clone(),
             sender_payment_instrument_id: None,
+            connector_returned_payment_method_details: None,
         }
     }
 }
@@ -1589,6 +1597,7 @@ impl<F1, F2>
             customer_document_details: None,
             feature_data: data.feature_data.clone(),
             sender_payment_instrument_id: None,
+            connector_returned_payment_method_details: None,
         }
     }
 }

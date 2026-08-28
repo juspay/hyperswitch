@@ -12,6 +12,10 @@ pub struct PaymentData {
     /// The currency of the payment.
     #[schema(value_type = Currency)]
     pub currency: common_enums::Currency,
+    /// The first 6 digits of the card number.
+    pub card_bin: Option<String>,
+    /// The first 8 digits of the card number.
+    pub extended_card_bin: Option<String>,
     /// The business country of the payment.
     #[schema(value_type = Option<Country>)]
     pub business_country: Option<common_enums::Country>,

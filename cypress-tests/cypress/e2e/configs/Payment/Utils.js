@@ -35,6 +35,7 @@ import { connectorDetails as facilitapayConnectorDetails } from "./Facilitapay.j
 import { connectorDetails as finixConnectorDetails } from "./Finix.js";
 import { connectorDetails as fiservConnectorDetails } from "./Fiserv.js";
 import { connectorDetails as fiservemeaConnectorDetails } from "./Fiservemea.js";
+import { connectorDetails as fiservcommercehubConnectorDetails } from "./Fiservcommercehub.js";
 import { connectorDetails as fiuuConnectorDetails } from "./Fiuu.js";
 import { connectorDetails as forteConnectorDetails } from "./Forte.js";
 import { connectorDetails as getnetConnectorDetails } from "./Getnet.js";
@@ -63,6 +64,7 @@ import { connectorDetails as payboxConnectorDetails } from "./Paybox.js";
 import { connectorDetails as payjustnowConnectorDetails } from "./Payjustnow.js";
 import { connectorDetails as payjustnowinstoreConnectorDetails } from "./Payjustnowinstore.js";
 import { connectorDetails as payloadConnectorDetails } from "./Payload.js";
+import { connectorDetails as payloadconnectConnectorDetails } from "./PayloadConnect.js";
 import { connectorDetails as paypalConnectorDetails } from "./Paypal.js";
 import { connectorDetails as paysafeConnectorDetails } from "./Paysafe.js";
 import { connectorDetails as paystackConnectorDetails } from "./Paystack.js";
@@ -84,6 +86,7 @@ import { connectorDetails as tesouroConnectorDetails } from "./Tesouro.js";
 import { connectorDetails as trustpayConnectorDetails } from "./Trustpay.js";
 import { connectorDetails as trustpaymentsConnectorDetails } from "./TrustPayments.js";
 import { connectorDetails as tsysConnectorDetails } from "./Tsys.js";
+import { connectorDetails as tsysTransitConnectorDetails } from "./TsysTransit.js";
 import { connectorDetails as voltConnectorDetails } from "./Volt.js";
 import { connectorDetails as wellsfargoConnectorDetails } from "./WellsFargo.js";
 import { connectorDetails as worldpayConnectorDetails } from "./WorldPay.js";
@@ -123,6 +126,7 @@ const connectorDetails = {
   facilitapay: facilitapayConnectorDetails,
   fiserv: fiservConnectorDetails,
   fiservemea: fiservemeaConnectorDetails,
+  fiservcommercehub: fiservcommercehubConnectorDetails,
   fiuu: fiuuConnectorDetails,
   finix: finixConnectorDetails,
   forte: forteConnectorDetails,
@@ -150,6 +154,7 @@ const connectorDetails = {
   payjustnow: payjustnowConnectorDetails,
   payjustnowinstore: payjustnowinstoreConnectorDetails,
   payload: payloadConnectorDetails,
+  payloadconnect: payloadconnectConnectorDetails,
   paypal: paypalConnectorDetails,
   paysafe: paysafeConnectorDetails,
   paystack: paystackConnectorDetails,
@@ -172,6 +177,7 @@ const connectorDetails = {
   tesouro: tesouroConnectorDetails,
   trustpayments: trustpaymentsConnectorDetails,
   tsys: tsysConnectorDetails,
+  tsys_transit: tsysTransitConnectorDetails,
   volt: voltConnectorDetails,
   wellsfargo: wellsfargoConnectorDetails,
   worldpay: worldpayConnectorDetails,
@@ -184,13 +190,25 @@ const connectorDetails = {
 };
 
 /**
+ * Test-only connector IDs that alias a real backend connector under a
+ * different merchant-connector-account configuration (e.g. split payments).
+ * The backend never sees these IDs -- API requests/assertions always use
+ * the mapped name.
+ */
+const ALIASED_CONNECTORS = {
+  stripeconnect: "stripe",
+  payloadconnect: "payload",
+};
+
+/**
  * Get the backend connector name for a given connector ID
- * Maps stripeconnect -> stripe for backend API calls
+ * Maps stripeconnect -> stripe, payloadconnect -> payload, etc. for backend
+ * API calls
  * @param {string} connectorId - The test connector ID
  * @returns {string} - The backend connector name
  */
 export function getOriginalConnectorName(connectorId) {
-  return connectorId === "stripeconnect" ? "stripe" : connectorId;
+  return ALIASED_CONNECTORS[connectorId] || connectorId;
 }
 
 export default function getConnectorDetails(connectorId) {
@@ -509,6 +527,7 @@ export const CONNECTOR_LISTS = {
       "cashtocode",
       "facilitapay",
       "fiserv",
+      "fiservcommercehub",
       "fiuu",
       "forte",
       "globalpay",
@@ -517,10 +536,12 @@ export const CONNECTOR_LISTS = {
       "loonio",
       "mifinity",
       "nexinets",
+      "nexixpay",
       "nmi",
       "noon",
       "novalnet",
       "payload",
+      "payloadconnect",
       "paypal",
       "stax",
       "stripeconnect",
@@ -534,13 +555,28 @@ export const CONNECTOR_LISTS = {
       "airwallex",
       "calida",
       "payload",
+      "payloadconnect",
       "gigadat",
       "loonio",
       "redsys",
       "worldpayxml",
       "mifinity",
+      "tsys_transit",
     ],
     SAVE_CARD: ["helcim"],
+    // fiservcommercehub's RSA card-encryption block requires
+    // card_holder_name, which the external vault proxy flow (VGS) never
+    // supplies (it only vaults PAN/expiry) — and unlike most connectors,
+    // fiservcommercehub has no fallback (e.g. billing name) for a missing
+    // one. The resulting rejection is intermittent rather than
+    // deterministic (the same confirm sometimes succeeds), so it can't be
+    // asserted as an expected error either — skip these save-card-confirm
+    // tests in 40-ExternalVault.cy.js until the connector-service side
+    // adds a fallback.
+    EXTERNAL_VAULT: ["fiservcommercehub"],
+    // Connectors that never return a `connector_mandate_id` on the payments
+    // response. Recurring payments for them go through connector agnostic MIT,
+    // so the "connector_mandate_id must not be null" assertion is skipped
     // Add more exclusion lists
     // Note: mitUsingPMId/mitForMandatesCallTest/listMandateCallTest use
     // per-config TRIGGER_SKIP or globalState checks instead of a static
@@ -549,7 +585,13 @@ export const CONNECTOR_LISTS = {
 
   // Inclusion lists (only run for these connectors)
   INCLUDE: {
+    // Tracking extension to other connectors: #13520
+    SPLIT_PAYMENTS: ["stripeconnect", "payloadconnect"],
     MANDATES_USING_NTID_PROXY: ["cybersource", "checkout"],
+    // Card and mandate flows of 54-TsysTransitMandates. The mandates need a
+    // profile with connector agnostic MIT enabled, which keeps them out of the
+    // shared mandate specs, so the whole spec is scoped to this connector
+    CONNECTOR_AGNOSTIC_MANDATES: ["tsys_transit"],
     INCREMENTAL_AUTH: [
       "archipel",
       // "cybersource",    // issues with MULTIPLE_CONNECTORS handling
@@ -559,7 +601,7 @@ export const CONNECTOR_LISTS = {
     DDC_RACE_CONDITION: ["worldpay"],
     CONNECTOR_TESTING_DATA: ["adyen", "airwallex", "braintree", "noon"],
     // ucs connectors
-    UCS_CONNECTORS: ["authorizedotnet"],
+    UCS_CONNECTORS: ["authorizedotnet", "fiservcommercehub"],
     OVERCAPTURE: ["adyen"],
     IFRAME_REDIRECTION: [
       "adyen",
@@ -735,7 +777,7 @@ export const CONNECTOR_LISTS = {
     ],
     CARD_TESTING_GUARD: ["bankofamerica"],
     CLEAR_PAN_RETRY: ["bankofamerica"],
-    L2L3DATA: ["checkout", "nuvei", "worldpayvantiv"],
+    L2L3DATA: ["checkout", "nuvei", "stripe", "worldpayvantiv"],
     REFUND_MANUAL_UPDATE: ["bankofamerica", "cybersource"],
     REFUND_TYPE: ["stripe", "adyen", "checkout"],
     MANUAL_PAYMENT_UPDATE: ["stripe"],
@@ -824,12 +866,21 @@ function coerceValue(value, type) {
       if (!Number.isFinite(num)) {
         throw new Error(`Cannot coerce "${value}" to number`);
       }
+      if (!Number.isSafeInteger(num)) {
+        return BigInt(value);
+      }
       return num;
     }
 
     default:
       return value;
   }
+}
+
+export function stringifyWithBigInt(obj) {
+  return JSON.stringify(obj, (_, value) =>
+    typeof value === "bigint" ? `__bigint__${value}` : value
+  ).replace(/"__bigint__(\d+)"/g, "$1");
 }
 
 export function stampPaymentMethodType(scenarios, paymentMethodType) {

@@ -30,6 +30,13 @@ pub struct BankDebitTokenData {
     pub locker_id: Option<String>,
 }
 
+#[cfg(feature = "v1")]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct BankRedirectTokenData {
+    pub payment_method_id: String,
+    pub locker_id: Option<String>,
+}
+
 #[cfg(feature = "v2")]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct BankDebitTokenData {
@@ -76,6 +83,7 @@ pub enum PaymentTokenData {
     AuthBankDebit(payment_methods::BankAccountTokenData),
     WalletToken(WalletTokenData),
     BankDebit(BankDebitTokenData),
+    BankRedirect(BankRedirectTokenData),
 }
 
 #[cfg(feature = "v2")]
@@ -258,4 +266,15 @@ pub struct NetworkTokenizationTrackingData {
     /// unencrypted and is included in process tracker log spans, so card number and CVC must
     /// always be fetched from the locker instead.
     pub card_network: Option<common_enums::CardNetwork>,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
+pub struct NetworkTokenizationTrackingData {
+    pub payment_method_id: common_utils::id_type::GlobalPaymentMethodId,
+    pub merchant_id: common_utils::id_type::MerchantId,
+    /// Profile the payment method was created against. Network tokenization is configured per
+    /// profile, so this is used to look up the profile in the async workflow.
+    pub profile_id: common_utils::id_type::ProfileId,
+    pub customer_id: common_utils::id_type::GlobalCustomerId,
 }

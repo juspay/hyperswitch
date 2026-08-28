@@ -1,13 +1,10 @@
 use api_models::customers::CustomerDocumentDetails;
 use common_types::primitive_wrappers;
-#[cfg(feature = "v1")]
-use common_utils::consts::PAYMENTS_LIST_MAX_LIMIT_V2;
 #[cfg(feature = "v2")]
 use common_utils::errors::ParsingError;
 #[cfg(feature = "v2")]
 use common_utils::ext_traits::{Encode, ValueExt};
 use common_utils::{
-    consts::PAYMENTS_LIST_MAX_LIMIT_V1,
     crypto::Encryptable,
     encryption::Encryption,
     errors::{CustomResult, ValidationError},
@@ -1799,7 +1796,7 @@ impl PaymentIntentFetchConstraints {
 
 #[cfg(feature = "v1")]
 pub struct PaymentIntentListParams {
-    pub offset: u32,
+    pub offset: common_utils::types::list::PageOffset,
     pub starting_at: Option<PrimitiveDateTime>,
     pub ending_at: Option<PrimitiveDateTime>,
     pub amount_filter: Option<api_models::payments::AmountFilter>,
@@ -1814,7 +1811,7 @@ pub struct PaymentIntentListParams {
     pub customer_id: Option<id_type::CustomerId>,
     pub starting_after_id: Option<id_type::PaymentId>,
     pub ending_before_id: Option<id_type::PaymentId>,
-    pub limit: Option<u32>,
+    pub limit: common_utils::types::list::PageSize,
     pub order: api_models::payments::Order,
     pub card_network: Option<Vec<common_enums::CardNetwork>>,
     pub card_discovery: Option<Vec<common_enums::CardDiscovery>>,
@@ -1824,7 +1821,7 @@ pub struct PaymentIntentListParams {
 
 #[cfg(feature = "v2")]
 pub struct PaymentIntentListParams {
-    pub offset: u32,
+    pub offset: common_utils::types::list::PageOffset,
     pub starting_at: Option<PrimitiveDateTime>,
     pub ending_at: Option<PrimitiveDateTime>,
     pub amount_filter: Option<api_models::payments::AmountFilter>,
@@ -1839,7 +1836,7 @@ pub struct PaymentIntentListParams {
     pub customer_id: Option<id_type::GlobalCustomerId>,
     pub starting_after_id: Option<id_type::GlobalPaymentId>,
     pub ending_before_id: Option<id_type::GlobalPaymentId>,
-    pub limit: Option<u32>,
+    pub limit: common_utils::types::list::PageSize,
     pub order: api_models::payments::Order,
     pub card_network: Option<Vec<common_enums::CardNetwork>>,
     pub merchant_order_reference_id: Option<String>,
@@ -1861,7 +1858,7 @@ impl From<api_models::payments::PaymentListConstraints> for PaymentIntentFetchCo
             created_gte,
         } = value;
         Self::List(Box::new(PaymentIntentListParams {
-            offset: 0,
+            offset: common_utils::types::list::PageOffset::default(),
             starting_at: created_gte.or(created_gt).or(created),
             ending_at: created_lte.or(created_lt).or(created),
             amount_filter: None,
@@ -1876,7 +1873,7 @@ impl From<api_models::payments::PaymentListConstraints> for PaymentIntentFetchCo
             customer_id,
             starting_after_id: starting_after,
             ending_before_id: ending_before,
-            limit: Some(std::cmp::min(limit, PAYMENTS_LIST_MAX_LIMIT_V1)),
+            limit,
             order: Default::default(),
             card_network: None,
             card_discovery: None,
@@ -1917,7 +1914,7 @@ impl From<api_models::payments::PaymentListConstraints> for PaymentIntentFetchCo
             offset,
         } = value;
         Self::List(Box::new(PaymentIntentListParams {
-            offset: offset.unwrap_or_default(),
+            offset,
             starting_at: created_gte.or(created_gt).or(created),
             ending_at: created_lte.or(created_lt).or(created),
             amount_filter: (start_amount.is_some() || end_amount.is_some()).then_some({
@@ -1937,7 +1934,7 @@ impl From<api_models::payments::PaymentListConstraints> for PaymentIntentFetchCo
             customer_id,
             starting_after_id: starting_after,
             ending_before_id: ending_before,
-            limit: Some(std::cmp::min(limit, PAYMENTS_LIST_MAX_LIMIT_V1)),
+            limit,
             order: api_models::payments::Order {
                 on: order_on,
                 by: order_by,
@@ -1953,7 +1950,7 @@ impl From<api_models::payments::PaymentListConstraints> for PaymentIntentFetchCo
 impl From<common_utils::types::TimeRange> for PaymentIntentFetchConstraints {
     fn from(value: common_utils::types::TimeRange) -> Self {
         Self::List(Box::new(PaymentIntentListParams {
-            offset: 0,
+            offset: common_utils::types::list::PageOffset::default(),
             starting_at: Some(value.start_time),
             ending_at: value.end_time,
             amount_filter: None,
@@ -1968,7 +1965,7 @@ impl From<common_utils::types::TimeRange> for PaymentIntentFetchConstraints {
             customer_id: None,
             starting_after_id: None,
             ending_before_id: None,
-            limit: None,
+            limit: common_utils::types::list::PageSize::default(),
             order: Default::default(),
             card_network: None,
             card_discovery: None,
@@ -2016,7 +2013,7 @@ impl From<api_models::payments::PaymentListFilterConstraints> for PaymentIntentF
             Self::Single { payment_intent_id }
         } else {
             Self::List(Box::new(PaymentIntentListParams {
-                offset: offset.unwrap_or_default(),
+                offset,
                 starting_at: time_range.map(|t| t.start_time),
                 ending_at: time_range.and_then(|t| t.end_time),
                 amount_filter,
@@ -2031,7 +2028,7 @@ impl From<api_models::payments::PaymentListFilterConstraints> for PaymentIntentF
                 customer_id,
                 starting_after_id: None,
                 ending_before_id: None,
-                limit: Some(std::cmp::min(limit, PAYMENTS_LIST_MAX_LIMIT_V2)),
+                limit,
                 order,
                 card_network,
                 card_discovery,

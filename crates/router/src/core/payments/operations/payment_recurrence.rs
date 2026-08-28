@@ -150,7 +150,12 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .payment_method_data
             .as_ref()
             .and_then(|pmd| pmd.payment_method_data.clone())
-            .map(domain::PaymentMethodData::from);
+            .map(domain::PaymentMethodData::from)
+            .or_else(|| {
+                payment_method_with_raw_data
+                    .as_ref()
+                    .and_then(|payment_method| payment_method.raw_payment_method_data.clone())
+            });
 
         let store = state.clone().store;
         let superposition_service = state.clone().superposition_service;

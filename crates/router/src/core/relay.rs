@@ -1111,7 +1111,7 @@ async fn process_unreferenced_refund(
         .attach_printable("Failed to build relay request")?;
 
     let api_response =
-        call_connector_api(state, connector_request, "relay_unreferenced_refund").await;
+        call_connector_api(state, connector_request, "relay_unreferenced_refund", None).await;
 
     let (response_bytes, relay_update) = match api_response {
         Ok(resp) => {

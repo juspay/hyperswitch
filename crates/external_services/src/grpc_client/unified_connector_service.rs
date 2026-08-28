@@ -423,6 +423,44 @@ impl UnifiedConnectorServiceClient {
             })
     }
 
+    /// Performs Payment Method Refresh
+    pub async fn payment_method_refresh(
+        &self,
+        payment_method_refresh_request: payments_grpc::PaymentMethodServiceRefreshRequest,
+        connector_auth_metadata: ConnectorAuthMetadata,
+        grpc_headers: GrpcHeadersUcs,
+        timeout: Duration,
+    ) -> UnifiedConnectorServiceResult<
+        tonic::Response<payments_grpc::PaymentMethodServiceRefreshResponse>,
+    > {
+        let mut request = tonic::Request::new(payment_method_refresh_request);
+
+        let connector_name = connector_auth_metadata.connector_name.clone();
+        let metadata =
+            build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
+        *request.metadata_mut() = metadata;
+        request.set_timeout(timeout);
+
+        self.payment_method_service_client
+            .clone()
+            .refresh(request)
+            .await
+            .map_err(|error| {
+                error_stack::Report::new(UnifiedConnectorServiceError::from_grpc_error(
+                    &error,
+                    &connector_name,
+                ))
+            })
+            .inspect_err(|error| {
+                logger::error!(
+                    grpc_error=?error,
+                    method="payment_method_refresh",
+                    connector_name=?connector_name,
+                    "UCS payment_method_refresh gRPC call failed"
+                )
+            })
+    }
+
     /// Performs SDK Session Token Create
     pub async fn create_sdk_session_token(
         &self,
@@ -1184,6 +1222,45 @@ impl UnifiedConnectorServiceClient {
                     method="payout_transfer",
                     connector_name=?connector_name,
                     "UCS payout transfer gRPC call failed"
+                )
+            })
+    }
+
+    /// Performs Payout Eligibility (e.g. SEPA VoP / payee verification).
+    pub async fn payout_eligibility(
+        &self,
+        payout_eligibility_request: payments_grpc::PayoutMethodEligibilityRequest,
+        connector_auth_metadata: ConnectorAuthMetadata,
+        grpc_headers: GrpcHeadersUcs,
+    ) -> UnifiedConnectorServiceResult<
+        tonic::Response<payments_grpc::PayoutMethodEligibilityResponse>,
+    > {
+        let mut request = tonic::Request::new(payout_eligibility_request);
+
+        let connector_name = connector_auth_metadata.connector_name.clone();
+        let metadata = build_unified_connector_service_grpc_headers_for_payouts(
+            connector_auth_metadata,
+            grpc_headers,
+        )?;
+
+        *request.metadata_mut() = metadata;
+
+        self.payout_service_client
+            .clone()
+            .eligibility(request)
+            .await
+            .map_err(|error| {
+                error_stack::Report::new(UnifiedConnectorServiceError::from_grpc_error(
+                    &error,
+                    &connector_name,
+                ))
+            })
+            .inspect_err(|error| {
+                logger::error!(
+                    grpc_error=?error,
+                    method="payout_eligibility",
+                    connector_name=?connector_name,
+                    "UCS payout eligibility gRPC call failed"
                 )
             })
     }

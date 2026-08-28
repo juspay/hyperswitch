@@ -1143,6 +1143,11 @@ impl PaymentUpdate {
             .surcharge_details
             .as_ref()
             .map(|surcharge_details| surcharge_details.tax_on_surcharge_amount);
+        let offer_amount = payment_data
+            .payment_attempt
+            .applied_offer_details
+            .as_ref()
+            .map(|applied_offer_details| applied_offer_details.inner().offer_amount);
         let network_transaction_id = payment_data.payment_attempt.network_transaction_id.clone();
         let network_transaction_link_id = payment_data
             .payment_attempt
@@ -1161,6 +1166,7 @@ impl PaymentUpdate {
             amount_to_capture,
             capture_method,
             fingerprint_id: None,
+            fingerprint_type: None,
             payment_method_billing_address_id,
             updated_by: storage_scheme.to_string(),
             network_transaction_id,
@@ -1175,6 +1181,7 @@ impl PaymentUpdate {
                 surcharge_amount,
                 tax_amount,
                 None,
+                offer_amount,
             ),
             shipping_cost: payment_data.payment_intent.shipping_cost,
             order_tax_amount: payment_data

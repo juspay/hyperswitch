@@ -242,6 +242,7 @@ where
         customer_document_details: None,
         feature_data: None,
         sender_payment_instrument_id: None,
+        connector_returned_payment_method_details: None,
     };
     Ok(router_data)
 }
@@ -473,6 +474,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         metadata: payment_data.payment_intent.metadata.expose_option(),
         authentication_data: None,
         ucs_authentication_data: None,
+        force_3ds_challenge: payment_data.payment_intent.force_3ds_challenge,
         customer_acceptance: None,
         split_payments: None,
         guest_customer: None,
@@ -591,6 +593,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         customer_document_details: None,
         feature_data: None,
         sender_payment_instrument_id: None,
+        connector_returned_payment_method_details: None,
     };
 
     Ok(router_data)
@@ -893,7 +896,11 @@ pub async fn construct_external_vault_proxy_payment_router_data_v1<'a>(
             Some(RequestIncrementalAuthorization::True)
         ),
         metadata: payment_data.payment_intent.metadata.clone(),
-        authentication_data: None,
+        authentication_data: payment_data
+            .authentication
+            .as_ref()
+            .map(AuthenticationData::foreign_try_from)
+            .transpose()?,
         customer_acceptance: payment_data.customer_acceptance,
         split_payments: None,
         merchant_order_reference_id: None,
@@ -1002,6 +1009,7 @@ pub async fn construct_external_vault_proxy_payment_router_data_v1<'a>(
         customer_document_details: None,
         feature_data: None,
         sender_payment_instrument_id: None,
+        connector_returned_payment_method_details: None,
     };
 
     Ok(router_data)
@@ -1173,6 +1181,7 @@ pub async fn construct_payment_router_data_for_capture<'a>(
         customer_document_details: None,
         feature_data: None,
         sender_payment_instrument_id: None,
+        connector_returned_payment_method_details: None,
     };
 
     Ok(router_data)
@@ -1312,6 +1321,7 @@ pub async fn construct_router_data_for_psync<'a>(
         customer_document_details: None,
         feature_data: None,
         sender_payment_instrument_id: None,
+        connector_returned_payment_method_details: None,
     };
 
     Ok(router_data)
@@ -1668,6 +1678,7 @@ pub async fn construct_payment_router_data_for_sdk_session<'a>(
         customer_document_details: None,
         feature_data: None,
         sender_payment_instrument_id: None,
+        connector_returned_payment_method_details: None,
     };
 
     Ok(router_data)
@@ -1895,6 +1906,7 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
         customer_document_details: None,
         feature_data: None,
         sender_payment_instrument_id: None,
+        connector_returned_payment_method_details: None,
     };
 
     Ok(router_data)
@@ -1962,6 +1974,7 @@ where
         network_txn_id: None,
         network_txn_link_id: None,
         connector_response_reference_id: None,
+        payment_account_reference: None,
         incremental_authorization_allowed: None,
         authentication_data: None,
         charges: None,
@@ -2229,6 +2242,7 @@ where
         customer_document_details,
         feature_data,
         sender_payment_instrument_id: None,
+        connector_returned_payment_method_details: None,
     };
 
     Ok(router_data)
@@ -2452,6 +2466,7 @@ pub async fn construct_payment_router_data_for_update_metadata<'a>(
             .attach_printable("Failed to extract customer document details from payment_intent")?,
         feature_data: None,
         sender_payment_instrument_id: None,
+        connector_returned_payment_method_details: None,
     };
 
     Ok(router_data)
@@ -4258,10 +4273,12 @@ where
         let connector_response_metadata =
             payment_attempt.get_connector_response_metadata_from_attempt_metadata();
 
+        let applied_offer = applied_offer_response(payment_attempt.applied_offer_details.clone());
         let payments_response = api::PaymentsResponse {
             payment_id: payment_intent.payment_id,
             merchant_id: payment_intent.merchant_id,
             status: payment_intent.status,
+            applied_offer,
             connector_customer_id: payment_data.get_connector_customer_id(),
             amount: payment_attempt.net_amount.get_order_amount(),
             net_amount: payment_attempt.get_total_amount(),
@@ -4362,9 +4379,11 @@ where
                 .external_three_ds_authentication_attempted,
             expires_on: payment_intent.session_expiry,
             fingerprint: payment_intent.fingerprint_id,
+            fingerprint_type: payment_attempt.fingerprint_type,
             browser_info: payment_attempt.browser_info,
             payment_method_id: payment_attempt.payment_method_id,
             network_transaction_id: payment_attempt.network_transaction_id,
+            payment_account_reference: payment_attempt.payment_account_reference.clone(),
             network_transaction_link_id: payment_attempt.network_transaction_link_id,
             payment_method_status: payment_data
                 .get_payment_method_info()
@@ -4593,6 +4612,22 @@ pub fn construct_connector_invoke_hidden_frame(
 }
 
 #[cfg(feature = "v1")]
+fn applied_offer_response(
+    details: Option<common_types::payments::AppliedOfferDetails>,
+) -> Option<api_models::payments::AppliedOffer> {
+    details.map(|offer| {
+        let offer = offer.into_inner();
+        api_models::payments::AppliedOffer {
+            offer_engine_merchant_id: offer.offer_engine_merchant_id,
+            offer_engine_txn_id: offer.offer_engine_txn_id,
+            offer_id: offer.offer_id,
+            offer_amount: offer.offer_amount,
+            currency: offer.currency,
+        }
+    })
+}
+
+#[cfg(feature = "v1")]
 impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::PaymentsResponse {
     fn foreign_from((pi, pa): (storage::PaymentIntent, storage::PaymentAttempt)) -> Self {
         let connector_transaction_id = pa.get_connector_payment_id().map(ToString::to_string);
@@ -4643,6 +4678,7 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             });
         Self {
             connector_response_metadata: pa.get_connector_response_metadata_from_attempt_metadata(),
+            applied_offer: applied_offer_response(pa.applied_offer_details.clone()),
             payment_id: pi.payment_id,
             merchant_id: pi.merchant_id,
             status: pi.status,
@@ -4672,6 +4708,7 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             merchant_connector_id: pa.merchant_connector_id,
             payment_method_data,
             merchant_order_reference_id: pi.merchant_order_reference_id,
+            payment_account_reference: pa.payment_account_reference,
             customer: pi.customer_details.and_then(|customer_details|
                 match customer_details.into_inner().expose().parse_value::<CustomerData>("CustomerData"){
                     Ok(parsed_data) => Some(
@@ -4758,7 +4795,8 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             external_authentication_details: None,
             external_3ds_authentication_attempted: None,
             expires_on: None,
-            fingerprint: None,
+            fingerprint: pa.fingerprint_id,
+            fingerprint_type:pa.fingerprint_type,
             browser_info: None,
             payment_method_id: None,
             payment_method_status: None,
@@ -5147,6 +5185,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
                 .map(|m| m.expose()),
             authentication_data: None,
             ucs_authentication_data: None,
+            force_3ds_challenge: payment_data.payment_intent.force_3ds_challenge,
             request_extended_authorization: None,
             split_payments: None,
             guest_customer: None,
@@ -5414,6 +5453,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
                 .as_ref()
                 .map(UcsAuthenticationData::foreign_try_from)
                 .transpose()?,
+            force_3ds_challenge: payment_data.payment_intent.force_3ds_challenge,
             customer_acceptance: payment_data.customer_acceptance,
             request_extended_authorization: attempt.request_extended_authorization,
             split_payments,
@@ -7572,6 +7612,9 @@ impl ForeignFrom<&diesel_models::types::BillingConnectorPaymentMethodDetails>
                 Self::Card(api_models::payments::BillingConnectorAdditionalCardInfo {
                     card_issuer: card_details.card_issuer.clone(),
                     card_network: card_details.card_network.clone(),
+                    card_type: card_details.card_type.clone(),
+                    card_issuing_country: card_details.card_issuing_country.clone(),
+                    card_isin: card_details.card_isin.clone(),
                 })
             }
         }
@@ -7746,6 +7789,7 @@ impl ForeignFrom<api_models::admin::PaymentLinkConfigRequest>
             is_setup_mandate_flow: config.is_setup_mandate_flow,
             color_icon_card_cvc_error: config.color_icon_card_cvc_error,
             show_merchant_name: config.show_merchant_name,
+            payment_methods_separator_text: config.payment_methods_separator_text,
         }
     }
 }
@@ -7824,6 +7868,7 @@ impl ForeignFrom<diesel_models::PaymentLinkConfigRequestForPayments>
             is_setup_mandate_flow: config.is_setup_mandate_flow,
             color_icon_card_cvc_error: config.color_icon_card_cvc_error,
             show_merchant_name: config.show_merchant_name,
+            payment_methods_separator_text: config.payment_methods_separator_text,
         }
     }
 }
@@ -8016,6 +8061,7 @@ impl ForeignFrom<common_types::three_ds_decision_rule_engine::ThreeDSDecision>
             common_types::three_ds_decision_rule_engine::ThreeDSDecision::NoThreeDs => Self::NoThreeDs,
             common_types::three_ds_decision_rule_engine::ThreeDSDecision::ChallengeRequested
             | common_types::three_ds_decision_rule_engine::ThreeDSDecision::ChallengePreferred
+            | common_types::three_ds_decision_rule_engine::ThreeDSDecision::NoPreference
             | common_types::three_ds_decision_rule_engine::ThreeDSDecision::ThreeDsExemptionRequestedTra
             | common_types::three_ds_decision_rule_engine::ThreeDSDecision::ThreeDsExemptionRequestedLowValue
             | common_types::three_ds_decision_rule_engine::ThreeDSDecision::IssuerThreeDsExemptionRequested => Self::ThreeDs,
@@ -8039,6 +8085,7 @@ impl ForeignFrom<common_types::three_ds_decision_rule_engine::ThreeDSDecision>
             common_types::three_ds_decision_rule_engine::ThreeDSDecision::NoThreeDs
             | common_types::three_ds_decision_rule_engine::ThreeDSDecision::ChallengeRequested
             | common_types::three_ds_decision_rule_engine::ThreeDSDecision::ChallengePreferred
+            | common_types::three_ds_decision_rule_engine::ThreeDSDecision::NoPreference
             | common_types::three_ds_decision_rule_engine::ThreeDSDecision::IssuerThreeDsExemptionRequested => {
                 None
             }
@@ -8230,6 +8277,7 @@ pub async fn construct_payment_router_data_for_update_post_confirm<'a>(
             .attach_printable("Failed to extract customer document details from payment_intent")?,
         feature_data: None,
         sender_payment_instrument_id: None,
+        connector_returned_payment_method_details: None,
     };
 
     Ok(router_data)
