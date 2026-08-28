@@ -2342,6 +2342,13 @@ pub struct ResponsePaymentMethodTypes {
 
     /// auth service connector label for this payment method type, if exists
     pub pm_auth_connector: Option<String>,
+
+    /// Whether saving this payment method type is supported by all, some, or none of the
+    /// connectors eligible for it. Lets the SDK decide whether to show the "save my details"
+    /// checkbox and whether to word it definitely or hedged. Defaults to `unsupported` for
+    /// payment method types absent from the config.
+    #[schema(value_type = CustomerAcceptanceSupport, example = "partially_supported")]
+    pub customer_acceptance_support: api_enums::CustomerAcceptanceSupport,
 }
 
 #[cfg(feature = "v2")]
@@ -2377,6 +2384,13 @@ pub struct ResponsePaymentMethodTypes {
     /// Required fields for the payment_method_type.
     /// This is the union of all the required fields for the payment method type enabled in all the connectors.
     pub required_fields: Vec<RequiredFieldInfo>,
+
+    /// Whether saving this payment method type is supported by all, some, or none of the
+    /// connectors eligible for it. Lets the SDK decide whether to show the "save my details"
+    /// checkbox and whether to word it definitely or hedged. Defaults to `unsupported` for
+    /// payment method types absent from the config.
+    #[schema(value_type = CustomerAcceptanceSupport, example = "partially_supported")]
+    pub customer_acceptance_support: common_enums::CustomerAcceptanceSupport,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, ToSchema)]
@@ -3016,6 +3030,13 @@ pub struct ResponsePaymentMethodsEnabledForClient {
 
     /// Whether to collect billing details from the wallet connector (null for non-wallet)
     pub collect_billing_details_from_wallets: Option<bool>,
+
+    /// Whether saving this payment method type is supported by all, some, or none of the
+    /// connectors eligible for it. Lets the SDK decide whether to show the "save my details"
+    /// checkbox and whether to word it definitely or hedged. Defaults to `unsupported` for
+    /// payment method types absent from the config.
+    #[schema(value_type = CustomerAcceptanceSupport, example = "partially_supported")]
+    pub customer_acceptance_support: api_enums::CustomerAcceptanceSupport,
 }
 
 /// Typed subtype-specific data for a saved customer payment method, returned in the

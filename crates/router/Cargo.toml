@@ -33,7 +33,7 @@ olap = [
     "api_models/olap",
     "dep:analytics",
 ]
-tls = ["actix-web/rustls-0_22"]
+tls = ["actix-web/rustls-0_23"]
 email = ["external_services/email", "scheduler/email", "olap"]
 # keymanager_create, keymanager_mtls, encryption_service should not be removed or added to default feature. Once this features were enabled it can't be disabled as these are breaking changes.
 keymanager_create = []
@@ -58,6 +58,7 @@ frm = [
     "hyperswitch_interfaces/frm",
 ]
 stripe = []
+gcp_kms = ["external_services/gcp_kms"]
 release = [
     "stripe",
     "email",
@@ -65,6 +66,7 @@ release = [
     "kv_store",
     "vergen",
     "external_services/aws_kms",
+    "gcp_kms",
     "external_services/aws_s3",
     "keymanager_mtls",
     "keymanager_create",
@@ -243,7 +245,11 @@ rust-i18n = { git = "https://github.com/kashif-m/rust-i18n", rev = "f2d8096aaaff
 unified-connector-service-client = { git = "https://github.com/juspay/connector-service", tag = "2026.08.24.0", package = "rust-grpc-client" }
 unified-connector-service-cards = { git = "https://github.com/juspay/connector-service", tag = "2026.08.24.0", package = "ucs_cards" }
 rustc-hash = "1.1.0"
-rustls = "0.22"
+rustls = { version = "0.23", default-features = false, features = [
+    "aws-lc-rs",
+    "std",
+    "tls12",
+] }
 rustls-pemfile = "2"
 serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0.140"

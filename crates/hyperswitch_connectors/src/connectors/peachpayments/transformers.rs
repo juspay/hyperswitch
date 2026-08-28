@@ -1283,6 +1283,7 @@ pub fn get_peachpayments_response(
             incremental_authorization_allowed: None,
             authentication_data: None,
             charges: None,
+            payment_account_reference: None,
         })
     };
     Ok((status, payments_response))
@@ -1340,6 +1341,7 @@ pub fn get_webhook_response(
             incremental_authorization_allowed: None,
             authentication_data: None,
             charges: None,
+            payment_account_reference: None,
         })
     };
     Ok((status, webhook_response))
@@ -1420,6 +1422,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, PeachpaymentsCaptureResponse, T, Paymen
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             })
         };
 
