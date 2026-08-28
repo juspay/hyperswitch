@@ -13,7 +13,7 @@ describe("Offer Engine", () => {
       .then((state) => {
         globalState = new State(state);
 
-        return cy.checkOfferEngineConnectivity(globalState);
+        return cy.offerEngineConnectivityCheck(globalState);
       })
       .then((reachable) => {
         if (!reachable) {
@@ -73,7 +73,7 @@ describe("Offer Engine", () => {
     });
 
     it("applied_offer is reflected on payment retrieve", () => {
-      cy.checkAppliedOfferOnRetrieve(
+      cy.appliedOfferRetrieveCheck(
         connectorDetails.offer_engine.AppliedOfferOnRetrieve,
         globalState
       );

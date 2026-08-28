@@ -8128,7 +8128,7 @@ Cypress.Commands.add(
   }
 );
 
-Cypress.Commands.add("checkOfferEngineConnectivity", (globalState) => {
+Cypress.Commands.add("offerEngineConnectivityCheck", (globalState) => {
   const baseUrl = globalState.get("baseUrl");
   const adminApiKey = globalState.get("adminApiKey");
 
@@ -8142,12 +8142,14 @@ Cypress.Commands.add("checkOfferEngineConnectivity", (globalState) => {
       },
       failOnStatusCode: false,
     })
-    .then(
-      (response) => response.status === 200 && Boolean(response.body?.reachable)
-    );
+    .then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      return response.status === 200 && Boolean(response.body?.reachable);
+    });
 });
 
-Cypress.Commands.add("checkAppliedOfferOnRetrieve", (data, globalState) => {
+Cypress.Commands.add("appliedOfferRetrieveCheck", (data, globalState) => {
   const { Response: resData } = data || {};
 
   const paymentId = globalState.get("paymentID");
@@ -8163,6 +8165,8 @@ Cypress.Commands.add("checkAppliedOfferOnRetrieve", (data, globalState) => {
     },
     failOnStatusCode: false,
   }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
     expect(response.status, "status_code").to.equal(200);
 
     for (const key of ["status", "net_amount", "amount_received"]) {
