@@ -30,9 +30,9 @@ async-trait = { version = "0.1.88", optional = true }
 base64 = "0.22.1"
 base64-serde = "0.8.0"
 blake3 = { version = "1.8.2", features = ["serde"] }
-bytes = "1.10.1"
+bytes = { version = "1.10.1", features = ["serde"] }
 diesel = "2.2.10"
-deja = { git = "https://github.com/juspay/deja", rev = "2c3a795ef4d8d2a5eebc47bbe7134984b75be6b3", optional = true, default-features = false }
+deja = { git = "https://github.com/juspay/deja", rev = "337181ebfd74b7e571a63a9cce515ff3c9309db7", optional = true, default-features = false }
 error-stack = "0.4.1"
 futures = { version = "0.3.31", optional = true }
 globset = "0.4.16"

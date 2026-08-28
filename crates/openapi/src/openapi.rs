@@ -842,6 +842,8 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payment_methods::TokenizePaymentMethodRequest,
         api_models::refunds::RefundListRequest,
         api_models::refunds::RefundListResponse,
+        common_utils::types::list::PageSize,
+        common_utils::types::list::PageOffset,
         api_models::relay::RelayRequest,
         api_models::relay::RelayResponse,
         api_models::enums::RelayType,
