@@ -29,6 +29,7 @@ use crate::{
         self, admin,
         errors::{self, CustomResult},
         payments::{self, helpers},
+        revenue_recovery::retry_stats,
     },
     db::{errors::RevenueRecoveryError, StorageInterface},
     routes::{app::ReqState, metrics, SessionState},
@@ -179,17 +180,23 @@ pub async fn recovery_incoming_webhook_flow(
         action: RecoveryAction::get_action(event_type, attempt_triggered_by),
     };
 
+    if recovery_action.is_invalid_action() {
+        logger::info!("No recovery action needed for this event type");
+        return Ok(webhooks::WebhookResponseTracker::NoEffect);
+    }
+
     let mca_retry_threshold = billing_connector_account
         .get_retry_threshold()
         .ok_or(report!(
             errors::RevenueRecoveryError::BillingThresholdRetryCountFetchFailed
         ))?;
 
+    // Default to 0 for newly created payment intents that have no feature_metadata yet
     let intent_retry_count = recovery_intent_from_payment_attempt
         .feature_metadata
         .as_ref()
         .and_then(|metadata| metadata.get_retry_count())
-        .ok_or(report!(errors::RevenueRecoveryError::RetryCountFetchFailed))?;
+        .unwrap_or(0);
 
     logger::info!("Intent retry count: {:?}", intent_retry_count);
     recovery_action
@@ -257,11 +264,11 @@ async fn handle_schedule_failed_payment(
     let (recovery_attempt_from_payment_attempt, recovery_intent_from_payment_attempt) =
         payment_attempt_with_recovery_intent;
 
-    // When intent_retry_count is less than or equal to threshold
-    (intent_retry_count <= mca_retry_threshold)
+    // When intent_retry_count is strictly less than threshold, billing connector didnt complete its configured retry attempts
+    (intent_retry_count < mca_retry_threshold)
         .then(|| {
-            logger::error!(
-                "Payment retry count {} is less than threshold {}",
+            logger::info!(
+                "Payment retry count {} is less than threshold {}, waiting for billing connector",
                 intent_retry_count,
                 mca_retry_threshold
             );
@@ -279,6 +286,9 @@ async fn handle_schedule_failed_payment(
                 recovery_attempt_from_payment_attempt
                     .as_ref()
                     .map(|attempt| attempt.attempt_id.clone()),
+                recovery_attempt_from_payment_attempt
+                    .as_ref()
+                    .and_then(|attempt| attempt.standardised_error_code),
                 storage::ProcessTrackerRunner::PassiveRecoveryWorkflow,
                 revenue_recovery_retry,
             )
@@ -632,20 +642,40 @@ impl RevenueRecoveryAttempt {
                                     )
                             })
                     });
-                let payment_attempt =
-                    final_attempt.map(|res| revenue_recovery::RecoveryPaymentAttempt {
-                        attempt_id: res.id.to_owned(),
-                        attempt_status: res.status.to_owned(),
-                        feature_metadata: res.feature_metadata.to_owned(),
-                        amount: res.amount.net_amount,
-                        network_advice_code: res.error.clone().and_then(|e| e.network_advice_code), // Placeholder, to be populated if available
-                        network_decline_code: res
-                            .error
-                            .clone()
-                            .and_then(|e| e.network_decline_code), // Placeholder, to be populated if available
-                        error_code: res.error.clone().map(|error| error.code),
-                        created_at: res.created_at,
-                    });
+                let payment_attempt = match final_attempt {
+                    Some(res) => {
+                        let standardised_error_code =
+                            retry_stats::events::resolve_standardised_error_code(
+                                state,
+                                res.connector.clone(),
+                                res.error.as_ref().map(|e| e.code.clone()),
+                                res.error.as_ref().map(|e| e.message.clone()),
+                                res.error
+                                    .as_ref()
+                                    .and_then(|e| e.network_decline_code.clone()),
+                                self.0.card_info.card_network.clone(),
+                            )
+                            .await;
+                        Some(revenue_recovery::RecoveryPaymentAttempt {
+                            attempt_id: res.id.to_owned(),
+                            attempt_status: res.status.to_owned(),
+                            feature_metadata: res.feature_metadata.to_owned(),
+                            amount: res.amount.net_amount,
+                            network_advice_code: res
+                                .error
+                                .clone()
+                                .and_then(|e| e.network_advice_code), // Placeholder, to be populated if available
+                            network_decline_code: res
+                                .error
+                                .clone()
+                                .and_then(|e| e.network_decline_code), // Placeholder, to be populated if available
+                            error_code: res.error.clone().map(|error| error.code),
+                            created_at: res.created_at,
+                            standardised_error_code,
+                        })
+                    }
+                    None => None,
+                };
                 // If we have an attempt, combine it with payment_intent in a tuple.
                 let res_with_payment_intent_and_attempt =
                     payment_attempt.map(|attempt| (attempt, (*payment_intent).clone()));
@@ -705,6 +735,26 @@ impl RevenueRecoveryAttempt {
 
         let (recovery_attempt, updated_recovery_intent) = match attempt_response {
             Ok(services::ApplicationResponse::JsonWithHeaders((attempt_response, _))) => {
+                let standardised_error_code = retry_stats::events::resolve_standardised_error_code(
+                    state,
+                    payment_connector_name
+                        .as_ref()
+                        .map(|connector| connector.to_string()),
+                    attempt_response
+                        .error_details
+                        .as_ref()
+                        .map(|error| error.code.clone()),
+                    attempt_response
+                        .error_details
+                        .as_ref()
+                        .map(|error| error.message.clone()),
+                    attempt_response
+                        .error_details
+                        .as_ref()
+                        .and_then(|error| error.network_decline_code.clone()),
+                    self.0.card_info.card_network.clone(),
+                )
+                .await;
                 Ok((
                     revenue_recovery::RecoveryPaymentAttempt {
                         attempt_id: attempt_response.id.clone(),
@@ -724,6 +774,7 @@ impl RevenueRecoveryAttempt {
                             .clone()
                             .map(|error| error.code),
                         created_at: attempt_response.created_at,
+                        standardised_error_code,
                     },
                     revenue_recovery::RecoveryPaymentIntent {
                         payment_id: payment_intent.payment_id.clone(),
@@ -1545,6 +1596,13 @@ impl RecoveryAction {
                 common_types::payments::RecoveryAction::CancelInvoice
             }
         }
+    }
+
+    pub fn is_invalid_action(&self) -> bool {
+        matches!(
+            self.action,
+            common_types::payments::RecoveryAction::InvalidAction
+        )
     }
 
     #[allow(clippy::too_many_arguments)]

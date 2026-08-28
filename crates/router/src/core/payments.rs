@@ -9784,6 +9784,8 @@ pub struct PaymentDataUpdateRequestFields {
     pub metadata: Option<serde_json::Value>,
     pub merchant_order_reference_id: Option<String>,
     pub customer_document_details: Option<api_models::customers::CustomerDocumentDetails>,
+    pub is_account_funded_transaction: Option<bool>,
+    pub recipient_details: Option<api_models::payments::RecipientDetails>,
 }
 
 #[derive(Clone)]
@@ -11351,6 +11353,7 @@ where
                             fallback_config,
                             backend_input,
                             transaction_type,
+                            dimensions,
                         )
                         .await?;
                         ConnectorCallType::SessionMultiple(routing_output)
@@ -12827,6 +12830,7 @@ pub async fn perform_session_token_routing<F, D>(
     fallback_config: Vec<api_models::routing::RoutableConnectorChoice>,
     mut backend_input: dsl_inputs::BackendInput,
     transaction_type: enums::TransactionType,
+    dimensions: &DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
 ) -> RouterResult<api::SessionConnectorDatas>
 where
     F: Clone,
@@ -12855,6 +12859,12 @@ where
         active_mca_ids: &active_mca_ids,
         default_config: &fallback_config,
         backend_input: &mut backend_input,
+        dimensions,
+        payment_id: payment_data
+            .get_payment_intent()
+            .payment_id
+            .get_string_repr()
+            .to_string(),
     };
 
     let routing_algorithm: routing::MerchantAccountRoutingAlgorithm = business_profile

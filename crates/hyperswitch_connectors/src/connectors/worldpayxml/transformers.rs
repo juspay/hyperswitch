@@ -278,6 +278,7 @@ pub struct Payment {
     fast_funds: Option<bool>,
     #[serde(rename = "ISO8583ReturnCode")]
     return_code: Option<ReturnCode>,
+    card_p_a_r: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -896,6 +897,7 @@ impl TryFrom<PaymentsPreAuthenticateResponseRouterData<bytes::Bytes>>
             incremental_authorization_allowed: None,
             authentication_data: None,
             charges: None,
+            payment_account_reference: None,
         });
         Ok(Self {
             status: common_enums::AttemptStatus::DeviceDataCollectionPending,
@@ -1833,6 +1835,7 @@ impl<F>
                                 incremental_authorization_allowed: None,
                                 authentication_data: None,
                                 charges: None,
+                                payment_account_reference: None,
                             }),
                             ..item.data
                         })
@@ -1852,6 +1855,7 @@ impl<F>
                             incremental_authorization_allowed: None,
                             authentication_data: None,
                             charges: None,
+                            payment_account_reference: None,
                         }),
                         ..item.data
                     })
@@ -1879,6 +1883,7 @@ impl<F>
                         incremental_authorization_allowed: None,
                         charges: None,
                         authentication_data: None,
+                        payment_account_reference: None,
                     }),
                     ..item.data
                 })
@@ -2203,6 +2208,7 @@ impl<F>
                     incremental_authorization_allowed: None,
                     authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 });
 
                 Ok(Self {
@@ -2664,6 +2670,7 @@ impl<F>
                     incremental_authorization_allowed: None,
                     authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 });
 
                 Ok(Self {
@@ -2752,6 +2759,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<PaymentService>> for PaymentsCapt
                     incremental_authorization_allowed: None,
                     authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 }),
                 ..item.data
             })
@@ -2815,6 +2823,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<PaymentService>> for PaymentsCance
                     incremental_authorization_allowed: None,
                     authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 }),
                 ..item.data
             })
@@ -3573,6 +3582,7 @@ fn process_payment_response(
             incremental_authorization_allowed: None,
             authentication_data: None,
             charges: None,
+            payment_account_reference: payment_data.card_p_a_r.clone(),
         })
     }
 }
