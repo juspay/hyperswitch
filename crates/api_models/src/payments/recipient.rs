@@ -65,7 +65,7 @@ pub enum RecipientAccount {
     Card {
         /// The recipient's card number.
         #[schema(value_type = String, example = "4111111111111111")]
-        card_number: Secret<String>,
+        card_number: cards::CardNumber,
     },
     /// Funds are credited to a wallet held for the recipient.
     Wallet {
@@ -257,7 +257,7 @@ impl From<RecipientAccount> for MaskedRecipientAccount {
                 Self::BankAccount(MaskedRecipientBankAccount::from(bank_account))
             }
             RecipientAccount::Card { card_number } => Self::Card {
-                card_number: MaskedCardNumber::from(card_number),
+                card_number: MaskedCardNumber::from(Secret::new(card_number.get_card_no())),
             },
             RecipientAccount::Wallet { wallet_id } => Self::Wallet {
                 wallet_id: MaskedValue::from(wallet_id),

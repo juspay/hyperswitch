@@ -431,6 +431,8 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
             .and_then(|noon| noon.order_category.clone())
     });
 
+    // Account funded transaction details are merchant supplied and are always read
+    // from the payment intent, never from the confirm request.
     let recipient_details = payment_data
         .payment_intent
         .get_recipient_details()
@@ -1783,6 +1785,8 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
         .clone()
         .map(types::BrowserInformation::from);
 
+    // Account funded transaction details are merchant supplied and are always read
+    // from the payment intent, never from the confirm request.
     let recipient_details = payment_data
         .payment_intent
         .get_recipient_details()
@@ -5196,6 +5200,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
 
         let customer_id = additional_data.customer_id.clone();
 
+        // Account funded transaction details are merchant supplied and are always read
+        // from the payment intent, never from the confirm request.
         let recipient_details = payment_data
             .payment_intent
             .get_recipient_details()
@@ -5463,6 +5469,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
 
         let billing_descriptor = payment_data.payment_intent.get_billing_descriptor();
 
+        // Account funded transaction details are merchant supplied and are always read
+        // from the payment intent, never from the confirm request.
         let recipient_details = payment_data
             .payment_intent
             .get_recipient_details()
@@ -7115,6 +7123,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
 
         let billing_descriptor = payment_data.payment_intent.get_billing_descriptor();
 
+        // Account funded transaction details are merchant supplied and are always read
+        // from the payment intent, never from the confirm request.
         let recipient_details = payment_data
             .payment_intent
             .get_recipient_details()
