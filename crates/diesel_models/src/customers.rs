@@ -35,6 +35,7 @@ pub struct CustomerNew {
     pub last_modified_by: Option<String>,
     pub document_details: Option<Encryption>,
     pub id: Option<common_utils::id_type::GlobalCustomerId>,
+    pub date_of_birth: Option<Encryption>,
 }
 
 #[cfg(feature = "v1")]
@@ -65,6 +66,7 @@ impl From<CustomerNew> for Customer {
             version: customer_new.version,
             tax_registration_id: customer_new.tax_registration_id,
             document_details: customer_new.document_details,
+            date_of_birth: customer_new.date_of_birth,
             created_by: customer_new.created_by,
             last_modified_by: customer_new.last_modified_by,
             id: customer_new.id,
@@ -96,6 +98,7 @@ pub struct CustomerNew {
     pub last_modified_by: Option<String>,
     pub document_details: Option<Encryption>,
     pub id: common_utils::id_type::GlobalCustomerId,
+    pub date_of_birth: Option<Encryption>,
     pub merchant_reference_id: Option<common_utils::id_type::CustomerId>,
     pub default_billing_address: Option<Encryption>,
     pub default_shipping_address: Option<Encryption>,
@@ -128,6 +131,7 @@ impl From<CustomerNew> for Customer {
             updated_by: customer_new.updated_by,
             tax_registration_id: customer_new.tax_registration_id,
             document_details: customer_new.document_details,
+            date_of_birth: customer_new.date_of_birth,
             merchant_reference_id: customer_new.merchant_reference_id,
             default_billing_address: customer_new.default_billing_address,
             default_shipping_address: customer_new.default_shipping_address,
@@ -167,6 +171,7 @@ pub struct Customer {
     pub last_modified_by: Option<String>,
     pub document_details: Option<Encryption>,
     pub id: Option<common_utils::id_type::GlobalCustomerId>,
+    pub date_of_birth: Option<Encryption>,
 }
 
 #[cfg(feature = "v2")]
@@ -193,6 +198,7 @@ pub struct Customer {
     pub last_modified_by: Option<String>,
     pub document_details: Option<Encryption>,
     pub id: common_utils::id_type::GlobalCustomerId,
+    pub date_of_birth: Option<Encryption>,
     pub merchant_reference_id: Option<common_utils::id_type::CustomerId>,
     pub default_billing_address: Option<Encryption>,
     pub default_shipping_address: Option<Encryption>,
@@ -231,6 +237,7 @@ pub struct CustomerUpdateInternal {
     pub tax_registration_id: Option<Encryption>,
     pub last_modified_by: Option<String>,
     pub document_details: Option<Encryption>,
+    pub date_of_birth: Option<Encryption>,
 }
 
 #[cfg(feature = "v2")]
@@ -256,4 +263,5 @@ pub struct CustomerUpdateInternal {
     pub tax_registration_id: Option<Encryption>,
     pub last_modified_by: Option<String>,
     pub document_details: Option<Encryption>,
+    pub date_of_birth: Option<Encryption>,
 }

@@ -501,6 +501,7 @@ diesel::table! {
         document_details -> Nullable<Bytea>,
         #[max_length = 64]
         id -> Nullable<Varchar>,
+        date_of_birth -> Nullable<Bytea>,
     }
 }
 

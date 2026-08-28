@@ -1895,6 +1895,21 @@ impl
                 document_details: customer_details_from_pi
                     .as_ref()
                     .and_then(|doc_details| doc_details.customer_document_details.clone()),
+                // Unlike `document_details` above, fall back to the stored customer so a
+                // saved date of birth prefills a payment that only carries `customer_id`.
+                date_of_birth: customer_details_from_pi
+                    .as_ref()
+                    .and_then(|cd| cd.date_of_birth.clone())
+                    .or_else(|| {
+                        customer.and_then(|cust| {
+                            cust.date_of_birth.as_ref().and_then(|encryptable| {
+                                api_models::customers::date_of_birth_from_string(
+                                    encryptable.get_inner(),
+                                )
+                                .ok()
+                            })
+                        })
+                    }),
             }),
             ..Self::default()
         })
@@ -2139,6 +2154,9 @@ impl ForeignFrom<&domain::Customer> for payments::CustomerDetailsResponse {
                 .clone()
                 .map(|encryptable| encryptable.into_inner())
                 .and_then(|secret_value| secret_value.parse_value("CustomerDocumentDetails").ok()),
+            date_of_birth: customer.date_of_birth.as_ref().and_then(|encryptable| {
+                api_models::customers::date_of_birth_from_string(encryptable.get_inner()).ok()
+            }),
         }
     }
 }

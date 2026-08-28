@@ -483,6 +483,7 @@ diesel::table! {
         document_details -> Nullable<Bytea>,
         #[max_length = 64]
         id -> Varchar,
+        date_of_birth -> Nullable<Bytea>,
         #[max_length = 64]
         merchant_reference_id -> Nullable<Varchar>,
         default_billing_address -> Nullable<Bytea>,

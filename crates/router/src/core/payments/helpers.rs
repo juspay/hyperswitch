@@ -1782,6 +1782,11 @@ pub fn get_customer_details_from_request_or_pm_table(
         .as_ref()
         .and_then(|customer_details| customer_details.tax_registration_id.clone());
 
+    let date_of_birth = request
+        .customer
+        .as_ref()
+        .and_then(|customer_details| customer_details.date_of_birth.clone());
+
     let document_details = match mandate_type {
         Some(api::MandateTransactionType::NewMandateTransaction) | None => {
             // Extracting customer details from request in case of CIT/One-Off
@@ -1824,6 +1829,7 @@ pub fn get_customer_details_from_request_or_pm_table(
         phone_country_code: customer_phone_code,
         tax_registration_id,
         document_details,
+        date_of_birth,
     })
 }
 
@@ -1878,6 +1884,7 @@ pub async fn populate_raw_customer_details<F: Clone>(
         || request_customer_details.phone.is_some()
         || request_customer_details.phone_country_code.is_some()
         || request_customer_details.tax_registration_id.is_some()
+        || request_customer_details.date_of_birth.is_some()
     {
         Some(CustomerData {
             name: request_customer_details.name.clone(),
@@ -1886,6 +1893,7 @@ pub async fn populate_raw_customer_details<F: Clone>(
             phone_country_code: request_customer_details.phone_country_code.clone(),
             tax_registration_id: request_customer_details.tax_registration_id.clone(),
             customer_document_details: request_customer_details.document_details.clone(),
+            date_of_birth: request_customer_details.date_of_birth.clone(),
         })
     } else {
         None
@@ -1931,6 +1939,10 @@ pub async fn populate_raw_customer_details<F: Clone>(
                 .document_details
                 .clone()
                 .or(parsed_customer_data.customer_document_details.clone()),
+            date_of_birth: request_customer_details
+                .date_of_birth
+                .clone()
+                .or(parsed_customer_data.date_of_birth.clone()),
         })
         .or(temp_customer_data);
 
@@ -2057,6 +2069,10 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                                 .map(|e| e.clone().expose().switch_strategy()),
                             phone: request_customer_details.phone.clone(),
                             tax_registration_id: None,
+                            date_of_birth: request_customer_details
+                                .date_of_birth
+                                .as_ref()
+                                .map(api_models::customers::date_of_birth_to_string),
                         },
                     ),
                 ),
@@ -2150,6 +2166,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                             metadata: Box::new(None),
                             address_id: None,
                             tax_registration_id: encryptable_customer.tax_registration_id,
+                            date_of_birth: encryptable_customer.date_of_birth,
                             document_details: Box::new(document_details),
                             last_modified_by: initiator
                                 .and_then(|initiator| initiator.to_created_by())
@@ -2218,6 +2235,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                         None,
                         None,
                         encryptable_customer.tax_registration_id,
+                        encryptable_customer.date_of_birth,
                         document_details,
                         initiator.and_then(|initiator| initiator.to_created_by()),
                         initiator.and_then(|initiator| initiator.to_created_by()),
@@ -2256,6 +2274,18 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                                 .expose()
                                 .parse_value::<CustomerDocumentDetails>("CustomerDocumentDetails")
                                 .change_context(storage_impl::StorageError::SerializationFailed)
+                        })
+                        .transpose()?,
+                    // This is what lets a saved customer's date of birth reach the connector
+                    // on a payment that only carries `customer_id`.
+                    date_of_birth: customer
+                        .date_of_birth
+                        .clone()
+                        .map(|encryptable| {
+                            api_models::customers::date_of_birth_from_string(
+                                &encryptable.into_inner(),
+                            )
+                            .change_context(storage_impl::StorageError::SerializationFailed)
                         })
                         .transpose()?,
                 };
@@ -5410,6 +5440,7 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
         minor_amount_capturable: router_data.minor_amount_capturable,
         authorized_amount: router_data.authorized_amount,
         customer_document_details: router_data.customer_document_details,
+        customer_date_of_birth: router_data.customer_date_of_birth,
         feature_data: router_data.feature_data,
         sender_payment_instrument_id: router_data.sender_payment_instrument_id,
         connector_returned_payment_method_details: None,

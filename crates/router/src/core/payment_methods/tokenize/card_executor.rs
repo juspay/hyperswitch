@@ -370,6 +370,10 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizeCardRequest> {
                         .clone()
                         .map(|tax_registration_id| tax_registration_id.into_inner()),
                     document_details: None,
+                    date_of_birth: customer.date_of_birth.clone().and_then(|encryptable| {
+                        api_models::customers::date_of_birth_from_string(&encryptable.into_inner())
+                            .ok()
+                    }),
                 }))
             },
         )
@@ -403,6 +407,11 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizeCardRequest> {
                         .map(|email| email.expose().switch_strategy()),
                     phone: self.customer.phone.clone(),
                     tax_registration_id: self.customer.tax_registration_id.clone(),
+                    date_of_birth: self
+                        .customer
+                        .date_of_birth
+                        .as_ref()
+                        .map(api_models::customers::date_of_birth_to_string),
                 },
             )),
             Identifier::Merchant(self.merchant_account.get_id().clone()),
@@ -437,6 +446,7 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizeCardRequest> {
             None,
             None,
             encryptable_customer.tax_registration_id,
+            encryptable_customer.date_of_birth,
             None,
             initiator.and_then(|initiator| initiator.to_created_by()),
             initiator.and_then(|initiator| initiator.to_created_by()),
@@ -467,6 +477,7 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizeCardRequest> {
             phone_country_code: self.customer.phone_country_code.clone(),
             tax_registration_id: self.customer.tax_registration_id.clone(),
             document_details: self.customer.document_details.clone(),
+            date_of_birth: self.customer.date_of_birth.clone(),
         })
     }
 

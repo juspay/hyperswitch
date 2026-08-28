@@ -1319,6 +1319,7 @@ impl Conversion for domain::Customer {
             updated_by: self.updated_by,
             version: self.version,
             tax_registration_id: self.tax_registration_id.map(Encryption::from),
+            date_of_birth: self.date_of_birth.map(Encryption::from),
             document_details: self.document_details.map(Encryption::from),
             created_by: self.created_by.map(|created_by| created_by.to_string()),
             last_modified_by: self
@@ -1346,6 +1347,7 @@ impl Conversion for domain::Customer {
                     phone: item.phone.clone(),
                     email: item.email.clone(),
                     tax_registration_id: item.tax_registration_id.clone(),
+                    date_of_birth: item.date_of_birth.clone(),
                 }),
             ),
             keymanager::Identifier::Merchant(item.merchant_id.clone()),
@@ -1401,6 +1403,7 @@ impl Conversion for domain::Customer {
             updated_by: item.updated_by,
             version: item.version,
             tax_registration_id: encryptable_customer.tax_registration_id,
+            date_of_birth: encryptable_customer.date_of_birth,
             document_details,
             created_by: item
                 .created_by
@@ -1432,6 +1435,7 @@ impl Conversion for domain::Customer {
             updated_by: self.updated_by,
             version: self.version,
             tax_registration_id: self.tax_registration_id.map(Encryption::from),
+            date_of_birth: self.date_of_birth.map(Encryption::from),
             document_details: self.document_details.map(Encryption::from),
             created_by: self
                 .created_by
@@ -1456,6 +1460,7 @@ impl ForeignFrom<domain::CustomerUpdate> for diesel_models::CustomerUpdateIntern
                 connector_customer,
                 address_id,
                 tax_registration_id,
+                date_of_birth,
                 document_details,
                 last_modified_by,
             } => Self {
@@ -1471,6 +1476,7 @@ impl ForeignFrom<domain::CustomerUpdate> for diesel_models::CustomerUpdateIntern
                 default_payment_method_id: None,
                 updated_by: None,
                 tax_registration_id: tax_registration_id.map(Encryption::from),
+                date_of_birth: date_of_birth.map(Encryption::from),
                 document_details: document_details.map(Encryption::from),
                 last_modified_by,
             },
@@ -1490,6 +1496,7 @@ impl ForeignFrom<domain::CustomerUpdate> for diesel_models::CustomerUpdateIntern
                 updated_by: None,
                 address_id: None,
                 tax_registration_id: None,
+                date_of_birth: None,
                 document_details: None,
                 last_modified_by,
             },
@@ -1509,6 +1516,7 @@ impl ForeignFrom<domain::CustomerUpdate> for diesel_models::CustomerUpdateIntern
                 updated_by: None,
                 address_id: None,
                 tax_registration_id: None,
+                date_of_birth: None,
                 document_details: None,
                 last_modified_by,
             },
@@ -1543,6 +1551,7 @@ impl Conversion for domain::Customer {
             version: self.version,
             status: self.status,
             tax_registration_id: self.tax_registration_id.map(Encryption::from),
+            date_of_birth: self.date_of_birth.map(Encryption::from),
             document_details: self.document_details.map(Encryption::from),
             created_by: self.created_by.map(|created_by| created_by.to_string()),
             last_modified_by: self
@@ -1569,6 +1578,7 @@ impl Conversion for domain::Customer {
                     phone: item.phone.clone(),
                     email: item.email.clone(),
                     tax_registration_id: item.tax_registration_id.clone(),
+                    date_of_birth: item.date_of_birth.clone(),
                 }),
             ),
             keymanager::Identifier::Merchant(item.merchant_id.clone()),
@@ -1664,6 +1674,7 @@ impl Conversion for domain::Customer {
             version: item.version,
             status: item.status,
             tax_registration_id: encryptable_customer.tax_registration_id,
+            date_of_birth: encryptable_customer.date_of_birth,
             document_details,
             created_by: item
                 .created_by
@@ -1696,6 +1707,7 @@ impl Conversion for domain::Customer {
             version: common_types::consts::API_VERSION,
             status: self.status,
             tax_registration_id: self.tax_registration_id.map(Encryption::from),
+            date_of_birth: self.date_of_birth.map(Encryption::from),
             document_details: self.document_details.map(Encryption::from),
             created_by: self
                 .created_by
@@ -1725,6 +1737,7 @@ impl ForeignFrom<domain::CustomerUpdate> for diesel_models::CustomerUpdateIntern
                     default_payment_method_id,
                     status,
                     tax_registration_id,
+                    date_of_birth,
                     document_details,
                     last_modified_by,
                 } = *update;
@@ -1743,6 +1756,7 @@ impl ForeignFrom<domain::CustomerUpdate> for diesel_models::CustomerUpdateIntern
                     updated_by: None,
                     status,
                     tax_registration_id: tax_registration_id.map(Encryption::from),
+                    date_of_birth: date_of_birth.map(Encryption::from),
                     document_details: document_details.map(Encryption::from),
                     last_modified_by,
                 }
@@ -1765,6 +1779,7 @@ impl ForeignFrom<domain::CustomerUpdate> for diesel_models::CustomerUpdateIntern
                 default_shipping_address: None,
                 status: None,
                 tax_registration_id: None,
+                date_of_birth: None,
                 document_details: None,
                 last_modified_by,
             },
@@ -1786,6 +1801,7 @@ impl ForeignFrom<domain::CustomerUpdate> for diesel_models::CustomerUpdateIntern
                 default_shipping_address: None,
                 status: None,
                 tax_registration_id: None,
+                date_of_birth: None,
                 document_details: None,
                 last_modified_by,
             },

@@ -159,6 +159,10 @@ pub struct CustomerData {
     pub phone_country_code: Option<String>,
     pub tax_registration_id: Option<Secret<String>>,
     pub customer_document_details: Option<CustomerDocumentDetails>,
+    /// Persisted as an ISO-8601 string: the `router` binary declares time's
+    /// `serde-human-readable` feature, so `Date` round-trips through this JSON blob as
+    /// `"1970-04-03"` rather than a `(year, ordinal)` tuple.
+    pub date_of_birth: Option<Secret<time::Date>>,
 }
 
 impl CustomerData {
@@ -174,6 +178,10 @@ impl CustomerData {
             .tax_registration_id
             .clone()
             .or_else(|| other.tax_registration_id.clone());
+        self.date_of_birth = self
+            .date_of_birth
+            .clone()
+            .or_else(|| other.date_of_birth.clone());
     }
 }
 

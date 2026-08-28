@@ -63,6 +63,11 @@ pub struct Customer {
     pub version: common_enums::ApiVersion,
     #[encrypt]
     pub tax_registration_id: Option<Encryptable<Secret<String>>>,
+    #[encrypt]
+    /// Customer's date of birth, held as an ISO-8601 `YYYY-MM-DD` string. Encrypted at rest
+    /// like the other customer identity fields; the API layer works in `time::Date` and only
+    /// well-formed dates ever reach here.
+    pub date_of_birth: Option<Encryptable<Secret<String>>>,
     pub document_details: OptionalEncryptableValue,
     pub created_by: Option<CreatedBy>,
     pub last_modified_by: Option<CreatedBy>,
@@ -94,6 +99,11 @@ pub struct Customer {
     pub status: DeleteStatus,
     #[encrypt]
     pub tax_registration_id: Option<Encryptable<Secret<String>>>,
+    #[encrypt]
+    /// Customer's date of birth, held as an ISO-8601 `YYYY-MM-DD` string. Encrypted at rest
+    /// like the other customer identity fields; the API layer works in `time::Date` and only
+    /// well-formed dates ever reach here.
+    pub date_of_birth: Option<Encryptable<Secret<String>>>,
     pub document_details: OptionalEncryptableValue,
     pub created_by: Option<CreatedBy>,
     pub last_modified_by: Option<CreatedBy>,
@@ -135,6 +145,7 @@ impl Customer {
         connector_customer: Option<pii::SecretSerdeValue>,
         address_id: Option<String>,
         tax_registration_id: Option<Encryptable<Secret<String>>>,
+        date_of_birth: Option<Encryptable<Secret<String>>>,
         document_details: OptionalEncryptableValue,
         created_by: Option<CreatedBy>,
         last_modified_by: Option<CreatedBy>,
@@ -158,6 +169,7 @@ impl Customer {
             updated_by: None,
             version: common_enums::ApiVersion::V1,
             tax_registration_id,
+            date_of_birth,
             document_details,
             created_by,
             last_modified_by,
@@ -246,6 +258,7 @@ pub struct CustomerGeneralUpdate {
     pub default_payment_method_id: Option<Option<id_type::GlobalPaymentMethodId>>,
     pub status: Option<DeleteStatus>,
     pub tax_registration_id: crypto::OptionalEncryptableSecretString,
+    pub date_of_birth: crypto::OptionalEncryptableSecretString,
     pub document_details: OptionalEncryptableValue,
     pub last_modified_by: Option<String>,
 }
@@ -277,6 +290,7 @@ pub enum CustomerUpdate {
         connector_customer: Box<Option<pii::SecretSerdeValue>>,
         address_id: Option<String>,
         tax_registration_id: crypto::OptionalEncryptableSecretString,
+        date_of_birth: crypto::OptionalEncryptableSecretString,
         document_details: Box<OptionalEncryptableValue>,
         last_modified_by: Option<String>,
     },

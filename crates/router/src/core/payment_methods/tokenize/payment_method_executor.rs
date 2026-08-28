@@ -387,6 +387,9 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizePaymentMethodRequest> {
                 .clone()
                 .map(|tax_registration_id| tax_registration_id.into_inner()),
             document_details: None,
+            date_of_birth: customer.date_of_birth.clone().and_then(|encryptable| {
+                api_models::customers::date_of_birth_from_string(&encryptable.into_inner()).ok()
+            }),
         };
 
         Ok((locker_id, customer_details))

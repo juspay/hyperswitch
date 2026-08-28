@@ -841,6 +841,7 @@ impl
                 metadata: None,
                 tax_registration_id: None,
                 document_details: None,
+                date_of_birth: None,
             },
             connector_customer_details,
         })

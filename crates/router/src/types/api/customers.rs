@@ -58,6 +58,13 @@ impl TryFrom<(domain::Customer, Option<payments::AddressDetails>)> for CustomerR
             default_payment_method_id: cust.default_payment_method_id,
             tax_registration_id: cust.tax_registration_id,
             document_details,
+            date_of_birth: cust.date_of_birth.and_then(|encryptable| {
+                customers::date_of_birth_from_string(&encryptable.into_inner())
+                    .inspect_err(|err| {
+                        router_env::logger::error!(?err, "Failed to parse stored date_of_birth")
+                    })
+                    .ok()
+            }),
         }))
     }
 }
@@ -130,6 +137,13 @@ impl TryFrom<customer::Customer> for CustomerResponse {
             default_payment_method_id: cust.default_payment_method_id,
             tax_registration_id: cust.tax_registration_id,
             document_details,
+            date_of_birth: cust.date_of_birth.and_then(|encryptable| {
+                customers::date_of_birth_from_string(&encryptable.into_inner())
+                    .inspect_err(|err| {
+                        router_env::logger::error!(?err, "Failed to parse stored date_of_birth")
+                    })
+                    .ok()
+            }),
         }))
     }
 }
