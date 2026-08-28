@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.08.26.1-hotfix3
+
+### Features
+
+- **payments:** Add fingerprint_type and generate fingerprints for wallet payment methods ([#13892](https://github.com/juspay/hyperswitch/pull/13892)) ([`0ea6287`](https://github.com/juspay/hyperswitch/commit/0ea62875954c982e5b4698564d4024490606a4ef))
+
+**Full Changelog:** [`2026.08.26.1-hotfix2...2026.08.26.1-hotfix3`](https://github.com/juspay/hyperswitch/compare/2026.08.26.1-hotfix2...2026.08.26.1-hotfix3)
+
+- - -
+
 ## 2026.08.26.1-hotfix2
 
 ### Bug Fixes
