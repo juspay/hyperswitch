@@ -5431,7 +5431,6 @@ impl transformers::ForeignTryFrom<common_enums::BankNames> for payments_grpc::Ba
             common_enums::BankNames::Ithala => Ok(Self::Ithala),
             common_enums::BankNames::PeoplesBankPepBank => Ok(Self::PeoplesBankPepBank),
             common_enums::BankNames::PeoplesBank => Ok(Self::PeoplesBank),
-            common_enums::BankNames::PostBank => Ok(Self::PostBank),
             common_enums::BankNames::Nedbank => Ok(Self::Nedbank),
             common_enums::BankNames::Capitec => Ok(Self::Capitec),
             common_enums::BankNames::CapitecBusiness => Ok(Self::CapitecBusiness),
@@ -8873,6 +8872,10 @@ impl ForeignFrom<&common_enums::BankType> for payments_grpc::BankType {
             common_enums::BankType::Savings => Self::Savings,
             common_enums::BankType::Salary => Self::Salary,
             common_enums::BankType::Payment => Self::Payment,
+            common_enums::BankType::Bond => Self::Bond,
+            common_enums::BankType::Current => Self::Current,
+            common_enums::BankType::Transmission => Self::Transmission,
+            common_enums::BankType::SubscriptionShare => Self::SubscriptionShare,
         }
     }
 }

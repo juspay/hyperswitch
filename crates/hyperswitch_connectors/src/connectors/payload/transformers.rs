@@ -253,12 +253,15 @@ impl TryFrom<enums::BankType> for requests::PayloadAccAccountType {
         match bank_type {
             enums::BankType::Checking => Ok(Self::Checking),
             enums::BankType::Savings => Ok(Self::Savings),
-            b_type @ (enums::BankType::Salary | enums::BankType::Payment) => {
-                Err(errors::ConnectorError::NotSupported {
-                    message: format!("bank_type {b_type} is not supported"),
-                    connector: "payload",
-                })
-            }
+            b_type @ (common_enums::BankType::Salary
+            | common_enums::BankType::Payment
+            | common_enums::BankType::Bond
+            | common_enums::BankType::Current
+            | common_enums::BankType::SubscriptionShare
+            | common_enums::BankType::Transmission) => Err(errors::ConnectorError::NotSupported {
+                message: format!("bank_type {b_type} is not supported"),
+                connector: "payload",
+            }),
         }
     }
 }

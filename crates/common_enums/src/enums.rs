@@ -9718,7 +9718,6 @@ pub enum BankNames {
     PeoplesBank,
     PermanentBank,
     PentagonFederalCreditUnion,
-    PostBank,
     SocieteGenerale,
     StandardBank,
     StateBankOfIndia,
