@@ -4254,7 +4254,6 @@ pub enum AdditionalPaymentData {
         apple_pay: Option<Box<ApplepayPaymentMethod>>,
         google_pay: Option<Box<WalletAdditionalDataForCard>>,
         samsung_pay: Option<Box<WalletAdditionalDataForCard>>,
-        #[serde(default)]
         paypal: Option<Box<PaypalWalletAdditionalData>>,
     },
     PayLater {
