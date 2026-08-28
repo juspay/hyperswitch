@@ -430,13 +430,9 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
             .and_then(|noon| noon.order_category.clone())
     });
 
-    // Check if this is a MIT payment (MIT with mandate_id or MandatePayment)
-    let is_mit_payment = payment_data.payment_method_data.as_ref().map(|data| {
-        matches!(
-            data,
-            hyperswitch_domain_models::payment_method_data::PaymentMethodData::MandatePayment
-        )
-    });
+    // MIT is driven by the mandate reference the operation resolved, the same way v1 derives it.
+    // v2's payment intent has no `off_session` column, so there is no merchant override to apply.
+    let is_off_session = get_off_session(payment_data.mandate_data.as_ref(), None);
 
     // TODO: few fields are repeated in both routerdata and request
     let request = types::PaymentsAuthorizeData {
@@ -445,7 +441,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
             .get_required_value("payment_method_data")?,
         setup_future_usage: Some(payment_data.payment_intent.setup_future_usage),
         mandate_id: payment_data.mandate_data.clone(),
-        off_session: is_mit_payment,
+        off_session: is_off_session,
         setup_mandate_details: None,
         confirm: true,
         capture_method: Some(payment_data.payment_intent.capture_method),
@@ -566,7 +562,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         payment_method_status: None,
         payment_method_token: None,
         connector_customer: connector_customer_id,
-        recurring_mandate_payment_data: is_mit_payment.unwrap_or(false).then(|| {
+        recurring_mandate_payment_data: is_off_session.unwrap_or(false).then(|| {
             hyperswitch_domain_models::router_data::RecurringMandatePaymentData {
                 payment_method_type: payment_data.payment_attempt.payment_method_subtype,
                 original_payment_authorized_amount: None,
