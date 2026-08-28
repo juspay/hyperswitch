@@ -13547,6 +13547,13 @@
               }
             ],
             "nullable": true
+          },
+          "date_of_birth": {
+            "type": "string",
+            "format": "date",
+            "description": "The customer's date of birth",
+            "example": "1990-01-31",
+            "nullable": true
           }
         }
       },
@@ -18001,6 +18008,305 @@
           },
           "bank_name": {
             "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "MaskedRecipientAccount": {
+        "oneOf": [
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MaskedRecipientBankAccount"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "type"
+                ],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "bank_account"
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "type": "object",
+            "description": "A partially masked card.",
+            "required": [
+              "card_number",
+              "type"
+            ],
+            "properties": {
+              "card_number": {
+                "type": "string",
+                "description": "The recipient's partially masked card number.",
+                "example": "411111******1111"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "card"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "A partially masked wallet.",
+            "required": [
+              "wallet_id",
+              "type"
+            ],
+            "properties": {
+              "wallet_id": {
+                "type": "string",
+                "description": "The partially masked identifier of the recipient's wallet.",
+                "example": "wall****8891"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "wallet"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "A masked email address.",
+            "required": [
+              "email",
+              "type"
+            ],
+            "properties": {
+              "email": {
+                "type": "string",
+                "description": "The email address that identifies the recipient's account.",
+                "example": "ja******@example.com"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "email"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "A partially masked phone number.",
+            "required": [
+              "phone_number",
+              "type"
+            ],
+            "properties": {
+              "phone_number": {
+                "type": "string",
+                "description": "The phone number that identifies the recipient's account.",
+                "example": "9123****6789"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "phone"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "A partially masked social network handle.",
+            "required": [
+              "social_network_id",
+              "type"
+            ],
+            "properties": {
+              "social_network_id": {
+                "type": "string",
+                "description": "The social network identifier of the recipient.",
+                "example": "jane****.doe"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "social_network"
+                ]
+              }
+            }
+          }
+        ],
+        "description": "A partially masked view of `RecipientAccount`, safe to return in API responses.",
+        "discriminator": {
+          "propertyName": "type"
+        }
+      },
+      "MaskedRecipientBankAccount": {
+        "oneOf": [
+          {
+            "type": "object",
+            "description": "A partially masked International Bank Account Number.",
+            "required": [
+              "iban",
+              "bank_account_type"
+            ],
+            "properties": {
+              "iban": {
+                "type": "string",
+                "description": "The recipient's partially masked IBAN.",
+                "example": "GB29N************46864"
+              },
+              "bank_account_type": {
+                "type": "string",
+                "enum": [
+                  "iban"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "A partially masked account number and routing number.",
+            "required": [
+              "account_number",
+              "routing_number",
+              "bank_account_type"
+            ],
+            "properties": {
+              "account_number": {
+                "type": "string",
+                "description": "The recipient's partially masked bank account number.",
+                "example": "0001****6789"
+              },
+              "routing_number": {
+                "type": "string",
+                "description": "The partially masked routing number of the recipient's bank.",
+                "example": "110***000"
+              },
+              "bank_account_type": {
+                "type": "string",
+                "enum": [
+                  "routing_number"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "A partially masked account number and BIC.",
+            "required": [
+              "account_number",
+              "bic",
+              "bank_account_type"
+            ],
+            "properties": {
+              "account_number": {
+                "type": "string",
+                "description": "The recipient's partially masked bank account number.",
+                "example": "0987****5432"
+              },
+              "bic": {
+                "type": "string",
+                "description": "The partially masked Bank Identification Code of the recipient's bank.",
+                "example": "HBU***4B"
+              },
+              "bank_account_type": {
+                "type": "string",
+                "enum": [
+                  "bic"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "A partially masked bare bank account number.",
+            "required": [
+              "account_number",
+              "bank_account_type"
+            ],
+            "properties": {
+              "account_number": {
+                "type": "string",
+                "description": "The recipient's partially masked bank account number.",
+                "example": "0001****6789"
+              },
+              "bank_account_type": {
+                "type": "string",
+                "enum": [
+                  "account_number"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "A truncated primary account number. This is already the industry standard truncated form,\nso it is returned as supplied.",
+            "required": [
+              "card_isin",
+              "last4",
+              "bank_account_type"
+            ],
+            "properties": {
+              "card_isin": {
+                "type": "string",
+                "description": "The first six digits of the recipient's PAN.",
+                "example": "411111"
+              },
+              "last4": {
+                "type": "string",
+                "description": "The last four digits of the recipient's PAN.",
+                "example": "1111"
+              },
+              "bank_account_type": {
+                "type": "string",
+                "enum": [
+                  "truncated_pan"
+                ]
+              }
+            }
+          }
+        ],
+        "description": "A partially masked view of `RecipientBankAccount`, safe to return in API responses.",
+        "discriminator": {
+          "propertyName": "bank_account_type"
+        }
+      },
+      "MaskedRecipientDetails": {
+        "type": "object",
+        "description": "A partially masked view of `RecipientDetails`, safe to return in API responses.",
+        "properties": {
+          "account": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MaskedRecipientAccount"
+              }
+            ],
+            "nullable": true
+          },
+          "phone_number": {
+            "type": "string",
+            "description": "The recipient's partially masked phone number.",
+            "example": "9123****6789",
+            "nullable": true
+          },
+          "tax_id": {
+            "type": "string",
+            "description": "The recipient's partially masked tax identifier.",
+            "example": "162.****41-42",
+            "nullable": true
+          },
+          "address": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AddressDetails"
+              }
+            ],
             "nullable": true
           }
         }
@@ -24733,6 +25039,20 @@
             "description": "Allow partial authorization for this payment",
             "default": false,
             "nullable": true
+          },
+          "is_account_funded_transaction": {
+            "type": "boolean",
+            "description": "Indicates whether this payment is an account funded transaction, where funds are pulled\nfrom a card account to fund another account rather than to pay for goods or services.",
+            "example": true,
+            "nullable": true
+          },
+          "recipient_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RecipientDetails"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -25101,6 +25421,20 @@
             "type": "boolean",
             "description": "Allow partial authorization for this payment",
             "default": false,
+            "nullable": true
+          },
+          "is_account_funded_transaction": {
+            "type": "boolean",
+            "description": "Indicates whether this payment is an account funded transaction.",
+            "example": true,
+            "nullable": true
+          },
+          "recipient_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MaskedRecipientDetails"
+              }
+            ],
             "nullable": true
           }
         },
@@ -25581,6 +25915,20 @@
             "type": "string",
             "description": "The webhook endpoint URL to receive payment status notifications",
             "example": "https://merchant.example.com/webhooks/payment",
+            "nullable": true
+          },
+          "is_account_funded_transaction": {
+            "type": "boolean",
+            "description": "Indicates whether this payment is an account funded transaction, where funds are pulled\nfrom a card account to fund another account rather than to pay for goods or services.",
+            "example": true,
+            "nullable": true
+          },
+          "recipient_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RecipientDetails"
+              }
+            ],
             "nullable": true
           }
         },
@@ -26075,6 +26423,20 @@
             "type": "boolean",
             "description": "Allow partial authorization for this payment",
             "default": false,
+            "nullable": true
+          },
+          "is_account_funded_transaction": {
+            "type": "boolean",
+            "description": "Indicates whether this payment is an account funded transaction.",
+            "example": true,
+            "nullable": true
+          },
+          "recipient_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RecipientDetails"
+              }
+            ],
             "nullable": true
           }
         },
@@ -29457,6 +29819,308 @@
             "type": "integer",
             "format": "int64",
             "description": "The amount remaining to be sent via ACH",
+            "nullable": true
+          }
+        }
+      },
+      "RecipientAccount": {
+        "oneOf": [
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RecipientBankAccount"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "type"
+                ],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "bank_account"
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "type": "object",
+            "description": "Funds are credited to a card.",
+            "required": [
+              "card_number",
+              "type"
+            ],
+            "properties": {
+              "card_number": {
+                "type": "string",
+                "description": "The recipient's card number.",
+                "example": "4111111111111111"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "card"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "Funds are credited to a wallet held for the recipient.",
+            "required": [
+              "wallet_id",
+              "type"
+            ],
+            "properties": {
+              "wallet_id": {
+                "type": "string",
+                "description": "The identifier of the recipient's wallet.",
+                "example": "wallet_8891"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "wallet"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "The recipient's account is identified by their email address.",
+            "required": [
+              "email",
+              "type"
+            ],
+            "properties": {
+              "email": {
+                "type": "string",
+                "description": "The email address that identifies the recipient's account.",
+                "example": "jane.doe@example.com"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "email"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "The recipient's account is identified by their phone number.",
+            "required": [
+              "phone_number",
+              "type"
+            ],
+            "properties": {
+              "phone_number": {
+                "type": "string",
+                "description": "The phone number that identifies the recipient's account.",
+                "example": "9123456789"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "phone"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "The recipient's account is identified by a social network handle.",
+            "required": [
+              "social_network_id",
+              "type"
+            ],
+            "properties": {
+              "social_network_id": {
+                "type": "string",
+                "description": "The social network identifier of the recipient.",
+                "example": "jane.doe"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "social_network"
+                ]
+              }
+            }
+          }
+        ],
+        "description": "The account that receives the funds in an account funded transaction.",
+        "discriminator": {
+          "propertyName": "type"
+        }
+      },
+      "RecipientBankAccount": {
+        "oneOf": [
+          {
+            "type": "object",
+            "description": "An International Bank Account Number.",
+            "required": [
+              "iban",
+              "bank_account_type"
+            ],
+            "properties": {
+              "iban": {
+                "type": "string",
+                "description": "The recipient's IBAN.",
+                "example": "GB29NWBK70361331946864"
+              },
+              "bank_account_type": {
+                "type": "string",
+                "enum": [
+                  "iban"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "A bank account number paired with the routing number of the holding bank.",
+            "required": [
+              "account_number",
+              "routing_number",
+              "bank_account_type"
+            ],
+            "properties": {
+              "account_number": {
+                "type": "string",
+                "description": "The recipient's bank account number.",
+                "example": "000123456789"
+              },
+              "routing_number": {
+                "type": "string",
+                "description": "The routing number of the recipient's bank.",
+                "example": "110000000"
+              },
+              "bank_account_type": {
+                "type": "string",
+                "enum": [
+                  "routing_number"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "A bank account number paired with the BIC of the holding bank.",
+            "required": [
+              "account_number",
+              "bic",
+              "bank_account_type"
+            ],
+            "properties": {
+              "account_number": {
+                "type": "string",
+                "description": "The recipient's bank account number.",
+                "example": "09875432"
+              },
+              "bic": {
+                "type": "string",
+                "description": "The Bank Identification Code of the recipient's bank.",
+                "example": "HBUKGB4B"
+              },
+              "bank_account_type": {
+                "type": "string",
+                "enum": [
+                  "bic"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "A bare bank account number, where the scheme does not require a bank identifier.",
+            "required": [
+              "account_number",
+              "bank_account_type"
+            ],
+            "properties": {
+              "account_number": {
+                "type": "string",
+                "description": "The recipient's bank account number.",
+                "example": "000123456789"
+              },
+              "bank_account_type": {
+                "type": "string",
+                "enum": [
+                  "account_number"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "A truncated primary account number, made up of the first six and last four digits.",
+            "required": [
+              "card_isin",
+              "last4",
+              "bank_account_type"
+            ],
+            "properties": {
+              "card_isin": {
+                "type": "string",
+                "description": "The first six digits of the recipient's PAN.",
+                "example": "411111",
+                "maxLength": 6
+              },
+              "last4": {
+                "type": "string",
+                "description": "The last four digits of the recipient's PAN.",
+                "example": "1111",
+                "maxLength": 4
+              },
+              "bank_account_type": {
+                "type": "string",
+                "enum": [
+                  "truncated_pan"
+                ]
+              }
+            }
+          }
+        ],
+        "discriminator": {
+          "propertyName": "bank_account_type"
+        }
+      },
+      "RecipientDetails": {
+        "type": "object",
+        "description": "Details of the party receiving the funds in an account funded transaction.",
+        "properties": {
+          "account": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RecipientAccount"
+              }
+            ],
+            "nullable": true
+          },
+          "phone_number": {
+            "type": "string",
+            "description": "The recipient's phone number.",
+            "example": "9123456789",
+            "nullable": true,
+            "maxLength": 20
+          },
+          "tax_id": {
+            "type": "string",
+            "description": "The recipient's tax identifier. Some connectors require this for recipients in Brazil\n(CPF or CNPJ) and Argentina.",
+            "example": "162.152.541-42",
+            "nullable": true,
+            "maxLength": 25
+          },
+          "address": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AddressDetails"
+              }
+            ],
             "nullable": true
           }
         }

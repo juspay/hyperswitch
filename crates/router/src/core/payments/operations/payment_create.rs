@@ -1880,6 +1880,14 @@ impl PaymentCreate {
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Unable to encode shipping details to serde_json::Value")?;
 
+        let recipient_details_encoded = request
+            .recipient_details
+            .clone()
+            .map(|recipient| Encode::encode_to_value(&recipient).map(Secret::new))
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to encode recipient details to serde_json::Value")?;
+
         let encrypted_data = domain::types::crypto_operation(
             &key_manager_state,
             type_name!(storage::PaymentIntent),
@@ -1889,6 +1897,7 @@ impl PaymentCreate {
                         shipping_details: shipping_details_encoded,
                         billing_details: billing_details_encoded,
                         customer_details: customer_details_encoded,
+                        recipient_details: recipient_details_encoded,
                     },
                 ),
             ),
@@ -2004,6 +2013,8 @@ impl PaymentCreate {
             enable_overcapture: request.enable_overcapture,
             mit_category: request.mit_category,
             billing_descriptor: request.billing_descriptor.clone(),
+            is_account_funded_transaction: request.is_account_funded_transaction,
+            recipient_details: encrypted_data.recipient_details,
             tokenization: request.tokenization,
             partner_merchant_identifier_details: request
                 .partner_merchant_identifier_details

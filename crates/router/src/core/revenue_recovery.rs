@@ -791,7 +791,7 @@ pub async fn perform_calculate_workflow(
     })
     .flatten()
     .async_map(|(event_kind, response)| async move {
-        let _ = RevenueRecoveryOutgoingWebhook::send_outgoing_webhook_based_on_revenue_recovery_status(
+        let _ = Box::pin(RevenueRecoveryOutgoingWebhook::send_outgoing_webhook_based_on_revenue_recovery_status(
             state,
             common_enums::EventClass::Payments,
             event_kind,
@@ -800,7 +800,7 @@ pub async fn perform_calculate_workflow(
             profile,
             tracking_data.payment_attempt_id.get_string_repr().to_string(),
             response
-        )
+        ))
         .await
         .map_err(|e| {
             logger::error!(

@@ -596,6 +596,8 @@ pub trait RouterData {
     fn get_customer_document_details(
         &self,
     ) -> Result<Option<api_models::customers::CustomerDocumentDetails>, Error>;
+    fn get_optional_customer_date_of_birth(&self) -> Option<Secret<time::Date>>;
+    fn get_customer_date_of_birth(&self) -> Result<Secret<time::Date>, Error>;
     fn get_optional_customer_id(&self) -> Option<id_type::CustomerId>;
     fn get_connector_customer_id(&self) -> Result<String, Error>;
     fn get_preprocessing_id(&self) -> Result<String, Error>;
@@ -1110,6 +1112,13 @@ impl<Flow, Request, Response> RouterData
         &self,
     ) -> Result<Option<api_models::customers::CustomerDocumentDetails>, Error> {
         Ok(self.customer_document_details.clone())
+    }
+    fn get_optional_customer_date_of_birth(&self) -> Option<Secret<time::Date>> {
+        self.customer_date_of_birth.clone()
+    }
+    fn get_customer_date_of_birth(&self) -> Result<Secret<time::Date>, Error> {
+        self.get_optional_customer_date_of_birth()
+            .ok_or_else(missing_field_err("customer.date_of_birth"))
     }
     fn get_connector_customer_id(&self) -> Result<String, Error> {
         self.connector_customer
@@ -7843,6 +7852,8 @@ pub(crate) fn convert_setup_mandate_router_data_to_authorize_router_data(
             .clone(),
         feature_metadata: None,
         installment_details: None,
+        is_account_funded_transaction: data.request.is_account_funded_transaction,
+        recipient_details: data.request.recipient_details.clone(),
         connector_intent_metadata: data.request.connector_intent_metadata.clone(),
     }
 }
@@ -7909,6 +7920,7 @@ pub(crate) fn convert_payment_authorize_router_response<F1, F2, T1, T2>(
         minor_amount_capturable: data.minor_amount_capturable,
         authorized_amount: data.authorized_amount,
         customer_document_details: data.customer_document_details.clone(),
+        customer_date_of_birth: data.customer_date_of_birth.clone(),
         feature_data: data.feature_data.clone(),
         sender_payment_instrument_id: None,
         connector_returned_payment_method_details: None,
