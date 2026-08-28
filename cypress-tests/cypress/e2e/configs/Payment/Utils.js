@@ -777,7 +777,7 @@ export const CONNECTOR_LISTS = {
     ],
     CARD_TESTING_GUARD: ["bankofamerica"],
     CLEAR_PAN_RETRY: ["bankofamerica"],
-    L2L3DATA: ["checkout", "nuvei", "worldpayvantiv"],
+    L2L3DATA: ["checkout", "nuvei", "stripe", "worldpayvantiv"],
     REFUND_MANUAL_UPDATE: ["bankofamerica", "cybersource"],
     REFUND_TYPE: ["stripe", "adyen", "checkout"],
     MANUAL_PAYMENT_UPDATE: ["stripe"],
