@@ -722,6 +722,7 @@ impl ForeignTryFrom<api_models::webhooks::IncomingWebhookEvent> for storage_enum
     }
 }
 
+#[cfg(feature = "v1")]
 impl ForeignFrom<storage::Dispute> for api_models::disputes::DisputeResponse {
     fn foreign_from(dispute: storage::Dispute) -> Self {
         Self {
