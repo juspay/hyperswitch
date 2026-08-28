@@ -1764,6 +1764,27 @@ impl ForeignTryFrom<payments_grpc::RedirectForm> for RedirectForm {
                     order_id: nmi.order_id,
                 })
             }
+            Some(payments_grpc::redirect_form::FormType::WorldpayxmlDdc(ddc)) => {
+                Ok(Self::WorldpayxmlDDCForm {
+                    bin: ddc.bin,
+                    jwt: ddc
+                        .jwt
+                        .ok_or(UnifiedConnectorServiceError::MissingRequiredField {
+                            field_name: "jwt",
+                        })?
+                        .expose(),
+                })
+            }
+            Some(payments_grpc::redirect_form::FormType::WorldpayxmlChallenge(challenge)) => {
+                Ok(Self::WorldpayxmlRedirectForm {
+                    jwt: challenge
+                        .jwt
+                        .ok_or(UnifiedConnectorServiceError::MissingRequiredField {
+                            field_name: "jwt",
+                        })?
+                        .expose(),
+                })
+            }
             Some(payments_grpc::redirect_form::FormType::Script(_)) => Err(
                 UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
                     "Script form type is not implemented".to_string(),
