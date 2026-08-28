@@ -33422,20 +33422,6 @@
             ],
             "nullable": true
           },
-          "is_account_funded_transaction": {
-            "type": "boolean",
-            "description": "Indicates whether this payment is an account funded transaction.",
-            "example": true,
-            "nullable": true
-          },
-          "recipient_details": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/RecipientDetails"
-              }
-            ],
-            "nullable": true
-          },
           "tokenization": {
             "allOf": [
               {

@@ -472,7 +472,7 @@ fn get_checkout_recipient_account_number(
                 Ok(Secret::new(format!("{}{}", card_isin.peek(), last4.peek())))
             }
         },
-        RecipientAccount::Card { card_number } => Ok(card_number.clone()),
+        RecipientAccount::Card { card_number } => Ok(Secret::new(card_number.get_card_no())),
         RecipientAccount::Phone { phone_number } => Ok(phone_number.clone()),
         RecipientAccount::Wallet { .. } => Err(unsupported("wallet_id")),
         RecipientAccount::Email { .. } => Err(unsupported("email")),

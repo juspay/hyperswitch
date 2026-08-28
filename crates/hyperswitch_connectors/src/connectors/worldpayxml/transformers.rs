@@ -526,11 +526,11 @@ struct BirthDate {
 #[derive(Debug, Serialize, Deserialize)]
 struct WorldpayxmlDate {
     #[serde(rename = "@dayOfMonth")]
-    day_of_month: String,
+    day_of_month: Secret<String>,
     #[serde(rename = "@month")]
-    month: String,
+    month: Secret<String>,
     #[serde(rename = "@year")]
-    year: String,
+    year: Secret<String>,
 }
 
 impl From<Secret<time::Date>> for BirthDate {
@@ -538,9 +538,9 @@ impl From<Secret<time::Date>> for BirthDate {
         let date = date_of_birth.expose();
         Self {
             date: WorldpayxmlDate {
-                day_of_month: date.day().to_string(),
-                month: u8::from(date.month()).to_string(),
-                year: date.year().to_string(),
+                day_of_month: Secret::new(date.day().to_string()),
+                month: Secret::new(u8::from(date.month()).to_string()),
+                year: Secret::new(date.year().to_string()),
             },
         }
     }
@@ -1447,7 +1447,7 @@ fn get_worldpayxml_account_reference(
                 })?
             }
         },
-        RecipientAccount::Card { card_number } => ("03", card_number.clone()),
+        RecipientAccount::Card { card_number } => ("03", Secret::new(card_number.get_card_no())),
         RecipientAccount::Email { email } => ("04", Secret::new(email.clone().expose().expose())),
         RecipientAccount::Phone { phone_number } => ("05", phone_number.clone()),
         RecipientAccount::Wallet { wallet_id } => ("07", wallet_id.clone()),
