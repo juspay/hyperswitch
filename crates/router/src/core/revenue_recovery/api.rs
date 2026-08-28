@@ -305,15 +305,18 @@ pub async fn custom_revenue_recovery_core(
                 .get_string_repr()
                 .to_string(),
         })?;
-    utils::when(&billing_connector_account.merchant_id != merchant_id, || {
-        Err(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-            id: request
-                .billing_merchant_connector_id
-                .clone()
-                .get_string_repr()
-                .to_string(),
-        })
-    })?;
+    utils::when(
+        &billing_connector_account.merchant_id != merchant_id,
+        || {
+            Err(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                id: request
+                    .billing_merchant_connector_id
+                    .clone()
+                    .get_string_repr()
+                    .to_string(),
+            })
+        },
+    )?;
 
     let recovery_intent =
         recovery_incoming::RevenueRecoveryInvoice::get_or_create_custom_recovery_intent(
