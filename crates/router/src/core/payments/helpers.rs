@@ -8463,9 +8463,8 @@ pub async fn get_payment_method_data_and_encrypted_payment_method_data(
         .payment_method
         .as_ref()
         .map(|payment_method| {
-            payment_method.is_additional_payment_method_data_sensitive(
-                payment_attempt.payment_method_type,
-            )
+            payment_method
+                .is_additional_payment_method_data_sensitive(payment_attempt.payment_method_type)
         })
         .unwrap_or(false)
     {

@@ -10,8 +10,9 @@ use api_models::{
 };
 use base64::Engine;
 use common_enums::enums as storage_enums;
-use common_utils::pii::Email;
-use common_utils::{consts, errors::CustomResult, request::Method, types::StringMajorUnit};
+use common_utils::{
+    consts, errors::CustomResult, pii::Email, request::Method, types::StringMajorUnit,
+};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::{

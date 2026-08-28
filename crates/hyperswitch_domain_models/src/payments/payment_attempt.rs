@@ -1889,8 +1889,7 @@ impl PaymentAttempt {
         if self
             .payment_method
             .map(|payment_method| {
-                payment_method
-                    .is_additional_payment_method_data_sensitive(self.payment_method_type)
+                payment_method.is_additional_payment_method_data_sensitive(self.payment_method_type)
             })
             .unwrap_or(false)
         {
