@@ -573,6 +573,7 @@ impl
                 }),
             // TODO: Populate currency_conversion_data when Dynamic Currency Conversion (DCC) is implemented
             currency_conversion_data: None,
+            split_settlement: None,
         })
     }
 }
@@ -810,6 +811,7 @@ impl
             partner_merchant_identifier_details: None,
             // TODO: Populate currency_conversion_data when Dynamic Currency Conversion (DCC) is implemented
             currency_conversion_data: None,
+            split_settlement: None,
         })
     }
 }
@@ -1828,6 +1830,7 @@ impl transformers::ForeignTryFrom<&RouterData<Capture, PaymentsCaptureData, Paym
                     currency: currency.into(),
                 }
             }),
+            split_settlement: None,
         })
     }
 }
@@ -1983,6 +1986,7 @@ impl
             partner_merchant_identifier_details: None,
             // TODO: Populate currency_conversion_data when Dynamic Currency Conversion (DCC) is implemented
             currency_conversion_data: None,
+            split_settlement: None,
         })
     }
 }
@@ -2180,6 +2184,7 @@ impl
             partner_merchant_identifier_details: None,
             // TODO: Populate currency_conversion_data when Dynamic Currency Conversion (DCC) is implemented
             currency_conversion_data: None,
+            split_settlement: None,
         })
     }
 }
@@ -2355,6 +2360,7 @@ impl
             partner_merchant_identifier_details: None,
             // TODO: Populate currency_conversion_data when Dynamic Currency Conversion (DCC) is implemented
             currency_conversion_data: None,
+            split_settlement: None,
         })
     }
 }
@@ -2824,6 +2830,7 @@ impl
                 .map(payments_grpc::PaymentChannel::foreign_try_from)
                 .transpose()?
                 .map(|payment_channel| payment_channel.into()),
+            split_settlement: None,
         })
     }
 }
@@ -3256,7 +3263,7 @@ impl
                     network_txn_id: response.network_transaction_id.clone(),
                     network_txn_link_id: response.network_txn_link_id.clone(),
                     connector_response_reference_id: response.connector_reference_id.clone(),
-                    payment_account_reference: None,
+                    payment_account_reference: response.payment_account_reference,
                     incremental_authorization_allowed: response.incremental_authorization_allowed,
                     authentication_data: None,
                     charges: response.splits.map(common_types::payments::ConnectorChargeResponseData::foreign_try_from).transpose()?,
@@ -3364,7 +3371,7 @@ impl transformers::ForeignTryFrom<(payments_grpc::PaymentServiceCaptureResponse,
                     network_txn_id: None,
                     network_txn_link_id: None,
                     connector_response_reference_id: response.connector_reference_id.clone(),
-                    payment_account_reference: None,
+                    payment_account_reference: response.payment_account_reference,
                     incremental_authorization_allowed: response.incremental_authorization_allowed,
                     authentication_data: None,
                     charges: response.splits.map(common_types::payments::ConnectorChargeResponseData::foreign_try_from).transpose()?,
@@ -3563,7 +3570,7 @@ impl
                     network_txn_id: response.network_transaction_id,
                     network_txn_link_id: None,
                     connector_response_reference_id,
-                    payment_account_reference: None,
+                    payment_account_reference: response.payment_account_reference,
                     incremental_authorization_allowed: response.incremental_authorization_allowed,
                     authentication_data: None,
                     charges: response.splits.map(common_types::payments::ConnectorChargeResponseData::foreign_try_from).transpose()?,
@@ -3686,7 +3693,7 @@ impl
                     network_txn_id: response.network_transaction_id.clone(),
                     network_txn_link_id: response.network_txn_link_id.clone(),
                     connector_response_reference_id: response.merchant_charge_id.clone(),
-                    payment_account_reference: None,
+                    payment_account_reference: response.payment_account_reference,
                     incremental_authorization_allowed: response.incremental_authorization_allowed,
                     authentication_data: None,
                     charges: response.splits.map(common_types::payments::ConnectorChargeResponseData::foreign_try_from).transpose()?,
@@ -7413,6 +7420,7 @@ impl transformers::ForeignTryFrom<&RouterData<Execute, RefundsData, RefundsRespo
                 .payment_connector_request_reference_id
                 .clone(),
             payment_method: None,
+            split_settlement_refund: None,
         })
     }
 }
@@ -7796,7 +7804,7 @@ impl transformers::ForeignTryFrom<(payments_grpc::PaymentServiceVoidResponse, At
                     network_txn_id: None,
                     network_txn_link_id: None,
                     connector_response_reference_id: response.connector_reference_id.clone(),
-                    payment_account_reference: None,
+                    payment_account_reference: response.payment_account_reference,
                     incremental_authorization_allowed: response.incremental_authorization_allowed,
                     authentication_data: None,
                     charges: response.splits.map(common_types::payments::ConnectorChargeResponseData::foreign_try_from).transpose()?,
