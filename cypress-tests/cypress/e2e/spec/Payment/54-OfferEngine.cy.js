@@ -6,10 +6,40 @@ import { connectorDetails } from "../../../e2e/configs/Payment/Commons";
 let globalState;
 
 describe("Offer Engine", () => {
-  before("seed global state", () => {
-    cy.task("getGlobalState").then((state) => {
-      globalState = new State(state);
-    });
+  before("seed global state and verify Offer Engine connectivity", function () {
+    let skip = false;
+
+    cy.task("getGlobalState")
+      .then((state) => {
+        globalState = new State(state);
+
+        const baseUrl = globalState.get("baseUrl");
+        const adminApiKey = globalState.get("adminApiKey");
+
+        return cy.request({
+          method: "POST",
+          url: `${baseUrl}/offer_engine/connectivity`,
+          headers: {
+            "Content-Type": "application/json",
+            "api-key": adminApiKey,
+          },
+          failOnStatusCode: false,
+        });
+      })
+      .then((response) => {
+        if (response.status !== 200 || !response.body?.reachable) {
+          cy.task(
+            "cli_log",
+            "Offer Engine is not reachable/enabled in this environment, skipping Offer Engine spec"
+          );
+          skip = true;
+        }
+      })
+      .then(() => {
+        if (skip) {
+          this.skip();
+        }
+      });
   });
 
   after("flush global state", () => {
