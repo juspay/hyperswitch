@@ -5695,6 +5695,7 @@ impl AttemptType {
             // New payment method billing address can be passed for a retry
             payment_method_billing_address_id: None,
             fingerprint_id: None,
+            fingerprint_type: None,
             client_source: old_payment_attempt.client_source,
             client_version: old_payment_attempt.client_version,
             customer_acceptance: old_payment_attempt.customer_acceptance,
@@ -5731,6 +5732,7 @@ impl AttemptType {
             external_surcharge_details: None,
             applied_offer_details: None,
             sender_payment_instrument_id: None,
+            payment_account_reference: None,
         }
     }
 

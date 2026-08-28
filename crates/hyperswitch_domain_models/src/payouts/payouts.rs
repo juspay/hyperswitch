@@ -196,6 +196,10 @@ pub enum PayoutsUpdate {
     StatusUpdate {
         status: storage_enums::PayoutStatus,
     },
+    StatusAndMetadataUpdate {
+        status: storage_enums::PayoutStatus,
+        metadata: Option<pii::SecretSerdeValue>,
+    },
     ManualUpdate {
         status: Option<storage_enums::PayoutStatus>,
     },
@@ -276,6 +280,11 @@ impl From<PayoutsUpdate> for PayoutsUpdateInternal {
             },
             PayoutsUpdate::StatusUpdate { status } => Self {
                 status: Some(status),
+                ..Default::default()
+            },
+            PayoutsUpdate::StatusAndMetadataUpdate { status, metadata } => Self {
+                status: Some(status),
+                metadata,
                 ..Default::default()
             },
             PayoutsUpdate::ManualUpdate { status } => Self {

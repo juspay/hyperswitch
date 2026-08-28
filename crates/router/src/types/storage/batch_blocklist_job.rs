@@ -11,4 +11,5 @@ pub struct BatchBlocklistTrackingData {
     pub chunk_total_count: u32,
     pub completed_chunks: Vec<u32>,
     pub created_by: Option<String>,
+    pub profile_id: Option<id_type::ProfileId>,
 }

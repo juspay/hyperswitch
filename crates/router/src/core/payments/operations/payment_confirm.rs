@@ -970,7 +970,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         let payment_data = Box::pin(apply_offer_engine_offer(
             state,
             request,
-            platform.get_processor(),
+            platform,
             payment_data,
         ))
         .await?;
@@ -2778,6 +2778,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
         let m_error_code = error_code.clone();
         let m_error_message = error_message.clone();
         let m_fingerprint_id = payment_data.payment_attempt.fingerprint_id.clone();
+        let m_fingerprint_type = payment_data.payment_attempt.fingerprint_type;
         let m_db = state.clone().store;
         let surcharge_amount = payment_data
             .payment_attempt
@@ -2852,6 +2853,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                         authentication_id,
                         payment_method_billing_address_id,
                         fingerprint_id: m_fingerprint_id,
+                        fingerprint_type: m_fingerprint_type,
                         payment_method_id: m_payment_method_id,
                         client_source,
                         client_version,
@@ -3146,7 +3148,7 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentDat
 async fn apply_offer_engine_offer<F: Clone + Send + Sync>(
     state: &SessionState,
     request: &api::PaymentsRequest,
-    processor: &domain::Processor,
+    platform: &domain::Platform,
     payment_data: PaymentData<F>,
 ) -> RouterResult<PaymentData<F>> {
     // First launch supports a single offer; reject multiple rather than picking one.
@@ -3179,8 +3181,9 @@ async fn apply_offer_engine_offer<F: Clone + Send + Sync>(
         (None, Some(requested)) => {
             Box::pin(apply_selected_offer(
                 state,
-                processor,
+                platform,
                 requested,
+                request.payment_token.as_deref(),
                 payment_data,
             ))
             .await
@@ -3193,10 +3196,12 @@ async fn apply_offer_engine_offer<F: Clone + Send + Sync>(
 #[cfg(feature = "v1")]
 async fn apply_selected_offer<F: Clone + Send + Sync>(
     state: &SessionState,
-    processor: &domain::Processor,
+    platform: &domain::Platform,
     offer_quote_id: String,
+    payment_token: Option<&str>,
     mut payment_data: PaymentData<F>,
 ) -> RouterResult<PaymentData<F>> {
+    let processor = platform.get_processor();
     // An offer was selected, so Offer Engine must be available. Target config at
     // merchant/org/profile (same as eligibility) so overrides resolve consistently.
     let profile_id = payment_data
@@ -3209,7 +3214,7 @@ async fn apply_selected_offer<F: Clone + Send + Sync>(
     let offer_dimensions = dimension_state::Dimensions::new()
         .with_processor_merchant_id(processor.get_processor_merchant_id())
         .with_organization_id(processor.get_account().get_org_id().clone())
-        .with_profile_id(profile_id);
+        .with_profile_id(profile_id.clone());
     let offer_config = offer_engine::resolve_offer_engine_config(state, &offer_dimensions)
         .await
         .ok()
@@ -3248,10 +3253,53 @@ async fn apply_selected_offer<F: Clone + Send + Sync>(
         .ok_or(report!(errors::ApiErrorResponse::PreconditionFailed {
             message: "Payment method is required to apply an offer".to_string(),
         }))?;
-    let offer_card = payment_data
+    // Reconstruct the card `/eligibility` quoted against, so `/apply` sends the same
+    // BIN + `card_alias`: use the request card (fresh) if present, else dereference the
+    // saved `payment_token` to the real card from the locker (same as `/eligibility`).
+    let offer_pmd = match payment_data
         .payment_method_data
+        .clone()
+        .map(domain::EligibilityPaymentMethodData::from)
+        .filter(|offer_pmd| offer_pmd.get_card_data().is_some())
+    {
+        Some(offer_pmd) => Some(offer_pmd),
+        None => payment_token
+            .zip(payment_data.payment_attempt.payment_method)
+            .async_map(|(payment_token, payment_method)| async move {
+                Box::pin(
+                    payments::PaymentEligibilityData::resolve_payment_token_to_method_data(
+                        state,
+                        platform,
+                        &hyperswitch_masking::Secret::new(payment_token.to_owned()),
+                        payment_method,
+                        &profile_id,
+                    ),
+                )
+                .await
+            })
+            .await
+            .transpose()?
+            .flatten(),
+    };
+
+    let offer_card = offer_pmd
         .as_ref()
-        .and_then(|payment_method_data| payment_method_data.get_card_data());
+        .and_then(|offer_pmd| offer_pmd.get_card_data());
+
+    let card_alias = match offer_card.map(|card| &card.card_number) {
+        Some(card_number) => Some(
+            offer_engine::velocity::generate_card_alias(
+                state,
+                processor.get_account(),
+                card_number,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::PreconditionFailed {
+                message: "Cannot apply offer: card velocity key unavailable".to_string(),
+            })?,
+        ),
+        None => None,
+    };
 
     let ctx = offer_engine::apply::OfferApplyContext {
         payment_id,
@@ -3265,13 +3313,13 @@ async fn apply_selected_offer<F: Clone + Send + Sync>(
                 .as_ref()
                 .map(|network| network.to_string())
         }),
-        card_bin: payment_data
-            .payment_method_data
+        card_bin: offer_pmd
             .as_ref()
-            .and_then(|payment_method_data| payment_method_data.get_card_iin()),
+            .and_then(|offer_pmd| offer_pmd.get_card_iin()),
         card_type: offer_card.and_then(|card| card.card_type.clone()),
         bank_code: offer_card.and_then(|card| card.bank_code.clone()),
         card_country: offer_card.and_then(|card| card.card_issuing_country.clone()),
+        card_alias,
     };
 
     let applied = Box::pin(offer_engine::apply::run_offer_apply(

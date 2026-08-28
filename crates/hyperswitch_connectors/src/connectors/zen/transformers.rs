@@ -983,6 +983,7 @@ fn get_zen_response(
         incremental_authorization_allowed: None,
         authentication_data: None,
         charges: None,
+        payment_account_reference: None,
     };
     Ok((status, error, payment_response_data))
 }
@@ -1032,6 +1033,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, CheckoutResponse, T, PaymentsResponseDa
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..value.data
         })
