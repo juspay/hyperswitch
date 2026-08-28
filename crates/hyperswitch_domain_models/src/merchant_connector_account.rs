@@ -1302,14 +1302,6 @@ where
         key_store: &MerchantKeyStore,
     ) -> CustomResult<MerchantConnectorAccount, Self::Error>;
 
-    #[cfg(feature = "v2")]
-    async fn find_merchant_connector_account_by_merchant_connector_id_merchant_id(
-        &self,
-        id: &id_type::MerchantConnectorAccountId,
-        merchant_id: &id_type::MerchantId,
-        key_store: &MerchantKeyStore,
-    ) -> CustomResult<MerchantConnectorAccount, Self::Error>;
-
     async fn find_merchant_connector_account_by_merchant_id_and_disabled_list(
         &self,
         merchant_id: &id_type::MerchantId,
