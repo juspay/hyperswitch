@@ -2862,23 +2862,32 @@ impl PaymentMethod {
         }
     }
 
-    pub fn is_additional_payment_method_data_sensitive(&self) -> bool {
-        match self {
-            Self::BankTransfer | Self::BankRedirect => true,
-            Self::Card
-            | Self::CardRedirect
-            | Self::PayLater
-            | Self::Wallet
-            | Self::GiftCard
-            | Self::Crypto
-            | Self::BankDebit
-            | Self::Reward
-            | Self::RealTimePayment
-            | Self::Upi
-            | Self::Voucher
-            | Self::OpenBanking
-            | Self::MobilePayment
-            | Self::NetworkToken => false,
+    pub fn is_additional_payment_method_data_sensitive(
+        &self,
+        payment_method_type: Option<PaymentMethodType>,
+    ) -> bool {
+        match (self, payment_method_type) {
+            (Self::BankTransfer | Self::BankRedirect, _)
+            // Paypal wallet additional data contains PII (email) and a unique payer
+            // identifier, hence it is treated as sensitive
+            | (Self::Wallet, Some(PaymentMethodType::Paypal)) => true,
+            (
+                Self::Card
+                | Self::CardRedirect
+                | Self::PayLater
+                | Self::Wallet
+                | Self::GiftCard
+                | Self::Crypto
+                | Self::BankDebit
+                | Self::Reward
+                | Self::RealTimePayment
+                | Self::Upi
+                | Self::Voucher
+                | Self::OpenBanking
+                | Self::MobilePayment
+                | Self::NetworkToken,
+                _,
+            ) => false,
         }
     }
 }
