@@ -13,12 +13,13 @@ use hyperswitch_domain_models::{
         flow_common_types::{
             AccessTokenFlowData, AuthenticationTokenFlowData, BillingConnectorInvoiceSyncFlowData,
             BillingConnectorPaymentsSyncFlowData, ConnectorWebhookConfigurationFlowData,
-            DisputesFlowData, ExternalAuthenticationFlowData, ExternalVaultProxyFlowData,
-            FilesFlowData, GetSubscriptionEstimateData, GetSubscriptionItemPricesData,
-            GetSubscriptionItemsData, GiftCardBalanceCheckFlowData, InvoiceRecordBackData,
-            MandateRevokeFlowData, PaymentFlowData, RefundFlowData, SubscriptionCancelData,
-            SubscriptionCreateData, SubscriptionCustomerData, SubscriptionPauseData,
-            SubscriptionResumeData, UasFlowData, VaultConnectorFlowData, WebhookSourceVerifyData,
+            DisputeRecordBackData, DisputesFlowData, ExternalAuthenticationFlowData,
+            ExternalVaultProxyFlowData, FilesFlowData, GetSubscriptionEstimateData,
+            GetSubscriptionItemPricesData, GetSubscriptionItemsData, GiftCardBalanceCheckFlowData,
+            InvoiceRecordBackData, MandateRevokeFlowData, PaymentFlowData, RefundFlowData,
+            SubscriptionCancelData, SubscriptionCreateData, SubscriptionCustomerData,
+            SubscriptionPauseData, SubscriptionResumeData, UasFlowData, VaultConnectorFlowData,
+            WebhookSourceVerifyData,
         },
         RouterDataV2,
     },
@@ -945,6 +946,7 @@ default_router_data_conversion!(GetSubscriptionEstimateData);
 default_router_data_conversion!(SubscriptionResumeData);
 default_router_data_conversion!(SubscriptionPauseData);
 default_router_data_conversion!(SubscriptionCancelData);
+default_router_data_conversion!(DisputeRecordBackData);
 
 impl<T, Req: Clone, Resp: Clone> RouterDataConversion<T, Req, Resp> for UasFlowData {
     fn from_old_router_data(
