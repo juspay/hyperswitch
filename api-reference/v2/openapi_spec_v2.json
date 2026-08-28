@@ -11710,6 +11710,18 @@
           }
         }
       },
+      "CheckoutData": {
+        "type": "object",
+        "properties": {
+          "purpose_of_payment": {
+            "type": "string",
+            "description": "Purpose of Payment. Required for AFT.",
+            "example": "wallet top-up",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
       "ClickToPaySessionResponse": {
         "type": "object",
         "required": [
@@ -12213,6 +12225,22 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/SantanderConnectorMetadataData"
+              }
+            ],
+            "nullable": true
+          },
+          "worldpayxml": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/WorldpayxmlData"
+              }
+            ],
+            "nullable": true
+          },
+          "checkout": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CheckoutData"
               }
             ],
             "nullable": true
@@ -35439,6 +35467,79 @@
         "enum": [
           "Success",
           "Failure"
+        ]
+      },
+      "WorldpayxmlData": {
+        "type": "object",
+        "properties": {
+          "funding_transaction_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/WorldpayxmlFundingTransactionType"
+              }
+            ],
+            "nullable": true
+          },
+          "payment_purpose": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/WorldpayxmlPaymentPurpose"
+              }
+            ],
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "WorldpayxmlFundingTransactionType": {
+        "type": "string",
+        "enum": [
+          "credit_card_bill_repayment",
+          "gift_card_purchase",
+          "gift_card_purchase_for_another",
+          "non_reloadable_prepaid_card",
+          "reloadable_prepaid_card_or_account",
+          "gaming_chips_purchase",
+          "gaming_stored_value_wallet",
+          "gaming_staged_digital_wallet",
+          "liquid_and_crypto_assets_purchase",
+          "liquid_and_crypto_stored_value_wallet_load",
+          "stored_value_digital_wallet_load",
+          "stored_value_digital_wallet_load_non_securities",
+          "securities_stored_value_digital_wallet_load",
+          "securities_staged_digital_wallet_load",
+          "single_merchant_wallet_load",
+          "debit_card_load",
+          "transfer_to_own_debit_account",
+          "funds_transfer_me_to_me",
+          "account_to_account",
+          "back_to_back_p2p_without_wallet",
+          "back_to_back_p2p_with_wallet",
+          "agent_cash_out",
+          "staged_digital_wallet_load",
+          "staged_digital_wallet_purchase",
+          "back_to_back_card_purchase",
+          "payroll_disbursement_funding",
+          "business_to_consumer_disbursement",
+          "business_to_business_invoice_payment"
+        ]
+      },
+      "WorldpayxmlPaymentPurpose": {
+        "type": "string",
+        "enum": [
+          "family_support",
+          "regular_labour_transfers",
+          "travel_and_tourism",
+          "education",
+          "hospitalisation_and_medical_treatment",
+          "emergency_need",
+          "savings",
+          "gifts",
+          "other",
+          "salary",
+          "crowd_lending",
+          "crypto_currency",
+          "high_risk_securities"
         ]
       },
       "XenditChargeResponseData": {
