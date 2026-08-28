@@ -380,10 +380,13 @@ export const connectorDetails = {
     MITManualCapture: {
       Request: {},
       Response: {
-        status: 501,
+        status: 400,
         body: {
           error: {
             type: "invalid_request",
+            code: "IR_39",
+            message:
+              "No eligible connector was found for the current payment method configuration",
           },
         },
       },
