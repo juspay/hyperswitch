@@ -1,13 +1,16 @@
 use actix_multipart::form::MultipartForm;
 use actix_web::{web, HttpRequest, HttpResponse};
 use api_models::revenue_recovery_data_backfill::{
-    BackfillQuery, GetRedisDataQuery, RevenueRecoveryDataBackfillForm, UnlockStatusRequest,
-    UnlockStatusResponse, UpdateTokenStatusRequest,
+    BackfillQuery, GetRedisDataQuery, RetryStatsMigrationForm, RevenueRecoveryDataBackfillForm,
+    UnlockStatusRequest, UnlockStatusResponse, UpdateTokenStatusRequest,
 };
 use router_env::{instrument, tracing, Flow};
 
 use crate::{
-    core::{api_locking, revenue_recovery_data_backfill},
+    core::{
+        api_locking, revenue_recovery::retry_stats::migration as retry_stats_migration,
+        revenue_recovery_data_backfill,
+    },
     routes::AppState,
     services::{api, authentication as auth},
     types::{domain, storage},
@@ -63,6 +66,26 @@ pub async fn revenue_recovery_data_backfill(
                 cutoff_datetime,
             )
         },
+        &auth::V2AdminApiAuth,
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[instrument(skip_all, fields(flow = ?Flow::RecoveryRetryStatsMigration))]
+pub async fn revenue_recovery_retry_stats_migration(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    MultipartForm(form): MultipartForm<RetryStatsMigrationForm>,
+) -> HttpResponse {
+    let flow = Flow::RecoveryRetryStatsMigration;
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        form,
+        |state, _: (), form, _| retry_stats_migration::migrate_retry_stats_from_csv(state, form),
         &auth::V2AdminApiAuth,
         api_locking::LockAction::NotApplicable,
     ))
