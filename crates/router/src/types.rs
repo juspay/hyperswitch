@@ -1443,6 +1443,7 @@ impl ForeignFrom<&SetupMandateRouterData> for PaymentsAuthorizeData {
             billing_descriptor: data.request.billing_descriptor.clone(),
             is_account_funded_transaction: data.request.is_account_funded_transaction,
             recipient_details: data.request.recipient_details.clone(),
+            business_country: data.request.business_country,
             tokenization: None,
             partner_merchant_identifier_details: data
                 .request
