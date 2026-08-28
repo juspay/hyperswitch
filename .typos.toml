@@ -119,6 +119,10 @@ substituters = "substituters" # Present in `flake.nix`
 unsuccess = "unsuccess" # Used in cryptopay request
 automatico = "automatico" # Pix Automático (Portuguese for Automatic) - payment method name
 iof = "iof" # Financial operations tax in Brazil / Imposto sobre Operações Financeiras
+cooperativo = "cooperativo" # Italian for "cooperative", used in Italian bank names
+institutionnels = "institutionnels" # French for "institutional", used in French bank names (Arkea Banque Entreprises Et Institutionnels)
+imagin = "imagin" # Imagin Bank, a Spanish bank
+tema = "tema" # Part of "Banca Tema", an Italian bank name
 
 [files]
 extend-exclude = [

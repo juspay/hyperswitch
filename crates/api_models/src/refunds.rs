@@ -449,11 +449,13 @@ pub struct RefundListRequest {
     #[smithy(value_type = "Option<String>")]
     pub profile_id: Option<common_utils::id_type::ProfileId>,
     /// Limit on the number of objects to return
-    #[smithy(value_type = "Option<i64>")]
-    pub limit: Option<i64>,
+    #[serde(default)]
+    #[smithy(value_type = "Option<u32>")]
+    pub limit: Option<common_utils::types::list::PageSize>,
     /// The starting point within a list of objects
-    #[smithy(value_type = "Option<i64>")]
-    pub offset: Option<i64>,
+    #[serde(default)]
+    #[smithy(value_type = "Option<u32>")]
+    pub offset: common_utils::types::list::PageOffset,
     /// The time range for which objects are needed. TimeRange has two fields start_time and end_time from which objects can be filtered as per required scenarios (created_at, time less than, greater than etc)
     #[serde(flatten)]
     pub time_range: Option<TimeRange>,
@@ -486,9 +488,11 @@ pub struct RefundListRequest {
     #[schema(value_type = String)]
     pub refund_id: Option<common_utils::id_type::GlobalRefundId>,
     /// Limit on the number of objects to return
-    pub limit: Option<i64>,
+    #[serde(default)]
+    pub limit: common_utils::types::list::PageSize,
     /// The starting point within a list of objects
-    pub offset: Option<i64>,
+    #[serde(default)]
+    pub offset: common_utils::types::list::PageOffset,
     /// The time range for which objects are needed. TimeRange has two fields start_time and end_time from which objects can be filtered as per required scenarios (created_at, time less than, greater than etc)
     #[serde(flatten)]
     pub time_range: Option<TimeRange>,

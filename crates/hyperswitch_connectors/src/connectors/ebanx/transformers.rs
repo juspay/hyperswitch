@@ -204,6 +204,7 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, EbanxPayoutResponse>> for PayoutsRo
                 error_code: None,
                 error_message: None,
                 payout_connector_metadata: None,
+                connector_eligibility_reference_id: None,
             }),
             ..item.data
         })
@@ -289,6 +290,7 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, EbanxFulfillResponse>> for PayoutsR
                 error_code: None,
                 error_message: None,
                 payout_connector_metadata: None,
+                connector_eligibility_reference_id: None,
             }),
             ..item.data
         })
@@ -381,6 +383,7 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, EbanxCancelResponse>> for PayoutsRo
                 error_code: None,
                 error_message: None,
                 payout_connector_metadata: None,
+                connector_eligibility_reference_id: None,
             }),
             ..item.data
         })
