@@ -1835,6 +1835,57 @@
         ]
       }
     },
+    "/v2/customers/reference/{merchant_reference_id}": {
+      "get": {
+        "tags": [
+          "Customers"
+        ],
+        "summary": "Customers - Retrieve using Merchant Reference ID",
+        "description": "Retrieves a customer's details using the merchant supplied reference ID.",
+        "operationId": "Retrieve a Customer using Merchant Reference ID",
+        "parameters": [
+          {
+            "name": "merchant_reference_id",
+            "in": "path",
+            "description": "The merchant supplied reference identifier for the Customer",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Profile-Id",
+            "in": "header",
+            "description": "Profile ID associated to the customer",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "pro_abcdefghijklmnop"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Customer Retrieved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Customer was not found"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
     "/v1/customers/{id}": {
       "get": {
         "tags": [
@@ -2657,11 +2708,7 @@
             "description": "limit on the number of objects to return",
             "required": true,
             "schema": {
-              "type": "integer",
-              "format": "int32",
-              "default": 10,
-              "maximum": 100,
-              "minimum": 0
+              "$ref": "#/components/schemas/common_utils.types.list.PageSize"
             }
           },
           {
@@ -2670,10 +2717,7 @@
             "description": "The starting point within a list of objects",
             "required": true,
             "schema": {
-              "type": "integer",
-              "format": "int32",
-              "nullable": true,
-              "minimum": 0
+              "$ref": "#/components/schemas/common_utils.types.list.PageOffset"
             }
           },
           {
@@ -7091,6 +7135,12 @@
           },
           {
             "$ref": "#/components/schemas/OpenBanking"
+          },
+          {
+            "$ref": "#/components/schemas/PayshapBankTransfer"
+          },
+          {
+            "$ref": "#/components/schemas/PayshapProxyBankTransfer"
           }
         ],
         "description": "Deprecated - Use `BankTransfer` instead"
@@ -7114,6 +7164,12 @@
           },
           {
             "$ref": "#/components/schemas/OpenBankingAdditionalData"
+          },
+          {
+            "$ref": "#/components/schemas/PayshapBankTransferAdditionalData"
+          },
+          {
+            "$ref": "#/components/schemas/PayshapProxyBankTransferAdditionalData"
           }
         ],
         "description": "Masked payout method details for bank payout method"
@@ -7845,7 +7901,421 @@
           "ulster_bank",
           "yoursafe",
           "n26",
-          "nationale_nederlanden"
+          "nationale_nederlanden",
+          "aib_business",
+          "aktia",
+          "alandsbanken",
+          "allianz_bank_financial_advisors_spa",
+          "allianz_banque",
+          "allied_irish_bank",
+          "allied_irish_bank_corporate",
+          "alto_adige",
+          "alto_adige_banca_suedtirol_bank",
+          "argenta",
+          "arkea_banque_entreprises_et_institutionnels",
+          "arkea_banque_privee",
+          "axa_banque",
+          "banca360_credito_cooperativo_fvg",
+          "banca_adria_colli_euganei",
+          "banca_agricola_popolare_di_ragusa",
+          "banca_alpi_marittime_cc_carru",
+          "banca_alta_toscana",
+          "banca_annia",
+          "banca_centro_emilia",
+          "banca_centro_lazio",
+          "banca_centro_toscana_umbria",
+          "banca_centropadana",
+          "banca_cesare_ponti",
+          "banca_del_catanzarese",
+          "banca_del_cilento_di_sassano_e_v",
+          "banca_del_piceno",
+          "banca_del_piemonte",
+          "banca_del_territorio_lombardo",
+          "banca_del_veneto_centrale",
+          "banca_della_marca_credcooperativo",
+          "banca_delle_terre_venete",
+          "banca_di_alba_credito_cooperativo",
+          "banca_di_anghiari_e_stia_cc",
+          "banca_di_bologna",
+          "banca_di_caraglio",
+          "banca_di_credito_popolare_scpa",
+          "banca_di_imola_spa",
+          "banca_di_pesaro",
+          "banca_di_pescia_e_cascina",
+          "banca_di_piacenza_scpa",
+          "banca_di_taranto_bcc",
+          "banca_di_udine_credito_coop",
+          "banca_don_rizzo",
+          "banca_fideuram",
+          "banca_finnat_euramerica_spa",
+          "banca_generali_spa",
+          "banca_lazio_nord",
+          "banca_malatestiana",
+          "banca_monte_dei_paschi_di_siena",
+          "banca_passadore",
+          "banca_patavina",
+          "banca_patrimoni_sella",
+          "banca_per_il_trentinoaltoadige",
+          "banca_popolare_del_lazio_scpa",
+          "banca_popolare_dell_alto_adige",
+          "banca_popolare_di_sondrio",
+          "banca_popolare_pugliese",
+          "banca_popolare_valconca_scpa",
+          "banca_san_francesco_credito_coop",
+          "banca_sella",
+          "banca_sistema_spa",
+          "banca_sviluppo_cooperaz_credito",
+          "banca_tema",
+          "banca_terre_etrusche_e_di_maremma",
+          "banca_territori_del_monviso",
+          "banca_valsabbina",
+          "banca_veronese_cc_di_concamarise",
+          "banco_azzoaglio",
+          "banco_bpm_spa_servizio_webank",
+          "banco_bpm_spa_servizio_youweb",
+          "banco_bpm_spa_youbusiness_web",
+          "banco_bpm_we_bank",
+          "banco_bpm_you_web",
+          "banco_de_sabadell",
+          "banco_desio_brianza",
+          "banco_di_sardegna",
+          "banco_marchigiano",
+          "banco_posta",
+          "banco_santander",
+          "bank_of_ireland",
+          "bank_of_ireland_business",
+          "bank_of_ireland_uk",
+          "bank_of_scotland_business",
+          "bankinter",
+          "banque_de_savoie",
+          "banque_populaire",
+          "barclaycard",
+          "barclays_business",
+          "bawag_psk",
+          "bbva",
+          "bcc_abruzzese_cappelle_sul_tavo",
+          "bcc_abruzzi_e_molise",
+          "bcc_adriatico_teramano",
+          "bcc_agro_bresciano",
+          "bcc_agro_pontino",
+          "bcc_alberobello_sammichele_monopoli",
+          "bcc_alto_tirreno_della_calabria",
+          "bcc_anagni",
+          "bcc_basilicata",
+          "bcc_bellegra",
+          "bcc_brescia",
+          "bcc_brianza_e_laghi",
+          "bcc_campania_centro",
+          "bcc_capaccio_paestum",
+          "bcc_castelli_romani_e_tuscolo",
+          "bcc_centro_calabria",
+          "bcc_conversano",
+          "bcc_degli_ulivi_terra_di_bari",
+          "bcc_dei_castelli_e_degli_iblei",
+          "bcc_dei_colli_albani",
+          "bcc_del_circeo_e_privernate",
+          "bcc_del_garda",
+          "bcc_del_metauro",
+          "bcc_del_velino",
+          "bcc_dell_alta_murgia",
+          "bcc_della_provincia_romana",
+          "bcc_della_romagna_occidentale",
+          "bcc_delle_madonie",
+          "bcc_di_altofonte_e_caccamo",
+          "bcc_di_aquara",
+          "bcc_di_arborea",
+          "bcc_di_bari",
+          "bcc_di_barlassina",
+          "bcc_di_bene_vagienna",
+          "bcc_di_binasco",
+          "bcc_di_buccino_e_comuni_cilentani",
+          "bcc_di_busto_garolfo_e_buguggiate",
+          "bcc_di_cagliari",
+          "bcc_di_canosa_loconia",
+          "bcc_di_caravaggio",
+          "bcc_di_cassano_delle_murge_e_tolve",
+          "bcc_di_cherasco",
+          "bcc_di_filottrano",
+          "bcc_di_flumeri",
+          "bcc_di_gambatesa",
+          "bcc_di_gaudiano_di_lavello",
+          "bcc_di_leverano",
+          "bcc_di_locorotondo",
+          "bcc_di_montepaone",
+          "bcc_di_napoli",
+          "bcc_di_ostra_e_morro_d_alba",
+          "bcc_di_ostuni",
+          "bcc_di_pachino",
+          "bcc_di_pergola_e_corinaldo",
+          "bcc_di_pianfei_e_rocca_de_baldi",
+          "bcc_di_pontassieve",
+          "bcc_di_recanati_e_colmurano",
+          "bcc_di_roma",
+          "bcc_di_san_giovanni_rotondo",
+          "bcc_di_san_marzano_di_san_giuseppe",
+          "bcc_di_santeramo_in_colle",
+          "bcc_di_sarsina",
+          "bcc_di_scafati_e_cetara",
+          "bcc_di_smarco_dei_cavoti",
+          "bcc_di_spello_e_del_velino",
+          "bcc_di_terra_d_otranto",
+          "bcc_felsinea",
+          "bcc_g_toniolo_di_san_cataldo",
+          "bcc_gran_sasso_d_italia",
+          "bcc_la_riscossa_di_regalbuto",
+          "bcc_lodi",
+          "bcc_milano",
+          "bcc_monte_pruno",
+          "bcc_nettuno",
+          "bcc_oglio_e_serio",
+          "bcc_pordenonese_e_monsile",
+          "bcc_pratola_peligna",
+          "bcc_prealpi_san_biagio",
+          "bcc_ravenna_forli_imola",
+          "bcc_san_giuseppe_di_mussomeli",
+          "bcc_terra_di_lavoro",
+          "bcc_triuggio_valle_del_lambro",
+          "bcc_valdarno_fiorentino",
+          "bcc_valdostana",
+          "bcc_valle_del_torto",
+          "bcc_veneta",
+          "bcc_venezia_giulia",
+          "bcc_versilia_lunigiana_e_garfagnana",
+          "bcc_vicentino_pojana_maggiore",
+          "belfius",
+          "beobank",
+          "bi_banca",
+          "blu_banca_spa",
+          "bnl",
+          "bnp_paribas_fortis",
+          "bourso_bank",
+          "bozen",
+          "bpe",
+          "bper_banca",
+          "bvr_banca_banche_venete_riunite",
+          "caisse_d_epargne",
+          "caixa",
+          "caja_rural",
+          "cajamar",
+          "cassa_centrale_banca",
+          "cassa_di_risparmio_di_bolzano",
+          "cassa_di_risparmio_di_fermo_spa",
+          "cassa_di_risparmio_di_savigliano",
+          "cassa_padana",
+          "cassa_rurale_alta_valsugana",
+          "cassa_rurale_alto_garda_rovereto",
+          "cassa_rurale_di_ledro",
+          "cassa_rurale_di_treviglio",
+          "cassa_rurale_fvg",
+          "cassa_rurale_renon",
+          "cassa_rurale_val_di_fiemme",
+          "cassa_rurale_val_di_sole",
+          "cassa_rurale_vallagarina",
+          "cassa_rurale_valsugana_e_tesino",
+          "castagneto_banca1910",
+          "cbc_banque",
+          "centromarca_banca",
+          "chiantibanca_credito_cooperativo",
+          "cic",
+          "clydesdale_bank",
+          "comdirect",
+          "commerzbank",
+          "cortinabanca",
+          "coutts",
+          "cr_val_di_non_rotaliana_e_giovo",
+          "cra_bcc_di_cantu",
+          "cra_di_borgo_san_giacomo",
+          "cra_di_boves",
+          "cra_di_paliano",
+          "credem",
+          "credifriuli",
+          "credit_mutuel",
+          "credit_mutuel_de_bretagne",
+          "credit_mutuel_du_sud_ouest",
+          "credito_cooperativo_agrigentino",
+          "credito_cooperativo_mediocrati",
+          "credito_cooperativo_romagnolo",
+          "credito_di_romagna",
+          "credito_lombardo_veneto",
+          "danske_bank_business",
+          "desio",
+          "deutsche_bank",
+          "dkb",
+          "easy_bank",
+          "ebs",
+          "emilbanca_cc",
+          "erste_bank",
+          "evo_banco",
+          "fineco",
+          "fintro",
+          "fortuneo",
+          "fpb_cassa_di_fassa_primiero_belluno",
+          "hello_bank",
+          "hsbc",
+          "hsbc_business",
+          "hype",
+          "hypo_vereinsbank",
+          "ibercaja",
+          "iccrea_banca_spa",
+          "illimity",
+          "imagin",
+          "imprebanca_spa",
+          "intesa_sanpaolo",
+          "intesa_sanpaolo_inbiz",
+          "intesa_sanpaolo_private_banking_spa",
+          "isybank",
+          "kbc",
+          "kbc_brussels",
+          "kutxabank",
+          "la_banque_postale",
+          "la_banque_postale_business",
+          "la_cassa_di_ravenna_spa",
+          "la_cassa_rurale",
+          "laboral_kutxa",
+          "lcl",
+          "lis_pay_spa",
+          "lloyds_business",
+          "lloyds_commercial",
+          "m_s_bank",
+          "mbna",
+          "mettle_bank",
+          "monabanq",
+          "mooney",
+          "mps",
+          "nat_west_bankline",
+          "nationwide",
+          "nordea",
+          "oma_sp",
+          "op",
+          "openbank",
+          "pop_pankki",
+          "post_bank",
+          "poste_pay_evolution",
+          "primacassa_fvg",
+          "ptsb",
+          "raiffeisen_algund",
+          "raiffeisen_alta_pusteria",
+          "raiffeisen_alta_venosta",
+          "raiffeisen_alto_adige",
+          "raiffeisen_bassa_atesina",
+          "raiffeisen_bassa_valle_isarco",
+          "raiffeisen_bassa_venosta",
+          "raiffeisen_bolzano",
+          "raiffeisen_bozen",
+          "raiffeisen_bruneck",
+          "raiffeisen_brunico",
+          "raiffeisen_campo_di_trens",
+          "raiffeisen_cassa_centr_alto_adige",
+          "raiffeisen_castelrottoortisei",
+          "raiffeisen_deutschnofenaldein",
+          "raiffeisen_dobbiaco",
+          "raiffeisen_eisacktal",
+          "raiffeisen_etschtal",
+          "raiffeisen_freienfeld",
+          "raiffeisen_funes",
+          "raiffeisen_gadertal",
+          "raiffeisen_groeden",
+          "raiffeisen_hochpustertal",
+          "raiffeisen_kastelruthstulrich",
+          "raiffeisen_laas",
+          "raiffeisen_laces",
+          "raiffeisen_lagundo",
+          "raiffeisen_lana",
+          "raiffeisen_landesbank_suedtirol",
+          "raiffeisen_lasa",
+          "raiffeisen_latsch",
+          "raiffeisen_marlengo",
+          "raiffeisen_marling",
+          "raiffeisen_meran",
+          "raiffeisen_merano",
+          "raiffeisen_monguelfocasiestesido",
+          "raiffeisen_niederdorf",
+          "raiffeisenbank",
+          "royal_bank_of_scotland_bankline",
+          "s_pankki",
+          "saastopankki",
+          "santander",
+          "santander_business",
+          "santander_personal",
+          "sparkasse",
+          "targo_bank",
+          "tide",
+          "triodos",
+          "tsb",
+          "ulster_bankline",
+          "unicaja",
+          "virgin_money",
+          "virgin_money_merged",
+          "volksbanken_raiffeisenbanken",
+          "wise",
+          "yorkshire_bank",
+          "zempler",
+          "raiffeisen_nova_levante",
+          "raiffeisen_nova_ponentealdino",
+          "raiffeisen_obervinschgau",
+          "raiffeisen_oltradige",
+          "raiffeisen_parcines",
+          "raiffeisen_partschins",
+          "raiffeisen_passeier",
+          "raiffeisen_pradtaufers",
+          "raiffeisen_pratotubre",
+          "raiffeisen_salorno",
+          "raiffeisen_salurn",
+          "raiffeisen_san_martino_in_passiria",
+          "raiffeisen_sarntal",
+          "raiffeisen_scena",
+          "raiffeisen_schenna",
+          "raiffeisen_schlanders",
+          "raiffeisen_schlernrosengarten",
+          "raiffeisen_silandro",
+          "raiffeisen_suedtirol",
+          "raiffeisen_taufererahrntal",
+          "raiffeisen_tesimo",
+          "raiffeisen_tirol",
+          "raiffeisen_tirolo",
+          "raiffeisen_tisens",
+          "raiffeisen_toblach",
+          "raiffeisen_turesaurina",
+          "raiffeisen_ueberetsch",
+          "raiffeisen_ultenstpankrazlaurein",
+          "raiffeisen_ultimospancrlaur",
+          "raiffeisen_untereisacktal",
+          "raiffeisen_unterland",
+          "raiffeisen_untervinschgau",
+          "raiffeisen_val_badia",
+          "raiffeisen_val_gardena",
+          "raiffeisen_val_passiria",
+          "raiffeisen_val_sarentino",
+          "raiffeisen_valle_isarco",
+          "raiffeisen_vandoies",
+          "raiffeisen_villabassa",
+          "raiffeisen_villnoess",
+          "raiffeisen_vintl",
+          "raiffeisen_welsberggsiestaisten",
+          "raiffeisen_welschnofen",
+          "raiffeisen_wipptal",
+          "raiffeisenkasse_ritten",
+          "riviera_banca",
+          "romagna_banca",
+          "sella",
+          "sicilbanca",
+          "solution_bank",
+          "suedtiroler",
+          "suedtiroler_sparkasse",
+          "suedtiroler_volksbank",
+          "unicredit",
+          "unicredit_online_banking",
+          "unicredit_uniweb_corporate",
+          "valpolicella_benaco_banca",
+          "volksbank",
+          "volksbank_banca_popolare",
+          "widiba",
+          "zkb_credcoopdi_trieste_e_gorizia",
+          "asn",
+          "sns",
+          "seb",
+          "swedbank",
+          "mock_uk_payments"
         ]
       },
       "BankRedirect": {
@@ -8623,6 +9093,48 @@
                 }
               }
             ]
+          },
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PayshapBankTransfer"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "payout_method_type"
+                ],
+                "properties": {
+                  "payout_method_type": {
+                    "type": "string",
+                    "enum": [
+                      "payshap"
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PayshapProxyBankTransfer"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "payout_method_type"
+                ],
+                "properties": {
+                  "payout_method_type": {
+                    "type": "string",
+                    "enum": [
+                      "payshap_proxy"
+                    ]
+                  }
+                }
+              }
+            ]
           }
         ],
         "discriminator": {
@@ -8770,6 +9282,17 @@
             ],
             "properties": {
               "pix_emv": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "pix_qr"
+            ],
+            "properties": {
+              "pix_qr": {
                 "type": "object"
               }
             }
@@ -9177,6 +9700,17 @@
           {
             "type": "object",
             "required": [
+              "pix_qr"
+            ],
+            "properties": {
+              "pix_qr": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
               "pix_automatico_qr"
             ],
             "properties": {
@@ -9418,6 +9952,8 @@
         "enum": [
           "checking",
           "savings",
+          "salary",
+          "payment",
           "transmission",
           "current",
           "bond",
@@ -9489,6 +10025,24 @@
             "description": "Card Issuer",
             "example": "JP MORGAN CHASE",
             "nullable": true
+          },
+          "card_type": {
+            "type": "string",
+            "description": "Funding type of the card, `credit` or `debit`, enriched from the card bin",
+            "example": "credit",
+            "nullable": true
+          },
+          "card_issuing_country": {
+            "type": "string",
+            "description": "Country in which the card was issued, enriched from the card bin",
+            "example": "INDIA",
+            "nullable": true
+          },
+          "card_isin": {
+            "type": "string",
+            "description": "Issuer identification number of the card, retained so that any further card details can\nbe looked up from it later",
+            "example": "424242",
+            "nullable": true
           }
         }
       },
@@ -9543,6 +10097,24 @@
             "nullable": true
           }
         }
+      },
+      "BlockReasonCode": {
+        "type": "string",
+        "description": "A stable, machine-readable identifier for the reason a payment was blocked.",
+        "enum": [
+          "blocked_bin",
+          "blocked_card_info_unavailable",
+          "blocked_card_type",
+          "blocked_card_network",
+          "blocked_funding_source",
+          "blocked_card_subtype",
+          "blocked_card_segment_type",
+          "blocked_virtual_card",
+          "blocked_non_reloadable_prepaid_card",
+          "blocked_gambling_card",
+          "blocked_issuer_country",
+          "blocked_issuer"
+        ]
       },
       "BlocklistDataKind": {
         "type": "string",
@@ -9630,6 +10202,11 @@
           "created_at": {
             "type": "string",
             "format": "date-time"
+          },
+          "profile_id": {
+            "type": "string",
+            "example": "pro_abcdefghijklmnop",
+            "nullable": true
           }
         }
       },
@@ -10526,7 +11103,10 @@
           "Star",
           "Pulse",
           "Accel",
-          "Nyce"
+          "Nyce",
+          "Prop",
+          "PrivateLabel",
+          "Dinacard"
         ]
       },
       "CardNetworkTokenizeRequest": {
@@ -10870,6 +11450,21 @@
             "type": "integer",
             "format": "int32",
             "description": "Determines Redis Expiry for Card Testing Guard for profile"
+          },
+          "guest_ip_blocking_status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardTestingGuardStatus"
+              }
+            ],
+            "nullable": true
+          },
+          "guest_ip_blocking_threshold": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Determines the unsuccessful payment threshold for Guest IP Blocking for profile",
+            "default": 10,
+            "nullable": true
           }
         }
       },
@@ -10894,6 +11489,11 @@
           "card_cvc": {
             "type": "string",
             "description": "The CVC number for the card",
+            "nullable": true
+          },
+          "card_cvc_token": {
+            "type": "string",
+            "description": "Token referencing a CVC vaulted in the hyperswitch (self-hosted) vault. Used by the\nself-hosted default-vault repeat-customer flow, where the card is referenced by the\ntop-level `payment_token` and the freshly-tokenized CVC arrives as this token; the server\nresolves it to the raw CVC. Not used by the external vault proxy flow.",
             "nullable": true
           }
         }
@@ -10965,6 +11565,87 @@
           "eci": {
             "type": "string",
             "description": "The ECI(Electronic Commerce Indicator) value for this authentication.",
+            "nullable": true
+          },
+          "network_transaction_id": {
+            "type": "string",
+            "description": "The network transaction ID provided by the card network during a CIT (Customer Initiated Transaction),\nwhen `setup_future_usage` is set to `off_session`.",
+            "nullable": true
+          },
+          "transaction_link_id": {
+            "type": "string",
+            "description": "The Mastercard Transaction Link Identifier (TLID) provided by the card network during a CIT (Customer Initiated Transaction),\nwhen `setup_future_usage` is set to `off_session`.",
+            "nullable": true
+          }
+        }
+      },
+      "CardWithNoCVC": {
+        "type": "object",
+        "required": [
+          "card_number",
+          "card_exp_month",
+          "card_exp_year",
+          "card_holder_name"
+        ],
+        "properties": {
+          "card_number": {
+            "type": "string",
+            "description": "The card number",
+            "example": "4242424242424242"
+          },
+          "card_exp_month": {
+            "type": "string",
+            "description": "The card's expiry month",
+            "example": "24"
+          },
+          "card_exp_year": {
+            "type": "string",
+            "description": "The card's expiry year",
+            "example": "24"
+          },
+          "card_holder_name": {
+            "type": "string",
+            "description": "The card holder's name",
+            "example": "John Test"
+          },
+          "card_issuer": {
+            "type": "string",
+            "description": "The name of the issuer of card",
+            "example": "chase",
+            "nullable": true
+          },
+          "card_network": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardNetwork"
+              }
+            ],
+            "nullable": true
+          },
+          "card_type": {
+            "type": "string",
+            "example": "CREDIT",
+            "nullable": true
+          },
+          "card_issuing_country": {
+            "type": "string",
+            "example": "INDIA",
+            "nullable": true
+          },
+          "card_issuing_country_code": {
+            "type": "string",
+            "example": "IN",
+            "nullable": true
+          },
+          "bank_code": {
+            "type": "string",
+            "example": "JP_AMEX",
+            "nullable": true
+          },
+          "nick_name": {
+            "type": "string",
+            "description": "The card holder's nick name",
+            "example": "John Test",
             "nullable": true
           }
         }
@@ -11284,6 +11965,7 @@
           "chargebee",
           "checkbook",
           "checkout",
+          "citigate",
           "coinbase",
           "coingate",
           "custombilling",
@@ -11310,9 +11992,11 @@
           "forte",
           "getnet",
           "gigadat",
+          "givepayments",
           "globalpay",
           "globepay",
           "gocardless",
+          "gotyme_sanlam",
           "gpayments",
           "hipay",
           "helcim",
@@ -11321,9 +12005,11 @@
           "interpayments",
           "inespay",
           "iatapay",
+          "ilixium",
           "imerchantsolutions",
           "itaubank",
           "jpmorgan",
+          "juspay",
           "juspaythreedsserver",
           "klarna",
           "loonio",
@@ -11380,12 +12066,14 @@
           "trustpay",
           "trustpayments",
           "tsys",
+          "tsys_transit",
           "vgs",
           "volt",
           "wellsfargo",
           "wise",
           "worldline",
           "worldpay",
+          "worldpayraft",
           "worldpayvantiv",
           "worldpayxml",
           "worldpaymodular",
@@ -11430,6 +12118,17 @@
             "properties": {
               "xendit_split_payment": {
                 "$ref": "#/components/schemas/XenditChargeResponseData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "payload_split_payment"
+            ],
+            "properties": {
+              "payload_split_payment": {
+                "$ref": "#/components/schemas/PayloadSplitPaymentRequest"
               }
             }
           }
@@ -11721,6 +12420,64 @@
           }
         },
         "additionalProperties": false
+      },
+      "ConnectorWebhookScope": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "type"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "not_specific"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "value",
+              "type"
+            ],
+            "properties": {
+              "value": {
+                "$ref": "#/components/schemas/PaymentMethodType"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "payment_method_type"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "value",
+              "type"
+            ],
+            "properties": {
+              "value": {
+                "$ref": "#/components/schemas/EventType"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "event_type"
+                ]
+              }
+            }
+          }
+        ],
+        "description": "Scope of a single registered connector webhook.",
+        "discriminator": {
+          "propertyName": "type"
+        }
       },
       "ContractBasedRoutingConfig": {
         "type": "object",
@@ -12693,6 +13450,15 @@
           }
         },
         "additionalProperties": false
+      },
+      "CustomerAcceptanceSupport": {
+        "type": "string",
+        "description": "Returned in the payment method list response so the SDK,\ncan help decide whether to show the \"save my details\" checkbox and how to word it.",
+        "enum": [
+          "supported",
+          "partially_supported",
+          "unsupported"
+        ]
       },
       "CustomerDefaultPaymentMethodResponse": {
         "type": "object",
@@ -14237,7 +15003,10 @@
           "payout_cancelled",
           "payout_expired",
           "payout_reversed",
-          "invoice_paid"
+          "payout_not_permitted",
+          "invoice_paid",
+          "surcharge_payment_succeeded",
+          "surcharge_refund_succeeded"
         ]
       },
       "ExemptionIndicator": {
@@ -14402,6 +15171,16 @@
           "error_message": {
             "type": "string",
             "description": "Error Message",
+            "nullable": true
+          },
+          "challenge_cancel_code": {
+            "type": "string",
+            "description": "Challenge Cancel Code",
+            "nullable": true
+          },
+          "trans_status_reason": {
+            "type": "string",
+            "description": "Trans Status Reason Code",
             "nullable": true
           }
         }
@@ -15286,6 +16065,14 @@
           "eci_indicator"
         ],
         "properties": {
+          "auth_method": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/GooglePayAuthMethod"
+              }
+            ],
+            "nullable": true
+          },
           "card_exp_month": {
             "type": "string",
             "description": "The card's expiry month"
@@ -15568,6 +16355,13 @@
             "description": "indicates that identification and verifications (ID&V) was performed"
           }
         }
+      },
+      "GooglePayAuthMethod": {
+        "type": "string",
+        "enum": [
+          "PAN_ONLY",
+          "CRYPTOGRAM_3DS"
+        ]
       },
       "GooglePayCardFundingSource": {
         "type": "string",
@@ -17239,6 +18033,14 @@
         "properties": {
           "mask": {
             "type": "string"
+          },
+          "account_holder_name": {
+            "type": "string",
+            "nullable": true
+          },
+          "bank_name": {
+            "type": "string",
+            "nullable": true
           }
         }
       },
@@ -19198,6 +20000,14 @@
                 "properties": {
                   "message": {
                     "type": "string"
+                  },
+                  "code": {
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/BlockReasonCode"
+                      }
+                    ],
+                    "nullable": true
                   }
                 }
               }
@@ -19866,10 +20676,28 @@
             "description": "Total amount for the item.",
             "nullable": true
           },
+          "discount_name": {
+            "type": "string",
+            "description": "Discount name applied to this item.",
+            "nullable": true
+          },
           "unit_discount_amount": {
             "type": "integer",
             "format": "int64",
             "description": "Discount amount applied to this item.",
+            "nullable": true
+          },
+          "discount_percentage": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Percentage"
+              }
+            ],
+            "nullable": true
+          },
+          "discount_type": {
+            "type": "string",
+            "description": "Discount type applied to this item.",
             "nullable": true
           }
         }
@@ -20506,6 +21334,42 @@
               }
             ],
             "nullable": true
+          }
+        }
+      },
+      "PayloadLedgerItem": {
+        "type": "object",
+        "description": "A single ledger entry distributing payment to one receiver for Payload split payments",
+        "required": [
+          "amount",
+          "receiver_id"
+        ],
+        "properties": {
+          "amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Amount in minor units to be routed to this receiver out of the payment",
+            "example": 995
+          },
+          "receiver_id": {
+            "type": "string",
+            "description": "processing_id of the receiver"
+          }
+        }
+      },
+      "PayloadSplitPaymentRequest": {
+        "type": "object",
+        "description": "Split payment configuration for Payload — distributes a payment across multiple receivers via ledger entries",
+        "required": [
+          "ledger"
+        ],
+        "properties": {
+          "ledger": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PayloadLedgerItem"
+            },
+            "description": "Ledger entries specifying how the payment is distributed across receivers"
           }
         }
       },
@@ -21225,6 +22089,11 @@
             "type": "boolean",
             "description": "Flag to display the merchant name in the payment link",
             "nullable": true
+          },
+          "payment_methods_separator_text": {
+            "type": "string",
+            "description": "Custom text for the separator shown between wallet and card payment method sections",
+            "nullable": true
           }
         }
       },
@@ -21413,6 +22282,13 @@
             "default": true,
             "example": true,
             "nullable": true
+          },
+          "payment_methods_separator_text": {
+            "type": "string",
+            "description": "Custom text for the separator shown between wallet and card payment method sections",
+            "example": "Or pay with",
+            "nullable": true,
+            "maxLength": 64
           }
         }
       },
@@ -21831,6 +22707,18 @@
           },
           {
             "type": "object",
+            "title": "CardWithNoCVC",
+            "required": [
+              "card_with_no_cvc"
+            ],
+            "properties": {
+              "card_with_no_cvc": {
+                "$ref": "#/components/schemas/CardWithNoCVC"
+              }
+            }
+          },
+          {
+            "type": "object",
             "title": "CardRedirect",
             "required": [
               "card_redirect"
@@ -22025,12 +22913,12 @@
           },
           {
             "type": "object",
-            "title": "ProxyCard",
+            "title": "VaultDataCard",
             "required": [
-              "proxy_card"
+              "vault_data_card"
             ],
             "properties": {
-              "proxy_card": {
+              "vault_data_card": {
                 "$ref": "#/components/schemas/ProxyCardData"
               }
             }
@@ -22043,7 +22931,7 @@
             ],
             "properties": {
               "vault_card_token_data": {
-                "$ref": "#/components/schemas/CardToken"
+                "$ref": "#/components/schemas/VaultCardToken"
               }
             }
           }
@@ -22816,6 +23704,10 @@
         "properties": {
           "fetch_raw_detail": {
             "type": "boolean"
+          },
+          "force_sync": {
+            "type": "boolean",
+            "description": "Trigger an Account Updater check for the stored payment method."
           }
         },
         "additionalProperties": false
@@ -23207,6 +24099,7 @@
           "pix",
           "pix_key",
           "pix_emv",
+          "pix_qr",
           "pix_automatico_qr",
           "pix_automatico_push",
           "pay_safe_card",
@@ -23250,7 +24143,9 @@
           "revolut_pay",
           "indonesian_bank_transfer",
           "open_banking",
-          "network_token"
+          "network_token",
+          "payshap",
+          "payshap_proxy"
         ]
       },
       "PaymentMethodUpdate": {
@@ -25331,8 +26226,10 @@
           "adyen",
           "adyenplatform",
           "cybersource",
+          "deutschebank",
           "ebanx",
           "gigadat",
+          "gotyme_sanlam",
           "loonio",
           "nomupay",
           "nuvei",
@@ -25345,7 +26242,8 @@
           "worldpay",
           "worldpayxml",
           "envoy",
-          "itaubank"
+          "itaubank",
+          "santander"
         ]
       },
       "PayoutCreatePayoutLinkConfig": {
@@ -25549,6 +26447,14 @@
             "type": "string",
             "description": "A description of the payout",
             "example": "It's my first payout request",
+            "nullable": true
+          },
+          "billing_descriptor": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PayoutsBillingDescriptor"
+              }
+            ],
             "nullable": true
           },
           "entity_type": {
@@ -25792,6 +26698,14 @@
             "example": "It's my first payout request",
             "nullable": true
           },
+          "billing_descriptor": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PayoutsBillingDescriptor"
+              }
+            ],
+            "nullable": true
+          },
           "entity_type": {
             "$ref": "#/components/schemas/PayoutEntityType"
           },
@@ -25841,6 +26755,12 @@
             "type": "string",
             "description": "Underlying processor's payout resource ID",
             "example": "S3FC9G9M2MVFDXT5",
+            "nullable": true
+          },
+          "connector_eligibility_reference_id": {
+            "type": "string",
+            "description": "Underlying processor's reference ID for the payout eligibility check",
+            "example": "8ad8bf30-5789-52be-a80a-72908abf5f9d",
             "nullable": true
           },
           "priority": {
@@ -25996,12 +26916,7 @@
                 "nullable": true
               },
               "limit": {
-                "type": "integer",
-                "format": "int32",
-                "description": "limit on the number of objects to return",
-                "default": 10,
-                "maximum": 100,
-                "minimum": 0
+                "$ref": "#/components/schemas/common_utils.types.list.PageSize"
               },
               "created": {
                 "type": "string",
@@ -26058,17 +26973,10 @@
                 "nullable": true
               },
               "limit": {
-                "type": "integer",
-                "format": "int32",
-                "description": "The limit on the number of objects. The default limit is 10 and max limit is 20",
-                "minimum": 0
+                "$ref": "#/components/schemas/common_utils.types.list.PageSize"
               },
               "offset": {
-                "type": "integer",
-                "format": "int32",
-                "description": "The starting point within a list of objects",
-                "nullable": true,
-                "minimum": 0
+                "$ref": "#/components/schemas/common_utils.types.list.PageOffset"
               },
               "connector": {
                 "type": "array",
@@ -26385,6 +27293,7 @@
           "reversed",
           "pending",
           "ineligible",
+          "not_permitted",
           "requires_creation",
           "requires_confirmation",
           "requires_payout_method_data",
@@ -26401,6 +27310,22 @@
           "wallet",
           "bank_redirect"
         ]
+      },
+      "PayoutsBillingDescriptor": {
+        "type": "object",
+        "description": "Billing descriptor information for a payout.",
+        "properties": {
+          "reference": {
+            "type": "string",
+            "description": "Reference displayed on the beneficiary's bank statement.",
+            "nullable": true
+          },
+          "statement_descriptor": {
+            "type": "string",
+            "description": "Statement descriptor displayed for the payout.",
+            "nullable": true
+          }
+        }
       },
       "Paypal": {
         "type": "object",
@@ -26602,6 +27527,96 @@
       "PayseraData": {
         "type": "object"
       },
+      "PayshapBankTransfer": {
+        "type": "object",
+        "required": [
+          "bank_account_number"
+        ],
+        "properties": {
+          "bank_account_number": {
+            "type": "string",
+            "description": "Bank account number is a unique identifier assigned by a bank to a customer.",
+            "example": "1234567890"
+          },
+          "account_holder_name": {
+            "type": "string",
+            "description": "Bank account holder name. Required for interbank transfers.",
+            "example": "John Doe",
+            "nullable": true
+          },
+          "bank_name": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BankNames"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "PayshapBankTransferAdditionalData": {
+        "type": "object",
+        "description": "Masked payout method details for PayShap bank transfer payout method",
+        "required": [
+          "bank_account_number"
+        ],
+        "properties": {
+          "bank_account_number": {
+            "type": "string",
+            "description": "Bank account number is a unique identifier assigned by a bank to a customer.",
+            "example": "**** 67890"
+          },
+          "account_holder_name": {
+            "type": "string",
+            "description": "Bank account holder name.",
+            "example": "John Doe",
+            "nullable": true
+          },
+          "bank_name": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BankNames"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "PayshapProxyBankTransfer": {
+        "type": "object",
+        "properties": {
+          "cellphone": {
+            "type": "string",
+            "description": "Cellphone proxy. Required when proxy_type is cellphone.",
+            "example": "+27821234567",
+            "nullable": true
+          },
+          "shap_id": {
+            "type": "string",
+            "description": "Shap ID proxy. Required when proxy_type is shap_id.",
+            "example": "21e3123",
+            "nullable": true
+          }
+        }
+      },
+      "PayshapProxyBankTransferAdditionalData": {
+        "type": "object",
+        "description": "Masked payout method details for PayShap proxy bank transfer payout method",
+        "properties": {
+          "cellphone": {
+            "type": "string",
+            "description": "Cellphone proxy.",
+            "example": "******* 4567",
+            "nullable": true
+          },
+          "shap_id": {
+            "type": "string",
+            "description": "Shap ID proxy.",
+            "example": "**** 3123",
+            "nullable": true
+          }
+        }
+      },
       "PazeSessionTokenResponse": {
         "type": "object",
         "required": [
@@ -26652,12 +27667,29 @@
           }
         }
       },
+      "PeachpaymentsCardOnFileTransactionType": {
+        "type": "string",
+        "enum": [
+          "one_off",
+          "customer_initiated_transaction",
+          "merchant_initiated_mandate",
+          "merchant_initiated_transaction"
+        ]
+      },
       "PeachpaymentsData": {
         "type": "object",
         "properties": {
           "rrn": {
             "type": "string",
             "description": "A numeric reference number supplied by the system retaining the original source information and used to assist in locating that information or a copy thereof.",
+            "nullable": true
+          },
+          "card_on_file_transaction_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PeachpaymentsCardOnFileTransactionType"
+              }
+            ],
             "nullable": true
           }
         }
@@ -26701,6 +27733,20 @@
               }
             ],
             "nullable": true
+          }
+        }
+      },
+      "Percentage": {
+        "type": "object",
+        "description": "Represents Percentage Value between 0 and 100 both inclusive",
+        "required": [
+          "percentage"
+        ],
+        "properties": {
+          "percentage": {
+            "type": "number",
+            "format": "double",
+            "description": "Percentage value ranging between 0 and 100"
           }
         }
       },
@@ -26754,6 +27800,26 @@
             "type": "string",
             "description": "ispb code is a unique identifier assigned by Brazilian Central Bank to identify the financial institution of the recipient's bank account in Pix transactions.",
             "example": "60701190",
+            "nullable": true
+          },
+          "bank_code": {
+            "type": "string",
+            "description": "3-digit COMPE/FEBRABAN bank code used to identify the financial institution for routing PIX payouts.",
+            "example": "033",
+            "nullable": true
+          },
+          "bank_account_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BankType"
+              }
+            ],
+            "nullable": true
+          },
+          "account_holder_name": {
+            "type": "string",
+            "description": "Name of the account holder",
+            "example": "John Doe",
             "nullable": true
           }
         }
@@ -26999,6 +28065,26 @@
             "type": "string",
             "description": "ispb code is a unique identifier assigned by Brazilian Central Bank to identify the financial institution of the recipient's bank account in Pix transactions.",
             "example": "60701190",
+            "nullable": true
+          },
+          "bank_code": {
+            "type": "string",
+            "description": "3-digit COMPE/FEBRABAN bank code used to identify the financial institution for routing PIX payouts.",
+            "example": "033",
+            "nullable": true
+          },
+          "bank_account_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BankType"
+              }
+            ],
+            "nullable": true
+          },
+          "account_holder_name": {
+            "type": "string",
+            "description": "Name of the account holder",
+            "example": "John Doe",
             "nullable": true
           }
         }
@@ -28654,16 +29740,10 @@
                 "description": "The identifier for the refund"
               },
               "limit": {
-                "type": "integer",
-                "format": "int64",
-                "description": "Limit on the number of objects to return",
-                "nullable": true
+                "$ref": "#/components/schemas/common_utils.types.list.PageSize"
               },
               "offset": {
-                "type": "integer",
-                "format": "int64",
-                "description": "The starting point within a list of objects",
-                "nullable": true
+                "$ref": "#/components/schemas/common_utils.types.list.PageOffset"
               },
               "amount_filter": {
                 "allOf": [
@@ -29096,7 +30176,8 @@
             "required": [
               "payment_method_type",
               "payment_method_subtype",
-              "required_fields"
+              "required_fields",
+              "customer_acceptance_support"
             ],
             "properties": {
               "payment_method_type": {
@@ -29111,6 +30192,9 @@
                   "$ref": "#/components/schemas/RequiredFieldInfo"
                 },
                 "description": "Required fields for the payment_method_type.\nThis is the union of all the required fields for the payment method type enabled in all the connectors."
+              },
+              "customer_acceptance_support": {
+                "$ref": "#/components/schemas/CustomerAcceptanceSupport"
               }
             }
           }
@@ -29529,6 +30613,7 @@
           "custombilling",
           "checkbook",
           "checkout",
+          "citigate",
           "coinbase",
           "coingate",
           "cryptopay",
@@ -29552,13 +30637,16 @@
           "forte",
           "getnet",
           "gigadat",
+          "givepayments",
           "globalpay",
           "globepay",
           "gocardless",
+          "gotyme_sanlam",
           "hipay",
           "helcim",
           "hyperpg",
           "iatapay",
+          "ilixium",
           "imerchantsolutions",
           "inespay",
           "interpayments",
@@ -29617,12 +30705,14 @@
           "trustpayments",
           "tokenio",
           "tsys",
+          "tsys_transit",
           "volt",
           "wellsfargo",
           "wise",
           "worldline",
           "worldpay",
           "worldpaymodular",
+          "worldpayraft",
           "worldpayvantiv",
           "worldpayxml",
           "xendit",
@@ -29634,6 +30724,7 @@
           "ctp_mastercard",
           "ctp_visa",
           "netcetera",
+          "vgs",
           "cardinal",
           "threedsecureio"
         ]
@@ -30165,6 +31256,14 @@
         "properties": {
           "end_to_end_id": {
             "type": "string",
+            "example": "E9040088820260710172800044983797",
+            "nullable": true
+          },
+          "paid_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Actual timestamp when the payment was completed, as reported by Santander.",
+            "example": "2025-07-20T14:35:00Z",
             "nullable": true
           }
         },
@@ -30307,6 +31406,113 @@
             "nullable": true
           }
         }
+      },
+      "Scope": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "type"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "not_specific"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "values"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "payment_method_types"
+                ]
+              },
+              "values": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/PaymentMethodType"
+                },
+                "description": "Scoped by payment method types (e.g., Pix, Boleto)"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "values"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "event_types"
+                ]
+              },
+              "values": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/EventType"
+                },
+                "description": "Scoped by event types (e.g., Payments, Refunds, Disputes)"
+              }
+            }
+          }
+        ],
+        "description": "The scope of webhook registration.\nDetermines which entities the connector should register webhooks for.",
+        "discriminator": {
+          "propertyName": "type"
+        }
+      },
+      "ScopeIdentifier": {
+        "oneOf": [
+          {
+            "type": "string",
+            "enum": [
+              "NotSpecific"
+            ]
+          },
+          {
+            "type": "object",
+            "required": [
+              "PaymentMethodType"
+            ],
+            "properties": {
+              "PaymentMethodType": {
+                "$ref": "#/components/schemas/PaymentMethodType"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "EventType"
+            ],
+            "properties": {
+              "EventType": {
+                "$ref": "#/components/schemas/EventType"
+              }
+            }
+          }
+        ]
+      },
+      "ScopeType": {
+        "type": "string",
+        "description": "Discriminator for the scope type in the response",
+        "enum": [
+          "not_specific",
+          "payment_method_type",
+          "event_type"
+        ]
       },
       "SdkDisplayMode": {
         "type": "string",
@@ -30960,6 +32166,17 @@
                 "$ref": "#/components/schemas/XenditSplitRequest"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "payload_split_payment"
+            ],
+            "properties": {
+              "payload_split_payment": {
+                "$ref": "#/components/schemas/PayloadSplitPaymentRequest"
+              }
+            }
           }
         ],
         "description": "Fee information for Split Payments to be charged on the payment being collected"
@@ -31537,7 +32754,7 @@
         "properties": {
           "percentage": {
             "type": "number",
-            "format": "float"
+            "format": "double"
           }
         }
       },
@@ -31619,6 +32836,7 @@
           "no_three_ds",
           "challenge_requested",
           "challenge_preferred",
+          "no_preference",
           "three_ds_exemption_requested_tra",
           "three_ds_exemption_requested_low_value",
           "issuer_three_ds_exemption_requested"
@@ -32529,6 +33747,25 @@
         "description": "Represents a value in the DSL",
         "discriminator": {
           "propertyName": "type"
+        }
+      },
+      "VaultCardToken": {
+        "type": "object",
+        "description": "Card token data carried by the external vault proxy `vault_card_token_data` variant. Its\n`card_cvc` is a vault token detokenized on the wire by the external vault (e.g. VGS). Kept as a\ndistinct type from [`CardToken`] so the self-hosted `card_cvc_token` field does not leak into\nthe proxy contract.",
+        "required": [
+          "card_holder_name"
+        ],
+        "properties": {
+          "card_holder_name": {
+            "type": "string",
+            "description": "The card holder's name",
+            "example": "John Test"
+          },
+          "card_cvc": {
+            "type": "string",
+            "description": "The CVC number for the card (a vault token for the external vault proxy flow)",
+            "nullable": true
+          }
         }
       },
       "VaultDetails": {
@@ -33526,6 +34763,59 @@
         },
         "additionalProperties": false
       },
+      "WebhookRegistrationError": {
+        "type": "object",
+        "description": "Error details for a failed webhook registration.",
+        "required": [
+          "code",
+          "message"
+        ],
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "WebhookRegistrationResult": {
+        "type": "object",
+        "description": "Result of registering a webhook for a single scope identifier.",
+        "required": [
+          "identifier",
+          "status"
+        ],
+        "properties": {
+          "identifier": {
+            "$ref": "#/components/schemas/ScopeIdentifier"
+          },
+          "status": {
+            "$ref": "#/components/schemas/WebhookRegistrationStatus"
+          },
+          "connector_webhook_id": {
+            "type": "string",
+            "description": "The connector-generated webhook ID, if successful.",
+            "nullable": true
+          },
+          "error": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/WebhookRegistrationError"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "WebhookRegistrationStatus": {
+        "type": "string",
+        "description": "The status of webhook registration",
+        "enum": [
+          "Success",
+          "Failure"
+        ]
+      },
       "XenditChargeResponseData": {
         "oneOf": [
           {
@@ -33699,6 +34989,18 @@
           }
         },
         "additionalProperties": false
+      },
+      "common_utils.types.list.PageOffset": {
+        "type": "integer",
+        "format": "int32",
+        "maximum": 20000,
+        "minimum": 0
+      },
+      "common_utils.types.list.PageSize": {
+        "type": "integer",
+        "format": "int32",
+        "maximum": 100,
+        "minimum": 1
       }
     },
     "securitySchemes": {

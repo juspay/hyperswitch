@@ -209,6 +209,9 @@ impl TryFrom<&HipayRouterData<&PaymentsAuthorizeRouterData>> for HipayPaymentsRe
                         | Some(CardNetwork::Accel)
                         | Some(CardNetwork::Pulse)
                         | Some(CardNetwork::Nyce)
+                        | Some(CardNetwork::Prop)
+                        | Some(CardNetwork::PrivateLabel)
+                        | Some(CardNetwork::Dinacard)
                         | None => "".to_string(),
                     },
                 },

@@ -334,17 +334,15 @@ impl TryFrom<(&BankDebitData, &types::TokenizationRouterData)> for CustomerBankA
 
 impl TryFrom<common_enums::BankType> for AccountType {
     type Error = error_stack::Report<errors::ConnectorError>;
+
     fn try_from(item: common_enums::BankType) -> Result<Self, Self::Error> {
         match item {
             common_enums::BankType::Checking => Ok(Self::Checking),
             common_enums::BankType::Savings => Ok(Self::Savings),
-            common_enums::BankType::Transmission
-            | common_enums::BankType::Current
-            | common_enums::BankType::Bond
-            | common_enums::BankType::SubscriptionShare => {
+            b_type @ (common_enums::BankType::Salary | common_enums::BankType::Payment) => {
                 Err(errors::ConnectorError::NotSupported {
-                    message: "bank_type".to_string(),
-                    connector: "Gocardless",
+                    message: format!("bank_type {b_type} is not supported"),
+                    connector: "gocardless",
                 }
                 .into())
             }

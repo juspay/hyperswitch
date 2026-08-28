@@ -110,6 +110,9 @@ pub async fn construct_relay_refund_router_data<F>(
             merchant_config_currency: None,
             capture_method: None,
             additional_payment_method_data: None,
+            // Relay refunds have no locally recorded payment attempt, so the original payment's
+            // connector request reference is not known here.
+            payment_connector_request_reference_id: None,
         },
 
         response: Err(ErrorResponse::default()),
@@ -150,6 +153,7 @@ pub async fn construct_relay_refund_router_data<F>(
         customer_document_details: None,
         feature_data: None,
         sender_payment_instrument_id: None,
+        connector_returned_payment_method_details: None,
     };
 
     Ok(router_data)
@@ -246,6 +250,7 @@ pub async fn construct_relay_capture_router_data(
             split_payments: None,
             minor_payment_amount: relay_capture_data.authorized_amount,
             minor_amount_to_capture: relay_capture_data.amount_to_capture,
+            order_tax_amount: None,
             integrity_object: None,
             webhook_url,
             merchant_order_reference_id: None,
@@ -289,6 +294,7 @@ pub async fn construct_relay_capture_router_data(
         customer_document_details: None,
         feature_data: None,
         sender_payment_instrument_id: None,
+        connector_returned_payment_method_details: None,
     };
 
     Ok(router_data)
@@ -413,6 +419,7 @@ pub async fn construct_relay_incremental_authorization_router_data(
         customer_document_details: None,
         feature_data: None,
         sender_payment_instrument_id: None,
+        connector_returned_payment_method_details: None,
     };
 
     Ok(router_data)
@@ -546,6 +553,7 @@ pub async fn construct_relay_void_router_data(
         customer_document_details: None,
         feature_data: None,
         sender_payment_instrument_id: None,
+        connector_returned_payment_method_details: None,
     };
 
     Ok(router_data)
@@ -693,6 +701,7 @@ pub async fn construct_relay_payments_retrieve_router_data(
         customer_document_details: None,
         feature_data: None,
         sender_payment_instrument_id: None,
+        connector_returned_payment_method_details: None,
     };
 
     Ok(router_data)

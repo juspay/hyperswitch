@@ -259,6 +259,7 @@ pub async fn profile_update(
         &req,
         payload,
         |state, auth_data, req, _| {
+            let provider_merchant_id = auth_data.platform.get_provider().get_provider_merchant_id();
             update_profile(
                 state,
                 &profile_id,
@@ -270,10 +271,11 @@ pub async fn profile_update(
                     .clone(),
                 auth_data.platform.get_processor().get_key_store().clone(),
                 req,
+                Some(provider_merchant_id),
             )
         },
         auth::auth_type(
-            &auth::ApiKeyAuthWithMerchantIdFromRoute(merchant_id.clone()),
+            &auth::ApiKeyAuthWithMerchantIdFromRouteAllowPlatform(merchant_id.clone()),
             &auth::JWTAuthMerchantAndProfileFromRoute {
                 merchant_id: merchant_id.clone(),
                 profile_id: profile_id.clone(),
@@ -330,6 +332,7 @@ pub async fn profile_update(
                 merchant_account.get_id().clone(),
                 key_store,
                 req,
+                None,
             )
         },
         auth::auth_type(
@@ -337,7 +340,7 @@ pub async fn profile_update(
             &auth::JWTAuthMerchantFromHeader {
                 required_permission: permissions::Permission::MerchantAccountWrite,
                 allow_connected: true,
-                allow_platform: false,
+                allow_platform: true,
             },
             req.headers(),
         ),
@@ -563,12 +566,12 @@ pub async fn payment_connector_list_profile(
             )
         },
         auth::auth_type(
-            &auth::ApiKeyAuthWithMerchantIdFromRoute(merchant_id.clone()),
+            &auth::ApiKeyAuthWithMerchantIdFromRouteAllowPlatform(merchant_id.clone()),
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
                 required_permission: permissions::Permission::ProfileConnectorRead,
                 allow_connected: true,
-                allow_platform: false,
+                allow_platform: true,
             },
             req.headers(),
         ),

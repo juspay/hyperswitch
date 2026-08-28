@@ -218,6 +218,7 @@ pub fn construct_router_data<F: Clone, Req, Res>(
         customer_document_details: None,
         feature_data: None,
         sender_payment_instrument_id: None,
+        connector_returned_payment_method_details: None,
     })
 }
 
@@ -367,6 +368,7 @@ impl
             merchant_country_code: None,
             processor_merchant_id: None,
             created_by: None,
+            updated_by: None,
         }
     }
 }
@@ -491,6 +493,7 @@ impl
             merchant_country_code: None,
             processor_merchant_id: None,
             created_by: None,
+            updated_by: None,
         }
     }
 }

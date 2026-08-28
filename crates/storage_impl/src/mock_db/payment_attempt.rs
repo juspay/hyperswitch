@@ -221,6 +221,7 @@ impl PaymentAttemptInterface for MockDb {
             mandate_data: payment_attempt.mandate_data,
             payment_method_billing_address_id: payment_attempt.payment_method_billing_address_id,
             fingerprint_id: payment_attempt.fingerprint_id,
+            fingerprint_type: payment_attempt.fingerprint_type,
             client_source: payment_attempt.client_source,
             client_version: payment_attempt.client_version,
             customer_acceptance: payment_attempt.customer_acceptance,
@@ -254,6 +255,7 @@ impl PaymentAttemptInterface for MockDb {
             retry_type: payment_attempt.retry_type,
             installment_data: payment_attempt.installment_data,
             external_surcharge_details: payment_attempt.external_surcharge_details,
+            applied_offer_details: payment_attempt.applied_offer_details,
             sender_payment_instrument_id: payment_attempt.sender_payment_instrument_id,
         };
         payment_attempts.push(payment_attempt.clone());

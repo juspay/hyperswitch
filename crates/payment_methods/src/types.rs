@@ -201,9 +201,22 @@ impl From<PaymentMethodResponseData>
 {
     fn from(payment_method_response_data: PaymentMethodResponseData) -> Self {
         match payment_method_response_data {
-            PaymentMethodResponseData::Card(card_info) => Some(
-                api_models::payment_methods::CustomerPaymentMethodDataForClient::Card(card_info),
-            ),
+            PaymentMethodResponseData::Card(mut card_info) => {
+                // The modular PM service returns `scheme` as null on the card detail even though
+                // `card_network` is populated. Surface the network as the scheme (mirroring
+                // `mk_add_card_response_hs`) so the `/client` response carries it.
+                card_info.scheme = card_info.scheme.or_else(|| {
+                    card_info
+                        .card_network
+                        .as_ref()
+                        .map(|network| network.to_string())
+                });
+                Some(
+                    api_models::payment_methods::CustomerPaymentMethodDataForClient::Card(
+                        card_info,
+                    ),
+                )
+            }
             PaymentMethodResponseData::Wallet(wallet_info) => Some(
                 api_models::payment_methods::CustomerPaymentMethodDataForClient::Wallet(
                     wallet_info.into(),

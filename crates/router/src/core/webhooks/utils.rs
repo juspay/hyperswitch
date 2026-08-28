@@ -17,7 +17,7 @@ use hyperswitch_interfaces::webhooks::IncomingWebhook;
 use redis_interface as redis;
 use router_env::tracing;
 
-use super::MERCHANT_ID;
+use super::{types as webhook_types, MERCHANT_ID};
 use crate::{
     core::{
         configs::dimension_state,
@@ -143,6 +143,7 @@ pub async fn construct_webhook_router_data(
         customer_document_details: None,
         feature_data: None,
         sender_payment_instrument_id: None,
+        connector_returned_payment_method_details: None,
     };
     Ok(router_data)
 }
@@ -250,20 +251,43 @@ pub(crate) fn generate_event_id() -> String {
     common_utils::generate_time_ordered_id("evt")
 }
 
-pub fn increment_webhook_outgoing_received_count(merchant_id: &common_utils::id_type::MerchantId) {
-    metrics::WEBHOOK_OUTGOING_RECEIVED_COUNT.add(
-        1,
-        router_env::metric_attributes!((MERCHANT_ID, merchant_id.clone())),
-    )
+pub(crate) fn increment_webhook_outgoing_received_count(
+    recipient_data: &webhook_types::WebhookRecipientData,
+) {
+    let attributes = match recipient_data {
+        webhook_types::WebhookRecipientData::Connector {
+            merchant_connector_id,
+            ..
+        } => router_env::metric_attributes!((
+            crate::core::webhooks::MERCHANT_CONNECTOR_ACCOUNT_ID,
+            merchant_connector_id.clone()
+        )),
+
+        webhook_types::WebhookRecipientData::Merchant { merchant_id, .. } => {
+            router_env::metric_attributes!((MERCHANT_ID, merchant_id.clone()))
+        }
+    };
+
+    metrics::WEBHOOK_OUTGOING_RECEIVED_COUNT.add(1, attributes);
 }
 
-pub fn increment_webhook_outgoing_not_received_count(
-    merchant_id: &common_utils::id_type::MerchantId,
+pub(crate) fn increment_webhook_outgoing_not_received_count(
+    recipient_data: &webhook_types::WebhookRecipientData,
 ) {
-    metrics::WEBHOOK_OUTGOING_NOT_RECEIVED_COUNT.add(
-        1,
-        router_env::metric_attributes!((MERCHANT_ID, merchant_id.clone())),
-    );
+    let attributes = match recipient_data {
+        webhook_types::WebhookRecipientData::Connector {
+            merchant_connector_id,
+            ..
+        } => router_env::metric_attributes!((
+            crate::core::webhooks::MERCHANT_CONNECTOR_ACCOUNT_ID,
+            merchant_connector_id.clone()
+        )),
+
+        webhook_types::WebhookRecipientData::Merchant { merchant_id } => {
+            router_env::metric_attributes!((MERCHANT_ID, merchant_id.clone()))
+        }
+    };
+    metrics::WEBHOOK_OUTGOING_NOT_RECEIVED_COUNT.add(1, attributes);
 }
 
 pub fn is_outgoing_webhook_disabled(

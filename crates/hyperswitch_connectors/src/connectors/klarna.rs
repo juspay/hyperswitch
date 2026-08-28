@@ -623,6 +623,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::Pix
                         | common_enums::PaymentMethodType::PixKey
                         | common_enums::PaymentMethodType::PixEmv
+                        | common_enums::PaymentMethodType::PixQr
                         | common_enums::PaymentMethodType::PixAutomaticoPush
                         | common_enums::PaymentMethodType::PixAutomaticoQr
                         | common_enums::PaymentMethodType::PaySafeCard
@@ -669,6 +670,8 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::Breadpay
                         | common_enums::PaymentMethodType::Payjustnow
                         | common_enums::PaymentMethodType::OpenBanking
+                        | common_enums::PaymentMethodType::Payshap
+                        | common_enums::PaymentMethodType::PayshapProxy
                         | common_enums::PaymentMethodType::NetworkToken,
                     ) => Err(error_stack::report!(errors::ConnectorError::NotSupported {
                         message: payment_method_type.to_string(),
@@ -758,6 +761,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::Pix
                         | common_enums::PaymentMethodType::PixKey
                         | common_enums::PaymentMethodType::PixEmv
+                        | common_enums::PaymentMethodType::PixQr
                         | common_enums::PaymentMethodType::PixAutomaticoPush
                         | common_enums::PaymentMethodType::PixAutomaticoQr
                         | common_enums::PaymentMethodType::PaySafeCard
@@ -805,6 +809,8 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::Breadpay
                         | common_enums::PaymentMethodType::Payjustnow
                         | common_enums::PaymentMethodType::OpenBanking
+                        | common_enums::PaymentMethodType::Payshap
+                        | common_enums::PaymentMethodType::PayshapProxy
                         | common_enums::PaymentMethodType::NetworkToken,
                     ) => Err(error_stack::report!(errors::ConnectorError::NotSupported {
                         message: payment_method_type.to_string(),
@@ -901,6 +907,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::Pix
                         | common_enums::PaymentMethodType::PixKey
                         | common_enums::PaymentMethodType::PixEmv
+                        | common_enums::PaymentMethodType::PixQr
                         | common_enums::PaymentMethodType::PixAutomaticoPush
                         | common_enums::PaymentMethodType::PixAutomaticoQr
                         | common_enums::PaymentMethodType::PaySafeCard
@@ -947,6 +954,8 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::Breadpay
                         | common_enums::PaymentMethodType::Payjustnow
                         | common_enums::PaymentMethodType::OpenBanking
+                        | common_enums::PaymentMethodType::Payshap
+                        | common_enums::PaymentMethodType::PayshapProxy
                         | common_enums::PaymentMethodType::NetworkToken,
                     ) => Err(error_stack::report!(errors::ConnectorError::NotSupported {
                         message: payment_method_type.to_string(),
@@ -1036,6 +1045,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::Pix
                         | common_enums::PaymentMethodType::PixKey
                         | common_enums::PaymentMethodType::PixEmv
+                        | common_enums::PaymentMethodType::PixQr
                         | common_enums::PaymentMethodType::PixAutomaticoPush
                         | common_enums::PaymentMethodType::PixAutomaticoQr
                         | common_enums::PaymentMethodType::PaySafeCard
@@ -1083,6 +1093,8 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::Skrill
                         | common_enums::PaymentMethodType::Payjustnow
                         | common_enums::PaymentMethodType::OpenBanking
+                        | common_enums::PaymentMethodType::Payshap
+                        | common_enums::PaymentMethodType::PayshapProxy
                         | common_enums::PaymentMethodType::NetworkToken,
                     ) => Err(error_stack::report!(errors::ConnectorError::NotSupported {
                         message: payment_method_type.to_string(),

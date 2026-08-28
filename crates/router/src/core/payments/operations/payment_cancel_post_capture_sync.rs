@@ -43,6 +43,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, id_type::PaymentId>
         _request: &id_type::PaymentId,
         platform: &domain::Platform,
         _auth_flow: services::AuthFlow,
+        _flow_kind: operations::PaymentFlowKind,
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
         _payment_method_fetch_data: operations::PaymentMethodFetchData,
         _dimensions: &DimensionsWithProcessorAndProviderMerchantId,
@@ -194,6 +195,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, id_type::PaymentId>
             client_session_id: None,
             vault_session_details: None,
             external_vault_pmd: None,
+            update_request_fields: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {

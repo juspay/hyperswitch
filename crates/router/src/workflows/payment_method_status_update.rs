@@ -69,6 +69,8 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentMethodStatusUpdateWorkflow 
                 payment_method,
                 pm_update,
                 merchant_account.storage_scheme,
+                // Status update workflow completion must not recursively enqueue PM modular compat.
+                None,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)

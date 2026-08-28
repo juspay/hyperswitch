@@ -745,7 +745,7 @@ impl
                     )
                 }
                 Some(mandates::MandateReferenceId::NetworkTokenWithNTI(_))
-                | Some(mandates::MandateReferenceId::CardWithLimitedData)
+                | Some(mandates::MandateReferenceId::CardWithLimitedData(_))
                 | None => (None, None, None),
             }
         } else {
@@ -1141,13 +1141,10 @@ impl TryFrom<Option<common_enums::BankType>> for AccountType {
             Some(bank_type) => match bank_type {
                 common_enums::BankType::Checking => Ok(Self::C),
                 common_enums::BankType::Savings => Ok(Self::S),
-                common_enums::BankType::Transmission
-                | common_enums::BankType::Current
-                | common_enums::BankType::Bond
-                | common_enums::BankType::SubscriptionShare => {
+                b_type @ (common_enums::BankType::Salary | common_enums::BankType::Payment) => {
                     Err(errors::ConnectorError::NotSupported {
-                        message: "bank_type".to_string(),
-                        connector: "Wellsfargo",
+                        message: format!("bank_type {b_type} is not supported"),
+                        connector: "wellsfargo",
                     })?
                 }
             },

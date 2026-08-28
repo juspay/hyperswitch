@@ -83,6 +83,8 @@ pub enum NovalNetPaymentTypes {
     GuaranteedDirectDebitSepa,
     #[serde(rename = "RETURN_DEBIT_SEPA")]
     ReturnDebitSepa,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Default, Debug, Serialize, Clone)]
@@ -634,6 +636,8 @@ pub enum NovalnetTransactionStatus {
     Deactivated,
     Progress,
     Error,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Debug, Copy, Display, Clone, Serialize, Deserialize, PartialEq)]
@@ -642,19 +646,31 @@ pub enum NovalnetTransactionStatus {
 pub enum NovalnetAPIStatus {
     Success,
     Failure,
+    #[serde(other)]
+    Unknown,
 }
 
-impl From<NovalnetTransactionStatus> for common_enums::AttemptStatus {
-    fn from(item: NovalnetTransactionStatus) -> Self {
-        match item {
-            NovalnetTransactionStatus::Success | NovalnetTransactionStatus::Confirmed => {
-                Self::Charged
-            }
-            NovalnetTransactionStatus::OnHold => Self::Authorized,
-            NovalnetTransactionStatus::Pending => Self::Pending,
-            NovalnetTransactionStatus::Progress => Self::AuthenticationPending,
-            NovalnetTransactionStatus::Deactivated => Self::Voided,
-            NovalnetTransactionStatus::Failure | NovalnetTransactionStatus::Error => Self::Failure,
+pub fn get_novalnet_attempt_status(
+    status: NovalnetTransactionStatus,
+    prev_status: common_enums::AttemptStatus,
+) -> common_enums::AttemptStatus {
+    match status {
+        NovalnetTransactionStatus::Success | NovalnetTransactionStatus::Confirmed => {
+            common_enums::AttemptStatus::Charged
+        }
+        NovalnetTransactionStatus::OnHold => common_enums::AttemptStatus::Authorized,
+        NovalnetTransactionStatus::Pending => common_enums::AttemptStatus::Pending,
+        NovalnetTransactionStatus::Progress => common_enums::AttemptStatus::AuthenticationPending,
+        NovalnetTransactionStatus::Deactivated => common_enums::AttemptStatus::Voided,
+        NovalnetTransactionStatus::Failure | NovalnetTransactionStatus::Error => {
+            common_enums::AttemptStatus::Failure
+        }
+        NovalnetTransactionStatus::Unknown => {
+            router_env::logger::warn!(
+                "Unknown Novalnet transaction status received; retaining previous status {:?}",
+                prev_status
+            );
+            prev_status
         }
     }
 }
@@ -663,7 +679,7 @@ impl From<NovalnetTransactionStatus> for common_enums::AttemptStatus {
 pub struct ResultData {
     pub redirect_url: Option<Secret<url::Url>>,
     pub status: NovalnetAPIStatus,
-    pub status_code: u64,
+    pub status_code: Option<u64>,
     pub status_text: String,
     pub additional_message: Option<String>,
 }
@@ -738,6 +754,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, NovalnetPaymentsResponse, T, PaymentsRe
     fn try_from(
         item: ResponseRouterData<F, NovalnetPaymentsResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
+        let prev_status = item.data.status;
         let transaction_id = item
             .response
             .transaction
@@ -773,7 +790,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, NovalnetPaymentsResponse, T, PaymentsRe
                     });
 
                 Ok(Self {
-                    status: common_enums::AttemptStatus::from(transaction_status),
+                    status: get_novalnet_attempt_status(transaction_status, prev_status),
                     response: Ok(PaymentsResponseData::TransactionResponse {
                         resource_id: transaction_id
                             .clone()
@@ -807,7 +824,12 @@ impl<F, T> TryFrom<ResponseRouterData<F, NovalnetPaymentsResponse, T, PaymentsRe
                     ..item.data
                 })
             }
-            NovalnetAPIStatus::Failure => {
+            NovalnetAPIStatus::Failure | NovalnetAPIStatus::Unknown => {
+                if matches!(item.response.result.status, NovalnetAPIStatus::Unknown) {
+                    router_env::logger::warn!(
+                        "Unknown Novalnet API status received in payment response; treating as failure"
+                    );
+                }
                 let response = Err(get_error_response(
                     item.response.result,
                     item.http_code,
@@ -866,10 +888,10 @@ pub struct NovalnetSyncResponseTransactionData {
     pub date: Option<String>,
     pub order_no: Option<String>,
     pub payment_data: Option<NovalnetResponsePaymentData>,
-    pub payment_type: String,
+    pub payment_type: Option<String>,
     pub status: NovalnetTransactionStatus,
-    pub status_code: u64,
-    pub test_mode: u8,
+    pub status_code: Option<u64>,
+    pub test_mode: Option<u8>,
     pub tid: Option<i64>,
     pub txn_secret: Option<Secret<String>>,
     pub authorization: Option<NovalnetAuthorizationResponse>,
@@ -887,10 +909,10 @@ pub enum NovalnetResponsePaymentData {
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct NovalnetResponseCard {
     pub card_brand: Option<Secret<String>>,
-    pub card_expiry_month: Secret<u8>,
-    pub card_expiry_year: Secret<u16>,
-    pub card_holder: Secret<String>,
-    pub card_number: Secret<String>,
+    pub card_expiry_month: Option<Secret<u8>>,
+    pub card_expiry_year: Option<Secret<u16>>,
+    pub card_holder: Option<Secret<String>>,
+    pub card_number: Option<Secret<String>>,
     pub cc_3d: Option<Secret<u8>>,
     pub last_four: Option<Secret<String>>,
     pub token: Option<Secret<String>>,
@@ -1005,18 +1027,26 @@ impl<F> TryFrom<&NovalnetRouterData<&RefundsRouterData<F>>> for NovalnetRefundRe
     }
 }
 
-impl From<NovalnetTransactionStatus> for enums::RefundStatus {
-    fn from(item: NovalnetTransactionStatus) -> Self {
-        match item {
-            NovalnetTransactionStatus::Success | NovalnetTransactionStatus::Confirmed => {
-                Self::Success
-            }
-            NovalnetTransactionStatus::Pending => Self::Pending,
-            NovalnetTransactionStatus::Failure
-            | NovalnetTransactionStatus::Error
-            | NovalnetTransactionStatus::OnHold
-            | NovalnetTransactionStatus::Deactivated
-            | NovalnetTransactionStatus::Progress => Self::Failure,
+pub fn get_novalnet_refund_status(
+    status: NovalnetTransactionStatus,
+    prev_status: enums::RefundStatus,
+) -> enums::RefundStatus {
+    match status {
+        NovalnetTransactionStatus::Success | NovalnetTransactionStatus::Confirmed => {
+            enums::RefundStatus::Success
+        }
+        NovalnetTransactionStatus::Pending => enums::RefundStatus::Pending,
+        NovalnetTransactionStatus::Failure
+        | NovalnetTransactionStatus::Error
+        | NovalnetTransactionStatus::OnHold
+        | NovalnetTransactionStatus::Deactivated
+        | NovalnetTransactionStatus::Progress => enums::RefundStatus::Failure,
+        NovalnetTransactionStatus::Unknown => {
+            router_env::logger::warn!(
+                "Unknown Novalnet refund status received; retaining previous status {:?}",
+                prev_status
+            );
+            prev_status
         }
     }
 }
@@ -1033,12 +1063,12 @@ pub struct NovalnetRefundsTransactionData {
     pub date: Option<String>,
     pub currency: Option<common_enums::Currency>,
     pub order_no: Option<String>,
-    pub payment_type: String,
+    pub payment_type: Option<String>,
     pub refund: RefundData,
     pub refunded_amount: Option<u64>,
     pub status: NovalnetTransactionStatus,
-    pub status_code: u64,
-    pub test_mode: u8,
+    pub status_code: Option<u64>,
+    pub test_mode: Option<u8>,
     pub tid: Option<i64>,
 }
 
@@ -1047,10 +1077,10 @@ pub struct NovalnetChargebackTransactionData {
     pub amount: Option<MinorUnit>,
     pub currency: Option<common_enums::Currency>,
     pub order_no: Option<String>,
-    pub payment_type: NovalNetPaymentTypes,
+    pub payment_type: Option<NovalNetPaymentTypes>,
     pub status: NovalnetTransactionStatus,
-    pub status_code: u64,
-    pub test_mode: u8,
+    pub status_code: Option<u64>,
+    pub test_mode: Option<u8>,
     pub tid: Option<i64>,
     pub reason: Option<String>,
     pub reason_code: Option<String>,
@@ -1058,8 +1088,8 @@ pub struct NovalnetChargebackTransactionData {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RefundData {
-    amount: u64,
-    currency: common_enums::Currency,
+    amount: Option<u64>,
+    currency: Option<common_enums::Currency>,
     payment_type: Option<String>,
     tid: Option<i64>,
 }
@@ -1085,6 +1115,7 @@ impl TryFrom<RefundsResponseRouterData<Execute, NovalnetRefundResponse>>
             .clone()
             .and_then(|data| data.refund.tid.or(data.tid).map(|tid| tid.to_string()))
             .ok_or(errors::ConnectorError::ResponseHandlingFailed)?;
+        let prev_refund_status = item.data.request.refund_status;
         match item.response.result.status {
             NovalnetAPIStatus::Success => {
                 let transaction_status = item
@@ -1096,12 +1127,20 @@ impl TryFrom<RefundsResponseRouterData<Execute, NovalnetRefundResponse>>
                 Ok(Self {
                     response: Ok(RefundsResponseData {
                         connector_refund_id: refund_id,
-                        refund_status: enums::RefundStatus::from(transaction_status),
+                        refund_status: get_novalnet_refund_status(
+                            transaction_status,
+                            prev_refund_status,
+                        ),
                     }),
                     ..item.data
                 })
             }
-            NovalnetAPIStatus::Failure => {
+            NovalnetAPIStatus::Failure | NovalnetAPIStatus::Unknown => {
+                if matches!(item.response.result.status, NovalnetAPIStatus::Unknown) {
+                    router_env::logger::warn!(
+                        "Unknown Novalnet API status received in refund response; treating as failure"
+                    );
+                }
                 let response = Err(get_error_response(
                     item.response.result,
                     item.http_code,
@@ -1195,6 +1234,7 @@ impl<F>
     fn try_from(
         item: ResponseRouterData<F, NovalnetPSyncResponse, PaymentsSyncData, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
+        let prev_status = item.data.status;
         let transaction_id = item
             .response
             .transaction
@@ -1213,7 +1253,7 @@ impl<F>
                 );
 
                 Ok(Self {
-                    status: common_enums::AttemptStatus::from(transaction_status),
+                    status: get_novalnet_attempt_status(transaction_status, prev_status),
                     response: Ok(PaymentsResponseData::TransactionResponse {
                         resource_id: transaction_id
                             .clone()
@@ -1247,7 +1287,12 @@ impl<F>
                     ..item.data
                 })
             }
-            NovalnetAPIStatus::Failure => {
+            NovalnetAPIStatus::Failure | NovalnetAPIStatus::Unknown => {
+                if matches!(item.response.result.status, NovalnetAPIStatus::Unknown) {
+                    router_env::logger::warn!(
+                        "Unknown Novalnet API status received in sync response; treating as failure"
+                    );
+                }
                 let response = Err(get_error_response(
                     item.response.result,
                     item.http_code,
@@ -1280,7 +1325,7 @@ pub struct CaptureData {
     amount: Option<u64>,
     payment_type: Option<String>,
     status: Option<String>,
-    status_code: u64,
+    status_code: Option<u64>,
     tid: Option<i64>,
 }
 
@@ -1297,6 +1342,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<NovalnetCaptureResponse>>
     fn try_from(
         item: PaymentsCaptureResponseRouterData<NovalnetCaptureResponse>,
     ) -> Result<Self, Self::Error> {
+        let prev_status = item.data.status;
         let transaction_id = item
             .response
             .transaction
@@ -1312,7 +1358,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<NovalnetCaptureResponse>>
 
                 Ok(Self {
                     status: transaction_status
-                        .map(common_enums::AttemptStatus::from)
+                        .map(|s| get_novalnet_attempt_status(s, prev_status))
                         .unwrap_or(common_enums::AttemptStatus::Pending),
                     response: Ok(PaymentsResponseData::TransactionResponse {
                         resource_id: transaction_id
@@ -1332,7 +1378,12 @@ impl TryFrom<PaymentsCaptureResponseRouterData<NovalnetCaptureResponse>>
                     ..item.data
                 })
             }
-            NovalnetAPIStatus::Failure => {
+            NovalnetAPIStatus::Failure | NovalnetAPIStatus::Unknown => {
+                if matches!(item.response.result.status, NovalnetAPIStatus::Unknown) {
+                    router_env::logger::warn!(
+                        "Unknown Novalnet API status received in capture response; treating as failure"
+                    );
+                }
                 let response = Err(get_error_response(
                     item.response.result,
                     item.http_code,
@@ -1392,6 +1443,7 @@ impl TryFrom<RefundsResponseRouterData<RSync, NovalnetRefundSyncResponse>>
             .and_then(|data| data.tid.map(|tid| tid.to_string()))
             .unwrap_or_default();
         //NOTE: Mapping refund_id with "" incase we dont get any tid
+        let prev_refund_status = item.data.request.refund_status;
         match item.response.result.status {
             NovalnetAPIStatus::Success => {
                 let transaction_status = item
@@ -1403,12 +1455,20 @@ impl TryFrom<RefundsResponseRouterData<RSync, NovalnetRefundSyncResponse>>
                 Ok(Self {
                     response: Ok(RefundsResponseData {
                         connector_refund_id: refund_id,
-                        refund_status: enums::RefundStatus::from(transaction_status),
+                        refund_status: get_novalnet_refund_status(
+                            transaction_status,
+                            prev_refund_status,
+                        ),
                     }),
                     ..item.data
                 })
             }
-            NovalnetAPIStatus::Failure => {
+            NovalnetAPIStatus::Failure | NovalnetAPIStatus::Unknown => {
+                if matches!(item.response.result.status, NovalnetAPIStatus::Unknown) {
+                    router_env::logger::warn!(
+                        "Unknown Novalnet API status received in refund sync response; treating as failure"
+                    );
+                }
                 let response = Err(get_error_response(
                     item.response.result,
                     item.http_code,
@@ -1503,7 +1563,12 @@ impl TryFrom<PaymentsCancelResponseRouterData<NovalnetCancelResponse>>
                     ..item.data
                 })
             }
-            NovalnetAPIStatus::Failure => {
+            NovalnetAPIStatus::Failure | NovalnetAPIStatus::Unknown => {
+                if matches!(item.response.result.status, NovalnetAPIStatus::Unknown) {
+                    router_env::logger::warn!(
+                        "Unknown Novalnet API status received in cancel response; treating as failure"
+                    );
+                }
                 let response = Err(get_error_response(
                     item.response.result,
                     item.http_code,
@@ -1537,6 +1602,8 @@ pub enum WebhookEventType {
     TransactionRefund,
     Chargeback,
     Credit,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -1566,6 +1633,10 @@ pub struct NovalnetWebhookNotificationResponse {
 
 pub fn is_refund_event(event_code: &WebhookEventType) -> bool {
     matches!(event_code, WebhookEventType::TransactionRefund)
+}
+
+pub fn is_unknown_event(event_code: &WebhookEventType) -> bool {
+    matches!(event_code, WebhookEventType::Unknown)
 }
 
 pub fn get_incoming_webhook_event(
@@ -1611,6 +1682,12 @@ pub fn get_incoming_webhook_event(
             }
         }
         WebhookEventType::Credit => IncomingWebhookEvent::DisputeWon,
+        WebhookEventType::Unknown => {
+            router_env::logger::warn!(
+                "Unknown Novalnet webhook event type received; acknowledging without processing"
+            );
+            IncomingWebhookEvent::EventNotSupported
+        }
     }
 }
 

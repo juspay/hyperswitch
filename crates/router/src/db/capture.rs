@@ -152,14 +152,16 @@ mod storage {
                 }
                 enums::MerchantStorageScheme::RedisKv => {
                     let key_str = key.to_string();
-                    let updated_capture = capture.clone().apply_changeset(this.clone());
+                    let capture_id = this.capture_id.clone();
+                    let updated_capture =
+                        CaptureUpdateInternal::from(capture.clone()).apply_changeset(this.clone());
 
                     let redis_value = serde_json::to_string(&updated_capture)
                         .change_context(errors::StorageError::SerializationFailed)?;
 
                     let mut query_gen_conn = connection::pg_connection_write(self).await?;
                     let drainer_query = capture
-                        .generate_drainer_update_query(&mut query_gen_conn, this.capture_id.clone())
+                        .generate_drainer_update_query(&mut query_gen_conn, capture_id)
                         .await
                         .change_context(errors::StorageError::KVError)
                         .attach_printable("Failed to generate capture update query")?;

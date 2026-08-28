@@ -16,7 +16,7 @@ use hyperswitch_masking::{PeekInterface, Secret};
 #[cfg(feature = "v1")]
 use scheduler::errors as sch_errors;
 use serde::{Deserialize, Serialize};
-use storage_impl::{errors as storage_errors, payment_method};
+use storage_impl::errors as storage_errors;
 
 use crate::core::errors;
 
@@ -199,6 +199,18 @@ pub trait PaymentMethodsController {
     )>;
 
     #[cfg(feature = "v1")]
+    async fn add_bank_redirect_to_locker(
+        &self,
+        req: api::PaymentMethodCreate,
+        bank_redirect_data: api_models::payment_methods::BankRedirectData,
+        key_store: &merchant_key_store::MerchantKeyStore,
+        customer_id: &id_type::CustomerId,
+    ) -> errors::VaultResult<(
+        payment_methods::PaymentMethodResponse,
+        Option<DataDuplicationCheck>,
+    )>;
+
+    #[cfg(feature = "v1")]
     async fn get_or_insert_payment_method(
         &self,
         req: api::PaymentMethodCreate,
@@ -311,6 +323,31 @@ pub trait PaymentMethodsController {
         &self,
         pm: &payment_methods::PaymentMethod,
     ) -> errors::PmResult<api::CardDetailFromLocker>;
+
+    #[cfg(feature = "v1")]
+    async fn retrieve_payment_method_from_vault(
+        &self,
+        vault_id: &payment_methods::VaultId,
+        merchant_id: &id_type::MerchantId,
+        customer_id: &id_type::CustomerId,
+        is_v2_pm: bool,
+    ) -> errors::VaultResult<hyperswitch_domain_models::vault::PaymentMethodVaultingData>;
+
+    #[cfg(feature = "v1")]
+    async fn store_payment_method_in_vault(
+        &self,
+        merchant_id: &id_type::MerchantId,
+        vault_id: &payment_methods::VaultId,
+        data: &hyperswitch_domain_models::vault::PaymentMethodVaultingData,
+    ) -> errors::VaultResult<()>;
+
+    #[cfg(feature = "v1")]
+    async fn get_fingerprint_id_from_vault(
+        &self,
+        entity_id: &Option<String>,
+        fingerprint_data: &hyperswitch_domain_models::vault::FingerprintData,
+        fingerprint_id: String,
+    ) -> errors::VaultResult<String>;
 }
 
 pub async fn create_encrypted_data<T>(
@@ -335,7 +372,7 @@ where
 
     let encrypted_data = type_encryption::crypto_operation(
         key_manager_state,
-        type_name!(payment_method::PaymentMethod),
+        type_name!(payment_methods::PaymentMethod),
         type_encryption::CryptoOperation::Encrypt(secret_data),
         identifier.clone(),
         key,

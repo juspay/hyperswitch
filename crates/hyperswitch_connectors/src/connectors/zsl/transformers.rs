@@ -165,6 +165,7 @@ impl TryFrom<&ZslRouterData<&types::PaymentsAuthorizeRouterData>> for ZslPayment
                 | BankTransferData::PixAutomaticoPush { .. }
                 | BankTransferData::PixAutomaticoQr {}
                 | BankTransferData::PixEmv {}
+                | BankTransferData::PixQr {}
                 | BankTransferData::Pse {}
                 | BankTransferData::InstantBankTransferFinland {}
                 | BankTransferData::InstantBankTransferPoland {}

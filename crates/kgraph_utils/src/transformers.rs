@@ -225,11 +225,16 @@ impl IntoDirValue for (api_enums::PaymentMethodType, api_enums::PaymentMethod) {
             api_enums::PaymentMethodType::Pix => Ok(dirval!(BankTransferType = Pix)),
             api_enums::PaymentMethodType::PixKey => Ok(dirval!(BankTransferType = PixKey)),
             api_enums::PaymentMethodType::PixEmv => Ok(dirval!(BankTransferType = PixEmv)),
+            api_enums::PaymentMethodType::PixQr => Ok(dirval!(BankTransferType = PixQr)),
             api_enums::PaymentMethodType::PixAutomaticoPush => {
                 Ok(dirval!(BankTransferType = PixAutomaticoPush))
             }
             api_enums::PaymentMethodType::PixAutomaticoQr => {
                 Ok(dirval!(BankTransferType = PixAutomaticoQr))
+            }
+            api_enums::PaymentMethodType::Payshap => Ok(dirval!(BankTransferType = Payshap)),
+            api_enums::PaymentMethodType::PayshapProxy => {
+                Ok(dirval!(BankTransferType = PayshapProxy))
             }
             api_enums::PaymentMethodType::Pse => Ok(dirval!(BankTransferType = Pse)),
             api_enums::PaymentMethodType::Interac => Ok(dirval!(BankRedirectType = Interac)),
@@ -375,6 +380,9 @@ impl IntoDirValue for api_enums::CardNetwork {
             Self::Accel => Ok(dirval!(CardNetwork = Accel)),
             Self::Pulse => Ok(dirval!(CardNetwork = Pulse)),
             Self::Nyce => Ok(dirval!(CardNetwork = Nyce)),
+            Self::Prop => Ok(dirval!(CardNetwork = Prop)),
+            Self::PrivateLabel => Ok(dirval!(CardNetwork = PrivateLabel)),
+            Self::Dinacard => Ok(dirval!(CardNetwork = Dinacard)),
         }
     }
 }

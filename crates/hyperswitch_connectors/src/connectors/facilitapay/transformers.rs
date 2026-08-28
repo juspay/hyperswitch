@@ -181,6 +181,7 @@ impl TryFrom<&FacilitapayRouterData<&types::PaymentsAuthorizeRouterData>>
                 | BankTransferData::PixAutomaticoPush { .. }
                 | BankTransferData::PixAutomaticoQr {}
                 | BankTransferData::PixEmv {}
+                | BankTransferData::PixQr {}
                 | BankTransferData::LocalBankTransfer { .. } => {
                     Err(errors::ConnectorError::NotImplemented(
                         "Selected payment method through Facilitapay".to_string(),

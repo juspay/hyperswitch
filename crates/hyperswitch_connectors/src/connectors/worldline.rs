@@ -817,18 +817,18 @@ impl webhooks::IncomingWebhook for Worldline {
             crypto::Encryptable<hyperswitch_masking::Secret<serde_json::Value>>,
         >,
     ) -> CustomResult<
-        hyperswitch_domain_models::api::ApplicationResponse<serde_json::Value>,
+        hyperswitch_domain_models::api::WebhookResponse<serde_json::Value>,
         errors::ConnectorError,
     > {
         let verification_header = request.headers.get("x-gcs-webhooks-endpoint-verification");
         let response = match verification_header {
-            None => hyperswitch_domain_models::api::ApplicationResponse::StatusOk,
+            None => hyperswitch_domain_models::api::WebhookResponse::StatusOk,
             Some(header_value) => {
                 let verification_signature_value = header_value
                     .to_str()
                     .change_context(errors::ConnectorError::WebhookResponseEncodingFailed)?
                     .to_string();
-                hyperswitch_domain_models::api::ApplicationResponse::TextPlain(
+                hyperswitch_domain_models::api::WebhookResponse::TextPlain(
                     verification_signature_value,
                 )
             }

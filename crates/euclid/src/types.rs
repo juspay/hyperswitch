@@ -58,6 +58,8 @@ pub enum EuclidKey {
     CaptureMethod,
     #[strum(serialize = "amount")]
     PaymentAmount,
+    #[strum(serialize = "surcharge_amount")]
+    SurchargeAmount,
     #[strum(serialize = "currency")]
     PaymentCurrency,
     #[cfg(feature = "payouts")]
@@ -163,6 +165,7 @@ impl EuclidKey {
             Self::AuthenticationType => DataType::EnumVariant,
             Self::CaptureMethod => DataType::EnumVariant,
             Self::PaymentAmount => DataType::Number,
+            Self::SurchargeAmount => DataType::Number,
             Self::PaymentCurrency => DataType::EnumVariant,
             #[cfg(feature = "payouts")]
             Self::PayoutCurrency => DataType::EnumVariant,
@@ -293,6 +296,7 @@ pub enum EuclidValue {
     MandateAcceptanceType(enums::MandateAcceptanceType),
     MandateType(enums::MandateType),
     PaymentAmount(NumValue),
+    SurchargeAmount(NumValue),
     PaymentCurrency(enums::Currency),
     #[cfg(feature = "payouts")]
     PayoutCurrency(enums::Currency),
@@ -315,6 +319,7 @@ impl EuclidValue {
     pub fn get_num_value(&self) -> Option<NumValue> {
         match self {
             Self::PaymentAmount(val) => Some(val.clone()),
+            Self::SurchargeAmount(val) => Some(val.clone()),
             _ => None,
         }
     }
@@ -333,6 +338,7 @@ impl EuclidValue {
             Self::AuthenticationType(_) => EuclidKey::AuthenticationType,
             Self::CaptureMethod(_) => EuclidKey::CaptureMethod,
             Self::PaymentAmount(_) => EuclidKey::PaymentAmount,
+            Self::SurchargeAmount(_) => EuclidKey::SurchargeAmount,
             Self::PaymentCurrency(_) => EuclidKey::PaymentCurrency,
             #[cfg(feature = "payouts")]
             Self::PayoutCurrency(_) => EuclidKey::PayoutCurrency,

@@ -95,13 +95,13 @@ impl ProcessTrackerWorkflow<SessionState> for PayoutSyncWorkFlow {
         .change_context(core_errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to get the connector data")?;
 
-        payouts::create_payout_retrieve(
+        Box::pin(payouts::create_payout_retrieve(
             state,
             &platform,
             HeaderPayload::default(),
             &connector_data,
             &mut payout_data,
-        )
+        ))
         .await?;
 
         let dimensions = dimension_state::Dimensions::new()
@@ -291,6 +291,8 @@ impl PayoutSyncWorkFlow {
                 api::OutgoingWebhookContent::PayoutDetails(Box::new(payout_response)),
                 Some(payout_data.payout_attempt.created_at),
                 webhook_recipient,
+                None,
+                business_profile,
             ))
             .await?;
         }
