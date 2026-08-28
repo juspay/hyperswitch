@@ -4,7 +4,6 @@ use common_utils::ext_traits::AsyncExt;
 use error_stack::{report, ResultExt};
 use futures::future::try_join_all;
 use router_env::{instrument, tracing};
-use storage_impl::DatabaseStore;
 
 use super::{MockDb, Store};
 use crate::{
@@ -335,11 +334,7 @@ impl EventInterface for Store {
         merchant_key_store: &domain::MerchantKeyStore,
         event_recipient: Option<common_enums::EventRecipient>,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
-        let conn = self
-            .get_replica_pool()
-            .get()
-            .await
-            .change_context(errors::StorageError::DatabaseConnectionError)?;
+        let conn = connection::pg_connection_read(self).await?;
         storage::Event::list_initial_attempts_by_initiator_merchant_id_constraints(
             &conn,
             initiator_merchant_id,
@@ -420,11 +415,7 @@ impl EventInterface for Store {
         merchant_key_store: &domain::MerchantKeyStore,
         event_recipient: Option<common_enums::EventRecipient>,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
-        let conn = self
-            .get_replica_pool()
-            .get()
-            .await
-            .change_context(errors::StorageError::DatabaseConnectionError)?;
+        let conn = connection::pg_connection_read(self).await?;
         storage::Event::list_by_initiator_merchant_id_initial_attempt_id(
             &conn,
             initial_attempt_id,
@@ -491,11 +482,7 @@ impl EventInterface for Store {
         merchant_key_store: &domain::MerchantKeyStore,
         event_recipient: Option<common_enums::EventRecipient>,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
-        let conn = self
-            .get_replica_pool()
-            .get()
-            .await
-            .change_context(errors::StorageError::DatabaseConnectionError)?;
+        let conn = connection::pg_connection_read(self).await?;
         storage::Event::list_initial_attempts_by_initiator_merchant_id_primary_object_id(
             &conn,
             initiator_merchant_id,
@@ -601,11 +588,7 @@ impl EventInterface for Store {
         merchant_key_store: &domain::MerchantKeyStore,
         event_recipient: Option<common_enums::EventRecipient>,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
-        let conn = self
-            .get_replica_pool()
-            .get()
-            .await
-            .change_context(errors::StorageError::DatabaseConnectionError)?;
+        let conn = connection::pg_connection_read(self).await?;
         storage::Event::list_initial_attempts_by_profile_id_constraints(
             &conn,
             profile_id,
@@ -758,11 +741,7 @@ impl EventInterface for Store {
         is_delivered: Option<bool>,
         event_recipient: Option<common_enums::EventRecipient>,
     ) -> CustomResult<i64, errors::StorageError> {
-        let conn = self
-            .get_replica_pool()
-            .get()
-            .await
-            .change_context(errors::StorageError::DatabaseConnectionError)?;
+        let conn = connection::pg_connection_read(self).await?;
         storage::Event::count_initial_attempts_by_profile_id_constraints(
             &conn,
             profile_id,
@@ -787,11 +766,7 @@ impl EventInterface for Store {
         is_delivered: Option<bool>,
         event_recipient: Option<common_enums::EventRecipient>,
     ) -> CustomResult<i64, errors::StorageError> {
-        let conn = self
-            .get_replica_pool()
-            .get()
-            .await
-            .change_context(errors::StorageError::DatabaseConnectionError)?;
+        let conn = connection::pg_connection_read(self).await?;
         storage::Event::count_initial_attempts_by_initiator_merchant_id_constraints(
             &conn,
             initiator_merchant_id,
@@ -2204,6 +2179,7 @@ mod tests {
             external_3ds_authentication_attempted: None,
             expires_on: None,
             fingerprint: None,
+            fingerprint_type: None,
             browser_info: None,
             payment_method_id: None,
             payment_method_status: None,
@@ -2236,6 +2212,8 @@ mod tests {
             is_stored_credential: None,
             request_extended_authorization: None,
             billing_descriptor: None,
+            is_account_funded_transaction: None,
+            recipient_details: None,
             partner_merchant_identifier_details: None,
             payment_method_tokenization_details: None,
             error_details: None,
@@ -2245,6 +2223,7 @@ mod tests {
             connector_response_metadata: None,
             connector_customer_id: None,
             sender_payment_instrument_id: None,
+            payment_account_reference: None,
         };
         let content =
             api_webhooks::OutgoingWebhookContent::PaymentDetails(Box::new(expected_response));

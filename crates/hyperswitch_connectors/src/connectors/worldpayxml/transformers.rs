@@ -278,6 +278,7 @@ pub struct Payment {
     fast_funds: Option<bool>,
     #[serde(rename = "ISO8583ReturnCode")]
     return_code: Option<ReturnCode>,
+    card_p_a_r: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -896,6 +897,7 @@ impl TryFrom<PaymentsPreAuthenticateResponseRouterData<bytes::Bytes>>
             incremental_authorization_allowed: None,
             authentication_data: None,
             charges: None,
+            payment_account_reference: None,
         });
         Ok(Self {
             status: common_enums::AttemptStatus::DeviceDataCollectionPending,
@@ -1833,6 +1835,7 @@ impl<F>
                                 incremental_authorization_allowed: None,
                                 authentication_data: None,
                                 charges: None,
+                                payment_account_reference: None,
                             }),
                             ..item.data
                         })
@@ -1852,6 +1855,7 @@ impl<F>
                             incremental_authorization_allowed: None,
                             authentication_data: None,
                             charges: None,
+                            payment_account_reference: None,
                         }),
                         ..item.data
                     })
@@ -1879,6 +1883,7 @@ impl<F>
                         incremental_authorization_allowed: None,
                         charges: None,
                         authentication_data: None,
+                        payment_account_reference: None,
                     }),
                     ..item.data
                 })
@@ -2203,6 +2208,7 @@ impl<F>
                     incremental_authorization_allowed: None,
                     authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 });
 
                 Ok(Self {
@@ -2664,6 +2670,7 @@ impl<F>
                     incremental_authorization_allowed: None,
                     authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 });
 
                 Ok(Self {
@@ -2752,6 +2759,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<PaymentService>> for PaymentsCapt
                     incremental_authorization_allowed: None,
                     authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 }),
                 ..item.data
             })
@@ -2815,6 +2823,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<PaymentService>> for PaymentsCance
                     incremental_authorization_allowed: None,
                     authentication_data: None,
                     charges: None,
+                    payment_account_reference: None,
                 }),
                 ..item.data
             })
@@ -3255,6 +3264,7 @@ impl TryFrom<PayoutsResponseRouterData<PoFulfill, PayoutResponse>>
                             error_code: None,
                             error_message: None,
                             payout_connector_metadata: None,
+                            connector_eligibility_reference_id: None,
                         }),
                         ..item.data
                     }),
@@ -3268,6 +3278,7 @@ impl TryFrom<PayoutsResponseRouterData<PoFulfill, PayoutResponse>>
                             error_code: Some(error.code),
                             error_message: Some(error.message),
                             payout_connector_metadata: None,
+                            connector_eligibility_reference_id: None,
                         }),
                         ..item.data
                     }),
@@ -3359,6 +3370,7 @@ impl TryFrom<PayoutsResponseRouterData<PoSync, PaymentService>> for PayoutsRoute
                             error_code: None,
                             error_message: None,
                             payout_connector_metadata: None,
+                            connector_eligibility_reference_id: None,
                         }),
                         ..item.data
                     }),
@@ -3372,6 +3384,7 @@ impl TryFrom<PayoutsResponseRouterData<PoSync, PaymentService>> for PayoutsRoute
                             error_code: None,
                             error_message: None,
                             payout_connector_metadata: None,
+                            connector_eligibility_reference_id: None,
                         }),
                         ..item.data
                     }),
@@ -3444,6 +3457,7 @@ impl TryFrom<PayoutsResponseRouterData<PoCancel, PayoutResponse>> for PayoutsRou
                     error_code: Some(error.code),
                     error_message: Some(error.message),
                     payout_connector_metadata: None,
+                    connector_eligibility_reference_id: None,
                 }),
                 ..item.data
             }),
@@ -3463,6 +3477,7 @@ impl TryFrom<PayoutsResponseRouterData<PoCancel, PayoutResponse>> for PayoutsRou
                         error_code: None,
                         error_message: None,
                         payout_connector_metadata: None,
+                        connector_eligibility_reference_id: None,
                     }),
                     ..item.data
                 })
@@ -3567,6 +3582,7 @@ fn process_payment_response(
             incremental_authorization_allowed: None,
             authentication_data: None,
             charges: None,
+            payment_account_reference: payment_data.card_p_a_r.clone(),
         })
     }
 }
