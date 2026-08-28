@@ -34,8 +34,8 @@ pub struct CustomerNew {
     pub created_by: Option<String>,
     pub last_modified_by: Option<String>,
     pub document_details: Option<Encryption>,
-    pub date_of_birth: Option<Encryption>,
     pub id: Option<common_utils::id_type::GlobalCustomerId>,
+    pub date_of_birth: Option<Encryption>,
 }
 
 #[cfg(feature = "v1")]
@@ -97,8 +97,8 @@ pub struct CustomerNew {
     pub created_by: Option<String>,
     pub last_modified_by: Option<String>,
     pub document_details: Option<Encryption>,
-    pub date_of_birth: Option<Encryption>,
     pub id: common_utils::id_type::GlobalCustomerId,
+    pub date_of_birth: Option<Encryption>,
     pub merchant_reference_id: Option<common_utils::id_type::CustomerId>,
     pub default_billing_address: Option<Encryption>,
     pub default_shipping_address: Option<Encryption>,
@@ -170,8 +170,8 @@ pub struct Customer {
     pub created_by: Option<String>,
     pub last_modified_by: Option<String>,
     pub document_details: Option<Encryption>,
-    pub date_of_birth: Option<Encryption>,
     pub id: Option<common_utils::id_type::GlobalCustomerId>,
+    pub date_of_birth: Option<Encryption>,
 }
 
 #[cfg(feature = "v2")]
@@ -197,8 +197,8 @@ pub struct Customer {
     pub created_by: Option<String>,
     pub last_modified_by: Option<String>,
     pub document_details: Option<Encryption>,
-    pub date_of_birth: Option<Encryption>,
     pub id: common_utils::id_type::GlobalCustomerId,
+    pub date_of_birth: Option<Encryption>,
     pub merchant_reference_id: Option<common_utils::id_type::CustomerId>,
     pub default_billing_address: Option<Encryption>,
     pub default_shipping_address: Option<Encryption>,
