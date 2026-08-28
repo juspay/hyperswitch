@@ -2950,7 +2950,9 @@ pub async fn redact_routing_cache(
     );
 
     let routing_payouts_cache_key = cache::CacheKind::Routing(routing_payouts_key.clone().into());
-    let routing_payments_cache_key = cache::CacheKind::CGraph(routing_payments_key.clone().into());
+    // Routing, not CGraph: the kind selects which in-memory cache subscribers evict from, and
+    // this key lives in ROUTING_CACHE. (Redis deletion is by key, so only other pods were affected.)
+    let routing_payments_cache_key = cache::CacheKind::Routing(routing_payments_key.clone().into());
     cache::redact_from_redis_and_publish(
         state.store.get_cache_store().as_ref(),
         [routing_payouts_cache_key, routing_payments_cache_key],
