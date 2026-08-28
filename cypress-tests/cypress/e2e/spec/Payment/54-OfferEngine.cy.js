@@ -13,21 +13,10 @@ describe("Offer Engine", () => {
       .then((state) => {
         globalState = new State(state);
 
-        const baseUrl = globalState.get("baseUrl");
-        const adminApiKey = globalState.get("adminApiKey");
-
-        return cy.request({
-          method: "POST",
-          url: `${baseUrl}/offer_engine/connectivity`,
-          headers: {
-            "Content-Type": "application/json",
-            "api-key": adminApiKey,
-          },
-          failOnStatusCode: false,
-        });
+        return cy.checkOfferEngineConnectivity(globalState);
       })
-      .then((response) => {
-        if (response.status !== 200 || !response.body?.reachable) {
+      .then((reachable) => {
+        if (!reachable) {
           cy.task(
             "cli_log",
             "Offer Engine is not reachable/enabled in this environment, skipping Offer Engine spec"

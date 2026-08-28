@@ -8128,6 +8128,25 @@ Cypress.Commands.add(
   }
 );
 
+Cypress.Commands.add("checkOfferEngineConnectivity", (globalState) => {
+  const baseUrl = globalState.get("baseUrl");
+  const adminApiKey = globalState.get("adminApiKey");
+
+  return cy
+    .request({
+      method: "POST",
+      url: `${baseUrl}/offer_engine/connectivity`,
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": adminApiKey,
+      },
+      failOnStatusCode: false,
+    })
+    .then(
+      (response) => response.status === 200 && Boolean(response.body?.reachable)
+    );
+});
+
 // DDC Race Condition Test Commands
 Cypress.Commands.add(
   "ddcServerSideRaceConditionTest",
