@@ -566,9 +566,6 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         payment_method_status: None,
         payment_method_token: None,
         connector_customer: connector_customer_id,
-        // Connectors read this on the `MandatePayment` branch to decide which stored credential
-        // to charge - PayPal, for instance, picks between a card vault and a PayPal vault based
-        // on the sub type - so it is only populated for MIT payments.
         recurring_mandate_payment_data: is_mit_payment.unwrap_or(false).then(|| {
             hyperswitch_domain_models::router_data::RecurringMandatePaymentData {
                 payment_method_type: payment_data.payment_attempt.payment_method_subtype,
