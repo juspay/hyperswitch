@@ -168,6 +168,9 @@ pub struct PaymentsAuthorizeData {
     pub installment_details: Option<common_types::payments::InstallmentData>,
     // Contains the connector specific metadata coming from payments request
     pub connector_intent_metadata: Option<ConnectorMetadata>,
+    /// Indicates whether this payment is an account funded transaction.
+    pub is_account_funded_transaction: Option<bool>,
+    pub recipient_details: Option<api_models::payments::RecipientDetails>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -1790,6 +1793,7 @@ pub struct CustomerDetails {
     pub phone_country_code: Option<String>,
     pub tax_registration_id: Option<Secret<String, hyperswitch_masking::WithType>>,
     pub document_details: Option<api_models::customers::CustomerDocumentDetails>,
+    pub date_of_birth: Option<Secret<time::Date>>,
 }
 
 impl CustomerDetails {
@@ -1800,6 +1804,7 @@ impl CustomerDetails {
             || self.phone_country_code.is_some()
             || self.tax_registration_id.is_some()
             || self.document_details.is_some()
+            || self.date_of_birth.is_some()
         {
             Some(payments::payment_intent::CustomerData {
                 name: self.name.clone(),
@@ -1808,6 +1813,7 @@ impl CustomerDetails {
                 phone_country_code: self.phone_country_code.clone(),
                 tax_registration_id: self.tax_registration_id.clone(),
                 customer_document_details: self.document_details.clone(),
+                date_of_birth: self.date_of_birth.clone(),
             })
         } else {
             None
@@ -1974,6 +1980,8 @@ pub struct SetupMandateRequestData {
     pub connector_intent_metadata: Option<ConnectorMetadata>,
     pub merchant_order_reference_id: Option<String>,
     pub mit_category: Option<common_enums::MitCategory>,
+    pub is_account_funded_transaction: Option<bool>,
+    pub recipient_details: Option<api_models::payments::RecipientDetails>,
 }
 
 #[derive(Debug, Clone)]

@@ -4690,6 +4690,7 @@ impl<F: Clone + Send + Sync>
                                         phone_country_code: None,
                                         tax_registration_id: None,
                                         customer_document_details: Some(customer_document_details),
+                                        date_of_birth: None,
                                     });
                                 }
 

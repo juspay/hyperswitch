@@ -9784,6 +9784,8 @@ pub struct PaymentDataUpdateRequestFields {
     pub metadata: Option<serde_json::Value>,
     pub merchant_order_reference_id: Option<String>,
     pub customer_document_details: Option<api_models::customers::CustomerDocumentDetails>,
+    pub is_account_funded_transaction: Option<bool>,
+    pub recipient_details: Option<api_models::payments::RecipientDetails>,
 }
 
 #[derive(Clone)]

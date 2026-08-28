@@ -124,6 +124,8 @@ pub struct RouterData<Flow, Request, Response> {
 
     // Document details of the customer consisting of document number and type
     pub customer_document_details: Option<CustomerDocumentDetails>,
+    /// The customer's date of birth.
+    pub customer_date_of_birth: Option<Secret<time::Date>>,
     // feature related data
     pub feature_data: Option<FeatureData>,
     /// A connector-specific identifier representing the stored payment instrument
