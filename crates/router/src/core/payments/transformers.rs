@@ -513,6 +513,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         connector_intent_metadata: None,
         is_account_funded_transaction: payment_data.payment_intent.is_account_funded_transaction,
         recipient_details,
+        business_country: None,
     };
     let connector_mandate_request_reference_id = payment_data
         .payment_attempt
@@ -1844,6 +1845,7 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
         mit_category: None,
         is_account_funded_transaction: payment_data.payment_intent.is_account_funded_transaction,
         recipient_details,
+        business_country: None,
     };
     let connector_mandate_request_reference_id = payment_data
         .payment_attempt
@@ -5279,6 +5281,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
                 .payment_intent
                 .is_account_funded_transaction,
             recipient_details,
+            business_country: None,
         })
     }
 }
@@ -5560,6 +5563,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
                 .payment_intent
                 .is_account_funded_transaction,
             recipient_details,
+            business_country: payment_data.payment_intent.business_country,
         })
     }
 }
@@ -7216,6 +7220,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
                 .payment_intent
                 .is_account_funded_transaction,
             recipient_details,
+            business_country: payment_data.payment_intent.business_country,
         })
     }
 }
@@ -7339,6 +7344,19 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
             connector_name,
             payment_data.clone().get_creds_identifier(),
         ));
+
+        let recipient_details = payment_data
+            .payment_intent
+            .get_recipient_details()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to parse recipient details")?;
+
+        let connector_intent_metadata = payment_data
+            .payment_intent
+            .get_connector_metadata_from_intent()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to parse connector metadata")?;
+
         Ok(Self {
             setup_future_usage: payment_data
                 .payment_attempt
@@ -7384,6 +7402,12 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::CompleteAuthoriz
             tokenization: payment_data.payment_intent.tokenization,
             router_return_url,
             merchant_order_reference_id: payment_data.payment_intent.merchant_order_reference_id,
+            is_account_funded_transaction: payment_data
+                .payment_intent
+                .is_account_funded_transaction,
+            recipient_details,
+            business_country: payment_data.payment_intent.business_country,
+            connector_intent_metadata,
         })
     }
 }

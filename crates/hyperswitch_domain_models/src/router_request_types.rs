@@ -169,6 +169,9 @@ pub struct PaymentsAuthorizeData {
     /// Indicates whether this payment is an account funded transaction.
     pub is_account_funded_transaction: Option<bool>,
     pub recipient_details: Option<api_models::payments::RecipientDetails>,
+    /// The merchant's business country for this payment. Connectors use it for requirements that
+    /// apply only to merchants in particular countries.
+    pub business_country: Option<common_enums::CountryAlpha2>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -1129,6 +1132,10 @@ pub struct CompleteAuthorizeData {
     pub tokenization: Option<common_enums::Tokenization>,
     pub router_return_url: Option<String>,
     pub merchant_order_reference_id: Option<String>,
+    pub is_account_funded_transaction: Option<bool>,
+    pub recipient_details: Option<api_models::payments::RecipientDetails>,
+    pub business_country: Option<common_enums::CountryAlpha2>,
+    pub connector_intent_metadata: Option<ConnectorMetadata>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -1980,6 +1987,9 @@ pub struct SetupMandateRequestData {
     pub mit_category: Option<common_enums::MitCategory>,
     pub is_account_funded_transaction: Option<bool>,
     pub recipient_details: Option<api_models::payments::RecipientDetails>,
+    /// The merchant's business country for this payment. Connectors use it for requirements that
+    /// apply only to merchants in particular countries.
+    pub business_country: Option<common_enums::CountryAlpha2>,
 }
 
 #[derive(Debug, Clone)]
