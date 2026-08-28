@@ -2796,7 +2796,6 @@ impl
                 .map(|currency| currency.into()),
             l2_l3_data: None,
             customer_document_details: to_grpc_customer_document_details(router_data),
-            customer_date_of_birth: to_grpc_customer_date_of_birth(router_data),
             customer: Some(payments_grpc::Customer {
                 first_name: None,
                 last_name: None,
