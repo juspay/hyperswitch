@@ -106,6 +106,7 @@ enum DecisionEngineEndpoint {
     DecideGateway,
     UpdateGatewayScore,
     RoutingEvaluate,
+    RoutingEvaluateBatch,
     RoutingHybrid,
     RoutingCreate,
     RoutingActivate,
@@ -119,6 +120,7 @@ impl DecisionEngineEndpoint {
     const DECIDE_GATEWAY_PATH: &'static str = "decide-gateway";
     const UPDATE_GATEWAY_SCORE_PATH: &'static str = "update-gateway-score";
     const ROUTING_EVALUATE_PATH: &'static str = "routing/evaluate";
+    const ROUTING_EVALUATE_BATCH_PATH: &'static str = "routing/evaluate/batch";
     const ROUTING_HYBRID_PATH: &'static str = "routing/hybrid";
     const ROUTING_CREATE_PATH: &'static str = "routing/create";
     const ROUTING_ACTIVATE_PATH: &'static str = "routing/activate";
@@ -129,6 +131,7 @@ impl DecisionEngineEndpoint {
     const DECIDE_GATEWAY_LABEL: &'static str = "decide_gateway";
     const UPDATE_GATEWAY_SCORE_LABEL: &'static str = "update_gateway_score";
     const ROUTING_EVALUATE_LABEL: &'static str = "routing_evaluate";
+    const ROUTING_EVALUATE_BATCH_LABEL: &'static str = "routing_evaluate_batch";
     const ROUTING_HYBRID_LABEL: &'static str = "routing_hybrid";
     const ROUTING_CREATE_LABEL: &'static str = "routing_create";
     const ROUTING_ACTIVATE_LABEL: &'static str = "routing_activate";
@@ -142,6 +145,7 @@ impl DecisionEngineEndpoint {
         match path {
             Self::DECIDE_GATEWAY_PATH => Self::DecideGateway,
             Self::UPDATE_GATEWAY_SCORE_PATH => Self::UpdateGatewayScore,
+            Self::ROUTING_EVALUATE_BATCH_PATH => Self::RoutingEvaluateBatch,
             Self::ROUTING_EVALUATE_PATH => Self::RoutingEvaluate,
             Self::ROUTING_HYBRID_PATH => Self::RoutingHybrid,
             Self::ROUTING_CREATE_PATH => Self::RoutingCreate,
@@ -158,6 +162,7 @@ impl DecisionEngineEndpoint {
             Self::DecideGateway => Self::DECIDE_GATEWAY_LABEL,
             Self::UpdateGatewayScore => Self::UPDATE_GATEWAY_SCORE_LABEL,
             Self::RoutingEvaluate => Self::ROUTING_EVALUATE_LABEL,
+            Self::RoutingEvaluateBatch => Self::ROUTING_EVALUATE_BATCH_LABEL,
             Self::RoutingHybrid => Self::ROUTING_HYBRID_LABEL,
             Self::RoutingCreate => Self::ROUTING_CREATE_LABEL,
             Self::RoutingActivate => Self::ROUTING_ACTIVATE_LABEL,
