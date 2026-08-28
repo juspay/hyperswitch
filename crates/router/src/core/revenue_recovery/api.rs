@@ -265,7 +265,7 @@ pub async fn custom_revenue_recovery_core(
 ) -> RouterResponse<payments_api::RecoveryPaymentsResponse> {
     let store = state.store.as_ref();
     let payment_merchant_connector_account_id = request.payment_merchant_connector_id.to_owned();
-    let merchant_id = platform.get_processor().get_account().get_id();
+    let profile_id = profile.get_id();
     // Find the payment & billing merchant connector id at the top level to avoid multiple DB calls.
     let payment_merchant_connector_account = store
         .find_merchant_connector_account_by_id(
@@ -279,10 +279,10 @@ pub async fn custom_revenue_recovery_core(
                 .get_string_repr()
                 .to_string(),
         })?;
-    // Both ids arrive in the request body, so an account belonging to another merchant
-    // must not be usable by the authenticated merchant.
+    // Both ids arrive in the request body, so an account belonging to another profile
+    // must not be usable by the authenticated profile.
     utils::when(
-        &payment_merchant_connector_account.merchant_id != merchant_id,
+        &payment_merchant_connector_account.profile_id != profile_id,
         || {
             Err(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
                 id: payment_merchant_connector_account_id
@@ -305,18 +305,15 @@ pub async fn custom_revenue_recovery_core(
                 .get_string_repr()
                 .to_string(),
         })?;
-    utils::when(
-        &billing_connector_account.merchant_id != merchant_id,
-        || {
-            Err(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                id: request
-                    .billing_merchant_connector_id
-                    .clone()
-                    .get_string_repr()
-                    .to_string(),
-            })
-        },
-    )?;
+    utils::when(&billing_connector_account.profile_id != profile_id, || {
+        Err(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+            id: request
+                .billing_merchant_connector_id
+                .clone()
+                .get_string_repr()
+                .to_string(),
+        })
+    })?;
 
     let recovery_intent =
         recovery_incoming::RevenueRecoveryInvoice::get_or_create_custom_recovery_intent(
