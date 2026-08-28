@@ -5,6 +5,7 @@ use std::{
     num::{NonZeroI64, NonZeroU8},
 };
 pub mod additional_info;
+pub mod recipient;
 pub mod trait_impls;
 use cards::{CardNumber, NetworkToken};
 #[cfg(feature = "v2")]
@@ -32,6 +33,10 @@ use common_utils::{
 };
 use error_stack::ResultExt;
 
+pub use self::recipient::{
+    MaskedRecipientAccount, MaskedRecipientBankAccount, MaskedRecipientDetails, RecipientAccount,
+    RecipientBankAccount, RecipientDetails,
+};
 use crate::customers::CustomerDocumentDetails;
 #[cfg(feature = "v2")]
 fn parse_comma_separated<'de, D, T>(v: D) -> Result<Option<Vec<T>>, D::Error>
@@ -164,6 +169,11 @@ pub struct CustomerDetails {
     #[schema(value_type = Option<CustomerDocumentDetails>)]
     #[smithy(value_type = "Option<CustomerDocumentDetails>")]
     pub document_details: Option<CustomerDocumentDetails>,
+
+    /// The customer's date of birth
+    #[schema(value_type = Option<Date>, example = "1990-01-31")]
+    #[smithy(value_type = "Option<String>")]
+    pub date_of_birth: Option<Secret<Date>>,
 }
 
 #[cfg(feature = "v1")]
@@ -358,6 +368,15 @@ pub struct PaymentsCreateIntentRequest {
     /// Allow partial authorization for this payment
     #[schema(value_type = Option<bool>, default = false)]
     pub enable_partial_authorization: Option<primitive_wrappers::EnablePartialAuthorizationBool>,
+
+    /// Indicates whether this payment is an account funded transaction, where funds are pulled
+    /// from a card account to fund another account rather than to pay for goods or services.
+    #[schema(value_type = Option<bool>, example = true)]
+    pub is_account_funded_transaction: Option<bool>,
+
+    /// Details of the party receiving the funds in an account funded transaction.
+    #[schema(value_type = Option<RecipientDetails>)]
+    pub recipient_details: Option<RecipientDetails>,
 }
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]
@@ -538,6 +557,14 @@ pub struct PaymentsUpdateIntentRequest {
     /// Allow partial authorization for this payment
     #[schema(value_type = Option<bool>, default = false)]
     pub enable_partial_authorization: Option<primitive_wrappers::EnablePartialAuthorizationBool>,
+
+    /// Indicates whether this payment is an account funded transaction.
+    #[schema(value_type = Option<bool>, example = true)]
+    pub is_account_funded_transaction: Option<bool>,
+
+    /// Details of the party receiving the funds in an account funded transaction.
+    #[schema(value_type = Option<RecipientDetails>)]
+    pub recipient_details: Option<RecipientDetails>,
 }
 
 #[cfg(feature = "v2")]
@@ -571,6 +598,8 @@ impl PaymentsUpdateIntentRequest {
             frm_metadata: None,
             request_external_three_ds_authentication: None,
             enable_partial_authorization: None,
+            is_account_funded_transaction: None,
+            recipient_details: None,
         }
     }
 }
@@ -719,6 +748,14 @@ pub struct PaymentsIntentResponse {
     /// Allow partial authorization for this payment
     #[schema(value_type = Option<bool>, default = false)]
     pub enable_partial_authorization: Option<primitive_wrappers::EnablePartialAuthorizationBool>,
+
+    /// Indicates whether this payment is an account funded transaction.
+    #[schema(value_type = Option<bool>, example = true)]
+    pub is_account_funded_transaction: Option<bool>,
+
+    /// Partially masked details of the party receiving the funds in an account funded transaction.
+    #[schema(value_type = Option<MaskedRecipientDetails>)]
+    pub recipient_details: Option<MaskedRecipientDetails>,
 }
 
 #[derive(Debug, serde::Serialize, Clone, ToSchema)]
@@ -1585,6 +1622,16 @@ pub struct PaymentsRequest {
     #[schema(value_type = Option<BillingDescriptor>)]
     pub billing_descriptor: Option<common_types::payments::BillingDescriptor>,
 
+    /// Indicates whether this payment is an account funded transaction.
+    #[schema(value_type = Option<bool>, example = true)]
+    #[remove_in(PaymentsConfirmRequest)]
+    pub is_account_funded_transaction: Option<bool>,
+
+    /// Details of the party receiving the funds in an account funded transaction.
+    #[schema(value_type = Option<RecipientDetails>)]
+    #[remove_in(PaymentsConfirmRequest)]
+    pub recipient_details: Option<RecipientDetails>,
+
     /// The tokenization preference for the payment method. This is used to control whether a PSP token is created or not.
     #[schema(value_type = Option<Tokenization>, example = "tokenize_at_psp")]
     pub tokenization: Option<enums::Tokenization>,
@@ -1886,6 +1933,7 @@ mod payments_request_test {
             phone_country_code: None,
             tax_registration_id: None,
             document_details: None,
+            date_of_birth: None,
         };
 
         let payments_request = PaymentsRequest {
@@ -1912,6 +1960,7 @@ mod payments_request_test {
             phone_country_code: None,
             tax_registration_id: None,
             document_details: None,
+            date_of_birth: None,
         };
 
         let payments_request = PaymentsRequest {
@@ -7862,6 +7911,15 @@ pub struct PaymentsResponse {
     #[schema(value_type = Option<BillingDescriptor>)]
     pub billing_descriptor: Option<common_types::payments::BillingDescriptor>,
 
+    /// Indicates whether this payment is an account funded transaction, where funds are pulled
+    /// from a card account to fund another account rather than to pay for goods or services.
+    #[schema(value_type = Option<bool>, example = true)]
+    pub is_account_funded_transaction: Option<bool>,
+
+    /// Partially masked details of the party receiving the funds in an account funded transaction.
+    #[schema(value_type = Option<MaskedRecipientDetails>)]
+    pub recipient_details: Option<MaskedRecipientDetails>,
+
     /// The tokenization preference for the payment method. This is used to control whether a PSP token is created or not.
     #[schema(value_type = Option<Tokenization>,example="skip_psp")]
     pub tokenization: Option<enums::Tokenization>,
@@ -8423,6 +8481,15 @@ pub struct PaymentsRequest {
     /// The webhook endpoint URL to receive payment status notifications
     #[schema(value_type = Option<String>, example = "https://merchant.example.com/webhooks/payment")]
     pub webhook_url: Option<common_utils::types::Url>,
+
+    /// Indicates whether this payment is an account funded transaction, where funds are pulled
+    /// from a card account to fund another account rather than to pay for goods or services.
+    #[schema(value_type = Option<bool>, example = true)]
+    pub is_account_funded_transaction: Option<bool>,
+
+    /// Details of the party receiving the funds in an account funded transaction.
+    #[schema(value_type = Option<RecipientDetails>)]
+    pub recipient_details: Option<RecipientDetails>,
 }
 
 #[cfg(feature = "v2")]
@@ -8458,6 +8525,8 @@ impl From<&PaymentsRequest> for PaymentsCreateIntentRequest {
             force_3ds_challenge: request.force_3ds_challenge,
             merchant_connector_details: request.merchant_connector_details.clone(),
             enable_partial_authorization: request.enable_partial_authorization,
+            is_account_funded_transaction: request.is_account_funded_transaction,
+            recipient_details: request.recipient_details.clone(),
         }
     }
 }
