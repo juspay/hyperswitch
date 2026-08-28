@@ -8147,6 +8147,59 @@ Cypress.Commands.add("checkOfferEngineConnectivity", (globalState) => {
     );
 });
 
+Cypress.Commands.add("checkAppliedOfferOnRetrieve", (data, globalState) => {
+  const { Response: resData } = data || {};
+
+  const paymentId = globalState.get("paymentID");
+  const baseUrl = globalState.get("baseUrl");
+  const apiKey = globalState.get("apiKey");
+
+  cy.request({
+    method: "GET",
+    url: `${baseUrl}/payments/${paymentId}?force_sync=true`,
+    headers: {
+      "Content-Type": "application/json",
+      "api-key": apiKey,
+    },
+    failOnStatusCode: false,
+  }).then((response) => {
+    expect(response.status, "status_code").to.equal(200);
+
+    for (const key of ["status", "net_amount", "amount_received"]) {
+      if (resData?.body?.[key] !== undefined) {
+        expect(response.body[key], key).to.equal(resData.body[key]);
+      }
+    }
+
+    expect(response.body, "applied_offer").to.have.property("applied_offer");
+    const appliedOffer = response.body.applied_offer;
+    expect(appliedOffer, "applied_offer").to.not.be.null;
+    // offer_id identifies the underlying offer (stable per offer config),
+    // distinct from offer_quote_id which is a per-transaction quote reference
+    expect(appliedOffer.offer_id, "applied_offer.offer_id").to.be.a("string")
+      .and.not.be.empty;
+    expect(
+      appliedOffer.offer_engine_merchant_id,
+      "applied_offer.offer_engine_merchant_id"
+    ).to.be.a("string").and.not.be.empty;
+    expect(
+      appliedOffer.offer_engine_txn_id,
+      "applied_offer.offer_engine_txn_id"
+    ).to.be.a("string").and.not.be.empty;
+
+    const expectedAppliedOffer = resData?.body?.applied_offer;
+    if (expectedAppliedOffer) {
+      for (const key of ["offer_amount", "currency"]) {
+        if (expectedAppliedOffer[key] !== undefined) {
+          expect(appliedOffer[key], `applied_offer.${key}`).to.equal(
+            expectedAppliedOffer[key]
+          );
+        }
+      }
+    }
+  });
+});
+
 // DDC Race Condition Test Commands
 Cypress.Commands.add(
   "ddcServerSideRaceConditionTest",

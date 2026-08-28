@@ -4440,6 +4440,21 @@ export const connectorDetails = {
         },
       },
     }),
+    AppliedOfferOnRetrieve: getCustomExchange({
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          net_amount: 98000,
+          amount_received: 98000,
+          applied_offer: {
+            offer_amount: 2000,
+            currency: "USD",
+          },
+        },
+      },
+    }),
     PaymentIntentNoOffer: getCustomExchange({
       Request: {
         currency: "USD",
