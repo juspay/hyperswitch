@@ -8194,8 +8194,6 @@ Cypress.Commands.add("appliedOfferRetrieveCheck", (data, globalState) => {
     expect(response.body, "applied_offer").to.have.property("applied_offer");
     const appliedOffer = response.body.applied_offer;
     expect(appliedOffer, "applied_offer").to.not.be.null;
-    // offer_id identifies the underlying offer (stable per offer config),
-    // distinct from offer_quote_id which is a per-transaction quote reference
     expect(appliedOffer.offer_id, "applied_offer.offer_id").to.be.a("string")
       .and.not.be.empty;
     expect(

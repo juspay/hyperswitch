@@ -1,9 +1,6 @@
 // This file is the default. To override, add to connector.js
 import { getCurrency, getCustomExchange } from "./Modifiers";
 
-// Placeholder substituted by confirmCallTest with globalState's offerQuoteId,
-// set by paymentsOfferEligibilityCheck. The quote id isn't known until the
-// eligibility step runs, so it can't be a literal in this static config.
 export const OFFER_QUOTE_ID_PLACEHOLDER = "OFFER_QUOTE_ID_FROM_STATE";
 
 export const blockedPaymentErrorBodyForIssuingCountry = {
