@@ -8832,6 +8832,7 @@ macro_rules! default_imp_for_revenue_recovery {
 /// `RevenueRecoveryDisputeRecordBack` impl, because `RevenueRecovery` requires it as a
 /// supertrait. Chargebee is the sole exception — it has a real implementation — so this
 /// list is the umbrella list minus Chargebee.
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 macro_rules! default_imp_for_revenue_recovery_dispute_record_back {
     ($($path:ident::$connector:ident),*) => {
         $(  impl RevenueRecoveryDisputeRecordBack for $path::$connector {}
@@ -8846,6 +8847,7 @@ macro_rules! default_imp_for_revenue_recovery_dispute_record_back {
     };
 }
 
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 default_imp_for_revenue_recovery_dispute_record_back!(
     connectors::Vgs,
     connectors::AbsaSanlam,

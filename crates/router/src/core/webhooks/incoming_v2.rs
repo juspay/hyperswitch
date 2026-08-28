@@ -776,6 +776,7 @@ async fn disputes_incoming_webhook_flow(
         .attach_printable("event type to dispute status mapping failed")?;
 
     // Captured before the update, because the guard below must see the row as it was.
+    #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
     let was_not_already_lost =
         diesel_models::dispute::Dispute::is_not_lost_or_none(&option_dispute);
 
@@ -791,6 +792,7 @@ async fn disputes_incoming_webhook_flow(
     )
     .await?;
 
+    #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
     if was_not_already_lost
         && dispute_object.dispute_status == common_enums::DisputeStatus::DisputeLost
     {
@@ -829,6 +831,7 @@ async fn disputes_incoming_webhook_flow(
     })
 }
 
+#[cfg(all(feature = "revenue_recovery", feature = "v2"))]
 /// Whether a dispute record-back actually reached the billing connector.
 ///
 /// Kept distinct from `Result` so that the two "nothing to do" paths — a non-recovery
@@ -841,6 +844,7 @@ enum DisputeRecordBackOutcome {
     Skipped,
 }
 
+#[cfg(all(feature = "revenue_recovery", feature = "v2"))]
 /// Record a lost dispute back to the billing connector as an offline refund.
 ///
 /// Skips without doing anything when the attempt carries no billing connector transaction
@@ -961,6 +965,7 @@ async fn record_dispute_back_to_billing_connector(
         })
 }
 
+#[cfg(all(feature = "revenue_recovery", feature = "v2"))]
 fn construct_dispute_record_back_router_data(
     state: &SessionState,
     billing_mca: &domain::MerchantConnectorAccount,
@@ -1305,6 +1310,7 @@ mod dispute_webhook_tests {
         }
     }
 
+    #[cfg(feature = "revenue_recovery")]
     #[test]
     fn dispute_record_back_fires_only_on_the_transition_into_lost() {
         use diesel_models::dispute::Dispute;

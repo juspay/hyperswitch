@@ -115,6 +115,8 @@ impl api::subscriptions::Subscriptions for Chargebee {}
 
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 impl api::revenue_recovery::RevenueRecoveryRecordBack for Chargebee {}
+#[cfg(all(feature = "v2", feature = "revenue_recovery"))]
+impl api::revenue_recovery::RevenueRecoveryDisputeRecordBack for Chargebee {}
 
 fn build_chargebee_url<Flow, Request, Response>(
     connector: &Chargebee,
@@ -582,8 +584,6 @@ impl_chargebee_integration!(
     method: Method::Post,
     request_body: build_invoice_record_back_request_body
 );
-
-impl api::revenue_recovery::RevenueRecoveryDisputeRecordBack for Chargebee {}
 
 impl_chargebee_integration!(
     flow: DisputeRecordBack,
