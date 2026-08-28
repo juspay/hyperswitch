@@ -4379,6 +4379,100 @@ export const connectorDetails = {
       },
     }),
   },
+  offer_engine: {
+    PaymentIntentForOffer: getCustomExchange({
+      Request: {
+        currency: "USD",
+        amount: 100000,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    }),
+    OfferEligibilityCheck: getCustomExchange({
+      Request: {
+        payment_method_type: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+          billing: standardBillingAddress,
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          amount_details: {
+            total_amount: 100000,
+            net_amount: 98000,
+            currency: "USD",
+          },
+          offer_details: {
+            uplifted_offer_quote_ids: [""],
+            eligible_offers: [
+              {
+                offer_amount: 2000,
+                currency: "USD",
+                code: "TESTHS",
+              },
+            ],
+          },
+        },
+      },
+    }),
+    ConfirmWithOfferApplied: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+          billing: standardBillingAddress,
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          amount: 100000,
+          net_amount: 98000,
+          amount_received: 98000,
+          currency: "USD",
+        },
+      },
+    }),
+    PaymentIntentNoOffer: getCustomExchange({
+      Request: {
+        currency: "USD",
+        amount: 50000,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    }),
+    ConfirmWithoutOffer: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+          billing: standardBillingAddress,
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          amount: 50000,
+          net_amount: 50000,
+          amount_received: 50000,
+          currency: "USD",
+          applied_offer: null,
+        },
+      },
+    }),
+  },
   auth_service_eligibility: {
     OrgEnabledMerchantEnabled: getCustomExchange({
       Request: {

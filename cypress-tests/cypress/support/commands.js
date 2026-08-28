@@ -3194,6 +3194,9 @@ Cypress.Commands.add(
     if (!reqData?.setup_future_usage && confirmBody.setup_future_usage) {
       delete confirmBody.setup_future_usage;
     }
+    if (!reqData?.offer_details && confirmBody.offer_details) {
+      delete confirmBody.offer_details;
+    }
 
     if (reqData?.split_payments && supportsSplitPayments(globalState)) {
       confirmBody.split_payments = reqData.split_payments;
@@ -8001,6 +8004,123 @@ Cypress.Commands.add(
         } else {
           throw new Error(
             `Eligibility check failed with status: ${response.status} and message: ${response.body?.error?.message}`
+          );
+        }
+      });
+    });
+  }
+);
+
+Cypress.Commands.add(
+  "paymentsOfferEligibilityCheck",
+  (requestBody, data, globalState) => {
+    const { Request: reqData, Response: resData } = data || {};
+
+    const publishableKey = globalState.get("publishableKey");
+    const baseUrl = globalState.get("baseUrl");
+    const paymentId = globalState.get("paymentID");
+    const clientSecret = globalState.get("clientSecret");
+    const url = `${baseUrl}/payments/${paymentId}/eligibility`;
+
+    const body = {
+      ...requestBody,
+      client_secret: clientSecret,
+      ...reqData,
+    };
+
+    cy.request({
+      method: "POST",
+      url: url,
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": publishableKey,
+      },
+      body: body,
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        expect(response.headers["content-type"]).to.include("application/json");
+
+        if (response.status === 200) {
+          expect(response.body)
+            .to.have.property("payment_id")
+            .to.equal(paymentId);
+
+          if (resData?.body?.amount_details) {
+            expect(response.body).to.have.property("amount_details");
+            for (const key in resData.body.amount_details) {
+              expect(response.body.amount_details[key], [
+                `amount_details.${key}`,
+              ]).to.equal(resData.body.amount_details[key]);
+            }
+          }
+
+          if (resData?.body?.offer_details) {
+            expect(response.body).to.have.property("offer_details");
+            const expectedOfferDetails = resData.body.offer_details;
+            const offerDetails = response.body.offer_details;
+
+            if (expectedOfferDetails.uplifted_offer_quote_ids) {
+              expect(
+                offerDetails.uplifted_offer_quote_ids,
+                "offer_details.uplifted_offer_quote_ids"
+              )
+                .to.be.an("array")
+                .with.length(
+                  expectedOfferDetails.uplifted_offer_quote_ids.length
+                );
+              offerDetails.uplifted_offer_quote_ids.forEach((id) => {
+                expect(
+                  id,
+                  "offer_details.uplifted_offer_quote_ids[].id"
+                ).to.be.a("string").and.not.be.empty;
+              });
+            }
+
+            if (expectedOfferDetails.eligible_offers) {
+              expect(
+                offerDetails.eligible_offers,
+                "offer_details.eligible_offers"
+              )
+                .to.be.an("array")
+                .with.length(expectedOfferDetails.eligible_offers.length);
+
+              offerDetails.eligible_offers.forEach((offer, index) => {
+                const expectedOffer =
+                  expectedOfferDetails.eligible_offers[index];
+
+                expect(
+                  offer.offer_quote_id,
+                  "eligible_offers[].offer_quote_id"
+                ).to.be.a("string").and.not.be.empty;
+                expect(offer.title, "eligible_offers[].title").to.be.a("string")
+                  .and.not.be.empty;
+                expect(
+                  offer.description,
+                  "eligible_offers[].description"
+                ).to.be.a("string").and.not.be.empty;
+
+                for (const key of ["offer_amount", "currency", "code"]) {
+                  if (expectedOffer[key] !== undefined) {
+                    expect(offer[key], `eligible_offers[].${key}`).to.equal(
+                      expectedOffer[key]
+                    );
+                  }
+                }
+              });
+            }
+          }
+
+          const eligibleOffers =
+            response.body.offer_details?.eligible_offers || [];
+          if (eligibleOffers.length > 0) {
+            globalState.set("offerQuoteId", eligibleOffers[0].offer_quote_id);
+          }
+        } else {
+          throw new Error(
+            `Offer eligibility check failed with status: ${response.status} and message: ${response.body?.error?.message}`
           );
         }
       });
