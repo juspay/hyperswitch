@@ -476,6 +476,7 @@ pub trait ConnectorActions: Connector {
                     phone_country_code: Some("+31".to_string()),
                     tax_registration_id: Some("1232343243".to_string().into()),
                     document_details: None,
+                    date_of_birth: None,
                 }),
                 vendor_details: None,
                 priority: None,
@@ -575,6 +576,7 @@ pub trait ConnectorActions: Connector {
             feature_data: None,
             sender_payment_instrument_id: None,
             connector_returned_payment_method_details: None,
+            customer_date_of_birth: None,
         }
     }
 
@@ -1040,6 +1042,7 @@ impl Default for PaymentAuthorizeType {
             feature_metadata: None,
             installment_details: None,
             connector_intent_metadata: None,
+            business_country: None,
         };
         Self(data)
     }
