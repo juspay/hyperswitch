@@ -187,7 +187,7 @@ impl<const UNMASKED_CHAR_COUNT: usize, const MIN_MASKED_CHAR_COUNT: usize> From<
 
 /// Masked card number, revealing the first six and last four digits.
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
-pub struct MaskedCardNumber(Secret<String>);
+pub struct MaskedCardNumber(hyperswitch_masking::StrongSecret<String>);
 impl From<String> for MaskedCardNumber {
     fn from(src: String) -> Self {
         const UNMASKED_PREFIX_LEN: usize = 6;
@@ -211,7 +211,7 @@ impl From<String> for MaskedCardNumber {
                 })
                 .collect()
         };
-        Self(Secret::from(masked_value))
+        Self(hyperswitch_masking::StrongSecret::new(masked_value))
     }
 }
 impl From<Secret<String>> for MaskedCardNumber {

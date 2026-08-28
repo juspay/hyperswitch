@@ -1624,10 +1624,12 @@ pub struct PaymentsRequest {
 
     /// Indicates whether this payment is an account funded transaction.
     #[schema(value_type = Option<bool>, example = true)]
+    #[remove_in(PaymentsConfirmRequest)]
     pub is_account_funded_transaction: Option<bool>,
 
     /// Details of the party receiving the funds in an account funded transaction.
     #[schema(value_type = Option<RecipientDetails>)]
+    #[remove_in(PaymentsConfirmRequest)]
     pub recipient_details: Option<RecipientDetails>,
 
     /// The tokenization preference for the payment method. This is used to control whether a PSP token is created or not.
