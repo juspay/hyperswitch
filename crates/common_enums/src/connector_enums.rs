@@ -209,6 +209,8 @@ pub enum Connector {
     Worldpayxml,
     Worldpaymodular,
     Signifyd,
+    Nsure,
+    Kount,
     Plaid,
     Riskified,
     Xendit,
@@ -451,6 +453,8 @@ impl Connector {
             | Self::Zen
             | Self::Zsl
             | Self::Signifyd
+            | Self::Nsure
+            | Self::Kount
             | Self::Plaid
             | Self::Razorpay
             | Self::Riskified

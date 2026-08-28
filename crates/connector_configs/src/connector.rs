@@ -405,6 +405,8 @@ pub struct ConnectorConfig {
     #[cfg(feature = "payouts")]
     pub stripe_payout: Option<ConnectorTomlConfig>,
     pub stripebilling: Option<ConnectorTomlConfig>,
+    pub nsure: Option<ConnectorTomlConfig>,
+    pub kount: Option<ConnectorTomlConfig>,
     pub signifyd: Option<ConnectorTomlConfig>,
     pub tersouro: Option<ConnectorTomlConfig>,
     pub tokenex: Option<ConnectorTomlConfig>,
@@ -667,6 +669,8 @@ impl ConnectorConfig {
             Connector::Riskified => Ok(connector_data.riskified),
             Connector::Santander => Ok(connector_data.santander),
             Connector::Shift4 => Ok(connector_data.shift4),
+            Connector::Nsure => Ok(connector_data.nsure),
+            Connector::Kount => Ok(connector_data.kount),
             Connector::Signifyd => Ok(connector_data.signifyd),
             Connector::Silverflow => Ok(connector_data.silverflow),
             Connector::Square => Ok(connector_data.square),

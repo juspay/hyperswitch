@@ -518,7 +518,9 @@ impl ConnectorData {
                 enums::Connector::Plaid => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Plaid::new())))
                 }
-                enums::Connector::Signifyd
+                enums::Connector::Nsure
+                | enums::Connector::Kount
+                | enums::Connector::Signifyd
                 | enums::Connector::Riskified
                 | enums::Connector::Cybersourcedecisionmanager
                 | enums::Connector::Gpayments

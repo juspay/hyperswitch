@@ -244,6 +244,13 @@ pub enum ConnectorSpecificConfig {
     },
     /// Stripe connector configuration
     Stripe { api_key: Secret<String> },
+    /// Kount FRM configuration. `api_key` is base64(clientId:clientSecret);
+    /// `auth_server_id` selects the OAuth authorization server and falls back
+    /// to Kount's sandbox server connector-side when unset.
+    Kount {
+        api_key: Secret<String>,
+        auth_server_id: Option<String>,
+    },
     /// PayPal connector configuration
     Paypal {
         client_id: Secret<String>,
@@ -851,6 +858,19 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                     api_key: api_key.clone(),
                 }),
                 _ => Err(err("Stripe requires HeaderKey auth type")),
+            },
+            // Kount's `api_key` is base64(clientId:clientSecret); `auth_server_id`
+            // is account/environment specific and comes from MCA metadata,
+            // falling back to the sandbox authorization server when unset.
+            Connector::Kount => match auth {
+                ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Kount {
+                    api_key: api_key.clone(),
+                    auth_server_id: metadata
+                        .and_then(|m| m.get("auth_server_id"))
+                        .and_then(|v| v.as_str())
+                        .map(|s| s.to_string()),
+                }),
+                _ => Err(err("Kount requires HeaderKey auth type")),
             },
             Connector::Truelayer => match auth {
                 ConnectorAuthType::BodyKey { api_key, key1 } => {
