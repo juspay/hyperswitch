@@ -474,6 +474,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         metadata: payment_data.payment_intent.metadata.expose_option(),
         authentication_data: None,
         ucs_authentication_data: None,
+        force_3ds_challenge: payment_data.payment_intent.force_3ds_challenge,
         customer_acceptance: None,
         split_payments: None,
         guest_customer: None,
@@ -1973,6 +1974,7 @@ where
         network_txn_id: None,
         network_txn_link_id: None,
         connector_response_reference_id: None,
+        payment_account_reference: None,
         incremental_authorization_allowed: None,
         authentication_data: None,
         charges: None,
@@ -4377,9 +4379,11 @@ where
                 .external_three_ds_authentication_attempted,
             expires_on: payment_intent.session_expiry,
             fingerprint: payment_intent.fingerprint_id,
+            fingerprint_type: payment_attempt.fingerprint_type,
             browser_info: payment_attempt.browser_info,
             payment_method_id: payment_attempt.payment_method_id,
             network_transaction_id: payment_attempt.network_transaction_id,
+            payment_account_reference: payment_attempt.payment_account_reference.clone(),
             network_transaction_link_id: payment_attempt.network_transaction_link_id,
             payment_method_status: payment_data
                 .get_payment_method_info()
@@ -4704,6 +4708,7 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             merchant_connector_id: pa.merchant_connector_id,
             payment_method_data,
             merchant_order_reference_id: pi.merchant_order_reference_id,
+            payment_account_reference: pa.payment_account_reference,
             customer: pi.customer_details.and_then(|customer_details|
                 match customer_details.into_inner().expose().parse_value::<CustomerData>("CustomerData"){
                     Ok(parsed_data) => Some(
@@ -4790,7 +4795,8 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             external_authentication_details: None,
             external_3ds_authentication_attempted: None,
             expires_on: None,
-            fingerprint: None,
+            fingerprint: pa.fingerprint_id,
+            fingerprint_type:pa.fingerprint_type,
             browser_info: None,
             payment_method_id: None,
             payment_method_status: None,
@@ -5179,6 +5185,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
                 .map(|m| m.expose()),
             authentication_data: None,
             ucs_authentication_data: None,
+            force_3ds_challenge: payment_data.payment_intent.force_3ds_challenge,
             request_extended_authorization: None,
             split_payments: None,
             guest_customer: None,
@@ -5446,6 +5453,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
                 .as_ref()
                 .map(UcsAuthenticationData::foreign_try_from)
                 .transpose()?,
+            force_3ds_challenge: payment_data.payment_intent.force_3ds_challenge,
             customer_acceptance: payment_data.customer_acceptance,
             request_extended_authorization: attempt.request_extended_authorization,
             split_payments,

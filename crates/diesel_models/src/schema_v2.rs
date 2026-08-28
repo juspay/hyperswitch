@@ -1176,6 +1176,10 @@ diesel::table! {
         #[max_length = 64]
         external_threeds_authentication_type -> Nullable<Varchar>,
         applied_offer_details -> Nullable<Jsonb>,
+        #[max_length = 10]
+        fingerprint_type -> Nullable<Varchar>,
+        #[max_length = 255]
+        payment_account_reference -> Nullable<Varchar>,
         payment_method_type_v2 -> Nullable<Varchar>,
         #[max_length = 128]
         connector_payment_id -> Nullable<Varchar>,
@@ -1468,6 +1472,8 @@ diesel::table! {
         additional_source_bank_data -> Nullable<Jsonb>,
         #[max_length = 128]
         connector_eligibility_reference_id -> Nullable<Varchar>,
+        #[max_length = 255]
+        connector_request_reference_id -> Nullable<Varchar>,
     }
 }
 
@@ -1644,6 +1650,16 @@ diesel::table! {
         processor_merchant_id -> Nullable<Varchar>,
         #[max_length = 255]
         created_by -> Nullable<Varchar>,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::enums::diesel_exports::*;
+
+    revenue_recovery_retry_stats (cluster_key) {
+        cluster_key -> Text,
+        stats -> Jsonb,
     }
 }
 
@@ -1972,6 +1988,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     process_tracker,
     refund,
     relay,
+    revenue_recovery_retry_stats,
     reverse_lookup,
     roles,
     routing_algorithm,

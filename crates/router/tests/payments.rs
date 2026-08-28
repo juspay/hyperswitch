@@ -448,6 +448,7 @@ async fn payments_create_core() {
         external_3ds_authentication_attempted: None,
         expires_on: None,
         fingerprint: None,
+        fingerprint_type: None,
         mit_category: None,
         tokenization: None,
         browser_info: None,
@@ -489,6 +490,7 @@ async fn payments_create_core() {
         connector_response_metadata: None,
         connector_customer_id: None,
         sender_payment_instrument_id: None,
+        payment_account_reference: None,
     };
     let expected_response =
         services::ApplicationResponse::JsonWithHeaders((expected_response, vec![]));
@@ -756,6 +758,7 @@ async fn payments_create_core_adyen_no_redirect() {
             external_3ds_authentication_attempted: None,
             expires_on: None,
             fingerprint: None,
+            fingerprint_type: None,
             browser_info: None,
             mit_category: None,
             tokenization: None,
@@ -797,6 +800,7 @@ async fn payments_create_core_adyen_no_redirect() {
             network_transaction_link_id: None,
             connector_customer_id: None,
             sender_payment_instrument_id: None,
+            payment_account_reference: None,
         },
         vec![],
     ));

@@ -1014,6 +1014,7 @@ impl Default for PaymentAuthorizeType {
             metadata: None,
             authentication_data: None,
             ucs_authentication_data: None,
+            force_3ds_challenge: None,
             customer_acceptance: None,
             split_payments: None,
             guest_customer: None,
@@ -1220,6 +1221,7 @@ pub fn get_connector_metadata(
             incremental_authorization_allowed: _,
             authentication_data: None,
             charges: _,
+            payment_account_reference: _,
         }) => connector_metadata,
         _ => None,
     }

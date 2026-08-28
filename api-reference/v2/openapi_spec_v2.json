@@ -7135,6 +7135,12 @@
           },
           {
             "$ref": "#/components/schemas/OpenBanking"
+          },
+          {
+            "$ref": "#/components/schemas/PayshapBankTransfer"
+          },
+          {
+            "$ref": "#/components/schemas/PayshapProxyBankTransfer"
           }
         ],
         "description": "Deprecated - Use `BankTransfer` instead"
@@ -7158,6 +7164,12 @@
           },
           {
             "$ref": "#/components/schemas/OpenBankingAdditionalData"
+          },
+          {
+            "$ref": "#/components/schemas/PayshapBankTransferAdditionalData"
+          },
+          {
+            "$ref": "#/components/schemas/PayshapProxyBankTransferAdditionalData"
           }
         ],
         "description": "Masked payout method details for bank payout method"
@@ -7854,7 +7866,421 @@
           "ulster_bank",
           "yoursafe",
           "n26",
-          "nationale_nederlanden"
+          "nationale_nederlanden",
+          "aib_business",
+          "aktia",
+          "alandsbanken",
+          "allianz_bank_financial_advisors_spa",
+          "allianz_banque",
+          "allied_irish_bank",
+          "allied_irish_bank_corporate",
+          "alto_adige",
+          "alto_adige_banca_suedtirol_bank",
+          "argenta",
+          "arkea_banque_entreprises_et_institutionnels",
+          "arkea_banque_privee",
+          "axa_banque",
+          "banca360_credito_cooperativo_fvg",
+          "banca_adria_colli_euganei",
+          "banca_agricola_popolare_di_ragusa",
+          "banca_alpi_marittime_cc_carru",
+          "banca_alta_toscana",
+          "banca_annia",
+          "banca_centro_emilia",
+          "banca_centro_lazio",
+          "banca_centro_toscana_umbria",
+          "banca_centropadana",
+          "banca_cesare_ponti",
+          "banca_del_catanzarese",
+          "banca_del_cilento_di_sassano_e_v",
+          "banca_del_piceno",
+          "banca_del_piemonte",
+          "banca_del_territorio_lombardo",
+          "banca_del_veneto_centrale",
+          "banca_della_marca_credcooperativo",
+          "banca_delle_terre_venete",
+          "banca_di_alba_credito_cooperativo",
+          "banca_di_anghiari_e_stia_cc",
+          "banca_di_bologna",
+          "banca_di_caraglio",
+          "banca_di_credito_popolare_scpa",
+          "banca_di_imola_spa",
+          "banca_di_pesaro",
+          "banca_di_pescia_e_cascina",
+          "banca_di_piacenza_scpa",
+          "banca_di_taranto_bcc",
+          "banca_di_udine_credito_coop",
+          "banca_don_rizzo",
+          "banca_fideuram",
+          "banca_finnat_euramerica_spa",
+          "banca_generali_spa",
+          "banca_lazio_nord",
+          "banca_malatestiana",
+          "banca_monte_dei_paschi_di_siena",
+          "banca_passadore",
+          "banca_patavina",
+          "banca_patrimoni_sella",
+          "banca_per_il_trentinoaltoadige",
+          "banca_popolare_del_lazio_scpa",
+          "banca_popolare_dell_alto_adige",
+          "banca_popolare_di_sondrio",
+          "banca_popolare_pugliese",
+          "banca_popolare_valconca_scpa",
+          "banca_san_francesco_credito_coop",
+          "banca_sella",
+          "banca_sistema_spa",
+          "banca_sviluppo_cooperaz_credito",
+          "banca_tema",
+          "banca_terre_etrusche_e_di_maremma",
+          "banca_territori_del_monviso",
+          "banca_valsabbina",
+          "banca_veronese_cc_di_concamarise",
+          "banco_azzoaglio",
+          "banco_bpm_spa_servizio_webank",
+          "banco_bpm_spa_servizio_youweb",
+          "banco_bpm_spa_youbusiness_web",
+          "banco_bpm_we_bank",
+          "banco_bpm_you_web",
+          "banco_de_sabadell",
+          "banco_desio_brianza",
+          "banco_di_sardegna",
+          "banco_marchigiano",
+          "banco_posta",
+          "banco_santander",
+          "bank_of_ireland",
+          "bank_of_ireland_business",
+          "bank_of_ireland_uk",
+          "bank_of_scotland_business",
+          "bankinter",
+          "banque_de_savoie",
+          "banque_populaire",
+          "barclaycard",
+          "barclays_business",
+          "bawag_psk",
+          "bbva",
+          "bcc_abruzzese_cappelle_sul_tavo",
+          "bcc_abruzzi_e_molise",
+          "bcc_adriatico_teramano",
+          "bcc_agro_bresciano",
+          "bcc_agro_pontino",
+          "bcc_alberobello_sammichele_monopoli",
+          "bcc_alto_tirreno_della_calabria",
+          "bcc_anagni",
+          "bcc_basilicata",
+          "bcc_bellegra",
+          "bcc_brescia",
+          "bcc_brianza_e_laghi",
+          "bcc_campania_centro",
+          "bcc_capaccio_paestum",
+          "bcc_castelli_romani_e_tuscolo",
+          "bcc_centro_calabria",
+          "bcc_conversano",
+          "bcc_degli_ulivi_terra_di_bari",
+          "bcc_dei_castelli_e_degli_iblei",
+          "bcc_dei_colli_albani",
+          "bcc_del_circeo_e_privernate",
+          "bcc_del_garda",
+          "bcc_del_metauro",
+          "bcc_del_velino",
+          "bcc_dell_alta_murgia",
+          "bcc_della_provincia_romana",
+          "bcc_della_romagna_occidentale",
+          "bcc_delle_madonie",
+          "bcc_di_altofonte_e_caccamo",
+          "bcc_di_aquara",
+          "bcc_di_arborea",
+          "bcc_di_bari",
+          "bcc_di_barlassina",
+          "bcc_di_bene_vagienna",
+          "bcc_di_binasco",
+          "bcc_di_buccino_e_comuni_cilentani",
+          "bcc_di_busto_garolfo_e_buguggiate",
+          "bcc_di_cagliari",
+          "bcc_di_canosa_loconia",
+          "bcc_di_caravaggio",
+          "bcc_di_cassano_delle_murge_e_tolve",
+          "bcc_di_cherasco",
+          "bcc_di_filottrano",
+          "bcc_di_flumeri",
+          "bcc_di_gambatesa",
+          "bcc_di_gaudiano_di_lavello",
+          "bcc_di_leverano",
+          "bcc_di_locorotondo",
+          "bcc_di_montepaone",
+          "bcc_di_napoli",
+          "bcc_di_ostra_e_morro_d_alba",
+          "bcc_di_ostuni",
+          "bcc_di_pachino",
+          "bcc_di_pergola_e_corinaldo",
+          "bcc_di_pianfei_e_rocca_de_baldi",
+          "bcc_di_pontassieve",
+          "bcc_di_recanati_e_colmurano",
+          "bcc_di_roma",
+          "bcc_di_san_giovanni_rotondo",
+          "bcc_di_san_marzano_di_san_giuseppe",
+          "bcc_di_santeramo_in_colle",
+          "bcc_di_sarsina",
+          "bcc_di_scafati_e_cetara",
+          "bcc_di_smarco_dei_cavoti",
+          "bcc_di_spello_e_del_velino",
+          "bcc_di_terra_d_otranto",
+          "bcc_felsinea",
+          "bcc_g_toniolo_di_san_cataldo",
+          "bcc_gran_sasso_d_italia",
+          "bcc_la_riscossa_di_regalbuto",
+          "bcc_lodi",
+          "bcc_milano",
+          "bcc_monte_pruno",
+          "bcc_nettuno",
+          "bcc_oglio_e_serio",
+          "bcc_pordenonese_e_monsile",
+          "bcc_pratola_peligna",
+          "bcc_prealpi_san_biagio",
+          "bcc_ravenna_forli_imola",
+          "bcc_san_giuseppe_di_mussomeli",
+          "bcc_terra_di_lavoro",
+          "bcc_triuggio_valle_del_lambro",
+          "bcc_valdarno_fiorentino",
+          "bcc_valdostana",
+          "bcc_valle_del_torto",
+          "bcc_veneta",
+          "bcc_venezia_giulia",
+          "bcc_versilia_lunigiana_e_garfagnana",
+          "bcc_vicentino_pojana_maggiore",
+          "belfius",
+          "beobank",
+          "bi_banca",
+          "blu_banca_spa",
+          "bnl",
+          "bnp_paribas_fortis",
+          "bourso_bank",
+          "bozen",
+          "bpe",
+          "bper_banca",
+          "bvr_banca_banche_venete_riunite",
+          "caisse_d_epargne",
+          "caixa",
+          "caja_rural",
+          "cajamar",
+          "cassa_centrale_banca",
+          "cassa_di_risparmio_di_bolzano",
+          "cassa_di_risparmio_di_fermo_spa",
+          "cassa_di_risparmio_di_savigliano",
+          "cassa_padana",
+          "cassa_rurale_alta_valsugana",
+          "cassa_rurale_alto_garda_rovereto",
+          "cassa_rurale_di_ledro",
+          "cassa_rurale_di_treviglio",
+          "cassa_rurale_fvg",
+          "cassa_rurale_renon",
+          "cassa_rurale_val_di_fiemme",
+          "cassa_rurale_val_di_sole",
+          "cassa_rurale_vallagarina",
+          "cassa_rurale_valsugana_e_tesino",
+          "castagneto_banca1910",
+          "cbc_banque",
+          "centromarca_banca",
+          "chiantibanca_credito_cooperativo",
+          "cic",
+          "clydesdale_bank",
+          "comdirect",
+          "commerzbank",
+          "cortinabanca",
+          "coutts",
+          "cr_val_di_non_rotaliana_e_giovo",
+          "cra_bcc_di_cantu",
+          "cra_di_borgo_san_giacomo",
+          "cra_di_boves",
+          "cra_di_paliano",
+          "credem",
+          "credifriuli",
+          "credit_mutuel",
+          "credit_mutuel_de_bretagne",
+          "credit_mutuel_du_sud_ouest",
+          "credito_cooperativo_agrigentino",
+          "credito_cooperativo_mediocrati",
+          "credito_cooperativo_romagnolo",
+          "credito_di_romagna",
+          "credito_lombardo_veneto",
+          "danske_bank_business",
+          "desio",
+          "deutsche_bank",
+          "dkb",
+          "easy_bank",
+          "ebs",
+          "emilbanca_cc",
+          "erste_bank",
+          "evo_banco",
+          "fineco",
+          "fintro",
+          "fortuneo",
+          "fpb_cassa_di_fassa_primiero_belluno",
+          "hello_bank",
+          "hsbc",
+          "hsbc_business",
+          "hype",
+          "hypo_vereinsbank",
+          "ibercaja",
+          "iccrea_banca_spa",
+          "illimity",
+          "imagin",
+          "imprebanca_spa",
+          "intesa_sanpaolo",
+          "intesa_sanpaolo_inbiz",
+          "intesa_sanpaolo_private_banking_spa",
+          "isybank",
+          "kbc",
+          "kbc_brussels",
+          "kutxabank",
+          "la_banque_postale",
+          "la_banque_postale_business",
+          "la_cassa_di_ravenna_spa",
+          "la_cassa_rurale",
+          "laboral_kutxa",
+          "lcl",
+          "lis_pay_spa",
+          "lloyds_business",
+          "lloyds_commercial",
+          "m_s_bank",
+          "mbna",
+          "mettle_bank",
+          "monabanq",
+          "mooney",
+          "mps",
+          "nat_west_bankline",
+          "nationwide",
+          "nordea",
+          "oma_sp",
+          "op",
+          "openbank",
+          "pop_pankki",
+          "post_bank",
+          "poste_pay_evolution",
+          "primacassa_fvg",
+          "ptsb",
+          "raiffeisen_algund",
+          "raiffeisen_alta_pusteria",
+          "raiffeisen_alta_venosta",
+          "raiffeisen_alto_adige",
+          "raiffeisen_bassa_atesina",
+          "raiffeisen_bassa_valle_isarco",
+          "raiffeisen_bassa_venosta",
+          "raiffeisen_bolzano",
+          "raiffeisen_bozen",
+          "raiffeisen_bruneck",
+          "raiffeisen_brunico",
+          "raiffeisen_campo_di_trens",
+          "raiffeisen_cassa_centr_alto_adige",
+          "raiffeisen_castelrottoortisei",
+          "raiffeisen_deutschnofenaldein",
+          "raiffeisen_dobbiaco",
+          "raiffeisen_eisacktal",
+          "raiffeisen_etschtal",
+          "raiffeisen_freienfeld",
+          "raiffeisen_funes",
+          "raiffeisen_gadertal",
+          "raiffeisen_groeden",
+          "raiffeisen_hochpustertal",
+          "raiffeisen_kastelruthstulrich",
+          "raiffeisen_laas",
+          "raiffeisen_laces",
+          "raiffeisen_lagundo",
+          "raiffeisen_lana",
+          "raiffeisen_landesbank_suedtirol",
+          "raiffeisen_lasa",
+          "raiffeisen_latsch",
+          "raiffeisen_marlengo",
+          "raiffeisen_marling",
+          "raiffeisen_meran",
+          "raiffeisen_merano",
+          "raiffeisen_monguelfocasiestesido",
+          "raiffeisen_niederdorf",
+          "raiffeisenbank",
+          "royal_bank_of_scotland_bankline",
+          "s_pankki",
+          "saastopankki",
+          "santander",
+          "santander_business",
+          "santander_personal",
+          "sparkasse",
+          "targo_bank",
+          "tide",
+          "triodos",
+          "tsb",
+          "ulster_bankline",
+          "unicaja",
+          "virgin_money",
+          "virgin_money_merged",
+          "volksbanken_raiffeisenbanken",
+          "wise",
+          "yorkshire_bank",
+          "zempler",
+          "raiffeisen_nova_levante",
+          "raiffeisen_nova_ponentealdino",
+          "raiffeisen_obervinschgau",
+          "raiffeisen_oltradige",
+          "raiffeisen_parcines",
+          "raiffeisen_partschins",
+          "raiffeisen_passeier",
+          "raiffeisen_pradtaufers",
+          "raiffeisen_pratotubre",
+          "raiffeisen_salorno",
+          "raiffeisen_salurn",
+          "raiffeisen_san_martino_in_passiria",
+          "raiffeisen_sarntal",
+          "raiffeisen_scena",
+          "raiffeisen_schenna",
+          "raiffeisen_schlanders",
+          "raiffeisen_schlernrosengarten",
+          "raiffeisen_silandro",
+          "raiffeisen_suedtirol",
+          "raiffeisen_taufererahrntal",
+          "raiffeisen_tesimo",
+          "raiffeisen_tirol",
+          "raiffeisen_tirolo",
+          "raiffeisen_tisens",
+          "raiffeisen_toblach",
+          "raiffeisen_turesaurina",
+          "raiffeisen_ueberetsch",
+          "raiffeisen_ultenstpankrazlaurein",
+          "raiffeisen_ultimospancrlaur",
+          "raiffeisen_untereisacktal",
+          "raiffeisen_unterland",
+          "raiffeisen_untervinschgau",
+          "raiffeisen_val_badia",
+          "raiffeisen_val_gardena",
+          "raiffeisen_val_passiria",
+          "raiffeisen_val_sarentino",
+          "raiffeisen_valle_isarco",
+          "raiffeisen_vandoies",
+          "raiffeisen_villabassa",
+          "raiffeisen_villnoess",
+          "raiffeisen_vintl",
+          "raiffeisen_welsberggsiestaisten",
+          "raiffeisen_welschnofen",
+          "raiffeisen_wipptal",
+          "raiffeisenkasse_ritten",
+          "riviera_banca",
+          "romagna_banca",
+          "sella",
+          "sicilbanca",
+          "solution_bank",
+          "suedtiroler",
+          "suedtiroler_sparkasse",
+          "suedtiroler_volksbank",
+          "unicredit",
+          "unicredit_online_banking",
+          "unicredit_uniweb_corporate",
+          "valpolicella_benaco_banca",
+          "volksbank",
+          "volksbank_banca_popolare",
+          "widiba",
+          "zkb_credcoopdi_trieste_e_gorizia",
+          "asn",
+          "sns",
+          "seb",
+          "swedbank",
+          "mock_uk_payments"
         ]
       },
       "BankRedirect": {
@@ -8627,6 +9053,48 @@
                     "type": "string",
                     "enum": [
                       "open_banking"
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PayshapBankTransfer"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "payout_method_type"
+                ],
+                "properties": {
+                  "payout_method_type": {
+                    "type": "string",
+                    "enum": [
+                      "payshap"
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PayshapProxyBankTransfer"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "payout_method_type"
+                ],
+                "properties": {
+                  "payout_method_type": {
+                    "type": "string",
+                    "enum": [
+                      "payshap_proxy"
                     ]
                   }
                 }
@@ -11489,6 +11957,7 @@
           "globalpay",
           "globepay",
           "gocardless",
+          "gotyme_sanlam",
           "gpayments",
           "hipay",
           "helcim",
@@ -12942,6 +13411,15 @@
           }
         },
         "additionalProperties": false
+      },
+      "CustomerAcceptanceSupport": {
+        "type": "string",
+        "description": "Returned in the payment method list response so the SDK,\ncan help decide whether to show the \"save my details\" checkbox and how to word it.",
+        "enum": [
+          "supported",
+          "partially_supported",
+          "unsupported"
+        ]
       },
       "CustomerDefaultPaymentMethodResponse": {
         "type": "object",
@@ -15548,6 +16026,14 @@
           "eci_indicator"
         ],
         "properties": {
+          "auth_method": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/GooglePayAuthMethod"
+              }
+            ],
+            "nullable": true
+          },
           "card_exp_month": {
             "type": "string",
             "description": "The card's expiry month"
@@ -15830,6 +16316,13 @@
             "description": "indicates that identification and verifications (ID&V) was performed"
           }
         }
+      },
+      "GooglePayAuthMethod": {
+        "type": "string",
+        "enum": [
+          "PAN_ONLY",
+          "CRYPTOGRAM_3DS"
+        ]
       },
       "GooglePayCardFundingSource": {
         "type": "string",
@@ -17501,6 +17994,14 @@
         "properties": {
           "mask": {
             "type": "string"
+          },
+          "account_holder_name": {
+            "type": "string",
+            "nullable": true
+          },
+          "bank_name": {
+            "type": "string",
+            "nullable": true
           }
         }
       },
@@ -23603,7 +24104,9 @@
           "revolut_pay",
           "indonesian_bank_transfer",
           "open_banking",
-          "network_token"
+          "network_token",
+          "payshap",
+          "payshap_proxy"
         ]
       },
       "PaymentMethodUpdate": {
@@ -25687,6 +26190,7 @@
           "deutschebank",
           "ebanx",
           "gigadat",
+          "gotyme_sanlam",
           "loonio",
           "nomupay",
           "nuvei",
@@ -26983,6 +27487,96 @@
       },
       "PayseraData": {
         "type": "object"
+      },
+      "PayshapBankTransfer": {
+        "type": "object",
+        "required": [
+          "bank_account_number"
+        ],
+        "properties": {
+          "bank_account_number": {
+            "type": "string",
+            "description": "Bank account number is a unique identifier assigned by a bank to a customer.",
+            "example": "1234567890"
+          },
+          "account_holder_name": {
+            "type": "string",
+            "description": "Bank account holder name. Required for interbank transfers.",
+            "example": "John Doe",
+            "nullable": true
+          },
+          "bank_name": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BankNames"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "PayshapBankTransferAdditionalData": {
+        "type": "object",
+        "description": "Masked payout method details for PayShap bank transfer payout method",
+        "required": [
+          "bank_account_number"
+        ],
+        "properties": {
+          "bank_account_number": {
+            "type": "string",
+            "description": "Bank account number is a unique identifier assigned by a bank to a customer.",
+            "example": "**** 67890"
+          },
+          "account_holder_name": {
+            "type": "string",
+            "description": "Bank account holder name.",
+            "example": "John Doe",
+            "nullable": true
+          },
+          "bank_name": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BankNames"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "PayshapProxyBankTransfer": {
+        "type": "object",
+        "properties": {
+          "cellphone": {
+            "type": "string",
+            "description": "Cellphone proxy. Required when proxy_type is cellphone.",
+            "example": "+27821234567",
+            "nullable": true
+          },
+          "shap_id": {
+            "type": "string",
+            "description": "Shap ID proxy. Required when proxy_type is shap_id.",
+            "example": "21e3123",
+            "nullable": true
+          }
+        }
+      },
+      "PayshapProxyBankTransferAdditionalData": {
+        "type": "object",
+        "description": "Masked payout method details for PayShap proxy bank transfer payout method",
+        "properties": {
+          "cellphone": {
+            "type": "string",
+            "description": "Cellphone proxy.",
+            "example": "******* 4567",
+            "nullable": true
+          },
+          "shap_id": {
+            "type": "string",
+            "description": "Shap ID proxy.",
+            "example": "**** 3123",
+            "nullable": true
+          }
+        }
       },
       "PazeSessionTokenResponse": {
         "type": "object",
@@ -29543,7 +30137,8 @@
             "required": [
               "payment_method_type",
               "payment_method_subtype",
-              "required_fields"
+              "required_fields",
+              "customer_acceptance_support"
             ],
             "properties": {
               "payment_method_type": {
@@ -29558,6 +30153,9 @@
                   "$ref": "#/components/schemas/RequiredFieldInfo"
                 },
                 "description": "Required fields for the payment_method_type.\nThis is the union of all the required fields for the payment method type enabled in all the connectors."
+              },
+              "customer_acceptance_support": {
+                "$ref": "#/components/schemas/CustomerAcceptanceSupport"
               }
             }
           }
@@ -30004,6 +30602,7 @@
           "globalpay",
           "globepay",
           "gocardless",
+          "gotyme_sanlam",
           "hipay",
           "helcim",
           "hyperpg",

@@ -1257,6 +1257,10 @@ diesel::table! {
         #[max_length = 64]
         external_threeds_authentication_type -> Nullable<Varchar>,
         applied_offer_details -> Nullable<Jsonb>,
+        #[max_length = 10]
+        fingerprint_type -> Nullable<Varchar>,
+        #[max_length = 255]
+        payment_account_reference -> Nullable<Varchar>,
     }
 }
 
@@ -1549,6 +1553,8 @@ diesel::table! {
         additional_source_bank_data -> Nullable<Jsonb>,
         #[max_length = 128]
         connector_eligibility_reference_id -> Nullable<Varchar>,
+        #[max_length = 255]
+        connector_request_reference_id -> Nullable<Varchar>,
     }
 }
 

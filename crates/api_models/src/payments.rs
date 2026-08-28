@@ -9,6 +9,8 @@ pub mod trait_impls;
 use cards::{CardNumber, NetworkToken};
 #[cfg(feature = "v2")]
 use common_enums::enums::PaymentConnectorTransmission;
+#[cfg(feature = "v1")]
+pub use common_enums::FingerprintType;
 use common_enums::{self, GooglePayCardFundingSource, ProductType};
 #[cfg(feature = "v1")]
 use common_types::primitive_wrappers::{
@@ -7698,6 +7700,11 @@ pub struct PaymentsResponse {
     #[smithy(value_type = "Option<String>")]
     pub fingerprint: Option<String>,
 
+    /// Identifies whether the payment fingerprint was generated from a funding PAN (FPAN)
+    /// or a wallet device PAN (DPAN).
+    #[smithy(value_type = "Option<FingerprintType>")]
+    pub fingerprint_type: Option<FingerprintType>,
+
     #[schema(value_type = Option<BrowserInformation>)]
     /// The browser information used for this payment
     #[smithy(value_type = "Option<BrowserInformation>")]
@@ -7717,6 +7724,11 @@ pub struct PaymentsResponse {
     /// Refer `payment_method_tokenization_details` for detailed view of payment method tokenization
     #[smithy(value_type = "Option<String>")]
     pub network_transaction_id: Option<String>,
+
+    /// Payment Account Reference (PAR) returned by the connector for the underlying card, used to link tokenized and non-tokenized transactions for the same card.
+    #[schema(example = "V001428640638148739")]
+    #[smithy(value_type = "Option<String>")]
+    pub payment_account_reference: Option<String>,
 
     /// The Mastercard Transaction Link Identifier (TLID) for this payment. Returned on CITs that set up
     /// stored credentials. External-vault merchants should persist this and echo it back on subsequent
@@ -10397,7 +10409,9 @@ pub struct GooglePayTokenizationParameters {
     pub private_key: Option<Secret<String>>,
     pub recipient_id: Option<Secret<String>>,
     pub gateway_merchant_id: Option<Secret<String>>,
+    #[serde(rename = "stripe:publishableKey", alias = "stripe_publishable_key")]
     pub stripe_publishable_key: Option<Secret<String>>,
+    #[serde(rename = "stripe:version", alias = "stripe_version")]
     pub stripe_version: Option<Secret<String>>,
 }
 
@@ -13445,6 +13459,19 @@ mod payments_response_api_contract {
         let stringified_payments_response = payments_response.encode_to_string_of_json();
         assert_eq!(stringified_payments_response.unwrap(), expected_response);
     }
+
+    #[cfg(feature = "v1")]
+    #[test]
+    fn test_fingerprint_type_serialization() {
+        assert_eq!(
+            serde_json::to_value(FingerprintType::Dpan).unwrap(),
+            serde_json::json!("dpan")
+        );
+        assert_eq!(
+            serde_json::to_value(FingerprintType::Fpan).unwrap(),
+            serde_json::json!("fpan")
+        );
+    }
 }
 
 /// Set of tests to extract billing details from payment method data
@@ -13733,6 +13760,15 @@ impl PaymentRevenueRecoveryMetadata {
         self.billing_connector_payment_details
             .connector_customer_id
             .to_owned()
+    }
+
+    /// Card network of the recovery card, from the billing-connector payment method
+    /// details
+    pub fn get_card_network(&self) -> Option<common_enums::enums::CardNetwork> {
+        self.billing_connector_payment_method_details
+            .as_ref()
+            .and_then(|details| details.get_billing_connector_card_info())
+            .and_then(|card| card.card_network.clone())
     }
 }
 
