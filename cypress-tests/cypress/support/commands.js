@@ -8159,7 +8159,9 @@ Cypress.Commands.add("offerEngineConnectivityCheck", (globalState) => {
     .then((response) => {
       logRequestId(response.headers["x-request-id"]);
 
-      return response.status === 200 && Boolean(response.body?.reachable);
+      return cy.wrap(
+        response.status === 200 && Boolean(response.body?.reachable)
+      );
     });
 });
 
