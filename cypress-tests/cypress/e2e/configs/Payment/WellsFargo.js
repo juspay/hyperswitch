@@ -663,11 +663,11 @@ export const connectorDetails = {
         },
       },
     },
-      No3DSFailPayment: {
+    No3DSFailPayment: {
       Request: {
         payment_method: "card",
         payment_method_data: {
-          card: successfulNo3DSCardDetails,  //There is no failing card for WellsFargo
+          card: successfulNo3DSCardDetails, //There is no failing card for WellsFargo
         },
         customer_acceptance: null,
         setup_future_usage: "on_session",

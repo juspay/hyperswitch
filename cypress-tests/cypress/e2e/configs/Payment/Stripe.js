@@ -2641,7 +2641,7 @@ export const connectorDetails = {
       },
     }),
   },
-   Dispute: {
+  Dispute: {
     AcceptDispute: {
       Response: {
         status: 200,
