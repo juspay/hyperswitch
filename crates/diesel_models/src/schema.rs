@@ -1259,6 +1259,8 @@ diesel::table! {
         applied_offer_details -> Nullable<Jsonb>,
         #[max_length = 10]
         fingerprint_type -> Nullable<Varchar>,
+        #[max_length = 255]
+        payment_account_reference -> Nullable<Varchar>,
     }
 }
 

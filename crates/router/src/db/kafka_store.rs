@@ -47,6 +47,8 @@ use scheduler::{
 };
 use serde::Serialize;
 use storage_impl::redis::kv_store::RedisConnInterface;
+#[cfg(feature = "v2")]
+use storage_impl::revenue_recovery_retry_stats;
 use time::PrimitiveDateTime;
 
 use super::{
@@ -3649,6 +3651,17 @@ impl UnifiedTranslationsInterface for KafkaStore {
 impl StorageInterface for KafkaStore {
     fn get_scheduler_db(&self) -> Box<dyn SchedulerInterface> {
         Box::new(self.clone())
+    }
+
+    #[cfg(feature = "v2")]
+    fn get_revenue_recovery_retry_stats_store(
+        &self,
+    ) -> Box<
+        dyn revenue_recovery_retry_stats::RevenueRecoveryRetryStatsInterface<
+            Error = errors::StorageError,
+        >,
+    > {
+        self.diesel_store.get_revenue_recovery_retry_stats_store()
     }
 
     fn get_payment_methods_store(&self) -> Box<dyn PaymentMethodsStorageInterface> {

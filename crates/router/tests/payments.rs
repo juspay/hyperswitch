@@ -492,6 +492,7 @@ async fn payments_create_core() {
         connector_response_metadata: None,
         connector_customer_id: None,
         sender_payment_instrument_id: None,
+        payment_account_reference: None,
     };
     let expected_response =
         services::ApplicationResponse::JsonWithHeaders((expected_response, vec![]));
@@ -803,6 +804,7 @@ async fn payments_create_core_adyen_no_redirect() {
             network_transaction_link_id: None,
             connector_customer_id: None,
             sender_payment_instrument_id: None,
+            payment_account_reference: None,
         },
         vec![],
     ));

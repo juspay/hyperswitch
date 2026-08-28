@@ -4299,6 +4299,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<AdyenCancelResponse>> for Payments
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             ..item.data
         })
@@ -4324,6 +4325,7 @@ impl TryFrom<PaymentsPreprocessingResponseRouterData<AdyenBalanceResponse>>
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
+                payment_account_reference: None,
             }),
             payment_method_balance: Some(PaymentMethodBalance {
                 currency: item.response.balance.currency,
@@ -4498,6 +4500,7 @@ pub fn get_adyen_response(
         incremental_authorization_allowed: None,
         authentication_data: None,
         charges,
+        payment_account_reference: None,
     };
 
     let txn_amount = response.amount.map(|amount| amount.value);
@@ -4612,6 +4615,7 @@ pub fn get_webhook_response(
             incremental_authorization_allowed: None,
             authentication_data: None,
             charges: None,
+            payment_account_reference: None,
         };
 
         Ok(AdyenPaymentsResponseData {
@@ -4721,6 +4725,7 @@ pub fn get_redirection_response(
         incremental_authorization_allowed: None,
         authentication_data: None,
         charges,
+        payment_account_reference: None,
     };
 
     let txn_amount = response.amount.map(|amount| amount.value);
@@ -4801,6 +4806,7 @@ pub fn get_present_to_shopper_response(
         incremental_authorization_allowed: None,
         authentication_data: None,
         charges,
+        payment_account_reference: None,
     };
     let txn_amount = response.amount.map(|amount| amount.value);
 
@@ -4879,6 +4885,7 @@ pub fn get_qr_code_response(
         incremental_authorization_allowed: None,
         authentication_data: None,
         charges,
+        payment_account_reference: None,
     };
 
     let txn_amount = response.amount.map(|amount| amount.value);
@@ -4957,6 +4964,7 @@ pub fn get_redirection_error_response(
         incremental_authorization_allowed: None,
         authentication_data: None,
         charges: None,
+        payment_account_reference: None,
     };
 
     Ok(AdyenPaymentsResponseData {
@@ -5424,6 +5432,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<AdyenCaptureResponse>>
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges,
+                payment_account_reference: None,
             }),
             amount_captured: None, // updated by Webhooks
             ..item.data

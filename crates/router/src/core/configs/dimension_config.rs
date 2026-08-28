@@ -876,6 +876,18 @@ impl DatabaseBackedConfig for OfferEngineEnabled {
 }
 
 config! {
+    superposition_key = REVREC_RETRY_STATS_ENABLED,
+    output = bool,
+    default = true,
+    requires = dimension_state::DimensionsGlobal,
+    targeting_key = id_type::MerchantId
+}
+
+impl DatabaseBackedConfig for RevrecRetryStatsEnabled {
+    const KEY: &'static str = "revrec_retry_stats_enabled";
+}
+
+config! {
     superposition_key = OFFER_ENGINE_CREDENTIAL_SOURCE,
     output = crate::core::offer_engine::types::OfferEngineCredentialSource,
     default = crate::core::offer_engine::types::OfferEngineCredentialSource::None,
