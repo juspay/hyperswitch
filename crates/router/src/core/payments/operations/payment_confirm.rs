@@ -3005,6 +3005,10 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                             .payment_intent
                             .is_iframe_redirection_enabled,
                         is_confirm_operation: true, // Indicates that this is a confirm operation
+                        is_account_funded_transaction: payment_data
+                            .payment_intent
+                            .is_account_funded_transaction,
+                        recipient_details: payment_data.payment_intent.recipient_details.clone(),
                         payment_channel: payment_data.payment_intent.payment_channel,
                         feature_metadata: payment_data.payment_intent.feature_metadata.clone(),
                         tax_status: payment_data.payment_intent.tax_status,

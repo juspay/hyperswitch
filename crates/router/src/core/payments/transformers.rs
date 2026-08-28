@@ -243,6 +243,7 @@ where
         feature_data: None,
         sender_payment_instrument_id: None,
         connector_returned_payment_method_details: None,
+        customer_date_of_birth: None,
     };
     Ok(router_data)
 }
@@ -430,6 +431,14 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
             .and_then(|noon| noon.order_category.clone())
     });
 
+    // Account funded transaction details are merchant supplied and are always read
+    // from the payment intent, never from the confirm request.
+    let recipient_details = payment_data
+        .payment_intent
+        .get_recipient_details()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to parse recipient details")?;
+
     // TODO: few fields are repeated in both routerdata and request
     let request = types::PaymentsAuthorizeData {
         payment_method_data: payment_data
@@ -502,6 +511,8 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         feature_metadata: None,
         installment_details: None,
         connector_intent_metadata: None,
+        is_account_funded_transaction: payment_data.payment_intent.is_account_funded_transaction,
+        recipient_details,
     };
     let connector_mandate_request_reference_id = payment_data
         .payment_attempt
@@ -593,6 +604,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         feature_data: None,
         sender_payment_instrument_id: None,
         connector_returned_payment_method_details: None,
+        customer_date_of_birth: None,
     };
 
     Ok(router_data)
@@ -1009,6 +1021,7 @@ pub async fn construct_external_vault_proxy_payment_router_data_v1<'a>(
         feature_data: None,
         sender_payment_instrument_id: None,
         connector_returned_payment_method_details: None,
+        customer_date_of_birth: None,
     };
 
     Ok(router_data)
@@ -1181,6 +1194,7 @@ pub async fn construct_payment_router_data_for_capture<'a>(
         feature_data: None,
         sender_payment_instrument_id: None,
         connector_returned_payment_method_details: None,
+        customer_date_of_birth: None,
     };
 
     Ok(router_data)
@@ -1321,6 +1335,7 @@ pub async fn construct_router_data_for_psync<'a>(
         feature_data: None,
         sender_payment_instrument_id: None,
         connector_returned_payment_method_details: None,
+        customer_date_of_birth: None,
     };
 
     Ok(router_data)
@@ -1678,6 +1693,7 @@ pub async fn construct_payment_router_data_for_sdk_session<'a>(
         feature_data: None,
         sender_payment_instrument_id: None,
         connector_returned_payment_method_details: None,
+        customer_date_of_birth: None,
     };
 
     Ok(router_data)
@@ -1767,6 +1783,14 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
         .clone()
         .map(types::BrowserInformation::from);
 
+    // Account funded transaction details are merchant supplied and are always read
+    // from the payment intent, never from the confirm request.
+    let recipient_details = payment_data
+        .payment_intent
+        .get_recipient_details()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to parse recipient details")?;
+
     // TODO: few fields are repeated in both routerdata and request
     let request = types::SetupMandateRequestData {
         currency: payment_data.payment_intent.amount_details.currency,
@@ -1818,6 +1842,8 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
         connector_intent_metadata: None,
         merchant_order_reference_id: None,
         mit_category: None,
+        is_account_funded_transaction: payment_data.payment_intent.is_account_funded_transaction,
+        recipient_details,
     };
     let connector_mandate_request_reference_id = payment_data
         .payment_attempt
@@ -1906,6 +1932,7 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
         feature_data: None,
         sender_payment_instrument_id: None,
         connector_returned_payment_method_details: None,
+        customer_date_of_birth: None,
     };
 
     Ok(router_data)
@@ -2241,6 +2268,12 @@ where
         feature_data,
         sender_payment_instrument_id: None,
         connector_returned_payment_method_details: None,
+        customer_date_of_birth: payment_data
+            .payment_intent
+            .get_intent_customer_details()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to parse customer details")?
+            .and_then(|customer_details| customer_details.date_of_birth),
     };
 
     Ok(router_data)
@@ -2465,6 +2498,7 @@ pub async fn construct_payment_router_data_for_update_metadata<'a>(
         feature_data: None,
         sender_payment_instrument_id: None,
         connector_returned_payment_method_details: None,
+        customer_date_of_birth: None,
     };
 
     Ok(router_data)
@@ -2921,6 +2955,12 @@ where
             mandate_type.as_ref(),
         );
 
+        let masked_recipient_details = payment_intent
+            .get_recipient_details()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to parse recipient details")?
+            .map(api_models::payments::MaskedRecipientDetails::from);
+
         Ok(services::ApplicationResponse::JsonWithHeaders((
             Self {
                 id: payment_intent.id.clone(),
@@ -2977,6 +3017,8 @@ where
                     .request_external_three_ds_authentication,
                 payment_type,
                 enable_partial_authorization: Some(payment_intent.enable_partial_authorization),
+                is_account_funded_transaction: payment_intent.is_account_funded_transaction,
+                recipient_details: masked_recipient_details,
             },
             vec![],
         )))
@@ -4272,6 +4314,11 @@ where
             payment_attempt.get_connector_response_metadata_from_attempt_metadata();
 
         let applied_offer = applied_offer_response(payment_attempt.applied_offer_details.clone());
+        let masked_recipient_details = payment_intent
+            .get_recipient_details()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to parse recipient details")?
+            .map(api_models::payments::MaskedRecipientDetails::from);
         let payments_response = api::PaymentsResponse {
             payment_id: payment_intent.payment_id,
             merchant_id: payment_intent.merchant_id,
@@ -4415,6 +4462,8 @@ where
             is_stored_credential: payment_attempt.is_stored_credential,
             request_extended_authorization: payment_attempt.request_extended_authorization,
             billing_descriptor: payment_intent.billing_descriptor,
+            is_account_funded_transaction: payment_intent.is_account_funded_transaction,
+            recipient_details: masked_recipient_details,
             partner_merchant_identifier_details: payment_intent.partner_merchant_identifier_details,
             payment_method_tokenization_details,
             installment_options: payment_intent.installment_options,
@@ -4673,6 +4722,14 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
                     None
                 }
             });
+        let masked_recipient_details = pi
+            .get_recipient_details()
+            .inspect_err(|error| {
+                router_env::logger::error!(?error, "Failed to parse recipient details")
+            })
+            .ok()
+            .flatten()
+            .map(api_models::payments::MaskedRecipientDetails::from);
         Self {
             connector_response_metadata: pa.get_connector_response_metadata_from_attempt_metadata(),
             applied_offer: applied_offer_response(pa.applied_offer_details.clone()),
@@ -4824,6 +4881,8 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             is_stored_credential:pa.is_stored_credential,
             request_extended_authorization: pa.request_extended_authorization,
             billing_descriptor: pi.billing_descriptor,
+            is_account_funded_transaction: pi.is_account_funded_transaction,
+            recipient_details: masked_recipient_details,
             partner_merchant_identifier_details: pi.partner_merchant_identifier_details,
             payment_method_tokenization_details: None,
             installment_options: pi.installment_options,
@@ -5138,6 +5197,14 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
 
         let customer_id = additional_data.customer_id.clone();
 
+        // Account funded transaction details are merchant supplied and are always read
+        // from the payment intent, never from the confirm request.
+        let recipient_details = payment_data
+            .payment_intent
+            .get_recipient_details()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to parse recipient details")?;
+
         let merchant_order_reference_id = payment_data
             .payment_intent
             .merchant_reference_id
@@ -5205,6 +5272,10 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             feature_metadata: None,
             installment_details: None,
             connector_intent_metadata: None,
+            is_account_funded_transaction: payment_data
+                .payment_intent
+                .is_account_funded_transaction,
+            recipient_details,
         })
     }
 }
@@ -5393,6 +5464,14 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
 
         let billing_descriptor = payment_data.payment_intent.get_billing_descriptor();
 
+        // Account funded transaction details are merchant supplied and are always read
+        // from the payment intent, never from the confirm request.
+        let recipient_details = payment_data
+            .payment_intent
+            .get_recipient_details()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to parse recipient details")?;
+
         Ok(Self {
             payment_method_data: (payment_method_data.get_required_value("payment_method_data")?),
             setup_future_usage: payment_data
@@ -5474,6 +5553,10 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsAuthoriz
             feature_metadata,
             installment_details: payment_data.payment_attempt.installment_data.clone(),
             connector_intent_metadata,
+            is_account_funded_transaction: payment_data
+                .payment_intent
+                .is_account_funded_transaction,
+            recipient_details,
         })
     }
 }
@@ -7033,6 +7116,14 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
 
         let billing_descriptor = payment_data.payment_intent.get_billing_descriptor();
 
+        // Account funded transaction details are merchant supplied and are always read
+        // from the payment intent, never from the confirm request.
+        let recipient_details = payment_data
+            .payment_intent
+            .get_recipient_details()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to parse recipient details")?;
+
         let merchant_order_reference_id = payment_data
             .payment_intent
             .merchant_order_reference_id
@@ -7118,6 +7209,10 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
                 .transpose()?,
             merchant_order_reference_id,
             mit_category: payment_data.payment_intent.mit_category,
+            is_account_funded_transaction: payment_data
+                .payment_intent
+                .is_account_funded_transaction,
+            recipient_details,
         })
     }
 }
@@ -7428,6 +7523,7 @@ impl ForeignFrom<CustomerDetails> for router_request_types::CustomerDetails {
             phone_country_code: customer.phone_country_code,
             tax_registration_id: customer.tax_registration_id,
             document_details: customer.document_details,
+            date_of_birth: customer.date_of_birth,
         }
     }
 }
@@ -8272,6 +8368,7 @@ pub async fn construct_payment_router_data_for_update_post_confirm<'a>(
         feature_data: None,
         sender_payment_instrument_id: None,
         connector_returned_payment_method_details: None,
+        customer_date_of_birth: None,
     };
 
     Ok(router_data)

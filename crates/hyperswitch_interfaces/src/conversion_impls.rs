@@ -97,6 +97,7 @@ fn get_default_router_data<F, Req, Resp>(
         minor_amount_capturable: None,
         authorized_amount: None,
         customer_document_details: None,
+        customer_date_of_birth: None,
         feature_data: None,
         sender_payment_instrument_id: None,
         connector_returned_payment_method_details: None,
