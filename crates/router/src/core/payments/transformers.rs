@@ -430,8 +430,6 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
             .and_then(|noon| noon.order_category.clone())
     });
 
-    // MIT is driven by the mandate reference the operation resolved, the same way v1 derives it.
-    // v2's payment intent has no `off_session` column, so there is no merchant override to apply.
     let is_off_session = get_off_session(payment_data.mandate_data.as_ref(), None);
 
     // TODO: few fields are repeated in both routerdata and request
