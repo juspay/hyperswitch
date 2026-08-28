@@ -8437,6 +8437,7 @@ dependencies = [
  "josekit",
  "jsonwebtoken",
  "kgraph_utils",
+ "libm",
  "maud",
  "mimalloc",
  "mime 0.3.17",

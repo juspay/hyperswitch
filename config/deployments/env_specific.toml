@@ -477,6 +477,7 @@ ucs_psync_disabled_connectors = "cashtocode, trustly"    # Comma-separated list 
 monitoring_threshold_in_seconds = 10368000
 retry_algorithm_type = "cascading"
 redis_ttl_in_seconds=3888000
+default_retry_hour_utc = 12 # fallback hour-of-day (UTC, 0-23) the mathmodel retries at when a cluster has no hour-of-day history
 
 # Card specific configuration for Revenue Recovery
 [revenue_recovery.card_config.amex]
