@@ -36,6 +36,7 @@ import getConnectorDetails, {
   shouldIncludeConnector,
   stringifyWithBigInt,
 } from "../e2e/configs/Payment/Utils";
+import { OFFER_QUOTE_ID_PLACEHOLDER } from "../e2e/configs/Payment/Commons";
 import { execConfig, validateConfig } from "../utils/featureFlags";
 import * as RequestBodyUtils from "../utils/RequestBodyUtils";
 import { isoTimeTomorrow, validateEnv } from "../utils/RequestBodyUtils.js";
@@ -3196,6 +3197,19 @@ Cypress.Commands.add(
     }
     if (!reqData?.offer_details && confirmBody.offer_details) {
       delete confirmBody.offer_details;
+    }
+    if (
+      confirmBody.offer_details?.offer_quote_ids?.includes(
+        OFFER_QUOTE_ID_PLACEHOLDER
+      )
+    ) {
+      const offerQuoteId = globalState.get("offerQuoteId");
+      expect(offerQuoteId, "offerQuoteId").to.not.be.undefined;
+
+      confirmBody.offer_details.offer_quote_ids =
+        confirmBody.offer_details.offer_quote_ids.map((id) =>
+          id === OFFER_QUOTE_ID_PLACEHOLDER ? offerQuoteId : id
+        );
     }
 
     if (reqData?.split_payments && supportsSplitPayments(globalState)) {
