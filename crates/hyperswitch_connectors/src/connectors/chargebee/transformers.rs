@@ -470,6 +470,7 @@ pub struct ChargebeeInvoicePayments {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ChargebeeTransactionData {
+    id: Option<String>,
     id_at_gateway: Option<String>,
     status: ChargebeeTranasactionStatus,
     error_code: Option<String>,
@@ -842,6 +843,7 @@ impl TryFrom<ChargebeeWebhookBody> for revenue_recovery::RevenueRecoveryAttemptD
             .content
             .transaction
             .id_at_gateway
+            .or(item.content.transaction.id)
             .map(common_utils::types::ConnectorTransactionId::TxnId);
         let error_code = item.content.transaction.error_code.clone();
         let error_message = item.content.transaction.error_text.clone();
