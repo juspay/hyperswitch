@@ -279,8 +279,7 @@ pub async fn custom_revenue_recovery_core(
                 .get_string_repr()
                 .to_string(),
         })?;
-    // Both ids arrive in the request body, so an account belonging to another profile
-    // must not be usable by the authenticated profile.
+
     utils::when(
         &payment_merchant_connector_account.profile_id != profile_id,
         || {
